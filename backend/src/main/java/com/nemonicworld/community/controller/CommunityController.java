@@ -14,14 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class CommunityController {
 
     @GetMapping("/{communityId}")
-    public ResponseEntity<ApiResponse<CommunityDetailResponse>> getCommunity(
-            @PathVariable Long communityId
-    ) {
-        CommunityDetailResponse response = new CommunityDetailResponse(
-                communityId,
-                "샘플 커뮤니티 제목",
-                "공통 API 응답 포맷 예시입니다."
-        );
+    public ResponseEntity<ApiResponse<CommunityDetailResponse>> getCommunity(@PathVariable Long communityId) {
+        CommunityDetailResponse response = new CommunityDetailResponse(communityId, "샘플 커뮤니티 제목",
+            "공통 API 응답 포맷 예시입니다.");
 
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success("커뮤니티 조회 성공", response));
     }
