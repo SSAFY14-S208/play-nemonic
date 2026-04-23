@@ -98,11 +98,13 @@ run_release() {
 rollback() {
   if [[ -n "$PREVIOUS_RELEASE" && -d "$PREVIOUS_RELEASE" && "$PREVIOUS_RELEASE" != "$RELEASE_DIR" ]]; then
     echo ""
-    echo "[!] 배포 실패. $PREVIOUS_RELEASE 로 롤백..." >&2
+    echo "[!] 배포 실패. current 링크만 $PREVIOUS_RELEASE 로 되돌림." >&2
+    echo "    (이전 버전의 deploy.sh는 실행하지 않음 - Jenkins 자살 방지)" >&2
+    echo "    컨테이너는 현재 상태 그대로 유지. 수동 점검 필요." >&2
     ln -sfn "$PREVIOUS_RELEASE" "$CURRENT_LINK"
-    ENV_FILE="$ENV_FILE" \
-    COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
-      bash "$PREVIOUS_RELEASE/deploy/deploy.sh" || true
+    # 주의: PREVIOUS_RELEASE의 deploy.sh는 실행하지 않음
+    # 옛날 버전의 deploy.sh가 docker compose up -d --build로 Jenkins까지
+    # 재생성해서 자기 자신을 죽이는 문제가 있었음
   else
     echo ""
     echo "[!] 롤백할 이전 릴리스가 없습니다. 컨테이너 상태를 수동 확인하세요." >&2

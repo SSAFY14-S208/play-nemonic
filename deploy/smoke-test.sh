@@ -64,10 +64,57 @@ compose exec -T minio \
   curl -fsS http://localhost:9000/minio/health/live
 
 # ============================================================
-# 5. Nginx -> App 전체 경로 확인
+# 5. App 컨테이너가 healthy 될 때까지 대기
 # ============================================================
 echo ""
-echo "[5/5] Nginx 경유 App 헬스체크"
+echo "[5/6] App healthy 상태 대기 (최대 3분)"
+
+MAX_WAIT=180   # 3분
+WAITED=0
+while [[ $WAITED -lt $MAX_WAIT ]]; do
+  # app 컨테이너의 Health 상태 조회
+  APP_CONTAINER=$(compose ps -q app 2>/dev/null | head -1)
+
+  if [[ -z "$APP_CONTAINER" ]]; then
+    echo "  app 컨테이너를 찾을 수 없습니다..."
+    sleep 5
+    WAITED=$((WAITED + 5))
+    continue
+  fi
+
+  HEALTH=$(docker inspect --format='{{.State.Health.Status}}' "$APP_CONTAINER" 2>/dev/null || echo "unknown")
+
+  case "$HEALTH" in
+    healthy)
+      echo "  app healthy 확인 (대기 시간: ${WAITED}초)"
+      break
+      ;;
+    unhealthy)
+      echo "  [ERROR] app 컨테이너가 unhealthy 상태입니다." >&2
+      echo "  로그 확인: docker logs $APP_CONTAINER" >&2
+      docker logs --tail=50 "$APP_CONTAINER" >&2 || true
+      exit 1
+      ;;
+    starting|unknown|*)
+      printf "  기동 중... (${WAITED}s/${MAX_WAIT}s) status=${HEALTH}\r"
+      sleep 5
+      WAITED=$((WAITED + 5))
+      ;;
+  esac
+done
+
+if [[ $WAITED -ge $MAX_WAIT ]]; then
+  echo ""
+  echo "  [ERROR] app이 ${MAX_WAIT}초 내 healthy 상태가 되지 않음" >&2
+  docker logs --tail=50 "$APP_CONTAINER" >&2 || true
+  exit 1
+fi
+
+# ============================================================
+# 6. Nginx -> App 전체 경로 확인
+# ============================================================
+echo ""
+echo "[6/6] Nginx 경유 App 헬스체크"
 # 자체 서명 인증서라 -k 필요
 # 호스트명은 Host 헤더로 넘기고 실제 접속은 localhost
 curl -fsSk -H "Host: ${DOMAIN}" \
