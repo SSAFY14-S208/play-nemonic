@@ -20,9 +20,8 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '5'))
     }
 
-    tools {
-        jdk 'jdk21'
-    }
+    // JDK는 Jenkins 컨테이너 이미지(jenkins/jenkins:lts-jdk21)에 내장된 것을 사용
+    // 별도의 JDK tool 등록 불필요
 
     parameters {
         string(name: 'DEPLOY_BASE_DIR',
