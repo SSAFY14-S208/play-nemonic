@@ -1,0 +1,176 @@
+services:
+  # ============================================================
+  # Nginx - 단일 진입점 (443)
+  # - 외부에 노출되는 유일한 웹 서버
+  # - /jenkins/, /minio/, /api/ 등 path 기반 라우팅
+  # ============================================================
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - jenkins
+      - minio
+    networks:
+      - cicd-net
+
+  # ============================================================
+  # Jenkins - CI/CD 자동 배포
+  # - 외부 노출 없음 (nginx가 프록시)
+  # - docker.sock 마운트로 호스트의 docker 제어
+  # ============================================================
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    restart: unless-stopped
+    user: root
+    environment:
+      # path 기반 프록시를 위한 설정
+      JENKINS_OPTS: "--prefix=/jenkins"
+      # Reverse proxy 경고 제거
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=true -Dhudson.model.DirectoryBrowserSupport.CSP="
+    expose:
+      - "8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
+      # Jenkins Pipeline이 호스트의 배포 디렉토리에 접근
+      - /opt/nemonic:/opt/nemonic
+    networks:
+      - cicd-net
+
+  # ============================================================
+  # PostgreSQL - 외부 노출 없음
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - cicd-net
+
+  # ============================================================
+  # Redis - 외부 노출 없음, 비밀번호 필수
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - cicd-net
+
+  # ============================================================
+  # MinIO - S3 호환 오브젝트 스토리지
+  # - API(9000), Console(9001) 둘 다 nginx 경유
+  # ============================================================
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # nginx 뒤에 있을 때 Console이 올바른 URL을 생성하도록
+      MINIO_BROWSER_REDIRECT_URL: https://${DOMAIN}/minio/
+      # MINIO_SERVER_URL은 S3 API를 외부에 노출할 때만 설정
+      # 외부 노출 없이 앱에서만 쓸 거면 비워두는 게 안전
+      # MINIO_SERVER_URL: https://${DOMAIN}/s3/
+    expose:
+      - "9000"
+      - "9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - cicd-net
+
+  # ============================================================
+  # Spring Boot 애플리케이션
+  # - nginx를 통해 /api/ 로 접근
+  # ============================================================
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8080
+      # DB
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      # Redis
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # MinIO (S3 호환)
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-nemonic}
+      # JVM
+      JAVA_OPTS: "-Xms512m -Xmx1024m"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - cicd-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  jenkins_home:
+
+networks:
+  cicd-net:
+    driver: bridge

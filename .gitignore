@@ -2,3 +2,27 @@
 .claude/
 *.iml
 .DS_Store
+.env
+.env.*
+!*.example
+!*.example.*
+release-*.tar.gz
+release.tar.gz
+
+# 환경변수 (비밀번호 포함)
+deploy/.env.prod
+.env.prod
+.env
+
+# SSL 인증서
+deploy/nginx/certs/
+*.pem
+*.key
+*.crt
+
+# Jenkins 빌드 산출물
+release*.tar.gz
+
+# SSH 키
+*.ppk
+id_rsa*
