@@ -112,13 +112,17 @@ fi
 
 # ============================================================
 # 6. Nginx -> App 전체 경로 확인
+# Jenkins 컨테이너 안에서 실행되므로 127.0.0.1 대신
+# Docker 네트워크 내부의 nginx 컨테이너 이름으로 접근
 # ============================================================
 echo ""
 echo "[6/6] Nginx 경유 App 헬스체크"
-# 자체 서명 인증서라 -k 필요
-# 호스트명은 Host 헤더로 넘기고 실제 접속은 localhost
+
+# docker 네트워크 안에서 nginx 컨테이너에 직접 요청
+# -k: 자체 서명 인증서 허용
+# Host 헤더로 nginx의 server_name에 매칭
 curl -fsSk -H "Host: ${DOMAIN}" \
-  "https://127.0.0.1/actuator/health" \
+  "https://nginx/actuator/health" \
   | head -c 500
 
 echo ""
