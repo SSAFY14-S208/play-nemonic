@@ -21,11 +21,15 @@ services:
 
   # ============================================================
   # Jenkins - CI/CD 자동 배포
+  # - 커스텀 이미지 (docker CLI + compose 플러그인 내장)
   # - 외부 노출 없음 (nginx가 프록시)
   # - docker.sock 마운트로 호스트의 docker 제어
   # ============================================================
   jenkins:
-    image: jenkins/jenkins:lts-jdk21
+    build:
+      context: ./jenkins
+      dockerfile: Dockerfile
+    image: nemonic/jenkins:latest
     restart: unless-stopped
     user: root
     environment:
@@ -38,7 +42,6 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker:ro
       # Jenkins Pipeline이 호스트의 배포 디렉토리에 접근
       - /opt/nemonic:/opt/nemonic
     networks:
