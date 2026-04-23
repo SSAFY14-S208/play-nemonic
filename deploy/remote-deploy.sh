@@ -43,7 +43,16 @@ ENV_FILE="${ENV_FILE:-$BASE_DIR/shared/.env.prod}"
 RELEASES_DIR="$BASE_DIR/releases"
 CURRENT_LINK="$BASE_DIR/current"
 RELEASE_DIR="$RELEASES_DIR/$RELEASE_NAME"
-PREVIOUS_RELEASE="$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)"
+
+# 이전 릴리스 계산 - 심볼릭 링크가 자기 자신이나 잘못된 곳을 가리키면 무시
+PREVIOUS_RELEASE=""
+if [[ -L "$CURRENT_LINK" ]]; then
+  _resolved="$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)"
+  # releases 디렉토리 안의 유효한 경로만 이전 릴리스로 인정
+  if [[ -n "$_resolved" && -d "$_resolved" && "$_resolved" == "$RELEASES_DIR"/* ]]; then
+    PREVIOUS_RELEASE="$_resolved"
+  fi
+fi
 
 echo "=========================================="
 echo "원격 배포 시작"
@@ -93,10 +102,14 @@ rollback() {
     ln -sfn "$PREVIOUS_RELEASE" "$CURRENT_LINK"
     ENV_FILE="$ENV_FILE" \
     COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
-      bash "$CURRENT_LINK/deploy/deploy.sh" || true
+      bash "$PREVIOUS_RELEASE/deploy/deploy.sh" || true
   else
     echo ""
     echo "[!] 롤백할 이전 릴리스가 없습니다. 컨테이너 상태를 수동 확인하세요." >&2
+    # current 링크가 방금 실패한 릴리스를 가리키면 제거 (다음 배포 혼선 방지)
+    if [[ -L "$CURRENT_LINK" ]] && [[ "$(readlink -f "$CURRENT_LINK")" == "$RELEASE_DIR" ]]; then
+      rm -f "$CURRENT_LINK"
+    fi
   fi
 }
 
