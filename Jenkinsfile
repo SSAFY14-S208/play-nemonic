@@ -3,15 +3,18 @@
 //
 // 동작:
 // 1. GitLab be/dev push → Webhook 트리거
-// 2. backend/ 코드 테스트
-// 3. docker build → Registry에 push (이미지 태그: BUILD_NUMBER + SHA)
-// 4. EC2의 remote-deploy.sh 호출 → docker pull + 컨테이너 재시작
-// 5. Mattermost 알림
+// 2. ⏳ 배포 시작 Mattermost 알림
+// 3. backend/ 코드 테스트
+// 4. docker build → Registry에 push
+// 5. EC2의 remote-deploy.sh 호출 → docker pull + 컨테이너 재시작
+// 6. ✅/❌ 배포 결과 Mattermost 알림
 //
-// 변경 사항 (이전 버전 대비):
-// - tar -czf 제거
-// - docker build + docker push 추가
-// - Registry: localhost:5000/nemonic/app
+// Registry 호스트명 주의:
+// - docker build/push는 Jenkins 컨테이너에서 호출하지만,
+//   실제로는 호스트의 docker daemon에서 실행됨 (docker.sock 마운트)
+// - 따라서 호스트 daemon이 알아들을 수 있는 이름 'localhost:5000' 사용
+// - 'registry:5000'은 Jenkins 컨테이너 내부 DNS에서만 풀리고,
+//   호스트 daemon은 모름 → DNS lookup 실패
 // ============================================================
 
 pipeline {
@@ -44,9 +47,7 @@ pipeline {
         COMPOSE_PROJECT_NAME = 'nemonic-prod'
         HOST_BASE_DIR        = "${params.DEPLOY_BASE_DIR}"
         DEPLOY_TARGET        = 'backend'
-        // Jenkins 컨테이너에서 Registry 접근 시 사용 (같은 docker network)
-        REGISTRY_INTERNAL    = 'registry:5000'
-        // 호스트에서 Registry 접근 시 사용
+        // 호스트 docker daemon에서 인식 가능한 Registry 주소
         REGISTRY_HOST        = 'localhost:5000'
         IMAGE_REPO           = 'nemonic/app'
     }
@@ -70,10 +71,19 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     env.RELEASE_NAME = "release-be-${BUILD_NUMBER}-${env.SHORT_SHA}"
-                    env.IMAGE_TAG = "${REGISTRY_INTERNAL}/${IMAGE_REPO}:${env.RELEASE_NAME}"
-                    env.IMAGE_LATEST = "${REGISTRY_INTERNAL}/${IMAGE_REPO}:latest"
+                    env.IMAGE_TAG = "${REGISTRY_HOST}/${IMAGE_REPO}:${env.RELEASE_NAME}"
+                    env.IMAGE_LATEST = "${REGISTRY_HOST}/${IMAGE_REPO}:latest"
                     echo "Release name: ${env.RELEASE_NAME}"
                     echo "Image tag: ${env.IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Notify Start') {
+            when { expression { params.NOTIFY_MM } }
+            steps {
+                script {
+                    notifyMattermost('started')
                 }
             }
         }
@@ -104,7 +114,6 @@ pipeline {
                     
                     echo "Building image: ${IMAGE_TAG}"
                     
-                    # Jenkins 컨테이너의 docker daemon 사용 (mounted /var/run/docker.sock)
                     docker build \
                       -t "${IMAGE_TAG}" \
                       -t "${IMAGE_LATEST}" \
@@ -122,15 +131,14 @@ pipeline {
                     
                     echo "Pushing to Registry..."
                     
-                    # 버전 태그 push
                     docker push "${IMAGE_TAG}"
-                    
-                    # latest 태그 push
                     docker push "${IMAGE_LATEST}"
                     
-                    echo "Registry contents:"
-                    curl -sf http://registry:5000/v2/_catalog || true
-                    curl -sf http://registry:5000/v2/${IMAGE_REPO}/tags/list || true
+                    echo "Registry catalog:"
+                    curl -sf http://localhost:5000/v2/_catalog || true
+                    echo ""
+                    echo "Tags for ${IMAGE_REPO}:"
+                    curl -sf "http://localhost:5000/v2/${IMAGE_REPO}/tags/list" || true
                 '''
             }
         }
@@ -193,7 +201,6 @@ pipeline {
             }
         }
         always {
-            // 빌드한 이미지 정리 (Registry에 push했으니 로컬은 필요없음)
             sh '''
                 docker image prune -f >/dev/null 2>&1 || true
             '''
@@ -210,6 +217,11 @@ def notifyMattermost(String status) {
         def emoji
         def title
         switch (status) {
+            case 'started':
+                color = '#3399FF'
+                emoji = '⏳'
+                title = 'Backend 배포 시작'
+                break
             case 'success':
                 color = '#36A64F'
                 emoji = '✅'
@@ -236,16 +248,21 @@ def notifyMattermost(String status) {
         def author     = env.COMMIT_AUTHOR ?: 'unknown'
         def buildNum   = env.BUILD_NUMBER ?: '?'
         def buildUrl   = env.BUILD_URL ?: ''
-        def duration   = currentBuild.durationString.replace(' and counting', '')
         def releaseNm  = env.RELEASE_NAME ?: 'N/A'
         def branch     = env.BRANCH_NAME ?: 'be/dev'
+
+        def durationLine = ''
+        if (status != 'started') {
+            def duration = currentBuild.durationString.replace(' and counting', '')
+            durationLine = " (${duration})"
+        }
 
         def text = """${emoji} **${title}**
 
 **브랜치**: \\`${branch}\\`
 **커밋**: \\`${shortSha}\\` - ${commitMsg}
 **작성자**: ${author}
-**빌드**: [#${buildNum}](${buildUrl}console) (${duration})
+**빌드**: [#${buildNum}](${buildUrl}console)${durationLine}
 **릴리스**: \\`${releaseNm}\\`"""
 
         def payload = groovy.json.JsonOutput.toJson([
