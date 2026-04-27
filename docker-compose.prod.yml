@@ -45,7 +45,7 @@ services:
     volumes:
       - registry_data:/var/lib/registry
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:5000/v2/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/v2/"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -141,7 +141,7 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -182,7 +182,7 @@ services:
     expose:
       - "8080"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -208,7 +208,7 @@ services:
     expose:
       - "3000"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
       interval: 15s
       timeout: 5s
       retries: 10
