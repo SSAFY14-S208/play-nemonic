@@ -40,7 +40,6 @@ services:
     restart: unless-stopped
     environment:
       REGISTRY_STORAGE_DELETE_ENABLED: "true"
-      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin: "[*]"
     ports:
       # 호스트 docker daemon이 127.0.0.1:5000으로 pull 가능하도록
       - "127.0.0.1:5000:5000"
