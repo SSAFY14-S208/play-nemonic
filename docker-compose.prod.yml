@@ -25,8 +25,7 @@ services:
     depends_on:
       - jenkins
       - minio
-      # frontend는 Next.js 코드 올라온 후 추가
-      # - frontend
+      - frontend
     networks:
       - cicd-net
 
@@ -192,24 +191,27 @@ services:
       - cicd-net
 
   # ============================================================
-  # Frontend (Next.js 또는 React)
+  # Frontend (Next.js 16 Standalone)
   # Registry에서 pull
   # 이미지: localhost:5000/nemonic/frontend:latest
-  # 코드 도착 전엔 사용 안 함
   # ============================================================
   frontend:
     image: localhost:5000/nemonic/frontend:latest
     pull_policy: always
     restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      # 백엔드 API endpoint (서버사이드 요청 시 사용)
+      # 클라이언트사이드는 /api로 nginx 프록시 통과
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
     expose:
-      - "3000"   # Next.js 기본 포트 (코드 도착 시 조정)
-    profiles:
-      - frontend  # frontend 프로필 활성화 시에만 동작
+      - "3000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
       interval: 15s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 30s
     networks:
       - cicd-net
