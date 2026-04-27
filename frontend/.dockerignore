@@ -1,0 +1,57 @@
+# node_modules는 컨테이너 안에서 새로 설치
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js 빌드 결과물
+.next
+out
+
+# 환경 파일 (이미지에 포함하지 않음)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 개발 도구
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# 문서
+README.md
+CHANGELOG.md
+docs/
+
+# 테스트
+coverage/
+.nyc_output
+
+# 로그
+*.log
+logs/
+
+# 빌드 캐시
+.cache
+.parcel-cache
+
+# TypeScript
+*.tsbuildinfo
+
+# Jenkins
+Jenkinsfile
+
+# Public 디렉토리는 포함 (Next.js standalone에서 별도 복사 필요)
+# !public/  ← 이건 Dockerfile에서 명시적으로 COPY함

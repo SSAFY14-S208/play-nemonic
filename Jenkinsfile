@@ -1,0 +1,268 @@
+// ============================================================
+// Frontend Pipeline (fe/dev 브랜치, Registry 기반)
+//
+// 동작:
+// 1. GitLab fe/dev push → Webhook 트리거
+// 2. ⏳ 배포 시작 Mattermost 알림
+// 3. frontend/ 코드 빌드 (Next.js)
+// 4. docker build → Registry에 push
+// 5. EC2의 remote-deploy.sh 호출 → docker pull + 컨테이너 재시작
+// 6. ✅/❌ 배포 결과 Mattermost 알림
+// ============================================================
+
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '5'))
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    parameters {
+        string(name: 'DEPLOY_BASE_DIR',
+               defaultValue: '/opt/nemonic',
+               description: '호스트 기준 배포 디렉토리')
+        booleanParam(name: 'RUN_DEPLOY',
+                     defaultValue: true,
+                     description: '체크 시 배포 진행')
+        booleanParam(name: 'NOTIFY_MM',
+                     defaultValue: true,
+                     description: 'Mattermost 알림 전송 여부')
+    }
+
+    environment {
+        APP_NAME             = 'nemonic'
+        COMPOSE_PROJECT_NAME = 'nemonic-prod'
+        HOST_BASE_DIR        = "${params.DEPLOY_BASE_DIR}"
+        DEPLOY_TARGET        = 'frontend'
+        REGISTRY_HOST        = 'localhost:5000'
+        IMAGE_REPO           = 'nemonic/frontend'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.SHORT_SHA = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+                    env.COMMIT_MSG = sh(
+                        script: "git log -1 --pretty=%s",
+                        returnStdout: true
+                    ).trim()
+                    env.COMMIT_AUTHOR = sh(
+                        script: "git log -1 --pretty=%an",
+                        returnStdout: true
+                    ).trim()
+                    env.RELEASE_NAME = "release-fe-${BUILD_NUMBER}-${env.SHORT_SHA}"
+                    env.IMAGE_TAG = "${REGISTRY_HOST}/${IMAGE_REPO}:${env.RELEASE_NAME}"
+                    env.IMAGE_LATEST = "${REGISTRY_HOST}/${IMAGE_REPO}:latest"
+                    echo "Release name: ${env.RELEASE_NAME}"
+                    echo "Image tag: ${env.IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Notify Start') {
+            when { expression { params.NOTIFY_MM } }
+            steps {
+                script {
+                    notifyMattermost('started')
+                }
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                sh '''
+                    set -euo pipefail
+                    
+                    echo "Building image: ${IMAGE_TAG}"
+                    
+                    docker build \
+                      -t "${IMAGE_TAG}" \
+                      -t "${IMAGE_LATEST}" \
+                      frontend/
+                    
+                    docker images | grep "${IMAGE_REPO}" | head -5
+                '''
+            }
+        }
+
+        stage('Push to Registry') {
+            steps {
+                sh '''
+                    set -euo pipefail
+                    
+                    echo "Pushing to Registry..."
+                    
+                    docker push "${IMAGE_TAG}"
+                    docker push "${IMAGE_LATEST}"
+                    
+                    echo "Registry catalog:"
+                    curl -sf http://localhost:5000/v2/_catalog || true
+                    echo ""
+                    echo "Tags for ${IMAGE_REPO}:"
+                    curl -sf "http://localhost:5000/v2/${IMAGE_REPO}/tags/list" || true
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                expression {
+                    def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
+                    return params.RUN_DEPLOY && (
+                        branch ==~ /(origin\/)?fe\/dev/
+                    )
+                }
+            }
+            steps {
+                sh '''
+                    set -euo pipefail
+
+                    INFRA_DIR="${HOST_BASE_DIR}/infra"
+
+                    if [ ! -d "${INFRA_DIR}" ]; then
+                      echo "[ERROR] ${INFRA_DIR} 없음. infra/dev 클론 필요." >&2
+                      exit 1
+                    fi
+
+                    APP_NAME="${APP_NAME}" \
+                    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}" \
+                    bash "${INFRA_DIR}/deploy/remote-deploy.sh" \
+                      --base-dir "${HOST_BASE_DIR}" \
+                      --release "${RELEASE_NAME}" \
+                      --env-file "${HOST_BASE_DIR}/shared/.env.prod" \
+                      --target frontend
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Frontend 배포 성공: ${env.RELEASE_NAME ?: 'N/A'}"
+            script {
+                if (params.NOTIFY_MM) {
+                    notifyMattermost('success')
+                }
+            }
+        }
+        failure {
+            echo "Frontend 배포 실패. 로그 확인."
+            script {
+                if (params.NOTIFY_MM) {
+                    notifyMattermost('failure')
+                }
+            }
+        }
+        aborted {
+            echo "Frontend 배포 중단됨."
+            script {
+                if (params.NOTIFY_MM) {
+                    notifyMattermost('aborted')
+                }
+            }
+        }
+        always {
+            sh '''
+                docker image prune -f >/dev/null 2>&1 || true
+            '''
+        }
+    }
+}
+
+// ============================================================
+// Mattermost 알림 함수
+// ============================================================
+def notifyMattermost(String status) {
+    try {
+        def color
+        def emoji
+        def title
+        switch (status) {
+            case 'started':
+                color = '#3399FF'
+                emoji = '⏳'
+                title = 'Frontend 배포 시작'
+                break
+            case 'success':
+                color = '#36A64F'
+                emoji = '✅'
+                title = 'Frontend 배포 성공'
+                break
+            case 'failure':
+                color = '#D00000'
+                emoji = '❌'
+                title = 'Frontend 배포 실패'
+                break
+            case 'aborted':
+                color = '#808080'
+                emoji = '⚠️'
+                title = 'Frontend 배포 중단'
+                break
+            default:
+                color = '#FFA500'
+                emoji = 'ℹ️'
+                title = "Frontend 배포 ${status}"
+        }
+
+        def shortSha   = env.SHORT_SHA ?: 'unknown'
+        def commitMsg  = (env.COMMIT_MSG ?: 'N/A').replaceAll('\n', ' ')
+        def author     = env.COMMIT_AUTHOR ?: 'unknown'
+        def buildNum   = env.BUILD_NUMBER ?: '?'
+        def buildUrl   = env.BUILD_URL ?: ''
+        def releaseNm  = env.RELEASE_NAME ?: 'N/A'
+        def branch     = env.BRANCH_NAME ?: 'fe/dev'
+
+        def durationLine = ''
+        if (status != 'started') {
+            def duration = currentBuild.durationString.replace(' and counting', '')
+            durationLine = " (${duration})"
+        }
+
+        def text = """${emoji} **${title}**
+
+**브랜치**: \\`${branch}\\`
+**커밋**: \\`${shortSha}\\` - ${commitMsg}
+**작성자**: ${author}
+**빌드**: [#${buildNum}](${buildUrl}console)${durationLine}
+**릴리스**: \\`${releaseNm}\\`"""
+
+        def payload = groovy.json.JsonOutput.toJson([
+            username  : 'Jenkins',
+            icon_emoji: ':jenkins:',
+            attachments: [[
+                color: color,
+                text : text
+            ]]
+        ])
+
+        writeFile file: 'mm-payload.json', text: payload
+
+        withCredentials([string(credentialsId: 'mm-webhook-url', variable: 'WEBHOOK_URL')]) {
+            sh '''
+                set +e
+                curl -sS -X POST \
+                  -H "Content-Type: application/json" \
+                  --data @mm-payload.json \
+                  --max-time 10 \
+                  "$WEBHOOK_URL"
+                EXIT_CODE=$?
+                if [ $EXIT_CODE -ne 0 ]; then
+                  echo "[WARN] MM 알림 실패 (exit code: $EXIT_CODE) - 무시하고 계속"
+                fi
+                rm -f mm-payload.json
+                exit 0
+            '''
+        }
+    } catch (Exception e) {
+        echo "[WARN] MM 알림 중 에러: ${e.message} (무시하고 계속)"
+    }
+}
