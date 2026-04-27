@@ -1,9 +1,12 @@
 # ============================================================
-# infra/main 브랜치의 docker-compose.prod.yml
+# infra/dev 브랜치의 docker-compose.prod.yml
+#
+# Registry 기반 배포로 전환:
+# - app, frontend는 build: 가 아닌 image: 사용
+# - Jenkins가 이미지 빌드 + push
+# - EC2 호스트는 docker pull만
 #
 # 실행 위치: /opt/nemonic/infra/
-# build context는 항상 /opt/nemonic/current/{backend,frontend}/ 가리킴
-#   (current는 심볼릭 링크, 최신 release를 가리킴)
 # ============================================================
 
 services:
@@ -28,6 +31,31 @@ services:
       - cicd-net
 
   # ============================================================
+  # Container Registry - 자체 호스팅 Docker Registry
+  # 외부 노출 없음 (localhost:5000 또는 컨테이너 간 registry:5000)
+  # Jenkins가 push, EC2 호스트가 pull
+  # ============================================================
+  registry:
+    image: registry:2
+    restart: unless-stopped
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin: "[*]"
+    ports:
+      # 호스트 docker daemon이 127.0.0.1:5000으로 pull 가능하도록
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/v2/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - cicd-net
+
+  # ============================================================
   # Jenkins - CI/CD 자동 배포
   # ============================================================
   jenkins:
@@ -45,8 +73,10 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
-      # Jenkins Pipeline이 호스트 배포 디렉토리 접근
       - /opt/nemonic:/opt/nemonic
+    depends_on:
+      registry:
+        condition: service_healthy
     networks:
       - cicd-net
 
@@ -123,13 +153,12 @@ services:
 
   # ============================================================
   # Spring Boot 애플리케이션
-  # build context: 외부 current 심볼릭 링크 (최신 backend release)
+  # Registry에서 pull (build 안 함)
+  # 이미지: localhost:5000/nemonic/app:latest
   # ============================================================
   app:
-    build:
-      context: /opt/nemonic/current/backend
-      dockerfile: Dockerfile
-    image: nemonic/app:latest
+    image: localhost:5000/nemonic/app:latest
+    pull_policy: always   # 매번 pull 시도 (latest 태그 갱신 감지)
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -164,25 +193,25 @@ services:
       - cicd-net
 
   # ============================================================
-  # Frontend (React + Vite + TS)
-  # build context: 외부 current 심볼릭 링크 (최신 frontend release)
+  # Frontend (Next.js 또는 React)
+  # Registry에서 pull
+  # 이미지: localhost:5000/nemonic/frontend:latest
+  # 코드 도착 전엔 사용 안 함
   # ============================================================
   frontend:
-    build:
-      context: /opt/nemonic/current/frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_BASE_URL: /api
-    image: nemonic/frontend:latest
+    image: localhost:5000/nemonic/frontend:latest
+    pull_policy: always
     restart: unless-stopped
     expose:
-      - "80"
+      - "3000"   # Next.js 기본 포트 (코드 도착 시 조정)
+    profiles:
+      - frontend  # frontend 프로필 활성화 시에만 동작
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
     networks:
       - cicd-net
 
@@ -191,6 +220,7 @@ volumes:
   redis_data:
   minio_data:
   jenkins_home:
+  registry_data:
 
 networks:
   cicd-net:

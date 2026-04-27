@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # 배포 직후 헬스체크 (smoke test)
-# DEPLOY_TARGET에 따라 검증 범위 다름:
-# - backend  : DB/Redis/MinIO/App + Nginx 경유 actuator
-# - frontend : Frontend healthz + Nginx 경유 / 응답
-# - all      : 둘 다
+# DEPLOY_TARGET에 따라 검증 범위 다름
 # ============================================================
 set -euo pipefail
 
@@ -24,11 +21,17 @@ set -a
 source "$ENV_FILE"
 set +a
 
+PROFILE_ARGS=""
+if [[ "$DEPLOY_TARGET" == "frontend" || "$DEPLOY_TARGET" == "all" ]]; then
+  PROFILE_ARGS="--profile frontend"
+fi
+
 compose() {
   docker compose \
     -p "$COMPOSE_PROJECT_NAME" \
     --env-file "$ENV_FILE" \
     -f "$COMPOSE_FILE" \
+    $PROFILE_ARGS \
     "$@"
 }
 
@@ -36,9 +39,6 @@ echo "=========================================="
 echo "Smoke Test ($DEPLOY_TARGET)"
 echo "=========================================="
 
-# ============================================================
-# 컨테이너 상태 (공통)
-# ============================================================
 echo ""
 echo "[공통] 컨테이너 상태"
 compose ps
