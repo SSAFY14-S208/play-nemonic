@@ -31,7 +31,8 @@ src/
 │           └── page.tsx
 │
 ├── worlds/
-│   ├── WorldCanvas.tsx           # Canvas 진입점 ('use client' 선언)
+│   ├── WorldCanvas.tsx           # Canvas 진입점 ('use client' 선언, <Canvas> 유일)
+│   ├── WorldLoader.tsx           # dynamic + ssr:false 래퍼 ('use client')
 │   ├── {scene}/
 │   │   ├── index.ts
 │   │   ├── {Scene}Scene.tsx      # 씬 루트 (메인 Canvas 컨텍스트)
@@ -254,16 +255,21 @@ worlds/home/useHomeInteraction.ts
 
 `app/` 디렉토리 파일은 **라우팅 진입점과 메타데이터 선언만** 담당합니다.
 
+**Next.js 16에서 `dynamic + ssr: false`는 Server Component에서 사용 불가** — `WorldLoader.tsx` Client Component 래퍼를 경유합니다.
+
 ```tsx
-// app/page.tsx
+// worlds/WorldLoader.tsx  ← 'use client' 래퍼
+"use client";
 import dynamic from "next/dynamic";
-
-const WorldCanvas = dynamic(() => import("@/worlds/WorldCanvas"), {
-  ssr: false,
-});
-
-export default function Page() {
+const WorldCanvas = dynamic(() => import("./WorldCanvas"), { ssr: false });
+export default function WorldLoader() {
   return <WorldCanvas />;
+}
+
+// app/page.tsx  ← Server Component (dynamic/ssr:false 코드 없음)
+import WorldLoader from "@/worlds/WorldLoader";
+export default function Page() {
+  return <WorldLoader />;
 }
 ```
 
@@ -307,15 +313,16 @@ import ky from "ky";
 
 const client = ky.create({
   prefix: process.env.NEXT_PUBLIC_API_URL, // ky v2: prefixUrl → prefix
+  timeout: 30_000,
   hooks: {
     beforeRequest: [
-      (request) => {
+      ({ request }) => {
         const token = getToken();
         if (token) request.headers.set("Authorization", `Bearer ${token}`);
       },
     ],
     afterResponse: [
-      async (_request, _options, response) => {
+      async ({ response }) => {
         if (response.status === 401) {
           // 인증 만료 처리
         }

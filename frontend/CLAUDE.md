@@ -4,7 +4,7 @@
 
 Next.js 16 (App Router) + TypeScript + Tailwind CSS v4
 @react-three/fiber · @react-three/drei · @react-three/rapier · three · Zustand
-ky · @supabase/supabase-js · shadcn/ui · @base-ui/react · lucide-react · motion
+ky · shadcn/ui · @base-ui/react · lucide-react · motion
 konva · react-konva
 패키지 매니저: **pnpm**
 React Compiler (babel-plugin-react-compiler) 활성화됨
@@ -18,7 +18,7 @@ React Compiler (babel-plugin-react-compiler) 활성화됨
 
 ```bash
 pnpm add next react react-dom @react-three/fiber @react-three/drei @react-three/rapier three
-pnpm add @base-ui/react @supabase/supabase-js ky lucide-react motion konva react-konva zustand
+pnpm add @base-ui/react ky lucide-react motion konva react-konva zustand
 pnpm add -D typescript @types/node @types/react @types/react-dom @types/three eslint eslint-config-next tailwindcss @tailwindcss/postcss postcss
 ```
 
@@ -26,19 +26,18 @@ pnpm add -D typescript @types/node @types/react @types/react-dom @types/three es
 
 새 프로젝트를 시작하거나 기존 프로젝트에 참여할 때, `package.json`의 `dependencies`에 아래 항목이 모두 있는지 확인합니다. 하나라도 없으면 즉시 설치합니다.
 
-| 패키지 | 용도 |
-|--------|------|
-| `@react-three/fiber` | R3F — Three.js React 렌더러 |
-| `@react-three/drei` | R3F 헬퍼 (Grid, Sky, OrbitControls 등) |
-| `@react-three/rapier` | 물리 엔진 — 충돌·경계·센서 처리 |
-| `three` | Three.js 코어 |
-| `zustand` | 전역 상태 관리 |
-| `ky` | HTTP 클라이언트 |
-| `@supabase/supabase-js` | Supabase 클라이언트 |
-| `@base-ui/react` | shadcn/ui primitive |
-| `lucide-react` | 아이콘 |
-| `motion` | DOM 애니메이션 |
-| `konva` + `react-konva` | 2D 캔버스 |
+| 패키지                  | 용도                                   |
+| ----------------------- | -------------------------------------- |
+| `@react-three/fiber`    | R3F — Three.js React 렌더러            |
+| `@react-three/drei`     | R3F 헬퍼 (Grid, Sky, OrbitControls 등) |
+| `@react-three/rapier`   | 물리 엔진 — 충돌·경계·센서 처리        |
+| `three`                 | Three.js 코어                          |
+| `zustand`               | 전역 상태 관리                         |
+| `ky`                    | HTTP 클라이언트                        |
+| `@base-ui/react`        | shadcn/ui primitive                    |
+| `lucide-react`          | 아이콘                                 |
+| `motion`                | DOM 애니메이션                         |
+| `konva` + `react-konva` | 2D 캔버스                              |
 
 ---
 
@@ -83,18 +82,30 @@ src/
 │       └── {Name}Mesh.tsx
 │
 ├── shared/
+│   ├── apis/                         # 백엔드 API 호출 함수 (도메인별 분리)
+│   │   ├── index.ts
+│   │   └── {domain}Api.ts
+│   ├── constants/                    # 전역 상수
+│   │   ├── index.ts
+│   │   └── {name}.ts
 │   ├── hooks/
 │   │   ├── index.ts
 │   │   └── use{Name}.ts
-│   ├── store/
-│   │   ├── index.ts
-│   │   └── {name}Store.ts
-│   ├── lib/
+│   ├── libs/
 │   │   ├── index.ts
 │   │   └── apiClient.ts
-│   └── ui/
+│   ├── stores/
+│   │   ├── index.ts
+│   │   └── {name}Store.ts
+│   ├── types/                        # 공유 TypeScript 타입 정의
+│   │   ├── index.ts
+│   │   └── {domain}.ts
+│   ├── ui/
+│   │   ├── index.ts
+│   │   └── {name}.tsx
+│   └── utils/                        # 순수 유틸리티 함수
 │       ├── index.ts
-│       └── {name}.tsx
+│       └── {name}.ts
 │
 └── styles/
     ├── index.css                 # 전역 스타일 (@import "tailwindcss")
@@ -108,13 +119,13 @@ src/
 
 ## 폴더 네이밍
 
-| 위치 | 케이스 | 예시 |
-|------|--------|------|
-| 최상위 도메인 폴더 | `lowercase` | `worlds/`, `features/`, `shared/` |
-| 씬 / 도메인 하위 | `lowercase` | `outside/`, `home/` |
-| 도구 하위 | `lowercase` | `hooks/`, `store/`, `ui/`, `lib/`, `objects/` |
-| feature 단위 | `kebab-case` | `drawing-canvas/`, `label-printer/` |
-| 인프라 공유 | `_prefix` | `_infra/`, `_shared/` |
+| 위치               | 케이스       | 예시                                          |
+| ------------------ | ------------ | --------------------------------------------- |
+| 최상위 도메인 폴더 | `lowercase`  | `worlds/`, `features/`, `shared/`             |
+| 씬 / 도메인 하위   | `lowercase`  | `outside/`, `home/`                           |
+| 도구 하위 (복수형) | `lowercase`  | `apis/`, `constants/`, `hooks/`, `libs/`, `stores/`, `types/`, `ui/`, `utils/`, `objects/` |
+| feature 단위       | `kebab-case` | `drawing-canvas/`, `label-printer/`           |
+| 인프라 공유        | `_prefix`    | `_infra/`, `_shared/`                         |
 
 ---
 
@@ -124,18 +135,18 @@ src/
 
 ### 금지: 단일 문자·무의미한 축약어
 
-| ❌ 금지 | ✅ 올바른 예 |
-|---------|------------|
-| `p` | `doorOpenProgress` |
-| `u` | `uniformScale` |
-| `d` | `delta` |
-| `t` | `texture` / `elapsedTime` |
-| `BH` | `BODY_HEIGHT` |
-| `BD` | `BODY_DEPTH` |
-| `HW` | `HALF_WIDTH` |
-| `CY` | `ARCH_CENTER_Y` |
-| `cb` | `onComplete` / `callback` |
-| `idx` | `index` |
+| ❌ 금지 | ✅ 올바른 예              |
+| ------- | ------------------------- |
+| `p`     | `doorOpenProgress`        |
+| `u`     | `uniformScale`            |
+| `d`     | `delta`                   |
+| `t`     | `texture` / `elapsedTime` |
+| `BH`    | `BODY_HEIGHT`             |
+| `BD`    | `BODY_DEPTH`              |
+| `HW`    | `HALF_WIDTH`              |
+| `CY`    | `ARCH_CENTER_Y`           |
+| `cb`    | `onComplete` / `callback` |
+| `idx`   | `index`                   |
 
 ### 규칙
 
@@ -146,41 +157,41 @@ src/
 
 ```ts
 // ❌ 금지
-const BH = 0.7
-const p = doorOpenProgress.current
-meshRef.current.scale.x = u * (1 - p)
+const BH = 0.7;
+const p = doorOpenProgress.current;
+meshRef.current.scale.x = u * (1 - p);
 
 // ✅ 올바른 예
-const BODY_HEIGHT = 0.7
-const progress = doorOpenProgress.current
-meshRef.current.scale.x = uniformScale * (1 - progress)
+const BODY_HEIGHT = 0.7;
+const progress = doorOpenProgress.current;
+meshRef.current.scale.x = uniformScale * (1 - progress);
 ```
 
 ---
 
 ## 파일 네이밍
 
-| 종류 | 케이스 | 예시 |
-|------|--------|------|
-| React 컴포넌트 | `PascalCase.tsx` | `HomeScene.tsx`, `DrawingCanvas.tsx` |
-| shadcn UI 프리미티브 | `lowercase.tsx` | `drawer.tsx`, `button.tsx` |
-| 훅 | `camelCase.ts` | `useCharacterControls.ts` |
-| 스토어 | `camelCase.ts` | `canvasStore.ts` |
-| 상수 | `constants.ts` (고정) | |
-| 유틸 | `camelCase.ts` | `utils.ts` |
-| 배럴 | `index.ts` (고정) | |
+| 종류                 | 케이스                | 예시                                 |
+| -------------------- | --------------------- | ------------------------------------ |
+| React 컴포넌트       | `PascalCase.tsx`      | `HomeScene.tsx`, `DrawingCanvas.tsx` |
+| shadcn UI 프리미티브 | `lowercase.tsx`       | `drawer.tsx`, `button.tsx`           |
+| 훅                   | `camelCase.ts`        | `useCharacterControls.ts`            |
+| 스토어               | `camelCase.ts`        | `canvasStore.ts`                     |
+| 상수                 | `constants.ts` (고정) |                                      |
+| 유틸                 | `camelCase.ts`        | `utils.ts`                           |
+| 배럴                 | `index.ts` (고정)     |                                      |
 
 ### 파일명 접미사
 
-| 접미사 | 의미 | 위치 |
-|--------|------|------|
-| `*Scene.tsx` | 씬 루트. 메인 `<Canvas>` 컨텍스트를 이어받음 | `worlds/{scene}/` |
-| `*Mesh.tsx` | 3D 지오메트리 단위. `<Canvas>` 선언 없음 | `worlds/`, `features/` |
-| `*Visual.tsx` | 독립 `<Canvas>`를 소유하는 3D 컴포넌트 | `features/` |
-| `*Modal.tsx` | DOM 오버레이 모달 | `features/` |
-| `*Canvas.tsx` | Konva 2D 캔버스 컴포넌트 | `features/` |
-| `use*Interaction.ts` | 씬 상호작용 훅 (거리 감지 + 키 이벤트) | `worlds/{scene}/` |
-| `use*.ts` | 그 외 React 훅 | `features/`, `shared/hooks/` |
+| 접미사               | 의미                                         | 위치                         |
+| -------------------- | -------------------------------------------- | ---------------------------- |
+| `*Scene.tsx`         | 씬 루트. 메인 `<Canvas>` 컨텍스트를 이어받음 | `worlds/{scene}/`            |
+| `*Mesh.tsx`          | 3D 지오메트리 단위. `<Canvas>` 선언 없음     | `worlds/`, `features/`       |
+| `*Visual.tsx`        | 독립 `<Canvas>`를 소유하는 3D 컴포넌트       | `features/`                  |
+| `*Modal.tsx`         | DOM 오버레이 모달                            | `features/`                  |
+| `*Canvas.tsx`        | Konva 2D 캔버스 컴포넌트                     | `features/`                  |
+| `use*Interaction.ts` | 씬 상호작용 훅 (거리 감지 + 키 이벤트)       | `worlds/{scene}/`            |
+| `use*.ts`            | 그 외 React 훅                               | `features/`, `shared/hooks/` |
 
 ---
 
@@ -189,15 +200,18 @@ meshRef.current.scale.x = uniformScale * (1 - progress)
 `*.tsx` 파일은 **렌더링만** 담당합니다. 아래 항목은 반드시 별도 파일로 분리합니다.
 
 **훅(`use*.ts`)으로 분리:**
+
 - API 호출
 - 데이터 변환 / 계산 로직
 - `useFrame` 기반 3D 로직
 - 게임 로직 (거리 감지, 충돌 판정)
 
 **스토어(`*Store.ts`)로 분리:**
+
 - 여러 컴포넌트에 영향을 주는 상태
 
 **컴포넌트 안에 있어도 되는 것:**
+
 - `isOpen`, `isHovered` 같은 순수 UI 상태
 - 버튼 클릭 → 모달 열기 같은 단순 UI 흐름
 
@@ -227,7 +241,7 @@ export default function LabelPrinter() {
 app → worlds · features → shared
 ```
 
-- `features/` 간 직접 import 금지 → `shared/store/` 경유
+- `features/` 간 직접 import 금지 → `shared/stores/` 경유
 - `worlds/`↔`features/` 컴포넌트/훅 직접 import 금지
 - `shared/`는 어느 레이어에서도 참조 가능
 
@@ -252,12 +266,14 @@ worlds/home/useHomeInteraction.ts
 ### `'use client'` 판단 기준
 
 **붙여야 하는 경우:**
+
 - `useState`, `useEffect`, `useRef` 등 React 훅 사용
 - `onClick`, `onChange` 등 이벤트 핸들러 직접 사용
 - `window`, `localStorage` 등 브라우저 전용 API 사용
 - R3F, drei, rapier 등 WebGL 관련 코드 포함
 
 **붙이지 않아도 되는 경우 (서버 컴포넌트 유지):**
+
 - 위 항목이 하나도 없는 순수 렌더링 컴포넌트
 - `async/await`로 백엔드 API를 서버에서 직접 호출하는 컴포넌트
 
@@ -269,17 +285,17 @@ worlds/home/useHomeInteraction.ts
 
 ```tsx
 // worlds/WorldLoader.tsx  ← Client Component 래퍼
-'use client'
-import dynamic from 'next/dynamic'
-const WorldCanvas = dynamic(() => import('./WorldCanvas'), { ssr: false })
+"use client";
+import dynamic from "next/dynamic";
+const WorldCanvas = dynamic(() => import("./WorldCanvas"), { ssr: false });
 export default function WorldLoader() {
-  return <WorldCanvas />
+  return <WorldCanvas />;
 }
 
 // app/page.tsx  ← Server Component (ssr:false 코드 없음)
-import WorldLoader from '@/worlds/WorldLoader'
+import WorldLoader from "@/worlds/WorldLoader";
 export default function Page() {
-  return <WorldLoader />
+  return <WorldLoader />;
 }
 ```
 
@@ -287,11 +303,13 @@ export default function Page() {
 // app/share/[id]/page.tsx
 export async function generateMetadata({ params }) {
   // OG 태그만 여기서 처리 — 백엔드 API 호출 가능
-  const result = await fetch(`${process.env.API_URL}/results/${params.id}`).then(r => r.json())
-  return { openGraph: { title: result.name, images: [result.imageUrl] } }
+  const result = await fetch(
+    `${process.env.API_URL}/results/${params.id}`,
+  ).then((r) => r.json());
+  return { openGraph: { title: result.name, images: [result.imageUrl] } };
 }
 export default function SharePage({ params }) {
-  return <ShareFeature id={params.id} />  // 실제 UI는 features/에서
+  return <ShareFeature id={params.id} />; // 실제 UI는 features/에서
 }
 ```
 
@@ -320,17 +338,17 @@ export default function SharePage({ params }) {
 이 프로젝트는 Spring/NestJS 백엔드와 협업합니다. DB를 직접 조작하지 않으며, 모든 데이터는 백엔드 API를 통해서만 접근합니다.
 
 ```ts
-// shared/lib/apiClient.ts
-import ky from 'ky'
+// shared/libs/apiClient.ts
+import ky from "ky";
 
 const client = ky.create({
-  prefix: process.env.NEXT_PUBLIC_API_URL,  // ky v2: prefixUrl → prefix
+  prefix: process.env.NEXT_PUBLIC_API_URL, // ky v2: prefixUrl → prefix
   timeout: 30_000,
   hooks: {
     beforeRequest: [
       (request) => {
-        const token = getToken()
-        if (token) request.headers.set('Authorization', `Bearer ${token}`)
+        const token = getToken();
+        if (token) request.headers.set("Authorization", `Bearer ${token}`);
       },
     ],
     afterResponse: [
@@ -338,18 +356,20 @@ const client = ky.create({
         if (response.status === 401) {
           // 인증 만료 처리
         }
-        return response
+        return response;
       },
     ],
   },
-})
+});
 
 export const api = {
   get: <T>(path: string) => client.get(path).json<T>(),
-  post: <T>(path: string, body: unknown) => client.post(path, { json: body }).json<T>(),
-  put: <T>(path: string, body: unknown) => client.put(path, { json: body }).json<T>(),
+  post: <T>(path: string, body: unknown) =>
+    client.post(path, { json: body }).json<T>(),
+  put: <T>(path: string, body: unknown) =>
+    client.put(path, { json: body }).json<T>(),
   delete: <T>(path: string) => client.delete(path).json<T>(),
-}
+};
 ```
 
 - 모든 API 호출은 `api.get/post/put/delete`를 통해서만 진행
@@ -393,12 +413,12 @@ export const api = {
 
 #### RigidBody 타입 선택 기준
 
-| 타입 | 사용 대상 |
-|------|-----------|
-| `kinematicPosition` | 캐릭터, 외부 데이터(WebSocket/API)로 위치가 갱신되는 설비·로봇 |
-| `fixed` | 바닥, 벽, 고정 구조물 |
-| `dynamic` | 물리적으로 자유 반응이 필요한 물체 (자유낙하, 밀림 등) |
-| `sensor: true` Collider | 충돌 이벤트만 감지, 물리 반응 없음 (근접 감지 범위) |
+| 타입                    | 사용 대상                                                      |
+| ----------------------- | -------------------------------------------------------------- |
+| `kinematicPosition`     | 캐릭터, 외부 데이터(WebSocket/API)로 위치가 갱신되는 설비·로봇 |
+| `fixed`                 | 바닥, 벽, 고정 구조물                                          |
+| `dynamic`               | 물리적으로 자유 반응이 필요한 물체 (자유낙하, 밀림 등)         |
+| `sensor: true` Collider | 충돌 이벤트만 감지, 물리 반응 없음 (근접 감지 범위)            |
 
 `kinematicPosition`은 이동을 코드가 제어하고 충돌 처리는 물리 엔진이 담당합니다.  
 `dynamic`을 캐릭터에 쓰면 물리 연산이 이동을 방해하므로 **절대 금지**합니다.
@@ -407,17 +427,17 @@ export const api = {
 
 ```tsx
 // worlds/_infra/Character.tsx
-import { RigidBody, CapsuleCollider } from '@react-three/rapier'
+import { RigidBody, CapsuleCollider } from "@react-three/rapier";
 
 export default function Character() {
-  const rb = useRef<RapierRigidBody>(null)
-  useCharacterMovement(rb)
+  const rb = useRef<RapierRigidBody>(null);
+  useCharacterMovement(rb);
   return (
     <RigidBody ref={rb} type="kinematicPosition" colliders={false}>
       <CapsuleCollider args={[0.4, 0.4]} />
       <group>{/* 3D 모델 */}</group>
     </RigidBody>
-  )
+  );
 }
 ```
 
@@ -426,11 +446,11 @@ export default function Character() {
 ```ts
 // worlds/_infra/hooks/useCharacterMovement.ts
 useFrame((_, delta) => {
-  if (!rb.current) return
-  const pos = rb.current.translation()
+  if (!rb.current) return;
+  const pos = rb.current.translation();
   // 다음 위치 계산 후
-  rb.current.setNextKinematicTranslation({ x: nextX, y: pos.y, z: nextZ })
-})
+  rb.current.setNextKinematicTranslation({ x: nextX, y: pos.y, z: nextZ });
+});
 ```
 
 `groupRef.current.position`을 직접 수정하는 패턴은 Rapier 도입 후 **금지**합니다.
@@ -455,7 +475,12 @@ WebSocket/API로 받은 위치 데이터를 `useFrame` 안에서 `setNextKinemat
 설비 근접 감지처럼 물리 반응 없이 이벤트만 필요한 경우 `sensor` Collider를 사용합니다.
 
 ```tsx
-<RigidBody type="fixed" sensor onIntersectionEnter={onEnter} onIntersectionExit={onExit}>
+<RigidBody
+  type="fixed"
+  sensor
+  onIntersectionEnter={onEnter}
+  onIntersectionExit={onExit}
+>
   <SphereCollider args={[3]} />
 </RigidBody>
 ```
@@ -467,11 +492,11 @@ WebSocket/API로 받은 위치 데이터를 `useFrame` 안에서 `setNextKinemat
 캐릭터는 `KinematicCharacterController`의 `computeColliderMovement`로 이동합니다.  
 이 메서드는 Rapier World에 등록된 **모든 Collider**를 대상으로 충돌을 계산합니다.
 
-| mesh 상태 | 캐릭터 충돌 |
-|-----------|------------|
-| `RigidBody` + Collider 있음 (`fixed` / `kinematicPosition` / `dynamic`) | 막힘 ✅ |
-| 일반 `<mesh>` (RigidBody 없음) | 통과 ❌ |
-| `sensor: true` Collider | 통과 — 이벤트만 발생 ❌ |
+| mesh 상태                                                               | 캐릭터 충돌             |
+| ----------------------------------------------------------------------- | ----------------------- |
+| `RigidBody` + Collider 있음 (`fixed` / `kinematicPosition` / `dynamic`) | 막힘 ✅                 |
+| 일반 `<mesh>` (RigidBody 없음)                                          | 통과 ❌                 |
+| `sensor: true` Collider                                                 | 통과 — 이벤트만 발생 ❌ |
 
 **새 구조물·설비를 추가할 때는 반드시 `RigidBody`로 감싸야 캐릭터가 막힙니다.**  
 Controller 코드는 수정하지 않아도 자동으로 반응합니다.
@@ -490,14 +515,14 @@ Controller 코드는 수정하지 않아도 자동으로 반응합니다.
 
 ```tsx
 // worlds/{scene}/GroundMesh.tsx
-import { RigidBody } from '@react-three/rapier'
+import { RigidBody } from "@react-three/rapier";
 
 <RigidBody type="fixed">
   <mesh rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[50, 50]} />
     <meshStandardMaterial color="#6b8f52" />
   </mesh>
-</RigidBody>
+</RigidBody>;
 ```
 
 보이지 않는 경계벽도 `fixed` RigidBody + `CuboidCollider`로 구성합니다.
@@ -511,17 +536,17 @@ import { RigidBody } from '@react-three/rapier'
 
 ```tsx
 // ❌ 금지 — 60fps 리렌더 유발
-const [intensity, setIntensity] = useState(0)
+const [intensity, setIntensity] = useState(0);
 useFrame(({ clock }) => {
-  setIntensity(Math.sin(clock.elapsedTime * 5))
-})
+  setIntensity(Math.sin(clock.elapsedTime * 5));
+});
 
 // ✅ 올바른 방식 — Three.js 객체를 ref로 직접 조작
-const lightRef = useRef<PointLight>(null)
+const lightRef = useRef<PointLight>(null);
 useFrame(({ clock }) => {
-  if (!lightRef.current) return
-  lightRef.current.intensity = Math.sin(clock.elapsedTime * 5)
-})
+  if (!lightRef.current) return;
+  lightRef.current.intensity = Math.sin(clock.elapsedTime * 5);
+});
 ```
 
 #### R3F 씬 내 `setInterval`/`setTimeout` 애니메이션 폴링 금지
@@ -533,21 +558,21 @@ R3F 씬 안에서 애니메이션 완료를 `setInterval`로 폴링하면 R3F �
 // ❌ 금지
 const check = setInterval(() => {
   if (Math.abs(mesh.position.y - target) < 0.01) {
-    clearInterval(check)
-    onComplete()
+    clearInterval(check);
+    onComplete();
   }
-}, 50)
+}, 50);
 
 // ✅ 올바른 방식 — useFrame 내 조건 검사
-const checking = useRef(false)
+const checking = useRef(false);
 // (애니메이션 시작 시) checking.current = true
 useFrame(() => {
-  if (!checking.current) return
+  if (!checking.current) return;
   if (Math.abs(mesh.position.y - target) < 0.01) {
-    checking.current = false
-    onComplete()
+    checking.current = false;
+    onComplete();
   }
-})
+});
 ```
 
 #### `TextureLoader` 사용 시 `LoadingManager` 격리
@@ -557,12 +582,12 @@ useFrame(() => {
 
 ```ts
 // worlds/{scene}/textureLoader.ts — 씬 단위 공유 싱글턴
-import { LoadingManager } from 'three'
-export const isolatedManager = new LoadingManager()
+import { LoadingManager } from "three";
+export const isolatedManager = new LoadingManager();
 
 // ❌ 금지 — 각 파일에 중복 선언
-const isolatedManager = new LoadingManager() // DrawingDoorMesh.tsx
-const isolatedManager = new LoadingManager() // useOnboardingPrinterInteraction.ts
+const isolatedManager = new LoadingManager(); // DrawingDoorMesh.tsx
+const isolatedManager = new LoadingManager(); // useOnboardingPrinterInteraction.ts
 ```
 
 #### `useEffect` 내 `setState` 동기 호출 금지 (React Compiler 규칙)
@@ -574,24 +599,26 @@ React Compiler(`babel-plugin-react-compiler`) 활성화 상태에서 `useEffect`
 // ❌ 금지 — 동기 setState
 useEffect(() => {
   if (!url) {
-    setTexture(null) // 오류: synchronous setState in effect
-    return
+    setTexture(null); // 오류: synchronous setState in effect
+    return;
   }
   // ...
-}, [url])
+}, [url]);
 
 // ✅ 올바른 방식 — async IIFE 안에서 처리
 useEffect(() => {
-  let cancelled = false
-  ;(async () => {
+  let cancelled = false;
+  (async () => {
     if (!url) {
-      if (!cancelled) setTexture(null)
-      return
+      if (!cancelled) setTexture(null);
+      return;
     }
     // ...
-  })()
-  return () => { cancelled = true }
-}, [url])
+  })();
+  return () => {
+    cancelled = true;
+  };
+}, [url]);
 ```
 
 ---
@@ -626,8 +653,8 @@ useEffect(() => {
 - prefix 없음: 서버 컴포넌트 / API Route에서만 사용 (시크릿 키 등)
 
 ```ts
-process.env.NEXT_PUBLIC_API_URL       // ✅ 클라이언트에서 접근 가능
-process.env.SUPABASE_SERVICE_ROLE_KEY // ❌ 클라이언트에서 접근 불가 → undefined
+process.env.NEXT_PUBLIC_API_URL; // ✅ 클라이언트에서 접근 가능
+process.env.SECRET_API_KEY; // ❌ 클라이언트에서 접근 불가 → undefined
 ```
 
 ---
@@ -639,10 +666,10 @@ process.env.SUPABASE_SERVICE_ROLE_KEY // ❌ 클라이언트에서 접근 불가
 
 ```ts
 // ✅ 올바른 import
-import { useInteractiveObject } from '@/features/interaction-sheet'
+import { useInteractiveObject } from "@/features/interaction-sheet";
 
 // ❌ 금지 — 내부 경로 직접 참조
-import { useInteractiveObject } from '@/features/interaction-sheet/useInteractiveObject'
+import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiveObject";
 ```
 
 ---
