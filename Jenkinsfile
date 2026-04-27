@@ -1,14 +1,17 @@
 // ============================================================
-// Backend Pipeline (be/dev 브랜치 전용)
+// Backend Pipeline (be/dev 브랜치, Registry 기반)
 //
 // 동작:
 // 1. GitLab be/dev push → Webhook 트리거
-// 2. backend/ 코드 테스트 + tar.gz 패키징
-// 3. EC2의 /opt/nemonic/infra/deploy/remote-deploy.sh 실행
-// 4. 배포 성공/실패 시 Mattermost 알림 전송
+// 2. backend/ 코드 테스트
+// 3. docker build → Registry에 push (이미지 태그: BUILD_NUMBER + SHA)
+// 4. EC2의 remote-deploy.sh 호출 → docker pull + 컨테이너 재시작
+// 5. Mattermost 알림
 //
-// 인프라는 EC2의 /opt/nemonic/infra/ 에 영구 clone되어 있음.
-// 빌드 산출물(tar.gz)에는 backend/ 폴더만 포함.
+// 변경 사항 (이전 버전 대비):
+// - tar -czf 제거
+// - docker build + docker push 추가
+// - Registry: localhost:5000/nemonic/app
 // ============================================================
 
 pipeline {
@@ -40,8 +43,12 @@ pipeline {
         APP_NAME             = 'nemonic'
         COMPOSE_PROJECT_NAME = 'nemonic-prod'
         HOST_BASE_DIR        = "${params.DEPLOY_BASE_DIR}"
-        RELEASE_ARCHIVE      = 'release-be.tar.gz'
         DEPLOY_TARGET        = 'backend'
+        // Jenkins 컨테이너에서 Registry 접근 시 사용 (같은 docker network)
+        REGISTRY_INTERNAL    = 'registry:5000'
+        // 호스트에서 Registry 접근 시 사용
+        REGISTRY_HOST        = 'localhost:5000'
+        IMAGE_REPO           = 'nemonic/app'
     }
 
     stages {
@@ -63,9 +70,10 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     env.RELEASE_NAME = "release-be-${BUILD_NUMBER}-${env.SHORT_SHA}"
+                    env.IMAGE_TAG = "${REGISTRY_INTERNAL}/${IMAGE_REPO}:${env.RELEASE_NAME}"
+                    env.IMAGE_LATEST = "${REGISTRY_INTERNAL}/${IMAGE_REPO}:latest"
                     echo "Release name: ${env.RELEASE_NAME}"
-                    echo "Author: ${env.COMMIT_AUTHOR}"
-                    echo "Message: ${env.COMMIT_MSG}"
+                    echo "Image tag: ${env.IMAGE_TAG}"
                 }
             }
         }
@@ -89,12 +97,40 @@ pipeline {
             }
         }
 
-        stage('Package') {
+        stage('Build Image') {
             steps {
                 sh '''
                     set -euo pipefail
-                    tar -czf "${RELEASE_ARCHIVE}" backend/
-                    ls -lh "${RELEASE_ARCHIVE}"
+                    
+                    echo "Building image: ${IMAGE_TAG}"
+                    
+                    # Jenkins 컨테이너의 docker daemon 사용 (mounted /var/run/docker.sock)
+                    docker build \
+                      -t "${IMAGE_TAG}" \
+                      -t "${IMAGE_LATEST}" \
+                      backend/
+                    
+                    docker images | grep "${IMAGE_REPO}" | head -5
+                '''
+            }
+        }
+
+        stage('Push to Registry') {
+            steps {
+                sh '''
+                    set -euo pipefail
+                    
+                    echo "Pushing to Registry..."
+                    
+                    # 버전 태그 push
+                    docker push "${IMAGE_TAG}"
+                    
+                    # latest 태그 push
+                    docker push "${IMAGE_LATEST}"
+                    
+                    echo "Registry contents:"
+                    curl -sf http://registry:5000/v2/_catalog || true
+                    curl -sf http://registry:5000/v2/${IMAGE_REPO}/tags/list || true
                 '''
             }
         }
@@ -112,7 +148,6 @@ pipeline {
                 sh '''
                     set -euo pipefail
 
-                    INCOMING_DIR="${HOST_BASE_DIR}/incoming"
                     INFRA_DIR="${HOST_BASE_DIR}/infra"
 
                     if [ ! -d "${INFRA_DIR}" ]; then
@@ -120,14 +155,10 @@ pipeline {
                       exit 1
                     fi
 
-                    mkdir -p "${INCOMING_DIR}"
-                    cp "${RELEASE_ARCHIVE}" "${INCOMING_DIR}/${RELEASE_NAME}.tar.gz"
-
                     APP_NAME="${APP_NAME}" \
                     COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}" \
                     bash "${INFRA_DIR}/deploy/remote-deploy.sh" \
                       --base-dir "${HOST_BASE_DIR}" \
-                      --archive "${INCOMING_DIR}/${RELEASE_NAME}.tar.gz" \
                       --release "${RELEASE_NAME}" \
                       --env-file "${HOST_BASE_DIR}/shared/.env.prod" \
                       --target backend
@@ -162,17 +193,16 @@ pipeline {
             }
         }
         always {
-            archiveArtifacts artifacts: 'release-be*.tar.gz',
-                             fingerprint: true,
-                             onlyIfSuccessful: false,
-                             allowEmptyArchive: true
+            // 빌드한 이미지 정리 (Registry에 push했으니 로컬은 필요없음)
+            sh '''
+                docker image prune -f >/dev/null 2>&1 || true
+            '''
         }
     }
 }
 
 // ============================================================
 // Mattermost 알림 함수
-// 알림 실패가 빌드 전체 실패로 이어지지 않도록 try-catch 처리
 // ============================================================
 def notifyMattermost(String status) {
     try {
@@ -181,17 +211,17 @@ def notifyMattermost(String status) {
         def title
         switch (status) {
             case 'success':
-                color = '#36A64F'  // 녹색
+                color = '#36A64F'
                 emoji = '✅'
                 title = 'Backend 배포 성공'
                 break
             case 'failure':
-                color = '#D00000'  // 빨강
+                color = '#D00000'
                 emoji = '❌'
                 title = 'Backend 배포 실패'
                 break
             case 'aborted':
-                color = '#808080'  // 회색
+                color = '#808080'
                 emoji = '⚠️'
                 title = 'Backend 배포 중단'
                 break
@@ -218,7 +248,6 @@ def notifyMattermost(String status) {
 **빌드**: [#${buildNum}](${buildUrl}console) (${duration})
 **릴리스**: \\`${releaseNm}\\`"""
 
-        // JSON payload 생성 (특수문자 자동 이스케이프)
         def payload = groovy.json.JsonOutput.toJson([
             username  : 'Jenkins',
             icon_emoji: ':jenkins:',
