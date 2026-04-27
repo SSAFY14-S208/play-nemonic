@@ -7,7 +7,7 @@
 Next.js 16 App Router · TypeScript · Tailwind CSS v4  
 @react-three/fiber · @react-three/drei · @react-three/rapier · Zustand  
 three  
-ky · @supabase/supabase-js · shadcn/ui (@base-ui/react) · lucide-react · motion  
+ky · shadcn/ui (@base-ui/react) · lucide-react · motion  
 konva · react-konva · pnpm
 
 ---
@@ -19,7 +19,7 @@ konva · react-konva · pnpm
 
 ```bash
 pnpm add next react react-dom @react-three/fiber @react-three/drei @react-three/rapier three
-pnpm add @base-ui/react @supabase/supabase-js ky lucide-react motion konva react-konva zustand
+pnpm add @base-ui/react ky lucide-react motion konva react-konva zustand
 pnpm add -D typescript @types/node @types/react @types/react-dom @types/three eslint eslint-config-next tailwindcss @tailwindcss/postcss postcss
 ```
 
@@ -33,7 +33,6 @@ Before writing any code, verify `package.json` contains **all** of the following
 | `three`                 | Three.js core                             |
 | `zustand`               | Global state                              |
 | `ky`                    | HTTP client                               |
-| `@supabase/supabase-js` | Supabase client                           |
 | `@base-ui/react`        | shadcn/ui primitive                       |
 | `lucide-react`          | Icons                                     |
 | `motion`                | DOM animation                             |
@@ -94,7 +93,7 @@ app → worlds · features → shared
 
 Cross-layer rules:
 
-- `features/` ↔ `features/`: no direct import — use `shared/store/`
+- `features/` ↔ `features/`: no direct import — use `shared/stores/`
 - `worlds/` ↔ `features/`: no direct import — `use*Interaction.ts` may write to feature stores only
 - `shared/`: importable from any layer
 
@@ -116,9 +115,9 @@ Cross-layer rules:
 | Feature business logic       | `features/{feature-name}/` | `use{FeatureName}.ts`      |
 | Feature state                | `features/{feature-name}/` | `{featureName}Store.ts`    |
 | Feature 3D canvas            | `features/{feature-name}/` | `{FeatureName}Visual.tsx`  |
-| Cross-feature shared state   | `shared/store/`            | `{name}Store.ts`           |
+| Cross-feature shared state   | `shared/stores/`           | `{name}Store.ts`           |
 | Shared hook                  | `shared/hooks/`            | `use{Name}.ts`             |
-| API client                   | `shared/lib/`              | `apiClient.ts`             |
+| API client                   | `shared/libs/`             | `apiClient.ts`             |
 | shadcn UI primitive          | `shared/ui/`               | `{name}.tsx` (lowercase)   |
 
 ---
@@ -179,24 +178,22 @@ export default function LabelPrinter() {
 ### app/ files — server by default
 
 - `app/` files are routing entry points and metadata only — real UI comes from `worlds/` and `features/`
-- R3F Canvas must always be loaded with `dynamic + ssr: false`
+- R3F Canvas must always be loaded with `dynamic + ssr: false` — but this must happen inside a Client Component (`WorldLoader.tsx`), not directly in a Server Component page
 - Common layout (Header, Footer, etc.) goes in `app/layout.tsx` only — never repeated in `page.tsx`
 
 ```tsx
-// app/page.tsx
+// worlds/WorldLoader.tsx  ← 'use client' wrapper handles dynamic import
+"use client";
 import dynamic from "next/dynamic";
-import { Suspense } from "react";
+const WorldCanvas = dynamic(() => import("./WorldCanvas"), { ssr: false });
+export default function WorldLoader() {
+  return <WorldCanvas />;
+}
 
-const WorldCanvas = dynamic(() => import("@/worlds/WorldCanvas"), {
-  ssr: false,
-});
-
+// app/page.tsx  ← Server Component, no dynamic/ssr:false here
+import WorldLoader from "@/worlds/WorldLoader";
 export default function Page() {
-  return (
-    <Suspense fallback={<LoadingScreen />}>
-      <WorldCanvas />
-    </Suspense>
-  );
+  return <WorldLoader />;
 }
 ```
 
@@ -230,10 +227,10 @@ export default function SharePage({ params }) {
 
 This project uses a Spring/NestJS backend. Do NOT access the database directly. All data goes through the backend API.
 
-All HTTP requests go through `shared/lib/apiClient.ts`:
+All HTTP requests go through `shared/libs/apiClient.ts`:
 
 ```ts
-import { api } from "@/shared/lib";
+import { api } from "@/shared/libs";
 
 const data = await api.get<User[]>("/users");
 const result = await api.post<Post>("/posts", { title: "..." });
@@ -282,8 +279,7 @@ For flat/digital-twin scenes where gravity is irrelevant, use `gravity={[0, 0, 0
 
 ```tsx
 // worlds/_infra/Character.tsx
-import { RigidBody, CapsuleCollider } from "@react-three/rapier";
-import type { RigidBody as RapierRigidBody } from "@dimforge/rapier3d-compat";
+import { RigidBody, CapsuleCollider, type RapierRigidBody } from "@react-three/rapier";
 
 export default function Character() {
   const rb = useRef<RapierRigidBody>(null);
