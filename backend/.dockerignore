@@ -1,36 +1,37 @@
-# ============================================================
-# Docker 빌드 시 제외할 파일들 (캐시 효율 + 이미지 크기 최적화)
-# ============================================================
+# Docker build context exclusions
 
-# Gradle 빌드 산출물 (Docker 안에서 다시 빌드함)
+# Gradle and harness caches
 .gradle
+.gradle-user-home
+.m2-repository
+.tool-home
 build
 out
 *.log
 
-# IDE 메타데이터
+# IDE metadata
 .idea
 .vscode
 *.iml
 .run
 
-# Git 메타데이터 (Docker 빌드에 불필요)
+# Git metadata
 .git
 .gitignore
 .gitattributes
 .editorconfig
 
-# 환경변수 (절대 이미지에 들어가면 안 됨!)
+# Environment files
 .env
 .env.local
 .env.example
 
-# 문서 (이미지에 불필요)
+# Documentation
 README.md
 CHANGELOG.md
 *.md
 
-# 테스트 결과
+# Test outputs
 test-results
 build/test-results
 build/reports
