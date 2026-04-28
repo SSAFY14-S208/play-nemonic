@@ -108,7 +108,7 @@ services:
       LS_JAVA_OPTS: "-Xms256m -Xmx512m"
     volumes:
       - ./logging/logstash/pipeline:/usr/share/logstash/pipeline:ro
-      - ./logging/logstash/config:/usr/share/logstash/config:ro
+      - ./logging/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
     networks:
       - cicd-net
 
