@@ -23,7 +23,6 @@ services:
       - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/nginx/certs:/etc/nginx/certs:ro
       - ./deploy/nginx/.htpasswd_dashboards:/etc/nginx/.htpasswd_dashboards:ro
-      ...
     depends_on:
       - jenkins
       - minio
