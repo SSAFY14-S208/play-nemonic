@@ -1,9 +1,9 @@
 package com.nemonicworld;
 
+import com.nemonicworld.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@IntegrationTest
 class BackendApplicationTests {
 
     @Test
