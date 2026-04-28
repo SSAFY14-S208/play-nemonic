@@ -2,7 +2,7 @@ name: nemonic-logging
 
 services:
   kafka:
-    image: apache/kafka:3.7.1
+    image: confluentinc/cp-kafka:7.5.4
     container_name: nemonic-logging-kafka
     restart: unless-stopped
     mem_limit: 1g
@@ -37,7 +37,7 @@ services:
     networks:
       - cicd-net
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server 127.0.0.1:9092 >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server 127.0.0.1:9092 >/dev/null 2>&1 || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 10
@@ -95,7 +95,7 @@ services:
       start_period: 90s
 
   logstash:
-    image: opensearchproject/logstash-oss-with-opensearch-output-plugin:8.14.0
+    image: opensearchproject/logstash-oss-with-opensearch-output-plugin:8.9.0
     container_name: nemonic-logging-logstash
     restart: unless-stopped
     mem_limit: 1g
