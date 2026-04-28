@@ -1,0 +1,2 @@
+# Sensitive files (do not commit)
+deploy/nginx/.htpasswd*
