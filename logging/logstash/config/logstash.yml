@@ -8,4 +8,3 @@ pipeline.batch.delay: 50
 log.level: info
 path.logs: /usr/share/logstash/logs
 
-xpack.monitoring.enabled: false
