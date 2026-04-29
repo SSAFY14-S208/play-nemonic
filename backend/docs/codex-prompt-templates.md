@@ -239,6 +239,31 @@
 - 문제가 없으면 없다고 말하고 남은 리스크만 적어줘.
 ```
 
+## 커밋 요청
+
+```md
+현재 변경사항을 커밋해줘.
+
+## Commit Message
+<커밋 메시지>
+
+## Scope
+- 커밋에 포함할 파일/변경:
+- 커밋에서 제외할 파일/변경:
+
+## Required Actions
+- 커밋 전에 `backend/scripts/format.ps1`를 먼저 실행한다.
+- 포매팅으로 바뀐 파일은 같은 커밋에 포함한다.
+- 포매팅 후 관련 검증을 실행한다.
+- `git status`로 staged/unstaged 파일을 확인한다.
+- 의도한 파일만 stage한 뒤 커밋한다.
+
+## Verification
+- 기본: `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1`
+- 작은 변경에서 빠른 루프가 필요하면: `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1 -Fast`
+- DB migration 변경 시: `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1`
+```
+
 ## 큰 작업을 서브에이전트로 나누기
 
 ```md
