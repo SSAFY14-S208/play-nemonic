@@ -5,33 +5,35 @@ to make every Codex task easy to scope, implement, and verify.
 
 ## Harness Layers
 
-1. Project guidance: `../../AGENTS.md`
-2. Verification entrypoint: `../scripts/verify.ps1`
-3. Local infrastructure helpers: `../scripts/local-up.ps1`, `../scripts/local-down.ps1`
-4. API request examples: `api/*.http`
-5. Test support code: `../src/test/java/com/nemonicworld/support`
-6. Backend architecture convention: `backend-architecture.md`
-7. Codex app operating guide: `codex-app-operations.md`
-8. Prompt templates: `codex-prompt-templates.md`
-9. Memory strategy: `codex-memory.md`
-10. Current state: `codex-current-state.md`
-11. Agent workflow: `agent-workflow.md`
-12. Review checklist: `agent-review-checklist.md`
-13. Decisions: `decisions/`
-14. Product specification: `product-spec/`
-15. Skill candidate: `skills/nemonic-backend-development/SKILL.md`
-16. Automation candidates: `automation-candidates.md`
+1. Root area router: `../../AGENTS.md`
+2. Backend project guidance: `../AGENTS.md`
+3. Verification entrypoint: `../scripts/verify.ps1`
+4. Local infrastructure helpers: `../scripts/local-up.ps1`, `../scripts/local-down.ps1`
+5. API request examples: `api/*.http`
+6. Test support code: `../src/test/java/com/nemonicworld/support`
+7. Backend architecture convention: `backend-architecture.md`
+8. Codex app operating guide: `codex-app-operations.md`
+9. Prompt templates: `codex-prompt-templates.md`
+10. Memory strategy: `codex-memory.md`
+11. Current state: `codex-current-state.md`
+12. Agent workflow: `agent-workflow.md`
+13. Review checklist: `agent-review-checklist.md`
+14. Decisions: `decisions/`
+15. Product specification: `product-spec/`
+16. Skill candidate: `skills/nemonic-backend-development/SKILL.md`
+17. Automation candidates: `automation-candidates.md`
 
 ## Standard Workflow
 
 1. Read repo-root `AGENTS.md`.
-2. Read repo-root `backend/docs/backend-architecture.md` when adding or moving backend packages.
-3. Read the relevant product spec under `backend/docs/product-spec/` when implementing product behavior.
-4. Inspect the affected package and tests.
-5. Implement the smallest complete change.
-6. Add or update tests.
-7. Run the fastest relevant verification command.
-8. Run the full verification wrapper before final handoff when practical.
+2. Read `backend/AGENTS.md`.
+3. Read `backend/docs/backend-architecture.md` when adding or moving backend packages.
+4. Read the relevant product spec under `backend/docs/product-spec/` when implementing product behavior.
+5. Inspect the affected package and tests.
+6. Implement the smallest complete change.
+7. Add or update tests.
+8. Run the fastest relevant verification command.
+9. Run the full verification wrapper before final handoff when practical.
 
 ## Verification Commands
 

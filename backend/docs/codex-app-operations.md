@@ -6,10 +6,10 @@
 
 ## Repo-local guidance first
 
-현재 프로젝트의 1차 기준은 루트의 `AGENTS.md`이다.
+현재 프로젝트의 1차 진입점은 루트의 `AGENTS.md`이고, 백엔드 작업의 1차 기준은 `backend/AGENTS.md`이다.
 
-`AGENTS.md`는 저장소와 함께 버전 관리되므로 팀원이 같은 규칙을 공유할 수 있다. 특정 규칙이 여러 저장소에서
-반복해서 필요해지면 그때 Codex 스킬로 승격한다.
+루트 `AGENTS.md`는 작업 영역을 안내하는 얇은 라우터이고, `backend/AGENTS.md`는 백엔드 전용 규칙을 담는다.
+특정 규칙이 여러 저장소에서 반복해서 필요해지면 그때 Codex 스킬로 승격한다.
 
 장기 기억은 `backend/docs/codex-memory.md`와 `backend/docs/codex-current-state.md`를 기준으로 관리한다.
 
@@ -25,7 +25,7 @@
 
 현재 상태:
 
-- 지금은 repo-local `AGENTS.md`, `backend/docs/backend-architecture.md`, `backend/docs/codex-harness.md`로 충분하다.
+- 지금은 repo-local `backend/AGENTS.md`, `backend/docs/backend-architecture.md`, `backend/docs/codex-harness.md`로 충분하다.
 - 전역 스킬은 사용자 홈의 Codex 설정 영역에 생성되므로, 팀 합의 후 별도 작업으로 만든다.
 - 이 repo의 스킬 후보는 `backend/docs/skills/nemonic-backend-development/SKILL.md`에 준비되어 있다.
 - 전역 스킬로 사용하려면 이 폴더를 Codex skills 디렉터리로 설치한다.

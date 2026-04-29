@@ -33,7 +33,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 
 Purpose:
 
-- Read `AGENTS.md`, `codex-current-state.md`, and recent ADRs.
+- Read root `AGENTS.md`, `backend/AGENTS.md`, `codex-current-state.md`, and recent ADRs.
 - Suggest the next backend task based on current state.
 - Report stale docs or missing verification.
 
