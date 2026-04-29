@@ -113,7 +113,7 @@ src/
 │   ├── libs/                        # 외부 라이브러리 래퍼·설정
 │   │   ├── index.ts
 │   │   ├── apiClient.ts
-│   │   └── utils.ts                 # cn() — clsx + tailwind-merge 래퍼
+│   │   └── cn.ts                    # cn() — clsx + tailwind-merge 래퍼
 │   ├── stores/                      # 전역 Zustand store
 │   │   ├── index.ts
 │   │   └── {name}Store.ts
@@ -140,7 +140,7 @@ src/
 > **`shared/config/`** — `process.env` 직접 참조 대신 환경 설정을 한 곳에서 관리
 > **`shared/styles/`** — CSS 토큰 시스템. `app/layout.tsx`에서 `@/shared/styles/index.css` import
 > **`shared/layouts/`** — 여러 페이지에서 공유하는 레이아웃 컴포넌트
-> **`shared/libs/utils.ts`** — `cn()` 유틸리티 (`clsx` + `tailwind-merge` 래퍼)
+> **`shared/libs/cn.ts`** — `cn()` 유틸리티 (`clsx` + `tailwind-merge` 래퍼)
 
 ---
 

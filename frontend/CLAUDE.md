@@ -126,7 +126,7 @@ src/
 │   ├── libs/
 │   │   ├── index.ts
 │   │   ├── apiClient.ts
-│   │   └── utils.ts                 # cn() — clsx + tailwind-merge 래퍼
+│   │   └── cn.ts                    # cn() — clsx + tailwind-merge 래퍼
 │   ├── stores/
 │   │   ├── index.ts
 │   │   └── {name}Store.ts
@@ -153,7 +153,7 @@ src/
 > **`shared/config/`** — `process.env` 직접 참조 대신 환경 설정을 한 곳에서 관리
 > **`shared/styles/`** — CSS 토큰 시스템. `app/layout.tsx`에서 `@/shared/styles/index.css` import
 > **`shared/layouts/`** — 여러 페이지에서 공유하는 레이아웃 컴포넌트
-> **`shared/libs/utils.ts`** — `cn()` 유틸리티 (`clsx` + `tailwind-merge` 래퍼)
+> **`shared/libs/cn.ts`** — `cn()` 유틸리티 (`clsx` + `tailwind-merge` 래퍼)
 
 ---
 
@@ -811,10 +811,10 @@ z-[var(--z-toast)]    : 600  — 토스트
 
 ### cn() 유틸리티
 
-`shared/libs/utils.ts`에 `cn()` 함수를 두고 모든 조건부 클래스 병합에 사용합니다.
+`shared/libs/cn.ts`에 `cn()` 함수를 두고 모든 조건부 클래스 병합에 사용합니다.
 
 ```ts
-// shared/libs/utils.ts
+// shared/libs/cn.ts
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
