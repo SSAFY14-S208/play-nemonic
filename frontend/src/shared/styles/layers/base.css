@@ -1,0 +1,36 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   base.css — 전역 리셋 + Pretendard Variable 폰트
+   TODO: public/fonts/PretendardVariable.woff2 파일 배치 필요
+         다운로드: https://github.com/orioncactus/pretendard/releases
+───────────────────────────────────────────────────────────────────────────── */
+@layer base {
+  @font-face {
+    font-family: 'Pretendard Variable';
+    font-weight: 45 920;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
+  }
+
+  :root {
+    --font-pretendard: 'Pretendard Variable', -apple-system, BlinkMacSystemFont,
+      'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    height: 100%;
+  }
+
+  body {
+    height: 100%;
+    font-family: var(--font-pretendard);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

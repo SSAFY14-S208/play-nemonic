@@ -1,0 +1,28 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Semantic color tokens — 역할 기반 색상 매핑
+   ✅ 컴포넌트에서 이 토큰만 참조 (bg-surface-default, text-fg-primary 등)
+   ❌ Primitive 직접 참조 금지 (bg-cream-50, text-brown-720 등)
+
+   @theme 블록 → Tailwind 유틸리티 자동 생성:
+     --color-surface-default → bg-surface-default / text-surface-default / border-surface-default
+     --color-fg-primary      → text-fg-primary / bg-fg-primary / border-fg-primary
+───────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* ── Surface (배경) ──────────────────────────────────────────────────────── */
+  --color-surface-default: var(--p-cream-50);   /* 기본 카드/화면 배경 */
+  --color-surface-subtle:  var(--p-cream-100);  /* 구분선 위 배경 */
+
+  /* ── Foreground (텍스트) ─────────────────────────────────────────────────── */
+  --color-fg-primary:   var(--p-brown-720);  /* 주요 본문 텍스트 */
+  --color-fg-secondary: var(--p-brown-500);  /* 보조 텍스트 */
+  --color-fg-disabled:  var(--p-brown-300);  /* 비활성 텍스트 */
+  --color-fg-inverse:   var(--p-cream-50);   /* 어두운 배경 위 텍스트 */
+
+  /* ── Border ──────────────────────────────────────────────────────────────── */
+  --color-border-default: var(--p-brown-100);  /* 기본 테두리 */
+
+  /* ── Primary (브랜드) ────────────────────────────────────────────────────── */
+  --color-primary-1: var(--p-primary-500);  /* CTA 버튼 배경, 주요 강조 */
+  --color-primary-2: var(--p-primary-600);  /* 링크, 활성 아이콘 색 */
+  --color-primary-5: var(--p-primary-50);   /* 활성 탭 배경 (연한 강조색) */
+}
