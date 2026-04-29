@@ -11,6 +11,9 @@ $requiredPaths = @(
     ".gitattributes",
     "AGENTS.md",
     "CONTRIBUTING.md",
+    "backend/AGENTS.md",
+    "backend/CONTRIBUTING.md",
+    "backend/docker-compose.local.yml",
     ".gitlab/merge_request_templates/backend.md",
     "backend/docs/codex-harness.md",
     "backend/docs/codex-memory.md",
@@ -99,7 +102,7 @@ if ($missing.Count -gt 0) {
 $gitignore = Get-Content -Raw -Encoding UTF8 (Join-Path $backendRoot ".gitignore")
 $dockerignore = Get-Content -Raw -Encoding UTF8 (Join-Path $backendRoot ".dockerignore")
 $envExample = Get-Content -Raw -Encoding UTF8 (Join-Path $backendRoot ".env.example")
-$compose = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "docker-compose.local.yml")
+$compose = Get-Content -Raw -Encoding UTF8 (Join-Path $backendRoot "docker-compose.local.yml")
 $buildGradle = Get-Content -Raw -Encoding UTF8 (Join-Path $backendRoot "build.gradle")
 
 foreach ($entry in $requiredIgnoreEntries) {
@@ -120,7 +123,7 @@ foreach ($key in $requiredEnvExampleKeys) {
 
 foreach ($snippet in $requiredComposeSnippets) {
     if ($compose -notmatch [regex]::Escape($snippet)) {
-        Write-Error "docker-compose.local.yml is missing $snippet"
+        Write-Error "backend/docker-compose.local.yml is missing $snippet"
     }
 }
 

@@ -24,8 +24,11 @@ Last updated: 2026-04-29
 
 ## Important Files
 
-- `AGENTS.md`: primary agent operating instructions
-- `CONTRIBUTING.md`: human-facing branch, commit, Jira, and verification guide
+- `AGENTS.md`: root area-routing agent instructions
+- `CONTRIBUTING.md`: root area-routing contribution guide
+- `backend/AGENTS.md`: primary backend agent operating instructions
+- `backend/CONTRIBUTING.md`: backend branch, commit, Jira, and verification guide
+- `backend/docker-compose.local.yml`: backend local PostgreSQL, Redis, and MinIO stack
 - `.gitlab/merge_request_templates/backend.md`: backend MR checklist
 - `backend/docs/backend-architecture.md`: package and layer convention
 - `backend/docs/codex-harness.md`: harness overview

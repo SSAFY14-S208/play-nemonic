@@ -33,7 +33,7 @@ Use this when pausing a long task, switching sessions, or asking another agent t
 ## Minimal Handoff Prompt
 
 ```text
-AGENTS.md and backend/docs/codex-current-state.md are the memory baseline.
+Root AGENTS.md, backend/AGENTS.md, and backend/docs/codex-current-state.md are the memory baseline.
 Continue from this handoff:
 
 <paste handoff>

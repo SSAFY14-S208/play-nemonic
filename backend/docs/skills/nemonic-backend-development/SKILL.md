@@ -1,6 +1,6 @@
 ---
 name: nemonic-backend-development
-description: Backend development workflow for the Nemonic Spring Boot repository. Use when working on this repository's backend APIs, package structure, tests, harness scripts, memory docs, ADRs, prompt templates, or Codex agent workflow. The skill directs Codex to use repo-local AGENTS.md, backend architecture conventions, current-state memory, verification scripts, and handoff routines.
+description: Backend development workflow for the Nemonic Spring Boot repository. Use when working on this repository's backend APIs, package structure, tests, harness scripts, memory docs, ADRs, prompt templates, or Codex agent workflow. The skill directs Codex to use repo-local backend/AGENTS.md, backend architecture conventions, current-state memory, verification scripts, and handoff routines.
 ---
 
 # Nemonic Backend Development
@@ -8,10 +8,11 @@ description: Backend development workflow for the Nemonic Spring Boot repository
 ## Start
 
 1. Read repo-root `AGENTS.md`.
-2. Read `backend/docs/codex-current-state.md`.
-3. For package or API work, read `backend/docs/backend-architecture.md`.
-4. For product behavior, read the relevant file under `backend/docs/product-spec/`.
-5. For non-trivial work, follow `backend/docs/agent-workflow.md`.
+2. Read `backend/AGENTS.md`.
+3. Read `backend/docs/codex-current-state.md`.
+4. For package or API work, read `backend/docs/backend-architecture.md`.
+5. For product behavior, read the relevant file under `backend/docs/product-spec/`.
+6. For non-trivial work, follow `backend/docs/agent-workflow.md`.
 
 ## Implement
 
@@ -36,6 +37,12 @@ For final handoff, prefer:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-close.ps1
+```
+
+For Flyway migration changes, also run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1
 ```
 
 ## Memory

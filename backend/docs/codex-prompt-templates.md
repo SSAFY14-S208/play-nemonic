@@ -29,7 +29,7 @@
 
 ## Work Split
 - Explorer Agent:
-  - `AGENTS.md`, `backend/docs/codex-current-state.md`, `backend/docs/backend-architecture.md`, 관련 product spec을 읽는다.
+  - 루트 `AGENTS.md`, `backend/AGENTS.md`, `backend/docs/codex-current-state.md`, `backend/docs/backend-architecture.md`, 관련 product spec을 읽는다.
   - 이번 작업에서 지켜야 할 정책, 구현 범위, 주의사항, acceptance criteria를 요약한다.
   - 코드 수정은 하지 않는다.
 
@@ -280,7 +280,7 @@
 
 ## Work Split
 - Explorer Agent:
-  - `AGENTS.md`, `backend/docs/codex-current-state.md`, `backend/docs/backend-architecture.md`, 관련 product spec을 읽는다.
+  - 루트 `AGENTS.md`, `backend/AGENTS.md`, `backend/docs/codex-current-state.md`, `backend/docs/backend-architecture.md`, 관련 product spec을 읽는다.
   - 구현 규칙, 데이터 저장 정책, 테스트 필요 범위, 주의사항을 요약한다.
   - 코드 수정은 하지 않는다.
 
@@ -358,7 +358,7 @@ Controller에는 비즈니스 로직을 넣지 말고, Request/Response DTO와 �
 ## 새 세션 시작
 
 ```md
-AGENTS.md와 backend/docs/codex-current-state.md를 먼저 읽고 이어서 작업해줘.
+루트 AGENTS.md, backend/AGENTS.md, backend/docs/codex-current-state.md를 먼저 읽고 이어서 작업해줘.
 새 패키지를 만들거나 구조를 바꾸면 backend/docs/backend-architecture.md를 따라줘.
 제품 동작은 backend/docs/product-spec/ 아래의 관련 문서를 먼저 읽고 구현해줘.
 작업이 끝나면 backend/docs/agent-review-checklist.md 기준으로 점검하고,

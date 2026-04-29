@@ -2,7 +2,7 @@
 
 이 폴더는 네모닉월드 제품 기획서를 AI와 개발자가 읽기 쉽게 기능별로 분할한 정규화 문서이다.
 
-새로운 기능을 구현하거나 API/DB/이벤트 설계를 할 때는 `AGENTS.md`, `backend/docs/codex-current-state.md`와 함께
+새로운 기능을 구현하거나 API/DB/이벤트 설계를 할 때는 루트 `AGENTS.md`, `backend/AGENTS.md`, `backend/docs/codex-current-state.md`와 함께
 관련 제품 스펙을 먼저 읽는다.
 
 ## 문서 구성

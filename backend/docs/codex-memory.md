@@ -12,6 +12,7 @@
 파일:
 
 - repo-root `AGENTS.md`
+- `backend/AGENTS.md`
 - `backend/docs/backend-architecture.md`
 - `backend/docs/codex-harness.md`
 - `backend/docs/product-spec/`
@@ -39,7 +40,7 @@
 사용법:
 
 - 큰 작업이 끝나면 갱신한다.
-- 새 세션을 시작할 때 `AGENTS.md`와 함께 먼저 읽는다.
+- 새 세션을 시작할 때 루트 `AGENTS.md`, `backend/AGENTS.md`와 함께 먼저 읽는다.
 - 대화 압축이나 새 스레드 이후 복구 지점으로 사용한다.
 
 ### 3. Decision memory
@@ -96,7 +97,7 @@
 새 Codex 세션에서는 이렇게 시작한다.
 
 ```text
-AGENTS.md와 backend/docs/codex-current-state.md를 먼저 읽고 이어서 작업해줘.
+루트 AGENTS.md, backend/AGENTS.md, backend/docs/codex-current-state.md를 먼저 읽고 이어서 작업해줘.
 필요하면 backend/docs/backend-architecture.md와 backend/docs/codex-harness.md도 참고해줘.
 ```
 

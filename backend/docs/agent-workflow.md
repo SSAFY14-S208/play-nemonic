@@ -4,7 +4,8 @@ This project uses a research-first, verification-driven workflow for non-trivial
 
 ## 1. Explore
 
-- Read `AGENTS.md`.
+- Read root `AGENTS.md`.
+- Read `backend/AGENTS.md`.
 - Read `backend/docs/codex-current-state.md`.
 - Read feature code and tests before editing.
 - For new packages, read `backend/docs/backend-architecture.md`.
