@@ -5,7 +5,7 @@ import {
 import {
   preloadCommunityCanvasBookModel,
   useCommunityCanvasBookModel,
-} from './useCommunityCanvasBookModel'
+} from './hooks'
 
 export default function CommunityCanvasBookMesh() {
   const model = useCommunityCanvasBookModel()

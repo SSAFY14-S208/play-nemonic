@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { Box3, Mesh, Vector3, type Object3D } from 'three'
-import { HUB_COMMUNITY_CANVAS_BOOK_MAX_SIZE } from '../constants'
+import { HUB_COMMUNITY_CANVAS_BOOK_MAX_SIZE } from '../../constants'
 
-export const COMMUNITY_CANVAS_BOOK_MODEL_URL = '/models/community_canvas_book_clay.glb'
+const COMMUNITY_CANVAS_BOOK_MODEL_URL = '/models/community_canvas_book_clay.glb'
 
 function isMesh(object: Object3D): object is Mesh {
   return (object as Mesh).isMesh === true
