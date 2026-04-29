@@ -1,9 +1,12 @@
-import { useRef, useEffect } from 'react'
+import { useRef } from 'react'
 import { useGLTF, useAnimations } from '@react-three/drei'
-import { RigidBody, CapsuleCollider, type RapierRigidBody } from '@react-three/rapier'
-import { useFrame } from '@react-three/fiber'
+import {
+  RigidBody,
+  CapsuleCollider,
+  type RapierRigidBody,
+} from '@react-three/rapier'
 import * as THREE from 'three'
-import { useCharacterMovement } from './hooks'
+import { useCharacterMovement, useCharacterAnimation } from './hooks'
 
 const MODEL_PATH = '/models/nong_dam_gom.glb'
 const CAPSULE_HALF_HEIGHT = 0.4
@@ -35,7 +38,7 @@ export default function Character({
   const isPointerDownRef = externalPointerRef ?? internalPointerRef
 
   const { scene, animations } = useGLTF(MODEL_PATH)
-  const { actions, names } = useAnimations(animations, groupRef)
+  const { actions } = useAnimations(animations, groupRef)
 
   const isMovingRef = useCharacterMovement(
     rigidBodyRef,
@@ -44,32 +47,7 @@ export default function Character({
     characterPositionRef,
   )
 
-  // 마운트 시 idle 애니메이션 재생
-  useEffect(() => {
-    const idleName = names.find((name) => /idle/i.test(name)) ?? names[0]
-    if (idleName) {
-      actions[idleName]?.reset().play()
-    }
-  }, [actions, names])
-
-  // 이동 상태 감지 → 애니메이션 전환 (useFrame 안에서 ref 비교)
-  const prevIsMovingRef = useRef(false)
-  useFrame(() => {
-    const isNowMoving = isMovingRef.current
-    if (isNowMoving === prevIsMovingRef.current) return
-    prevIsMovingRef.current = isNowMoving
-
-    const idleName = names.find((name) => /idle/i.test(name)) ?? names[0]
-    const walkName = names.find((name) => /walk/i.test(name)) ?? names[1]
-
-    if (isNowMoving) {
-      if (idleName) actions[idleName]?.fadeOut(0.2)
-      if (walkName) actions[walkName]?.reset().fadeIn(0.2).play()
-    } else {
-      if (walkName) actions[walkName]?.fadeOut(0.2)
-      if (idleName) actions[idleName]?.reset().fadeIn(0.2).play()
-    }
-  })
+  useCharacterAnimation(actions, isMovingRef)
 
   return (
     <RigidBody
