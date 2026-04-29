@@ -6,3 +6,4 @@ export {
   preloadHubPlatformModel,
   useHubPlatformModel,
 } from './useHubPlatformModel'
+export { useNightStarField } from './useNightStarField'
