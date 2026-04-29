@@ -11,6 +11,8 @@
    6. Utilities         (타이포그래피 유틸리티 클래스)
 ───────────────────────────────────────────────────────────────────────────── */
 
+@import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
+
 @import "tailwindcss";
 
 @import "./tokens/primitive/colors.css";
@@ -21,3 +23,19 @@
 @import "./layers/theme.css";
 @import "./layers/base.css";
 @import "./layers/utilities.css";
+
+@keyframes hub-copy-swap {
+  0% {
+    opacity: 0.2;
+    transform: translateY(-0.45rem);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hub-copy-swap {
+  animation: hub-copy-swap 380ms ease-out both;
+}
