@@ -45,12 +45,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1 -Build
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-close.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-close.ps1 -WithMigration
 ```
 
 The default verification runs Gradle `check`. This includes tests, Checkstyle,
 and Spotless checks through the Gradle build configuration.
 
 `session-close.ps1` runs formatting, harness integrity checks, verification, and prints git status.
+Use `session-close.ps1 -WithMigration` when Flyway migration files changed.
 
 `verify-migration.ps1` runs Flyway migrations against a real PostgreSQL
 Testcontainers database. Run it whenever `backend/src/main/resources/db/migration`

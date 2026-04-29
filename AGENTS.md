@@ -103,6 +103,12 @@ Session close routine:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-close.ps1
 ```
 
+Include PostgreSQL Flyway verification when migrations changed:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-close.ps1 -WithMigration
+```
+
 ## Local Infrastructure
 
 Create `backend/.env` from `backend/.env.example`, then start dependencies from the

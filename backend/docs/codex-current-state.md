@@ -18,6 +18,7 @@ Last updated: 2026-04-29
 - PostgreSQL-specific Flyway migrations are verified through `backend/scripts/verify-migration.ps1`.
 - Gradle, Maven, and Java tool caches are isolated inside ignored workspace directories.
 - Local Docker dependencies include PostgreSQL, Redis, MinIO, and a one-shot MinIO bucket initializer.
+- Repository text line endings are normalized through `.gitattributes`.
 - Agent memory is stored in repo docs instead of relying only on chat history.
 - Product planning is stored under `backend/docs/product-spec/` as durable AI-readable memory.
 
@@ -56,12 +57,13 @@ From the repository root:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\format.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\check-harness.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1
 ```
 
 Latest result: `BUILD SUCCESSFUL`.
 
-`verify-migration.ps1` was added, but the latest local run could not execute
-because Docker was not running in the current environment.
+`verify-migration.ps1` successfully applied the initial Flyway DDL to a real
+PostgreSQL Testcontainers database after Docker Desktop was started.
 
 ## Next Suggested Steps
 

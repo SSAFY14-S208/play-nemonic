@@ -8,6 +8,7 @@ $backendRoot = Resolve-Path (Join-Path $scriptDir "..")
 $repoRoot = Resolve-Path (Join-Path $backendRoot "..")
 
 $requiredPaths = @(
+    ".gitattributes",
     "AGENTS.md",
     "CONTRIBUTING.md",
     ".gitlab/merge_request_templates/backend.md",
