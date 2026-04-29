@@ -7,6 +7,55 @@
 
 검증 명령은 기본적으로 repository root에서 실행한다.
 
+## 서브에이전트 활용 옵션
+
+작업 범위가 크거나 문서 조사, 구현, 리뷰를 병렬로 나누는 것이 유리하면 아래 블록을 프롬프트에 추가한다.
+작은 수정, 단일 파일 변경, 단순 오타 수정, 작은 버그 수정에는 보통 사용하지 않는다.
+
+서브에이전트를 쓰기 좋은 작업:
+
+- 새 도메인 API 전체 구현
+- DB migration이 포함된 기능
+- Redis 또는 MinIO 연동이 포함된 기능
+- product spec 여러 파일을 함께 봐야 하는 작업
+- 기존 구조를 넓게 리팩터링하는 작업
+- 구현 후 독립 리뷰가 필요한 작업
+
+복사해서 붙여 넣을 수 있는 선택 블록:
+
+```md
+## Subagents
+이 작업은 서브에이전트를 사용해서 병렬로 진행해줘.
+
+## Work Split
+- Explorer Agent:
+  - `AGENTS.md`, `backend/docs/codex-current-state.md`, `backend/docs/backend-architecture.md`, 관련 product spec을 읽는다.
+  - 이번 작업에서 지켜야 할 정책, 구현 범위, 주의사항, acceptance criteria를 요약한다.
+  - 코드 수정은 하지 않는다.
+
+- Worker Agent:
+  - 지정된 Scope 안에서 구현과 테스트를 담당한다.
+  - 같은 파일을 다른 에이전트와 동시에 수정하지 않는다.
+  - 변경한 파일 목록과 검증 가능 지점을 보고한다.
+
+- Review Agent:
+  - 구현 완료 후 변경사항을 리뷰한다.
+  - 버그 가능성, 테스트 누락, 아키텍처 위반, 보안/권한 위험, 과한 추상화를 점검한다.
+  - 문제가 없으면 없다고 말하고 남은 리스크만 적는다.
+
+- Main Agent:
+  - 전체 작업을 조율한다.
+  - 최종 판단, 코드 통합, 충돌 해결, 최종 검증을 책임진다.
+  - `backend/scripts/verify.ps1`를 실행하고 결과를 보고한다.
+  - DB migration이 있으면 `backend/scripts/verify-migration.ps1` 실행 여부를 판단한다.
+
+## Subagent Constraints
+- 서브에이전트는 서로 같은 파일을 동시에 수정하지 않는다.
+- 조사만 맡은 에이전트는 파일을 수정하지 않는다.
+- 최종 사용자 보고와 검증 결과 정리는 Main Agent가 한다.
+- 작은 작업이라고 판단되면 서브에이전트를 쓰지 말고 이유를 짧게 말한 뒤 단독으로 진행한다.
+```
+
 ## 기본 기능 구현
 
 ```md
@@ -198,19 +247,49 @@
 ## Goal
 <큰 작업 목표>
 
+## Context
+- 관련 Jira/이슈:
+- 관련 product spec:
+- 관련 API:
+- DB/Redis/MinIO 영향:
+
 ## Work Split
-- Agent A: <읽기/조사 또는 특정 파일 영역>
-- Agent B: <구현할 독립 영역>
-- Main Agent: 통합, 충돌 해결, 최종 검증
+- Explorer Agent:
+  - `AGENTS.md`, `backend/docs/codex-current-state.md`, `backend/docs/backend-architecture.md`, 관련 product spec을 읽는다.
+  - 구현 규칙, 데이터 저장 정책, 테스트 필요 범위, 주의사항을 요약한다.
+  - 코드 수정은 하지 않는다.
+
+- Worker Agent A:
+  - <담당 구현 영역 또는 패키지>
+  - write scope: <수정 가능한 파일/패키지>
+
+- Worker Agent B:
+  - <담당 구현 영역 또는 테스트/문서/API 샘플>
+  - write scope: <수정 가능한 파일/패키지>
+
+- Review Agent:
+  - 구현 완료 후 diff를 리뷰한다.
+  - 버그 가능성, 테스트 누락, 아키텍처 위반, 보안/권한 위험을 점검한다.
+
+- Main Agent:
+  - 전체 작업을 통합한다.
+  - 충돌을 해결한다.
+  - 최종 검증을 실행한다.
 
 ## Constraints
 - 서로 같은 파일을 동시에 수정하지 않게 나눠줘.
 - 각 서브에이전트의 write scope를 명확히 정해줘.
-- 최종 검증은 메인 에이전트가 `backend/scripts/verify.ps1`로 수행해줘.
+- 조사만 맡은 에이전트는 파일을 수정하지 않는다.
+- 최종 판단과 사용자 보고는 Main Agent가 한다.
+- DB migration이 생기면 Main Agent가 `backend/scripts/verify-migration.ps1` 실행 여부를 판단한다.
 
 ## Acceptance Criteria
 - 각 작업 단위가 독립적으로 완료된다.
 - 통합 후 전체 테스트가 통과한다.
+
+## Verification
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1`
+- DB migration 변경 시 `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1`
 ```
 
 ## 자동화 요청
