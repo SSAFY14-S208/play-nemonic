@@ -25,6 +25,7 @@ import {
   HUB_OUTER_BOARD_MESH_NAMES,
 } from '../constants'
 import CenterNemonicMesh from './CenterNemonicMesh'
+import CommunityCanvasBookMesh from './CommunityCanvasBookMesh'
 import WitchMesh from './WitchMesh'
 
 const PLATFORM_MODEL_URL = '/models/pastel_platform.glb'
@@ -278,6 +279,7 @@ export default function HubPlatformMesh() {
   return (
     <group position={preparedPlatform.position} scale={preparedPlatform.scale}>
       <primitive object={preparedPlatform.platform} dispose={null} />
+      <CommunityCanvasBookMesh />
       <CenterNemonicMesh />
       <WitchMesh />
     </group>
