@@ -4,22 +4,23 @@
 
 ## Stack
 
-Next.js 16 App Router · TypeScript · Tailwind CSS v4  
-@react-three/fiber · @react-three/drei · @react-three/rapier · Zustand  
-three  
-ky · shadcn/ui (@base-ui/react) · lucide-react · motion  
-konva · react-konva · pnpm
+Next.js 16 App Router · TypeScript · Tailwind CSS v4
+@react-three/fiber · @react-three/drei · @react-three/rapier · Zustand · three
+ky · @base-ui/react · lucide-react · motion
+konva · react-konva · pnpm · babel-plugin-react-compiler
+class-variance-authority · clsx · tailwind-merge · Pretendard Variable
 
 ---
 
 ## 초기 설치 (필수 — 반드시 전부 설치)
 
-**기술 스택에 명시된 패키지는 프로젝트 시작 시 빠짐없이 설치해야 합니다.**  
+**기술 스택에 명시된 패키지는 프로젝트 시작 시 빠짐없이 설치해야 합니다.**
 누락 시 peer 의존성 오류가 발생하거나 런타임에 모듈을 찾지 못합니다.
 
 ```bash
 pnpm add next react react-dom @react-three/fiber @react-three/drei @react-three/rapier three
 pnpm add @base-ui/react ky lucide-react motion konva react-konva zustand
+pnpm add class-variance-authority clsx tailwind-merge
 pnpm add -D typescript @types/node @types/react @types/react-dom @types/three eslint eslint-config-next tailwindcss @tailwindcss/postcss postcss
 ```
 
@@ -33,10 +34,15 @@ Before writing any code, verify `package.json` contains **all** of the following
 | `three`                 | Three.js core                             |
 | `zustand`               | Global state                              |
 | `ky`                    | HTTP client                               |
-| `@base-ui/react`        | shadcn/ui primitive                       |
+| `@base-ui/react`        | 헤드리스 UI 프리미티브                    |
 | `lucide-react`          | Icons                                     |
 | `motion`                | DOM animation                             |
-| `konva` + `react-konva` | 2D canvas                                 |
+| `konva` + `react-konva`       | 2D canvas                                 |
+| `class-variance-authority`   | Component variant management (CVA)        |
+| `clsx`                       | Conditional class merging                 |
+| `tailwind-merge`             | Tailwind class collision-free merging     |
+
+---
 
 ## Variable & Parameter Naming
 
@@ -80,7 +86,7 @@ meshRef.current.scale.x = uniformScale * (1 - progress);
 
 ```
 app/          → Routing entry points + metadata only (thin layer)
-worlds/       → 3D world, always client-side
+worlds/       → 3D scenes — per-scene canvas chain, always client-side
 features/     → Feature UI + logic (kebab-case folder names)
 shared/       → Hooks, stores, lib, UI primitives (available to all layers)
 ```
@@ -97,28 +103,150 @@ Cross-layer rules:
 - `worlds/` ↔ `features/`: no direct import — `use*Interaction.ts` may write to feature stores only
 - `shared/`: importable from any layer
 
+### App Route Groups
+
+```
+app/
+├── layout.tsx
+├── (service)/           # URL-invisible route group — normal service pages
+│   ├── layout.tsx       # (optional) shared service layout
+│   ├── page.tsx         # URL: /
+│   ├── hub/page.tsx     # URL: /hub
+│   ├── relay-drawing/page.tsx
+│   ├── infinite-canvas/page.tsx
+│   ├── flipbook/page.tsx
+│   └── share/[id]/page.tsx
+└── admin/               # URL: /admin/* — backoffice (URL-exposed for middleware)
+    ├── layout.tsx       # AdminAuthGuard + sidebar layout
+    └── {section}/page.tsx
+```
+
+`(service)/` keeps user-facing URLs clean (`/`, `/hub`) while enabling a shared layout.
+`admin/` exposes the prefix so middleware can gate with `pathname.startsWith('/admin')`.
+
+### worlds/ Per-Scene Pattern
+
+Each 3D route has its own 4-stage entry chain. **There is no single global `WorldCanvas.tsx`.**
+
+```
+worlds/
+├── landing/
+│   ├── LandingLoader.tsx    # 'use client' + dynamic(ssr:false) wrapper
+│   ├── LandingCanvas.tsx    # owns <Canvas> + <Physics>
+│   ├── LandingScene.tsx     # scene content root
+│   ├── constants.ts
+│   ├── GroundMesh.tsx       # (optional)
+│   ├── useLandingInteraction.ts  # (optional)
+│   └── objects/
+│       └── {Name}Mesh.tsx
+├── hub/
+│   ├── HubLoader.tsx
+│   ├── HubCanvas.tsx
+│   ├── HubScene.tsx
+│   ├── useHubInteraction.ts
+│   └── objects/
+│       └── {Name}Mesh.tsx
+├── _infra/                  # always-present singletons (one instance per scene)
+│   ├── Lighting.tsx
+│   └── Character.tsx
+└── _shared/mesh/            # multi-instance reusable meshes
+    ├── index.ts
+    └── {Name}Mesh.tsx
+```
+
+4-stage chain for each 3D page:
+
+```
+[1] app/(service)/page.tsx              Server Component — routing + OG metadata
+        ↓ import
+[2] worlds/{scene}/{Scene}Loader.tsx    'use client' + dynamic(ssr:false)
+        ↓ dynamic import
+[3] worlds/{scene}/{Scene}Canvas.tsx    owns <Canvas> + <Physics>
+        ↓
+[4] worlds/{scene}/{Scene}Scene.tsx     scene content (Lighting, Character, objects)
+```
+
+`_infra/` vs `_shared/mesh/` decision:
+- "Can there be multiple of this in a scene?" → `_shared/mesh/`
+- "Is there exactly one of this per scene?" → `_infra/`
+
 ---
 
 ## File Placement — Quick Reference
 
-| What you are creating        | Where it goes              | Filename pattern           |
-| ---------------------------- | -------------------------- | -------------------------- |
-| Routing entry point          | `app/`                     | `page.tsx`, `layout.tsx`   |
-| OG metadata                  | `app/[route]/page.tsx`     | `generateMetadata` export  |
-| Canvas entry point           | `worlds/WorldCanvas.tsx`   | `WorldCanvas.tsx`          |
-| Scene root                   | `worlds/{scene}/`          | `{Scene}Scene.tsx`         |
-| Scene-specific 3D object     | `worlds/{scene}/objects/`  | `{Name}Mesh.tsx`           |
-| Scene interaction logic      | `worlds/{scene}/`          | `use{Scene}Interaction.ts` |
-| Always-present singleton     | `worlds/_infra/`           | `{Name}.tsx`               |
-| Reusable multi-instance mesh | `worlds/_shared/mesh/`     | `{Name}Mesh.tsx`           |
-| Feature UI component         | `features/{feature-name}/` | `{FeatureName}.tsx`        |
-| Feature business logic       | `features/{feature-name}/` | `use{FeatureName}.ts`      |
-| Feature state                | `features/{feature-name}/` | `{featureName}Store.ts`    |
-| Feature 3D canvas            | `features/{feature-name}/` | `{FeatureName}Visual.tsx`  |
-| Cross-feature shared state   | `shared/stores/`           | `{name}Store.ts`           |
-| Shared hook                  | `shared/hooks/`            | `use{Name}.ts`             |
-| API client                   | `shared/libs/`             | `apiClient.ts`             |
-| shadcn UI primitive          | `shared/ui/`               | `{name}.tsx` (lowercase)   |
+| What you are creating            | Where it goes                    | Filename pattern               |
+| -------------------------------- | -------------------------------- | ------------------------------ |
+| Routing entry point              | `app/(service)/` or `app/admin/` | `page.tsx`, `layout.tsx`       |
+| OG metadata                      | `app/[route]/page.tsx`           | `generateMetadata` export      |
+| 3D ssr:false wrapper             | `worlds/{scene}/`                | `{Scene}Loader.tsx`            |
+| 3D canvas + physics owner        | `worlds/{scene}/`                | `{Scene}Canvas.tsx`            |
+| Scene content root               | `worlds/{scene}/`                | `{Scene}Scene.tsx`             |
+| Scene-specific 3D object         | `worlds/{scene}/objects/`        | `{Name}Mesh.tsx`               |
+| Scene interaction logic          | `worlds/{scene}/`                | `use{Scene}Interaction.ts`     |
+| Always-present singleton         | `worlds/_infra/`                 | `{Name}.tsx`                   |
+| Reusable multi-instance mesh     | `worlds/_shared/mesh/`           | `{Name}Mesh.tsx`               |
+| Feature page (URL route)         | `features/{feature-name}/`       | `{FeatureName}Page.tsx`        |
+| Feature modal (DOM overlay)      | `features/{feature-name}/`       | `{FeatureName}Modal.tsx`       |
+| Feature Konva canvas             | `features/{feature-name}/`       | `{FeatureName}Stage.tsx`       |
+| Feature 3D canvas                | `features/{feature-name}/`       | `{FeatureName}Visual.tsx`      |
+| Feature business logic           | `features/{feature-name}/`       | `use{FeatureName}.ts`          |
+| Feature state                    | `features/{feature-name}/`       | `{featureName}Store.ts`        |
+| Admin feature                    | `features/admin/{section}/`      | `{Section}Page.tsx`            |
+| Cross-feature shared state       | `shared/stores/`                 | `{name}Store.ts`               |
+| Shared hook                      | `shared/hooks/`                  | `use{Name}.ts`                 |
+| API call function                | `shared/apis/`                   | `{domain}Api.ts`               |
+| API client config                | `shared/libs/`                   | `apiClient.ts`                 |
+| cn() utility                     | `shared/libs/`                   | `utils.ts`                     |
+| Env config / feature flags       | `shared/config/`                 | `runtime.ts`, `flags.ts`       |
+| 공용 UI 컴포넌트                 | `shared/components/{Name}/`      | `{Name}.tsx` + `index.ts`      |
+| Page layout component            | `shared/layouts/`                | `{Name}Layout.tsx`             |
+| CSS token system                 | `shared/styles/`                 | `index.css`, `tokens/`, `layers/` |
+| Static assets (svg, glb, mp3)   | `shared/assets/`                 | `{name}.{ext}`                 |
+
+---
+
+## Resource Folderization Rule — Enforced
+
+When a resource type has **1 file** → keep it flat.
+When the **2nd file of the same type** is added → **create folder + `index.ts` barrel in the same PR**.
+
+```
+# 1 file — flat is correct
+features/relay-drawing/
+└── useRelayDrawing.ts
+
+# 2nd hook added — folderize immediately (same PR)
+features/relay-drawing/
+└── hooks/
+    ├── index.ts                   ← barrel (required)
+    ├── useRelayDrawing.ts         ← moved from flat
+    └── useRelayDrawingHistory.ts  ← new file
+```
+
+Resource types: `use*.ts` hooks · constants · utils · types · components
+Each resource type evolves independently — hooks may be folderized while constants stay flat.
+
+**PR is blocked if:**
+- 2+ files of the same resource type exist without a folder
+- A folder exists without an `index.ts` barrel
+
+---
+
+## Admin / Backoffice
+
+Authentication flow:
+1. `middleware.ts` → checks login (`pathname.startsWith('/admin')` → redirect to `/login` if unauthenticated)
+2. `app/admin/layout.tsx` → `<AdminAuthGuard>` checks admin role (renders 403 if unauthorized)
+
+Import rules:
+```
+✅ features/admin/*  →  shared/*
+❌ features/admin/*  →  features/{normal-feature}/*   (forbidden)
+❌ features/{normal}/* →  features/admin/*             (forbidden)
+```
+
+- `robots.txt`: `Disallow: /admin/`
+- Admin layout owns sidebar + top navigation — do not repeat in individual page components
 
 ---
 
@@ -178,43 +306,31 @@ export default function LabelPrinter() {
 ### app/ files — server by default
 
 - `app/` files are routing entry points and metadata only — real UI comes from `worlds/` and `features/`
-- R3F Canvas must always be loaded with `dynamic + ssr: false` — but this must happen inside a Client Component (`WorldLoader.tsx`), not directly in a Server Component page
+- R3F Canvas must always be loaded with `dynamic + ssr: false` inside a `{Scene}Loader.tsx` Client Component
 - Common layout (Header, Footer, etc.) goes in `app/layout.tsx` only — never repeated in `page.tsx`
 
 ```tsx
-// worlds/WorldLoader.tsx  ← 'use client' wrapper handles dynamic import
+// worlds/landing/LandingLoader.tsx  ← 'use client' wrapper
 "use client";
 import dynamic from "next/dynamic";
-const WorldCanvas = dynamic(() => import("./WorldCanvas"), { ssr: false });
-export default function WorldLoader() {
-  return <WorldCanvas />;
+const LandingCanvas = dynamic(() => import("./LandingCanvas"), { ssr: false });
+export default function LandingLoader() {
+  return <LandingCanvas />;
 }
 
-// app/page.tsx  ← Server Component, no dynamic/ssr:false here
-import WorldLoader from "@/worlds/WorldLoader";
+// app/(service)/page.tsx  ← Server Component, no dynamic/ssr:false here
+import LandingLoader from "@/worlds/landing/LandingLoader";
 export default function Page() {
-  return <WorldLoader />;
+  return <LandingLoader />;
 }
 ```
 
-```tsx
-// app/share/[id]/page.tsx — OG tags handled here
-export async function generateMetadata({ params }) {
-  const result = await fetch(
-    `${process.env.API_URL}/results/${params.id}`,
-  ).then((r) => r.json());
-  return { openGraph: { title: result.name, images: [result.imageUrl] } };
-}
-export default function SharePage({ params }) {
-  return <ShareFeature id={params.id} />; // real UI from features/
-}
-```
+### worlds/ — per-scene client boundary
 
-### worlds/ — always client
-
-- Declare `'use client'` in `WorldCanvas.tsx` only — propagates to all children
-- Do NOT add `'use client'` to individual files inside `worlds/`
-- Do NOT declare `<Canvas>` anywhere except `WorldCanvas.tsx`
+- Declare `'use client'` in `{Scene}Loader.tsx` and `{Scene}Canvas.tsx`
+- Do NOT add `'use client'` to other files inside a scene folder (propagates from Canvas)
+- Do NOT declare `<Canvas>` anywhere except `{Scene}Canvas.tsx`
+- Do NOT declare `<Physics>` outside `{Scene}Canvas.tsx`
 
 ### features/ — explicit declaration
 
@@ -244,6 +360,7 @@ Use native `fetch` directly only in server components for OG metadata generation
 
 - `NEXT_PUBLIC_*`: accessible in client components (e.g. `NEXT_PUBLIC_API_URL`)
 - No prefix: server-only (e.g. `API_SECRET_KEY`) — always `undefined` in client components
+- All env access must go through `shared/config/` — never reference `process.env.X` directly in feature code
 
 ---
 
@@ -251,13 +368,13 @@ Use native `fetch` directly only in server components for OG metadata generation
 
 ### Physics Provider
 
-Place `<Physics>` inside `<Canvas>` in `WorldCanvas.tsx` — exactly one per world. Never add it per-scene.
+Place `<Physics>` inside `<Canvas>` in `{Scene}Canvas.tsx` — exactly one per scene. Never add it to the scene component or per-object.
 
 ```tsx
-// worlds/WorldCanvas.tsx
+// worlds/landing/LandingCanvas.tsx
 <Canvas>
   <Physics gravity={[0, -9.81, 0]}>
-    <SceneManager />
+    <LandingScene />
   </Physics>
 </Canvas>
 ```
@@ -332,15 +449,13 @@ Event handling logic lives in `use{Scene}Interaction.ts`.
 
 ### CharacterController & Collision — What Gets Blocked
 
-The character uses `KinematicCharacterController.computeColliderMovement`, which checks **every Collider registered in the Rapier world**.
-
 | Mesh state                                                         | Character blocked?     |
 | ------------------------------------------------------------------ | ---------------------- |
 | `RigidBody` + Collider (`fixed` / `kinematicPosition` / `dynamic`) | Yes ✅                 |
 | Plain `<mesh>` without `RigidBody`                                 | No — passes through ❌ |
 | `sensor: true` Collider                                            | No — event only ❌     |
 
-**Any new structure or equipment must be wrapped in `<RigidBody>` for the character to collide with it. No changes to the controller are needed — it reacts automatically.**
+**Any new structure or equipment must be wrapped in `<RigidBody>` for the character to collide with it.**
 
 ```tsx
 // ✅ character is blocked
@@ -441,7 +556,7 @@ useEffect(() => {
   if (!url) {
     setTexture(null);
     return;
-  } // sync setState — compiler error
+  }
 }, [url]);
 
 // ✅ Correct
@@ -462,6 +577,103 @@ useEffect(() => {
 
 ---
 
+## Design System
+
+### Token Hierarchy
+
+```
+Primitive Tokens  →  Semantic Tokens
+(raw values)          (role-based mapping)
+```
+
+- **Primitive** (`shared/styles/tokens/primitive/`): raw color palette, spacing scale — **never reference directly in components**
+- **Semantic** (`shared/styles/tokens/semantic/`): role-based tokens (`bg-surface-*`, `text-fg-*`, `border-*`) — **always use these in components**
+
+### Token Rules
+
+```tsx
+// ✅ Correct — Semantic tokens
+className="bg-surface-default text-fg-primary border-border-default"
+
+// ❌ Wrong — Primitive direct reference
+className="bg-cream-50 text-brown-720"
+```
+
+### Typography Utility Classes
+
+Use bundled utility classes. **Never combine raw Tailwind font utilities directly.**
+
+```
+h1-b (32px/700)    h2-b (24px/700)    h3-b (20px/700)    h4-b (16px/700)
+body-l-b/m/r (16px · 700/500/400)
+body-b/m/r   (14px · 700/500/400)
+caption-b/m/r (12px · 700/500/400)
+```
+
+```tsx
+// ✅ Correct
+className="h2-b text-fg-primary"
+
+// ❌ Wrong — raw Tailwind font class combination
+className="text-2xl font-bold leading-tight"
+```
+
+### cn() — Always Use for Conditional Class Merging
+
+```ts
+// shared/libs/utils.ts
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+```
+
+```tsx
+// ✅ Correct
+<div className={cn("body-r text-fg-primary", isActive && "text-primary-2")} />
+
+// ❌ Wrong — string concatenation
+<div className={`body-r text-fg-primary ${isActive ? "text-primary-2" : ""}`} />
+```
+
+### CVA — Variant Components
+
+```tsx
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '@/shared/libs'
+
+const buttonVariants = cva('body-b rounded-[var(--radius-md)]', {
+  variants: {
+    variant: {
+      primary: 'bg-primary-1 text-fg-inverse',
+      secondary: 'bg-surface-subtle text-fg-primary',
+    },
+  },
+  defaultVariants: { variant: 'primary' },
+})
+```
+
+### Component Folder Structure
+
+Every component in `shared/components/` uses its own folder:
+
+```
+shared/components/
+├── index.ts
+└── Button/
+    ├── Button.tsx
+    ├── Button.types.ts   ← only when Props are complex
+    └── index.ts
+```
+
+### CSS Layer Loading Order
+
+`app/layout.tsx` imports `@/shared/styles/index.css`, which loads:
+1. Primitive tokens
+2. Semantic tokens
+3. Tailwind layers (theme → utilities → base)
+
+---
+
 ## Next.js Anti-patterns — Never Do These
 
 - `useEffect + fetch` inside a component → extract to a hook
@@ -471,6 +683,7 @@ useEffect(() => {
 - Repeating common UI in each `page.tsx` → put it in `layout.tsx`
 - Wrapping async server components without `<Suspense>` → slow queries block entire page render
 - Using `NEXT_PUBLIC_`-less env vars in client components → always `undefined`
+- Putting 3D pages under `app/` directly without `(service)/` group
 
 ---
 
@@ -480,10 +693,10 @@ Every folder exposes a single `index.ts` entry point. Never import from internal
 
 ```ts
 // ✅
-import { InteractionSheet } from "@/features/interaction-sheet";
+import { useRelayDrawing } from "@/features/relay-drawing";
 
 // ❌
-import { InteractionSheet } from "@/features/interaction-sheet/InteractionSheet";
+import { useRelayDrawing } from "@/features/relay-drawing/useRelayDrawing";
 ```
 
 Exceptions:
@@ -498,8 +711,8 @@ Exceptions:
 Scene proximity detection results are written directly to feature stores from `use*Interaction.ts`:
 
 ```ts
-// worlds/home/useHomeInteraction.ts
-import { useInteractionSheetStore } from "../../features/interaction-sheet/interactionSheetStore";
+// worlds/hub/useHubInteraction.ts
+import { useFortuneStore } from "../../features/fortune/fortuneStore";
 import { useLabelPrinterStore } from "../../features/label-printer/labelPrinterStore";
 
 // ✅ allowed — store write only
@@ -518,29 +731,61 @@ Before completing any task, verify:
 
 - [ ] All required packages from the stack are present in `package.json` — install any that are missing before writing code
 
+**Architecture**
+
 - [ ] No single-letter or cryptic-abbreviation variable/constant names (e.g. `p`, `u`, `BH`) — use descriptive names
 - [ ] New file placed in the correct layer (`app/`, `worlds/`, `features/`, `shared/`)
-- [ ] Filename matches the suffix convention (`*Scene`, `*Mesh`, `*Visual`, `use*Interaction`, etc.)
+- [ ] Filename matches the suffix convention (`{Scene}Loader`, `{Scene}Canvas`, `{Scene}Scene`, `*Page`, `*Modal`, `*Stage`, `*Mesh`, `*Visual`, `use*Interaction`, etc.)
 - [ ] Component file contains no API calls, data transformation, or game logic
 - [ ] Business logic extracted to `use*.ts` hook
 - [ ] Shared state extracted to `*Store.ts`
 - [ ] `index.ts` barrel updated if a new public export was added
-- [ ] No cross-feature direct imports
-- [ ] No `<Canvas>` declared outside `WorldCanvas.tsx` (in `worlds/`) or `*Visual.tsx` (in `features/`)
+- [ ] **Resource folderization**: if this PR adds the 2nd file of a resource type (hook/constant/util/type/component), the folder + `index.ts` barrel is created in the same PR
+- [ ] No cross-feature direct imports (`features/A` ↔ `features/B` forbidden)
+- [ ] No direct `worlds/` ↔ `features/` component or hook imports
+
+**Routing**
+
+- [ ] Normal service pages are under `app/(service)/` — not directly under `app/`
+- [ ] Admin pages are under `app/admin/`
+- [ ] `<Canvas>` declared only in `{Scene}Canvas.tsx` (not in page, loader, or scene component)
+- [ ] `<Physics>` declared only inside `{Scene}Canvas.tsx`
 - [ ] `'use client'` added only where the file actually uses hooks, event handlers, or browser APIs
-- [ ] `'use client'` not duplicated in `worlds/` child files (propagates from `WorldCanvas.tsx`)
+- [ ] `'use client'` not added to scene/mesh/interaction files (propagates from `{Scene}Canvas.tsx`)
+
+**Admin**
+
+- [ ] Admin features only import from `shared/` — never from normal `features/`
+- [ ] Normal features do not import from `features/admin/`
+
+**R3F / Three.js**
+
 - [ ] `motion.*` not used inside R3F `<Canvas>`
 - [ ] `useFrame` callback contains no heavy computation
 - [ ] `useFrame` does not call any React `setState` — animation values use `useRef` + direct Three.js mutation
 - [ ] Animation completion is detected inside `useFrame` condition check, not `setInterval`/`setTimeout`
 - [ ] `TextureLoader` uses scene-shared `isolatedManager` from `textureLoader.ts`, not a per-file `new LoadingManager()`
 - [ ] `useEffect` body does not call `setState` synchronously — always inside async IIFE
-- [ ] If Rapier is used: character RigidBody type is `kinematicPosition`, not `dynamic`
-- [ ] If Rapier is used: position updated via `setNextKinematicTranslation()`, not direct mutation
-- [ ] If Rapier is used: `<Physics>` declared only in `WorldCanvas.tsx`, not per-scene
+
+**Rapier**
+
+- [ ] Character RigidBody type is `kinematicPosition`, not `dynamic`
+- [ ] Position updated via `setNextKinematicTranslation()`, not direct mutation
+- [ ] `<Physics>` declared only in `{Scene}Canvas.tsx`, not per-scene component
 - [ ] Ground and boundary walls use `fixed` RigidBody + Collider (not `MathUtils.clamp`)
 - [ ] Proximity detection uses `sensor: true` Collider (not distance polling in `useFrame`)
 - [ ] Equipment/robot position sync logic extracted to `use{Name}.ts` hook
+
+**Design System**
+
+- [ ] Components reference only Semantic tokens — no Primitive token (`bg-cream-*`, `text-brown-*`) in className
+- [ ] Typography uses utility classes (`h1-b`, `body-r`, etc.) — no raw Tailwind font class combinations
+- [ ] Conditional class merging uses `cn()` — no template literal string concatenation
+- [ ] Variant components use CVA (`cva()`) — no manual variant switching via conditionals
+- [ ] `app/layout.tsx` imports `@/shared/styles/index.css`
+
+**Next.js**
+
 - [ ] `<a>` and `<img>` tags replaced with `<Link>` and `<Image>`
 - [ ] Common UI not repeated in `page.tsx` — lives in `layout.tsx`
 - [ ] No `NEXT_PUBLIC_`-less env vars referenced in client components
