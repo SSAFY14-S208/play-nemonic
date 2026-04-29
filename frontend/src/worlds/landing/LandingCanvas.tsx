@@ -1,13 +1,13 @@
 'use client'
 import { Canvas } from '@react-three/fiber'
 import { Physics } from '@react-three/rapier'
-import SceneManager from './_infra/SceneManager'
+import LandingScene from './LandingScene'
 
-export default function WorldCanvas() {
+export default function LandingCanvas() {
   return (
     <Canvas>
       <Physics gravity={[0, -9.81, 0]}>
-        <SceneManager />
+        <LandingScene />
       </Physics>
     </Canvas>
   )
