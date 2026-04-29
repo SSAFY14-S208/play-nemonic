@@ -196,7 +196,7 @@ worlds/
 | Shared hook                      | `shared/hooks/`                  | `use{Name}.ts`                 |
 | API call function                | `shared/apis/`                   | `{domain}Api.ts`               |
 | API client config                | `shared/libs/`                   | `apiClient.ts`                 |
-| cn() utility                     | `shared/libs/`                   | `utils.ts`                     |
+| cn() utility                     | `shared/libs/`                   | `cn.ts`                        |
 | Env config / feature flags       | `shared/config/`                 | `runtime.ts`, `flags.ts`       |
 | 공용 UI 컴포넌트                 | `shared/components/{Name}/`      | `{Name}.tsx` + `index.ts`      |
 | Page layout component            | `shared/layouts/`                | `{Name}Layout.tsx`             |
@@ -621,7 +621,7 @@ className="text-2xl font-bold leading-tight"
 ### cn() — Always Use for Conditional Class Merging
 
 ```ts
-// shared/libs/utils.ts
+// shared/libs/cn.ts
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
