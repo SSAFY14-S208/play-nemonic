@@ -43,6 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\format.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1 -Build
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-close.ps1
 ```
 
@@ -50,6 +51,10 @@ The default verification runs Gradle `check`. This includes tests, Checkstyle,
 and Spotless checks through the Gradle build configuration.
 
 `session-close.ps1` runs formatting, harness integrity checks, verification, and prints git status.
+
+`verify-migration.ps1` runs Flyway migrations against a real PostgreSQL
+Testcontainers database. Run it whenever `backend/src/main/resources/db/migration`
+changes, because the default `test` profile uses H2 for speed.
 
 ## Local Dependency Commands
 
@@ -61,6 +66,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\local-down
 ```
 
 `local-up.ps1` requires `backend/.env`. Create it from `backend/.env.example`.
+The local compose stack starts PostgreSQL, Redis, MinIO, and a one-shot MinIO
+bucket initializer.
 
 ## Test Support
 

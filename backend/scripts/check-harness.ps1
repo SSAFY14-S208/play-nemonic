@@ -37,16 +37,49 @@ $requiredPaths = @(
     "backend/scripts/verify.ps1",
     "backend/scripts/check-harness.ps1",
     "backend/scripts/session-close.ps1",
+    "backend/scripts/verify-migration.ps1",
     "backend/scripts/new-decision.ps1",
     "backend/docs/api/health.http",
+    "backend/src/main/resources/db/migration",
     "backend/src/test/java/com/nemonicworld/support/IntegrationTest.java",
-    "backend/src/test/java/com/nemonicworld/support/HttpIntegrationTest.java"
+    "backend/src/test/java/com/nemonicworld/support/HttpIntegrationTest.java",
+    "backend/src/migrationTest/java/com/nemonicworld/support/FlywayPostgresMigrationTest.java"
 )
 
 $requiredIgnoreEntries = @(
     ".gradle-user-home",
     ".m2-repository",
     ".tool-home"
+)
+
+$requiredEnvExampleKeys = @(
+    "DB_URL",
+    "DB_NAME",
+    "DB_USERNAME",
+    "DB_PASSWORD",
+    "SERVER_PORT",
+    "REDIS_HOST",
+    "REDIS_PORT",
+    "MINIO_ENDPOINT",
+    "MINIO_PUBLIC_URL",
+    "MINIO_ACCESS_KEY",
+    "MINIO_SECRET_KEY",
+    "MINIO_BUCKET"
+)
+
+$requiredComposeSnippets = @(
+    "postgres:",
+    "redis:",
+    "minio:",
+    "minio-init:",
+    "minio_data:"
+)
+
+$requiredGradleSnippets = @(
+    "io.minio:minio",
+    "org.testcontainers:junit-jupiter",
+    "org.testcontainers:postgresql",
+    "migrationTest"
 )
 
 $missing = @()
@@ -64,6 +97,9 @@ if ($missing.Count -gt 0) {
 
 $gitignore = Get-Content -Raw -Encoding UTF8 (Join-Path $backendRoot ".gitignore")
 $dockerignore = Get-Content -Raw -Encoding UTF8 (Join-Path $backendRoot ".dockerignore")
+$envExample = Get-Content -Raw -Encoding UTF8 (Join-Path $backendRoot ".env.example")
+$compose = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "docker-compose.local.yml")
+$buildGradle = Get-Content -Raw -Encoding UTF8 (Join-Path $backendRoot "build.gradle")
 
 foreach ($entry in $requiredIgnoreEntries) {
     if ($gitignore -notmatch [regex]::Escape($entry)) {
@@ -72,6 +108,24 @@ foreach ($entry in $requiredIgnoreEntries) {
 
     if ($dockerignore -notmatch [regex]::Escape($entry)) {
         Write-Error "backend/.dockerignore is missing $entry"
+    }
+}
+
+foreach ($key in $requiredEnvExampleKeys) {
+    if ($envExample -notmatch "(?m)^$([regex]::Escape($key))=") {
+        Write-Error "backend/.env.example is missing $key"
+    }
+}
+
+foreach ($snippet in $requiredComposeSnippets) {
+    if ($compose -notmatch [regex]::Escape($snippet)) {
+        Write-Error "docker-compose.local.yml is missing $snippet"
+    }
+}
+
+foreach ($snippet in $requiredGradleSnippets) {
+    if ($buildGradle -notmatch [regex]::Escape($snippet)) {
+        Write-Error "backend/build.gradle is missing $snippet"
     }
 }
 

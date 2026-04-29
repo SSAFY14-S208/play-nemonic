@@ -29,20 +29,47 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'io.minio:minio:8.5.17'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
 	testRuntimeOnly 'com.h2database:h2'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+sourceSets {
+	migrationTest {
+		java.srcDir file('src/migrationTest/java')
+		resources.srcDir file('src/migrationTest/resources')
+		compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+		runtimeClasspath += output + compileClasspath
+	}
+}
+
+configurations {
+	migrationTestImplementation.extendsFrom testImplementation
+	migrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'spring.profiles.active', 'test'
+}
+
+tasks.register('migrationTest', Test) {
+	description = 'Runs Flyway migrations against a real PostgreSQL container.'
+	group = 'verification'
+	testClassesDirs = sourceSets.migrationTest.output.classesDirs
+	classpath = sourceSets.migrationTest.runtimeClasspath
+	shouldRunAfter tasks.named('test')
+	useJUnitPlatform()
+	systemProperty 'spring.profiles.active', 'migration-test'
 }
 
 spotless {

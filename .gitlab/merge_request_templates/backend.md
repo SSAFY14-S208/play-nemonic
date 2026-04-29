@@ -26,6 +26,7 @@
 - [ ] 테스트를 추가하거나 기존 테스트를 갱신했습니다.
 - [ ] API 변경 시 `backend/docs/api/*.http`를 갱신했습니다.
 - [ ] DB 변경 시 Flyway migration을 추가했습니다.
+- [ ] Flyway migration 변경 시 PostgreSQL migration 검증을 실행했습니다.
 - [ ] 비밀값, `.env`, 로컬 캐시를 커밋하지 않았습니다.
 
 <br>
@@ -34,6 +35,7 @@
 <!-- 실행한 명령과 결과를 적어주세요. -->
 - [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\format.ps1`
 - [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1`
+- [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1` <!-- DB 변경 시 -->
 
 <br>
 
