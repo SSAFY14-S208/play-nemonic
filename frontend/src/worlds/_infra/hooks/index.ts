@@ -1,2 +1,2 @@
-export { useCharacterMovement } from './useCharacterMovement'
-export { useCharacterAnimation } from './useCharacterAnimation'
+export { useCharacterMovement } from "./useCharacterMovement";
+export { useCharacterAnimation } from "./useCharacterAnimation";
