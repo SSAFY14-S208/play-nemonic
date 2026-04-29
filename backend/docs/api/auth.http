@@ -1,0 +1,12 @@
+@host = http://localhost:8080
+
+### Auth request placeholder
+# Add concrete auth requests here as endpoints are implemented.
+# Example:
+# POST {{host}}/auth/login
+# Content-Type: application/json
+#
+# {
+#   "email": "user@example.com",
+#   "password": "password"
+# }

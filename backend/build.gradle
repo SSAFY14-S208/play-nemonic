@@ -1,0 +1,121 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.13'
+	id 'io.spring.dependency-management' version '1.1.7'
+	id 'checkstyle'
+	id 'com.diffplug.spotless' version '6.25.0'
+}
+
+group = 'com.nemonicworld'
+version = '0.0.1-SNAPSHOT'
+description = 'backend'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'io.minio:minio:8.5.17'
+	compileOnly 'org.projectlombok:lombok'
+	runtimeOnly 'org.postgresql:postgresql'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
+	testRuntimeOnly 'com.h2database:h2'
+	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+sourceSets {
+	migrationTest {
+		java.srcDir file('src/migrationTest/java')
+		resources.srcDir file('src/migrationTest/resources')
+		compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+		runtimeClasspath += output + compileClasspath
+	}
+}
+
+configurations {
+	migrationTestImplementation.extendsFrom testImplementation
+	migrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	systemProperty 'spring.profiles.active', 'test'
+}
+
+tasks.register('migrationTest', Test) {
+	description = 'Runs Flyway migrations against a real PostgreSQL container.'
+	group = 'verification'
+	testClassesDirs = sourceSets.migrationTest.output.classesDirs
+	classpath = sourceSets.migrationTest.runtimeClasspath
+	shouldRunAfter tasks.named('test')
+	useJUnitPlatform()
+	systemProperty 'spring.profiles.active', 'migration-test'
+}
+
+spotless {
+	lineEndings 'GIT_ATTRIBUTES'
+
+	java {
+		eclipse().configFile('config/formatter/eclipse-java-formatter.xml')
+		removeUnusedImports()
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
+
+	format 'misc', {
+		target '*.gradle',
+			'*.md',
+			'.dockerignore',
+			'.editorconfig',
+			'.gitattributes',
+			'.gitignore',
+			'../.gitattributes',
+			'../.gitlab/**/*.md',
+			'../AGENTS.md',
+			'../CONTRIBUTING.md',
+			'AGENTS.md',
+			'CONTRIBUTING.md',
+			'docker-compose.local.yml',
+			'docs/**/*.http',
+			'docs/**/*.md',
+			'scripts/**/*.ps1',
+			'src/main/resources/**/*.sql',
+			'src/main/resources/**/*.yaml',
+			'src/main/resources/**/*.yml',
+			'src/test/resources/**/*.yaml',
+			'src/test/resources/**/*.yml'
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
+}
+
+checkstyle {
+	toolVersion = '10.12.5'
+	configFile = file('config/checkstyle/checkstyle.xml')
+	maxWarnings = 0
+	ignoreFailures = false
+}
+
+tasks.named('check') {
+	dependsOn 'spotlessCheck'
+}

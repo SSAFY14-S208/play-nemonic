@@ -1,13 +1,20 @@
 // ============================================================
-// Frontend Pipeline (fe/dev 브랜치, Registry 기반)
+// Backend Pipeline (be/dev 브랜치, Registry 기반)
 //
 // 동작:
-// 1. GitLab fe/dev push → Webhook 트리거
+// 1. GitLab be/dev push → Webhook 트리거
 // 2. ⏳ 배포 시작 Mattermost 알림
-// 3. frontend/ 코드 빌드 (Next.js)
+// 3. backend/ 코드 테스트
 // 4. docker build → Registry에 push
 // 5. EC2의 remote-deploy.sh 호출 → docker pull + 컨테이너 재시작
 // 6. ✅/❌ 배포 결과 Mattermost 알림
+//
+// Registry 호스트명 주의:
+// - docker build/push는 Jenkins 컨테이너에서 호출하지만,
+//   실제로는 호스트의 docker daemon에서 실행됨 (docker.sock 마운트)
+// - 따라서 호스트 daemon이 알아들을 수 있는 이름 'localhost:5000' 사용
+// - 'registry:5000'은 Jenkins 컨테이너 내부 DNS에서만 풀리고,
+//   호스트 daemon은 모름 → DNS lookup 실패
 // ============================================================
 
 pipeline {
@@ -27,6 +34,9 @@ pipeline {
         booleanParam(name: 'RUN_DEPLOY',
                      defaultValue: true,
                      description: '체크 시 배포 진행')
+        booleanParam(name: 'SKIP_TESTS',
+                     defaultValue: false,
+                     description: '테스트 스킵 (긴급 배포용)')
         booleanParam(name: 'NOTIFY_MM',
                      defaultValue: true,
                      description: 'Mattermost 알림 전송 여부')
@@ -36,9 +46,10 @@ pipeline {
         APP_NAME             = 'nemonic'
         COMPOSE_PROJECT_NAME = 'nemonic-prod'
         HOST_BASE_DIR        = "${params.DEPLOY_BASE_DIR}"
-        DEPLOY_TARGET        = 'frontend'
+        DEPLOY_TARGET        = 'backend'
+        // 호스트 docker daemon에서 인식 가능한 Registry 주소
         REGISTRY_HOST        = 'localhost:5000'
-        IMAGE_REPO           = 'nemonic/frontend'
+        IMAGE_REPO           = 'nemonic/app'
     }
 
     stages {
@@ -59,7 +70,7 @@ pipeline {
                         script: "git log -1 --pretty=%an",
                         returnStdout: true
                     ).trim()
-                    env.RELEASE_NAME = "release-fe-${BUILD_NUMBER}-${env.SHORT_SHA}"
+                    env.RELEASE_NAME = "release-be-${BUILD_NUMBER}-${env.SHORT_SHA}"
                     env.IMAGE_TAG = "${REGISTRY_HOST}/${IMAGE_REPO}:${env.RELEASE_NAME}"
                     env.IMAGE_LATEST = "${REGISTRY_HOST}/${IMAGE_REPO}:latest"
                     echo "Release name: ${env.RELEASE_NAME}"
@@ -77,6 +88,25 @@ pipeline {
             }
         }
 
+        stage('Test') {
+            when { expression { !params.SKIP_TESTS } }
+            steps {
+                dir('backend') {
+                    sh '''
+                        set -euo pipefail
+                        chmod +x gradlew
+                        ./gradlew --no-daemon test
+                    '''
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true,
+                          testResults: 'backend/build/test-results/test/*.xml'
+                }
+            }
+        }
+
         stage('Build Image') {
             steps {
                 sh '''
@@ -87,7 +117,7 @@ pipeline {
                     docker build \
                       -t "${IMAGE_TAG}" \
                       -t "${IMAGE_LATEST}" \
-                      frontend/
+                      backend/
                     
                     docker images | grep "${IMAGE_REPO}" | head -5
                 '''
@@ -118,7 +148,7 @@ pipeline {
                 expression {
                     def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
                     return params.RUN_DEPLOY && (
-                        branch ==~ /(origin\/)?fe\/dev/
+                        branch ==~ /(origin\/)?be\/dev/
                     )
                 }
             }
@@ -139,7 +169,7 @@ pipeline {
                       --base-dir "${HOST_BASE_DIR}" \
                       --release "${RELEASE_NAME}" \
                       --env-file "${HOST_BASE_DIR}/shared/.env.prod" \
-                      --target frontend
+                      --target backend
                 '''
             }
         }
@@ -147,7 +177,7 @@ pipeline {
 
     post {
         success {
-            echo "Frontend 배포 성공: ${env.RELEASE_NAME ?: 'N/A'}"
+            echo "Backend 배포 성공: ${env.RELEASE_NAME ?: 'N/A'}"
             script {
                 if (params.NOTIFY_MM) {
                     notifyMattermost('success')
@@ -155,7 +185,7 @@ pipeline {
             }
         }
         failure {
-            echo "Frontend 배포 실패. 로그 확인."
+            echo "Backend 배포 실패. 로그 확인."
             script {
                 if (params.NOTIFY_MM) {
                     notifyMattermost('failure')
@@ -163,7 +193,7 @@ pipeline {
             }
         }
         aborted {
-            echo "Frontend 배포 중단됨."
+            echo "Backend 배포 중단됨."
             script {
                 if (params.NOTIFY_MM) {
                     notifyMattermost('aborted')
@@ -190,27 +220,27 @@ def notifyMattermost(String status) {
             case 'started':
                 color = '#3399FF'
                 emoji = '⏳'
-                title = 'Frontend 배포 시작'
+                title = 'Backend 배포 시작'
                 break
             case 'success':
                 color = '#36A64F'
                 emoji = '✅'
-                title = 'Frontend 배포 성공'
+                title = 'Backend 배포 성공'
                 break
             case 'failure':
                 color = '#D00000'
                 emoji = '❌'
-                title = 'Frontend 배포 실패'
+                title = 'Backend 배포 실패'
                 break
             case 'aborted':
                 color = '#808080'
                 emoji = '⚠️'
-                title = 'Frontend 배포 중단'
+                title = 'Backend 배포 중단'
                 break
             default:
                 color = '#FFA500'
                 emoji = 'ℹ️'
-                title = "Frontend 배포 ${status}"
+                title = "Backend 배포 ${status}"
         }
 
         def shortSha   = env.SHORT_SHA ?: 'unknown'
@@ -219,7 +249,7 @@ def notifyMattermost(String status) {
         def buildNum   = env.BUILD_NUMBER ?: '?'
         def buildUrl   = env.BUILD_URL ?: ''
         def releaseNm  = env.RELEASE_NAME ?: 'N/A'
-        def branch     = env.BRANCH_NAME ?: 'fe/dev'
+        def branch     = env.BRANCH_NAME ?: 'be/dev'
 
         def durationLine = ''
         if (status != 'started') {

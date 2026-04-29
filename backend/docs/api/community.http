@@ -1,0 +1,4 @@
+@host = http://localhost:8080
+
+### Get community detail
+GET {{host}}/community/1

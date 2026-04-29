@@ -1,0 +1,41 @@
+# Docker build context exclusions
+
+# Gradle and harness caches
+.gradle
+.gradle-user-home
+.m2-repository
+.tool-home
+build
+out
+*.log
+
+# IDE metadata
+.idea
+.vscode
+*.iml
+.run
+
+# Git metadata
+.git
+.gitignore
+.gitattributes
+.editorconfig
+
+# Environment files
+.env
+.env.local
+.env.example
+
+# Documentation
+README.md
+CHANGELOG.md
+*.md
+
+# Test outputs
+test-results
+build/test-results
+build/reports
+
+# OS
+.DS_Store
+Thumbs.db
