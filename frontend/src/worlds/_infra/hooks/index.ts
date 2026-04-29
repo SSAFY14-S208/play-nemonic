@@ -1,0 +1,1 @@
+export { useCharacterMovement } from './useCharacterMovement'
