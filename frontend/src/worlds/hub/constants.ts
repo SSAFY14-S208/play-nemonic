@@ -44,6 +44,14 @@ export const HUB_ASSET_MESH_STYLES: Record<
 export const HUB_WITCH_PLATFORM_POSITION = new Vector3(-6.05, 0.68, -0.64)
 export const HUB_WITCH_PLATFORM_ROTATION_Y = -Math.PI / 2
 export const HUB_WITCH_PLATFORM_HEIGHT = 3.25
+export const HUB_CENTER_NEMONIC_BASE_Y = 0.84
+export const HUB_CENTER_NEMONIC_MAX_SIZE = 2.36
+
+export const HUB_CENTER_NEMONIC_PLACEHOLDER_MATERIAL_NAMES = new Set([
+  'CubeLeft',
+  'CubeRight',
+  'CubeTopPink',
+])
 
 export const HUB_ORGANIC_BOARD_OUTLINE: Array<[number, number]> = [
   [-8.2, -4.8],

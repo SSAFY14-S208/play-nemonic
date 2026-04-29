@@ -19,15 +19,22 @@ import {
 import {
   HUB_ASSET_MATERIAL_STYLES,
   HUB_ASSET_MESH_STYLES,
+  HUB_CENTER_NEMONIC_PLACEHOLDER_MATERIAL_NAMES,
   HUB_ORGANIC_BOARD_OUTLINE,
   HUB_ORGANIC_PLATE_SHAPES,
   HUB_OUTER_BOARD_MESH_NAMES,
 } from '../constants'
+import CenterNemonicMesh from './CenterNemonicMesh'
 import WitchMesh from './WitchMesh'
 
 const PLATFORM_MODEL_URL = '/models/pastel_platform.glb'
 const PLATFORM_TARGET_WIDTH = 8.9
 const PLATFORM_BASE_Y = -0.8
+interface PreparedPlatformModel {
+  platform: Object3D
+  position: [number, number, number]
+  scale: number
+}
 
 function isMesh(object: Object3D): object is Mesh {
   return (object as Mesh).isMesh === true
@@ -64,16 +71,16 @@ function createPatchMaterials(color: string) {
     new MeshStandardMaterial({
       color,
       emissive: color,
-      emissiveIntensity: 0.06,
-      roughness: 0.94,
+      emissiveIntensity: 0.12,
+      roughness: 0.95,
       metalness: 0,
       side: DoubleSide,
     }),
     new MeshStandardMaterial({
       color: sideColor,
       emissive: sideColor,
-      emissiveIntensity: 0.035,
-      roughness: 0.96,
+      emissiveIntensity: 0.08,
+      roughness: 0.97,
       metalness: 0,
     }),
   ]
@@ -154,22 +161,50 @@ function createOrganicBoardGroup() {
 
 function createRaisedCenterDisk() {
   const disk = new Mesh(
-    new CylinderGeometry(1.28, 1.48, 0.18, 96),
-    new MeshStandardMaterial({
-      color: '#f4d6dd',
-      emissive: '#ffe7ed',
-      emissiveIntensity: 0.08,
-      roughness: 0.94,
-      metalness: 0,
-      transparent: true,
-      opacity: 0.58,
-    }),
+    new CylinderGeometry(2.96, 3.06, 0.28, 160, 1, false),
+    [
+      new MeshStandardMaterial({
+        color: '#d99baa',
+        emissive: '#f3c6d0',
+        emissiveIntensity: 0.08,
+        roughness: 0.94,
+        metalness: 0,
+      }),
+      new MeshStandardMaterial({
+        color: '#efb5c1',
+        emissive: '#f7cbd3',
+        emissiveIntensity: 0.05,
+        roughness: 0.9,
+        metalness: 0,
+      }),
+      new MeshStandardMaterial({
+        color: '#efb5c1',
+        emissive: '#f7cbd3',
+        emissiveIntensity: 0.05,
+        roughness: 0.9,
+        metalness: 0,
+      }),
+    ],
   )
 
-  disk.name = 'SoftRaisedCenterDisk'
-  disk.position.y = 0.56
-  disk.renderOrder = 6
+  disk.name = 'RaisedCenterDisk'
+  disk.position.y = 0.67
+  disk.renderOrder = 20
   return disk
+}
+
+function isCenterNemonicPlaceholder(mesh: Mesh) {
+  if (mesh.name === 'CenterCube') return true
+
+  return getMeshMaterials(mesh).some((material) => (
+    HUB_CENTER_NEMONIC_PLACEHOLDER_MATERIAL_NAMES.has(material.name)
+  ))
+}
+
+function removeLoadedMesh(mesh: Mesh) {
+  mesh.parent?.remove(mesh)
+  mesh.geometry?.dispose()
+  getMeshMaterials(mesh).forEach((material) => material.dispose?.())
 }
 
 function applyPlatformPalette(mesh: Mesh) {
@@ -193,7 +228,7 @@ function applyPlatformPalette(mesh: Mesh) {
   mesh.material = material
 }
 
-function preparePlatformModel(source: Object3D) {
+function preparePlatformModel(source: Object3D): PreparedPlatformModel {
   const platform = source.clone(true)
   const bounds = new Box3().setFromObject(platform)
   const size = new Vector3()
@@ -201,13 +236,10 @@ function preparePlatformModel(source: Object3D) {
   bounds.getSize(size)
   bounds.getCenter(center)
 
-  platform.position.sub(center)
-  platform.position.y = PLATFORM_BASE_Y
-
   const maxDimension = Math.max(size.x, size.y, size.z)
   const modelScale = PLATFORM_TARGET_WIDTH / maxDimension
-  platform.scale.setScalar(modelScale)
 
+  const centerPlaceholderMeshes: Mesh[] = []
   platform.traverse((child) => {
     if (!isMesh(child)) return
 
@@ -217,22 +249,36 @@ function preparePlatformModel(source: Object3D) {
       child.visible = false
       return
     }
+    if (child.name === 'CenterDisk') {
+      child.visible = false
+      return
+    }
+    if (isCenterNemonicPlaceholder(child)) {
+      centerPlaceholderMeshes.push(child)
+      return
+    }
 
     applyPlatformPalette(child)
   })
 
+  centerPlaceholderMeshes.forEach(removeLoadedMesh)
   platform.add(createOrganicBoardGroup())
   platform.add(createRaisedCenterDisk())
-  return platform
+  return {
+    platform,
+    position: [-center.x, PLATFORM_BASE_Y, -center.z],
+    scale: modelScale,
+  }
 }
 
 export default function HubPlatformMesh() {
   const gltf = useGLTF(PLATFORM_MODEL_URL)
-  const platform = useMemo(() => preparePlatformModel(gltf.scene), [gltf.scene])
+  const preparedPlatform = useMemo(() => preparePlatformModel(gltf.scene), [gltf.scene])
 
   return (
-    <group>
-      <primitive object={platform} dispose={null} />
+    <group position={preparedPlatform.position} scale={preparedPlatform.scale}>
+      <primitive object={preparedPlatform.platform} dispose={null} />
+      <CenterNemonicMesh />
       <WitchMesh />
     </group>
   )
