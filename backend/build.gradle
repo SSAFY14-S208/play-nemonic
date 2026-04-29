@@ -73,7 +73,7 @@ tasks.register('migrationTest', Test) {
 }
 
 spotless {
-	lineEndings 'UNIX'
+	lineEndings 'GIT_ATTRIBUTES'
 
 	java {
 		eclipse().configFile('config/formatter/eclipse-java-formatter.xml')
@@ -83,7 +83,24 @@ spotless {
 	}
 
 	format 'misc', {
-		target '*.gradle', '*.md', '.gitignore', '.editorconfig'
+		target '*.gradle',
+			'*.md',
+			'.dockerignore',
+			'.editorconfig',
+			'.gitignore',
+			'../.gitattributes',
+			'../.gitlab/**/*.md',
+			'../AGENTS.md',
+			'../CONTRIBUTING.md',
+			'../docker-compose.local.yml',
+			'docs/**/*.http',
+			'docs/**/*.md',
+			'scripts/**/*.ps1',
+			'src/main/resources/**/*.sql',
+			'src/main/resources/**/*.yaml',
+			'src/main/resources/**/*.yml',
+			'src/test/resources/**/*.yaml',
+			'src/test/resources/**/*.yml'
 		trimTrailingWhitespace()
 		endWithNewline()
 	}

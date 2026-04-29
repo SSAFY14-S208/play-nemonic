@@ -103,6 +103,12 @@ Session close routine:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-close.ps1
 ```
 
+Include PostgreSQL Flyway verification when migrations changed:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-close.ps1 -WithMigration
+```
+
 ## Local Infrastructure
 
 Create `backend/.env` from `backend/.env.example`, then start dependencies from the
@@ -154,6 +160,8 @@ bucket initializer.
 - Prefer constructor injection for Spring components.
 - Keep controller methods thin; move business logic into services as the domain grows.
 - Run the verification wrapper before handing work back.
+- Before staging, committing, or amending a commit, run `backend/scripts/format.ps1`.
+- If formatting changes files, include those formatting changes in the same commit unless the user asked otherwise.
 
 ## Agent Behavior Rules
 
@@ -170,6 +178,7 @@ These rules adapt the Karpathy-style coding agent guidance for this repository.
 - For substantial work, follow `backend/docs/agent-workflow.md`.
 - For product behavior, read the relevant file under `backend/docs/product-spec/` before implementing.
 - Before handoff, use `backend/docs/agent-review-checklist.md`.
+- If the user asks the agent to commit, format first, then run the relevant verification command, then stage and commit.
 
 ## Agent Task Template
 

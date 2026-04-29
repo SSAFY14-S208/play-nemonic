@@ -39,7 +39,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 
 Use `-Fast` for quick test-only checks while iterating.
 
-## 5. Handoff
+## 5. Commit Requests
+
+When the user asks the agent to create or amend a commit:
+
+1. Run formatting first.
+2. Run the fastest relevant verification command.
+3. Check git status.
+4. Stage only the intended files.
+5. Commit or amend with the requested commit message.
+
+From the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\format.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
+```
+
+Use `verify.ps1 -Fast` only when the user explicitly wants a fast commit loop or
+when the change is small and the risk is low. If DB migrations changed, also run
+`backend/scripts/verify-migration.ps1` when Docker is available.
+
+If formatting changes files, include those formatting changes in the same commit
+unless the user asks for a different split.
+
+## 6. Handoff
 
 - Summarize changed files.
 - Report verification commands and results.
