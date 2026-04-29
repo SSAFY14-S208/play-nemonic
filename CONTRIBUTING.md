@@ -96,6 +96,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\format.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 ```
 
+DB migration 검증:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1
+```
+
 최종 점검:
 
 ```powershell
@@ -108,6 +114,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-cl
 - `backend/docs/product-spec/`의 관련 기획을 확인했다.
 - API 변경 시 `backend/docs/api/*.http`를 갱신했다.
 - DB 변경 시 Flyway migration을 추가했다.
+- Flyway migration 변경 시 `verify-migration.ps1`가 통과했다.
 - 테스트를 추가 또는 갱신했다.
 - `format.ps1`와 `verify.ps1`가 통과했다.
 - 비밀값, 로컬 캐시, `.env` 파일을 커밋하지 않았다.

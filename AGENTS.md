@@ -10,7 +10,9 @@ Use this guide as the default operating manual for Codex and other coding agents
 - Gradle wrapper
 - PostgreSQL for local/runtime persistence
 - Redis for runtime infrastructure
+- MinIO for local/runtime object storage
 - H2 for the default test profile
+- PostgreSQL Testcontainers for Flyway migration verification
 - Flyway, JPA, Spring Security, Validation, Actuator
 - Spotless and Checkstyle for formatting and style gates
 
@@ -22,6 +24,7 @@ Use this guide as the default operating manual for Codex and other coding agents
 - Test profile: `backend/src/test/resources/application-test.yaml`
 - Local environment sample: `backend/.env.example`
 - Local infrastructure compose file: `docker-compose.local.yml`
+- Flyway migrations: `backend/src/main/resources/db/migration`
 - Team contribution guide: `CONTRIBUTING.md`
 - GitLab backend MR template: `.gitlab/merge_request_templates/backend.md`
 - API request harness: `backend/docs/api/`
@@ -82,6 +85,12 @@ Full build verification:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1 -Build
 ```
 
+PostgreSQL migration verification:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1
+```
+
 Harness integrity check:
 
 ```powershell
@@ -111,9 +120,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\local-down
 
 The helper scripts intentionally do not remove Docker volumes.
 
+The local compose stack starts PostgreSQL, Redis, MinIO, and a one-shot MinIO
+bucket initializer.
+
 ## Testing Rules
 
 - Use the `test` Spring profile for automated tests.
+- The default test profile uses H2 for speed and does not validate PostgreSQL-specific DDL.
+- Run `backend/scripts/verify-migration.ps1` when adding or changing Flyway migrations.
 - Keep tests deterministic and independent.
 - Prefer unit tests for pure logic.
 - Prefer web slice tests for controller request/response behavior.

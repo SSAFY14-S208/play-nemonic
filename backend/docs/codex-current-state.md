@@ -1,10 +1,11 @@
 # Codex Current State
 
-Last updated: 2026-04-28
+Last updated: 2026-04-29
 
 ## Current Focus
 
 - Backend agent harness has been prepared for the `backend/` Spring Boot module.
+- The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
 - The next expected work is the first real backend feature/API implementation using the architecture convention.
 
@@ -14,7 +15,9 @@ Last updated: 2026-04-28
 - New backend features should follow `backend/docs/backend-architecture.md`.
 - Commands are run from the repository root unless a script says otherwise.
 - Verification is standardized through `backend/scripts/format.ps1` and `backend/scripts/verify.ps1`.
+- PostgreSQL-specific Flyway migrations are verified through `backend/scripts/verify-migration.ps1`.
 - Gradle, Maven, and Java tool caches are isolated inside ignored workspace directories.
+- Local Docker dependencies include PostgreSQL, Redis, MinIO, and a one-shot MinIO bucket initializer.
 - Agent memory is stored in repo docs instead of relying only on chat history.
 - Product planning is stored under `backend/docs/product-spec/` as durable AI-readable memory.
 
@@ -30,6 +33,7 @@ Last updated: 2026-04-28
 - `backend/docs/codex-app-operations.md`: skills, automations, and subagent usage
 - `backend/docs/product-spec/`: product planning split by feature and operating domain
 - `backend/scripts/verify.ps1`: canonical verification wrapper
+- `backend/scripts/verify-migration.ps1`: PostgreSQL Testcontainers Flyway migration verification
 - `backend/scripts/format.ps1`: canonical formatting wrapper
 - `backend/scripts/check-harness.ps1`: harness integrity check
 - `backend/scripts/session-close.ps1`: end-of-session validation routine
@@ -40,6 +44,7 @@ Last updated: 2026-04-28
 ## Known Environment Notes
 
 - `backend/.env` must be created from `backend/.env.example` before running local Docker dependencies.
+- `verify-migration.ps1` requires Docker Desktop or another Docker daemon reachable by Testcontainers.
 - Git may require `git config --global --add safe.directory C:/SSAFY/mango-project/be` in Codex sandbox contexts.
 - Korean Markdown files are UTF-8. Some legacy PowerShell reads may render Korean text incorrectly unless UTF-8 is used.
 
@@ -49,10 +54,14 @@ From the repository root:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\format.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\check-harness.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 ```
 
 Latest result: `BUILD SUCCESSFUL`.
+
+`verify-migration.ps1` was added, but the latest local run could not execute
+because Docker was not running in the current environment.
 
 ## Next Suggested Steps
 
