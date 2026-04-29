@@ -4,8 +4,10 @@
 
 Next.js 16 (App Router) + TypeScript + Tailwind CSS v4
 @react-three/fiber · @react-three/drei · @react-three/rapier · three · Zustand
-ky · shadcn/ui · @base-ui/react · lucide-react · motion
+ky · @base-ui/react · lucide-react · motion
 konva · react-konva
+class-variance-authority · clsx · tailwind-merge
+폰트: Pretendard Variable
 패키지 매니저: **pnpm**
 React Compiler (babel-plugin-react-compiler) 활성화됨
 
@@ -13,12 +15,13 @@ React Compiler (babel-plugin-react-compiler) 활성화됨
 
 ## 초기 의존성 설치 (반드시 준수)
 
-**기술 스택에 명시된 라이브러리는 프로젝트 초기화 시점에 모두 설치해야 합니다.**  
+**기술 스택에 명시된 라이브러리는 프로젝트 초기화 시점에 모두 설치해야 합니다.**
 나중에 필요할 것 같은 라이브러리를 빠뜨리면 peer 의존성 충돌이 발생하므로, 아래 명령을 그대로 실행합니다.
 
 ```bash
 pnpm add next react react-dom @react-three/fiber @react-three/drei @react-three/rapier three
 pnpm add @base-ui/react ky lucide-react motion konva react-konva zustand
+pnpm add class-variance-authority clsx tailwind-merge
 pnpm add -D typescript @types/node @types/react @types/react-dom @types/three eslint eslint-config-next tailwindcss @tailwindcss/postcss postcss
 ```
 
@@ -34,10 +37,13 @@ pnpm add -D typescript @types/node @types/react @types/react-dom @types/three es
 | `three`                 | Three.js 코어                          |
 | `zustand`               | 전역 상태 관리                         |
 | `ky`                    | HTTP 클라이언트                        |
-| `@base-ui/react`        | shadcn/ui primitive                    |
+| `@base-ui/react`        | 헤드리스 UI 프리미티브                 |
 | `lucide-react`          | 아이콘                                 |
 | `motion`                | DOM 애니메이션                         |
-| `konva` + `react-konva` | 2D 캔버스                              |
+| `konva` + `react-konva`       | 2D 캔버스                              |
+| `class-variance-authority`   | 컴포넌트 변형(variant) 관리            |
+| `clsx`                       | 조건부 클래스 병합                     |
+| `tailwind-merge`             | Tailwind 클래스 충돌 없는 병합         |
 
 ---
 
@@ -45,87 +51,121 @@ pnpm add -D typescript @types/node @types/react @types/react-dom @types/three es
 
 ```
 src/
-├── app/                          # Next.js App Router — 라우팅 진입점만 담당
+├── app/                             # Next.js App Router — 라우팅 진입점만 담당
 │   ├── layout.tsx
-│   ├── page.tsx
-│   └── share/
-│       └── [id]/
-│           └── page.tsx
+│   ├── (service)/                   # 일반 서비스 라우트 그룹 (URL 미노출)
+│   │   ├── layout.tsx               # (선택) 서비스 공통 layout
+│   │   ├── page.tsx                 # URL: /       → 랜딩 3D
+│   │   ├── hub/page.tsx             # URL: /hub    → 허브 3D
+│   │   ├── relay-drawing/page.tsx
+│   │   ├── infinite-canvas/page.tsx
+│   │   ├── flipbook/page.tsx
+│   │   └── share/[id]/page.tsx
+│   └── admin/                       # URL: /admin/* → 백오피스 (URL 노출)
+│       ├── layout.tsx               # AdminAuthGuard + 사이드바 layout
+│       └── {section}/page.tsx
 │
-├── worlds/
-│   ├── WorldCanvas.tsx           # Canvas 진입점 ('use client' 선언, <Canvas> 유일)
-│   ├── WorldLoader.tsx           # dynamic + ssr:false 래퍼 ('use client')
-│   ├── {scene}/
-│   │   ├── index.ts
-│   │   ├── {Scene}Scene.tsx      # 씬 루트
+├── worlds/                          # 3D 씬 코드 — 씬당 한 폴더
+│   ├── landing/
+│   │   ├── LandingLoader.tsx        # 'use client' + dynamic(ssr:false) 래퍼
+│   │   ├── LandingCanvas.tsx        # <Canvas> + <Physics> 소유
+│   │   ├── LandingScene.tsx         # 씬 루트
 │   │   ├── constants.ts
-│   │   ├── GroundMesh.tsx        # (선택)
-│   │   ├── use{Scene}Interaction.ts  # (선택)
+│   │   ├── GroundMesh.tsx           # (선택)
+│   │   ├── useLandingInteraction.ts # (선택)
 │   │   └── objects/
 │   │       └── {Name}Mesh.tsx
-│   ├── _infra/                   # 월드 전체에 항상 존재하는 단일 주체
-│   │   ├── SceneManager.tsx
+│   ├── hub/
+│   │   ├── HubLoader.tsx
+│   │   ├── HubCanvas.tsx
+│   │   ├── HubScene.tsx
+│   │   ├── useHubInteraction.ts
+│   │   └── objects/
+│   │       └── {Name}Mesh.tsx
+│   ├── _infra/                      # 씬당 하나만 존재하는 단일 주체
 │   │   ├── Lighting.tsx
 │   │   └── Character.tsx
 │   └── _shared/
-│       └── mesh/                 # 씬 안에 여러 개 배치 가능한 재사용 메시
+│       └── mesh/                   # 씬 안에 여러 개 배치 가능한 재사용 메시
 │           ├── index.ts
 │           └── {Name}Mesh.tsx
 │
 ├── features/
 │   └── {feature-name}/
 │       ├── index.ts
-│       ├── {FeatureName}.tsx         # UI만 담당 — 로직은 훅/스토어로 분리
-│       ├── use{FeatureName}.ts       # UI 컴포넌트가 참조하는 비즈니스 로직 훅
-│       ├── {featureName}Store.ts     # feature 전용 Zustand store (선택)
-│       ├── {FeatureName}Visual.tsx   # 독립 <Canvas> 필요 시
-│       └── {Name}Mesh.tsx
+│       ├── {FeatureName}Page.tsx     # 라우트 진입점 (URL이 있는 페이지)
+│       ├── {FeatureName}Modal.tsx    # DOM 오버레이 모달
+│       ├── {FeatureName}Stage.tsx    # Konva Stage 소유 (선택)
+│       ├── {FeatureName}Visual.tsx   # 독립 <Canvas> 소유 (선택)
+│       ├── use{FeatureName}.ts       # 비즈니스 로직 훅
+│       └── {featureName}Store.ts    # feature 전용 Zustand store (선택)
 │
 ├── shared/
-│   ├── apis/                         # 백엔드 API 호출 함수 (도메인별 분리)
+│   ├── apis/                        # 백엔드 API 호출 함수 (도메인별 분리)
 │   │   ├── index.ts
 │   │   └── {domain}Api.ts
-│   ├── constants/                    # 전역 상수
+│   ├── assets/                      # 번들러 관리 정적 자산 (svg, glb, mp3) — public/ 아님
+│   ├── components/                  # 자체 구현 공용 UI 컴포넌트 (컴포넌트마다 폴더)
+│   │   ├── index.ts
+│   │   └── {ComponentName}/
+│   │       ├── {ComponentName}.tsx
+│   │       ├── {ComponentName}.types.ts  # 복잡한 Props인 경우
+│   │       └── index.ts
+│   ├── config/                      # env 검증, 환경별 설정, 피처 플래그
+│   │   ├── index.ts
+│   │   └── runtime.ts
+│   ├── constants/                   # 환경 무관 전역 상수
 │   │   ├── index.ts
 │   │   └── {name}.ts
 │   ├── hooks/
 │   │   ├── index.ts
 │   │   └── use{Name}.ts
+│   ├── layouts/                     # 페이지 레이아웃 컴포넌트
+│   │   ├── index.ts
+│   │   └── {Name}Layout.tsx
 │   ├── libs/
 │   │   ├── index.ts
-│   │   └── apiClient.ts
+│   │   ├── apiClient.ts
+│   │   └── cn.ts                    # cn() — clsx + tailwind-merge 래퍼
 │   ├── stores/
 │   │   ├── index.ts
 │   │   └── {name}Store.ts
-│   ├── types/                        # 공유 TypeScript 타입 정의
+│   ├── styles/                      # CSS 토큰 시스템 진입점
+│   │   ├── index.css                # 전체 CSS 진입점 (@import "tailwindcss" 포함)
+│   │   ├── tokens/
+│   │   │   ├── primitive/           # 원시 값 (색상 팔레트, 간격 스케일)
+│   │   │   └── semantic/            # 역할 기반 토큰 (surface, fg, primary...)
+│   │   └── layers/
+│   │       ├── base.css             # 전역 리셋
+│   │       ├── theme.css            # Tailwind 테마 통합
+│   │       └── utilities.css        # 타이포그래피 유틸리티 클래스
+│   ├── types/                       # 공유 TypeScript 타입 정의
 │   │   ├── index.ts
 │   │   └── {domain}.ts
-│   ├── ui/
-│   │   ├── index.ts
-│   │   └── {name}.tsx
-│   └── utils/                        # 순수 유틸리티 함수
+│   └── utils/                       # 순수 유틸리티 함수
 │       ├── index.ts
 │       └── {name}.ts
-│
-└── styles/
-    ├── index.css                 # 전역 스타일 (@import "tailwindcss")
-    └── shadcn.css                # shadcn CLI 관리 영역 — 직접 수정 지양
 ```
 
-> **`_infra/`** — 월드 전체에 항상 존재하는 단일 주체 (SceneManager, Lighting, Character)  
-> **`_shared/`** — 씬 안에 여러 개 배치 가능한 재사용 컴포넌트
+> **`_infra/`** — 씬당 하나만 존재하는 단일 주체 (Lighting, Character)
+> **`_shared/mesh/`** — 씬 안에 여러 개 배치 가능한 재사용 컴포넌트
+> **`shared/assets/`** — `public/`이 아닌 번들러가 관리하는 정적 자산 (svg, glb, mp3)
+> **`shared/config/`** — `process.env` 직접 참조 대신 환경 설정을 한 곳에서 관리
+> **`shared/styles/`** — CSS 토큰 시스템. `app/layout.tsx`에서 `@/shared/styles/index.css` import
+> **`shared/layouts/`** — 여러 페이지에서 공유하는 레이아웃 컴포넌트
+> **`shared/libs/cn.ts`** — `cn()` 유틸리티 (`clsx` + `tailwind-merge` 래퍼)
 
 ---
 
 ## 폴더 네이밍
 
-| 위치               | 케이스       | 예시                                          |
-| ------------------ | ------------ | --------------------------------------------- |
-| 최상위 도메인 폴더 | `lowercase`  | `worlds/`, `features/`, `shared/`             |
-| 씬 / 도메인 하위   | `lowercase`  | `outside/`, `home/`                           |
-| 도구 하위 (복수형) | `lowercase`  | `apis/`, `constants/`, `hooks/`, `libs/`, `stores/`, `types/`, `ui/`, `utils/`, `objects/` |
-| feature 단위       | `kebab-case` | `drawing-canvas/`, `label-printer/`           |
-| 인프라 공유        | `_prefix`    | `_infra/`, `_shared/`                         |
+| 위치               | 케이스       | 예시                                                                                                                    |
+| ------------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| 최상위 도메인 폴더 | `lowercase`  | `worlds/`, `features/`, `shared/`                                                                                       |
+| 씬 / 도메인 하위   | `lowercase`  | `landing/`, `hub/`                                                                                                      |
+| 도구 하위 (복수형) | `lowercase`  | `apis/`, `assets/`, `components/`, `config/`, `constants/`, `hooks/`, `layouts/`, `libs/`, `stores/`, `styles/`, `types/`, `utils/`, `objects/` |
+| feature 단위       | `kebab-case` | `relay-drawing/`, `label-printer/`                                                                                      |
+| 인프라 공유        | `_prefix`    | `_infra/`, `_shared/`                                                                                                   |
 
 ---
 
@@ -173,10 +213,9 @@ meshRef.current.scale.x = uniformScale * (1 - progress);
 
 | 종류                 | 케이스                | 예시                                 |
 | -------------------- | --------------------- | ------------------------------------ |
-| React 컴포넌트       | `PascalCase.tsx`      | `HomeScene.tsx`, `DrawingCanvas.tsx` |
-| shadcn UI 프리미티브 | `lowercase.tsx`       | `drawer.tsx`, `button.tsx`           |
+| React 컴포넌트       | `PascalCase.tsx`      | `LandingScene.tsx`, `FortuneModal.tsx` |
 | 훅                   | `camelCase.ts`        | `useCharacterControls.ts`            |
-| 스토어               | `camelCase.ts`        | `canvasStore.ts`                     |
+| 스토어               | `camelCase.ts`        | `fortuneStore.ts`                    |
 | 상수                 | `constants.ts` (고정) |                                      |
 | 유틸                 | `camelCase.ts`        | `utils.ts`                           |
 | 배럴                 | `index.ts` (고정)     |                                      |
@@ -185,11 +224,14 @@ meshRef.current.scale.x = uniformScale * (1 - progress);
 
 | 접미사               | 의미                                         | 위치                         |
 | -------------------- | -------------------------------------------- | ---------------------------- |
-| `*Scene.tsx`         | 씬 루트. 메인 `<Canvas>` 컨텍스트를 이어받음 | `worlds/{scene}/`            |
+| `{Scene}Loader.tsx`  | 3D 라우트 진입점. `'use client'` + `dynamic(ssr:false)` | `worlds/{scene}/`   |
+| `{Scene}Canvas.tsx`  | `<Canvas>` + `<Physics>` 소유                | `worlds/{scene}/`            |
+| `{Scene}Scene.tsx`   | 씬 루트. Canvas 컨텍스트 안에서 오브젝트 조립 | `worlds/{scene}/`           |
 | `*Mesh.tsx`          | 3D 지오메트리 단위. `<Canvas>` 선언 없음     | `worlds/`, `features/`       |
-| `*Visual.tsx`        | 독립 `<Canvas>`를 소유하는 3D 컴포넌트       | `features/`                  |
+| `*Page.tsx`          | 2D 라우트 진입점 (URL이 있는 페이지)         | `features/`                  |
 | `*Modal.tsx`         | DOM 오버레이 모달                            | `features/`                  |
-| `*Canvas.tsx`        | Konva 2D 캔버스 컴포넌트                     | `features/`                  |
+| `*Stage.tsx`         | Konva `<Stage>` 소유 2D 캔버스               | `features/`                  |
+| `*Visual.tsx`        | 독립 `<Canvas>`를 소유하는 3D 컴포넌트       | `features/`                  |
 | `use*Interaction.ts` | 씬 상호작용 훅 (거리 감지 + 키 이벤트)       | `worlds/{scene}/`            |
 | `use*.ts`            | 그 외 React 훅                               | `features/`, `shared/hooks/` |
 
@@ -250,14 +292,22 @@ app → worlds · features → shared
 씬의 근접 감지 결과처럼 특정 feature에만 해당하는 트리거 상태는 해당 `features/{feature}/` 안에 store를 두고, `worlds/{scene}/use*Interaction.ts`가 직접 write합니다.
 
 ```
-worlds/home/useHomeInteraction.ts
-  ├──write──▶ features/interaction-sheet/interactionSheetStore.ts
+worlds/hub/useHubInteraction.ts
+  ├──write──▶ features/fortune/fortuneStore.ts
   └──write──▶ features/label-printer/labelPrinterStore.ts
 ```
 
 - `use*Interaction.ts`의 feature store write는 예외적으로 허용
 - 단, feature 컴포넌트/훅 import는 여전히 금지
 - **씬 이탈 시 `active = false`로 store 값을 리셋해 stale 상태 방지**
+
+### 백오피스 격리
+
+```
+✅ features/admin/*  →  shared/*
+❌ features/admin/*  →  features/{일반 feature}/*
+❌ features/{일반}/* →  features/admin/*
+```
 
 ---
 
@@ -281,26 +331,27 @@ worlds/home/useHomeInteraction.ts
 
 - `app/` 파일은 라우팅 진입점과 메타데이터 선언만 담당
 - 실제 UI/로직은 `worlds/`, `features/`에서 가져옴
-- **Next.js 16에서 `dynamic + ssr: false`는 Server Component에서 사용 불가** → `WorldLoader.tsx` 같은 Client Component 래퍼로 분리
+- **Next.js 16에서 `dynamic + ssr: false`는 Server Component에서 사용 불가** → `{Scene}Loader.tsx` Client Component 래퍼로 분리
+- 일반 서비스 페이지는 `app/(service)/` 하위에 배치 (`app/` 직하에 배치 금지)
 
 ```tsx
-// worlds/WorldLoader.tsx  ← Client Component 래퍼
+// worlds/landing/LandingLoader.tsx  ← Client Component 래퍼
 "use client";
 import dynamic from "next/dynamic";
-const WorldCanvas = dynamic(() => import("./WorldCanvas"), { ssr: false });
-export default function WorldLoader() {
-  return <WorldCanvas />;
+const LandingCanvas = dynamic(() => import("./LandingCanvas"), { ssr: false });
+export default function LandingLoader() {
+  return <LandingCanvas />;
 }
 
-// app/page.tsx  ← Server Component (ssr:false 코드 없음)
-import WorldLoader from "@/worlds/WorldLoader";
+// app/(service)/page.tsx  ← Server Component (ssr:false 코드 없음)
+import LandingLoader from "@/worlds/landing/LandingLoader";
 export default function Page() {
-  return <WorldLoader />;
+  return <LandingLoader />;
 }
 ```
 
 ```tsx
-// app/share/[id]/page.tsx
+// app/(service)/share/[id]/page.tsx
 export async function generateMetadata({ params }) {
   // OG 태그만 여기서 처리 — 백엔드 API 호출 가능
   const result = await fetch(
@@ -309,22 +360,23 @@ export async function generateMetadata({ params }) {
   return { openGraph: { title: result.name, images: [result.imageUrl] } };
 }
 export default function SharePage({ params }) {
-  return <ShareFeature id={params.id} />; // 실제 UI는 features/에서
+  return <SharePage id={params.id} />; // 실제 UI는 features/에서
 }
 ```
 
 ### 공통 레이아웃 — app/layout.tsx에만
 
-페이지 간 공통 UI(Header, Footer, Sidebar 등)는 반드시 `app/layout.tsx`에 작성합니다.  
+페이지 간 공통 UI(Header, Footer, Sidebar 등)는 반드시 `app/layout.tsx`에 작성합니다.
 각 `page.tsx`에 공통 UI를 반복 작성하지 않습니다.
 
 특정 라우트 그룹에만 다른 레이아웃이 필요한 경우 중첩 `layout.tsx`를 사용합니다.
 
-### worlds/ — 전체 클라이언트
+### worlds/ — 씬별 클라이언트 경계
 
-- `WorldCanvas.tsx`에만 `'use client'` 선언 — 하위 파일은 자동 전파
-- `worlds/` 하위에서 `<Canvas>` 선언 금지 (`WorldCanvas.tsx`에만 존재)
-- `worlds/` 하위 파일에 `'use client'` 중복 선언 불필요
+- 각 씬의 `{Scene}Loader.tsx`와 `{Scene}Canvas.tsx`에만 `'use client'` 선언
+- 씬의 다른 파일들(`{Scene}Scene.tsx`, `*Mesh.tsx`, `use*Interaction.ts`)에는 불필요 (Canvas에서 자동 전파)
+- `<Canvas>` 선언은 `{Scene}Canvas.tsx`에만 — 씬 컴포넌트나 오브젝트에 금지
+- `<Physics>` 선언은 `{Scene}Canvas.tsx` 내부에만
 
 ### features/ — 명시적 선언
 
@@ -375,17 +427,11 @@ export const api = {
 - 모든 API 호출은 `api.get/post/put/delete`를 통해서만 진행
 - 서버 컴포넌트에서 Next.js 캐싱(`next: { revalidate }`)이 필요한 경우에만 native `fetch` 직접 사용 허용
 - `useEffect` 안에서 `fetch`를 직접 호출하는 패턴 금지 → 훅으로 분리
+- feature 코드에서 `process.env.X` 직접 참조 금지 → `shared/config/` 경유
 
 ---
 
 ## 라이브러리별 사용 규칙
-
-### shadcn/ui
-
-- style: `base-nova` (primitive: `@base-ui/react`, Radix UI 미사용)
-- 컴포넌트 추가는 `pnpm dlx shadcn@latest add {component}`로만 진행
-- 설치된 컴포넌트는 `shared/ui/`에 위치, `shared/ui/index.ts` 배럴로 재export
-- 아이콘은 `lucide-react` 사용
 
 ### motion
 
@@ -398,15 +444,24 @@ export const api = {
 
 #### Physics Provider 배치
 
-`<Physics>`는 `WorldCanvas.tsx` 내 `<Canvas>` 바로 하위에 하나만 배치합니다. 씬별로 중복 선언하지 않습니다.
+`<Physics>`는 각 씬의 `{Scene}Canvas.tsx` 내 `<Canvas>` 바로 하위에 하나만 배치합니다. 씬 컴포넌트나 오브젝트에 중복 선언 금지.
 
 ```tsx
-// worlds/WorldCanvas.tsx
-<Canvas>
-  <Physics gravity={[0, -9.81, 0]}>
-    <SceneManager />
-  </Physics>
-</Canvas>
+// worlds/landing/LandingCanvas.tsx
+"use client";
+import { Canvas } from "@react-three/fiber";
+import { Physics } from "@react-three/rapier";
+import LandingScene from "./LandingScene";
+
+export default function LandingCanvas() {
+  return (
+    <Canvas>
+      <Physics gravity={[0, -9.81, 0]}>
+        <LandingScene />
+      </Physics>
+    </Canvas>
+  );
+}
 ```
 
 디지털 트윈처럼 중력이 의미 없는 평면 이동 씬은 `gravity={[0, 0, 0]}`으로 설정합니다.
@@ -420,7 +475,7 @@ export const api = {
 | `dynamic`               | 물리적으로 자유 반응이 필요한 물체 (자유낙하, 밀림 등)         |
 | `sensor: true` Collider | 충돌 이벤트만 감지, 물리 반응 없음 (근접 감지 범위)            |
 
-`kinematicPosition`은 이동을 코드가 제어하고 충돌 처리는 물리 엔진이 담당합니다.  
+`kinematicPosition`은 이동을 코드가 제어하고 충돌 처리는 물리 엔진이 담당합니다.
 `dynamic`을 캐릭터에 쓰면 물리 연산이 이동을 방해하므로 **절대 금지**합니다.
 
 #### 캐릭터 패턴
@@ -467,7 +522,7 @@ useFrame((_, delta) => {
 </RigidBody>
 ```
 
-WebSocket/API로 받은 위치 데이터를 `useFrame` 안에서 `setNextKinematicTranslation()`으로 적용합니다.  
+WebSocket/API로 받은 위치 데이터를 `useFrame` 안에서 `setNextKinematicTranslation()`으로 적용합니다.
 위치 동기화 로직은 반드시 `use{Name}.ts` 훅으로 분리합니다.
 
 #### 센서(감지 범위) 패턴
@@ -489,7 +544,7 @@ WebSocket/API로 받은 위치 데이터를 `useFrame` 안에서 `setNextKinemat
 
 #### KinematicCharacterController와 충돌 처리
 
-캐릭터는 `KinematicCharacterController`의 `computeColliderMovement`로 이동합니다.  
+캐릭터는 `KinematicCharacterController`의 `computeColliderMovement`로 이동합니다.
 이 메서드는 Rapier World에 등록된 **모든 Collider**를 대상으로 충돌을 계산합니다.
 
 | mesh 상태                                                               | 캐릭터 충돌             |
@@ -498,7 +553,7 @@ WebSocket/API로 받은 위치 데이터를 `useFrame` 안에서 `setNextKinemat
 | 일반 `<mesh>` (RigidBody 없음)                                          | 통과 ❌                 |
 | `sensor: true` Collider                                                 | 통과 — 이벤트만 발생 ❌ |
 
-**새 구조물·설비를 추가할 때는 반드시 `RigidBody`로 감싸야 캐릭터가 막힙니다.**  
+**새 구조물·설비를 추가할 때는 반드시 `RigidBody`로 감싸야 캐릭터가 막힙니다.**
 Controller 코드는 수정하지 않아도 자동으로 반응합니다.
 
 ```tsx
@@ -625,14 +680,205 @@ useEffect(() => {
 
 ### konva / react-konva
 
-- 2D 캔버스 기능에만 사용, `features/` 하위에 `*Canvas.tsx` 파일로 배치
+- 2D 캔버스 기능에만 사용, `features/` 하위에 `*Stage.tsx` 파일로 배치
 - `Stage > Layer > Shape` 구조 준수
 
 ### CSS 파일 구조
 
-- 전역 스타일은 `styles/index.css`에 추가 (`@import "tailwindcss"` 포함)
-- `styles/shadcn.css`는 shadcn CLI가 관리하는 영역이므로 직접 수정 지양
-- `layout.tsx`에서 `@/styles/index.css`를 import
+CSS 토큰 시스템은 `shared/styles/`에서 관리합니다.
+
+```
+shared/styles/
+├── index.css           ← 전체 진입점 (app/layout.tsx에서 import)
+├── tokens/
+│   ├── primitive/      ← 원시 색상 팔레트, 간격 스케일 (직접 참조 금지)
+│   └── semantic/       ← 역할 기반 토큰 (bg-surface-*, text-fg-*, border-*)
+└── layers/
+    ├── base.css        ← 전역 리셋 + Pretendard 폰트
+    ├── theme.css       ← Tailwind 테마 통합
+    └── utilities.css   ← 타이포그래피 유틸리티 클래스 (h1-b, body-r...)
+```
+
+CSS 레이어 로딩 순서 (`shared/styles/index.css`):
+1. Primitive tokens
+2. Semantic tokens
+3. Tailwind layers (theme → utilities → base)
+
+- `app/layout.tsx`에서 `@/shared/styles/index.css` import
+- 컴포넌트 스타일은 Tailwind utility classes로 처리 (별도 CSS 파일 금지)
+
+---
+
+## 디자인 시스템
+
+### 토큰 계층 구조
+
+```
+Primitive Tokens → Semantic Tokens
+(원시 값)          (역할 기반 매핑)
+```
+
+- **Primitive** (`shared/styles/tokens/primitive/`): 원시 값 (HSL 채널, px 수치). 컴포넌트에서 직접 참조 금지.
+- **Semantic** (`shared/styles/tokens/semantic/`): 역할 기반 매핑 (`primary`, `surface`, `fg` 등). 컴포넌트에서 이것만 참조.
+
+### 토큰 사용 규칙
+
+**컴포넌트에서는 반드시 Semantic 토큰을 사용하세요. Primitive 토큰 직접 사용 금지.**
+
+```tsx
+// ✅ 올바른 사용 — Semantic 토큰
+className="bg-surface-default text-fg-primary border-border-default"
+
+// ❌ 금지 — Primitive 직접 참조
+className="bg-cream-50 text-brown-720"
+```
+
+### 색상 토큰
+
+| 토큰                   | 용도                            |
+| ---------------------- | ------------------------------- |
+| `bg-primary-1`         | CTA 버튼 배경, 주요 강조        |
+| `bg-primary-5`         | 활성 탭 배경 (연한 강조색)      |
+| `bg-surface-default`   | 기본 카드/화면 배경             |
+| `bg-surface-subtle`    | 구분선 위 배경                  |
+| `text-fg-primary`      | 주요 본문 텍스트                |
+| `text-fg-secondary`    | 보조 텍스트                     |
+| `text-fg-disabled`     | 비활성 텍스트                   |
+| `text-fg-inverse`      | 어두운 배경 위 텍스트           |
+| `border-border-default`| 기본 테두리                     |
+| `text-primary-2`       | 링크, 활성 아이콘 색            |
+
+### 타이포그래피 유틸리티 클래스
+
+폰트 관련 속성(font-family, size, line-height, weight)을 묶은 유틸리티 클래스를 사용합니다.
+**raw Tailwind font 클래스 직접 조합 금지** (`text-2xl font-bold` 등).
+
+```
+h1-b (32px/700)   h2-b (24px/700)   h3-b (20px/700)   h4-b (16px/700)
+body-l-b / body-l-m / body-l-r  (16px, weight: 700/500/400)
+body-b  / body-m  / body-r      (14px, weight: 700/500/400)
+caption-b / caption-m / caption-r (12px, weight: 700/500/400)
+```
+
+```tsx
+// ✅ 올바른 사용
+className="h2-b text-fg-primary"
+className="body-r text-fg-secondary"
+
+// ❌ 금지 — raw Tailwind font 클래스 직접 조합
+className="text-2xl font-bold leading-tight"
+```
+
+### 간격 (Spacing)
+
+CSS 변수 기반 스케일은 Tailwind 스케일과 1:1 대응됩니다.
+
+```
+--space-1: 4px   → p-1, gap-1
+--space-2: 8px   → p-2, gap-2
+--space-4: 16px  → p-4, gap-4  (기본 카드 내부)
+--space-6: 24px  → p-6         (섹션 내부)
+```
+
+### Border Radius
+
+```
+rounded-[var(--radius-sm)]  : 4px  — 배지, 태그
+rounded-[var(--radius-md)]  : 8px  — 버튼, 입력
+rounded-[var(--radius-lg)]  : 12px — 카드
+rounded-[var(--radius-xl)]  : 16px — 모달, 바텀시트
+rounded-full                : 원형 — 아바타
+```
+
+### Shadow
+
+```
+shadow-sm      : 기본 카드
+shadow-md      : 드롭다운
+shadow-lg      : 모달
+shadow-soft-lg : 네비게이션 바 등 부드러운 그림자
+```
+
+### Z-Index
+
+```
+z-[var(--z-dropdown)] : 200  — 드롭다운
+z-[var(--z-sticky)]   : 300  — 고정 헤더
+z-[var(--z-overlay)]  : 400  — 딤 배경
+z-[var(--z-modal)]    : 500  — 모달
+z-[var(--z-toast)]    : 600  — 토스트
+```
+
+### cn() 유틸리티
+
+`shared/libs/cn.ts`에 `cn()` 함수를 두고 모든 조건부 클래스 병합에 사용합니다.
+
+```ts
+// shared/libs/cn.ts
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+```
+
+```tsx
+// ✅ 올바른 사용
+import { cn } from '@/shared/libs'
+
+<div className={cn("body-r text-fg-primary", isActive && "text-primary-2")} />
+
+// ❌ 금지 — 문자열 연결로 클래스 병합
+<div className={`body-r text-fg-primary ${isActive ? "text-primary-2" : ""}`} />
+```
+
+### CVA 패턴 (컴포넌트 변형)
+
+변형(variant)이 있는 컴포넌트는 `class-variance-authority`를 사용합니다.
+
+```tsx
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '@/shared/libs'
+
+const buttonVariants = cva(
+  'body-b rounded-[var(--radius-md)] transition-colors',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-primary-1 text-fg-inverse',
+        secondary: 'bg-surface-subtle text-fg-primary border border-border-default',
+      },
+      size: {
+        sm: 'px-3 py-1.5',
+        md: 'px-4 py-2',
+      },
+    },
+    defaultVariants: { variant: 'primary', size: 'md' },
+  }
+)
+
+interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
+
+export function Button({ className, variant, size, ...props }: ButtonProps) {
+  return <button className={cn(buttonVariants({ variant, size }), className)} {...props} />
+}
+```
+
+### 컴포넌트 폴더 구조
+
+`shared/components/` 하위 컴포넌트는 컴포넌트마다 폴더를 사용합니다.
+
+```
+shared/components/
+├── index.ts
+└── Button/
+    ├── Button.tsx
+    ├── Button.types.ts   ← 복잡한 Props인 경우
+    └── index.ts
+```
 
 ---
 
@@ -651,17 +897,52 @@ useEffect(() => {
 
 - `NEXT_PUBLIC_` prefix: 클라이언트에서 접근 가능한 값 (API URL 등)
 - prefix 없음: 서버 컴포넌트 / API Route에서만 사용 (시크릿 키 등)
+- feature 코드에서 `process.env.X` 직접 참조 금지 → `shared/config/` 경유
 
 ```ts
-process.env.NEXT_PUBLIC_API_URL; // ✅ 클라이언트에서 접근 가능
-process.env.SECRET_API_KEY; // ❌ 클라이언트에서 접근 불가 → undefined
+// shared/config/runtime.ts
+export const runtime = {
+  apiUrl: process.env.NEXT_PUBLIC_API_URL!,
+  isDev: process.env.NODE_ENV === "development",
+};
+
+// ✅ feature 코드에서는 config를 통해 접근
+import { runtime } from "@/shared/config";
+// ❌ 직접 참조 금지
+process.env.NEXT_PUBLIC_API_URL;
 ```
+
+---
+
+## 자원 폴더화 규칙
+
+단위 파일이 **1개면 평면 파일**로 두고, **2번째 파일이 추가되는 시점에 즉시 폴더 + `index.ts` 배럴을 만듭니다** (같은 PR, merge 차단 조건).
+
+```
+# 시작 — 훅 1개: 평면이 정답
+features/relay-drawing/
+└── useRelayDrawing.ts
+
+# 2번째 훅 추가 — 즉시 폴더화 (같은 PR에서)
+features/relay-drawing/
+└── hooks/
+    ├── index.ts               ← 배럴 (필수!)
+    ├── useRelayDrawing.ts     ← 기존 파일 이동
+    └── useRelayDrawingHistory.ts
+```
+
+자원 타입: 훅(`use*.ts`) · 상수 · 유틸 · 타입 · 컴포넌트
+각 타입은 독립적으로 진화합니다 — 훅이 폴더화되어도 상수가 1개면 상수는 평면 유지.
+
+**PR merge 차단 조건:**
+- 같은 자원 타입 파일 2개 이상 + 폴더화 없음
+- 폴더가 있으나 `index.ts` 배럴 없음
 
 ---
 
 ## 배럴 export
 
-모든 폴더는 `index.ts`를 통해 외부에 단일 진입점을 제공합니다.  
+모든 폴더는 `index.ts`를 통해 외부에 단일 진입점을 제공합니다.
 내부 파일 경로 직접 참조 금지 (`_infra/` 및 `use*Interaction.ts`의 feature store import는 예외).
 
 ```ts
@@ -678,13 +959,17 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 
 - `*.tsx`에 API 호출, 데이터 변환, 게임 로직 직접 작성 금지 → 훅/스토어로 분리
 - `useEffect` 안에서 `fetch` 직접 호출 금지 → 훅으로 분리
-- `worlds/` 하위에서 `<Canvas>` 선언 금지 (`WorldCanvas.tsx`에만 존재)
-- Server Component에서 `dynamic + ssr: false` 사용 금지 → `WorldLoader.tsx` 같은 Client Component 래퍼로 분리
+- `{Scene}Canvas.tsx` 외에서 `<Canvas>` 선언 금지
+- `{Scene}Canvas.tsx` 외에서 `<Physics>` 선언 금지
+- Server Component에서 `dynamic + ssr: false` 사용 금지 → `{Scene}Loader.tsx` Client Component 래퍼로 분리
+- 일반 서비스 페이지를 `app/(service)/` 없이 `app/` 직하에 배치 금지
 - `_infra/`에 재사용 가능한 메시 추가 금지 → `_shared/mesh/`로
 - `_shared/mesh/`에 단일 주체 컴포넌트 추가 금지 → `_infra/`로
 - `index.ts` 배럴 우회 import 금지
 - `features/` 간 직접 import 금지
 - `worlds/`↔`features/` 컴포넌트/훅 직접 import 금지
+- `features/admin/` ↔ 일반 `features/` 간 import 금지 (양방향)
+- 단일 문자·무의미한 축약어 변수명 금지 (`p`, `u`, `BH` 등)
 - `useFrame` 안에 무거운 연산 배치 금지
 - `useFrame` 안에서 React `setState` 호출 금지 → `useRef` + Three.js 객체 직접 조작으로 대체
 - R3F 씬 내 애니메이션 완료 감지를 `setInterval`/`setTimeout`으로 폴링 금지 → `useFrame` 조건 검사로 대체
@@ -693,10 +978,15 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - R3F `<Canvas>` 내부에서 `motion.*` 사용 금지
 - Rapier 도입 후 `groupRef.current.position` 직접 수정 금지 → `setNextKinematicTranslation()` 사용
 - 캐릭터에 `dynamic` RigidBody 사용 금지 → `kinematicPosition` 사용
-- `<Physics>` Provider를 씬별로 중복 선언 금지 → `WorldCanvas.tsx` 한 곳에만
 - Rapier 사용 시 경계를 `MathUtils.clamp`로 처리 금지 → `fixed` RigidBody + Collider로 처리
 - 불필요한 `'use client'` 선언 금지 (판단 기준은 위 참고)
 - `<a>` 태그 사용 금지 → `<Link>`
 - `<img>` 태그 사용 금지 → `<Image>`
 - `page.tsx`에 공통 UI 반복 작성 금지 → `layout.tsx`로
+- feature 코드에서 `process.env.X` 직접 참조 금지 → `shared/config/` 경유
 - `NEXT_PUBLIC_` 없는 환경변수를 클라이언트 컴포넌트에서 참조 금지
+- 자원 2개째 추가 시 폴더화 + `index.ts` 배럴 없이 PR merge 금지
+- `shared/assets/` 대신 `public/`에 컴포넌트 import용 자산 배치 금지
+- Semantic 토큰 대신 Primitive 토큰 직접 참조 금지 (`bg-cream-50`, `text-brown-720` 등)
+- 타이포그래피에 raw Tailwind font 클래스 직접 조합 금지 → `h1-b`, `body-r` 등 유틸리티 클래스 사용
+- 조건부 클래스 병합 시 `cn()` 없이 문자열 연결 금지 → `cn()` 유틸리티 사용
