@@ -67,6 +67,10 @@ services:
       nofile:  { soft: 65536, hard: 65536 }
     volumes:
       - /opt/nemonic/data/opensearch:/usr/share/opensearch/data
+      # keystore 영속화 (S3 access/secret key 저장).
+      # 파일:파일 마운트 — 디렉토리 통째 마운트는 이미지 내장 config 덮어씀.
+      # 사전 준비: docker cp로 default keystore를 호스트에 한 번 복사 필요.
+      - /opt/nemonic/data/opensearch-keystore/opensearch.keystore:/usr/share/opensearch/config/opensearch.keystore
     networks:
       - cicd-net
     healthcheck:
