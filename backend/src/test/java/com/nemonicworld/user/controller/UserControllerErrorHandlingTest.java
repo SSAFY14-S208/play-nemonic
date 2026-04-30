@@ -19,6 +19,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @IntegrationTest
 @AutoConfigureMockMvc
+/**
+ * 익명 사용자 등록 중 내부 예외가 발생했을 때 전역 예외 처리 흐름을 검증합니다.
+ */
 class UserControllerErrorHandlingTest {
 
     @Autowired
@@ -27,6 +30,9 @@ class UserControllerErrorHandlingTest {
     @MockitoBean
     private UserService userService;
 
+    /**
+     * 내부 예외 메시지나 민감한 내용이 API 응답에 노출되지 않는지 검증합니다.
+     */
     @Test
     void createAnonymousUserDoesNotExposeInternalError() throws Exception {
         given(userService.createAnonymousUser(any())).willThrow(new IllegalStateException("database password=secret"));
