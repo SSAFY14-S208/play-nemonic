@@ -1,0 +1,19 @@
+# Grafana dashboard auto-provisioning
+# /var/lib/grafana/dashboards 안의 *.json 파일을 자동 로드.
+# 1회 셋업 시 grafana.com에서 dashboard JSON 다운받아서 호스트 디렉토리에 두면 됨.
+# 권장 dashboard ID:
+#   - 1860 (Node Exporter Full)
+#   - 14282 (cAdvisor — Compute Resources)
+
+apiVersion: 1
+
+providers:
+  - name: default
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
