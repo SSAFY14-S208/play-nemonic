@@ -68,7 +68,8 @@ services:
     networks:
       - cicd-net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health | grep -q '\"database\":\"ok\"' || exit 1"]
+      # GF_SERVER_SERVE_FROM_SUB_PATH=true 라서 /api/health가 /grafana/api/health로 이동.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/grafana/api/health | grep -q '\"database\":\"ok\"' || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
