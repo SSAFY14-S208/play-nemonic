@@ -657,6 +657,123 @@ type 충돌이 안 남음.
 
 ---
 
+## 16. ISM `_ism/explain` 응답 verbosity 함정
+
+**증상**
+
+ISM `add` API는 성공 응답:
+
+```
+{"updated_indices": 3, "failures": false}
+```
+
+그런데 직후 explain 호출하면 부착이 안 된 것처럼 보임:
+
+```
+{
+  "nemonic-app-logs-2026.04.30": {
+    "index.plugins.index_state_management.policy_id": null,
+    "index.opendistro.index_state_management.policy_id": null,
+    "enabled": null
+  },
+  "total_managed_indices": 0
+}
+```
+
+**원인**
+
+`_ism/explain`의 default 응답은 너무 짧다. ISM이 인덱스를 매니지드로 등록한
+직후라도 default 출력에는 `policy_id: null`로 보일 수 있음. 진짜 부착 여부는
+인덱스 settings에 박혀있는지로 판단해야 함.
+
+**잘못된 가설들**
+
+1. ❌ "`add` API가 silent fail" — 실제로는 settings에 이미 박혀있었음.
+2. ❌ "ISM plugin이 비활성" — `_cluster/settings`에서 `enabled: true` 확인됨.
+
+**해결**
+
+진짜 진단은 두 가지 방법으로:
+
+```bash
+# (1) settings에 직접 박혔는지 (가장 확실)
+curl "http://127.0.0.1:9200/<index>/_settings?flat_settings=true" \
+  | grep policy_id
+# → "index.plugins.index_state_management.policy_id" : "<policy>"
+
+# (2) explain에 show_policy=true 옵션 추가
+curl "http://127.0.0.1:9200/_plugins/_ism/explain/<index>?show_policy=true&pretty"
+# → policy_id, enabled, state.name, action.name, step.* 까지 다 보임
+```
+
+**일반화된 교훈**
+
+> **OpenSearch ISM의 진단은 settings를 source of truth로 본다.**
+> explain의 짧은 응답은 metadata 초기화 전 단계라 빈 값이 나올 수 있음.
+> 진짜 부착 여부는 `_settings?flat_settings=true | grep policy_id`로 확인.
+
+---
+
+## 17. `ism_template`은 비동기 — settings에 policy_id 명시가 즉시 보장
+
+**증상**
+
+ISM policy 안에 `ism_template` 정의:
+
+```json
+{
+  "ism_template": [
+    {"index_patterns": ["nemonic-app-logs-*"], "priority": 100}
+  ]
+}
+```
+
+새 인덱스를 만든 직후 explain → ISM 부착 안 됨:
+
+```
+{
+  "nemonic-app-logs-2099.01.01": {
+    "index.plugins.index_state_management.policy_id": null
+  },
+  "total_managed_indices": 0
+}
+```
+
+**원인**
+
+`ism_template`은 ISM coordinator의 **다음 sweeper cycle**(default 5분)에
+인덱스를 발견하고 부착한다. 인덱스 생성 시점에 즉시 부착되는 게 아님.
+그 동안 인덱스는 unmanaged 상태로 떠다님.
+
+**해결**
+
+인덱스 템플릿의 `settings`에 `policy_id`를 **명시**하면 OpenSearch가
+인덱스 생성 시점에 settings로 직접 부여 → 즉시 ISM 인식:
+
+```json
+{
+  "index_patterns": ["nemonic-app-logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "plugins.index_state_management.policy_id": "nemonic-app-logs-policy"
+    },
+    "mappings": { ... }
+  }
+}
+```
+
+`ism_template`은 fallback으로 그대로 두면 redundant하지만 안전.
+
+**일반화된 교훈**
+
+> **`ism_template`만 두면 인덱스 생성 ~ ISM 부착 사이 5분 gap이 생긴다.**
+> 인덱스 템플릿 `settings`에 `policy_id`를 명시하여 동기 부착을 보장하라.
+> 두 메커니즘 병행 = 즉시성 + fallback.
+
+---
+
 ## 부록 A: 디버깅 도구 한 줄 요약
 
 | 도구 | 용도 |

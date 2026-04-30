@@ -353,7 +353,7 @@ tags : "spring_boot" AND log_level : ("WARN" OR "ERROR")
 ## 9. Troubleshooting
 
 문제 생기면 먼저 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) 확인. 이 인프라
-구축 과정에서 만난 15개 함정의 원인과 해결책 정리.
+구축 과정에서 만난 17개 함정의 원인과 해결책 정리.
 
 ---
 
@@ -444,9 +444,85 @@ docker run --rm \
 
 ---
 
-## 11. Future Work
+## 11. Index Lifecycle Management (Phase 3)
+
+OpenSearch ISM(Index State Management)으로 인덱스 수명을 자동 관리. 클러스터
+디스크 압박 회피 + 검색 성능 유지가 목적.
+
+### 11.1 정책 요약
+
+| 단계 | 기간 (인덱스 생성 후) | 동작 |
+| --- | --- | --- |
+| **hot** | 0 ~ 7일 | active write + search |
+| **warm** | 7 ~ 37일 | force_merge 1 segment (압축) + search only |
+| **delete** | 37일 이후 | 클러스터에서 인덱스 삭제 |
+
+> MinIO snapshot은 **별도 SM(Snapshot Management) policy**로 처리 (다음
+> 마일스톤). 클러스터에서 삭제된 인덱스는 MinIO snapshot으로 복원 가능.
+
+### 11.2 구성 요소
+
+| 요소 | 값 |
+| --- | --- |
+| Policy ID | `nemonic-app-logs-policy` |
+| Index template | `nemonic-app-logs-template` |
+| Index pattern | `nemonic-app-logs-*` |
+| 매핑 | 명시(Spring Boot 필드) + dynamic 허용 |
+| Settings | `number_of_replicas: 0` (single-node), `refresh_interval: 5s` |
+
+정의 파일:
+- [logging/opensearch/ism/nemonic-app-logs-policy.json](./logging/opensearch/ism/nemonic-app-logs-policy.json)
+- [logging/opensearch/templates/nemonic-app-logs-template.json](./logging/opensearch/templates/nemonic-app-logs-template.json)
+
+### 11.3 1회 셋업 (이미 완료, 새 환경 셋업 시 참고)
+
+```bash
+# (1) ISM policy 등록
+cat logging/opensearch/ism/nemonic-app-logs-policy.json | \
+  docker exec -i nemonic-logging-opensearch \
+  curl -s -X PUT "http://127.0.0.1:9200/_plugins/_ism/policies/nemonic-app-logs-policy" \
+  -H 'Content-Type: application/json' \
+  -d @-
+
+# (2) 인덱스 템플릿 등록
+cat logging/opensearch/templates/nemonic-app-logs-template.json | \
+  docker exec -i nemonic-logging-opensearch \
+  curl -s -X PUT "http://127.0.0.1:9200/_index_template/nemonic-app-logs-template" \
+  -H 'Content-Type: application/json' \
+  -d @-
+
+# (3) 기존 인덱스에 ISM 수동 부착 (새 인덱스는 템플릿으로 자동 부여)
+docker exec nemonic-logging-opensearch \
+  curl -s -X POST "http://127.0.0.1:9200/_plugins/_ism/add/nemonic-app-logs-*" \
+  -H 'Content-Type: application/json' \
+  -d '{"policy_id": "nemonic-app-logs-policy"}'
+```
+
+### 11.4 검증
+
+```bash
+# 부착 확인 (settings 레벨이 source of truth — TROUBLESHOOTING #16 참조)
+docker exec nemonic-logging-opensearch \
+  curl -s "http://127.0.0.1:9200/<index>/_settings?flat_settings=true" \
+  | grep policy_id
+
+# State 진행 상황 (sweeper 5분 cycle 후 채워짐)
+docker exec nemonic-logging-opensearch \
+  curl -s "http://127.0.0.1:9200/_plugins/_ism/explain/<index>?pretty"
+# → state.name (hot/warm/delete), action, step, info 보임
+```
+
+### 11.5 즉시 부착 보장
+
+`ism_template`은 sweeper cycle(5분)에 의존하므로 인덱스 생성 ~ ISM 부착
+사이에 gap이 생긴다. 인덱스 템플릿 `settings`에 `plugins.index_state_management.policy_id`를
+**명시적으로** 박아 동기 부착을 보장 (TROUBLESHOOTING #17 참조).
+
+---
+
+## 12. Future Work
 
 | Phase | 내용 |
 | --- | --- |
-| 3 (진행 중) | ✅ MinIO snapshot repository, ⏳ ISM policy (hot 7d → warm 30d → snapshot 90d → delete), ⏳ 인덱스 템플릿 + 인덱스 분리 (app/access/system), ⏳ 본격 대시보드 |
+| 3 (진행 중) | ✅ MinIO snapshot repository, ✅ ISM policy + 인덱스 템플릿, ⏳ SM policy (매일 자정 자동 snapshot + 90일 retention), ⏳ 인덱스 분리 (app/access/system) + Logstash 라우팅, ⏳ 본격 대시보드 + Saved Search |
 | 4 | 재사용 라이브러리 추출 (Java/JS/Python), 운영 문서 |
