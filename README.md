@@ -1,253 +1,452 @@
-# S14P31S208
+# nemonic Logging Infrastructure
 
-## Branch Convention
-
-> Git Flow 전략을 기반으로 한 브랜치 전략입니다.
-
-### branch 전략
-
-```
-be/feat/*, fe/feat/*        기능 단위 작업 브랜치
-       │
-       │ merge (기능 완성)
-       ▼
-be/dev, fe/dev, ai/dev      파트별 개발 통합 브랜치
-       │
-       │ merge (파트 통합)
-       ▼
-      dev                   전체 통합, 개발 환경 기준
-       │
-       │ 자동 배포
-       ▼
-     master                 사용 X
-```
-
-> **주의:** master 브랜치는 직접 사용하지 않습니다.
-
-### branch 네이밍
-
-- 소문자, 케밥케이스 사용
-
-```
-dev
-fe/dev
-be/dev
-fe/feat/login
-be/feat/login
-fe/refactor/shows-components
-```
-
-### merge 흐름
-
-```
-be/feat/login → be/dev
-fe/feat/login → fe/dev
-fe/dev → dev
-be/dev → dev
-dev → master
-```
-
-> merge 시 빌드 체크 필수
+EC2 단일 호스트의 모든 Docker 컨테이너 로그를 수집·파싱·인덱싱하여 OpenSearch
+Dashboards에서 시각화하는 종합 로그 분석 플랫폼.
 
 ---
 
-## Commit Convention
-
-> 모든 커밋은 컴파일 되는지 확인합시다!
-
-### 커밋 메시지 형식
+## 1. Stack
 
 ```
-[<BE/FE>] <타입>: <제목>
+[All containers stdout]
+        │
+        ▼
+   Fluent Bit  (호스트 모든 컨테이너 자동 수집, Lua로 container_id 추출)
+        │
+        ▼
+     Kafka     (버퍼링 + 백프레셔, 단일 노드 KRaft)
+        │
+        ▼
+   Logstash    (grok 파싱: Spring Boot 포맷, 자기 로그 drop)
+        │
+        ▼
+  OpenSearch   (인덱싱: nemonic-app-logs-YYYY.MM.dd)
+        │
+        ▼
+  Dashboards   (https://k14s208.p.ssafy.io/_dashboards)
 ```
 
-**예시:**
+### 1.1 검증된 버전 조합
 
-```
-[FE] feat: 로그인 페이지 추가
-[BE] fix: 토큰 만료 오류 수정
-```
+| 컴포넌트 | 이미지 | 버전 |
+| --- | --- | --- |
+| Fluent Bit | `fluent/fluent-bit` | 3.1 |
+| Kafka | `confluentinc/cp-kafka` | 7.5.4 (= Kafka 3.5) |
+| OpenSearch | `nemonic/opensearch` (= 공식 + repository-s3) | 2.15.0-s3 |
+| Dashboards | `opensearchproject/opensearch-dashboards` | 2.15.0 |
+| Logstash | `opensearchproject/logstash-oss-with-opensearch-output-plugin` | 8.9.0 |
 
-### 규칙
+### 1.2 버전 선택 이유
 
-- 제목은 **한글**, **명령문**으로 작성
-- 첫 글자는 **소문자**
-- 끝에 **마침표 없음**
-- 50글자 이내로 제한
-
-### 타입
-
-| 타입 | 설명 |
-|------|------|
-| `add` | 파일 단위로 추가 |
-| `feat` | 새로운 기능 추가, 기능 수정 |
-| `fix` | 오류 수정 |
-| `chore` | 그 외 변경사항 (빌드 정보, 주석, 오타 등), 코드 변경 X |
-| `docs` | 문서 수정 |
-| `delete` | 삭제 |
-| `style` | 코드 스타일, 포맷 (코드 변경 X) |
-| `refactor` | 코드 리팩토링 |
-| `test` | 테스트 코드 추가 또는 변경 |
+- **Kafka는 Confluent 7.5.4 (= 3.5)**. Logstash 8.9의 kafka-client 3.3.x가
+  Apache Kafka 3.7+ 와 호환되지 않음. consumer가 subscribe는 성공하지만
+  fetch에서 0건. Kafka 3.5는 호환 OK.
+- **`apache/kafka` 이미지는 3.7.0+ 만 제공** (3.5 태그 없음). 따라서
+  Confluent 사용. Confluent Platform의 cp-kafka는 Apache 2.0 라이선스로
+  무료 사용 가능.
+- **Bitnami Kafka 사용 금지**. 2025년 정책 변경으로 마이너 버전 태그가
+  Docker Hub에서 제거됨 (`bitnami/kafka:3.7` not found).
+- **Logstash 8.9.0이 사실상 최신**. opensearchproject 측에서 8.10+ 이미지
+  배포 안 함. `latest` 태그 의존은 재현성 깨짐.
+- **OpenSearch는 custom 이미지로 굽는다**. `repository-s3` 플러그인이 core
+  배포에 포함 안 됨. runtime 설치는 컨테이너 재생성 시 날아가서
+  `logging/opensearch/Dockerfile`에 굽는다. 빌드 시점에 설치 검증까지
+  수행하므로 런타임 디버깅이 필요 없음.
 
 ---
 
-## Jira Convention
+## 2. File Structure
 
-### 1. 프로젝트 키
-
-- `S14P31S208`
-
-### 2. 이슈 타입
-
-| 이슈 타입 | 설명 | 예시 |
-|-----------|------|------|
-| **Epic** | 큰 단위의 기능 묶음 (1~2주 이상 소요) | 회원 관리, 네모닉 인터랙션 |
-| **Task** | 개발/작업 단위 | API 설계, DB 스키마 작성 |
-| **Bug** | 버그 수정 | 로그인 시 토큰 미발급 오류 |
-
-### 3. 이슈 제목 (Summary) 컨벤션
-
-#### 카테고리 목록
-
-| 카테고리 | 설명 |
-|----------|------|
-| `[FE]` | 프론트엔드 |
-| `[BE]` | 백엔드 |
-| `[AI]` | AI / 머신러닝 |
-| `[INFRA]` | 인프라 / 배포 |
-| `[DB]` | 데이터베이스 |
-| `[DESIGN]` | 디자인 |
-| `[DOCS]` | 문서 작업 |
-
-### 4. Epic 작성 컨벤션
-
-#### 네이밍 규칙
+레포 루트(`/opt/nemonic/infra/` = `infra/dev` 브랜치) 기준:
 
 ```
-[카테고리] 도메인
+infra/
+├── docker-compose.logging.yml       # 5-서비스 정의
+└── logging/
+    ├── README.md                    # 이 문서
+    ├── TROUBLESHOOTING.md           # 디버깅 사례 모음
+    ├── .gitignore                   # data/, *.log 제외
+    ├── fluent-bit/
+    │   ├── fluent-bit.conf          # 수집 설정
+    │   ├── parsers.conf             # Docker JSON 파서
+    │   └── extract_container_id.lua # 메타데이터 추출 스크립트
+    └── logstash/
+        ├── pipeline/main.conf       # Kafka → grok → OpenSearch
+        └── config/logstash.yml      # Logstash 시스템 설정
 ```
 
-#### 예시
+### 2.1 Data Directory (git 관리 X)
+
+호스트 전용 영역:
 
 ```
-[BE] 회원 관리
-[FE] 네모닉 인터랙션
-[AI] 추천 모델
-[INFRA] CI/CD 배포
+/opt/nemonic/data/
+├── opensearch/    # 인덱스 데이터, UID 1000 소유
+├── kafka/         # 토픽 로그, UID 1000 소유
+└── fluent-bit/    # tail offset DB (sqlite), UID 0 소유
 ```
 
-#### Epic 구조 예시
+**반드시 git에서 분리**해야 함. 인덱스는 GB 단위로 커지고, 컨테이너가 직접
+쓰는 영역이라 권한 문제도 생김. `.gitignore`로 `data/` 패턴 차단.
 
-```
-Epic: [BE] 회원 관리
-  ├── Task: OAuth2 카카오 로그인 API 구현
-  ├── Task: JWT 토큰 발급 로직 구현
-  ├── Task: 프로필 수정 API 구현
-  └── Task: 회원 테이블 스키마 설계
-```
+---
 
-### 5. Task 작성 컨벤션
+## 3. Operations
 
-#### 규칙
+### 3.1 기동
 
-- 앞에 카테고리나 도메인을 붙이지 않는다
-- API 단위로 짧게 작성한다
-
-#### 예시
-
-```
-OAuth2 카카오 로그인 API 구현
-JWT 토큰 발급 로직 구현
-프로필 수정 API 구현
+```bash
+cd /opt/nemonic/infra
+docker compose -f docker-compose.logging.yml up -d
 ```
 
-### 6. 워크플로우
+자동 기동 순서 (depends_on + healthcheck 기반):
 
-```
-TODO → IN PROGRESS → DONE
-```
+1. Kafka, OpenSearch (병렬)
+2. Dashboards (OpenSearch healthy 후)
+3. Logstash (Kafka + OpenSearch healthy 후)
+4. Fluent Bit (Kafka healthy 후)
 
-| 상태 | 설명 |
-|------|------|
-| **TODO** | 할 일 (백로그에서 스프린트로 이동됨) |
-| **IN PROGRESS** | 작업 진행 중 |
-| **DONE** | 완료 |
+총 부팅 시간 약 90초 (OpenSearch가 가장 오래 걸림).
 
-#### 상태 전환 규칙
+### 3.2 정지
 
-- `TODO → IN PROGRESS`: 담당자가 작업을 시작할 때
-- `IN PROGRESS → DONE`: 리뷰 승인 및 머지 완료 시
-
-### 7. 우선순위
-
-| 우선순위 | 설명 | 사용 기준 |
-|----------|------|-----------|
-| **Highest** | 즉시 처리 | 서비스 장애, 핵심 기능 블로커 |
-| **High** | 빠른 처리 필요 | 주요 기능, 다른 작업의 선행 조건 |
-| **Medium** | 일반 작업 | 스프린트 내 처리 대상 (기본값) |
-| **Low** | 여유 있을 때 처리 | 개선 사항, 리팩토링 |
-| **Lowest** | 나중에 처리 | Nice-to-have 기능 |
-
-### 8. 스프린트 컨벤션
-
-#### 스프린트 네이밍
-
-```
-S14P31S208 Sprint N (MM/DD ~ MM/DD)
+```bash
+docker compose -f docker-compose.logging.yml down
 ```
 
-#### 예시
+데이터는 호스트(`/opt/nemonic/data/`)에 보존됨. **`down -v` 사용 금지** (볼륨
+삭제로 인덱스 날아감).
+
+### 3.3 상태 확인
+
+```bash
+# 컨테이너 상태 + healthcheck
+docker compose -f docker-compose.logging.yml ps
+
+# 개별 로그 (실시간)
+docker logs -f nemonic-logging-<service>
+# service: kafka, opensearch, dashboards, logstash, fluent-bit
+```
+
+### 3.4 사전 요구사항 (1회 셋업)
+
+처음 EC2에 배포할 때:
+
+```bash
+# 1. 데이터 디렉토리 생성 + 권한
+sudo mkdir -p /opt/nemonic/data/{opensearch,kafka,fluent-bit}
+sudo chown -R 1000:1000 /opt/nemonic/data/opensearch
+sudo chown -R 1000:1000 /opt/nemonic/data/kafka
+# fluent-bit은 root(0:0)로 둠 - Fluent Bit 컨테이너가 root로 실행
+
+# 2. OpenSearch 커널 파라미터
+sudo sysctl -w vm.max_map_count=262144
+echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+
+# 3. OpenSearch config 디렉토리 영속화 (snapshot S3 키 저장용 keystore)
+#    - 파일 단위 마운트는 keystore의 atomic rename(mv)을 막는다 (TROUBLESHOOTING #14).
+#    - 디렉토리 단위로 마운트하되, 이미지 default를 잃지 않도록 사전 추출 필수.
+sudo mkdir -p /opt/nemonic/data/opensearch-config
+TEMP_ID=$(docker create nemonic/opensearch:2.15.0-s3)
+sudo docker cp ${TEMP_ID}:/usr/share/opensearch/config/. \
+  /opt/nemonic/data/opensearch-config/
+docker rm ${TEMP_ID}
+sudo chown -R 1000:1000 /opt/nemonic/data/opensearch-config
+```
+
+---
+
+## 4. Healthchecks
+
+모든 healthcheck는 **`127.0.0.1`** 사용. `localhost`는 alpine musl libc가
+IPv6 (`::1`)로 우선 해석하는데, IPv4-only 서비스에서 connection refused 발생.
+
+| 서비스 | 검증 명령 |
+| --- | --- |
+| kafka | `kafka-broker-api-versions --bootstrap-server 127.0.0.1:9092` |
+| opensearch | `curl http://127.0.0.1:9200/_cluster/health` (green/yellow) |
+| dashboards | `curl http://127.0.0.1:5601/_dashboards/api/status` |
+| logstash | `curl http://127.0.0.1:9600/_node/stats/pipelines/main` |
+| fluent-bit | `curl http://127.0.0.1:2020/api/v1/metrics` |
+
+---
+
+## 5. Verification (데이터 흐름 추적)
+
+문제 생겼을 때 단계별 진단. 각 단계가 OK면 다음 단계로.
+
+### 5.1 Fluent Bit (수집)
+
+```bash
+FB_IP=$(docker inspect nemonic-logging-fluent-bit \
+  --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+curl -s http://$FB_IP:2020/api/v1/metrics | python3 -m json.tool
+```
+
+봐야 할 값:
+- `input.tail.0.records`: 수집한 라인 수
+- `output.kafka.0.proc_records`: Kafka로 보낸 수
+- `output.kafka.0.errors`: 0이어야 정상
+- `output.kafka.0.dropped_records`: 0이어야 정상
+
+### 5.2 Kafka (버퍼)
+
+```bash
+# 토픽의 메시지 수
+docker exec nemonic-logging-kafka kafka-get-offsets \
+  --bootstrap-server 127.0.0.1:9092 --topic nemonic-logs
+
+# 결과: nemonic-logs:0:N (N이 메시지 수)
+
+# Consumer group lag
+docker exec nemonic-logging-kafka kafka-consumer-groups \
+  --bootstrap-server 127.0.0.1:9092 --describe --group logstash-nemonic-v4
+```
+
+봐야 할 값:
+- `LOG-END-OFFSET` (Fluent Bit이 누적한 양)
+- `CURRENT-OFFSET` (Logstash가 읽은 위치)
+- `LAG` = 차이. 일정 수준 유지되면 정상, 계속 커지면 Logstash 처리 부족.
+
+### 5.3 Logstash (파싱)
+
+```bash
+docker exec nemonic-logging-logstash \
+  curl -s http://127.0.0.1:9600/_node/stats/pipelines/main \
+  | grep -oE '"events":\{[^}]+\}'
+```
+
+결과 예: `"events":{"in":1234,"out":1230,"filtered":1230}`
+
+- `in` > 0이면 Kafka에서 받는 중
+- `out` ≈ `in`이면 OpenSearch까지 잘 흐름
+- `filtered`는 grok 등 필터 처리량
+
+### 5.4 OpenSearch (인덱싱)
+
+```bash
+# 인덱스 목록
+docker exec nemonic-logging-opensearch \
+  curl -s "http://127.0.0.1:9200/_cat/indices?v"
+
+# 문서 수
+docker exec nemonic-logging-opensearch \
+  curl -s "http://127.0.0.1:9200/nemonic-app-logs-*/_count?pretty"
+
+# 샘플 문서 (파싱 확인용)
+docker exec nemonic-logging-opensearch \
+  curl -s "http://127.0.0.1:9200/nemonic-app-logs-*/_search?size=1&pretty"
+```
+
+### 5.5 컨테이너별 로그 분포
+
+```bash
+docker exec nemonic-logging-opensearch \
+  curl -s -X POST "http://127.0.0.1:9200/nemonic-app-logs-*/_search?pretty" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "size": 0,
+    "aggs": {
+      "containers": {
+        "terms": {"field": "container_id.keyword", "size": 20}
+      }
+    }
+  }'
+```
+
+각 컨테이너에서 얼마나 로그가 들어오는지 한눈에.
+
+---
+
+## 6. Access (외부)
+
+### 6.1 URL
 
 ```
-S14P31S208 Sprint 1 (04/14 ~ 04/20)
-S14P31S208 Sprint 2 (04/21 ~ 04/27)
+https://k14s208.p.ssafy.io/_dashboards/
 ```
 
-#### 운영 규칙
+### 6.2 인증
 
-- 스프린트 기간: **1주**
-- 스프린트 시작 전: **스프린트 플래닝** 미팅 진행
-- 스프린트 종료 시: **스프린트 리뷰** + **회고** 진행
-- 스프린트 중 이슈 추가는 최소화, 불가피한 경우 팀장 승인 후 추가
+HTTP BasicAuth (nginx 레벨). 비밀번호 파일은 git 추적 X.
 
-### 9. 스토리 포인트
+```bash
+# 새 사용자 추가
+sudo htpasswd /opt/nemonic/infra/deploy/nginx/.htpasswd_dashboards <username>
 
-피보나치 수열 기반으로 산정합니다.
+# 첫 사용자 + 파일 생성
+sudo htpasswd -c /opt/nemonic/infra/deploy/nginx/.htpasswd_dashboards admin
+```
 
-| 포인트 | 난이도 | 예상 소요 시간 | 예시 |
-|--------|--------|----------------|------|
-| **1** | 매우 쉬움 | ~1시간 | 오타 수정, 상수값 변경 |
-| **2** | 쉬움 | ~2시간 | 단순 CRUD API 1개 |
-| **3** | 보통 | ~4시간 | 일반적인 기능 구현 |
-| **5** | 다소 복잡 | ~6시간 | 복잡한 비즈니스 로직 |
-| **8** | 복잡 | 8~10시간 | 외부 API 연동 + 예외 처리 |
+`.htpasswd_dashboards`는 nginx 컨테이너에 read-only 마운트됨
+(`docker-compose.prod.yml`의 nginx volumes 참조).
 
-### 10. 라벨
+### 6.3 첫 사용 (Index Pattern 등록)
 
-| 라벨 | 설명 |
-|------|------|
-| `frontend` | 프론트엔드 관련 |
-| `backend` | 백엔드 관련 |
-| `ai` | AI/ML 관련 |
-| `infra` | 인프라/배포 관련 |
-| `refactor` | 리팩토링 |
-| `hotfix` | 긴급 수정 |
-| `blocked` | 다른 이슈에 의해 블로킹됨 |
+Dashboards 첫 접속 시:
 
-### 11. 일일 운영 규칙
+1. 좌측 메뉴 ☰ → **Stack Management** → **Index Patterns**
+2. **Create index pattern**
+3. Name: `nemonic-app-logs-*`
+4. Time field: `@timestamp`
+5. Create
 
-#### Daily Standup (데일리 스크럼)
+이후 **Discover** 메뉴에서 로그 검색 가능.
 
-매일 아침 팀원들이 공유하는 내용:
+---
 
-1. **어제 한 일**: 완료한 Jira 이슈 공유
-2. **오늘 할 일**: 진행할 Jira 이슈 공유
-3. **블로커**: 진행을 방해하는 요소
+## 7. Logged Fields (Spring Boot 예시)
 
-#### 이슈 관리 원칙
+Logstash grok이 Spring Boot 로그를 다음 필드로 분해:
 
-- 모든 작업은 반드시 Jira 이슈로 생성 후 진행
-- 이슈 상태는 **실시간**으로 업데이트
-- 하나의 이슈에는 **한 명의 담당자**만 배정
-- 이슈가 커지면 Sub-task로 분리
-- 완료된 이슈는 당일 내 **DONE** 처리
+| 필드 | 예시 | 출처 |
+| --- | --- | --- |
+| `@timestamp` | `2026-04-28T04:33:23.173Z` | grok이 Spring Boot 로그에서 추출 |
+| `log_level` | `INFO`, `WARN`, `ERROR` | grok |
+| `pid` | `7` | grok |
+| `application` | `backend` | grok (`[backend]` 부분) |
+| `thread` | `main`, `nio-8080-exec-1` | grok |
+| `logger` | `com.nemonicworld.BackendApplication` | grok |
+| `log_message` | `Started BackendApplication...` | grok |
+| `tags` | `["spring_boot"]` | grok 성공 시 부착 |
+| `container_id` | `f44537001a48e878` | Fluent Bit Lua 추출 |
+| `log_tag` | `docker.var.lib.docker.containers...` | Fluent Bit Lua |
+| `hostname` | `<fluent-bit 컨테이너 hostname>` | record_modifier |
+| `stream` | `stdout` 또는 `stderr` | Docker JSON |
+| `message` | 원본 로그 줄 | Fluent Bit |
+
+비-Spring Boot 컨테이너 (nginx, postgres 등)는 grok 실패 →
+`tags: ["_grokparsefailure_spring"]`. 이 자체는 정상이며, 나중에 컨테이너별
+grok 패턴을 추가하면 분해 가능.
+
+---
+
+## 8. Search Examples
+
+### Spring Boot 로그만
+
+```
+tags : "spring_boot"
+```
+
+### 특정 컨테이너 로그
+
+```
+container_id : "f44537001a48*"
+```
+
+### 에러 레벨
+
+```
+log_level : "ERROR"
+```
+
+### 복합
+
+```
+tags : "spring_boot" AND log_level : ("WARN" OR "ERROR")
+```
+
+---
+
+## 9. Troubleshooting
+
+문제 생기면 먼저 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) 확인. 이 인프라
+구축 과정에서 만난 15개 함정의 원인과 해결책 정리.
+
+---
+
+## 10. Snapshot Management (Phase 3)
+
+장기 보관은 OpenSearch 클러스터가 아닌 **MinIO**로 분리. 인덱스는 일정 기간이
+지나면 snapshot 후 클러스터에서 삭제, MinIO에는 더 오래 보관 (시점별 복원
+가능).
+
+### 10.1 구성 요소
+
+| 요소 | 값 |
+| --- | --- |
+| MinIO 컨테이너 | `nemonic-prod-minio-1` (운영용 MinIO 공유) |
+| 네트워크 | `nemonic-prod_cicd-net` (OpenSearch와 동일) |
+| 전용 bucket | `nemonic-logs-snapshots` (운영 bucket과 분리) |
+| Repository name | `nemonic-logs-repo` |
+| 키 위치 | OpenSearch keystore (`s3.client.default.{access,secret}_key`) |
+
+키는 환경변수가 아닌 keystore에 저장 — `docker inspect`로 노출 안 됨.
+keystore는 `/opt/nemonic/data/opensearch-config/opensearch.keystore`로 영속화
+(이유는 TROUBLESHOOTING #14 참조).
+
+### 10.2 1회 셋업 (이미 완료, 새 환경 셋업 시 참고)
+
+```bash
+# (사전: bucket 생성)
+set -a; source /opt/nemonic/shared/.env.prod; set +a
+docker run --rm \
+  --network nemonic-prod_cicd-net \
+  -e MC_HOST_minio="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000" \
+  minio/mc \
+  mb --ignore-existing minio/nemonic-logs-snapshots
+
+# (keystore에 키 등록 — printf로 stdin 파이프, secret 채팅·history 노출 방지)
+printf '%s' "$MINIO_ROOT_USER" | docker exec -i nemonic-logging-opensearch \
+  /usr/share/opensearch/bin/opensearch-keystore add --stdin --force s3.client.default.access_key
+printf '%s' "$MINIO_ROOT_PASSWORD" | docker exec -i nemonic-logging-opensearch \
+  /usr/share/opensearch/bin/opensearch-keystore add --stdin --force s3.client.default.secret_key
+
+# (reload — 재기동 없이 메모리에 새 키 로드)
+docker exec nemonic-logging-opensearch \
+  curl -s -X POST "http://127.0.0.1:9200/_nodes/reload_secure_settings"
+
+# (repository 등록)
+docker exec nemonic-logging-opensearch \
+  curl -s -X PUT "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "type": "s3",
+    "settings": {
+      "bucket": "nemonic-logs-snapshots",
+      "endpoint": "minio:9000",
+      "protocol": "http",
+      "path_style_access": true
+    }
+  }'
+
+# (verify)
+docker exec nemonic-logging-opensearch \
+  curl -s -X POST "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo/_verify"
+```
+
+### 10.3 수동 snapshot
+
+```bash
+docker exec nemonic-logging-opensearch \
+  curl -s -X PUT "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo/<snapshot-name>?wait_for_completion=true" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "indices": "nemonic-app-logs-*",
+    "include_global_state": false
+  }'
+```
+
+응답에서 `"state": "SUCCESS"` + `shards.successful` ≥ 1 이면 OK.
+
+### 10.4 MinIO 객체 확인
+
+```bash
+set -a; source /opt/nemonic/shared/.env.prod; set +a
+docker run --rm \
+  --network nemonic-prod_cicd-net \
+  -e MC_HOST_minio="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000" \
+  minio/mc \
+  ls --recursive minio/nemonic-logs-snapshots/
+```
+
+---
+
+## 11. Future Work
+
+| Phase | 내용 |
+| --- | --- |
+| 3 (진행 중) | ✅ MinIO snapshot repository, ⏳ ISM policy (hot 7d → warm 30d → snapshot 90d → delete), ⏳ 인덱스 템플릿 + 인덱스 분리 (app/access/system), ⏳ 본격 대시보드 |
+| 4 | 재사용 라이브러리 추출 (Java/JS/Python), 운영 문서 |
