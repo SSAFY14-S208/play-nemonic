@@ -47,7 +47,10 @@ services:
       start_period: 60s
 
   opensearch:
-    image: opensearchproject/opensearch:2.15.0
+    build:
+      context: .
+      dockerfile: logging/opensearch/Dockerfile
+    image: nemonic/opensearch:2.15.0-s3
     container_name: nemonic-logging-opensearch
     restart: unless-stopped
     mem_limit: 3g
