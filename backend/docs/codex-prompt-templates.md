@@ -105,9 +105,9 @@
 - Error cases:
 
 ## Scope
-- `<feature>/api`
-- `<feature>/application`
-- `<feature>/dao`
+- `<feature>/controller`
+- `<feature>/service`
+- `<feature>/repository`
 - `<feature>/domain`
 - `<feature>/dto/request`
 - `<feature>/dto/response`

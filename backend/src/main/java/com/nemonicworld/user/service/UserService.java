@@ -1,8 +1,8 @@
-package com.nemonicworld.user.application;
+package com.nemonicworld.user.service;
 
-import com.nemonicworld.user.dao.UserRepository;
 import com.nemonicworld.user.domain.AppUser;
 import com.nemonicworld.user.dto.response.AnonymousUserResponse;
+import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;

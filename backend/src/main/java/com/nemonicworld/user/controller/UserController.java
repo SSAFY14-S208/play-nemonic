@@ -1,8 +1,8 @@
-package com.nemonicworld.user.api;
+package com.nemonicworld.user.controller;
 
 import com.nemonicworld.common.response.ApiResponse;
-import com.nemonicworld.user.application.UserService;
 import com.nemonicworld.user.dto.response.AnonymousUserResponse;
+import com.nemonicworld.user.service.UserService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

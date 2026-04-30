@@ -14,7 +14,7 @@ Use this checklist before handing off substantial backend changes.
 - Acceptance criteria are implemented.
 - Product behavior matches the relevant `backend/docs/product-spec/` document.
 - Success and failure paths are covered.
-- Controller code delegates business logic to application services.
+- Controller code delegates business logic to services.
 - Entity objects are not returned directly from controllers.
 - Request DTO validation annotations are present where needed.
 

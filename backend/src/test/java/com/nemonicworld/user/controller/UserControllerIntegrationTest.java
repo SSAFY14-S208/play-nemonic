@@ -1,4 +1,4 @@
-package com.nemonicworld.user.api;
+package com.nemonicworld.user.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -8,8 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.support.IntegrationTest;
-import com.nemonicworld.user.dao.UserRepository;
 import com.nemonicworld.user.domain.AppUser;
+import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

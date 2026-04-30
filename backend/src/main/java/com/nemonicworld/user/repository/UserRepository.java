@@ -1,4 +1,4 @@
-package com.nemonicworld.user.dao;
+package com.nemonicworld.user.repository;
 
 import com.nemonicworld.user.domain.AppUser;
 import java.util.UUID;

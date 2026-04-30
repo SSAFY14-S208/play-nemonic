@@ -1,13 +1,14 @@
 # Codex Current State
 
-Last updated: 2026-04-29
+Last updated: 2026-04-30
 
 ## Current Focus
 
 - Backend agent harness has been prepared for the `backend/` Spring Boot module.
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
-- The next expected work is the first real backend feature/API implementation using the architecture convention.
+- The first real backend feature API now includes anonymous user UUID issuance through `POST /users/anonymous`.
+- Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
 
