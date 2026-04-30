@@ -353,7 +353,7 @@ tags : "spring_boot" AND log_level : ("WARN" OR "ERROR")
 ## 9. Troubleshooting
 
 문제 생기면 먼저 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) 확인. 이 인프라
-구축 과정에서 만난 20개 함정의 원인과 해결책 정리.
+구축 과정에서 만난 25개 함정의 원인과 해결책 정리.
 
 ---
 
@@ -588,9 +588,91 @@ docker exec nemonic-logging-opensearch \
 
 ---
 
-## 12. Future Work
+## 12. Monitoring (Phase 3)
+
+OpenSearch Dashboards가 **로그 분석**을 담당한다면, **Prometheus + Grafana는
+실시간 시계열 메트릭** 담당. 두 도구 역할 분리.
+
+### 12.1 구성 요소
+
+| 컨테이너 | 이미지 | 용도 |
+| --- | --- | --- |
+| Prometheus | `prom/prometheus:v2.54.1` | 메트릭 수집·저장 (시계열 DB, 15일 retention) |
+| Grafana | `grafana/grafana:11.2.2` | 시각화, https://k14s208.p.ssafy.io/grafana/ |
+| node-exporter | `prom/node-exporter:v1.8.2` | 호스트 OS — CPU/Mem/Disk/Network |
+| cAdvisor | `gcr.io/cadvisor/cadvisor:v0.49.1` | 컨테이너별 메트릭 (※ 한계 있음, 12.5 참조) |
+
+정의: [docker-compose.monitoring.yml](./docker-compose.monitoring.yml),
+[monitoring/](./monitoring/)
+
+### 12.2 1회 셋업 (이미 완료, 새 환경 셋업 시 참고)
+
+```bash
+# (사전: .env에 GRAFANA_ADMIN_USER/PASSWORD 추가)
+sudo tee -a /opt/nemonic/shared/.env.prod <<EOF
+
+# Grafana
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 24)
+EOF
+
+# (사전: nginx BasicAuth 사용자)
+sudo htpasswd -c /opt/nemonic/infra/deploy/nginx/.htpasswd_grafana admin
+
+# (사전: 데이터 디렉토리, UID는 컨테이너 default user)
+sudo mkdir -p /opt/nemonic/data/{prometheus,grafana}
+sudo chown -R 65534:65534 /opt/nemonic/data/prometheus    # nobody
+sudo chown -R 472:472     /opt/nemonic/data/grafana       # grafana
+
+# (사전: docker compose가 .env.prod를 자동 로드하도록 symlink)
+sudo ln -sf /opt/nemonic/shared/.env.prod /opt/nemonic/infra/.env
+
+# 기동
+docker compose -f docker-compose.monitoring.yml up -d
+
+# nginx에 .htpasswd_grafana 마운트 적용 (compose 파일에 이미 정의됨)
+docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
+```
+
+### 12.3 외부 접근
+
+`https://k14s208.p.ssafy.io/grafana/`
+
+- **1차 BasicAuth** (nginx): admin / `<.htpasswd_grafana 비밀번호>`
+- **2차 Grafana 로그인**: admin / `<.env.prod의 GRAFANA_ADMIN_PASSWORD>`
+
+### 12.4 Dashboard Import
+
+Prometheus datasource는 [provisioning](./monitoring/grafana/provisioning/)으로
+자동 등록. 기본 dashboard는 grafana.com에서 ID로 import:
+
+| ID | 이름 | 비고 |
+| --- | --- | --- |
+| **1860** | Node Exporter Full | 호스트 OS 메트릭 (CPU/Mem/Disk/Network) ✅ |
+| 14282 | cAdvisor exporter | ⚠️ 컨테이너 메트릭 — 12.5 한계 참조 |
+| 3662 | Prometheus 2.0 Stats | Prometheus 자체 모니터링 (보너스) |
+
+import 절차: 좌측 메뉴 → Dashboards → New → Import → ID 입력 → Load →
+Prometheus 선택 → Import.
+
+### 12.5 ⚠️ Known Limitation — cAdvisor 컨테이너 메트릭
+
+**현재 cAdvisor v0.49.1은 Ubuntu 24의 Docker overlayfs storage driver와
+호환성 이슈가 있어 컨테이너별 메트릭이 수집되지 않는다.** 호스트 메트릭은
+정상.
+
+원인 + 해결 path는 [TROUBLESHOOTING #25](./TROUBLESHOOTING.md#25-cadvisor-v049v053--docker-overlayfs-storage-driver-호환-x)
+참조. cAdvisor v0.54.0 stable 릴리스 시 업그레이드 예정 (별도 마일스톤).
+
+당분간 컨테이너 자원 확인은:
+- 즉석: `docker stats` CLI
+- 메트릭 dashboard: 호스트 전체 메트릭(1860)으로 추적
+
+---
+
+## 13. Future Work
 
 | Phase | 내용 |
 | --- | --- |
-| 3 (진행 중) | ✅ MinIO snapshot repository, ✅ ISM policy + 인덱스 템플릿, ✅ SM policy (매일 자정 자동 snapshot + 90일 retention), ✅ 인덱스 분리 (biz/system/error/access) + Logstash 라우팅, ⏳ 본격 대시보드 + Saved Search |
+| 3 (진행 중) | ✅ MinIO snapshot repository, ✅ ISM policy + 인덱스 템플릿, ✅ SM policy (매일 자정 자동 snapshot + 90일 retention), ✅ 인덱스 분리 (biz/system/error/access) + Logstash 라우팅, ✅ Prometheus + Grafana 인프라 모니터링, ⏳ cAdvisor v0.54+ 업그레이드 (#25), ⏳ 본격 대시보드 + Saved Search (biz-events 도입 후) |
 | 4 | 재사용 라이브러리 추출 (Java/JS/Python), 운영 문서 |

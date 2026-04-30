@@ -980,6 +980,246 @@ curl -s -X POST "http://127.0.0.1:9200/system-logs-*/_delete_by_query?refresh=tr
 
 ---
 
+## 21. docker compose는 `.env`만 자동 로드 — `.env.prod`는 symlink 필요
+
+**증상**
+
+`docker-compose.monitoring.yml`에서 `${GRAFANA_ADMIN_USER}`, `${GRAFANA_ADMIN_PASSWORD}` 변수를 썼는데 부팅 시:
+
+```
+WARN[0000] The "GRAFANA_ADMIN_USER" variable is not set. Defaulting to a blank string.
+WARN[0000] The "GRAFANA_ADMIN_PASSWORD" variable is not set. Defaulting to a blank string.
+```
+
+빈 값으로 컨테이너 생성됨. 그 결과 Grafana admin user가 빈 비밀번호 또는 default(admin/admin)로 DB에 박혀버림.
+
+**원인**
+
+docker compose는 cwd의 **`.env` 파일만** 자동 로드. `.env.prod` 같은 다른 이름은
+무시. 명령에 `--env-file /opt/nemonic/shared/.env.prod`를 매번 추가하지 않으면
+변수 인식 실패.
+
+**해결**
+
+호스트의 표준 위치(`shared/`)에 secret을 두고 compose가 자동 인식하도록
+**symlink**:
+
+```bash
+sudo ln -sf /opt/nemonic/shared/.env.prod /opt/nemonic/infra/.env
+ls -la /opt/nemonic/infra/.env
+# → ".env -> /opt/nemonic/shared/.env.prod"
+```
+
+이제 `cd /opt/nemonic/infra` 위치에서 모든 compose 명령이 자동으로 변수 로드.
+
+**일반화된 교훈**
+
+> **docker compose의 env 자동 로드는 `.env` 파일명에 한정.** 다른 이름은
+> `--env-file` 옵션 매번 추가 또는 symlink로 해결. symlink가 운영 친화적
+> (명령 단순화 + 한 번만 셋업).
+
+---
+
+## 22. compose project name 불일치 — `name:` 명시로 기존 컨테이너 인식
+
+**증상**
+
+새 monitoring compose 추가 후 nginx 변경분 적용 시도:
+
+```
+$ docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
+[+] Container infra-nginx-1 Starting
+Error response from daemon: failed to set up container networking:
+  ... Bind for 0.0.0.0:80 failed: port is already allocated
+```
+
+`infra-nginx-1`이라는 새 이름으로 만들려 하다가 기존 `nemonic-prod-nginx-1`(80
+점유 중)과 충돌. compose가 기존 컨테이너를 인식 못 함.
+
+**원인**
+
+docker compose는 default project name = **현재 디렉토리 이름** (`infra`).
+그런데 기존 컨테이너는 옛날에 다른 project name(`nemonic-prod`)으로 띄워져
+있었음 (Jenkins 배포 스크립트가 `-p nemonic-prod` 사용 등). 둘이 안 맞으면
+compose가 기존 컨테이너를 "다른 project 소속"으로 보고 인식 X.
+
+**해결**
+
+compose 파일에 `name:` directive 명시 — project name 고정:
+
+```yaml
+name: nemonic-prod   # logging은 nemonic-logging, monitoring은 nemonic-monitoring
+
+services:
+  nginx:
+    ...
+```
+
+이러면 어디서 어떤 도구로 띄우든 같은 project name → 컨테이너 일관 인식.
+
+**일반화된 교훈**
+
+> **다중 compose 환경(prod/logging/monitoring)에선 `name:` 명시 필수.**
+> 디렉토리 이름 또는 -p 옵션에 의존하면 환경마다 project name이 갈려 conflict.
+> 한 번 박아두면 영구 안전.
+
+---
+
+## 23. nginx upstream DNS 캐시 — variable + `resolver`로 매 요청 lookup
+
+**증상**
+
+새 컨테이너(Grafana)를 force-recreate 한 후 nginx 거쳐 접속 시 502:
+
+```
+[error] connect() failed (113: Host is unreachable) while connecting to upstream,
+  upstream: "http://172.18.0.18:3000/grafana/"
+```
+
+그런데 nginx 컨테이너 안에서 직접 `wget http://grafana:3000/...`은 정상 응답.
+즉 호스트네임은 살아있는데 nginx가 stale IP 잡고 있음.
+
+**원인**
+
+nginx는 `proxy_pass http://grafana:3000;` 형태로 hostname을 직접 쓰면 **부팅
+시 한 번만 DNS lookup하고 IP 캐시**. 캐시된 IP를 영구 사용. 컨테이너 재생성
+시 새 IP를 받지만 nginx는 그대로 옛 IP에 연결 시도 → unreachable.
+
+**해결**
+
+`resolver` directive + variable proxy_pass 패턴:
+
+```nginx
+location /grafana/ {
+    # Docker embedded DNS (127.0.0.11) — 매 요청마다 hostname resolve (캐시 10s)
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $grafana_upstream "grafana:3000";
+
+    proxy_pass http://$grafana_upstream;
+    # ...
+}
+```
+
+variable(`$grafana_upstream`)을 거치면 nginx가 매 요청 시점에 DNS lookup.
+`resolver`로 어떤 DNS 사용할지 지정 (Docker 컨테이너는 `127.0.0.11`).
+
+**일반화된 교훈**
+
+> **nginx에서 자주 재생성되는 컨테이너로 proxy_pass 시 variable + `resolver`
+> 패턴 필수.** 정적 hostname은 부팅 시 한 번만 resolve되어 stale.
+> 안정적 운영의 모든 location에 적용 권장.
+
+---
+
+## 24. Grafana 첫 부팅 시에만 envvar로 admin 비밀번호 생성
+
+**증상**
+
+`.env.prod`에 `GRAFANA_ADMIN_PASSWORD`를 정확히 셋업한 뒤에도 Grafana 로그인
+실패. envvar는 분명히 로드됐는데 비밀번호가 적용 안 됨.
+
+**원인**
+
+Grafana는 `GF_SECURITY_ADMIN_PASSWORD`를 **첫 부팅 시 admin user를 DB에 생성할
+때만** 사용. 그 다음 부팅에선 envvar 변경해도 DB의 비밀번호 안 갱신.
+
+우리 케이스: 첫 부팅 시 `.env` symlink가 없어서 envvar가 빈 값 → admin user가
+빈 비밀번호 또는 default(admin/admin)로 DB에 박힘. symlink 만든 후 force-
+recreate 했지만 DB는 호스트 영속(`/opt/nemonic/data/grafana/grafana.db`)이라
+옛 admin 그대로.
+
+**해결 옵션**
+
+1. **데이터 reset** (가장 깔끔, dashboard 없을 때):
+
+```bash
+docker compose -f docker-compose.monitoring.yml stop grafana
+sudo rm -rf /opt/nemonic/data/grafana/*
+docker compose -f docker-compose.monitoring.yml up -d --no-deps grafana
+# → 첫 부팅 다시 진행, 이번엔 envvar로 admin 생성
+```
+
+2. **CLI로 reset** (dashboard 보존):
+
+```bash
+docker exec -it nemonic-monitoring-grafana \
+  grafana cli admin reset-admin-password '<new-password>'
+```
+
+3. **default(admin/admin)로 로그인 후 UI에서 변경** (envvar 빈 값으로 첫 부팅
+   했을 때).
+
+**일반화된 교훈**
+
+> **Grafana의 GF_SECURITY_ADMIN_PASSWORD는 first-boot only.** 운영 시 비밀번호
+> 변경은 envvar 아니라 Grafana CLI 또는 UI로. 새 환경 셋업 시 첫 부팅 전에
+> envvar 셋업 검증 필수.
+
+---
+
+## 25. cAdvisor v0.49~v0.53 + Docker overlayfs storage driver 호환 X
+
+**증상**
+
+cAdvisor가 정상 부팅하고 Prometheus가 메트릭 수집 중인데 컨테이너별 메트릭이
+전혀 안 보임. systemd cgroup만 보임:
+
+```
+container_last_seen{id="/system.slice/ModemManager.service"}
+container_last_seen{id="/system.slice/cloud-init.service"}
+...
+# Docker 컨테이너 (/system.slice/docker-<id>.scope) 메트릭은 없음
+```
+
+cAdvisor 로그:
+
+```
+E0430 manager.go:1116] Failed to create existing container:
+  /system.slice/docker-<id>.scope:
+  failed to identify the read-write layer ID for container ...
+  - open /rootfs/var/lib/docker/image/overlayfs/layerdb/mounts/.../mount-id:
+  no such file or directory
+```
+
+Grafana Dashboard 14282(cAdvisor exporter) 등에서 컨테이너 dropdown 비어있음.
+
+**원인**
+
+Ubuntu 24의 Docker는 `Storage Driver: overlayfs`로 표시되지만 **실제 디렉토리
+경로는 `/var/lib/docker/image/overlay2/...`**. cAdvisor v0.49~v0.53은 driver
+이름 `overlayfs`로 path를 추정해서 `/var/lib/docker/image/overlayfs/...` 찾음
+→ 디렉토리 없음 → 컨테이너 read-write layer ID 식별 실패 → 컨테이너 자체
+인식 거부 → 메트릭 0건.
+
+**해결**
+
+cAdvisor **v0.54.0+로 업그레이드**. 이 버전에 PR #3709 fix 머지됨. 우리는
+2026-04 시점에 v0.49.1 사용 중이라 추후 v0.54.0 stable 릴리스 시점에 업그레이드.
+
+**임시 회피 (운영 영향 큼, 비추)**
+
+`/etc/docker/daemon.json`에 `"storage-driver": "overlay2"` 강제. 단 적용에
+`/var/lib/docker` 삭제 + 모든 컨테이너 재배포 필요. 프로덕션 환경 비추.
+
+**현재 운영 상태**
+
+- 호스트 메트릭(node-exporter / dashboard 1860): ✅ 정상
+- 컨테이너별 메트릭(cAdvisor / dashboard 14282): ❌ 빈 데이터
+- 즉석 컨테이너 자원 확인은 `docker stats` CLI 사용
+
+**일반화된 교훈**
+
+> **cAdvisor + Ubuntu 24 + Docker overlayfs는 v0.54+ 필수.**
+> v0.53 이하는 Docker storage driver 이름 매핑 버그로 컨테이너 인식 실패.
+> Grafana 대시보드의 컨테이너 dropdown이 비어있다면 가장 먼저 의심.
+
+**참고**
+
+- [cAdvisor Issue #3860](https://github.com/google/cadvisor/issues/3860) — 같은 증상 보고
+- [grafana/alloy Issue #5021](https://github.com/grafana/alloy/issues/5021) — embedded cAdvisor v0.54.0 업그레이드 논의
+
+---
+
 ## 부록 A: 디버깅 도구 한 줄 요약
 
 | 도구 | 용도 |
