@@ -2,11 +2,14 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
+import {
+  WALK_SPEED,
+  STOP_DISTANCE,
+  ROTATION_SLERP_SPEED,
+  CAPSULE_HALF_HEIGHT,
+  CAPSULE_RADIUS,
+} from "../constants";
 
-const WALK_SPEED = 10; // m/s
-const STOP_DISTANCE = 0.15;
-const ROTATION_SLERP_SPEED = 0.12;
-const CHARACTER_Y = 0.85; // CapsuleCollider halfHeight(0.4) + radius(0.4) + 약간의 여유
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
 
 export function useCharacterMovement(
@@ -14,9 +17,12 @@ export function useCharacterMovement(
   targetPositionRef: React.RefObject<THREE.Vector3>,
   isPointerDownRef: React.RefObject<boolean>,
   characterPositionRef: React.RefObject<THREE.Vector3>,
+  surfaceY: number = 0,
 ) {
+  const characterY = surfaceY + CAPSULE_HALF_HEIGHT + CAPSULE_RADIUS;
   const isMovingRef = useRef(false);
-  const currentQuaternion = new THREE.Quaternion();
+  // Rapier 좌표계 왕복 대신 Three.js 쪽에서 직접 추적 (부동소수점 오차 누적 방지)
+  const currentQuaternionRef = useRef(new THREE.Quaternion());
   const targetQuaternion = new THREE.Quaternion();
 
   useFrame((_, delta) => {
@@ -62,7 +68,7 @@ export function useCharacterMovement(
 
     rigidBody.setNextKinematicTranslation({
       x: nextX,
-      y: CHARACTER_Y,
+      y: characterY,
       z: nextZ,
     });
 
@@ -70,15 +76,8 @@ export function useCharacterMovement(
     const targetAngle = Math.atan2(normalizedX, normalizedZ);
     targetQuaternion.setFromAxisAngle(UP_AXIS, targetAngle);
 
-    const rapierRotation = rigidBody.rotation();
-    currentQuaternion.set(
-      rapierRotation.x,
-      rapierRotation.y,
-      rapierRotation.z,
-      rapierRotation.w,
-    );
-    currentQuaternion.slerp(targetQuaternion, ROTATION_SLERP_SPEED);
-    rigidBody.setNextKinematicRotation(currentQuaternion);
+    currentQuaternionRef.current.slerp(targetQuaternion, ROTATION_SLERP_SPEED);
+    rigidBody.setNextKinematicRotation(currentQuaternionRef.current);
   });
 
   return isMovingRef;
