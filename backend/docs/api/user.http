@@ -1,0 +1,8 @@
+@host = http://localhost:8080
+
+### Create anonymous user
+POST {{host}}/users/anonymous
+User-Agent: MangoApp/1.0
+
+### Create anonymous user without User-Agent
+POST {{host}}/users/anonymous

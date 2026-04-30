@@ -105,10 +105,10 @@
 - Error cases:
 
 ## Scope
-- `<feature>/api`
-- `<feature>/application`
-- `<feature>/dao`
-- `<feature>/domain`
+- `<feature>/controller`
+- `<feature>/service`
+- `<feature>/repository`
+- `<feature>/entity`
 - `<feature>/dto/request`
 - `<feature>/dto/response`
 - 관련 테스트
