@@ -1,7 +1,9 @@
 package com.nemonicworld.user.controller;
 
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.user.dto.request.AnonymousUserNicknameRequest;
 import com.nemonicworld.user.dto.request.AnonymousUserVerifyRequest;
+import com.nemonicworld.user.dto.response.AnonymousUserNicknameResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserVerifyResponse;
 import com.nemonicworld.user.service.UserService;
@@ -14,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -33,6 +36,7 @@ public class UserController {
 
     private static final String ANONYMOUS_USER_CREATED_MESSAGE = "익명 사용자 UUID 발급 성공";
     private static final String ANONYMOUS_USER_VERIFIED_MESSAGE = "익명 사용자 UUID 확인 성공";
+    private static final String ANONYMOUS_USER_NICKNAME_UPDATED_MESSAGE = "닉네임 설정/수정 성공";
 
     private final UserService userService;
 
@@ -74,5 +78,19 @@ public class UserController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(ANONYMOUS_USER_VERIFIED_MESSAGE, response));
+    }
+
+    /**
+     * 서버에 등록된 익명 사용자의 닉네임을 설정하거나 수정합니다.
+     */
+    @PatchMapping("/anonymous/nickname")
+    @Operation(summary = "익명 사용자 닉네임 설정/수정", description = "서버에 등록된 익명 사용자의 닉네임을 설정하거나 수정합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "닉네임 설정/수정 성공")
+    public ResponseEntity<ApiResponse<AnonymousUserNicknameResponse>> updateAnonymousUserNickname(
+        @RequestBody AnonymousUserNicknameRequest request) {
+        AnonymousUserNicknameResponse response = userService.updateAnonymousUserNickname(request);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(ANONYMOUS_USER_NICKNAME_UPDATED_MESSAGE, response));
     }
 }
