@@ -18,10 +18,9 @@ import org.springframework.util.StringUtils;
 
 @Service
 /**
- * 사용자 생성 유스케이스를 처리하는 서비스입니다.
+ * 익명 사용자 유스케이스를 처리하는 서비스입니다.
  *
- * <p>
- * 현재는 앱 첫 진입 시 필요한 익명 사용자 UUID 발급 흐름을 담당합니다.
+ * UUID 발급, 기존 UUID 검증, 닉네임 설정/수정 흐름을 담당합니다.
  */
 public class UserService {
 
@@ -41,7 +40,6 @@ public class UserService {
     /**
      * 매 호출마다 새로운 익명 사용자를 생성하고 저장합니다.
      *
-     * <p>
      * 클라이언트 UUID를 입력받지 않고 서버가 UUID를 직접 발급합니다.
      */
     @Transactional
@@ -51,7 +49,7 @@ public class UserService {
         AppUser savedUser = userRepository.save(appUser);
 
         return new AnonymousUserResponse(savedUser.getId().toString(), savedUser.getNickname(),
-            savedUser.getCreatedAt());
+                savedUser.getCreatedAt());
     }
 
     /**
@@ -61,13 +59,13 @@ public class UserService {
     public AnonymousUserVerifyResponse verifyAnonymousUser(AnonymousUserVerifyRequest request, String userAgent) {
         UUID userUuid = parseUserUuid(request == null ? null : request.userUuid());
         AppUser appUser = userRepository.findById(userUuid)
-            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         appUser.updateLastSeen(normalizeUserAgent(userAgent), now);
 
         return new AnonymousUserVerifyResponse(appUser.getId().toString(), appUser.getNickname(),
-            appUser.getLastSeenAt());
+                appUser.getLastSeenAt());
     }
 
     /**
@@ -76,18 +74,19 @@ public class UserService {
     @Transactional
     public AnonymousUserNicknameResponse updateAnonymousUserNickname(AnonymousUserNicknameRequest request) {
         UUID userUuid = parseUserUuid(request == null ? null : request.userUuid());
+        // 닉네임 안의 공백은 허용하므로 저장 전 trim하지 않고 원문을 유지합니다.
         String nickname = request == null ? null : request.nickname();
 
         validateNickname(nickname);
 
         AppUser appUser = userRepository.findById(userUuid)
-            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         appUser.updateNickname(nickname, now);
 
         return new AnonymousUserNicknameResponse(appUser.getId().toString(), appUser.getNickname(),
-            appUser.getUpdatedAt());
+                appUser.getUpdatedAt());
     }
 
     private UUID parseUserUuid(String userUuid) {
@@ -108,6 +107,7 @@ public class UserService {
         }
     }
 
+    // 이모지를 Java char 2개로 과계산하지 않도록 사용자 기준에 더 가까운 code point 개수로 길이를 봅니다.
     private boolean isNicknameTooLong(String nickname) {
         return nickname.codePointCount(0, nickname.length()) > MAX_NICKNAME_CODE_POINTS;
     }
