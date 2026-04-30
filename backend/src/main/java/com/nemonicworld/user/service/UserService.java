@@ -14,7 +14,8 @@ import org.springframework.util.StringUtils;
 /**
  * 사용자 생성 유스케이스를 처리하는 서비스입니다.
  *
- * <p>현재는 앱 첫 진입 시 필요한 익명 사용자 UUID 발급 흐름을 담당합니다.
+ * <p>
+ * 현재는 앱 첫 진입 시 필요한 익명 사용자 UUID 발급 흐름을 담당합니다.
  */
 public class UserService {
 
@@ -30,7 +31,8 @@ public class UserService {
     /**
      * 매 호출마다 새로운 익명 사용자를 생성하고 저장합니다.
      *
-     * <p>클라이언트 UUID를 입력받지 않고 서버가 UUID를 직접 발급합니다.
+     * <p>
+     * 클라이언트 UUID를 입력받지 않고 서버가 UUID를 직접 발급합니다.
      */
     @Transactional
     public AnonymousUserResponse createAnonymousUser(String userAgent) {

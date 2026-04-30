@@ -14,7 +14,8 @@ import java.util.UUID;
 /**
  * 서비스에서 익명 사용자를 식별하기 위해 사용하는 사용자 엔티티입니다.
  *
- * <p>기본 식별자는 서버가 발급한 UUID이며, User-Agent는 식별자가 아닌 참고용 메타데이터입니다.
+ * <p>
+ * 기본 식별자는 서버가 발급한 UUID이며, User-Agent는 식별자가 아닌 참고용 메타데이터입니다.
  */
 public class AppUser {
 
