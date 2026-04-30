@@ -31,3 +31,30 @@ Content-Type: application/json
 {
   "userUuid": "not-a-uuid"
 }
+
+### Update anonymous user nickname
+PATCH {{host}}/users/anonymous/nickname
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "nickname": "망고"
+}
+
+### Update anonymous user nickname - spaces, symbols, emoji
+PATCH {{host}}/users/anonymous/nickname
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "nickname": " 망고 팀🙂! "
+}
+
+### Update anonymous user nickname - invalid nickname
+PATCH {{host}}/users/anonymous/nickname
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "nickname": "12345678901"
+}
