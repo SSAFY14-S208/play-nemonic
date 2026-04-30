@@ -888,6 +888,98 @@ docker ps --filter name=nemonic-logging-logstash --format '{{.Names}}\t{{.Status
 
 ---
 
+## 20. Logstash 자기 로그는 두 종류 — drop 패턴 둘 다 필요
+
+**증상**
+
+Logstash 자기 로그 무한 루프 방지를 위해 drop 패턴을 추가:
+
+```
+if [message] =~ /\[main\]\[[a-f0-9]{64}\]/ {
+  drop { }
+}
+```
+
+검증 후에도 `system-logs-*` 인덱스에 자기 로그 125건 침투:
+
+```json
+{
+  "message": "[2026-04-30T04:56:39,926][INFO ][logstash.javapipeline    ][main] Pipeline started ..."
+}
+```
+
+**원인**
+
+Logstash 자기 로그는 **두 가지 형식이 섞여 있음**:
+
+| 종류 | 시그니처 | 예시 |
+| --- | --- | --- |
+| **자체 코드** (Pipeline, Runner, Outputs 등) | `[INFO ][logstash.<module>][main]` (hash 없음) | `[logstash.javapipeline][main] Pipeline started` |
+| **외부 라이브러리** (Kafka client 등 Logstash가 사용) | `[INFO ][org.apache.<pkg>...][main][<64-hex>]` (hash 있음) | `[org.apache.kafka.clients.consumer...][main][8fd1d57dc5ff...]` |
+
+`\[main\]\[[a-f0-9]{64}\]` 패턴은 **외부 라이브러리만** 잡음. 자체 코드 로그는
+`[main]` 다음에 hash가 안 붙어서 매칭 X.
+
+**잘못된 가설들**
+
+1. ❌ "Logstash 자기 로그는 한 가지 형식" — Kafka client 로그만 보고 일반화한 실수.
+2. ❌ "log_tag로 충분히 잡힘" — log_tag(file path)에 컨테이너 이름이 안 들어가서(ID만) 매칭 자체가 안 됨.
+
+**해결**
+
+두 패턴을 모두 drop:
+
+```
+filter {
+  # (1) Logstash 자체 코드 로그
+  if [message] =~ /\[logstash\.\w+/ {
+    drop { }
+  }
+  # (2) Logstash가 사용하는 외부 라이브러리(Kafka client) 로그
+  if [message] =~ /\[main\]\[[a-f0-9]{64}\]/ {
+    drop { }
+  }
+}
+```
+
+**검증**
+
+각 패턴이 진짜 drop되는지 OpenSearch에서 직접 검색:
+
+```bash
+# 자체 코드 패턴
+curl -s -X POST "http://127.0.0.1:9200/system-logs-*/_search?size=2" \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"match_phrase":{"message":"[logstash."}}}'
+
+# Kafka client 패턴
+curl -s -X POST "http://127.0.0.1:9200/system-logs-*/_search?size=2" \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"match_phrase":{"message":"[main]["}}}'
+
+# 둘 다 "total":{"value":0} 이어야 정상
+```
+
+옛 침투 docs는 `_delete_by_query`로 정리:
+
+```bash
+curl -s -X POST "http://127.0.0.1:9200/system-logs-*/_delete_by_query?refresh=true" \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"bool":{"should":[
+    {"match_phrase":{"message":"[logstash."}},
+    {"match_phrase":{"message":"[main]["}}
+  ]}}}'
+```
+
+**일반화된 교훈**
+
+> **자기 로그 drop 패턴은 도구가 직접 찍는 로그와 도구가 사용하는 라이브러리
+> 로그를 둘 다 잡아야 한다.** 한 패턴만으로는 누락이 생긴다. 검증은 인덱스에서
+> 해당 시그니처를 직접 검색해서 0건임을 확인하는 게 가장 확실 (Logstash event
+> stats의 in/filtered/out은 `drop {}`을 따로 카운트하지 않아 신뢰도 낮음).
+
+---
+
 ## 부록 A: 디버깅 도구 한 줄 요약
 
 | 도구 | 용도 |

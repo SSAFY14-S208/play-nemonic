@@ -353,7 +353,7 @@ tags : "spring_boot" AND log_level : ("WARN" OR "ERROR")
 ## 9. Troubleshooting
 
 문제 생기면 먼저 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) 확인. 이 인프라
-구축 과정에서 만난 19개 함정의 원인과 해결책 정리.
+구축 과정에서 만난 20개 함정의 원인과 해결책 정리.
 
 ---
 
@@ -526,8 +526,9 @@ OpenSearch ISM(Index State Management)으로 인덱스 수명을 자동 관리.
 새 로그가 들어올 때마다 [logging/logstash/pipeline/main.conf](./logging/logstash/pipeline/main.conf)
 가 우선순위 순서로 분류:
 
-1. **자기 로그 drop** — Logstash `[main][<64-hex>]` 시그니처, Fluent Bit
-   `[YYYY/MM/DD HH:MM:SS]` 시그니처, log_tag에 `logstash`/`fluent-bit` 매칭.
+1. **자기 로그 drop** — Logstash 자체 코드(`[logstash.<module>]`) + 외부 라이브러리
+   (`[main][<64-hex>]`) 두 패턴, Fluent Bit (`[YYYY/MM/DD HH:MM:SS]`), log_tag
+   기반 fallback. 두 종류 다 잡아야 (TROUBLESHOOTING #20).
 2. JSON parsing 시도 (메시지가 `{`로 시작) → `event_name` 필드 있으면 → **biz-events**
 3. nginx access pattern 매칭 → date 변환(@timestamp) → **access-logs**
 4. Spring Boot pattern 매칭 → log_level 등 부여 (분류는 다음 단계에서)
