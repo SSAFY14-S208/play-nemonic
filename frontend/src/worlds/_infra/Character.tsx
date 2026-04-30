@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import {
   RigidBody,
@@ -39,6 +39,15 @@ export default function Character({
 
   const { scene, animations } = useGLTF(MODEL_PATH);
   const { actions } = useAnimations(animations, groupRef);
+
+  // GLB 내부 모든 Mesh에 castShadow 적용 (group에는 전파 안 됨)
+  useEffect(() => {
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+      }
+    });
+  }, [scene]);
 
   const isMovingRef = useCharacterMovement(
     rigidBodyRef,
