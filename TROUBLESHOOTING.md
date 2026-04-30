@@ -774,6 +774,64 @@ ISM policy 안에 `ism_template` 정의:
 
 ---
 
+## 18. paste 환경에서 multiline + backslash continuation 깨짐
+
+**증상**
+
+multiline 명령을 SSH 터미널에 paste 하면 일부 줄이 깨져서 syntax error 발생:
+
+```
+$ cat logging/opensearch/sm/nemonic-daily-app-logs.json | \
+    docker exec -i nemonic-logging-opensearch \
+    curl -s -X PUT "..."
+-bash: syntax error near unexpected token `|'
+cat: logging/opensearch/sm/nemonic-daily-app-logs.json: No such file or directory
+docker: 'docker exec' requires at least 2 arguments
+-H: command not found
+-d: command not found
+```
+
+또 `cd /opt/nemonic/infra`도 paste 흐름 도중에 묻혀 cwd가 `/home/ubuntu`인 채
+실행 → 상대 경로 파일을 못 찾는 함정.
+
+**원인**
+
+- `\` line continuation은 paste buffer 처리, 한국어/한자 IME, MOTD/SSH banner
+  지연 등으로 일부 줄에서 newline이 escape되지 않거나 사이에 공백이 끼어듦.
+- 멀티라인 paste 도중 `cd`가 무시되거나 다른 명령과 섞여 cwd 변경이 안 됨.
+
+**해결**
+
+명령을 **한 줄**로 풀거나 here-doc 또는 스크립트 파일로:
+
+```bash
+# 한 줄
+cat foo.json | docker exec -i CONT curl -s -X PUT "..." -H '...' -d @-
+
+# here-doc (인용 보존용 'EOF')
+docker exec -i CONT curl -s -X PUT "..." -H '...' -d @- <<'EOF'
+{"key": "value"}
+EOF
+
+# 또는 스크립트 파일
+bash run_step.sh
+```
+
+`cd`는 항상 단독 줄로 가장 앞에:
+
+```bash
+cd /opt/nemonic/infra && pwd   # cwd 검증까지 한 줄에
+```
+
+**일반화된 교훈**
+
+> **운영 명령에 multiline + `\` 사용은 paste 환경마다 깨질 위험이 있다.**
+> production 환경의 1회성 명령은 한 줄 또는 스크립트 파일로 두는 게 안전.
+> cwd 의존 명령은 항상 명령 셋의 가장 앞에 단독 `cd`로 두고, `pwd`로
+> 검증한 뒤 본 작업 진행.
+
+---
+
 ## 부록 A: 디버깅 도구 한 줄 요약
 
 | 도구 | 용도 |

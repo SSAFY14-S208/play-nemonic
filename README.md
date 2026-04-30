@@ -353,7 +353,7 @@ tags : "spring_boot" AND log_level : ("WARN" OR "ERROR")
 ## 9. Troubleshooting
 
 문제 생기면 먼저 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) 확인. 이 인프라
-구축 과정에서 만난 17개 함정의 원인과 해결책 정리.
+구축 과정에서 만난 18개 함정의 원인과 해결책 정리.
 
 ---
 
@@ -442,6 +442,66 @@ docker run --rm \
   ls --recursive minio/nemonic-logs-snapshots/
 ```
 
+### 10.5 자동 스케줄 (SM policy)
+
+수동 snapshot 외에 **매일 자정 KST 자동 snapshot + 90일 retention**을
+OpenSearch SM(Snapshot Management) policy로 운영. ISM과 짝꿍 — 클러스터에서는
+ISM이 37일 후 인덱스 삭제, MinIO에서는 SM이 90일치 snapshot 보관.
+
+| 항목 | 값 |
+| --- | --- |
+| Policy name | `nemonic-daily-app-logs` |
+| Snapshot 이름 패턴 | `nemonic-daily-app-logs-yyyy-MM-dd-HH-mm-<uniq>` |
+| Creation cron | `0 0 * * *` (Asia/Seoul) — 매일 자정 |
+| Deletion cron | `30 0 * * *` (Asia/Seoul) — 매일 0:30 retention 검사 |
+| Retention | `max_age: 90d`, `min_count: 5` (안전망) |
+| Indices | `nemonic-app-logs-*` |
+
+정의: [logging/opensearch/sm/nemonic-daily-app-logs.json](./logging/opensearch/sm/nemonic-daily-app-logs.json)
+
+#### 등록
+
+```bash
+cat logging/opensearch/sm/nemonic-daily-app-logs.json | \
+  docker exec -i nemonic-logging-opensearch \
+  curl -s -X POST "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs" \
+  -H 'Content-Type: application/json' \
+  -d @-
+# → "_id": "nemonic-daily-app-logs-sm-policy", "enabled": true
+```
+
+#### 검증 (즉시)
+
+OpenSearch SM에는 강제 trigger API가 없다. 즉시 검증하려면 임시로 cron을
+**5분 후 시각**으로 변경 → 5분 대기 → snapshot 발생 확인 → 자정 cron으로
+원복. 다음 단계로 진행.
+
+```bash
+# 1) 5분 후 KST 시각으로 cron 만들기
+MIN=$(TZ=Asia/Seoul date -d "+5 min" "+%-M")
+HOUR=$(TZ=Asia/Seoul date -d "+5 min" "+%-H")
+echo "임시 cron: \"$MIN $HOUR * * *\""
+
+# 2) 현재 seq_no/primary_term 캡처 후 임시 cron으로 PUT
+SEQ_INFO=$(docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_seq_no'], d['_primary_term'])")
+read SEQ TERM <<< "$SEQ_INFO"
+
+docker exec nemonic-logging-opensearch curl -s -X PUT "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs?if_seq_no=$SEQ&if_primary_term=$TERM" -H 'Content-Type: application/json' -d "{\"description\":\"TEMP\",\"creation\":{\"schedule\":{\"cron\":{\"expression\":\"$MIN $HOUR * * *\",\"timezone\":\"Asia/Seoul\"}},\"time_limit\":\"1h\"},\"deletion\":{\"schedule\":{\"cron\":{\"expression\":\"59 23 * * *\",\"timezone\":\"Asia/Seoul\"}},\"condition\":{\"max_age\":\"90d\",\"min_count\":5},\"time_limit\":\"1h\"},\"snapshot_config\":{\"date_format\":\"yyyy-MM-dd-HH-mm\",\"timezone\":\"Asia/Seoul\",\"indices\":\"nemonic-app-logs-*\",\"repository\":\"nemonic-logs-repo\",\"ignore_unavailable\":\"true\",\"include_global_state\":\"false\",\"partial\":\"false\"}}"
+
+# 3) 6분 대기 후 snapshot 확인
+sleep 360
+docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo/_all" | python3 -m json.tool | grep -E '"snapshot"|"state"'
+# → "snapshot": "nemonic-daily-app-logs-yyyy-MM-dd-HH-mm-<uniq>", "state": "SUCCESS"
+
+# 4) 정의 원복 (자정 cron)
+SEQ_INFO=$(docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_seq_no'], d['_primary_term'])")
+read SEQ TERM <<< "$SEQ_INFO"
+cat logging/opensearch/sm/nemonic-daily-app-logs.json | docker exec -i nemonic-logging-opensearch curl -s -X PUT "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs?if_seq_no=$SEQ&if_primary_term=$TERM" -H 'Content-Type: application/json' -d @-
+```
+
+> **paste 주의**: SSH 환경에 따라 `\` continuation이 깨질 수 있음. 한 줄
+> 명령으로 두는 게 안전 (TROUBLESHOOTING #18 참조).
+
 ---
 
 ## 11. Index Lifecycle Management (Phase 3)
@@ -524,5 +584,5 @@ docker exec nemonic-logging-opensearch \
 
 | Phase | 내용 |
 | --- | --- |
-| 3 (진행 중) | ✅ MinIO snapshot repository, ✅ ISM policy + 인덱스 템플릿, ⏳ SM policy (매일 자정 자동 snapshot + 90일 retention), ⏳ 인덱스 분리 (app/access/system) + Logstash 라우팅, ⏳ 본격 대시보드 + Saved Search |
+| 3 (진행 중) | ✅ MinIO snapshot repository, ✅ ISM policy + 인덱스 템플릿, ✅ SM policy (매일 자정 자동 snapshot + 90일 retention), ⏳ 인덱스 분리 (app/access/system) + Logstash 라우팅, ⏳ 본격 대시보드 + Saved Search |
 | 4 | 재사용 라이브러리 추출 (Java/JS/Python), 운영 문서 |
