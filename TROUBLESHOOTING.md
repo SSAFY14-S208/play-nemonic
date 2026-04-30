@@ -832,6 +832,62 @@ cd /opt/nemonic/infra && pwd   # cwd 검증까지 한 줄에
 
 ---
 
+## 19. `docker compose up -d <svc>`의 depends_on 함정
+
+**증상**
+
+Logstash conf 변경 후 `restart`가 paste 깨짐으로 실행 안 된 상태에서 명시적
+재기동 시도:
+
+```
+$ docker compose -f docker-compose.logging.yml up -d logstash
+Error response from daemon: Conflict. The container name "/nemonic-logging-kafka"
+  is already in use by container "...".
+```
+
+logstash만 띄우려 했는데 kafka 충돌로 전체 명령 실패. logstash 컨테이너는
+`Up 2 days` 상태로 옛 conf 그대로.
+
+**원인**
+
+`docker compose up -d <service>`는 그 service의 `depends_on` 체인을 함께
+재생성하려 시도. logstash는 kafka, opensearch에 depends → compose가 두
+컨테이너도 다시 만들려 하는데 이미 같은 이름으로 존재 → 충돌.
+
+또 옛 컨테이너가 살아있는 동안에는 새 conf가 적용 안 됨. mount/conf 변경 시
+컨테이너 재생성이 필수 (#15 참조).
+
+**해결**
+
+특정 서비스만 재생성하려면 `--no-deps`:
+
+```bash
+# 옛 컨테이너 명시적 제거
+docker rm -f nemonic-logging-logstash
+
+# 해당 서비스만 새로 생성, depends_on은 건드리지 않음
+docker compose -f docker-compose.logging.yml up -d --no-deps logstash
+```
+
+**검증 — 재기동이 진짜 일어났는지**
+
+`Up X seconds/minutes`로 새 부팅 시점 확인:
+
+```bash
+docker ps --filter name=nemonic-logging-logstash --format '{{.Names}}\t{{.Status}}'
+# Up 30 seconds  ← OK, 새로 떴음
+# Up 2 days      ← BAD, 옛 컨테이너 그대로
+```
+
+**일반화된 교훈**
+
+> **단일 서비스만 재생성할 때는 `--no-deps` 필수.**
+> 그렇지 않으면 compose가 depends_on 체인 전체를 재생성하려 하다가 이름
+> 충돌로 silent fail. 옛 컨테이너가 그대로 돌고 있어 conf 변경이 적용 안 됨.
+> 재기동 후엔 항상 `Up X seconds`로 새 부팅 검증.
+
+---
+
 ## 부록 A: 디버깅 도구 한 줄 요약
 
 | 도구 | 용도 |

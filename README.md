@@ -353,7 +353,7 @@ tags : "spring_boot" AND log_level : ("WARN" OR "ERROR")
 ## 9. Troubleshooting
 
 문제 생기면 먼저 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) 확인. 이 인프라
-구축 과정에서 만난 18개 함정의 원인과 해결책 정리.
+구축 과정에서 만난 19개 함정의 원인과 해결책 정리.
 
 ---
 
@@ -424,7 +424,7 @@ docker exec nemonic-logging-opensearch \
   curl -s -X PUT "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo/<snapshot-name>?wait_for_completion=true" \
   -H 'Content-Type: application/json' \
   -d '{
-    "indices": "nemonic-app-logs-*",
+    "indices": "biz-events-*,system-logs-*,error-logs-*",
     "include_global_state": false
   }'
 ```
@@ -446,28 +446,28 @@ docker run --rm \
 
 수동 snapshot 외에 **매일 자정 KST 자동 snapshot + 90일 retention**을
 OpenSearch SM(Snapshot Management) policy로 운영. ISM과 짝꿍 — 클러스터에서는
-ISM이 37일 후 인덱스 삭제, MinIO에서는 SM이 90일치 snapshot 보관.
+ISM이 인덱스 종류별 보관 기간 후 삭제, MinIO에서는 SM이 90일치 snapshot 보관.
 
 | 항목 | 값 |
 | --- | --- |
-| Policy name | `nemonic-daily-app-logs` |
-| Snapshot 이름 패턴 | `nemonic-daily-app-logs-yyyy-MM-dd-HH-mm-<uniq>` |
+| Policy name | `nemonic-daily-snapshot` |
+| Snapshot 이름 패턴 | `nemonic-daily-snapshot-yyyy-MM-dd-HH-mm-<uniq>` |
 | Creation cron | `0 0 * * *` (Asia/Seoul) — 매일 자정 |
 | Deletion cron | `30 0 * * *` (Asia/Seoul) — 매일 0:30 retention 검사 |
 | Retention | `max_age: 90d`, `min_count: 5` (안전망) |
-| Indices | `nemonic-app-logs-*` |
+| Indices | `biz-events-*,system-logs-*,error-logs-*` (access는 단명 14d라 제외) |
 
-정의: [logging/opensearch/sm/nemonic-daily-app-logs.json](./logging/opensearch/sm/nemonic-daily-app-logs.json)
+정의: [logging/opensearch/sm/nemonic-daily-snapshot.json](./logging/opensearch/sm/nemonic-daily-snapshot.json)
 
 #### 등록
 
 ```bash
-cat logging/opensearch/sm/nemonic-daily-app-logs.json | \
+cat logging/opensearch/sm/nemonic-daily-snapshot.json | \
   docker exec -i nemonic-logging-opensearch \
-  curl -s -X POST "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs" \
+  curl -s -X POST "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot" \
   -H 'Content-Type: application/json' \
   -d @-
-# → "_id": "nemonic-daily-app-logs-sm-policy", "enabled": true
+# → "_id": "nemonic-daily-snapshot-sm-policy", "enabled": true
 ```
 
 #### 검증 (즉시)
@@ -483,20 +483,20 @@ HOUR=$(TZ=Asia/Seoul date -d "+5 min" "+%-H")
 echo "임시 cron: \"$MIN $HOUR * * *\""
 
 # 2) 현재 seq_no/primary_term 캡처 후 임시 cron으로 PUT
-SEQ_INFO=$(docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_seq_no'], d['_primary_term'])")
+SEQ_INFO=$(docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_seq_no'], d['_primary_term'])")
 read SEQ TERM <<< "$SEQ_INFO"
 
-docker exec nemonic-logging-opensearch curl -s -X PUT "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs?if_seq_no=$SEQ&if_primary_term=$TERM" -H 'Content-Type: application/json' -d "{\"description\":\"TEMP\",\"creation\":{\"schedule\":{\"cron\":{\"expression\":\"$MIN $HOUR * * *\",\"timezone\":\"Asia/Seoul\"}},\"time_limit\":\"1h\"},\"deletion\":{\"schedule\":{\"cron\":{\"expression\":\"59 23 * * *\",\"timezone\":\"Asia/Seoul\"}},\"condition\":{\"max_age\":\"90d\",\"min_count\":5},\"time_limit\":\"1h\"},\"snapshot_config\":{\"date_format\":\"yyyy-MM-dd-HH-mm\",\"timezone\":\"Asia/Seoul\",\"indices\":\"nemonic-app-logs-*\",\"repository\":\"nemonic-logs-repo\",\"ignore_unavailable\":\"true\",\"include_global_state\":\"false\",\"partial\":\"false\"}}"
+docker exec nemonic-logging-opensearch curl -s -X PUT "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot?if_seq_no=$SEQ&if_primary_term=$TERM" -H 'Content-Type: application/json' -d "{\"description\":\"TEMP\",\"creation\":{\"schedule\":{\"cron\":{\"expression\":\"$MIN $HOUR * * *\",\"timezone\":\"Asia/Seoul\"}},\"time_limit\":\"1h\"},\"deletion\":{\"schedule\":{\"cron\":{\"expression\":\"59 23 * * *\",\"timezone\":\"Asia/Seoul\"}},\"condition\":{\"max_age\":\"90d\",\"min_count\":5},\"time_limit\":\"1h\"},\"snapshot_config\":{\"date_format\":\"yyyy-MM-dd-HH-mm\",\"timezone\":\"Asia/Seoul\",\"indices\":\"nemonic-app-logs-*\",\"repository\":\"nemonic-logs-repo\",\"ignore_unavailable\":\"true\",\"include_global_state\":\"false\",\"partial\":\"false\"}}"
 
 # 3) 6분 대기 후 snapshot 확인
 sleep 360
 docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo/_all" | python3 -m json.tool | grep -E '"snapshot"|"state"'
-# → "snapshot": "nemonic-daily-app-logs-yyyy-MM-dd-HH-mm-<uniq>", "state": "SUCCESS"
+# → "snapshot": "nemonic-daily-snapshot-yyyy-MM-dd-HH-mm-<uniq>", "state": "SUCCESS"
 
 # 4) 정의 원복 (자정 cron)
-SEQ_INFO=$(docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_seq_no'], d['_primary_term'])")
+SEQ_INFO=$(docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_seq_no'], d['_primary_term'])")
 read SEQ TERM <<< "$SEQ_INFO"
-cat logging/opensearch/sm/nemonic-daily-app-logs.json | docker exec -i nemonic-logging-opensearch curl -s -X PUT "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-app-logs?if_seq_no=$SEQ&if_primary_term=$TERM" -H 'Content-Type: application/json' -d @-
+cat logging/opensearch/sm/nemonic-daily-snapshot.json | docker exec -i nemonic-logging-opensearch curl -s -X PUT "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot?if_seq_no=$SEQ&if_primary_term=$TERM" -H 'Content-Type: application/json' -d @-
 ```
 
 > **paste 주의**: SSH 환경에 따라 `\` continuation이 깨질 수 있음. 한 줄
@@ -506,56 +506,63 @@ cat logging/opensearch/sm/nemonic-daily-app-logs.json | docker exec -i nemonic-l
 
 ## 11. Index Lifecycle Management (Phase 3)
 
-OpenSearch ISM(Index State Management)으로 인덱스 수명을 자동 관리. 클러스터
-디스크 압박 회피 + 검색 성능 유지가 목적.
+OpenSearch ISM(Index State Management)으로 인덱스 수명을 자동 관리.
+**인덱스 4종으로 분리하여 종류별 차등 보관**. observability.md spec 기반.
 
-### 11.1 정책 요약
+### 11.1 정책 4종 + 인덱스 분리
 
-| 단계 | 기간 (인덱스 생성 후) | 동작 |
-| --- | --- | --- |
-| **hot** | 0 ~ 7일 | active write + search |
-| **warm** | 7 ~ 37일 | force_merge 1 segment (압축) + search only |
-| **delete** | 37일 이후 | 클러스터에서 인덱스 삭제 |
+| 인덱스 패턴 | hot | warm | total | 정책 ID | 비고 |
+| --- | --- | --- | --- | --- | --- |
+| `biz-events-*` | 7d | 7~90d | **90d** | `biz-events-policy` | 비즈니스 이벤트, 퍼널/전환율 |
+| `system-logs-*` | 3d | 3~30d | **30d** | `system-logs-policy` | Spring Boot INFO/WARN, postgres, redis 등 |
+| `error-logs-*` | 7d | 7~90d | **90d** | `error-logs-policy` | log_level ERROR/FATAL 또는 Exception/stack trace |
+| `access-logs-*` | 3d | 3~14d | **14d** | `access-logs-policy` | nginx HTTP access |
 
-> MinIO snapshot은 **별도 SM(Snapshot Management) policy**로 처리 (다음
-> 마일스톤). 클러스터에서 삭제된 인덱스는 MinIO snapshot으로 복원 가능.
+각 정책은 `hot → warm → delete` 3-state. warm 진입 시 `force_merge: 1 segment`로
+압축. MinIO snapshot은 SM policy(§10.5)가 매일 자정 자동 처리 (access 제외).
 
-### 11.2 구성 요소
+### 11.2 Logstash 분류 로직
 
-| 요소 | 값 |
+새 로그가 들어올 때마다 [logging/logstash/pipeline/main.conf](./logging/logstash/pipeline/main.conf)
+가 우선순위 순서로 분류:
+
+1. **자기 로그 drop** — Logstash `[main][<64-hex>]` 시그니처, Fluent Bit
+   `[YYYY/MM/DD HH:MM:SS]` 시그니처, log_tag에 `logstash`/`fluent-bit` 매칭.
+2. JSON parsing 시도 (메시지가 `{`로 시작) → `event_name` 필드 있으면 → **biz-events**
+3. nginx access pattern 매칭 → date 변환(@timestamp) → **access-logs**
+4. Spring Boot pattern 매칭 → log_level 등 부여 (분류는 다음 단계에서)
+5. `log_level: ERROR/FATAL` 또는 message에 `[ERROR]`/`[FATAL]`/`Exception:`/`caused by:`/stack trace → **error-logs**
+6. fallback → **system-logs**
+
+각 도큐먼트에 `log_type: biz|access|error|system` 필드도 부여 (검색 편의).
+
+### 11.3 구성 요소
+
+| 요소 | 위치 |
 | --- | --- |
-| Policy ID | `nemonic-app-logs-policy` |
-| Index template | `nemonic-app-logs-template` |
-| Index pattern | `nemonic-app-logs-*` |
-| 매핑 | 명시(Spring Boot 필드) + dynamic 허용 |
-| Settings | `number_of_replicas: 0` (single-node), `refresh_interval: 5s` |
+| ISM policy 4개 | [logging/opensearch/ism/](./logging/opensearch/ism/) |
+| 인덱스 템플릿 4개 | [logging/opensearch/templates/](./logging/opensearch/templates/) |
+| Logstash 라우팅 | [logging/logstash/pipeline/main.conf](./logging/logstash/pipeline/main.conf) |
+| 공통 매핑 정책 | `dynamic: true`, `number_of_replicas: 0` (single-node), `refresh_interval: 10s`, `codec: best_compression`, `translog.durability: async` |
 
-정의 파일:
-- [logging/opensearch/ism/nemonic-app-logs-policy.json](./logging/opensearch/ism/nemonic-app-logs-policy.json)
-- [logging/opensearch/templates/nemonic-app-logs-template.json](./logging/opensearch/templates/nemonic-app-logs-template.json)
-
-### 11.3 1회 셋업 (이미 완료, 새 환경 셋업 시 참고)
+### 11.4 1회 셋업 (이미 완료, 새 환경 셋업 시 참고)
 
 ```bash
-# (1) ISM policy 등록
-cat logging/opensearch/ism/nemonic-app-logs-policy.json | \
-  docker exec -i nemonic-logging-opensearch \
-  curl -s -X PUT "http://127.0.0.1:9200/_plugins/_ism/policies/nemonic-app-logs-policy" \
-  -H 'Content-Type: application/json' \
-  -d @-
+# (1) ISM policy 4개 등록
+for p in biz-events system-logs error-logs access-logs; do
+  cat logging/opensearch/ism/${p}-policy.json | \
+    docker exec -i nemonic-logging-opensearch \
+    curl -s -X PUT "http://127.0.0.1:9200/_plugins/_ism/policies/${p}-policy" \
+    -H 'Content-Type: application/json' -d @-
+done
 
-# (2) 인덱스 템플릿 등록
-cat logging/opensearch/templates/nemonic-app-logs-template.json | \
-  docker exec -i nemonic-logging-opensearch \
-  curl -s -X PUT "http://127.0.0.1:9200/_index_template/nemonic-app-logs-template" \
-  -H 'Content-Type: application/json' \
-  -d @-
-
-# (3) 기존 인덱스에 ISM 수동 부착 (새 인덱스는 템플릿으로 자동 부여)
-docker exec nemonic-logging-opensearch \
-  curl -s -X POST "http://127.0.0.1:9200/_plugins/_ism/add/nemonic-app-logs-*" \
-  -H 'Content-Type: application/json' \
-  -d '{"policy_id": "nemonic-app-logs-policy"}'
+# (2) 인덱스 템플릿 4개 등록
+for t in biz-events system-logs error-logs access-logs; do
+  cat logging/opensearch/templates/${t}-template.json | \
+    docker exec -i nemonic-logging-opensearch \
+    curl -s -X PUT "http://127.0.0.1:9200/_index_template/${t}-template" \
+    -H 'Content-Type: application/json' -d @-
+done
 ```
 
 ### 11.4 검증
@@ -584,5 +591,5 @@ docker exec nemonic-logging-opensearch \
 
 | Phase | 내용 |
 | --- | --- |
-| 3 (진행 중) | ✅ MinIO snapshot repository, ✅ ISM policy + 인덱스 템플릿, ✅ SM policy (매일 자정 자동 snapshot + 90일 retention), ⏳ 인덱스 분리 (app/access/system) + Logstash 라우팅, ⏳ 본격 대시보드 + Saved Search |
+| 3 (진행 중) | ✅ MinIO snapshot repository, ✅ ISM policy + 인덱스 템플릿, ✅ SM policy (매일 자정 자동 snapshot + 90일 retention), ✅ 인덱스 분리 (biz/system/error/access) + Logstash 라우팅, ⏳ 본격 대시보드 + Saved Search |
 | 4 | 재사용 라이브러리 추출 (Java/JS/Python), 운영 문서 |
