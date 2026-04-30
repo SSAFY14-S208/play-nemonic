@@ -5,7 +5,9 @@ import Character from '../_infra/Character'
 import DeskMesh from './objects/DeskMesh'
 import LandingCamera from './LandingCamera'
 import { useLandingInteraction } from './useLandingInteraction'
-import { DESK_SURFACE_Y } from './constants'
+import { useNemonicPrinterInteraction } from '../_shared/hooks'
+import { NemonicPrinterMesh } from '../_shared/mesh'
+import { DESK_SURFACE_Y, NEMONIC_PRINTER_POSITION } from './constants'
 
 export default function LandingScene() {
   const targetPositionRef = useRef<THREE.Vector3>(new THREE.Vector3())
@@ -13,6 +15,9 @@ export default function LandingScene() {
     new THREE.Vector3(0, DESK_SURFACE_Y + 0.85, 0),
   )
   const isPointerDownRef = useRef<boolean>(false)
+
+  const { actionsRef, handlePrintButtonClick, handleOpenButtonClick } =
+    useNemonicPrinterInteraction()
 
   useLandingInteraction(targetPositionRef, isPointerDownRef)
 
@@ -22,6 +27,14 @@ export default function LandingScene() {
       <Lighting />
       <Suspense fallback={null}>
         <DeskMesh />
+      </Suspense>
+      <Suspense fallback={null}>
+        <NemonicPrinterMesh
+          position={NEMONIC_PRINTER_POSITION}
+          actionsRef={actionsRef}
+          onPrintButtonClick={handlePrintButtonClick}
+          onOpenButtonClick={handleOpenButtonClick}
+        />
       </Suspense>
       <Suspense fallback={null}>
         <Character

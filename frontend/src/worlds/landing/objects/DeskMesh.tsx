@@ -3,7 +3,7 @@ import { useGLTF } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
-const MODEL_PATH = "/models/desk.glb";
+const MODEL_PATH = "/models/modern_desk.glb";
 
 export default function DeskMesh() {
   const { scene } = useGLTF(MODEL_PATH);

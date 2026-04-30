@@ -1,0 +1,1 @@
+export { useNemonicPrinterInteraction } from "./useNemonicPrinterInteraction";

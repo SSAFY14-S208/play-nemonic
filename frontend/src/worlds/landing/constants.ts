@@ -2,10 +2,18 @@
 // → scale 제거 후 원본 크기 복원 (×10)
 
 // 책상 상판 표면 Y좌표 (GLB 원본 스케일 기준)
-export const DESK_SURFACE_Y = 0.81;
+export const DESK_SURFACE_Y = 0.767;
 
 // X축 이동 허용 반폭 (0.694m - 캡슐 반지름 여유 0.05m)
-export const DESK_HALF_WIDTH = 0.64;
+export const DESK_HALF_WIDTH = 0.72;
 
 // Z축 이동 허용 반깊이 (0.333m - 캡슐 반지름 여유 0.05m)
-export const DESK_HALF_DEPTH = 0.27;
+export const DESK_HALF_DEPTH = 0.26;
+
+// 네모닉 프린터 위치 — GLB 원점이 모델 바닥 기준이면 Y = DESK_SURFACE_Y
+// ⚠️ 실행 후 Box3 측정으로 X/Z 오프셋 보정 필요
+export const NEMONIC_PRINTER_POSITION: [number, number, number] = [
+  0,
+  DESK_SURFACE_Y,
+  0,
+];
