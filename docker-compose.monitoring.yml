@@ -110,10 +110,14 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro
+      # Docker socket 명시 마운트 — 컨테이너 메타데이터(name, image, label) 수집용
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     command:
       - --port=8080
       - --housekeeping_interval=15s
-      - --docker_only=true
+      # --docker_only=true 제거: Ubuntu 24의 cgroup v2 환경에서 컨테이너 cgroup
+      # 인식을 막아 root cgroup 메트릭만 노출되는 문제. 모든 cgroup 노출하면
+      # 컨테이너도 자동 포함됨.
     expose:
       - "8080"
     networks:
