@@ -67,6 +67,15 @@ public class AppUser {
         return new AppUser(id, ANONYMOUS_NICKNAME, userAgent, createdAt);
     }
 
+    /**
+     * 재방문한 익명 사용자의 최근 방문 정보를 갱신합니다.
+     */
+    public void updateLastSeen(String userAgent, LocalDateTime lastSeenAt) {
+        this.lastSeenAt = lastSeenAt;
+        this.userAgent = userAgent;
+        this.updatedAt = lastSeenAt;
+    }
+
     public UUID getId() {
         return id;
     }

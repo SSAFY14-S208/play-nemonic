@@ -11,11 +11,13 @@ import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -89,6 +91,81 @@ class UserControllerIntegrationTest {
         assertThat(userRepository.findById(blankUserAgentUserUuid).orElseThrow().getUserAgent()).isEqualTo("unknown");
     }
 
+    /**
+     * 서버에 존재하는 UUID를 검증하면 200 응답과 함께 재방문 시각, 수정 시각, User-Agent가 갱신되는지 검증합니다.
+     */
+    @Test
+    void verifyAnonymousUserReturnsOkResponseAndUpdatesVisitMetadata() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        userRepository.saveAndFlush(AppUser.createAnonymous(userUuid, "OldAgent/1.0", createdAt));
+
+        MvcResult result = mockMvc
+            .perform(post("/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.USER_AGENT, "MangoApp/2.0").content(verifyRequestBody(userUuid)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("익명 사용자 UUID 확인 성공"))
+            .andExpect(jsonPath("$.data.userUuid").value(userUuid.toString()))
+            .andExpect(jsonPath("$.data.nickname").value(AppUser.ANONYMOUS_NICKNAME))
+            .andExpect(jsonPath("$.data.lastSeenAt").exists()).andReturn();
+
+        LocalDateTime responseLastSeenAt = LocalDateTime.parse(readData(result).path("lastSeenAt").asText());
+        AppUser savedUser = userRepository.findById(userUuid).orElseThrow();
+
+        assertThat(savedUser.getLastSeenAt()).isEqualTo(responseLastSeenAt);
+        assertThat(savedUser.getUpdatedAt()).isEqualTo(responseLastSeenAt);
+        assertThat(savedUser.getLastSeenAt()).isAfter(createdAt);
+        assertThat(savedUser.getUserAgent()).isEqualTo("MangoApp/2.0");
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    /**
+     * 검증 API에서도 User-Agent가 없거나 공백이면 unknown으로 갱신되는지 확인합니다.
+     */
+    @Test
+    void verifyAnonymousUserUsesUnknownWhenUserAgentIsMissingOrBlank() throws Exception {
+        UUID missingUserAgentUserUuid = createExistingUser("InitialAgent/1.0");
+        UUID blankUserAgentUserUuid = createExistingUser("InitialAgent/1.0");
+
+        verifyAnonymousUserWithoutUserAgent(missingUserAgentUserUuid);
+        verifyAnonymousUser(blankUserAgentUserUuid, " ");
+
+        assertThat(userRepository.findById(missingUserAgentUserUuid).orElseThrow().getUserAgent()).isEqualTo("unknown");
+        assertThat(userRepository.findById(blankUserAgentUserUuid).orElseThrow().getUserAgent()).isEqualTo("unknown");
+        assertThat(userRepository.count()).isEqualTo(2);
+    }
+
+    /**
+     * UUID 형식이 잘못된 경우 400 응답을 반환하고 새 사용자를 만들지 않는지 검증합니다.
+     */
+    @Test
+    void verifyAnonymousUserRejectsInvalidUuidFormatAndDoesNotCreateUser() throws Exception {
+        mockMvc
+            .perform(post("/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userUuid\":\"not-a-uuid\"}"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * UUID 형식은 맞지만 서버에 없는 경우 404 응답을 반환하고 새 사용자를 만들지 않는지 검증합니다.
+     */
+    @Test
+    void verifyAnonymousUserReturnsNotFoundAndDoesNotCreateUser() throws Exception {
+        UUID missingUserUuid = UUID.randomUUID();
+
+        mockMvc
+            .perform(post("/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
+                .content(verifyRequestBody(missingUserUuid)))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+
+        assertThat(userRepository.existsById(missingUserUuid)).isFalse();
+        assertThat(userRepository.count()).isZero();
+    }
+
     // 테스트에서 반복되는 정상 호출 흐름을 감싼 헬퍼입니다.
     private UUID createAnonymousUser(String userAgent) throws Exception {
         MvcResult result = mockMvc.perform(post("/users/anonymous").header(HttpHeaders.USER_AGENT, userAgent))
@@ -102,6 +179,33 @@ class UserControllerIntegrationTest {
         MvcResult result = mockMvc.perform(post("/users/anonymous")).andExpect(status().isCreated()).andReturn();
 
         return UUID.fromString(readData(result).path("userUuid").asText());
+    }
+
+    // 검증 API에서 반복되는 정상 호출 흐름을 감싼 헬퍼입니다.
+    private void verifyAnonymousUser(UUID userUuid, String userAgent) throws Exception {
+        mockMvc
+            .perform(post("/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.USER_AGENT, userAgent).content(verifyRequestBody(userUuid)))
+            .andExpect(status().isOk());
+    }
+
+    // User-Agent 헤더를 아예 보내지 않는 검증 API 케이스를 만들기 위한 헬퍼입니다.
+    private void verifyAnonymousUserWithoutUserAgent(UUID userUuid) throws Exception {
+        mockMvc.perform(post("/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
+            .content(verifyRequestBody(userUuid))).andExpect(status().isOk());
+    }
+
+    private UUID createExistingUser(String userAgent) {
+        UUID userUuid = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+
+        userRepository.saveAndFlush(AppUser.createAnonymous(userUuid, userAgent, createdAt));
+
+        return userUuid;
+    }
+
+    private String verifyRequestBody(UUID userUuid) {
+        return "{\"userUuid\":\"" + userUuid + "\"}";
     }
 
     // 공통 ApiResponse에서 data 노드만 꺼내 테스트 가독성을 높입니다.
