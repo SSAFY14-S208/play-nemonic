@@ -29,6 +29,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
 	implementation 'io.minio:minio:8.5.17'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
@@ -60,6 +61,15 @@ configurations {
 tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'spring.profiles.active', 'test'
+}
+
+tasks.named('bootRun') {
+	file('.env').readLines()
+		.findAll { it ==~ /^[^#=]+=.*$/ }
+		.each {
+			def (name, value) = it.split('=', 2)
+			environment name, value
+		}
 }
 
 tasks.register('migrationTest', Test) {
