@@ -6,3 +6,28 @@ User-Agent: MangoApp/1.0
 
 ### Create anonymous user without User-Agent
 POST {{host}}/users/anonymous
+
+### Verify anonymous user UUID
+POST {{host}}/users/anonymous/verify
+Content-Type: application/json
+User-Agent: MangoApp/1.0
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000"
+}
+
+### Verify anonymous user UUID without User-Agent
+POST {{host}}/users/anonymous/verify
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000"
+}
+
+### Verify anonymous user UUID - invalid format
+POST {{host}}/users/anonymous/verify
+Content-Type: application/json
+
+{
+  "userUuid": "not-a-uuid"
+}

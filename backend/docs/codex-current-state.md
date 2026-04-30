@@ -8,6 +8,7 @@ Last updated: 2026-04-30
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
 - The first real backend feature API now includes anonymous user UUID issuance through `POST /users/anonymous`.
+- Anonymous user re-entry now includes `POST /users/anonymous/verify` to validate a stored UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions

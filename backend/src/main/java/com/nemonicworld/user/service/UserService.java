@@ -1,7 +1,11 @@
 package com.nemonicworld.user.service;
 
+import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.NotFoundException;
+import com.nemonicworld.user.dto.request.AnonymousUserVerifyRequest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.dto.response.AnonymousUserResponse;
+import com.nemonicworld.user.dto.response.AnonymousUserVerifyResponse;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -21,6 +25,8 @@ public class UserService {
 
     // User-Agent는 선택 헤더이므로 수집하지 못한 경우 명시적인 기본값으로 저장합니다.
     private static final String UNKNOWN_USER_AGENT = "unknown";
+    private static final String INVALID_UUID_MESSAGE = "유효하지 않은 UUID 형식입니다.";
+    private static final String USER_NOT_FOUND_MESSAGE = "존재하지 않는 사용자입니다.";
 
     private final UserRepository userRepository;
 
@@ -42,6 +48,34 @@ public class UserService {
 
         return new AnonymousUserResponse(savedUser.getId().toString(), savedUser.getNickname(),
             savedUser.getCreatedAt());
+    }
+
+    /**
+     * 클라이언트가 보관 중인 익명 사용자 UUID를 검증하고 재방문 정보를 갱신합니다.
+     */
+    @Transactional
+    public AnonymousUserVerifyResponse verifyAnonymousUser(AnonymousUserVerifyRequest request, String userAgent) {
+        UUID userUuid = parseUserUuid(request == null ? null : request.userUuid());
+        AppUser appUser = userRepository.findById(userUuid)
+            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        appUser.updateLastSeen(normalizeUserAgent(userAgent), now);
+
+        return new AnonymousUserVerifyResponse(appUser.getId().toString(), appUser.getNickname(),
+            appUser.getLastSeenAt());
+    }
+
+    private UUID parseUserUuid(String userUuid) {
+        if (!StringUtils.hasText(userUuid)) {
+            throw new BadRequestException(INVALID_UUID_MESSAGE);
+        }
+
+        try {
+            return UUID.fromString(userUuid);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(INVALID_UUID_MESSAGE);
+        }
     }
 
     /**
