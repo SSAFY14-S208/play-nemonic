@@ -668,6 +668,67 @@ Prometheus 선택 → Import.
 - 즉석: `docker stats` CLI
 - 메트릭 dashboard: 호스트 전체 메트릭(1860)으로 추적
 
+### 12.6 프론트엔드 임베드 가이드 (향후 작업용)
+
+운영 페이지에서 Grafana panel이나 OpenSearch Dashboards를 iframe으로 임베드
+가능. 실시간 갱신은 도구 자체가 처리 (별도 polling 코드 X).
+
+#### URL 구조 (Grafana)
+
+| 종류 | URL | 용도 |
+| --- | --- | --- |
+| Dashboard 전체 | `/grafana/d/<uid>/<slug>?refresh=15s&kiosk` | 한 page에 한 dashboard |
+| Panel 1개 (solo) | `/grafana/d-solo/<uid>/<slug>?panelId=N&refresh=15s` | 화면 곳곳에 panel 박기 |
+
+`<uid>`는 dashboard JSON model에서 확인. `kiosk` 파라미터로 navbar 숨김.
+`refresh=15s`로 Grafana가 iframe 안에서 15초마다 자동 polling
+(Prometheus scrape 15s와 정렬).
+
+#### iframe HTML 예시
+
+```html
+<iframe
+  src="https://k14s208.p.ssafy.io/grafana/d-solo/<uid>/cpu?orgId=1&from=now-1h&to=now&panelId=2&refresh=15s&theme=light"
+  width="100%" height="400" frameborder="0"
+></iframe>
+```
+
+#### 함정 3가지 + 우리 환경 셋업 (미래 작업 체크리스트)
+
+1. **X-Frame-Options 차단** — Grafana default가 `DENY`. compose env에 추가:
+
+   ```yaml
+   GF_SECURITY_ALLOW_EMBEDDING:    "true"
+   GF_SECURITY_COOKIE_SAMESITE:    "lax"   # cross-origin iframe에서 쿠키 보내기
+   ```
+
+2. **인증** — iframe 안에서도 Grafana 로그인 필요. 추천 패턴: **anonymous viewer + nginx BasicAuth 유지**
+
+   ```yaml
+   GF_AUTH_ANONYMOUS_ENABLED:       "true"
+   GF_AUTH_ANONYMOUS_ORG_ROLE:      "Viewer"
+   GF_AUTH_ANONYMOUS_ORG_NAME:      "Main Org."
+   ```
+
+   - nginx BasicAuth로 외부 차단 (운영자만 접근)
+   - 그 안에선 anonymous로 iframe 인증 자동 통과
+   - 보기는 가능, 편집은 불가
+
+3. **OpenSearch Dashboards 임베드** — 가능하나 까다로움 (`csp.rules` 등 설정).
+   로그 dashboard는 인터랙티브해서 임베드보다 **새 탭 링크**가 운영적으로
+   합리적. 예: "에러 알림 → [로그 보기] 버튼 → 새 탭으로 Dashboards 열기".
+
+#### 실시간 갱신 정리
+
+| 데이터 종류 | 갱신 방식 | refresh interval 권장 |
+| --- | --- | --- |
+| 시계열 메트릭 (CPU, 응답 시간) | Grafana panel `refresh=15s` 자동 polling | 15s ~ 30s |
+| 로그 count/top N | Dashboards auto-refresh | 30s ~ 1m |
+| 로그 실시간 stream | WebSocket/SSE — 별도 구현 필요 | N/A |
+
+> 폴링 간격이 Prometheus scrape interval(15s)보다 짧으면 같은 데이터 보게 됨.
+> **15s 이하는 의미 X**.
+
 ---
 
 ## 13. Future Work
