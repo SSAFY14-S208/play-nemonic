@@ -22,7 +22,7 @@ src/main/java/com/nemonicworld/
 |   |-- controller/                 # Controller 계층
 |   |-- service/                    # Service 계층
 |   |-- repository/                 # Repository 계층
-|   |-- domain/                     # Entity, Enum, 값 객체
+|   |-- entity/                     # JPA Entity, 영속성 Enum, 값 객체
 |   `-- dto/                        # 요청/응답 DTO
 |       |-- request/                # 클라이언트 요청 DTO
 |       `-- response/               # 클라이언트 응답 DTO
@@ -35,7 +35,7 @@ src/main/java/com/nemonicworld/
 현재 코드에는 `config`, `common` 같은 초기 공통 패키지 구조가 남아 있다.
 
 - 새 기능은 목표 구조의 `<feature>/controller`, `<feature>/service`, `<feature>/repository`,
-  `<feature>/domain`, `<feature>/dto/request`, `<feature>/dto/response`를 따른다.
+  `<feature>/entity`, `<feature>/dto/request`, `<feature>/dto/response`를 따른다.
 - 기존 기능을 수정할 때 패키지 이동이 필요하면 작업 범위에 명시하고 테스트를 함께 갱신한다.
 - 단순 기능 추가와 대규모 패키지 이동을 한 PR에 섞지 않는다.
 - `global` 이동은 공통 설정/예외/응답 구조가 안정된 뒤 별도 리팩터링으로 처리한다.
@@ -62,10 +62,11 @@ src/main/java/com/nemonicworld/
 - Spring Data JPA Repository, QueryDSL, JDBC 기반 접근 로직을 둔다.
 - HTTP 요청/응답 DTO에 의존하지 않는다.
 
-### domain
+### entity
 
-- `@Entity`, Enum, 값 객체 등 도메인 모델이 위치한다.
-- 도메인 상태와 기본 규칙을 표현한다.
+- `@Entity`, Enum, 값 객체 등 DB 영속성 모델이 위치한다.
+- 기능 패키지가 도메인 경계이므로, 별도 `domain` 패키지를 만들지 않는다.
+- 엔티티의 상태와 기본 규칙을 표현한다.
 - 외부 API 응답 형식이나 웹 계층 관심사를 포함하지 않는다.
 
 ### dto
@@ -85,7 +86,7 @@ community/
 |   `-- CommunityService.java
 |-- repository/
 |   `-- CommunityRepository.java
-|-- domain/
+|-- entity/
 |   |-- Community.java
 |   `-- CommunityStatus.java
 `-- dto/
@@ -111,9 +112,9 @@ community/
 ## 의존성 규칙
 
 - `controller`는 `service`를 호출한다.
-- `service`는 `repository`, `domain`, `dto`를 조합한다.
-- `repository`는 `domain`을 다룬다.
-- `domain`은 다른 계층에 의존하지 않는다.
+- `service`는 `repository`, `entity`, `dto`를 조합한다.
+- `repository`는 `entity`를 다룬다.
+- `entity`는 다른 계층에 의존하지 않는다.
 - Controller에서 다른 도메인의 Repository를 직접 호출하지 않는다.
 - 도메인 간 협력이 필요하면 각 도메인의 service 계층을 통해 처리한다.
 - 공통 응답, 공통 예외, 보안 인프라 등은 `global` 아래로 모은다.
@@ -136,7 +137,7 @@ src/test/java/com/nemonicworld/
 |   |-- controller/
 |   |-- service/
 |   |-- repository/
-|   `-- domain/
+|   `-- entity/
 ```
 
 - Spring context 통합 테스트는 `@IntegrationTest`를 사용한다.

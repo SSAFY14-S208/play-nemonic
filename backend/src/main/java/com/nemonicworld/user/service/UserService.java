@@ -1,6 +1,6 @@
 package com.nemonicworld.user.service;
 
-import com.nemonicworld.user.domain.AppUser;
+import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.dto.response.AnonymousUserResponse;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDateTime;

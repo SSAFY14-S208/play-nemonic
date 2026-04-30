@@ -158,7 +158,7 @@ bucket initializer.
 - Do not hard-code secrets or environment-specific values.
 - Use `ApiResponse` for API response bodies where the existing API style does.
 - Prefer constructor injection for Spring components.
-- Keep controller methods thin; move business logic into services as the domain grows.
+- Keep controller methods thin; move business logic into services as feature behavior grows.
 - Run the verification wrapper before handing work back.
 - Before staging, committing, or amending a commit, run `backend/scripts/format.ps1`.
 - If formatting changes files, include those formatting changes in the same commit unless the user asked otherwise.

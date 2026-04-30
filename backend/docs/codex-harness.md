@@ -84,7 +84,7 @@ backend/src/test/java/com/nemonicworld/support
 Use `@IntegrationTest` for Spring context integration tests.
 Use `@HttpIntegrationTest` for random-port HTTP integration tests.
 
-Add fixture builders to the same support package as domain objects emerge.
+Add fixture builders to the same support package as entity objects emerge.
 
 ## API Requests
 

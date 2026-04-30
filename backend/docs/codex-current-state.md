@@ -14,6 +14,7 @@ Last updated: 2026-04-30
 
 - Root Java package is `com.nemonicworld`.
 - New backend features should follow `backend/docs/backend-architecture.md`.
+- Feature packages use `controller`, `service`, `repository`, `entity`, and `dto`; do not create a separate `domain` package.
 - Commands are run from the repository root unless a script says otherwise.
 - Verification is standardized through `backend/scripts/format.ps1` and `backend/scripts/verify.ps1`.
 - PostgreSQL-specific Flyway migrations are verified through `backend/scripts/verify-migration.ps1`.

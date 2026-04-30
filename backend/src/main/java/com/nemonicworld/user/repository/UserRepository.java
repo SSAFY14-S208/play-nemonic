@@ -1,6 +1,6 @@
 package com.nemonicworld.user.repository;
 
-import com.nemonicworld.user.domain.AppUser;
+import com.nemonicworld.user.entity.AppUser;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 

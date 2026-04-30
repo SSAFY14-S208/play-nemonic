@@ -108,7 +108,7 @@
 - `<feature>/controller`
 - `<feature>/service`
 - `<feature>/repository`
-- `<feature>/domain`
+- `<feature>/entity`
 - `<feature>/dto/request`
 - `<feature>/dto/response`
 - 관련 테스트
