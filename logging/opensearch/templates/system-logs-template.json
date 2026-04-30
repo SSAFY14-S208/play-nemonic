@@ -1,0 +1,39 @@
+{
+  "index_patterns": ["system-logs-*"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "10s",
+      "codec": "best_compression",
+      "translog.durability": "async",
+      "plugins.index_state_management.policy_id": "system-logs-policy"
+    },
+    "mappings": {
+      "dynamic": "true",
+      "properties": {
+        "@timestamp":   { "type": "date" },
+        "log_level":    { "type": "keyword" },
+        "pid":          { "type": "long" },
+        "application":  { "type": "keyword" },
+        "thread":       { "type": "keyword" },
+        "logger":       { "type": "keyword" },
+        "log_message":  {
+          "type": "text",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 1024 } }
+        },
+        "message":      { "type": "text" },
+        "container_id": { "type": "keyword" },
+        "log_tag":      { "type": "keyword" },
+        "hostname":     { "type": "keyword" },
+        "stream":       { "type": "keyword" },
+        "tags":         { "type": "keyword" },
+        "log_type":     { "type": "keyword" }
+      }
+    }
+  },
+  "_meta": {
+    "description": "시스템/인프라 로그 인덱스. Spring Boot INFO/WARN, postgres, redis 등."
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "description": "Daily snapshot of nemonic-app-logs-* to MinIO. Retention 90d (min 5 snapshots).",
+  "description": "Daily snapshot of biz/system/error log indices to MinIO. Retention 90d (min 5 snapshots). access-logs는 단명(14d)이라 snapshot 제외.",
   "creation": {
     "schedule": {
       "cron": {
@@ -25,7 +25,7 @@
   "snapshot_config": {
     "date_format": "yyyy-MM-dd-HH-mm",
     "timezone": "Asia/Seoul",
-    "indices": "nemonic-app-logs-*",
+    "indices": "biz-events-*,system-logs-*,error-logs-*",
     "repository": "nemonic-logs-repo",
     "ignore_unavailable": "true",
     "include_global_state": "false",
