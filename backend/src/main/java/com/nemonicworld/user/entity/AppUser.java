@@ -76,6 +76,14 @@ public class AppUser {
         this.updatedAt = lastSeenAt;
     }
 
+    /**
+     * 익명 사용자의 닉네임을 설정하거나 수정합니다.
+     */
+    public void updateNickname(String nickname, LocalDateTime updatedAt) {
+        this.nickname = nickname;
+        this.updatedAt = updatedAt;
+    }
+
     public UUID getId() {
         return id;
     }
