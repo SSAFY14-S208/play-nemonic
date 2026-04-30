@@ -25,4 +25,29 @@
   --color-primary-1: var(--p-primary-500);  /* CTA 버튼 배경, 주요 강조 */
   --color-primary-2: var(--p-primary-600);  /* 링크, 활성 아이콘 색 */
   --color-primary-5: var(--p-primary-50);   /* 활성 탭 배경 (연한 강조색) */
+
+  /* ── Relay Drawing (Figma v2_07 semantic roles) ─────────────────────────── */
+  --color-relay-background: #fff5dc;
+  --color-relay-panel: #fff9ea;
+  --color-relay-paper: #ffffff;
+  --color-relay-header: #ffffff;
+  --color-relay-result-panel: #fff1c8;
+  --color-relay-active: #ffedc3;
+  --color-relay-canvas-zone: #fff1c8;
+  --color-relay-border: rgb(255 228 161 / 55%);
+  --color-relay-line: #ffe9b0;
+  --color-relay-ink: #2f2a1e;
+  --color-relay-muted: #947c40;
+  --color-relay-disabled: #9a9ca3;
+  --color-relay-accent: #ffb82e;
+  --color-relay-accent-strong: #f6a800;
+  --color-relay-yellow: #ffc629;
+  --color-relay-coral: #ff5f67;
+  --color-relay-green: #63c086;
+  --color-relay-blue: #82b9e6;
+  --color-relay-pink: #f4b8ce;
+  --color-relay-skin: #f6d4b2;
+  --color-relay-card-blue: #75a7df;
+  --color-relay-dash: #505050;
+  --color-relay-triangle: #2f2a1e;
 }
