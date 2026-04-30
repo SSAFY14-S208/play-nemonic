@@ -94,6 +94,10 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       TZ: Asia/Seoul
       PGTZ: Asia/Seoul
+    # 호스트 loopback에만 노출 — SSH 터널로만 접근 가능 (외부 인터넷 X).
+    # IntelliJ 같은 DB tool로 원격 접속 시 SSH 터널 + localhost:5432 사용.
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
