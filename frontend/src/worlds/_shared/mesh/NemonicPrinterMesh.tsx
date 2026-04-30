@@ -4,6 +4,7 @@ import { useThree } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AnimationAction } from "three";
+import { RigidBody } from "@react-three/rapier";
 
 const MODEL_PATH = "/models/nemonic-printer.glb";
 const BUTTON_MESH_NAMES = new Set([
@@ -77,15 +78,17 @@ export default function NemonicPrinterMesh({
   };
 
   return (
-    <group
-      ref={groupRef}
-      position={position}
-      onClick={handleClick}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
-    >
-      <primitive object={scene} />
-    </group>
+    <RigidBody type="fixed" colliders="hull">
+      <group
+        ref={groupRef}
+        position={position}
+        onClick={handleClick}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+      >
+        <primitive object={scene} />
+      </group>
+    </RigidBody>
   );
 }
 

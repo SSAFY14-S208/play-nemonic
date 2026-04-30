@@ -7,11 +7,7 @@ import {
 } from "@react-three/rapier";
 import * as THREE from "three";
 import { useCharacterMovement, useCharacterAnimation } from "./hooks";
-import {
-  MODEL_SCALE,
-  CAPSULE_HALF_HEIGHT,
-  CAPSULE_RADIUS,
-} from "./constants";
+import { MODEL_SCALE, CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS } from "./constants";
 
 const MODEL_PATH = "/models/nong_dam_gom.glb";
 
@@ -20,6 +16,7 @@ interface CharacterProps {
   characterPositionRef?: React.RefObject<THREE.Vector3>;
   isPointerDownRef?: React.RefObject<boolean>;
   surfaceY?: number;
+  initialPosition?: [number, number, number];
 }
 
 export default function Character({
@@ -27,6 +24,7 @@ export default function Character({
   characterPositionRef: externalCharacterRef,
   isPointerDownRef: externalPointerRef,
   surfaceY = 0,
+  initialPosition,
 }: CharacterProps) {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -67,7 +65,7 @@ export default function Character({
       ref={rigidBodyRef}
       type="kinematicPosition"
       colliders={false}
-      position={[0, surfaceY + CAPSULE_HALF_HEIGHT + CAPSULE_RADIUS, 0]}
+      position={initialPosition ?? [0, surfaceY + CAPSULE_HALF_HEIGHT + CAPSULE_RADIUS, 0]}
     >
       <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} />
       <group ref={groupRef} scale={MODEL_SCALE}>
