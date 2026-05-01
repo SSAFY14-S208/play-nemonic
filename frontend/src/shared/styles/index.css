@@ -11,6 +11,8 @@
    6. Utilities         (타이포그래피 유틸리티 클래스)
 ───────────────────────────────────────────────────────────────────────────── */
 
+@import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
+
 @import "tailwindcss";
 
 @import "./tokens/primitive/colors.css";
@@ -21,3 +23,210 @@
 @import "./layers/theme.css";
 @import "./layers/base.css";
 @import "./layers/utilities.css";
+
+@keyframes hub-copy-swap {
+  0% {
+    opacity: 0.2;
+    transform: translateY(-0.45rem);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hub-copy-swap {
+  display: grid;
+  gap: 0.62rem;
+  justify-items: center;
+  animation: hub-copy-swap 380ms ease-out both;
+}
+
+.hub-viewer-copy {
+  position: absolute;
+  top: clamp(1.1rem, 4vh, 2.6rem);
+  left: 50%;
+  z-index: 30;
+  width: min(46rem, calc(100% - 2rem));
+  transform: translateX(-50%);
+  display: grid;
+  text-align: center;
+  justify-items: center;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 24px rgba(7, 6, 24, 0.3));
+}
+
+.hub-eyebrow {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 1.9rem;
+  margin: 0;
+  padding: 0.38rem 1rem;
+  border: 1px solid rgba(255, 236, 218, 0.22);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 245, 229, 0.1));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 8px 18px rgba(9, 7, 30, 0.18);
+  color: rgba(255, 238, 221, 0.78);
+  font-size: clamp(0.76rem, 1.1vw, 0.88rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  white-space: nowrap;
+  backdrop-filter: blur(14px);
+}
+
+.hub-eyebrow::before,
+.hub-eyebrow::after {
+  content: "";
+  width: 0.7rem;
+  height: 1px;
+  border-radius: 999px;
+  background: rgba(255, 238, 221, 0.34);
+}
+
+.hub-eyebrow::before {
+  margin-right: 0.52rem;
+}
+
+.hub-eyebrow::after {
+  margin-left: 0.52rem;
+}
+
+.hub-viewer-title {
+  margin: 0;
+  color: #fff6ed;
+  font-family: "Jua", var(--font-pretendard);
+  font-size: clamp(3.05rem, 6vw, 5.9rem);
+  line-height: 0.96;
+  letter-spacing: 0;
+  font-weight: 400;
+  text-shadow:
+    0 2px 0 rgba(90, 65, 112, 0.44),
+    0 14px 28px rgba(2, 2, 18, 0.34);
+}
+
+.hub-viewer-description {
+  margin: 0;
+  max-width: 35rem;
+  justify-self: center;
+  color: rgba(255, 245, 230, 0.82);
+  font-size: clamp(0.98rem, 1.28vw, 1.08rem);
+  font-weight: 300;
+  line-height: 1.68;
+  word-break: keep-all;
+}
+
+.hub-viewer-controls {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(0.5rem, 2vh, 1rem);
+  z-index: 30;
+  width: min(54rem, calc(100% - 2rem));
+  transform: translateX(-50%);
+  display: grid;
+}
+
+.hub-platform-buttons {
+  display: flex;
+  justify-content: center;
+  gap: clamp(0.52rem, 1vw, 0.78rem);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.hub-platform-button {
+  appearance: none;
+  position: relative;
+  min-width: 4.95rem;
+  min-height: 2.78rem;
+  border: 1px solid var(--hub-chip-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), var(--hub-chip-bg));
+  color: var(--hub-chip-text);
+  padding: 0.64rem 1.02rem 0.68rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition:
+    transform 190ms cubic-bezier(0.2, 1, 0.34, 1),
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 220ms ease,
+    filter 180ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.58),
+    0 10px 22px rgba(9, 7, 30, 0.22);
+  white-space: nowrap;
+  backdrop-filter: blur(12px);
+}
+
+.hub-platform-button:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.04);
+}
+
+.hub-platform-button.is-active {
+  color: #fff6ed;
+  transform: translateY(-2px) scale(1.025);
+  border-color: rgba(83, 62, 54, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 10px 22px rgba(103, 78, 68, 0.12),
+    0 0 0 4px rgba(255, 255, 255, 0.56);
+  filter: saturate(1.08);
+}
+
+.hub-platform-button:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 4px;
+}
+
+@media (max-width: 800px) {
+  .hub-viewer-copy {
+    top: 1.2rem;
+    width: min(34rem, calc(100% - 1.2rem));
+  }
+
+  .hub-copy-swap {
+    gap: 0.45rem;
+  }
+
+  .hub-viewer-title {
+    font-size: clamp(2.6rem, 14vw, 4.2rem);
+  }
+
+  .hub-viewer-description {
+    max-width: 25rem;
+    font-size: 0.94rem;
+    line-height: 1.6;
+  }
+
+  .hub-eyebrow {
+    min-height: 1.86rem;
+    padding: 0.36rem 0.92rem;
+    font-size: 0.75rem;
+  }
+
+  .hub-viewer-controls {
+    width: calc(100% - 1.2rem);
+    bottom: 0.45rem;
+  }
+
+  .hub-platform-buttons {
+    gap: 0.55rem;
+  }
+
+  .hub-platform-button {
+    min-width: 4.25rem;
+    min-height: 2.55rem;
+    padding: 0.58rem 0.74rem 0.62rem;
+    font-size: 0.8rem;
+  }
+}
