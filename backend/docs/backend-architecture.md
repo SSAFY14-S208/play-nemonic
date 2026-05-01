@@ -2,7 +2,7 @@
 
 ## 개요
 
-백엔드는 기능, 즉 도메인 단위로 패키지를 구성하고 각 기능 패키지 내부를 계층별로 분리한다.
+백엔드는 업무 영역 또는 기능 단위로 최상위 패키지를 나누고, 각 패키지 내부를 계층별로 분리한다.
 
 현재 루트 패키지는 `com.nemonicworld`이다. 새 기능은 이 문서의 목표 구조를 따른다.
 기존 코드의 패키지 이동은 기능 개발과 섞지 않고, 별도 리팩터링 작업으로 점진적으로 진행한다.
@@ -19,10 +19,10 @@ src/main/java/com/nemonicworld/
 |   `-- auth/                       # JWT, 인증 필터, 현재 사용자 조회 등 인프라성 인증/인가
 |
 |-- <feature>/                      # 기능 또는 도메인 패키지
-|   |-- api/                        # Controller 계층
-|   |-- application/                # Service 계층
-|   |-- dao/                        # Repository 계층
-|   |-- domain/                     # Entity, Enum, 값 객체
+|   |-- controller/                 # Controller 계층
+|   |-- service/                    # Service 계층
+|   |-- repository/                 # Repository 계층
+|   |-- entity/                     # JPA Entity, 영속성 Enum, 값 객체
 |   `-- dto/                        # 요청/응답 DTO
 |       |-- request/                # 클라이언트 요청 DTO
 |       `-- response/               # 클라이언트 응답 DTO
@@ -32,40 +32,41 @@ src/main/java/com/nemonicworld/
 
 ## 현재 코드 전환 규칙
 
-현재 코드에는 `config`, `common`, `auth.controller`, `community.controller` 같은 초기 패키지 구조가 남아 있다.
+현재 코드에는 `config`, `common` 같은 초기 공통 패키지 구조가 남아 있다.
 
-- 새 기능은 목표 구조의 `<feature>/api`, `<feature>/application`, `<feature>/dao`, `<feature>/domain`,
-  `<feature>/dto/request`, `<feature>/dto/response`를 따른다.
+- 새 기능은 목표 구조의 `<feature>/controller`, `<feature>/service`, `<feature>/repository`,
+  `<feature>/entity`, `<feature>/dto/request`, `<feature>/dto/response`를 따른다.
 - 기존 기능을 수정할 때 패키지 이동이 필요하면 작업 범위에 명시하고 테스트를 함께 갱신한다.
 - 단순 기능 추가와 대규모 패키지 이동을 한 PR에 섞지 않는다.
 - `global` 이동은 공통 설정/예외/응답 구조가 안정된 뒤 별도 리팩터링으로 처리한다.
 
 ## 계층별 역할
 
-### api
+### controller
 
 - `@RestController` 클래스가 위치한다.
-- HTTP 요청을 받고, 요청 DTO를 검증하고, application 계층으로 위임한다.
+- HTTP 요청을 받고, 요청 DTO를 검증하고, service 계층으로 위임한다.
 - 비즈니스 로직을 포함하지 않는다.
 - Entity를 직접 반환하지 않고 Response DTO 또는 공통 응답 형태로 반환한다.
 
-### application
+### service
 
 - `@Service` 클래스가 위치한다.
 - 핵심 비즈니스 로직과 유스케이스 흐름을 처리한다.
 - 트랜잭션 경계를 담당한다.
 - 여러 Repository 호출이 필요한 작업은 이 계층에서 조합한다.
 
-### dao
+### repository
 
 - `@Repository` 인터페이스와 데이터 접근 구현체가 위치한다.
 - Spring Data JPA Repository, QueryDSL, JDBC 기반 접근 로직을 둔다.
 - HTTP 요청/응답 DTO에 의존하지 않는다.
 
-### domain
+### entity
 
-- `@Entity`, Enum, 값 객체 등 도메인 모델이 위치한다.
-- 도메인 상태와 기본 규칙을 표현한다.
+- `@Entity`, Enum, 값 객체 등 DB 영속성 모델이 위치한다.
+- 기능 패키지가 도메인 경계이므로, 별도 `domain` 패키지를 만들지 않는다.
+- 엔티티의 상태와 기본 규칙을 표현한다.
 - 외부 API 응답 형식이나 웹 계층 관심사를 포함하지 않는다.
 
 ### dto
@@ -79,13 +80,13 @@ src/main/java/com/nemonicworld/
 
 ```text
 community/
-|-- api/
+|-- controller/
 |   `-- CommunityController.java
-|-- application/
+|-- service/
 |   `-- CommunityService.java
-|-- dao/
+|-- repository/
 |   `-- CommunityRepository.java
-|-- domain/
+|-- entity/
 |   |-- Community.java
 |   `-- CommunityStatus.java
 `-- dto/
@@ -110,12 +111,12 @@ community/
 
 ## 의존성 규칙
 
-- `api`는 `application`을 호출한다.
-- `application`은 `dao`, `domain`, `dto`를 조합한다.
-- `dao`는 `domain`을 다룬다.
-- `domain`은 다른 계층에 의존하지 않는다.
+- `controller`는 `service`를 호출한다.
+- `service`는 `repository`, `entity`, `dto`를 조합한다.
+- `repository`는 `entity`를 다룬다.
+- `entity`는 다른 계층에 의존하지 않는다.
 - Controller에서 다른 도메인의 Repository를 직접 호출하지 않는다.
-- 도메인 간 협력이 필요하면 각 도메인의 application 계층을 통해 처리한다.
+- 도메인 간 협력이 필요하면 각 도메인의 service 계층을 통해 처리한다.
 - 공통 응답, 공통 예외, 보안 인프라 등은 `global` 아래로 모은다.
 
 ## 응답과 예외 규칙
@@ -133,10 +134,10 @@ community/
 src/test/java/com/nemonicworld/
 |-- support/                        # 테스트 공통 애노테이션, fixture, helper
 |-- <feature>/
-|   |-- api/
-|   |-- application/
-|   |-- dao/
-|   `-- domain/
+|   |-- controller/
+|   |-- service/
+|   |-- repository/
+|   `-- entity/
 ```
 
 - Spring context 통합 테스트는 `@IntegrationTest`를 사용한다.

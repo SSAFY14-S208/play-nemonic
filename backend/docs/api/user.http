@@ -1,0 +1,60 @@
+@host = http://localhost:8080
+
+### Create anonymous user
+POST {{host}}/users/anonymous
+User-Agent: MangoApp/1.0
+
+### Create anonymous user without User-Agent
+POST {{host}}/users/anonymous
+
+### Verify anonymous user UUID
+POST {{host}}/users/anonymous/verify
+Content-Type: application/json
+User-Agent: MangoApp/1.0
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000"
+}
+
+### Verify anonymous user UUID without User-Agent
+POST {{host}}/users/anonymous/verify
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000"
+}
+
+### Verify anonymous user UUID - invalid format
+POST {{host}}/users/anonymous/verify
+Content-Type: application/json
+
+{
+  "userUuid": "not-a-uuid"
+}
+
+### Update anonymous user nickname
+PATCH {{host}}/users/anonymous/nickname
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "nickname": "망고"
+}
+
+### Update anonymous user nickname - spaces, symbols, emoji
+PATCH {{host}}/users/anonymous/nickname
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "nickname": " 망고 팀🙂! "
+}
+
+### Update anonymous user nickname - invalid nickname
+PATCH {{host}}/users/anonymous/nickname
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "nickname": "12345678901"
+}

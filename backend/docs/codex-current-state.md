@@ -1,18 +1,22 @@
 # Codex Current State
 
-Last updated: 2026-04-29
+Last updated: 2026-04-30
 
 ## Current Focus
 
 - Backend agent harness has been prepared for the `backend/` Spring Boot module.
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
-- The next expected work is the first real backend feature/API implementation using the architecture convention.
+- The first real backend feature API now includes anonymous user UUID issuance through `POST /users/anonymous`.
+- Anonymous user re-entry now includes `POST /users/anonymous/verify` to validate a stored UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
+- Anonymous user nickname setup/change now uses `PATCH /users/anonymous/nickname` with 1-10 code point validation and no duplicate check.
+- Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
 
 - Root Java package is `com.nemonicworld`.
 - New backend features should follow `backend/docs/backend-architecture.md`.
+- Feature packages use `controller`, `service`, `repository`, `entity`, and `dto`; do not create a separate `domain` package.
 - Commands are run from the repository root unless a script says otherwise.
 - Verification is standardized through `backend/scripts/format.ps1` and `backend/scripts/verify.ps1`.
 - PostgreSQL-specific Flyway migrations are verified through `backend/scripts/verify-migration.ps1`.
