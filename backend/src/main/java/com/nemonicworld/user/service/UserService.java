@@ -6,6 +6,7 @@ import com.nemonicworld.user.dto.request.AnonymousUserNicknameRequest;
 import com.nemonicworld.user.dto.request.AnonymousUserVerifyRequest;
 import com.nemonicworld.user.dto.response.AnonymousUserNicknameResponse;
 import com.nemonicworld.user.entity.AppUser;
+import com.nemonicworld.user.dto.response.AnonymousUserProfileResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserVerifyResponse;
 import com.nemonicworld.user.repository.UserRepository;
@@ -49,7 +50,7 @@ public class UserService {
         AppUser savedUser = userRepository.save(appUser);
 
         return new AnonymousUserResponse(savedUser.getId().toString(), savedUser.getNickname(),
-                savedUser.getCreatedAt());
+            savedUser.getCreatedAt());
     }
 
     /**
@@ -59,13 +60,13 @@ public class UserService {
     public AnonymousUserVerifyResponse verifyAnonymousUser(AnonymousUserVerifyRequest request, String userAgent) {
         UUID userUuid = parseUserUuid(request == null ? null : request.userUuid());
         AppUser appUser = userRepository.findById(userUuid)
-                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         appUser.updateLastSeen(normalizeUserAgent(userAgent), now);
 
         return new AnonymousUserVerifyResponse(appUser.getId().toString(), appUser.getNickname(),
-                appUser.getLastSeenAt());
+            appUser.getLastSeenAt());
     }
 
     /**
@@ -80,13 +81,27 @@ public class UserService {
         validateNickname(nickname);
 
         AppUser appUser = userRepository.findById(userUuid)
-                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         appUser.updateNickname(nickname, now);
 
         return new AnonymousUserNicknameResponse(appUser.getId().toString(), appUser.getNickname(),
-                appUser.getUpdatedAt());
+            appUser.getUpdatedAt());
+    }
+
+    /**
+     * 서버에 등록된 익명 사용자의 프로필을 읽기 전용으로 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public AnonymousUserProfileResponse getAnonymousUserProfile(String userUuidValue) {
+        UUID userUuid = parseUserUuid(userUuidValue);
+        AppUser appUser = userRepository.findById(userUuid)
+            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+
+        return new AnonymousUserProfileResponse(appUser.getId().toString(), appUser.getNickname(),
+            appUser.getBirthday(), appUser.getBirthtime(), appUser.getCreatedAt(), appUser.getUpdatedAt(),
+            appUser.getLastSeenAt());
     }
 
     private UUID parseUserUuid(String userUuid) {
