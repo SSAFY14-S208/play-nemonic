@@ -641,19 +641,40 @@ docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
 - **1차 BasicAuth** (nginx): admin / `<.htpasswd_grafana 비밀번호>`
 - **2차 Grafana 로그인**: admin / `<.env.prod의 GRAFANA_ADMIN_PASSWORD>`
 
-### 12.4 Dashboard Import
+### 12.4 Dashboard Provisioning
 
-Prometheus datasource는 [provisioning](./monitoring/grafana/provisioning/)으로
-자동 등록. 기본 dashboard는 grafana.com에서 ID로 import:
+Prometheus datasource와 dashboard 모두 [provisioning](./monitoring/grafana/provisioning/)으로
+자동 등록 — UI에서 import 버튼 누를 필요 없음. 컨테이너 기동 시 자동 로드.
 
-| ID | 이름 | 비고 |
-| --- | --- | --- |
-| **1860** | Node Exporter Full | 호스트 OS 메트릭 (CPU/Mem/Disk/Network) ✅ |
-| 14282 | cAdvisor exporter | ⚠️ 컨테이너 메트릭 — 12.5 한계 참조 |
-| 3662 | Prometheus 2.0 Stats | Prometheus 자체 모니터링 (보너스) |
+| ID | 이름 | 파일 | 비고 |
+| --- | --- | --- | --- |
+| **1860** | Node Exporter Full | [node-exporter-full.json](./monitoring/grafana/provisioning/dashboards/json/node-exporter-full.json) | 호스트 OS 메트릭 (CPU/Mem/Disk/Network) ✅ |
+| 3662 | Prometheus 2.0 Stats | [prometheus-stats.json](./monitoring/grafana/provisioning/dashboards/json/prometheus-stats.json) | Prometheus 자체 모니터링 |
+| 14282 | cAdvisor exporter | (미등록) | ⚠️ 컨테이너 메트릭 — 12.5 한계 해소 후 추가 예정 |
 
-import 절차: 좌측 메뉴 → Dashboards → New → Import → ID 입력 → Load →
-Prometheus 선택 → Import.
+#### 신규 dashboard 추가 절차
+
+```bash
+# 1) grafana.com에서 JSON 다운로드
+curl -sSL "https://grafana.com/api/dashboards/<ID>/revisions/latest/download" \
+  -o monitoring/grafana/provisioning/dashboards/json/<name>.json
+
+# 2) datasource 변수 점검
+#    - 모던 dashboard: templating.list에 datasource 변수가 있으면 그대로 commit
+#    - 레거시 dashboard: "datasource": "${DS_FOO}" 리터럴이 박혀 있으면 'Prometheus'로 치환
+grep -oE '\$\{DS_[A-Z_]+\}' monitoring/grafana/provisioning/dashboards/json/<name>.json | sort -u
+sed -i 's/\${DS_FOO}/Prometheus/g' monitoring/grafana/provisioning/dashboards/json/<name>.json
+
+# 3) Grafana 재기동 (provisioning은 30초 polling이라 기다려도 OK)
+docker compose -f docker-compose.monitoring.yml restart grafana
+
+# 4) 외부 URL에서 확인
+#    https://k14s208.p.ssafy.io/grafana/dashboards
+```
+
+> 직접 Grafana UI에서 만든 dashboard도 export → JSON 저장 → 같은 디렉토리에
+> commit하면 git이 source of truth가 된다 (`allowUiUpdates: true`라 UI 편집은
+> 가능하지만 컨테이너 재생성 시 파일 버전으로 복원).
 
 ### 12.5 ⚠️ Known Limitation — cAdvisor 컨테이너 메트릭
 

@@ -1,9 +1,20 @@
 # Grafana dashboard auto-provisioning
-# /var/lib/grafana/dashboards 안의 *.json 파일을 자동 로드.
-# 1회 셋업 시 grafana.com에서 dashboard JSON 다운받아서 호스트 디렉토리에 두면 됨.
-# 권장 dashboard ID:
-#   - 1860 (Node Exporter Full)
-#   - 14282 (cAdvisor — Compute Resources)
+#
+# 같은 provisioning 마운트(./monitoring/grafana/provisioning → /etc/grafana/provisioning)
+# 안의 dashboards/json/ 디렉토리에서 *.json을 자동 로드.
+# 신규 dashboard 추가 절차:
+#   1) grafana.com에서 JSON 다운로드 (또는 UI에서 export → JSON)
+#   2) monitoring/grafana/provisioning/dashboards/json/<name>.json 으로 commit
+#   3) docker compose -f docker-compose.monitoring.yml restart grafana
+#
+# datasource 변수(${DS_*}) 처리:
+#   - 모던 dashboard(예: 1860)는 templating.list에 datasource var가 있어 그대로 OK
+#   - 레거시 dashboard(예: 3662)는 "datasource": "${DS_FOO}" 리터럴 → 'Prometheus'로
+#     sed 치환 후 commit (datasources/prometheus.yml의 name과 일치시켜야 함)
+#
+# 현재 등록된 dashboard:
+#   - 1860 (Node Exporter Full) → node-exporter-full.json
+#   -  3662 (Prometheus 2.0 Stats) → prometheus-stats.json
 
 apiVersion: 1
 
@@ -16,4 +27,5 @@ providers:
     updateIntervalSeconds: 30
     allowUiUpdates: true
     options:
-      path: /var/lib/grafana/dashboards
+      path: /etc/grafana/provisioning/dashboards/json
+      foldersFromFilesStructure: false
