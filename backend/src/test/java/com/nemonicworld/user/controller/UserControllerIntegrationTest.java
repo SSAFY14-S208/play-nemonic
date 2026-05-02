@@ -26,7 +26,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -67,6 +67,7 @@ class UserControllerIntegrationTest {
         assertThat(savedUser.getUserAgent()).isEqualTo("MangoApp/1.0");
         assertThat(savedUser.getBirthday()).isNull();
         assertThat(savedUser.getBirthtime()).isNull();
+        assertThat(savedUser.getIsLunar()).isNull();
         assertThat(savedUser.getCreatedAt()).isEqualTo(LocalDateTime.parse(data.path("createdAt").asText()));
         assertThat(savedUser.getLastSeenAt()).isEqualTo(savedUser.getCreatedAt());
         assertThat(savedUser.getUpdatedAt()).isEqualTo(savedUser.getCreatedAt());
@@ -285,6 +286,193 @@ class UserControllerIntegrationTest {
     }
 
     /**
+     * 서버에 존재하는 UUID로 생년월일 정보를 최초 등록하면 운세 재사용 필드와 updated_at만 갱신되는지 검증합니다.
+     */
+    @Test
+    void registerAnonymousUserBirthInfoReturnsOkResponseAndUpdatesBirthInfo() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        userRepository.saveAndFlush(AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt));
+
+        MvcResult result = mockMvc
+            .perform(post("/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
+                .content(birthInfoRequestBody(userUuid, "1998-03-15", "13:30:00", false)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("생년월일 정보 등록 성공"))
+            .andExpect(jsonPath("$.data.userUuid").value(userUuid.toString()))
+            .andExpect(jsonPath("$.data.birthday").value("1998-03-15"))
+            .andExpect(jsonPath("$.data.birthtime").value("13:30:00"))
+            .andExpect(jsonPath("$.data.isLunar").value(false)).andExpect(jsonPath("$.data.updatedAt").exists())
+            .andReturn();
+
+        LocalDateTime responseUpdatedAt = LocalDateTime.parse(readData(result).path("updatedAt").asText());
+        AppUser savedUser = userRepository.findById(userUuid).orElseThrow();
+
+        assertThat(savedUser.getBirthday()).isEqualTo(LocalDate.of(1998, 3, 15));
+        assertThat(savedUser.getBirthtime()).isEqualTo(LocalTime.of(13, 30));
+        assertThat(savedUser.getIsLunar()).isFalse();
+        assertThat(savedUser.getUpdatedAt()).isEqualTo(responseUpdatedAt);
+        assertThat(savedUser.getUpdatedAt()).isAfter(createdAt);
+        assertThat(savedUser.getLastSeenAt()).isEqualTo(createdAt);
+        assertThat(savedUser.getUserAgent()).isEqualTo("MangoApp/1.0");
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    /**
+     * 이미 생년월일 정보가 등록된 사용자가 등록 API를 다시 호출하면 409 응답을 반환하는지 검증합니다.
+     */
+    @Test
+    void registerAnonymousUserBirthInfoReturnsConflictWhenAlreadyRegistered() throws Exception {
+        UUID userUuid = createExistingUserWithBirthInfo("MangoApp/1.0", LocalDate.of(1998, 3, 15), LocalTime.of(13, 30),
+            false);
+
+        mockMvc
+            .perform(post("/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
+                .content(birthInfoRequestBody(userUuid, "2000-01-01", "08:00:00", true)))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("이미 생년월일 정보가 등록되어 있습니다."));
+
+        AppUser savedUser = userRepository.findById(userUuid).orElseThrow();
+        assertThat(savedUser.getBirthday()).isEqualTo(LocalDate.of(1998, 3, 15));
+        assertThat(savedUser.getBirthtime()).isEqualTo(LocalTime.of(13, 30));
+        assertThat(savedUser.getIsLunar()).isFalse();
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    /**
+     * 서버에 없는 UUID로 생년월일 등록을 시도해도 새 사용자를 만들지 않는지 검증합니다.
+     */
+    @Test
+    void registerAnonymousUserBirthInfoReturnsNotFoundAndDoesNotCreateUser() throws Exception {
+        UUID missingUserUuid = UUID.randomUUID();
+
+        mockMvc
+            .perform(post("/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
+                .content(birthInfoRequestBody(missingUserUuid, "1998-03-15", "13:30:00", false)))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+
+        assertThat(userRepository.existsById(missingUserUuid)).isFalse();
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * UUID 형식이 잘못된 생년월일 등록 요청은 400 응답을 반환하고 새 사용자를 만들지 않는지 검증합니다.
+     */
+    @Test
+    void registerAnonymousUserBirthInfoRejectsInvalidUuidFormatAndDoesNotCreateUser() throws Exception {
+        mockMvc.perform(post("/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON).content(
+            "{\"userUuid\":\"not-a-uuid\",\"birthday\":\"1998-03-15\",\"birthtime\":\"13:30:00\",\"isLunar\":false}"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * 생년월일 정보 형식이 잘못되면 400 응답을 반환하고 기존 사용자를 변경하지 않는지 검증합니다.
+     */
+    @Test
+    void registerAnonymousUserBirthInfoRejectsInvalidBirthInfoAndDoesNotModifyUser() throws Exception {
+        UUID invalidBirthdayUserUuid = createExistingUser("MangoApp/1.0");
+        UUID invalidBirthtimeUserUuid = createExistingUser("MangoApp/1.0");
+        UUID missingIsLunarUserUuid = createExistingUser("MangoApp/1.0");
+        UUID nullIsLunarUserUuid = createExistingUser("MangoApp/1.0");
+
+        assertInvalidBirthInfo(post("/users/anonymous/birth-info"),
+            birthInfoRequestBody(invalidBirthdayUserUuid, "1998-99-99", "13:30:00", false));
+        assertInvalidBirthInfo(post("/users/anonymous/birth-info"),
+            birthInfoRequestBody(invalidBirthtimeUserUuid, "1998-03-15", "13:30", false));
+        assertInvalidBirthInfo(post("/users/anonymous/birth-info"),
+            missingIsLunarRequestBody(missingIsLunarUserUuid, "1998-03-15", "13:30:00"));
+        assertInvalidBirthInfo(post("/users/anonymous/birth-info"),
+            birthInfoRequestBody(nullIsLunarUserUuid, "1998-03-15", "13:30:00", null));
+
+        assertThat(userRepository.findById(invalidBirthdayUserUuid).orElseThrow().getBirthday()).isNull();
+        assertThat(userRepository.findById(invalidBirthtimeUserUuid).orElseThrow().getBirthtime()).isNull();
+        assertThat(userRepository.findById(missingIsLunarUserUuid).orElseThrow().getIsLunar()).isNull();
+        assertThat(userRepository.findById(nullIsLunarUserUuid).orElseThrow().getIsLunar()).isNull();
+        assertThat(userRepository.count()).isEqualTo(4);
+    }
+
+    /**
+     * 이미 등록된 생년월일 정보를 수정하면 운세 재사용 필드와 updated_at만 갱신되는지 검증합니다.
+     */
+    @Test
+    void updateAnonymousUserBirthInfoReturnsOkResponseAndUpdatesBirthInfo() throws Exception {
+        UUID userUuid = createExistingUserWithBirthInfo("MangoApp/1.0", LocalDate.of(1998, 3, 15), LocalTime.of(13, 30),
+            false);
+        AppUser originalUser = userRepository.findById(userUuid).orElseThrow();
+        LocalDateTime previousUpdatedAt = originalUser.getUpdatedAt();
+        LocalDateTime previousLastSeenAt = originalUser.getLastSeenAt();
+        String previousUserAgent = originalUser.getUserAgent();
+
+        MvcResult result = mockMvc
+            .perform(patch("/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
+                .content(birthInfoRequestBody(userUuid, "2000-01-01", "08:00:00", true)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("생년월일 정보 수정 성공"))
+            .andExpect(jsonPath("$.data.userUuid").value(userUuid.toString()))
+            .andExpect(jsonPath("$.data.birthday").value("2000-01-01"))
+            .andExpect(jsonPath("$.data.birthtime").value("08:00:00")).andExpect(jsonPath("$.data.isLunar").value(true))
+            .andExpect(jsonPath("$.data.updatedAt").exists()).andReturn();
+
+        LocalDateTime responseUpdatedAt = LocalDateTime.parse(readData(result).path("updatedAt").asText());
+        AppUser savedUser = userRepository.findById(userUuid).orElseThrow();
+
+        assertThat(savedUser.getBirthday()).isEqualTo(LocalDate.of(2000, 1, 1));
+        assertThat(savedUser.getBirthtime()).isEqualTo(LocalTime.of(8, 0));
+        assertThat(savedUser.getIsLunar()).isTrue();
+        assertThat(savedUser.getUpdatedAt()).isEqualTo(responseUpdatedAt);
+        assertThat(savedUser.getUpdatedAt()).isAfter(previousUpdatedAt);
+        assertThat(savedUser.getLastSeenAt()).isEqualTo(previousLastSeenAt);
+        assertThat(savedUser.getUserAgent()).isEqualTo(previousUserAgent);
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    /**
+     * 생년월일 정보가 없는 사용자가 수정 API를 호출하면 404 응답을 반환하는지 검증합니다.
+     */
+    @Test
+    void updateAnonymousUserBirthInfoReturnsNotFoundWhenBirthInfoIsMissing() throws Exception {
+        UUID userUuid = createExistingUser("MangoApp/1.0");
+
+        mockMvc
+            .perform(patch("/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
+                .content(birthInfoRequestBody(userUuid, "1998-03-15", "13:30:00", false)))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("등록된 생년월일 정보가 없습니다."));
+
+        AppUser savedUser = userRepository.findById(userUuid).orElseThrow();
+        assertThat(savedUser.getBirthday()).isNull();
+        assertThat(savedUser.getBirthtime()).isNull();
+        assertThat(savedUser.getIsLunar()).isNull();
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    /**
+     * 생년월일 수정 API도 UUID 미존재와 입력 형식 오류를 기존 응답 계약으로 처리하는지 검증합니다.
+     */
+    @Test
+    void updateAnonymousUserBirthInfoRejectsMissingUserAndInvalidBirthInfo() throws Exception {
+        UUID missingUserUuid = UUID.randomUUID();
+        UUID invalidInputUserUuid = createExistingUserWithBirthInfo("MangoApp/1.0", LocalDate.of(1998, 3, 15),
+            LocalTime.of(13, 30), false);
+
+        mockMvc
+            .perform(patch("/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
+                .content(birthInfoRequestBody(missingUserUuid, "1998-03-15", "13:30:00", false)))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+
+        assertInvalidBirthInfo(patch("/users/anonymous/birth-info"),
+            birthInfoRequestBody(invalidInputUserUuid, "1998-03-15", "25:00:00", false));
+
+        assertThat(userRepository.existsById(missingUserUuid)).isFalse();
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    /**
      * 서버에 존재하는 UUID로 프로필을 조회하면 재사용 가능한 사용자 정보가 반환되고 DB 메타데이터는 변경되지 않는지 검증합니다.
      */
     @Test
@@ -296,7 +484,7 @@ class UserControllerIntegrationTest {
         LocalTime birthtime = LocalTime.of(13, 30);
         AppUser appUser = AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt);
         appUser.updateNickname("망고", updatedAt);
-        setBirthInfo(appUser, birthday, birthtime);
+        appUser.updateBirthInfo(birthday, birthtime, false, updatedAt);
         userRepository.saveAndFlush(appUser);
 
         mockMvc.perform(get("/users/anonymous/profile").param("userUuid", userUuid.toString()))
@@ -306,6 +494,7 @@ class UserControllerIntegrationTest {
             .andExpect(jsonPath("$.data.nickname").value("망고"))
             .andExpect(jsonPath("$.data.birthday").value("1998-03-15"))
             .andExpect(jsonPath("$.data.birthtime").value("13:30:00"))
+            .andExpect(jsonPath("$.data.isLunar").value(false))
             .andExpect(jsonPath("$.data.createdAt").value(createdAt.toString()))
             .andExpect(jsonPath("$.data.updatedAt").value(updatedAt.toString()))
             .andExpect(jsonPath("$.data.lastSeenAt").value(createdAt.toString()))
@@ -327,10 +516,12 @@ class UserControllerIntegrationTest {
 
         mockMvc.perform(get("/users/anonymous/profile").param("userUuid", userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.birthday").value(nullValue()))
-            .andExpect(jsonPath("$.data.birthtime").value(nullValue()));
+            .andExpect(jsonPath("$.data.birthtime").value(nullValue()))
+            .andExpect(jsonPath("$.data.isLunar").value(nullValue()));
 
         assertThat(userRepository.findById(userUuid).orElseThrow().getBirthday()).isNull();
         assertThat(userRepository.findById(userUuid).orElseThrow().getBirthtime()).isNull();
+        assertThat(userRepository.findById(userUuid).orElseThrow().getIsLunar()).isNull();
         assertThat(userRepository.count()).isEqualTo(1);
     }
 
@@ -407,6 +598,14 @@ class UserControllerIntegrationTest {
             .andExpect(jsonPath("$.message").value("닉네임은 1자 이상 10자 이하로 입력해주세요."));
     }
 
+    // 생년월일 정보 validation 실패 응답의 공통 계약을 확인합니다.
+    private void assertInvalidBirthInfo(MockHttpServletRequestBuilder requestBuilder, String requestBody)
+        throws Exception {
+        mockMvc.perform(requestBuilder.contentType(MediaType.APPLICATION_JSON).content(requestBody))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("생년월일 정보 형식이 올바르지 않습니다."));
+    }
+
     private UUID createExistingUser(String userAgent) {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
@@ -416,9 +615,17 @@ class UserControllerIntegrationTest {
         return userUuid;
     }
 
-    private void setBirthInfo(AppUser appUser, LocalDate birthday, LocalTime birthtime) {
-        ReflectionTestUtils.setField(appUser, "birthday", birthday);
-        ReflectionTestUtils.setField(appUser, "birthtime", birthtime);
+    private UUID createExistingUserWithBirthInfo(String userAgent, LocalDate birthday, LocalTime birthtime,
+        Boolean isLunar) {
+        UUID userUuid = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime updatedAt = createdAt.plusHours(1);
+        AppUser appUser = AppUser.createAnonymous(userUuid, userAgent, createdAt);
+
+        appUser.updateBirthInfo(birthday, birthtime, isLunar, updatedAt);
+        userRepository.saveAndFlush(appUser);
+
+        return userUuid;
     }
 
     private String verifyRequestBody(UUID userUuid) {
@@ -436,6 +643,30 @@ class UserControllerIntegrationTest {
     private String missingNicknameRequestBody(UUID userUuid) throws Exception {
         ObjectNode request = objectMapper.createObjectNode();
         request.put("userUuid", userUuid.toString());
+
+        return objectMapper.writeValueAsString(request);
+    }
+
+    private String birthInfoRequestBody(UUID userUuid, String birthday, String birthtime, Boolean isLunar)
+        throws Exception {
+        ObjectNode request = objectMapper.createObjectNode();
+        request.put("userUuid", userUuid.toString());
+        request.put("birthday", birthday);
+        request.put("birthtime", birthtime);
+        if (isLunar == null) {
+            request.putNull("isLunar");
+        } else {
+            request.put("isLunar", isLunar);
+        }
+
+        return objectMapper.writeValueAsString(request);
+    }
+
+    private String missingIsLunarRequestBody(UUID userUuid, String birthday, String birthtime) throws Exception {
+        ObjectNode request = objectMapper.createObjectNode();
+        request.put("userUuid", userUuid.toString());
+        request.put("birthday", birthday);
+        request.put("birthtime", birthtime);
 
         return objectMapper.writeValueAsString(request);
     }

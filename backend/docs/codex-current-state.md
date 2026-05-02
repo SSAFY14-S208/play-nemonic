@@ -11,6 +11,8 @@ Last updated: 2026-04-30
 - Anonymous user re-entry now includes `POST /users/anonymous/verify` to validate a stored UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
 - Anonymous user nickname setup/change now uses `PATCH /users/anonymous/nickname` with 1-10 code point validation and no duplicate check.
 - Anonymous user profile lookup now uses `GET /users/anonymous/profile?userUuid=...` and returns reusable profile fields without updating visit metadata.
+- Anonymous user birth info now uses `POST /users/anonymous/birth-info` for first registration and `PATCH /users/anonymous/birth-info` for updates.
+- `app_user.is_lunar` is added through Flyway V3 so fortune features can reuse birthday, birthtime, and lunar/solar selection.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
