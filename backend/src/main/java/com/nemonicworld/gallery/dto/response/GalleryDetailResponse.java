@@ -13,7 +13,7 @@ public record GalleryDetailResponse(
     @Schema(description = "결과물 UUID", example = "1bce93a2-9c38-4604-80f9-b89be3ec2e53") String artifactId,
     @Schema(description = "결과물 종류", example = "fortune") String kind,
     @Schema(description = "썸네일 URL", example = "https://minio.example.com/fortune/thumb.png") String thumbnailUrl,
-    @Schema(description = "상세 화면 대표 콘텐츠 URL", example = "https://minio.example.com/fortune/result.png") String contentUrl,
+    @Schema(description = "대표 콘텐츠 URL", example = "https://minio.example.com/result.png") String contentUrl,
     @Schema(description = "결과물 생성 출처 식별자", example = "ROOM123", nullable = true) String sourceRoomId,
     @Schema(description = "결과물 메타데이터") Map<String, Object> meta,
     @Schema(description = "결과물 생성 시각", example = "2026-04-30T13:50:00") LocalDateTime createdAt,
