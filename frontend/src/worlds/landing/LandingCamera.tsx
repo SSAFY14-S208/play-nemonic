@@ -4,12 +4,12 @@ import { PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import { DESK_SURFACE_Y } from "./constants";
 
-// 캐릭터 기준 카메라 오프셋 — 0.335m 캐릭터 + 0.81m 책상 기준
-const BASE_OFFSET = new THREE.Vector3(0, 0.7, 0.6);
+// 캐릭터 기준 카메라 오프셋 — 27cm 표시 캐릭터 + 0.767m 책상 기준
+const BASE_OFFSET = new THREE.Vector3(0, 0.5, 0.6);
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.0;
-const CAMERA_LERP_SPEED = 0.1;
-const LOOK_AT_LERP_SPEED = 0.15;
+const CAMERA_LERP_SPEED = 0.5;
+const LOOK_AT_LERP_SPEED = 0.55;
 const ZOOM_WHEEL_SPEED = 0.001;
 
 interface LandingCameraProps {

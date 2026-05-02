@@ -7,7 +7,12 @@ import {
 } from "@react-three/rapier";
 import * as THREE from "three";
 import { useCharacterMovement, useCharacterAnimation } from "./hooks";
-import { MODEL_SCALE, CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS } from "./constants";
+import {
+  MODEL_SCALE,
+  MODEL_OFFSET_Y,
+  CAPSULE_HALF_HEIGHT,
+  CAPSULE_RADIUS,
+} from "./constants";
 
 const MODEL_PATH = "/models/nong_dam_gom.glb";
 
@@ -68,7 +73,7 @@ export default function Character({
       position={initialPosition ?? [0, surfaceY + CAPSULE_HALF_HEIGHT + CAPSULE_RADIUS, 0]}
     >
       <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} />
-      <group ref={groupRef} scale={MODEL_SCALE}>
+      <group ref={groupRef} position={[0, MODEL_OFFSET_Y, 0]} scale={MODEL_SCALE}>
         <primitive object={scene} />
       </group>
     </RigidBody>

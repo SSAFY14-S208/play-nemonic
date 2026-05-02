@@ -7,12 +7,14 @@ import LandingCamera from "./LandingCamera";
 import { useLandingInteraction } from "./useLandingInteraction";
 import { useNemonicPrinterInteraction } from "../_shared/hooks";
 import { NemonicPrinterMesh } from "../_shared/mesh";
+import { CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS } from "../_infra/constants";
 import { DESK_SURFACE_Y, NEMONIC_PRINTER_POSITION, CHARACTER_INITIAL_POSITION } from "./constants";
 
 export default function LandingScene() {
   const targetPositionRef = useRef<THREE.Vector3>(new THREE.Vector3());
+  // 첫 프레임 카메라 스냅 위치 — 실제 캐릭터 RigidBody Y와 일치시켜야 카메라가 튀지 않음
   const characterPositionRef = useRef<THREE.Vector3>(
-    new THREE.Vector3(0, DESK_SURFACE_Y + 0.85, 0),
+    new THREE.Vector3(0, DESK_SURFACE_Y + CAPSULE_HALF_HEIGHT + CAPSULE_RADIUS, 0),
   );
   const isPointerDownRef = useRef<boolean>(false);
 
