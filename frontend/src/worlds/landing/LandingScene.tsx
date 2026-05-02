@@ -3,6 +3,7 @@ import * as THREE from "three";
 import Lighting from "../_infra/Lighting";
 import Character from "../_infra/Character";
 import DeskMesh from "./objects/DeskMesh";
+import DeskBoundsMesh from "./objects/DeskBoundsMesh";
 import LandingCamera from "./LandingCamera";
 import { useLandingInteraction } from "./useLandingInteraction";
 import { useNemonicPrinterInteraction } from "../_shared/hooks";
@@ -30,6 +31,7 @@ export default function LandingScene() {
       <Suspense fallback={null}>
         <DeskMesh />
       </Suspense>
+      <DeskBoundsMesh />
       <Suspense fallback={null}>
         <NemonicPrinterMesh
           position={NEMONIC_PRINTER_POSITION}

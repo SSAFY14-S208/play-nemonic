@@ -18,7 +18,7 @@ export const BEAR_VISUAL_FOOT_OFFSET_Y = BEAR_FOOT_OFFSET_Y * MODEL_SCALE;
 // ─── 물리 캡슐 (Character.tsx & useCharacterMovement.ts 공유) ────────────────
 // CapsuleCollider args = [halfHeight, radius]
 // 총 캡슐 높이 = 2 * (halfHeight + radius) ≈ BEAR_VISUAL_HEIGHT
-export const CAPSULE_RADIUS = 0.06; // m — 표시 곰돌이 몸통 단면 반지름
+export const CAPSULE_RADIUS = 0.025; // m — 표시 곰돌이 몸통 단면 반지름
 export const CAPSULE_HALF_HEIGHT = 0.074; // m — 원기둥부 반높이
 // → 총 캡슐 = 2 * (0.074 + 0.06) = 0.268m ≈ BEAR_VISUAL_HEIGHT ✓
 

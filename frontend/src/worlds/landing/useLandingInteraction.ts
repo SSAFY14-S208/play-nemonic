@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { DESK_SURFACE_Y, DESK_HALF_WIDTH, DESK_HALF_DEPTH } from "./constants";
+import { DESK_SURFACE_Y } from "./constants";
 
 // THREE.Plane(normal, constant): dot(normal, point) + constant = 0
 // Y=DESK_SURFACE_Y 수평면 → constant = -DESK_SURFACE_Y
@@ -30,15 +30,8 @@ export function useLandingInteraction(
       raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
       const hit = raycaster.ray.intersectPlane(DESK_PLANE, intersection);
       if (!hit) return false;
-      // 책상 범위 밖으로 이동하지 못하도록 XZ clamp
-      intersection.x = Math.max(
-        -DESK_HALF_WIDTH,
-        Math.min(DESK_HALF_WIDTH, intersection.x),
-      );
-      intersection.z = Math.max(
-        -DESK_HALF_DEPTH,
-        Math.min(DESK_HALF_DEPTH, intersection.z),
-      );
+      // 책상 경계 밖 클릭도 좌표 그대로 전달 — 캐릭터는 책상 가장자리의
+      // 보이지 않는 경계벽(DeskBoundsMesh)에 KCC가 자동으로 막아준다.
       return true;
     };
 
