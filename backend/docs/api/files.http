@@ -1,0 +1,88 @@
+@host = http://localhost:8080
+
+# byteSize is checked before issuing the URL. The confirm API should re-check the actual MinIO object size.
+# Default max upload size: 50MB.
+
+### Issue presigned upload URL
+POST {{host}}/api/v1/files/presign
+Content-Type: application/json
+X-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+
+{
+  "fileName": "drawing.png",
+  "contentType": "image/png",
+  "purpose": "FLIPBOOK",
+  "byteSize": 1048576
+}
+
+### Issue presigned upload URL - GIF
+POST {{host}}/api/v1/files/presign
+Content-Type: application/json
+X-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+
+{
+  "fileName": "flipbook.gif",
+  "contentType": "image/gif",
+  "purpose": "FLIPBOOK_GIF",
+  "byteSize": 10485760
+}
+
+### Issue presigned upload URL - phone artifact
+POST {{host}}/api/v1/files/presign
+Content-Type: application/json
+X-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+
+{
+  "fileName": "phone.webp",
+  "contentType": "image/webp",
+  "purpose": "PHONE",
+  "byteSize": 1048576
+}
+
+### Issue presigned upload URL - unsupported content type
+POST {{host}}/api/v1/files/presign
+Content-Type: application/json
+X-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+
+{
+  "fileName": "drawing.svg",
+  "contentType": "image/svg+xml",
+  "purpose": "RELAY_DRAWING",
+  "byteSize": 1048576
+}
+
+### Issue presigned upload URL - unsupported purpose
+POST {{host}}/api/v1/files/presign
+Content-Type: application/json
+X-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+
+{
+  "fileName": "drawing.png",
+  "contentType": "image/png",
+  "purpose": "PROFILE",
+  "byteSize": 1048576
+}
+
+### Issue presigned upload URL - too large
+POST {{host}}/api/v1/files/presign
+Content-Type: application/json
+X-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+
+{
+  "fileName": "huge.gif",
+  "contentType": "image/gif",
+  "purpose": "FLIPBOOK_GIF",
+  "byteSize": 52428801
+}
+
+### Issue presigned upload URL - invalid user UUID
+POST {{host}}/api/v1/files/presign
+Content-Type: application/json
+X-User-UUID: not-a-uuid
+
+{
+  "fileName": "drawing.png",
+  "contentType": "image/png",
+  "purpose": "COMMUNITY",
+  "byteSize": 1048576
+}
