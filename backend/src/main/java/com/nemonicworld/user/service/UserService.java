@@ -6,6 +6,7 @@ import com.nemonicworld.user.dto.request.AnonymousUserNicknameRequest;
 import com.nemonicworld.user.dto.request.AnonymousUserVerifyRequest;
 import com.nemonicworld.user.dto.response.AnonymousUserNicknameResponse;
 import com.nemonicworld.user.entity.AppUser;
+import com.nemonicworld.user.dto.response.AnonymousUserProfileResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserVerifyResponse;
 import com.nemonicworld.user.repository.UserRepository;
@@ -87,6 +88,20 @@ public class UserService {
 
         return new AnonymousUserNicknameResponse(appUser.getId().toString(), appUser.getNickname(),
             appUser.getUpdatedAt());
+    }
+
+    /**
+     * 서버에 등록된 익명 사용자의 프로필을 읽기 전용으로 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public AnonymousUserProfileResponse getAnonymousUserProfile(String userUuidValue) {
+        UUID userUuid = parseUserUuid(userUuidValue);
+        AppUser appUser = userRepository.findById(userUuid)
+            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+
+        return new AnonymousUserProfileResponse(appUser.getId().toString(), appUser.getNickname(),
+            appUser.getBirthday(), appUser.getBirthtime(), appUser.getCreatedAt(), appUser.getUpdatedAt(),
+            appUser.getLastSeenAt());
     }
 
     private UUID parseUserUuid(String userUuid) {

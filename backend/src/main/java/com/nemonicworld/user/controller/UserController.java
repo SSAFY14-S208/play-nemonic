@@ -4,6 +4,7 @@ import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.user.dto.request.AnonymousUserNicknameRequest;
 import com.nemonicworld.user.dto.request.AnonymousUserVerifyRequest;
 import com.nemonicworld.user.dto.response.AnonymousUserNicknameResponse;
+import com.nemonicworld.user.dto.response.AnonymousUserProfileResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserVerifyResponse;
 import com.nemonicworld.user.service.UserService;
@@ -16,10 +17,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,6 +40,7 @@ public class UserController {
     private static final String ANONYMOUS_USER_CREATED_MESSAGE = "익명 사용자 UUID 발급 성공";
     private static final String ANONYMOUS_USER_VERIFIED_MESSAGE = "익명 사용자 UUID 확인 성공";
     private static final String ANONYMOUS_USER_NICKNAME_UPDATED_MESSAGE = "닉네임 설정/수정 성공";
+    private static final String ANONYMOUS_USER_PROFILE_FOUND_MESSAGE = "내 프로필 조회 성공";
 
     private final UserService userService;
 
@@ -92,5 +96,20 @@ public class UserController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(ANONYMOUS_USER_NICKNAME_UPDATED_MESSAGE, response));
+    }
+
+    /**
+     * 서버에 등록된 익명 사용자의 프로필 정보를 조회합니다.
+     */
+    @GetMapping("/anonymous/profile")
+    @Operation(summary = "익명 사용자 프로필 조회", description = "서버에 등록된 익명 사용자의 재사용 가능 프로필 정보를 조회합니다.")
+    @Parameter(name = "userUuid", in = ParameterIn.QUERY, required = true, description = "서버가 발급한 익명 사용자 UUID")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "내 프로필 조회 성공")
+    public ResponseEntity<ApiResponse<AnonymousUserProfileResponse>> getAnonymousUserProfile(
+        @RequestParam String userUuid) {
+        AnonymousUserProfileResponse response = userService.getAnonymousUserProfile(userUuid);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(ANONYMOUS_USER_PROFILE_FOUND_MESSAGE, response));
     }
 }
