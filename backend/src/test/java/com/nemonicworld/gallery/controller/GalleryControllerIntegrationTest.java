@@ -1,8 +1,9 @@
 package com.nemonicworld.gallery.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -196,6 +197,175 @@ class GalleryControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.items", hasSize(1)))
             .andExpect(jsonPath("$.data.items[0].contentUrl").value("fallback-thumb"));
+    }
+
+    /**
+     * 상세 조회가 소유자의 active gallery row에 대해 URL과 JSON 메타데이터를 함께 반환하는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryItemDetailReturnsArtifactDetailWithParsedMeta() throws Exception {
+        UUID userUuid = createExistingUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
+        GalleryTestRow row = insertGalleryItemWithMeta(userUuid, "fortune", "fortune-thumb", "fortune-content", null,
+            createdAt, null, "{\"title\":\"오늘의 운세\",\"score\":88}");
+
+        mockMvc.perform(get("/api/v1/gallery/{galleryId}", row.galleryId()).param("userUuid", userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("내 갤러리 항목 상세 조회 성공"))
+            .andExpect(jsonPath("$.data.galleryId").value(row.galleryId().toString()))
+            .andExpect(jsonPath("$.data.artifactId").value(row.artifactId().toString()))
+            .andExpect(jsonPath("$.data.kind").value("fortune"))
+            .andExpect(jsonPath("$.data.thumbnailUrl").value("fortune-thumb"))
+            .andExpect(jsonPath("$.data.contentUrl").value("fortune-content"))
+            .andExpect(jsonPath("$.data.sourceRoomId").doesNotExist())
+            .andExpect(jsonPath("$.data.meta.title").value("오늘의 운세")).andExpect(jsonPath("$.data.meta.score").value(88))
+            .andExpect(jsonPath("$.data.createdAt").isNotEmpty()).andExpect(jsonPath("$.data.updatedAt").isNotEmpty());
+    }
+
+    /**
+     * 결과물 종류별 대표 contentUrl이 subtype 테이블의 URL로 매핑되는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryItemDetailMapsContentUrlByArtifactKind() throws Exception {
+        UUID userUuid = createExistingUser();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        GalleryTestRow fortune = insertGalleryItem(userUuid, "fortune", "fortune-thumb", "fortune-content", null, now,
+            null);
+        GalleryTestRow relay = insertGalleryItem(userUuid, "relay_drawing", "relay-thumb", "relay-content", null, now,
+            null);
+        GalleryTestRow flipbook = insertGalleryItem(userUuid, "flipbook", "flipbook-thumb", "flipbook-content", null,
+            now, null);
+        GalleryTestRow canvas = insertGalleryItem(userUuid, "infinite_canvas", "canvas-thumb", "canvas-content", null,
+            now, null);
+        GalleryTestRow phone = insertGalleryItem(userUuid, "phone", "phone-thumb", "phone-content", null, now, null);
+        GalleryTestRow community = insertGalleryItem(userUuid, "community_memo", "community-thumb", null, null, now,
+            null);
+
+        assertDetailContentUrl(userUuid, fortune.galleryId(), "fortune-content");
+        assertDetailContentUrl(userUuid, relay.galleryId(), "relay-content");
+        assertDetailContentUrl(userUuid, flipbook.galleryId(), "flipbook-content");
+        assertDetailContentUrl(userUuid, canvas.galleryId(), "canvas-content");
+        assertDetailContentUrl(userUuid, phone.galleryId(), "phone-content");
+        assertDetailContentUrl(userUuid, community.galleryId(), "community-thumb");
+    }
+
+    /**
+     * subtype row가 없거나 subtype URL이 비어 있어도 상세 조회가 thumbnailUrl로 fallback되는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryItemDetailFallsBackToThumbnailWhenSubtypeDataIsMissing() throws Exception {
+        UUID userUuid = createExistingUser();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactWithoutSubtypeId = UUID.randomUUID();
+        UUID galleryWithoutSubtypeId = UUID.randomUUID();
+
+        insertArtifact(artifactWithoutSubtypeId, "fortune", "no-subtype-thumb", null, now);
+        insertGalleryOnly(galleryWithoutSubtypeId, userUuid, artifactWithoutSubtypeId, null);
+        GalleryTestRow rowWithNullSubtypeUrl = insertGalleryItem(userUuid, "fortune", "null-url-thumb", null, null, now,
+            null);
+
+        assertDetailContentUrl(userUuid, galleryWithoutSubtypeId, "no-subtype-thumb");
+        assertDetailContentUrl(userUuid, rowWithNullSubtypeUrl.galleryId(), "null-url-thumb");
+    }
+
+    /**
+     * meta가 비어 있거나 JSON 객체로 파싱할 수 없어도 빈 객체로 방어 응답하는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryItemDetailReturnsEmptyMetaWhenMetaIsBlankOrInvalid() throws Exception {
+        UUID userUuid = createExistingUser();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        GalleryTestRow blankMetaRow = insertGalleryItemWithMeta(userUuid, "phone", "blank-meta-thumb", "blank-content",
+            null, now, null, " ");
+        GalleryTestRow invalidMetaRow = insertGalleryItemWithMeta(userUuid, "phone", "invalid-meta-thumb",
+            "invalid-content", null, now, null, "{not-json");
+
+        assertDetailMetaIsEmpty(userUuid, blankMetaRow.galleryId());
+        assertDetailMetaIsEmpty(userUuid, invalidMetaRow.galleryId());
+    }
+
+    /**
+     * 상세 조회 성공 시 사용자, artifact, subtype, community_memo row가 변경되지 않는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryItemDetailDoesNotUpdateUserArtifactSubtypeOrCommunityMemo() throws Exception {
+        UUID userUuid = createExistingUser();
+        AppUser beforeUser = userRepository.findById(userUuid).orElseThrow();
+        LocalDateTime beforeLastSeenAt = beforeUser.getLastSeenAt();
+        LocalDateTime beforeUserUpdatedAt = beforeUser.getUpdatedAt();
+        String beforeUserAgent = beforeUser.getUserAgent();
+        GalleryTestRow row = insertGalleryItem(userUuid, "phone", "phone-thumb", "phone-content", null,
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), null);
+        UUID memoId = insertCommunityMemo(userUuid, row.artifactId());
+        LocalDateTime beforeArtifactUpdatedAt = findArtifactUpdatedAt(row.artifactId());
+
+        mockMvc.perform(get("/api/v1/gallery/{galleryId}", row.galleryId()).param("userUuid", userUuid.toString()))
+            .andExpect(status().isOk());
+
+        AppUser afterUser = userRepository.findById(userUuid).orElseThrow();
+        assertThat(afterUser.getLastSeenAt()).isEqualTo(beforeLastSeenAt);
+        assertThat(afterUser.getUpdatedAt()).isEqualTo(beforeUserUpdatedAt);
+        assertThat(afterUser.getUserAgent()).isEqualTo(beforeUserAgent);
+        assertThat(findArtifactUpdatedAt(row.artifactId())).isEqualTo(beforeArtifactUpdatedAt);
+        assertThat(findPhoneImageUrl(row.artifactId())).isEqualTo("phone-content");
+        assertThat(countCommunityMemoRows(memoId)).isEqualTo(1);
+        assertThat(findCommunityMemoDeletedAt(memoId)).isNull();
+    }
+
+    /**
+     * userUuid나 galleryId 형식이 잘못되면 각각의 400 메시지를 반환하는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryItemDetailRejectsInvalidUuidValues() throws Exception {
+        mockMvc.perform(get("/api/v1/gallery/{galleryId}", UUID.randomUUID())).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        mockMvc.perform(get("/api/v1/gallery/{galleryId}", UUID.randomUUID()).param("userUuid", "not-a-uuid"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        mockMvc
+            .perform(
+                get("/api/v1/gallery/{galleryId}", "not-a-gallery-id").param("userUuid", UUID.randomUUID().toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 갤러리 항목 ID 형식입니다."));
+    }
+
+    /**
+     * 존재하지 않는 사용자 UUID로 상세 조회하면 새 사용자를 만들지 않고 404를 반환하는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryItemDetailReturnsNotFoundForMissingUserAndDoesNotCreateUser() throws Exception {
+        UUID missingUserUuid = UUID.randomUUID();
+
+        mockMvc
+            .perform(
+                get("/api/v1/gallery/{galleryId}", UUID.randomUUID()).param("userUuid", missingUserUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+
+        assertThat(userRepository.existsById(missingUserUuid)).isFalse();
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * 없는 항목, 타인 항목, 이미 삭제된 항목은 모두 존재하지 않는 갤러리 항목으로 처리하는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryItemDetailReturnsNotFoundForUnavailableGalleryRows() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID otherUserUuid = createExistingUser();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        GalleryTestRow otherUserRow = insertGalleryItem(otherUserUuid, "fortune", "other-thumb", "other-content", null,
+            now, null);
+        GalleryTestRow deletedRow = insertGalleryItem(userUuid, "phone", "deleted-thumb", "deleted-content", null, now,
+            now);
+
+        assertGalleryItemDetailNotFound(userUuid, UUID.randomUUID());
+        assertGalleryItemDetailNotFound(userUuid, otherUserRow.galleryId());
+        assertGalleryItemDetailNotFound(userUuid, deletedRow.galleryId());
     }
 
     /**
@@ -417,14 +587,31 @@ class GalleryControllerIntegrationTest {
         return new GalleryTestRow(galleryId, artifactId);
     }
 
+    private GalleryTestRow insertGalleryItemWithMeta(UUID userUuid, String kind, String thumbnailUrl, String contentUrl,
+        String sourceRoomId, LocalDateTime createdAt, LocalDateTime deletedAt, String meta) {
+        UUID artifactId = UUID.randomUUID();
+        UUID galleryId = UUID.randomUUID();
+
+        insertArtifact(artifactId, kind, thumbnailUrl, sourceRoomId, createdAt, meta);
+        insertSubtypeArtifact(kind, artifactId, contentUrl);
+        insertGalleryOnly(galleryId, userUuid, artifactId, deletedAt);
+
+        return new GalleryTestRow(galleryId, artifactId);
+    }
+
     private void insertArtifact(UUID artifactId, String kind, String thumbnailUrl, String sourceRoomId,
         LocalDateTime createdAt) {
+        insertArtifact(artifactId, kind, thumbnailUrl, sourceRoomId, createdAt, "{}");
+    }
+
+    private void insertArtifact(UUID artifactId, String kind, String thumbnailUrl, String sourceRoomId,
+        LocalDateTime createdAt, String meta) {
         String sql = """
             INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
-            VALUES (?, ?, ?, ?, '{}', ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """;
 
-        jdbcTemplate.update(sql, artifactId, kind, sourceRoomId, thumbnailUrl, createdAt, createdAt);
+        jdbcTemplate.update(sql, artifactId, kind, sourceRoomId, thumbnailUrl, meta, createdAt, createdAt);
     }
 
     private void insertSubtypeArtifact(String kind, UUID artifactId, String contentUrl) {
@@ -464,6 +651,22 @@ class GalleryControllerIntegrationTest {
         mockMvc.perform(delete("/api/v1/gallery/{galleryId}", galleryId).param("userUuid", userUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 갤러리 항목입니다."));
+    }
+
+    private void assertGalleryItemDetailNotFound(UUID userUuid, UUID galleryId) throws Exception {
+        mockMvc.perform(get("/api/v1/gallery/{galleryId}", galleryId).param("userUuid", userUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 갤러리 항목입니다."));
+    }
+
+    private void assertDetailContentUrl(UUID userUuid, UUID galleryId, String expectedContentUrl) throws Exception {
+        mockMvc.perform(get("/api/v1/gallery/{galleryId}", galleryId).param("userUuid", userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.contentUrl").value(expectedContentUrl));
+    }
+
+    private void assertDetailMetaIsEmpty(UUID userUuid, UUID galleryId) throws Exception {
+        mockMvc.perform(get("/api/v1/gallery/{galleryId}", galleryId).param("userUuid", userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.meta").value(anEmptyMap()));
     }
 
     private LocalDateTime findGalleryDeletedAt(UUID galleryId) {

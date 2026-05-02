@@ -50,6 +50,29 @@ public class GalleryRepository {
         LIMIT :limit OFFSET :offset
         """;
 
+    private static final String FIND_ACTIVE_ITEM_DETAIL_SQL = """
+        SELECT
+            g.id AS gallery_id,
+            a.id AS artifact_id,
+            CAST(a.kind AS VARCHAR) AS kind,
+            a.thumbnail_url AS thumbnail_url,
+            CASE CAST(a.kind AS VARCHAR)
+                WHEN 'fortune' THEN COALESCE(fa.fortune_image_url, a.thumbnail_url)
+                WHEN 'relay_drawing' THEN COALESCE(rda.combined_preview_url, a.thumbnail_url)
+                WHEN 'flipbook' THEN COALESCE(fba.gif_url, a.thumbnail_url)
+                WHEN 'infinite_canvas' THEN COALESCE(ica.canvas_image_url, a.thumbnail_url)
+                WHEN 'phone' THEN COALESCE(pa.phone_image_url, a.thumbnail_url)
+                WHEN 'community_memo' THEN a.thumbnail_url
+                ELSE a.thumbnail_url
+            END AS content_url,
+            a.source_room_id AS source_room_id,
+            a.meta AS meta,
+            a.created_at AS created_at,
+            a.updated_at AS updated_at
+        """ + ACTIVE_GALLERY_FROM + """
+          AND g.id = :galleryId
+        """;
+
     private static final String COUNT_ACTIVE_ITEMS_SQL = "SELECT COUNT(*) " + ACTIVE_GALLERY_FROM;
 
     private static final String FIND_ACTIVE_DELETE_TARGET_SQL = """
@@ -90,6 +113,15 @@ public class GalleryRepository {
         return count == null ? 0L : count;
     }
 
+    public Optional<GalleryDetailRow> findActiveItemDetail(UUID galleryId, UUID userUuid) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("galleryId", galleryId).addValue("userUuid",
+            userUuid);
+
+        List<GalleryDetailRow> rows = jdbcTemplate.query(FIND_ACTIVE_ITEM_DETAIL_SQL, params, this::mapDetailRow);
+
+        return rows.stream().findFirst();
+    }
+
     public Optional<GalleryDeleteTargetRow> findActiveDeleteTarget(UUID galleryId, UUID userUuid) {
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("galleryId", galleryId).addValue("userUuid",
             userUuid);
@@ -113,6 +145,22 @@ public class GalleryRepository {
             resultSet.getObject("artifact_id", UUID.class), resultSet.getString("kind"),
             resultSet.getString("thumbnail_url"), resultSet.getString("content_url"),
             resultSet.getString("source_room_id"), resultSet.getTimestamp("created_at").toLocalDateTime());
+    }
+
+    private GalleryDetailRow mapDetailRow(ResultSet resultSet, int rowNumber) throws SQLException {
+        return new GalleryDetailRow(resultSet.getObject("gallery_id", UUID.class),
+            resultSet.getObject("artifact_id", UUID.class), resultSet.getString("kind"),
+            resultSet.getString("thumbnail_url"), resultSet.getString("content_url"),
+            resultSet.getString("source_room_id"), resultSet.getString("meta"),
+            resultSet.getTimestamp("created_at").toLocalDateTime(),
+            resultSet.getTimestamp("updated_at").toLocalDateTime());
+    }
+
+    /**
+     * 상세 조회 화면이 필요한 artifact 메타데이터와 수정 시각까지 포함하는 내부 행 모델입니다.
+     */
+    public record GalleryDetailRow(UUID galleryId, UUID artifactId, String kind, String thumbnailUrl, String contentUrl,
+        String sourceRoomId, String meta, LocalDateTime createdAt, LocalDateTime updatedAt) {
     }
 
     /**
