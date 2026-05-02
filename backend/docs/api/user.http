@@ -58,3 +58,9 @@ Content-Type: application/json
   "userUuid": "550e8400-e29b-41d4-a716-446655440000",
   "nickname": "12345678901"
 }
+
+### Get anonymous user profile
+GET {{host}}/users/anonymous/profile?userUuid=550e8400-e29b-41d4-a716-446655440000
+
+### Get anonymous user profile - invalid UUID
+GET {{host}}/users/anonymous/profile?userUuid=not-a-uuid
