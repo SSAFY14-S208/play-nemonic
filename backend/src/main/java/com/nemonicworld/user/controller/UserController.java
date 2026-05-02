@@ -1,8 +1,10 @@
 package com.nemonicworld.user.controller;
 
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.user.dto.request.AnonymousUserBirthInfoRequest;
 import com.nemonicworld.user.dto.request.AnonymousUserNicknameRequest;
 import com.nemonicworld.user.dto.request.AnonymousUserVerifyRequest;
+import com.nemonicworld.user.dto.response.AnonymousUserBirthInfoResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserNicknameResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserProfileResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserResponse;
@@ -40,6 +42,8 @@ public class UserController {
     private static final String ANONYMOUS_USER_CREATED_MESSAGE = "익명 사용자 UUID 발급 성공";
     private static final String ANONYMOUS_USER_VERIFIED_MESSAGE = "익명 사용자 UUID 확인 성공";
     private static final String ANONYMOUS_USER_NICKNAME_UPDATED_MESSAGE = "닉네임 설정/수정 성공";
+    private static final String ANONYMOUS_USER_BIRTH_INFO_CREATED_MESSAGE = "생년월일 정보 등록 성공";
+    private static final String ANONYMOUS_USER_BIRTH_INFO_UPDATED_MESSAGE = "생년월일 정보 수정 성공";
     private static final String ANONYMOUS_USER_PROFILE_FOUND_MESSAGE = "내 프로필 조회 성공";
 
     private final UserService userService;
@@ -96,6 +100,34 @@ public class UserController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(ANONYMOUS_USER_NICKNAME_UPDATED_MESSAGE, response));
+    }
+
+    /**
+     * 운세 기능에서 재사용할 생년월일 정보를 최초 등록합니다.
+     */
+    @PostMapping("/anonymous/birth-info")
+    @Operation(summary = "익명 사용자 생년월일 정보 등록", description = "운세 기능 최초 진입 시 필요한 생년월일, 생시, 양력/음력 여부를 등록합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생년월일 정보 등록 성공")
+    public ResponseEntity<ApiResponse<AnonymousUserBirthInfoResponse>> registerAnonymousUserBirthInfo(
+        @RequestBody AnonymousUserBirthInfoRequest request) {
+        AnonymousUserBirthInfoResponse response = userService.registerAnonymousUserBirthInfo(request);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(ANONYMOUS_USER_BIRTH_INFO_CREATED_MESSAGE, response));
+    }
+
+    /**
+     * 운세 기능에서 재사용할 생년월일 정보를 수정합니다.
+     */
+    @PatchMapping("/anonymous/birth-info")
+    @Operation(summary = "익명 사용자 생년월일 정보 수정", description = "이미 등록된 생년월일, 생시, 양력/음력 여부를 수정합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생년월일 정보 수정 성공")
+    public ResponseEntity<ApiResponse<AnonymousUserBirthInfoResponse>> updateAnonymousUserBirthInfo(
+        @RequestBody AnonymousUserBirthInfoRequest request) {
+        AnonymousUserBirthInfoResponse response = userService.updateAnonymousUserBirthInfo(request);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(ANONYMOUS_USER_BIRTH_INFO_UPDATED_MESSAGE, response));
     }
 
     /**
