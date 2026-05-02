@@ -106,7 +106,7 @@ public class UserController {
     @Parameter(name = "userUuid", in = ParameterIn.QUERY, required = true, description = "서버가 발급한 익명 사용자 UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "내 프로필 조회 성공")
     public ResponseEntity<ApiResponse<AnonymousUserProfileResponse>> getAnonymousUserProfile(
-        @RequestParam String userUuid) {
+        @RequestParam(required = false) String userUuid) {
         AnonymousUserProfileResponse response = userService.getAnonymousUserProfile(userUuid);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
