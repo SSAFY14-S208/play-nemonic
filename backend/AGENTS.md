@@ -111,15 +111,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\session-cl
 
 ## Local Infrastructure
 
-Create `backend/.env` from `backend/.env.example`, then start dependencies from the
-repository root through the helper script:
+Create `backend/.env` from `backend/.env.example`, then start dependencies.
 
+**macOS / Linux:**
+```bash
+cd backend
+docker compose -f docker-compose.local.yml up -d
+```
+
+**Windows (PowerShell):**
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\local-up.ps1
 ```
 
 Stop local dependencies:
 
+**macOS / Linux:**
+```bash
+cd backend
+docker compose -f docker-compose.local.yml down
+```
+
+**Windows (PowerShell):**
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\local-down.ps1
 ```
@@ -128,6 +141,15 @@ The helper scripts intentionally do not remove Docker volumes.
 
 The local compose stack starts PostgreSQL, Redis, MinIO, and a one-shot MinIO
 bucket initializer.
+
+### Server DB Debugging (Optional)
+
+To debug against the server DB from a local backend, create `backend/.env.server`
+with server connection details and start an SSH tunnel. The Run Configuration
+should use the EnvFile plugin to load `.env.server`. Set `FLYWAY_ENABLED=false`
+in `.env.server` to prevent Flyway from auto-applying unmerged migrations to the
+server DB. The default `application.yaml` reads this env var via
+`flyway.enabled: ${FLYWAY_ENABLED:true}`, so the local default remains `true`.
 
 ## Testing Rules
 
