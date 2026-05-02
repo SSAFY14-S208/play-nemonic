@@ -1,6 +1,8 @@
 package com.nemonicworld.user.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -12,7 +14,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -22,6 +26,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -279,6 +284,87 @@ class UserControllerIntegrationTest {
         assertThat(userRepository.count()).isEqualTo(3);
     }
 
+    /**
+     * 서버에 존재하는 UUID로 프로필을 조회하면 재사용 가능한 사용자 정보가 반환되고 DB 메타데이터는 변경되지 않는지 검증합니다.
+     */
+    @Test
+    void getAnonymousUserProfileReturnsOkResponseAndDoesNotUpdateMetadata() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(2).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime updatedAt = createdAt.plusHours(1);
+        LocalDate birthday = LocalDate.of(1998, 3, 15);
+        LocalTime birthtime = LocalTime.of(13, 30);
+        AppUser appUser = AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt);
+        appUser.updateNickname("망고", updatedAt);
+        setBirthInfo(appUser, birthday, birthtime);
+        userRepository.saveAndFlush(appUser);
+
+        mockMvc.perform(get("/users/anonymous/profile").param("userUuid", userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("내 프로필 조회 성공"))
+            .andExpect(jsonPath("$.data.userUuid").value(userUuid.toString()))
+            .andExpect(jsonPath("$.data.nickname").value("망고"))
+            .andExpect(jsonPath("$.data.birthday").value("1998-03-15"))
+            .andExpect(jsonPath("$.data.birthtime").value("13:30:00"))
+            .andExpect(jsonPath("$.data.createdAt").value(createdAt.toString()))
+            .andExpect(jsonPath("$.data.updatedAt").value(updatedAt.toString()))
+            .andExpect(jsonPath("$.data.lastSeenAt").value(createdAt.toString()))
+            .andExpect(jsonPath("$.data.userAgent").doesNotExist());
+
+        AppUser savedUser = userRepository.findById(userUuid).orElseThrow();
+        assertThat(savedUser.getLastSeenAt()).isEqualTo(createdAt);
+        assertThat(savedUser.getUpdatedAt()).isEqualTo(updatedAt);
+        assertThat(savedUser.getUserAgent()).isEqualTo("MangoApp/1.0");
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    /**
+     * 생년월일과 생시가 아직 등록되지 않은 사용자는 프로필 응답에서 null로 반환되는지 검증합니다.
+     */
+    @Test
+    void getAnonymousUserProfileReturnsNullBirthInfoWhenMissing() throws Exception {
+        UUID userUuid = createExistingUser("MangoApp/1.0");
+
+        mockMvc.perform(get("/users/anonymous/profile").param("userUuid", userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.birthday").value(nullValue()))
+            .andExpect(jsonPath("$.data.birthtime").value(nullValue()));
+
+        assertThat(userRepository.findById(userUuid).orElseThrow().getBirthday()).isNull();
+        assertThat(userRepository.findById(userUuid).orElseThrow().getBirthtime()).isNull();
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    /**
+     * UUID가 없거나 형식이 잘못된 경우 400 응답을 반환하고 새 사용자를 만들지 않는지 검증합니다.
+     */
+    @Test
+    void getAnonymousUserProfileRejectsMissingOrInvalidUuidAndDoesNotCreateUser() throws Exception {
+        mockMvc.perform(get("/users/anonymous/profile")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        mockMvc.perform(get("/users/anonymous/profile").param("userUuid", "not-a-uuid"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * UUID 형식은 맞지만 서버에 없는 경우 404 응답을 반환하고 새 사용자를 만들지 않는지 검증합니다.
+     */
+    @Test
+    void getAnonymousUserProfileReturnsNotFoundAndDoesNotCreateUser() throws Exception {
+        UUID missingUserUuid = UUID.randomUUID();
+
+        mockMvc.perform(get("/users/anonymous/profile").param("userUuid", missingUserUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+
+        assertThat(userRepository.existsById(missingUserUuid)).isFalse();
+        assertThat(userRepository.count()).isZero();
+    }
+
     // 테스트에서 반복되는 정상 호출 흐름을 감싼 헬퍼입니다.
     private UUID createAnonymousUser(String userAgent) throws Exception {
         MvcResult result = mockMvc.perform(post("/users/anonymous").header(HttpHeaders.USER_AGENT, userAgent))
@@ -328,6 +414,11 @@ class UserControllerIntegrationTest {
         userRepository.saveAndFlush(AppUser.createAnonymous(userUuid, userAgent, createdAt));
 
         return userUuid;
+    }
+
+    private void setBirthInfo(AppUser appUser, LocalDate birthday, LocalTime birthtime) {
+        ReflectionTestUtils.setField(appUser, "birthday", birthday);
+        ReflectionTestUtils.setField(appUser, "birthtime", birthtime);
     }
 
     private String verifyRequestBody(UUID userUuid) {
