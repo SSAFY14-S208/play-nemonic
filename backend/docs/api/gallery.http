@@ -15,6 +15,15 @@ GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000&page=-
 ### Get my gallery - invalid size
 GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000&page=0&size=51
 
+### Get gallery item detail
+GET {{host}}/api/v1/gallery/8d25f3a5-3c5a-4f21-9f54-68fa4a402011?userUuid=550e8400-e29b-41d4-a716-446655440000
+
+### Get gallery item detail - invalid gallery ID
+GET {{host}}/api/v1/gallery/not-a-gallery-id?userUuid=550e8400-e29b-41d4-a716-446655440000
+
+### Get gallery item detail - invalid user UUID
+GET {{host}}/api/v1/gallery/8d25f3a5-3c5a-4f21-9f54-68fa4a402011?userUuid=not-a-uuid
+
 ### Delete gallery item
 DELETE {{host}}/api/v1/gallery/8d25f3a5-3c5a-4f21-9f54-68fa4a402011?userUuid=550e8400-e29b-41d4-a716-446655440000
 
