@@ -17,6 +17,7 @@ import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -495,9 +496,9 @@ class UserControllerIntegrationTest {
             .andExpect(jsonPath("$.data.birthday").value("1998-03-15"))
             .andExpect(jsonPath("$.data.birthtime").value("13:30:00"))
             .andExpect(jsonPath("$.data.isLunar").value(false))
-            .andExpect(jsonPath("$.data.createdAt").value(createdAt.toString()))
-            .andExpect(jsonPath("$.data.updatedAt").value(updatedAt.toString()))
-            .andExpect(jsonPath("$.data.lastSeenAt").value(createdAt.toString()))
+            .andExpect(jsonPath("$.data.createdAt").value(jsonDateTime(createdAt)))
+            .andExpect(jsonPath("$.data.updatedAt").value(jsonDateTime(updatedAt)))
+            .andExpect(jsonPath("$.data.lastSeenAt").value(jsonDateTime(createdAt)))
             .andExpect(jsonPath("$.data.userAgent").doesNotExist());
 
         AppUser savedUser = userRepository.findById(userUuid).orElseThrow();
@@ -630,6 +631,10 @@ class UserControllerIntegrationTest {
 
     private String verifyRequestBody(UUID userUuid) {
         return "{\"userUuid\":\"" + userUuid + "\"}";
+    }
+
+    private String jsonDateTime(LocalDateTime value) {
+        return value.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     }
 
     private String nicknameRequestBody(UUID userUuid, String nickname) throws Exception {

@@ -1,0 +1,16 @@
+@host = http://localhost:8080
+
+### Get my gallery
+GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000&page=0&size=20
+
+### Get my gallery - default pagination
+GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000
+
+### Get my gallery - invalid UUID
+GET {{host}}/api/v1/gallery?userUuid=not-a-uuid
+
+### Get my gallery - invalid page
+GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000&page=-1&size=20
+
+### Get my gallery - invalid size
+GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000&page=0&size=51

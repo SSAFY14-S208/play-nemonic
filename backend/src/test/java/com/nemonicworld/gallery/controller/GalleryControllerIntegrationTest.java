@@ -1,0 +1,345 @@
+package com.nemonicworld.gallery.controller;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.user.entity.AppUser;
+import com.nemonicworld.user.repository.UserRepository;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+
+@IntegrationTest
+@AutoConfigureMockMvc
+@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
+/**
+ * 내 갤러리 목록 조회 API의 정상, 예외, 페이지 흐름을 통합 검증합니다.
+ */
+class GalleryControllerIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @BeforeEach
+    void prepareGalleryTables() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS artifact (
+                id UUID PRIMARY KEY,
+                kind VARCHAR(32) NOT NULL,
+                source_room_id VARCHAR(64) NULL,
+                thumbnail_url VARCHAR(200) NOT NULL,
+                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS gallery (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NOT NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS fortune_artifact (
+                artifact_id UUID PRIMARY KEY,
+                description VARCHAR(1000) NOT NULL,
+                fortune_image_url VARCHAR(200) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
+                artifact_id UUID PRIMARY KEY,
+                combined_preview_url VARCHAR(200) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS flipbook_artifact (
+                artifact_id UUID PRIMARY KEY,
+                gif_url VARCHAR(200) NULL,
+                first_image VARCHAR(200) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS infinite_canvas_artifact (
+                artifact_id UUID PRIMARY KEY,
+                canvas_image_url VARCHAR(200) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS phone_artifact (
+                artifact_id UUID PRIMARY KEY,
+                phone_image_url VARCHAR(200) NULL
+            )
+            """);
+
+        jdbcTemplate.update("DELETE FROM fortune_artifact");
+        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
+        jdbcTemplate.update("DELETE FROM flipbook_artifact");
+        jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
+        jdbcTemplate.update("DELETE FROM phone_artifact");
+        jdbcTemplate.update("DELETE FROM gallery");
+        jdbcTemplate.update("DELETE FROM artifact");
+        jdbcTemplate.update("DELETE FROM app_user");
+    }
+
+    /**
+     * 여러 종류의 결과물이 artifact.created_at 기준 최신순으로 반환되는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryReturnsItemsOrderedByArtifactCreatedAtDesc() throws Exception {
+        UUID userUuid = createExistingUser();
+        LocalDateTime baseTime = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+
+        insertGalleryItem(userUuid, "phone", "phone-thumb", "phone-content", "PHONE", baseTime.plusMinutes(1), null);
+        insertGalleryItem(userUuid, "community_memo", "community-thumb", null, null, baseTime.plusMinutes(2), null);
+        insertGalleryItem(userUuid, "infinite_canvas", "canvas-thumb", "canvas-content", "CANVAS",
+            baseTime.plusMinutes(3), null);
+        insertGalleryItem(userUuid, "flipbook", "flipbook-thumb", "flipbook-content", "ROOM-F", baseTime.plusMinutes(4),
+            null);
+        insertGalleryItem(userUuid, "relay_drawing", "relay-thumb", "relay-content", "ROOM-R", baseTime.plusMinutes(5),
+            null);
+        insertGalleryItem(userUuid, "fortune", "fortune-thumb", "fortune-content", null, baseTime.plusMinutes(6), null);
+
+        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.message").value("내 갤러리 목록 조회 성공"))
+            .andExpect(jsonPath("$.data.items", hasSize(6)))
+            .andExpect(jsonPath("$.data.items[0].kind").value("fortune"))
+            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("fortune-thumb"))
+            .andExpect(jsonPath("$.data.items[0].contentUrl").value("fortune-content"))
+            .andExpect(jsonPath("$.data.items[1].kind").value("relay_drawing"))
+            .andExpect(jsonPath("$.data.items[1].contentUrl").value("relay-content"))
+            .andExpect(jsonPath("$.data.items[2].kind").value("flipbook"))
+            .andExpect(jsonPath("$.data.items[2].contentUrl").value("flipbook-content"))
+            .andExpect(jsonPath("$.data.items[3].kind").value("infinite_canvas"))
+            .andExpect(jsonPath("$.data.items[3].contentUrl").value("canvas-content"))
+            .andExpect(jsonPath("$.data.items[4].kind").value("community_memo"))
+            .andExpect(jsonPath("$.data.items[4].contentUrl").value("community-thumb"))
+            .andExpect(jsonPath("$.data.items[5].kind").value("phone"))
+            .andExpect(jsonPath("$.data.items[5].contentUrl").value("phone-content"))
+            .andExpect(jsonPath("$.data.page").value(0)).andExpect(jsonPath("$.data.size").value(20))
+            .andExpect(jsonPath("$.data.totalElements").value(6)).andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    /**
+     * 사용자는 존재하지만 보관 결과물이 없으면 빈 목록을 반환하는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryReturnsEmptyItemsWhenUserHasNoGalleryRows() throws Exception {
+        UUID userUuid = createExistingUser();
+
+        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items", hasSize(0))).andExpect(jsonPath("$.data.totalElements").value(0))
+            .andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    /**
+     * soft delete된 갤러리 항목과 artifact가 없는 비정상 행은 목록에서 제외되는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryExcludesSoftDeletedAndOrphanGalleryRows() throws Exception {
+        UUID userUuid = createExistingUser();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        insertGalleryItem(userUuid, "fortune", "active-thumb", "active-content", null, now, null);
+        insertGalleryItem(userUuid, "phone", "deleted-thumb", "deleted-content", null, now.plusMinutes(1), now);
+        insertGalleryOnly(UUID.randomUUID(), userUuid, UUID.randomUUID(), null);
+
+        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items", hasSize(1)))
+            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("active-thumb"))
+            .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    /**
+     * subtype row나 subtype URL이 없어도 thumbnailUrl fallback으로 목록 조회가 실패하지 않는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryFallsBackToThumbnailWhenSubtypeUrlIsMissing() throws Exception {
+        UUID userUuid = createExistingUser();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactId = UUID.randomUUID();
+        UUID galleryId = UUID.randomUUID();
+
+        insertArtifact(artifactId, "fortune", "fallback-thumb", null, now);
+        insertGalleryOnly(galleryId, userUuid, artifactId, null);
+
+        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items", hasSize(1)))
+            .andExpect(jsonPath("$.data.items[0].contentUrl").value("fallback-thumb"));
+    }
+
+    /**
+     * 페이지 번호, 크기, 전체 개수, 다음 페이지 여부가 기대대로 계산되는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryReturnsPaginationMetadata() throws Exception {
+        UUID userUuid = createExistingUser();
+        LocalDateTime baseTime = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+
+        insertGalleryItem(userUuid, "fortune", "first-thumb", "first-content", null, baseTime.plusMinutes(3), null);
+        insertGalleryItem(userUuid, "phone", "second-thumb", "second-content", null, baseTime.plusMinutes(2), null);
+        insertGalleryItem(userUuid, "community_memo", "third-thumb", null, null, baseTime.plusMinutes(1), null);
+
+        mockMvc
+            .perform(
+                get("/api/v1/gallery").param("userUuid", userUuid.toString()).param("page", "0").param("size", "2"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(2)))
+            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("first-thumb"))
+            .andExpect(jsonPath("$.data.page").value(0)).andExpect(jsonPath("$.data.size").value(2))
+            .andExpect(jsonPath("$.data.totalElements").value(3)).andExpect(jsonPath("$.data.hasNext").value(true));
+
+        mockMvc
+            .perform(
+                get("/api/v1/gallery").param("userUuid", userUuid.toString()).param("page", "1").param("size", "2"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
+            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("third-thumb"))
+            .andExpect(jsonPath("$.data.page").value(1)).andExpect(jsonPath("$.data.size").value(2))
+            .andExpect(jsonPath("$.data.totalElements").value(3)).andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    /**
+     * 조회 성공 시 app_user의 방문/수정 메타데이터가 변경되지 않는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryDoesNotUpdateUserMetadata() throws Exception {
+        UUID userUuid = createExistingUser();
+        AppUser beforeUser = userRepository.findById(userUuid).orElseThrow();
+        LocalDateTime beforeLastSeenAt = beforeUser.getLastSeenAt();
+        LocalDateTime beforeUpdatedAt = beforeUser.getUpdatedAt();
+        String beforeUserAgent = beforeUser.getUserAgent();
+
+        insertGalleryItem(userUuid, "fortune", "fortune-thumb", "fortune-content", null, LocalDateTime.now(), null);
+
+        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk());
+
+        AppUser afterUser = userRepository.findById(userUuid).orElseThrow();
+        assertThat(afterUser.getLastSeenAt()).isEqualTo(beforeLastSeenAt);
+        assertThat(afterUser.getUpdatedAt()).isEqualTo(beforeUpdatedAt);
+        assertThat(afterUser.getUserAgent()).isEqualTo(beforeUserAgent);
+    }
+
+    /**
+     * UUID가 없거나 형식이 잘못되면 400 응답을 반환하고 새 사용자를 만들지 않는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryRejectsMissingOrInvalidUuidAndDoesNotCreateUser() throws Exception {
+        mockMvc.perform(get("/api/v1/gallery")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        mockMvc.perform(get("/api/v1/gallery").param("userUuid", "not-a-uuid")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * UUID 형식은 맞지만 사용자가 없으면 404 응답을 반환하고 새 사용자를 만들지 않는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryReturnsNotFoundAndDoesNotCreateUser() throws Exception {
+        UUID missingUserUuid = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/v1/gallery").param("userUuid", missingUserUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+
+        assertThat(userRepository.existsById(missingUserUuid)).isFalse();
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * page가 음수이거나 size가 범위를 벗어나면 400 응답을 반환하는지 검증합니다.
+     */
+    @Test
+    void getMyGalleryRejectsInvalidPagination() throws Exception {
+        UUID userUuid = createExistingUser();
+
+        assertInvalidPagination(userUuid, "-1", "20");
+        assertInvalidPagination(userUuid, "0", "0");
+        assertInvalidPagination(userUuid, "0", "51");
+        assertInvalidPagination(userUuid, "zero", "20");
+    }
+
+    private void assertInvalidPagination(UUID userUuid, String page, String size) throws Exception {
+        mockMvc
+            .perform(
+                get("/api/v1/gallery").param("userUuid", userUuid.toString()).param("page", page).param("size", size))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("페이지 요청 값이 올바르지 않습니다."));
+    }
+
+    private UUID createExistingUser() {
+        UUID userUuid = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+
+        userRepository.saveAndFlush(AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt));
+
+        return userUuid;
+    }
+
+    private void insertGalleryItem(UUID userUuid, String kind, String thumbnailUrl, String contentUrl,
+        String sourceRoomId, LocalDateTime createdAt, LocalDateTime deletedAt) {
+        UUID artifactId = UUID.randomUUID();
+        UUID galleryId = UUID.randomUUID();
+
+        insertArtifact(artifactId, kind, thumbnailUrl, sourceRoomId, createdAt);
+        insertSubtypeArtifact(kind, artifactId, contentUrl);
+        insertGalleryOnly(galleryId, userUuid, artifactId, deletedAt);
+    }
+
+    private void insertArtifact(UUID artifactId, String kind, String thumbnailUrl, String sourceRoomId,
+        LocalDateTime createdAt) {
+        String sql = """
+            INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
+            VALUES (?, ?, ?, ?, '{}', ?, ?)
+            """;
+
+        jdbcTemplate.update(sql, artifactId, kind, sourceRoomId, thumbnailUrl, createdAt, createdAt);
+    }
+
+    private void insertSubtypeArtifact(String kind, UUID artifactId, String contentUrl) {
+        if ("fortune".equals(kind)) {
+            jdbcTemplate.update(
+                "INSERT INTO fortune_artifact (artifact_id, description, fortune_image_url) VALUES (?, '{}', ?)",
+                artifactId, contentUrl);
+        } else if ("relay_drawing".equals(kind)) {
+            jdbcTemplate.update("INSERT INTO relay_drawing_artifact (artifact_id, combined_preview_url) VALUES (?, ?)",
+                artifactId, contentUrl);
+        } else if ("flipbook".equals(kind)) {
+            jdbcTemplate.update("INSERT INTO flipbook_artifact (artifact_id, gif_url, first_image) VALUES (?, ?, ?)",
+                artifactId, contentUrl, "first-image");
+        } else if ("infinite_canvas".equals(kind)) {
+            jdbcTemplate.update("INSERT INTO infinite_canvas_artifact (artifact_id, canvas_image_url) VALUES (?, ?)",
+                artifactId, contentUrl);
+        } else if ("phone".equals(kind)) {
+            jdbcTemplate.update("INSERT INTO phone_artifact (artifact_id, phone_image_url) VALUES (?, ?)", artifactId,
+                contentUrl);
+        }
+    }
+
+    private void insertGalleryOnly(UUID galleryId, UUID userUuid, UUID artifactId, LocalDateTime deletedAt) {
+        jdbcTemplate.update("INSERT INTO gallery (id, user_id, artifact_id, deleted_at) VALUES (?, ?, ?, ?)", galleryId,
+            userUuid, artifactId, deletedAt);
+    }
+}
