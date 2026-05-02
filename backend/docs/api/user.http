@@ -1,14 +1,14 @@
 @host = http://localhost:8080
 
 ### Create anonymous user
-POST {{host}}/users/anonymous
+POST {{host}}/api/v1/users/anonymous
 User-Agent: MangoApp/1.0
 
 ### Create anonymous user without User-Agent
-POST {{host}}/users/anonymous
+POST {{host}}/api/v1/users/anonymous
 
 ### Verify anonymous user UUID
-POST {{host}}/users/anonymous/verify
+POST {{host}}/api/v1/users/anonymous/verify
 Content-Type: application/json
 User-Agent: MangoApp/1.0
 
@@ -17,7 +17,7 @@ User-Agent: MangoApp/1.0
 }
 
 ### Verify anonymous user UUID without User-Agent
-POST {{host}}/users/anonymous/verify
+POST {{host}}/api/v1/users/anonymous/verify
 Content-Type: application/json
 
 {
@@ -25,7 +25,7 @@ Content-Type: application/json
 }
 
 ### Verify anonymous user UUID - invalid format
-POST {{host}}/users/anonymous/verify
+POST {{host}}/api/v1/users/anonymous/verify
 Content-Type: application/json
 
 {
@@ -33,7 +33,7 @@ Content-Type: application/json
 }
 
 ### Update anonymous user nickname
-PATCH {{host}}/users/anonymous/nickname
+PATCH {{host}}/api/v1/users/anonymous/nickname
 Content-Type: application/json
 
 {
@@ -42,7 +42,7 @@ Content-Type: application/json
 }
 
 ### Update anonymous user nickname - spaces, symbols, emoji
-PATCH {{host}}/users/anonymous/nickname
+PATCH {{host}}/api/v1/users/anonymous/nickname
 Content-Type: application/json
 
 {
@@ -51,7 +51,7 @@ Content-Type: application/json
 }
 
 ### Update anonymous user nickname - invalid nickname
-PATCH {{host}}/users/anonymous/nickname
+PATCH {{host}}/api/v1/users/anonymous/nickname
 Content-Type: application/json
 
 {
@@ -60,7 +60,7 @@ Content-Type: application/json
 }
 
 ### Register anonymous user birth info
-POST {{host}}/users/anonymous/birth-info
+POST {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
 
 {
@@ -71,7 +71,7 @@ Content-Type: application/json
 }
 
 ### Register anonymous user birth info - already registered
-POST {{host}}/users/anonymous/birth-info
+POST {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
 
 {
@@ -82,7 +82,7 @@ Content-Type: application/json
 }
 
 ### Update anonymous user birth info
-PATCH {{host}}/users/anonymous/birth-info
+PATCH {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
 
 {
@@ -93,7 +93,7 @@ Content-Type: application/json
 }
 
 ### Update anonymous user birth info - invalid birthtime
-PATCH {{host}}/users/anonymous/birth-info
+PATCH {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
 
 {
@@ -104,7 +104,7 @@ Content-Type: application/json
 }
 
 ### Get anonymous user profile
-GET {{host}}/users/anonymous/profile?userUuid=550e8400-e29b-41d4-a716-446655440000
+GET {{host}}/api/v1/users/anonymous/profile?userUuid=550e8400-e29b-41d4-a716-446655440000
 
 ### Get anonymous user profile - invalid UUID
-GET {{host}}/users/anonymous/profile?userUuid=not-a-uuid
+GET {{host}}/api/v1/users/anonymous/profile?userUuid=not-a-uuid

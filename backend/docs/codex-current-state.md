@@ -7,11 +7,11 @@ Last updated: 2026-04-30
 - Backend agent harness has been prepared for the `backend/` Spring Boot module.
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
-- The first real backend feature API now includes anonymous user UUID issuance through `POST /users/anonymous`.
-- Anonymous user re-entry now includes `POST /users/anonymous/verify` to validate a stored UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
-- Anonymous user nickname setup/change now uses `PATCH /users/anonymous/nickname` with 1-10 code point validation and no duplicate check.
-- Anonymous user profile lookup now uses `GET /users/anonymous/profile?userUuid=...` and returns reusable profile fields without updating visit metadata.
-- Anonymous user birth info now uses `POST /users/anonymous/birth-info` for first registration and `PATCH /users/anonymous/birth-info` for updates.
+- The first real backend feature API now includes anonymous user UUID issuance through `POST /api/v1/users/anonymous`.
+- Anonymous user re-entry now includes `POST /api/v1/users/anonymous/verify` to validate a stored UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
+- Anonymous user nickname setup/change now uses `PATCH /api/v1/users/anonymous/nickname` with 1-10 code point validation and no duplicate check.
+- Anonymous user profile lookup now uses `GET /api/v1/users/anonymous/profile?userUuid=...` and returns reusable profile fields without updating visit metadata.
+- Anonymous user birth info now uses `POST /api/v1/users/anonymous/birth-info` for first registration and `PATCH /api/v1/users/anonymous/birth-info` for updates.
 - `app_user.is_lunar` is added through Flyway V3 so fortune features can reuse birthday, birthtime, and lunar/solar selection.
 - My gallery listing now uses `GET /api/v1/gallery?userUuid=...` and reads existing gallery/artifact rows without MinIO calls.
 - My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}?userUuid=...` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
@@ -22,6 +22,7 @@ Last updated: 2026-04-30
 - Root Java package is `com.nemonicworld`.
 - New backend features should follow `backend/docs/backend-architecture.md`.
 - Feature packages use `controller`, `service`, `repository`, `entity`, and `dto`; do not create a separate `domain` package.
+- REST controller paths receive the common `/api/v1` prefix through `ApiPathPrefixConfig`; controller-level mappings should keep only feature paths such as `/users` or `/gallery`.
 - Commands are run from the repository root unless a script says otherwise.
 - Verification is standardized through `backend/scripts/format.ps1` and `backend/scripts/verify.ps1`.
 - PostgreSQL-specific Flyway migrations are verified through `backend/scripts/verify-migration.ps1`.
