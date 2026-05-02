@@ -1,6 +1,7 @@
 package com.nemonicworld.gallery.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -90,7 +92,16 @@ class GalleryControllerIntegrationTest {
                 phone_image_url VARCHAR(200) NULL
             )
             """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS community_memo (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
 
+        jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM fortune_artifact");
         jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
         jdbcTemplate.update("DELETE FROM flipbook_artifact");
@@ -238,6 +249,102 @@ class GalleryControllerIntegrationTest {
     }
 
     /**
+     * 갤러리 삭제는 보관 관계만 soft delete하고 원본 결과물과 커뮤니티 게시 메모는 유지하는지 검증합니다.
+     */
+    @Test
+    void deleteMyGalleryItemSoftDeletesGalleryOnly() throws Exception {
+        UUID userUuid = createExistingUser();
+        GalleryTestRow row = insertGalleryItem(userUuid, "phone", "phone-thumb", "phone-content", null,
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), null);
+        UUID memoId = insertCommunityMemo(userUuid, row.artifactId());
+        LocalDateTime beforeArtifactUpdatedAt = findArtifactUpdatedAt(row.artifactId());
+
+        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", row.galleryId()).param("userUuid", userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("갤러리 항목 삭제 성공"))
+            .andExpect(jsonPath("$.data.galleryId").value(row.galleryId().toString()))
+            .andExpect(jsonPath("$.data.artifactId").value(row.artifactId().toString()))
+            .andExpect(jsonPath("$.data.deletedAt").isNotEmpty());
+
+        assertThat(findGalleryDeletedAt(row.galleryId())).isNotNull();
+        assertThat(findArtifactUpdatedAt(row.artifactId())).isEqualTo(beforeArtifactUpdatedAt);
+        assertThat(findPhoneImageUrl(row.artifactId())).isEqualTo("phone-content");
+        assertThat(countCommunityMemoRows(memoId)).isEqualTo(1);
+        assertThat(findCommunityMemoDeletedAt(memoId)).isNull();
+    }
+
+    /**
+     * 삭제된 갤러리 항목은 기존 목록 조회에서 제외되는지 검증합니다.
+     */
+    @Test
+    void deleteMyGalleryItemExcludesItemFromGalleryList() throws Exception {
+        UUID userUuid = createExistingUser();
+        GalleryTestRow row = insertGalleryItem(userUuid, "fortune", "fortune-thumb", "fortune-content", null,
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), null);
+
+        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", row.galleryId()).param("userUuid", userUuid.toString()))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items", hasSize(0))).andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    /**
+     * userUuid나 galleryId 형식이 잘못되면 각각의 400 메시지를 반환하는지 검증합니다.
+     */
+    @Test
+    void deleteMyGalleryItemRejectsInvalidUuidValues() throws Exception {
+        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", UUID.randomUUID())).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", UUID.randomUUID()).param("userUuid", "not-a-uuid"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+
+        mockMvc
+            .perform(delete("/api/v1/gallery/{galleryId}", "not-a-gallery-id").param("userUuid",
+                UUID.randomUUID().toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 갤러리 항목 ID 형식입니다."));
+    }
+
+    /**
+     * 존재하지 않는 사용자 UUID로 삭제를 요청하면 새 사용자를 만들지 않고 404를 반환하는지 검증합니다.
+     */
+    @Test
+    void deleteMyGalleryItemReturnsNotFoundForMissingUserAndDoesNotCreateUser() throws Exception {
+        UUID missingUserUuid = UUID.randomUUID();
+
+        mockMvc
+            .perform(
+                delete("/api/v1/gallery/{galleryId}", UUID.randomUUID()).param("userUuid", missingUserUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+
+        assertThat(userRepository.existsById(missingUserUuid)).isFalse();
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * 없는 항목, 타인 항목, 이미 삭제된 항목은 모두 존재하지 않는 갤러리 항목으로 처리하는지 검증합니다.
+     */
+    @Test
+    void deleteMyGalleryItemReturnsNotFoundForUnavailableGalleryRows() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID otherUserUuid = createExistingUser();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        GalleryTestRow otherUserRow = insertGalleryItem(otherUserUuid, "fortune", "other-thumb", "other-content", null,
+            now, null);
+        GalleryTestRow deletedRow = insertGalleryItem(userUuid, "phone", "deleted-thumb", "deleted-content", null, now,
+            now);
+
+        assertGalleryItemNotFound(userUuid, UUID.randomUUID());
+        assertGalleryItemNotFound(userUuid, otherUserRow.galleryId());
+        assertGalleryItemNotFound(userUuid, deletedRow.galleryId());
+    }
+
+    /**
      * UUID가 없거나 형식이 잘못되면 400 응답을 반환하고 새 사용자를 만들지 않는지 검증합니다.
      */
     @Test
@@ -298,7 +405,7 @@ class GalleryControllerIntegrationTest {
         return userUuid;
     }
 
-    private void insertGalleryItem(UUID userUuid, String kind, String thumbnailUrl, String contentUrl,
+    private GalleryTestRow insertGalleryItem(UUID userUuid, String kind, String thumbnailUrl, String contentUrl,
         String sourceRoomId, LocalDateTime createdAt, LocalDateTime deletedAt) {
         UUID artifactId = UUID.randomUUID();
         UUID galleryId = UUID.randomUUID();
@@ -306,6 +413,8 @@ class GalleryControllerIntegrationTest {
         insertArtifact(artifactId, kind, thumbnailUrl, sourceRoomId, createdAt);
         insertSubtypeArtifact(kind, artifactId, contentUrl);
         insertGalleryOnly(galleryId, userUuid, artifactId, deletedAt);
+
+        return new GalleryTestRow(galleryId, artifactId);
     }
 
     private void insertArtifact(UUID artifactId, String kind, String thumbnailUrl, String sourceRoomId,
@@ -341,5 +450,54 @@ class GalleryControllerIntegrationTest {
     private void insertGalleryOnly(UUID galleryId, UUID userUuid, UUID artifactId, LocalDateTime deletedAt) {
         jdbcTemplate.update("INSERT INTO gallery (id, user_id, artifact_id, deleted_at) VALUES (?, ?, ?, ?)", galleryId,
             userUuid, artifactId, deletedAt);
+    }
+
+    private UUID insertCommunityMemo(UUID userUuid, UUID artifactId) {
+        UUID memoId = UUID.randomUUID();
+        jdbcTemplate.update("INSERT INTO community_memo (id, user_id, artifact_id, deleted_at) VALUES (?, ?, ?, NULL)",
+            memoId, userUuid, artifactId);
+
+        return memoId;
+    }
+
+    private void assertGalleryItemNotFound(UUID userUuid, UUID galleryId) throws Exception {
+        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", galleryId).param("userUuid", userUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 갤러리 항목입니다."));
+    }
+
+    private LocalDateTime findGalleryDeletedAt(UUID galleryId) {
+        return jdbcTemplate.queryForObject("SELECT deleted_at FROM gallery WHERE id = ?", (resultSet, rowNumber) -> {
+            Timestamp timestamp = resultSet.getTimestamp("deleted_at");
+            return timestamp == null ? null : timestamp.toLocalDateTime();
+        }, galleryId);
+    }
+
+    private LocalDateTime findArtifactUpdatedAt(UUID artifactId) {
+        return jdbcTemplate.queryForObject("SELECT updated_at FROM artifact WHERE id = ?",
+            (resultSet, rowNumber) -> resultSet.getTimestamp("updated_at").toLocalDateTime(), artifactId);
+    }
+
+    private String findPhoneImageUrl(UUID artifactId) {
+        return jdbcTemplate.queryForObject("SELECT phone_image_url FROM phone_artifact WHERE artifact_id = ?",
+            String.class, artifactId);
+    }
+
+    private int countCommunityMemoRows(UUID memoId) {
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM community_memo WHERE id = ?", Integer.class,
+            memoId);
+
+        return count == null ? 0 : count;
+    }
+
+    private LocalDateTime findCommunityMemoDeletedAt(UUID memoId) {
+        return jdbcTemplate.queryForObject("SELECT deleted_at FROM community_memo WHERE id = ?",
+            (resultSet, rowNumber) -> {
+                Timestamp timestamp = resultSet.getTimestamp("deleted_at");
+                return timestamp == null ? null : timestamp.toLocalDateTime();
+            }, memoId);
+    }
+
+    private record GalleryTestRow(UUID galleryId, UUID artifactId) {
     }
 }
