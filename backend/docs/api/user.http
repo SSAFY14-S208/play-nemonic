@@ -59,6 +59,50 @@ Content-Type: application/json
   "nickname": "12345678901"
 }
 
+### Register anonymous user birth info
+POST {{host}}/users/anonymous/birth-info
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "birthday": "1998-03-15",
+  "birthtime": "13:30:00",
+  "isLunar": false
+}
+
+### Register anonymous user birth info - already registered
+POST {{host}}/users/anonymous/birth-info
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "birthday": "1998-03-15",
+  "birthtime": "13:30:00",
+  "isLunar": false
+}
+
+### Update anonymous user birth info
+PATCH {{host}}/users/anonymous/birth-info
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "birthday": "1998-03-15",
+  "birthtime": "13:30:00",
+  "isLunar": true
+}
+
+### Update anonymous user birth info - invalid birthtime
+PATCH {{host}}/users/anonymous/birth-info
+Content-Type: application/json
+
+{
+  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "birthday": "1998-03-15",
+  "birthtime": "13:30",
+  "isLunar": true
+}
+
 ### Get anonymous user profile
 GET {{host}}/users/anonymous/profile?userUuid=550e8400-e29b-41d4-a716-446655440000
 
