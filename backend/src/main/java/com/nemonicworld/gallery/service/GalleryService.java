@@ -1,16 +1,22 @@
 package com.nemonicworld.gallery.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.gallery.dto.response.GalleryDeleteResponse;
+import com.nemonicworld.gallery.dto.response.GalleryDetailResponse;
 import com.nemonicworld.gallery.dto.response.GalleryItemResponse;
 import com.nemonicworld.gallery.dto.response.GalleryListResponse;
 import com.nemonicworld.gallery.repository.GalleryItemRow;
 import com.nemonicworld.gallery.repository.GalleryRepository;
+import com.nemonicworld.gallery.repository.GalleryRepository.GalleryDetailRow;
 import com.nemonicworld.gallery.repository.GalleryRepository.GalleryDeleteTargetRow;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -31,13 +37,18 @@ public class GalleryService {
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 50;
+    private static final TypeReference<Map<String, Object>> META_TYPE = new TypeReference<>() {
+    };
 
     private final GalleryRepository galleryRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
-    public GalleryService(GalleryRepository galleryRepository, UserRepository userRepository) {
+    public GalleryService(GalleryRepository galleryRepository, UserRepository userRepository,
+        ObjectMapper objectMapper) {
         this.galleryRepository = galleryRepository;
         this.userRepository = userRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -62,6 +73,26 @@ public class GalleryService {
     }
 
     /**
+     * 존재하는 익명 사용자의 보관 결과물 한 건을 상세 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public GalleryDetailResponse getMyGalleryItemDetail(String userUuidValue, String galleryIdValue) {
+        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID galleryId = parseGalleryId(galleryIdValue);
+
+        if (!userRepository.existsById(userUuid)) {
+            throw new NotFoundException(USER_NOT_FOUND_MESSAGE);
+        }
+
+        GalleryDetailRow row = galleryRepository.findActiveItemDetail(galleryId, userUuid)
+            .orElseThrow(() -> new NotFoundException(GALLERY_ITEM_NOT_FOUND_MESSAGE));
+
+        return new GalleryDetailResponse(row.galleryId().toString(), row.artifactId().toString(), row.kind(),
+            row.thumbnailUrl(), row.contentUrl(), row.sourceRoomId(), parseMeta(row.meta()), row.createdAt(),
+            row.updatedAt());
+    }
+
+    /**
      * 원본 artifact는 보존하고 갤러리 보관 관계만 soft delete 처리합니다.
      */
     @Transactional
@@ -83,6 +114,19 @@ public class GalleryService {
         }
 
         return new GalleryDeleteResponse(target.galleryId().toString(), target.artifactId().toString(), deletedAt);
+    }
+
+    private Map<String, Object> parseMeta(String meta) {
+        if (!StringUtils.hasText(meta)) {
+            return Map.of();
+        }
+
+        try {
+            Map<String, Object> parsedMeta = objectMapper.readValue(meta, META_TYPE);
+            return parsedMeta == null ? Map.of() : parsedMeta;
+        } catch (JsonProcessingException e) {
+            return Map.of();
+        }
     }
 
     private UUID parseUserUuid(String userUuid) {
