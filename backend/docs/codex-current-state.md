@@ -13,6 +13,7 @@ Last updated: 2026-04-30
 - Anonymous user profile lookup now uses `GET /users/anonymous/profile?userUuid=...` and returns reusable profile fields without updating visit metadata.
 - Anonymous user birth info now uses `POST /users/anonymous/birth-info` for first registration and `PATCH /users/anonymous/birth-info` for updates.
 - `app_user.is_lunar` is added through Flyway V3 so fortune features can reuse birthday, birthtime, and lunar/solar selection.
+- My gallery listing now uses `GET /api/v1/gallery?userUuid=...` and reads existing gallery/artifact rows without MinIO calls.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
