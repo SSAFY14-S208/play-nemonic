@@ -65,4 +65,28 @@ class UserOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/users/anonymous/profile'].get.tags[0]").value("User")).andExpect(
                 jsonPath("$.paths['/users/anonymous/profile'].get.responses['200'].description").value("내 프로필 조회 성공"));
     }
+
+    /**
+     * /v3/api-docs 응답에 POST /users/anonymous/birth-info 문서 정보가 포함되는지 확인합니다.
+     */
+    @Test
+    void anonymousUserBirthInfoRegisterApiIsExposedInOpenApiDocs() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/users/anonymous/birth-info'].post.summary").value("익명 사용자 생년월일 정보 등록"))
+            .andExpect(jsonPath("$.paths['/users/anonymous/birth-info'].post.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/users/anonymous/birth-info'].post.responses['200'].description")
+                .value("생년월일 정보 등록 성공"));
+    }
+
+    /**
+     * /v3/api-docs 응답에 PATCH /users/anonymous/birth-info 문서 정보가 포함되는지 확인합니다.
+     */
+    @Test
+    void anonymousUserBirthInfoUpdateApiIsExposedInOpenApiDocs() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/users/anonymous/birth-info'].patch.summary").value("익명 사용자 생년월일 정보 수정"))
+            .andExpect(jsonPath("$.paths['/users/anonymous/birth-info'].patch.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/users/anonymous/birth-info'].patch.responses['200'].description")
+                .value("생년월일 정보 수정 성공"));
+    }
 }
