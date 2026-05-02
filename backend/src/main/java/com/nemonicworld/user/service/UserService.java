@@ -49,7 +49,7 @@ public class UserService {
         AppUser savedUser = userRepository.save(appUser);
 
         return new AnonymousUserResponse(savedUser.getId().toString(), savedUser.getNickname(),
-                savedUser.getCreatedAt());
+            savedUser.getCreatedAt());
     }
 
     /**
@@ -59,13 +59,13 @@ public class UserService {
     public AnonymousUserVerifyResponse verifyAnonymousUser(AnonymousUserVerifyRequest request, String userAgent) {
         UUID userUuid = parseUserUuid(request == null ? null : request.userUuid());
         AppUser appUser = userRepository.findById(userUuid)
-                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         appUser.updateLastSeen(normalizeUserAgent(userAgent), now);
 
         return new AnonymousUserVerifyResponse(appUser.getId().toString(), appUser.getNickname(),
-                appUser.getLastSeenAt());
+            appUser.getLastSeenAt());
     }
 
     /**
@@ -80,13 +80,13 @@ public class UserService {
         validateNickname(nickname);
 
         AppUser appUser = userRepository.findById(userUuid)
-                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         appUser.updateNickname(nickname, now);
 
         return new AnonymousUserNicknameResponse(appUser.getId().toString(), appUser.getNickname(),
-                appUser.getUpdatedAt());
+            appUser.getUpdatedAt());
     }
 
     private UUID parseUserUuid(String userUuid) {
