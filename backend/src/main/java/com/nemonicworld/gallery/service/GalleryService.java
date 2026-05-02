@@ -2,11 +2,15 @@ package com.nemonicworld.gallery.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.NotFoundException;
+import com.nemonicworld.gallery.dto.response.GalleryDeleteResponse;
 import com.nemonicworld.gallery.dto.response.GalleryItemResponse;
 import com.nemonicworld.gallery.dto.response.GalleryListResponse;
 import com.nemonicworld.gallery.repository.GalleryItemRow;
 import com.nemonicworld.gallery.repository.GalleryRepository;
+import com.nemonicworld.gallery.repository.GalleryRepository.GalleryDeleteTargetRow;
 import com.nemonicworld.user.repository.UserRepository;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -20,7 +24,9 @@ import org.springframework.util.StringUtils;
 public class GalleryService {
 
     private static final String INVALID_UUID_MESSAGE = "유효하지 않은 UUID 형식입니다.";
+    private static final String INVALID_GALLERY_ID_MESSAGE = "유효하지 않은 갤러리 항목 ID 형식입니다.";
     private static final String USER_NOT_FOUND_MESSAGE = "존재하지 않는 사용자입니다.";
+    private static final String GALLERY_ITEM_NOT_FOUND_MESSAGE = "존재하지 않는 갤러리 항목입니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
@@ -55,15 +61,47 @@ public class GalleryService {
         return new GalleryListResponse(items, page, size, totalElements, calculateHasNext(page, size, totalElements));
     }
 
+    /**
+     * 원본 artifact는 보존하고 갤러리 보관 관계만 soft delete 처리합니다.
+     */
+    @Transactional
+    public GalleryDeleteResponse deleteMyGalleryItem(String userUuidValue, String galleryIdValue) {
+        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID galleryId = parseGalleryId(galleryIdValue);
+
+        if (!userRepository.existsById(userUuid)) {
+            throw new NotFoundException(USER_NOT_FOUND_MESSAGE);
+        }
+
+        GalleryDeleteTargetRow target = galleryRepository.findActiveDeleteTarget(galleryId, userUuid)
+            .orElseThrow(() -> new NotFoundException(GALLERY_ITEM_NOT_FOUND_MESSAGE));
+        LocalDateTime deletedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        int updatedCount = galleryRepository.softDeleteGalleryItem(galleryId, userUuid, deletedAt);
+
+        if (updatedCount == 0) {
+            throw new NotFoundException(GALLERY_ITEM_NOT_FOUND_MESSAGE);
+        }
+
+        return new GalleryDeleteResponse(target.galleryId().toString(), target.artifactId().toString(), deletedAt);
+    }
+
     private UUID parseUserUuid(String userUuid) {
-        if (!StringUtils.hasText(userUuid)) {
-            throw new BadRequestException(INVALID_UUID_MESSAGE);
+        return parseUuid(userUuid, INVALID_UUID_MESSAGE);
+    }
+
+    private UUID parseGalleryId(String galleryId) {
+        return parseUuid(galleryId, INVALID_GALLERY_ID_MESSAGE);
+    }
+
+    private UUID parseUuid(String value, String message) {
+        if (!StringUtils.hasText(value)) {
+            throw new BadRequestException(message);
         }
 
         try {
-            return UUID.fromString(userUuid);
+            return UUID.fromString(value);
         } catch (IllegalArgumentException e) {
-            throw new BadRequestException(INVALID_UUID_MESSAGE);
+            throw new BadRequestException(message);
         }
     }
 

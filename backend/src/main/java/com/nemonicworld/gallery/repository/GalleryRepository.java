@@ -2,7 +2,9 @@ package com.nemonicworld.gallery.repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -50,6 +52,24 @@ public class GalleryRepository {
 
     private static final String COUNT_ACTIVE_ITEMS_SQL = "SELECT COUNT(*) " + ACTIVE_GALLERY_FROM;
 
+    private static final String FIND_ACTIVE_DELETE_TARGET_SQL = """
+        SELECT
+            g.id AS gallery_id,
+            g.artifact_id AS artifact_id
+        FROM gallery g
+        WHERE g.id = :galleryId
+          AND g.user_id = :userUuid
+          AND g.deleted_at IS NULL
+        """;
+
+    private static final String SOFT_DELETE_GALLERY_ITEM_SQL = """
+        UPDATE gallery
+        SET deleted_at = :deletedAt
+        WHERE id = :galleryId
+          AND user_id = :userUuid
+          AND deleted_at IS NULL
+        """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public GalleryRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -70,10 +90,34 @@ public class GalleryRepository {
         return count == null ? 0L : count;
     }
 
+    public Optional<GalleryDeleteTargetRow> findActiveDeleteTarget(UUID galleryId, UUID userUuid) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("galleryId", galleryId).addValue("userUuid",
+            userUuid);
+
+        List<GalleryDeleteTargetRow> rows = jdbcTemplate.query(FIND_ACTIVE_DELETE_TARGET_SQL, params,
+            (resultSet, rowNumber) -> new GalleryDeleteTargetRow(resultSet.getObject("gallery_id", UUID.class),
+                resultSet.getObject("artifact_id", UUID.class)));
+
+        return rows.stream().findFirst();
+    }
+
+    public int softDeleteGalleryItem(UUID galleryId, UUID userUuid, LocalDateTime deletedAt) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("galleryId", galleryId)
+            .addValue("userUuid", userUuid).addValue("deletedAt", deletedAt);
+
+        return jdbcTemplate.update(SOFT_DELETE_GALLERY_ITEM_SQL, params);
+    }
+
     private GalleryItemRow mapRow(ResultSet resultSet, int rowNumber) throws SQLException {
         return new GalleryItemRow(resultSet.getObject("gallery_id", UUID.class),
             resultSet.getObject("artifact_id", UUID.class), resultSet.getString("kind"),
             resultSet.getString("thumbnail_url"), resultSet.getString("content_url"),
             resultSet.getString("source_room_id"), resultSet.getTimestamp("created_at").toLocalDateTime());
+    }
+
+    /**
+     * 삭제 대상 gallery row의 원본 artifact 식별자를 함께 전달하는 내부 행 모델입니다.
+     */
+    public record GalleryDeleteTargetRow(UUID galleryId, UUID artifactId) {
     }
 }
