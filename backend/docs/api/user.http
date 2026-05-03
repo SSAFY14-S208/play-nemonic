@@ -10,21 +10,21 @@ POST {{host}}/api/v1/users/anonymous
 
 ### Verify anonymous user UUID
 POST {{host}}/api/v1/users/anonymous/verify
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 User-Agent: MangoApp/1.0
 
 ### Verify anonymous user UUID without User-Agent
 POST {{host}}/api/v1/users/anonymous/verify
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Verify anonymous user UUID - invalid format
 POST {{host}}/api/v1/users/anonymous/verify
-X-Anonymous-User-UUID: not-a-uuid
+Anonymous-User-UUID: not-a-uuid
 
 ### Update anonymous user nickname
 PATCH {{host}}/api/v1/users/anonymous/nickname
 Content-Type: application/json
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "nickname": "망고"
@@ -33,7 +33,7 @@ X-Anonymous-User-UUID: {{anonymousUserUuid}}
 ### Update anonymous user nickname - spaces, symbols, emoji
 PATCH {{host}}/api/v1/users/anonymous/nickname
 Content-Type: application/json
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "nickname": " 망고 팀🙂! "
@@ -42,7 +42,7 @@ X-Anonymous-User-UUID: {{anonymousUserUuid}}
 ### Update anonymous user nickname - invalid nickname
 PATCH {{host}}/api/v1/users/anonymous/nickname
 Content-Type: application/json
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "nickname": "12345678901"
@@ -51,7 +51,7 @@ X-Anonymous-User-UUID: {{anonymousUserUuid}}
 ### Register anonymous user birth info
 POST {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "birthday": "1998-03-15",
@@ -62,7 +62,7 @@ X-Anonymous-User-UUID: {{anonymousUserUuid}}
 ### Register anonymous user birth info - already registered
 POST {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "birthday": "1998-03-15",
@@ -73,7 +73,7 @@ X-Anonymous-User-UUID: {{anonymousUserUuid}}
 ### Update anonymous user birth info
 PATCH {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "birthday": "1998-03-15",
@@ -84,7 +84,7 @@ X-Anonymous-User-UUID: {{anonymousUserUuid}}
 ### Update anonymous user birth info - invalid birthtime
 PATCH {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "birthday": "1998-03-15",
@@ -94,8 +94,8 @@ X-Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get anonymous user profile
 GET {{host}}/api/v1/users/anonymous/profile
-X-Anonymous-User-UUID: {{anonymousUserUuid}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get anonymous user profile - invalid UUID
 GET {{host}}/api/v1/users/anonymous/profile
-X-Anonymous-User-UUID: not-a-uuid
+Anonymous-User-UUID: not-a-uuid

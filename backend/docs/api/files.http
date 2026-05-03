@@ -6,7 +6,7 @@
 ### Issue presigned upload URL
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 
 {
   "fileName": "drawing.png",
@@ -18,7 +18,7 @@ X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - GIF
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 
 {
   "fileName": "flipbook.gif",
@@ -30,7 +30,7 @@ X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - phone artifact
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 
 {
   "fileName": "phone.webp",
@@ -42,7 +42,7 @@ X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - unsupported content type
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 
 {
   "fileName": "drawing.svg",
@@ -54,7 +54,7 @@ X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - unsupported purpose
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 
 {
   "fileName": "drawing.png",
@@ -66,7 +66,7 @@ X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - too large
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 
 {
   "fileName": "huge.gif",
@@ -78,7 +78,7 @@ X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - invalid user UUID
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-X-Anonymous-User-UUID: not-a-uuid
+Anonymous-User-UUID: not-a-uuid
 
 {
   "fileName": "drawing.png",
@@ -92,9 +92,9 @@ X-Anonymous-User-UUID: not-a-uuid
 # 2. PUT the file to MinIO with the returned presignedUrl.
 # 3. Replace the path UUID below with the returned fileId.
 POST {{host}}/api/v1/files/550e8400-e29b-41d4-a716-446655440000/confirm
-X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 
 ### Delete pending uploaded file
 # Replace the path UUID below with the returned fileId.
 DELETE {{host}}/api/v1/files/550e8400-e29b-41d4-a716-446655440000
-X-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000

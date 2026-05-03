@@ -8,16 +8,16 @@ Last updated: 2026-04-30
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
 - The first real backend feature API now includes anonymous user UUID issuance through `POST /api/v1/users/anonymous`.
-- Existing anonymous user APIs identify the caller with the `X-Anonymous-User-UUID` request header instead of request body or query parameters.
+- Existing anonymous user APIs identify the caller with the `Anonymous-User-UUID` request header instead of request body or query parameters.
 - Anonymous user re-entry now includes `POST /api/v1/users/anonymous/verify` to validate the header UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
-- Anonymous user nickname setup/change now uses `PATCH /api/v1/users/anonymous/nickname` with the UUID in `X-Anonymous-User-UUID`, 1-10 code point validation, and no duplicate check.
-- Anonymous user profile lookup now uses `GET /api/v1/users/anonymous/profile` with `X-Anonymous-User-UUID` and returns reusable profile fields without updating visit metadata.
+- Anonymous user nickname setup/change now uses `PATCH /api/v1/users/anonymous/nickname` with the UUID in `Anonymous-User-UUID`, 1-10 code point validation, and no duplicate check.
+- Anonymous user profile lookup now uses `GET /api/v1/users/anonymous/profile` with `Anonymous-User-UUID` and returns reusable profile fields without updating visit metadata.
 - Anonymous user birth info now uses `POST /api/v1/users/anonymous/birth-info` for first registration and `PATCH /api/v1/users/anonymous/birth-info` for updates.
 - `app_user.is_lunar` is added through Flyway V3 so fortune features can reuse birthday, birthtime, and lunar/solar selection.
-- My gallery listing now uses `GET /api/v1/gallery` with `X-Anonymous-User-UUID` and reads existing gallery/artifact rows without MinIO calls.
-- My gallery item detail now uses `GET /api/v1/gallery/{galleryId}` with `X-Anonymous-User-UUID` and returns one active owned gallery artifact with parsed `meta` and content URL fallback.
-- My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `X-Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
-- Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `X-Anonymous-User-UUID`.
+- My gallery listing now uses `GET /api/v1/gallery` with `Anonymous-User-UUID` and reads existing gallery/artifact rows without MinIO calls.
+- My gallery item detail now uses `GET /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and returns one active owned gallery artifact with parsed `meta` and content URL fallback.
+- My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
+- Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
@@ -26,7 +26,7 @@ Last updated: 2026-04-30
 - New backend features should follow `backend/docs/backend-architecture.md`.
 - Feature packages use `controller`, `service`, `repository`, `entity`, and `dto`; do not create a separate `domain` package.
 - REST controller paths receive the common `/api/v1` prefix through `ApiPathPrefixConfig`; controller-level mappings should keep only feature paths such as `/users` or `/gallery`.
-- Existing anonymous-user-scoped APIs use the common `X-Anonymous-User-UUID` header for caller identification; body fields are business data, query parameters are filters or pagination.
+- Existing anonymous-user-scoped APIs use the common `Anonymous-User-UUID` header for caller identification; body fields are business data, query parameters are filters or pagination.
 - Commands are run from the repository root unless a script says otherwise.
 - Verification is standardized through `backend/scripts/format.ps1` and `backend/scripts/verify.ps1`.
 - PostgreSQL-specific Flyway migrations are verified through `backend/scripts/verify-migration.ps1`.

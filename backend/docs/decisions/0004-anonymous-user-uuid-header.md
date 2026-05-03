@@ -11,7 +11,9 @@ Accepted
 
 ## Decision
 
-기존 익명 사용자를 식별해야 하는 API는 공통 요청 헤더 `X-Anonymous-User-UUID`를 사용한다.
+초기 구현은 `X-Anonymous-User-UUID`를 사용했지만, 비표준 커스텀 헤더의 `X-` 접두사 관례를 피하고 더 명확한 도메인 헤더명으로 정리하기 위해 `Anonymous-User-UUID`로 변경했다.
+
+기존 익명 사용자를 식별해야 하는 API는 공통 요청 헤더 `Anonymous-User-UUID`를 사용한다.
 
 - `POST /api/v1/users/anonymous`는 신규 UUID 발급 API이므로 이 헤더를 요구하지 않는다.
 - User-Agent는 기존 정책대로 선택 헤더로 유지한다.
@@ -22,6 +24,6 @@ Accepted
 ## Consequences
 
 - User, Gallery, Files API의 Swagger 화면에서 익명 사용자 UUID는 header parameter로 입력한다.
-- 기존 클라이언트는 `userUuid` body/query 또는 `X-User-UUID` 대신 `X-Anonymous-User-UUID`를 보내도록 수정해야 한다.
+- 기존 클라이언트는 `userUuid` body/query 또는 `X-User-UUID` 대신 `Anonymous-User-UUID`를 보내도록 수정해야 한다.
 - query parameter는 필터/페이징 의미로 더 명확해진다.
 - request body schema에서 사용자 식별자가 빠져 API별 본문 구조가 단순해진다.
