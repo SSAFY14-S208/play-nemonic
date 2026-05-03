@@ -1,5 +1,5 @@
-export default function page() {
-  return (
-    <div>관리지 페이지입니다.</div>
-  )
+import { redirect } from "next/navigation";
+
+export default function AdminIndexPage() {
+  redirect("/admin/dashboard");
 }
