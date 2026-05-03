@@ -5,7 +5,7 @@ package com.nemonicworld.common.header;
  */
 public final class AnonymousUserHeaders {
 
-    public static final String ANONYMOUS_USER_UUID = "X-Anonymous-User-UUID";
+    public static final String ANONYMOUS_USER_UUID = "Anonymous-User-UUID";
 
     private AnonymousUserHeaders() {
     }
