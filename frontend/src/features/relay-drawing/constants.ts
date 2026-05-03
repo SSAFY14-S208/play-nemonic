@@ -18,6 +18,7 @@ import {
 
 export type RelayDrawingStep = 'booth' | 'lobby' | 'drawing' | 'result'
 export type RelayRoundKey = 'face' | 'body' | 'legs'
+export type RelayResultRevealStep = 'face' | 'body' | 'legs' | 'final'
 export type RelayToolKey = 'pencil' | 'marker' | 'bucket' | 'undo' | 'redo' | 'eraser'
 
 export interface RelayStepCopy {
@@ -38,6 +39,18 @@ export interface RelayRound {
   key: RelayRoundKey
   label: string
   status: 'done' | 'active' | 'pending'
+}
+
+export interface RelayResultReveal {
+  key: RelayResultRevealStep
+  order: number
+  roleLabel: string
+  participantName: string
+  participantDisplayName: string
+  avatar: string
+  titleSuffix: string
+  spotlightLabel: string
+  nextLabel: string
 }
 
 export interface RelayTool {
@@ -64,6 +77,53 @@ export const RELAY_ROUNDS: RelayRound[] = [
   { key: 'face', label: '얼굴', status: 'done' },
   { key: 'body', label: '몸통', status: 'active' },
   { key: 'legs', label: '다리', status: 'pending' },
+]
+
+export const RELAY_RESULT_REVEALS: RelayResultReveal[] = [
+  {
+    key: 'face',
+    order: 1,
+    roleLabel: '얼굴',
+    participantName: '고양이',
+    participantDisplayName: '고양이',
+    avatar: '🐱',
+    titleSuffix: '가 시작했어요',
+    spotlightLabel: '방금 그린 사람',
+    nextLabel: '다음 ▶',
+  },
+  {
+    key: 'body',
+    order: 2,
+    roleLabel: '몸통',
+    participantName: '여우',
+    participantDisplayName: '여우 (나)',
+    avatar: '🦊',
+    titleSuffix: '가 이어 그렸어요',
+    spotlightLabel: '방금 그린 사람',
+    nextLabel: '다음 ▶',
+  },
+  {
+    key: 'legs',
+    order: 3,
+    roleLabel: '다리',
+    participantName: '곰돌이',
+    participantDisplayName: '곰돌이',
+    avatar: '🐻',
+    titleSuffix: '가 마무리했어요',
+    spotlightLabel: '방금 그린 사람',
+    nextLabel: '결과 보기 ▶',
+  },
+  {
+    key: 'final',
+    order: 4,
+    roleLabel: '완성',
+    participantName: '고양이',
+    participantDisplayName: '고양이',
+    avatar: '🐱',
+    titleSuffix: '님의 캐릭터',
+    spotlightLabel: '합쳐진 캐릭터',
+    nextLabel: '완성',
+  },
 ]
 
 export const RELAY_TOOLS: RelayTool[] = [

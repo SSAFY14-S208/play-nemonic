@@ -49,7 +49,7 @@ export default function RelayDrawingView({
   onCompleteRound,
 }: RelayDrawingViewProps) {
   return (
-    <section className="grid min-h-[calc(100svh-72px)] grid-cols-1 bg-relay-background lg:grid-cols-[220px_minmax(0,1fr)_300px]">
+    <section className="grid min-h-screen grid-cols-1 bg-relay-background lg:grid-cols-[220px_minmax(0,1fr)_300px]">
       <aside className="order-2 border-relay-border bg-relay-paper p-6 lg:order-none lg:border-r">
         <p className="caption-b text-relay-muted">도구</p>
         <div className="mt-4 grid grid-cols-3 gap-3 lg:grid-cols-3">

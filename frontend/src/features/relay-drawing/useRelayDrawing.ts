@@ -4,8 +4,10 @@ import { useCallback, useMemo, useState } from 'react'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import {
   RELAY_COLORS,
+  RELAY_RESULT_REVEALS,
   RELAY_STEPS,
   type RelayDrawingStep,
+  type RelayResultRevealStep,
   type RelayToolKey,
 } from './constants'
 
@@ -30,33 +32,51 @@ export function useRelayDrawing() {
   const [strokeWidth, setStrokeWidth] = useState(DEFAULT_STROKE_WIDTH)
   const [lines, setLines] = useState<RelayDrawLine[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
+  const [resultRevealStep, setResultRevealStep] = useState<RelayResultRevealStep>('face')
 
   const currentStepIndex = RELAY_STEPS.findIndex((step) => step.key === currentStep)
   const canGoBack = currentStepIndex > 0
   const canAdvance = currentStepIndex < RELAY_STEPS.length - 1
+  const currentResultRevealIndex = RELAY_RESULT_REVEALS.findIndex(
+    (step) => step.key === resultRevealStep,
+  )
+  const canShowPreviousResultReveal = currentResultRevealIndex > 0
+  const canShowNextResultReveal = currentResultRevealIndex < RELAY_RESULT_REVEALS.length - 1
 
   const stageColor = selectedToolKey === 'eraser' ? '#fffdf7' : selectedColor
   const activeStrokeWidth = selectedToolKey === 'marker' ? strokeWidth + 4 : strokeWidth
 
   const selectStep = useCallback((step: RelayDrawingStep) => {
     setCurrentStep(step)
+    if (step === 'result') {
+      setResultRevealStep('face')
+    }
   }, [])
 
   const goToNextStep = useCallback(() => {
-    setCurrentStep((step) => {
-      const stepIndex = RELAY_STEPS.findIndex((relayStep) => relayStep.key === step)
-      const nextStep = RELAY_STEPS[Math.min(stepIndex + 1, RELAY_STEPS.length - 1)]
-      return nextStep.key
-    })
-  }, [])
+    const nextStep = RELAY_STEPS[Math.min(currentStepIndex + 1, RELAY_STEPS.length - 1)]
+    setCurrentStep(nextStep.key)
+    if (nextStep.key === 'result') {
+      setResultRevealStep('face')
+    }
+  }, [currentStepIndex])
 
   const goToPreviousStep = useCallback(() => {
-    setCurrentStep((step) => {
-      const stepIndex = RELAY_STEPS.findIndex((relayStep) => relayStep.key === step)
-      const previousStep = RELAY_STEPS[Math.max(stepIndex - 1, 0)]
-      return previousStep.key
-    })
-  }, [])
+    const previousStep = RELAY_STEPS[Math.max(currentStepIndex - 1, 0)]
+    setCurrentStep(previousStep.key)
+  }, [currentStepIndex])
+
+  const goToNextResultReveal = useCallback(() => {
+    const nextReveal = RELAY_RESULT_REVEALS[
+      Math.min(currentResultRevealIndex + 1, RELAY_RESULT_REVEALS.length - 1)
+    ]
+    setResultRevealStep(nextReveal.key)
+  }, [currentResultRevealIndex])
+
+  const goToPreviousResultReveal = useCallback(() => {
+    const previousReveal = RELAY_RESULT_REVEALS[Math.max(currentResultRevealIndex - 1, 0)]
+    setResultRevealStep(previousReveal.key)
+  }, [currentResultRevealIndex])
 
   const clearDrawing = useCallback(() => {
     setLines([])
@@ -122,14 +142,19 @@ export function useRelayDrawing() {
     currentStep,
     selectedStepLabel,
     selectedToolKey,
+    resultRevealStep,
     selectedColor,
     strokeWidth,
     lines,
     canGoBack,
     canAdvance,
+    canShowPreviousResultReveal,
+    canShowNextResultReveal,
     selectStep,
     goToNextStep,
     goToPreviousStep,
+    goToNextResultReveal,
+    goToPreviousResultReveal,
     setSelectedToolKey,
     setSelectedColor,
     setStrokeWidth,
