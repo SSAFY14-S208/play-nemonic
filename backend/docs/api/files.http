@@ -86,3 +86,10 @@ X-User-UUID: not-a-uuid
   "purpose": "COMMUNITY",
   "byteSize": 1048576
 }
+
+### Confirm uploaded file
+# 1. Issue presigned upload URL.
+# 2. PUT the file to MinIO with the returned presignedUrl.
+# 3. Replace the path UUID below with the returned fileId.
+POST {{host}}/api/v1/files/550e8400-e29b-41d4-a716-446655440000/confirm
+X-User-UUID: 550e8400-e29b-41d4-a716-446655440000

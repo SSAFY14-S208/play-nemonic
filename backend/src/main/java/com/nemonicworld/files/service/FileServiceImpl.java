@@ -2,6 +2,7 @@ package com.nemonicworld.files.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.FileStorageException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.PayloadTooLargeException;
@@ -52,6 +53,9 @@ public class FileServiceImpl implements FileService {
     private static final String FILE_UPLOAD_NOT_FOUND_MESSAGE = "파일 업로드 정보를 찾을 수 없습니다.";
     private static final String FILE_ACCESS_DENIED_MESSAGE = "파일에 접근할 권한이 없습니다.";
     private static final String FILE_UPLOAD_STATUS_CONFLICT_MESSAGE = "확인할 수 없는 파일 업로드 상태입니다.";
+    private static final String FILE_STORAGE_ERROR_MESSAGE = "파일 저장소 처리 중 오류가 발생했습니다.";
+    private static final String MINIO_NO_SUCH_KEY_CODE = "NoSuchKey";
+    private static final String MINIO_NO_SUCH_OBJECT_CODE = "NoSuchObject";
 
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/png", "image/jpeg", "image/gif",
         "image/webp");
@@ -193,7 +197,7 @@ public class FileServiceImpl implements FileService {
                 GetPresignedObjectUrlArgs.builder().method(Method.PUT).bucket(properties.bucket()).object(objectKey)
                     .expiry(expiresIn).extraHeaders(Map.of("Content-Type", contentType)).build());
         } catch (Exception e) {
-            throw new IllegalStateException("Presigned URL 생성에 실패했습니다.", e);
+            throw new FileStorageException(FILE_STORAGE_ERROR_MESSAGE, e);
         }
     }
 
@@ -246,10 +250,20 @@ public class FileServiceImpl implements FileService {
             return minioClient
                 .statObject(StatObjectArgs.builder().bucket(properties.bucket()).object(objectKey).build());
         } catch (ErrorResponseException e) {
-            throw new NotFoundException(FILE_UPLOAD_NOT_FOUND_MESSAGE);
+            if (isObjectNotFound(e)) {
+                throw new NotFoundException(FILE_UPLOAD_NOT_FOUND_MESSAGE);
+            }
+
+            throw new FileStorageException(FILE_STORAGE_ERROR_MESSAGE, e);
         } catch (Exception e) {
-            throw new IllegalStateException("파일 업로드 확인에 실패했습니다.", e);
+            throw new FileStorageException(FILE_STORAGE_ERROR_MESSAGE, e);
         }
+    }
+
+    private boolean isObjectNotFound(ErrorResponseException e) {
+        String code = e.errorResponse().code();
+
+        return MINIO_NO_SUCH_KEY_CODE.equals(code) || MINIO_NO_SUCH_OBJECT_CODE.equals(code);
     }
 
 }

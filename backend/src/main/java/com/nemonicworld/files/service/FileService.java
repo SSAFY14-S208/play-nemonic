@@ -5,7 +5,7 @@ import com.nemonicworld.files.dto.response.FileConfirmResponse;
 import com.nemonicworld.files.dto.response.FilePresignResponse;
 
 /**
- * 파일 업로드 사전 준비 유스케이스를 정의합니다.
+ * 파일 업로드 사전 준비와 완료 확인 유스케이스를 정의합니다.
  */
 public interface FileService {
 
