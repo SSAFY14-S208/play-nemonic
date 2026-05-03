@@ -341,16 +341,113 @@ export default function Page() {
 
 ## API Calls
 
-This project uses a Spring/NestJS backend. Do NOT access the database directly. All data goes through the backend API.
+Backend: Spring (no DB access from client). All data via REST API.
 
-All HTTP requests go through `shared/libs/apiClient.ts`:
+### Auth model — anonymous UUID (no JWT)
+
+The backend issues `userUuid` on first visit. There is no `Authorization` / Bearer header. Identification is split by HTTP method:
+
+- **Body** `userUuid`: POST / PUT / PATCH (e.g. `POST /users/anonymous/verify`, `PATCH /users/anonymous/nickname`)
+- **Query** `userUuid`: GET / DELETE (e.g. `GET /gallery?userUuid=...`)
+- No `userUuid` needed: `POST /users/anonymous` (issuing endpoint), `GET /community/{id}`
+
+Do **not** reintroduce token/Bearer logic. `apiClient` knows nothing about auth.
+
+### Three layers
+
+```
+shared/libs/apiClient.ts        ← ky transport. No auth, no envelope.
+shared/utils/apiUnwrap.ts       ← ApiResponse<T> unwrap helper.
+shared/apis/apiError.ts         ← ApiError class (domain — bound to backend envelope).
+shared/apis/{domain}Api.ts      ← Individual function exports per endpoint.
+shared/stores/userStore.ts      ← Zustand persist — single source for userUuid.
+shared/hooks/useUserBootstrap.ts← Calls postAnonymousVerify → postAnonymous on mount.
+shared/components/UserBootstrap ← Mounted once in app/layout.tsx.
+```
+
+### apiClient transport
 
 ```ts
-import { api } from "@/shared/libs";
+// shared/libs/apiClient.ts
+import ky from "ky";
+import { runtime } from "@/shared/config";
 
-const data = await api.get<User[]>("/users");
-const result = await api.post<Post>("/posts", { title: "..." });
+type Query = Record<string, string | number | boolean>;
+
+const client = ky.create({ prefix: `${runtime.apiUrl}/api/v1`, timeout: 30_000 });
+
+export const api = {
+  get:    <T>(path: string, searchParams?: Query) => client.get(path, searchParams ? { searchParams } : undefined).json<T>(),
+  post:   <T>(path: string, body?: unknown) => client.post(path, body !== undefined ? { json: body } : undefined).json<T>(),
+  put:    <T>(path: string, body?: unknown) => client.put(path, body !== undefined ? { json: body } : undefined).json<T>(),
+  patch:  <T>(path: string, body?: unknown) => client.patch(path, body !== undefined ? { json: body } : undefined).json<T>(),
+  delete: <T>(path: string, searchParams?: Query) => client.delete(path, searchParams ? { searchParams } : undefined).json<T>(),
+};
 ```
+
+`PATCH` is a first-class method (used for partial updates like nickname/birth-info). `searchParams` on GET/DELETE for `userUuid` and pagination.
+
+### ApiResponse envelope + apiUnwrap
+
+All backend responses come as `ApiResponse<T> = { success, message, data, errors? }`. `apiUnwrap` converts `success: false` to a thrown `ApiError` and returns `data: T`. ApiError carries the `errors` field-level map for form rendering.
+
+```ts
+// shared/apis/userApi.ts
+import { api } from "@/shared/libs";
+import { apiUnwrap } from "@/shared/utils";
+import type { ApiResponse, AnonymousUserResponse } from "@/shared/types";
+
+export const postAnonymous = () =>
+  apiUnwrap(api.post<ApiResponse<AnonymousUserResponse>>("users/anonymous"));
+```
+
+Catch-side handling (in feature hook):
+
+```ts
+import { ApiError } from "@/shared/apis";
+import { HTTPError } from "ky";
+
+try {
+  await patchAnonymousNickname(userUuid, "망고");
+} catch (error) {
+  if (error instanceof ApiError) {
+    setNicknameError(error.errors?.nickname);  // 200 + success:false
+  } else if (error instanceof HTTPError) {
+    // 4xx/5xx
+  }
+}
+```
+
+### Domain API naming — individual exports, never grouped objects
+
+`{httpMethod}{ResourcePath}` camelCase. Domain prefix obvious from context (e.g. `users/`) is dropped. Single resource = singular noun; list = `List` suffix.
+
+| HTTP | Path | Function |
+| --- | --- | --- |
+| POST | `/users/anonymous` | `postAnonymous` |
+| POST | `/users/anonymous/verify` | `postAnonymousVerify` |
+| POST | `/users/anonymous/birth-info` | `postAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/birth-info` | `patchAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/nickname` | `patchAnonymousNickname` |
+| GET | `/users/anonymous/profile` | `getAnonymousProfile` |
+| GET | `/gallery` (list) | `getGalleryList` |
+| GET | `/gallery/{galleryId}` (single) | `getGallery` |
+| DELETE | `/gallery/{galleryId}` | `deleteGallery` |
+| GET | `/community/{communityId}` | `getCommunity` |
+
+Path params first, then `userUuid`/extras: `getGallery(galleryId, userUuid)`.
+
+```ts
+import { postAnonymous, getGalleryList } from "@/shared/apis";
+```
+
+Do **not** group these into `userApi.foo()` style objects. Feature hooks import only what they need.
+
+### User identity bootstrap
+
+- `userUuid` lives in `useUserStore` (Zustand `persist` middleware, key `nemonic-user`). No separate localStorage sync code — persist handles it.
+- Root `app/layout.tsx` mounts `<UserBootstrap />` (`'use client'`). After persist hydration completes, `useUserBootstrap` calls `postAnonymousVerify` (if uuid stored) or `postAnonymous` (cold start), and updates the store.
+- Pages/features must NOT call verify/createAnonymous directly — read `userUuid` from `useUserStore`.
 
 Use native `fetch` directly only in server components for OG metadata generation.
 
