@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "File", description = "파일 API")
 public class FileController {
 
+    private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String PRESIGN_SUCCESS_MESSAGE = "Presigned URL 발급 성공";
     private static final String CONFIRM_SUCCESS_MESSAGE = "파일 업로드 확인 성공";
     private static final String DELETE_SUCCESS_MESSAGE = "파일 삭제 성공";
@@ -38,10 +39,10 @@ public class FileController {
 
     @PostMapping("/presign")
     @Operation(summary = "이미지 업로드 Presigned URL 발급", description = "MinIO 직접 PUT 업로드 URL을 발급합니다.")
-    @Parameter(name = AnonymousUserHeaders.ANONYMOUS_USER_UUID, in = ParameterIn.HEADER, required = true, description = "서버가 발급한 익명 사용자 UUID")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Presigned URL 발급 성공")
     public ResponseEntity<ApiResponse<FilePresignResponse>> presign(
-        @RequestHeader(value = AnonymousUserHeaders.ANONYMOUS_USER_UUID, required = false) String userUuid,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
         @Valid @RequestBody FilePresignRequest request) {
         FilePresignResponse response = fileService.createPresignedUrl(userUuid, request);
 
@@ -51,10 +52,10 @@ public class FileController {
 
     @PostMapping("/{fileId}/confirm")
     @Operation(summary = "파일 업로드 완료 확인", description = "MinIO에 업로드된 객체를 확인하고 파일 상태를 UPLOADED로 변경합니다.")
-    @Parameter(name = AnonymousUserHeaders.ANONYMOUS_USER_UUID, in = ParameterIn.HEADER, required = true, description = "서버가 발급한 익명 사용자 UUID")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "파일 업로드 확인 성공")
     public ResponseEntity<ApiResponse<FileConfirmResponse>> confirm(
-        @RequestHeader(value = AnonymousUserHeaders.ANONYMOUS_USER_UUID, required = false) String userUuid,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
         @PathVariable String fileId) {
         FileConfirmResponse response = fileService.confirmUpload(userUuid, fileId);
 
@@ -64,10 +65,10 @@ public class FileController {
 
     @DeleteMapping("/{fileId}")
     @Operation(summary = "파일 삭제", description = "pending 파일 업로드를 취소하고 MinIO object를 삭제합니다.")
-    @Parameter(name = AnonymousUserHeaders.ANONYMOUS_USER_UUID, in = ParameterIn.HEADER, required = true, description = "서버가 발급한 익명 사용자 UUID")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "파일 삭제 성공")
     public ResponseEntity<ApiResponse<FileDeleteResponse>> delete(
-        @RequestHeader(value = AnonymousUserHeaders.ANONYMOUS_USER_UUID, required = false) String userUuid,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
         @PathVariable String fileId) {
         FileDeleteResponse response = fileService.deleteUpload(userUuid, fileId);
 
