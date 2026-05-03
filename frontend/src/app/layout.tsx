@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { UserBootstrap } from "@/shared/components";
+import { UserBootstrapLoader } from "@/shared/components";
 import "@/shared/styles/index.css";
 
 export const metadata: Metadata = {
@@ -16,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <UserBootstrap />
+        <UserBootstrapLoader />
         {children}
       </body>
     </html>
