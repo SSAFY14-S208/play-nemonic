@@ -45,6 +45,8 @@ class FileOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.tags[0]").value("File"))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID", "fileId")))
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.parameters[?(@.name == 'fileId')].in")
+                .value(hasItems("path")))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.responses['200'].description")
                 .value("파일 업로드 확인 성공"));
     }
@@ -59,6 +61,8 @@ class FileOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.tags[0]").value("File"))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID", "fileId")))
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.parameters[?(@.name == 'fileId')].in")
+                .value(hasItems("path")))
             .andExpect(
                 jsonPath("$.paths['/api/v1/files/{fileId}'].delete.responses['200'].description").value("파일 삭제 성공"));
     }

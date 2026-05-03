@@ -1,12 +1,28 @@
 @host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@fileId = 550e8400-e29b-41d4-a716-446655440000
+@presignedUrl = http://localhost:9000/nemonic-local/uploads/example.png
 
 # byteSize is checked before issuing the URL. The confirm API should re-check the actual MinIO object size.
 # Default max upload size: 50MB.
+#
+# Local manual upload flow:
+# 1. Run "Issue presigned upload URL".
+# 2. Copy response data.fileId to @fileId and response data.presignedUrl to @presignedUrl.
+# 3. PUT a local file to MinIO with the exact Content-Type used in the presign request.
+#    PowerShell example:
+#    Invoke-RestMethod `
+#      -Uri "{{presignedUrl}}" `
+#      -Method Put `
+#      -InFile "C:\Users\SSAFY\Desktop\drawing.png" `
+#      -ContentType "image/png"
+# 4. Run "Confirm uploaded file".
+# 5. To test delete success, call DELETE while the file is still PENDING. Confirmed files return 409 by design.
 
 ### Issue presigned upload URL
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "fileName": "drawing.png",
@@ -18,7 +34,7 @@ Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - GIF
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "fileName": "flipbook.gif",
@@ -30,7 +46,7 @@ Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - phone artifact
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "fileName": "phone.webp",
@@ -42,7 +58,7 @@ Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - unsupported content type
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "fileName": "drawing.svg",
@@ -54,7 +70,7 @@ Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - unsupported purpose
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "fileName": "drawing.png",
@@ -66,7 +82,7 @@ Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
 ### Issue presigned upload URL - too large
 POST {{host}}/api/v1/files/presign
 Content-Type: application/json
-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "fileName": "huge.gif",
@@ -91,10 +107,11 @@ Anonymous-User-UUID: not-a-uuid
 # 1. Issue presigned upload URL.
 # 2. PUT the file to MinIO with the returned presignedUrl.
 # 3. Replace the path UUID below with the returned fileId.
-POST {{host}}/api/v1/files/550e8400-e29b-41d4-a716-446655440000/confirm
-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+POST {{host}}/api/v1/files/{{fileId}}/confirm
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Delete pending uploaded file
 # Replace the path UUID below with the returned fileId.
-DELETE {{host}}/api/v1/files/550e8400-e29b-41d4-a716-446655440000
-Anonymous-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+# This succeeds only before confirm while the upload is still PENDING.
+DELETE {{host}}/api/v1/files/{{fileId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}

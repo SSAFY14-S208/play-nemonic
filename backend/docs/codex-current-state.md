@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-04-30
+Last updated: 2026-05-04
 
 ## Current Focus
 
@@ -19,6 +19,9 @@ Last updated: 2026-04-30
 - My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
+- Swagger/OpenAPI docs now explicitly declare path, query, and header parameter names so UI fields do not fall back to `arg0`, `arg1`, or similar compiler-generated names.
+- Swagger/OpenAPI failure responses now include representative `success: false` JSON examples for User, Gallery, Files, and Community APIs.
+- The common `ApiResponse.errors` schema is documented as optional field-level validation details with a neutral example; domain-specific failure messages are documented on each API response instead.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
@@ -28,6 +31,7 @@ Last updated: 2026-04-30
 - Feature packages use `controller`, `service`, `repository`, `entity`, and `dto`; do not create a separate `domain` package.
 - REST controller paths receive the common `/api/v1` prefix through `ApiPathPrefixConfig`; controller-level mappings should keep only feature paths such as `/users` or `/gallery`.
 - Existing anonymous-user-scoped APIs use the common `Anonymous-User-UUID` header for caller identification; body fields are business data, query parameters are filters or pagination.
+- OpenAPI controller annotations must keep request parameter names explicit (`@PathVariable("...")`, `@RequestParam(name = "...")`, `@RequestHeader(value = "...")`) and document expected failure responses with `success: false` examples.
 - Commands are run from the repository root unless a script says otherwise.
 - Verification is standardized through `backend/scripts/format.ps1` and `backend/scripts/verify.ps1`.
 - PostgreSQL-specific Flyway migrations are verified through `backend/scripts/verify-migration.ps1`.
@@ -78,7 +82,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1
 ```
 
-Latest result: `BUILD SUCCESSFUL`.
+Latest full baseline result: `BUILD SUCCESSFUL`.
+
+Recent Swagger/OpenAPI documentation checks passed with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1 -Fast
+```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.

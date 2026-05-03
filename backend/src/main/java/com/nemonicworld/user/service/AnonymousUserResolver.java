@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * 익명 사용자 UUID 헤더 값을 검증하고 기존 사용자로 해석하는 공통 컴포넌트입니다.
+ * 익명 사용자 UUID 헤더 값을 검증하고 기존 사용자로 해석하는 공통 컴포넌트
  */
 @Component
 public class AnonymousUserResolver {
@@ -39,14 +39,14 @@ public class AnonymousUserResolver {
     }
 
     /**
-     * 헤더 문자열을 기존 익명 사용자로 해석합니다.
+     * 헤더 문자열을 기존 익명 사용자로 해석
      */
     public AppUser resolve(String userUuidValue) {
         return resolve(parseUuid(userUuidValue));
     }
 
     /**
-     * UUID에 해당하는 기존 익명 사용자를 조회합니다.
+     * UUID에 해당하는 기존 익명 사용자를 조회
      */
     public AppUser resolve(UUID userUuid) {
         if (userUuid == null) {
