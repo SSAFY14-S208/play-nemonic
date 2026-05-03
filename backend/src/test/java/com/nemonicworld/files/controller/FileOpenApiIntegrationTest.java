@@ -47,4 +47,18 @@ class FileOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.responses['200'].description")
                 .value("파일 업로드 확인 성공"));
     }
+
+    /**
+     * /v3/api-docs 응답에 DELETE /api/v1/files/{fileId} 문서 정보가 포함되는지 확인합니다.
+     */
+    @Test
+    void fileDeleteApiIsExposedInOpenApiDocs() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.summary").value("파일 삭제"))
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.tags[0]").value("File"))
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.parameters[*].name")
+                .value(hasItems("X-User-UUID", "fileId")))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/files/{fileId}'].delete.responses['200'].description").value("파일 삭제 성공"));
+    }
 }

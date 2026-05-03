@@ -3,6 +3,9 @@ package com.nemonicworld.files.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,6 +17,7 @@ import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
+import io.minio.RemoveObjectArgs;
 import io.minio.StatObjectArgs;
 import io.minio.StatObjectResponse;
 import io.minio.errors.ErrorResponseException;
@@ -43,7 +47,7 @@ import org.springframework.test.web.servlet.MvcResult;
     "nemonic.storage.minio.presign-expiration-minutes=10", "nemonic.storage.minio.max-upload-byte-size=52428800"})
 @Sql(statements = {"DELETE FROM file_upload", "DELETE FROM app_user"})
 /**
- * MinIO 직접 업로드를 위한 presigned URL 발급 API를 검증합니다.
+ * MinIO 직접 업로드 파일 API를 검증합니다.
  */
 class FileControllerIntegrationTest {
 
@@ -374,6 +378,101 @@ class FileControllerIntegrationTest {
         assertThat(readStringColumn(fileId, "status")).isEqualTo("PENDING");
     }
 
+    /**
+     * pending 업로드 삭제 요청이면 MinIO object 삭제 후 DB 메타데이터를 deleted 상태로 변경합니다.
+     */
+    @Test
+    void deleteMarksPendingUploadAsDeleted() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
+
+        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("파일 삭제 성공"))
+            .andExpect(jsonPath("$.data.fileId").value(fileId.toString()))
+            .andExpect(jsonPath("$.data.status").value("DELETED"));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("DELETED");
+        assertThat(readTimestampColumn(fileId, "deleted_at")).isNotNull();
+        verify(minioClient).removeObject(any(RemoveObjectArgs.class));
+    }
+
+    /**
+     * delete 요청의 fileId가 UUID 형식이 아니면 400으로 응답합니다.
+     */
+    @Test
+    void deleteRejectsInvalidFileId() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+
+        mockMvc.perform(delete("/api/v1/files/not-a-uuid").header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 fileId 형식입니다."));
+    }
+
+    /**
+     * 다른 사용자의 pending 업로드는 삭제할 수 없습니다.
+     */
+    @Test
+    void deleteRejectsFileUploadOwnedByAnotherUser() throws Exception {
+        UUID ownerUuid = createExistingUser();
+        UUID requesterUuid = createExistingUser();
+        UUID fileId = insertFileUpload(ownerUuid, "PENDING", 1024L);
+
+        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, requesterUuid.toString()))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("파일에 접근할 권한이 없습니다."));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("PENDING");
+    }
+
+    /**
+     * uploaded 상태의 파일은 이미 산출물/게시글과 연결될 수 있으므로 이 API에서 물리 삭제하지 않습니다.
+     */
+    @Test
+    void deleteRejectsAlreadyUploadedFileUpload() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "UPLOADED", 1024L);
+
+        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("삭제할 수 없는 파일 업로드 상태입니다."));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("UPLOADED");
+    }
+
+    /**
+     * MinIO object가 이미 없어도 pending 취소는 성공으로 보고 DB 상태를 deleted로 정리합니다.
+     */
+    @Test
+    void deleteSucceedsWhenMinioObjectDoesNotExist() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
+        willThrow(minioError("NoSuchKey")).given(minioClient).removeObject(any(RemoveObjectArgs.class));
+
+        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("파일 삭제 성공")).andExpect(jsonPath("$.data.status").value("DELETED"));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("DELETED");
+        assertThat(readTimestampColumn(fileId, "deleted_at")).isNotNull();
+    }
+
+    /**
+     * 권한/버킷 설정 같은 MinIO 오류는 파일 없음으로 숨기지 않고 서버 오류로 응답합니다.
+     */
+    @Test
+    void deleteReturnsServerErrorWhenMinioRemoveFails() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
+        willThrow(minioError("AccessDenied")).given(minioClient).removeObject(any(RemoveObjectArgs.class));
+
+        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("파일 저장소 처리 중 오류가 발생했습니다."));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("PENDING");
+    }
+
     private UUID createExistingUser() {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime createdAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -412,6 +511,11 @@ class FileControllerIntegrationTest {
     private long readLongColumn(UUID fileId, String columnName) {
         return jdbcTemplate.queryForObject("SELECT %s FROM file_upload WHERE id = ?".formatted(columnName), Long.class,
             fileId);
+    }
+
+    private Timestamp readTimestampColumn(UUID fileId, String columnName) {
+        return jdbcTemplate.queryForObject("SELECT %s FROM file_upload WHERE id = ?".formatted(columnName),
+            Timestamp.class, fileId);
     }
 
     private UUID insertFileUpload(UUID userUuid, String status, long byteSize) {

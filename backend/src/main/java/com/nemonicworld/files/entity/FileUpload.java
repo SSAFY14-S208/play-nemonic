@@ -79,6 +79,12 @@ public class FileUpload {
         this.updatedAt = now;
     }
 
+    public void markDeleted(LocalDateTime now) {
+        this.status = FileUploadStatus.DELETED;
+        this.deletedAt = now;
+        this.updatedAt = now;
+    }
+
     public boolean isOwnedBy(UUID userId) {
         return this.userId.equals(userId);
     }
@@ -86,4 +92,5 @@ public class FileUpload {
     public boolean isPending() {
         return this.status == FileUploadStatus.PENDING;
     }
+
 }

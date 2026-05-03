@@ -93,3 +93,8 @@ X-User-UUID: not-a-uuid
 # 3. Replace the path UUID below with the returned fileId.
 POST {{host}}/api/v1/files/550e8400-e29b-41d4-a716-446655440000/confirm
 X-User-UUID: 550e8400-e29b-41d4-a716-446655440000
+
+### Delete pending uploaded file
+# Replace the path UUID below with the returned fileId.
+DELETE {{host}}/api/v1/files/550e8400-e29b-41d4-a716-446655440000
+X-User-UUID: 550e8400-e29b-41d4-a716-446655440000
