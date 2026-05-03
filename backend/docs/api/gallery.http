@@ -1,34 +1,47 @@
 @host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@galleryId = 8d25f3a5-3c5a-4f21-9f54-68fa4a402011
 
 ### Get my gallery
-GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000&page=0&size=20
+GET {{host}}/api/v1/gallery?page=0&size=20
+X-Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get my gallery - default pagination
-GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000
+GET {{host}}/api/v1/gallery
+X-Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get my gallery - invalid UUID
-GET {{host}}/api/v1/gallery?userUuid=not-a-uuid
+GET {{host}}/api/v1/gallery
+X-Anonymous-User-UUID: not-a-uuid
 
 ### Get my gallery - invalid page
-GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000&page=-1&size=20
+GET {{host}}/api/v1/gallery?page=-1&size=20
+X-Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get my gallery - invalid size
-GET {{host}}/api/v1/gallery?userUuid=550e8400-e29b-41d4-a716-446655440000&page=0&size=51
+GET {{host}}/api/v1/gallery?page=0&size=51
+X-Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get gallery item detail
-GET {{host}}/api/v1/gallery/8d25f3a5-3c5a-4f21-9f54-68fa4a402011?userUuid=550e8400-e29b-41d4-a716-446655440000
+GET {{host}}/api/v1/gallery/{{galleryId}}
+X-Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get gallery item detail - invalid gallery ID
-GET {{host}}/api/v1/gallery/not-a-gallery-id?userUuid=550e8400-e29b-41d4-a716-446655440000
+GET {{host}}/api/v1/gallery/not-a-gallery-id
+X-Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get gallery item detail - invalid user UUID
-GET {{host}}/api/v1/gallery/8d25f3a5-3c5a-4f21-9f54-68fa4a402011?userUuid=not-a-uuid
+GET {{host}}/api/v1/gallery/{{galleryId}}
+X-Anonymous-User-UUID: not-a-uuid
 
 ### Delete gallery item
-DELETE {{host}}/api/v1/gallery/8d25f3a5-3c5a-4f21-9f54-68fa4a402011?userUuid=550e8400-e29b-41d4-a716-446655440000
+DELETE {{host}}/api/v1/gallery/{{galleryId}}
+X-Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Delete gallery item - invalid gallery ID
-DELETE {{host}}/api/v1/gallery/not-a-gallery-id?userUuid=550e8400-e29b-41d4-a716-446655440000
+DELETE {{host}}/api/v1/gallery/not-a-gallery-id
+X-Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Delete gallery item - invalid user UUID
-DELETE {{host}}/api/v1/gallery/8d25f3a5-3c5a-4f21-9f54-68fa4a402011?userUuid=not-a-uuid
+DELETE {{host}}/api/v1/gallery/{{galleryId}}
+X-Anonymous-User-UUID: not-a-uuid
