@@ -270,6 +270,13 @@ Import rules:
 - Pure UI state: `isOpen`, `isHovered` (useState)
 - Simple UI flow: button click → open modal
 
+**Rendering structure rules:**
+
+- Repeated UI should be rendered from arrays with stable `key`s.
+- Extract repeated item markup and large visual sections into child components.
+- Konva `*Stage.tsx` should own Stage/Layer composition; split shapes, hints, tools, and overlays into child components.
+- Every non-decorative image needs meaningful `alt` text; use `alt=""` only for decorative images with `aria-hidden`.
+
 ```tsx
 // ✅ Correct
 export default function LabelPrinter() {
@@ -737,6 +744,8 @@ Before completing any task, verify:
 - [ ] New file placed in the correct layer (`app/`, `worlds/`, `features/`, `shared/`)
 - [ ] Filename matches the suffix convention (`{Scene}Loader`, `{Scene}Canvas`, `{Scene}Scene`, `*Page`, `*Modal`, `*Stage`, `*Mesh`, `*Visual`, `use*Interaction`, etc.)
 - [ ] Component file contains no API calls, data transformation, or game logic
+- [ ] Repeated UI is rendered from arrays with stable `key`s, not duplicated JSX
+- [ ] Large visual sections and repeated item markup are extracted into child components
 - [ ] Business logic extracted to `use*.ts` hook
 - [ ] Shared state extracted to `*Store.ts`
 - [ ] `index.ts` barrel updated if a new public export was added
@@ -783,6 +792,12 @@ Before completing any task, verify:
 - [ ] Conditional class merging uses `cn()` — no template literal string concatenation
 - [ ] Variant components use CVA (`cva()`) — no manual variant switching via conditionals
 - [ ] `app/layout.tsx` imports `@/shared/styles/index.css`
+- [ ] Non-decorative `<Image>` usage has meaningful `alt` text; decorative images use `alt=""` with `aria-hidden`
+
+**Konva / 2D Canvas**
+
+- [ ] `*Stage.tsx` owns `<Stage>` / top-level `<Layer>` composition only
+- [ ] Reusable shapes, hints, guides, cursors, and overlays are split into child components
 
 **Next.js**
 

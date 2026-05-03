@@ -7,6 +7,7 @@ import {
   RELAY_STAGE_SIZE,
   type RelayRoundKey,
 } from './constants'
+import { OutgoingHint, PreviousRoundHint } from './components/drawing-stage'
 import type { RelayDrawLine } from './useRelayDrawing'
 
 interface RelayDrawingStageProps {
@@ -30,14 +31,16 @@ export default function RelayDrawingStage({
   const activeRoundRule = RELAY_ROUND_RULES[activeRoundKey]
   const shouldShowPreviousHint =
     previousRoundLines.length > 0 &&
-    Boolean(activeRoundRule.incomingHintSourceArea) &&
-    Boolean(activeRoundRule.incomingHintTargetArea)
+    activeRoundRule.incomingHintSourceArea !== undefined &&
+    activeRoundRule.incomingHintTargetArea !== undefined
+  const incomingHintSourceArea = activeRoundRule.incomingHintSourceArea
+  const incomingHintTargetArea = activeRoundRule.incomingHintTargetArea
   const hintVerticalOffset =
-    activeRoundRule.incomingHintSourceArea && activeRoundRule.incomingHintTargetArea
-      ? activeRoundRule.incomingHintTargetArea.y - activeRoundRule.incomingHintSourceArea.y
+    incomingHintSourceArea && incomingHintTargetArea
+      ? incomingHintTargetArea.y - incomingHintSourceArea.y
       : 0
-  const helperTextVerticalPosition = activeRoundRule.incomingHintTargetArea
-    ? activeRoundRule.incomingHintTargetArea.y + activeRoundRule.incomingHintTargetArea.height + 18
+  const helperTextVerticalPosition = incomingHintTargetArea
+    ? incomingHintTargetArea.y + incomingHintTargetArea.height + 18
     : 24
 
   for (
@@ -99,87 +102,16 @@ export default function RelayDrawingStage({
           opacity={0.72}
         />
 
-        {shouldShowPreviousHint && (
-          <Group>
-            <Rect
-              x={0}
-              y={activeRoundRule.incomingHintTargetArea?.y ?? 0}
-              width={RELAY_STAGE_SIZE.width}
-              height={activeRoundRule.incomingHintTargetArea?.height ?? 0}
-              fill="#fff8e4"
-              opacity={0.72}
-              shadowColor="#e5a82f"
-              shadowBlur={18}
-              shadowOpacity={0.16}
-            />
-            <HintPill
-              x={46}
-              y={(activeRoundRule.incomingHintTargetArea?.y ?? 0) + 18}
-              label="이전 사람의 그림 (하단 일부)"
-            />
-            <Group
-              clipX={0}
-              clipY={activeRoundRule.incomingHintTargetArea?.y ?? 0}
-              clipWidth={RELAY_STAGE_SIZE.width}
-              clipHeight={activeRoundRule.incomingHintTargetArea?.height ?? 0}
-            >
-              {previousRoundLines.map((line) => (
-                <Line
-                  key={`preview-${line.id}`}
-                  points={line.points.flatMap((point) => [
-                    point.x,
-                    point.y + hintVerticalOffset,
-                  ])}
-                  stroke={line.color}
-                  strokeWidth={line.strokeWidth}
-                  tension={0.45}
-                  lineCap="round"
-                  lineJoin="round"
-                  opacity={0.62}
-                />
-              ))}
-            </Group>
-            <DashedGuide
-              verticalPosition={
-                (activeRoundRule.incomingHintTargetArea?.y ?? 0) +
-                (activeRoundRule.incomingHintTargetArea?.height ?? 0)
-              }
-            />
-            <Text
-              x={0}
-              y={(activeRoundRule.incomingHintTargetArea?.y ?? 0) + 76}
-              width={RELAY_STAGE_SIZE.width}
-              text="↓ 여기부터 이어 그리세요"
-              align="center"
-              fontFamily="Pretendard Variable"
-              fontSize={16}
-              fontStyle="bold"
-              fill="#efc759"
-              opacity={0.72}
-            />
-          </Group>
+        {shouldShowPreviousHint && incomingHintTargetArea && (
+          <PreviousRoundHint
+            hintTargetArea={incomingHintTargetArea}
+            hintVerticalOffset={hintVerticalOffset}
+            previousRoundLines={previousRoundLines}
+          />
         )}
 
         {activeRoundRule.outgoingHintArea && (
-          <Group>
-            <Rect
-              x={0}
-              y={activeRoundRule.outgoingHintArea.y}
-              width={RELAY_STAGE_SIZE.width}
-              height={activeRoundRule.outgoingHintArea.height}
-              fill="#fff1bf"
-              opacity={0.36}
-              shadowColor="#e5a82f"
-              shadowBlur={18}
-              shadowOpacity={0.12}
-            />
-            <DashedGuide verticalPosition={activeRoundRule.outgoingHintArea.y} />
-            <HintPill
-              x={46}
-              y={activeRoundRule.outgoingHintArea.y + activeRoundRule.outgoingHintArea.height - 48}
-              label="다음 사람에게 보이는 구간"
-            />
-          </Group>
+          <OutgoingHint outgoingHintArea={activeRoundRule.outgoingHintArea} />
         )}
 
         <Text
@@ -213,71 +145,5 @@ export default function RelayDrawingStage({
         </Group>
       </Layer>
     </Stage>
-  )
-}
-
-function HintPill({
-  x,
-  y,
-  label,
-}: {
-  x: number
-  y: number
-  label: string
-}) {
-  return (
-    <Group>
-      <Rect
-        x={x}
-        y={y}
-        width={220}
-        height={32}
-        fill="#ffd873"
-        cornerRadius={16}
-        shadowColor="#c4891f"
-        shadowBlur={10}
-        shadowOpacity={0.14}
-      />
-      <Text
-        x={x}
-        y={y + 7}
-        width={220}
-        text={`👀 ${label}`}
-        align="center"
-        fontFamily="Pretendard Variable"
-        fontSize={14}
-        fontStyle="bold"
-        fill="#ffffff"
-      />
-    </Group>
-  )
-}
-
-function DashedGuide({ verticalPosition }: { verticalPosition: number }) {
-  const dashSegments = []
-
-  for (
-    let horizontalPosition = 8;
-    horizontalPosition < RELAY_STAGE_SIZE.width;
-    horizontalPosition += 12
-  ) {
-    dashSegments.push(horizontalPosition)
-  }
-
-  return (
-    <>
-      {dashSegments.map((horizontalPosition) => (
-        <Rect
-          key={`${horizontalPosition}-${verticalPosition}`}
-          x={horizontalPosition}
-          y={verticalPosition}
-          width={6}
-          height={2}
-          fill="#d49b1f"
-          opacity={0.38}
-          cornerRadius={1}
-        />
-      ))}
-    </>
   )
 }
