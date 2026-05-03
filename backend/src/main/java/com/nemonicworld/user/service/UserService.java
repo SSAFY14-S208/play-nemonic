@@ -33,8 +33,6 @@ public class UserService {
 
     // User-Agent는 선택 헤더이므로 수집하지 못한 경우 명시적인 기본값으로 저장합니다.
     private static final String UNKNOWN_USER_AGENT = "unknown";
-    private static final String INVALID_UUID_MESSAGE = "유효하지 않은 UUID 형식입니다.";
-    private static final String USER_NOT_FOUND_MESSAGE = "존재하지 않는 사용자입니다.";
     private static final String INVALID_NICKNAME_MESSAGE = "닉네임은 1자 이상 10자 이하로 입력해주세요.";
     private static final String INVALID_BIRTH_INFO_MESSAGE = "생년월일 정보 형식이 올바르지 않습니다.";
     private static final String BIRTH_INFO_ALREADY_REGISTERED_MESSAGE = "이미 생년월일 정보가 등록되어 있습니다.";
@@ -43,9 +41,11 @@ public class UserService {
     private static final DateTimeFormatter BIRTHTIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final UserRepository userRepository;
+    private final AnonymousUserResolver anonymousUserResolver;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, AnonymousUserResolver anonymousUserResolver) {
         this.userRepository = userRepository;
+        this.anonymousUserResolver = anonymousUserResolver;
     }
 
     /**
@@ -68,9 +68,7 @@ public class UserService {
      */
     @Transactional
     public AnonymousUserVerifyResponse verifyAnonymousUser(String userUuidValue, String userAgent) {
-        UUID userUuid = parseUserUuid(userUuidValue);
-        AppUser appUser = userRepository.findById(userUuid)
-            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+        AppUser appUser = anonymousUserResolver.resolve(userUuidValue);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         appUser.updateLastSeen(normalizeUserAgent(userAgent), now);
@@ -85,14 +83,13 @@ public class UserService {
     @Transactional
     public AnonymousUserNicknameResponse updateAnonymousUserNickname(String userUuidValue,
         AnonymousUserNicknameRequest request) {
-        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         // 닉네임 안의 공백은 허용하므로 저장 전 trim하지 않고 원문을 유지합니다.
         String nickname = request == null ? null : request.nickname();
 
         validateNickname(nickname);
 
-        AppUser appUser = userRepository.findById(userUuid)
-            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+        AppUser appUser = anonymousUserResolver.resolve(userUuid);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         appUser.updateNickname(nickname, now);
@@ -107,10 +104,9 @@ public class UserService {
     @Transactional
     public AnonymousUserBirthInfoResponse registerAnonymousUserBirthInfo(String userUuidValue,
         AnonymousUserBirthInfoRequest request) {
-        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         BirthInfo birthInfo = parseBirthInfo(request);
-        AppUser appUser = userRepository.findById(userUuid)
-            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+        AppUser appUser = anonymousUserResolver.resolve(userUuid);
 
         if (appUser.hasBirthInfo()) {
             throw new ConflictException(BIRTH_INFO_ALREADY_REGISTERED_MESSAGE);
@@ -128,10 +124,9 @@ public class UserService {
     @Transactional
     public AnonymousUserBirthInfoResponse updateAnonymousUserBirthInfo(String userUuidValue,
         AnonymousUserBirthInfoRequest request) {
-        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         BirthInfo birthInfo = parseBirthInfo(request);
-        AppUser appUser = userRepository.findById(userUuid)
-            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+        AppUser appUser = anonymousUserResolver.resolve(userUuid);
 
         if (!appUser.hasBirthInfo()) {
             throw new NotFoundException(BIRTH_INFO_NOT_REGISTERED_MESSAGE);
@@ -148,25 +143,11 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public AnonymousUserProfileResponse getAnonymousUserProfile(String userUuidValue) {
-        UUID userUuid = parseUserUuid(userUuidValue);
-        AppUser appUser = userRepository.findById(userUuid)
-            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
+        AppUser appUser = anonymousUserResolver.resolve(userUuidValue);
 
         return new AnonymousUserProfileResponse(appUser.getId().toString(), appUser.getNickname(),
             appUser.getBirthday(), appUser.getBirthtime(), appUser.getIsLunar(), appUser.getCreatedAt(),
             appUser.getUpdatedAt(), appUser.getLastSeenAt());
-    }
-
-    private UUID parseUserUuid(String userUuid) {
-        if (!StringUtils.hasText(userUuid)) {
-            throw new BadRequestException(INVALID_UUID_MESSAGE);
-        }
-
-        try {
-            return UUID.fromString(userUuid);
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException(INVALID_UUID_MESSAGE);
-        }
     }
 
     private void validateNickname(String nickname) {

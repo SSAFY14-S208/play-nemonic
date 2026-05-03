@@ -15,7 +15,7 @@ import com.nemonicworld.files.entity.FileUpload;
 import com.nemonicworld.files.entity.FileUploadPurpose;
 import com.nemonicworld.files.entity.FileUploadStatus;
 import com.nemonicworld.files.repository.FileUploadRepository;
-import com.nemonicworld.user.repository.UserRepository;
+import com.nemonicworld.user.service.AnonymousUserResolver;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.RemoveObjectArgs;
@@ -45,8 +45,6 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class FileServiceImpl implements FileService {
 
-    private static final String INVALID_UUID_MESSAGE = "유효하지 않은 UUID 형식입니다.";
-    private static final String USER_NOT_FOUND_MESSAGE = "존재하지 않는 사용자입니다.";
     private static final String INVALID_FILE_NAME_MESSAGE = "파일명이 올바르지 않습니다.";
     private static final String INVALID_BYTE_SIZE_MESSAGE = "파일 크기가 올바르지 않습니다.";
     private static final String UNSUPPORTED_FILE_TYPE_MESSAGE = "지원하지 않는 파일 형식입니다.";
@@ -66,7 +64,7 @@ public class FileServiceImpl implements FileService {
     private final MinioClient minioClient;
     private final MinioStorageProperties properties;
     private final FileUploadRepository fileUploadRepository;
-    private final UserRepository userRepository;
+    private final AnonymousUserResolver anonymousUserResolver;
 
     /**
      * 업로드 가능한 사용자와 파일 요청인지 검증한 뒤, DB에 pending 업로드 기록을 남기고 임시 PUT URL을 반환합니다.
@@ -74,11 +72,8 @@ public class FileServiceImpl implements FileService {
     @Override
     @Transactional
     public FilePresignResponse createPresignedUrl(String userUuidValue, FilePresignRequest request) {
-        UUID userUuid = parseUserUuid(userUuidValue);
-
-        if (!userRepository.existsById(userUuid)) {
-            throw new NotFoundException(USER_NOT_FOUND_MESSAGE);
-        }
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
+        anonymousUserResolver.resolve(userUuid);
 
         String safeFileName = validateAndGetSafeFileName(request.fileName());
         validateContentType(request.contentType());
@@ -105,12 +100,10 @@ public class FileServiceImpl implements FileService {
     @Override
     @Transactional
     public FileConfirmResponse confirmUpload(String userUuidValue, String fileIdValue) {
-        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         UUID fileId = parseFileId(fileIdValue);
 
-        if (!userRepository.existsById(userUuid)) {
-            throw new NotFoundException(USER_NOT_FOUND_MESSAGE);
-        }
+        anonymousUserResolver.resolve(userUuid);
 
         FileUpload fileUpload = fileUploadRepository.findById(fileId)
             .orElseThrow(() -> new NotFoundException(FILE_UPLOAD_NOT_FOUND_MESSAGE));
@@ -140,12 +133,10 @@ public class FileServiceImpl implements FileService {
     @Override
     @Transactional
     public FileDeleteResponse deleteUpload(String userUuidValue, String fileIdValue) {
-        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         UUID fileId = parseFileId(fileIdValue);
 
-        if (!userRepository.existsById(userUuid)) {
-            throw new NotFoundException(USER_NOT_FOUND_MESSAGE);
-        }
+        anonymousUserResolver.resolve(userUuid);
 
         FileUpload fileUpload = fileUploadRepository.findById(fileId)
             .orElseThrow(() -> new NotFoundException(FILE_UPLOAD_NOT_FOUND_MESSAGE));
@@ -163,21 +154,6 @@ public class FileServiceImpl implements FileService {
         fileUpload.markDeleted(LocalDateTime.now());
 
         return new FileDeleteResponse(fileUpload.getId().toString(), FileUploadStatus.DELETED.name());
-    }
-
-    /**
-     * 헤더로 전달된 익명 사용자 UUID가 비어 있거나 UUID 형식이 아니면 400으로 변환합니다.
-     */
-    private UUID parseUserUuid(String value) {
-        if (!StringUtils.hasText(value)) {
-            throw new BadRequestException(INVALID_UUID_MESSAGE);
-        }
-
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException(INVALID_UUID_MESSAGE);
-        }
     }
 
     private UUID parseFileId(String value) {

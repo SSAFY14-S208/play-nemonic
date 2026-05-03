@@ -13,7 +13,7 @@ import com.nemonicworld.gallery.repository.GalleryItemRow;
 import com.nemonicworld.gallery.repository.GalleryRepository;
 import com.nemonicworld.gallery.repository.GalleryRepository.GalleryDetailRow;
 import com.nemonicworld.gallery.repository.GalleryRepository.GalleryDeleteTargetRow;
-import com.nemonicworld.user.repository.UserRepository;
+import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -29,9 +29,7 @@ import org.springframework.util.StringUtils;
  */
 public class GalleryService {
 
-    private static final String INVALID_UUID_MESSAGE = "유효하지 않은 UUID 형식입니다.";
     private static final String INVALID_GALLERY_ID_MESSAGE = "유효하지 않은 갤러리 항목 ID 형식입니다.";
-    private static final String USER_NOT_FOUND_MESSAGE = "존재하지 않는 사용자입니다.";
     private static final String GALLERY_ITEM_NOT_FOUND_MESSAGE = "존재하지 않는 갤러리 항목입니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final int DEFAULT_PAGE = 0;
@@ -41,13 +39,13 @@ public class GalleryService {
     };
 
     private final GalleryRepository galleryRepository;
-    private final UserRepository userRepository;
+    private final AnonymousUserResolver anonymousUserResolver;
     private final ObjectMapper objectMapper;
 
-    public GalleryService(GalleryRepository galleryRepository, UserRepository userRepository,
+    public GalleryService(GalleryRepository galleryRepository, AnonymousUserResolver anonymousUserResolver,
         ObjectMapper objectMapper) {
         this.galleryRepository = galleryRepository;
-        this.userRepository = userRepository;
+        this.anonymousUserResolver = anonymousUserResolver;
         this.objectMapper = objectMapper;
     }
 
@@ -56,13 +54,11 @@ public class GalleryService {
      */
     @Transactional(readOnly = true)
     public GalleryListResponse getMyGallery(String userUuidValue, String pageValue, String sizeValue) {
-        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         int page = parsePage(pageValue);
         int size = parseSize(sizeValue);
 
-        if (!userRepository.existsById(userUuid)) {
-            throw new NotFoundException(USER_NOT_FOUND_MESSAGE);
-        }
+        anonymousUserResolver.resolve(userUuid);
 
         long totalElements = galleryRepository.countActiveItemsByUserId(userUuid);
         List<GalleryItemResponse> items = galleryRepository
@@ -77,12 +73,10 @@ public class GalleryService {
      */
     @Transactional(readOnly = true)
     public GalleryDetailResponse getMyGalleryItemDetail(String userUuidValue, String galleryIdValue) {
-        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         UUID galleryId = parseGalleryId(galleryIdValue);
 
-        if (!userRepository.existsById(userUuid)) {
-            throw new NotFoundException(USER_NOT_FOUND_MESSAGE);
-        }
+        anonymousUserResolver.resolve(userUuid);
 
         GalleryDetailRow row = galleryRepository.findActiveItemDetail(galleryId, userUuid)
             .orElseThrow(() -> new NotFoundException(GALLERY_ITEM_NOT_FOUND_MESSAGE));
@@ -97,12 +91,10 @@ public class GalleryService {
      */
     @Transactional
     public GalleryDeleteResponse deleteMyGalleryItem(String userUuidValue, String galleryIdValue) {
-        UUID userUuid = parseUserUuid(userUuidValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         UUID galleryId = parseGalleryId(galleryIdValue);
 
-        if (!userRepository.existsById(userUuid)) {
-            throw new NotFoundException(USER_NOT_FOUND_MESSAGE);
-        }
+        anonymousUserResolver.resolve(userUuid);
 
         GalleryDeleteTargetRow target = galleryRepository.findActiveDeleteTarget(galleryId, userUuid)
             .orElseThrow(() -> new NotFoundException(GALLERY_ITEM_NOT_FOUND_MESSAGE));
@@ -127,10 +119,6 @@ public class GalleryService {
         } catch (JsonProcessingException e) {
             return Map.of();
         }
-    }
-
-    private UUID parseUserUuid(String userUuid) {
-        return parseUuid(userUuid, INVALID_UUID_MESSAGE);
     }
 
     private UUID parseGalleryId(String galleryId) {
