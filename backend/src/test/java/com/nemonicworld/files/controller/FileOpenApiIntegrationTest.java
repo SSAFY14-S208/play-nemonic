@@ -29,7 +29,8 @@ class FileOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.summary").value("이미지 업로드 Presigned URL 발급"))
             .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.tags[0]").value("File"))
-            .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.parameters[0].name").value("X-User-UUID"))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/files/presign'].post.parameters[0].name").value("X-Anonymous-User-UUID"))
             .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.responses['200'].description")
                 .value("Presigned URL 발급 성공"));
     }
@@ -43,7 +44,7 @@ class FileOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.summary").value("파일 업로드 완료 확인"))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.tags[0]").value("File"))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.parameters[*].name")
-                .value(hasItems("X-User-UUID", "fileId")))
+                .value(hasItems("X-Anonymous-User-UUID", "fileId")))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.responses['200'].description")
                 .value("파일 업로드 확인 성공"));
     }
@@ -57,7 +58,7 @@ class FileOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.summary").value("파일 삭제"))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.tags[0]").value("File"))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.parameters[*].name")
-                .value(hasItems("X-User-UUID", "fileId")))
+                .value(hasItems("X-Anonymous-User-UUID", "fileId")))
             .andExpect(
                 jsonPath("$.paths['/api/v1/files/{fileId}'].delete.responses['200'].description").value("파일 삭제 성공"));
     }

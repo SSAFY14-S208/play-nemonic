@@ -1,9 +1,9 @@
 package com.nemonicworld.user.controller;
 
+import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.user.dto.request.AnonymousUserBirthInfoRequest;
 import com.nemonicworld.user.dto.request.AnonymousUserNicknameRequest;
-import com.nemonicworld.user.dto.request.AnonymousUserVerifyRequest;
 import com.nemonicworld.user.dto.response.AnonymousUserBirthInfoResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserNicknameResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserProfileResponse;
@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -77,12 +76,13 @@ public class UserController {
     @PostMapping("/anonymous/verify")
     @Operation(summary = "익명 사용자 UUID 확인", description = "클라이언트가 보관 중인 익명 사용자 UUID를 검증하고 재방문 시각을 갱신합니다.")
     @Parameters({
+        @Parameter(name = AnonymousUserHeaders.ANONYMOUS_USER_UUID, in = ParameterIn.HEADER, required = true, description = "서버가 발급한 익명 사용자 UUID"),
         @Parameter(name = HttpHeaders.USER_AGENT, in = ParameterIn.HEADER, description = "없거나 공백이면 unknown으로 저장됩니다.")})
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "익명 사용자 UUID 확인 성공")
     public ResponseEntity<ApiResponse<AnonymousUserVerifyResponse>> verifyAnonymousUser(
-        @RequestBody AnonymousUserVerifyRequest request,
+        @RequestHeader(value = AnonymousUserHeaders.ANONYMOUS_USER_UUID, required = false) String userUuid,
         @RequestHeader(value = HttpHeaders.USER_AGENT, required = false) String userAgent) {
-        AnonymousUserVerifyResponse response = userService.verifyAnonymousUser(request, userAgent);
+        AnonymousUserVerifyResponse response = userService.verifyAnonymousUser(userUuid, userAgent);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(ANONYMOUS_USER_VERIFIED_MESSAGE, response));
@@ -93,10 +93,12 @@ public class UserController {
      */
     @PatchMapping("/anonymous/nickname")
     @Operation(summary = "익명 사용자 닉네임 설정/수정", description = "서버에 등록된 익명 사용자의 닉네임을 설정하거나 수정합니다.")
+    @Parameter(name = AnonymousUserHeaders.ANONYMOUS_USER_UUID, in = ParameterIn.HEADER, required = true, description = "서버가 발급한 익명 사용자 UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "닉네임 설정/수정 성공")
     public ResponseEntity<ApiResponse<AnonymousUserNicknameResponse>> updateAnonymousUserNickname(
+        @RequestHeader(value = AnonymousUserHeaders.ANONYMOUS_USER_UUID, required = false) String userUuid,
         @RequestBody AnonymousUserNicknameRequest request) {
-        AnonymousUserNicknameResponse response = userService.updateAnonymousUserNickname(request);
+        AnonymousUserNicknameResponse response = userService.updateAnonymousUserNickname(userUuid, request);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(ANONYMOUS_USER_NICKNAME_UPDATED_MESSAGE, response));
@@ -107,10 +109,12 @@ public class UserController {
      */
     @PostMapping("/anonymous/birth-info")
     @Operation(summary = "익명 사용자 생년월일 정보 등록", description = "운세 기능 최초 진입 시 필요한 생년월일, 생시, 양력/음력 여부를 등록합니다.")
+    @Parameter(name = AnonymousUserHeaders.ANONYMOUS_USER_UUID, in = ParameterIn.HEADER, required = true, description = "서버가 발급한 익명 사용자 UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생년월일 정보 등록 성공")
     public ResponseEntity<ApiResponse<AnonymousUserBirthInfoResponse>> registerAnonymousUserBirthInfo(
+        @RequestHeader(value = AnonymousUserHeaders.ANONYMOUS_USER_UUID, required = false) String userUuid,
         @RequestBody AnonymousUserBirthInfoRequest request) {
-        AnonymousUserBirthInfoResponse response = userService.registerAnonymousUserBirthInfo(request);
+        AnonymousUserBirthInfoResponse response = userService.registerAnonymousUserBirthInfo(userUuid, request);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(ANONYMOUS_USER_BIRTH_INFO_CREATED_MESSAGE, response));
@@ -121,10 +125,12 @@ public class UserController {
      */
     @PatchMapping("/anonymous/birth-info")
     @Operation(summary = "익명 사용자 생년월일 정보 수정", description = "이미 등록된 생년월일, 생시, 양력/음력 여부를 수정합니다.")
+    @Parameter(name = AnonymousUserHeaders.ANONYMOUS_USER_UUID, in = ParameterIn.HEADER, required = true, description = "서버가 발급한 익명 사용자 UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생년월일 정보 수정 성공")
     public ResponseEntity<ApiResponse<AnonymousUserBirthInfoResponse>> updateAnonymousUserBirthInfo(
+        @RequestHeader(value = AnonymousUserHeaders.ANONYMOUS_USER_UUID, required = false) String userUuid,
         @RequestBody AnonymousUserBirthInfoRequest request) {
-        AnonymousUserBirthInfoResponse response = userService.updateAnonymousUserBirthInfo(request);
+        AnonymousUserBirthInfoResponse response = userService.updateAnonymousUserBirthInfo(userUuid, request);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(ANONYMOUS_USER_BIRTH_INFO_UPDATED_MESSAGE, response));
@@ -135,10 +141,10 @@ public class UserController {
      */
     @GetMapping("/anonymous/profile")
     @Operation(summary = "익명 사용자 프로필 조회", description = "서버에 등록된 익명 사용자의 재사용 가능 프로필 정보를 조회합니다.")
-    @Parameter(name = "userUuid", in = ParameterIn.QUERY, required = true, description = "서버가 발급한 익명 사용자 UUID")
+    @Parameter(name = AnonymousUserHeaders.ANONYMOUS_USER_UUID, in = ParameterIn.HEADER, required = true, description = "서버가 발급한 익명 사용자 UUID")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "내 프로필 조회 성공")
     public ResponseEntity<ApiResponse<AnonymousUserProfileResponse>> getAnonymousUserProfile(
-        @RequestParam(required = false) String userUuid) {
+        @RequestHeader(value = AnonymousUserHeaders.ANONYMOUS_USER_UUID, required = false) String userUuid) {
         AnonymousUserProfileResponse response = userService.getAnonymousUserProfile(userUuid);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)

@@ -5,7 +5,6 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.user.dto.request.AnonymousUserBirthInfoRequest;
 import com.nemonicworld.user.dto.request.AnonymousUserNicknameRequest;
-import com.nemonicworld.user.dto.request.AnonymousUserVerifyRequest;
 import com.nemonicworld.user.dto.response.AnonymousUserBirthInfoResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserNicknameResponse;
 import com.nemonicworld.user.dto.response.AnonymousUserProfileResponse;
@@ -68,8 +67,8 @@ public class UserService {
      * 클라이언트가 보관 중인 익명 사용자 UUID를 검증하고 재방문 정보를 갱신합니다.
      */
     @Transactional
-    public AnonymousUserVerifyResponse verifyAnonymousUser(AnonymousUserVerifyRequest request, String userAgent) {
-        UUID userUuid = parseUserUuid(request == null ? null : request.userUuid());
+    public AnonymousUserVerifyResponse verifyAnonymousUser(String userUuidValue, String userAgent) {
+        UUID userUuid = parseUserUuid(userUuidValue);
         AppUser appUser = userRepository.findById(userUuid)
             .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -84,8 +83,9 @@ public class UserService {
      * 서버에 등록된 익명 사용자의 닉네임을 설정하거나 수정합니다.
      */
     @Transactional
-    public AnonymousUserNicknameResponse updateAnonymousUserNickname(AnonymousUserNicknameRequest request) {
-        UUID userUuid = parseUserUuid(request == null ? null : request.userUuid());
+    public AnonymousUserNicknameResponse updateAnonymousUserNickname(String userUuidValue,
+        AnonymousUserNicknameRequest request) {
+        UUID userUuid = parseUserUuid(userUuidValue);
         // 닉네임 안의 공백은 허용하므로 저장 전 trim하지 않고 원문을 유지합니다.
         String nickname = request == null ? null : request.nickname();
 
@@ -105,8 +105,9 @@ public class UserService {
      * 운세 기능 최초 진입 시 필요한 생년월일 정보를 등록합니다.
      */
     @Transactional
-    public AnonymousUserBirthInfoResponse registerAnonymousUserBirthInfo(AnonymousUserBirthInfoRequest request) {
-        UUID userUuid = parseUserUuid(request == null ? null : request.userUuid());
+    public AnonymousUserBirthInfoResponse registerAnonymousUserBirthInfo(String userUuidValue,
+        AnonymousUserBirthInfoRequest request) {
+        UUID userUuid = parseUserUuid(userUuidValue);
         BirthInfo birthInfo = parseBirthInfo(request);
         AppUser appUser = userRepository.findById(userUuid)
             .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));
@@ -125,8 +126,9 @@ public class UserService {
      * 이미 등록된 생년월일 정보를 사용자의 요청 값으로 수정합니다.
      */
     @Transactional
-    public AnonymousUserBirthInfoResponse updateAnonymousUserBirthInfo(AnonymousUserBirthInfoRequest request) {
-        UUID userUuid = parseUserUuid(request == null ? null : request.userUuid());
+    public AnonymousUserBirthInfoResponse updateAnonymousUserBirthInfo(String userUuidValue,
+        AnonymousUserBirthInfoRequest request) {
+        UUID userUuid = parseUserUuid(userUuidValue);
         BirthInfo birthInfo = parseBirthInfo(request);
         AppUser appUser = userRepository.findById(userUuid)
             .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MESSAGE));

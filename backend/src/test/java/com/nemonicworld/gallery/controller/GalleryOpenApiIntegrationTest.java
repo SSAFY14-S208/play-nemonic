@@ -1,5 +1,6 @@
 package com.nemonicworld.gallery.controller;
 
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -28,13 +29,19 @@ class GalleryOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/gallery'].get.summary").value("내 갤러리 목록 조회"))
             .andExpect(jsonPath("$.paths['/api/v1/gallery'].get.tags[0]").value("Gallery"))
+            .andExpect(jsonPath("$.paths['/api/v1/gallery'].get.parameters[*].name")
+                .value(hasItems("X-Anonymous-User-UUID", "page", "size")))
             .andExpect(jsonPath("$.paths['/api/v1/gallery'].get.responses['200'].description").value("내 갤러리 목록 조회 성공"))
             .andExpect(jsonPath("$.paths['/api/v1/gallery/{galleryId}'].get.summary").value("내 갤러리 항목 상세 조회"))
             .andExpect(jsonPath("$.paths['/api/v1/gallery/{galleryId}'].get.tags[0]").value("Gallery"))
+            .andExpect(jsonPath("$.paths['/api/v1/gallery/{galleryId}'].get.parameters[*].name")
+                .value(hasItems("X-Anonymous-User-UUID", "galleryId")))
             .andExpect(jsonPath("$.paths['/api/v1/gallery/{galleryId}'].get.responses['200'].description")
                 .value("내 갤러리 항목 상세 조회 성공"))
             .andExpect(jsonPath("$.paths['/api/v1/gallery/{galleryId}'].delete.summary").value("갤러리 항목 삭제"))
             .andExpect(jsonPath("$.paths['/api/v1/gallery/{galleryId}'].delete.tags[0]").value("Gallery"))
+            .andExpect(jsonPath("$.paths['/api/v1/gallery/{galleryId}'].delete.parameters[*].name")
+                .value(hasItems("X-Anonymous-User-UUID", "galleryId")))
             .andExpect(jsonPath("$.paths['/api/v1/gallery/{galleryId}'].delete.responses['200'].description")
                 .value("갤러리 항목 삭제 성공"));
     }

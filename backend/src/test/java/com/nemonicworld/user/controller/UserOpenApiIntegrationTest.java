@@ -1,5 +1,6 @@
 package com.nemonicworld.user.controller;
 
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -40,6 +41,9 @@ class UserOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.summary").value("익명 사용자 UUID 확인"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.parameters[*].name")
+                .value(hasItems("X-Anonymous-User-UUID", "User-Agent")))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.requestBody").doesNotExist())
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.responses['200'].description")
                 .value("익명 사용자 UUID 확인 성공"));
     }
@@ -52,6 +56,8 @@ class UserOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/nickname'].patch.summary").value("익명 사용자 닉네임 설정/수정"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/nickname'].patch.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/nickname'].patch.parameters[*].name")
+                .value(hasItems("X-Anonymous-User-UUID")))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/nickname'].patch.responses['200'].description")
                 .value("닉네임 설정/수정 성공"));
     }
@@ -64,6 +70,8 @@ class UserOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/profile'].get.summary").value("익명 사용자 프로필 조회"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/profile'].get.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/profile'].get.parameters[*].name")
+                .value(hasItems("X-Anonymous-User-UUID")))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/profile'].get.responses['200'].description")
                 .value("내 프로필 조회 성공"));
     }
@@ -77,6 +85,8 @@ class UserOpenApiIntegrationTest {
             .andExpect(
                 jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].post.summary").value("익명 사용자 생년월일 정보 등록"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].post.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].post.parameters[*].name")
+                .value(hasItems("X-Anonymous-User-UUID")))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].post.responses['200'].description")
                 .value("생년월일 정보 등록 성공"));
     }
@@ -90,6 +100,8 @@ class UserOpenApiIntegrationTest {
             .andExpect(
                 jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].patch.summary").value("익명 사용자 생년월일 정보 수정"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].patch.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].patch.parameters[*].name")
+                .value(hasItems("X-Anonymous-User-UUID")))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].patch.responses['200'].description")
                 .value("생년월일 정보 수정 성공"));
     }
