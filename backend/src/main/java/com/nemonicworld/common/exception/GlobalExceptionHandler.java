@@ -51,6 +51,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(ApiResponse.fail(e.getMessage(), null));
     }
 
+    // 500 Internal Server Error - 파일 저장소 처리 실패
+    @ExceptionHandler(FileStorageException.class)
+    public ResponseEntity<ApiResponse<Void>> handleFileStorage(FileStorageException e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.fail(e.getMessage(), null));
+    }
+
     // 400 Bad Request - 유효성 검사 실패
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException e) {

@@ -73,4 +73,17 @@ public class FileUpload {
         fileUpload.updatedAt = now;
         return fileUpload;
     }
+
+    public void markUploaded(LocalDateTime now) {
+        this.status = FileUploadStatus.UPLOADED;
+        this.updatedAt = now;
+    }
+
+    public boolean isOwnedBy(UUID userId) {
+        return this.userId.equals(userId);
+    }
+
+    public boolean isPending() {
+        return this.status == FileUploadStatus.PENDING;
+    }
 }

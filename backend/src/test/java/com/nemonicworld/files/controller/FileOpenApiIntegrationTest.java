@@ -1,5 +1,6 @@
 package com.nemonicworld.files.controller;
 
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,5 +32,19 @@ class FileOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.parameters[0].name").value("X-User-UUID"))
             .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.responses['200'].description")
                 .value("Presigned URL 발급 성공"));
+    }
+
+    /**
+     * /v3/api-docs 응답에 POST /api/v1/files/{fileId}/confirm 문서 정보가 포함되는지 확인합니다.
+     */
+    @Test
+    void fileConfirmApiIsExposedInOpenApiDocs() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.summary").value("파일 업로드 완료 확인"))
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.tags[0]").value("File"))
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.parameters[*].name")
+                .value(hasItems("X-User-UUID", "fileId")))
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.responses['200'].description")
+                .value("파일 업로드 확인 성공"));
     }
 }

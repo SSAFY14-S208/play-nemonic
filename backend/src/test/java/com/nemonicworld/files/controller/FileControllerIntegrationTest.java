@@ -14,9 +14,18 @@ import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
+import io.minio.StatObjectArgs;
+import io.minio.StatObjectResponse;
+import io.minio.errors.ErrorResponseException;
+import io.minio.messages.ErrorResponse;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import okhttp3.Headers;
+import okhttp3.Protocol;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -256,6 +265,115 @@ class FileControllerIntegrationTest {
         assertThat(countFileUploads()).isZero();
     }
 
+    /**
+     * MinIO에 객체가 실제로 있으면 pending 업로드를 uploaded 상태로 확정합니다.
+     */
+    @Test
+    void confirmMarksPendingUploadAsUploadedWhenObjectExists() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
+        given(minioClient.statObject(any(StatObjectArgs.class))).willReturn(statObjectResponse(1024L));
+
+        mockMvc.perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("파일 업로드 확인 성공"))
+            .andExpect(jsonPath("$.data.fileId").value(fileId.toString()))
+            .andExpect(jsonPath("$.data.status").value("UPLOADED"));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("UPLOADED");
+    }
+
+    /**
+     * fileId가 UUID 형식이 아니면 400으로 응답합니다.
+     */
+    @Test
+    void confirmRejectsInvalidFileId() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/v1/files/not-a-uuid/confirm").header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 fileId 형식입니다."));
+    }
+
+    /**
+     * file_upload 메타데이터가 없으면 404로 응답합니다.
+     */
+    @Test
+    void confirmReturnsNotFoundWhenFileUploadDoesNotExist() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID missingFileId = UUID.randomUUID();
+
+        mockMvc
+            .perform(
+                post("/api/v1/files/{fileId}/confirm", missingFileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("파일 업로드 정보를 찾을 수 없습니다."));
+    }
+
+    /**
+     * 다른 사용자의 파일 업로드는 확인할 수 없습니다.
+     */
+    @Test
+    void confirmRejectsFileUploadOwnedByAnotherUser() throws Exception {
+        UUID ownerUuid = createExistingUser();
+        UUID requesterUuid = createExistingUser();
+        UUID fileId = insertFileUpload(ownerUuid, "PENDING", 1024L);
+
+        mockMvc
+            .perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, requesterUuid.toString()))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("파일에 접근할 권한이 없습니다."));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("PENDING");
+    }
+
+    /**
+     * pending 상태가 아니면 중복 confirm을 막기 위해 409로 응답합니다.
+     */
+    @Test
+    void confirmRejectsAlreadyUploadedFileUpload() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "UPLOADED", 1024L);
+
+        mockMvc.perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("확인할 수 없는 파일 업로드 상태입니다."));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("UPLOADED");
+    }
+
+    /**
+     * pending 메타데이터는 있지만 MinIO object가 없으면 404로 응답합니다.
+     */
+    @Test
+    void confirmReturnsNotFoundWhenMinioObjectDoesNotExist() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
+        given(minioClient.statObject(any(StatObjectArgs.class))).willThrow(minioError("NoSuchKey"));
+
+        mockMvc.perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("파일 업로드 정보를 찾을 수 없습니다."));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("PENDING");
+    }
+
+    /**
+     * 실제 MinIO object 크기가 정책보다 크면 uploaded 상태로 확정하지 않습니다.
+     */
+    @Test
+    void confirmRejectsObjectLargerThanMaxUploadSize() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
+        given(minioClient.statObject(any(StatObjectArgs.class))).willReturn(statObjectResponse(52428801L));
+
+        mockMvc.perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isPayloadTooLarge()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("파일 크기가 제한을 초과했습니다 (최대 50MB)."));
+
+        assertThat(readStringColumn(fileId, "status")).isEqualTo("PENDING");
+    }
+
     private UUID createExistingUser() {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime createdAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -294,5 +412,48 @@ class FileControllerIntegrationTest {
     private long readLongColumn(UUID fileId, String columnName) {
         return jdbcTemplate.queryForObject("SELECT %s FROM file_upload WHERE id = ?".formatted(columnName), Long.class,
             fileId);
+    }
+
+    private UUID insertFileUpload(UUID userUuid, String status, long byteSize) {
+        UUID fileId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        String objectKey = "uploads/flipbook/2026/05/03/%s/drawing.png".formatted(fileId);
+
+        jdbcTemplate.update("""
+            INSERT INTO file_upload (
+                id,
+                user_id,
+                purpose,
+                original_file_name,
+                content_type,
+                byte_size,
+                object_key,
+                status,
+                expires_at,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, 'FLIPBOOK', 'drawing.png', 'image/png', ?, ?, ?, ?, ?, ?)
+            """, fileId, userUuid, byteSize, objectKey, status, Timestamp.valueOf(now.plusMinutes(10)),
+            Timestamp.valueOf(now), Timestamp.valueOf(now));
+
+        return fileId;
+    }
+
+    private StatObjectResponse statObjectResponse(long byteSize) {
+        Headers headers = Headers.of("Content-Length", String.valueOf(byteSize), "Last-Modified",
+            "Wed, 21 Oct 2015 07:28:00 GMT", "ETag", "\"etag\"");
+
+        return new StatObjectResponse(headers, "nemonic-local", null, "object-key");
+    }
+
+    private ErrorResponseException minioError(String code) {
+        ErrorResponse errorResponse = new ErrorResponse(code, "Object does not exist", "nemonic-local", "object-key",
+            "/nemonic-local/object-key", "request-id", "host-id");
+        Response response = new Response.Builder()
+            .request(new Request.Builder().url("http://localhost:9000/nemonic-local/object-key").build())
+            .protocol(Protocol.HTTP_1_1).code(404).message("Not Found").build();
+
+        return new ErrorResponseException(errorResponse, response, null);
     }
 }
