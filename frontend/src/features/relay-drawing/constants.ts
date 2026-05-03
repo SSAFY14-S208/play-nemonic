@@ -174,7 +174,7 @@ export const RELAY_STAGE_SIZE = {
 
 export const RELAY_FINAL_STAGE_SIZE = {
   width: 848,
-  height: 1624,
+  height: 1920,
 }
 
 export interface RelayRoundArea {
@@ -198,28 +198,28 @@ export const RELAY_ROUND_RULES: Record<RelayRoundKey, RelayRoundRule> = {
   face: {
     label: '얼굴',
     helperText: '얼굴을 그리고, 아래 점선 구간만 다음 사람에게 힌트로 넘겨요',
-    drawArea: { y: 96, height: 524 },
-    exportArea: { y: 96, height: 524 },
-    finalOffsetY: -96,
-    outgoingHintArea: { y: 500, height: 120 },
+    drawArea: { y: 0, height: 720 },
+    exportArea: { y: 0, height: 720 },
+    finalOffsetY: 0,
+    outgoingHintArea: { y: 600, height: 120 },
   },
   body: {
     label: '몸통',
     helperText: '위쪽 힌트 선을 보고 몸통을 이어 그리고, 아래 구간을 다음 힌트로 남겨요',
     drawArea: { y: 0, height: 720 },
     exportArea: { y: 0, height: 720 },
-    finalOffsetY: 404,
+    finalOffsetY: 600,
     incomingHintSourceRoundKey: 'face',
-    incomingHintSourceArea: { y: 500, height: 120 },
+    incomingHintSourceArea: { y: 600, height: 120 },
     incomingHintTargetArea: { y: 0, height: 120 },
     outgoingHintArea: { y: 600, height: 120 },
   },
   legs: {
     label: '다리',
     helperText: '위쪽 힌트 선을 보고 다리를 이어 그려 캐릭터를 완성해요',
-    drawArea: { y: 0, height: 620 },
-    exportArea: { y: 0, height: 620 },
-    finalOffsetY: 1004,
+    drawArea: { y: 0, height: 720 },
+    exportArea: { y: 0, height: 720 },
+    finalOffsetY: 1200,
     incomingHintSourceRoundKey: 'body',
     incomingHintSourceArea: { y: 600, height: 120 },
     incomingHintTargetArea: { y: 0, height: 120 },
