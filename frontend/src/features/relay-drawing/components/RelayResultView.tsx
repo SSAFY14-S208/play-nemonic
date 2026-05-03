@@ -1,13 +1,20 @@
 import {
+  RELAY_FINAL_STAGE_SIZE,
   RELAY_RESULT_ACTIONS,
   RELAY_RESULT_REVEALS,
+  RELAY_ROUND_ORDER,
+  RELAY_ROUND_RULES,
+  RELAY_STAGE_SIZE,
   type RelayResultReveal,
   type RelayResultRevealStep,
+  type RelayRoundKey,
 } from '../constants'
+import type { RelayDrawLine, RelayRoundLines } from '../useRelayDrawing'
 import { cn } from '@/shared/libs'
 
 interface RelayResultViewProps {
   resultRevealStep: RelayResultRevealStep
+  roundLines: RelayRoundLines
   canShowPreviousResultReveal: boolean
   canShowNextResultReveal: boolean
   onShowPreviousResultReveal: () => void
@@ -44,6 +51,7 @@ const RESULT_SEGMENTS = [
 
 export default function RelayResultView({
   resultRevealStep,
+  roundLines,
   canShowPreviousResultReveal,
   canShowNextResultReveal,
   onShowPreviousResultReveal,
@@ -72,7 +80,7 @@ export default function RelayResultView({
           >
             {!isFinalReveal && <ResultStageHeader activeReveal={activeReveal} />}
 
-            <ResultCanvas resultRevealStep={activeReveal.key} />
+            <ResultCanvas resultRevealStep={activeReveal.key} roundLines={roundLines} />
 
             {!isFinalReveal && (
               <ResultStepNav
@@ -188,8 +196,16 @@ function ResultStageHeader({ activeReveal }: { activeReveal: RelayResultReveal }
   )
 }
 
-function ResultCanvas({ resultRevealStep }: { resultRevealStep: RelayResultRevealStep }) {
+function ResultCanvas({
+  resultRevealStep,
+  roundLines,
+}: {
+  resultRevealStep: RelayResultRevealStep
+  roundLines: RelayRoundLines
+}) {
   const isFinalReveal = resultRevealStep === 'final'
+  const visibleRoundKeys =
+    resultRevealStep === 'final' ? RELAY_ROUND_ORDER : [resultRevealStep as RelayRoundKey]
 
   return (
     <div
@@ -198,40 +214,139 @@ function ResultCanvas({ resultRevealStep }: { resultRevealStep: RelayResultRevea
         isFinalReveal ? 'h-[495px]' : 'h-[460px]',
       )}
     >
-      {resultRevealStep === 'face' && (
-        <>
-          <FaceDrawing className="absolute left-[8%] top-[11%] h-[88%] w-[84%]" />
-          <ResultSpotlight revealStep="face" />
-        </>
+      <CompositeDrawingCanvas
+        visibleRoundKeys={visibleRoundKeys}
+        roundLines={roundLines}
+        isFinalReveal={isFinalReveal}
+      />
+
+      {!isFinalReveal && (
+        <ResultSpotlight revealStep={resultRevealStep} />
       )}
 
-      {resultRevealStep === 'body' && (
-        <>
-          <FaceDrawing className="absolute left-[20%] top-[-56%] h-[88%] w-[60%]" />
-          <BodyDrawing className="absolute left-1/2 top-[11%] h-[76%] w-[56%] -translate-x-1/2" />
-          <ResultSpotlight revealStep="body" />
-        </>
-      )}
-
-      {resultRevealStep === 'legs' && (
-        <>
-          <BodyDrawing className="absolute left-1/2 top-[-55%] h-[76%] w-[54%] -translate-x-1/2" />
-          <LegsDrawing className="absolute left-1/2 top-[1%] h-[94%] w-[48%] -translate-x-1/2" />
-          <ResultSpotlight revealStep="legs" />
-        </>
-      )}
-
-      {isFinalReveal && (
-        <>
-          <FaceDrawing className="absolute left-1/2 top-[4%] h-[34%] w-[38%] -translate-x-1/2" />
-          <BodyDrawing className="absolute left-1/2 top-[27%] h-[31%] w-[28%] -translate-x-1/2" />
-          <LegsDrawing className="absolute left-1/2 top-[54%] h-[37%] w-[24%] -translate-x-1/2" />
-          <SegmentGuide top="24%" />
-          <SegmentGuide top="53%" />
-          <ResultSegmentTags />
-        </>
-      )}
+      {isFinalReveal && <ResultSegmentTags />}
     </div>
+  )
+}
+
+function CompositeDrawingCanvas({
+  visibleRoundKeys,
+  roundLines,
+  isFinalReveal,
+}: {
+  visibleRoundKeys: RelayRoundKey[]
+  roundLines: RelayRoundLines
+  isFinalReveal: boolean
+}) {
+  const hasVisibleLines = visibleRoundKeys.some((roundKey) => roundLines[roundKey].length > 0)
+  const viewBoxHeight = isFinalReveal ? RELAY_FINAL_STAGE_SIZE.height : RELAY_STAGE_SIZE.height
+  const dotRowCount = Math.ceil(viewBoxHeight / 20)
+  const separatorPositions = RELAY_ROUND_ORDER.slice(1).map(
+    (roundKey) => RELAY_ROUND_RULES[roundKey].finalOffsetY + RELAY_ROUND_RULES[roundKey].drawArea.y,
+  )
+
+  return (
+    <svg
+      className="h-full w-full"
+      viewBox={`0 0 ${RELAY_STAGE_SIZE.width} ${viewBoxHeight}`}
+      role="img"
+      aria-label="완성된 릴레이 드로잉"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <rect width={RELAY_STAGE_SIZE.width} height={viewBoxHeight} fill="#fffdf7" />
+      {Array.from({ length: dotRowCount }).map((_, rowIndex) =>
+        Array.from({ length: 42 }).map((__, columnIndex) => (
+          <circle
+            key={`${rowIndex}-${columnIndex}`}
+            cx={12 + columnIndex * 20}
+            cy={12 + rowIndex * 20}
+            r={1}
+            fill="#ffdc82"
+            opacity={0.54}
+          />
+        )),
+      )}
+
+      {isFinalReveal &&
+        separatorPositions.map((separatorPosition) => (
+          <line
+            key={separatorPosition}
+            x1={16}
+            x2={RELAY_STAGE_SIZE.width - 16}
+            y1={separatorPosition}
+            y2={separatorPosition}
+            stroke="#d49b1f"
+            strokeDasharray="7 9"
+            opacity={0.45}
+          />
+        ))}
+
+      {visibleRoundKeys.map((roundKey) => (
+        <RoundLineGroup
+          key={roundKey}
+          roundKey={roundKey}
+          lines={roundLines[roundKey]}
+          isFinalReveal={isFinalReveal}
+        />
+      ))}
+
+      {!hasVisibleLines && (
+        <text
+          x={RELAY_STAGE_SIZE.width / 2}
+          y={viewBoxHeight / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="#947c40"
+          fontFamily="Pretendard Variable"
+          fontSize={18}
+          fontWeight={700}
+        >
+          아직 저장된 그림이 없어요
+        </text>
+      )}
+    </svg>
+  )
+}
+
+function RoundLineGroup({
+  roundKey,
+  lines,
+  isFinalReveal,
+}: {
+  roundKey: RelayRoundKey
+  lines: RelayDrawLine[]
+  isFinalReveal: boolean
+}) {
+  const roundRule = RELAY_ROUND_RULES[roundKey]
+  const verticalOffset = isFinalReveal ? roundRule.finalOffsetY : 0
+  const clipId = `relay-result-${roundKey}-${isFinalReveal ? 'final' : 'single'}`
+
+  return (
+    <>
+      <defs>
+        <clipPath id={clipId}>
+          <rect
+            x={0}
+            y={roundRule.exportArea.y}
+            width={RELAY_STAGE_SIZE.width}
+            height={roundRule.exportArea.height}
+          />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`} transform={`translate(0 ${verticalOffset})`}>
+        {lines.map((line) => (
+          <polyline
+            key={line.id}
+            points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
+            fill="none"
+            stroke={line.color}
+            strokeWidth={line.strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ))}
+      </g>
+    </>
   )
 }
 
@@ -394,60 +509,5 @@ function ResultSegmentTags() {
         </span>
       ))}
     </>
-  )
-}
-
-function SegmentGuide({ top }: { top: string }) {
-  return (
-    <span
-      className="absolute left-4 right-4 border-t border-dashed border-relay-accent-strong/45"
-      style={{ top }}
-    />
-  )
-}
-
-function FaceDrawing({ className }: { className: string }) {
-  return (
-    <div className={cn('relative', className)}>
-      <span className="absolute left-1/2 top-[5%] h-[7%] w-[28%] -translate-x-1/2 rounded-full border-[3px] border-relay-ink bg-transparent" />
-      <div className="absolute left-1/2 top-[10%] h-[76%] w-[48%] -translate-x-1/2 rounded-full border-[4px] border-relay-ink bg-relay-yellow">
-        <span className="body-b absolute left-[32%] top-[46%] -translate-x-1/2 text-relay-ink">
-          X
-        </span>
-        <span className="body-b absolute right-[32%] top-[46%] translate-x-1/2 text-relay-ink">
-          X
-        </span>
-        <span className="absolute bottom-[24%] left-1/2 h-[8%] w-[15%] -translate-x-1/2 rounded-full border-[2px] border-relay-ink bg-relay-paper" />
-      </div>
-    </div>
-  )
-}
-
-function BodyDrawing({ className }: { className: string }) {
-  return (
-    <div className={cn('relative', className)}>
-      <span className="absolute left-[14%] top-[24%] h-[2px] w-[28%] -rotate-[36deg] rounded-full bg-relay-coral" />
-      <span className="absolute right-[14%] top-[24%] h-[2px] w-[28%] rotate-[36deg] rounded-full bg-relay-coral" />
-      <div className="absolute left-1/2 top-[12%] h-[76%] w-[34%] -translate-x-1/2 border-[3px] border-relay-coral bg-transparent">
-        {[30, 50, 70].map((verticalPosition) => (
-          <span
-            key={verticalPosition}
-            className="absolute left-1/2 size-3 -translate-x-1/2 rounded-full bg-relay-coral"
-            style={{ top: `${verticalPosition}%` }}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function LegsDrawing({ className }: { className: string }) {
-  return (
-    <div className={cn('relative', className)}>
-      <span className="absolute bottom-[12%] left-[36%] h-[78%] w-[5px] rotate-[5deg] rounded-full bg-relay-green" />
-      <span className="absolute bottom-[12%] right-[36%] h-[78%] w-[5px] rotate-[-5deg] rounded-full bg-relay-green" />
-      <span className="absolute bottom-[7%] left-[22%] h-[5%] w-[24%] rounded-full bg-relay-ink" />
-      <span className="absolute bottom-[7%] right-[22%] h-[5%] w-[24%] rounded-full bg-relay-ink" />
-    </div>
   )
 }

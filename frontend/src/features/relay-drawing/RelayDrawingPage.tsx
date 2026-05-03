@@ -27,10 +27,14 @@ export default function RelayDrawingPage() {
 
       {relayDrawing.currentStep === 'drawing' && (
         <RelayDrawingView
+          activeRoundKey={relayDrawing.activeRoundKey}
+          activeRoundIndex={relayDrawing.activeRoundIndex}
           selectedToolKey={relayDrawing.selectedToolKey}
           selectedColor={relayDrawing.selectedColor}
           strokeWidth={relayDrawing.strokeWidth}
           lines={relayDrawing.lines}
+          previousRoundLines={relayDrawing.previousRoundLines}
+          roundLines={relayDrawing.roundLines}
           onSelectTool={relayDrawing.setSelectedToolKey}
           onSelectColor={relayDrawing.setSelectedColor}
           onStrokeWidthChange={relayDrawing.setStrokeWidth}
@@ -39,13 +43,14 @@ export default function RelayDrawingPage() {
           onDrawStart={relayDrawing.beginDrawing}
           onDrawMove={relayDrawing.continueDrawing}
           onDrawEnd={relayDrawing.endDrawing}
-          onCompleteRound={relayDrawing.goToNextStep}
+          onCompleteRound={relayDrawing.completeRound}
         />
       )}
 
       {relayDrawing.currentStep === 'result' && (
         <RelayResultView
           resultRevealStep={relayDrawing.resultRevealStep}
+          roundLines={relayDrawing.roundLines}
           canShowPreviousResultReveal={relayDrawing.canShowPreviousResultReveal}
           canShowNextResultReveal={relayDrawing.canShowNextResultReveal}
           onShowPreviousResultReveal={relayDrawing.goToPreviousResultReveal}

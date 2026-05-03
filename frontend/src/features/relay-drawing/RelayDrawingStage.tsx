@@ -1,27 +1,52 @@
 'use client'
 
-import { Circle, Ellipse, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
+import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
-import { RELAY_PREVIEW_LINES, RELAY_STAGE_SIZE } from './constants'
+import {
+  RELAY_ROUND_RULES,
+  RELAY_STAGE_SIZE,
+  type RelayRoundKey,
+} from './constants'
 import type { RelayDrawLine } from './useRelayDrawing'
 
 interface RelayDrawingStageProps {
+  activeRoundKey: RelayRoundKey
   lines: RelayDrawLine[]
+  previousRoundLines: RelayDrawLine[]
   onDrawStart: (event: KonvaEventObject<MouseEvent | TouchEvent>) => void
   onDrawMove: (event: KonvaEventObject<MouseEvent | TouchEvent>) => void
   onDrawEnd: () => void
 }
 
 export default function RelayDrawingStage({
+  activeRoundKey,
   lines,
+  previousRoundLines,
   onDrawStart,
   onDrawMove,
   onDrawEnd,
 }: RelayDrawingStageProps) {
   const gridDots = []
+  const activeRoundRule = RELAY_ROUND_RULES[activeRoundKey]
+  const shouldShowPreviousHint =
+    previousRoundLines.length > 0 &&
+    Boolean(activeRoundRule.incomingHintSourceArea) &&
+    Boolean(activeRoundRule.incomingHintTargetArea)
+  const hintVerticalOffset =
+    activeRoundRule.incomingHintSourceArea && activeRoundRule.incomingHintTargetArea
+      ? activeRoundRule.incomingHintTargetArea.y - activeRoundRule.incomingHintSourceArea.y
+      : 0
 
-  for (let horizontalPosition = 12; horizontalPosition < RELAY_STAGE_SIZE.width; horizontalPosition += 20) {
-    for (let verticalPosition = 120; verticalPosition < RELAY_STAGE_SIZE.height - 12; verticalPosition += 20) {
+  for (
+    let horizontalPosition = 12;
+    horizontalPosition < RELAY_STAGE_SIZE.width;
+    horizontalPosition += 20
+  ) {
+    for (
+      let verticalPosition = 12;
+      verticalPosition < RELAY_STAGE_SIZE.height;
+      verticalPosition += 20
+    ) {
       gridDots.push({ x: horizontalPosition, y: verticalPosition })
     }
   }
@@ -60,99 +85,156 @@ export default function RelayDrawingStage({
           />
         ))}
 
-        <Group>
-          <Rect
-            x={0}
-            y={0}
-            width={RELAY_STAGE_SIZE.width}
-            height={100}
-            fill="#fff1c8"
-            cornerRadius={[16, 16, 0, 0]}
-          />
-          <Text
-            x={46}
-            y={26}
-            text="이전 사람의 그림 (하단 일부)"
-            fontFamily="Pretendard Variable"
-            fontSize={14}
-            fontStyle="bold"
-            fill="#947c40"
-          />
-          <Text
-            x={RELAY_STAGE_SIZE.width / 2 - 96}
-            y={112}
-            text="↓ 여기부터 이어 그리세요"
-            fontFamily="Pretendard Variable"
-            fontSize={14}
-            fontStyle="bold"
-            fill="#ffd56f"
-          />
-          <Circle
-            x={RELAY_PREVIEW_LINES.faceCenterX}
-            y={-24}
-            radius={110}
-            fill="#f8d5b4"
-            stroke="#2f2a1e"
-            strokeWidth={3}
-          />
-          <Ellipse
-            x={RELAY_PREVIEW_LINES.faceCenterX}
-            y={36}
-            radiusX={30}
-            radiusY={9}
-            fill="#f8d5b4"
-            stroke="#2f2a1e"
-            strokeWidth={3}
-          />
+        <Rect
+          x={0}
+          y={activeRoundRule.drawArea.y}
+          width={RELAY_STAGE_SIZE.width}
+          height={activeRoundRule.drawArea.height}
+          fill="#fff9ea"
+          opacity={0.55}
+          stroke="#ff2a24"
+          strokeWidth={3}
+        />
+
+        {shouldShowPreviousHint && (
+          <Group>
+            <Rect
+              x={0}
+              y={activeRoundRule.incomingHintTargetArea?.y ?? 0}
+              width={RELAY_STAGE_SIZE.width}
+              height={activeRoundRule.incomingHintTargetArea?.height ?? 0}
+              fill="#6dd5f4"
+              opacity={0.74}
+              stroke="#119ec8"
+              strokeWidth={3}
+            />
+            <Text
+              x={46}
+              y={(activeRoundRule.incomingHintTargetArea?.y ?? 0) + 12}
+              text="이 선을 이어가세요"
+              fontFamily="Pretendard Variable"
+              fontSize={14}
+              fontStyle="bold"
+              fill="#947c40"
+            />
+            <Group
+              clipX={0}
+              clipY={activeRoundRule.incomingHintTargetArea?.y ?? 0}
+              clipWidth={RELAY_STAGE_SIZE.width}
+              clipHeight={activeRoundRule.incomingHintTargetArea?.height ?? 0}
+            >
+              {previousRoundLines.map((line) => (
+                <Line
+                  key={`preview-${line.id}`}
+                  points={line.points.flatMap((point) => [
+                    point.x,
+                    point.y + hintVerticalOffset,
+                  ])}
+                  stroke={line.color}
+                  strokeWidth={line.strokeWidth}
+                  tension={0.45}
+                  lineCap="round"
+                  lineJoin="round"
+                  opacity={0.62}
+                />
+              ))}
+            </Group>
+            <DashedGuide
+              verticalPosition={
+                (activeRoundRule.incomingHintTargetArea?.y ?? 0) +
+                (activeRoundRule.incomingHintTargetArea?.height ?? 0)
+              }
+            />
+          </Group>
+        )}
+
+        {activeRoundRule.outgoingHintArea && (
+          <Group>
+            <Rect
+              x={0}
+              y={activeRoundRule.outgoingHintArea.y}
+              width={RELAY_STAGE_SIZE.width}
+              height={activeRoundRule.outgoingHintArea.height}
+              fill="#6dd5f4"
+              opacity={0.74}
+              stroke="#119ec8"
+              strokeWidth={3}
+            />
+            <Text
+              x={16}
+              y={activeRoundRule.outgoingHintArea.y + activeRoundRule.outgoingHintArea.height - 28}
+              text="이 구간만 다음 사람에게 보여요"
+              fontFamily="Pretendard Variable"
+              fontSize={13}
+              fontStyle="bold"
+              fill="#947c40"
+            />
+          </Group>
+        )}
+
+        <Text
+          x={16}
+          y={activeRoundRule.drawArea.y + 12}
+          text={activeRoundRule.helperText}
+          fontFamily="Pretendard Variable"
+          fontSize={14}
+          fontStyle="bold"
+          fill="#d49b1f"
+        />
+        <DashedGuide verticalPosition={activeRoundRule.drawArea.y} />
+        <DashedGuide
+          verticalPosition={activeRoundRule.drawArea.y + activeRoundRule.drawArea.height}
+        />
+
+        <Group
+          clipX={0}
+          clipY={activeRoundRule.drawArea.y}
+          clipWidth={RELAY_STAGE_SIZE.width}
+          clipHeight={activeRoundRule.drawArea.height}
+        >
+          {lines.map((line) => (
+            <Line
+              key={line.id}
+              points={line.points.flatMap((point) => [point.x, point.y])}
+              stroke={line.color}
+              strokeWidth={line.strokeWidth}
+              tension={0.45}
+              lineCap="round"
+              lineJoin="round"
+              globalCompositeOperation={line.color === '#fffdf7' ? 'destination-out' : 'source-over'}
+            />
+          ))}
         </Group>
-
-        <Line
-          points={[320, RELAY_PREVIEW_LINES.bodyTopY, 388, RELAY_PREVIEW_LINES.bodyTopY + 12]}
-          stroke="#2f2a1e"
-          strokeWidth={4}
-          lineCap="round"
-        />
-        <Line
-          points={[530, RELAY_PREVIEW_LINES.bodyTopY, 462, RELAY_PREVIEW_LINES.bodyTopY + 12]}
-          stroke="#2f2a1e"
-          strokeWidth={4}
-          lineCap="round"
-        />
-        <Line
-          points={[328, 242, 328, 390]}
-          stroke="#ff5f67"
-          strokeWidth={4}
-          lineCap="round"
-        />
-        <Line
-          points={[520, 242, 520, 390]}
-          stroke="#ff5f67"
-          strokeWidth={4}
-          lineCap="round"
-        />
-        {[264, 306, 348, 390].map((verticalPosition) => (
-          <Circle
-            key={verticalPosition}
-            x={RELAY_PREVIEW_LINES.faceCenterX}
-            y={verticalPosition}
-            radius={7}
-            fill="#ff5f67"
-          />
-        ))}
-
-        {lines.map((line) => (
-          <Line
-            key={line.id}
-            points={line.points.flatMap((point) => [point.x, point.y])}
-            stroke={line.color}
-            strokeWidth={line.strokeWidth}
-            tension={0.45}
-            lineCap="round"
-            lineJoin="round"
-            globalCompositeOperation={line.color === '#fffdf7' ? 'destination-out' : 'source-over'}
-          />
-        ))}
       </Layer>
     </Stage>
+  )
+}
+
+function DashedGuide({ verticalPosition }: { verticalPosition: number }) {
+  const dashSegments = []
+
+  for (
+    let horizontalPosition = 8;
+    horizontalPosition < RELAY_STAGE_SIZE.width;
+    horizontalPosition += 12
+  ) {
+    dashSegments.push(horizontalPosition)
+  }
+
+  return (
+    <>
+      {dashSegments.map((horizontalPosition) => (
+        <Rect
+          key={`${horizontalPosition}-${verticalPosition}`}
+          x={horizontalPosition}
+          y={verticalPosition}
+          width={6}
+          height={2}
+          fill="#d49b1f"
+          opacity={0.38}
+          cornerRadius={1}
+        />
+      ))}
+    </>
   )
 }
