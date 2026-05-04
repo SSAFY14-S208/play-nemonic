@@ -320,8 +320,6 @@ function RoundLineGroup({
   const roundRule = RELAY_ROUND_RULES[roundKey]
   const verticalOffset = isFinalReveal ? roundRule.finalOffsetY : 0
   const clipId = `relay-result-${roundKey}-${isFinalReveal ? 'final' : 'single'}`
-  const fillLines = lines.filter((line) => line.kind === 'fill')
-  const strokeLines = lines.filter((line) => line.kind !== 'fill')
 
   return (
     <>
@@ -336,26 +334,42 @@ function RoundLineGroup({
         </clipPath>
       </defs>
       <g clipPath={`url(#${clipId})`} transform={`translate(0 ${verticalOffset})`}>
-        {fillLines.map((line) => (
-          <polygon
-            key={line.id}
-            points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
-            fill={line.color}
-            opacity={0.56}
-          />
-        ))}
+        {lines.map((line) => {
+          if (line.kind === 'fill') {
+            if (line.imageDataUrl) {
+              return (
+                <image
+                  key={line.id}
+                  href={line.imageDataUrl}
+                  x={0}
+                  y={0}
+                  width={RELAY_STAGE_SIZE.width}
+                  height={RELAY_STAGE_SIZE.height}
+                />
+              )
+            }
 
-        {strokeLines.map((line) => (
-          <polyline
-            key={line.id}
-            points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
-            fill="none"
-            stroke={line.color}
-            strokeWidth={line.strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ))}
+            return (
+              <polygon
+                key={line.id}
+                points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
+                fill={line.color}
+              />
+            )
+          }
+
+          return (
+            <polyline
+              key={line.id}
+              points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
+              fill="none"
+              stroke={line.color}
+              strokeWidth={line.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )
+        })}
       </g>
     </>
   )

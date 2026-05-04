@@ -5,6 +5,7 @@ import { RELAY_STAGE_SIZE, type RelayRoundArea } from '../../constants'
 import type { RelayDrawLine } from '../../useRelayDrawing'
 import DashedGuide from './DashedGuide'
 import HintPill from './HintPill'
+import RasterFillImage from './RasterFillImage'
 
 interface PreviousRoundHintProps {
   hintTargetArea: RelayRoundArea
@@ -17,9 +18,6 @@ export default function PreviousRoundHint({
   hintVerticalOffset,
   previousRoundLines,
 }: PreviousRoundHintProps) {
-  const fillLines = previousRoundLines.filter((line) => line.kind === 'fill')
-  const strokeLines = previousRoundLines.filter((line) => line.kind !== 'fill')
-
   return (
     <Group>
       <Rect
@@ -44,35 +42,50 @@ export default function PreviousRoundHint({
         clipWidth={RELAY_STAGE_SIZE.width}
         clipHeight={hintTargetArea.height}
       >
-        {fillLines.map((line) => (
-          <Line
-            key={`preview-${line.id}`}
-            points={line.points.flatMap((point) => [
-              point.x,
-              point.y + hintVerticalOffset,
-            ])}
-            fill={line.color}
-            closed
-            opacity={0.34}
-            listening={false}
-          />
-        ))}
+        {previousRoundLines.map((line) => {
+          if (line.kind === 'fill') {
+            if (line.imageDataUrl) {
+              return (
+                <RasterFillImage
+                  key={`preview-${line.id}`}
+                  imageDataUrl={line.imageDataUrl}
+                  opacity={0.62}
+                  yOffset={hintVerticalOffset}
+                />
+              )
+            }
 
-        {strokeLines.map((line) => (
-          <Line
-            key={`preview-${line.id}`}
-            points={line.points.flatMap((point) => [
-              point.x,
-              point.y + hintVerticalOffset,
-            ])}
-            stroke={line.color}
-            strokeWidth={line.strokeWidth}
-            tension={0.45}
-            lineCap="round"
-            lineJoin="round"
-            opacity={0.62}
-          />
-        ))}
+            return (
+              <Line
+                key={`preview-${line.id}`}
+                points={line.points.flatMap((point) => [
+                  point.x,
+                  point.y + hintVerticalOffset,
+                ])}
+                fill={line.color}
+                closed
+                opacity={0.62}
+                listening={false}
+              />
+            )
+          }
+
+          return (
+            <Line
+              key={`preview-${line.id}`}
+              points={line.points.flatMap((point) => [
+                point.x,
+                point.y + hintVerticalOffset,
+              ])}
+              stroke={line.color}
+              strokeWidth={line.strokeWidth}
+              tension={0.45}
+              lineCap="round"
+              lineJoin="round"
+              opacity={0.62}
+            />
+          )
+        })}
       </Group>
       <DashedGuide verticalPosition={hintTargetArea.y + hintTargetArea.height} />
       <Text
