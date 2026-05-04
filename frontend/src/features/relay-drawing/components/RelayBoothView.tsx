@@ -8,14 +8,24 @@ interface RelayBoothViewProps {
   onEnterRoom: () => void
 }
 
+const FLOATING_PAPER_STYLES = [
+  'left-[48.9%] top-[15.4%] h-11 w-14 rotate-[20deg] opacity-60',
+  'left-[93%] top-[19.8%] h-10 w-12 -rotate-[25deg] opacity-50',
+  'left-[95.1%] top-[53.2%] h-[38px] w-12 rotate-[15deg] opacity-50',
+  'left-[51.3%] top-[78%] h-[42px] w-[54px] -rotate-[18deg] opacity-60',
+  'left-[72%] top-[40%] h-8 w-[70px] -rotate-[13deg] opacity-60',
+  'left-[82.2%] top-[24.3%] h-8 w-[70px] rotate-[16deg] opacity-60',
+  'left-[57.6%] top-[23.7%] h-8 w-[70px] rotate-[6deg] opacity-60',
+  'left-[84.9%] top-[79.9%] h-9 w-[46px] rotate-[10deg] opacity-50',
+] as const
+
 export default function RelayBoothView({ onCreateRoom, onEnterRoom }: RelayBoothViewProps) {
   return (
     <section className="relative min-h-[900px] overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
         <Image
           src={relayPostItNote}
-          alt=""
-          aria-hidden
+          alt="안내 문구를 담은 노란 포스트잇 배경 이미지"
           priority
           className="absolute left-[5.8%] top-[18%] h-[61.5%] w-[40.3%] object-contain"
         />
@@ -56,14 +66,9 @@ export default function RelayBoothView({ onCreateRoom, onEnterRoom }: RelayBooth
 
         <div className="absolute left-[47.8%] top-[19.9%] h-[64.5%] w-[47.2%] rotate-[3deg] rounded-[8px] bg-relay-pink/40 shadow-[0_16px_32px_rgba(184,121,22,0.2)]" />
 
-        <FloatingPaper className="left-[48.9%] top-[15.4%] h-11 w-14 rotate-[20deg] opacity-60" />
-        <FloatingPaper className="left-[93%] top-[19.8%] h-10 w-12 -rotate-[25deg] opacity-50" />
-        <FloatingPaper className="left-[95.1%] top-[53.2%] h-[38px] w-12 rotate-[15deg] opacity-50" />
-        <FloatingPaper className="left-[51.3%] top-[78%] h-[42px] w-[54px] -rotate-[18deg] opacity-60" />
-        <FloatingPaper className="left-[72%] top-[40%] h-8 w-[70px] -rotate-[13deg] opacity-60" />
-        <FloatingPaper className="left-[82.2%] top-[24.3%] h-8 w-[70px] rotate-[16deg] opacity-60" />
-        <FloatingPaper className="left-[57.6%] top-[23.7%] h-8 w-[70px] rotate-[6deg] opacity-60" />
-        <FloatingPaper className="left-[84.9%] top-[79.9%] h-9 w-[46px] rotate-[10deg] opacity-50" />
+        {FLOATING_PAPER_STYLES.map((floatingPaperStyle) => (
+          <FloatingPaper key={floatingPaperStyle} className={floatingPaperStyle} />
+        ))}
 
         <div className="absolute left-[50.7%] top-[24.9%] w-[13%] rotate-[6.85deg]">
           <RelayArtworkCard character="left" />
