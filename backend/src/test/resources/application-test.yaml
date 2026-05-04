@@ -14,3 +14,9 @@ management:
   health:
     redis:
       enabled: false
+
+nemonic:
+  auth:
+    jwt:
+      secret: test-admin-jwt-secret-that-is-long-enough-for-hmac
+      access-token-expiration: 30m
