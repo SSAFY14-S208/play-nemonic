@@ -61,6 +61,12 @@ src/main/java/com/nemonicworld/
 
 ### service
 
+- service 패키지는 `<Feature>Service` 인터페이스와 `<Feature>ServiceImpl` 구현체로 구성한다.
+- Controller는 구현체가 아니라 service 인터페이스에 의존한다.
+- `@Service`는 인터페이스가 아니라 구현체에만 붙인다.
+- 인터페이스에는 Controller가 사용하는 public use case method만 둔다.
+- private helper나 구현 세부사항은 Impl에 둔다.
+
 - `@Service` 클래스가 위치한다.
 - 핵심 비즈니스 로직과 유스케이스 흐름을 처리한다.
 - 트랜잭션 경계를 담당한다.
@@ -93,7 +99,8 @@ community/
 |-- controller/
 |   `-- CommunityController.java
 |-- service/
-|   `-- CommunityService.java
+|   |-- CommunityService.java
+|   `-- CommunityServiceImpl.java
 |-- repository/
 |   `-- CommunityRepository.java
 |-- entity/

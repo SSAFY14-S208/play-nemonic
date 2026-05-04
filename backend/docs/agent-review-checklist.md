@@ -15,6 +15,10 @@ Use this checklist before handing off substantial backend changes.
 - Product behavior matches the relevant `backend/docs/product-spec/` document.
 - Success and failure paths are covered.
 - Controller code delegates business logic to services.
+- Controllers depend on service interfaces, not `*ServiceImpl` concrete classes.
+- `@Service` is placed on implementation classes, not service interfaces.
+- Service interfaces expose only public use case methods used by controllers.
+- Service structure refactors do not change API contracts, Swagger docs, or response messages.
 - Entity objects are not returned directly from controllers.
 - Request DTO validation annotations are present where needed.
 
