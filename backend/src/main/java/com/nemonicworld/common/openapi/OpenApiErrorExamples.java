@@ -41,6 +41,30 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 방입니다."
         }
         """;
+    public static final String RELAY_ROOM_FULL = """
+        {
+          "success": false,
+          "message": "방 정원이 가득 찼습니다."
+        }
+        """;
+    public static final String RELAY_GAME_IN_PROGRESS = """
+        {
+          "success": false,
+          "message": "게임이 진행 중입니다."
+        }
+        """;
+    public static final String RELAY_RECONNECT_EXPIRED = """
+        {
+          "success": false,
+          "message": "이미 자동 제출 처리되었습니다."
+        }
+        """;
+    public static final String RELAY_ROOM_CLOSED = """
+        {
+          "success": false,
+          "message": "이미 종료된 방입니다."
+        }
+        """;
     public static final String INVALID_BIRTH_INFO = """
         {
           "success": false,

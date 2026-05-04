@@ -36,3 +36,31 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 ### Get relay room state - not found
 GET {{host}}/api/v1/relay/rooms/ZZZZZZ
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Reconnect relay room
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: not-a-uuid
+
+### Join relay room - missing user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+
+### Join relay room - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room - not found
+POST {{host}}/api/v1/relay/rooms/ZZZZZZ/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}

@@ -22,6 +22,7 @@ Last updated: 2026-05-04
 - Room code generation is available through `RoomCodeGenerator`, producing 6-character uppercase human-readable codes and supporting repository-backed collision checks with `generateUnique(...)`.
 - Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `relay:room:{roomCode}` with a 24-hour TTL, and creates no PostgreSQL artifact/gallery rows.
 - Relay room state lookup now uses `GET /api/v1/relay/rooms/{roomCode}`, reads the Redis room snapshot without mutation, sorts participants by `joinOrder`, and computes viewer join/reconnect eligibility from the requested `Anonymous-User-UUID`.
+- Relay room join/reconnect now uses `POST /api/v1/relay/rooms/{roomCode}/participants`, applies Redis `WATCH`/`MULTI`/`EXEC` optimistic conditional updates for new WAITING-room participants or 10-second reconnects, retries short-lived write conflicts, and remains free of PostgreSQL artifact/gallery, MinIO, and WebSocket side effects.
 - Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
   related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
   `super_admin` row in `admin_user` only when enabled and the login ID does not

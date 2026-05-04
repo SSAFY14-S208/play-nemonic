@@ -4,15 +4,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
-@Repository
 /**
  * 릴레이 방 상태를 Redis 문자열 JSON 값으로 저장하고 조회하는 저장소입니다.
  */
+@Repository
 public class RedisRelayRoomRepository implements RelayRoomRepository {
 
     private static final String ROOM_KEY_PREFIX = "relay:room:";
@@ -46,6 +50,45 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     }
 
     /**
+     * WATCH/MULTI/EXEC를 사용해 기대한 Redis 상태가 유지될 때만 새 상태를 저장합니다.
+     */
+    @Override
+    public boolean saveIfUnchanged(RelayRoomState expectedRoomState, RelayRoomState updatedRoomState) {
+        String roomKey = createRoomKey(expectedRoomState.roomCode());
+
+        Boolean updated = redisTemplate.execute(new SessionCallback<>() {
+
+            @Override
+            public <K, V> Boolean execute(RedisOperations<K, V> operations) throws DataAccessException {
+                RedisOperations<String, String> stringOperations = castToStringOperations(operations);
+
+                stringOperations.watch(roomKey);
+                String currentRoomStateValue = stringOperations.opsForValue().get(roomKey);
+
+                if (!StringUtils.hasText(currentRoomStateValue)) {
+                    stringOperations.unwatch();
+                    return false;
+                }
+
+                RelayRoomState currentRoomState = deserialize(currentRoomStateValue);
+
+                if (!currentRoomState.equals(expectedRoomState)) {
+                    stringOperations.unwatch();
+                    return false;
+                }
+
+                stringOperations.multi();
+                stringOperations.opsForValue().set(roomKey, serialize(updatedRoomState), ROOM_STATE_TTL);
+                List<Object> results = stringOperations.exec();
+
+                return results != null;
+            }
+        });
+
+        return Boolean.TRUE.equals(updated);
+    }
+
+    /**
      * Redis에 저장된 JSON을 방 상태 모델로 역직렬화합니다.
      */
     @Override
@@ -64,6 +107,11 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     private String createRoomKey(String roomCode) {
         // roomCode는 공유 링크, 실시간 연결 식별자, Redis key에서 같은 값을 그대로 사용합니다.
         return ROOM_KEY_PREFIX + roomCode;
+    }
+
+    @SuppressWarnings("unchecked")
+    private RedisOperations<String, String> castToStringOperations(RedisOperations<?, ?> operations) {
+        return (RedisOperations<String, String>) operations;
     }
 
     /**
