@@ -15,6 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+/**
+ * 릴레이 방 생성 유스케이스를 처리하는 서비스 구현체입니다.
+ *
+ * <p>
+ * 사용자 조회는 PostgreSQL에서 읽기 전용으로 수행하고, 생성된 방 상태는 Redis에만 저장합니다.
+ */
 public class RelayRoomServiceImpl implements RelayRoomService {
 
     private static final int DEFAULT_TIME_LIMIT_SECONDS = 60;
@@ -33,6 +39,9 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         this.relayRoomRepository = relayRoomRepository;
     }
 
+    /**
+     * 방 생성자를 첫 참여자이자 방장으로 포함한 WAITING 상태의 Redis 방을 만듭니다.
+     */
     @Transactional(readOnly = true)
     @Override
     public RelayRoomCreateResponse createRoom(String userUuidValue) {

@@ -23,6 +23,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/relay/rooms")
 @Tag(name = "Relay", description = "릴레이 API")
+/**
+ * 릴레이 방 생성 HTTP 요청을 받는 컨트롤러입니다.
+ *
+ * <p>
+ * 실제 방 생성 정책과 Redis 저장은 서비스 계층에 위임합니다.
+ */
 public class RelayRoomController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
@@ -34,6 +40,9 @@ public class RelayRoomController {
         this.relayRoomService = relayRoomService;
     }
 
+    /**
+     * 기존 익명 사용자를 방장 겸 첫 참여자로 등록하고 대기 중인 릴레이 방을 생성합니다.
+     */
     @PostMapping
     @Operation(summary = "릴레이 방 생성", description = "기존 익명 사용자를 방장 겸 첫 참여자로 등록하고 Redis에 대기 중인 릴레이 방을 생성합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
