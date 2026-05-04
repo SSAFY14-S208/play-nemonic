@@ -1,6 +1,7 @@
 package com.nemonicworld.relay.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -31,6 +32,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -65,6 +68,7 @@ class RelayRoomParticipantControllerIntegrationTest {
     @MockitoBean
     private StringRedisTemplate stringRedisTemplate;
 
+    private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
 
     @BeforeEach
@@ -76,7 +80,15 @@ class RelayRoomParticipantControllerIntegrationTest {
         jdbcTemplate.update("DELETE FROM app_user");
 
         valueOperations = createValueOperationsMock();
+        redisOperations = createRedisOperationsMock();
         given(stringRedisTemplate.opsForValue()).willReturn(valueOperations);
+        given(redisOperations.opsForValue()).willReturn(valueOperations);
+        given(redisOperations.exec()).willReturn(List.of("OK"));
+        given(stringRedisTemplate.execute(any(SessionCallback.class))).willAnswer(invocation -> {
+            SessionCallback<?> callback = invocation.getArgument(0);
+
+            return callback.execute(redisOperations);
+        });
     }
 
     /**
@@ -476,6 +488,11 @@ class RelayRoomParticipantControllerIntegrationTest {
     @SuppressWarnings("unchecked")
     private ValueOperations<String, String> createValueOperationsMock() {
         return (ValueOperations<String, String>) mock(ValueOperations.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private RedisOperations<String, String> createRedisOperationsMock() {
+        return (RedisOperations<String, String>) mock(RedisOperations.class);
     }
 
     private long countRows(String tableName) {

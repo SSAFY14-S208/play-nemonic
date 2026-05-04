@@ -19,6 +19,11 @@ public interface RelayRoomRepository {
     void save(RelayRoomState roomState);
 
     /**
+     * Redis에 저장된 현재 방 상태가 기대한 값과 같을 때만 갱신합니다.
+     */
+    boolean saveIfUnchanged(RelayRoomState expectedRoomState, RelayRoomState updatedRoomState);
+
+    /**
      * 방코드로 Redis에 저장된 릴레이 방 상태를 조회합니다.
      */
     Optional<RelayRoomState> findByRoomCode(String roomCode);
