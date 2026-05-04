@@ -29,6 +29,8 @@ export default function RelayDrawingStage({
 }: RelayDrawingStageProps) {
   const gridDots = []
   const activeRoundRule = RELAY_ROUND_RULES[activeRoundKey]
+  const fillLines = lines.filter((line) => line.kind === 'fill')
+  const strokeLines = lines.filter((line) => line.kind !== 'fill')
   const shouldShowPreviousHint =
     previousRoundLines.length > 0 &&
     activeRoundRule.incomingHintSourceArea !== undefined &&
@@ -130,7 +132,18 @@ export default function RelayDrawingStage({
           clipWidth={RELAY_STAGE_SIZE.width}
           clipHeight={activeRoundRule.drawArea.height}
         >
-          {lines.map((line) => (
+          {fillLines.map((line) => (
+            <Line
+              key={line.id}
+              points={line.points.flatMap((point) => [point.x, point.y])}
+              fill={line.color}
+              closed
+              opacity={0.56}
+              listening={false}
+            />
+          ))}
+
+          {strokeLines.map((line) => (
             <Line
               key={line.id}
               points={line.points.flatMap((point) => [point.x, point.y])}

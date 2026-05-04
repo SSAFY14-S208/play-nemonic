@@ -17,6 +17,9 @@ export default function PreviousRoundHint({
   hintVerticalOffset,
   previousRoundLines,
 }: PreviousRoundHintProps) {
+  const fillLines = previousRoundLines.filter((line) => line.kind === 'fill')
+  const strokeLines = previousRoundLines.filter((line) => line.kind !== 'fill')
+
   return (
     <Group>
       <Rect
@@ -41,7 +44,21 @@ export default function PreviousRoundHint({
         clipWidth={RELAY_STAGE_SIZE.width}
         clipHeight={hintTargetArea.height}
       >
-        {previousRoundLines.map((line) => (
+        {fillLines.map((line) => (
+          <Line
+            key={`preview-${line.id}`}
+            points={line.points.flatMap((point) => [
+              point.x,
+              point.y + hintVerticalOffset,
+            ])}
+            fill={line.color}
+            closed
+            opacity={0.34}
+            listening={false}
+          />
+        ))}
+
+        {strokeLines.map((line) => (
           <Line
             key={`preview-${line.id}`}
             points={line.points.flatMap((point) => [

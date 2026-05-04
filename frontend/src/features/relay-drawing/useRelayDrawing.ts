@@ -26,6 +26,7 @@ export interface RelayDrawLine {
   color: string
   strokeWidth: number
   points: RelayDrawPoint[]
+  kind?: 'stroke' | 'fill'
 }
 
 export type RelayRoundLines = Record<RelayRoundKey, RelayDrawLine[]>
@@ -63,6 +64,43 @@ function moveLineToFinalPosition(line: RelayDrawLine, roundKey: RelayRoundKey): 
       y: point.y + roundRule.finalOffsetY,
     })),
   }
+}
+
+function isPointInsidePolygon(point: RelayDrawPoint, polygonPoints: RelayDrawPoint[]) {
+  let isInside = false
+
+  for (
+    let currentIndex = 0, previousIndex = polygonPoints.length - 1;
+    currentIndex < polygonPoints.length;
+    previousIndex = currentIndex, currentIndex += 1
+  ) {
+    const currentPoint = polygonPoints[currentIndex]
+    const previousPoint = polygonPoints[previousIndex]
+    const isBetweenVerticalBounds =
+      currentPoint.y > point.y !== previousPoint.y > point.y
+    const horizontalIntersection =
+      ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)) /
+        (previousPoint.y - currentPoint.y) +
+      currentPoint.x
+
+    if (isBetweenVerticalBounds && point.x < horizontalIntersection) {
+      isInside = !isInside
+    }
+  }
+
+  return isInside
+}
+
+function findFillTargetLine(lines: RelayDrawLine[], pointerPosition: RelayDrawPoint) {
+  const candidateLines = [...lines].reverse()
+
+  return candidateLines.find((line) => {
+    if (line.kind === 'fill') return false
+    if (line.color === '#fffdf7') return false
+    if (line.points.length < 3) return false
+
+    return isPointInsidePolygon(pointerPosition, line.points)
+  })
 }
 
 export function useRelayDrawing() {
@@ -184,18 +222,45 @@ export function useRelayDrawing() {
       if (!pointerPosition) return
       if (!isPointInsideArea(pointerPosition, RELAY_ROUND_RULES[activeRoundKey].drawArea)) return
 
+      if (selectedToolKey === 'bucket') {
+        updateActiveRoundLines((currentLines) => {
+          const targetLine = findFillTargetLine(currentLines, pointerPosition)
+          if (!targetLine) return currentLines
+
+          return [
+            ...currentLines,
+            {
+              id: `${activeRoundKey}-fill-${Date.now()}-${currentLines.length}`,
+              kind: 'fill',
+              color: selectedColor,
+              strokeWidth: 0,
+              points: targetLine.points,
+            },
+          ]
+        })
+        return
+      }
+
       setIsDrawing(true)
       updateActiveRoundLines((currentLines) => [
         ...currentLines,
         {
           id: `${activeRoundKey}-line-${Date.now()}-${currentLines.length}`,
+          kind: 'stroke',
           color: stageColor,
           strokeWidth: activeStrokeWidth,
           points: [{ x: pointerPosition.x, y: pointerPosition.y }],
         },
       ])
     },
-    [activeRoundKey, activeStrokeWidth, stageColor, updateActiveRoundLines],
+    [
+      activeRoundKey,
+      activeStrokeWidth,
+      selectedColor,
+      selectedToolKey,
+      stageColor,
+      updateActiveRoundLines,
+    ],
   )
 
   const continueDrawing = useCallback(
