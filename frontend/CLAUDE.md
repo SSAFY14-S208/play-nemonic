@@ -395,47 +395,106 @@ export default function SharePage({ params }) {
 
 ## API 클라이언트 규칙
 
-이 프로젝트는 Spring/NestJS 백엔드와 협업합니다. DB를 직접 조작하지 않으며, 모든 데이터는 백엔드 API를 통해서만 접근합니다.
+이 프로젝트는 Spring 백엔드와 협업합니다. DB를 직접 조작하지 않으며, 모든 데이터는 백엔드 API를 통해서만 접근합니다.
+
+### 인증 모델 — 익명 UUID
+
+JWT/세션 쿠키를 사용하지 않습니다. 서버는 첫 진입 시 `userUuid`를 발급하고, 이후 모든 식별은 다음 두 위치 중 하나로 이뤄집니다.
+
+- **요청 본문(body)** 의 `userUuid` 필드: POST / PUT / PATCH
+- **쿼리 파라미터(query)** 의 `userUuid`: GET / DELETE
+- 일부 엔드포인트는 `userUuid` 불필요(`POST /users/anonymous`, `GET /community/{id}` 등)
+
+`Authorization` 헤더 / Bearer 토큰 / `localStorage.getItem('token')` 패턴을 다시 도입하지 않습니다. `apiClient`(트랜스포트)는 인증 모델을 모르고, 도메인 API 계층(`shared/apis/{domain}Api.ts`)에서 호출자가 store에서 읽은 `userUuid`를 명시 인자로 받아 주입합니다. 도메인 API는 **객체로 묶지 않고 개별 함수로 export**합니다(아래 네이밍 규칙 참조).
+
+### apiClient 트랜스포트
 
 ```ts
 // shared/libs/apiClient.ts
 import ky from "ky";
+import { runtime } from "@/shared/config";
+
+type Query = Record<string, string | number | boolean>;
 
 const client = ky.create({
-  prefix: process.env.NEXT_PUBLIC_API_URL, // ky v2: prefixUrl → prefix
+  prefix: `${runtime.apiUrl}/api/v1`,
   timeout: 30_000,
-  hooks: {
-    beforeRequest: [
-      (request) => {
-        const token = getToken();
-        if (token) request.headers.set("Authorization", `Bearer ${token}`);
-      },
-    ],
-    afterResponse: [
-      async (_request, _options, response) => {
-        if (response.status === 401) {
-          // 인증 만료 처리
-        }
-        return response;
-      },
-    ],
-  },
 });
 
 export const api = {
-  get: <T>(path: string) => client.get(path).json<T>(),
-  post: <T>(path: string, body: unknown) =>
-    client.post(path, { json: body }).json<T>(),
-  put: <T>(path: string, body: unknown) =>
-    client.put(path, { json: body }).json<T>(),
-  delete: <T>(path: string) => client.delete(path).json<T>(),
+  get: <T>(path: string, searchParams?: Query) =>
+    client.get(path, searchParams ? { searchParams } : undefined).json<T>(),
+  post: <T>(path: string, body?: unknown) =>
+    client.post(path, body !== undefined ? { json: body } : undefined).json<T>(),
+  put: <T>(path: string, body?: unknown) =>
+    client.put(path, body !== undefined ? { json: body } : undefined).json<T>(),
+  patch: <T>(path: string, body?: unknown) =>
+    client.patch(path, body !== undefined ? { json: body } : undefined).json<T>(),
+  delete: <T>(path: string, searchParams?: Query) =>
+    client.delete(path, searchParams ? { searchParams } : undefined).json<T>(),
 };
 ```
 
-- 모든 API 호출은 `api.get/post/put/delete`를 통해서만 진행
+- 모든 API 호출은 `api.get/post/put/patch/delete`를 통해서만 진행
 - 서버 컴포넌트에서 Next.js 캐싱(`next: { revalidate }`)이 필요한 경우에만 native `fetch` 직접 사용 허용
 - `useEffect` 안에서 `fetch`를 직접 호출하는 패턴 금지 → 훅으로 분리
 - feature 코드에서 `process.env.X` 직접 참조 금지 → `shared/config/` 경유
+
+### 도메인 API 계층 — `shared/apis/`
+
+백엔드 OpenAPI tag 1개당 프론트 파일 1개로 매핑합니다. 파일명은 camelCase 컨벤션 그대로(`userApi.ts`, `galleryApi.ts`, `communityApi.ts`).
+
+- 응답은 모두 `ApiResponse<T> = { success, message, data, errors }` 봉투로 옵니다. `apiUnwrap` 헬퍼(`shared/utils/apiUnwrap.ts`)로 `success === false`를 `ApiError` throw로 변환하고 `data: T`만 반환합니다. `ApiError` 클래스는 백엔드 봉투에 묶인 도메인 타입이라 `shared/apis/apiError.ts`에 두고, `apiUnwrap`은 일반 Promise 변환 유틸이라 `shared/utils/`에 분리되어 있습니다.
+- 도메인 함수는 `userUuid`를 **명시 인자**로 받습니다. feature 훅이 `useUserStore`에서 읽어 전달.
+- **객체로 묶지 않고 개별 함수로 export**합니다.
+
+#### 함수 네이밍 규칙
+
+`{httpMethod}{ResourcePath}` 형태의 camelCase. `users/`처럼 도메인 prefix가 자명한 경우 생략하고, 의미가 드러나는 segment부터 PascalCase로 이어 붙입니다.
+
+| HTTP | 경로 | 함수명 |
+| --- | --- | --- |
+| POST | `/users/anonymous` | `postAnonymous` |
+| POST | `/users/anonymous/verify` | `postAnonymousVerify` |
+| POST | `/users/anonymous/birth-info` | `postAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/birth-info` | `patchAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/nickname` | `patchAnonymousNickname` |
+| GET | `/users/anonymous/profile` | `getAnonymousProfile` |
+| GET | `/gallery` (목록) | `getGalleryList` |
+| GET | `/gallery/{galleryId}` (단건) | `getGallery` |
+| DELETE | `/gallery/{galleryId}` | `deleteGallery` |
+| GET | `/community/{communityId}` | `getCommunity` |
+
+원칙:
+- 단건/리스트가 같은 GET에서 갈리면 단건은 단수형(`getGallery`), 리스트는 `List` 접미사(`getGalleryList`).
+- path parameter를 받는 함수는 첫 인자로 그 id를, 그다음 `userUuid` 등 부가 인자를 받습니다.
+
+```ts
+// shared/apis/userApi.ts (예시)
+export const postAnonymous = () =>
+  apiUnwrap(api.post<ApiResponse<AnonymousUserResponse>>("users/anonymous"));
+
+export const postAnonymousVerify = (userUuid: string) =>
+  apiUnwrap(api.post<ApiResponse<AnonymousUserVerifyResponse>>("users/anonymous/verify", { userUuid }));
+
+export const patchAnonymousNickname = (userUuid: string, nickname: string) =>
+  apiUnwrap(api.patch<ApiResponse<AnonymousUserNicknameResponse>>("users/anonymous/nickname", { userUuid, nickname }));
+
+export const getAnonymousProfile = (userUuid: string) =>
+  apiUnwrap(api.get<ApiResponse<AnonymousUserProfileResponse>>("users/anonymous/profile", { userUuid }));
+```
+
+호출 측은 필요한 함수만 직접 import합니다.
+
+```ts
+import { postAnonymous, postAnonymousVerify } from "@/shared/apis";
+```
+
+### 사용자 식별 부트스트랩
+
+- `userUuid`는 `useUserStore`(Zustand `persist` 미들웨어)에서 단일하게 관리됩니다. 별도의 `localStorage` 동기화 코드를 추가로 작성하지 않습니다.
+- 루트 `app/layout.tsx`에 `<UserBootstrap />`(`'use client'`) 1회 마운트 — `useUserBootstrap`이 persist hydration 후 `postAnonymousVerify` 또는 `postAnonymous`를 호출해 store/스토리지를 동기화합니다.
+- 페이지/feature가 직접 verify/create를 호출하지 않습니다.
 
 ---
 
