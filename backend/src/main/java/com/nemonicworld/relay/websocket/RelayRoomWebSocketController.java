@@ -1,8 +1,8 @@
 package com.nemonicworld.relay.websocket;
 
-import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
-import java.security.Principal;
-import java.util.Map;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import java.util.Optional;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -15,9 +15,12 @@ import org.springframework.stereotype.Controller;
 public class RelayRoomWebSocketController {
 
     private final RelayRoomEventPublisher relayRoomEventPublisher;
+    private final WebSocketSessionRegistry webSocketSessionRegistry;
 
-    public RelayRoomWebSocketController(RelayRoomEventPublisher relayRoomEventPublisher) {
+    public RelayRoomWebSocketController(RelayRoomEventPublisher relayRoomEventPublisher,
+        WebSocketSessionRegistry webSocketSessionRegistry) {
         this.relayRoomEventPublisher = relayRoomEventPublisher;
+        this.webSocketSessionRegistry = webSocketSessionRegistry;
     }
 
     /**
@@ -25,14 +28,13 @@ public class RelayRoomWebSocketController {
      */
     @MessageMapping("/relay/rooms/{roomCode}/ping")
     public void ping(@DestinationVariable("roomCode") String roomCode, SimpMessageHeaderAccessor headerAccessor) {
-        Principal principal = headerAccessor.getUser();
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+        String sessionId = headerAccessor.getSessionId();
+        Optional<ActiveWebSocketSession> activeSession = webSocketSessionRegistry.findBySessionId(sessionId);
 
-        if (principal == null || sessionAttributes == null
-            || !roomCode.equals(sessionAttributes.get(WebSocketSessionAttributes.CONNECTION_KEY))) {
+        if (activeSession.isEmpty() || !roomCode.equals(activeSession.get().connectionKey())) {
             return;
         }
 
-        relayRoomEventPublisher.publishPong(principal.getName(), roomCode);
+        relayRoomEventPublisher.publishPong(sessionId, roomCode);
     }
 }
