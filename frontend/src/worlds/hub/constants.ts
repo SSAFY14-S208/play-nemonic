@@ -57,6 +57,34 @@ export const HUB_FLIPBOOK_RUNNING_RABBIT_SURFACE_Y = 0.42
 export const HUB_FLIPBOOK_RUNNING_RABBIT_CENTER_X = 0
 export const HUB_FLIPBOOK_RUNNING_RABBIT_CENTER_Z = 0
 export const HUB_FLIPBOOK_RUNNING_RABBIT_ROTATION_Y = Math.PI / 2
+export const HUB_RELAY_DRAWING_URL = 'https://k14s208.p.ssafy.io/relay-drawing'
+export const HUB_RELAY_DRAWING_PLACEHOLDER_POSITION = new Vector3(-4.45, 0.96, 4.35)
+export const HUB_RELAY_DRAWING_PLACEHOLDER_ROTATION_Y = -0.34
+export const HUB_RELAY_DRAWING_PLACEHOLDER_CUBES: Array<{
+  name: string
+  position: [number, number, number]
+  scale: [number, number, number]
+  color: string
+}> = [
+  {
+    name: 'relay-drawing-cube-primary',
+    position: [-0.72, 0.36, 0],
+    scale: [0.82, 0.82, 0.82],
+    color: '#ffe0db',
+  },
+  {
+    name: 'relay-drawing-cube-secondary',
+    position: [0.04, 0.55, -0.18],
+    scale: [0.92, 0.92, 0.92],
+    color: '#ffc6cc',
+  },
+  {
+    name: 'relay-drawing-cube-tertiary',
+    position: [0.84, 0.42, 0.12],
+    scale: [0.76, 0.76, 0.76],
+    color: '#ffafb9',
+  },
+]
 
 export const HUB_CENTER_NEMONIC_PLACEHOLDER_MATERIAL_NAMES = new Set([
   'CubeLeft',
