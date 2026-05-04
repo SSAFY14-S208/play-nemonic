@@ -1,0 +1,18 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+
+### Create relay room
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create relay room - invalid UUID
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: not-a-uuid
+
+### Create relay room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create relay room - missing UUID
+POST {{host}}/api/v1/relay/rooms
