@@ -58,6 +58,7 @@ public class RelayRoomController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
     public ResponseEntity<ApiResponse<RelayRoomCreateResponse>> createRoom(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        // 예외 응답은 전역 핸들러가 공통 포맷으로 변환하므로 컨트롤러에서는 정상 흐름만 조립합니다.
         RelayRoomCreateResponse response = relayRoomService.createRoom(userUuid);
 
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
@@ -82,6 +83,7 @@ public class RelayRoomController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
     public ResponseEntity<ApiResponse<RelayRoomStateResponse>> getRoomState(@PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        // 조회 API는 Redis 상태를 바꾸지 않고 서비스가 계산한 현재 스냅샷만 반환합니다.
         RelayRoomStateResponse response = relayRoomService.getRoomState(userUuid, roomCode);
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)

@@ -29,10 +29,12 @@ public record RelayRoomStateResponse(@Schema(description = "공유 방코드", e
      * Redis 상태 모델에서 외부에 노출할 조회 응답 값을 구성합니다.
      */
     public static RelayRoomStateResponse from(RelayRoomState roomState, RelayRoomViewerResponse viewer) {
+        // Redis 저장 순서가 흔들려도 대기실/게임 화면은 입장 순서 기준으로 안정적으로 표시합니다.
         List<RelayRoomParticipantResponse> participantResponses = roomState.participants().stream()
             .sorted(Comparator.comparingInt(participant -> participant.joinOrder()))
             .map(RelayRoomParticipantResponse::from).toList();
 
+        // 이미지 object key나 fileId 같은 내부 진행 참조값은 상태 조회 응답에 노출하지 않습니다.
         return new RelayRoomStateResponse(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(),
             roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
             roomState.participantCount(), roomState.currentPart(), participantResponses, viewer, roomState.createdAt(),
