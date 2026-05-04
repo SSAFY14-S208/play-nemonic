@@ -29,6 +29,18 @@ public final class OpenApiErrorExamples {
           "message": "닉네임을 먼저 설정해주세요."
         }
         """;
+    public static final String INVALID_ROOM_CODE = """
+        {
+          "success": false,
+          "message": "유효하지 않은 방코드입니다."
+        }
+        """;
+    public static final String RELAY_ROOM_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "존재하지 않는 방입니다."
+        }
+        """;
     public static final String INVALID_BIRTH_INFO = """
         {
           "success": false,

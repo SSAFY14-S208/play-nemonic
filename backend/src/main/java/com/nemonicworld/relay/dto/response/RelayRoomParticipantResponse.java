@@ -18,6 +18,7 @@ public record RelayRoomParticipantResponse(
      * Redis 저장 모델에서 API 응답에 노출하지 않는 joinedAt을 제외하고 변환합니다.
      */
     public static RelayRoomParticipantResponse from(RelayRoomParticipant participant) {
+        // joinedAt/disconnectedAt은 재접속 계산용 내부 상태이므로 목록 표시 응답에서는 제외합니다.
         return new RelayRoomParticipantResponse(participant.userUuid(), participant.nickname(), participant.host(),
             participant.joinOrder(), participant.connected());
     }

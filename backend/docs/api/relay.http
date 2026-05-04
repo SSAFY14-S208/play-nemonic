@@ -1,5 +1,6 @@
 @host = http://localhost:8080
 @anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@roomCode = AB3K9Q
 
 ### Create relay room
 POST {{host}}/api/v1/relay/rooms
@@ -16,3 +17,22 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Create relay room - missing UUID
 POST {{host}}/api/v1/relay/rooms
+
+### Get relay room state
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get relay room state - invalid user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}
+Anonymous-User-UUID: not-a-uuid
+
+### Get relay room state - missing user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}
+
+### Get relay room state - invalid room code
+GET {{host}}/api/v1/relay/rooms/not-a-room
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get relay room state - not found
+GET {{host}}/api/v1/relay/rooms/ZZZZZZ
+Anonymous-User-UUID: {{anonymousUserUuid}}
