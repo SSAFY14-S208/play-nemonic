@@ -18,6 +18,7 @@ import {
 
 export type RelayDrawingStep = 'booth' | 'lobby' | 'drawing' | 'result'
 export type RelayRoundKey = 'face' | 'body' | 'legs'
+export type RelayResultRevealStep = 'face' | 'body' | 'legs' | 'final'
 export type RelayToolKey = 'pencil' | 'marker' | 'bucket' | 'undo' | 'redo' | 'eraser'
 
 export interface RelayStepCopy {
@@ -38,6 +39,18 @@ export interface RelayRound {
   key: RelayRoundKey
   label: string
   status: 'done' | 'active' | 'pending'
+}
+
+export interface RelayResultReveal {
+  key: RelayResultRevealStep
+  order: number
+  roleLabel: string
+  participantName: string
+  participantDisplayName: string
+  avatar: string
+  titleSuffix: string
+  spotlightLabel: string
+  nextLabel: string
 }
 
 export interface RelayTool {
@@ -61,9 +74,58 @@ export const RELAY_PARTICIPANTS: RelayParticipant[] = [
 ]
 
 export const RELAY_ROUNDS: RelayRound[] = [
-  { key: 'face', label: '얼굴', status: 'done' },
-  { key: 'body', label: '몸통', status: 'active' },
+  { key: 'face', label: '얼굴', status: 'active' },
+  { key: 'body', label: '몸통', status: 'pending' },
   { key: 'legs', label: '다리', status: 'pending' },
+]
+
+export const RELAY_ROUND_ORDER: RelayRoundKey[] = ['face', 'body', 'legs']
+
+export const RELAY_RESULT_REVEALS: RelayResultReveal[] = [
+  {
+    key: 'face',
+    order: 1,
+    roleLabel: '얼굴',
+    participantName: '고양이',
+    participantDisplayName: '고양이',
+    avatar: '🐱',
+    titleSuffix: '가 시작했어요',
+    spotlightLabel: '방금 그린 사람',
+    nextLabel: '다음 ▶',
+  },
+  {
+    key: 'body',
+    order: 2,
+    roleLabel: '몸통',
+    participantName: '여우',
+    participantDisplayName: '여우 (나)',
+    avatar: '🦊',
+    titleSuffix: '가 이어 그렸어요',
+    spotlightLabel: '방금 그린 사람',
+    nextLabel: '다음 ▶',
+  },
+  {
+    key: 'legs',
+    order: 3,
+    roleLabel: '다리',
+    participantName: '곰돌이',
+    participantDisplayName: '곰돌이',
+    avatar: '🐻',
+    titleSuffix: '가 마무리했어요',
+    spotlightLabel: '방금 그린 사람',
+    nextLabel: '결과 보기 ▶',
+  },
+  {
+    key: 'final',
+    order: 4,
+    roleLabel: '완성',
+    participantName: '고양이',
+    participantDisplayName: '고양이',
+    avatar: '🐱',
+    titleSuffix: '님의 캐릭터',
+    spotlightLabel: '합쳐진 캐릭터',
+    nextLabel: '완성',
+  },
 ]
 
 export const RELAY_TOOLS: RelayTool[] = [
@@ -109,6 +171,80 @@ export const RELAY_STAGE_SIZE = {
   width: 848,
   height: 720,
 }
+
+export const RELAY_FINAL_STAGE_SIZE = {
+  width: 848,
+  height: 1920,
+}
+
+export interface RelayRoundArea {
+  y: number
+  height: number
+}
+
+export interface RelayRoundRule {
+  label: string
+  helperText: string
+  drawArea: RelayRoundArea
+  exportArea: RelayRoundArea
+  finalOffsetY: number
+  incomingHintSourceRoundKey?: RelayRoundKey
+  incomingHintSourceArea?: RelayRoundArea
+  incomingHintTargetArea?: RelayRoundArea
+  outgoingHintArea?: RelayRoundArea
+}
+
+export const RELAY_ROUND_RULES: Record<RelayRoundKey, RelayRoundRule> = {
+  face: {
+    label: '얼굴',
+    helperText: '얼굴을 그리고, 아래 점선 구간만 다음 사람에게 힌트로 넘겨요',
+    drawArea: { y: 0, height: 720 },
+    exportArea: { y: 0, height: 720 },
+    finalOffsetY: 0,
+    outgoingHintArea: { y: 600, height: 120 },
+  },
+  body: {
+    label: '몸통',
+    helperText: '위쪽 힌트 선을 보고 몸통을 이어 그리고, 아래 구간을 다음 힌트로 남겨요',
+    drawArea: { y: 0, height: 720 },
+    exportArea: { y: 0, height: 720 },
+    finalOffsetY: 600,
+    incomingHintSourceRoundKey: 'face',
+    incomingHintSourceArea: { y: 600, height: 120 },
+    incomingHintTargetArea: { y: 0, height: 120 },
+    outgoingHintArea: { y: 600, height: 120 },
+  },
+  legs: {
+    label: '다리',
+    helperText: '위쪽 힌트 선을 보고 다리를 이어 그려 캐릭터를 완성해요',
+    drawArea: { y: 0, height: 720 },
+    exportArea: { y: 0, height: 720 },
+    finalOffsetY: 1200,
+    incomingHintSourceRoundKey: 'body',
+    incomingHintSourceArea: { y: 600, height: 120 },
+    incomingHintTargetArea: { y: 0, height: 120 },
+  },
+}
+
+export const RELAY_ROUND_SEGMENTS = Object.fromEntries(
+  Object.entries(RELAY_ROUND_RULES).map(([roundKey, roundRule]) => [
+    roundKey,
+    {
+      label: roundRule.label,
+      helperText: roundRule.helperText,
+      y: roundRule.drawArea.y,
+      height: roundRule.drawArea.height,
+    },
+  ]),
+) as Record<
+  RelayRoundKey,
+  {
+    label: string
+    helperText: string
+    y: number
+    height: number
+  }
+>
 
 export const RELAY_PREVIEW_LINES = {
   faceCenterX: RELAY_STAGE_SIZE.width / 2,
