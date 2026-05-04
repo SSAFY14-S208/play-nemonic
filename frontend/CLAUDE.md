@@ -257,6 +257,14 @@ meshRef.current.scale.x = uniformScale * (1 - progress);
 - `isOpen`, `isHovered` 같은 순수 UI 상태
 - 버튼 클릭 → 모달 열기 같은 단순 UI 흐름
 
+### 컴포넌트 분리와 반복 렌더링
+
+- 같은 컴포넌트가 위치, 라벨, 상태만 바뀌어 반복되면 배열 상수 + `map()`으로 렌더링합니다.
+- 반복 렌더링에는 안정적인 `key`를 사용합니다. 단순 index는 순서 변경 가능성이 없을 때만 허용합니다.
+- 화면 영역이 명확히 나뉘거나 컴포넌트가 비대해지면 영역 단위 자식 컴포넌트로 분리합니다.
+- 자식 컴포넌트가 중간 전달만 하는 구조라도 prop 흐름을 유지하고, 전역 상태는 prop chain이 깊어지거나 다른 feature가 공유할 때 검토합니다.
+- 의미 있는 이미지는 `alt`에 어떤 이미지인지 설명합니다. 순수 장식 이미지만 `alt=""`와 `aria-hidden`을 함께 사용합니다.
+
 ```tsx
 // ✅ 올바른 구조
 export default function LabelPrinter() {
@@ -741,6 +749,9 @@ useEffect(() => {
 
 - 2D 캔버스 기능에만 사용, `features/` 하위에 `*Stage.tsx` 파일로 배치
 - `Stage > Layer > Shape` 구조 준수
+- `*Stage.tsx`는 `<Stage>`와 최상위 `<Layer>` 조립 중심으로 유지합니다.
+- 그리드, 힌트 영역, 선택 박스, 커서 프리뷰, 도구 오버레이 등 반복/독립 시각 요소는 하위 컴포넌트로 분리합니다.
+- `react-konva` 컴포넌트 파일은 client boundary 밖으로 새지 않게 `'use client'` 또는 `dynamic(..., { ssr: false })` 경계를 확인합니다.
 
 ### CSS 파일 구조
 
@@ -1017,6 +1028,10 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 ## 핵심 금지사항 (반드시 준수)
 
 - `*.tsx`에 API 호출, 데이터 변환, 게임 로직 직접 작성 금지 → 훅/스토어로 분리
+- 반복 UI를 중복 JSX로 나열 금지 → 배열 상수 + `map()` + 안정적인 `key` 사용
+- 비대해진 화면 영역/반복 markup을 한 파일에 계속 누적 금지 → 자식 컴포넌트로 분리
+- 의미 있는 `<Image>`에 빈 `alt` 사용 금지 → 어떤 이미지인지 설명하는 `alt` 작성
+- 장식 이미지가 아닌데 `aria-hidden` 처리 금지
 - `useEffect` 안에서 `fetch` 직접 호출 금지 → 훅으로 분리
 - `{Scene}Canvas.tsx` 외에서 `<Canvas>` 선언 금지
 - `{Scene}Canvas.tsx` 외에서 `<Physics>` 선언 금지
@@ -1035,6 +1050,7 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - `TextureLoader` 사용 시 파일마다 `new LoadingManager()` 중복 선언 금지 → 씬 공유 `textureLoader.ts` 싱글턴에서 import
 - `useEffect` 본문에서 `setState` 동기 호출 금지 (React Compiler 오류) → async IIFE 안에서 처리
 - R3F `<Canvas>` 내부에서 `motion.*` 사용 금지
+- Konva `*Stage.tsx`에 shape, 힌트, 가이드, 도구 오버레이를 과도하게 누적 금지 → 하위 컴포넌트로 분리
 - Rapier 도입 후 `groupRef.current.position` 직접 수정 금지 → `setNextKinematicTranslation()` 사용
 - 캐릭터에 `dynamic` RigidBody 사용 금지 → `kinematicPosition` 사용
 - Rapier 사용 시 경계를 `MathUtils.clamp`로 처리 금지 → `fixed` RigidBody + Collider로 처리

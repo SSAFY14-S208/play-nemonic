@@ -1,73 +1,100 @@
-import { ArrowRight, Sparkles } from 'lucide-react'
+import Image from 'next/image'
 import RelayArtworkCard from './RelayArtworkCard'
+import { relayPostItNote } from '@/shared/assets'
+import { cn } from '@/shared/libs'
 
 interface RelayBoothViewProps {
   onCreateRoom: () => void
   onEnterRoom: () => void
 }
 
+const FLOATING_PAPER_STYLES = [
+  'left-[48.9%] top-[15.4%] h-11 w-14 rotate-[20deg] opacity-60',
+  'left-[93%] top-[19.8%] h-10 w-12 -rotate-[25deg] opacity-50',
+  'left-[95.1%] top-[53.2%] h-[38px] w-12 rotate-[15deg] opacity-50',
+  'left-[51.3%] top-[78%] h-[42px] w-[54px] -rotate-[18deg] opacity-60',
+  'left-[72%] top-[40%] h-8 w-[70px] -rotate-[13deg] opacity-60',
+  'left-[82.2%] top-[24.3%] h-8 w-[70px] rotate-[16deg] opacity-60',
+  'left-[57.6%] top-[23.7%] h-8 w-[70px] rotate-[6deg] opacity-60',
+  'left-[84.9%] top-[79.9%] h-9 w-[46px] rotate-[10deg] opacity-50',
+] as const
+
 export default function RelayBoothView({ onCreateRoom, onEnterRoom }: RelayBoothViewProps) {
   return (
-    <section className="mx-auto grid min-h-[calc(100svh-72px)] w-full max-w-[1280px] items-center gap-10 px-6 py-12 lg:grid-cols-[0.95fr_1.25fr]">
-      <div className="border border-relay-border bg-relay-background/40 p-6 md:p-10">
-        <div className="caption-m inline-flex items-center gap-2 rounded-full border border-relay-border bg-relay-panel px-3 py-1 text-relay-muted">
-          <Sparkles className="size-4 text-relay-accent-strong" aria-hidden />
-          2~6명 · 우당탕 릴레이 드로잉
-        </div>
-        <h1
-          className="h1-b mt-9 max-w-[620px] text-relay-ink"
-          style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)', lineHeight: 1.08 }}
-        >
-          우당탕 릴레이 드로잉
-        </h1>
-        <p className="body-l-r mt-6 max-w-[520px] text-relay-muted">
-          얼굴 → 몸통 → 다리, 3라운드. 캔버스가 다음 사람에게 넘어가요.
-          이전 사람 그림의 하단 일부 힌트만 보고 이어 그리면 예상 밖 캐릭터가 탄생합니다.
-        </p>
-        <div className="mt-9 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={onCreateRoom}
-            className="body-b inline-flex min-h-14 items-center gap-2 rounded-[var(--radius-xl)] border border-relay-accent-strong bg-relay-accent px-7 text-relay-ink shadow-[0_12px_22px_rgba(255,184,46,0.28)] transition-transform hover:-translate-y-0.5"
-          >
-            방 만들기
-            <ArrowRight className="size-4" aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={onEnterRoom}
-            className="body-b min-h-14 rounded-[var(--radius-xl)] border border-relay-accent-strong bg-relay-paper px-7 text-relay-accent-strong transition-colors hover:bg-relay-panel"
-          >
-            방 입장
-          </button>
-        </div>
-      </div>
+    <section className="relative min-h-[900px] overflow-hidden border border-relay-border bg-relay-background">
+      <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
+        <Image
+          src={relayPostItNote}
+          alt="안내 문구를 담은 노란 포스트잇 배경 이미지"
+          priority
+          className="absolute left-[5.8%] top-[18%] h-[61.5%] w-[40.3%] object-contain"
+        />
 
-      <div className="relative mx-auto h-[580px] w-full max-w-[680px] overflow-hidden rounded-[var(--radius-md)] bg-relay-pink shadow-[0_16px_32px_rgba(184,121,22,0.12)]">
-        <div className="absolute left-8 top-8 h-11 w-16 rotate-[18deg] rounded-[var(--radius-sm)] bg-relay-paper" />
-        <div className="absolute right-8 top-16 h-10 w-14 rotate-[-18deg] rounded-[var(--radius-sm)] bg-relay-paper" />
-        <div className="absolute bottom-14 left-12 h-12 w-12 rotate-[-18deg] rounded-[var(--radius-sm)] bg-relay-paper" />
-        <div className="absolute bottom-9 right-20 h-10 w-12 rotate-[8deg] rounded-[var(--radius-sm)] bg-relay-paper" />
-        <div className="absolute right-[10%] top-[40%]" style={{ fontSize: '3rem' }} aria-hidden>
+        <div className="absolute left-[9.7%] top-[28.7%] w-[33%]">
+          <span className="body-b inline-flex min-h-[43px] items-center rounded-full bg-relay-active px-5 text-relay-accent-strong">
+            2~6명
+          </span>
+          <h1
+            className="mt-4 whitespace-nowrap text-relay-ink"
+            style={{ fontSize: '49px', fontWeight: 700, lineHeight: '78px' }}
+          >
+            우당탕 릴레이 드로잉
+          </h1>
+          <div className="body-l-r mt-6 text-relay-accent-strong">
+            <p>얼굴 → 몸통 → 다리, 3라운드.</p>
+            <p>캔버스가 다음 사람에게 넘어가요.</p>
+            <p>이전 사람 그림의 하단 일부 힌트만 보고</p>
+            <p>이어 그리면 결과는 우당탕 캐릭터!</p>
+          </div>
+          <div className="mt-7 flex gap-3">
+            <button
+              type="button"
+              onClick={onCreateRoom}
+              className="body-b min-h-[56px] rounded-[16px] bg-relay-accent px-8 text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.3)]"
+            >
+              방 만들기 →
+            </button>
+            <button
+              type="button"
+              onClick={onEnterRoom}
+              className="body-b min-h-[56px] rounded-[16px] border-2 border-relay-line bg-relay-paper px-7 text-relay-accent-strong"
+            >
+              방 입장
+            </button>
+          </div>
+        </div>
+
+        <div className="absolute left-[47.8%] top-[19.9%] h-[64.5%] w-[47.2%] rotate-[3deg] rounded-[8px] bg-relay-pink/40 shadow-[0_16px_32px_rgba(184,121,22,0.2)]" />
+
+        {FLOATING_PAPER_STYLES.map((floatingPaperStyle) => (
+          <FloatingPaper key={floatingPaperStyle} className={floatingPaperStyle} />
+        ))}
+
+        <div className="absolute left-[50.7%] top-[24.9%] w-[13%] rotate-[6.85deg]">
+          <RelayArtworkCard character="left" />
+        </div>
+        <div className="absolute left-[62.8%] top-[41%] z-10 w-[13%] rotate-[11.63deg]">
+          <RelayArtworkCard character="center" />
+        </div>
+        <div className="absolute left-[78.7%] top-[26.3%] w-[13%] -rotate-[9.65deg]">
+          <RelayArtworkCard character="right" />
+        </div>
+
+        <span className="absolute left-[90.2%] top-[38.8%] rotate-[25deg] text-[48px] opacity-70">
           ✏️
-        </div>
-
-        <div className="absolute left-[6%] top-[15%] w-[35%] rotate-[10deg]">
-          <div className="aspect-[2/3]">
-            <RelayArtworkCard character="left" />
-          </div>
-        </div>
-        <div className="absolute right-[8%] top-[7%] w-[35%] rotate-[-8deg]">
-          <div className="aspect-[2/3]">
-            <RelayArtworkCard character="right" />
-          </div>
-        </div>
-        <div className="absolute left-1/2 top-[35%] z-10 w-[38%] -translate-x-1/2 rotate-[3deg]">
-          <div className="aspect-[2/3]">
-            <RelayArtworkCard character="center" />
-          </div>
-        </div>
+        </span>
       </div>
     </section>
+  )
+}
+
+function FloatingPaper({ className }: { className: string }) {
+  return (
+    <span
+      className={cn(
+        'absolute rounded-[4px] bg-relay-paper shadow-[0_4px_8px_rgba(184,121,22,0.15)]',
+        className,
+      )}
+    />
   )
 }
