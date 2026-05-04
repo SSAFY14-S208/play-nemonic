@@ -54,9 +54,9 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         String roomCode = roomCodeGenerator.generateUnique(relayRoomRepository::existsByRoomCode);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         RelayRoomParticipant hostParticipant = new RelayRoomParticipant(hostUser.getId().toString(),
-            hostUser.getNickname(), true, HOST_JOIN_ORDER, true, now);
+            hostUser.getNickname(), true, HOST_JOIN_ORDER, true, null, now);
         RelayRoomState roomState = new RelayRoomState(roomCode, RelayRoomStatus.WAITING, hostUser.getId().toString(),
-            DEFAULT_TIME_LIMIT_SECONDS, MIN_PARTICIPANTS, MAX_PARTICIPANTS, List.of(hostParticipant), now, now);
+            DEFAULT_TIME_LIMIT_SECONDS, MIN_PARTICIPANTS, MAX_PARTICIPANTS, null, List.of(hostParticipant), now, now);
 
         relayRoomRepository.save(roomState);
 
