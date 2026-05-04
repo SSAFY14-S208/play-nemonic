@@ -9,5 +9,10 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 POST {{host}}/api/v1/relay/rooms
 Anonymous-User-UUID: not-a-uuid
 
+### Create relay room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Create relay room - missing UUID
 POST {{host}}/api/v1/relay/rooms
