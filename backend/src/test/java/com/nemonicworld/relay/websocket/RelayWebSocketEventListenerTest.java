@@ -5,11 +5,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomParticipantResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.service.RelayRoomService;
-import com.nemonicworld.relay.websocket.RelayWebSocketSessionRegistry.RelayWebSocketSession;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -28,11 +29,10 @@ class RelayWebSocketEventListenerTest {
     private static final String SESSION_ID = "session-1";
 
     private final RelayRoomService relayRoomService = mock(RelayRoomService.class);
-    private final RelayWebSocketSessionRegistry relayWebSocketSessionRegistry = mock(
-        RelayWebSocketSessionRegistry.class);
+    private final WebSocketSessionRegistry webSocketSessionRegistry = mock(WebSocketSessionRegistry.class);
     private final RelayRoomEventPublisher relayRoomEventPublisher = mock(RelayRoomEventPublisher.class);
     private final RelayWebSocketEventListener listener = new RelayWebSocketEventListener(relayRoomService,
-        relayWebSocketSessionRegistry, relayRoomEventPublisher);
+        webSocketSessionRegistry, relayRoomEventPublisher);
 
     /**
      * 최신 활성 세션 disconnect는 Redis connected=false 갱신 후 방 전체 이벤트를 발행합니다.
@@ -40,16 +40,16 @@ class RelayWebSocketEventListenerTest {
     @Test
     void handleSessionDisconnectUpdatesRedisWhenSessionIsCurrent() {
         RelayRoomStateResponse roomStateResponse = roomStateResponse();
-        RelayWebSocketSession session = new RelayWebSocketSession(ROOM_CODE, USER_UUID, SESSION_ID);
-        given(relayWebSocketSessionRegistry.findBySessionId(SESSION_ID)).willReturn(Optional.of(session));
-        given(relayWebSocketSessionRegistry.isCurrentSession(ROOM_CODE, USER_UUID, SESSION_ID)).willReturn(true);
+        ActiveWebSocketSession session = new ActiveWebSocketSession(ROOM_CODE, USER_UUID, SESSION_ID);
+        given(webSocketSessionRegistry.findBySessionId(SESSION_ID)).willReturn(Optional.of(session));
+        given(webSocketSessionRegistry.isCurrentSession(ROOM_CODE, USER_UUID, SESSION_ID)).willReturn(true);
         given(relayRoomService.disconnectRoom(USER_UUID, ROOM_CODE)).willReturn(roomStateResponse);
 
         listener.handleSessionDisconnect(disconnectEvent());
 
         verify(relayRoomService).disconnectRoom(USER_UUID, ROOM_CODE);
         verify(relayRoomEventPublisher).publishParticipantDisconnected(roomStateResponse);
-        verify(relayWebSocketSessionRegistry).removeIfCurrent(SESSION_ID);
+        verify(webSocketSessionRegistry).removeIfCurrent(SESSION_ID);
     }
 
     /**
@@ -57,15 +57,15 @@ class RelayWebSocketEventListenerTest {
      */
     @Test
     void handleSessionDisconnectSkipsRedisUpdateWhenSessionIsStale() {
-        RelayWebSocketSession session = new RelayWebSocketSession(ROOM_CODE, USER_UUID, SESSION_ID);
-        given(relayWebSocketSessionRegistry.findBySessionId(SESSION_ID)).willReturn(Optional.of(session));
-        given(relayWebSocketSessionRegistry.isCurrentSession(ROOM_CODE, USER_UUID, SESSION_ID)).willReturn(false);
+        ActiveWebSocketSession session = new ActiveWebSocketSession(ROOM_CODE, USER_UUID, SESSION_ID);
+        given(webSocketSessionRegistry.findBySessionId(SESSION_ID)).willReturn(Optional.of(session));
+        given(webSocketSessionRegistry.isCurrentSession(ROOM_CODE, USER_UUID, SESSION_ID)).willReturn(false);
 
         listener.handleSessionDisconnect(disconnectEvent());
 
         verify(relayRoomService, never()).disconnectRoom(USER_UUID, ROOM_CODE);
         verify(relayRoomEventPublisher, never()).publishParticipantDisconnected(org.mockito.ArgumentMatchers.any());
-        verify(relayWebSocketSessionRegistry).removeStaleSession(SESSION_ID);
+        verify(webSocketSessionRegistry).removeStaleSession(SESSION_ID);
     }
 
     private SessionDisconnectEvent disconnectEvent() {

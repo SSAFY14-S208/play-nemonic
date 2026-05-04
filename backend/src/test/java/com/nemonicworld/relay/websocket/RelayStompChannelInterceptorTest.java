@@ -8,11 +8,13 @@ import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomParticipantResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.service.RelayRoomService;
-import com.nemonicworld.relay.websocket.RelayWebSocketSessionRegistry.RelayWebSocketSession;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -38,8 +40,7 @@ class RelayStompChannelInterceptorTest {
     private static final String OLD_SESSION_ID = "session-1";
 
     private final RelayRoomService relayRoomService = mock(RelayRoomService.class);
-    private final RelayWebSocketSessionRegistry relayWebSocketSessionRegistry = mock(
-        RelayWebSocketSessionRegistry.class);
+    private final WebSocketSessionRegistry webSocketSessionRegistry = mock(WebSocketSessionRegistry.class);
     private final RelayRoomEventPublisher relayRoomEventPublisher = mock(RelayRoomEventPublisher.class);
     @SuppressWarnings("unchecked")
     private final ObjectProvider<RelayRoomEventPublisher> relayRoomEventPublisherProvider = mock(ObjectProvider.class);
@@ -48,7 +49,7 @@ class RelayStompChannelInterceptorTest {
     @BeforeEach
     void setUp() {
         given(relayRoomEventPublisherProvider.getObject()).willReturn(relayRoomEventPublisher);
-        interceptor = new RelayStompChannelInterceptor(relayRoomService, relayWebSocketSessionRegistry,
+        interceptor = new RelayStompChannelInterceptor(relayRoomService, webSocketSessionRegistry,
             relayRoomEventPublisherProvider);
     }
 
@@ -60,8 +61,8 @@ class RelayStompChannelInterceptorTest {
         RelayRoomStateResponse roomStateResponse = roomStateResponse();
         Message<byte[]> message = connectMessage();
         given(relayRoomService.connectRoom(USER_UUID, ROOM_CODE)).willReturn(roomStateResponse);
-        given(relayWebSocketSessionRegistry.register(ROOM_CODE, USER_UUID, NEW_SESSION_ID))
-            .willReturn(Optional.of(new RelayWebSocketSession(ROOM_CODE, USER_UUID, OLD_SESSION_ID)));
+        given(webSocketSessionRegistry.register(ROOM_CODE, USER_UUID, NEW_SESSION_ID))
+            .willReturn(Optional.of(new ActiveWebSocketSession(ROOM_CODE, USER_UUID, OLD_SESSION_ID)));
 
         Message<?> result = interceptor.preSend(message, mock(MessageChannel.class));
         StompHeaderAccessor resultAccessor = StompHeaderAccessor.wrap(result);
@@ -69,11 +70,11 @@ class RelayStompChannelInterceptorTest {
         assertThat(resultAccessor.getUser()).isNotNull();
         assertThat(resultAccessor.getUser().getName()).isEqualTo(NEW_SESSION_ID);
         assertThat(resultAccessor.getSessionAttributes())
-            .containsEntry(RelayWebSocketSessionAttributes.ROOM_CODE, ROOM_CODE)
-            .containsEntry(RelayWebSocketSessionAttributes.USER_UUID, USER_UUID);
+            .containsEntry(WebSocketSessionAttributes.CONNECTION_KEY, ROOM_CODE)
+            .containsEntry(WebSocketSessionAttributes.USER_UUID, USER_UUID);
         verify(relayRoomEventPublisher).publishDuplicateSessionClosed(OLD_SESSION_ID, ROOM_CODE);
-        verify(relayWebSocketSessionRegistry).closeWebSocketSession(OLD_SESSION_ID);
-        verify(relayWebSocketSessionRegistry).removeStaleSession(OLD_SESSION_ID);
+        verify(webSocketSessionRegistry).closeWebSocketSession(OLD_SESSION_ID);
+        verify(webSocketSessionRegistry).removeStaleSession(OLD_SESSION_ID);
         verify(relayRoomEventPublisher).publishParticipantConnected(roomStateResponse);
     }
 
@@ -88,7 +89,7 @@ class RelayStompChannelInterceptorTest {
         assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
             .isInstanceOf(MessageDeliveryException.class).hasMessageContaining("릴레이 웹소켓 연결을 허용할 수 없습니다.");
 
-        verify(relayWebSocketSessionRegistry).removeStaleSession(NEW_SESSION_ID);
+        verify(webSocketSessionRegistry).removeStaleSession(NEW_SESSION_ID);
     }
 
     private Message<byte[]> connectMessage() {

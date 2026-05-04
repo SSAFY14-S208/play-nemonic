@@ -1,8 +1,9 @@
 package com.nemonicworld.relay.websocket;
 
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.service.RelayRoomService;
-import com.nemonicworld.relay.websocket.RelayWebSocketSessionRegistry.RelayWebSocketSession;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,13 +20,13 @@ public class RelayWebSocketEventListener {
     private static final Logger log = LoggerFactory.getLogger(RelayWebSocketEventListener.class);
 
     private final RelayRoomService relayRoomService;
-    private final RelayWebSocketSessionRegistry relayWebSocketSessionRegistry;
+    private final WebSocketSessionRegistry webSocketSessionRegistry;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
 
     public RelayWebSocketEventListener(RelayRoomService relayRoomService,
-        RelayWebSocketSessionRegistry relayWebSocketSessionRegistry, RelayRoomEventPublisher relayRoomEventPublisher) {
+        WebSocketSessionRegistry webSocketSessionRegistry, RelayRoomEventPublisher relayRoomEventPublisher) {
         this.relayRoomService = relayRoomService;
-        this.relayWebSocketSessionRegistry = relayWebSocketSessionRegistry;
+        this.webSocketSessionRegistry = webSocketSessionRegistry;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
     }
 
@@ -35,28 +36,28 @@ public class RelayWebSocketEventListener {
     @EventListener
     public void handleSessionDisconnect(SessionDisconnectEvent event) {
         String sessionId = event.getSessionId();
-        Optional<RelayWebSocketSession> relaySession = relayWebSocketSessionRegistry.findBySessionId(sessionId);
+        Optional<ActiveWebSocketSession> activeSession = webSocketSessionRegistry.findBySessionId(sessionId);
 
-        if (relaySession.isEmpty()) {
+        if (activeSession.isEmpty()) {
             return;
         }
 
-        RelayWebSocketSession session = relaySession.get();
+        ActiveWebSocketSession session = activeSession.get();
+        String roomCode = session.connectionKey();
 
-        if (!relayWebSocketSessionRegistry.isCurrentSession(session.roomCode(), session.userUuid(), sessionId)) {
-            relayWebSocketSessionRegistry.removeStaleSession(sessionId);
+        if (!webSocketSessionRegistry.isCurrentSession(roomCode, session.userUuid(), sessionId)) {
+            webSocketSessionRegistry.removeStaleSession(sessionId);
             return;
         }
 
         try {
-            RelayRoomStateResponse roomStateResponse = relayRoomService.disconnectRoom(session.userUuid(),
-                session.roomCode());
+            RelayRoomStateResponse roomStateResponse = relayRoomService.disconnectRoom(session.userUuid(), roomCode);
             relayRoomEventPublisher.publishParticipantDisconnected(roomStateResponse);
         } catch (RuntimeException e) {
-            log.warn("Failed to update relay websocket disconnect state. roomCode={}, sessionId={}", session.roomCode(),
+            log.warn("Failed to update relay websocket disconnect state. roomCode={}, sessionId={}", roomCode,
                 sessionId, e);
         } finally {
-            relayWebSocketSessionRegistry.removeIfCurrent(sessionId);
+            webSocketSessionRegistry.removeIfCurrent(sessionId);
         }
     }
 }

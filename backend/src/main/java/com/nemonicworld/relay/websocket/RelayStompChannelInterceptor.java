@@ -1,9 +1,11 @@
 package com.nemonicworld.relay.websocket;
 
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.service.RelayRoomService;
-import com.nemonicworld.relay.websocket.RelayWebSocketSessionRegistry.RelayWebSocketSession;
 import java.security.Principal;
 import java.util.Map;
 import java.util.Optional;
@@ -27,14 +29,14 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
     private static final String CONNECTION_REJECTED_MESSAGE = "릴레이 웹소켓 연결을 허용할 수 없습니다.";
 
     private final RelayRoomService relayRoomService;
-    private final RelayWebSocketSessionRegistry relayWebSocketSessionRegistry;
+    private final WebSocketSessionRegistry webSocketSessionRegistry;
     private final ObjectProvider<RelayRoomEventPublisher> relayRoomEventPublisherProvider;
 
     public RelayStompChannelInterceptor(RelayRoomService relayRoomService,
-        RelayWebSocketSessionRegistry relayWebSocketSessionRegistry,
+        WebSocketSessionRegistry webSocketSessionRegistry,
         ObjectProvider<RelayRoomEventPublisher> relayRoomEventPublisherProvider) {
         this.relayRoomService = relayRoomService;
-        this.relayWebSocketSessionRegistry = relayWebSocketSessionRegistry;
+        this.webSocketSessionRegistry = webSocketSessionRegistry;
         this.relayRoomEventPublisherProvider = relayRoomEventPublisherProvider;
     }
 
@@ -56,17 +58,17 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
         try {
             RelayRoomStateResponse roomStateResponse = relayRoomService.connectRoom(userUuid, roomCode);
             configureSession(accessor, sessionId, roomCode, userUuid);
-            Optional<RelayWebSocketSession> replacedSession = relayWebSocketSessionRegistry.register(roomCode, userUuid,
+            Optional<ActiveWebSocketSession> replacedSession = webSocketSessionRegistry.register(roomCode, userUuid,
                 sessionId);
             RelayRoomEventPublisher relayRoomEventPublisher = relayRoomEventPublisherProvider.getObject();
 
-            replacedSession.ifPresent(
-                session -> closeDuplicateSession(relayRoomEventPublisher, session.sessionId(), session.roomCode()));
+            replacedSession.ifPresent(session -> closeDuplicateSession(relayRoomEventPublisher, session.sessionId(),
+                session.connectionKey()));
             relayRoomEventPublisher.publishParticipantConnected(roomStateResponse);
 
             return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
         } catch (RuntimeException e) {
-            relayWebSocketSessionRegistry.removeStaleSession(sessionId);
+            webSocketSessionRegistry.removeStaleSession(sessionId);
             throw new MessageDeliveryException(message, CONNECTION_REJECTED_MESSAGE, e);
         }
     }
@@ -75,8 +77,8 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
 
         if (sessionAttributes != null) {
-            sessionAttributes.put(RelayWebSocketSessionAttributes.ROOM_CODE, roomCode);
-            sessionAttributes.put(RelayWebSocketSessionAttributes.USER_UUID, userUuid);
+            sessionAttributes.put(WebSocketSessionAttributes.CONNECTION_KEY, roomCode);
+            sessionAttributes.put(WebSocketSessionAttributes.USER_UUID, userUuid);
         }
 
         // 사용자 큐를 세션 단위로 격리하기 위해 Principal name은 STOMP sessionId로 둡니다.
@@ -87,7 +89,7 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
     private void closeDuplicateSession(RelayRoomEventPublisher relayRoomEventPublisher, String sessionId,
         String roomCode) {
         relayRoomEventPublisher.publishDuplicateSessionClosed(sessionId, roomCode);
-        relayWebSocketSessionRegistry.closeWebSocketSession(sessionId);
-        relayWebSocketSessionRegistry.removeStaleSession(sessionId);
+        webSocketSessionRegistry.closeWebSocketSession(sessionId);
+        webSocketSessionRegistry.removeStaleSession(sessionId);
     }
 }

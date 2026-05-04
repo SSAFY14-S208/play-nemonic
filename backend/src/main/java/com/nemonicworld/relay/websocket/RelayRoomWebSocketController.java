@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.websocket;
 
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import java.security.Principal;
 import java.util.Map;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -28,7 +29,7 @@ public class RelayRoomWebSocketController {
         Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
 
         if (principal == null || sessionAttributes == null
-            || !roomCode.equals(sessionAttributes.get(RelayWebSocketSessionAttributes.ROOM_CODE))) {
+            || !roomCode.equals(sessionAttributes.get(WebSocketSessionAttributes.CONNECTION_KEY))) {
             return;
         }
 

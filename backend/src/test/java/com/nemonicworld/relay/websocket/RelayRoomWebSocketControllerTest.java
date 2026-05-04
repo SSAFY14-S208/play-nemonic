@@ -3,6 +3,7 @@ package com.nemonicworld.relay.websocket;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +29,7 @@ class RelayRoomWebSocketControllerTest {
         SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create();
         Principal principal = () -> SESSION_ID;
         Map<String, Object> sessionAttributes = new HashMap<>();
-        sessionAttributes.put(RelayWebSocketSessionAttributes.ROOM_CODE, ROOM_CODE);
+        sessionAttributes.put(WebSocketSessionAttributes.CONNECTION_KEY, ROOM_CODE);
         headerAccessor.setUser(principal);
         headerAccessor.setSessionAttributes(sessionAttributes);
 

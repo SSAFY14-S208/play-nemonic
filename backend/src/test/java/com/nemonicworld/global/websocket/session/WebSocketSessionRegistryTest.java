@@ -1,24 +1,24 @@
-package com.nemonicworld.relay.websocket;
+package com.nemonicworld.global.websocket.session;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.nemonicworld.relay.websocket.RelayWebSocketSessionRegistry.RelayWebSocketSession;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 
 /**
- * roomCode + UUID 기준 활성 WebSocket 세션 레지스트리 정책을 검증합니다.
+ * 콘텐츠 식별자 + UUID 기준 활성 WebSocket 세션 레지스트리 정책을 검증합니다.
  */
-class RelayWebSocketSessionRegistryTest {
+class WebSocketSessionRegistryTest {
 
     private static final String ROOM_CODE = "AB3K9Q";
     private static final String USER_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
-    private final RelayWebSocketSessionRegistry registry = new RelayWebSocketSessionRegistry();
+    private final WebSocketSessionRegistry registry = new WebSocketSessionRegistry();
 
     /**
      * 같은 roomCode + UUID로 새 세션이 등록되면 기존 세션 메타데이터를 반환하고 최신 세션만 current가 됩니다.
@@ -27,7 +27,7 @@ class RelayWebSocketSessionRegistryTest {
     void registerReplacesExistingSessionForSameRoomAndUser() {
         assertThat(registry.register(ROOM_CODE, USER_UUID, "session-1")).isEmpty();
 
-        RelayWebSocketSession replacedSession = registry.register(ROOM_CODE, USER_UUID, "session-2").orElseThrow();
+        ActiveWebSocketSession replacedSession = registry.register(ROOM_CODE, USER_UUID, "session-2").orElseThrow();
 
         assertThat(replacedSession.sessionId()).isEqualTo("session-1");
         assertThat(registry.isCurrentSession(ROOM_CODE, USER_UUID, "session-1")).isFalse();
