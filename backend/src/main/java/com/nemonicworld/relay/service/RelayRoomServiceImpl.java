@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 릴레이 방 생성 유스케이스를 처리하는 서비스 구현체입니다.
  *
- * <p>
  * 사용자 조회는 PostgreSQL에서 읽기 전용으로 수행하고, 생성된 방 상태는 Redis에만 저장합니다.
  */
 public class RelayRoomServiceImpl implements RelayRoomService {
@@ -33,7 +32,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private final RelayRoomRepository relayRoomRepository;
 
     public RelayRoomServiceImpl(AnonymousUserResolver anonymousUserResolver, RoomCodeGenerator roomCodeGenerator,
-        RelayRoomRepository relayRoomRepository) {
+            RelayRoomRepository relayRoomRepository) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.roomCodeGenerator = roomCodeGenerator;
         this.relayRoomRepository = relayRoomRepository;
@@ -49,9 +48,9 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         String roomCode = roomCodeGenerator.generateUnique(relayRoomRepository::existsByRoomCode);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         RelayRoomParticipant hostParticipant = new RelayRoomParticipant(hostUser.getId().toString(),
-            hostUser.getNickname(), true, HOST_JOIN_ORDER, true, now);
+                hostUser.getNickname(), true, HOST_JOIN_ORDER, true, now);
         RelayRoomState roomState = new RelayRoomState(roomCode, RelayRoomStatus.WAITING, hostUser.getId().toString(),
-            DEFAULT_TIME_LIMIT_SECONDS, MIN_PARTICIPANTS, MAX_PARTICIPANTS, List.of(hostParticipant), now, now);
+                DEFAULT_TIME_LIMIT_SECONDS, MIN_PARTICIPANTS, MAX_PARTICIPANTS, List.of(hostParticipant), now, now);
 
         relayRoomRepository.save(roomState);
 
