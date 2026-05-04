@@ -1,4 +1,5 @@
 @host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
 
 ### Create anonymous user
 POST {{host}}/api/v1/users/anonymous
@@ -9,62 +10,50 @@ POST {{host}}/api/v1/users/anonymous
 
 ### Verify anonymous user UUID
 POST {{host}}/api/v1/users/anonymous/verify
-Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
 User-Agent: MangoApp/1.0
-
-{
-  "userUuid": "550e8400-e29b-41d4-a716-446655440000"
-}
 
 ### Verify anonymous user UUID without User-Agent
 POST {{host}}/api/v1/users/anonymous/verify
-Content-Type: application/json
-
-{
-  "userUuid": "550e8400-e29b-41d4-a716-446655440000"
-}
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Verify anonymous user UUID - invalid format
 POST {{host}}/api/v1/users/anonymous/verify
-Content-Type: application/json
-
-{
-  "userUuid": "not-a-uuid"
-}
+Anonymous-User-UUID: not-a-uuid
 
 ### Update anonymous user nickname
 PATCH {{host}}/api/v1/users/anonymous/nickname
 Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
   "nickname": "망고"
 }
 
 ### Update anonymous user nickname - spaces, symbols, emoji
 PATCH {{host}}/api/v1/users/anonymous/nickname
 Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
   "nickname": " 망고 팀🙂! "
 }
 
 ### Update anonymous user nickname - invalid nickname
 PATCH {{host}}/api/v1/users/anonymous/nickname
 Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
   "nickname": "12345678901"
 }
 
 ### Register anonymous user birth info
 POST {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
   "birthday": "1998-03-15",
   "birthtime": "13:30:00",
   "isLunar": false
@@ -73,9 +62,9 @@ Content-Type: application/json
 ### Register anonymous user birth info - already registered
 POST {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
   "birthday": "1998-03-15",
   "birthtime": "13:30:00",
   "isLunar": false
@@ -84,9 +73,9 @@ Content-Type: application/json
 ### Update anonymous user birth info
 PATCH {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
   "birthday": "1998-03-15",
   "birthtime": "13:30:00",
   "isLunar": true
@@ -95,16 +84,18 @@ Content-Type: application/json
 ### Update anonymous user birth info - invalid birthtime
 PATCH {{host}}/api/v1/users/anonymous/birth-info
 Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "userUuid": "550e8400-e29b-41d4-a716-446655440000",
   "birthday": "1998-03-15",
   "birthtime": "13:30",
   "isLunar": true
 }
 
 ### Get anonymous user profile
-GET {{host}}/api/v1/users/anonymous/profile?userUuid=550e8400-e29b-41d4-a716-446655440000
+GET {{host}}/api/v1/users/anonymous/profile
+Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get anonymous user profile - invalid UUID
-GET {{host}}/api/v1/users/anonymous/profile?userUuid=not-a-uuid
+GET {{host}}/api/v1/users/anonymous/profile
+Anonymous-User-UUID: not-a-uuid

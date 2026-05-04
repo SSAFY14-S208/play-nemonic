@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
@@ -30,6 +31,8 @@ import org.springframework.test.web.servlet.MockMvc;
  * 내 갤러리 목록 조회 API의 정상, 예외, 페이지 흐름을 통합 검증합니다.
  */
 class GalleryControllerIntegrationTest {
+
+    private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
 
     @Autowired
     private MockMvc mockMvc;
@@ -131,9 +134,9 @@ class GalleryControllerIntegrationTest {
             null);
         insertGalleryItem(userUuid, "fortune", "fortune-thumb", "fortune-content", null, baseTime.plusMinutes(6), null);
 
-        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.message").value("내 갤러리 목록 조회 성공"))
-            .andExpect(jsonPath("$.data.items", hasSize(6)))
+        mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("내 갤러리 목록 조회 성공")).andExpect(jsonPath("$.data.items", hasSize(6)))
             .andExpect(jsonPath("$.data.items[0].kind").value("fortune"))
             .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("fortune-thumb"))
             .andExpect(jsonPath("$.data.items[0].contentUrl").value("fortune-content"))
@@ -158,9 +161,9 @@ class GalleryControllerIntegrationTest {
     void getMyGalleryReturnsEmptyItemsWhenUserHasNoGalleryRows() throws Exception {
         UUID userUuid = createExistingUser();
 
-        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.items", hasSize(0))).andExpect(jsonPath("$.data.totalElements").value(0))
-            .andExpect(jsonPath("$.data.hasNext").value(false));
+        mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(0)))
+            .andExpect(jsonPath("$.data.totalElements").value(0)).andExpect(jsonPath("$.data.hasNext").value(false));
     }
 
     /**
@@ -175,8 +178,8 @@ class GalleryControllerIntegrationTest {
         insertGalleryItem(userUuid, "phone", "deleted-thumb", "deleted-content", null, now.plusMinutes(1), now);
         insertGalleryOnly(UUID.randomUUID(), userUuid, UUID.randomUUID(), null);
 
-        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.items", hasSize(1)))
+        mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
             .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("active-thumb"))
             .andExpect(jsonPath("$.data.totalElements").value(1));
     }
@@ -194,8 +197,8 @@ class GalleryControllerIntegrationTest {
         insertArtifact(artifactId, "fortune", "fallback-thumb", null, now);
         insertGalleryOnly(galleryId, userUuid, artifactId, null);
 
-        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.items", hasSize(1)))
+        mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
             .andExpect(jsonPath("$.data.items[0].contentUrl").value("fallback-thumb"));
     }
 
@@ -209,7 +212,9 @@ class GalleryControllerIntegrationTest {
         GalleryTestRow row = insertGalleryItemWithMeta(userUuid, "fortune", "fortune-thumb", "fortune-content", null,
             createdAt, null, "{\"title\":\"오늘의 운세\",\"score\":88}");
 
-        mockMvc.perform(get("/api/v1/gallery/{galleryId}", row.galleryId()).param("userUuid", userUuid.toString()))
+        mockMvc
+            .perform(get("/api/v1/gallery/{galleryId}", row.galleryId()).header(ANONYMOUS_USER_UUID_HEADER,
+                userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("내 갤러리 항목 상세 조회 성공"))
             .andExpect(jsonPath("$.data.galleryId").value(row.galleryId().toString()))
@@ -300,7 +305,8 @@ class GalleryControllerIntegrationTest {
         UUID memoId = insertCommunityMemo(userUuid, row.artifactId());
         LocalDateTime beforeArtifactUpdatedAt = findArtifactUpdatedAt(row.artifactId());
 
-        mockMvc.perform(get("/api/v1/gallery/{galleryId}", row.galleryId()).param("userUuid", userUuid.toString()))
+        mockMvc.perform(
+            get("/api/v1/gallery/{galleryId}", row.galleryId()).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk());
 
         AppUser afterUser = userRepository.findById(userUuid).orElseThrow();
@@ -322,13 +328,15 @@ class GalleryControllerIntegrationTest {
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
-        mockMvc.perform(get("/api/v1/gallery/{galleryId}", UUID.randomUUID()).param("userUuid", "not-a-uuid"))
+        mockMvc
+            .perform(
+                get("/api/v1/gallery/{galleryId}", UUID.randomUUID()).header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
         mockMvc
-            .perform(
-                get("/api/v1/gallery/{galleryId}", "not-a-gallery-id").param("userUuid", UUID.randomUUID().toString()))
+            .perform(get("/api/v1/gallery/{galleryId}", "not-a-gallery-id").header(ANONYMOUS_USER_UUID_HEADER,
+                UUID.randomUUID().toString()))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 갤러리 항목 ID 형식입니다."));
     }
@@ -341,8 +349,8 @@ class GalleryControllerIntegrationTest {
         UUID missingUserUuid = UUID.randomUUID();
 
         mockMvc
-            .perform(
-                get("/api/v1/gallery/{galleryId}", UUID.randomUUID()).param("userUuid", missingUserUuid.toString()))
+            .perform(get("/api/v1/gallery/{galleryId}", UUID.randomUUID()).header(ANONYMOUS_USER_UUID_HEADER,
+                missingUserUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
 
@@ -381,16 +389,16 @@ class GalleryControllerIntegrationTest {
         insertGalleryItem(userUuid, "community_memo", "third-thumb", null, null, baseTime.plusMinutes(1), null);
 
         mockMvc
-            .perform(
-                get("/api/v1/gallery").param("userUuid", userUuid.toString()).param("page", "0").param("size", "2"))
+            .perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).param("page", "0")
+                .param("size", "2"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(2)))
             .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("first-thumb"))
             .andExpect(jsonPath("$.data.page").value(0)).andExpect(jsonPath("$.data.size").value(2))
             .andExpect(jsonPath("$.data.totalElements").value(3)).andExpect(jsonPath("$.data.hasNext").value(true));
 
         mockMvc
-            .perform(
-                get("/api/v1/gallery").param("userUuid", userUuid.toString()).param("page", "1").param("size", "2"))
+            .perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).param("page", "1")
+                .param("size", "2"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
             .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("third-thumb"))
             .andExpect(jsonPath("$.data.page").value(1)).andExpect(jsonPath("$.data.size").value(2))
@@ -410,7 +418,8 @@ class GalleryControllerIntegrationTest {
 
         insertGalleryItem(userUuid, "fortune", "fortune-thumb", "fortune-content", null, LocalDateTime.now(), null);
 
-        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk());
 
         AppUser afterUser = userRepository.findById(userUuid).orElseThrow();
         assertThat(afterUser.getLastSeenAt()).isEqualTo(beforeLastSeenAt);
@@ -429,7 +438,9 @@ class GalleryControllerIntegrationTest {
         UUID memoId = insertCommunityMemo(userUuid, row.artifactId());
         LocalDateTime beforeArtifactUpdatedAt = findArtifactUpdatedAt(row.artifactId());
 
-        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", row.galleryId()).param("userUuid", userUuid.toString()))
+        mockMvc
+            .perform(delete("/api/v1/gallery/{galleryId}", row.galleryId()).header(ANONYMOUS_USER_UUID_HEADER,
+                userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("갤러리 항목 삭제 성공"))
             .andExpect(jsonPath("$.data.galleryId").value(row.galleryId().toString()))
@@ -452,11 +463,12 @@ class GalleryControllerIntegrationTest {
         GalleryTestRow row = insertGalleryItem(userUuid, "fortune", "fortune-thumb", "fortune-content", null,
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), null);
 
-        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", row.galleryId()).param("userUuid", userUuid.toString()))
-            .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", row.galleryId()).header(ANONYMOUS_USER_UUID_HEADER,
+            userUuid.toString())).andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/v1/gallery").param("userUuid", userUuid.toString())).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.items", hasSize(0))).andExpect(jsonPath("$.data.totalElements").value(0));
+        mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(0)))
+            .andExpect(jsonPath("$.data.totalElements").value(0));
     }
 
     /**
@@ -468,12 +480,14 @@ class GalleryControllerIntegrationTest {
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
-        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", UUID.randomUUID()).param("userUuid", "not-a-uuid"))
+        mockMvc
+            .perform(delete("/api/v1/gallery/{galleryId}", UUID.randomUUID()).header(ANONYMOUS_USER_UUID_HEADER,
+                "not-a-uuid"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
         mockMvc
-            .perform(delete("/api/v1/gallery/{galleryId}", "not-a-gallery-id").param("userUuid",
+            .perform(delete("/api/v1/gallery/{galleryId}", "not-a-gallery-id").header(ANONYMOUS_USER_UUID_HEADER,
                 UUID.randomUUID().toString()))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 갤러리 항목 ID 형식입니다."));
@@ -487,8 +501,8 @@ class GalleryControllerIntegrationTest {
         UUID missingUserUuid = UUID.randomUUID();
 
         mockMvc
-            .perform(
-                delete("/api/v1/gallery/{galleryId}", UUID.randomUUID()).param("userUuid", missingUserUuid.toString()))
+            .perform(delete("/api/v1/gallery/{galleryId}", UUID.randomUUID()).header(ANONYMOUS_USER_UUID_HEADER,
+                missingUserUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
 
@@ -523,8 +537,8 @@ class GalleryControllerIntegrationTest {
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
-        mockMvc.perform(get("/api/v1/gallery").param("userUuid", "not-a-uuid")).andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.success").value(false))
+        mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
         assertThat(userRepository.count()).isZero();
@@ -537,7 +551,7 @@ class GalleryControllerIntegrationTest {
     void getMyGalleryReturnsNotFoundAndDoesNotCreateUser() throws Exception {
         UUID missingUserUuid = UUID.randomUUID();
 
-        mockMvc.perform(get("/api/v1/gallery").param("userUuid", missingUserUuid.toString()))
+        mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, missingUserUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
 
@@ -560,8 +574,8 @@ class GalleryControllerIntegrationTest {
 
     private void assertInvalidPagination(UUID userUuid, String page, String size) throws Exception {
         mockMvc
-            .perform(
-                get("/api/v1/gallery").param("userUuid", userUuid.toString()).param("page", page).param("size", size))
+            .perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).param("page", page)
+                .param("size", size))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("페이지 요청 값이 올바르지 않습니다."));
     }
@@ -648,24 +662,32 @@ class GalleryControllerIntegrationTest {
     }
 
     private void assertGalleryItemNotFound(UUID userUuid, UUID galleryId) throws Exception {
-        mockMvc.perform(delete("/api/v1/gallery/{galleryId}", galleryId).param("userUuid", userUuid.toString()))
+        mockMvc
+            .perform(delete("/api/v1/gallery/{galleryId}", galleryId).header(ANONYMOUS_USER_UUID_HEADER,
+                userUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 갤러리 항목입니다."));
     }
 
     private void assertGalleryItemDetailNotFound(UUID userUuid, UUID galleryId) throws Exception {
-        mockMvc.perform(get("/api/v1/gallery/{galleryId}", galleryId).param("userUuid", userUuid.toString()))
+        mockMvc
+            .perform(
+                get("/api/v1/gallery/{galleryId}", galleryId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 갤러리 항목입니다."));
     }
 
     private void assertDetailContentUrl(UUID userUuid, UUID galleryId, String expectedContentUrl) throws Exception {
-        mockMvc.perform(get("/api/v1/gallery/{galleryId}", galleryId).param("userUuid", userUuid.toString()))
+        mockMvc
+            .perform(
+                get("/api/v1/gallery/{galleryId}", galleryId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.contentUrl").value(expectedContentUrl));
     }
 
     private void assertDetailMetaIsEmpty(UUID userUuid, UUID galleryId) throws Exception {
-        mockMvc.perform(get("/api/v1/gallery/{galleryId}", galleryId).param("userUuid", userUuid.toString()))
+        mockMvc
+            .perform(
+                get("/api/v1/gallery/{galleryId}", galleryId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.meta").value(anEmptyMap()));
     }
 

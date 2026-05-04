@@ -8,6 +8,8 @@
   <module name="LineLength">
     <property name="max" value="120"/>
     <property name="fileExtensions" value="java"/>
+    <property name="ignorePattern"
+      value="^\s*@(Operation|io\.swagger\.v3\.oas\.annotations\.responses\.ApiResponse)\b"/>
   </module>
 
   <module name="TreeWalker">

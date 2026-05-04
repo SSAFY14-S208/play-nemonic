@@ -49,7 +49,23 @@ src/main/java/com/nemonicworld/
 - 비즈니스 로직을 포함하지 않는다.
 - Entity를 직접 반환하지 않고 Response DTO 또는 공통 응답 형태로 반환한다.
 
+### Swagger/OpenAPI
+
+- Controller method parameter 이름은 반드시 명시해서 Swagger에 `arg0`, `arg1`, `arg2` 같은 컴파일러 생성 이름이 노출되지 않게 한다.
+- path variable은 `@PathVariable("id")`, query parameter는 `@RequestParam(name = "page")`처럼 이름을 명시한다.
+- 공통 헤더는 문자열을 반복하지 않고 `@RequestHeader(value = HeaderConstants.VALUE)` 또는 프로젝트의 헤더 상수를 사용한다.
+- API 계약에 포함된 필수 path, query, header parameter는 `@Parameter`로 문서화해서 Swagger에 실제 계약과 같은 이름과 필수 여부가 보이게 한다.
+- 예상 가능한 실패 응답은 `@ApiResponse` 예시를 추가한다. 실패 예시는 `success: false`를 보여야 하며 성공 DTO 예시를 재사용하지 않는다.
+- 공통 `ApiResponse.errors` 스키마 예시는 특정 API의 필드 오류로 고정하지 않고 범용 예시로 유지한다. API별 검증 메시지는 operation-level 실패 예시에 둔다.
+- 내부 예외 메시지, stack trace, access key, bucket 이름, secret 같은 민감 정보는 Swagger 예시에 노출하지 않는다.
+
 ### service
+
+- service 패키지는 `<Feature>Service` 인터페이스와 `<Feature>ServiceImpl` 구현체로 구성한다.
+- Controller는 구현체가 아니라 service 인터페이스에 의존한다.
+- `@Service`는 인터페이스가 아니라 구현체에만 붙인다.
+- 인터페이스에는 Controller가 사용하는 public use case method만 둔다.
+- private helper나 구현 세부사항은 Impl에 둔다.
 
 - `@Service` 클래스가 위치한다.
 - 핵심 비즈니스 로직과 유스케이스 흐름을 처리한다.
@@ -69,6 +85,15 @@ src/main/java/com/nemonicworld/
 - 엔티티의 상태와 기본 규칙을 표현한다.
 - 외부 API 응답 형식이나 웹 계층 관심사를 포함하지 않는다.
 
+### enum
+
+- 도메인 내부에서 제한된 상태나 용도 값을 직접 검증하거나 분기할 때 enum을 사용한다.
+- enum 상수는 Java 관례에 따라 `UPPER_SNAKE_CASE`로 작성한다.
+- DB/API 외부 계약이 소문자 문자열이면 enum 내부에 외부 표현 값을 별도로 둔다.
+- 단순 boolean 값은 상태가 3개 이상으로 확장될 가능성이 명확하지 않다면 enum으로 분리하지 않는다.
+- 특정 feature 소유가 아닌 공통 결과물 종류(`fortune`, `relay_drawing` 등)는 gallery 패키지에 두지 않고
+  artifact/common 계층이 생길 때 배치한다.
+
 ### dto
 
 - 계층 간 데이터 전달에 사용하는 객체가 위치한다.
@@ -83,7 +108,8 @@ community/
 |-- controller/
 |   `-- CommunityController.java
 |-- service/
-|   `-- CommunityService.java
+|   |-- CommunityService.java
+|   `-- CommunityServiceImpl.java
 |-- repository/
 |   `-- CommunityRepository.java
 |-- entity/

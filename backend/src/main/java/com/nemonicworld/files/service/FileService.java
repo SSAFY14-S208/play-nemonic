@@ -11,7 +11,7 @@ import com.nemonicworld.files.dto.response.FilePresignResponse;
 public interface FileService {
 
     /**
-     * MinIO 직접 업로드를 위한 pending 파일 메타데이터를 만들고 PUT presigned URL을 발급합니다.
+     * MinIO 직접 업로드를 위한 pending 파일 메타데이터를 생성하고 PUT presigned URL을 발급합니다.
      */
     FilePresignResponse createPresignedUrl(String userUuidValue, FilePresignRequest request);
 

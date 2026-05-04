@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
@@ -39,6 +40,8 @@ import org.springframework.test.web.servlet.MvcResult;
  * 익명 사용자 UUID 발급 API의 정상 흐름과 저장 결과를 검증합니다.
  */
 class UserControllerIntegrationTest {
+
+    private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
 
     @Autowired
     private MockMvc mockMvc;
@@ -112,7 +115,7 @@ class UserControllerIntegrationTest {
 
         MvcResult result = mockMvc
             .perform(post("/api/v1/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
-                .header(HttpHeaders.USER_AGENT, "MangoApp/2.0").content(verifyRequestBody(userUuid)))
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).header(HttpHeaders.USER_AGENT, "MangoApp/2.0"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("익명 사용자 UUID 확인 성공"))
             .andExpect(jsonPath("$.data.userUuid").value(userUuid.toString()))
@@ -152,7 +155,7 @@ class UserControllerIntegrationTest {
     void verifyAnonymousUserRejectsInvalidUuidFormatAndDoesNotCreateUser() throws Exception {
         mockMvc
             .perform(post("/api/v1/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"userUuid\":\"not-a-uuid\"}"))
+                .header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
@@ -168,7 +171,7 @@ class UserControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
-                .content(verifyRequestBody(missingUserUuid)))
+                .header(ANONYMOUS_USER_UUID_HEADER, missingUserUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
 
@@ -187,7 +190,7 @@ class UserControllerIntegrationTest {
 
         MvcResult result = mockMvc
             .perform(patch("/api/v1/users/anonymous/nickname").contentType(MediaType.APPLICATION_JSON)
-                .content(nicknameRequestBody(userUuid, "망고")))
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content(nicknameRequestBody("망고")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("닉네임 설정/수정 성공"))
             .andExpect(jsonPath("$.data.userUuid").value(userUuid.toString()))
@@ -228,7 +231,7 @@ class UserControllerIntegrationTest {
 
         mockMvc
             .perform(patch("/api/v1/users/anonymous/nickname").contentType(MediaType.APPLICATION_JSON)
-                .content(nicknameRequestBody(userUuid, nickname)))
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content(nicknameRequestBody(nickname)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.nickname").value(nickname));
 
         assertThat(userRepository.findById(userUuid).orElseThrow().getNickname()).isEqualTo(nickname);
@@ -241,7 +244,7 @@ class UserControllerIntegrationTest {
     void updateAnonymousUserNicknameRejectsInvalidUuidFormatAndDoesNotCreateUser() throws Exception {
         mockMvc
             .perform(patch("/api/v1/users/anonymous/nickname").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"userUuid\":\"not-a-uuid\",\"nickname\":\"망고\"}"))
+                .header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid").content(nicknameRequestBody("망고")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
@@ -257,7 +260,7 @@ class UserControllerIntegrationTest {
 
         mockMvc
             .perform(patch("/api/v1/users/anonymous/nickname").contentType(MediaType.APPLICATION_JSON)
-                .content(nicknameRequestBody(missingUserUuid, "망고")))
+                .header(ANONYMOUS_USER_UUID_HEADER, missingUserUuid.toString()).content(nicknameRequestBody("망고")))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
 
@@ -274,9 +277,9 @@ class UserControllerIntegrationTest {
         UUID blankNicknameUserUuid = createExistingUser("MangoApp/1.0");
         UUID tooLongNicknameUserUuid = createExistingUser("MangoApp/1.0");
 
-        assertInvalidNickname(missingNicknameRequestBody(missingNicknameUserUuid));
-        assertInvalidNickname(nicknameRequestBody(blankNicknameUserUuid, "   "));
-        assertInvalidNickname(nicknameRequestBody(tooLongNicknameUserUuid, "12345678901"));
+        assertInvalidNickname(missingNicknameUserUuid, missingNicknameRequestBody());
+        assertInvalidNickname(blankNicknameUserUuid, nicknameRequestBody("   "));
+        assertInvalidNickname(tooLongNicknameUserUuid, nicknameRequestBody("12345678901"));
 
         assertThat(userRepository.findById(missingNicknameUserUuid).orElseThrow().getNickname())
             .isEqualTo(AppUser.ANONYMOUS_NICKNAME);
@@ -298,7 +301,8 @@ class UserControllerIntegrationTest {
 
         MvcResult result = mockMvc
             .perform(post("/api/v1/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
-                .content(birthInfoRequestBody(userUuid, "1998-03-15", "13:30:00", false)))
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .content(birthInfoRequestBody("1998-03-15", "13:30:00", false)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("생년월일 정보 등록 성공"))
             .andExpect(jsonPath("$.data.userUuid").value(userUuid.toString()))
@@ -330,7 +334,8 @@ class UserControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
-                .content(birthInfoRequestBody(userUuid, "2000-01-01", "08:00:00", true)))
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .content(birthInfoRequestBody("2000-01-01", "08:00:00", true)))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("이미 생년월일 정보가 등록되어 있습니다."));
 
@@ -350,7 +355,8 @@ class UserControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
-                .content(birthInfoRequestBody(missingUserUuid, "1998-03-15", "13:30:00", false)))
+                .header(ANONYMOUS_USER_UUID_HEADER, missingUserUuid.toString())
+                .content(birthInfoRequestBody("1998-03-15", "13:30:00", false)))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
 
@@ -363,8 +369,10 @@ class UserControllerIntegrationTest {
      */
     @Test
     void registerAnonymousUserBirthInfoRejectsInvalidUuidFormatAndDoesNotCreateUser() throws Exception {
-        mockMvc.perform(post("/api/v1/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON).content(
-            "{\"userUuid\":\"not-a-uuid\",\"birthday\":\"1998-03-15\",\"birthtime\":\"13:30:00\",\"isLunar\":false}"))
+        mockMvc
+            .perform(post("/api/v1/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
+                .header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid")
+                .content(birthInfoRequestBody("1998-03-15", "13:30:00", false)))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
@@ -381,14 +389,14 @@ class UserControllerIntegrationTest {
         UUID missingIsLunarUserUuid = createExistingUser("MangoApp/1.0");
         UUID nullIsLunarUserUuid = createExistingUser("MangoApp/1.0");
 
-        assertInvalidBirthInfo(post("/api/v1/users/anonymous/birth-info"),
-            birthInfoRequestBody(invalidBirthdayUserUuid, "1998-99-99", "13:30:00", false));
-        assertInvalidBirthInfo(post("/api/v1/users/anonymous/birth-info"),
-            birthInfoRequestBody(invalidBirthtimeUserUuid, "1998-03-15", "13:30", false));
-        assertInvalidBirthInfo(post("/api/v1/users/anonymous/birth-info"),
-            missingIsLunarRequestBody(missingIsLunarUserUuid, "1998-03-15", "13:30:00"));
-        assertInvalidBirthInfo(post("/api/v1/users/anonymous/birth-info"),
-            birthInfoRequestBody(nullIsLunarUserUuid, "1998-03-15", "13:30:00", null));
+        assertInvalidBirthInfo(post("/api/v1/users/anonymous/birth-info"), invalidBirthdayUserUuid,
+            birthInfoRequestBody("1998-99-99", "13:30:00", false));
+        assertInvalidBirthInfo(post("/api/v1/users/anonymous/birth-info"), invalidBirthtimeUserUuid,
+            birthInfoRequestBody("1998-03-15", "13:30", false));
+        assertInvalidBirthInfo(post("/api/v1/users/anonymous/birth-info"), missingIsLunarUserUuid,
+            missingIsLunarRequestBody("1998-03-15", "13:30:00"));
+        assertInvalidBirthInfo(post("/api/v1/users/anonymous/birth-info"), nullIsLunarUserUuid,
+            birthInfoRequestBody("1998-03-15", "13:30:00", null));
 
         assertThat(userRepository.findById(invalidBirthdayUserUuid).orElseThrow().getBirthday()).isNull();
         assertThat(userRepository.findById(invalidBirthtimeUserUuid).orElseThrow().getBirthtime()).isNull();
@@ -411,7 +419,8 @@ class UserControllerIntegrationTest {
 
         MvcResult result = mockMvc
             .perform(patch("/api/v1/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
-                .content(birthInfoRequestBody(userUuid, "2000-01-01", "08:00:00", true)))
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .content(birthInfoRequestBody("2000-01-01", "08:00:00", true)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("생년월일 정보 수정 성공"))
             .andExpect(jsonPath("$.data.userUuid").value(userUuid.toString()))
@@ -441,7 +450,8 @@ class UserControllerIntegrationTest {
 
         mockMvc
             .perform(patch("/api/v1/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
-                .content(birthInfoRequestBody(userUuid, "1998-03-15", "13:30:00", false)))
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .content(birthInfoRequestBody("1998-03-15", "13:30:00", false)))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("등록된 생년월일 정보가 없습니다."));
 
@@ -463,12 +473,13 @@ class UserControllerIntegrationTest {
 
         mockMvc
             .perform(patch("/api/v1/users/anonymous/birth-info").contentType(MediaType.APPLICATION_JSON)
-                .content(birthInfoRequestBody(missingUserUuid, "1998-03-15", "13:30:00", false)))
+                .header(ANONYMOUS_USER_UUID_HEADER, missingUserUuid.toString())
+                .content(birthInfoRequestBody("1998-03-15", "13:30:00", false)))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
 
-        assertInvalidBirthInfo(patch("/api/v1/users/anonymous/birth-info"),
-            birthInfoRequestBody(invalidInputUserUuid, "1998-03-15", "25:00:00", false));
+        assertInvalidBirthInfo(patch("/api/v1/users/anonymous/birth-info"), invalidInputUserUuid,
+            birthInfoRequestBody("1998-03-15", "25:00:00", false));
 
         assertThat(userRepository.existsById(missingUserUuid)).isFalse();
         assertThat(userRepository.count()).isEqualTo(1);
@@ -489,7 +500,7 @@ class UserControllerIntegrationTest {
         appUser.updateBirthInfo(birthday, birthtime, false, updatedAt);
         userRepository.saveAndFlush(appUser);
 
-        mockMvc.perform(get("/api/v1/users/anonymous/profile").param("userUuid", userUuid.toString()))
+        mockMvc.perform(get("/api/v1/users/anonymous/profile").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("내 프로필 조회 성공"))
             .andExpect(jsonPath("$.data.userUuid").value(userUuid.toString()))
@@ -516,7 +527,7 @@ class UserControllerIntegrationTest {
     void getAnonymousUserProfileReturnsNullBirthInfoWhenMissing() throws Exception {
         UUID userUuid = createExistingUser("MangoApp/1.0");
 
-        mockMvc.perform(get("/api/v1/users/anonymous/profile").param("userUuid", userUuid.toString()))
+        mockMvc.perform(get("/api/v1/users/anonymous/profile").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.birthday").value(nullValue()))
             .andExpect(jsonPath("$.data.birthtime").value(nullValue()))
             .andExpect(jsonPath("$.data.isLunar").value(nullValue()));
@@ -536,7 +547,7 @@ class UserControllerIntegrationTest {
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
-        mockMvc.perform(get("/api/v1/users/anonymous/profile").param("userUuid", "not-a-uuid"))
+        mockMvc.perform(get("/api/v1/users/anonymous/profile").header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
@@ -550,7 +561,9 @@ class UserControllerIntegrationTest {
     void getAnonymousUserProfileReturnsNotFoundAndDoesNotCreateUser() throws Exception {
         UUID missingUserUuid = UUID.randomUUID();
 
-        mockMvc.perform(get("/api/v1/users/anonymous/profile").param("userUuid", missingUserUuid.toString()))
+        mockMvc
+            .perform(
+                get("/api/v1/users/anonymous/profile").header(ANONYMOUS_USER_UUID_HEADER, missingUserUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
 
@@ -577,35 +590,39 @@ class UserControllerIntegrationTest {
     private void verifyAnonymousUser(UUID userUuid, String userAgent) throws Exception {
         mockMvc
             .perform(post("/api/v1/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
-                .header(HttpHeaders.USER_AGENT, userAgent).content(verifyRequestBody(userUuid)))
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).header(HttpHeaders.USER_AGENT, userAgent))
             .andExpect(status().isOk());
     }
 
     // User-Agent 헤더를 아예 보내지 않는 검증 API 케이스를 만들기 위한 헬퍼입니다.
     private void verifyAnonymousUserWithoutUserAgent(UUID userUuid) throws Exception {
         mockMvc.perform(post("/api/v1/users/anonymous/verify").contentType(MediaType.APPLICATION_JSON)
-            .content(verifyRequestBody(userUuid))).andExpect(status().isOk());
+            .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())).andExpect(status().isOk());
     }
 
     // 닉네임 설정/수정 API에서 반복되는 정상 호출 흐름을 감싼 헬퍼입니다.
     private void updateAnonymousUserNickname(UUID userUuid, String nickname) throws Exception {
-        mockMvc.perform(patch("/api/v1/users/anonymous/nickname").contentType(MediaType.APPLICATION_JSON)
-            .content(nicknameRequestBody(userUuid, nickname))).andExpect(status().isOk());
+        mockMvc
+            .perform(patch("/api/v1/users/anonymous/nickname").contentType(MediaType.APPLICATION_JSON)
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content(nicknameRequestBody(nickname)))
+            .andExpect(status().isOk());
     }
 
     // 닉네임 validation 실패 응답의 공통 계약을 확인합니다.
-    private void assertInvalidNickname(String requestBody) throws Exception {
+    private void assertInvalidNickname(UUID userUuid, String requestBody) throws Exception {
         mockMvc
-            .perform(
-                patch("/api/v1/users/anonymous/nickname").contentType(MediaType.APPLICATION_JSON).content(requestBody))
+            .perform(patch("/api/v1/users/anonymous/nickname").contentType(MediaType.APPLICATION_JSON)
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content(requestBody))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("닉네임은 1자 이상 10자 이하로 입력해주세요."));
     }
 
     // 생년월일 정보 validation 실패 응답의 공통 계약을 확인합니다.
-    private void assertInvalidBirthInfo(MockHttpServletRequestBuilder requestBuilder, String requestBody)
+    private void assertInvalidBirthInfo(MockHttpServletRequestBuilder requestBuilder, UUID userUuid, String requestBody)
         throws Exception {
-        mockMvc.perform(requestBuilder.contentType(MediaType.APPLICATION_JSON).content(requestBody))
+        mockMvc
+            .perform(requestBuilder.contentType(MediaType.APPLICATION_JSON)
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content(requestBody))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("생년월일 정보 형식이 올바르지 않습니다."));
     }
@@ -632,33 +649,23 @@ class UserControllerIntegrationTest {
         return userUuid;
     }
 
-    private String verifyRequestBody(UUID userUuid) {
-        return "{\"userUuid\":\"" + userUuid + "\"}";
-    }
-
     private String jsonDateTime(LocalDateTime value) {
         return value.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     }
 
-    private String nicknameRequestBody(UUID userUuid, String nickname) throws Exception {
+    private String nicknameRequestBody(String nickname) throws Exception {
         ObjectNode request = objectMapper.createObjectNode();
-        request.put("userUuid", userUuid.toString());
         request.put("nickname", nickname);
 
         return objectMapper.writeValueAsString(request);
     }
 
-    private String missingNicknameRequestBody(UUID userUuid) throws Exception {
-        ObjectNode request = objectMapper.createObjectNode();
-        request.put("userUuid", userUuid.toString());
-
-        return objectMapper.writeValueAsString(request);
+    private String missingNicknameRequestBody() {
+        return "{}";
     }
 
-    private String birthInfoRequestBody(UUID userUuid, String birthday, String birthtime, Boolean isLunar)
-        throws Exception {
+    private String birthInfoRequestBody(String birthday, String birthtime, Boolean isLunar) throws Exception {
         ObjectNode request = objectMapper.createObjectNode();
-        request.put("userUuid", userUuid.toString());
         request.put("birthday", birthday);
         request.put("birthtime", birthtime);
         if (isLunar == null) {
@@ -670,9 +677,8 @@ class UserControllerIntegrationTest {
         return objectMapper.writeValueAsString(request);
     }
 
-    private String missingIsLunarRequestBody(UUID userUuid, String birthday, String birthtime) throws Exception {
+    private String missingIsLunarRequestBody(String birthday, String birthtime) throws Exception {
         ObjectNode request = objectMapper.createObjectNode();
-        request.put("userUuid", userUuid.toString());
         request.put("birthday", birthday);
         request.put("birthtime", birthtime);
 

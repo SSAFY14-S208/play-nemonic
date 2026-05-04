@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-04-30
+Last updated: 2026-05-04
 
 ## Current Focus
 
@@ -8,14 +8,21 @@ Last updated: 2026-04-30
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
 - The first real backend feature API now includes anonymous user UUID issuance through `POST /api/v1/users/anonymous`.
-- Anonymous user re-entry now includes `POST /api/v1/users/anonymous/verify` to validate a stored UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
-- Anonymous user nickname setup/change now uses `PATCH /api/v1/users/anonymous/nickname` with 1-10 code point validation and no duplicate check.
-- Anonymous user profile lookup now uses `GET /api/v1/users/anonymous/profile?userUuid=...` and returns reusable profile fields without updating visit metadata.
+- Existing anonymous user APIs identify the caller with the `Anonymous-User-UUID` request header instead of request body or query parameters.
+- Anonymous user re-entry now includes `POST /api/v1/users/anonymous/verify` to validate the header UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
+- Anonymous user nickname setup/change now uses `PATCH /api/v1/users/anonymous/nickname` with the UUID in `Anonymous-User-UUID`, 1-10 code point validation, and no duplicate check.
+- Anonymous user profile lookup now uses `GET /api/v1/users/anonymous/profile` with `Anonymous-User-UUID` and returns reusable profile fields without updating visit metadata.
 - Anonymous user birth info now uses `POST /api/v1/users/anonymous/birth-info` for first registration and `PATCH /api/v1/users/anonymous/birth-info` for updates.
 - `app_user.is_lunar` is added through Flyway V3 so fortune features can reuse birthday, birthtime, and lunar/solar selection.
-- My gallery listing now uses `GET /api/v1/gallery?userUuid=...` and reads existing gallery/artifact rows without MinIO calls.
-- My gallery item detail now uses `GET /api/v1/gallery/{galleryId}?userUuid=...` and returns one active owned gallery artifact with parsed `meta` and content URL fallback.
-- My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}?userUuid=...` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
+- My gallery listing now uses `GET /api/v1/gallery` with `Anonymous-User-UUID` and reads existing gallery/artifact rows without MinIO calls.
+- My gallery item detail now uses `GET /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and returns one active owned gallery artifact with parsed `meta` and content URL fallback.
+- My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
+- Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
+- Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
+- Feature services now follow the `Service` interface plus `ServiceImpl` implementation structure; controllers depend on service interfaces.
+- Swagger/OpenAPI docs now explicitly declare path, query, and header parameter names so UI fields do not fall back to `arg0`, `arg1`, or similar compiler-generated names.
+- Swagger/OpenAPI failure responses now include representative `success: false` JSON examples for User, Gallery, Files, and Community APIs.
+- The common `ApiResponse.errors` schema is documented as optional field-level validation details with a neutral example; domain-specific failure messages are documented on each API response instead.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
@@ -23,7 +30,10 @@ Last updated: 2026-04-30
 - Root Java package is `com.nemonicworld`.
 - New backend features should follow `backend/docs/backend-architecture.md`.
 - Feature packages use `controller`, `service`, `repository`, `entity`, and `dto`; do not create a separate `domain` package.
+- Service packages use `<Feature>Service` for the controller-facing interface and `<Feature>ServiceImpl` for the Spring `@Service` implementation.
 - REST controller paths receive the common `/api/v1` prefix through `ApiPathPrefixConfig`; controller-level mappings should keep only feature paths such as `/users` or `/gallery`.
+- Existing anonymous-user-scoped APIs use the common `Anonymous-User-UUID` header for caller identification; body fields are business data, query parameters are filters or pagination.
+- OpenAPI controller annotations must keep request parameter names explicit (`@PathVariable("...")`, `@RequestParam(name = "...")`, `@RequestHeader(value = "...")`) and document expected failure responses with `success: false` examples.
 - Commands are run from the repository root unless a script says otherwise.
 - Verification is standardized through `backend/scripts/format.ps1` and `backend/scripts/verify.ps1`.
 - PostgreSQL-specific Flyway migrations are verified through `backend/scripts/verify-migration.ps1`.
@@ -74,7 +84,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify-migration.ps1
 ```
 
-Latest result: `BUILD SUCCESSFUL`.
+Latest full baseline result: `BUILD SUCCESSFUL`.
+
+Recent Swagger/OpenAPI documentation checks passed with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1 -Fast
+```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.

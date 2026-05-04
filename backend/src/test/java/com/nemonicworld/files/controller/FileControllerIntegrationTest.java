@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
@@ -51,7 +52,7 @@ import org.springframework.test.web.servlet.MvcResult;
  */
 class FileControllerIntegrationTest {
 
-    private static final String USER_UUID_HEADER = "X-User-UUID";
+    private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String PRESIGNED_URL = "http://localhost:9000/nemonic-local/uploads/example.png";
 
     @Autowired
@@ -79,7 +80,7 @@ class FileControllerIntegrationTest {
 
         MvcResult result = mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, userUuid.toString())
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
                 .content(presignRequestBody("drawing.png", "image/png", "FLIPBOOK")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("Presigned URL 발급 성공")).andExpect(jsonPath("$.data.fileId").exists())
@@ -106,7 +107,7 @@ class FileControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, userUuid.toString())
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
                 .content(presignRequestBody("phone.webp", "image/webp", "phone")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("지원하지 않는 purpose입니다."));
@@ -123,7 +124,7 @@ class FileControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, userUuid.toString())
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
                 .content(presignRequestBody("drawing.svg", "image/svg+xml", "RELAY_DRAWING")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("지원하지 않는 파일 형식입니다."));
@@ -140,7 +141,7 @@ class FileControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, userUuid.toString())
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
                 .content(presignRequestBody("drawing.png", "image/png", "COMMUNITY", 0L)))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("파일 크기가 올바르지 않습니다."));
@@ -157,7 +158,7 @@ class FileControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, userUuid.toString()).content("""
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content("""
                     {
                       "fileName": "drawing.png",
                       "contentType": "image/png",
@@ -179,7 +180,7 @@ class FileControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, userUuid.toString())
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
                 .content(presignRequestBody("huge.gif", "image/gif", "FLIPBOOK_GIF", 52428801L)))
             .andExpect(status().isPayloadTooLarge()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("파일 크기가 제한을 초과했습니다 (최대 50MB)."));
@@ -196,7 +197,7 @@ class FileControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, userUuid.toString())
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
                 .content(presignRequestBody("profile.png", "image/png", "PROFILE")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("지원하지 않는 purpose입니다."));
@@ -213,7 +214,7 @@ class FileControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, userUuid.toString())
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
                 .content(presignRequestBody("../drawing.png", "image/png", "COMMUNITY")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("파일명이 올바르지 않습니다."));
@@ -228,7 +229,7 @@ class FileControllerIntegrationTest {
     void presignRejectsInvalidUserUuidHeader() throws Exception {
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, "not-a-uuid")
+                .header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid")
                 .content(presignRequestBody("drawing.png", "image/png", "COMMUNITY")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
@@ -245,7 +246,7 @@ class FileControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, missingUserUuid.toString())
+                .header(ANONYMOUS_USER_UUID_HEADER, missingUserUuid.toString())
                 .content(presignRequestBody("drawing.png", "image/png", "COMMUNITY")))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
@@ -262,7 +263,7 @@ class FileControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
-                .header(USER_UUID_HEADER, userUuid.toString()).content("{"))
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content("{"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("요청 본문 형식이 올바르지 않습니다."));
 
@@ -278,7 +279,9 @@ class FileControllerIntegrationTest {
         UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
         given(minioClient.statObject(any(StatObjectArgs.class))).willReturn(statObjectResponse(1024L));
 
-        mockMvc.perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc
+            .perform(
+                post("/api/v1/files/{fileId}/confirm", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("파일 업로드 확인 성공"))
             .andExpect(jsonPath("$.data.fileId").value(fileId.toString()))
@@ -294,7 +297,8 @@ class FileControllerIntegrationTest {
     void confirmRejectsInvalidFileId() throws Exception {
         UUID userUuid = UUID.randomUUID();
 
-        mockMvc.perform(post("/api/v1/files/not-a-uuid/confirm").header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc
+            .perform(post("/api/v1/files/not-a-uuid/confirm").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 fileId 형식입니다."));
     }
@@ -308,8 +312,8 @@ class FileControllerIntegrationTest {
         UUID missingFileId = UUID.randomUUID();
 
         mockMvc
-            .perform(
-                post("/api/v1/files/{fileId}/confirm", missingFileId).header(USER_UUID_HEADER, userUuid.toString()))
+            .perform(post("/api/v1/files/{fileId}/confirm", missingFileId).header(ANONYMOUS_USER_UUID_HEADER,
+                userUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("파일 업로드 정보를 찾을 수 없습니다."));
     }
@@ -324,7 +328,8 @@ class FileControllerIntegrationTest {
         UUID fileId = insertFileUpload(ownerUuid, "PENDING", 1024L);
 
         mockMvc
-            .perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, requesterUuid.toString()))
+            .perform(post("/api/v1/files/{fileId}/confirm", fileId).header(ANONYMOUS_USER_UUID_HEADER,
+                requesterUuid.toString()))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("파일에 접근할 권한이 없습니다."));
 
@@ -339,7 +344,9 @@ class FileControllerIntegrationTest {
         UUID userUuid = createExistingUser();
         UUID fileId = insertFileUpload(userUuid, "UPLOADED", 1024L);
 
-        mockMvc.perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc
+            .perform(
+                post("/api/v1/files/{fileId}/confirm", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("확인할 수 없는 파일 업로드 상태입니다."));
 
@@ -355,7 +362,9 @@ class FileControllerIntegrationTest {
         UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
         given(minioClient.statObject(any(StatObjectArgs.class))).willThrow(minioError("NoSuchKey"));
 
-        mockMvc.perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc
+            .perform(
+                post("/api/v1/files/{fileId}/confirm", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("파일 업로드 정보를 찾을 수 없습니다."));
 
@@ -371,7 +380,9 @@ class FileControllerIntegrationTest {
         UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
         given(minioClient.statObject(any(StatObjectArgs.class))).willReturn(statObjectResponse(52428801L));
 
-        mockMvc.perform(post("/api/v1/files/{fileId}/confirm", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc
+            .perform(
+                post("/api/v1/files/{fileId}/confirm", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isPayloadTooLarge()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("파일 크기가 제한을 초과했습니다 (최대 50MB)."));
 
@@ -386,7 +397,8 @@ class FileControllerIntegrationTest {
         UUID userUuid = createExistingUser();
         UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
 
-        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc
+            .perform(delete("/api/v1/files/{fileId}", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("파일 삭제 성공"))
             .andExpect(jsonPath("$.data.fileId").value(fileId.toString()))
@@ -404,7 +416,7 @@ class FileControllerIntegrationTest {
     void deleteRejectsInvalidFileId() throws Exception {
         UUID userUuid = UUID.randomUUID();
 
-        mockMvc.perform(delete("/api/v1/files/not-a-uuid").header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc.perform(delete("/api/v1/files/not-a-uuid").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 fileId 형식입니다."));
     }
@@ -418,7 +430,9 @@ class FileControllerIntegrationTest {
         UUID requesterUuid = createExistingUser();
         UUID fileId = insertFileUpload(ownerUuid, "PENDING", 1024L);
 
-        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, requesterUuid.toString()))
+        mockMvc
+            .perform(
+                delete("/api/v1/files/{fileId}", fileId).header(ANONYMOUS_USER_UUID_HEADER, requesterUuid.toString()))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("파일에 접근할 권한이 없습니다."));
 
@@ -433,7 +447,8 @@ class FileControllerIntegrationTest {
         UUID userUuid = createExistingUser();
         UUID fileId = insertFileUpload(userUuid, "UPLOADED", 1024L);
 
-        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc
+            .perform(delete("/api/v1/files/{fileId}", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("삭제할 수 없는 파일 업로드 상태입니다."));
 
@@ -449,7 +464,8 @@ class FileControllerIntegrationTest {
         UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
         willThrow(minioError("NoSuchKey")).given(minioClient).removeObject(any(RemoveObjectArgs.class));
 
-        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc
+            .perform(delete("/api/v1/files/{fileId}", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("파일 삭제 성공")).andExpect(jsonPath("$.data.status").value("DELETED"));
 
@@ -466,7 +482,8 @@ class FileControllerIntegrationTest {
         UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
         willThrow(minioError("AccessDenied")).given(minioClient).removeObject(any(RemoveObjectArgs.class));
 
-        mockMvc.perform(delete("/api/v1/files/{fileId}", fileId).header(USER_UUID_HEADER, userUuid.toString()))
+        mockMvc
+            .perform(delete("/api/v1/files/{fileId}", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("파일 저장소 처리 중 오류가 발생했습니다."));
 
