@@ -1,6 +1,7 @@
 package com.nemonicworld.relay.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
@@ -16,6 +17,8 @@ import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -24,7 +27,7 @@ import org.springframework.util.StringUtils;
 
 @Service
 /**
- * 릴레이 방 생성과 상태 조회 유스케이스를 처리하는 서비스 구현체입니다.
+ * 릴레이 방 생성, 상태 조회, 입장/복귀 유스케이스를 처리하는 서비스 구현체입니다.
  *
  * 사용자 검증은 PostgreSQL에서 읽기 전용으로 수행하고, 진행 중 방 상태는 Redis에서만 저장/조회합니다.
  */
@@ -39,6 +42,10 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
+    private static final String ROOM_FULL_MESSAGE = "방 정원이 가득 찼습니다.";
+    private static final String GAME_IN_PROGRESS_MESSAGE = "게임이 진행 중입니다.";
+    private static final String RECONNECT_EXPIRED_MESSAGE = "이미 자동 제출 처리되었습니다.";
+    private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final RoomCodeGenerator roomCodeGenerator;
@@ -97,6 +104,30 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         return RelayRoomStateResponse.from(roomState, viewer);
     }
 
+    /**
+     * WAITING 방에는 새 참여자를 추가하고, 기존 참여자는 중복 추가 없이 현재 상태 또는 재접속 복귀 상태를 반환합니다.
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public RelayRoomStateResponse joinRoom(String userUuidValue, String roomCodeValue) {
+        // UUID는 서버가 이미 발급한 익명 사용자만 허용하고, 이 API에서 새 사용자를 만들지 않습니다.
+        AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
+        validateRoomCode(roomCodeValue);
+
+        RelayRoomState roomState = relayRoomRepository.findByRoomCode(roomCodeValue)
+            .orElseThrow(() -> new NotFoundException(ROOM_NOT_FOUND_MESSAGE));
+        String viewerUserUuid = viewerUser.getId().toString();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        Optional<RelayRoomParticipant> participant = findParticipant(roomState, viewerUserUuid);
+
+        if (participant.isPresent()) {
+            return joinExistingParticipant(viewerUserUuid, roomState, participant.get(), now);
+        }
+
+        return joinNewParticipant(viewerUser, roomState, now);
+    }
+
     private void validateNicknameRegistered(AppUser appUser) {
         if (!StringUtils.hasText(appUser.getNickname()) || AppUser.ANONYMOUS_NICKNAME.equals(appUser.getNickname())) {
             throw new BadRequestException(NICKNAME_REQUIRED_MESSAGE);
@@ -109,11 +140,93 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         }
     }
 
+    private Optional<RelayRoomParticipant> findParticipant(RelayRoomState roomState, String viewerUserUuid) {
+        return roomState.participants().stream()
+            .filter(roomParticipant -> roomParticipant.userUuid().equals(viewerUserUuid)).findFirst();
+    }
+
+    private RelayRoomStateResponse joinExistingParticipant(String viewerUserUuid, RelayRoomState roomState,
+        RelayRoomParticipant participant, LocalDateTime now) {
+        // 이미 연결 중인 참여자의 재호출은 멱등 처리하며 Redis updatedAt도 변경하지 않습니다.
+        if (participant.connected()) {
+            RelayRoomViewerResponse viewer = createViewerResponse(viewerUserUuid, roomState, now);
+
+            return RelayRoomStateResponse.from(roomState, viewer);
+        }
+
+        if (!canReconnect(participant, now)) {
+            throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
+        }
+
+        RelayRoomParticipant reconnectedParticipant = new RelayRoomParticipant(participant.userUuid(),
+            participant.nickname(), participant.host(), participant.joinOrder(), true, null, participant.joinedAt());
+        RelayRoomState updatedRoomState = replaceParticipant(roomState, reconnectedParticipant, now);
+        relayRoomRepository.save(updatedRoomState);
+
+        RelayRoomViewerResponse viewer = createViewerResponse(viewerUserUuid, updatedRoomState, now);
+
+        return RelayRoomStateResponse.from(updatedRoomState, viewer);
+    }
+
+    private RelayRoomStateResponse joinNewParticipant(AppUser viewerUser, RelayRoomState roomState, LocalDateTime now) {
+        validateJoinableRoom(roomState);
+        validateNicknameRegistered(viewerUser);
+
+        RelayRoomParticipant newParticipant = new RelayRoomParticipant(viewerUser.getId().toString(),
+            viewerUser.getNickname(), false, nextJoinOrder(roomState), true, null, now);
+        List<RelayRoomParticipant> participants = new ArrayList<>(roomState.participants());
+        participants.add(newParticipant);
+        RelayRoomState updatedRoomState = updateRoomParticipants(roomState, participants, now);
+        relayRoomRepository.save(updatedRoomState);
+
+        RelayRoomViewerResponse viewer = createViewerResponse(viewerUser.getId().toString(), updatedRoomState, now);
+
+        return RelayRoomStateResponse.from(updatedRoomState, viewer);
+    }
+
+    private void validateJoinableRoom(RelayRoomState roomState) {
+        if (roomState.status() == RelayRoomStatus.WAITING) {
+            if (roomState.participantCount() >= roomState.maxParticipants()) {
+                throw new ConflictException(ROOM_FULL_MESSAGE);
+            }
+
+            return;
+        }
+
+        if (roomState.status() == RelayRoomStatus.PLAYING) {
+            throw new ConflictException(GAME_IN_PROGRESS_MESSAGE);
+        }
+
+        throw new ConflictException(ROOM_CLOSED_MESSAGE);
+    }
+
+    private int nextJoinOrder(RelayRoomState roomState) {
+        return roomState.participants().stream().map(RelayRoomParticipant::joinOrder).max(Comparator.naturalOrder())
+            .orElse(-1) + 1;
+    }
+
+    private RelayRoomState replaceParticipant(RelayRoomState roomState, RelayRoomParticipant updatedParticipant,
+        LocalDateTime updatedAt) {
+        List<RelayRoomParticipant> participants = roomState.participants().stream()
+            .map(participant -> participant.userUuid().equals(updatedParticipant.userUuid())
+                ? updatedParticipant
+                : participant)
+            .toList();
+
+        return updateRoomParticipants(roomState, participants, updatedAt);
+    }
+
+    private RelayRoomState updateRoomParticipants(RelayRoomState roomState, List<RelayRoomParticipant> participants,
+        LocalDateTime updatedAt) {
+        return new RelayRoomState(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(),
+            roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
+            roomState.currentPart(), participants, roomState.createdAt(), updatedAt);
+    }
+
     private RelayRoomViewerResponse createViewerResponse(String viewerUserUuid, RelayRoomState roomState,
         LocalDateTime now) {
         // 요청자가 이미 방에 들어온 참여자인지 먼저 판별한 뒤 참여자/비참여자 정책을 분리합니다.
-        Optional<RelayRoomParticipant> participant = roomState.participants().stream()
-            .filter(roomParticipant -> roomParticipant.userUuid().equals(viewerUserUuid)).findFirst();
+        Optional<RelayRoomParticipant> participant = findParticipant(roomState, viewerUserUuid);
 
         if (participant.isPresent()) {
             return createParticipantViewerResponse(viewerUserUuid, roomState, participant.get(), now);
