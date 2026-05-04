@@ -181,6 +181,38 @@ class RelayRoomControllerIntegrationTest {
     }
 
     /**
+     * 방 생성 전 닉네임이 기본값이면 기존 닉네임 설정 API를 먼저 호출해야 합니다.
+     */
+    @Test
+    void createRelayRoomRejectsDefaultNicknameAndDoesNotStoreRoom() throws Exception {
+        UUID userUuid = createExistingUserWithDefaultNickname();
+
+        mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("닉네임을 먼저 설정해주세요."));
+
+        assertThat(userRepository.count()).isEqualTo(1);
+        verify(roomCodeGenerator, never()).generateUnique(any());
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    /**
+     * DB에 공백 닉네임이 있더라도 방장 표시에 사용할 수 없으므로 방 생성을 거부합니다.
+     */
+    @Test
+    void createRelayRoomRejectsBlankNicknameAndDoesNotStoreRoom() throws Exception {
+        UUID userUuid = createExistingUserWithNickname("   ");
+
+        mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("닉네임을 먼저 설정해주세요."));
+
+        assertThat(userRepository.count()).isEqualTo(1);
+        verify(roomCodeGenerator, never()).generateUnique(any());
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    /**
      * UUID 헤더가 없으면 기존 공통 UUID 오류 메시지로 400 응답을 반환합니다.
      */
     @Test
@@ -286,6 +318,14 @@ class RelayRoomControllerIntegrationTest {
         AppUser appUser = AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt);
         appUser.updateNickname(nickname, updatedAt);
         userRepository.saveAndFlush(appUser);
+
+        return userUuid;
+    }
+
+    private UUID createExistingUserWithDefaultNickname() {
+        UUID userUuid = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        userRepository.saveAndFlush(AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt));
 
         return userUuid;
     }

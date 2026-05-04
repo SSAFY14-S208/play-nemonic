@@ -23,6 +23,12 @@ public final class OpenApiErrorExamples {
           "message": "닉네임은 1자 이상 10자 이하로 입력해주세요."
         }
         """;
+    public static final String RELAY_NICKNAME_REQUIRED = """
+        {
+          "success": false,
+          "message": "닉네임을 먼저 설정해주세요."
+        }
+        """;
     public static final String INVALID_BIRTH_INFO = """
         {
           "success": false,
