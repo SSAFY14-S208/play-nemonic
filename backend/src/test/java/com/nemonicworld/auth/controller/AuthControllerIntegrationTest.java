@@ -1,0 +1,204 @@
+package com.nemonicworld.auth.controller;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.support.IntegrationTest;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+@IntegrationTest
+@AutoConfigureMockMvc
+@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
+class AuthControllerIntegrationTest {
+
+    private static final long ADMIN_ID = 1L;
+    private static final String ADMIN_LOGIN_ID = "admin";
+    private static final String ADMIN_PASSWORD = "password";
+    private static final String ADMIN_NICKNAME = "운영자";
+    private static final String ADMIN_EMAIL = "admin@example.com";
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @BeforeEach
+    void prepareAdminUserTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS admin_user (
+                id BIGINT PRIMARY KEY,
+                login_id VARCHAR(64) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                nickname VARCHAR(20) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                role VARCHAR(32) NOT NULL,
+                last_login_at TIMESTAMP NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.update("DELETE FROM admin_user");
+    }
+
+    @Test
+    void adminLoginReturnsTokenAndUpdatesLastLoginAt() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+
+        MvcResult result = mockMvc
+            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+                .header("X-Trace-Id", "auth-login-success-test")
+                .content(loginRequestBody(ADMIN_LOGIN_ID, ADMIN_PASSWORD)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("관리자 로그인 성공")).andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+            .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
+            .andExpect(jsonPath("$.data.expiresAt").isNotEmpty()).andExpect(jsonPath("$.data.admin.id").value(1))
+            .andExpect(jsonPath("$.data.admin.loginId").value(ADMIN_LOGIN_ID))
+            .andExpect(jsonPath("$.data.admin.nickname").value(ADMIN_NICKNAME))
+            .andExpect(jsonPath("$.data.admin.email").value(ADMIN_EMAIL))
+            .andExpect(jsonPath("$.data.admin.role").value("super_admin")).andReturn();
+
+        JsonNode data = readData(result);
+        assertThat(data.path("accessToken").asText()).contains(".");
+        assertThat(readLastLoginAt(ADMIN_ID)).isNotNull();
+    }
+
+    @Test
+    void adminLoginRejectsWrongPasswordWithoutExposingReason() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
+
+        mockMvc
+            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequestBody(ADMIN_LOGIN_ID, "wrong-password")))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 인증에 실패했습니다."));
+
+        assertThat(readLastLoginAt(ADMIN_ID)).isNull();
+    }
+
+    @Test
+    void adminLoginRejectsDeletedAdmin() throws Exception {
+        LocalDateTime deletedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", deletedAt);
+
+        mockMvc
+            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequestBody(ADMIN_LOGIN_ID, ADMIN_PASSWORD)))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 인증에 실패했습니다."));
+
+        assertThat(readLastLoginAt(ADMIN_ID)).isNull();
+    }
+
+    @Test
+    void currentAdminReturnsAdminProfileWithValidToken() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc.perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("관리자 정보 조회 성공")).andExpect(jsonPath("$.data.id").value(ADMIN_ID))
+            .andExpect(jsonPath("$.data.loginId").value(ADMIN_LOGIN_ID))
+            .andExpect(jsonPath("$.data.role").value("super_admin"));
+    }
+
+    @Test
+    void currentAdminReturnsUnauthorizedWhenTokenIsMissingOrInvalid() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/admin/me")).andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+
+        mockMvc.perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer("invalid-token")))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    }
+
+    @Test
+    void adminLogoutReturnsSuccessWithValidToken() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(post("/api/v1/auth/admin/logout").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("X-Trace-Id", "auth-logout-test"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("관리자 로그아웃 성공")).andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    private void insertAdminUser(long id, String loginId, String rawPassword, String role, LocalDateTime deletedAt) {
+        LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+
+        jdbcTemplate.update("""
+            INSERT INTO admin_user (
+                id,
+                login_id,
+                password_hash,
+                nickname,
+                email,
+                role,
+                last_login_at,
+                created_at,
+                updated_at,
+                deleted_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+            """, id, loginId, passwordEncoder.encode(rawPassword), ADMIN_NICKNAME, ADMIN_EMAIL, role,
+            Timestamp.valueOf(now), Timestamp.valueOf(now), deletedAt == null ? null : Timestamp.valueOf(deletedAt));
+    }
+
+    private String loginAndReadAccessToken() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+            .content(loginRequestBody(ADMIN_LOGIN_ID, ADMIN_PASSWORD))).andExpect(status().isOk()).andReturn();
+
+        return readData(result).path("accessToken").asText();
+    }
+
+    private String loginRequestBody(String loginId, String password) {
+        return """
+            {
+              "loginId": "%s",
+              "password": "%s"
+            }
+            """.formatted(loginId, password);
+    }
+
+    private String bearer(String accessToken) {
+        return "Bearer %s".formatted(accessToken);
+    }
+
+    private LocalDateTime readLastLoginAt(long id) {
+        return jdbcTemplate.queryForObject("SELECT last_login_at FROM admin_user WHERE id = ?",
+            (resultSet, rowNumber) -> {
+                Timestamp timestamp = resultSet.getTimestamp("last_login_at");
+                return timestamp == null ? null : timestamp.toLocalDateTime();
+            }, id);
+    }
+
+    private JsonNode readData(MvcResult result) throws Exception {
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+    }
+}
