@@ -85,6 +85,15 @@ src/main/java/com/nemonicworld/
 - 엔티티의 상태와 기본 규칙을 표현한다.
 - 외부 API 응답 형식이나 웹 계층 관심사를 포함하지 않는다.
 
+### enum
+
+- 도메인 내부에서 제한된 상태나 용도 값을 직접 검증하거나 분기할 때 enum을 사용한다.
+- enum 상수는 Java 관례에 따라 `UPPER_SNAKE_CASE`로 작성한다.
+- DB/API 외부 계약이 소문자 문자열이면 enum 내부에 외부 표현 값을 별도로 둔다.
+- 단순 boolean 값은 상태가 3개 이상으로 확장될 가능성이 명확하지 않다면 enum으로 분리하지 않는다.
+- 특정 feature 소유가 아닌 공통 결과물 종류(`fortune`, `relay_drawing` 등)는 gallery 패키지에 두지 않고
+  artifact/common 계층이 생길 때 배치한다.
+
 ### dto
 
 - 계층 간 데이터 전달에 사용하는 객체가 위치한다.

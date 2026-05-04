@@ -20,6 +20,7 @@ Use this checklist before handing off substantial backend changes.
 - Service interfaces expose only public use case methods used by controllers.
 - Service structure refactors do not change API contracts, Swagger docs, or response messages.
 - Entity objects are not returned directly from controllers.
+- Enum is used only for real bounded state or purpose values, not premature boolean or cross-domain ownership splits.
 - Request DTO validation annotations are present where needed.
 
 ## Tests
