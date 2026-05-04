@@ -334,17 +334,42 @@ function RoundLineGroup({
         </clipPath>
       </defs>
       <g clipPath={`url(#${clipId})`} transform={`translate(0 ${verticalOffset})`}>
-        {lines.map((line) => (
-          <polyline
-            key={line.id}
-            points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
-            fill="none"
-            stroke={line.color}
-            strokeWidth={line.strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ))}
+        {lines.map((line) => {
+          if (line.kind === 'fill') {
+            if (line.imageDataUrl) {
+              return (
+                <image
+                  key={line.id}
+                  href={line.imageDataUrl}
+                  x={0}
+                  y={0}
+                  width={RELAY_STAGE_SIZE.width}
+                  height={RELAY_STAGE_SIZE.height}
+                />
+              )
+            }
+
+            return (
+              <polygon
+                key={line.id}
+                points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
+                fill={line.color}
+              />
+            )
+          }
+
+          return (
+            <polyline
+              key={line.id}
+              points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
+              fill="none"
+              stroke={line.color}
+              strokeWidth={line.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )
+        })}
       </g>
     </>
   )

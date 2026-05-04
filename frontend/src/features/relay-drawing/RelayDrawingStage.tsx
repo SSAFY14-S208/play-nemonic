@@ -7,7 +7,11 @@ import {
   RELAY_STAGE_SIZE,
   type RelayRoundKey,
 } from './constants'
-import { OutgoingHint, PreviousRoundHint } from './components/drawing-stage'
+import {
+  OutgoingHint,
+  PreviousRoundHint,
+  RasterFillImage,
+} from './components/drawing-stage'
 import type { RelayDrawLine } from './useRelayDrawing'
 
 interface RelayDrawingStageProps {
@@ -130,18 +134,36 @@ export default function RelayDrawingStage({
           clipWidth={RELAY_STAGE_SIZE.width}
           clipHeight={activeRoundRule.drawArea.height}
         >
-          {lines.map((line) => (
-            <Line
-              key={line.id}
-              points={line.points.flatMap((point) => [point.x, point.y])}
-              stroke={line.color}
-              strokeWidth={line.strokeWidth}
-              tension={0.45}
-              lineCap="round"
-              lineJoin="round"
-              globalCompositeOperation={line.color === '#fffdf7' ? 'destination-out' : 'source-over'}
-            />
-          ))}
+          {lines.map((line) => {
+            if (line.kind === 'fill') {
+              if (line.imageDataUrl) {
+                return <RasterFillImage key={line.id} imageDataUrl={line.imageDataUrl} />
+              }
+
+              return (
+                <Line
+                  key={line.id}
+                  points={line.points.flatMap((point) => [point.x, point.y])}
+                  fill={line.color}
+                  closed
+                  listening={false}
+                />
+              )
+            }
+
+            return (
+              <Line
+                key={line.id}
+                points={line.points.flatMap((point) => [point.x, point.y])}
+                stroke={line.color}
+                strokeWidth={line.strokeWidth}
+                tension={0.45}
+                lineCap="round"
+                lineJoin="round"
+                globalCompositeOperation={line.color === '#fffdf7' ? 'destination-out' : 'source-over'}
+              />
+            )
+          })}
         </Group>
       </Layer>
     </Stage>
