@@ -20,6 +20,12 @@ export const NEMONIC_PRINTER_POSITION: [number, number, number] = [
   0,
 ];
 
+// 프린터 근접 감지 반경 (BallCollider)
+export const PRINTER_PROXIMITY_RADIUS = 0.12;
+
+// 프린터 HUD 표시 Y 오프셋 (프린터 위치 기준)
+export const PRINTER_HUD_OFFSET_Y = 0.15;
+
 // 랜딩 씬 캐릭터 초기 스폰 위치 — 프린터(Z=0)와 겹치지 않도록 Z 오프셋
 export const CHARACTER_INITIAL_POSITION: [number, number, number] = [
   0,

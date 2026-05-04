@@ -22,6 +22,8 @@ import {
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
 // 캐릭터와 주변 collider 사이의 최소 여유 거리 (m). 캐릭터 키(~4cm) 대비 작게.
 const CHARACTER_OFFSET = 0.001;
+// Rapier QueryFilterFlags.EXCLUDE_SENSORS — 센서 collider를 충돌 대상에서 제외
+const EXCLUDE_SENSORS = 8;
 
 export function useCharacterMovement(
   rigidBodyRef: React.RefObject<RapierRigidBody | null>,
@@ -97,7 +99,7 @@ export function useCharacterMovement(
     // KinematicCharacterController가 충돌을 고려한 valid 이동량을 계산
     // → 벽에 부딪히면 자동으로 막히고, 비스듬히 부딪히면 미끄러짐
     const collider = rigidBody.collider(0);
-    controller.computeColliderMovement(collider, desiredMovement);
+    controller.computeColliderMovement(collider, desiredMovement, EXCLUDE_SENSORS);
     const correctedMovement = controller.computedMovement();
 
     rigidBody.setNextKinematicTranslation({
