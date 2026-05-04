@@ -5,7 +5,10 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomSimpleMessageResponse;
+import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.stereotype.Component;
 
 /**
@@ -49,31 +52,34 @@ public class RelayRoomEventPublisher {
     /**
      * 같은 roomCode + UUID로 교체된 기존 세션 개인 큐에 중복 접속 종료 안내를 보냅니다.
      */
-    public void publishDuplicateSessionClosed(String principalName, String roomCode) {
+    public void publishDuplicateSessionClosed(String sessionId, String roomCode) {
         RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.DUPLICATE_SESSION_CLOSED, roomCode,
             new RelayRoomSimpleMessageResponse(DUPLICATE_SESSION_CLOSED_MESSAGE));
 
-        messagingTemplate.convertAndSendToUser(principalName, ROOM_USER_QUEUE_PREFIX + roomCode, event);
+        messagingTemplate.convertAndSendToUser(sessionId, ROOM_USER_QUEUE_PREFIX + roomCode, event,
+            createSessionHeaders(sessionId));
     }
 
     /**
      * ping을 보낸 현재 세션 개인 큐에 pong 이벤트를 보냅니다.
      */
-    public void publishPong(String principalName, String roomCode) {
+    public void publishPong(String sessionId, String roomCode) {
         RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PONG, roomCode,
             new RelayRoomSimpleMessageResponse(PONG_MESSAGE));
 
-        messagingTemplate.convertAndSendToUser(principalName, ROOM_USER_QUEUE_PREFIX + roomCode, event);
+        messagingTemplate.convertAndSendToUser(sessionId, ROOM_USER_QUEUE_PREFIX + roomCode, event,
+            createSessionHeaders(sessionId));
     }
 
     /**
      * WebSocket 처리 중 클라이언트에 알려도 되는 안전한 오류 메시지를 개인 큐로 전달합니다.
      */
-    public void publishError(String principalName, String roomCode, String message) {
+    public void publishError(String sessionId, String roomCode, String message) {
         RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.ERROR, roomCode,
             new RelayRoomSimpleMessageResponse(message));
 
-        messagingTemplate.convertAndSendToUser(principalName, ROOM_USER_QUEUE_PREFIX + roomCode, event);
+        messagingTemplate.convertAndSendToUser(sessionId, ROOM_USER_QUEUE_PREFIX + roomCode, event,
+            createSessionHeaders(sessionId));
     }
 
     private void publishRoomEvent(RelayRoomEventType type, RelayRoomStateResponse roomStateResponse) {
@@ -81,5 +87,13 @@ public class RelayRoomEventPublisher {
             RelayRoomEventStateResponse.from(roomStateResponse));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomStateResponse.roomCode(), event);
+    }
+
+    private MessageHeaders createSessionHeaders(String sessionId) {
+        SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
+        headerAccessor.setSessionId(sessionId);
+        headerAccessor.setLeaveMutable(true);
+
+        return headerAccessor.getMessageHeaders();
     }
 }
