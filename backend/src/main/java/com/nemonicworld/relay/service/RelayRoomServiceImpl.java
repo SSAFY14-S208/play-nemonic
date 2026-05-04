@@ -50,6 +50,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private static final String RECONNECT_EXPIRED_MESSAGE = "이미 자동 제출 처리되었습니다.";
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String ROOM_UPDATE_CONFLICT_MESSAGE = "릴레이 방 상태를 갱신할 수 없습니다.";
+    private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "릴레이 방에 참여하지 않은 사용자입니다.";
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final RoomCodeGenerator roomCodeGenerator;
@@ -157,6 +158,35 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         }
 
         throw new IllegalStateException(ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    /**
+     * WebSocket 연결 성공을 Redis 참여자 연결 상태에 반영하는 메서드입니다.
+     *
+     * 요청 UUID는 기존 사용자로 확인하고, 이미 REST 입장/복귀 API를 통해 participants에 등록된 사용자만
+     * connected=true로 갱신합니다. 이 메서드는 신규 참여자를 만들지 않습니다.
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public RelayRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue) {
+        AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
+        validateRoomCode(roomCodeValue);
+
+        return updateParticipantConnectionState(viewerUser.getId().toString(), roomCodeValue, true);
+    }
+
+    /**
+     * WebSocket 연결 해제를 Redis 참여자 연결 상태에 반영하는 메서드입니다.
+     *
+     * disconnect 이벤트는 이미 연결 때 검증된 세션에서 발생하므로 UUID 형식만 확인하고 DB 사용자 재조회는 하지 않습니다.
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public RelayRoomStateResponse disconnectRoom(String userUuidValue, String roomCodeValue) {
+        String viewerUserUuid = anonymousUserResolver.parseUuid(userUuidValue).toString();
+        validateRoomCode(roomCodeValue);
+
+        return updateParticipantConnectionState(viewerUserUuid, roomCodeValue, false);
     }
 
     private RelayRoomState findRoomState(String roomCodeValue) {
@@ -317,6 +347,37 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         return new RelayRoomState(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(),
             roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
             roomState.currentPart(), participants, roomState.createdAt(), updatedAt);
+    }
+
+    private RelayRoomStateResponse updateParticipantConnectionState(String viewerUserUuid, String roomCodeValue,
+        boolean connected) {
+        for (int attempt = 0; attempt < ROOM_UPDATE_MAX_RETRIES; attempt++) {
+            RelayRoomState roomState = findRoomState(roomCodeValue);
+            validateWebSocketConnectableRoom(roomState);
+            RelayRoomParticipant participant = findParticipant(roomState, viewerUserUuid)
+                .orElseThrow(() -> new ConflictException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            RelayRoomParticipant updatedParticipant = new RelayRoomParticipant(participant.userUuid(),
+                participant.nickname(), participant.host(), participant.joinOrder(), connected, connected ? null : now,
+                participant.joinedAt());
+            RelayRoomState updatedRoomState = replaceParticipant(roomState, updatedParticipant, now);
+
+            if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                RelayRoomViewerResponse viewer = createViewerResponse(viewerUserUuid, updatedRoomState, now);
+
+                return RelayRoomStateResponse.from(updatedRoomState, viewer);
+            }
+        }
+
+        throw new IllegalStateException(ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    private void validateWebSocketConnectableRoom(RelayRoomState roomState) {
+        if (roomState.status() == RelayRoomStatus.WAITING || roomState.status() == RelayRoomStatus.PLAYING) {
+            return;
+        }
+
+        throw new ConflictException(ROOM_CLOSED_MESSAGE);
     }
 
     /**

@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.entity.RelayRoomParticipant;
@@ -103,6 +104,96 @@ class RelayRoomServiceImplTest {
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
     }
 
+    /**
+     * WebSocket 연결 성공 시 기존 participant만 connected=true, disconnectedAt=null로 갱신합니다.
+     */
+    @Test
+    void connectRoomMarksExistingParticipantConnected() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomParticipant disconnectedParticipant = participant(hostUuid, "망고", true, 0, false,
+            LocalDateTime.now().minusSeconds(3).truncatedTo(ChronoUnit.SECONDS));
+        RelayRoomState roomState = roomState(disconnectedParticipant);
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomStateResponse response = relayRoomService.connectRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.participants().get(0).connected()).isTrue();
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomParticipant storedParticipant = updatedStateCaptor.getValue().participants().get(0);
+        assertThat(storedParticipant.connected()).isTrue();
+        assertThat(storedParticipant.disconnectedAt()).isNull();
+        assertThat(storedParticipant.nickname()).isEqualTo("망고");
+        assertThat(storedParticipant.host()).isTrue();
+        assertThat(storedParticipant.joinOrder()).isZero();
+    }
+
+    /**
+     * WebSocket 연결 해제 시 기존 participant를 connected=false와 현재 disconnectedAt으로 갱신합니다.
+     */
+    @Test
+    void disconnectRoomMarksCurrentParticipantDisconnected() {
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomState roomState = roomState(participant(hostUuid, "망고", true, 0));
+        given(anonymousUserResolver.parseUuid(hostUuid.toString())).willReturn(hostUuid);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomStateResponse response = relayRoomService.disconnectRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.participants().get(0).connected()).isFalse();
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomParticipant storedParticipant = updatedStateCaptor.getValue().participants().get(0);
+        assertThat(storedParticipant.connected()).isFalse();
+        assertThat(storedParticipant.disconnectedAt()).isNotNull();
+        assertThat(storedParticipant.nickname()).isEqualTo("망고");
+        assertThat(storedParticipant.host()).isTrue();
+        assertThat(storedParticipant.joinOrder()).isZero();
+    }
+
+    /**
+     * REST 입장 API로 등록되지 않은 사용자의 WebSocket 연결은 participant를 새로 만들지 않고 거부합니다.
+     */
+    @Test
+    void connectRoomRejectsUserWhoIsNotRoomParticipant() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID viewerUuid = UUID.randomUUID();
+        AppUser viewerUser = appUserWithNickname(viewerUuid, "포도");
+        RelayRoomState roomState = roomState(participant(hostUuid, "망고", true, 0));
+        given(anonymousUserResolver.resolve(viewerUuid.toString())).willReturn(viewerUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> relayRoomService.connectRoom(viewerUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("릴레이 방에 참여하지 않은 사용자입니다.");
+    }
+
+    /**
+     * 종료된 방에는 WebSocket 연결 상태 갱신을 허용하지 않습니다.
+     */
+    @Test
+    void connectRoomRejectsFinishedRoom() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomState roomState = roomState(RelayRoomStatus.FINISHED, participant(hostUuid, "망고", true, 0));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> relayRoomService.connectRoom(hostUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("이미 종료된 방입니다.");
+    }
+
     private AppUser appUserWithNickname(UUID userUuid, String nickname) {
         LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         AppUser appUser = AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt);
@@ -112,14 +203,23 @@ class RelayRoomServiceImplTest {
     }
 
     private RelayRoomState roomState(RelayRoomParticipant... participants) {
+        return roomState(RelayRoomStatus.WAITING, participants);
+    }
+
+    private RelayRoomState roomState(RelayRoomStatus status, RelayRoomParticipant... participants) {
         LocalDateTime createdAt = LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS);
 
-        return new RelayRoomState(ROOM_CODE, RelayRoomStatus.WAITING, participants[0].userUuid(), 60, 2, 6, null,
-            List.of(participants), createdAt, createdAt.plusSeconds(1));
+        return new RelayRoomState(ROOM_CODE, status, participants[0].userUuid(), 60, 2, 6, null, List.of(participants),
+            createdAt, createdAt.plusSeconds(1));
     }
 
     private RelayRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder) {
-        return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, true, null,
+        return participant(userUuid, nickname, host, joinOrder, true, null);
+    }
+
+    private RelayRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder,
+        boolean connected, LocalDateTime disconnectedAt) {
+        return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, connected, disconnectedAt,
             LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
     }
 }

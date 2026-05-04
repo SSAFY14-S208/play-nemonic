@@ -22,4 +22,14 @@ public interface RelayRoomService {
      * 기존 익명 사용자를 릴레이 방에 새로 입장시키거나 기존 참여자의 재접속 복귀를 처리합니다.
      */
     RelayRoomStateResponse joinRoom(String userUuidValue, String roomCodeValue);
+
+    /**
+     * WebSocket 연결 성공 시 기존 릴레이 참여자를 연결 상태로 갱신합니다.
+     */
+    RelayRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue);
+
+    /**
+     * WebSocket 연결 해제 시 기존 릴레이 참여자를 연결 해제 상태로 갱신합니다.
+     */
+    RelayRoomStateResponse disconnectRoom(String userUuidValue, String roomCodeValue);
 }
