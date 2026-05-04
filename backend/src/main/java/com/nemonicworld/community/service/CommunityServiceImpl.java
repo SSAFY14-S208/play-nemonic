@@ -11,7 +11,6 @@ public class CommunityServiceImpl implements CommunityService {
 
     @Override
     public CommunityDetailResponse getCommunity(Long communityId) {
-        return new CommunityDetailResponse(communityId, "\uc0d8\ud50c \ucee4\ubba4\ub2c8\ud2f0 \uc81c\ubaa9",
-            "\uacf5\ud1b5 API \uc751\ub2f5 \ud3ec\ub9f7 \uc608\uc2dc\uc785\ub2c8\ub2e4.");
+        return new CommunityDetailResponse(communityId, "샘플 커뮤니티 제목", "공통 API 응답 포맷 예시입니다.");
     }
 }
