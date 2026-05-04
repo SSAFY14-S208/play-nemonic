@@ -9,7 +9,7 @@ import {
   HUB_NORMAL_ZOOM_EASE,
   HUB_VIEW_TRANSITION_ROTATION_EASE,
   HUB_VIEW_TRANSITION_ZOOM_EASE,
-} from './constants'
+} from '../constants'
 
 const DRAG_ROTATION_FACTOR = 0.008
 const AUTO_ROTATION_SPEED = 0.00115
