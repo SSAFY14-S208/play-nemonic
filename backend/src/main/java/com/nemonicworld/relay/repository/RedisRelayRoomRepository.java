@@ -3,6 +3,7 @@ package com.nemonicworld.relay.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.relay.entity.RelayRoomState;
+import java.time.Duration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Repository;
 public class RedisRelayRoomRepository implements RelayRoomRepository {
 
     private static final String ROOM_KEY_PREFIX = "relay:room:";
+    private static final Duration ROOM_STATE_TTL = Duration.ofHours(24);
     private static final String ROOM_STATE_SERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 저장할 수 없습니다.";
 
     private final StringRedisTemplate redisTemplate;
@@ -32,11 +34,11 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     }
 
     /**
-     * 진행 중 방 상태를 TTL 없이 저장합니다. 만료/정리 정책은 방 종료 정책이 확정되면 조정합니다.
+     * 진행 중 방 상태를 임시 이미지 fallback 정리 기준과 같은 24시간 TTL로 저장합니다.
      */
     @Override
     public void save(RelayRoomState roomState) {
-        redisTemplate.opsForValue().set(createRoomKey(roomState.roomCode()), serialize(roomState));
+        redisTemplate.opsForValue().set(createRoomKey(roomState.roomCode()), serialize(roomState), ROOM_STATE_TTL);
     }
 
     private String createRoomKey(String roomCode) {

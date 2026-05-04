@@ -20,6 +20,7 @@ import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -48,6 +49,7 @@ class RelayRoomControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String DEFAULT_ROOM_CODE = "AB3K9Q";
+    private static final Duration ROOM_STATE_TTL = Duration.ofHours(24);
 
     @Autowired
     private MockMvc mockMvc;
@@ -155,7 +157,7 @@ class RelayRoomControllerIntegrationTest {
 
         verify(stringRedisTemplate).hasKey("relay:room:AAAAAA");
         verify(stringRedisTemplate).hasKey("relay:room:BBBBBB");
-        verify(valueOperations).set(eq("relay:room:BBBBBB"), anyString());
+        verify(valueOperations).set(eq("relay:room:BBBBBB"), anyString(), eq(ROOM_STATE_TTL));
     }
 
     /**
@@ -188,7 +190,7 @@ class RelayRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
         assertThat(userRepository.count()).isZero();
-        verify(valueOperations, never()).set(anyString(), anyString());
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
     }
 
     /**
@@ -201,7 +203,7 @@ class RelayRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
         assertThat(userRepository.count()).isZero();
-        verify(valueOperations, never()).set(anyString(), anyString());
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
     }
 
     /**
@@ -217,7 +219,7 @@ class RelayRoomControllerIntegrationTest {
 
         assertThat(userRepository.existsById(missingUserUuid)).isFalse();
         assertThat(userRepository.count()).isZero();
-        verify(valueOperations, never()).set(anyString(), anyString());
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
     }
 
     /**
@@ -232,7 +234,7 @@ class RelayRoomControllerIntegrationTest {
             .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("서버 오류가 발생했습니다."));
 
-        verify(valueOperations, never()).set(anyString(), anyString());
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
     }
 
     /**
@@ -242,7 +244,7 @@ class RelayRoomControllerIntegrationTest {
     void createRelayRoomReturnsServerErrorWhenRedisSaveFails() throws Exception {
         UUID userUuid = createExistingUserWithNickname("망고");
         willThrow(new RedisConnectionFailureException("redis down")).given(valueOperations)
-            .set(eq("relay:room:%s".formatted(DEFAULT_ROOM_CODE)), anyString());
+            .set(eq("relay:room:%s".formatted(DEFAULT_ROOM_CODE)), anyString(), eq(ROOM_STATE_TTL));
 
         mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))
@@ -295,7 +297,7 @@ class RelayRoomControllerIntegrationTest {
     private JsonNode readStoredRoom() throws Exception {
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).set(keyCaptor.capture(), jsonCaptor.capture());
+        verify(valueOperations).set(keyCaptor.capture(), jsonCaptor.capture(), eq(ROOM_STATE_TTL));
 
         assertThat(keyCaptor.getValue()).isEqualTo("relay:room:%s".formatted(DEFAULT_ROOM_CODE));
 
