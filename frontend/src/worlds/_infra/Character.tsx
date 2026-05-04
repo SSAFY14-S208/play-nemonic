@@ -7,23 +7,29 @@ import {
 } from "@react-three/rapier";
 import * as THREE from "three";
 import { useCharacterMovement, useCharacterAnimation } from "./hooks";
+import {
+  MODEL_SCALE,
+  MODEL_OFFSET_Y,
+  CAPSULE_HALF_HEIGHT,
+  CAPSULE_RADIUS,
+} from "./constants";
 
 const MODEL_PATH = "/models/nong_dam_gom.glb";
-const CAPSULE_HALF_HEIGHT = 0.4;
-const CAPSULE_RADIUS = 0.4;
-// GLB 실제 크기를 확인한 뒤 1.7m(170cm)에 맞게 조정
-const MODEL_SCALE = 1;
 
 interface CharacterProps {
   targetPositionRef?: React.RefObject<THREE.Vector3>;
   characterPositionRef?: React.RefObject<THREE.Vector3>;
   isPointerDownRef?: React.RefObject<boolean>;
+  surfaceY?: number;
+  initialPosition?: [number, number, number];
 }
 
 export default function Character({
   targetPositionRef: externalTargetRef,
   characterPositionRef: externalCharacterRef,
   isPointerDownRef: externalPointerRef,
+  surfaceY = 0,
+  initialPosition,
 }: CharacterProps) {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -54,6 +60,7 @@ export default function Character({
     targetPositionRef,
     isPointerDownRef,
     characterPositionRef,
+    surfaceY,
   );
 
   useCharacterAnimation(actions, isMovingRef);
@@ -63,10 +70,10 @@ export default function Character({
       ref={rigidBodyRef}
       type="kinematicPosition"
       colliders={false}
-      position={[0, CAPSULE_HALF_HEIGHT + CAPSULE_RADIUS, 0]}
+      position={initialPosition ?? [0, surfaceY + CAPSULE_HALF_HEIGHT + CAPSULE_RADIUS, 0]}
     >
       <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} />
-      <group ref={groupRef} scale={MODEL_SCALE}>
+      <group ref={groupRef} position={[0, MODEL_OFFSET_Y, 0]} scale={MODEL_SCALE}>
         <primitive object={scene} />
       </group>
     </RigidBody>

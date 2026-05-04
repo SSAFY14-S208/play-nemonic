@@ -1,8 +1,8 @@
 import { Suspense, useRef } from 'react'
 import { Group } from 'three'
+import { useHubViewportControls } from './hooks'
 import HubPlatformMesh from './objects/HubPlatformMesh'
 import NightStarFieldMesh from './objects/NightStarFieldMesh'
-import { useHubViewportControls } from './useHubViewportControls'
 
 export default function HubScene() {
   const modelRootRef = useRef<Group>(null)
