@@ -20,7 +20,7 @@ Last updated: 2026-05-04
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
 - Room code generation is available through `RoomCodeGenerator`, producing 6-character uppercase human-readable codes and supporting repository-backed collision checks with `generateUnique(...)`.
-- Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, stores the WAITING room state only in Redis under `relay:room:{roomCode}`, and creates no PostgreSQL artifact/gallery rows.
+- Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, stores the WAITING room state only in Redis under `relay:room:{roomCode}` with a 24-hour TTL, and creates no PostgreSQL artifact/gallery rows.
 - Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
   related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
   `super_admin` row in `admin_user` only when enabled and the login ID does not
