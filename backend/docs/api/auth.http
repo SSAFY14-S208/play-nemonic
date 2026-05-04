@@ -1,12 +1,22 @@
 @host = http://localhost:8080
 
-### Auth request placeholder
-# Add concrete auth requests here as endpoints are implemented.
-# Example:
-# POST {{host}}/auth/login
-# Content-Type: application/json
-#
-# {
-#   "email": "user@example.com",
-#   "password": "password"
-# }
+### Admin login
+POST {{host}}/api/v1/auth/admin/login
+Content-Type: application/json
+X-Trace-Id: auth-login-local
+
+{
+  "loginId": "admin",
+  "password": "password"
+}
+
+> {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
+
+### Current admin
+GET {{host}}/api/v1/auth/admin/me
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin logout
+POST {{host}}/api/v1/auth/admin/logout
+Authorization: Bearer {{adminAccessToken}}
+X-Trace-Id: auth-logout-local

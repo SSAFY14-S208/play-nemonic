@@ -19,6 +19,15 @@ Last updated: 2026-05-04
 - My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
+- Backoffice admin authentication now exposes `POST /api/v1/auth/admin/login`,
+  `GET /api/v1/auth/admin/me`, and `POST /api/v1/auth/admin/logout`.
+- Admin authentication uses JWT access tokens configured by `ADMIN_JWT_SECRET`
+  and `ADMIN_JWT_ACCESS_TOKEN_EXPIRATION`; it is separate from anonymous UUID
+  authentication.
+- Admin login, failed login, and logout events emit structured JSON audit logs
+  to stdout using the `08-observability.md` audit schema, with no RDB audit log
+  table.
+- `admin_user.login_id` is made unique through Flyway V5.
 - Feature services now follow the `Service` interface plus `ServiceImpl` implementation structure; controllers depend on service interfaces.
 - Swagger/OpenAPI docs now explicitly declare path, query, and header parameter names so UI fields do not fall back to `arg0`, `arg1`, or similar compiler-generated names.
 - Swagger/OpenAPI failure responses now include representative `success: false` JSON examples for User, Gallery, Files, and Community APIs.
@@ -42,6 +51,9 @@ Last updated: 2026-05-04
 - Repository text line endings are normalized through `.gitattributes`.
 - Agent memory is stored in repo docs instead of relying only on chat history.
 - Product planning is stored under `backend/docs/product-spec/` as durable AI-readable memory.
+- Backoffice audit logs are emitted as structured stdout JSON and are collected
+  through the Fluent Bit/Kafka/OpenSearch pipeline; do not add an audit-log RDB
+  table for operator action trails.
 
 ## Important Files
 
