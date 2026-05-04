@@ -1,7 +1,9 @@
 package com.nemonicworld.relay.config;
 
 import com.nemonicworld.relay.websocket.RelayWebSocketSessionRegistry;
+import com.nemonicworld.relay.websocket.RelayStompChannelInterceptor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -17,9 +19,12 @@ import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 public class RelayWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final RelayWebSocketSessionRegistry relayWebSocketSessionRegistry;
+    private final RelayStompChannelInterceptor relayStompChannelInterceptor;
 
-    public RelayWebSocketConfig(RelayWebSocketSessionRegistry relayWebSocketSessionRegistry) {
+    public RelayWebSocketConfig(RelayWebSocketSessionRegistry relayWebSocketSessionRegistry,
+        RelayStompChannelInterceptor relayStompChannelInterceptor) {
         this.relayWebSocketSessionRegistry = relayWebSocketSessionRegistry;
+        this.relayStompChannelInterceptor = relayStompChannelInterceptor;
     }
 
     /**
@@ -38,6 +43,14 @@ public class RelayWebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.enableSimpleBroker("/topic", "/queue");
         registry.setApplicationDestinationPrefixes("/app");
         registry.setUserDestinationPrefix("/user");
+    }
+
+    /**
+     * STOMP CONNECT frame header를 검증하고 릴레이 세션 메타데이터를 등록합니다.
+     */
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(relayStompChannelInterceptor);
     }
 
     /**
