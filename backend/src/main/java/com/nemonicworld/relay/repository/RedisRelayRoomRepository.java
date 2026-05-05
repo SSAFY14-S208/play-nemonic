@@ -3,7 +3,6 @@ package com.nemonicworld.relay.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.relay.entity.RelayRoomState;
-import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.dao.DataAccessException;
@@ -20,8 +19,6 @@ import org.springframework.util.StringUtils;
 public class RedisRelayRoomRepository implements RelayRoomRepository {
 
     private static final String ROOM_KEY_PREFIX = "relay:room:";
-    // 방 종료/정리 정책이 확정되기 전까지 임시 이미지 fallback 정리 기준과 같은 보수적 TTL을 사용합니다.
-    private static final Duration ROOM_STATE_TTL = Duration.ofHours(24);
     private static final String ROOM_STATE_SERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 저장할 수 없습니다.";
     private static final String ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 읽을 수 없습니다.";
 
@@ -46,7 +43,8 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public void save(RelayRoomState roomState) {
-        redisTemplate.opsForValue().set(createRoomKey(roomState.roomCode()), serialize(roomState), ROOM_STATE_TTL);
+        redisTemplate.opsForValue().set(createRoomKey(roomState.roomCode()), serialize(roomState),
+            RelayRoomRepository.ROOM_STATE_TTL);
     }
 
     /**
@@ -78,7 +76,8 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
                 }
 
                 stringOperations.multi();
-                stringOperations.opsForValue().set(roomKey, serialize(updatedRoomState), ROOM_STATE_TTL);
+                stringOperations.opsForValue().set(roomKey, serialize(updatedRoomState),
+                    RelayRoomRepository.ROOM_STATE_TTL);
                 List<Object> results = stringOperations.exec();
 
                 return results != null;

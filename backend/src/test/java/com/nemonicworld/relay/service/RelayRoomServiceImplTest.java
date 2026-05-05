@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.files.config.MinioStorageProperties;
+import com.nemonicworld.invite.repository.InviteRepository;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
@@ -56,6 +57,9 @@ class RelayRoomServiceImplTest {
     private RelayRoomRepository relayRoomRepository;
 
     @Mock
+    private InviteRepository inviteRepository;
+
+    @Mock
     private RelaySubmissionStorage relaySubmissionStorage;
 
     private RelayRoomService relayRoomService;
@@ -65,7 +69,8 @@ class RelayRoomServiceImplTest {
         RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
         relayRoomService = new RelayRoomServiceImpl(
-            new RelayRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator, relayRoomRepository, relayRoomPolicy),
+            new RelayRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator, relayRoomRepository, inviteRepository,
+                relayRoomPolicy),
             new RelayRoomQueryUseCase(anonymousUserResolver, relayRoomPolicy, relayRoomViewerFactory),
             new RelayRoomJoinUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory),

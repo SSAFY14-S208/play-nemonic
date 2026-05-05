@@ -31,7 +31,7 @@ public interface RelayRoomService {
      * 기존 익명 사용자인 방장이 대기 중 릴레이 방의 설정을 변경합니다.
      */
     RelayRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
-            RelayRoomSettingsRequest request);
+        RelayRoomSettingsRequest request);
 
     /**
      * 기존 익명 사용자인 방장이 대기 중인 릴레이 방을 게임 진행 상태로 전환합니다.
@@ -47,7 +47,7 @@ public interface RelayRoomService {
      * 진행 중인 릴레이 방에서 자신의 순서일 때, 그린 그림을 제출합니다.
      */
     RelayRoomSubmissionResponse submitCurrentPart(String userUuidValue, String roomCodeValue,
-            RelayRoomSubmissionRequest request);
+        RelayRoomSubmissionRequest request);
 
     /**
      * WebSocket 연결 성공 시 기존 릴레이 참여자를 연결 상태로 갱신합니다.
