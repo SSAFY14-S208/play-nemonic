@@ -1,3 +1,5 @@
+export { default as PhoneLauncher } from './PhoneLauncher'
+export { default as PhoneModal } from './PhoneModal'
 export * from './constants'
 export * from './phoneStore'
 export type * from './types'

@@ -1,5 +1,6 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import {
   ArrowLeft,
   Download,
@@ -13,6 +14,7 @@ import {
 import { cn } from '@/shared/libs'
 import {
   PHONE_BRUSH_SIZES,
+  PHONE_COLORS,
   PHONE_DRAWING_COLORS,
   PHONE_DRAWING_STAGE_SIZE,
 } from '../constants'
@@ -49,13 +51,20 @@ export function PhoneDrawingScreen({
   } = usePhoneDrawing(onCreateArtifact)
 
   return (
-    <div className="flex h-full flex-col bg-[#f7f7f7] pt-12 text-fg-primary">
-      <header className="flex h-14 items-center justify-between border-b border-border-default bg-[#f6f6f6] px-3">
+    <div
+      className="flex h-full flex-col pt-12 text-fg-primary"
+      style={{ background: PHONE_COLORS.drawingBackground }}
+    >
+      <header
+        className="flex h-14 items-center justify-between border-b border-border-default px-3"
+        style={{ background: PHONE_COLORS.drawingPanel }}
+      >
         <button
           type="button"
           aria-label="홈으로 돌아가기"
           onClick={onBack}
-          className="flex h-11 w-11 items-center justify-center rounded-full text-[#ffb52e] transition hover:bg-white focus-visible:outline focus-visible:outline-3 focus-visible:outline-primary-2"
+          className="flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-white focus-visible:outline focus-visible:outline-3 focus-visible:outline-primary-2"
+          style={{ color: PHONE_COLORS.drawingAccent }}
         >
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -82,7 +91,7 @@ export function PhoneDrawingScreen({
         </div>
       </header>
 
-      <div className="border-b border-border-default bg-[#fafafa] px-6 py-3">
+      <div className="border-b border-border-default bg-white px-6 py-3">
         <div className="mb-3 flex items-center justify-center gap-10">
           <button
             type="button"
@@ -90,8 +99,15 @@ export function PhoneDrawingScreen({
             onClick={() => setActiveTool('pen')}
             className={cn(
               'flex h-11 w-11 items-center justify-center rounded-full text-fg-secondary transition',
-              activeTool === 'pen' && 'bg-[#fff2d6] text-[#ffb52e]',
+              activeTool === 'pen' && 'text-[var(--phone-drawing-accent)]',
             )}
+            style={{
+              '--phone-drawing-accent': PHONE_COLORS.drawingAccent,
+              background:
+                activeTool === 'pen'
+                  ? PHONE_COLORS.drawingAccentMuted
+                  : 'transparent',
+            } as CSSProperties}
           >
             <PenLine className="h-7 w-7" />
           </button>
@@ -101,7 +117,7 @@ export function PhoneDrawingScreen({
             onClick={() => setActiveTool('eraser')}
             className={cn(
               'flex h-11 w-11 items-center justify-center rounded-full text-fg-secondary transition',
-              activeTool === 'eraser' && 'bg-[#efefef] text-fg-primary',
+              activeTool === 'eraser' && 'bg-surface-subtle text-fg-primary',
             )}
           >
             <Eraser className="h-7 w-7" />
@@ -130,7 +146,8 @@ export function PhoneDrawingScreen({
             step={1}
             value={brushSize}
             onChange={(event) => setBrushSize(Number(event.target.value))}
-            className="h-1 flex-1 accent-[#ffb52e]"
+            className="h-1 flex-1"
+            style={{ accentColor: PHONE_COLORS.drawingAccent }}
           />
         </div>
       </div>
@@ -166,12 +183,16 @@ export function PhoneDrawingScreen({
         </div>
       </main>
 
-      <footer className="grid grid-cols-2 gap-4 border-t border-border-default bg-[#f6f6f6] px-7 py-5 pb-8">
+      <footer
+        className="grid grid-cols-2 gap-4 border-t border-border-default px-7 py-5 pb-8"
+        style={{ background: PHONE_COLORS.drawingPanel }}
+      >
         <button
           type="button"
           disabled={!hasDrawing}
           onClick={() => createArtifact('save')}
-          className="body-l-b flex h-14 items-center justify-center gap-3 rounded-[var(--radius-md)] bg-[#ffaad8] text-fg-primary shadow-[0_0.2rem_0.35rem_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:bg-surface-subtle disabled:text-fg-disabled"
+          className="body-l-b flex h-14 items-center justify-center gap-3 rounded-[var(--radius-md)] text-fg-primary shadow-[0_0.2rem_0.35rem_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:bg-surface-subtle disabled:text-fg-disabled"
+          style={{ background: hasDrawing ? PHONE_COLORS.saveButton : undefined }}
         >
           <Download className="h-6 w-6" />
           갤러리에 저장
@@ -180,7 +201,8 @@ export function PhoneDrawingScreen({
           type="button"
           disabled={!hasDrawing}
           onClick={() => createArtifact('print')}
-          className="body-l-b flex h-14 items-center justify-center gap-3 rounded-[var(--radius-md)] bg-[#ffcc66] text-fg-primary shadow-[0_0.2rem_0.35rem_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:bg-surface-subtle disabled:text-fg-disabled"
+          className="body-l-b flex h-14 items-center justify-center gap-3 rounded-[var(--radius-md)] text-fg-primary shadow-[0_0.2rem_0.35rem_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:bg-surface-subtle disabled:text-fg-disabled"
+          style={{ background: hasDrawing ? PHONE_COLORS.printButton : undefined }}
         >
           <Printer className="h-6 w-6" />
           네모닉 출력

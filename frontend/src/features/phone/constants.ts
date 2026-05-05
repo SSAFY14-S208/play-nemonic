@@ -31,6 +31,8 @@ export const PHONE_COLORS = {
   homeAvatarSkin: '#fff3e8',
   homeAvatarInk: '#241f1d',
   homeAvatarMouth: '#dc6f78',
+  launcherBadge: '#ff6f7b',
+  launcherScreen: 'linear-gradient(135deg,#dff4ff 0%,#ffe6f2 100%)',
   saveButton: '#ffaad8',
   printButton: '#ffcc66',
   screenHandle: 'rgba(70,63,78,0.72)',
