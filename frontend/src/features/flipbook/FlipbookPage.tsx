@@ -6,7 +6,7 @@ import {
   FlipbookLobbyView,
   FlipbookResultView,
 } from './components'
-import { useFlipbook } from './useFlipbook'
+import { useFlipbook } from './hooks'
 
 export default function FlipbookPage() {
   const flipbook = useFlipbook()

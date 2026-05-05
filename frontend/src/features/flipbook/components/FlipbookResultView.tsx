@@ -9,7 +9,7 @@ import {
   FLIPBOOK_PARTICIPANTS,
   FLIPBOOK_TOPIC,
 } from '../constants'
-import type { FlipbookFrame } from '../useFlipbook'
+import type { FlipbookFrame } from '../types'
 
 interface FlipbookResultViewProps {
   frames: FlipbookFrame[]
