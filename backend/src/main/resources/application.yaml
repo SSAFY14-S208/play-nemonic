@@ -57,6 +57,10 @@ nemonic:
       bucket: ${MINIO_BUCKET:nemonic-local}
       presign-expiration-minutes: ${MINIO_PRESIGN_EXPIRATION_MINUTES:10}
       max-upload-byte-size: ${FILE_UPLOAD_MAX_BYTE_SIZE:52428800}
+
+  share:
+    site-url: ${NEMONIC_SITE_URL:http://localhost:3000}
+
   relay:
     timeout:
       enabled: ${RELAY_TIMEOUT_ENABLED:true}
