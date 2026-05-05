@@ -24,7 +24,6 @@ export function usePhoneClock() {
   const [timeLabel, setTimeLabel] = useState(formatPhoneClockTime)
 
   useEffect(() => {
-    let timeoutId: number | undefined
     let intervalId: number | undefined
     let isDisposed = false
 
@@ -34,20 +33,21 @@ export function usePhoneClock() {
       }
     }
 
-    void (async () => {
+    // Server-rendered time can differ from the browser clock after hydration.
+    const clientSyncTimeoutId = window.setTimeout(() => {
       updateTimeLabel()
-      timeoutId = window.setTimeout(() => {
-        updateTimeLabel()
-        intervalId = window.setInterval(updateTimeLabel, ONE_MINUTE_MS)
-      }, getMillisecondsUntilNextMinute())
-    })()
+    }, 0)
+
+    const timeoutId = window.setTimeout(() => {
+      updateTimeLabel()
+      intervalId = window.setInterval(updateTimeLabel, ONE_MINUTE_MS)
+    }, getMillisecondsUntilNextMinute())
 
     return () => {
       isDisposed = true
 
-      if (timeoutId !== undefined) {
-        window.clearTimeout(timeoutId)
-      }
+      window.clearTimeout(clientSyncTimeoutId)
+      window.clearTimeout(timeoutId)
 
       if (intervalId !== undefined) {
         window.clearInterval(intervalId)
