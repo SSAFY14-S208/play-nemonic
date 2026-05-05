@@ -7,6 +7,8 @@ import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerBlockedReason;
+import com.nemonicworld.relay.entity.RelayDrawingPart;
+import com.nemonicworld.relay.entity.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
@@ -50,6 +52,8 @@ public class RelayRoomPolicy {
     private static final String GAME_ALREADY_STARTED_MESSAGE = "이미 게임이 시작되었습니다.";
     private static final String NOT_ENOUGH_PARTICIPANTS_MESSAGE = "최소 2명이 모여야 시작할 수 있습니다.";
     private static final String PARTICIPANTS_DISCONNECTED_MESSAGE = "모든 참여자가 연결된 상태에서만 시작할 수 있습니다.";
+    private static final String GAME_NOT_STARTED_MESSAGE = "게임이 아직 시작되지 않았습니다.";
+    private static final String CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE = "현재 배정된 그림이 없습니다.";
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final RelayRoomRepository relayRoomRepository;
@@ -119,6 +123,40 @@ public class RelayRoomPolicy {
         }
 
         throw new ConflictException(ROOM_CLOSED_MESSAGE);
+    }
+
+    /**
+     * 내 배정 조회가 가능한 방 상태인지 검증합니다.
+     */
+    void validateAssignmentQueryableRoom(RelayRoomState roomState) {
+        if (roomState.status() == RelayRoomStatus.PLAYING) {
+            return;
+        }
+
+        if (roomState.status() == RelayRoomStatus.WAITING) {
+            throw new ConflictException(GAME_NOT_STARTED_MESSAGE);
+        }
+
+        throw new ConflictException(ROOM_CLOSED_MESSAGE);
+    }
+
+    /**
+     * 현재 파트에서 사용자가 맡은 배정을 조회합니다.
+     */
+    RelayRoomAssignment requireCurrentAssignment(RelayRoomState roomState, String viewerUserUuid) {
+        RelayDrawingPart currentPart = roomState.currentPart();
+
+        return roomState.assignments().stream().filter(assignment -> assignment.part() == currentPart)
+            .filter(assignment -> viewerUserUuid.equals(assignment.assignedUserUuid())).findFirst()
+            .orElseThrow(() -> new ConflictException(CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE));
+    }
+
+    /**
+     * 특정 캔버스와 파트에 해당하는 배정을 조회합니다.
+     */
+    Optional<RelayRoomAssignment> findAssignment(RelayRoomState roomState, int canvasIndex, RelayDrawingPart part) {
+        return roomState.assignments().stream().filter(assignment -> assignment.canvasIndex() == canvasIndex)
+            .filter(assignment -> assignment.part() == part).findFirst();
     }
 
     /**

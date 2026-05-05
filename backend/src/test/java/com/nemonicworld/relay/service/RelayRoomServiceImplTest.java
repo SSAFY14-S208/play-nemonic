@@ -65,8 +65,8 @@ class RelayRoomServiceImplTest {
                 relayRoomViewerFactory),
             new RelayRoomStartUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory),
-            new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory));
+            new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy), new RelayRoomConnectionUseCase(
+                anonymousUserResolver, relayRoomRepository, relayRoomPolicy, relayRoomViewerFactory));
     }
 
     /**
