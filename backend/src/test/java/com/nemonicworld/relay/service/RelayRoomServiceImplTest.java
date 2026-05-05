@@ -112,8 +112,7 @@ class RelayRoomServiceImplTest {
             participant(otherJoinerUuid, "사과", false, 1));
         given(anonymousUserResolver.resolve(joinerUuid.toString())).willReturn(joiner);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
-            Optional.of(secondReadRoomState));
+        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false, true);
 
@@ -168,8 +167,7 @@ class RelayRoomServiceImplTest {
             firstReadRoomState.createdAt(), firstReadRoomState.updatedAt().plusSeconds(1));
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
-            Optional.of(secondReadRoomState));
+        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false, true);
 
@@ -318,8 +316,7 @@ class RelayRoomServiceImplTest {
             participant(secondUuid, "Peach", false, 1), participant(thirdUuid, "Berry", false, 2));
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
-            Optional.of(secondReadRoomState));
+        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false, true);
 
@@ -389,8 +386,7 @@ class RelayRoomServiceImplTest {
             participant(hostUuid, "Mango", true, 0));
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
-            Optional.of(secondReadRoomState));
+        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false, true);
 
@@ -516,6 +512,11 @@ class RelayRoomServiceImplTest {
         assertThat(assignment.submittedAt()).isNull();
         assertThat(assignment.empty()).isFalse();
         assertThat(assignment.autoSubmitted()).isFalse();
+    }
+
+    private void givenRoomStateReads(RelayRoomState firstReadRoomState, RelayRoomState secondReadRoomState) {
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState))
+            .willReturn(Optional.of(secondReadRoomState));
     }
 
     private AppUser appUserWithNickname(UUID userUuid, String nickname) {

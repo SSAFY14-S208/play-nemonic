@@ -54,7 +54,6 @@ class RelayRoomAssignmentControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String DEFAULT_ROOM_CODE = "AB3K9Q";
-    private static final Duration ROOM_STATE_TTL = Duration.ofHours(24);
     private static final String SUCCESS_MESSAGE = "내 릴레이 배정 조회 성공";
     private static final String INVALID_UUID_MESSAGE = "유효하지 않은 UUID 형식입니다.";
     private static final String USER_NOT_FOUND_MESSAGE = "존재하지 않는 사용자입니다.";
@@ -402,6 +401,7 @@ class RelayRoomAssignmentControllerIntegrationTest {
         return objectMapper.readTree(responseBody).path("data");
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void verifyReadOnlySideEffects() {
         verify(valueOperations).get("relay:room:%s".formatted(DEFAULT_ROOM_CODE));
         verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
