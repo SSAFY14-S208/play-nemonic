@@ -1,6 +1,8 @@
 package com.nemonicworld.relay.repository;
 
 import com.nemonicworld.relay.entity.RelayRoomState;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -27,4 +29,9 @@ public interface RelayRoomRepository {
      * 방코드로 Redis에 저장된 릴레이 방 상태를 조회합니다.
      */
     Optional<RelayRoomState> findByRoomCode(String roomCode);
+
+    /**
+     * 현재 파트 마감 시각이 지난 PLAYING 방을 최대 limit개 조회합니다.
+     */
+    List<RelayRoomState> findExpiredPlayingRooms(LocalDateTime now, int limit);
 }
