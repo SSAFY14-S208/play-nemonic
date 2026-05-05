@@ -28,6 +28,15 @@ Last updated: 2026-05-04
   to stdout using the `08-observability.md` audit schema, with no RDB audit log
   table.
 - `admin_user.login_id` is made unique through Flyway V5.
+- Room code generation is available through `RoomCodeGenerator`, producing 6-character uppercase human-readable codes and supporting repository-backed collision checks with `generateUnique(...)`.
+- Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `relay:room:{roomCode}` with a 24-hour TTL, and creates no PostgreSQL artifact/gallery rows.
+- Relay room state lookup now uses `GET /api/v1/relay/rooms/{roomCode}`, reads the Redis room snapshot without mutation, sorts participants by `joinOrder`, and computes viewer join/reconnect eligibility from the requested `Anonymous-User-UUID`.
+- Relay room join/reconnect now uses `POST /api/v1/relay/rooms/{roomCode}/participants`, applies Redis `WATCH`/`MULTI`/`EXEC` optimistic conditional updates for new WAITING-room participants or 10-second reconnects, retries short-lived write conflicts, and remains free of PostgreSQL artifact/gallery, MinIO, and WebSocket side effects.
+- Relay room WebSocket lobby connections use the STOMP endpoint `/ws/relay`, CONNECT headers `roomCode` and `Anonymous-User-UUID`, topic `/topic/relay/rooms/{roomCode}`, user queue `/user/queue/relay/rooms/{roomCode}`, Redis `connected`/`disconnectedAt` updates, session-id-scoped duplicate-session close events, and common `global.websocket` infrastructure for single-server in-memory active session tracking.
+- Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
+  related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
+  `super_admin` row in `admin_user` only when enabled and the login ID does not
+  already exist.
 - Feature services now follow the `Service` interface plus `ServiceImpl` implementation structure; controllers depend on service interfaces.
 - Swagger/OpenAPI docs now explicitly declare path, query, and header parameter names so UI fields do not fall back to `arg0`, `arg1`, or similar compiler-generated names.
 - Swagger/OpenAPI failure responses now include representative `success: false` JSON examples for User, Gallery, Files, and Community APIs.
@@ -42,6 +51,7 @@ Last updated: 2026-05-04
 - Service packages use `<Feature>Service` for the controller-facing interface and `<Feature>ServiceImpl` for the Spring `@Service` implementation.
 - REST controller paths receive the common `/api/v1` prefix through `ApiPathPrefixConfig`; controller-level mappings should keep only feature paths such as `/users` or `/gallery`.
 - Existing anonymous-user-scoped APIs use the common `Anonymous-User-UUID` header for caller identification; body fields are business data, query parameters are filters or pagination.
+- In-progress relay rooms are identified only by `roomCode`; Redis keys use `relay:room:{roomCode}` and no internal UUID room id is introduced.
 - OpenAPI controller annotations must keep request parameter names explicit (`@PathVariable("...")`, `@RequestParam(name = "...")`, `@RequestHeader(value = "...")`) and document expected failure responses with `success: false` examples.
 - Commands are run from the repository root unless a script says otherwise.
 - Verification is standardized through `backend/scripts/format.ps1` and `backend/scripts/verify.ps1`.
@@ -54,6 +64,8 @@ Last updated: 2026-05-04
 - Backoffice audit logs are emitted as structured stdout JSON and are collected
   through the Fluent Bit/Kafka/OpenSearch pipeline; do not add an audit-log RDB
   table for operator action trails.
+- Super admin bootstrap is environment-driven only. Do not hard-code initial
+  admin passwords or password hashes in migrations, source code, or docs.
 
 ## Important Files
 
@@ -102,6 +114,12 @@ Recent Swagger/OpenAPI documentation checks passed with:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1 -Fast
+```
+
+Recent room code generator work passed with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 ```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real

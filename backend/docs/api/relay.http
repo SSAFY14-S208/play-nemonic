@@ -1,0 +1,157 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@roomCode = AB3K9Q
+
+### Create relay room
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create relay room - invalid UUID
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: not-a-uuid
+
+### Create relay room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create relay room - missing UUID
+POST {{host}}/api/v1/relay/rooms
+
+### Get relay room state
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get relay room state - invalid user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}
+Anonymous-User-UUID: not-a-uuid
+
+### Get relay room state - missing user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}
+
+### Get relay room state - invalid room code
+GET {{host}}/api/v1/relay/rooms/not-a-room
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get relay room state - not found
+GET {{host}}/api/v1/relay/rooms/ZZZZZZ
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Reconnect relay room
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: not-a-uuid
+
+### Join relay room - missing user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+
+### Join relay room - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room - not found
+POST {{host}}/api/v1/relay/rooms/ZZZZZZ/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Update relay room settings
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - 30 seconds
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 30
+}
+
+### Update relay room settings - invalid time limit
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 15
+}
+
+### Update relay room settings - invalid user UUID
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - missing user UUID
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - invalid room code
+PATCH {{host}}/api/v1/relay/rooms/not-a-room/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - not found
+PATCH {{host}}/api/v1/relay/rooms/ZZZZZZ/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Start relay game
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: not-a-uuid
+
+### Start relay game - missing user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+
+### Start relay game - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - not found
+POST {{host}}/api/v1/relay/rooms/ZZZZZZ/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - not host
+# Use a participant UUID that is not the room host.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - not enough participants
+# Use a room with only one connected participant.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}

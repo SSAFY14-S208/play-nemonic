@@ -23,6 +23,90 @@ public final class OpenApiErrorExamples {
           "message": "닉네임은 1자 이상 10자 이하로 입력해주세요."
         }
         """;
+    public static final String RELAY_NICKNAME_REQUIRED = """
+        {
+          "success": false,
+          "message": "닉네임을 먼저 설정해주세요."
+        }
+        """;
+    public static final String INVALID_ROOM_CODE = """
+        {
+          "success": false,
+          "message": "유효하지 않은 방코드입니다."
+        }
+        """;
+    public static final String RELAY_ROOM_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "존재하지 않는 방입니다."
+        }
+        """;
+    public static final String RELAY_ROOM_FULL = """
+        {
+          "success": false,
+          "message": "방 정원이 가득 찼습니다."
+        }
+        """;
+    public static final String RELAY_GAME_IN_PROGRESS = """
+        {
+          "success": false,
+          "message": "게임이 진행 중입니다."
+        }
+        """;
+    public static final String RELAY_RECONNECT_EXPIRED = """
+        {
+          "success": false,
+          "message": "이미 자동 제출 처리되었습니다."
+        }
+        """;
+    public static final String RELAY_ROOM_CLOSED = """
+        {
+          "success": false,
+          "message": "이미 종료된 방입니다."
+        }
+        """;
+    public static final String RELAY_INVALID_TIME_LIMIT_SECONDS = """
+        {
+          "success": false,
+          "message": "제한 시간은 30초, 45초, 60초 중 하나여야 합니다."
+        }
+        """;
+    public static final String RELAY_ROOM_PARTICIPANT_REQUIRED = """
+        {
+          "success": false,
+          "message": "릴레이 방에 참여하지 않은 사용자입니다."
+        }
+        """;
+    public static final String RELAY_ROOM_HOST_REQUIRED = """
+        {
+          "success": false,
+          "message": "방장만 사용할 수 있습니다."
+        }
+        """;
+    public static final String RELAY_WAITING_ROOM_SETTINGS_ONLY = """
+        {
+          "success": false,
+          "message": "대기 중인 방에서만 설정을 변경할 수 있습니다."
+        }
+        """;
+    public static final String RELAY_GAME_ALREADY_STARTED = """
+        {
+          "success": false,
+          "message": "이미 게임이 시작되었습니다."
+        }
+        """;
+    public static final String RELAY_NOT_ENOUGH_PARTICIPANTS = """
+        {
+          "success": false,
+          "message": "최소 2명이 모여야 시작할 수 있습니다."
+        }
+        """;
+    public static final String RELAY_PARTICIPANTS_DISCONNECTED = """
+        {
+          "success": false,
+          "message": "모든 참여자가 연결된 상태에서만 시작할 수 있습니다."
+        }
+        """;
     public static final String INVALID_BIRTH_INFO = """
         {
           "success": false,

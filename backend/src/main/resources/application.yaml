@@ -42,6 +42,12 @@ nemonic:
     jwt:
       secret: ${ADMIN_JWT_SECRET:}
       access-token-expiration: ${ADMIN_JWT_ACCESS_TOKEN_EXPIRATION:30m}
+    admin-bootstrap:
+      enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}
+      login-id: ${ADMIN_BOOTSTRAP_LOGIN_ID:}
+      password: ${ADMIN_BOOTSTRAP_PASSWORD:}
+      nickname: ${ADMIN_BOOTSTRAP_NICKNAME:}
+      email: ${ADMIN_BOOTSTRAP_EMAIL:}
   storage:
     minio:
       endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
