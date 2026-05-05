@@ -62,6 +62,11 @@ export const PHONE_DRAWING_COLORS = [
 
 export const PHONE_BRUSH_SIZES = [3, 6, 10]
 
+export const PHONE_MIN_BRUSH_SIZE = PHONE_BRUSH_SIZES[0]
+
+export const PHONE_MAX_BRUSH_SIZE =
+  PHONE_BRUSH_SIZES[PHONE_BRUSH_SIZES.length - 1]
+
 export const PHONE_APP_SHORTCUTS: Array<{
   key: 'drawing' | 'gallery' | 'shop' | 'settings'
   label: string

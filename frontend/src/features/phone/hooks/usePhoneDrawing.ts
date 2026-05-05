@@ -93,24 +93,20 @@ export function usePhoneDrawing(
   }, [])
 
   const undoDrawing = useCallback(() => {
-    setLines((currentLines) => {
-      const removedLine = currentLines.at(-1)
-      if (!removedLine) return currentLines
+    const removedLine = lines.at(-1)
+    if (!removedLine) return
 
-      setRedoLines((currentRedoLines) => [removedLine, ...currentRedoLines])
-      return currentLines.slice(0, -1)
-    })
-  }, [])
+    setLines(lines.slice(0, -1))
+    setRedoLines((currentRedoLines) => [removedLine, ...currentRedoLines])
+  }, [lines])
 
   const redoDrawing = useCallback(() => {
-    setRedoLines((currentRedoLines) => {
-      const restoredLine = currentRedoLines[0]
-      if (!restoredLine) return currentRedoLines
+    const restoredLine = redoLines[0]
+    if (!restoredLine) return
 
-      setLines((currentLines) => [...currentLines, restoredLine])
-      return currentRedoLines.slice(1)
-    })
-  }, [])
+    setLines((currentLines) => [...currentLines, restoredLine])
+    setRedoLines(redoLines.slice(1))
+  }, [redoLines])
 
   const createArtifact = useCallback(
     (action: 'save' | 'print') => {

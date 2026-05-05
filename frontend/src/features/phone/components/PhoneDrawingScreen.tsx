@@ -13,10 +13,11 @@ import {
 } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import {
-  PHONE_BRUSH_SIZES,
   PHONE_COLORS,
   PHONE_DRAWING_COLORS,
   PHONE_DRAWING_STAGE_SIZE,
+  PHONE_MAX_BRUSH_SIZE,
+  PHONE_MIN_BRUSH_SIZE,
 } from '../constants'
 import { usePhoneDrawing } from '../hooks'
 import { PhoneDrawingStage } from './PhoneDrawingStage'
@@ -141,8 +142,8 @@ export function PhoneDrawingScreen({
           <input
             aria-label="브러시 굵기"
             type="range"
-            min={PHONE_BRUSH_SIZES[0]}
-            max={PHONE_BRUSH_SIZES.at(-1)}
+            min={PHONE_MIN_BRUSH_SIZE}
+            max={PHONE_MAX_BRUSH_SIZE}
             step={1}
             value={brushSize}
             onChange={(event) => setBrushSize(Number(event.target.value))}
