@@ -189,7 +189,7 @@ class RelayRoomParticipantControllerIntegrationTest {
         assertThat(storedParticipant.path("nickname").asText()).isEqualTo("예전닉");
         assertThat(storedParticipant.path("host").asBoolean()).isTrue();
         assertThat(storedParticipant.path("joinOrder").asInt()).isZero();
-        assertThat(storedParticipant.path("joinedAt").asText()).isEqualTo(joinedAt.toString());
+        assertThat(LocalDateTime.parse(storedParticipant.path("joinedAt").asText())).isEqualTo(joinedAt);
     }
 
     /**

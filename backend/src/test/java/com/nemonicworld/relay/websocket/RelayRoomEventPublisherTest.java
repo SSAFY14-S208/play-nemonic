@@ -1,11 +1,18 @@
 package com.nemonicworld.relay.websocket;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
+import com.nemonicworld.relay.entity.RelayRoomStatus;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -24,6 +31,27 @@ class RelayRoomEventPublisherTest {
     private final RelayRoomEventPublisher publisher = new RelayRoomEventPublisher(messagingTemplate);
 
     /**
+     * 설정 변경 이벤트는 방 전체 topic에 SETTINGS_CHANGED 타입과 최신 방 상태를 보냅니다.
+     */
+    @Test
+    void publishSettingsChangedSendsSettingsChangedEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        RelayRoomStateResponse roomStateResponse = roomStateResponse(45);
+
+        publisher.publishSettingsChanged(roomStateResponse);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.SETTINGS_CHANGED);
+        assertThat(event.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(event.data()).isInstanceOf(RelayRoomEventStateResponse.class);
+
+        RelayRoomEventStateResponse data = (RelayRoomEventStateResponse) event.data();
+        assertThat(data.timeLimitSeconds()).isEqualTo(45);
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+    }
+
+    /**
      * 개인 큐 이벤트는 user destination resolver가 특정 sessionId로 해석할 수 있도록 simpSessionId
      * 헤더를 함께 보냅니다.
      */
@@ -34,7 +62,14 @@ class RelayRoomEventPublisherTest {
         publisher.publishPong(SESSION_ID, ROOM_CODE);
 
         verify(messagingTemplate).convertAndSendToUser(eq(SESSION_ID), eq("/queue/relay/rooms/" + ROOM_CODE),
-            org.mockito.ArgumentMatchers.any(RelayRoomEventResponse.class), headersCaptor.capture());
+            any(RelayRoomEventResponse.class), headersCaptor.capture());
         assertThat(headersCaptor.getValue()).containsEntry(SimpMessageHeaderAccessor.SESSION_ID_HEADER, SESSION_ID);
+    }
+
+    private RelayRoomStateResponse roomStateResponse(int timeLimitSeconds) {
+        LocalDateTime createdAt = LocalDateTime.now().minusMinutes(1);
+
+        return new RelayRoomStateResponse(ROOM_CODE, RelayRoomStatus.WAITING, "550e8400-e29b-41d4-a716-446655440000",
+            timeLimitSeconds, 2, 6, 1, null, List.of(), null, createdAt, createdAt.plusSeconds(1));
     }
 }
