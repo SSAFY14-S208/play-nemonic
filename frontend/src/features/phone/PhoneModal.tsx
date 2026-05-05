@@ -2,6 +2,7 @@
 
 import { Dialog } from '@base-ui/react/dialog'
 import {
+  PhoneCloseButton,
   PhoneDrawingScreen,
   PhoneFrame,
   PhoneGalleryScreen,
@@ -32,16 +33,26 @@ export default function PhoneModal() {
     >
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-black/20 backdrop-blur-[2px]" />
-        <Dialog.Popup className="fixed inset-0 z-[var(--z-modal)] grid place-items-center p-4">
+        <Dialog.Popup
+          className="fixed inset-0 z-[var(--z-modal)] grid place-items-center p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closePhone()
+            }
+          }}
+        >
           <Dialog.Title className="sr-only">
             네모닉 월드 핸드폰
           </Dialog.Title>
-          <PhoneFrame statusBarVariant={statusBarVariant}>
-            {activeScreen === 'home' && <PhoneHomeScreen />}
-            {activeScreen === 'drawing' && <PhoneDrawingScreen />}
-            {activeScreen === 'gallery' && <PhoneGalleryScreen />}
-            <PhoneToast />
-          </PhoneFrame>
+          <div className="relative w-fit">
+            <PhoneFrame statusBarVariant={statusBarVariant}>
+              {activeScreen === 'home' && <PhoneHomeScreen />}
+              {activeScreen === 'drawing' && <PhoneDrawingScreen />}
+              {activeScreen === 'gallery' && <PhoneGalleryScreen />}
+              <PhoneToast />
+            </PhoneFrame>
+            <PhoneCloseButton onClose={closePhone} />
+          </div>
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>

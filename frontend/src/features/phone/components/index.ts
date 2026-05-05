@@ -1,3 +1,4 @@
+export { PhoneCloseButton } from './PhoneCloseButton'
 export { PhoneDrawingScreen } from './PhoneDrawingScreen'
 export { PhoneFrame } from './PhoneFrame'
 export { PhoneGalleryItemSheet } from './PhoneGalleryItemSheet'
