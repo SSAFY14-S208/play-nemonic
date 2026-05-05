@@ -126,3 +126,32 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 {
   "timeLimitSeconds": 45
 }
+
+### Start relay game
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: not-a-uuid
+
+### Start relay game - missing user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+
+### Start relay game - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - not found
+POST {{host}}/api/v1/relay/rooms/ZZZZZZ/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - not host
+# Use a participant UUID that is not the room host.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - not enough participants
+# Use a room with only one connected participant.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
