@@ -1,5 +1,4 @@
 import Image from 'next/image'
-import { FLIPBOOK_PARTICIPANTS } from '../constants'
 
 interface FlipbookBoothViewProps {
   onCreateRoom: () => void
@@ -11,9 +10,9 @@ export default function FlipbookBoothView({
   onEnterRoom,
 }: FlipbookBoothViewProps) {
   return (
-    <section className="relative min-h-[900px] overflow-hidden border border-flipbook-light bg-flipbook-background">
+    <section className="relative min-h-[900px] overflow-hidden bg-flipbook-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <div className="absolute left-[7.2%] top-[18.1%] h-[53%] w-[39%] rotate-[-2deg] rounded-[6px] bg-flipbook-light shadow-[0_10px_18px_var(--color-flipbook-shadow)]">
+        <div className="absolute left-[7.3%] top-[22.8%] h-[51.7%] w-[36.6%] rotate-[-2deg] rounded-[6px] bg-flipbook-light shadow-[0_10px_18px_var(--color-flipbook-shadow)]">
           <span className="absolute bottom-0 right-0 h-[28%] w-[34%] rounded-tl-[90px] bg-flipbook-primary/45" />
         </div>
 
@@ -56,19 +55,9 @@ export default function FlipbookBoothView({
           width={1056}
           height={693}
           priority
-          className="absolute left-[37.3%] top-[12.9%] h-[77%] w-[58.7%] object-contain"
+          className="absolute left-[37.3%] top-[12.9%] h-[77%] w-[73.3%] object-contain"
         />
 
-        <div className="absolute bottom-10 right-12 flex gap-2">
-          {FLIPBOOK_PARTICIPANTS.slice(0, 5).map((participant) => (
-            <span
-              key={participant.id}
-              className="grid size-10 place-items-center rounded-full bg-flipbook-light text-[18px] shadow-[0_4px_12px_var(--color-flipbook-shadow)]"
-            >
-              {participant.avatar}
-            </span>
-          ))}
-        </div>
       </div>
     </section>
   )

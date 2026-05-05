@@ -5,7 +5,6 @@ import {
   FlipbookDrawingView,
   FlipbookLobbyView,
   FlipbookResultView,
-  FlipbookStepTabs,
 } from './components'
 import { useFlipbook } from './useFlipbook'
 
@@ -71,11 +70,6 @@ export default function FlipbookPage() {
           onCreateAnother={() => flipbook.selectStep('booth')}
         />
       )}
-
-      <FlipbookStepTabs
-        currentStep={flipbook.currentStep}
-        onSelectStep={flipbook.selectStep}
-      />
     </main>
   )
 }

@@ -16,9 +16,11 @@
 @import "tailwindcss";
 
 @import "./tokens/primitive/colors.css";
+@import "./tokens/primitive/brand-palettes.css";
 @import "./tokens/primitive/spacing.css";
 
 @import "./tokens/semantic/colors.css";
+@import "./tokens/semantic/brand-palettes.css";
 
 @import "./layers/theme.css";
 @import "./layers/base.css";
