@@ -109,6 +109,106 @@ API Server / WS Server / Nginx / Next.js / MinIO / PostgreSQL / Redis
 - `uuid`
 - `participantCount`
 
+## 감사 로그
+
+운영자 조작 이력은 RDB에 저장하지 않고 로그 파이프라인으로만 적재한다. 백오피스 감사 로그 화면도
+별도 테이블을 조회하지 않고 OpenSearch `audit-logs-*` 인덱스를 직접 질의한다.
+
+### 저장 정책
+
+- 백오피스 API 서버가 운영자 조작 핸들러에서 구조화 JSON 로그를 stdout으로 emit한다.
+- Fluent Bit → Kafka `logs.audit` → OpenSearch `audit-logs-YYYY.MM` 경로로 흐른다.
+- 감사 로그 전용 RDB 테이블은 두지 않는다.
+- 단, 도메인 결과 자체를 표현하는 컬럼(`deleted_at`, `deleted_reason`, `is_hidden`, `reviewed_at`, `reviewed_by` 등)은
+  업무 정합성을 위해 기존 테이블에 그대로 유지한다. 감사 로그는 그 변경 *행위*를 기록하는 별도 트레일이다.
+- 영구 보존 대상이며 ILM delete phase를 두지 않는다.
+
+### 기록 대상 이벤트
+
+- `admin_login`, `admin_logout`, `admin_login_failed`
+- `memo_soft_delete`, `memo_restore`, `memo_bulk_soft_delete`, `memo_bulk_restore`
+- `report_review_decided`
+- `relay_room_force_close`, `flipbook_room_force_close`
+- `infinite_canvas_force_close`
+- `ai_moderation_override`
+- `param_change`
+- `prompt_update`, `prompt_rollback`
+- `inquiry_status_change`, `inquiry_reply_send`, `inquiry_internal_memo`
+- `notification_send`
+- `electron_channel_change`, `electron_release_publish`
+- `admin_account_create`, `admin_account_delete` (슈퍼 관리자 전용)
+- `audit_export`
+
+### 스키마 매핑
+
+공통 로그 스키마를 그대로 사용하며, 감사 전용 필드는 `metadata`에 명시 매핑한다.
+
+| 위치 | 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- | --- |
+| top | `service` | string | 필수 | `backoffice-api` 고정 |
+| top | `level` | string | 필수 | 정상은 `INFO`, 실패는 `WARN` 또는 `ERROR` |
+| top | `event_name` | string | 필수 | 위 목록의 snake_case |
+| metadata | `actor_id` | string | 필수 | 관리자 계정 ID |
+| metadata | `actor_role` | string | 필수 | `super_admin` 또는 `admin` |
+| metadata | `actor_ip` | string | 필수 | 운영자 접속 IP |
+| metadata | `target_type` | string | 필수 | `memo`, `room`, `canvas`, `param`, `prompt`, `inquiry`, `admin_account`, `notification` 등 |
+| metadata | `target_id` | string | 필수 | 대상 식별자, 일괄 작업은 대표 ID 또는 `bulk:<count>` |
+| metadata | `action` | string | 필수 | `create`, `update`, `delete`, `restore`, `force_close`, `login`, `logout`, `rollback`, `send` 등 |
+| metadata | `reason` | string | 조건부 | 운영자 입력 사유 (파라미터 변경, 강제 종료, 삭제, 복원 시 필수) |
+| metadata | `before` | object | 조건부 | 변경 전 값 (update, rollback) |
+| metadata | `after` | object | 조건부 | 변경 후 값 (update, rollback) |
+| metadata | `result` | string | 필수 | `success`, `failure` |
+
+### 마스킹 규칙
+
+- 비밀번호, 세션 토큰, JWT, API key는 어떤 필드에도 포함하지 않는다.
+- Mattermost Webhook URL과 SMTP 자격 증명은 원문 대신 채널명/계정 식별자만 기록한다.
+- CS 문의 회신 이메일 본문은 길이와 첨부 수만 기록하고 본문은 남기지 않는다.
+- 사용자 UUID는 이미 익명 식별자이므로 마스킹하지 않는다.
+
+### 무결성 보장
+
+- 운영자 조작 핸들러는 비즈니스 트랜잭션 커밋 직후 emit한다. 트랜잭션 롤백 시에는 emit하지 않는다.
+- Kafka `logs.audit`는 `acks=all`, replication 3, `min.insync.replicas: 2`로 단일 노드 장애에도 유실을 막는다.
+- Fluent Bit 디스크 버퍼로 Kafka 일시 장애 시에도 큐잉한다.
+- 로그 emit 실패는 `audit_log_emit_failure` 카운터로 노출하고, 임계 초과 시 `#nemonic-alerts-critical`로 알림한다.
+
+### 조회 및 내보내기
+
+- 백오피스 감사 로그 화면은 OpenSearch DSL로 직접 조회한다.
+- 필터: `actor_id`, `event_name`, `action`, `target_type`, `result`, 날짜 범위
+- CSV 다운로드는 OpenSearch scroll 또는 PIT API 결과를 변환해 제공한다.
+- 다운로드 자체도 `event_name = audit_export`로 감사 로그에 기록한다.
+
+### 예시
+
+```json
+{
+  "@timestamp": "2026-05-04T14:22:31+09:00",
+  "level": "INFO",
+  "service": "backoffice-api",
+  "trace_id": "5fa1c8a0-9e6b-4c9d-8b0d-9b0a7c6e5d4f",
+  "event_name": "memo_soft_delete",
+  "message": "admin removed reported memo",
+  "metadata": {
+    "actor_id": "admin.lee",
+    "actor_role": "admin",
+    "actor_ip": "10.10.20.31",
+    "target_type": "memo",
+    "target_id": "memo-7c8d9e",
+    "action": "delete",
+    "reason": "혐오 표현",
+    "before": { "is_hidden": true, "deleted_at": null },
+    "after": {
+      "is_hidden": true,
+      "deleted_at": "2026-05-04T14:22:31+09:00",
+      "deleted_reason": "admin_removed"
+    },
+    "result": "success"
+  }
+}
+```
+
 ## 로그 표준화 규약
 
 인프라 로그와 비즈니스 이벤트 로그는 같은 단일 JSON 스키마를 공유한다.
@@ -193,6 +293,14 @@ API Server / WS Server / Nginx / Next.js / MinIO / PostgreSQL / Redis
 - `participant_count`
 - `is_host`
 - `reconnect_attempt`
+- `actor_id`
+- `actor_role`
+- `actor_ip`
+- `target_type`
+- `target_id`
+- `action`
+- `reason`
+- `result`
 
 ## ILM 정책
 
@@ -323,6 +431,7 @@ API Server / WS Server / Nginx / Next.js / MinIO / PostgreSQL / Redis
 | `system-logs-YYYY.MM.DD` | 시스템/인프라 | CPU, Memory, WebSocket, Kafka, OpenSearch |
 | `error-logs-YYYY.MM.DD` | 에러/예외 | 장애 추적 |
 | `access-logs-YYYY.MM.DD` | 접근 로그 | HTTP/API 트래픽 |
+| `audit-logs-YYYY.MM` | 운영자 조작 | 백오피스 감사 트레일, 영구 보존 |
 
 | 인덱스 | Hot | Warm | 총 보관 |
 | --- | --- | --- | --- |
@@ -330,6 +439,7 @@ API Server / WS Server / Nginx / Next.js / MinIO / PostgreSQL / Redis
 | `system-logs-*` | 3일 | 27일 | 30일 |
 | `error-logs-*` | 7일 | 83일 | 90일 |
 | `access-logs-*` | 3일 | 11일 | 14일 |
+| `audit-logs-*` | 30일 | 335일+ | 영구 (Cold archive) |
 
 Hot-Warm 아키텍처:
 

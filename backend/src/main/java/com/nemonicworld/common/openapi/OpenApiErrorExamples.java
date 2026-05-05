@@ -233,6 +233,18 @@ public final class OpenApiErrorExamples {
           "message": "잘못된 요청입니다."
         }
         """;
+    public static final String ADMIN_AUTHENTICATION_FAILED = """
+        {
+          "success": false,
+          "message": "관리자 인증에 실패했습니다."
+        }
+        """;
+    public static final String ADMIN_UNAUTHORIZED = """
+        {
+          "success": false,
+          "message": "인증이 필요합니다."
+        }
+        """;
 
     private OpenApiErrorExamples() {
     }
