@@ -146,7 +146,11 @@ pipeline {
                       -t "${IMAGE_LATEST}" \
                       "${BUILD_CTX}"
 
-                    docker images | grep "${IMAGE_REPO}" | head -5
+                    # 디버그 출력. registry에 누적된 이미지가 5개를 넘으면 head가
+                    # stdin을 일찍 닫아 grep이 SIGPIPE(141)를 받고, pipefail 때문에
+                    # 빌드가 false negative로 실패한다. 빌드 결과와 무관한 줄이므로
+                    # 실패해도 무시한다.
+                    docker images | grep "${IMAGE_REPO}" | head -5 || true
                 '''
             }
         }
