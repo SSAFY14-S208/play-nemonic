@@ -99,7 +99,7 @@ class RelayRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.roomCode").value(DEFAULT_ROOM_CODE))
             .andExpect(jsonPath("$.data.status").value("WAITING"))
             .andExpect(jsonPath("$.data.hostUserUuid").value(userUuid.toString()))
-            .andExpect(jsonPath("$.data.timeLimitSeconds").value(60))
+            .andExpect(jsonPath("$.data.timeLimitSeconds").value(45))
             .andExpect(jsonPath("$.data.minParticipants").value(2))
             .andExpect(jsonPath("$.data.maxParticipants").value(6))
             .andExpect(jsonPath("$.data.participantCount").value(1))
@@ -116,7 +116,7 @@ class RelayRoomControllerIntegrationTest {
         assertThat(storedRoom.path("roomCode").asText()).isEqualTo(DEFAULT_ROOM_CODE);
         assertThat(storedRoom.path("status").asText()).isEqualTo("WAITING");
         assertThat(storedRoom.path("hostUserUuid").asText()).isEqualTo(userUuid.toString());
-        assertThat(storedRoom.path("timeLimitSeconds").asInt()).isEqualTo(60);
+        assertThat(storedRoom.path("timeLimitSeconds").asInt()).isEqualTo(45);
         assertThat(storedRoom.path("minParticipants").asInt()).isEqualTo(2);
         assertThat(storedRoom.path("maxParticipants").asInt()).isEqualTo(6);
         assertThat(storedRoom.path("participants")).hasSize(1);
