@@ -10,9 +10,6 @@ import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerBlockedReason;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
-import com.nemonicworld.relay.entity.RelayAssignmentStatus;
-import com.nemonicworld.relay.entity.RelayDrawingPart;
-import com.nemonicworld.relay.entity.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
@@ -47,8 +44,6 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private static final int HOST_JOIN_ORDER = 0;
     private static final int ROOM_UPDATE_MAX_RETRIES = 3;
     private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
-    private static final List<RelayDrawingPart> DRAWING_PARTS = List.of(RelayDrawingPart.FACE, RelayDrawingPart.BODY,
-        RelayDrawingPart.LEGS);
     // 재접속 유예 시간은 WebSocket 연결 해제 감지 시각(disconnectedAt)을 기준으로 계산합니다.
     private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(10);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
@@ -478,43 +473,17 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      */
     private RelayRoomState updateRoomParticipants(RelayRoomState roomState, List<RelayRoomParticipant> participants,
         LocalDateTime updatedAt) {
-        return new RelayRoomState(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(),
-            roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
-            roomState.currentPart(), participants, roomState.assignments(), roomState.partStartedAt(),
-            roomState.partDeadlineAt(), roomState.gameStartedAt(), roomState.createdAt(), updatedAt);
+        return roomState.withParticipants(participants, updatedAt);
     }
 
     private RelayRoomState updateRoomTimeLimit(RelayRoomState roomState, int timeLimitSeconds,
         LocalDateTime updatedAt) {
-        return new RelayRoomState(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(), timeLimitSeconds,
-            roomState.minParticipants(), roomState.maxParticipants(), roomState.currentPart(), roomState.participants(),
-            roomState.assignments(), roomState.partStartedAt(), roomState.partDeadlineAt(), roomState.gameStartedAt(),
-            roomState.createdAt(), updatedAt);
+        return roomState.withTimeLimitSeconds(timeLimitSeconds, updatedAt);
     }
 
     private RelayRoomState startRoomState(RelayRoomState roomState, List<RelayRoomParticipant> startParticipants,
         LocalDateTime startedAt) {
-        return new RelayRoomState(roomState.roomCode(), RelayRoomStatus.PLAYING, roomState.hostUserUuid(),
-            roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
-            RelayDrawingPart.FACE, roomState.participants(), createAssignments(startParticipants), startedAt,
-            startedAt.plusSeconds(roomState.timeLimitSeconds()), startedAt, roomState.createdAt(), startedAt);
-    }
-
-    private List<RelayRoomAssignment> createAssignments(List<RelayRoomParticipant> startParticipants) {
-        int participantCount = startParticipants.size();
-        List<RelayRoomAssignment> assignments = new ArrayList<>(participantCount * DRAWING_PARTS.size());
-
-        for (int canvasIndex = 0; canvasIndex < participantCount; canvasIndex++) {
-            for (int partIndex = 0; partIndex < DRAWING_PARTS.size(); partIndex++) {
-                RelayRoomParticipant assignedParticipant = startParticipants
-                    .get((canvasIndex + partIndex) % participantCount);
-                assignments.add(
-                    new RelayRoomAssignment(canvasIndex, DRAWING_PARTS.get(partIndex), assignedParticipant.userUuid(),
-                        RelayAssignmentStatus.PENDING, null, null, null, false, false, null));
-            }
-        }
-
-        return assignments;
+        return roomState.startGame(RelayRoomAssignmentGenerator.generate(startParticipants), startedAt);
     }
 
     private RelayRoomStateResponse updateParticipantConnectionState(String viewerUserUuid, String roomCodeValue,

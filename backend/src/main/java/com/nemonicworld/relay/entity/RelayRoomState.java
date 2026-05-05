@@ -30,4 +30,22 @@ public record RelayRoomState(String roomCode, RelayRoomStatus status, String hos
     public int participantCount() {
         return participants.size();
     }
+
+    public RelayRoomState withParticipants(List<RelayRoomParticipant> updatedParticipants, LocalDateTime updatedAt) {
+        return new RelayRoomState(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants,
+            currentPart, updatedParticipants, assignments, partStartedAt, partDeadlineAt, gameStartedAt, createdAt,
+            updatedAt);
+    }
+
+    public RelayRoomState withTimeLimitSeconds(int updatedTimeLimitSeconds, LocalDateTime updatedAt) {
+        return new RelayRoomState(roomCode, status, hostUserUuid, updatedTimeLimitSeconds, minParticipants,
+            maxParticipants, currentPart, participants, assignments, partStartedAt, partDeadlineAt, gameStartedAt,
+            createdAt, updatedAt);
+    }
+
+    public RelayRoomState startGame(List<RelayRoomAssignment> generatedAssignments, LocalDateTime startedAt) {
+        return new RelayRoomState(roomCode, RelayRoomStatus.PLAYING, hostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, RelayDrawingPart.FACE, participants, generatedAssignments, startedAt,
+            startedAt.plusSeconds(timeLimitSeconds), startedAt, createdAt, startedAt);
+    }
 }
