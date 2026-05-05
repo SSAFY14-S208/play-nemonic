@@ -2,8 +2,10 @@ package com.nemonicworld.relay.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerBlockedReason;
@@ -21,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -40,6 +43,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private static final int MAX_PARTICIPANTS = 6;
     private static final int HOST_JOIN_ORDER = 0;
     private static final int ROOM_UPDATE_MAX_RETRIES = 3;
+    private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
     // 재접속 유예 시간은 WebSocket 연결 해제 감지 시각(disconnectedAt)을 기준으로 계산합니다.
     private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(10);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
@@ -51,6 +55,9 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String ROOM_UPDATE_CONFLICT_MESSAGE = "릴레이 방 상태를 갱신할 수 없습니다.";
     private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "릴레이 방에 참여하지 않은 사용자입니다.";
+    private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "제한 시간은 30초, 45초, 60초 중 하나여야 합니다.";
+    private static final String ONLY_HOST_ALLOWED_MESSAGE = "방장만 사용할 수 있습니다.";
+    private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final RoomCodeGenerator roomCodeGenerator;
@@ -161,6 +168,41 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     }
 
     /**
+     * 방장이 대기실에서 파트별 제한 시간을 변경하는 메서드입니다.
+     *
+     * 설정은 Redis 방 상태의 timeLimitSeconds와 updatedAt만 바꾸며, 참가자/방장/상태/생성 시각 등 다른 필드는 기존
+     * 값을 유지합니다. Redis 저장 충돌은 최신 상태를 다시 읽어 짧게 재시도합니다.
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public RelayRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
+        RelayRoomSettingsRequest request) {
+        int timeLimitSeconds = resolveTimeLimitSeconds(request);
+        AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
+        validateRoomCode(roomCodeValue);
+        String viewerUserUuid = viewerUser.getId().toString();
+
+        for (int attempt = 0; attempt < ROOM_UPDATE_MAX_RETRIES; attempt++) {
+            RelayRoomState roomState = findRoomState(roomCodeValue);
+            validateWaitingRoomForSettings(roomState);
+            RelayRoomParticipant participant = findParticipant(roomState, viewerUserUuid)
+                .orElseThrow(() -> new ForbiddenException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
+            validateRoomHost(viewerUserUuid, roomState, participant);
+
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            RelayRoomState updatedRoomState = updateRoomTimeLimit(roomState, timeLimitSeconds, now);
+
+            if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                RelayRoomViewerResponse viewer = createViewerResponse(viewerUserUuid, updatedRoomState, now);
+
+                return RelayRoomStateResponse.from(updatedRoomState, viewer);
+            }
+        }
+
+        throw new IllegalStateException(ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    /**
      * WebSocket 연결 성공을 Redis 참여자 연결 상태에 반영하는 메서드입니다.
      *
      * 요청 UUID는 기존 사용자로 확인하고, 이미 REST 입장/복귀 API를 통해 participants에 등록된 사용자만
@@ -214,6 +256,27 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private void validateRoomCode(String roomCodeValue) {
         if (!roomCodeGenerator.isValid(roomCodeValue)) {
             throw new BadRequestException(INVALID_ROOM_CODE_MESSAGE);
+        }
+    }
+
+    private int resolveTimeLimitSeconds(RelayRoomSettingsRequest request) {
+        if (request == null || request.timeLimitSeconds() == null
+            || !ALLOWED_TIME_LIMIT_SECONDS.contains(request.timeLimitSeconds())) {
+            throw new BadRequestException(INVALID_TIME_LIMIT_SECONDS_MESSAGE);
+        }
+
+        return request.timeLimitSeconds();
+    }
+
+    private void validateWaitingRoomForSettings(RelayRoomState roomState) {
+        if (roomState.status() != RelayRoomStatus.WAITING) {
+            throw new ConflictException(WAITING_ROOM_SETTINGS_ONLY_MESSAGE);
+        }
+    }
+
+    private void validateRoomHost(String viewerUserUuid, RelayRoomState roomState, RelayRoomParticipant participant) {
+        if (!participant.host() && !roomState.hostUserUuid().equals(viewerUserUuid)) {
+            throw new ForbiddenException(ONLY_HOST_ALLOWED_MESSAGE);
         }
     }
 
@@ -347,6 +410,13 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         return new RelayRoomState(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(),
             roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
             roomState.currentPart(), participants, roomState.createdAt(), updatedAt);
+    }
+
+    private RelayRoomState updateRoomTimeLimit(RelayRoomState roomState, int timeLimitSeconds,
+        LocalDateTime updatedAt) {
+        return new RelayRoomState(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(), timeLimitSeconds,
+            roomState.minParticipants(), roomState.maxParticipants(), roomState.currentPart(), roomState.participants(),
+            roomState.createdAt(), updatedAt);
     }
 
     private RelayRoomStateResponse updateParticipantConnectionState(String viewerUserUuid, String roomCodeValue,
