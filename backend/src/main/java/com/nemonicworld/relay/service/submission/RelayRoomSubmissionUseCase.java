@@ -1,4 +1,4 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.submission;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
@@ -11,7 +11,12 @@ import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
+import com.nemonicworld.relay.service.game.RelayPartProgress;
+import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
+import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -19,6 +24,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,9 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-/**
- * 릴레이 현재 파트 제출 유스케이스입니다.
- */
 @Service
 public class RelayRoomSubmissionUseCase {
 
@@ -48,22 +51,22 @@ public class RelayRoomSubmissionUseCase {
     private final AnonymousUserResolver anonymousUserResolver;
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomPolicy relayRoomPolicy;
+    private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelaySubmissionStorage relaySubmissionStorage;
     private final MinioStorageProperties minioStorageProperties;
 
     public RelayRoomSubmissionUseCase(AnonymousUserResolver anonymousUserResolver,
         RelayRoomRepository relayRoomRepository, RelayRoomPolicy relayRoomPolicy,
-        RelaySubmissionStorage relaySubmissionStorage, MinioStorageProperties minioStorageProperties) {
+        RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelaySubmissionStorage relaySubmissionStorage,
+        MinioStorageProperties minioStorageProperties) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
+        this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relaySubmissionStorage = relaySubmissionStorage;
         this.minioStorageProperties = minioStorageProperties;
     }
 
-    /**
-     * 현재 사용자의 현재 파트 이미지를 제출합니다.
-     */
     @Transactional(readOnly = true)
     public RelayRoomSubmissionResponse submitCurrentPart(String userUuidValue, String roomCodeValue,
         RelayRoomSubmissionRequest request) {
@@ -76,13 +79,24 @@ public class RelayRoomSubmissionUseCase {
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
             RelayRoomParticipant participant = relayRoomPolicy.requireParticipant(roomState, viewerUserUuid);
+
+            Optional<RelayRoomAssignment> requestedAssignment = findRequestedAssignment(roomState, viewerUserUuid,
+                requestedCanvasIndex, requestedPart);
+            if (isDuplicateLookupAllowed(roomState) && requestedAssignment.isPresent()) {
+                RelayRoomAssignment assignment = requestedAssignment.get();
+                if (assignment.status() == RelayAssignmentStatus.SUBMITTED) {
+                    return createResponse(roomState, assignment, true, viewerUserUuid, participant.nickname(),
+                        RelayPartAdvanceResult.notAdvanced(roomState,
+                            relayRoomPartAdvanceService.calculateProgress(roomState, assignment.part())));
+                }
+                if (assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED || assignment.autoSubmitted()) {
+                    throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
+                }
+            }
+
             relayRoomPolicy.validateAssignmentQueryableRoom(roomState);
             RelayRoomAssignment currentAssignment = relayRoomPolicy.requireCurrentAssignment(roomState, viewerUserUuid);
             validateAssignmentMatches(currentAssignment, requestedCanvasIndex, requestedPart);
-
-            if (currentAssignment.status() == RelayAssignmentStatus.SUBMITTED) {
-                return createResponse(roomState, currentAssignment, true, viewerUserUuid, participant.nickname());
-            }
 
             if (currentAssignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED
                 || currentAssignment.autoSubmitted()) {
@@ -105,16 +119,19 @@ public class RelayRoomSubmissionUseCase {
 
             RelayRoomAssignment submittedAssignment = submitAssignment(currentAssignment, drawingObjectKey,
                 hintObjectKey, now);
-            RelayRoomState updatedRoomState = roomState.withAssignments(
+            RelayRoomState submittedRoomState = roomState.withAssignments(
                 replaceAssignment(roomState.assignments(), currentAssignment, submittedAssignment), now);
+            RelayPartAdvanceResult advanceResult = relayRoomPartAdvanceService
+                .advancePartIfCompleted(submittedRoomState, currentAssignment.part(), now);
 
-            if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
-                return createResponse(updatedRoomState, submittedAssignment, false, viewerUserUuid,
-                    participant.nickname());
+            if (relayRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
+                return createResponse(advanceResult.roomState(), submittedAssignment, false, viewerUserUuid,
+                    participant.nickname(), advanceResult);
             }
 
-            log.warn("릴레이 제출 Redis 갱신 충돌로 임시 업로드 파일이 cleanup 대상이 될 수 있습니다. roomCode={}, canvasIndex={}, part={}",
-                roomState.roomCode(), currentAssignment.canvasIndex(), currentAssignment.part());
+            String cleanupMessage = "릴레이 제출 Redis 갱신 충돌로 임시 업로드 파일이 정리 대상에 남을 수 있습니다.";
+            log.warn("{} roomCode={}, canvasIndex={}, part={}", cleanupMessage, roomState.roomCode(),
+                currentAssignment.canvasIndex(), currentAssignment.part());
         }
 
         throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
@@ -130,6 +147,21 @@ public class RelayRoomSubmissionUseCase {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(ASSIGNMENT_MISMATCH_MESSAGE);
         }
+    }
+
+    private Optional<RelayRoomAssignment> findRequestedAssignment(RelayRoomState roomState, String viewerUserUuid,
+        Integer requestedCanvasIndex, RelayDrawingPart requestedPart) {
+        if (requestedCanvasIndex == null) {
+            return Optional.empty();
+        }
+
+        return roomState.assignments().stream().filter(assignment -> assignment.canvasIndex() == requestedCanvasIndex)
+            .filter(assignment -> assignment.part() == requestedPart)
+            .filter(assignment -> viewerUserUuid.equals(assignment.assignedUserUuid())).findFirst();
+    }
+
+    private boolean isDuplicateLookupAllowed(RelayRoomState roomState) {
+        return roomState.status() == RelayRoomStatus.PLAYING || roomState.status() == RelayRoomStatus.FINALIZING;
     }
 
     private void validateAssignmentMatches(RelayRoomAssignment currentAssignment, Integer requestedCanvasIndex,
@@ -220,36 +252,12 @@ public class RelayRoomSubmissionUseCase {
     }
 
     private RelayRoomSubmissionResponse createResponse(RelayRoomState roomState, RelayRoomAssignment assignment,
-        boolean alreadySubmitted, String userUuid, String nickname) {
-        SubmissionProgress progress = calculateProgress(roomState);
+        boolean alreadySubmitted, String userUuid, String nickname, RelayPartAdvanceResult advanceResult) {
+        RelayPartProgress progress = advanceResult.progress();
 
         return RelayRoomSubmissionResponse.from(roomState.roomCode(), assignment, alreadySubmitted,
-            progress.currentPartCompleted(), progress.submittedCount(), progress.totalCount(), userUuid, nickname);
-    }
-
-    private SubmissionProgress calculateProgress(RelayRoomState roomState) {
-        int totalCount = 0;
-        int submittedCount = 0;
-
-        for (RelayRoomAssignment assignment : roomState.assignments()) {
-            if (assignment.part() != roomState.currentPart()) {
-                continue;
-            }
-
-            totalCount++;
-            if (isCompleted(assignment)) {
-                submittedCount++;
-            }
-        }
-
-        return new SubmissionProgress(submittedCount, totalCount, totalCount > 0 && submittedCount == totalCount);
-    }
-
-    private boolean isCompleted(RelayRoomAssignment assignment) {
-        return assignment.status() == RelayAssignmentStatus.SUBMITTED
-            || assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED || assignment.autoSubmitted();
-    }
-
-    private record SubmissionProgress(int submittedCount, int totalCount, boolean currentPartCompleted) {
+            progress.currentPartCompleted(), progress.submittedCount(), progress.totalCount(), userUuid, nickname,
+            advanceResult.advanced(), advanceResult.nextPart(), advanceResult.nextPartStartedAt(),
+            advanceResult.nextPartDeadlineAt(), advanceResult.allPartsCompleted(), advanceResult.roomState().status());
     }
 }

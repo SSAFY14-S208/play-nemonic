@@ -22,6 +22,18 @@ import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.assignment.RelayRoomAssignmentQueryUseCase;
+import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
+import com.nemonicworld.relay.service.game.RelayRoomStartUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomConnectionUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomCreateUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomJoinUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomQueryUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomSettingsUseCase;
+import com.nemonicworld.relay.service.submission.RelayRoomSubmissionUseCase;
+import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
+import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.nio.charset.StandardCharsets;
@@ -68,6 +80,7 @@ class RelayRoomServiceImplTest {
     void setUp() {
         RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
+        RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
         relayRoomService = new RelayRoomServiceImpl(
             new RelayRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator, relayRoomRepository, inviteRepository,
                 relayRoomPolicy),
@@ -80,7 +93,7 @@ class RelayRoomServiceImplTest {
                 anonymousUserResolver, relayRoomRepository, relayRoomPolicy, relayRoomViewerFactory),
             new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relaySubmissionStorage, minioStorageProperties()),
+                relayRoomPartAdvanceService, relaySubmissionStorage, minioStorageProperties()),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory));
     }
@@ -99,8 +112,7 @@ class RelayRoomServiceImplTest {
             participant(otherJoinerUuid, "사과", false, 1));
         given(anonymousUserResolver.resolve(joinerUuid.toString())).willReturn(joiner);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
-            Optional.of(secondReadRoomState));
+        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false, true);
 
@@ -155,8 +167,7 @@ class RelayRoomServiceImplTest {
             firstReadRoomState.createdAt(), firstReadRoomState.updatedAt().plusSeconds(1));
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
-            Optional.of(secondReadRoomState));
+        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false, true);
 
@@ -305,8 +316,7 @@ class RelayRoomServiceImplTest {
             participant(secondUuid, "Peach", false, 1), participant(thirdUuid, "Berry", false, 2));
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
-            Optional.of(secondReadRoomState));
+        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false, true);
 
@@ -376,8 +386,7 @@ class RelayRoomServiceImplTest {
             participant(hostUuid, "Mango", true, 0));
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
-            Optional.of(secondReadRoomState));
+        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false, true);
 
@@ -423,6 +432,75 @@ class RelayRoomServiceImplTest {
         verify(relaySubmissionStorage, times(6)).upload(any(String.class), any());
     }
 
+    @Test
+    void submitCurrentPartAdvancesToBodyWhenFaceAssignmentsAreCompleted() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "Mango");
+        RelayRoomState roomState = playingRoomState(RelayDrawingPart.FACE,
+            List.of(assignment(0, RelayDrawingPart.FACE, hostUuid),
+                assignment(1, RelayDrawingPart.FACE, participantUuid, RelayAssignmentStatus.SUBMITTED,
+                    "relay/tmp/AB3K9Q/1/face.png", "relay/tmp/AB3K9Q/1/face-hint.png", false, false)),
+            participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomSubmissionResponse response = relayRoomService.submitCurrentPart(hostUuid.toString(), ROOM_CODE,
+            submissionRequest(0, RelayDrawingPart.FACE));
+
+        assertThat(response.currentPartCompleted()).isTrue();
+        assertThat(response.advanced()).isTrue();
+        assertThat(response.nextPart()).isEqualTo(RelayDrawingPart.BODY);
+        assertThat(response.allPartsCompleted()).isFalse();
+        assertThat(response.roomStatus()).isEqualTo(RelayRoomStatus.PLAYING);
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomState updatedRoomState = updatedStateCaptor.getValue();
+        assertThat(updatedRoomState.status()).isEqualTo(RelayRoomStatus.PLAYING);
+        assertThat(updatedRoomState.currentPart()).isEqualTo(RelayDrawingPart.BODY);
+        assertThat(Duration.between(updatedRoomState.partStartedAt(), updatedRoomState.partDeadlineAt()))
+            .isEqualTo(Duration.ofSeconds(updatedRoomState.timeLimitSeconds()));
+        assertThat(updatedRoomState.assignments()).extracting(RelayRoomAssignment::canvasIndex).containsExactly(0, 1);
+        assertThat(updatedRoomState.assignments()).extracting(RelayRoomAssignment::part)
+            .containsExactly(RelayDrawingPart.FACE, RelayDrawingPart.FACE);
+    }
+
+    @Test
+    void submitCurrentPartMovesToFinalizingWhenLegsAssignmentsAreCompleted() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "Mango");
+        RelayRoomState roomState = playingRoomState(RelayDrawingPart.LEGS,
+            List.of(assignment(0, RelayDrawingPart.LEGS, hostUuid),
+                assignment(1, RelayDrawingPart.LEGS, participantUuid, RelayAssignmentStatus.AUTO_SUBMITTED,
+                    "relay/tmp/AB3K9Q/1/legs.png", null, true, true)),
+            participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomSubmissionResponse response = relayRoomService.submitCurrentPart(hostUuid.toString(), ROOM_CODE,
+            submissionRequest(0, RelayDrawingPart.LEGS));
+
+        assertThat(response.currentPartCompleted()).isTrue();
+        assertThat(response.advanced()).isTrue();
+        assertThat(response.nextPart()).isNull();
+        assertThat(response.allPartsCompleted()).isTrue();
+        assertThat(response.roomStatus()).isEqualTo(RelayRoomStatus.FINALIZING);
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomState updatedRoomState = updatedStateCaptor.getValue();
+        assertThat(updatedRoomState.status()).isEqualTo(RelayRoomStatus.FINALIZING);
+        assertThat(updatedRoomState.currentPart()).isEqualTo(RelayDrawingPart.LEGS);
+    }
+
     private void assertAssignment(RelayRoomAssignment assignment, int canvasIndex, RelayDrawingPart part,
         UUID assignedUserUuid) {
         assertThat(assignment.canvasIndex()).isEqualTo(canvasIndex);
@@ -434,6 +512,11 @@ class RelayRoomServiceImplTest {
         assertThat(assignment.submittedAt()).isNull();
         assertThat(assignment.empty()).isFalse();
         assertThat(assignment.autoSubmitted()).isFalse();
+    }
+
+    private void givenRoomStateReads(RelayRoomState firstReadRoomState, RelayRoomState secondReadRoomState) {
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState))
+            .willReturn(Optional.of(secondReadRoomState));
     }
 
     private AppUser appUserWithNickname(UUID userUuid, String nickname) {
@@ -478,6 +561,16 @@ class RelayRoomServiceImplTest {
     private RelayRoomAssignment assignment(int canvasIndex, RelayDrawingPart part, UUID assignedUserUuid) {
         return new RelayRoomAssignment(canvasIndex, part, assignedUserUuid.toString(), RelayAssignmentStatus.PENDING,
             null, null, null, false, false, null);
+    }
+
+    private RelayRoomAssignment assignment(int canvasIndex, RelayDrawingPart part, UUID assignedUserUuid,
+        RelayAssignmentStatus status, String objectKey, String hintObjectKey, boolean empty, boolean autoSubmitted) {
+        LocalDateTime submittedAt = status == RelayAssignmentStatus.PENDING
+            ? null
+            : LocalDateTime.now().minusSeconds(5).truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomAssignment(canvasIndex, part, assignedUserUuid.toString(), status, null, objectKey,
+            hintObjectKey, empty, autoSubmitted, submittedAt);
     }
 
     private RelayRoomSubmissionRequest submissionRequest(int canvasIndex, RelayDrawingPart part) {

@@ -1,4 +1,4 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.submission;
 
 import com.nemonicworld.common.exception.FileStorageException;
 import com.nemonicworld.files.config.MinioStorageProperties;

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
@@ -20,7 +21,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -161,11 +164,44 @@ class RedisRelayRoomRepositoryTest {
         assertThat(roomState.participantCount()).isEqualTo(1);
     }
 
+    @Test
+    void findExpiredPlayingRoomsScansRoomKeysAndFiltersExpiredPlayingRooms() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomParticipant host = participant(hostUuid, "Mango", true, 0);
+        RelayRoomState expiredPlayingRoom = roomState("EXPIRED", RelayRoomStatus.PLAYING, RelayDrawingPart.FACE,
+            now.minusSeconds(45), now, host);
+        RelayRoomState futurePlayingRoom = roomState("FUTURE1", RelayRoomStatus.PLAYING, RelayDrawingPart.FACE,
+            now.minusSeconds(10), now.plusSeconds(30), host);
+        RelayRoomState waitingRoom = roomState("WAIT01", RelayRoomStatus.WAITING, null, null, null, host);
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, true, false);
+        given(cursor.next()).willReturn("relay:room:EXPIRED", "relay:room:FUTURE1", "relay:room:WAIT01");
+        given(valueOperations.get("relay:room:EXPIRED")).willReturn(serialize(expiredPlayingRoom));
+        given(valueOperations.get("relay:room:FUTURE1")).willReturn(serialize(futurePlayingRoom));
+        given(valueOperations.get("relay:room:WAIT01")).willReturn(serialize(waitingRoom));
+
+        List<RelayRoomState> expiredRooms = repository.findExpiredPlayingRooms(now, 10);
+
+        assertThat(expiredRooms).containsExactly(expiredPlayingRoom);
+        verify(cursor).close();
+    }
+
     private RelayRoomState roomState(RelayRoomParticipant... participants) {
         LocalDateTime createdAt = LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS);
 
         return new RelayRoomState(ROOM_CODE, RelayRoomStatus.WAITING, participants[0].userUuid(), 60, 2, 6, null,
             List.of(participants), createdAt, createdAt.plusSeconds(1));
+    }
+
+    private RelayRoomState roomState(String roomCode, RelayRoomStatus status, RelayDrawingPart currentPart,
+        LocalDateTime partStartedAt, LocalDateTime partDeadlineAt, RelayRoomParticipant... participants) {
+        LocalDateTime createdAt = LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomState(roomCode, status, participants[0].userUuid(), 60, 2, 6, currentPart,
+            List.of(participants), List.of(), partStartedAt, partDeadlineAt, partStartedAt, createdAt,
+            createdAt.plusSeconds(1));
     }
 
     private RelayRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder) {
@@ -189,5 +225,10 @@ class RedisRelayRoomRepositoryTest {
     @SuppressWarnings("unchecked")
     private ValueOperations<String, String> createValueOperationsMock() {
         return (ValueOperations<String, String>) mock(ValueOperations.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Cursor<String> createCursorMock() {
+        return (Cursor<String>) mock(Cursor.class);
     }
 }

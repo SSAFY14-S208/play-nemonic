@@ -6,6 +6,14 @@ import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
+import com.nemonicworld.relay.service.assignment.RelayRoomAssignmentQueryUseCase;
+import com.nemonicworld.relay.service.game.RelayRoomStartUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomConnectionUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomCreateUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomJoinUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomQueryUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomSettingsUseCase;
+import com.nemonicworld.relay.service.submission.RelayRoomSubmissionUseCase;
 import org.springframework.stereotype.Service;
 
 /**

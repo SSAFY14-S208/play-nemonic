@@ -1,4 +1,4 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.support;
 
 import com.nemonicworld.relay.dto.response.RelayRoomViewerBlockedReason;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
@@ -23,7 +23,7 @@ public class RelayRoomViewerFactory {
     /**
      * viewer 응답을 생성합니다.
      */
-    RelayRoomViewerResponse create(String viewerUserUuid, RelayRoomState roomState, LocalDateTime now) {
+    public RelayRoomViewerResponse create(String viewerUserUuid, RelayRoomState roomState, LocalDateTime now) {
         Optional<RelayRoomParticipant> participant = relayRoomPolicy.findParticipant(roomState, viewerUserUuid);
 
         if (participant.isPresent()) {

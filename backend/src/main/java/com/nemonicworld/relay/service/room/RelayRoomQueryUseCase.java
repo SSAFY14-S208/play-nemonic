@@ -1,8 +1,10 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.room;
 
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
 import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;

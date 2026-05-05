@@ -171,6 +171,11 @@ public class RelayRoomController {
         RelayRoomSubmissionResponse response = relayRoomService.submitCurrentPart(userUuid, roomCode, request);
         if (!response.alreadySubmitted()) {
             relayRoomEventPublisher.publishPartSubmitted(response);
+            if (response.advanced() && response.allPartsCompleted()) {
+                relayRoomEventPublisher.publishAllPartsCompleted(response);
+            } else if (response.advanced()) {
+                relayRoomEventPublisher.publishPartStarted(response);
+            }
         }
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)

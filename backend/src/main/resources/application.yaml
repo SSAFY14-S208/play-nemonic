@@ -57,3 +57,9 @@ nemonic:
       bucket: ${MINIO_BUCKET:nemonic-local}
       presign-expiration-minutes: ${MINIO_PRESIGN_EXPIRATION_MINUTES:10}
       max-upload-byte-size: ${FILE_UPLOAD_MAX_BYTE_SIZE:52428800}
+  relay:
+    timeout:
+      enabled: ${RELAY_TIMEOUT_ENABLED:true}
+      scan-delay-ms: ${RELAY_TIMEOUT_SCAN_DELAY_MS:1000}
+      scan-limit: ${RELAY_TIMEOUT_SCAN_LIMIT:100}
+      auto-submit-grace-ms: ${RELAY_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}

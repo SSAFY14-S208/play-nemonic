@@ -1,4 +1,4 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.room;
 
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.invite.redis.InviteMetadata;
@@ -8,6 +8,7 @@ import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;

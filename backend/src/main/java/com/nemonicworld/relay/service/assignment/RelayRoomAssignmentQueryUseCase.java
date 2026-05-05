@@ -1,10 +1,11 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.assignment;
 
 import com.nemonicworld.relay.dto.response.RelayRoomAssignmentHintResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.Duration;

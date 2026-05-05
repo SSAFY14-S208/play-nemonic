@@ -3,10 +3,15 @@ package com.nemonicworld.relay.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.entity.RelayRoomStatus;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
@@ -101,6 +106,41 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
 
         // JSON 파싱 실패는 클라이언트 입력 문제가 아니라 저장 데이터 문제이므로 내부 오류로 올립니다.
         return Optional.of(deserialize(roomStateValue));
+    }
+
+    /**
+     * SCAN으로 릴레이 방 key를 순회하며 마감된 PLAYING 방만 조회합니다.
+     */
+    @Override
+    public List<RelayRoomState> findExpiredPlayingRooms(LocalDateTime now, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<RelayRoomState> expiredRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && expiredRooms.size() < limit) {
+                findExpiredPlayingRoom(roomKeys.next(), now).ifPresent(expiredRooms::add);
+            }
+        }
+
+        return expiredRooms;
+    }
+
+    private Optional<RelayRoomState> findExpiredPlayingRoom(String roomKey, LocalDateTime now) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.PLAYING || roomState.currentPart() == null
+            || roomState.partDeadlineAt() == null || roomState.partDeadlineAt().isAfter(now)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
     }
 
     private String createRoomKey(String roomCode) {
