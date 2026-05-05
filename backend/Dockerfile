@@ -1,64 +1,22 @@
 # ============================================================
-# Spring Boot 애플리케이션 Dockerfile (캐시 최적화 버전)
-# Multi-stage build: 빌드 -> 경량 런타임 이미지
-# ============================================================
-
-# Stage 1: Build
-FROM eclipse-temurin:21-jdk-jammy AS builder
-
-WORKDIR /app
-
-# ------------------------------------------------------------
-# Layer 1: Gradle wrapper (거의 안 바뀜)
-# ------------------------------------------------------------
-COPY gradlew ./
-COPY gradle ./gradle
-RUN chmod +x gradlew
-
-# ------------------------------------------------------------
-# Layer 2: 의존성 정의 파일 (가끔 바뀜)
-# ------------------------------------------------------------
-COPY settings.gradle build.gradle ./
-
-# ------------------------------------------------------------
-# Layer 3: 의존성 다운로드 (settings/build.gradle 안 바뀌면 캐시 hit)
-# || true 제거 - 진짜 실패하면 빌드 중단
-# ------------------------------------------------------------
-RUN ./gradlew --no-daemon dependencies --refresh-dependencies
-
-# ------------------------------------------------------------
-# Layer 4: 설정 파일 (가끔 바뀜, src보다 자주 안 바뀜)
-# ------------------------------------------------------------
-COPY config ./config
-
-# ------------------------------------------------------------
-# Layer 5: 소스 코드 (가장 자주 바뀜)
-# ------------------------------------------------------------
-COPY src ./src
-
-# ------------------------------------------------------------
-# Layer 6: bootJar 빌드 (소스 변경 시에만 실행)
-# ------------------------------------------------------------
-RUN ./gradlew --no-daemon bootJar -x test && \
-    ls -la build/libs/
-
-# ============================================================
-# Stage 2: Runtime
+# Spring Boot 런타임 이미지
+#
+# 컴파일은 CI(Jenkins)에서 한 번만 수행하고, 산출물(boot jar)을
+# docker build context로 전달받는다. Dockerfile 안에서 다시
+# 컴파일하지 않으므로 Jenkins Test 단계와 중복되지 않는다.
+#
+# 빌드 컨텍스트에는 Dockerfile + app.jar 두 파일만 포함된다.
+# (Jenkins가 mktemp 디렉토리에 staging 후 docker build 호출)
 # ============================================================
 FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 
-# curl 설치 (healthcheck용)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
-
 # 비루트 유저
 RUN groupadd -r spring && useradd -r -g spring spring
 
-# 빌드 결과 복사
-COPY --from=builder /app/build/libs/*.jar app.jar
+# 빌드 결과 복사 (Jenkins staging 디렉토리에서 전달됨)
+COPY app.jar app.jar
 RUN chown spring:spring app.jar
 
 USER spring
