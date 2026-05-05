@@ -12,6 +12,7 @@ import java.util.List;
  */
 public record RelayRoomEventStateResponse(String roomCode, RelayRoomStatus status, String hostUserUuid,
     int timeLimitSeconds, int minParticipants, int maxParticipants, int participantCount, RelayDrawingPart currentPart,
+    int assignmentCount, LocalDateTime partStartedAt, LocalDateTime partDeadlineAt, LocalDateTime gameStartedAt,
     List<RelayRoomParticipantResponse> participants, LocalDateTime createdAt, LocalDateTime updatedAt) {
 
     /**
@@ -21,6 +22,8 @@ public record RelayRoomEventStateResponse(String roomCode, RelayRoomStatus statu
         return new RelayRoomEventStateResponse(roomStateResponse.roomCode(), roomStateResponse.status(),
             roomStateResponse.hostUserUuid(), roomStateResponse.timeLimitSeconds(), roomStateResponse.minParticipants(),
             roomStateResponse.maxParticipants(), roomStateResponse.participantCount(), roomStateResponse.currentPart(),
-            roomStateResponse.participants(), roomStateResponse.createdAt(), roomStateResponse.updatedAt());
+            roomStateResponse.assignmentCount(), roomStateResponse.partStartedAt(), roomStateResponse.partDeadlineAt(),
+            roomStateResponse.gameStartedAt(), roomStateResponse.participants(), roomStateResponse.createdAt(),
+            roomStateResponse.updatedAt());
     }
 }
