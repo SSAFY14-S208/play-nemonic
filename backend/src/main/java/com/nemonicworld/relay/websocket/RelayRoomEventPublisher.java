@@ -57,6 +57,20 @@ public class RelayRoomEventPublisher {
     }
 
     /**
+     * 게임 시작이 반영된 최신 방 상태를 방 전체에 알립니다.
+     */
+    public void publishGameStarted(RelayRoomStateResponse roomStateResponse) {
+        publishRoomEvent(RelayRoomEventType.GAME_STARTED, roomStateResponse);
+    }
+
+    /**
+     * 현재 파트 시작과 제한 시간 정보를 방 전체에 알립니다.
+     */
+    public void publishPartStarted(RelayRoomStateResponse roomStateResponse) {
+        publishRoomEvent(RelayRoomEventType.PART_STARTED, roomStateResponse);
+    }
+
+    /**
      * 같은 roomCode + UUID로 교체된 기존 세션 개인 큐에 중복 접속 종료 안내를 보냅니다.
      */
     public void publishDuplicateSessionClosed(String sessionId, String roomCode) {
