@@ -14,6 +14,9 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 릴레이 방 생성 유스케이스입니다.
+ */
 @Service
 public class RelayRoomCreateUseCase {
 
@@ -30,6 +33,9 @@ public class RelayRoomCreateUseCase {
         this.relayRoomPolicy = relayRoomPolicy;
     }
 
+    /**
+     * 새 릴레이 방을 생성합니다.
+     */
     @Transactional(readOnly = true)
     public RelayRoomCreateResponse createRoom(String userUuidValue) {
         AppUser hostUser = anonymousUserResolver.resolve(userUuidValue);

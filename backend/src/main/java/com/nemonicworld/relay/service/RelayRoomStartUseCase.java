@@ -13,6 +13,9 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 릴레이 게임 시작 유스케이스입니다.
+ */
 @Service
 public class RelayRoomStartUseCase {
 
@@ -29,6 +32,9 @@ public class RelayRoomStartUseCase {
         this.relayRoomViewerFactory = relayRoomViewerFactory;
     }
 
+    /**
+     * 릴레이 게임을 시작합니다.
+     */
     @Transactional(readOnly = true)
     public RelayRoomStateResponse startRoom(String userUuidValue, String roomCodeValue) {
         AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);

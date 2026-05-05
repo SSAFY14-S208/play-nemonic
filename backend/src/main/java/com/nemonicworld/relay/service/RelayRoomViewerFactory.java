@@ -8,6 +8,9 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
+/**
+ * 릴레이 방 viewer 응답 생성 팩토리입니다.
+ */
 @Component
 public class RelayRoomViewerFactory {
 
@@ -17,6 +20,9 @@ public class RelayRoomViewerFactory {
         this.relayRoomPolicy = relayRoomPolicy;
     }
 
+    /**
+     * viewer 응답을 생성합니다.
+     */
     RelayRoomViewerResponse create(String viewerUserUuid, RelayRoomState roomState, LocalDateTime now) {
         Optional<RelayRoomParticipant> participant = relayRoomPolicy.findParticipant(roomState, viewerUserUuid);
 
@@ -27,6 +33,9 @@ public class RelayRoomViewerFactory {
         return createNonParticipantViewerResponse(viewerUserUuid, roomState);
     }
 
+    /**
+     * 참여자 viewer 응답을 생성합니다.
+     */
     private RelayRoomViewerResponse createParticipantViewerResponse(String viewerUserUuid, RelayRoomState roomState,
         RelayRoomParticipant participant, LocalDateTime now) {
         boolean host = participant.host() || roomState.hostUserUuid().equals(viewerUserUuid);
@@ -43,6 +52,9 @@ public class RelayRoomViewerFactory {
             RelayRoomViewerBlockedReason.RECONNECT_EXPIRED);
     }
 
+    /**
+     * 비참여자 viewer 응답을 생성합니다.
+     */
     private RelayRoomViewerResponse createNonParticipantViewerResponse(String viewerUserUuid,
         RelayRoomState roomState) {
         RelayRoomViewerBlockedReason blockedReason = relayRoomPolicy.findJoinBlockedReason(roomState);

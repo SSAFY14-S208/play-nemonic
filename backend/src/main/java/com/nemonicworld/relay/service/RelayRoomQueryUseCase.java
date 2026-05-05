@@ -10,6 +10,9 @@ import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 릴레이 방 상태 조회 유스케이스입니다.
+ */
 @Service
 public class RelayRoomQueryUseCase {
 
@@ -24,6 +27,9 @@ public class RelayRoomQueryUseCase {
         this.relayRoomViewerFactory = relayRoomViewerFactory;
     }
 
+    /**
+     * 릴레이 방 상태를 조회합니다.
+     */
     @Transactional(readOnly = true)
     public RelayRoomStateResponse getRoomState(String userUuidValue, String roomCodeValue) {
         AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);

@@ -59,23 +59,35 @@ public class RelayRoomPolicy {
         this.relayRoomRepository = relayRoomRepository;
     }
 
+    /**
+     * 방 상태를 조회합니다.
+     */
     RelayRoomState findRoomState(String roomCodeValue) {
         return relayRoomRepository.findByRoomCode(roomCodeValue)
             .orElseThrow(() -> new NotFoundException(ROOM_NOT_FOUND_MESSAGE));
     }
 
+    /**
+     * 닉네임 설정 여부를 검증합니다.
+     */
     void validateNicknameRegistered(AppUser appUser) {
         if (!StringUtils.hasText(appUser.getNickname()) || AppUser.ANONYMOUS_NICKNAME.equals(appUser.getNickname())) {
             throw new BadRequestException(NICKNAME_REQUIRED_MESSAGE);
         }
     }
 
+    /**
+     * 방 코드 형식을 검증합니다.
+     */
     void validateRoomCode(String roomCodeValue) {
         if (!roomCodeGenerator.isValid(roomCodeValue)) {
             throw new BadRequestException(INVALID_ROOM_CODE_MESSAGE);
         }
     }
 
+    /**
+     * 제한 시간 요청값을 검증합니다.
+     */
     int resolveTimeLimitSeconds(RelayRoomSettingsRequest request) {
         if (request == null || request.timeLimitSeconds() == null
             || !ALLOWED_TIME_LIMIT_SECONDS.contains(request.timeLimitSeconds())) {
@@ -85,12 +97,18 @@ public class RelayRoomPolicy {
         return request.timeLimitSeconds();
     }
 
+    /**
+     * 설정 변경 가능한 방 상태인지 검증합니다.
+     */
     void validateWaitingRoomForSettings(RelayRoomState roomState) {
         if (roomState.status() != RelayRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_SETTINGS_ONLY_MESSAGE);
         }
     }
 
+    /**
+     * 게임 시작 가능한 방 상태인지 검증합니다.
+     */
     void validateStartableRoomStatus(RelayRoomState roomState) {
         if (roomState.status() == RelayRoomStatus.WAITING) {
             return;
@@ -103,6 +121,9 @@ public class RelayRoomPolicy {
         throw new ConflictException(ROOM_CLOSED_MESSAGE);
     }
 
+    /**
+     * 게임 시작 대상 참여자를 조회합니다.
+     */
     List<RelayRoomParticipant> findStartParticipants(RelayRoomState roomState) {
         List<RelayRoomParticipant> startParticipants = roomState.participants().stream()
             .sorted(Comparator.comparingInt(RelayRoomParticipant::joinOrder)).toList();
@@ -122,27 +143,42 @@ public class RelayRoomPolicy {
         return startParticipants;
     }
 
+    /**
+     * 요청자가 방장인지 검증합니다.
+     */
     void validateRoomHost(String viewerUserUuid, RelayRoomState roomState, RelayRoomParticipant participant) {
         if (!participant.host() && !roomState.hostUserUuid().equals(viewerUserUuid)) {
             throw new ForbiddenException(ONLY_HOST_ALLOWED_MESSAGE);
         }
     }
 
+    /**
+     * 요청자 참여자 정보를 찾습니다.
+     */
     Optional<RelayRoomParticipant> findParticipant(RelayRoomState roomState, String viewerUserUuid) {
         return roomState.participants().stream()
             .filter(roomParticipant -> roomParticipant.userUuid().equals(viewerUserUuid)).findFirst();
     }
 
+    /**
+     * 요청자 참여자 정보를 필수로 조회합니다.
+     */
     RelayRoomParticipant requireParticipant(RelayRoomState roomState, String viewerUserUuid) {
         return findParticipant(roomState, viewerUserUuid)
             .orElseThrow(() -> new ForbiddenException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
     }
 
+    /**
+     * WebSocket 연결 대상 참여자를 필수로 조회합니다.
+     */
     RelayRoomParticipant requireConnectionParticipant(RelayRoomState roomState, String viewerUserUuid) {
         return findParticipant(roomState, viewerUserUuid)
             .orElseThrow(() -> new ConflictException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
     }
 
+    /**
+     * 입장 가능한 방 상태인지 검증합니다.
+     */
     void validateJoinableRoom(RelayRoomState roomState) {
         if (roomState.status() == RelayRoomStatus.WAITING) {
             if (roomState.participantCount() >= roomState.maxParticipants()) {
@@ -159,11 +195,17 @@ public class RelayRoomPolicy {
         throw new ConflictException(ROOM_CLOSED_MESSAGE);
     }
 
+    /**
+     * 다음 입장 순서를 계산합니다.
+     */
     int nextJoinOrder(RelayRoomState roomState) {
         return roomState.participants().stream().map(RelayRoomParticipant::joinOrder).max(Comparator.naturalOrder())
             .orElse(-1) + 1;
     }
 
+    /**
+     * 재접속 가능 여부를 계산합니다.
+     */
     boolean canReconnect(RelayRoomParticipant participant, LocalDateTime now) {
         LocalDateTime disconnectedAt = participant.disconnectedAt();
 
@@ -174,12 +216,18 @@ public class RelayRoomPolicy {
         return !disconnectedAt.plus(RECONNECT_GRACE_PERIOD).isBefore(now);
     }
 
+    /**
+     * 재접속 가능 상태인지 검증합니다.
+     */
     void requireReconnectable(RelayRoomParticipant participant, LocalDateTime now) {
         if (!canReconnect(participant, now)) {
             throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
         }
     }
 
+    /**
+     * WebSocket 연결 가능한 방 상태인지 검증합니다.
+     */
     void validateWebSocketConnectableRoom(RelayRoomState roomState) {
         if (roomState.status() == RelayRoomStatus.WAITING || roomState.status() == RelayRoomStatus.PLAYING) {
             return;
@@ -188,6 +236,9 @@ public class RelayRoomPolicy {
         throw new ConflictException(ROOM_CLOSED_MESSAGE);
     }
 
+    /**
+     * 비참여자 입장 차단 사유를 계산합니다.
+     */
     RelayRoomViewerBlockedReason findJoinBlockedReason(RelayRoomState roomState) {
         if (roomState.status() == RelayRoomStatus.WAITING) {
             if (roomState.participantCount() >= roomState.maxParticipants()) {

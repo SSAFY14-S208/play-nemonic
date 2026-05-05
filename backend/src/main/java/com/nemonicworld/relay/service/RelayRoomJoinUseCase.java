@@ -15,6 +15,9 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 릴레이 방 입장과 재입장 유스케이스입니다.
+ */
 @Service
 public class RelayRoomJoinUseCase {
 
@@ -31,6 +34,9 @@ public class RelayRoomJoinUseCase {
         this.relayRoomViewerFactory = relayRoomViewerFactory;
     }
 
+    /**
+     * 릴레이 방 입장 또는 재입장을 처리합니다.
+     */
     @Transactional(readOnly = true)
     public RelayRoomStateResponse joinRoom(String userUuidValue, String roomCodeValue) {
         AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
@@ -63,6 +69,9 @@ public class RelayRoomJoinUseCase {
         throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
+    /**
+     * 기존 참여자의 입장 재호출을 처리합니다.
+     */
     private Optional<RelayRoomStateResponse> joinExistingParticipant(String viewerUserUuid, RelayRoomState roomState,
         RelayRoomParticipant participant, LocalDateTime now) {
         if (participant.connected()) {
@@ -86,6 +95,9 @@ public class RelayRoomJoinUseCase {
         return Optional.of(RelayRoomStateResponse.from(updatedRoomState, viewer));
     }
 
+    /**
+     * 새 참여자를 방에 추가합니다.
+     */
     private Optional<RelayRoomStateResponse> joinNewParticipant(AppUser viewerUser, RelayRoomState roomState,
         LocalDateTime now) {
         relayRoomPolicy.validateJoinableRoom(roomState);
@@ -107,6 +119,9 @@ public class RelayRoomJoinUseCase {
         return Optional.of(RelayRoomStateResponse.from(updatedRoomState, viewer));
     }
 
+    /**
+     * 특정 참여자를 교체한 방 상태를 생성합니다.
+     */
     private RelayRoomState replaceParticipant(RelayRoomState roomState, RelayRoomParticipant updatedParticipant,
         LocalDateTime updatedAt) {
         List<RelayRoomParticipant> participants = roomState.participants().stream()

@@ -5,6 +5,9 @@ import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import org.springframework.stereotype.Service;
 
+/**
+ * 릴레이 방 기능을 유스케이스로 위임하는 서비스입니다.
+ */
 @Service
 public class RelayRoomServiceImpl implements RelayRoomService {
 

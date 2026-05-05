@@ -13,6 +13,9 @@ import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 릴레이 방 설정 변경 유스케이스입니다.
+ */
 @Service
 public class RelayRoomSettingsUseCase {
 
@@ -30,6 +33,9 @@ public class RelayRoomSettingsUseCase {
         this.relayRoomViewerFactory = relayRoomViewerFactory;
     }
 
+    /**
+     * 릴레이 방 제한 시간을 변경합니다.
+     */
     @Transactional(readOnly = true)
     public RelayRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
         RelayRoomSettingsRequest request) {
