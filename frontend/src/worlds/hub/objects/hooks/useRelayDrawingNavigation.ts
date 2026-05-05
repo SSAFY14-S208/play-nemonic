@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
-import { HUB_RELAY_DRAWING_URL } from '../../constants'
+import { useRouter } from 'next/navigation'
+import { HUB_RELAY_DRAWING_PATH } from '../../constants'
 
 function setBodyCursor(cursor: string) {
   if (typeof document === 'undefined') return
@@ -8,10 +9,13 @@ function setBodyCursor(cursor: string) {
 }
 
 export function useRelayDrawingNavigation() {
+  const router = useRouter()
+
   const handleRelayDrawingClick = useCallback((event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
-    window.location.assign(HUB_RELAY_DRAWING_URL)
-  }, [])
+    setBodyCursor('')
+    router.push(HUB_RELAY_DRAWING_PATH)
+  }, [router])
 
   const handleRelayDrawingPointerEnter = useCallback((event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation()
