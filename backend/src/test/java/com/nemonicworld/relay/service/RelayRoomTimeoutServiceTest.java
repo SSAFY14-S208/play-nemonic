@@ -41,6 +41,7 @@ class RelayRoomTimeoutServiceTest {
 
     private static final String ROOM_CODE = "AB3K9Q";
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 5, 14, 1, 16);
+    private static final long AUTO_SUBMIT_GRACE_MS = 2_000L;
 
     @Mock
     private RelayRoomRepository relayRoomRepository;
@@ -53,13 +54,27 @@ class RelayRoomTimeoutServiceTest {
     @BeforeEach
     void setUp() {
         relayRoomTimeoutService = new RelayRoomTimeoutService(relayRoomRepository, new RelayRoomPartAdvanceService(),
-            relayRoomEventPublisher, 100);
+            relayRoomEventPublisher, 100, AUTO_SUBMIT_GRACE_MS);
     }
 
     @Test
     void processExpiredRoomDoesNothingBeforeDeadline() {
         UUID hostUuid = UUID.randomUUID();
         RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(10), NOW.plusSeconds(1),
+            List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        RelayRoomTimeoutResult result = relayRoomTimeoutService.processExpiredRoom(ROOM_CODE, NOW);
+
+        assertThat(result.processed()).isFalse();
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verifyNoInteractions(relayRoomEventPublisher);
+    }
+
+    @Test
+    void processExpiredRoomDoesNothingDuringAutoSubmitGracePeriod() {
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), NOW.minusSeconds(1),
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
 
@@ -89,7 +104,7 @@ class RelayRoomTimeoutServiceTest {
     void processExpiredRoomAutoSubmitsPendingFaceAndAdvancesToBody() {
         UUID hostUuid = UUID.randomUUID();
         UUID participantUuid = UUID.randomUUID();
-        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), NOW,
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid),
                 submittedAssignment(1, RelayDrawingPart.FACE, participantUuid)),
             participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
@@ -124,7 +139,7 @@ class RelayRoomTimeoutServiceTest {
     void processExpiredRoomAutoSubmitsAllPendingAssignments() {
         UUID hostUuid = UUID.randomUUID();
         UUID participantUuid = UUID.randomUUID();
-        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), NOW,
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid),
                 pendingAssignment(1, RelayDrawingPart.FACE, participantUuid)),
             participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
@@ -149,7 +164,7 @@ class RelayRoomTimeoutServiceTest {
     void processExpiredRoomAutoSubmitsBodyAndAdvancesToLegs() {
         UUID hostUuid = UUID.randomUUID();
         UUID participantUuid = UUID.randomUUID();
-        RelayRoomState roomState = playingRoom(RelayDrawingPart.BODY, NOW.minusSeconds(45), NOW,
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.BODY, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.BODY, hostUuid),
                 submittedAssignment(1, RelayDrawingPart.BODY, participantUuid)),
             participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
@@ -169,7 +184,7 @@ class RelayRoomTimeoutServiceTest {
     void processExpiredRoomAutoSubmitsLegsAndMovesToFinalizing() {
         UUID hostUuid = UUID.randomUUID();
         UUID participantUuid = UUID.randomUUID();
-        RelayRoomState roomState = playingRoom(RelayDrawingPart.LEGS, NOW.minusSeconds(45), NOW,
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.LEGS, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.LEGS, hostUuid),
                 submittedAssignment(1, RelayDrawingPart.LEGS, participantUuid)),
             participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
@@ -189,7 +204,7 @@ class RelayRoomTimeoutServiceTest {
     @Test
     void processExpiredRoomRetriesRedisSaveConflict() {
         UUID hostUuid = UUID.randomUUID();
-        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), NOW,
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
@@ -206,7 +221,7 @@ class RelayRoomTimeoutServiceTest {
     @Test
     void processExpiredRoomDoesNotDuplicateEventsAfterAlreadyAdvanced() {
         UUID hostUuid = UUID.randomUUID();
-        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), NOW,
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
@@ -226,10 +241,10 @@ class RelayRoomTimeoutServiceTest {
     @Test
     void processExpiredRoomsSummarizesScannedRooms() {
         UUID hostUuid = UUID.randomUUID();
-        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), NOW,
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
         RelayRoomTimeoutService limitedService = new RelayRoomTimeoutService(relayRoomRepository,
-            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, 5);
+            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, 5, AUTO_SUBMIT_GRACE_MS);
         given(relayRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(5)))
             .willReturn(List.of(roomState));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
@@ -241,6 +256,10 @@ class RelayRoomTimeoutServiceTest {
         assertThat(result.scannedRoomCount()).isEqualTo(1);
         assertThat(result.processedRoomCount()).isEqualTo(1);
         assertThat(result.autoSubmittedCount()).isEqualTo(1);
+    }
+
+    private LocalDateTime expiredDeadline() {
+        return NOW.minus(AUTO_SUBMIT_GRACE_MS + 1_000L, ChronoUnit.MILLIS);
     }
 
     private RelayRoomState captureUpdatedRoomState() {

@@ -8,6 +8,7 @@ import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -29,14 +30,17 @@ public class RelayRoomTimeoutService {
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final int scanLimit;
+    private final Duration autoSubmitGrace;
 
     public RelayRoomTimeoutService(RelayRoomRepository relayRoomRepository,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
-        @Value("${nemonic.relay.timeout.scan-limit:100}") int scanLimit) {
+        @Value("${nemonic.relay.timeout.scan-limit:100}") int scanLimit,
+        @Value("${nemonic.relay.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs) {
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.scanLimit = scanLimit;
+        this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
     }
 
     /**
@@ -44,7 +48,8 @@ public class RelayRoomTimeoutService {
      */
     public RelayTimeoutProcessResult processExpiredRooms() {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        List<RelayRoomState> expiredRooms = relayRoomRepository.findExpiredPlayingRooms(now, scanLimit);
+        LocalDateTime autoSubmitCutoff = now.minus(autoSubmitGrace);
+        List<RelayRoomState> expiredRooms = relayRoomRepository.findExpiredPlayingRooms(autoSubmitCutoff, scanLimit);
         int processedRoomCount = 0;
         int autoSubmittedCount = 0;
 
@@ -101,7 +106,7 @@ public class RelayRoomTimeoutService {
 
     private boolean isExpiredPlayingRoom(RelayRoomState roomState, LocalDateTime now) {
         return roomState != null && roomState.status() == RelayRoomStatus.PLAYING && roomState.currentPart() != null
-            && roomState.partDeadlineAt() != null && !roomState.partDeadlineAt().isAfter(now);
+            && roomState.partDeadlineAt() != null && !roomState.partDeadlineAt().plus(autoSubmitGrace).isAfter(now);
     }
 
     private AutoSubmitUpdate autoSubmitPendingAssignments(RelayRoomState roomState, RelayDrawingPart currentPart,

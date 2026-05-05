@@ -62,3 +62,4 @@ nemonic:
       enabled: ${RELAY_TIMEOUT_ENABLED:true}
       scan-delay-ms: ${RELAY_TIMEOUT_SCAN_DELAY_MS:1000}
       scan-limit: ${RELAY_TIMEOUT_SCAN_LIMIT:100}
+      auto-submit-grace-ms: ${RELAY_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}
