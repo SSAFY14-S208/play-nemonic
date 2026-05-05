@@ -13,7 +13,7 @@ public record RelayRoomSubmissionResponse(@Schema(description = "방 코드", ex
     @Schema(description = "제출한 파트", example = "BODY") RelayDrawingPart part,
     @Schema(description = "제출 후 배정 상태", example = "SUBMITTED") RelayAssignmentStatus assignmentStatus,
     @Schema(description = "원본 이미지 MinIO object key", example = "relay/tmp/AB3K9Q/1/body.png") String drawingObjectKey,
-    @Schema(description = "힌트 이미지 MinIO object key", nullable = true, example = "relay/tmp/AB3K9Q/1/body-hint.png") String hintObjectKey,
+    @Schema(description = "힌트 key", nullable = true, example = "relay/tmp/.../body-hint.png") String hintObjectKey,
     @Schema(description = "제출 시각", example = "2026-05-05T14:00:31") LocalDateTime submittedAt,
     @Schema(description = "이미 제출된 배정의 재요청 여부", example = "false") boolean alreadySubmitted,
     @Schema(description = "현재 파트 전체 제출 완료 여부", example = "false") boolean currentPartCompleted,
