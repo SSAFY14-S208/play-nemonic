@@ -11,6 +11,7 @@ import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -19,6 +20,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,9 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-/**
- * 릴레이 현재 파트 제출 유스케이스입니다.
- */
 @Service
 public class RelayRoomSubmissionUseCase {
 
@@ -61,9 +60,6 @@ public class RelayRoomSubmissionUseCase {
         this.minioStorageProperties = minioStorageProperties;
     }
 
-    /**
-     * 현재 사용자의 현재 파트 이미지를 제출합니다.
-     */
     @Transactional(readOnly = true)
     public RelayRoomSubmissionResponse submitCurrentPart(String userUuidValue, String roomCodeValue,
         RelayRoomSubmissionRequest request) {
@@ -76,13 +72,23 @@ public class RelayRoomSubmissionUseCase {
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
             RelayRoomParticipant participant = relayRoomPolicy.requireParticipant(roomState, viewerUserUuid);
+
+            Optional<RelayRoomAssignment> requestedAssignment = findRequestedAssignment(roomState, viewerUserUuid,
+                requestedCanvasIndex, requestedPart);
+            if (isDuplicateLookupAllowed(roomState) && requestedAssignment.isPresent()) {
+                RelayRoomAssignment assignment = requestedAssignment.get();
+                if (assignment.status() == RelayAssignmentStatus.SUBMITTED) {
+                    return createResponse(roomState, assignment, true, viewerUserUuid, participant.nickname(),
+                        PartAdvanceResult.notAdvanced(roomState, calculateProgress(roomState, assignment.part())));
+                }
+                if (assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED || assignment.autoSubmitted()) {
+                    throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
+                }
+            }
+
             relayRoomPolicy.validateAssignmentQueryableRoom(roomState);
             RelayRoomAssignment currentAssignment = relayRoomPolicy.requireCurrentAssignment(roomState, viewerUserUuid);
             validateAssignmentMatches(currentAssignment, requestedCanvasIndex, requestedPart);
-
-            if (currentAssignment.status() == RelayAssignmentStatus.SUBMITTED) {
-                return createResponse(roomState, currentAssignment, true, viewerUserUuid, participant.nickname());
-            }
 
             if (currentAssignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED
                 || currentAssignment.autoSubmitted()) {
@@ -105,15 +111,18 @@ public class RelayRoomSubmissionUseCase {
 
             RelayRoomAssignment submittedAssignment = submitAssignment(currentAssignment, drawingObjectKey,
                 hintObjectKey, now);
-            RelayRoomState updatedRoomState = roomState.withAssignments(
+            RelayRoomState submittedRoomState = roomState.withAssignments(
                 replaceAssignment(roomState.assignments(), currentAssignment, submittedAssignment), now);
+            PartAdvanceResult advanceResult = advancePartIfCompleted(submittedRoomState, currentAssignment.part(), now);
 
-            if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
-                return createResponse(updatedRoomState, submittedAssignment, false, viewerUserUuid,
-                    participant.nickname());
+            if (relayRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
+                return createResponse(advanceResult.roomState(), submittedAssignment, false, viewerUserUuid,
+                    participant.nickname(), advanceResult);
             }
 
-            log.warn("릴레이 제출 Redis 갱신 충돌로 임시 업로드 파일이 cleanup 대상이 될 수 있습니다. roomCode={}, canvasIndex={}, part={}",
+            log.warn(
+                "Relay submission Redis update conflict; uploaded temp files may need cleanup. roomCode={}, "
+                    + "canvasIndex={}, part={}",
                 roomState.roomCode(), currentAssignment.canvasIndex(), currentAssignment.part());
         }
 
@@ -130,6 +139,21 @@ public class RelayRoomSubmissionUseCase {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(ASSIGNMENT_MISMATCH_MESSAGE);
         }
+    }
+
+    private Optional<RelayRoomAssignment> findRequestedAssignment(RelayRoomState roomState, String viewerUserUuid,
+        Integer requestedCanvasIndex, RelayDrawingPart requestedPart) {
+        if (requestedCanvasIndex == null) {
+            return Optional.empty();
+        }
+
+        return roomState.assignments().stream().filter(assignment -> assignment.canvasIndex() == requestedCanvasIndex)
+            .filter(assignment -> assignment.part() == requestedPart)
+            .filter(assignment -> viewerUserUuid.equals(assignment.assignedUserUuid())).findFirst();
+    }
+
+    private boolean isDuplicateLookupAllowed(RelayRoomState roomState) {
+        return roomState.status() == RelayRoomStatus.PLAYING || roomState.status() == RelayRoomStatus.FINALIZING;
     }
 
     private void validateAssignmentMatches(RelayRoomAssignment currentAssignment, Integer requestedCanvasIndex,
@@ -219,20 +243,43 @@ public class RelayRoomSubmissionUseCase {
         return updatedAssignments;
     }
 
-    private RelayRoomSubmissionResponse createResponse(RelayRoomState roomState, RelayRoomAssignment assignment,
-        boolean alreadySubmitted, String userUuid, String nickname) {
-        SubmissionProgress progress = calculateProgress(roomState);
+    private PartAdvanceResult advancePartIfCompleted(RelayRoomState roomState, RelayDrawingPart submittedPart,
+        LocalDateTime now) {
+        SubmissionProgress progress = calculateProgress(roomState, submittedPart);
+        if (!progress.currentPartCompleted()) {
+            return PartAdvanceResult.notAdvanced(roomState, progress);
+        }
 
-        return RelayRoomSubmissionResponse.from(roomState.roomCode(), assignment, alreadySubmitted,
-            progress.currentPartCompleted(), progress.submittedCount(), progress.totalCount(), userUuid, nickname);
+        if (submittedPart == RelayDrawingPart.FACE) {
+            RelayRoomState advancedRoomState = roomState.startPart(RelayDrawingPart.BODY, now);
+            return PartAdvanceResult.advanced(advancedRoomState, RelayDrawingPart.BODY, progress);
+        }
+
+        if (submittedPart == RelayDrawingPart.BODY) {
+            RelayRoomState advancedRoomState = roomState.startPart(RelayDrawingPart.LEGS, now);
+            return PartAdvanceResult.advanced(advancedRoomState, RelayDrawingPart.LEGS, progress);
+        }
+
+        RelayRoomState finalizedRoomState = roomState.finalizeParts(now);
+        return PartAdvanceResult.allPartsCompleted(finalizedRoomState, progress);
     }
 
-    private SubmissionProgress calculateProgress(RelayRoomState roomState) {
+    private RelayRoomSubmissionResponse createResponse(RelayRoomState roomState, RelayRoomAssignment assignment,
+        boolean alreadySubmitted, String userUuid, String nickname, PartAdvanceResult advanceResult) {
+        SubmissionProgress progress = advanceResult.progress();
+
+        return RelayRoomSubmissionResponse.from(roomState.roomCode(), assignment, alreadySubmitted,
+            progress.currentPartCompleted(), progress.submittedCount(), progress.totalCount(), userUuid, nickname,
+            advanceResult.advanced(), advanceResult.nextPart(), advanceResult.nextPartStartedAt(),
+            advanceResult.nextPartDeadlineAt(), advanceResult.allPartsCompleted(), advanceResult.roomState().status());
+    }
+
+    private SubmissionProgress calculateProgress(RelayRoomState roomState, RelayDrawingPart part) {
         int totalCount = 0;
         int submittedCount = 0;
 
         for (RelayRoomAssignment assignment : roomState.assignments()) {
-            if (assignment.part() != roomState.currentPart()) {
+            if (assignment.part() != part) {
                 continue;
             }
 
@@ -251,5 +298,25 @@ public class RelayRoomSubmissionUseCase {
     }
 
     private record SubmissionProgress(int submittedCount, int totalCount, boolean currentPartCompleted) {
+    }
+
+    private record PartAdvanceResult(RelayRoomState roomState, boolean advanced, RelayDrawingPart nextPart,
+        LocalDateTime nextPartStartedAt, LocalDateTime nextPartDeadlineAt, boolean allPartsCompleted,
+        SubmissionProgress progress) {
+
+        private static PartAdvanceResult notAdvanced(RelayRoomState roomState, SubmissionProgress progress) {
+            return new PartAdvanceResult(roomState, false, null, null, null,
+                roomState.status() == RelayRoomStatus.FINALIZING, progress);
+        }
+
+        private static PartAdvanceResult advanced(RelayRoomState roomState, RelayDrawingPart nextPart,
+            SubmissionProgress progress) {
+            return new PartAdvanceResult(roomState, true, nextPart, roomState.partStartedAt(),
+                roomState.partDeadlineAt(), false, progress);
+        }
+
+        private static PartAdvanceResult allPartsCompleted(RelayRoomState roomState, SubmissionProgress progress) {
+            return new PartAdvanceResult(roomState, true, null, null, null, true, progress);
+        }
     }
 }

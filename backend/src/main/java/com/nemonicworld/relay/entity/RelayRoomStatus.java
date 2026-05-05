@@ -10,6 +10,8 @@ public enum RelayRoomStatus {
     // 게임이 시작되어 파트별 그림 제출이 진행 중인 상태입니다.
     PLAYING,
 
+    FINALIZING,
+
     // 게임 결과 생성이 완료된 상태입니다.
     FINISHED,
 

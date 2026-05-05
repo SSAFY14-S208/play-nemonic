@@ -49,6 +49,18 @@ public record RelayRoomState(String roomCode, RelayRoomStatus status, String hos
             updatedAt);
     }
 
+    public RelayRoomState startPart(RelayDrawingPart nextPart, LocalDateTime startedAt) {
+        return new RelayRoomState(roomCode, RelayRoomStatus.PLAYING, hostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, nextPart, participants, assignments, startedAt, startedAt.plusSeconds(timeLimitSeconds),
+            gameStartedAt, createdAt, startedAt);
+    }
+
+    public RelayRoomState finalizeParts(LocalDateTime completedAt) {
+        return new RelayRoomState(roomCode, RelayRoomStatus.FINALIZING, hostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, currentPart, participants, assignments, partStartedAt, partDeadlineAt, gameStartedAt,
+            createdAt, completedAt);
+    }
+
     public RelayRoomState startGame(List<RelayRoomAssignment> generatedAssignments, LocalDateTime startedAt) {
         return new RelayRoomState(roomCode, RelayRoomStatus.PLAYING, hostUserUuid, timeLimitSeconds, minParticipants,
             maxParticipants, RelayDrawingPart.FACE, participants, generatedAssignments, startedAt,
