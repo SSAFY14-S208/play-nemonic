@@ -65,6 +65,30 @@ public final class OpenApiErrorExamples {
           "message": "이미 종료된 방입니다."
         }
         """;
+    public static final String RELAY_INVALID_TIME_LIMIT_SECONDS = """
+        {
+          "success": false,
+          "message": "제한 시간은 30초, 45초, 60초 중 하나여야 합니다."
+        }
+        """;
+    public static final String RELAY_ROOM_PARTICIPANT_REQUIRED = """
+        {
+          "success": false,
+          "message": "릴레이 방에 참여하지 않은 사용자입니다."
+        }
+        """;
+    public static final String RELAY_ROOM_HOST_REQUIRED = """
+        {
+          "success": false,
+          "message": "방장만 사용할 수 있습니다."
+        }
+        """;
+    public static final String RELAY_WAITING_ROOM_SETTINGS_ONLY = """
+        {
+          "success": false,
+          "message": "대기 중인 방에서만 설정을 변경할 수 있습니다."
+        }
+        """;
     public static final String INVALID_BIRTH_INFO = """
         {
           "success": false,

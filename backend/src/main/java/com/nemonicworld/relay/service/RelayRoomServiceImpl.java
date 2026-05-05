@@ -2,8 +2,10 @@ package com.nemonicworld.relay.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerBlockedReason;
@@ -21,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,11 +38,12 @@ import org.springframework.util.StringUtils;
 @Service
 public class RelayRoomServiceImpl implements RelayRoomService {
 
-    private static final int DEFAULT_TIME_LIMIT_SECONDS = 60;
+    private static final int DEFAULT_TIME_LIMIT_SECONDS = 45;
     private static final int MIN_PARTICIPANTS = 2;
     private static final int MAX_PARTICIPANTS = 6;
     private static final int HOST_JOIN_ORDER = 0;
     private static final int ROOM_UPDATE_MAX_RETRIES = 3;
+    private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
     // 재접속 유예 시간은 WebSocket 연결 해제 감지 시각(disconnectedAt)을 기준으로 계산합니다.
     private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(10);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
@@ -51,6 +55,9 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String ROOM_UPDATE_CONFLICT_MESSAGE = "릴레이 방 상태를 갱신할 수 없습니다.";
     private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "릴레이 방에 참여하지 않은 사용자입니다.";
+    private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "제한 시간은 30초, 45초, 60초 중 하나여야 합니다.";
+    private static final String ONLY_HOST_ALLOWED_MESSAGE = "방장만 사용할 수 있습니다.";
+    private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final RoomCodeGenerator roomCodeGenerator;
@@ -60,7 +67,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      * 릴레이 방 유스케이스 처리에 필요한 공통 사용자 해석기, 방코드 도구, Redis 저장소를 주입받습니다.
      */
     public RelayRoomServiceImpl(AnonymousUserResolver anonymousUserResolver, RoomCodeGenerator roomCodeGenerator,
-        RelayRoomRepository relayRoomRepository) {
+            RelayRoomRepository relayRoomRepository) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.roomCodeGenerator = roomCodeGenerator;
         this.relayRoomRepository = relayRoomRepository;
@@ -85,9 +92,10 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         String roomCode = roomCodeGenerator.generateUnique(relayRoomRepository::existsByRoomCode);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         RelayRoomParticipant hostParticipant = new RelayRoomParticipant(hostUser.getId().toString(),
-            hostUser.getNickname(), true, HOST_JOIN_ORDER, true, null, now);
+                hostUser.getNickname(), true, HOST_JOIN_ORDER, true, null, now);
         RelayRoomState roomState = new RelayRoomState(roomCode, RelayRoomStatus.WAITING, hostUser.getId().toString(),
-            DEFAULT_TIME_LIMIT_SECONDS, MIN_PARTICIPANTS, MAX_PARTICIPANTS, null, List.of(hostParticipant), now, now);
+                DEFAULT_TIME_LIMIT_SECONDS, MIN_PARTICIPANTS, MAX_PARTICIPANTS, null, List.of(hostParticipant), now,
+                now);
 
         relayRoomRepository.save(roomState);
 
@@ -110,10 +118,10 @@ public class RelayRoomServiceImpl implements RelayRoomService {
 
         // Redis miss는 존재하지 않거나 만료된 진행 중 방으로 보고 404 응답으로 변환합니다.
         RelayRoomState roomState = relayRoomRepository.findByRoomCode(roomCodeValue)
-            .orElseThrow(() -> new NotFoundException(ROOM_NOT_FOUND_MESSAGE));
+                .orElseThrow(() -> new NotFoundException(ROOM_NOT_FOUND_MESSAGE));
         // 현재 API는 스냅샷 조회 전용이므로 Redis participants를 변경하지 않고 viewer 안내값만 계산합니다.
         RelayRoomViewerResponse viewer = createViewerResponse(viewerUser.getId().toString(), roomState,
-            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+                LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
 
         return RelayRoomStateResponse.from(roomState, viewer);
     }
@@ -141,7 +149,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
 
             if (participant.isPresent()) {
                 Optional<RelayRoomStateResponse> existingParticipantResponse = joinExistingParticipant(viewerUserUuid,
-                    roomState, participant.get(), now);
+                        roomState, participant.get(), now);
 
                 if (existingParticipantResponse.isPresent()) {
                     return existingParticipantResponse.get();
@@ -154,6 +162,41 @@ public class RelayRoomServiceImpl implements RelayRoomService {
 
             if (joinResponse.isPresent()) {
                 return joinResponse.get();
+            }
+        }
+
+        throw new IllegalStateException(ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    /**
+     * 방장이 대기실에서 파트별 제한 시간을 변경하는 메서드입니다.
+     *
+     * 설정은 Redis 방 상태의 timeLimitSeconds와 updatedAt만 바꾸며, 참가자/방장/상태/생성 시각 등 다른 필드는 기존
+     * 값을 유지합니다. Redis 저장 충돌은 최신 상태를 다시 읽어 짧게 재시도합니다.
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public RelayRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
+            RelayRoomSettingsRequest request) {
+        int timeLimitSeconds = resolveTimeLimitSeconds(request);
+        AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
+        validateRoomCode(roomCodeValue);
+        String viewerUserUuid = viewerUser.getId().toString();
+
+        for (int attempt = 0; attempt < ROOM_UPDATE_MAX_RETRIES; attempt++) {
+            RelayRoomState roomState = findRoomState(roomCodeValue);
+            validateWaitingRoomForSettings(roomState);
+            RelayRoomParticipant participant = findParticipant(roomState, viewerUserUuid)
+                    .orElseThrow(() -> new ForbiddenException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
+            validateRoomHost(viewerUserUuid, roomState, participant);
+
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            RelayRoomState updatedRoomState = updateRoomTimeLimit(roomState, timeLimitSeconds, now);
+
+            if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                RelayRoomViewerResponse viewer = createViewerResponse(viewerUserUuid, updatedRoomState, now);
+
+                return RelayRoomStateResponse.from(updatedRoomState, viewer);
             }
         }
 
@@ -191,7 +234,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
 
     private RelayRoomState findRoomState(String roomCodeValue) {
         return relayRoomRepository.findByRoomCode(roomCodeValue)
-            .orElseThrow(() -> new NotFoundException(ROOM_NOT_FOUND_MESSAGE));
+                .orElseThrow(() -> new NotFoundException(ROOM_NOT_FOUND_MESSAGE));
     }
 
     /**
@@ -217,6 +260,27 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         }
     }
 
+    private int resolveTimeLimitSeconds(RelayRoomSettingsRequest request) {
+        if (request == null || request.timeLimitSeconds() == null
+                || !ALLOWED_TIME_LIMIT_SECONDS.contains(request.timeLimitSeconds())) {
+            throw new BadRequestException(INVALID_TIME_LIMIT_SECONDS_MESSAGE);
+        }
+
+        return request.timeLimitSeconds();
+    }
+
+    private void validateWaitingRoomForSettings(RelayRoomState roomState) {
+        if (roomState.status() != RelayRoomStatus.WAITING) {
+            throw new ConflictException(WAITING_ROOM_SETTINGS_ONLY_MESSAGE);
+        }
+    }
+
+    private void validateRoomHost(String viewerUserUuid, RelayRoomState roomState, RelayRoomParticipant participant) {
+        if (!participant.host() && !roomState.hostUserUuid().equals(viewerUserUuid)) {
+            throw new ForbiddenException(ONLY_HOST_ALLOWED_MESSAGE);
+        }
+    }
+
     /**
      * Redis 방 상태의 참여자 목록에서 요청 UUID에 해당하는 기존 참여자를 찾습니다.
      *
@@ -225,7 +289,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      */
     private Optional<RelayRoomParticipant> findParticipant(RelayRoomState roomState, String viewerUserUuid) {
         return roomState.participants().stream()
-            .filter(roomParticipant -> roomParticipant.userUuid().equals(viewerUserUuid)).findFirst();
+                .filter(roomParticipant -> roomParticipant.userUuid().equals(viewerUserUuid)).findFirst();
     }
 
     /**
@@ -235,7 +299,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      * 참여자만 connected 상태로 복구하고, 유예 시간이 지나면 자동 제출 완료 상태로 보고 409를 반환합니다.
      */
     private Optional<RelayRoomStateResponse> joinExistingParticipant(String viewerUserUuid, RelayRoomState roomState,
-        RelayRoomParticipant participant, LocalDateTime now) {
+            RelayRoomParticipant participant, LocalDateTime now) {
         // 이미 연결 중인 참여자의 재호출은 멱등 처리하며 Redis updatedAt도 변경하지 않습니다.
         if (participant.connected()) {
             RelayRoomViewerResponse viewer = createViewerResponse(viewerUserUuid, roomState, now);
@@ -248,7 +312,8 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         }
 
         RelayRoomParticipant reconnectedParticipant = new RelayRoomParticipant(participant.userUuid(),
-            participant.nickname(), participant.host(), participant.joinOrder(), true, null, participant.joinedAt());
+                participant.nickname(), participant.host(), participant.joinOrder(), true, null,
+                participant.joinedAt());
         RelayRoomState updatedRoomState = replaceParticipant(roomState, reconnectedParticipant, now);
 
         if (!relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
@@ -267,12 +332,12 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      * 생성합니다. joinOrder는 기존 최댓값 다음 번호를 사용하고, 갱신된 방 상태를 Redis에 다시 저장합니다.
      */
     private Optional<RelayRoomStateResponse> joinNewParticipant(AppUser viewerUser, RelayRoomState roomState,
-        LocalDateTime now) {
+            LocalDateTime now) {
         validateJoinableRoom(roomState);
         validateNicknameRegistered(viewerUser);
 
         RelayRoomParticipant newParticipant = new RelayRoomParticipant(viewerUser.getId().toString(),
-            viewerUser.getNickname(), false, nextJoinOrder(roomState), true, null, now);
+                viewerUser.getNickname(), false, nextJoinOrder(roomState), true, null, now);
         List<RelayRoomParticipant> participants = new ArrayList<>(roomState.participants());
         participants.add(newParticipant);
         RelayRoomState updatedRoomState = updateRoomParticipants(roomState, participants, now);
@@ -316,7 +381,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      */
     private int nextJoinOrder(RelayRoomState roomState) {
         return roomState.participants().stream().map(RelayRoomParticipant::joinOrder).max(Comparator.naturalOrder())
-            .orElse(-1) + 1;
+                .orElse(-1) + 1;
     }
 
     /**
@@ -326,12 +391,12 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      * 만들어 방 상태 재생성 메서드에 전달합니다.
      */
     private RelayRoomState replaceParticipant(RelayRoomState roomState, RelayRoomParticipant updatedParticipant,
-        LocalDateTime updatedAt) {
+            LocalDateTime updatedAt) {
         List<RelayRoomParticipant> participants = roomState.participants().stream()
-            .map(participant -> participant.userUuid().equals(updatedParticipant.userUuid())
-                ? updatedParticipant
-                : participant)
-            .toList();
+                .map(participant -> participant.userUuid().equals(updatedParticipant.userUuid())
+                        ? updatedParticipant
+                        : participant)
+                .toList();
 
         return updateRoomParticipants(roomState, participants, updatedAt);
     }
@@ -343,23 +408,32 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      * 값을 그대로 유지합니다. 신규 입장이나 재접속처럼 실제 Redis 상태가 바뀌는 경우에만 이 메서드를 사용합니다.
      */
     private RelayRoomState updateRoomParticipants(RelayRoomState roomState, List<RelayRoomParticipant> participants,
-        LocalDateTime updatedAt) {
+            LocalDateTime updatedAt) {
         return new RelayRoomState(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(),
-            roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
-            roomState.currentPart(), participants, roomState.createdAt(), updatedAt);
+                roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
+                roomState.currentPart(), participants, roomState.createdAt(), updatedAt);
+    }
+
+    private RelayRoomState updateRoomTimeLimit(RelayRoomState roomState, int timeLimitSeconds,
+            LocalDateTime updatedAt) {
+        return new RelayRoomState(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(), timeLimitSeconds,
+                roomState.minParticipants(), roomState.maxParticipants(), roomState.currentPart(),
+                roomState.participants(),
+                roomState.createdAt(), updatedAt);
     }
 
     private RelayRoomStateResponse updateParticipantConnectionState(String viewerUserUuid, String roomCodeValue,
-        boolean connected) {
+            boolean connected) {
         for (int attempt = 0; attempt < ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = findRoomState(roomCodeValue);
             validateWebSocketConnectableRoom(roomState);
             RelayRoomParticipant participant = findParticipant(roomState, viewerUserUuid)
-                .orElseThrow(() -> new ConflictException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
+                    .orElseThrow(() -> new ConflictException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             RelayRoomParticipant updatedParticipant = new RelayRoomParticipant(participant.userUuid(),
-                participant.nickname(), participant.host(), participant.joinOrder(), connected, connected ? null : now,
-                participant.joinedAt());
+                    participant.nickname(), participant.host(), participant.joinOrder(), connected,
+                    connected ? null : now,
+                    participant.joinedAt());
             RelayRoomState updatedRoomState = replaceParticipant(roomState, updatedParticipant, now);
 
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
@@ -387,7 +461,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      * 응답 안내값만 만들며 Redis 상태를 변경하지 않습니다.
      */
     private RelayRoomViewerResponse createViewerResponse(String viewerUserUuid, RelayRoomState roomState,
-        LocalDateTime now) {
+            LocalDateTime now) {
         // 요청자가 이미 방에 들어온 참여자인지 먼저 판별한 뒤 참여자/비참여자 정책을 분리합니다.
         Optional<RelayRoomParticipant> participant = findParticipant(roomState, viewerUserUuid);
 
@@ -405,7 +479,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      * 10초 이내인지에 따라 canReconnect 또는 RECONNECT_EXPIRED 안내값을 반환합니다.
      */
     private RelayRoomViewerResponse createParticipantViewerResponse(String viewerUserUuid, RelayRoomState roomState,
-        RelayRoomParticipant participant, LocalDateTime now) {
+            RelayRoomParticipant participant, LocalDateTime now) {
         // Redis의 host 플래그와 현재 hostUserUuid 중 하나라도 맞으면 방장으로 판단합니다.
         boolean host = participant.host() || roomState.hostUserUuid().equals(viewerUserUuid);
 
@@ -420,7 +494,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         }
 
         return new RelayRoomViewerResponse(viewerUserUuid, true, host, false, false,
-            RelayRoomViewerBlockedReason.RECONNECT_EXPIRED);
+                RelayRoomViewerBlockedReason.RECONNECT_EXPIRED);
     }
 
     /**
@@ -448,7 +522,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
      * 처리는 joinNewParticipant 메서드에서 수행합니다.
      */
     private RelayRoomViewerResponse createNonParticipantViewerResponse(String viewerUserUuid,
-        RelayRoomState roomState) {
+            RelayRoomState roomState) {
         // 비참여자는 실제 입장 처리 없이 현재 방 상태 기준으로 입장 가능 안내값만 받습니다.
         RelayRoomViewerBlockedReason blockedReason = findJoinBlockedReason(roomState);
         boolean canJoin = blockedReason == null;

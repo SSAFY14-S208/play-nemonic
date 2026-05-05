@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
@@ -99,6 +100,65 @@ class RelayRoomServiceImplTest {
             .willReturn(false);
 
         assertThatThrownBy(() -> relayRoomService.joinRoom(joinerUuid.toString(), ROOM_CODE))
+            .isInstanceOf(IllegalStateException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
+
+        verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
+    }
+
+    /**
+     * 설정 변경 저장 중 충돌이 나면 최신 방 상태를 다시 읽고 요청한 제한 시간을 재적용합니다.
+     */
+    @Test
+    void updateRoomSettingsRetriesOptimisticSaveConflictWithLatestRoomState() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomState firstReadRoomState = roomState(participant(hostUuid, "망고", true, 0));
+        RelayRoomState secondReadRoomState = new RelayRoomState(ROOM_CODE, RelayRoomStatus.WAITING,
+            firstReadRoomState.hostUserUuid(), 45, firstReadRoomState.minParticipants(),
+            firstReadRoomState.maxParticipants(), firstReadRoomState.currentPart(), firstReadRoomState.participants(),
+            firstReadRoomState.createdAt(), firstReadRoomState.updatedAt().plusSeconds(1));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
+            Optional.of(secondReadRoomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false, true);
+
+        RelayRoomStateResponse response = relayRoomService.updateRoomSettings(hostUuid.toString(), ROOM_CODE,
+            new RelayRoomSettingsRequest(30));
+
+        assertThat(response.timeLimitSeconds()).isEqualTo(30);
+        assertThat(response.viewer().participant()).isTrue();
+        assertThat(response.viewer().host()).isTrue();
+
+        ArgumentCaptor<RelayRoomState> expectedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository, times(2)).saveIfUnchanged(expectedStateCaptor.capture(),
+            updatedStateCaptor.capture());
+        assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
+        assertThat(updatedStateCaptor.getAllValues()).extracting(RelayRoomState::timeLimitSeconds).containsExactly(30,
+            30);
+        assertThat(updatedStateCaptor.getAllValues().get(1).participants())
+            .isEqualTo(secondReadRoomState.participants());
+        assertThat(updatedStateCaptor.getAllValues().get(1).createdAt()).isEqualTo(secondReadRoomState.createdAt());
+    }
+
+    /**
+     * 설정 변경 재시도 횟수를 모두 소진하면 내부 오류로 올려 클라이언트에는 공통 500 응답이 나가게 합니다.
+     */
+    @Test
+    void updateRoomSettingsFailsWhenOptimisticSaveConflictsKeepHappening() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomState roomState = roomState(participant(hostUuid, "망고", true, 0));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false);
+
+        assertThatThrownBy(
+            () -> relayRoomService.updateRoomSettings(hostUuid.toString(), ROOM_CODE, new RelayRoomSettingsRequest(45)))
             .isInstanceOf(IllegalStateException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));

@@ -50,6 +50,13 @@ public class RelayRoomEventPublisher {
     }
 
     /**
+     * 방 설정 변경이 반영된 최신 방 상태를 방 전체에 알립니다.
+     */
+    public void publishSettingsChanged(RelayRoomStateResponse roomStateResponse) {
+        publishRoomEvent(RelayRoomEventType.SETTINGS_CHANGED, roomStateResponse);
+    }
+
+    /**
      * 같은 roomCode + UUID로 교체된 기존 세션 개인 큐에 중복 접속 종료 안내를 보냅니다.
      */
     public void publishDuplicateSessionClosed(String sessionId, String roomCode) {

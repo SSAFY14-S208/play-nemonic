@@ -64,3 +64,65 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 # Use an anonymous user UUID whose nickname is still the default "익명".
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Update relay room settings
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - 30 seconds
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 30
+}
+
+### Update relay room settings - invalid time limit
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 15
+}
+
+### Update relay room settings - invalid user UUID
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - missing user UUID
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - invalid room code
+PATCH {{host}}/api/v1/relay/rooms/not-a-room/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - not found
+PATCH {{host}}/api/v1/relay/rooms/ZZZZZZ/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 45
+}
