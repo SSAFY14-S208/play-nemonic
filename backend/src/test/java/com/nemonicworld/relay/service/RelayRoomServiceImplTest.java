@@ -26,10 +26,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -50,8 +50,24 @@ class RelayRoomServiceImplTest {
     @Mock
     private RelayRoomRepository relayRoomRepository;
 
-    @InjectMocks
-    private RelayRoomServiceImpl relayRoomService;
+    private RelayRoomService relayRoomService;
+
+    @BeforeEach
+    void setUp() {
+        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
+        RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
+        relayRoomService = new RelayRoomServiceImpl(
+            new RelayRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator, relayRoomRepository, relayRoomPolicy),
+            new RelayRoomQueryUseCase(anonymousUserResolver, relayRoomPolicy, relayRoomViewerFactory),
+            new RelayRoomJoinUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayRoomViewerFactory),
+            new RelayRoomSettingsUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayRoomViewerFactory),
+            new RelayRoomStartUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayRoomViewerFactory),
+            new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayRoomViewerFactory));
+    }
 
     /**
      * 신규 입장 저장 중 충돌이 나면 최신 방 상태를 다시 읽고 다음 joinOrder로 재시도합니다.
