@@ -1,10 +1,10 @@
-import type { LucideIcon } from 'lucide-react'
+import type { StaticImageData } from 'next/image'
 import {
-  ImageIcon,
-  PenLine,
-  Settings,
-  ShoppingBag,
-} from 'lucide-react'
+  phoneAppDrawing,
+  phoneAppGallery,
+  phoneAppSettings,
+  phoneAppShop,
+} from '@/shared/assets'
 import type {
   PhoneGalleryFilterKey,
   PhoneGalleryItem,
@@ -13,7 +13,6 @@ import type {
 
 export const PHONE_PROFILE = {
   nickname: '동그란고구마',
-  avatarInitial: '고',
 }
 
 export const PHONE_OFFICIAL_STORE_URL = 'https://kr.nemonic.me/'
@@ -27,10 +26,6 @@ export const PHONE_COLORS = {
   drawingPanel: '#f6f6f6',
   frameMetal: '#bfc8da',
   homeHeader: '#55adf0',
-  homeAvatarHair: '#a8d8ff',
-  homeAvatarSkin: '#fff3e8',
-  homeAvatarInk: '#241f1d',
-  homeAvatarMouth: '#dc6f78',
   launcherBadge: '#ff6f7b',
   launcherScreen: 'linear-gradient(135deg,#dff4ff 0%,#ffe6f2 100%)',
   saveButton: '#ffaad8',
@@ -70,43 +65,33 @@ export const PHONE_MAX_BRUSH_SIZE =
 export const PHONE_APP_SHORTCUTS: Array<{
   key: 'drawing' | 'gallery' | 'shop' | 'settings'
   label: string
-  Icon: LucideIcon
-  accent: string
-  background: string
+  asset: StaticImageData
   isEnabled: boolean
   externalUrl?: string
 }> = [
   {
     key: 'drawing',
     label: '네모닉 그림판',
-    Icon: PenLine,
-    accent: '#f6b946',
-    background: 'linear-gradient(135deg, #fbf7b8 0%, #ffd7b5 48%, #d7e8ff 100%)',
+    asset: phoneAppDrawing,
     isEnabled: true,
   },
   {
     key: 'gallery',
     label: '갤러리',
-    Icon: ImageIcon,
-    accent: '#48a7f2',
-    background: 'linear-gradient(135deg, #fff5f7 0%, #eef7ff 100%)',
+    asset: phoneAppGallery,
     isEnabled: true,
   },
   {
     key: 'shop',
     label: '공식몰',
-    Icon: ShoppingBag,
-    accent: '#f7b900',
-    background: '#ffc21a',
+    asset: phoneAppShop,
     externalUrl: PHONE_OFFICIAL_STORE_URL,
     isEnabled: true,
   },
   {
     key: 'settings',
     label: '설정',
-    Icon: Settings,
-    accent: '#5dcfd3',
-    background: '#74d4d8',
+    asset: phoneAppSettings,
     isEnabled: false,
   },
 ]

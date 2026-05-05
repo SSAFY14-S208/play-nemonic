@@ -1,5 +1,7 @@
 import Link from 'next/link'
-import { Edit3, Sparkles } from 'lucide-react'
+import Image from 'next/image'
+import { Sparkles } from 'lucide-react'
+import { phoneIconEdit, phoneProfileAvatar } from '@/shared/assets'
 import { cn } from '@/shared/libs'
 import {
   PHONE_APP_SHORTCUTS,
@@ -15,37 +17,6 @@ interface PhoneHomeScreenProps {
   onOpenGallery: () => void
 }
 
-function PhoneProfileAvatar() {
-  return (
-    <div
-      className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-[0.35rem] border-white shadow-[0_0.5rem_1.25rem_rgba(36,101,158,0.18)]"
-      style={{ background: '#f8fbff' }}
-    >
-      <div
-        className="absolute bottom-4 h-9 w-16 rounded-t-full"
-        style={{ background: PHONE_COLORS.homeAvatarHair }}
-      />
-      <div
-        className="relative flex h-14 w-14 items-center justify-center rounded-full text-xl shadow-[inset_0_-0.35rem_0_rgba(255,205,177,0.5)]"
-        style={{ background: PHONE_COLORS.homeAvatarSkin }}
-      >
-        <span
-          className="absolute left-3 top-6 h-1.5 w-1.5 rounded-full"
-          style={{ background: PHONE_COLORS.homeAvatarInk }}
-        />
-        <span
-          className="absolute right-3 top-6 h-1.5 w-1.5 rounded-full"
-          style={{ background: PHONE_COLORS.homeAvatarInk }}
-        />
-        <span
-          className="absolute bottom-4 h-1.5 w-5 rounded-b-full border-b-2"
-          style={{ borderColor: PHONE_COLORS.homeAvatarMouth }}
-        />
-      </div>
-    </div>
-  )
-}
-
 export function PhoneHomeScreen({
   recentGalleryItems,
   onOpenDrawing,
@@ -58,7 +29,12 @@ export function PhoneHomeScreen({
         style={{ background: PHONE_COLORS.homeHeader }}
       >
         <div className="flex items-center gap-6">
-          <PhoneProfileAvatar />
+          <Image
+            src={phoneProfileAvatar}
+            alt={`${PHONE_PROFILE.nickname} 프로필 이미지`}
+            className="h-24 w-24 shrink-0 rounded-full"
+            priority
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
               <h2 className="h1-b truncate text-white">
@@ -69,7 +45,12 @@ export function PhoneHomeScreen({
                 aria-label="프로필 수정"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                <Edit3 className="h-7 w-7" />
+                <Image
+                  src={phoneIconEdit}
+                  alt=""
+                  aria-hidden
+                  className="h-8 w-9 object-contain"
+                />
               </button>
             </div>
           </div>
@@ -78,7 +59,13 @@ export function PhoneHomeScreen({
 
       <div className="flex-1 overflow-y-auto px-8 py-8">
         <div className="grid grid-cols-2 gap-x-10 gap-y-9">
-          {PHONE_APP_SHORTCUTS.map(({ key, label, Icon, background, accent, externalUrl, isEnabled }) => {
+          {PHONE_APP_SHORTCUTS.map(({
+            key,
+            label,
+            asset,
+            externalUrl,
+            isEnabled,
+          }) => {
             const handleClick =
               key === 'drawing'
                 ? onOpenDrawing
@@ -88,16 +75,12 @@ export function PhoneHomeScreen({
 
             const shortcutContent = (
               <>
-                <span
-                  className="flex h-28 w-28 items-center justify-center rounded-[2.4rem] shadow-[0_0.8rem_1.6rem_rgba(53,57,72,0.12)] transition duration-200 group-hover:scale-105"
-                  style={{ background }}
-                >
-                  <Icon
-                    className="h-14 w-14"
-                    color={key === 'shop' || key === 'settings' ? 'rgba(255,255,255,0.92)' : accent}
-                    strokeWidth={2.2}
-                  />
-                </span>
+                <Image
+                  src={asset}
+                  alt=""
+                  aria-hidden
+                  className="h-28 w-28 object-contain transition duration-200 group-hover:scale-105"
+                />
                 <span className="h3-b text-center text-fg-primary">
                   {label}
                 </span>
@@ -157,7 +140,10 @@ export function PhoneHomeScreen({
                 >
                   <span
                     className="caption-b inline-flex rounded-full px-2 py-0.5"
-                    style={{ color: itemStyle.color, background: 'rgba(255,255,255,0.72)' }}
+                    style={{
+                      color: itemStyle.color,
+                      background: 'rgba(255,255,255,0.72)',
+                    }}
                   >
                     {itemStyle.label}
                   </span>

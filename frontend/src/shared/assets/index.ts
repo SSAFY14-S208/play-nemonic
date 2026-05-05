@@ -1,1 +1,7 @@
 export { default as relayPostItNote } from './relay-post-it-note.webp'
+export { default as phoneAppDrawing } from './phone/phone-app-drawing.png'
+export { default as phoneAppGallery } from './phone/phone-app-gallery.png'
+export { default as phoneAppSettings } from './phone/phone-app-settings.png'
+export { default as phoneAppShop } from './phone/phone-app-shop.png'
+export { default as phoneIconEdit } from './phone/phone-icon-edit.png'
+export { default as phoneProfileAvatar } from './phone/phone-profile-avatar.png'
