@@ -1,6 +1,6 @@
 package com.nemonicworld.relay.scheduler;
 
-import com.nemonicworld.relay.service.RelayRoomTimeoutService;
+import com.nemonicworld.relay.service.timeout.RelayRoomTimeoutService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

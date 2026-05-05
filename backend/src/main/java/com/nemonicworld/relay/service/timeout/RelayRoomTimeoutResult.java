@@ -1,6 +1,7 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.timeout;
 
 import com.nemonicworld.relay.entity.RelayDrawingPart;
+import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
 import java.util.List;
 
 /**

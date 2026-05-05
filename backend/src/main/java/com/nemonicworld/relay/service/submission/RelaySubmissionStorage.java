@@ -1,4 +1,4 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.submission;
 
 import org.springframework.web.multipart.MultipartFile;
 

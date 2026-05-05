@@ -1,4 +1,4 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.game;
 
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomState;
@@ -12,18 +12,18 @@ public record RelayPartAdvanceResult(RelayRoomState roomState, boolean advanced,
     LocalDateTime nextPartStartedAt, LocalDateTime nextPartDeadlineAt, boolean allPartsCompleted,
     RelayPartProgress progress) {
 
-    static RelayPartAdvanceResult notAdvanced(RelayRoomState roomState, RelayPartProgress progress) {
+    public static RelayPartAdvanceResult notAdvanced(RelayRoomState roomState, RelayPartProgress progress) {
         return new RelayPartAdvanceResult(roomState, false, null, null, null,
             roomState.status() == RelayRoomStatus.FINALIZING, progress);
     }
 
-    static RelayPartAdvanceResult advanced(RelayRoomState roomState, RelayDrawingPart nextPart,
+    public static RelayPartAdvanceResult advanced(RelayRoomState roomState, RelayDrawingPart nextPart,
         RelayPartProgress progress) {
         return new RelayPartAdvanceResult(roomState, true, nextPart, roomState.partStartedAt(),
             roomState.partDeadlineAt(), false, progress);
     }
 
-    static RelayPartAdvanceResult allPartsCompleted(RelayRoomState roomState, RelayPartProgress progress) {
+    public static RelayPartAdvanceResult allPartsCompleted(RelayRoomState roomState, RelayPartProgress progress) {
         return new RelayPartAdvanceResult(roomState, true, null, null, null, true, progress);
     }
 }

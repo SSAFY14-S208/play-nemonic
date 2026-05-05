@@ -1,4 +1,4 @@
-package com.nemonicworld.relay.service;
+package com.nemonicworld.relay.service.timeout;
 
 import com.nemonicworld.relay.entity.RelayRoomAssignment;
 
