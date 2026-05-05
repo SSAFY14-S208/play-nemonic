@@ -1065,3 +1065,10 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - Semantic 토큰 대신 Primitive 토큰 직접 참조 금지 (`bg-cream-50`, `text-brown-720` 등)
 - 타이포그래피에 raw Tailwind font 클래스 직접 조합 금지 → `h1-b`, `body-r` 등 유틸리티 클래스 사용
 - 조건부 클래스 병합 시 `cn()` 없이 문자열 연결 금지 → `cn()` 유틸리티 사용
+
+## Closed Visual System Exception
+
+- Semantic token rules can be bypassed only when an ADR in `frontend/docs/decisions/` explicitly accepts the feature as a closed visual mock.
+- The exception is scoped to the accepted feature folder only.
+- Other features must not import closed-system colors or typography as reusable design tokens.
+- Current accepted exception: `features/phone` via `0001-phone-closed-visual-mock.md`.

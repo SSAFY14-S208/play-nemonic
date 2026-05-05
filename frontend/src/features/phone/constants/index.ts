@@ -5,41 +5,20 @@ import {
   phoneAppSettings,
   phoneAppShop,
 } from '@/shared/assets'
+import { PHONE_COLORS } from './colors'
 import type {
   PhoneGalleryFilterKey,
   PhoneGalleryItem,
   PhoneGalleryItemKind,
-} from './types'
+} from '../types'
+
+export { PHONE_COLORS } from './colors'
 
 export const PHONE_PROFILE = {
   nickname: '동그란고구마',
 }
 
 export const PHONE_OFFICIAL_STORE_URL = 'https://kr.nemonic.me/'
-
-export const PHONE_COLORS = {
-  black: '#11151d',
-  cameraLens: '#05070c',
-  drawingAccent: '#ffb52e',
-  drawingAccentMuted: '#fff2d6',
-  drawingBackground: '#f3f3f3',
-  drawingDivider: '#e4e4e4',
-  drawingIcon: '#555555',
-  drawingPanel: '#f1f1f1',
-  drawingPaper: '#fefefe',
-  drawingSliderThumb: '#ffffff',
-  drawingSliderThumbShadow: '0 1px 2px rgba(0, 0, 0, 0.18)',
-  drawingSliderTrack: '#d9d9db',
-  drawingText: '#010101',
-  homeHeader: '#55adf0',
-  launcherBadge: '#ff6f7b',
-  launcherScreen: 'linear-gradient(135deg,#dff4ff 0%,#ffe6f2 100%)',
-  onDrawingButton: '#000000',
-  printButton: '#ffcc66',
-  saveButton: '#ffb0cd',
-  screenHandle: 'rgba(70,63,78,0.72)',
-  white: '#ffffff',
-}
 
 export const PHONE_FRAME_LAYOUT = {
   aspectRatio: '1131.3865966796875 / 2348',
@@ -94,6 +73,13 @@ export const PHONE_STATUS_BAR_LAYOUT = {
     width: '4.43%',
     height: '1.28%',
   },
+} as const
+
+export const PHONE_CLOSE_BUTTON_LAYOUT = {
+  left: '99.5%',
+  top: '5.83%',
+  width: '20.6%',
+  aspectRatio: '233 / 400',
 } as const
 
 export const PHONE_DRAWING_LAYOUT = {
@@ -218,13 +204,13 @@ export const PHONE_DRAWING_LAYOUT = {
     background: PHONE_COLORS.saveButton,
     borderRadius: '4px',
     boxShadow: '0 1.2px 1.2px rgba(0, 0, 0, 0.25)',
-    color: PHONE_COLORS.onDrawingButton,
+    color: PHONE_COLORS.drawingButtonText,
   },
   printButton: {
     background: PHONE_COLORS.printButton,
     borderRadius: '4px',
     boxShadow: '0 1.2px 1.2px rgba(0, 0, 0, 0.25)',
-    color: PHONE_COLORS.onDrawingButton,
+    color: PHONE_COLORS.drawingButtonText,
   },
 } as const
 
@@ -259,6 +245,7 @@ export const PHONE_MAX_BRUSH_SIZE =
 
 export const PHONE_APP_SHORTCUTS: Array<{
   key: 'drawing' | 'gallery' | 'shop' | 'settings'
+  action: 'open-drawing' | 'open-gallery' | 'open-external' | 'disabled'
   label: string
   asset: StaticImageData
   isEnabled: boolean
@@ -266,18 +253,21 @@ export const PHONE_APP_SHORTCUTS: Array<{
 }> = [
   {
     key: 'drawing',
+    action: 'open-drawing',
     label: '네모닉 그림판',
     asset: phoneAppDrawing,
     isEnabled: true,
   },
   {
     key: 'gallery',
+    action: 'open-gallery',
     label: '갤러리',
     asset: phoneAppGallery,
     isEnabled: true,
   },
   {
     key: 'shop',
+    action: 'open-external',
     label: '공식몰 바로가기',
     asset: phoneAppShop,
     externalUrl: PHONE_OFFICIAL_STORE_URL,
@@ -285,6 +275,7 @@ export const PHONE_APP_SHORTCUTS: Array<{
   },
   {
     key: 'settings',
+    action: 'disabled',
     label: '설정',
     asset: phoneAppSettings,
     isEnabled: false,
@@ -307,11 +298,31 @@ export const PHONE_GALLERY_ITEM_STYLES: Record<
   PhoneGalleryItemKind,
   { label: string; color: string; background: string }
 > = {
-  phone: { label: '폰 그림', color: '#5b7cff', background: '#eef3ff' },
-  fortune: { label: '운세', color: '#9b6df2', background: '#f1eaff' },
-  flipbook: { label: '플립북', color: '#d69a00', background: '#fff4c7' },
-  relay: { label: '릴레이', color: '#ff8a44', background: '#ffe7d6' },
-  infinite: { label: '캔버스', color: '#42a8e8', background: '#e6f6ff' },
+  phone: {
+    label: '폰 그림',
+    color: PHONE_COLORS.galleryFilterPhone,
+    background: PHONE_COLORS.galleryFilterPhoneBackground,
+  },
+  fortune: {
+    label: '운세',
+    color: PHONE_COLORS.galleryFilterFortune,
+    background: PHONE_COLORS.galleryFilterFortuneBackground,
+  },
+  flipbook: {
+    label: '플립북',
+    color: PHONE_COLORS.galleryFilterFlipbook,
+    background: PHONE_COLORS.galleryFilterFlipbookBackground,
+  },
+  relay: {
+    label: '릴레이',
+    color: PHONE_COLORS.galleryFilterRelay,
+    background: PHONE_COLORS.galleryFilterRelayBackground,
+  },
+  infinite: {
+    label: '캔버스',
+    color: PHONE_COLORS.galleryFilterInfinite,
+    background: PHONE_COLORS.galleryFilterInfiniteBackground,
+  },
 }
 
 export const PHONE_INITIAL_GALLERY_ITEMS: PhoneGalleryItem[] = [

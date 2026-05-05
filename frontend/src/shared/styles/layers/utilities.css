@@ -131,3 +131,44 @@
   line-height: 1.25;
   letter-spacing: 0;
 }
+
+@utility phone-status-time {
+  font-family: var(--font-pretendard);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+@utility phone-drawing-title {
+  font-family: var(--font-pretendard);
+  font-size: 1.04rem;
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+@utility phone-drawing-action-label {
+  font-family: var(--font-pretendard);
+  font-size: 0.96rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+@utility phone-launcher-badge {
+  font-family: var(--font-pretendard);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
