@@ -47,15 +47,18 @@ public class RelayRoomSubmissionUseCase {
     private final AnonymousUserResolver anonymousUserResolver;
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomPolicy relayRoomPolicy;
+    private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelaySubmissionStorage relaySubmissionStorage;
     private final MinioStorageProperties minioStorageProperties;
 
     public RelayRoomSubmissionUseCase(AnonymousUserResolver anonymousUserResolver,
         RelayRoomRepository relayRoomRepository, RelayRoomPolicy relayRoomPolicy,
-        RelaySubmissionStorage relaySubmissionStorage, MinioStorageProperties minioStorageProperties) {
+        RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelaySubmissionStorage relaySubmissionStorage,
+        MinioStorageProperties minioStorageProperties) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
+        this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relaySubmissionStorage = relaySubmissionStorage;
         this.minioStorageProperties = minioStorageProperties;
     }
@@ -79,7 +82,8 @@ public class RelayRoomSubmissionUseCase {
                 RelayRoomAssignment assignment = requestedAssignment.get();
                 if (assignment.status() == RelayAssignmentStatus.SUBMITTED) {
                     return createResponse(roomState, assignment, true, viewerUserUuid, participant.nickname(),
-                        PartAdvanceResult.notAdvanced(roomState, calculateProgress(roomState, assignment.part())));
+                        RelayPartAdvanceResult.notAdvanced(roomState,
+                            relayRoomPartAdvanceService.calculateProgress(roomState, assignment.part())));
                 }
                 if (assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED || assignment.autoSubmitted()) {
                     throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
@@ -113,7 +117,8 @@ public class RelayRoomSubmissionUseCase {
                 hintObjectKey, now);
             RelayRoomState submittedRoomState = roomState.withAssignments(
                 replaceAssignment(roomState.assignments(), currentAssignment, submittedAssignment), now);
-            PartAdvanceResult advanceResult = advancePartIfCompleted(submittedRoomState, currentAssignment.part(), now);
+            RelayPartAdvanceResult advanceResult = relayRoomPartAdvanceService
+                .advancePartIfCompleted(submittedRoomState, currentAssignment.part(), now);
 
             if (relayRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
                 return createResponse(advanceResult.roomState(), submittedAssignment, false, viewerUserUuid,
@@ -242,80 +247,13 @@ public class RelayRoomSubmissionUseCase {
         return updatedAssignments;
     }
 
-    private PartAdvanceResult advancePartIfCompleted(RelayRoomState roomState, RelayDrawingPart submittedPart,
-        LocalDateTime now) {
-        SubmissionProgress progress = calculateProgress(roomState, submittedPart);
-        if (!progress.currentPartCompleted()) {
-            return PartAdvanceResult.notAdvanced(roomState, progress);
-        }
-
-        if (submittedPart == RelayDrawingPart.FACE) {
-            RelayRoomState advancedRoomState = roomState.startPart(RelayDrawingPart.BODY, now);
-            return PartAdvanceResult.advanced(advancedRoomState, RelayDrawingPart.BODY, progress);
-        }
-
-        if (submittedPart == RelayDrawingPart.BODY) {
-            RelayRoomState advancedRoomState = roomState.startPart(RelayDrawingPart.LEGS, now);
-            return PartAdvanceResult.advanced(advancedRoomState, RelayDrawingPart.LEGS, progress);
-        }
-
-        RelayRoomState finalizedRoomState = roomState.finalizeParts(now);
-        return PartAdvanceResult.allPartsCompleted(finalizedRoomState, progress);
-    }
-
     private RelayRoomSubmissionResponse createResponse(RelayRoomState roomState, RelayRoomAssignment assignment,
-        boolean alreadySubmitted, String userUuid, String nickname, PartAdvanceResult advanceResult) {
-        SubmissionProgress progress = advanceResult.progress();
+        boolean alreadySubmitted, String userUuid, String nickname, RelayPartAdvanceResult advanceResult) {
+        RelayPartProgress progress = advanceResult.progress();
 
         return RelayRoomSubmissionResponse.from(roomState.roomCode(), assignment, alreadySubmitted,
             progress.currentPartCompleted(), progress.submittedCount(), progress.totalCount(), userUuid, nickname,
             advanceResult.advanced(), advanceResult.nextPart(), advanceResult.nextPartStartedAt(),
             advanceResult.nextPartDeadlineAt(), advanceResult.allPartsCompleted(), advanceResult.roomState().status());
-    }
-
-    private SubmissionProgress calculateProgress(RelayRoomState roomState, RelayDrawingPart part) {
-        int totalCount = 0;
-        int submittedCount = 0;
-
-        for (RelayRoomAssignment assignment : roomState.assignments()) {
-            if (assignment.part() != part) {
-                continue;
-            }
-
-            totalCount++;
-            if (isCompleted(assignment)) {
-                submittedCount++;
-            }
-        }
-
-        return new SubmissionProgress(submittedCount, totalCount, totalCount > 0 && submittedCount == totalCount);
-    }
-
-    private boolean isCompleted(RelayRoomAssignment assignment) {
-        return assignment.status() == RelayAssignmentStatus.SUBMITTED
-            || assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED || assignment.autoSubmitted();
-    }
-
-    private record SubmissionProgress(int submittedCount, int totalCount, boolean currentPartCompleted) {
-    }
-
-    private record PartAdvanceResult(RelayRoomState roomState, boolean advanced, RelayDrawingPart nextPart,
-        LocalDateTime nextPartStartedAt, LocalDateTime nextPartDeadlineAt, boolean allPartsCompleted,
-        SubmissionProgress progress) {
-
-        private static PartAdvanceResult notAdvanced(RelayRoomState roomState, SubmissionProgress progress) {
-            return new PartAdvanceResult(roomState, false, null, null, null,
-                roomState.status() == RelayRoomStatus.FINALIZING, progress);
-        }
-
-        private static PartAdvanceResult advanced(RelayRoomState roomState, RelayDrawingPart nextPart,
-            SubmissionProgress progress) {
-            return new PartAdvanceResult(roomState, true, nextPart, roomState.partStartedAt(),
-                roomState.partDeadlineAt(), false, progress);
-        }
-
-        private static PartAdvanceResult allPartsCompleted(RelayRoomState roomState, SubmissionProgress progress) {
-            return new PartAdvanceResult(roomState, true, null, null, null, true, progress);
-        }
     }
 }

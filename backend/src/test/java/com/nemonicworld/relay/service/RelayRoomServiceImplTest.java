@@ -64,6 +64,7 @@ class RelayRoomServiceImplTest {
     void setUp() {
         RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
+        RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
         relayRoomService = new RelayRoomServiceImpl(
             new RelayRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator, relayRoomRepository, relayRoomPolicy),
             new RelayRoomQueryUseCase(anonymousUserResolver, relayRoomPolicy, relayRoomViewerFactory),
@@ -75,7 +76,7 @@ class RelayRoomServiceImplTest {
                 anonymousUserResolver, relayRoomRepository, relayRoomPolicy, relayRoomViewerFactory),
             new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relaySubmissionStorage, minioStorageProperties()),
+                relayRoomPartAdvanceService, relaySubmissionStorage, minioStorageProperties()),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory));
     }
