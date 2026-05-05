@@ -2,20 +2,13 @@
 
 import { useEffect } from 'react'
 import { Dialog } from '@base-ui/react/dialog'
-import { PhoneDrawingScreen, PhoneFrame, PhoneHomeScreen } from './components'
+import {
+  PhoneDrawingScreen,
+  PhoneFrame,
+  PhoneGalleryScreen,
+  PhoneHomeScreen,
+} from './components'
 import { usePhoneStore } from './phoneStore'
-
-function PhoneGalleryPlaceholder() {
-  return (
-    <div className="flex h-full flex-col bg-surface-default pt-28 text-center">
-      <p className="caption-b text-primary-2">GALLERY</p>
-      <h2 className="h3-b mt-2 text-fg-primary">내 갤러리</h2>
-      <p className="body-r mt-4 px-10 text-fg-secondary">
-        저장된 그림과 부스 결과물을 모아 보여줄 화면을 준비하고 있어요.
-      </p>
-    </div>
-  )
-}
 
 export default function PhoneModal() {
   const activeScreen = usePhoneStore((state) => state.activeScreen)
@@ -25,6 +18,9 @@ export default function PhoneModal() {
   const goHome = usePhoneStore((state) => state.goHome)
   const isPhoneOpen = usePhoneStore((state) => state.isPhoneOpen)
   const openPhone = usePhoneStore((state) => state.openPhone)
+  const closeGalleryItem = usePhoneStore((state) => state.closeGalleryItem)
+  const selectGalleryItem = usePhoneStore((state) => state.selectGalleryItem)
+  const selectedGalleryItemId = usePhoneStore((state) => state.selectedGalleryItemId)
   const showDrawing = usePhoneStore((state) => state.showDrawing)
   const showGallery = usePhoneStore((state) => state.showGallery)
   const toastMessage = usePhoneStore((state) => state.toastMessage)
@@ -43,6 +39,8 @@ export default function PhoneModal() {
   }, [dismissToast, toastMessage])
 
   const statusBarVariant = activeScreen === 'home' ? 'light' : 'dark'
+  const selectedGalleryItem =
+    galleryItems.find((item) => item.id === selectedGalleryItemId) ?? null
 
   return (
     <Dialog.Root
@@ -76,7 +74,15 @@ export default function PhoneModal() {
                 onCreateArtifact={addDrawingArtifact}
               />
             )}
-            {activeScreen === 'gallery' && <PhoneGalleryPlaceholder />}
+            {activeScreen === 'gallery' && (
+              <PhoneGalleryScreen
+                galleryItems={galleryItems}
+                selectedItem={selectedGalleryItem}
+                onBack={goHome}
+                onCloseItem={closeGalleryItem}
+                onSelectItem={selectGalleryItem}
+              />
+            )}
             {toastMessage && (
               <div className="body-b absolute left-1/2 top-1/2 z-[var(--z-toast)] w-[min(18rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-xl)] bg-[rgba(17,21,29,0.88)] px-5 py-3 text-center text-fg-inverse shadow-lg">
                 {toastMessage}

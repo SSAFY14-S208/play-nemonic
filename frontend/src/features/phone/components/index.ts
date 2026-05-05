@@ -1,5 +1,7 @@
 export { PhoneDrawingScreen } from './PhoneDrawingScreen'
 export { PhoneDrawingStage } from './PhoneDrawingStage'
 export { PhoneFrame } from './PhoneFrame'
+export { PhoneGalleryItemSheet } from './PhoneGalleryItemSheet'
+export { PhoneGalleryScreen } from './PhoneGalleryScreen'
 export { PhoneHomeScreen } from './PhoneHomeScreen'
 export { PhoneStatusBar } from './PhoneStatusBar'
