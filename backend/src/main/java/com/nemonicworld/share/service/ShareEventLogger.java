@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+// 공유 생성 로그와 공유 링크 유입 로그와 게임 시작/전환 로그를 서로 연결하는 키
 public class ShareEventLogger {
 
     private static final Logger log = LoggerFactory.getLogger(ShareEventLogger.class);
