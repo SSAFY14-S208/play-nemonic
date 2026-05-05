@@ -120,10 +120,9 @@ public class RelayRoomSubmissionUseCase {
                     participant.nickname(), advanceResult);
             }
 
-            log.warn(
-                "Relay submission Redis update conflict; uploaded temp files may need cleanup. roomCode={}, "
-                    + "canvasIndex={}, part={}",
-                roomState.roomCode(), currentAssignment.canvasIndex(), currentAssignment.part());
+            String cleanupMessage = "릴레이 제출 Redis 갱신 충돌로 임시 업로드 파일이 정리 대상에 남을 수 있습니다.";
+            log.warn("{} roomCode={}, canvasIndex={}, part={}", cleanupMessage, roomState.roomCode(),
+                currentAssignment.canvasIndex(), currentAssignment.part());
         }
 
         throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
