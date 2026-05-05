@@ -89,6 +89,24 @@ public final class OpenApiErrorExamples {
           "message": "대기 중인 방에서만 설정을 변경할 수 있습니다."
         }
         """;
+    public static final String RELAY_GAME_ALREADY_STARTED = """
+        {
+          "success": false,
+          "message": "이미 게임이 시작되었습니다."
+        }
+        """;
+    public static final String RELAY_NOT_ENOUGH_PARTICIPANTS = """
+        {
+          "success": false,
+          "message": "최소 2명이 모여야 시작할 수 있습니다."
+        }
+        """;
+    public static final String RELAY_PARTICIPANTS_DISCONNECTED = """
+        {
+          "success": false,
+          "message": "모든 참여자가 연결된 상태에서만 시작할 수 있습니다."
+        }
+        """;
     public static final String INVALID_BIRTH_INFO = """
         {
           "success": false,
