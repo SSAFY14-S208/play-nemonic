@@ -52,6 +52,7 @@ export default function FlipbookPage() {
           onDrawStart={flipbook.drawingBoard.beginDrawing}
           onDrawMove={flipbook.drawingBoard.continueDrawing}
           onDrawEnd={flipbook.drawingBoard.endDrawing}
+          onExit={() => flipbook.selectStep('lobby')}
           onCompleteRound={flipbook.completeRound}
         />
       )}

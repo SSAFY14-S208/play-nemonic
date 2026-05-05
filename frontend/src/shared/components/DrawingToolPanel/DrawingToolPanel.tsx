@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  Brush,
   Eraser,
   PaintBucket,
   Pencil,
@@ -39,7 +38,6 @@ interface DrawingToolPanelProps {
 
 const DRAWING_TOOL_BUTTONS: DrawingToolButton[] = [
   { key: 'pencil', label: '펜', Icon: Pencil, action: 'select' },
-  { key: 'marker', label: '브러시', Icon: Brush, action: 'select' },
   { key: 'bucket', label: '채우기', Icon: PaintBucket, action: 'select' },
   { key: 'eraser', label: '지우개', Icon: Eraser, action: 'select' },
   { key: 'undo', label: '되돌리기', Icon: Undo2, action: 'undo' },
@@ -84,10 +82,10 @@ export default function DrawingToolPanel({
   const toneStyle = TONE_STYLES[tone]
 
   return (
-    <>
-      <section className="grid gap-4">
+    <div className="grid gap-6">
+      <section className="grid gap-3">
         <p className={cn('h4-b', toneStyle.heading)}>도구</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid w-fit grid-cols-3 gap-3">
           {DRAWING_TOOL_BUTTONS.map((tool) => {
             const isActive = tool.action === 'select' && selectedToolKey === tool.key
             const Icon = tool.Icon
@@ -114,7 +112,7 @@ export default function DrawingToolPanel({
                   onSelectTool(tool.key as DrawingToolKey)
                 }}
                 className={cn(
-                  'grid size-[42px] place-items-center rounded-[12px] border',
+                  'grid size-11 place-items-center rounded-[12px] border',
                   toneStyle.button,
                   isActive && toneStyle.activeButton,
                 )}
@@ -126,9 +124,9 @@ export default function DrawingToolPanel({
         </div>
       </section>
 
-      <section className="grid gap-4">
+      <section className="grid gap-3">
         <p className={cn('h4-b', toneStyle.heading)}>굵기</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid w-full grid-cols-3 gap-3">
           {STROKE_WIDTH_OPTIONS.map((strokeWidthOption) => (
             <button
               key={strokeWidthOption}
@@ -136,7 +134,7 @@ export default function DrawingToolPanel({
               aria-label={`${strokeWidthOption}px 굵기`}
               onClick={() => onStrokeWidthChange(strokeWidthOption)}
               className={cn(
-                'grid min-h-8 place-items-center rounded-[12px] border',
+                'grid min-h-10 place-items-center rounded-full border',
                 toneStyle.button,
                 strokeWidth === strokeWidthOption && toneStyle.activeButton,
               )}
@@ -153,9 +151,9 @@ export default function DrawingToolPanel({
         </div>
       </section>
 
-      <section className="grid gap-4">
+      <section className="grid gap-3">
         <p className={cn('h4-b', toneStyle.heading)}>색</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-fit grid-cols-4 gap-3">
           {colors.map((color) => (
             <button
               key={color}
@@ -163,7 +161,7 @@ export default function DrawingToolPanel({
               aria-label={`${color} 색상`}
               onClick={() => onSelectColor(color)}
               className={cn(
-                'size-8 rounded-full border border-transparent',
+                'size-9 rounded-full border border-transparent',
                 selectedColor === color && cn('border-[3px]', toneStyle.selectedColor),
                 color === '#ffffff' && toneStyle.neutralColor,
               )}
@@ -172,6 +170,6 @@ export default function DrawingToolPanel({
           ))}
         </div>
       </section>
-    </>
+    </div>
   )
 }

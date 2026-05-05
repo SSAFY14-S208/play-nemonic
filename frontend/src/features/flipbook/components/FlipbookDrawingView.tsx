@@ -1,8 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { Timer } from 'lucide-react'
-import { DrawingToolPanel } from '@/shared/components'
+import { DrawingSessionControls, DrawingToolPanel } from '@/shared/components'
 import type { DrawingLine, DrawingPointerEvent, DrawingToolKey } from '@/shared/types'
 import {
   FLIPBOOK_COLORS,
@@ -33,6 +32,7 @@ interface FlipbookDrawingViewProps {
   onDrawStart: (event: DrawingPointerEvent) => void
   onDrawMove: (event: DrawingPointerEvent) => void
   onDrawEnd: () => void
+  onExit: () => void
   onCompleteRound: () => void
 }
 
@@ -55,22 +55,17 @@ export default function FlipbookDrawingView({
   onDrawStart,
   onDrawMove,
   onDrawEnd,
+  onExit,
   onCompleteRound,
 }: FlipbookDrawingViewProps) {
   return (
     <section className="relative min-h-[900px] overflow-hidden border border-flipbook-light bg-flipbook-background text-flipbook-ink">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <button
-          type="button"
-          className="body-b absolute left-[123px] top-16 min-h-[49px] rounded-full bg-flipbook-light px-7 text-flipbook-ink"
-        >
-          ‹ 나가기
-        </button>
-
-        <div className="body-b absolute left-[1136px] top-16 inline-flex min-h-[49px] items-center gap-2 rounded-full bg-flipbook-timer px-5 text-fg-inverse">
-          <Timer className="size-5" aria-hidden />
-          {remainingSeconds}
-        </div>
+        <DrawingSessionControls
+          tone="flipbook"
+          remainingSeconds={remainingSeconds}
+          onExit={onExit}
+        />
 
         <aside className="absolute left-[27px] top-[247px] flex h-[481px] w-[225px] flex-col justify-center gap-4 rounded-[18px] bg-flipbook-paper p-5 shadow-[0_4px_16px_10px_var(--color-flipbook-shadow)]">
           <DrawingToolPanel

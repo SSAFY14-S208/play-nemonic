@@ -1,6 +1,5 @@
-import Image from 'next/image'
 import RelayArtworkCard from './RelayArtworkCard'
-import { relayPostItNote } from '@/shared/assets'
+import { PostItNote } from '@/shared/components'
 import { cn } from '@/shared/libs'
 
 interface RelayBoothViewProps {
@@ -23,11 +22,9 @@ export default function RelayBoothView({ onCreateRoom, onEnterRoom }: RelayBooth
   return (
     <section className="relative min-h-[900px] overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <Image
-          src={relayPostItNote}
-          alt="안내 문구를 담은 노란 포스트잇 배경 이미지"
-          priority
-          className="absolute left-[5.8%] top-[18%] h-[61.5%] w-[40.3%] object-contain"
+        <PostItNote
+          title="안내 문구를 담은 노란 포스트잇 배경 이미지"
+          className="absolute left-[5.8%] top-[18%] h-[61.5%] w-[40.3%] text-brand-relay-drawing-primary"
         />
 
         <div className="absolute left-[9.7%] top-[28.7%] w-[33%]">

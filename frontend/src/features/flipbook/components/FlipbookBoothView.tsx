@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { PostItNote } from '@/shared/components'
 
 interface FlipbookBoothViewProps {
   onCreateRoom: () => void
@@ -12,9 +13,7 @@ export default function FlipbookBoothView({
   return (
     <section className="relative min-h-[900px] overflow-hidden bg-flipbook-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <div className="absolute left-[7.3%] top-[22.8%] h-[51.7%] w-[36.6%] rotate-[-2deg] rounded-[6px] bg-flipbook-light shadow-[0_10px_18px_var(--color-flipbook-shadow)]">
-          <span className="absolute bottom-0 right-0 h-[28%] w-[34%] rounded-tl-[90px] bg-flipbook-primary/45" />
-        </div>
+        <PostItNote className="absolute left-[5.8%] top-[18%] h-[61.5%] w-[40.3%] text-brand-flipbook-primary" />
 
         <div className="absolute left-[9.7%] top-[28.6%] w-[33%]">
           <span className="body-b inline-flex min-h-[43px] items-center rounded-full bg-flipbook-result-soft px-5 text-flipbook-deep">
@@ -55,9 +54,8 @@ export default function FlipbookBoothView({
           width={1056}
           height={693}
           priority
-          className="absolute left-[37.3%] top-[12.9%] h-[77%] w-[73.3%] object-contain"
+          className="absolute left-[41.5%] top-[13.5%] h-[76%] w-[68%] object-contain"
         />
-
       </div>
     </section>
   )

@@ -1,4 +1,5 @@
 import { Copy, Crown, Minus, Plus, QrCode } from 'lucide-react'
+import { PostItNote } from '@/shared/components'
 import {
   FLIPBOOK_PARTICIPANTS,
   FLIPBOOK_ROOM_CODE,
@@ -31,9 +32,7 @@ export default function FlipbookLobbyView({
   return (
     <section className="relative min-h-[900px] overflow-hidden border border-flipbook-light bg-flipbook-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <div className="absolute left-[7.9%] top-[18.1%] h-[53%] w-[39%] rotate-[-2deg] rounded-[6px] bg-flipbook-light shadow-[0_10px_18px_var(--color-flipbook-shadow)]">
-          <span className="absolute bottom-0 right-0 h-[28%] w-[34%] rounded-tl-[90px] bg-flipbook-primary/45" />
-        </div>
+        <PostItNote className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-brand-flipbook-primary" />
 
         <section className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
           <p className="h2-b text-flipbook-ink/80">입장 코드</p>

@@ -1,1 +1,1 @@
-export { default as relayPostItNote } from './relay-post-it-note.webp'
+export { default as postItNote } from './post-it.svg'
