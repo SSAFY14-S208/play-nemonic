@@ -6,9 +6,14 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventRespo
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomSimpleMessageResponse;
+import com.nemonicworld.relay.entity.RelayDrawingPart;
+import com.nemonicworld.relay.entity.RelayRoomAssignment;
+import com.nemonicworld.relay.entity.RelayRoomStatus;
+import java.time.LocalDateTime;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -81,18 +86,38 @@ public class RelayRoomEventPublisher {
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submissionResponse.roomCode(), event);
     }
 
-    public void publishPartStarted(RelayRoomSubmissionResponse submissionResponse) {
-        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_STARTED,
-            submissionResponse.roomCode(), RelayRoomPartStartedEventResponse.from(submissionResponse));
+    public void publishPartAutoSubmitted(String roomCode, String nickname, RelayRoomAssignment assignment) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_AUTO_SUBMITTED, roomCode,
+            RelayRoomPartAutoSubmittedEventResponse.from(roomCode, nickname, assignment));
 
-        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submissionResponse.roomCode(), event);
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+    }
+
+    public void publishPartStarted(RelayRoomSubmissionResponse submissionResponse) {
+        publishPartStarted(submissionResponse.roomCode(), submissionResponse.part(), submissionResponse.nextPart(),
+            submissionResponse.nextPartStartedAt(), submissionResponse.nextPartDeadlineAt());
+    }
+
+    public void publishPartStarted(String roomCode, RelayDrawingPart previousPart, RelayDrawingPart part,
+        LocalDateTime partStartedAt, LocalDateTime partDeadlineAt) {
+        int timeLimitSeconds = (int) java.time.Duration.between(partStartedAt, partDeadlineAt).toSeconds();
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_STARTED, roomCode,
+            new RelayRoomPartStartedEventResponse(roomCode, previousPart, part, partStartedAt, partDeadlineAt,
+                timeLimitSeconds));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
     }
 
     public void publishAllPartsCompleted(RelayRoomSubmissionResponse submissionResponse) {
-        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.ALL_PARTS_COMPLETED,
-            submissionResponse.roomCode(), RelayRoomAllPartsCompletedEventResponse.from(submissionResponse));
+        publishAllPartsCompleted(submissionResponse.roomCode(), submissionResponse.roomStatus(),
+            submissionResponse.submittedAt());
+    }
 
-        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submissionResponse.roomCode(), event);
+    public void publishAllPartsCompleted(String roomCode, RelayRoomStatus roomStatus, LocalDateTime completedAt) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.ALL_PARTS_COMPLETED, roomCode,
+            new RelayRoomAllPartsCompletedEventResponse(roomCode, roomStatus, completedAt));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
     }
 
     /**

@@ -12,9 +12,11 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventRespo
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
+import com.nemonicworld.relay.entity.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -130,6 +132,31 @@ class RelayRoomEventPublisherTest {
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
         assertThat(data.roomStatus()).isEqualTo(RelayRoomStatus.FINALIZING);
         assertThat(data.completedAt()).isEqualTo(response.submittedAt());
+    }
+
+    @Test
+    void publishPartAutoSubmittedSendsAutoSubmittedEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        LocalDateTime submittedAt = LocalDateTime.now().minusSeconds(1);
+        RelayRoomAssignment assignment = new RelayRoomAssignment(1, RelayDrawingPart.BODY,
+            "550e8400-e29b-41d4-a716-446655440000", RelayAssignmentStatus.AUTO_SUBMITTED, null, null, null, true, true,
+            submittedAt);
+
+        publisher.publishPartAutoSubmitted(ROOM_CODE, "Mango", assignment);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.PART_AUTO_SUBMITTED);
+
+        RelayRoomPartAutoSubmittedEventResponse data = (RelayRoomPartAutoSubmittedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.userUuid()).isEqualTo(assignment.assignedUserUuid());
+        assertThat(data.nickname()).isEqualTo("Mango");
+        assertThat(data.canvasIndex()).isEqualTo(1);
+        assertThat(data.part()).isEqualTo(RelayDrawingPart.BODY);
+        assertThat(data.assignmentStatus()).isEqualTo(RelayAssignmentStatus.AUTO_SUBMITTED);
+        assertThat(data.empty()).isTrue();
+        assertThat(data.submittedAt()).isEqualTo(submittedAt);
     }
 
     /**
