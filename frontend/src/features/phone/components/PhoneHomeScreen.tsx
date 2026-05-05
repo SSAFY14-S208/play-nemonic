@@ -18,7 +18,7 @@ export function PhoneHomeScreen({
   onOpenGallery,
 }: PhoneHomeScreenProps) {
   return (
-    <div className="flex h-full flex-col bg-surface-default">
+    <div className="phone-home-body-m flex h-full flex-col bg-surface-default">
       <section
         className="h-[10.5rem] px-[1.375rem] pt-[4.15rem] text-white"
         style={{ background: PHONE_COLORS.homeHeader }}
@@ -32,13 +32,13 @@ export function PhoneHomeScreen({
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="h2-b truncate text-[1.65rem] leading-none text-white">
+              <h2 className="phone-home-nickname-sb truncate text-white">
                 {PHONE_PROFILE.nickname}
               </h2>
               <button
                 type="button"
                 aria-label="프로필 수정"
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-white transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
+                className="flex size-8 shrink-0 items-center justify-center text-white transition-transform hover:scale-105 focus-visible:outline-none"
               >
                 <Image
                   src={phoneIconEdit}
@@ -76,7 +76,7 @@ export function PhoneHomeScreen({
                   aria-hidden
                   className="size-[5.875rem] object-contain transition duration-200 group-hover:scale-105"
                 />
-                <span className="h3-b text-center text-[1.1rem] leading-tight text-fg-primary">
+                <span className="phone-home-app-label-m text-center text-fg-primary">
                   {label}
                 </span>
               </>

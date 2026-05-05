@@ -6,6 +6,7 @@ import type { KonvaEventObject } from 'konva/lib/Node'
 import {
   PHONE_BRUSH_SIZES,
   PHONE_DRAWING_COLORS,
+  PHONE_DRAWING_PAPER_COLOR,
 } from '../constants'
 import type {
   PhoneDrawingToolKey,
@@ -30,12 +31,28 @@ export function usePhoneDrawing(
   const stageRef = useRef<Konva.Stage>(null)
   const isDrawingRef = useRef(false)
   const [activeTool, setActiveTool] = useState<PhoneDrawingToolKey>('pen')
-  const [brushSize, setBrushSize] = useState(PHONE_BRUSH_SIZES[1])
+  const [brushSizes, setBrushSizes] = useState<
+    Record<PhoneDrawingToolKey, number>
+  >({
+    eraser: PHONE_BRUSH_SIZES[1],
+    pen: PHONE_BRUSH_SIZES[1],
+  })
   const [selectedColor, setSelectedColor] = useState(PHONE_DRAWING_COLORS[0])
   const [lines, setLines] = useState<PhoneDrawLine[]>([])
   const [redoLines, setRedoLines] = useState<PhoneDrawLine[]>([])
 
+  const brushSize = brushSizes[activeTool]
   const hasDrawing = lines.length > 0
+
+  const setBrushSize = useCallback(
+    (nextBrushSize: number) => {
+      setBrushSizes((currentBrushSizes) => ({
+        ...currentBrushSizes,
+        [activeTool]: nextBrushSize,
+      }))
+    },
+    [activeTool],
+  )
 
   const selectColor = useCallback((nextColor: string) => {
     setSelectedColor(nextColor)
@@ -53,7 +70,8 @@ export function usePhoneDrawing(
         ...currentLines,
         {
           id: createPhoneLineId(),
-          color: activeTool === 'eraser' ? '#fefefe' : selectedColor,
+          color:
+            activeTool === 'eraser' ? PHONE_DRAWING_PAPER_COLOR : selectedColor,
           points: [pointerPosition.x, pointerPosition.y],
           strokeWidth: activeTool === 'eraser' ? brushSize * 1.75 : brushSize,
           tool: activeTool,

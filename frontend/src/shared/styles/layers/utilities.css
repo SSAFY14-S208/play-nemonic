@@ -107,3 +107,27 @@
   font-weight: 400;
   line-height: 1.5;
 }
+
+/* Phone home */
+
+@utility phone-home-body-m {
+  font-family: var(--font-paperlogy);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+@utility phone-home-nickname-sb {
+  font-family: var(--font-paperlogy);
+  font-size: 1.65rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+@utility phone-home-app-label-m {
+  font-family: var(--font-paperlogy);
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0;
+}

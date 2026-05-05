@@ -1,7 +1,11 @@
 import type { ReactNode } from 'react'
 import Image from 'next/image'
-import { phoneDeviceFrame } from '@/shared/assets'
-import { PHONE_COLORS } from '../constants'
+import {
+  phoneDeviceFrame,
+  phoneScreen,
+  phoneSpeakerCamera,
+} from '@/shared/assets'
+import { PHONE_COLORS, PHONE_FRAME_LAYOUT } from '../constants'
 import { PhoneStatusBar } from './PhoneStatusBar'
 
 interface PhoneFrameProps {
@@ -11,32 +15,74 @@ interface PhoneFrameProps {
 
 export function PhoneFrame({ children, statusBarVariant }: PhoneFrameProps) {
   return (
-    <div className="relative aspect-[498/1024] w-[min(393px,calc(100vw-1.5rem))] max-h-[calc(100dvh-2rem)] max-w-[calc((100dvh-2rem)*0.486)]">
-      <Image
-        src={phoneDeviceFrame}
-        alt=""
-        aria-hidden
-        fill
-        priority
-        className="pointer-events-none object-fill"
-        sizes="393px"
-      />
+    <div
+      className="relative max-h-[calc(100dvh-2rem)] max-w-[calc((100dvh-2rem)*0.486)]"
+      style={{
+        aspectRatio: PHONE_FRAME_LAYOUT.aspectRatio,
+        width: PHONE_FRAME_LAYOUT.deviceMaxWidth,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute"
+        style={PHONE_FRAME_LAYOUT.deviceFrame}
+      >
+        <Image
+          src={phoneDeviceFrame}
+          alt=""
+          aria-hidden
+          fill
+          priority
+          className="object-fill"
+          sizes="393px"
+        />
+      </div>
 
       <div
-        className="absolute inset-[0.38rem] overflow-hidden rounded-[2.35rem]"
-        style={{
-          background: PHONE_COLORS.black,
-        }}
+        className="pointer-events-none absolute"
+        style={PHONE_FRAME_LAYOUT.screen}
       >
-        <div className="absolute inset-[0.38rem] overflow-hidden rounded-[2rem] bg-surface-default shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]">
-          <PhoneStatusBar variant={statusBarVariant} />
-          {children}
-          <div
-            className="pointer-events-none absolute bottom-3 left-1/2 z-20 h-1 w-32 -translate-x-1/2 rounded-full"
-            style={{ background: PHONE_COLORS.screenHandle }}
-          />
-        </div>
+        <Image
+          src={phoneScreen}
+          alt=""
+          aria-hidden
+          fill
+          priority
+          className="object-fill"
+          sizes="393px"
+        />
       </div>
+
+      <div
+        className="absolute overflow-hidden bg-surface-default"
+        style={PHONE_FRAME_LAYOUT.display}
+      >
+        {children}
+      </div>
+
+      <div
+        className="pointer-events-none absolute z-20"
+        style={PHONE_FRAME_LAYOUT.speakerCamera}
+      >
+        <Image
+          src={phoneSpeakerCamera}
+          alt=""
+          aria-hidden
+          fill
+          priority
+          className="object-fill"
+          sizes="160px"
+        />
+      </div>
+
+      <PhoneStatusBar variant={statusBarVariant} />
+
+      <div
+        className="pointer-events-none absolute z-20 rounded-full"
+        style={{
+          ...PHONE_FRAME_LAYOUT.homeIndicator,
+          background: PHONE_COLORS.screenHandle,
+        }}
+      />
     </div>
   )
 }
