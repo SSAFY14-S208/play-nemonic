@@ -418,6 +418,75 @@ class RelayRoomServiceImplTest {
         verify(relaySubmissionStorage, times(6)).upload(any(String.class), any());
     }
 
+    @Test
+    void submitCurrentPartAdvancesToBodyWhenFaceAssignmentsAreCompleted() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "Mango");
+        RelayRoomState roomState = playingRoomState(RelayDrawingPart.FACE,
+            List.of(assignment(0, RelayDrawingPart.FACE, hostUuid),
+                assignment(1, RelayDrawingPart.FACE, participantUuid, RelayAssignmentStatus.SUBMITTED,
+                    "relay/tmp/AB3K9Q/1/face.png", "relay/tmp/AB3K9Q/1/face-hint.png", false, false)),
+            participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomSubmissionResponse response = relayRoomService.submitCurrentPart(hostUuid.toString(), ROOM_CODE,
+            submissionRequest(0, RelayDrawingPart.FACE));
+
+        assertThat(response.currentPartCompleted()).isTrue();
+        assertThat(response.advanced()).isTrue();
+        assertThat(response.nextPart()).isEqualTo(RelayDrawingPart.BODY);
+        assertThat(response.allPartsCompleted()).isFalse();
+        assertThat(response.roomStatus()).isEqualTo(RelayRoomStatus.PLAYING);
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomState updatedRoomState = updatedStateCaptor.getValue();
+        assertThat(updatedRoomState.status()).isEqualTo(RelayRoomStatus.PLAYING);
+        assertThat(updatedRoomState.currentPart()).isEqualTo(RelayDrawingPart.BODY);
+        assertThat(Duration.between(updatedRoomState.partStartedAt(), updatedRoomState.partDeadlineAt()))
+            .isEqualTo(Duration.ofSeconds(updatedRoomState.timeLimitSeconds()));
+        assertThat(updatedRoomState.assignments()).extracting(RelayRoomAssignment::canvasIndex).containsExactly(0, 1);
+        assertThat(updatedRoomState.assignments()).extracting(RelayRoomAssignment::part)
+            .containsExactly(RelayDrawingPart.FACE, RelayDrawingPart.FACE);
+    }
+
+    @Test
+    void submitCurrentPartMovesToFinalizingWhenLegsAssignmentsAreCompleted() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "Mango");
+        RelayRoomState roomState = playingRoomState(RelayDrawingPart.LEGS,
+            List.of(assignment(0, RelayDrawingPart.LEGS, hostUuid),
+                assignment(1, RelayDrawingPart.LEGS, participantUuid, RelayAssignmentStatus.AUTO_SUBMITTED,
+                    "relay/tmp/AB3K9Q/1/legs.png", null, true, true)),
+            participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomSubmissionResponse response = relayRoomService.submitCurrentPart(hostUuid.toString(), ROOM_CODE,
+            submissionRequest(0, RelayDrawingPart.LEGS));
+
+        assertThat(response.currentPartCompleted()).isTrue();
+        assertThat(response.advanced()).isTrue();
+        assertThat(response.nextPart()).isNull();
+        assertThat(response.allPartsCompleted()).isTrue();
+        assertThat(response.roomStatus()).isEqualTo(RelayRoomStatus.FINALIZING);
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomState updatedRoomState = updatedStateCaptor.getValue();
+        assertThat(updatedRoomState.status()).isEqualTo(RelayRoomStatus.FINALIZING);
+        assertThat(updatedRoomState.currentPart()).isEqualTo(RelayDrawingPart.LEGS);
+    }
+
     private void assertAssignment(RelayRoomAssignment assignment, int canvasIndex, RelayDrawingPart part,
         UUID assignedUserUuid) {
         assertThat(assignment.canvasIndex()).isEqualTo(canvasIndex);
@@ -473,6 +542,16 @@ class RelayRoomServiceImplTest {
     private RelayRoomAssignment assignment(int canvasIndex, RelayDrawingPart part, UUID assignedUserUuid) {
         return new RelayRoomAssignment(canvasIndex, part, assignedUserUuid.toString(), RelayAssignmentStatus.PENDING,
             null, null, null, false, false, null);
+    }
+
+    private RelayRoomAssignment assignment(int canvasIndex, RelayDrawingPart part, UUID assignedUserUuid,
+        RelayAssignmentStatus status, String objectKey, String hintObjectKey, boolean empty, boolean autoSubmitted) {
+        LocalDateTime submittedAt = status == RelayAssignmentStatus.PENDING
+            ? null
+            : LocalDateTime.now().minusSeconds(5).truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomAssignment(canvasIndex, part, assignedUserUuid.toString(), status, null, objectKey,
+            hintObjectKey, empty, autoSubmitted, submittedAt);
     }
 
     private RelayRoomSubmissionRequest submissionRequest(int canvasIndex, RelayDrawingPart part) {

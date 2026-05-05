@@ -171,6 +171,7 @@ class RelayRoomSubmissionControllerIntegrationTest {
         assertThat(countRows("relay_drawing_artifact")).isZero();
         assertThat(countRows("file_upload")).isZero();
         verify(relayRoomEventPublisher).publishPartSubmitted(any(RelayRoomSubmissionResponse.class));
+        verify(relayRoomEventPublisher, never()).publishPartStarted(any(RelayRoomSubmissionResponse.class));
     }
 
     @Test
@@ -230,7 +231,80 @@ class RelayRoomSubmissionControllerIntegrationTest {
                 .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.submittedCount").value(2))
             .andExpect(jsonPath("$.data.totalCount").value(2))
-            .andExpect(jsonPath("$.data.currentPartCompleted").value(true));
+            .andExpect(jsonPath("$.data.currentPartCompleted").value(true))
+            .andExpect(jsonPath("$.data.advanced").value(true)).andExpect(jsonPath("$.data.nextPart").value("BODY"))
+            .andExpect(jsonPath("$.data.nextPartStartedAt").exists())
+            .andExpect(jsonPath("$.data.nextPartDeadlineAt").exists())
+            .andExpect(jsonPath("$.data.allPartsCompleted").value(false))
+            .andExpect(jsonPath("$.data.roomStatus").value("PLAYING"));
+
+        JsonNode storedRoom = readSavedRoom();
+        assertThat(storedRoom.path("status").asText()).isEqualTo("PLAYING");
+        assertThat(storedRoom.path("currentPart").asText()).isEqualTo("BODY");
+        assertThat(storedRoom.path("partStartedAt").asText()).isNotBlank();
+        assertThat(storedRoom.path("partDeadlineAt").asText()).isNotBlank();
+        verify(relayRoomEventPublisher).publishPartSubmitted(any(RelayRoomSubmissionResponse.class));
+        verify(relayRoomEventPublisher).publishPartStarted(any(RelayRoomSubmissionResponse.class));
+        verify(relayRoomEventPublisher, never()).publishAllPartsCompleted(any(RelayRoomSubmissionResponse.class));
+    }
+
+    @Test
+    void submitLastBodyAssignmentAdvancesToLegs() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        storeRoom(DEFAULT_ROOM_CODE,
+            playingRoom(RelayDrawingPart.BODY,
+                List.of(assignment(0, RelayDrawingPart.BODY, hostUuid),
+                    assignment(1, RelayDrawingPart.BODY, participantUuid, RelayAssignmentStatus.SUBMITTED,
+                        "relay/tmp/AB3K9Q/1/body.png", "relay/tmp/AB3K9Q/1/body-hint.png", false, false)),
+                participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1)));
+
+        mockMvc
+            .perform(multipart("/api/v1/relay/rooms/{roomCode}/submissions", DEFAULT_ROOM_CODE)
+                .file(pngFile("drawingImage", "body.png")).file(pngFile("hintImage", "body-hint.png"))
+                .param("canvasIndex", "0").param("part", "BODY")
+                .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.currentPartCompleted").value(true))
+            .andExpect(jsonPath("$.data.advanced").value(true)).andExpect(jsonPath("$.data.nextPart").value("LEGS"))
+            .andExpect(jsonPath("$.data.allPartsCompleted").value(false))
+            .andExpect(jsonPath("$.data.roomStatus").value("PLAYING"));
+
+        JsonNode storedRoom = readSavedRoom();
+        assertThat(storedRoom.path("status").asText()).isEqualTo("PLAYING");
+        assertThat(storedRoom.path("currentPart").asText()).isEqualTo("LEGS");
+        verify(relayRoomEventPublisher).publishPartStarted(any(RelayRoomSubmissionResponse.class));
+    }
+
+    @Test
+    void submitLastLegsAssignmentMovesRoomToFinalizing() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        storeRoom(DEFAULT_ROOM_CODE,
+            playingRoom(RelayDrawingPart.LEGS,
+                List.of(assignment(0, RelayDrawingPart.LEGS, hostUuid),
+                    assignment(1, RelayDrawingPart.LEGS, participantUuid, RelayAssignmentStatus.AUTO_SUBMITTED,
+                        "relay/tmp/AB3K9Q/1/legs.png", null, true, true)),
+                participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1)));
+
+        mockMvc
+            .perform(multipart("/api/v1/relay/rooms/{roomCode}/submissions", DEFAULT_ROOM_CODE)
+                .file(pngFile("drawingImage", "legs.png")).param("canvasIndex", "0").param("part", "LEGS")
+                .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.currentPartCompleted").value(true))
+            .andExpect(jsonPath("$.data.advanced").value(true)).andExpect(jsonPath("$.data.nextPart").doesNotExist())
+            .andExpect(jsonPath("$.data.nextPartStartedAt").doesNotExist())
+            .andExpect(jsonPath("$.data.nextPartDeadlineAt").doesNotExist())
+            .andExpect(jsonPath("$.data.allPartsCompleted").value(true))
+            .andExpect(jsonPath("$.data.roomStatus").value("FINALIZING"));
+
+        JsonNode storedRoom = readSavedRoom();
+        assertThat(storedRoom.path("status").asText()).isEqualTo("FINALIZING");
+        assertThat(storedRoom.path("currentPart").asText()).isEqualTo("LEGS");
+        assertThat(countRows("artifact")).isZero();
+        assertThat(countRows("gallery")).isZero();
+        assertThat(countRows("relay_drawing_artifact")).isZero();
+        verify(relayRoomEventPublisher).publishAllPartsCompleted(any(RelayRoomSubmissionResponse.class));
+        verify(relayRoomEventPublisher, never()).publishPartStarted(any(RelayRoomSubmissionResponse.class));
     }
 
     @Test
@@ -249,6 +323,32 @@ class RelayRoomSubmissionControllerIntegrationTest {
                 .param("canvasIndex", "0").param("part", "FACE")
                 .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.alreadySubmitted").value(true))
+            .andExpect(jsonPath("$.data.drawingObjectKey").value("relay/tmp/AB3K9Q/0/face.png"))
+            .andExpect(jsonPath("$.data.hintObjectKey").value("relay/tmp/AB3K9Q/0/face-hint.png"));
+
+        verifyNoInteractions(relaySubmissionStorage, relayRoomEventPublisher);
+        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
+    }
+
+    @Test
+    void submitAlreadySubmittedPreviousPartAfterAdvanceDoesNotOverwriteOrPublishEvents() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        storeRoom(DEFAULT_ROOM_CODE,
+            playingRoom(RelayDrawingPart.BODY,
+                List.of(
+                    assignment(0, RelayDrawingPart.FACE, hostUuid, RelayAssignmentStatus.SUBMITTED,
+                        "relay/tmp/AB3K9Q/0/face.png", "relay/tmp/AB3K9Q/0/face-hint.png", false, false),
+                    assignment(0, RelayDrawingPart.BODY, participantUuid)),
+                participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1)));
+
+        mockMvc
+            .perform(multipart("/api/v1/relay/rooms/{roomCode}/submissions", DEFAULT_ROOM_CODE)
+                .file(pngFile("drawingImage", "new-face.png")).file(pngFile("hintImage", "new-face-hint.png"))
+                .param("canvasIndex", "0").param("part", "FACE")
+                .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.alreadySubmitted").value(true))
+            .andExpect(jsonPath("$.data.advanced").value(false))
             .andExpect(jsonPath("$.data.drawingObjectKey").value("relay/tmp/AB3K9Q/0/face.png"))
             .andExpect(jsonPath("$.data.hintObjectKey").value("relay/tmp/AB3K9Q/0/face-hint.png"));
 

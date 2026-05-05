@@ -7,9 +7,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
+import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import java.time.LocalDateTime;
@@ -92,6 +96,42 @@ class RelayRoomEventPublisherTest {
         assertThat(data.partStartedAt()).isEqualTo(roomStateResponse.partStartedAt());
     }
 
+    @Test
+    void publishPartStartedAfterSubmissionSendsNextPartPayloadToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        RelayRoomSubmissionResponse response = advancedSubmissionResponse();
+
+        publisher.publishPartStarted(response);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.PART_STARTED);
+
+        RelayRoomPartStartedEventResponse data = (RelayRoomPartStartedEventResponse) event.data();
+        assertThat(data.previousPart()).isEqualTo(RelayDrawingPart.FACE);
+        assertThat(data.part()).isEqualTo(RelayDrawingPart.BODY);
+        assertThat(data.partStartedAt()).isEqualTo(response.nextPartStartedAt());
+        assertThat(data.partDeadlineAt()).isEqualTo(response.nextPartDeadlineAt());
+        assertThat(data.timeLimitSeconds()).isEqualTo(45);
+    }
+
+    @Test
+    void publishAllPartsCompletedSendsAllPartsCompletedEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        RelayRoomSubmissionResponse response = allPartsCompletedSubmissionResponse();
+
+        publisher.publishAllPartsCompleted(response);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.ALL_PARTS_COMPLETED);
+
+        RelayRoomAllPartsCompletedEventResponse data = (RelayRoomAllPartsCompletedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.roomStatus()).isEqualTo(RelayRoomStatus.FINALIZING);
+        assertThat(data.completedAt()).isEqualTo(response.submittedAt());
+    }
+
     /**
      * 개인 큐 이벤트는 user destination resolver가 특정 sessionId로 해석할 수 있도록 simpSessionId
      * 헤더를 함께 보냅니다.
@@ -121,5 +161,23 @@ class RelayRoomEventPublisherTest {
         return new RelayRoomStateResponse(ROOM_CODE, RelayRoomStatus.PLAYING, "550e8400-e29b-41d4-a716-446655440000",
             45, 2, 6, 2, RelayDrawingPart.FACE, 6, startedAt, startedAt.plusSeconds(45), startedAt, List.of(), null,
             createdAt, startedAt);
+    }
+
+    private RelayRoomSubmissionResponse advancedSubmissionResponse() {
+        LocalDateTime submittedAt = LocalDateTime.now().minusSeconds(1);
+        LocalDateTime nextPartStartedAt = submittedAt;
+
+        return new RelayRoomSubmissionResponse(ROOM_CODE, 0, RelayDrawingPart.FACE, RelayAssignmentStatus.SUBMITTED,
+            "relay/tmp/QUDNKQ/0/face.png", "relay/tmp/QUDNKQ/0/face-hint.png", submittedAt, false, true, 2, 2, true,
+            RelayDrawingPart.BODY, nextPartStartedAt, nextPartStartedAt.plusSeconds(45), false, RelayRoomStatus.PLAYING,
+            "550e8400-e29b-41d4-a716-446655440000", "Mango");
+    }
+
+    private RelayRoomSubmissionResponse allPartsCompletedSubmissionResponse() {
+        LocalDateTime submittedAt = LocalDateTime.now().minusSeconds(1);
+
+        return new RelayRoomSubmissionResponse(ROOM_CODE, 0, RelayDrawingPart.LEGS, RelayAssignmentStatus.SUBMITTED,
+            "relay/tmp/QUDNKQ/0/legs.png", null, submittedAt, false, true, 2, 2, true, null, null, null, true,
+            RelayRoomStatus.FINALIZING, "550e8400-e29b-41d4-a716-446655440000", "Mango");
     }
 }
