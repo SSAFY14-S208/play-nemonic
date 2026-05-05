@@ -6,7 +6,10 @@ import type {
   PhoneGalleryItem,
 } from '../types'
 
-export function usePhoneGallery(galleryItems: PhoneGalleryItem[]) {
+export function usePhoneGallery(
+  galleryItems: PhoneGalleryItem[],
+  selectedGalleryItemId: string | null,
+) {
   const [activeFilterKey, setActiveFilterKey] =
     useState<PhoneGalleryFilterKey>('all')
 
@@ -16,9 +19,16 @@ export function usePhoneGallery(galleryItems: PhoneGalleryItem[]) {
     return galleryItems.filter((item) => item.kind === activeFilterKey)
   }, [activeFilterKey, galleryItems])
 
+  const selectedItem = useMemo(
+    () =>
+      galleryItems.find((item) => item.id === selectedGalleryItemId) ?? null,
+    [galleryItems, selectedGalleryItemId],
+  )
+
   return {
     activeFilterKey,
     filteredGalleryItems,
+    selectedItem,
     setActiveFilterKey,
   }
 }

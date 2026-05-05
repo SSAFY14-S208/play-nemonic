@@ -7,8 +7,8 @@ import { Layer, Line, Rect, Stage } from 'react-konva'
 import {
   PHONE_DRAWING_PAPER_COLOR,
   PHONE_DRAWING_STAGE_SIZE,
-} from '../constants'
-import type { PhoneDrawLine } from '../types'
+} from '../../constants'
+import type { PhoneDrawLine } from '../../types'
 
 interface PhoneDrawingStageProps {
   lines: PhoneDrawLine[]

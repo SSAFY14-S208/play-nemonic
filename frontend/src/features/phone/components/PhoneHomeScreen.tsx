@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
 import { phoneIconEdit, phoneProfileAvatar } from '@/shared/assets'
@@ -7,16 +9,12 @@ import {
   PHONE_COLORS,
   PHONE_PROFILE,
 } from '../constants'
+import { usePhoneStore } from '../phoneStore'
 
-interface PhoneHomeScreenProps {
-  onOpenDrawing: () => void
-  onOpenGallery: () => void
-}
+export function PhoneHomeScreen() {
+  const showDrawing = usePhoneStore((state) => state.showDrawing)
+  const showGallery = usePhoneStore((state) => state.showGallery)
 
-export function PhoneHomeScreen({
-  onOpenDrawing,
-  onOpenGallery,
-}: PhoneHomeScreenProps) {
   return (
     <div className="phone-home-body-m flex h-full flex-col bg-surface-default">
       <section
@@ -55,18 +53,25 @@ export function PhoneHomeScreen({
       <div className="flex-1 overflow-y-auto bg-white pt-14">
         <div className="mx-auto grid w-[16.25rem] grid-cols-2 gap-x-8 gap-y-[2.35rem]">
           {PHONE_APP_SHORTCUTS.map(({
+            action,
             key,
             label,
             asset,
             externalUrl,
             isEnabled,
           }) => {
-            const handleClick =
-              key === 'drawing'
-                ? onOpenDrawing
-                : key === 'gallery'
-                  ? onOpenGallery
-                  : undefined
+            const handleClick = () => {
+              switch (action) {
+                case 'open-drawing':
+                  showDrawing()
+                  return
+                case 'open-gallery':
+                  showGallery()
+                  return
+                default:
+                  return
+              }
+            }
 
             const shortcutContent = (
               <>
@@ -82,7 +87,7 @@ export function PhoneHomeScreen({
               </>
             )
 
-            if (externalUrl) {
+            if (action === 'open-external' && externalUrl) {
               return (
                 <Link
                   key={key}
