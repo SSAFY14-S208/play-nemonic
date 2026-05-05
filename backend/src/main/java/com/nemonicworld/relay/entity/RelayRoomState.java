@@ -43,6 +43,12 @@ public record RelayRoomState(String roomCode, RelayRoomStatus status, String hos
             createdAt, updatedAt);
     }
 
+    public RelayRoomState withAssignments(List<RelayRoomAssignment> updatedAssignments, LocalDateTime updatedAt) {
+        return new RelayRoomState(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants,
+            currentPart, participants, updatedAssignments, partStartedAt, partDeadlineAt, gameStartedAt, createdAt,
+            updatedAt);
+    }
+
     public RelayRoomState startGame(List<RelayRoomAssignment> generatedAssignments, LocalDateTime startedAt) {
         return new RelayRoomState(roomCode, RelayRoomStatus.PLAYING, hostUserUuid, timeLimitSeconds, minParticipants,
             maxParticipants, RelayDrawingPart.FACE, participants, generatedAssignments, startedAt,

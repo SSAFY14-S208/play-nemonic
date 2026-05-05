@@ -9,8 +9,11 @@ import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.files.config.MinioStorageProperties;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
+import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomAssignment;
@@ -20,6 +23,7 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -32,6 +36,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 
 /**
  * 릴레이 방 서비스의 Redis 낙관적 갱신 재시도 흐름을 검증합니다.
@@ -50,6 +55,9 @@ class RelayRoomServiceImplTest {
     @Mock
     private RelayRoomRepository relayRoomRepository;
 
+    @Mock
+    private RelaySubmissionStorage relaySubmissionStorage;
+
     private RelayRoomService relayRoomService;
 
     @BeforeEach
@@ -63,10 +71,13 @@ class RelayRoomServiceImplTest {
                 relayRoomViewerFactory),
             new RelayRoomSettingsUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory),
-            new RelayRoomStartUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory),
-            new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy), new RelayRoomConnectionUseCase(
-                anonymousUserResolver, relayRoomRepository, relayRoomPolicy, relayRoomViewerFactory));
+            new RelayRoomStartUseCase(
+                anonymousUserResolver, relayRoomRepository, relayRoomPolicy, relayRoomViewerFactory),
+            new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy),
+            new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relaySubmissionStorage, minioStorageProperties()),
+            new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayRoomViewerFactory));
     }
 
     /**
@@ -346,6 +357,67 @@ class RelayRoomServiceImplTest {
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
     }
 
+    /**
+     * 제출 저장 중 충돌이 나면 최신 방 상태를 다시 읽고 같은 배정에 대해 다시 저장을 시도합니다.
+     */
+    @Test
+    void submitCurrentPartRetriesOptimisticSaveConflictWithLatestRoomState() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "Mango");
+        RelayRoomState firstReadRoomState = playingRoomState(RelayDrawingPart.FACE,
+            List.of(assignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        RelayRoomState secondReadRoomState = playingRoomState(RelayDrawingPart.FACE,
+            List.of(assignment(0, RelayDrawingPart.FACE, hostUuid), assignment(1, RelayDrawingPart.FACE, hostUuid)),
+            participant(hostUuid, "Mango", true, 0));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
+            Optional.of(secondReadRoomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false, true);
+
+        RelayRoomSubmissionResponse response = relayRoomService.submitCurrentPart(hostUuid.toString(), ROOM_CODE,
+            submissionRequest(0, RelayDrawingPart.FACE));
+
+        assertThat(response.assignmentStatus()).isEqualTo(RelayAssignmentStatus.SUBMITTED);
+        assertThat(response.submittedCount()).isEqualTo(1);
+        assertThat(response.totalCount()).isEqualTo(2);
+        assertThat(response.currentPartCompleted()).isFalse();
+        verify(relaySubmissionStorage, times(4)).upload(any(String.class), any());
+
+        ArgumentCaptor<RelayRoomState> expectedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository, times(2)).saveIfUnchanged(expectedStateCaptor.capture(),
+            updatedStateCaptor.capture());
+        assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
+        assertThat(updatedStateCaptor.getAllValues().get(1).assignments().get(0).status())
+            .isEqualTo(RelayAssignmentStatus.SUBMITTED);
+        assertThat(updatedStateCaptor.getAllValues().get(1).assignments().get(0).objectKey())
+            .isEqualTo("relay/tmp/%s/0/face.png".formatted(ROOM_CODE));
+    }
+
+    /**
+     * 제출 저장 충돌이 재시도 한도를 넘으면 내부 오류로 전파합니다.
+     */
+    @Test
+    void submitCurrentPartFailsWhenOptimisticSaveConflictsKeepHappening() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "Mango");
+        RelayRoomState roomState = playingRoomState(RelayDrawingPart.FACE,
+            List.of(assignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false);
+
+        assertThatThrownBy(() -> relayRoomService.submitCurrentPart(hostUuid.toString(), ROOM_CODE,
+            submissionRequest(0, RelayDrawingPart.FACE))).isInstanceOf(IllegalStateException.class);
+
+        verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
+        verify(relaySubmissionStorage, times(6)).upload(any(String.class), any());
+    }
+
     private void assertAssignment(RelayRoomAssignment assignment, int canvasIndex, RelayDrawingPart part,
         UUID assignedUserUuid) {
         assertThat(assignment.canvasIndex()).isEqualTo(canvasIndex);
@@ -386,5 +458,34 @@ class RelayRoomServiceImplTest {
         boolean connected, LocalDateTime disconnectedAt) {
         return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, connected, disconnectedAt,
             LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private RelayRoomState playingRoomState(RelayDrawingPart currentPart, List<RelayRoomAssignment> assignments,
+        RelayRoomParticipant... participants) {
+        LocalDateTime createdAt = LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime startedAt = LocalDateTime.now().minusSeconds(5).truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomState(ROOM_CODE, RelayRoomStatus.PLAYING, participants[0].userUuid(), 45, 2, 6, currentPart,
+            List.of(participants), assignments, startedAt, startedAt.plusSeconds(45), startedAt, createdAt,
+            createdAt.plusSeconds(1));
+    }
+
+    private RelayRoomAssignment assignment(int canvasIndex, RelayDrawingPart part, UUID assignedUserUuid) {
+        return new RelayRoomAssignment(canvasIndex, part, assignedUserUuid.toString(), RelayAssignmentStatus.PENDING,
+            null, null, null, false, false, null);
+    }
+
+    private RelayRoomSubmissionRequest submissionRequest(int canvasIndex, RelayDrawingPart part) {
+        return new RelayRoomSubmissionRequest(canvasIndex, part.name(), pngFile("drawingImage", "drawing.png"),
+            pngFile("hintImage", "hint.png"));
+    }
+
+    private MockMultipartFile pngFile(String name, String originalFileName) {
+        return new MockMultipartFile(name, originalFileName, "image/png", "image".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private MinioStorageProperties minioStorageProperties() {
+        return new MinioStorageProperties("http://localhost:9000", "http://localhost:9000", "minioadmin", "minioadmin",
+            "nemonic-local", 10, 10 * 1024 * 1024);
     }
 }
