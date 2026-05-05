@@ -16,6 +16,8 @@ public enum RelayRoomEventType {
     // 현재 파트가 시작되었음을 알립니다.
     PART_STARTED,
 
+    PART_SUBMITTED,
+
     // 참여자의 WebSocket 연결이 활성화되었음을 알립니다.
     PARTICIPANT_CONNECTED,
 

@@ -1,9 +1,11 @@
 package com.nemonicworld.relay.service;
 
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
+import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 
 /**
  * 릴레이 방 유스케이스를 정의합니다.
@@ -40,6 +42,9 @@ public interface RelayRoomService {
      * 기존 익명 사용자가 진행 중인 릴레이 방에서 현재 그릴 배정을 조회합니다.
      */
     RelayRoomMyAssignmentResponse getMyAssignment(String userUuidValue, String roomCodeValue);
+
+    RelayRoomSubmissionResponse submitCurrentPart(String userUuidValue, String roomCodeValue,
+        RelayRoomSubmissionRequest request);
 
     /**
      * WebSocket 연결 성공 시 기존 릴레이 참여자를 연결 상태로 갱신합니다.

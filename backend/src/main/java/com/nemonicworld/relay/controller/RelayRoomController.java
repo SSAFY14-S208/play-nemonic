@@ -4,9 +4,11 @@ import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
+import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.service.RelayRoomService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +28,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/relay/rooms")
@@ -48,6 +53,7 @@ public class RelayRoomController {
 
     private final RelayRoomService relayRoomService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
+    private static final String RELAY_PART_SUBMITTED_MESSAGE = "릴레이 그림 제출 성공";
 
     public RelayRoomController(RelayRoomService relayRoomService, RelayRoomEventPublisher relayRoomEventPublisher) {
         this.relayRoomService = relayRoomService;
@@ -129,6 +135,46 @@ public class RelayRoomController {
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(RELAY_MY_ASSIGNMENT_FOUND_MESSAGE, response));
+    }
+
+    @PostMapping(value = "/{roomCode}/submissions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "릴레이 현재 파트 제출", description = "진행 중인 릴레이 방에서 현재 사용자에게 배정된 현재 파트 이미지를 제출합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "릴레이 그림 제출 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 제출 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE),
+            @ExampleObject(name = "파일 요청 오류", value = OpenApiErrorExamples.INVALID_BYTE_SIZE),
+            @ExampleObject(name = "파일 형식 오류", value = OpenApiErrorExamples.UNSUPPORTED_FILE_TYPE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "제출 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.RELAY_ROOM_PARTICIPANT_REQUIRED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.RELAY_ROOM_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "제출 불가 상태", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "게임 시작 전", value = OpenApiErrorExamples.RELAY_GAME_NOT_STARTED),
+            @ExampleObject(name = "종료된 방", value = OpenApiErrorExamples.RELAY_ROOM_CLOSED),
+            @ExampleObject(name = "현재 배정 없음", value = OpenApiErrorExamples.RELAY_CURRENT_ASSIGNMENT_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "413", description = "파일 크기 초과", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FILE_SIZE_EXCEEDED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "파일 저장 또는 서버 오류", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "파일 저장 오류", value = OpenApiErrorExamples.FILE_STORAGE_ERROR),
+            @ExampleObject(name = "서버 오류", value = OpenApiErrorExamples.SERVER_ERROR)}))})
+    public ResponseEntity<ApiResponse<RelayRoomSubmissionResponse>> submitCurrentPart(
+        @PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @RequestParam(value = "canvasIndex", required = false) Integer canvasIndex,
+        @RequestParam(value = "part", required = false) String part,
+        @RequestPart(value = "drawingImage", required = false) MultipartFile drawingImage,
+        @RequestPart(value = "hintImage", required = false) MultipartFile hintImage) {
+        RelayRoomSubmissionRequest request = new RelayRoomSubmissionRequest(canvasIndex, part, drawingImage, hintImage);
+        RelayRoomSubmissionResponse response = relayRoomService.submitCurrentPart(userUuid, roomCode, request);
+        if (!response.alreadySubmitted()) {
+            relayRoomEventPublisher.publishPartSubmitted(response);
+        }
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(RELAY_PART_SUBMITTED_MESSAGE, response));
     }
 
     /**

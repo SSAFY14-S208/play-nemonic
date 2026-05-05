@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.files.config.MinioStorageProperties;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
@@ -50,6 +51,9 @@ class RelayRoomServiceImplTest {
     @Mock
     private RelayRoomRepository relayRoomRepository;
 
+    @Mock
+    private RelaySubmissionStorage relaySubmissionStorage;
+
     private RelayRoomService relayRoomService;
 
     @BeforeEach
@@ -63,10 +67,13 @@ class RelayRoomServiceImplTest {
                 relayRoomViewerFactory),
             new RelayRoomSettingsUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory),
-            new RelayRoomStartUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory),
-            new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy), new RelayRoomConnectionUseCase(
-                anonymousUserResolver, relayRoomRepository, relayRoomPolicy, relayRoomViewerFactory));
+            new RelayRoomStartUseCase(
+                anonymousUserResolver, relayRoomRepository, relayRoomPolicy, relayRoomViewerFactory),
+            new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy),
+            new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relaySubmissionStorage, minioStorageProperties()),
+            new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayRoomViewerFactory));
     }
 
     /**
@@ -386,5 +393,10 @@ class RelayRoomServiceImplTest {
         boolean connected, LocalDateTime disconnectedAt) {
         return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, connected, disconnectedAt,
             LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private MinioStorageProperties minioStorageProperties() {
+        return new MinioStorageProperties("http://localhost:9000", "http://localhost:9000", "minioadmin", "minioadmin",
+            "nemonic-local", 10, 10 * 1024 * 1024);
     }
 }

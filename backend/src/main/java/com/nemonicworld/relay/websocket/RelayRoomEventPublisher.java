@@ -1,9 +1,11 @@
 package com.nemonicworld.relay.websocket;
 
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomSimpleMessageResponse;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -68,6 +70,13 @@ public class RelayRoomEventPublisher {
      */
     public void publishPartStarted(RelayRoomStateResponse roomStateResponse) {
         publishRoomEvent(RelayRoomEventType.PART_STARTED, roomStateResponse);
+    }
+
+    public void publishPartSubmitted(RelayRoomSubmissionResponse submissionResponse) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_SUBMITTED,
+            submissionResponse.roomCode(), RelayRoomPartSubmittedEventResponse.from(submissionResponse));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submissionResponse.roomCode(), event);
     }
 
     /**
