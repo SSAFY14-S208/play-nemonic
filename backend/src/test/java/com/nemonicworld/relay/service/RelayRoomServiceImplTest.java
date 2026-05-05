@@ -11,12 +11,16 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
+import com.nemonicworld.relay.entity.RelayAssignmentStatus;
+import com.nemonicworld.relay.entity.RelayDrawingPart;
+import com.nemonicworld.relay.entity.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -252,6 +256,91 @@ class RelayRoomServiceImplTest {
 
         assertThatThrownBy(() -> relayRoomService.connectRoom(hostUuid.toString(), ROOM_CODE))
             .isInstanceOf(ConflictException.class).hasMessage("이미 종료된 방입니다.");
+    }
+
+    /**
+     * 게임 시작 저장 중 충돌이 나면 최신 방 상태를 다시 읽고 그 시점의 참여자 순서로 배정표를 생성합니다.
+     */
+    @Test
+    void startRoomRetriesOptimisticSaveConflictWithLatestRoomState() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID secondUuid = UUID.randomUUID();
+        UUID thirdUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "Mango");
+        RelayRoomState firstReadRoomState = roomState(participant(hostUuid, "Mango", true, 0),
+            participant(secondUuid, "Peach", false, 1));
+        RelayRoomState secondReadRoomState = roomState(participant(hostUuid, "Mango", true, 0),
+            participant(secondUuid, "Peach", false, 1), participant(thirdUuid, "Berry", false, 2));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
+            Optional.of(secondReadRoomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false, true);
+
+        RelayRoomStateResponse response = relayRoomService.startRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.status()).isEqualTo(RelayRoomStatus.PLAYING);
+        assertThat(response.currentPart()).isEqualTo(RelayDrawingPart.FACE);
+        assertThat(response.assignmentCount()).isEqualTo(9);
+
+        ArgumentCaptor<RelayRoomState> expectedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository, times(2)).saveIfUnchanged(expectedStateCaptor.capture(),
+            updatedStateCaptor.capture());
+        assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
+
+        RelayRoomState startedRoomState = updatedStateCaptor.getAllValues().get(1);
+        assertThat(startedRoomState.status()).isEqualTo(RelayRoomStatus.PLAYING);
+        assertThat(startedRoomState.currentPart()).isEqualTo(RelayDrawingPart.FACE);
+        assertThat(Duration.between(startedRoomState.partStartedAt(), startedRoomState.partDeadlineAt()))
+            .isEqualTo(Duration.ofSeconds(startedRoomState.timeLimitSeconds()));
+        assertThat(startedRoomState.participants()).isEqualTo(secondReadRoomState.participants());
+        assertThat(startedRoomState.createdAt()).isEqualTo(secondReadRoomState.createdAt());
+        assertThat(startedRoomState.assignments()).hasSize(9);
+        assertAssignment(startedRoomState.assignments().get(0), 0, RelayDrawingPart.FACE, hostUuid);
+        assertAssignment(startedRoomState.assignments().get(1), 0, RelayDrawingPart.BODY, secondUuid);
+        assertAssignment(startedRoomState.assignments().get(2), 0, RelayDrawingPart.LEGS, thirdUuid);
+        assertAssignment(startedRoomState.assignments().get(3), 1, RelayDrawingPart.FACE, secondUuid);
+        assertAssignment(startedRoomState.assignments().get(4), 1, RelayDrawingPart.BODY, thirdUuid);
+        assertAssignment(startedRoomState.assignments().get(5), 1, RelayDrawingPart.LEGS, hostUuid);
+        assertThat(startedRoomState.assignments()).extracting(RelayRoomAssignment::status)
+            .containsOnly(RelayAssignmentStatus.PENDING);
+    }
+
+    /**
+     * 게임 시작 저장 재시도 횟수를 모두 소진하면 내부 오류로 전파합니다.
+     */
+    @Test
+    void startRoomFailsWhenOptimisticSaveConflictsKeepHappening() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "Mango");
+        RelayRoomState roomState = roomState(participant(hostUuid, "Mango", true, 0),
+            participant(participantUuid, "Peach", false, 1));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false);
+
+        assertThatThrownBy(() -> relayRoomService.startRoom(hostUuid.toString(), ROOM_CODE))
+            .isInstanceOf(IllegalStateException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
+
+        verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
+    }
+
+    private void assertAssignment(RelayRoomAssignment assignment, int canvasIndex, RelayDrawingPart part,
+        UUID assignedUserUuid) {
+        assertThat(assignment.canvasIndex()).isEqualTo(canvasIndex);
+        assertThat(assignment.part()).isEqualTo(part);
+        assertThat(assignment.assignedUserUuid()).isEqualTo(assignedUserUuid.toString());
+        assertThat(assignment.fileId()).isNull();
+        assertThat(assignment.objectKey()).isNull();
+        assertThat(assignment.hintObjectKey()).isNull();
+        assertThat(assignment.submittedAt()).isNull();
+        assertThat(assignment.empty()).isFalse();
+        assertThat(assignment.autoSubmitted()).isFalse();
     }
 
     private AppUser appUserWithNickname(UUID userUuid, String nickname) {
