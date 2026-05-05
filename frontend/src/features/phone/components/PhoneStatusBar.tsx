@@ -1,4 +1,7 @@
+'use client'
+
 import { PHONE_COLORS, PHONE_STATUS_BAR_LAYOUT } from '../constants'
+import { usePhoneClock } from '../hooks'
 
 interface PhoneStatusBarProps {
   variant: 'light' | 'dark'
@@ -6,17 +9,19 @@ interface PhoneStatusBarProps {
 
 export function PhoneStatusBar({ variant }: PhoneStatusBarProps) {
   const isLight = variant === 'light'
+  const timeLabel = usePhoneClock()
 
   return (
     <div className="pointer-events-none absolute inset-0 z-30">
       <span
         className="phone-status-time absolute"
+        suppressHydrationWarning
         style={{
           ...PHONE_STATUS_BAR_LAYOUT.time,
           color: isLight ? PHONE_COLORS.white : PHONE_COLORS.statusDark,
         }}
       >
-        9:41
+        {timeLabel}
       </span>
       <div
         className="absolute flex items-end justify-between"
