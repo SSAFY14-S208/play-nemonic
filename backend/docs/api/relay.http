@@ -186,6 +186,8 @@ GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Submit current relay part - FACE
+# If this is the last FACE submission, the response includes advanced=true and nextPart=BODY.
+# The room topic receives PART_SUBMITTED followed by PART_STARTED.
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
 Anonymous-User-UUID: {{anonymousUserUuid}}
 Content-Type: multipart/form-data; boundary=relay-submit-boundary
