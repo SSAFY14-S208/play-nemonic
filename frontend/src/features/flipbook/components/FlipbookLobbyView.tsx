@@ -5,6 +5,7 @@ import {
   FLIPBOOK_ROOM_CODE,
   FLIPBOOK_TIME_LIMITS_SECONDS,
   FLIPBOOK_TOPIC,
+  type FlipbookTimeLimitSeconds,
 } from '../constants'
 import { cn } from '@/shared/libs'
 
@@ -12,7 +13,7 @@ interface FlipbookLobbyViewProps {
   selectedTimeLimitSeconds: number
   roundCount: number
   minimumRoundCount: number
-  onSelectTimeLimit: (seconds: number) => void
+  onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
   onDecreaseRoundCount: () => void
   onIncreaseRoundCount: () => void
   onStartGame: () => void

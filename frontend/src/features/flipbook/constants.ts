@@ -4,6 +4,7 @@ export type FlipbookStep = 'booth' | 'lobby' | 'drawing' | 'result'
 
 export interface FlipbookParticipant {
   id: string
+  userUuid: string
   name: string
   avatar: string
   isHost?: boolean
@@ -17,11 +18,11 @@ export const FLIPBOOK_STEPS: { key: FlipbookStep; label: string }[] = [
 ]
 
 export const FLIPBOOK_PARTICIPANTS: FlipbookParticipant[] = [
-  { id: 'fox', name: '여우 (나)', avatar: '🦊', isHost: true },
-  { id: 'cat', name: '고양이', avatar: '🐱' },
-  { id: 'bear', name: '곰돌이', avatar: '🐻' },
-  { id: 'dog', name: '강아지', avatar: '🐶' },
-  { id: 'rabbit', name: '토끼', avatar: '🐰' },
+  { id: 'fox', userUuid: 'demo-user-fox', name: '여우 (나)', avatar: '🦊', isHost: true },
+  { id: 'cat', userUuid: 'demo-user-cat', name: '고양이', avatar: '🐱' },
+  { id: 'bear', userUuid: 'demo-user-bear', name: '곰돌이', avatar: '🐻' },
+  { id: 'dog', userUuid: 'demo-user-dog', name: '강아지', avatar: '🐶' },
+  { id: 'rabbit', userUuid: 'demo-user-rabbit', name: '토끼', avatar: '🐰' },
 ]
 
 export const FLIPBOOK_COLORS = [
@@ -38,7 +39,8 @@ export const FLIPBOOK_COLORS = [
   '#9a9ca3',
 ]
 
-export const FLIPBOOK_TIME_LIMITS_SECONDS = [30, 45, 60]
+export const FLIPBOOK_TIME_LIMITS_SECONDS = [30, 45, 60] as const
+export type FlipbookTimeLimitSeconds = (typeof FLIPBOOK_TIME_LIMITS_SECONDS)[number]
 export const FLIPBOOK_ROOM_CODE = 'ABC123'
 export const FLIPBOOK_TOPIC = '동물원에 간 우주비행사'
 export const FLIPBOOK_BACKGROUND_COLOR = '#fffdf7'

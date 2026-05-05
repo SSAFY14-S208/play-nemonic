@@ -85,7 +85,7 @@ export default function DrawingToolPanel({
     <div className="grid gap-6">
       <section className="grid gap-3">
         <p className={cn('h4-b', toneStyle.heading)}>도구</p>
-        <div className="grid w-fit grid-cols-3 gap-3">
+        <div className="grid w-[186px] grid-cols-3 gap-[15px]">
           {DRAWING_TOOL_BUTTONS.map((tool) => {
             const isActive = tool.action === 'select' && selectedToolKey === tool.key
             const Icon = tool.Icon
@@ -112,7 +112,7 @@ export default function DrawingToolPanel({
                   onSelectTool(tool.key as DrawingToolKey)
                 }}
                 className={cn(
-                  'grid size-11 place-items-center rounded-[12px] border',
+                  'grid size-[52px] place-items-center rounded-[14px] border',
                   toneStyle.button,
                   isActive && toneStyle.activeButton,
                 )}
@@ -126,7 +126,7 @@ export default function DrawingToolPanel({
 
       <section className="grid gap-3">
         <p className={cn('h4-b', toneStyle.heading)}>굵기</p>
-        <div className="grid w-full grid-cols-3 gap-3">
+        <div className="grid w-[186px] grid-cols-3 gap-[15px]">
           {STROKE_WIDTH_OPTIONS.map((strokeWidthOption) => (
             <button
               key={strokeWidthOption}
@@ -134,7 +134,7 @@ export default function DrawingToolPanel({
               aria-label={`${strokeWidthOption}px 굵기`}
               onClick={() => onStrokeWidthChange(strokeWidthOption)}
               className={cn(
-                'grid min-h-10 place-items-center rounded-full border',
+                'grid h-10 place-items-center rounded-full border',
                 toneStyle.button,
                 strokeWidth === strokeWidthOption && toneStyle.activeButton,
               )}
@@ -153,7 +153,7 @@ export default function DrawingToolPanel({
 
       <section className="grid gap-3">
         <p className={cn('h4-b', toneStyle.heading)}>색</p>
-        <div className="grid w-fit grid-cols-4 gap-3">
+        <div className="grid w-[186px] grid-cols-4 gap-[14px]">
           {colors.map((color) => (
             <button
               key={color}

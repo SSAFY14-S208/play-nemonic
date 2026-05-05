@@ -15,8 +15,8 @@ export default function FlipbookPage() {
     <main className="min-h-screen bg-flipbook-background text-flipbook-ink">
       {flipbook.currentStep === 'booth' && (
         <FlipbookBoothView
-          onCreateRoom={flipbook.goToNextStep}
-          onEnterRoom={flipbook.goToNextStep}
+          onCreateRoom={flipbook.createRoom}
+          onEnterRoom={flipbook.enterRoom}
         />
       )}
 
@@ -25,10 +25,10 @@ export default function FlipbookPage() {
           selectedTimeLimitSeconds={flipbook.selectedTimeLimitSeconds}
           roundCount={flipbook.roundCount}
           minimumRoundCount={flipbook.minimumRoundCount}
-          onSelectTimeLimit={flipbook.setSelectedTimeLimitSeconds}
+          onSelectTimeLimit={flipbook.selectTimeLimit}
           onDecreaseRoundCount={flipbook.decreaseRoundCount}
           onIncreaseRoundCount={flipbook.increaseRoundCount}
-          onStartGame={flipbook.goToNextStep}
+          onStartGame={flipbook.startGame}
         />
       )}
 
@@ -52,7 +52,7 @@ export default function FlipbookPage() {
           onDrawStart={flipbook.drawingBoard.beginDrawing}
           onDrawMove={flipbook.drawingBoard.continueDrawing}
           onDrawEnd={flipbook.drawingBoard.endDrawing}
-          onExit={() => flipbook.selectStep('lobby')}
+          onExit={flipbook.leaveRoom}
           onCompleteRound={flipbook.completeRound}
         />
       )}
