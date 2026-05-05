@@ -35,6 +35,36 @@ public final class OpenApiErrorExamples {
           "message": "유효하지 않은 방코드입니다."
         }
         """;
+    public static final String INVALID_INVITE_CODE = """
+        {
+          "success": false,
+          "message": "유효하지 않은 초대코드 형식입니다."
+        }
+        """;
+    public static final String INVITE_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "초대코드를 찾을 수 없습니다."
+        }
+        """;
+    public static final String INVITE_EXPIRED = """
+        {
+          "success": false,
+          "message": "만료된 초대코드입니다."
+        }
+        """;
+    public static final String INVITE_ROOM_CLOSED = """
+        {
+          "success": false,
+          "message": "이미 종료된 방입니다."
+        }
+        """;
+    public static final String INVITE_ROOM_FULL = """
+        {
+          "success": false,
+          "message": "정원이 가득 찬 방입니다."
+        }
+        """;
     public static final String RELAY_ROOM_NOT_FOUND = """
         {
           "success": false,

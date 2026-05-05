@@ -135,8 +135,9 @@ class RelayRoomStartControllerIntegrationTest {
         assertThat(storedRoom.path("timeLimitSeconds").asInt()).isEqualTo(45);
         assertThat(storedRoom.path("participants")).hasSize(2);
         assertThat(storedRoom.path("participants").get(0).path("userUuid").asText()).isEqualTo(hostUuid.toString());
-        assertThat(storedRoom.path("createdAt").asText()).isEqualTo(originalRoomState.createdAt().toString());
-        assertThat(storedRoom.path("updatedAt").asText()).isNotEqualTo(originalRoomState.updatedAt().toString());
+        assertThat(LocalDateTime.parse(storedRoom.path("createdAt").asText())).isEqualTo(originalRoomState.createdAt());
+        assertThat(LocalDateTime.parse(storedRoom.path("updatedAt").asText()))
+            .isNotEqualTo(originalRoomState.updatedAt());
 
         JsonNode assignments = storedRoom.path("assignments");
         assertThat(assignments).hasSize(6);

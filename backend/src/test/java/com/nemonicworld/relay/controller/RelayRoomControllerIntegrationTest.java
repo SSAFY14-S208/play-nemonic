@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -111,7 +112,8 @@ class RelayRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.createdAt").exists()).andReturn();
 
         JsonNode responseData = readData(result);
-        JsonNode storedRoom = readStoredRoom();
+        JsonNode storedRoom = readStoredJson("relay:room:%s".formatted(DEFAULT_ROOM_CODE));
+        JsonNode storedInvite = readStoredJson("invite:%s".formatted(DEFAULT_ROOM_CODE));
 
         assertThat(storedRoom.path("roomCode").asText()).isEqualTo(DEFAULT_ROOM_CODE);
         assertThat(storedRoom.path("status").asText()).isEqualTo("WAITING");
@@ -128,6 +130,11 @@ class RelayRoomControllerIntegrationTest {
         assertThat(storedRoom.path("participants").get(0).path("joinedAt").asText()).isNotBlank();
         assertThat(storedRoom.path("createdAt").asText()).isEqualTo(responseData.path("createdAt").asText());
         assertThat(storedRoom.path("updatedAt").asText()).isEqualTo(responseData.path("createdAt").asText());
+        assertThat(storedInvite.path("inviteCode").asText()).isEqualTo(DEFAULT_ROOM_CODE);
+        assertThat(storedInvite.path("boothType").asText()).isEqualTo("relay");
+        assertThat(storedInvite.path("roomId").asText()).isEqualTo(DEFAULT_ROOM_CODE);
+        assertThat(storedInvite.path("roomName").asText()).isEqualTo("망고의 릴레이 드로잉");
+        assertThat(storedInvite.path("expiresAt").asText()).isNotBlank();
         assertThat(countRows("artifact")).isZero();
         assertThat(countRows("gallery")).isZero();
         assertThat(countRows("relay_drawing_artifact")).isZero();
@@ -139,8 +146,8 @@ class RelayRoomControllerIntegrationTest {
     @Test
     void createRelayRoomRetriesWhenGeneratedRoomCodeAlreadyExistsInRedis() throws Exception {
         UUID userUuid = createExistingUserWithNickname("망고");
-        given(stringRedisTemplate.hasKey("relay:room:AAAAAA")).willReturn(true);
-        given(stringRedisTemplate.hasKey("relay:room:BBBBBB")).willReturn(false);
+        given(stringRedisTemplate.hasKey("invite:AAAAAA")).willReturn(true);
+        given(stringRedisTemplate.hasKey("invite:BBBBBB")).willReturn(false);
         given(roomCodeGenerator.generateUnique(any())).willAnswer(invocation -> {
             Predicate<String> existingCodePredicate = invocation.getArgument(0);
 
@@ -155,9 +162,10 @@ class RelayRoomControllerIntegrationTest {
         mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.data.roomCode").value("BBBBBB"));
 
-        verify(stringRedisTemplate).hasKey("relay:room:AAAAAA");
-        verify(stringRedisTemplate).hasKey("relay:room:BBBBBB");
+        verify(stringRedisTemplate).hasKey("invite:AAAAAA");
+        verify(stringRedisTemplate).hasKey("invite:BBBBBB");
         verify(valueOperations).set(eq("relay:room:BBBBBB"), anyString(), eq(ROOM_STATE_TTL));
+        verify(valueOperations).set(eq("invite:BBBBBB"), anyString(), eq(ROOM_STATE_TTL));
     }
 
     /**
@@ -334,14 +342,18 @@ class RelayRoomControllerIntegrationTest {
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
     }
 
-    private JsonNode readStoredRoom() throws Exception {
+    private JsonNode readStoredJson(String expectedKey) throws Exception {
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).set(keyCaptor.capture(), jsonCaptor.capture(), eq(ROOM_STATE_TTL));
+        verify(valueOperations, times(2)).set(keyCaptor.capture(), jsonCaptor.capture(), eq(ROOM_STATE_TTL));
 
-        assertThat(keyCaptor.getValue()).isEqualTo("relay:room:%s".formatted(DEFAULT_ROOM_CODE));
+        for (int index = 0; index < keyCaptor.getAllValues().size(); index++) {
+            if (expectedKey.equals(keyCaptor.getAllValues().get(index))) {
+                return objectMapper.readTree(jsonCaptor.getAllValues().get(index));
+            }
+        }
 
-        return objectMapper.readTree(jsonCaptor.getValue());
+        throw new AssertionError("Redis 저장 key를 찾을 수 없습니다. expectedKey=" + expectedKey);
     }
 
     @SuppressWarnings("unchecked")
