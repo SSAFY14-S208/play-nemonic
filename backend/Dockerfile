@@ -22,9 +22,11 @@ COPY settings.gradle build.gradle ./
 
 # ------------------------------------------------------------
 # Layer 3: 의존성 다운로드 (settings/build.gradle 안 바뀌면 캐시 hit)
-# || true 제거 - 진짜 실패하면 빌드 중단
+# --refresh-dependencies 제거: 매번 원격 메타데이터 재확인을 강제하면
+# CI/CD 빌드가 느려지고 외부 저장소 장애에 더 취약해짐.
+# 의존성 버전이 잠금된 상태에서는 평범한 dependencies 태스크로 충분.
 # ------------------------------------------------------------
-RUN ./gradlew --no-daemon dependencies --refresh-dependencies
+RUN ./gradlew --no-daemon dependencies
 
 # ------------------------------------------------------------
 # Layer 4: 설정 파일 (가끔 바뀜, src보다 자주 안 바뀜)
@@ -48,11 +50,6 @@ RUN ./gradlew --no-daemon bootJar -x test && \
 FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
-
-# curl 설치 (healthcheck용)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
 
 # 비루트 유저
 RUN groupadd -r spring && useradd -r -g spring spring
