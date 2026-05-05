@@ -2,9 +2,11 @@ package com.nemonicworld.relay.websocket;
 
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomSimpleMessageResponse;
 import org.springframework.messaging.MessageHeaders;
@@ -75,6 +77,20 @@ public class RelayRoomEventPublisher {
     public void publishPartSubmitted(RelayRoomSubmissionResponse submissionResponse) {
         RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_SUBMITTED,
             submissionResponse.roomCode(), RelayRoomPartSubmittedEventResponse.from(submissionResponse));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submissionResponse.roomCode(), event);
+    }
+
+    public void publishPartStarted(RelayRoomSubmissionResponse submissionResponse) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_STARTED,
+            submissionResponse.roomCode(), RelayRoomPartStartedEventResponse.from(submissionResponse));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submissionResponse.roomCode(), event);
+    }
+
+    public void publishAllPartsCompleted(RelayRoomSubmissionResponse submissionResponse) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.ALL_PARTS_COMPLETED,
+            submissionResponse.roomCode(), RelayRoomAllPartsCompletedEventResponse.from(submissionResponse));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submissionResponse.roomCode(), event);
     }
