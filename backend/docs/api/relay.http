@@ -184,3 +184,144 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 # Use a room that is still WAITING.
 GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Submit current relay part - FACE
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+0
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+FACE
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="face.png"
+Content-Type: image/png
+
+< ./sample/face.png
+--relay-submit-boundary
+Content-Disposition: form-data; name="hintImage"; filename="face-hint.png"
+Content-Type: image/png
+
+< ./sample/face-hint.png
+--relay-submit-boundary--
+
+### Submit current relay part - BODY
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+1
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+BODY
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="body.png"
+Content-Type: image/png
+
+< ./sample/body.png
+--relay-submit-boundary
+Content-Disposition: form-data; name="hintImage"; filename="body-hint.png"
+Content-Type: image/png
+
+< ./sample/body-hint.png
+--relay-submit-boundary--
+
+### Submit current relay part - LEGS
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+2
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+LEGS
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="legs.png"
+Content-Type: image/png
+
+< ./sample/legs.png
+--relay-submit-boundary--
+
+### Submit current relay part - missing hint image
+# FACE and BODY submissions require hintImage.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+0
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+FACE
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="face.png"
+Content-Type: image/png
+
+< ./sample/face.png
+--relay-submit-boundary--
+
+### Submit current relay part - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: not-a-uuid
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+0
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+FACE
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="face.png"
+Content-Type: image/png
+
+< ./sample/face.png
+--relay-submit-boundary
+Content-Disposition: form-data; name="hintImage"; filename="face-hint.png"
+Content-Type: image/png
+
+< ./sample/face-hint.png
+--relay-submit-boundary--
+
+### Submit current relay part - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+0
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+FACE
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="face.png"
+Content-Type: image/png
+
+< ./sample/face.png
+--relay-submit-boundary
+Content-Disposition: form-data; name="hintImage"; filename="face-hint.png"
+Content-Type: image/png
+
+< ./sample/face-hint.png
+--relay-submit-boundary--
