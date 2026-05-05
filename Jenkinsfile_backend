@@ -88,14 +88,24 @@ pipeline {
             }
         }
 
-        stage('Test') {
-            when { expression { !params.SKIP_TESTS } }
+        // 호스트(Jenkins)에서 한 번에 컴파일 + 테스트 + boot jar 생성.
+        // Dockerfile은 jar만 복사하는 런타임 이미지로 단순화되었으므로
+        // 컴파일을 두 번 수행하던 중복이 제거된다.
+        stage('Build & Test') {
             steps {
                 dir('backend') {
                     sh '''
                         set -euo pipefail
                         chmod +x gradlew
-                        ./gradlew --no-daemon test
+
+                        if [ "${SKIP_TESTS}" = "true" ]; then
+                            echo "[INFO] SKIP_TESTS=true - 테스트 건너뛰고 jar만 빌드"
+                            ./gradlew --no-daemon bootJar -x test
+                        else
+                            ./gradlew --no-daemon test bootJar
+                        fi
+
+                        ls -la build/libs/
                     '''
                 }
             }
@@ -111,14 +121,31 @@ pipeline {
             steps {
                 sh '''
                     set -euo pipefail
-                    
+
+                    # docker build context를 staging 디렉토리로 최소화.
+                    # backend/ 전체(소스, .gradle, 캐시 등)를 daemon에 보내지 않고
+                    # Dockerfile + boot jar 두 파일만 전송한다.
+                    BUILD_CTX="$(mktemp -d -t nemonic-be-XXXXXX)"
+                    trap 'rm -rf "${BUILD_CTX}"' EXIT
+
+                    cp backend/Dockerfile "${BUILD_CTX}/Dockerfile"
+
+                    # bootJar만 실행했을 때는 build/libs/에 boot jar 한 개만 생성된다.
+                    # 산출물이 0개 또는 2개 이상이면 빌드 가정이 깨진 것이므로 즉시 실패시킨다.
+                    JAR_COUNT=$(ls -1 backend/build/libs/*.jar 2>/dev/null | wc -l)
+                    if [ "${JAR_COUNT}" -ne 1 ]; then
+                        echo "[ERROR] expected exactly 1 jar in backend/build/libs/, got ${JAR_COUNT}" >&2
+                        ls -la backend/build/libs/ >&2 || true
+                        exit 1
+                    fi
+                    cp backend/build/libs/*.jar "${BUILD_CTX}/app.jar"
+
                     echo "Building image: ${IMAGE_TAG}"
-                    
                     docker build \
                       -t "${IMAGE_TAG}" \
                       -t "${IMAGE_LATEST}" \
-                      backend/
-                    
+                      "${BUILD_CTX}"
+
                     docker images | grep "${IMAGE_REPO}" | head -5
                 '''
             }
