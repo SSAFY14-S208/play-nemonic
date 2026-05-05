@@ -194,8 +194,10 @@ services:
         condition: service_healthy
     expose:
       - "8080"
+    # bash 내장 /dev/tcp 사용 — 런타임 이미지에 curl/wget 미설치.
+    # Tomcat이 8080을 listen하는 시점이면 ApplicationContext 부팅이 끝난 상태.
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080' || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
