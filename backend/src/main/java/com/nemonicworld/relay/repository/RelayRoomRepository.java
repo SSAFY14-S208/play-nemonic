@@ -1,6 +1,7 @@
 package com.nemonicworld.relay.repository;
 
 import com.nemonicworld.relay.entity.RelayRoomState;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -9,6 +10,9 @@ import java.util.Optional;
  * 진행 중 릴레이 방 상태 저장소가 제공해야 하는 최소 동작입니다.
  */
 public interface RelayRoomRepository {
+
+    // 방 종료/정리 정책이 확정되기 전까지 임시 이미지 fallback 정리 기준과 같은 보수적 TTL을 사용합니다.
+    Duration ROOM_STATE_TTL = Duration.ofHours(24);
 
     /**
      * 새 방코드 발급 때 같은 방코드가 이미 사용 중인지 확인합니다.

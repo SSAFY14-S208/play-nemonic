@@ -121,8 +121,8 @@ class RelayRoomAssignmentControllerIntegrationTest {
         assertThat(data.path("part").asText()).isEqualTo("FACE");
         assertThat(data.path("assignmentStatus").asText()).isEqualTo("PENDING");
         assertThat(data.path("timeLimitSeconds").asInt()).isEqualTo(45);
-        assertThat(data.path("partStartedAt").asText()).isEqualTo(roomState.partStartedAt().toString());
-        assertThat(data.path("partDeadlineAt").asText()).isEqualTo(roomState.partDeadlineAt().toString());
+        assertThat(LocalDateTime.parse(data.path("partStartedAt").asText())).isEqualTo(roomState.partStartedAt());
+        assertThat(LocalDateTime.parse(data.path("partDeadlineAt").asText())).isEqualTo(roomState.partDeadlineAt());
         assertThat(data.path("remainingSeconds").asLong()).isGreaterThanOrEqualTo(0);
         assertThat(data.get("hint").isNull()).isTrue();
 

@@ -153,8 +153,8 @@ class RelayRoomSubmissionControllerIntegrationTest {
         assertThat(storedRoom.path("currentPart").asText()).isEqualTo("FACE");
         assertThat(storedRoom.path("participants")).hasSize(2);
         assertThat(storedRoom.path("hostUserUuid").asText()).isEqualTo(roomState.hostUserUuid());
-        assertThat(storedRoom.path("createdAt").asText()).isEqualTo(roomState.createdAt().toString());
-        assertThat(storedRoom.path("updatedAt").asText()).isNotEqualTo(roomState.updatedAt().toString());
+        assertThat(LocalDateTime.parse(storedRoom.path("createdAt").asText())).isEqualTo(roomState.createdAt());
+        assertThat(LocalDateTime.parse(storedRoom.path("updatedAt").asText())).isNotEqualTo(roomState.updatedAt());
         assertThat(submittedAssignment.path("status").asText()).isEqualTo("SUBMITTED");
         assertThat(submittedAssignment.path("objectKey").asText()).isEqualTo("relay/tmp/AB3K9Q/0/face.png");
         assertThat(submittedAssignment.path("hintObjectKey").asText()).isEqualTo("relay/tmp/AB3K9Q/0/face-hint.png");

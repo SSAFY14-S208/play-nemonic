@@ -143,8 +143,9 @@ class RelayRoomSettingsControllerIntegrationTest {
         assertThat(storedRoom.path("hostUserUuid").asText()).isEqualTo(originalRoomState.hostUserUuid());
         assertThat(storedRoom.path("participants")).hasSize(originalRoomState.participantCount());
         assertThat(storedRoom.path("participants").get(0).path("userUuid").asText()).isEqualTo(hostUuid.toString());
-        assertThat(storedRoom.path("createdAt").asText()).isEqualTo(originalRoomState.createdAt().toString());
-        assertThat(storedRoom.path("updatedAt").asText()).isNotEqualTo(originalRoomState.updatedAt().toString());
+        assertThat(LocalDateTime.parse(storedRoom.path("createdAt").asText())).isEqualTo(originalRoomState.createdAt());
+        assertThat(LocalDateTime.parse(storedRoom.path("updatedAt").asText()))
+            .isNotEqualTo(originalRoomState.updatedAt());
 
         AppUser afterUser = userRepository.findById(hostUuid).orElseThrow();
         assertThat(afterUser.getLastSeenAt()).isEqualTo(beforeLastSeenAt);
@@ -219,7 +220,8 @@ class RelayRoomSettingsControllerIntegrationTest {
 
         JsonNode storedRoom = readSavedRoom();
         assertThat(storedRoom.path("timeLimitSeconds").asInt()).isEqualTo(45);
-        assertThat(storedRoom.path("updatedAt").asText()).isNotEqualTo(originalRoomState.updatedAt().toString());
+        assertThat(LocalDateTime.parse(storedRoom.path("updatedAt").asText()))
+            .isNotEqualTo(originalRoomState.updatedAt());
         verify(relayRoomEventPublisher).publishSettingsChanged(any(RelayRoomStateResponse.class));
     }
 
