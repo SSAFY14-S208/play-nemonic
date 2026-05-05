@@ -107,6 +107,18 @@ public final class OpenApiErrorExamples {
           "message": "모든 참여자가 연결된 상태에서만 시작할 수 있습니다."
         }
         """;
+    public static final String RELAY_GAME_NOT_STARTED = """
+        {
+          "success": false,
+          "message": "게임이 아직 시작되지 않았습니다."
+        }
+        """;
+    public static final String RELAY_CURRENT_ASSIGNMENT_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "현재 배정된 그림이 없습니다."
+        }
+        """;
     public static final String INVALID_BIRTH_INFO = """
         {
           "success": false,

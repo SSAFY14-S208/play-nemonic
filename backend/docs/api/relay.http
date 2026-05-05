@@ -155,3 +155,32 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 # Use a room with only one connected participant.
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment - invalid user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: not-a-uuid
+
+### Get my relay assignment - missing user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+
+### Get my relay assignment - invalid room code
+GET {{host}}/api/v1/relay/rooms/not-a-room/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment - not found
+GET {{host}}/api/v1/relay/rooms/ZZZZZZ/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment - not participant
+# Use a user UUID that is not included in the room participants.
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment - game not started
+# Use a room that is still WAITING.
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
