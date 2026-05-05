@@ -24,7 +24,6 @@ export const PHONE_COLORS = {
   drawingAccentMuted: '#fff2d6',
   drawingBackground: '#f7f7f7',
   drawingPanel: '#f6f6f6',
-  frameMetal: '#bfc8da',
   homeHeader: '#55adf0',
   launcherBadge: '#ff6f7b',
   launcherScreen: 'linear-gradient(135deg,#dff4ff 0%,#ffe6f2 100%)',
@@ -83,7 +82,7 @@ export const PHONE_APP_SHORTCUTS: Array<{
   },
   {
     key: 'shop',
-    label: '공식몰',
+    label: '공식몰 바로가기',
     asset: phoneAppShop,
     externalUrl: PHONE_OFFICIAL_STORE_URL,
     isEnabled: true,

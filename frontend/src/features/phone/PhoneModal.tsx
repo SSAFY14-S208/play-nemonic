@@ -63,7 +63,6 @@ export default function PhoneModal() {
           <PhoneFrame statusBarVariant={statusBarVariant}>
             {activeScreen === 'home' && (
               <PhoneHomeScreen
-                recentGalleryItems={galleryItems}
                 onOpenDrawing={showDrawing}
                 onOpenGallery={showGallery}
               />

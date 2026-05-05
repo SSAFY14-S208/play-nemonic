@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import Image from 'next/image'
+import { phoneDeviceFrame } from '@/shared/assets'
 import { PHONE_COLORS } from '../constants'
 import { PhoneStatusBar } from './PhoneStatusBar'
 
@@ -9,28 +11,24 @@ interface PhoneFrameProps {
 
 export function PhoneFrame({ children, statusBarVariant }: PhoneFrameProps) {
   return (
-    <div className="relative h-[min(812px,calc(100dvh-2rem))] w-[min(375px,calc(100vw-1.5rem))]">
-      <div
-        className="absolute right-[-0.35rem] top-[11rem] h-20 w-1 rounded-r-[0.35rem]"
-        style={{ background: PHONE_COLORS.frameMetal }}
-      />
-      <div
-        className="absolute left-[-0.35rem] top-[8rem] h-10 w-1 rounded-l-[0.35rem]"
-        style={{ background: PHONE_COLORS.frameMetal }}
-      />
-      <div
-        className="absolute left-[-0.35rem] top-[13rem] h-16 w-1 rounded-l-[0.35rem]"
-        style={{ background: PHONE_COLORS.frameMetal }}
+    <div className="relative aspect-[498/1024] w-[min(393px,calc(100vw-1.5rem))] max-h-[calc(100dvh-2rem)] max-w-[calc((100dvh-2rem)*0.486)]">
+      <Image
+        src={phoneDeviceFrame}
+        alt=""
+        aria-hidden
+        fill
+        priority
+        className="pointer-events-none object-fill"
+        sizes="393px"
       />
 
       <div
-        className="relative h-full overflow-hidden rounded-[2.75rem] border-[0.38rem] shadow-[0_1.5rem_3rem_rgba(0,0,0,0.32),inset_0_0_0_1px_rgba(255,255,255,0.38)]"
+        className="absolute inset-[0.38rem] overflow-hidden rounded-[2.35rem]"
         style={{
           background: PHONE_COLORS.black,
-          borderColor: PHONE_COLORS.black,
         }}
       >
-        <div className="absolute inset-[0.38rem] overflow-hidden rounded-[2.28rem] bg-surface-default shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]">
+        <div className="absolute inset-[0.38rem] overflow-hidden rounded-[2rem] bg-surface-default shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]">
           <PhoneStatusBar variant={statusBarVariant} />
           {children}
           <div
