@@ -48,6 +48,7 @@ class RedisRelayRoomRepositoryTest {
         valueOperations = createValueOperationsMock();
         repository = new RedisRelayRoomRepository(redisTemplate, objectMapper);
 
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
         given(redisOperations.opsForValue()).willReturn(valueOperations);
         given(redisOperations.exec()).willReturn(List.of("OK"));
         given(redisTemplate.execute(any(SessionCallback.class))).willAnswer(invocation -> {
@@ -117,6 +118,47 @@ class RedisRelayRoomRepositoryTest {
         verify(redisOperations).unwatch();
         verify(redisOperations, never()).multi();
         verify(valueOperations, never()).set(eq(ROOM_KEY), any(String.class), eq(ROOM_STATE_TTL));
+    }
+
+    /**
+     * 기존 Redis JSON에 게임 진행 필드가 없더라도 assignments는 빈 리스트로 보정해 읽습니다.
+     */
+    @Test
+    void findByRoomCodeReadsLegacyRoomJsonWithoutGameFields() {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID hostUuid = UUID.randomUUID();
+        given(valueOperations.get(ROOM_KEY)).willReturn("""
+            {
+              "roomCode": "%s",
+              "status": "WAITING",
+              "hostUserUuid": "%s",
+              "timeLimitSeconds": 45,
+              "minParticipants": 2,
+              "maxParticipants": 6,
+              "currentPart": null,
+              "participants": [
+                {
+                  "userUuid": "%s",
+                  "nickname": "Mango",
+                  "host": true,
+                  "joinOrder": 0,
+                  "connected": true,
+                  "disconnectedAt": null,
+                  "joinedAt": "%s"
+                }
+              ],
+              "createdAt": "%s",
+              "updatedAt": "%s"
+            }
+            """.formatted(ROOM_CODE, hostUuid, hostUuid, now, now, now));
+
+        RelayRoomState roomState = repository.findByRoomCode(ROOM_CODE).orElseThrow();
+
+        assertThat(roomState.assignments()).isEmpty();
+        assertThat(roomState.partStartedAt()).isNull();
+        assertThat(roomState.partDeadlineAt()).isNull();
+        assertThat(roomState.gameStartedAt()).isNull();
+        assertThat(roomState.participantCount()).isEqualTo(1);
     }
 
     private RelayRoomState roomState(RelayRoomParticipant... participants) {

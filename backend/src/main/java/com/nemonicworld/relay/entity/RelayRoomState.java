@@ -8,11 +8,20 @@ import java.util.List;
  */
 public record RelayRoomState(String roomCode, RelayRoomStatus status, String hostUserUuid, int timeLimitSeconds,
     int minParticipants, int maxParticipants, RelayDrawingPart currentPart, List<RelayRoomParticipant> participants,
-    LocalDateTime createdAt, LocalDateTime updatedAt) {
+    List<RelayRoomAssignment> assignments, LocalDateTime partStartedAt, LocalDateTime partDeadlineAt,
+    LocalDateTime gameStartedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
 
     public RelayRoomState {
         // 생성 이후 외부에서 참여자 목록을 바꾸지 못하도록 불변 복사본으로 보관합니다.
-        participants = List.copyOf(participants);
+        participants = participants == null ? List.of() : List.copyOf(participants);
+        assignments = assignments == null ? List.of() : List.copyOf(assignments);
+    }
+
+    public RelayRoomState(String roomCode, RelayRoomStatus status, String hostUserUuid, int timeLimitSeconds,
+        int minParticipants, int maxParticipants, RelayDrawingPart currentPart, List<RelayRoomParticipant> participants,
+        LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants, currentPart,
+            participants, List.of(), null, null, null, createdAt, updatedAt);
     }
 
     /**
@@ -20,5 +29,23 @@ public record RelayRoomState(String roomCode, RelayRoomStatus status, String hos
      */
     public int participantCount() {
         return participants.size();
+    }
+
+    public RelayRoomState withParticipants(List<RelayRoomParticipant> updatedParticipants, LocalDateTime updatedAt) {
+        return new RelayRoomState(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants,
+            currentPart, updatedParticipants, assignments, partStartedAt, partDeadlineAt, gameStartedAt, createdAt,
+            updatedAt);
+    }
+
+    public RelayRoomState withTimeLimitSeconds(int updatedTimeLimitSeconds, LocalDateTime updatedAt) {
+        return new RelayRoomState(roomCode, status, hostUserUuid, updatedTimeLimitSeconds, minParticipants,
+            maxParticipants, currentPart, participants, assignments, partStartedAt, partDeadlineAt, gameStartedAt,
+            createdAt, updatedAt);
+    }
+
+    public RelayRoomState startGame(List<RelayRoomAssignment> generatedAssignments, LocalDateTime startedAt) {
+        return new RelayRoomState(roomCode, RelayRoomStatus.PLAYING, hostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, RelayDrawingPart.FACE, participants, generatedAssignments, startedAt,
+            startedAt.plusSeconds(timeLimitSeconds), startedAt, createdAt, startedAt);
     }
 }

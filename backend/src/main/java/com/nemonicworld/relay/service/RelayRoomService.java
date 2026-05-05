@@ -1,8 +1,8 @@
 package com.nemonicworld.relay.service;
 
+import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
-import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 
 /**
  * 릴레이 방 유스케이스를 정의합니다.
@@ -29,6 +29,11 @@ public interface RelayRoomService {
      */
     RelayRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
         RelayRoomSettingsRequest request);
+
+    /**
+     * 기존 익명 사용자인 방장이 대기 중인 릴레이 방을 게임 진행 상태로 전환합니다.
+     */
+    RelayRoomStateResponse startRoom(String userUuidValue, String roomCodeValue);
 
     /**
      * WebSocket 연결 성공 시 기존 릴레이 참여자를 연결 상태로 갱신합니다.

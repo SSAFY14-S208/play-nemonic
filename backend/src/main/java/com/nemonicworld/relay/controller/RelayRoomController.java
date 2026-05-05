@@ -42,6 +42,7 @@ public class RelayRoomController {
     private static final String RELAY_ROOM_STATE_FOUND_MESSAGE = "릴레이 방 상태 조회 성공";
     private static final String RELAY_ROOM_JOINED_MESSAGE = "릴레이 방 입장/복귀 성공";
     private static final String RELAY_ROOM_SETTINGS_UPDATED_MESSAGE = "릴레이 방 설정 변경 성공";
+    private static final String RELAY_GAME_STARTED_MESSAGE = "릴레이 게임 시작 성공";
 
     private final RelayRoomService relayRoomService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
@@ -158,5 +159,39 @@ public class RelayRoomController {
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(RELAY_ROOM_SETTINGS_UPDATED_MESSAGE, response));
+    }
+
+    /**
+     * 방장이 대기 중인 릴레이 방을 게임 진행 상태로 전환하고 방 전체에 시작 이벤트를 알립니다.
+     */
+    @PostMapping("/{roomCode}/start")
+    @Operation(summary = "릴레이 게임 시작", description = "대기 중인 릴레이 방을 PLAYING 상태로 전환하고 참여자 입장 순서 기준 파트 배정표를 Redis에 저장합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "릴레이 게임 시작 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "게임 시작 권한 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "비참여자", value = OpenApiErrorExamples.RELAY_ROOM_PARTICIPANT_REQUIRED),
+            @ExampleObject(name = "방장 아님", value = OpenApiErrorExamples.RELAY_ROOM_HOST_REQUIRED)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.RELAY_ROOM_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "게임 시작 불가 상태", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "이미 시작됨", value = OpenApiErrorExamples.RELAY_GAME_ALREADY_STARTED),
+            @ExampleObject(name = "종료된 방", value = OpenApiErrorExamples.RELAY_ROOM_CLOSED),
+            @ExampleObject(name = "인원 부족", value = OpenApiErrorExamples.RELAY_NOT_ENOUGH_PARTICIPANTS),
+            @ExampleObject(name = "연결 끊김", value = OpenApiErrorExamples.RELAY_PARTICIPANTS_DISCONNECTED)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<RelayRoomStateResponse>> startRoom(@PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        RelayRoomStateResponse response = relayRoomService.startRoom(userUuid, roomCode);
+        relayRoomEventPublisher.publishGameStarted(response);
+        relayRoomEventPublisher.publishPartStarted(response);
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(RELAY_GAME_STARTED_MESSAGE, response));
     }
 }

@@ -10,6 +10,12 @@ public enum RelayRoomEventType {
     // 방 설정이 변경되었음을 알립니다.
     SETTINGS_CHANGED,
 
+    // 릴레이 게임이 시작되었음을 알립니다.
+    GAME_STARTED,
+
+    // 현재 파트가 시작되었음을 알립니다.
+    PART_STARTED,
+
     // 참여자의 WebSocket 연결이 활성화되었음을 알립니다.
     PARTICIPANT_CONNECTED,
 
