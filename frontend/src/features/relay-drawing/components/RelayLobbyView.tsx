@@ -1,11 +1,10 @@
-'use client'
+"use client";
 
-import Image from "next/image";
 import { Copy, Crown, QrCode } from "lucide-react";
 import { useRelayDrawingStore } from "../relayDrawingStore";
-import { relayPostItNote } from "@/shared/assets";
 import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from "../constants";
 import { cn } from "@/shared/libs";
+import { PostItNote } from "@/shared/components";
 
 const LOBBY_PARTICIPANTS = [
   { id: "host", name: "여우 (나)", avatar: "🦊", isHost: true },
@@ -17,19 +16,17 @@ const WAITING_SLOT_COUNT = 3;
 
 export default function RelayLobbyView() {
   const goToNextStep = useRelayDrawingStore((state) => state.goToNextStep);
-  const timeLimitSeconds = useRelayDrawingStore((state) => state.timeLimitSeconds);
-  const setTimeLimitSeconds = useRelayDrawingStore((state) => state.setTimeLimitSeconds);
+  const timeLimitSeconds = useRelayDrawingStore(
+    (state) => state.timeLimitSeconds,
+  );
+  const setTimeLimitSeconds = useRelayDrawingStore(
+    (state) => state.setTimeLimitSeconds,
+  );
 
   return (
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <Image
-          src={relayPostItNote}
-          alt=""
-          aria-hidden
-          priority
-          className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] object-contain"
-        />
+        <PostItNote className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-brand-relay-drawing-primary" />
 
         <div className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
           <p className="h2-b text-relay-ink/80">입장 코드</p>
@@ -97,7 +94,8 @@ export default function RelayLobbyView() {
                     onClick={() => setTimeLimitSeconds(seconds)}
                     className={cn(
                       "body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent",
-                      isSelected && "border-relay-accent bg-relay-accent/20 text-relay-ink",
+                      isSelected &&
+                        "border-relay-accent bg-relay-accent/20 text-relay-ink",
                     )}
                   >
                     {seconds}초
