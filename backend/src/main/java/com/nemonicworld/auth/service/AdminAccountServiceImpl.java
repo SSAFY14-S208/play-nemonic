@@ -7,6 +7,7 @@ import com.nemonicworld.auth.entity.AdminUser;
 import com.nemonicworld.auth.repository.AdminUserRepository;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
+import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import java.time.LocalDateTime;
@@ -20,6 +21,10 @@ public class AdminAccountServiceImpl implements AdminAccountService {
 
     private static final String SUPER_ADMIN_REQUIRED_MESSAGE = "슈퍼 관리자 권한이 필요합니다.";
     private static final String DUPLICATE_LOGIN_ID_MESSAGE = "이미 등록된 관리자 아이디입니다.";
+
+    private static final String ADMIN_ACCOUNT_NOT_FOUND_MESSAGE = "관리자 계정을 찾을 수 없습니다.";
+    private static final String SELF_DELETE_FORBIDDEN_MESSAGE = "자기 자신은 삭제할 수 없습니다.";
+    private static final String SUPER_ADMIN_DELETE_FORBIDDEN_MESSAGE = "슈퍼 관리자 계정은 삭제할 수 없습니다.";
 
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
@@ -51,6 +56,37 @@ public class AdminAccountServiceImpl implements AdminAccountService {
             return AdminResponse.from(adminUser);
         } catch (DuplicateKeyException e) {
             throw new ConflictException(DUPLICATE_LOGIN_ID_MESSAGE);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deleteAdminAccount(AdminPrincipal adminPrincipal, Long adminId) {
+        requireSuperAdmin(adminPrincipal);
+
+        if (adminPrincipal.id().equals(adminId)) {
+            throw new ForbiddenException(SELF_DELETE_FORBIDDEN_MESSAGE);
+        }
+
+        AdminUser targetAdmin = adminUserRepository.findActiveById(adminId)
+            .orElseThrow(() -> new NotFoundException(ADMIN_ACCOUNT_NOT_FOUND_MESSAGE));
+        if (targetAdmin.getRole() == AdminRole.SUPER_ADMIN) {
+            throw new ForbiddenException(SUPER_ADMIN_DELETE_FORBIDDEN_MESSAGE);
+        }
+
+        int deletedCount = adminUserRepository.softDeleteById(adminId, LocalDateTime.now());
+        if (deletedCount == 0) {
+            throw new NotFoundException(ADMIN_ACCOUNT_NOT_FOUND_MESSAGE);
+        }
+    }
+
+    private void requireSuperAdmin(AdminPrincipal adminPrincipal) {
+        if (adminPrincipal == null) {
+            throw new UnauthorizedException("인증이 필요합니다.");
+        }
+
+        if (adminPrincipal.role() != AdminRole.SUPER_ADMIN) {
+            throw new ForbiddenException(SUPER_ADMIN_REQUIRED_MESSAGE);
         }
     }
 }

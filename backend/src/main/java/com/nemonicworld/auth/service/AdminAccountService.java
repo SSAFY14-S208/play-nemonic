@@ -7,4 +7,6 @@ import com.nemonicworld.common.jwt.AdminPrincipal;
 public interface AdminAccountService {
 
     AdminResponse createAdminAccount(AdminPrincipal adminPrincipal, AdminAccountCreateRequest request);
+
+    void deleteAdminAccount(AdminPrincipal adminPrincipal, Long adminId);
 }

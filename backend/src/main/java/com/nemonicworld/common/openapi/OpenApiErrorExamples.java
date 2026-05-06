@@ -330,6 +330,25 @@ public final class OpenApiErrorExamples {
         }
         """;
 
+    public static final String ADMIN_ACCOUNT_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "관리자 계정을 찾을 수 없습니다."
+        }
+        """;
+    public static final String ADMIN_SELF_DELETE_FORBIDDEN = """
+        {
+          "success": false,
+          "message": "자기 자신은 삭제할 수 없습니다."
+        }
+        """;
+    public static final String ADMIN_SUPER_DELETE = """
+        {
+          "success": false,
+          "message": "슈퍼 관리자 계정은 삭제할 수 없습니다."
+        }
+        """;
+
     private OpenApiErrorExamples() {
     }
 }

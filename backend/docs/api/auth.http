@@ -28,6 +28,10 @@ Authorization: Bearer {{adminAccessToken}}
   "email": "manager01@example.com"
 }
 
+### Delete admin account
+DELETE {{host}}/api/v1/admin/accounts/2
+Authorization: Bearer {{adminAccessToken}}
+
 ### Admin logout
 POST {{host}}/api/v1/auth/admin/logout
 Authorization: Bearer {{adminAccessToken}}

@@ -107,6 +107,16 @@ public class AdminUserRepository {
         return findByLoginId(loginId).orElseThrow();
     }
 
+    public int softDeleteById(Long id, LocalDateTime deletedAt) {
+        return jdbcTemplate.update("""
+            UPDATE admin_user
+               SET deleted_at = ?,
+                   updated_at = ?
+             WHERE id = ?
+               AND deleted_at IS NULL
+            """, deletedAt, deletedAt, id);
+    }
+
     public void updateLastLoginAt(Long id, LocalDateTime lastLoginAt) {
         jdbcTemplate.update("UPDATE admin_user SET last_login_at = ?, updated_at = ? WHERE id = ?", lastLoginAt,
             lastLoginAt, id);

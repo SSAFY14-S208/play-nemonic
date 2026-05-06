@@ -1,6 +1,7 @@
 package com.nemonicworld.auth.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,6 +39,9 @@ class AuthControllerIntegrationTest {
     private static final String NEW_ADMIN_PASSWORD = "Password123!";
     private static final String NEW_ADMIN_NICKNAME = "Operator";
     private static final String NEW_ADMIN_EMAIL = "manager01@example.com";
+    private static final long TARGET_ADMIN_ID = 2L;
+    private static final String TARGET_ADMIN_LOGIN_ID = "manager02";
+    private static final String TARGET_ADMIN_PASSWORD = "Password456!";
 
     @Autowired
     private MockMvc mockMvc;
@@ -219,6 +223,92 @@ class AuthControllerIntegrationTest {
             .andExpect(jsonPath("$.errors.password").exists()).andExpect(jsonPath("$.errors.email").exists());
     }
 
+    @Test
+    void superAdminDeletesAdminAccount() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+        String targetAccessToken = loginAndReadAccessToken(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD);
+
+        mockMvc
+            .perform(delete("/api/v1/admin/accounts/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(accessToken)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("관리자 계정 삭제 성공")).andExpect(jsonPath("$.data").doesNotExist());
+
+        assertThat(readDeletedAt(TARGET_ADMIN_ID)).isNotNull();
+        mockMvc
+            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequestBody(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD)))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer(targetAccessToken)))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminAccountDeletionRequiresSuperAdminRole() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(delete("/api/v1/admin/accounts/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(accessToken)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(readDeletedAt(TARGET_ADMIN_ID)).isNull();
+    }
+
+    @Test
+    void adminAccountDeletionRejectsSelfDelete() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(delete("/api/v1/admin/accounts/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(accessToken)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("자기 자신은 삭제할 수 없습니다."));
+
+        assertThat(readDeletedAt(ADMIN_ID)).isNull();
+    }
+
+    @Test
+    void adminAccountDeletionRejectsSuperAdminTarget() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(delete("/api/v1/admin/accounts/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(accessToken)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("슈퍼 관리자 계정은 삭제할 수 없습니다."));
+
+        assertThat(readDeletedAt(TARGET_ADMIN_ID)).isNull();
+    }
+
+    @Test
+    void adminAccountDeletionRejectsMissingOrDeletedTarget() throws Exception {
+        LocalDateTime deletedAt = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", deletedAt);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(
+                delete("/api/v1/admin/accounts/{adminId}", 999L).header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 계정을 찾을 수 없습니다."));
+
+        mockMvc
+            .perform(delete("/api/v1/admin/accounts/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(accessToken)))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 계정을 찾을 수 없습니다."));
+    }
+
     private void insertAdminUser(long id, String loginId, String rawPassword, String role, LocalDateTime deletedAt) {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
 
@@ -241,8 +331,12 @@ class AuthControllerIntegrationTest {
     }
 
     private String loginAndReadAccessToken() throws Exception {
+        return loginAndReadAccessToken(ADMIN_LOGIN_ID, ADMIN_PASSWORD);
+    }
+
+    private String loginAndReadAccessToken(String loginId, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
-            .content(loginRequestBody(ADMIN_LOGIN_ID, ADMIN_PASSWORD))).andExpect(status().isOk()).andReturn();
+            .content(loginRequestBody(loginId, password))).andExpect(status().isOk()).andReturn();
 
         return readData(result).path("accessToken").asText();
     }
@@ -277,6 +371,13 @@ class AuthControllerIntegrationTest {
                 Timestamp timestamp = resultSet.getTimestamp("last_login_at");
                 return timestamp == null ? null : timestamp.toLocalDateTime();
             }, id);
+    }
+
+    private LocalDateTime readDeletedAt(long id) {
+        return jdbcTemplate.queryForObject("SELECT deleted_at FROM admin_user WHERE id = ?", (resultSet, rowNumber) -> {
+            Timestamp timestamp = resultSet.getTimestamp("deleted_at");
+            return timestamp == null ? null : timestamp.toLocalDateTime();
+        }, id);
     }
 
     private String readPasswordHash(String loginId) {
