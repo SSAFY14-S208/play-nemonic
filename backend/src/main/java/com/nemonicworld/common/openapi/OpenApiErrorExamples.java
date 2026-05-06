@@ -77,6 +77,12 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 방입니다."
         }
         """;
+    public static final String FLIPBOOK_ROOM_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "존재하지 않는 방입니다."
+        }
+        """;
     public static final String RELAY_ROOM_FULL = """
         {
           "success": false,
