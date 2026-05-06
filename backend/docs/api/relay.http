@@ -67,22 +67,42 @@ POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Kick relay room participant
-DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/{{targetUserUuid}}
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+{
+  "targetUserUuid": "{{targetUserUuid}}"
+}
+
 ### Kick relay room participant - invalid target UUID
-DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/not-a-uuid
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "targetUserUuid": "not-a-uuid"
+}
 
 ### Kick relay room participant - not host
 # Use a participant UUID that is not the room host.
-DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/{{targetUserUuid}}
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "targetUserUuid": "{{targetUserUuid}}"
+}
 
 ### Kick relay room participant - non-waiting room
 # 강퇴는 WAITING 대기실에서만 가능합니다.
-DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/{{targetUserUuid}}
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "targetUserUuid": "{{targetUserUuid}}"
+}
 
 ### Update relay room settings
 PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
