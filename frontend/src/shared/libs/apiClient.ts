@@ -20,4 +20,11 @@ export const api = {
     client.patch(path, body !== undefined ? { json: body } : undefined).json<T>(),
   delete: <T>(path: string, searchParams?: Query) =>
     client.delete(path, searchParams ? { searchParams } : undefined).json<T>(),
+  postForm: <T>(path: string, formData: FormData, searchParams?: Query) =>
+    client
+      .post(path, {
+        body: formData,
+        ...(searchParams && { searchParams }),
+      })
+      .json<T>(),
 }

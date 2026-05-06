@@ -350,24 +350,45 @@ export default function Page() {
 
 Backend: Spring (no DB access from client). All data via REST API.
 
-### Auth model — anonymous UUID (no JWT)
+### Two auth flows — two separate clients
 
-The backend issues `userUuid` on first visit. There is no `Authorization` / Bearer header. Identification is split by HTTP method:
+The codebase has two distinct authentication flows. Each has its own ky client. Domain functions explicitly choose which client they use.
+
+| Client | File | Domains | Auth |
+| --- | --- | --- | --- |
+| `api` | `shared/libs/apiClient.ts` | user, gallery, community, share, relay, invite, flipbook, file | Anonymous `userUuid` (body/query field) |
+| `adminApi` | `shared/libs/adminApiClient.ts` | admins, `auth/logout` | Admin Bearer access token (auto-injected) |
+
+**General user flow — anonymous UUID, no JWT:**
+
+The backend issues `userUuid` on first visit. There is no `Authorization` / Bearer header in this flow. Identification is split by HTTP method:
 
 - **Body** `userUuid`: POST / PUT / PATCH (e.g. `POST /users/anonymous/verify`, `PATCH /users/anonymous/nickname`)
 - **Query** `userUuid`: GET / DELETE (e.g. `GET /gallery?userUuid=...`)
 - No `userUuid` needed: `POST /users/anonymous` (issuing endpoint), `GET /community/{id}`
 
-Do **not** reintroduce token/Bearer logic. `apiClient` knows nothing about auth.
+Do **not** reintroduce token/Bearer logic in the user-facing `api`. The `api` transport knows nothing about auth.
+
+**Backoffice flow — admin Bearer token:**
+
+`auth/*` and `admins/*` require `Authorization: Bearer {accessToken}`. To keep the user-facing transport unaware of this, the backoffice uses a separate ky instance (`adminApi`) with hooks that:
+
+- inject the access token from `useAdminAuthStore` on every request (`beforeRequest`),
+- catch a 401 response, call `auth/reissue` with the stored refresh token, update the store, and retry the original request once (`afterResponse`),
+- de-duplicate concurrent reissue calls so multiple in-flight 401s share a single refresh.
+
+Admin domain functions therefore have **no `accessToken` argument** — the token is injected automatically. `auth/login` and `auth/reissue` must use the regular `api` (calling them with `adminApi` would either lack the token or recurse on 401). Only `auth/logout` uses `adminApi`.
 
 ### Three layers
 
 ```
-shared/libs/apiClient.ts        ← ky transport. No auth, no envelope.
+shared/libs/apiClient.ts        ← user-facing ky transport. No auth, no envelope.
+shared/libs/adminApiClient.ts   ← backoffice ky transport. Token auto-inject + 401 reissue retry.
 shared/utils/apiUnwrap.ts       ← ApiResponse<T> unwrap helper.
 shared/apis/apiError.ts         ← ApiError class (domain — bound to backend envelope).
 shared/apis/{domain}Api.ts      ← Individual function exports per endpoint.
-shared/stores/userStore.ts      ← Zustand persist — single source for userUuid.
+shared/stores/userStore.ts      ← Zustand persist (localStorage) — userUuid.
+shared/stores/adminAuthStore.ts ← Zustand persist (sessionStorage) — admin tokens.
 shared/hooks/useUserBootstrap.ts← Calls postAnonymousVerify → postAnonymous on mount.
 shared/components/UserBootstrap ← Mounted once in app/layout.tsx.
 ```
@@ -389,10 +410,50 @@ export const api = {
   put:    <T>(path: string, body?: unknown) => client.put(path, body !== undefined ? { json: body } : undefined).json<T>(),
   patch:  <T>(path: string, body?: unknown) => client.patch(path, body !== undefined ? { json: body } : undefined).json<T>(),
   delete: <T>(path: string, searchParams?: Query) => client.delete(path, searchParams ? { searchParams } : undefined).json<T>(),
+  postForm: <T>(path: string, formData: FormData, searchParams?: Query) =>
+    client.post(path, { body: formData, ...(searchParams && { searchParams }) }).json<T>(),
 };
 ```
 
-`PATCH` is a first-class method (used for partial updates like nickname/birth-info). `searchParams` on GET/DELETE for `userUuid` and pagination.
+`PATCH` is a first-class method (used for partial updates like nickname/birth-info). `searchParams` on GET/DELETE for `userUuid` and pagination. `postForm` is for multipart/form-data uploads (e.g. relay submissions).
+
+### adminApiClient — backoffice transport
+
+```ts
+// shared/libs/adminApiClient.ts (essentials)
+const adminClient = ky.create({
+  prefix: `${runtime.apiUrl}/api/v1`,
+  timeout: 30_000,
+  hooks: {
+    beforeRequest: [({ request }) => {
+      const accessToken = useAdminAuthStore.getState().accessToken;
+      if (accessToken) request.headers.set('Authorization', `Bearer ${accessToken}`);
+    }],
+    afterResponse: [async ({ request, response }) => {
+      if (response.status !== 401) return;
+      if (request.url.includes('/auth/reissue')) return; // safety
+      const newAccessToken = await refreshAccessToken();
+      if (!newAccessToken) return;
+      const retry = request.clone();
+      retry.headers.set('Authorization', `Bearer ${newAccessToken}`);
+      return fetch(retry);
+    }],
+  },
+});
+export const adminApi = { /* same shape as api */ };
+```
+
+- Admin domain functions take no `accessToken` argument — `getAdminList()`, `postAdmin(payload)`, `deleteAdmin(adminId)`.
+- Concurrent 401s share a single in-flight reissue (deduped via a module-scoped `pendingReissue` promise).
+- If reissue itself fails the store is cleared. Hooks reading `useAdminAuthStore.accessToken === null` should redirect to the admin login page.
+
+### Choosing a client for a new domain
+
+| Backend OpenAPI security | Client | Notes |
+| --- | --- | --- |
+| `Anonymous-User-UUID` header or none | `api` | Pass `userUuid` as an explicit arg in body/query |
+| `bearerAuth` (admin token) | `adminApi` | No token arg — store auto-injects |
+| Bootstrap endpoints (`auth/login`, `auth/reissue`) | `api` | Exception — these must run without a token to avoid interceptor recursion |
 
 ### ApiResponse envelope + apiUnwrap
 
@@ -452,9 +513,16 @@ Do **not** group these into `userApi.foo()` style objects. Feature hooks import 
 
 ### User identity bootstrap
 
-- `userUuid` lives in `useUserStore` (Zustand `persist` middleware, key `nemonic-user`). No separate localStorage sync code — persist handles it.
+- `userUuid` lives in `useUserStore` (Zustand `persist` middleware, **localStorage**, key `nemonic-user`). No separate localStorage sync code — persist handles it.
 - Root `app/layout.tsx` mounts `<UserBootstrap />` (`'use client'`). After persist hydration completes, `useUserBootstrap` calls `postAnonymousVerify` (if uuid stored) or `postAnonymous` (cold start), and updates the store.
 - Pages/features must NOT call verify/createAnonymous directly — read `userUuid` from `useUserStore`.
+
+### Admin auth bootstrap
+
+- Admin access/refresh tokens live in `useAdminAuthStore` (Zustand `persist`, **sessionStorage**, key `nemonic-admin-auth`). sessionStorage is intentional — tokens must not survive tab close on shared devices. Do NOT switch to localStorage.
+- Successful login: `postLogin` → `useAdminAuthStore.setTokens(loginResponse)`. The interceptor injects the token from then on.
+- Logout: `postLogout(refreshToken)` → backend blacklist → `useAdminAuthStore.clear()`.
+- `app/admin/layout.tsx` `<AdminAuthGuard>` redirects to `/admin/login` when `useAdminAuthStore.accessToken === null`.
 
 Use native `fetch` directly only in server components for OG metadata generation.
 
@@ -863,6 +931,16 @@ Before completing any task, verify:
 
 - [ ] Admin features only import from `shared/` — never from normal `features/`
 - [ ] Normal features do not import from `features/admin/`
+- [ ] Backoffice domain APIs (`adminsApi`, `auth/logout`) use `adminApi`, not `api`
+- [ ] Admin domain functions take **no** `accessToken` argument — token is auto-injected from `useAdminAuthStore`
+- [ ] `auth/login` and `auth/reissue` use the regular `api` client (avoid 401 interceptor recursion)
+- [ ] Admin tokens live in `useAdminAuthStore` (sessionStorage) — never `localStorage`, never a custom global var
+
+**API client choice**
+
+- [ ] No `Authorization` / Bearer header injected via the regular `api` client
+- [ ] No new `ky.create(...)` instance in domain files — only `api` and `adminApi` exist
+- [ ] multipart uploads use `api.postForm(...)` (or `adminApi`-equivalent if admin-only)
 
 **R3F / Three.js**
 

@@ -397,7 +397,16 @@ export default function SharePage({ params }) {
 
 이 프로젝트는 Spring 백엔드와 협업합니다. DB를 직접 조작하지 않으며, 모든 데이터는 백엔드 API를 통해서만 접근합니다.
 
-### 인증 모델 — 익명 UUID
+### 인증 모델 — 두 흐름 분리
+
+이 프로젝트에는 **두 가지 인증 흐름**이 있고, 각각 **별도 클라이언트**를 사용합니다. 도메인 API는 자기가 어느 클라이언트를 써야 하는지를 의식적으로 선택합니다.
+
+| 클라이언트 | 위치 | 용도 | 인증 |
+| --- | --- | --- | --- |
+| `api` | `shared/libs/apiClient.ts` | 일반 사용자 도메인 (user, gallery, community, share, relay, invite, flipbook, file) | 익명 `userUuid` (body/query 필드) |
+| `adminApi` | `shared/libs/adminApiClient.ts` | 백오피스 도메인 (admins, auth/logout) | 관리자 Bearer access token (자동 헤더 주입) |
+
+**일반 사용자 흐름 — 익명 UUID:**
 
 JWT/세션 쿠키를 사용하지 않습니다. 서버는 첫 진입 시 `userUuid`를 발급하고, 이후 모든 식별은 다음 두 위치 중 하나로 이뤄집니다.
 
@@ -405,7 +414,18 @@ JWT/세션 쿠키를 사용하지 않습니다. 서버는 첫 진입 시 `userUu
 - **쿼리 파라미터(query)** 의 `userUuid`: GET / DELETE
 - 일부 엔드포인트는 `userUuid` 불필요(`POST /users/anonymous`, `GET /community/{id}` 등)
 
-`Authorization` 헤더 / Bearer 토큰 / `localStorage.getItem('token')` 패턴을 다시 도입하지 않습니다. `apiClient`(트랜스포트)는 인증 모델을 모르고, 도메인 API 계층(`shared/apis/{domain}Api.ts`)에서 호출자가 store에서 읽은 `userUuid`를 명시 인자로 받아 주입합니다. 도메인 API는 **객체로 묶지 않고 개별 함수로 export**합니다(아래 네이밍 규칙 참조).
+일반 사용자 영역에 `Authorization` 헤더 / Bearer 토큰 / `localStorage.getItem('token')` 패턴을 다시 도입하지 않습니다. `api`(트랜스포트)는 인증 모델을 모르고, 도메인 API 계층(`shared/apis/{domain}Api.ts`)에서 호출자가 store에서 읽은 `userUuid`를 명시 인자로 받아 주입합니다.
+
+**백오피스 흐름 — 관리자 Bearer 토큰:**
+
+OpenAPI 명세상 `auth/*`, `admins/*`는 `Authorization: Bearer {accessToken}` 헤더를 요구합니다. 이 흐름은 익명 UUID 모델과 섞이지 않도록 **별도 클라이언트(`adminApi`)** 를 사용합니다.
+
+- 토큰은 `useAdminAuthStore`(Zustand `persist` 미들웨어, **sessionStorage**)에 보관합니다. 일반 사용자 store(`useUserStore`, localStorage)와 분리.
+- `adminApi`의 `beforeRequest` 훅이 store의 access token을 자동으로 헤더에 주입 — 도메인 함수 시그니처에 `accessToken` 인자가 등장하지 않습니다.
+- `adminApi`의 `afterResponse` 훅이 401 응답을 잡아 `auth/reissue` 호출 → 새 토큰으로 store 갱신 → 원본 요청 1회 재시도. 도메인 함수는 토큰 만료 흐름을 신경쓰지 않습니다.
+- `auth/login`, `auth/reissue`는 토큰이 없거나 만료된 상태에서 호출되므로 **일반 `api` 클라이언트**를 사용합니다(인터셉터 재귀 방지). `auth/logout`만 `adminApi`로 호출합니다.
+
+도메인 API는 **객체로 묶지 않고 개별 함수로 export**합니다(아래 네이밍 규칙 참조).
 
 ### apiClient 트랜스포트
 
@@ -432,13 +452,60 @@ export const api = {
     client.patch(path, body !== undefined ? { json: body } : undefined).json<T>(),
   delete: <T>(path: string, searchParams?: Query) =>
     client.delete(path, searchParams ? { searchParams } : undefined).json<T>(),
+  postForm: <T>(path: string, formData: FormData, searchParams?: Query) =>
+    client.post(path, { body: formData, ...(searchParams && { searchParams }) }).json<T>(),
 };
 ```
 
-- 모든 API 호출은 `api.get/post/put/patch/delete`를 통해서만 진행
+- 모든 API 호출은 `api.*` 또는 `adminApi.*`를 통해서만 진행 — 새 ky 인스턴스를 각 도메인 파일에서 만들지 않습니다.
+- multipart/form-data 업로드(릴레이 제출 등)는 `api.postForm`을 사용합니다. 일반 JSON 호출과 섞지 않습니다.
 - 서버 컴포넌트에서 Next.js 캐싱(`next: { revalidate }`)이 필요한 경우에만 native `fetch` 직접 사용 허용
 - `useEffect` 안에서 `fetch`를 직접 호출하는 패턴 금지 → 훅으로 분리
 - feature 코드에서 `process.env.X` 직접 참조 금지 → `shared/config/` 경유
+
+### adminApiClient — 백오피스 전용 트랜스포트
+
+```ts
+// shared/libs/adminApiClient.ts (요지)
+const adminClient = ky.create({
+  prefix: `${runtime.apiUrl}/api/v1`,
+  timeout: 30_000,
+  hooks: {
+    beforeRequest: [
+      ({ request }) => {
+        const accessToken = useAdminAuthStore.getState().accessToken
+        if (accessToken) request.headers.set('Authorization', `Bearer ${accessToken}`)
+      },
+    ],
+    afterResponse: [
+      async ({ request, response }) => {
+        if (response.status !== 401) return
+        if (request.url.includes('/auth/reissue')) return
+        const newAccessToken = await refreshAccessToken() // store의 refreshToken으로 reissue
+        if (!newAccessToken) return
+        const retry = request.clone()
+        retry.headers.set('Authorization', `Bearer ${newAccessToken}`)
+        return fetch(retry)
+      },
+    ],
+  },
+})
+```
+
+- `adminApi`는 `api`와 같은 메서드 셋(`get/post/put/patch/delete`)을 노출. 도메인 함수에서 `api`만 `adminApi`로 바꿔 쓰면 됨.
+- 토큰 자동 주입 / 401 자동 재시도 / reissue 동시 호출 합치기는 모두 클라이언트 인터셉터 책임 — **도메인 함수는 토큰 인자도, refresh 흐름도 모릅니다**.
+- reissue 자체가 401을 받으면 `useAdminAuthStore.clear()` → 다음 요청은 토큰 없이 나가고 401로 실패. 호출 측 훅에서 `useAdminAuthStore.accessToken`이 null인지 체크해 로그인 페이지로 리다이렉트하도록 처리하세요.
+- `auth/login`, `auth/reissue`는 절대 `adminApi`로 호출하지 않습니다(토큰 없는 호출 → 401 → reissue 시도 → 무한루프). 이 두 엔드포인트는 일반 `api`로 호출.
+
+### 새 도메인을 추가할 때 — 클라이언트 선택 기준
+
+| 백엔드 OpenAPI security | 사용 클라이언트 | 비고 |
+| --- | --- | --- |
+| `Anonymous-User-UUID` 헤더 또는 무인증 | `api` | 본문/쿼리에 `userUuid` 명시 인자 |
+| `bearerAuth` (관리자 토큰) | `adminApi` | 토큰 인자 없음. store가 자동 주입 |
+| 토큰 없이 호출되어야 하는 인증 부트스트랩(`login`, `reissue`) | `api` | 위 표의 예외 — 인터셉터 재귀 방지 |
+
+판단이 애매하면 OpenAPI 명세의 `security` 필드와 헤더 요구사항을 확인하세요.
 
 ### 도메인 API 계층 — `shared/apis/`
 
@@ -492,9 +559,16 @@ import { postAnonymous, postAnonymousVerify } from "@/shared/apis";
 
 ### 사용자 식별 부트스트랩
 
-- `userUuid`는 `useUserStore`(Zustand `persist` 미들웨어)에서 단일하게 관리됩니다. 별도의 `localStorage` 동기화 코드를 추가로 작성하지 않습니다.
+- `userUuid`는 `useUserStore`(Zustand `persist` 미들웨어, **localStorage**)에서 단일하게 관리됩니다. 별도의 `localStorage` 동기화 코드를 추가로 작성하지 않습니다.
 - 루트 `app/layout.tsx`에 `<UserBootstrap />`(`'use client'`) 1회 마운트 — `useUserBootstrap`이 persist hydration 후 `postAnonymousVerify` 또는 `postAnonymous`를 호출해 store/스토리지를 동기화합니다.
 - 페이지/feature가 직접 verify/create를 호출하지 않습니다.
+
+### 관리자 인증 부트스트랩
+
+- 관리자 access/refresh 토큰은 `useAdminAuthStore`(Zustand `persist` 미들웨어, **sessionStorage**)에서 관리합니다. 디바이스 공유 환경에서 탭 종료 후 잔존하지 않도록 sessionStorage를 의도적으로 선택했습니다 — `localStorage`로 바꾸지 않습니다.
+- 로그인 성공 시 `postLogin` → `useAdminAuthStore.setTokens(loginResponse)`. 이후 모든 admin API 호출은 인터셉터가 토큰을 자동 주입.
+- 로그아웃 시 `postLogout(refreshToken)` → 백엔드 블랙리스트 등록 → `useAdminAuthStore.clear()`.
+- `app/admin/layout.tsx`의 `<AdminAuthGuard>`가 `useAdminAuthStore.accessToken === null`이면 `/admin/login`으로 리다이렉트.
 
 ---
 
@@ -1065,6 +1139,11 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - Semantic 토큰 대신 Primitive 토큰 직접 참조 금지 (`bg-cream-50`, `text-brown-720` 등)
 - 타이포그래피에 raw Tailwind font 클래스 직접 조합 금지 → `h1-b`, `body-r` 등 유틸리티 클래스 사용
 - 조건부 클래스 병합 시 `cn()` 없이 문자열 연결 금지 → `cn()` 유틸리티 사용
+- 일반 `api`(익명 사용자 클라이언트)에 `Authorization` 헤더 / Bearer 토큰 주입 금지 → 백오피스 호출은 `adminApi` 사용
+- 백오피스 도메인 함수에 `accessToken`을 명시 인자로 받는 패턴 금지 → 토큰은 `useAdminAuthStore`에서 인터셉터가 자동 주입
+- `auth/login`, `auth/reissue`를 `adminApi`로 호출 금지 (인터셉터 재귀) → 일반 `api` 사용
+- 관리자 토큰을 `localStorage`에 저장 금지 → `useAdminAuthStore`(sessionStorage) 단일 경로
+- 도메인 파일에서 `ky.create(...)` 새 인스턴스 생성 금지 → `api` 또는 `adminApi`만 사용
 
 ## Closed Visual System Exception
 

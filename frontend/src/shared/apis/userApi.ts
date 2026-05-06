@@ -22,15 +22,27 @@ export const postAnonymousVerify = (userUuid: string) =>
   )
 
 // POST /users/anonymous/birth-info — 익명 사용자 생년월일 정보 등록
-export const postAnonymousBirthInfo = (payload: AnonymousUserBirthInfoRequest) =>
+export const postAnonymousBirthInfo = (
+  userUuid: string,
+  payload: AnonymousUserBirthInfoRequest,
+) =>
   apiUnwrap(
-    api.post<ApiResponse<AnonymousUserBirthInfoResponse>>('users/anonymous/birth-info', payload),
+    api.post<ApiResponse<AnonymousUserBirthInfoResponse>>('users/anonymous/birth-info', {
+      ...payload,
+      userUuid,
+    }),
   )
 
 // PATCH /users/anonymous/birth-info — 익명 사용자 생년월일 정보 수정
-export const patchAnonymousBirthInfo = (payload: AnonymousUserBirthInfoRequest) =>
+export const patchAnonymousBirthInfo = (
+  userUuid: string,
+  payload: AnonymousUserBirthInfoRequest,
+) =>
   apiUnwrap(
-    api.patch<ApiResponse<AnonymousUserBirthInfoResponse>>('users/anonymous/birth-info', payload),
+    api.patch<ApiResponse<AnonymousUserBirthInfoResponse>>('users/anonymous/birth-info', {
+      ...payload,
+      userUuid,
+    }),
   )
 
 // PATCH /users/anonymous/nickname — 익명 사용자 닉네임 설정/수정
