@@ -1,5 +1,6 @@
 'use client'
 import { Canvas } from '@react-three/fiber'
+import { HUB_CAMERA_FAR, HUB_CAMERA_FOV } from './constants'
 import HubScene from './HubScene'
 import { useHubCanvasLifecycle } from './hooks'
 
@@ -8,7 +9,7 @@ export default function HubCanvas() {
 
   return (
     <Canvas
-      camera={{ position: [0, 2.65, 19.2], fov: 28, near: 0.1, far: 100 }}
+      camera={{ position: [0, 2.65, 19.2], fov: HUB_CAMERA_FOV, near: 0.1, far: HUB_CAMERA_FAR }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onCreated={handleCanvasCreated}
       style={{

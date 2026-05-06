@@ -7,6 +7,7 @@ import {
   HUB_MODEL_ROOT_VERTICAL_OFFSET,
   HUB_NORMAL_ROTATION_EASE,
   HUB_NORMAL_ZOOM_EASE,
+  HUB_SKY_DOME_PARALLAX_FACTOR,
   HUB_VIEW_TRANSITION_ROTATION_EASE,
   HUB_VIEW_TRANSITION_ZOOM_EASE,
 } from '../constants'
@@ -19,10 +20,14 @@ function normalizeAngle(angle: number) {
   return Math.atan2(Math.sin(angle), Math.cos(angle))
 }
 
-export function useHubViewportControls(modelRootRef: React.RefObject<Group | null>) {
+export function useHubViewportControls(
+  modelRootRef: React.RefObject<Group | null>,
+  skyRootRef?: React.RefObject<Group | null>,
+) {
   const { camera, gl } = useThree()
   const currentRotationRef = useRef(useHubViewStore.getState().targetAngle)
   const targetRotationRef = useRef(useHubViewStore.getState().targetAngle)
+  const initialSkyRotationRef = useRef(useHubViewStore.getState().targetAngle)
   const currentZoomRef = useRef(useHubViewStore.getState().targetZoom)
   const targetZoomRef = useRef(useHubViewStore.getState().targetZoom)
   const pointerDownXRef = useRef(0)
@@ -139,9 +144,17 @@ export function useHubViewportControls(modelRootRef: React.RefObject<Group | nul
     camera.position.set(0, HUB_CAMERA_HEIGHT, currentZoomRef.current)
     camera.lookAt(0, 0.05, 0)
 
+    const skyRoot = skyRootRef?.current
+    if (skyRoot) {
+      const parallaxRotation = initialSkyRotationRef.current
+        + (currentRotationRef.current - initialSkyRotationRef.current)
+        * HUB_SKY_DOME_PARALLAX_FACTOR
+
+      skyRoot.rotation.set(0, parallaxRotation, 0)
+    }
+
     const modelRoot = modelRootRef.current
     if (!modelRoot) return
-
     modelRoot.rotation.set(0, currentRotationRef.current, 0)
     modelRoot.position.y = HUB_MODEL_ROOT_VERTICAL_OFFSET
   })

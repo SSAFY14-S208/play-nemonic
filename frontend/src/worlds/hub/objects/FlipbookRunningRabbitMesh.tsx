@@ -1,7 +1,6 @@
 import { useRef } from 'react'
 import type { Group } from 'three'
 import {
-  preloadFlipbookRunningRabbitModel,
   useFlipbookRunningRabbitModel,
   useFlipbookRunningRabbitMotion,
 } from './hooks'
@@ -18,5 +17,3 @@ export default function FlipbookRunningRabbitMesh() {
     </group>
   )
 }
-
-preloadFlipbookRunningRabbitModel()

@@ -5,7 +5,6 @@ import {
   HUB_WITCH_PLATFORM_ROTATION_Y,
 } from '../constants'
 import {
-  preloadWitchModel,
   useWitchHoverMotion,
   useWitchInteraction,
   useWitchModel,
@@ -53,5 +52,3 @@ export default function WitchMesh() {
     </group>
   )
 }
-
-preloadWitchModel()
