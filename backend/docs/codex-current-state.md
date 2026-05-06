@@ -24,6 +24,12 @@ Last updated: 2026-05-06
 - Admin authentication uses JWT access tokens configured by `ADMIN_JWT_SECRET`
   and `ADMIN_JWT_ACCESS_TOKEN_EXPIRATION`; it is separate from anonymous UUID
   authentication.
+- Backoffice super admins can now create standard admin accounts with
+  `POST /api/v1/admin/accounts`; the API stores BCrypt password hashes, fixes
+  new accounts to the `admin` role, and rejects duplicate `login_id` values.
+- Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
+  so Swagger UI can send `Authorization: Bearer <token>` through the global
+  Authorize flow.
 - Admin login, failed login, and logout events emit structured JSON audit logs
   to stdout using the `08-observability.md` audit schema, with no RDB audit log
   table.
