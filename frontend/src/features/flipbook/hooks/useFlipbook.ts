@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDrawingBoard } from '@/shared/hooks'
+import { createRasterizedDrawingLine } from '@/shared/utils'
 import {
   FLIPBOOK_BACKGROUND_COLOR,
   FLIPBOOK_BOARD_SIZE,
@@ -29,6 +30,7 @@ export function useFlipbook() {
   const [currentStep, setCurrentStep] = useState<FlipbookStep>('booth')
   const [activeRoundIndex, setActiveRoundIndex] = useState(0)
   const [frames, setFrames] = useState<FlipbookFrame[]>([])
+  const isCompletingRoundRef = useRef(false)
   const flipbookSettings = useFlipbookSettings({ minimumRoundCount, realtimeActions })
   const currentParticipant =
     FLIPBOOK_PARTICIPANTS[activeRoundIndex % FLIPBOOK_PARTICIPANTS.length]
@@ -83,36 +85,52 @@ export function useFlipbook() {
     selectStep('drawing')
   }, [flipbookSettings.settings, realtimeActions, selectStep])
 
-  const completeRound = useCallback(() => {
-    const submittedLines = drawingBoard.lines
-    const participant = FLIPBOOK_PARTICIPANTS[activeRoundIndex % FLIPBOOK_PARTICIPANTS.length]
+  const completeRound = useCallback(async () => {
+    if (isCompletingRoundRef.current) return
 
-    realtimeActions.enqueueFrameSubmit({
-      assignment: sessionModel.activeAssignment,
-      lines: submittedLines,
-    })
+    isCompletingRoundRef.current = true
 
-    setFrames((currentFrames) => [
-      ...currentFrames,
-      {
-        id: `frame-${activeRoundIndex + 1}`,
-        index: currentFrames.length,
-        drawnByUserUuid: participant.userUuid,
-        drawnBy: participant.name.replace(' (나)', ''),
-        participantAvatar: participant.avatar,
+    try {
+      const submittedLines = drawingBoard.lines
+      const participant = FLIPBOOK_PARTICIPANTS[activeRoundIndex % FLIPBOOK_PARTICIPANTS.length]
+      const frameId = `frame-${activeRoundIndex + 1}`
+      const rasterizedFrameLine = await createRasterizedDrawingLine({
+        backgroundColor: FLIPBOOK_BACKGROUND_COLOR,
+        boardSize: FLIPBOOK_BOARD_SIZE,
+        id: `${frameId}-rasterized`,
         lines: submittedLines,
-      },
-    ])
+      })
+      const frameLines = rasterizedFrameLine ? [rasterizedFrameLine] : []
 
-    drawingBoard.replaceLines([])
+      realtimeActions.enqueueFrameSubmit({
+        assignment: sessionModel.activeAssignment,
+        lines: frameLines,
+      })
 
-    if (activeRoundIndex >= flipbookSettings.roundCount - 1) {
-      setCurrentStep('result')
-      resultPlayback.resetResultFrameIndex()
-      return
+      setFrames((currentFrames) => [
+        ...currentFrames,
+        {
+          id: frameId,
+          index: currentFrames.length,
+          drawnByUserUuid: participant.userUuid,
+          drawnBy: participant.name.replace(' (나)', ''),
+          participantAvatar: participant.avatar,
+          lines: frameLines,
+        },
+      ])
+
+      drawingBoard.replaceLines([])
+
+      if (activeRoundIndex >= flipbookSettings.roundCount - 1) {
+        setCurrentStep('result')
+        resultPlayback.resetResultFrameIndex()
+        return
+      }
+
+      setActiveRoundIndex((currentRoundIndex) => currentRoundIndex + 1)
+    } finally {
+      isCompletingRoundRef.current = false
     }
-
-    setActiveRoundIndex((currentRoundIndex) => currentRoundIndex + 1)
   }, [
     activeRoundIndex,
     drawingBoard,

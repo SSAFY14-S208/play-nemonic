@@ -244,7 +244,11 @@ function FrameDrawing({ lines }: { lines: DrawingLine[] }) {
             key={line.id}
             points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
             fill="none"
-            stroke={line.color}
+            stroke={
+              line.compositeOperation === 'destination-out'
+                ? FLIPBOOK_BACKGROUND_COLOR
+                : line.color
+            }
             strokeWidth={line.strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"

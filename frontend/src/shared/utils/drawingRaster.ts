@@ -115,3 +115,48 @@ export async function renderLinesToRasterCanvas({
 
   return rasterCanvas
 }
+
+function hasVisiblePixels(canvas: HTMLCanvasElement) {
+  const context = canvas.getContext('2d')
+  if (!context) return false
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+
+  for (
+    let alphaChannelIndex = 3;
+    alphaChannelIndex < imageData.data.length;
+    alphaChannelIndex += 4
+  ) {
+    if (imageData.data[alphaChannelIndex] > 0) {
+      return true
+    }
+  }
+
+  return false
+}
+
+export async function createRasterizedDrawingLine({
+  backgroundColor,
+  boardSize,
+  id,
+  lines,
+}: {
+  backgroundColor: string
+  boardSize: DrawingBoardSize
+  id: string
+  lines: DrawingLine[]
+}) {
+  if (lines.length === 0) return null
+
+  const rasterCanvas = await renderLinesToRasterCanvas({ backgroundColor, boardSize, lines })
+  if (!rasterCanvas || !hasVisiblePixels(rasterCanvas)) return null
+
+  return {
+    id,
+    kind: 'fill' as const,
+    color: 'transparent',
+    strokeWidth: 0,
+    points: [],
+    imageDataUrl: rasterCanvas.toDataURL('image/png'),
+  }
+}
