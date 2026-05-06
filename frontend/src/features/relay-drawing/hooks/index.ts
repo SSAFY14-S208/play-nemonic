@@ -1,3 +1,5 @@
 export { useRelayCanvas } from './useRelayCanvas'
 export { useRelayResult } from './useRelayResult'
+export { useRelaySocket } from './useRelaySocket'
+export type { RelayEventHandler, RelayEventHandlers } from './useRelaySocket'
 export { useRelayTimer } from './useRelayTimer'
