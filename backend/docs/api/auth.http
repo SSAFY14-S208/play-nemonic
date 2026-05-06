@@ -11,6 +11,18 @@ X-Trace-Id: auth-login-local
 }
 
 > {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
+> {% client.global.set("adminRefreshToken", response.body.data.refreshToken); %}
+
+### Refresh admin token
+POST {{host}}/api/v1/auth/admin/token/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{adminRefreshToken}}"
+}
+
+> {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
+> {% client.global.set("adminRefreshToken", response.body.data.refreshToken); %}
 
 ### Current admin
 GET {{host}}/api/v1/auth/admin/me
@@ -35,4 +47,9 @@ Authorization: Bearer {{adminAccessToken}}
 ### Admin logout
 POST {{host}}/api/v1/auth/admin/logout
 Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
 X-Trace-Id: auth-logout-local
+
+{
+  "refreshToken": "{{adminRefreshToken}}"
+}

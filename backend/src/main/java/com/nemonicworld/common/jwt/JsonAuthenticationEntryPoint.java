@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
+    private static final String UNAUTHORIZED_MESSAGE = "인증이 필요합니다.";
+
     private final ObjectMapper objectMapper;
 
     public JsonAuthenticationEntryPoint(ObjectMapper objectMapper) {
@@ -26,6 +28,6 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), ApiResponse.fail("인증이 필요합니다.", null));
+        objectMapper.writeValue(response.getWriter(), ApiResponse.fail(UNAUTHORIZED_MESSAGE, null));
     }
 }

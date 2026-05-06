@@ -1,14 +1,17 @@
 package com.nemonicworld.auth.service;
 
 import com.nemonicworld.auth.dto.request.AdminLoginRequest;
+import com.nemonicworld.auth.dto.request.AdminLogoutRequest;
+import com.nemonicworld.auth.dto.request.AdminTokenRefreshRequest;
 import com.nemonicworld.auth.dto.response.AdminLoginResponse;
 import com.nemonicworld.auth.dto.response.AdminResponse;
 import com.nemonicworld.auth.entity.AdminUser;
 import com.nemonicworld.auth.repository.AdminUserRepository;
+import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.IssuedAdminToken;
 import com.nemonicworld.common.jwt.JwtTokenProvider;
-import com.nemonicworld.common.exception.UnauthorizedException;
 import java.time.LocalDateTime;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,17 +22,20 @@ public class AuthServiceImpl implements AuthService {
 
     private static final String TOKEN_TYPE = "Bearer";
     private static final String AUTHENTICATION_FAILED_MESSAGE = "관리자 인증에 실패했습니다.";
+    private static final String INVALID_REFRESH_TOKEN_MESSAGE = "인증이 필요합니다.";
 
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final AdminTokenStore adminTokenStore;
     private final AdminAuditLogger adminAuditLogger;
 
     public AuthServiceImpl(AdminUserRepository adminUserRepository, PasswordEncoder passwordEncoder,
-        JwtTokenProvider jwtTokenProvider, AdminAuditLogger adminAuditLogger) {
+        JwtTokenProvider jwtTokenProvider, AdminTokenStore adminTokenStore, AdminAuditLogger adminAuditLogger) {
         this.adminUserRepository = adminUserRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.adminTokenStore = adminTokenStore;
         this.adminAuditLogger = adminAuditLogger;
     }
 
@@ -47,11 +53,22 @@ public class AuthServiceImpl implements AuthService {
         LocalDateTime loginTime = LocalDateTime.now();
         adminUserRepository.updateLastLoginAt(adminUser.getId(), loginTime);
         AdminUser updatedAdminUser = adminUserRepository.findActiveById(adminUser.getId()).orElse(adminUser);
-        IssuedAdminToken issuedToken = jwtTokenProvider.createAccessToken(updatedAdminUser);
         adminAuditLogger.logLoginSuccess(updatedAdminUser, clientInfo);
 
-        return new AdminLoginResponse(issuedToken.accessToken(), TOKEN_TYPE, issuedToken.expiresAt(),
-            AdminResponse.from(updatedAdminUser));
+        return issueLoginResponse(updatedAdminUser);
+    }
+
+    @Override
+    @Transactional
+    public AdminLoginResponse refreshToken(AdminTokenRefreshRequest request) {
+        StoredAdminRefreshToken storedToken = adminTokenStore.findRefreshToken(request.refreshToken())
+            .orElseThrow(() -> new UnauthorizedException(INVALID_REFRESH_TOKEN_MESSAGE));
+        AdminUser adminUser = adminUserRepository.findActiveById(storedToken.adminId())
+            .orElseThrow(() -> new UnauthorizedException(INVALID_REFRESH_TOKEN_MESSAGE));
+
+        adminTokenStore.revokeRefreshToken(request.refreshToken());
+
+        return issueLoginResponse(adminUser);
     }
 
     @Override
@@ -61,7 +78,19 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void logout(AdminPrincipal adminPrincipal, AdminClientInfo clientInfo) {
+    public void logout(AdminPrincipal adminPrincipal, AdminLogoutRequest request, String accessToken,
+        AdminClientInfo clientInfo) {
+        adminTokenStore.revokeRefreshToken(request.refreshToken());
+        AdminTokenClaims claims = jwtTokenProvider.parseAccessToken(accessToken);
+        adminTokenStore.blacklistAccessToken(claims);
         adminAuditLogger.logLogout(adminPrincipal, clientInfo);
+    }
+
+    private AdminLoginResponse issueLoginResponse(AdminUser adminUser) {
+        IssuedAdminToken issuedAccessToken = jwtTokenProvider.createAccessToken(adminUser);
+        IssuedAdminRefreshToken issuedRefreshToken = adminTokenStore.issueRefreshToken(adminUser);
+
+        return new AdminLoginResponse(issuedAccessToken.accessToken(), TOKEN_TYPE, issuedAccessToken.expiresAt(),
+            issuedRefreshToken.refreshToken(), issuedRefreshToken.expiresAt(), AdminResponse.from(adminUser));
     }
 }

@@ -10,6 +10,7 @@ import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,10 +28,13 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     private static final String SUPER_ADMIN_DELETE_FORBIDDEN_MESSAGE = "슈퍼 관리자 계정은 삭제할 수 없습니다.";
 
     private final AdminUserRepository adminUserRepository;
+    private final AdminTokenStore adminTokenStore;
     private final PasswordEncoder passwordEncoder;
 
-    public AdminAccountServiceImpl(AdminUserRepository adminUserRepository, PasswordEncoder passwordEncoder) {
+    public AdminAccountServiceImpl(AdminUserRepository adminUserRepository, AdminTokenStore adminTokenStore,
+        PasswordEncoder passwordEncoder) {
         this.adminUserRepository = adminUserRepository;
+        this.adminTokenStore = adminTokenStore;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -74,10 +78,14 @@ public class AdminAccountServiceImpl implements AdminAccountService {
             throw new ForbiddenException(SUPER_ADMIN_DELETE_FORBIDDEN_MESSAGE);
         }
 
+        Instant revokedAt = Instant.now();
         int deletedCount = adminUserRepository.softDeleteById(adminId, LocalDateTime.now());
         if (deletedCount == 0) {
             throw new NotFoundException(ADMIN_ACCOUNT_NOT_FOUND_MESSAGE);
         }
+
+        adminTokenStore.revokeAllRefreshTokens(adminId);
+        adminTokenStore.revokeAccessTokensIssuedBefore(adminId, revokedAt);
     }
 
     private void requireSuperAdmin(AdminPrincipal adminPrincipal) {

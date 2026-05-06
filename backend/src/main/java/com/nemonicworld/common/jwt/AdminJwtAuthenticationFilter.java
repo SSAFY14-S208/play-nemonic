@@ -3,6 +3,7 @@ package com.nemonicworld.common.jwt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.auth.entity.AdminUser;
 import com.nemonicworld.auth.repository.AdminUserRepository;
+import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.common.response.ApiResponse;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -26,14 +27,17 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String ADMIN_ME_PATH = "/api/v1/auth/admin/me";
     private static final String ADMIN_LOGOUT_PATH = "/api/v1/auth/admin/logout";
     private static final String ADMIN_API_PREFIX = "/api/v1/admin/";
+    private static final String UNAUTHORIZED_MESSAGE = "인증이 필요합니다.";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final AdminTokenStore adminTokenStore;
     private final AdminUserRepository adminUserRepository;
     private final ObjectMapper objectMapper;
 
-    public AdminJwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, AdminUserRepository adminUserRepository,
-        ObjectMapper objectMapper) {
+    public AdminJwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, AdminTokenStore adminTokenStore,
+        AdminUserRepository adminUserRepository, ObjectMapper objectMapper) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.adminTokenStore = adminTokenStore;
         this.adminUserRepository = adminUserRepository;
         this.objectMapper = objectMapper;
     }
@@ -69,6 +73,9 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = authorizationHeader.substring(BEARER_PREFIX.length());
             AdminTokenClaims claims = jwtTokenProvider.parseAccessToken(token);
+            if (adminTokenStore.isAccessTokenRevoked(claims)) {
+                throw new IllegalArgumentException("Admin access token is revoked.");
+            }
             AdminUser adminUser = adminUserRepository.findActiveById(claims.adminId())
                 .orElseThrow(() -> new IllegalArgumentException("Admin account is not active."));
             AdminPrincipal principal = AdminPrincipal.from(adminUser);
@@ -87,6 +94,6 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), ApiResponse.fail("인증이 필요합니다.", null));
+        objectMapper.writeValue(response.getWriter(), ApiResponse.fail(UNAUTHORIZED_MESSAGE, null));
     }
 }
