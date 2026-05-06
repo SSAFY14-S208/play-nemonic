@@ -1,8 +1,17 @@
 "use client";
 
+import { useState } from "react";
+
+import { useRelayBooth } from "../hooks";
 import RelayArtworkCard from "./RelayArtworkCard";
+import RelayJoinRoomModal from "./RelayJoinRoomModal";
+import RelayNicknameModal from "./RelayNicknameModal";
 import { cn } from "@/shared/libs";
 import { PostItNote } from "@/shared/components";
+
+// 익명 닉네임 상태에서 어떤 액션을 누르려 했는지 기억해뒀다가, 닉네임 모달이
+// 닫힌 직후 자동으로 이어서 수행하기 위한 식별자.
+type PendingBoothAction = "create" | "join" | null;
 
 const FLOATING_PAPER_STYLES = [
   "left-[48.9%] top-[15.4%] h-11 w-14 rotate-[20deg] opacity-60",
@@ -16,12 +25,67 @@ const FLOATING_PAPER_STYLES = [
 ] as const;
 
 export default function RelayBoothView() {
-  // TODO(wiring): "방 만들기" → postRelayRoom() → router.push(`/relay-drawing/${roomCode}`)
-  // TODO(wiring): "방 입장" → 코드 입력 모달 → postRelayRoomParticipant(roomCode) → router.push
-  const handleCreateRoom = () => {};
-  const handleJoinRoom = () => {};
+  const {
+    isUserReady,
+    needsNicknameSetup,
+    isPending,
+    error,
+    createRoom,
+    joinRoom,
+    clearError,
+  } = useRelayBooth();
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
+  // 닉네임 모달이 닫혀 store가 새 닉네임으로 갱신되면, 사용자가 원래 누르려 했던
+  // 액션(방 만들기 / 방 입장 모달 열기)을 한 번만 자동으로 이어서 수행한다.
+  const [pendingAction, setPendingAction] = useState<PendingBoothAction>(null);
+
+  // 모달 외부 에러는 부스 화면 하단에 띄우고, 모달이 열려 있을 때는 모달 내부에서만
+  // 노출되도록 분리한다. 모달이 닫히면 양쪽 모두 깨끗하게 클리어.
+  const handleJoinModalChange = (open: boolean) => {
+    setIsJoinModalOpen(open);
+    if (!open) clearError();
+  };
+
+  const handleCreateClick = () => {
+    if (needsNicknameSetup) {
+      setPendingAction("create");
+      setIsNicknameModalOpen(true);
+      return;
+    }
+    createRoom();
+  };
+
+  const handleJoinClick = () => {
+    if (needsNicknameSetup) {
+      setPendingAction("join");
+      setIsNicknameModalOpen(true);
+      return;
+    }
+    setIsJoinModalOpen(true);
+  };
+
+  const handleNicknameSuccess = () => {
+    // 모달 자체는 RelayNicknameModal 내부에서 onOpenChange(false)로 닫는다.
+    // 여기서는 보류했던 액션만 이어서 수행.
+    if (pendingAction === "create") {
+      createRoom();
+    } else if (pendingAction === "join") {
+      setIsJoinModalOpen(true);
+    }
+    setPendingAction(null);
+  };
+
+  const handleNicknameModalChange = (open: boolean) => {
+    setIsNicknameModalOpen(open);
+    // 사용자가 닉네임 변경 없이 모달을 닫으면 보류 액션도 폐기한다.
+    if (!open) setPendingAction(null);
+  };
+
+  const isActionDisabled = !isUserReady || isPending;
 
   return (
+    <>
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
         <PostItNote
@@ -48,19 +112,26 @@ export default function RelayBoothView() {
           <div className="mt-7 flex gap-3">
             <button
               type="button"
-              onClick={handleCreateRoom}
-              className="body-b min-h-[56px] rounded-[16px] bg-relay-accent px-8 text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.3)]"
+              onClick={handleCreateClick}
+              disabled={isActionDisabled}
+              className="body-b min-h-[56px] rounded-[16px] bg-relay-accent px-8 text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.3)] disabled:opacity-45"
             >
-              방 만들기 →
+              {isPending ? "방 만드는 중…" : "방 만들기 →"}
             </button>
             <button
               type="button"
-              onClick={handleJoinRoom}
-              className="body-b min-h-[56px] rounded-[16px] border-2 border-relay-line bg-relay-paper px-7 text-relay-accent-strong"
+              onClick={handleJoinClick}
+              disabled={isActionDisabled}
+              className="body-b min-h-[56px] rounded-[16px] border-2 border-relay-line bg-relay-paper px-7 text-relay-accent-strong disabled:opacity-45"
             >
               방 입장
             </button>
           </div>
+          {error && !isJoinModalOpen && (
+            <p role="alert" className="caption-r mt-3 text-error">
+              {error}
+            </p>
+          )}
         </div>
 
         <div className="absolute left-[47.8%] top-[19.9%] h-[64.5%] w-[47.2%] rotate-[3deg] rounded-[8px] bg-relay-pink/40 shadow-[0_16px_32px_rgba(184,121,22,0.2)]" />
@@ -87,6 +158,20 @@ export default function RelayBoothView() {
         </span>
       </div>
     </section>
+
+    <RelayJoinRoomModal
+      open={isJoinModalOpen}
+      onOpenChange={handleJoinModalChange}
+      onSubmit={joinRoom}
+      isPending={isPending}
+      error={error}
+    />
+    <RelayNicknameModal
+      open={isNicknameModalOpen}
+      onOpenChange={handleNicknameModalChange}
+      onSuccess={handleNicknameSuccess}
+    />
+    </>
   );
 }
 

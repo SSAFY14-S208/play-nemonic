@@ -1,4 +1,6 @@
+export { useRelayBooth } from './useRelayBooth'
 export { useRelayCanvas } from './useRelayCanvas'
+export { useRelayNickname } from './useRelayNickname'
 export { useRelayResult } from './useRelayResult'
 export { useRelaySocket } from './useRelaySocket'
 export type { RelayEventHandler, RelayEventHandlers } from './useRelaySocket'
