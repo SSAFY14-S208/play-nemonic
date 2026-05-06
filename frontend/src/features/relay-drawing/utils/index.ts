@@ -1,1 +1,6 @@
-export { createBucketFillLine, isPointInsideArea, parseHexColor } from './canvasRendering'
+export {
+  createBucketFillLine,
+  isPointInsideArea,
+  parseHexColor,
+  renderLinesToRasterCanvas,
+} from './canvas-rendering'
