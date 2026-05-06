@@ -19,6 +19,7 @@ import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.cleanup.RelayOldTempCleanupResult;
 import com.nemonicworld.relay.service.cleanup.RelayRoomTempCleanupResult;
 import com.nemonicworld.relay.service.cleanup.RelayRoomTempCleanupService;
 import com.nemonicworld.relay.service.cleanup.RelayTempCleanupProcessResult;
@@ -59,7 +60,7 @@ class RelayRoomTempCleanupServiceTest {
     @BeforeEach
     void setUp() {
         relayRoomTempCleanupService = new RelayRoomTempCleanupService(relayRoomRepository, relayTempFileStorage,
-            SCAN_LIMIT, MARKER_TTL_HOURS, LOCK_TTL_SECONDS);
+            SCAN_LIMIT, MARKER_TTL_HOURS, LOCK_TTL_SECONDS, 24, 1000);
     }
 
     @Test
@@ -265,6 +266,55 @@ class RelayRoomTempCleanupServiceTest {
         verify(relayTempFileStorage).deleteObjects(objectKeysCaptor.capture());
         assertThat(objectKeysCaptor.getValue()).containsExactly("relay/tmp/AB3K9Q/0/body.png",
             "relay/tmp/AB3K9Q/0/body-hint.png");
+    }
+
+    @Test
+    void cleanupOldTempObjectsDeletesObjectsOlderThanThreshold() {
+        LocalDateTime cutoff = NOW.minusHours(24);
+        List<String> oldObjectKeys = List.of("relay/tmp/AB3K9Q/0/face.png", "relay/tmp/CD4L8M/1/body.png");
+        given(relayTempFileStorage.findOldTempObjectKeys(cutoff, 1000)).willReturn(oldObjectKeys);
+
+        RelayOldTempCleanupResult result = relayRoomTempCleanupService.cleanupOldTempObjects(NOW);
+
+        assertThat(result.scannedObjectCount()).isEqualTo(2);
+        assertThat(result.deletedObjectCount()).isEqualTo(2);
+        verify(relayTempFileStorage).deleteObjects(oldObjectKeys);
+    }
+
+    @Test
+    void cleanupOldTempObjectsDoesNotDeleteWhenThereAreNoOldObjects() {
+        given(relayTempFileStorage.findOldTempObjectKeys(NOW.minusHours(24), 1000)).willReturn(List.of());
+
+        RelayOldTempCleanupResult result = relayRoomTempCleanupService.cleanupOldTempObjects(NOW);
+
+        assertThat(result.scannedObjectCount()).isZero();
+        assertThat(result.deletedObjectCount()).isZero();
+        verify(relayTempFileStorage, never()).deleteObjects(anyList());
+    }
+
+    @Test
+    void cleanupOldTempObjectsLogsAndRetriesLaterWhenListFails() {
+        given(relayTempFileStorage.findOldTempObjectKeys(NOW.minusHours(24), 1000))
+            .willThrow(new FileStorageException("storage error", new RuntimeException("boom")));
+
+        RelayOldTempCleanupResult result = relayRoomTempCleanupService.cleanupOldTempObjects(NOW);
+
+        assertThat(result.scannedObjectCount()).isZero();
+        assertThat(result.deletedObjectCount()).isZero();
+        verify(relayTempFileStorage, never()).deleteObjects(anyList());
+    }
+
+    @Test
+    void cleanupOldTempObjectsDoesNotMarkSuccessWhenDeleteFails() {
+        List<String> oldObjectKeys = List.of("relay/tmp/AB3K9Q/0/face.png");
+        given(relayTempFileStorage.findOldTempObjectKeys(NOW.minusHours(24), 1000)).willReturn(oldObjectKeys);
+        doThrow(new FileStorageException("storage error", new RuntimeException("boom"))).when(relayTempFileStorage)
+            .deleteObjects(oldObjectKeys);
+
+        RelayOldTempCleanupResult result = relayRoomTempCleanupService.cleanupOldTempObjects(NOW);
+
+        assertThat(result.scannedObjectCount()).isEqualTo(1);
+        assertThat(result.deletedObjectCount()).isZero();
     }
 
     private RelayRoomState closedRoom(String roomCode, RelayRoomAssignment... assignments) {

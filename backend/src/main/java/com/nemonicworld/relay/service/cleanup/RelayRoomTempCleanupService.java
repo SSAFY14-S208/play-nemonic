@@ -29,16 +29,22 @@ public class RelayRoomTempCleanupService {
     private final int scanLimit;
     private final Duration markerTtl;
     private final Duration lockTtl;
+    private final Duration oldTempThreshold;
+    private final int oldTempScanLimit;
 
     public RelayRoomTempCleanupService(RelayRoomRepository relayRoomRepository,
         RelayTempFileStorage relayTempFileStorage, @Value("${nemonic.relay.cleanup.scan-limit:100}") int scanLimit,
         @Value("${nemonic.relay.cleanup.marker-ttl-hours:24}") long markerTtlHours,
-        @Value("${nemonic.relay.cleanup.lock-ttl-seconds:60}") long lockTtlSeconds) {
+        @Value("${nemonic.relay.cleanup.lock-ttl-seconds:60}") long lockTtlSeconds,
+        @Value("${nemonic.relay.cleanup.old-temp-threshold-hours:24}") long oldTempThresholdHours,
+        @Value("${nemonic.relay.cleanup.old-temp-scan-limit:1000}") int oldTempScanLimit) {
         this.relayRoomRepository = relayRoomRepository;
         this.relayTempFileStorage = relayTempFileStorage;
         this.scanLimit = scanLimit;
         this.markerTtl = Duration.ofHours(Math.max(1L, markerTtlHours));
         this.lockTtl = Duration.ofSeconds(Math.max(1L, lockTtlSeconds));
+        this.oldTempThreshold = Duration.ofHours(Math.max(1L, oldTempThresholdHours));
+        this.oldTempScanLimit = oldTempScanLimit;
     }
 
     /**
@@ -108,6 +114,42 @@ public class RelayRoomTempCleanupService {
         } finally {
             releaseCleanupLock(roomCode);
         }
+    }
+
+    /**
+     * Redis room state를 잃은 경우를 대비해 24시간 이상 지난 relay/tmp object를 fallback으로 정리합니다.
+     */
+    public RelayOldTempCleanupResult cleanupOldTempObjects() {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        return cleanupOldTempObjects(now);
+    }
+
+    /**
+     * 테스트에서 시간을 고정할 수 있도록 now를 주입받아 오래된 relay/tmp object를 정리합니다.
+     */
+    public RelayOldTempCleanupResult cleanupOldTempObjects(LocalDateTime now) {
+        LocalDateTime cutoff = now.minus(oldTempThreshold).truncatedTo(ChronoUnit.SECONDS);
+        List<String> oldTempObjectKeys;
+        try {
+            oldTempObjectKeys = relayTempFileStorage.findOldTempObjectKeys(cutoff, oldTempScanLimit);
+        } catch (RuntimeException e) {
+            log.warn("오래된 릴레이 임시 파일 조회에 실패했습니다.", e);
+            return new RelayOldTempCleanupResult(0, 0);
+        }
+
+        if (oldTempObjectKeys.isEmpty()) {
+            return new RelayOldTempCleanupResult(0, 0);
+        }
+
+        try {
+            relayTempFileStorage.deleteObjects(oldTempObjectKeys);
+        } catch (RuntimeException e) {
+            log.warn("오래된 릴레이 임시 파일 삭제에 실패했습니다.", e);
+            return new RelayOldTempCleanupResult(oldTempObjectKeys.size(), 0);
+        }
+
+        return new RelayOldTempCleanupResult(oldTempObjectKeys.size(), oldTempObjectKeys.size());
     }
 
     private List<String> collectTempObjectKeys(RelayRoomState roomState) {

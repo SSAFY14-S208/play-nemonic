@@ -2,9 +2,14 @@ package com.nemonicworld.relay.service.cleanup;
 
 import com.nemonicworld.common.exception.FileStorageException;
 import com.nemonicworld.files.config.MinioStorageProperties;
+import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.RemoveObjectArgs;
+import io.minio.Result;
 import io.minio.errors.ErrorResponseException;
+import io.minio.messages.Item;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -34,6 +39,34 @@ public class MinioRelayTempFileStorage implements RelayTempFileStorage {
         }
     }
 
+    @Override
+    public List<String> findOldTempObjectKeys(LocalDateTime cutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        try {
+            Iterable<Result<Item>> results = minioClient
+                .listObjects(ListObjectsArgs.builder().bucket(properties.bucket()).prefix(RELAY_TEMP_OBJECT_KEY_PREFIX)
+                    .recursive(true).maxKeys(limit).build());
+            List<String> objectKeys = new ArrayList<>();
+            for (Result<Item> result : results) {
+                if (objectKeys.size() >= limit) {
+                    break;
+                }
+
+                Item item = result.get();
+                if (isOldRelayTempObject(item, cutoff)) {
+                    objectKeys.add(item.objectName());
+                }
+            }
+
+            return List.copyOf(objectKeys);
+        } catch (Exception e) {
+            throw new FileStorageException(FILE_STORAGE_ERROR_MESSAGE, e);
+        }
+    }
+
     private void removeObject(String objectKey) {
         if (!objectKey.startsWith(RELAY_TEMP_OBJECT_KEY_PREFIX)) {
             throw new FileStorageException(FILE_STORAGE_ERROR_MESSAGE,
@@ -57,5 +90,18 @@ public class MinioRelayTempFileStorage implements RelayTempFileStorage {
         String code = e.errorResponse().code();
 
         return MINIO_NO_SUCH_KEY_CODE.equals(code) || MINIO_NO_SUCH_OBJECT_CODE.equals(code);
+    }
+
+    private boolean isOldRelayTempObject(Item item, LocalDateTime cutoff) {
+        if (item == null || item.isDir() || item.lastModified() == null) {
+            return false;
+        }
+
+        String objectName = item.objectName();
+        if (objectName == null || !objectName.startsWith(RELAY_TEMP_OBJECT_KEY_PREFIX)) {
+            return false;
+        }
+
+        return !item.lastModified().toLocalDateTime().isAfter(cutoff);
     }
 }

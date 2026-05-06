@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.service.cleanup;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -8,4 +9,6 @@ import java.util.List;
 public interface RelayTempFileStorage {
 
     void deleteObjects(List<String> objectKeys);
+
+    List<String> findOldTempObjectKeys(LocalDateTime cutoff, int limit);
 }
