@@ -56,6 +56,9 @@ public class RelayArtifactRepository {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 같은 방에서 이미 생성된 relay_drawing 결과물을 canvasIndex 순서로 조회합니다.
+     */
     public List<RelayFinalizationArtifactResult> findRelayArtifactsBySourceRoomId(String roomCode) {
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("kind", RELAY_DRAWING_KIND)
             .addValue("roomCode", roomCode);
@@ -65,6 +68,9 @@ public class RelayArtifactRepository {
             .sorted(Comparator.comparingInt(RelayFinalizationArtifactResult::canvasIndex)).toList();
     }
 
+    /**
+     * 최종 결과물, 릴레이 하위 결과물, 참여자별 갤러리 지급 row를 한 트랜잭션으로 저장합니다.
+     */
     @Transactional
     public void saveRelayDrawingResults(String roomCode, List<RelayFinalizationArtifactResult> artifacts,
         List<String> participantUuidValues, LocalDateTime now) {
@@ -77,6 +83,9 @@ public class RelayArtifactRepository {
         insertGalleryItems(artifacts, participantUuidValues);
     }
 
+    /**
+     * canvasIndex별 artifact 공통 row를 저장합니다.
+     */
     private void insertArtifacts(String roomCode, List<RelayFinalizationArtifactResult> artifacts, LocalDateTime now) {
         MapSqlParameterSource[] params = artifacts.stream()
             .map(artifact -> new MapSqlParameterSource().addValue("id", artifact.artifactId())
@@ -88,6 +97,9 @@ public class RelayArtifactRepository {
         jdbcTemplate.batchUpdate(INSERT_ARTIFACT_SQL, params);
     }
 
+    /**
+     * 릴레이 결과물 원본 objectKey를 relay_drawing_artifact에 저장합니다.
+     */
     private void insertRelayDrawingArtifacts(List<RelayFinalizationArtifactResult> artifacts) {
         MapSqlParameterSource[] params = artifacts.stream().map(artifact -> new MapSqlParameterSource()
             .addValue("artifactId", artifact.artifactId()).addValue("combinedPreviewUrl", artifact.originalObjectKey()))
@@ -96,6 +108,9 @@ public class RelayArtifactRepository {
         jdbcTemplate.batchUpdate(INSERT_RELAY_DRAWING_ARTIFACT_SQL, params);
     }
 
+    /**
+     * 모든 참여자에게 모든 canvasIndex 결과물을 갤러리 항목으로 지급합니다.
+     */
     private void insertGalleryItems(List<RelayFinalizationArtifactResult> artifacts,
         List<String> participantUuidValues) {
         List<MapSqlParameterSource> params = new ArrayList<>();
@@ -111,6 +126,9 @@ public class RelayArtifactRepository {
         jdbcTemplate.batchUpdate(INSERT_GALLERY_SQL, params.toArray(MapSqlParameterSource[]::new));
     }
 
+    /**
+     * DB row와 artifact.meta의 canvasIndex를 최종화 결과 DTO로 변환합니다.
+     */
     private RelayFinalizationArtifactResult mapArtifactRow(ResultSet resultSet, int rowNumber) throws SQLException {
         String meta = resultSet.getString("meta");
 
@@ -119,6 +137,9 @@ public class RelayArtifactRepository {
             meta);
     }
 
+    /**
+     * artifact.meta에서 canvasIndex를 읽어 기존 결과물 재사용 여부를 판단할 수 있게 합니다.
+     */
     private int extractCanvasIndex(String meta) {
         try {
             JsonNode metaNode = objectMapper.readTree(meta);

@@ -37,6 +37,9 @@ public class RelayResultComposer {
         this.thumbnailMaxSize = Math.max(1, thumbnailMaxSize);
     }
 
+    /**
+     * 파트 이미지를 FACE/BODY/LEGS 순서로 세로 합성하고 썸네일도 함께 생성합니다.
+     */
     public RelayComposedImage compose(Map<RelayDrawingPart, byte[]> partImages) {
         Map<RelayDrawingPart, BufferedImage> images = readImages(partImages);
         int width = resolveWidth(images);
@@ -59,6 +62,9 @@ public class RelayResultComposer {
         return new RelayComposedImage(toPngBytes(original), toPngBytes(thumbnail));
     }
 
+    /**
+     * ImageIO로 읽을 수 있는 제출 이미지만 BufferedImage로 변환합니다.
+     */
     private Map<RelayDrawingPart, BufferedImage> readImages(Map<RelayDrawingPart, byte[]> partImages) {
         Map<RelayDrawingPart, BufferedImage> images = new EnumMap<>(RelayDrawingPart.class);
         if (partImages == null) {
@@ -85,15 +91,24 @@ public class RelayResultComposer {
         return images;
     }
 
+    /**
+     * 사용 가능한 파트 중 가장 넓은 이미지를 최종 결과물 폭으로 사용합니다.
+     */
     private int resolveWidth(Map<RelayDrawingPart, BufferedImage> images) {
         return images.values().stream().mapToInt(BufferedImage::getWidth).max().orElse(defaultPartWidth);
     }
 
+    /**
+     * 빈 파트 영역 높이는 제출된 파트들의 평균 높이 또는 기본 높이로 정합니다.
+     */
     private int resolveBlankHeight(Map<RelayDrawingPart, BufferedImage> images) {
         return (int) Math
             .round(images.values().stream().mapToInt(BufferedImage::getHeight).average().orElse(defaultPartHeight));
     }
 
+    /**
+     * FACE/BODY/LEGS 전체를 쌓았을 때 필요한 원본 이미지 높이를 계산합니다.
+     */
     private int resolveTotalHeight(Map<RelayDrawingPart, BufferedImage> images, int blankHeight) {
         int totalHeight = 0;
         for (RelayDrawingPart part : PART_ORDER) {
@@ -104,6 +119,9 @@ public class RelayResultComposer {
         return totalHeight;
     }
 
+    /**
+     * 각 파트를 세로로 그리고, 빈 파트는 흰 영역으로 남깁니다.
+     */
     private void drawParts(Graphics2D graphics, Map<RelayDrawingPart, BufferedImage> images, int width,
         int blankHeight) {
         int y = 0;
@@ -125,6 +143,9 @@ public class RelayResultComposer {
         }
     }
 
+    /**
+     * 최종 원본 비율을 유지하면서 긴 변 기준 썸네일 크기로 줄입니다.
+     */
     private BufferedImage createThumbnail(BufferedImage original) {
         int originalWidth = original.getWidth();
         int originalHeight = original.getHeight();
@@ -148,12 +169,18 @@ public class RelayResultComposer {
         return thumbnail;
     }
 
+    /**
+     * 축소/리사이즈 품질을 높이기 위한 Graphics2D 렌더링 옵션을 적용합니다.
+     */
     private void applyQualityRenderingHints(Graphics2D graphics) {
         graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     }
 
+    /**
+     * 합성된 BufferedImage를 MinIO에 저장할 PNG byte 배열로 변환합니다.
+     */
     private byte[] toPngBytes(BufferedImage image) {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             ImageIO.write(image, "png", outputStream);

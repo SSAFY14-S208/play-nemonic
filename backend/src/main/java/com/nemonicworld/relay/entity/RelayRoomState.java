@@ -49,24 +49,36 @@ public record RelayRoomState(String roomCode, RelayRoomStatus status, String hos
             updatedAt);
     }
 
+    /**
+     * 다음 릴레이 파트를 시작하고 현재 파트 마감 시각을 새로 계산합니다.
+     */
     public RelayRoomState startPart(RelayDrawingPart nextPart, LocalDateTime startedAt) {
         return new RelayRoomState(roomCode, RelayRoomStatus.PLAYING, hostUserUuid, timeLimitSeconds, minParticipants,
             maxParticipants, nextPart, participants, assignments, startedAt, startedAt.plusSeconds(timeLimitSeconds),
             gameStartedAt, createdAt, startedAt);
     }
 
+    /**
+     * LEGS까지 모두 완료된 방을 최종 결과물 생성 대기 상태로 전환합니다.
+     */
     public RelayRoomState finalizeParts(LocalDateTime completedAt) {
         return new RelayRoomState(roomCode, RelayRoomStatus.FINALIZING, hostUserUuid, timeLimitSeconds, minParticipants,
             maxParticipants, currentPart, participants, assignments, partStartedAt, partDeadlineAt, gameStartedAt,
             createdAt, completedAt);
     }
 
+    /**
+     * 최종 결과물 저장과 갤러리 지급이 끝난 방을 완료 상태로 전환합니다.
+     */
     public RelayRoomState finish(LocalDateTime finishedAt) {
         return new RelayRoomState(roomCode, RelayRoomStatus.FINISHED, hostUserUuid, timeLimitSeconds, minParticipants,
             maxParticipants, currentPart, participants, assignments, partStartedAt, partDeadlineAt, gameStartedAt,
             createdAt, finishedAt);
     }
 
+    /**
+     * 게임 시작 시 FACE 파트와 전체 canvasIndex별 배정표를 함께 저장합니다.
+     */
     public RelayRoomState startGame(List<RelayRoomAssignment> generatedAssignments, LocalDateTime startedAt) {
         return new RelayRoomState(roomCode, RelayRoomStatus.PLAYING, hostUserUuid, timeLimitSeconds, minParticipants,
             maxParticipants, RelayDrawingPart.FACE, participants, generatedAssignments, startedAt,

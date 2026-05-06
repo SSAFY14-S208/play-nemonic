@@ -62,6 +62,9 @@ public class RelayRoomFinalizationService {
         this.lockTtl = Duration.ofSeconds(Math.max(1L, lockTtlSeconds));
     }
 
+    /**
+     * 스케줄러가 찾은 FINALIZING 방들을 순회하며 최종화를 시도합니다.
+     */
     public RelayFinalizationProcessResult processFinalizingRooms() {
         List<RelayRoomState> finalizingRooms = relayRoomRepository.findFinalizingRooms(scanLimit);
         int processedRoomCount = 0;
@@ -82,6 +85,9 @@ public class RelayRoomFinalizationService {
         return new RelayFinalizationProcessResult(finalizingRooms.size(), processedRoomCount, resultCount);
     }
 
+    /**
+     * 한 방에 대한 최종화 lock을 획득한 뒤 실제 최종화 처리를 실행합니다.
+     */
     public RelayRoomFinalizationResult processFinalizingRoom(String roomCode) {
         if (!relayRoomRepository.acquireFinalizationLock(roomCode, lockTtl)) {
             return RelayRoomFinalizationResult.noOp(roomCode);
@@ -94,6 +100,9 @@ public class RelayRoomFinalizationService {
         }
     }
 
+    /**
+     * 최신 Redis 상태를 기준으로 결과물을 만들고 방 상태를 FINISHED로 전환합니다.
+     */
     private RelayRoomFinalizationResult processLockedFinalizingRoom(String roomCode) {
         RelayRoomState roomState = relayRoomRepository.findByRoomCode(roomCode).orElse(null);
         if (roomState == null || roomState.status() != RelayRoomStatus.FINALIZING) {
@@ -121,6 +130,9 @@ public class RelayRoomFinalizationService {
         return result;
     }
 
+    /**
+     * 이미 생성된 결과물이 있으면 재사용하고, 없으면 새로 합성해 DB에 저장합니다.
+     */
     private List<RelayFinalizationArtifactResult> resolveArtifacts(RelayRoomState roomState,
         List<Integer> canvasIndexes, List<RelayFinalizationArtifactResult> existingArtifacts, LocalDateTime now) {
         if (existingArtifacts.isEmpty()) {
@@ -138,11 +150,17 @@ public class RelayRoomFinalizationService {
         throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
     }
 
+    /**
+     * canvasIndex별 최종 원본/썸네일 이미지를 생성해 MinIO에 업로드합니다.
+     */
     private List<RelayFinalizationArtifactResult> createAndUploadResults(RelayRoomState roomState,
         List<Integer> canvasIndexes) {
         return canvasIndexes.stream().map(canvasIndex -> createAndUploadResult(roomState, canvasIndex)).toList();
     }
 
+    /**
+     * 특정 canvasIndex 하나의 FACE/BODY/LEGS를 합성해 최종 artifact 후보를 만듭니다.
+     */
     private RelayFinalizationArtifactResult createAndUploadResult(RelayRoomState roomState, int canvasIndex) {
         UUID artifactId = UUID.randomUUID();
         String originalObjectKey = createResultObjectKey(artifactId, "original.png");
@@ -156,6 +174,9 @@ public class RelayRoomFinalizationService {
             createArtifactMeta(roomState.roomCode(), canvasIndex));
     }
 
+    /**
+     * 빈 파트는 건너뛰고, 제출 완료된 파트 이미지만 저장소에서 읽어옵니다.
+     */
     private Map<RelayDrawingPart, byte[]> loadPartImages(RelayRoomState roomState, int canvasIndex) {
         Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
         for (RelayDrawingPart part : RelayDrawingPart.values()) {
@@ -178,25 +199,40 @@ public class RelayRoomFinalizationService {
         return partImages;
     }
 
+    /**
+     * 특정 canvasIndex와 파트에 해당하는 배정을 찾습니다.
+     */
     private RelayRoomAssignment findAssignment(RelayRoomState roomState, int canvasIndex, RelayDrawingPart part) {
         return roomState.assignments().stream().filter(assignment -> assignment.canvasIndex() == canvasIndex)
             .filter(assignment -> assignment.part() == part).findFirst()
             .orElseThrow(() -> new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE));
     }
 
+    /**
+     * 자동 제출 또는 빈 제출로 처리된 파트인지 확인합니다.
+     */
     private boolean isEmptyAssignment(RelayRoomAssignment assignment) {
         return assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED || assignment.empty()
             || assignment.autoSubmitted();
     }
 
+    /**
+     * 최종 결과물을 만들어야 하는 canvasIndex 목록을 추출합니다.
+     */
     private List<Integer> findCanvasIndexes(RelayRoomState roomState) {
         return roomState.assignments().stream().map(RelayRoomAssignment::canvasIndex).distinct().sorted().toList();
     }
 
+    /**
+     * 갤러리 지급 대상인 참여자 UUID 목록을 중복 없이 추출합니다.
+     */
     private List<String> findParticipantUuidValues(RelayRoomState roomState) {
         return roomState.participants().stream().map(RelayRoomParticipant::userUuid).distinct().toList();
     }
 
+    /**
+     * 기존 결과물이 현재 방의 canvasIndex 개수와 정확히 맞는지 확인합니다.
+     */
     private boolean matchesExpectedCanvasIndexes(List<RelayFinalizationArtifactResult> existingArtifacts,
         List<Integer> canvasIndexes) {
         List<Integer> existingCanvasIndexes = existingArtifacts.stream()
@@ -205,10 +241,16 @@ public class RelayRoomFinalizationService {
         return existingArtifacts.size() == canvasIndexes.size() && existingCanvasIndexes.equals(canvasIndexes);
     }
 
+    /**
+     * 최종 결과물 원본/썸네일의 MinIO objectKey를 생성합니다.
+     */
     private String createResultObjectKey(UUID artifactId, String fileName) {
         return "relay/results/%s/%s".formatted(artifactId, fileName);
     }
 
+    /**
+     * artifact.meta에 저장할 canvasIndex와 방 정보를 JSON으로 생성합니다.
+     */
     private String createArtifactMeta(String roomCode, int canvasIndex) {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("canvasIndex", canvasIndex);
