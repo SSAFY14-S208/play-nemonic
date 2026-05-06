@@ -1,0 +1,267 @@
+package com.nemonicworld.relay.service.finalization;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.relay.entity.RelayAssignmentStatus;
+import com.nemonicworld.relay.entity.RelayDrawingPart;
+import com.nemonicworld.relay.entity.RelayRoomAssignment;
+import com.nemonicworld.relay.entity.RelayRoomParticipant;
+import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.repository.RelayArtifactRepository;
+import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+/**
+ * FINALIZING 방의 canvasIndex별 최종 이미지를 만들고 artifact/gallery 저장 후 방을 FINISHED로
+ * 전환합니다.
+ */
+@Service
+public class RelayRoomFinalizationService {
+
+    private static final Logger log = LoggerFactory.getLogger(RelayRoomFinalizationService.class);
+    private static final String PNG_CONTENT_TYPE = "image/png";
+    private static final String FINALIZATION_STATE_ERROR_MESSAGE = "릴레이 최종화 상태가 올바르지 않습니다.";
+    private static final String FINALIZATION_META_ERROR_MESSAGE = "릴레이 최종화 메타데이터를 생성할 수 없습니다.";
+
+    private final RelayRoomRepository relayRoomRepository;
+    private final RelayArtifactRepository relayArtifactRepository;
+    private final RelayResultStorage relayResultStorage;
+    private final RelayResultComposer relayResultComposer;
+    private final RelayRoomEventPublisher relayRoomEventPublisher;
+    private final ObjectMapper objectMapper;
+    private final int scanLimit;
+    private final Duration lockTtl;
+
+    public RelayRoomFinalizationService(RelayRoomRepository relayRoomRepository,
+        RelayArtifactRepository relayArtifactRepository, RelayResultStorage relayResultStorage,
+        RelayResultComposer relayResultComposer, RelayRoomEventPublisher relayRoomEventPublisher,
+        ObjectMapper objectMapper, @Value("${nemonic.relay.finalization.scan-limit:50}") int scanLimit,
+        @Value("${nemonic.relay.finalization.lock-ttl-seconds:60}") long lockTtlSeconds) {
+        this.relayRoomRepository = relayRoomRepository;
+        this.relayArtifactRepository = relayArtifactRepository;
+        this.relayResultStorage = relayResultStorage;
+        this.relayResultComposer = relayResultComposer;
+        this.relayRoomEventPublisher = relayRoomEventPublisher;
+        this.objectMapper = objectMapper;
+        this.scanLimit = scanLimit;
+        this.lockTtl = Duration.ofSeconds(Math.max(1L, lockTtlSeconds));
+    }
+
+    /**
+     * 스케줄러가 찾은 FINALIZING 방들을 순회하며 최종화를 시도합니다.
+     */
+    public RelayFinalizationProcessResult processFinalizingRooms() {
+        List<RelayRoomState> finalizingRooms = relayRoomRepository.findFinalizingRooms(scanLimit);
+        int processedRoomCount = 0;
+        int resultCount = 0;
+
+        for (RelayRoomState finalizingRoom : finalizingRooms) {
+            try {
+                RelayRoomFinalizationResult result = processFinalizingRoom(finalizingRoom.roomCode());
+                if (result.processed()) {
+                    processedRoomCount++;
+                    resultCount += result.resultCount();
+                }
+            } catch (RuntimeException e) {
+                log.warn("릴레이 최종 결과물 생성 중 오류가 발생했습니다. roomCode={}", finalizingRoom.roomCode(), e);
+            }
+        }
+
+        return new RelayFinalizationProcessResult(finalizingRooms.size(), processedRoomCount, resultCount);
+    }
+
+    /**
+     * 한 방에 대한 최종화 lock을 획득한 뒤 실제 최종화 처리를 실행합니다.
+     */
+    public RelayRoomFinalizationResult processFinalizingRoom(String roomCode) {
+        if (!relayRoomRepository.acquireFinalizationLock(roomCode, lockTtl)) {
+            return RelayRoomFinalizationResult.noOp(roomCode);
+        }
+
+        try {
+            return processLockedFinalizingRoom(roomCode);
+        } finally {
+            relayRoomRepository.releaseFinalizationLock(roomCode);
+        }
+    }
+
+    /**
+     * 최신 Redis 상태를 기준으로 결과물을 만들고 방 상태를 FINISHED로 전환합니다.
+     */
+    private RelayRoomFinalizationResult processLockedFinalizingRoom(String roomCode) {
+        RelayRoomState roomState = relayRoomRepository.findByRoomCode(roomCode).orElse(null);
+        if (roomState == null || roomState.status() != RelayRoomStatus.FINALIZING) {
+            return RelayRoomFinalizationResult.noOp(roomCode);
+        }
+
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        List<Integer> canvasIndexes = findCanvasIndexes(roomState);
+        if (canvasIndexes.isEmpty()) {
+            throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
+        }
+
+        List<RelayFinalizationArtifactResult> existingArtifacts = relayArtifactRepository
+            .findRelayArtifactsBySourceRoomId(roomCode);
+        List<RelayFinalizationArtifactResult> artifacts = resolveArtifacts(roomState, canvasIndexes, existingArtifacts,
+            now);
+        RelayRoomState finishedRoomState = roomState.finish(now);
+        if (!relayRoomRepository.saveIfUnchanged(roomState, finishedRoomState)) {
+            throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        }
+
+        RelayRoomFinalizationResult result = RelayRoomFinalizationResult.finished(roomCode, artifacts, now);
+        relayRoomEventPublisher.publishResultCreated(result);
+
+        return result;
+    }
+
+    /**
+     * 이미 생성된 결과물이 있으면 재사용하고, 없으면 새로 합성해 DB에 저장합니다.
+     */
+    private List<RelayFinalizationArtifactResult> resolveArtifacts(RelayRoomState roomState,
+        List<Integer> canvasIndexes, List<RelayFinalizationArtifactResult> existingArtifacts, LocalDateTime now) {
+        if (existingArtifacts.isEmpty()) {
+            List<RelayFinalizationArtifactResult> artifacts = createAndUploadResults(roomState, canvasIndexes);
+            relayArtifactRepository.saveRelayDrawingResults(roomState.roomCode(), artifacts,
+                findParticipantUuidValues(roomState), now);
+
+            return artifacts;
+        }
+
+        if (matchesExpectedCanvasIndexes(existingArtifacts, canvasIndexes)) {
+            return existingArtifacts;
+        }
+
+        throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
+    }
+
+    /**
+     * canvasIndex별 최종 원본/썸네일 이미지를 생성해 MinIO에 업로드합니다.
+     */
+    private List<RelayFinalizationArtifactResult> createAndUploadResults(RelayRoomState roomState,
+        List<Integer> canvasIndexes) {
+        return canvasIndexes.stream().map(canvasIndex -> createAndUploadResult(roomState, canvasIndex)).toList();
+    }
+
+    /**
+     * 특정 canvasIndex 하나의 FACE/BODY/LEGS를 합성해 최종 artifact 후보를 만듭니다.
+     */
+    private RelayFinalizationArtifactResult createAndUploadResult(RelayRoomState roomState, int canvasIndex) {
+        UUID artifactId = UUID.randomUUID();
+        String originalObjectKey = createResultObjectKey(artifactId, "original.png");
+        String thumbnailObjectKey = createResultObjectKey(artifactId, "thumbnail.png");
+        RelayComposedImage composedImage = relayResultComposer.compose(loadPartImages(roomState, canvasIndex));
+
+        relayResultStorage.upload(originalObjectKey, composedImage.originalPng(), PNG_CONTENT_TYPE);
+        relayResultStorage.upload(thumbnailObjectKey, composedImage.thumbnailPng(), PNG_CONTENT_TYPE);
+
+        return new RelayFinalizationArtifactResult(artifactId, canvasIndex, originalObjectKey, thumbnailObjectKey,
+            createArtifactMeta(roomState.roomCode(), canvasIndex));
+    }
+
+    /**
+     * 빈 파트는 건너뛰고, 제출 완료된 파트 이미지만 저장소에서 읽어옵니다.
+     */
+    private Map<RelayDrawingPart, byte[]> loadPartImages(RelayRoomState roomState, int canvasIndex) {
+        Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
+        for (RelayDrawingPart part : RelayDrawingPart.values()) {
+            RelayRoomAssignment assignment = findAssignment(roomState, canvasIndex, part);
+            if (isEmptyAssignment(assignment)) {
+                continue;
+            }
+
+            if (assignment.status() != RelayAssignmentStatus.SUBMITTED) {
+                throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
+            }
+
+            if (!StringUtils.hasText(assignment.objectKey())) {
+                throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
+            }
+
+            partImages.put(part, relayResultStorage.download(assignment.objectKey()));
+        }
+
+        return partImages;
+    }
+
+    /**
+     * 특정 canvasIndex와 파트에 해당하는 배정을 찾습니다.
+     */
+    private RelayRoomAssignment findAssignment(RelayRoomState roomState, int canvasIndex, RelayDrawingPart part) {
+        return roomState.assignments().stream().filter(assignment -> assignment.canvasIndex() == canvasIndex)
+            .filter(assignment -> assignment.part() == part).findFirst()
+            .orElseThrow(() -> new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE));
+    }
+
+    /**
+     * 자동 제출 또는 빈 제출로 처리된 파트인지 확인합니다.
+     */
+    private boolean isEmptyAssignment(RelayRoomAssignment assignment) {
+        return assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED || assignment.empty()
+            || assignment.autoSubmitted();
+    }
+
+    /**
+     * 최종 결과물을 만들어야 하는 canvasIndex 목록을 추출합니다.
+     */
+    private List<Integer> findCanvasIndexes(RelayRoomState roomState) {
+        return roomState.assignments().stream().map(RelayRoomAssignment::canvasIndex).distinct().sorted().toList();
+    }
+
+    /**
+     * 갤러리 지급 대상인 참여자 UUID 목록을 중복 없이 추출합니다.
+     */
+    private List<String> findParticipantUuidValues(RelayRoomState roomState) {
+        return roomState.participants().stream().map(RelayRoomParticipant::userUuid).distinct().toList();
+    }
+
+    /**
+     * 기존 결과물이 현재 방의 canvasIndex 개수와 정확히 맞는지 확인합니다.
+     */
+    private boolean matchesExpectedCanvasIndexes(List<RelayFinalizationArtifactResult> existingArtifacts,
+        List<Integer> canvasIndexes) {
+        List<Integer> existingCanvasIndexes = existingArtifacts.stream()
+            .map(RelayFinalizationArtifactResult::canvasIndex).distinct().sorted().toList();
+
+        return existingArtifacts.size() == canvasIndexes.size() && existingCanvasIndexes.equals(canvasIndexes);
+    }
+
+    /**
+     * 최종 결과물 원본/썸네일의 MinIO objectKey를 생성합니다.
+     */
+    private String createResultObjectKey(UUID artifactId, String fileName) {
+        return "relay/results/%s/%s".formatted(artifactId, fileName);
+    }
+
+    /**
+     * artifact.meta에 저장할 canvasIndex와 방 정보를 JSON으로 생성합니다.
+     */
+    private String createArtifactMeta(String roomCode, int canvasIndex) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("canvasIndex", canvasIndex);
+        meta.put("roomCode", roomCode);
+        meta.put("parts",
+            List.of(RelayDrawingPart.FACE.name(), RelayDrawingPart.BODY.name(), RelayDrawingPart.LEGS.name()));
+
+        try {
+            return objectMapper.writeValueAsString(meta);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(FINALIZATION_META_ERROR_MESSAGE, e);
+        }
+    }
+}

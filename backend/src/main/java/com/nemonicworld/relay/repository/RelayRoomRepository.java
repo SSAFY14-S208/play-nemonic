@@ -38,4 +38,19 @@ public interface RelayRoomRepository {
      * 현재 파트 마감 시각이 지난 PLAYING 방을 최대 limit개 조회합니다.
      */
     List<RelayRoomState> findExpiredPlayingRooms(LocalDateTime now, int limit);
+
+    /**
+     * 최종 결과물 생성이 필요한 FINALIZING 방을 최대 limit개 조회합니다.
+     */
+    List<RelayRoomState> findFinalizingRooms(int limit);
+
+    /**
+     * 같은 방 최종화가 여러 서버에서 동시에 실행되지 않도록 짧은 Redis lock을 획득합니다.
+     */
+    boolean acquireFinalizationLock(String roomCode, Duration ttl);
+
+    /**
+     * 최종화 처리 후 Redis lock을 해제합니다.
+     */
+    void releaseFinalizationLock(String roomCode);
 }

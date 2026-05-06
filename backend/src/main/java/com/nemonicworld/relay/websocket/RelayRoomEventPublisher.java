@@ -9,10 +9,12 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomResultCreatedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomSimpleMessageResponse;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationResult;
 import java.time.LocalDateTime;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -118,6 +120,13 @@ public class RelayRoomEventPublisher {
             new RelayRoomAllPartsCompletedEventResponse(roomCode, roomStatus, completedAt));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+    }
+
+    public void publishResultCreated(RelayRoomFinalizationResult finalizationResult) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.RESULT_CREATED,
+            finalizationResult.roomCode(), RelayRoomResultCreatedEventResponse.from(finalizationResult));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + finalizationResult.roomCode(), event);
     }
 
     /**

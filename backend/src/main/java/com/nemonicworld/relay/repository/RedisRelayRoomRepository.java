@@ -24,6 +24,7 @@ import org.springframework.util.StringUtils;
 public class RedisRelayRoomRepository implements RelayRoomRepository {
 
     private static final String ROOM_KEY_PREFIX = "relay:room:";
+    private static final String FINALIZATION_LOCK_KEY_PREFIX = "relay:room-finalization-lock:";
     private static final String ROOM_STATE_SERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 저장할 수 없습니다.";
     private static final String ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 읽을 수 없습니다.";
 
@@ -128,6 +129,44 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         return expiredRooms;
     }
 
+    /**
+     * Redis room key를 SCAN하며 최종 결과물 생성 대기 상태인 방만 골라냅니다.
+     */
+    @Override
+    public List<RelayRoomState> findFinalizingRooms(int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<RelayRoomState> finalizingRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && finalizingRooms.size() < limit) {
+                findFinalizingRoom(roomKeys.next()).ifPresent(finalizingRooms::add);
+            }
+        }
+
+        return finalizingRooms;
+    }
+
+    /**
+     * 여러 서버나 스케줄 tick이 같은 방을 동시에 최종화하지 못하도록 lock을 잡습니다.
+     */
+    @Override
+    public boolean acquireFinalizationLock(String roomCode, java.time.Duration ttl) {
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(createFinalizationLockKey(roomCode), "locked", ttl);
+
+        return Boolean.TRUE.equals(locked);
+    }
+
+    /**
+     * 최종화 시도 후 lock을 해제합니다.
+     */
+    @Override
+    public void releaseFinalizationLock(String roomCode) {
+        redisTemplate.delete(createFinalizationLockKey(roomCode));
+    }
+
     private Optional<RelayRoomState> findExpiredPlayingRoom(String roomKey, LocalDateTime now) {
         String roomStateValue = redisTemplate.opsForValue().get(roomKey);
         if (!StringUtils.hasText(roomStateValue)) {
@@ -143,9 +182,33 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         return Optional.of(roomState);
     }
 
+    /**
+     * SCAN으로 발견한 Redis 값이 실제 FINALIZING 방인지 확인합니다.
+     */
+    private Optional<RelayRoomState> findFinalizingRoom(String roomKey) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.FINALIZING) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
     private String createRoomKey(String roomCode) {
         // roomCode는 공유 링크, 실시간 연결 식별자, Redis key에서 같은 값을 그대로 사용합니다.
         return ROOM_KEY_PREFIX + roomCode;
+    }
+
+    /**
+     * lock key가 room scan에 걸리지 않도록 relay:room: prefix와 분리합니다.
+     */
+    private String createFinalizationLockKey(String roomCode) {
+        return FINALIZATION_LOCK_KEY_PREFIX + roomCode;
     }
 
     @SuppressWarnings("unchecked")

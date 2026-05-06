@@ -14,13 +14,17 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomResultCreatedEventResponse;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.service.finalization.RelayFinalizationArtifactResult;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationResult;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -157,6 +161,31 @@ class RelayRoomEventPublisherTest {
         assertThat(data.assignmentStatus()).isEqualTo(RelayAssignmentStatus.AUTO_SUBMITTED);
         assertThat(data.empty()).isTrue();
         assertThat(data.submittedAt()).isEqualTo(submittedAt);
+    }
+
+    @Test
+    void publishResultCreatedSendsResultCreatedEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        UUID artifactId = UUID.randomUUID();
+        RelayRoomFinalizationResult result = RelayRoomFinalizationResult.finished(ROOM_CODE,
+            List.of(new RelayFinalizationArtifactResult(artifactId, 0,
+                "relay/results/%s/original.png".formatted(artifactId),
+                "relay/results/%s/thumbnail.png".formatted(artifactId), "{}")),
+            LocalDateTime.now().minusSeconds(1));
+
+        publisher.publishResultCreated(result);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.RESULT_CREATED);
+
+        RelayRoomResultCreatedEventResponse data = (RelayRoomResultCreatedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.roomStatus()).isEqualTo(RelayRoomStatus.FINISHED);
+        assertThat(data.resultCount()).isEqualTo(1);
+        assertThat(data.artifactIds()).containsExactly(artifactId);
+        assertThat(data.results()).hasSize(1);
+        assertThat(data.results().get(0).contentUrl()).isEqualTo("relay/results/%s/original.png".formatted(artifactId));
     }
 
     /**
