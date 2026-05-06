@@ -44,7 +44,7 @@ public class RelayRoomPolicy {
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
     private static final String ROOM_FULL_MESSAGE = "방 정원이 가득 찼습니다.";
     private static final String GAME_IN_PROGRESS_MESSAGE = "게임이 진행 중입니다.";
-    private static final String RECONNECT_EXPIRED_MESSAGE = "이미 자동 제출 처리되었습니다.";
+    private static final String RECONNECT_EXPIRED_MESSAGE = "재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.";
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "릴레이 방에 참여하지 않은 사용자입니다.";
     private static final String KICK_TARGET_NOT_FOUND_MESSAGE = "강퇴할 참여자를 찾을 수 없습니다.";

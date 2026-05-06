@@ -259,7 +259,7 @@ class RelayRoomServiceImplTest {
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
 
         assertThatThrownBy(() -> relayRoomService.joinRoom(droppedUuid.toString(), ROOM_CODE))
-            .isInstanceOf(ConflictException.class).hasMessage("이미 자동 제출 처리되었습니다.");
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
     }
 
     /**
@@ -492,7 +492,7 @@ class RelayRoomServiceImplTest {
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
 
         assertThatThrownBy(() -> relayRoomService.connectRoom(droppedUuid.toString(), ROOM_CODE))
-            .isInstanceOf(ConflictException.class).hasMessage("이미 자동 제출 처리되었습니다.");
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
     }
 
     /**
