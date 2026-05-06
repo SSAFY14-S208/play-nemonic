@@ -21,4 +21,11 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
     public int participantCount() {
         return participants.size();
     }
+
+    public FlipbookRoomState withParticipants(List<FlipbookRoomParticipant> updatedParticipants,
+        LocalDateTime updatedAt) {
+        return new FlipbookRoomState(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants,
+            updatedParticipants, createdAt, updatedAt);
+    }
+
 }
