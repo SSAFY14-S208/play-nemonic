@@ -30,7 +30,10 @@ export default function RelayLobbyView() {
   return (
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <PostItNote className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-brand-relay-drawing-primary" />
+        <PostItNote
+          title="입장 코드를 담은 노란 포스트잇 배경 이미지"
+          className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-[#FFE787]"
+        />
 
         <div className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
           <p className="h2-b text-relay-ink/80">입장 코드</p>
