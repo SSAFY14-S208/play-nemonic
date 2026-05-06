@@ -238,6 +238,10 @@ Content-Type: image/png
 --relay-submit-boundary--
 
 ### Submit current relay part - LEGS
+# 마지막 LEGS 제출이면 방 상태가 FINALIZING으로 전환됩니다.
+# 이후 서버 스케줄러가 canvasIndex별 최종 결과물을 생성하고,
+# 모든 참여자의 갤러리에 모든 최종 결과물을 지급한 뒤 FINISHED로 변경하며,
+# 방 topic으로 RESULT_CREATED 이벤트를 발행합니다.
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
 Anonymous-User-UUID: {{anonymousUserUuid}}
 Content-Type: multipart/form-data; boundary=relay-submit-boundary
