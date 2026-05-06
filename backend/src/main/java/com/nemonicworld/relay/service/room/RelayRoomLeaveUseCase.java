@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.service.room;
 
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
@@ -57,7 +58,7 @@ public class RelayRoomLeaveUseCase {
             }
         }
 
-        throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
     private LeaveResult leaveParticipant(RelayRoomState roomState, RelayRoomParticipant leavingParticipant,

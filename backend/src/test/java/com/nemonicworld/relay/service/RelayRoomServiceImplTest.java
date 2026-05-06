@@ -144,7 +144,7 @@ class RelayRoomServiceImplTest {
     }
 
     /**
-     * 짧은 재시도 횟수를 모두 소진하면 내부 오류로 올려 클라이언트에는 공통 500 응답이 나가게 합니다.
+     * 짧은 재시도 횟수를 모두 소진하면 충돌 예외로 올려 클라이언트에는 공통 409 응답이 나가게 합니다.
      */
     @Test
     void joinRoomFailsWhenOptimisticSaveConflictsKeepHappening() {
@@ -159,7 +159,7 @@ class RelayRoomServiceImplTest {
             .willReturn(false);
 
         assertThatThrownBy(() -> relayRoomService.joinRoom(joinerUuid.toString(), ROOM_CODE))
-            .isInstanceOf(IllegalStateException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
+            .isInstanceOf(ConflictException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
     }
@@ -222,7 +222,7 @@ class RelayRoomServiceImplTest {
 
         assertThatThrownBy(
             () -> relayRoomService.kickParticipant(hostUuid.toString(), ROOM_CODE, targetUuid.toString()))
-            .isInstanceOf(IllegalStateException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
+            .isInstanceOf(ConflictException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
     }
@@ -306,7 +306,7 @@ class RelayRoomServiceImplTest {
             .willReturn(false);
 
         assertThatThrownBy(() -> relayRoomService.leaveRoom(participantUuid.toString(), ROOM_CODE))
-            .isInstanceOf(IllegalStateException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
+            .isInstanceOf(ConflictException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
     }
@@ -349,7 +349,7 @@ class RelayRoomServiceImplTest {
     }
 
     /**
-     * 설정 변경 재시도 횟수를 모두 소진하면 내부 오류로 올려 클라이언트에는 공통 500 응답이 나가게 합니다.
+     * 설정 변경 재시도 횟수를 모두 소진하면 충돌 예외로 올려 클라이언트에는 공통 409 응답이 나가게 합니다.
      */
     @Test
     void updateRoomSettingsFailsWhenOptimisticSaveConflictsKeepHappening() {
@@ -364,7 +364,7 @@ class RelayRoomServiceImplTest {
 
         assertThatThrownBy(
             () -> relayRoomService.updateRoomSettings(hostUuid.toString(), ROOM_CODE, new RelayRoomSettingsRequest(45)))
-            .isInstanceOf(IllegalStateException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
+            .isInstanceOf(ConflictException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
     }
@@ -545,7 +545,7 @@ class RelayRoomServiceImplTest {
             .willReturn(false);
 
         assertThatThrownBy(() -> relayRoomService.startRoom(hostUuid.toString(), ROOM_CODE))
-            .isInstanceOf(IllegalStateException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
+            .isInstanceOf(ConflictException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
     }
@@ -604,7 +604,7 @@ class RelayRoomServiceImplTest {
             .willReturn(false);
 
         assertThatThrownBy(() -> relayRoomService.submitCurrentPart(hostUuid.toString(), ROOM_CODE,
-            submissionRequest(0, RelayDrawingPart.FACE))).isInstanceOf(IllegalStateException.class);
+            submissionRequest(0, RelayDrawingPart.FACE))).isInstanceOf(ConflictException.class);
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
         verify(relaySubmissionStorage, times(6)).upload(any(String.class), any());

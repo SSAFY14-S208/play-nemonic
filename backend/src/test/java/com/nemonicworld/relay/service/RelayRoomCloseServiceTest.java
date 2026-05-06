@@ -11,6 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
@@ -137,8 +138,7 @@ class RelayRoomCloseServiceTest {
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false);
 
-        assertThatThrownBy(() -> relayRoomCloseService.closeRoom(ROOM_CODE, NOW))
-            .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> relayRoomCloseService.closeRoom(ROOM_CODE, NOW)).isInstanceOf(ConflictException.class);
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
         verifyNoInteractions(relayRoomEventPublisher);

@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.service.room;
 
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
@@ -62,6 +63,6 @@ public class RelayRoomSettingsUseCase {
             }
         }
 
-        throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 }

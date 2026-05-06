@@ -2,6 +2,7 @@ package com.nemonicworld.relay.service.finalization;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
@@ -121,7 +122,7 @@ public class RelayRoomFinalizationService {
             now);
         RelayRoomState finishedRoomState = roomState.finish(now);
         if (!relayRoomRepository.saveIfUnchanged(roomState, finishedRoomState)) {
-            throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+            throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
         }
 
         RelayRoomFinalizationResult result = RelayRoomFinalizationResult.finished(roomCode, artifacts, now);

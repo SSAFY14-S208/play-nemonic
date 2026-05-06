@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.service.room;
 
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
@@ -62,7 +63,7 @@ public class RelayRoomKickUseCase {
             }
         }
 
-        throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
     private RelayRoomState kickParticipant(RelayRoomState roomState, RelayRoomParticipant targetParticipant,

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
@@ -180,6 +181,26 @@ class RelayRoomFinalizationServiceTest {
         verifyNoInteractions(relayResultStorage);
         verify(relayArtifactRepository, never()).saveRelayDrawingResults(anyString(), any(), any(), any());
         verify(relayRoomEventPublisher).publishResultCreated(any(RelayRoomFinalizationResult.class));
+    }
+
+    @Test
+    void processFinalizingRoomFailsWhenRedisSaveConflicts() {
+        UUID participantA = UUID.randomUUID();
+        UUID participantB = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA, participantB);
+        List<RelayFinalizationArtifactResult> existingArtifacts = List.of(artifact(0, UUID.randomUUID()),
+            artifact(1, UUID.randomUUID()));
+        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(existingArtifacts);
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false);
+
+        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isInstanceOf(ConflictException.class)
+            .hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
+
+        verifyNoInteractions(relayResultStorage);
+        verify(relayRoomEventPublisher, never()).publishResultCreated(any(RelayRoomFinalizationResult.class));
     }
 
     @Test
