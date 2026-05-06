@@ -204,6 +204,7 @@ services:
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
       ADMIN_BOOTSTRAP_NICKNAME: ${ADMIN_BOOTSTRAP_NICKNAME:-}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
+      NEMONIC_SITE_URL: ${NEMONIC_SITE_URL}
     depends_on:
       postgres:
         condition: service_healthy
