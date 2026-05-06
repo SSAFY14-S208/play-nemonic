@@ -1,11 +1,14 @@
 'use client'
 
+import { useParams, useRouter } from 'next/navigation'
+
 import {
   RelayDrawingView,
   RelayFinalizingView,
   RelayLobbyView,
   RelayResultView,
 } from './components'
+import { useRelayRoom } from './hooks'
 import { useRelayDrawingStore } from './stores'
 
 // 라우트: /relay-drawing/[roomCode]
@@ -16,12 +19,43 @@ import { useRelayDrawingStore } from './stores'
 //
 // 분기 기준은 서버에서 받은 roomStatus다 — 가이드 §25의 "REST = 진실의
 // 기준점, WS = 변화" 원칙. 새로고침으로 RelayRoomPage가 다시 마운트돼도
-// 첫 REST hydrate가 끝나면 자연스럽게 올바른 view에 도달한다.
-//
-// roomStatus가 null인 동안(=REST hydrate 진행 중)은 lobby로 폴백한다.
-// CLOSED는 다음 단계에서 모달로 처리할 예정.
+// useRelayRoom이 URL의 roomCode로 REST hydrate를 한 번 돌려 store를 신선화한다.
 export default function RelayRoomPage() {
+  const router = useRouter()
+  const { roomCode } = useParams<{ roomCode: string }>()
+  const { isHydrating, hydrationError } = useRelayRoom(roomCode ?? null)
   const roomStatus = useRelayDrawingStore((state) => state.roomStatus)
+
+  if (isHydrating) {
+    return (
+      <section className="grid min-h-screen place-items-center bg-relay-background text-relay-ink">
+        <div className="flex flex-col items-center gap-4">
+          <span
+            aria-hidden
+            className="size-10 animate-spin rounded-full border-4 border-relay-line border-t-relay-accent"
+          />
+          <p className="body-l-r">방 정보를 불러오는 중…</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (hydrationError) {
+    return (
+      <section className="grid min-h-screen place-items-center bg-relay-background text-relay-ink">
+        <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+          <p className="body-l-r">{hydrationError}</p>
+          <button
+            type="button"
+            onClick={() => router.push('/relay-drawing')}
+            className="body-b min-h-11 rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink"
+          >
+            돌아가기
+          </button>
+        </div>
+      </section>
+    )
+  }
 
   if (roomStatus === 'PLAYING') return <RelayDrawingView />
   if (roomStatus === 'FINALIZING') return <RelayFinalizingView />
