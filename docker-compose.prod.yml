@@ -123,6 +123,10 @@ services:
       - "yes"
       - --requirepass
       - ${REDIS_PASSWORD}
+    # 호스트 loopback에만 노출 — SSH 터널로만 접근 가능 (외부 인터넷 X).
+    # RedisInsight, redis-cli 등 외부 도구는 SSH 터널 + localhost:6379 사용.
+    ports:
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
