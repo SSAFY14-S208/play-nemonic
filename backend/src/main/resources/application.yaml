@@ -1,4 +1,7 @@
 spring:
+  config:
+    import: optional:file:${ENV_FILE:.env}[.properties]
+
   application:
     name: backend
   autoconfigure:
