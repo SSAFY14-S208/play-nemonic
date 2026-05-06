@@ -100,7 +100,7 @@ class AuthControllerIntegrationTest {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
 
         MvcResult result = mockMvc
-            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .header("X-Trace-Id", "auth-login-success-test")
                 .content(loginRequestBody(ADMIN_LOGIN_ID, ADMIN_PASSWORD)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
@@ -127,7 +127,7 @@ class AuthControllerIntegrationTest {
         AdminTokens tokens = loginAndReadTokens();
 
         MvcResult result = mockMvc
-            .perform(post("/api/v1/auth/admin/token/refresh").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/auth/token/refresh").contentType(MediaType.APPLICATION_JSON)
                 .content(refreshTokenRequestBody(tokens.refreshToken())))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("관리자 토큰 재발급 성공"))
@@ -138,11 +138,9 @@ class AuthControllerIntegrationTest {
         assertThat(rotatedTokens.accessToken()).isNotEqualTo(tokens.accessToken());
         assertThat(rotatedTokens.refreshToken()).isNotEqualTo(tokens.refreshToken());
 
-        mockMvc.perform(post("/api/v1/auth/admin/token/refresh").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/v1/auth/token/refresh").contentType(MediaType.APPLICATION_JSON)
             .content(refreshTokenRequestBody(tokens.refreshToken()))).andExpect(status().isUnauthorized());
-        mockMvc
-            .perform(
-                get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer(rotatedTokens.accessToken())))
+        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(rotatedTokens.accessToken())))
             .andExpect(status().isOk());
     }
 
@@ -151,7 +149,7 @@ class AuthControllerIntegrationTest {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
 
         mockMvc
-            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequestBody(ADMIN_LOGIN_ID, "wrong-password")))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("관리자 인증에 실패했습니다."));
@@ -165,7 +163,7 @@ class AuthControllerIntegrationTest {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", deletedAt);
 
         mockMvc
-            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequestBody(ADMIN_LOGIN_ID, ADMIN_PASSWORD)))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("관리자 인증에 실패했습니다."));
@@ -178,7 +176,7 @@ class AuthControllerIntegrationTest {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         AdminTokens tokens = loginAndReadTokens();
 
-        mockMvc.perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
+        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("관리자 정보 조회 성공")).andExpect(jsonPath("$.data.id").value(ADMIN_ID))
             .andExpect(jsonPath("$.data.loginId").value(ADMIN_LOGIN_ID))
@@ -191,14 +189,14 @@ class AuthControllerIntegrationTest {
         AdminTokens tokens = loginAndReadTokens();
         adminTokenStore.accessTokenBlacklist.add(readTokenClaims(tokens.accessToken()).tokenId());
 
-        mockMvc.perform(get("/api/v1/auth/admin/me")).andExpect(status().isUnauthorized())
+        mockMvc.perform(get("/api/v1/auth/me")).andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").value("인증이 필요합니다."));
 
-        mockMvc.perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer("invalid-token")))
+        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer("invalid-token")))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
 
-        mockMvc.perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
+        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
@@ -209,15 +207,15 @@ class AuthControllerIntegrationTest {
         AdminTokens tokens = loginAndReadTokens();
 
         mockMvc
-            .perform(post("/api/v1/auth/admin/logout").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken()))
+            .perform(post("/api/v1/auth/logout").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken()))
                 .contentType(MediaType.APPLICATION_JSON).content(logoutRequestBody(tokens.refreshToken()))
                 .header("X-Trace-Id", "auth-logout-test"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("관리자 로그아웃 성공")).andExpect(jsonPath("$.data").doesNotExist());
 
-        mockMvc.perform(post("/api/v1/auth/admin/token/refresh").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/v1/auth/token/refresh").contentType(MediaType.APPLICATION_JSON)
             .content(refreshTokenRequestBody(tokens.refreshToken()))).andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
+        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
             .andExpect(status().isUnauthorized());
     }
 
@@ -301,13 +299,12 @@ class AuthControllerIntegrationTest {
 
         assertThat(readDeletedAt(TARGET_ADMIN_ID)).isNotNull();
         mockMvc
-            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequestBody(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD)))
             .andExpect(status().isUnauthorized());
-        mockMvc
-            .perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer(targetTokens.accessToken())))
+        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(targetTokens.accessToken())))
             .andExpect(status().isUnauthorized());
-        mockMvc.perform(post("/api/v1/auth/admin/token/refresh").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/v1/auth/token/refresh").contentType(MediaType.APPLICATION_JSON)
             .content(refreshTokenRequestBody(targetTokens.refreshToken()))).andExpect(status().isUnauthorized());
     }
 
@@ -405,7 +402,7 @@ class AuthControllerIntegrationTest {
     }
 
     private AdminTokens loginAndReadTokens(String loginId, String password) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
             .content(loginRequestBody(loginId, password))).andExpect(status().isOk()).andReturn();
 
         return readTokens(result);

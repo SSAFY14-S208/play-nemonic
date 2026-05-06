@@ -1,9 +1,9 @@
 package com.nemonicworld.auth.service;
 
-import com.nemonicworld.auth.dto.request.AdminLoginRequest;
-import com.nemonicworld.auth.dto.request.AdminLogoutRequest;
-import com.nemonicworld.auth.dto.request.AdminTokenRefreshRequest;
-import com.nemonicworld.auth.dto.response.AdminLoginResponse;
+import com.nemonicworld.auth.dto.request.LoginRequest;
+import com.nemonicworld.auth.dto.request.LogoutRequest;
+import com.nemonicworld.auth.dto.request.TokenRefreshRequest;
+import com.nemonicworld.auth.dto.response.LoginResponse;
 import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.admin.repository.AdminUserRepository;
@@ -41,7 +41,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AdminLoginResponse login(AdminLoginRequest request, AdminClientInfo clientInfo) {
+    public LoginResponse login(LoginRequest request, AdminClientInfo clientInfo) {
         AdminUser adminUser = adminUserRepository.findByLoginId(request.loginId()).orElse(null);
 
         if (adminUser == null || adminUser.isDeleted()
@@ -60,7 +60,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AdminLoginResponse refreshToken(AdminTokenRefreshRequest request) {
+    public LoginResponse refreshToken(TokenRefreshRequest request) {
         StoredAdminRefreshToken storedToken = adminTokenStore.findRefreshToken(request.refreshToken())
             .orElseThrow(() -> new UnauthorizedException(INVALID_REFRESH_TOKEN_MESSAGE));
         AdminUser adminUser = adminUserRepository.findActiveById(storedToken.adminId())
@@ -78,7 +78,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void logout(AdminPrincipal adminPrincipal, AdminLogoutRequest request, String accessToken,
+    public void logout(AdminPrincipal adminPrincipal, LogoutRequest request, String accessToken,
         AdminClientInfo clientInfo) {
         adminTokenStore.revokeRefreshToken(request.refreshToken());
         AdminTokenClaims claims = jwtTokenProvider.parseAccessToken(accessToken);
@@ -86,11 +86,11 @@ public class AuthServiceImpl implements AuthService {
         adminAuditLogger.logLogout(adminPrincipal, clientInfo);
     }
 
-    private AdminLoginResponse issueLoginResponse(AdminUser adminUser) {
+    private LoginResponse issueLoginResponse(AdminUser adminUser) {
         IssuedAdminToken issuedAccessToken = jwtTokenProvider.createAccessToken(adminUser);
         IssuedAdminRefreshToken issuedRefreshToken = adminTokenStore.issueRefreshToken(adminUser);
 
-        return new AdminLoginResponse(issuedAccessToken.accessToken(), TOKEN_TYPE, issuedAccessToken.expiresAt(),
+        return new LoginResponse(issuedAccessToken.accessToken(), TOKEN_TYPE, issuedAccessToken.expiresAt(),
             issuedRefreshToken.refreshToken(), issuedRefreshToken.expiresAt(), AdminResponse.from(adminUser));
     }
 }

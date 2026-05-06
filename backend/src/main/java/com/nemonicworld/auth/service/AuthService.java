@@ -1,20 +1,19 @@
 package com.nemonicworld.auth.service;
 
-import com.nemonicworld.auth.dto.request.AdminLoginRequest;
-import com.nemonicworld.auth.dto.request.AdminLogoutRequest;
-import com.nemonicworld.auth.dto.request.AdminTokenRefreshRequest;
-import com.nemonicworld.auth.dto.response.AdminLoginResponse;
+import com.nemonicworld.auth.dto.request.LoginRequest;
+import com.nemonicworld.auth.dto.request.LogoutRequest;
+import com.nemonicworld.auth.dto.request.TokenRefreshRequest;
+import com.nemonicworld.auth.dto.response.LoginResponse;
 import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 
 public interface AuthService {
 
-    AdminLoginResponse login(AdminLoginRequest request, AdminClientInfo clientInfo);
+    LoginResponse login(LoginRequest request, AdminClientInfo clientInfo);
 
-    AdminLoginResponse refreshToken(AdminTokenRefreshRequest request);
+    LoginResponse refreshToken(TokenRefreshRequest request);
 
     AdminResponse getCurrentAdmin(AdminPrincipal adminPrincipal);
 
-    void logout(AdminPrincipal adminPrincipal, AdminLogoutRequest request, String accessToken,
-        AdminClientInfo clientInfo);
+    void logout(AdminPrincipal adminPrincipal, LogoutRequest request, String accessToken, AdminClientInfo clientInfo);
 }

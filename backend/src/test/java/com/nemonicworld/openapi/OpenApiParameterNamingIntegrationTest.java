@@ -119,9 +119,9 @@ class OpenApiParameterNamingIntegrationTest {
             "Admin account creation must require bearer auth in Swagger.");
         assertTrue(hasSecurityRequirement(root, "/api/v1/admin/accounts/{adminId}", "delete"),
             "Admin account deletion must require bearer auth in Swagger.");
-        assertTrue(hasSecurityRequirement(root, "/api/v1/auth/admin/me", "get"),
+        assertTrue(hasSecurityRequirement(root, "/api/v1/auth/me", "get"),
             "Admin profile lookup must require bearer auth in Swagger.");
-        assertTrue(hasSecurityRequirement(root, "/api/v1/auth/admin/logout", "post"),
+        assertTrue(hasSecurityRequirement(root, "/api/v1/auth/logout", "post"),
             "Admin logout must require bearer auth in Swagger.");
     }
 
