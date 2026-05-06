@@ -36,6 +36,12 @@ public enum RelayRoomEventType {
     // 방장이 대기실 참여자를 강퇴했음을 알립니다.
     PARTICIPANT_KICKED,
 
+    // 대기실 참여자가 스스로 퇴장했음을 알립니다.
+    PARTICIPANT_LEFT,
+
+    // 대기실 방장이 퇴장해 새 방장에게 승계되었음을 알립니다.
+    HOST_CHANGED,
+
     // 강퇴 대상자 개인 큐로 전달하는 강퇴 안내입니다.
     KICKED_FROM_ROOM,
 

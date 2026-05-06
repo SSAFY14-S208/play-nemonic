@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventResponse;
@@ -17,9 +18,11 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomClosedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
+import com.nemonicworld.relay.dto.websocket.RelayRoomHostChangedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantLeftEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomResultCreatedEventResponse;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
@@ -235,6 +238,48 @@ class RelayRoomEventPublisherTest {
         assertThat(data.kickedAt()).isEqualTo(kickedAt);
     }
 
+    @Test
+    void publishParticipantLeftSendsParticipantLeftEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        LocalDateTime leftAt = LocalDateTime.now().minusSeconds(1);
+        RelayRoomLeaveResponse response = new RelayRoomLeaveResponse(ROOM_CODE, "11111111-1111-1111-1111-111111111111",
+            "포도", 2, false, null, null, false, RelayRoomStatus.WAITING, leftAt);
+
+        publisher.publishParticipantLeft(response);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.PARTICIPANT_LEFT);
+
+        RelayRoomParticipantLeftEventResponse data = (RelayRoomParticipantLeftEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.leftUserUuid()).isEqualTo(response.leftUserUuid());
+        assertThat(data.leftNickname()).isEqualTo("포도");
+        assertThat(data.participantCount()).isEqualTo(2);
+        assertThat(data.leftAt()).isEqualTo(leftAt);
+    }
+
+    @Test
+    void publishHostChangedSendsHostChangedEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        LocalDateTime leftAt = LocalDateTime.now().minusSeconds(1);
+        RelayRoomLeaveResponse response = new RelayRoomLeaveResponse(ROOM_CODE, "11111111-1111-1111-1111-111111111111",
+            "망고", 2, true, "22222222-2222-2222-2222-222222222222", "포도", false, RelayRoomStatus.WAITING, leftAt);
+
+        publisher.publishHostChanged(response);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.HOST_CHANGED);
+
+        RelayRoomHostChangedEventResponse data = (RelayRoomHostChangedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.previousHostUserUuid()).isEqualTo(response.leftUserUuid());
+        assertThat(data.newHostUserUuid()).isEqualTo(response.newHostUserUuid());
+        assertThat(data.newHostNickname()).isEqualTo("포도");
+        assertThat(data.changedAt()).isEqualTo(leftAt);
+    }
+
     /**
      * 개인 큐 이벤트는 user destination resolver가 특정 sessionId로 해석할 수 있도록 simpSessionId
      * 헤더를 함께 보냅니다.
@@ -264,6 +309,18 @@ class RelayRoomEventPublisherTest {
             eventCaptor.capture(), headersCaptor.capture());
         assertThat(eventCaptor.getValue().type()).isEqualTo(RelayRoomEventType.KICKED_FROM_ROOM);
         assertThat(headersCaptor.getValue()).containsEntry(SimpMessageHeaderAccessor.SESSION_ID_HEADER, SESSION_ID);
+        verify(webSocketSessionRegistry).removeStaleSession(SESSION_ID);
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), any());
+    }
+
+    @Test
+    void closeLeftRoomSessionClosesActiveSessionWithoutPersonalEvent() {
+        String leftUserUuid = "11111111-1111-1111-1111-111111111111";
+        given(webSocketSessionRegistry.findCurrentSession(ROOM_CODE, leftUserUuid))
+            .willReturn(Optional.of(new ActiveWebSocketSession(ROOM_CODE, leftUserUuid, SESSION_ID)));
+
+        publisher.closeLeftRoomSession(ROOM_CODE, leftUserUuid);
+
         verify(webSocketSessionRegistry).removeStaleSession(SESSION_ID);
         verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), any());
     }

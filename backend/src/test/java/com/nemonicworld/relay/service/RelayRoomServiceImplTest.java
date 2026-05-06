@@ -15,6 +15,7 @@ import com.nemonicworld.invite.repository.InviteRepository;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
@@ -33,6 +34,7 @@ import com.nemonicworld.relay.service.room.RelayRoomConnectionUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomCreateUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomJoinUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomKickUseCase;
+import com.nemonicworld.relay.service.room.RelayRoomLeaveUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomQueryUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomSettingsUseCase;
 import com.nemonicworld.relay.service.submission.RelayRoomSubmissionUseCase;
@@ -93,6 +95,7 @@ class RelayRoomServiceImplTest {
             new RelayRoomJoinUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory),
             new RelayRoomKickUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy),
+            new RelayRoomLeaveUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy),
             new RelayRoomSettingsUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory),
             new RelayRoomStartUseCase(
@@ -241,6 +244,71 @@ class RelayRoomServiceImplTest {
 
         assertThatThrownBy(() -> relayRoomService.joinRoom(kickedUuid.toString(), ROOM_CODE))
             .isInstanceOf(ForbiddenException.class).hasMessage("강퇴된 방에는 다시 입장할 수 없습니다.");
+    }
+
+    /**
+     * 방장 퇴장 저장 중 충돌이 나면 최신 방 상태를 다시 읽고 joinOrder가 가장 작은 남은 참여자에게 방장을 승계합니다.
+     */
+    @Test
+    void leaveRoomRetriesOptimisticSaveConflictWithLatestRoomStateAndTransfersHost() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID firstCandidateUuid = UUID.randomUUID();
+        UUID secondCandidateUuid = UUID.randomUUID();
+        UUID latestCandidateUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomState firstReadRoomState = roomState(participant(hostUuid, "망고", true, 0),
+            participant(firstCandidateUuid, "포도", false, 5));
+        RelayRoomState secondReadRoomState = roomState(participant(hostUuid, "망고", true, 0),
+            participant(secondCandidateUuid, "사과", false, 3), participant(latestCandidateUuid, "배", false, 1));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false, true);
+
+        RelayRoomLeaveResponse response = relayRoomService.leaveRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.leftUserUuid()).isEqualTo(hostUuid.toString());
+        assertThat(response.hostChanged()).isTrue();
+        assertThat(response.newHostUserUuid()).isEqualTo(latestCandidateUuid.toString());
+        assertThat(response.newHostNickname()).isEqualTo("배");
+        assertThat(response.participantCount()).isEqualTo(2);
+        assertThat(response.roomStatus()).isEqualTo(RelayRoomStatus.WAITING);
+
+        ArgumentCaptor<RelayRoomState> expectedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository, times(2)).saveIfUnchanged(expectedStateCaptor.capture(),
+            updatedStateCaptor.capture());
+        assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
+        RelayRoomState updatedRoomState = updatedStateCaptor.getAllValues().get(1);
+        assertThat(updatedRoomState.hostUserUuid()).isEqualTo(latestCandidateUuid.toString());
+        assertThat(updatedRoomState.participants()).extracting(RelayRoomParticipant::userUuid)
+            .containsExactly(secondCandidateUuid.toString(), latestCandidateUuid.toString());
+        assertThat(updatedRoomState.participants()).extracting(RelayRoomParticipant::joinOrder).containsExactly(3, 1);
+        assertThat(updatedRoomState.participants()).extracting(RelayRoomParticipant::host).containsExactly(false, true);
+        assertThat(updatedRoomState.kickedUserUuids()).isEqualTo(secondReadRoomState.kickedUserUuids());
+    }
+
+    /**
+     * 퇴장 저장 재시도 횟수를 모두 소진하면 내부 오류로 전파합니다.
+     */
+    @Test
+    void leaveRoomFailsWhenOptimisticSaveConflictsKeepHappening() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        AppUser participantUser = appUserWithNickname(participantUuid, "포도");
+        RelayRoomState roomState = roomState(participant(hostUuid, "망고", true, 0),
+            participant(participantUuid, "포도", false, 1));
+        given(anonymousUserResolver.resolve(participantUuid.toString())).willReturn(participantUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false);
+
+        assertThatThrownBy(() -> relayRoomService.leaveRoom(participantUuid.toString(), ROOM_CODE))
+            .isInstanceOf(IllegalStateException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
+
+        verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
     }
 
     /**

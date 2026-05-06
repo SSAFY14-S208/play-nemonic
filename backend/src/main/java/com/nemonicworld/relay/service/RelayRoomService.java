@@ -5,6 +5,7 @@ import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
@@ -33,6 +34,11 @@ public interface RelayRoomService {
      * 기존 익명 사용자인 방장이 대기 중 릴레이 방의 일반 참여자를 강퇴합니다.
      */
     RelayRoomKickResponse kickParticipant(String userUuidValue, String roomCodeValue, String targetUserUuidValue);
+
+    /**
+     * 기존 익명 사용자인 참여자가 대기 중 릴레이 방에서 스스로 퇴장합니다.
+     */
+    RelayRoomLeaveResponse leaveRoom(String userUuidValue, String roomCodeValue);
 
     /**
      * 기존 익명 사용자인 방장이 대기 중 릴레이 방의 설정을 변경합니다.
