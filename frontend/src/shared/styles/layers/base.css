@@ -12,9 +12,26 @@
     src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
   }
 
+  @font-face {
+    font-family: 'Paperlogy';
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/Paperlogy-5Medium.woff') format('woff');
+  }
+
+  @font-face {
+    font-family: 'Paperlogy';
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/Paperlogy-6SemiBold.woff') format('woff');
+  }
+
   :root {
     --font-pretendard: 'Pretendard Variable', -apple-system, BlinkMacSystemFont,
       'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    --font-paperlogy: 'Paperlogy', var(--font-pretendard);
   }
 
   *,

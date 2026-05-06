@@ -20,6 +20,7 @@ export {
   useHubPlatformModel,
 } from './useHubPlatformModel'
 export { useNightStarField } from './useNightStarField'
+export { useRelayDrawingNavigation } from './useRelayDrawingNavigation'
 export { useWitchHoverMotion } from './useWitchHoverMotion'
 export { useWitchInteraction } from './useWitchInteraction'
 export {

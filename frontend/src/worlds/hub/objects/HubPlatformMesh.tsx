@@ -2,6 +2,7 @@ import CenterNemonicMesh from './CenterNemonicMesh'
 import CommunityCanvasBookMesh from './CommunityCanvasBookMesh'
 import FlipbookBunnyMesh from './FlipbookBunnyMesh'
 import { preloadHubPlatformModel, useHubPlatformModel } from './hooks'
+import RelayDrawingPlaceholderMesh from './RelayDrawingPlaceholderMesh'
 import WitchMesh from './WitchMesh'
 
 export default function HubPlatformMesh() {
@@ -12,6 +13,7 @@ export default function HubPlatformMesh() {
       <primitive object={preparedPlatform.platform} dispose={null} />
       <CommunityCanvasBookMesh />
       <FlipbookBunnyMesh />
+      <RelayDrawingPlaceholderMesh />
       <CenterNemonicMesh />
       <WitchMesh />
     </group>

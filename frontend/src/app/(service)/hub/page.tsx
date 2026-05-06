@@ -1,5 +1,6 @@
 import HubLoader from '@/worlds/hub/HubLoader'
 import { HubOverlay } from '@/features/hub'
+import { PhoneLauncher } from '@/features/phone'
 
 export default function Page() {
   return (
@@ -7,6 +8,7 @@ export default function Page() {
       <div className="pointer-events-none absolute inset-[16%_12%_14%] z-0 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,244,226,0.42),rgba(255,244,226,0)_64%)] blur-[28px] max-[800px]:inset-[24%_2%_16%]" />
       <HubLoader />
       <HubOverlay />
+      <PhoneLauncher />
     </main>
   )
 }

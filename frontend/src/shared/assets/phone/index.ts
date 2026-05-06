@@ -1,0 +1,12 @@
+export * from './drawing'
+
+export { default as phoneAppDrawing } from './phone-app-drawing.svg'
+export { default as phoneAppGallery } from './phone-app-gallery.svg'
+export { default as phoneAppSettings } from './phone-app-settings.svg'
+export { default as phoneAppShop } from './phone-app-shop.svg'
+export { default as phoneClose } from './phone-close.svg'
+export { default as phoneDeviceFrame } from './phone-device-frame.svg'
+export { default as phoneIconEdit } from './phone-icon-edit.png'
+export { default as phoneProfileAvatar } from './phone-profile-avatar.png'
+export { default as phoneScreen } from './phone-screen.svg'
+export { default as phoneSpeakerCamera } from './phone-speaker-camera.svg'
