@@ -1,6 +1,6 @@
-package com.nemonicworld.auth.dto.response;
+package com.nemonicworld.admin.dto.response;
 
-import com.nemonicworld.auth.entity.AdminUser;
+import com.nemonicworld.admin.entity.AdminUser;
 
 public record AdminResponse(Long id, String loginId, String nickname, String email, String role) {
 

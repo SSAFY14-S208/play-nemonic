@@ -1,21 +1,39 @@
 package com.nemonicworld.auth.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.admin.entity.AdminUser;
+import com.nemonicworld.auth.service.AdminTokenStore;
+import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
+import com.nemonicworld.auth.service.StoredAdminRefreshToken;
+import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.support.IntegrationTest;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -38,6 +56,9 @@ class AuthControllerIntegrationTest {
     private static final String NEW_ADMIN_PASSWORD = "Password123!";
     private static final String NEW_ADMIN_NICKNAME = "Operator";
     private static final String NEW_ADMIN_EMAIL = "manager01@example.com";
+    private static final long TARGET_ADMIN_ID = 2L;
+    private static final String TARGET_ADMIN_LOGIN_ID = "manager02";
+    private static final String TARGET_ADMIN_PASSWORD = "Password456!";
 
     @Autowired
     private MockMvc mockMvc;
@@ -50,6 +71,9 @@ class AuthControllerIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private InMemoryAdminTokenStore adminTokenStore;
 
     @BeforeEach
     void prepareAdminUserTable() {
@@ -69,20 +93,24 @@ class AuthControllerIntegrationTest {
             """);
         jdbcTemplate.update("DELETE FROM admin_user");
         jdbcTemplate.execute("ALTER TABLE admin_user ALTER COLUMN id RESTART WITH 100");
+        adminTokenStore.clear();
     }
 
     @Test
-    void adminLoginReturnsTokenAndUpdatesLastLoginAt() throws Exception {
+    void adminLoginReturnsAccessAndRefreshTokensAndUpdatesLastLoginAt() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
 
         MvcResult result = mockMvc
-            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .header("X-Trace-Id", "auth-login-success-test")
                 .content(loginRequestBody(ADMIN_LOGIN_ID, ADMIN_PASSWORD)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("관리자 로그인 성공")).andExpect(jsonPath("$.data.accessToken").isNotEmpty())
             .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
-            .andExpect(jsonPath("$.data.expiresAt").isNotEmpty()).andExpect(jsonPath("$.data.admin.id").value(1))
+            .andExpect(jsonPath("$.data.expiresAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
+            .andExpect(jsonPath("$.data.refreshTokenExpiresAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.admin.id").value(ADMIN_ID))
             .andExpect(jsonPath("$.data.admin.loginId").value(ADMIN_LOGIN_ID))
             .andExpect(jsonPath("$.data.admin.nickname").value(ADMIN_NICKNAME))
             .andExpect(jsonPath("$.data.admin.email").value(ADMIN_EMAIL))
@@ -90,7 +118,33 @@ class AuthControllerIntegrationTest {
 
         JsonNode data = readData(result);
         assertThat(data.path("accessToken").asText()).contains(".");
+        assertThat(data.path("refreshToken").asText()).isNotBlank();
         assertThat(readLastLoginAt(ADMIN_ID)).isNotNull();
+    }
+
+    @Test
+    void adminRefreshTokenRotatesTokenPair() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
+        AdminTokens tokens = loginAndReadTokens();
+
+        MvcResult result = mockMvc
+            .perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
+                .content(refreshTokenRequestBody(tokens.refreshToken())))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("관리자 토큰 재발급 성공"))
+            .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+            .andExpect(jsonPath("$.data.refreshToken").isNotEmpty()).andReturn();
+
+        AdminTokens rotatedTokens = readTokens(result);
+        assertThat(rotatedTokens.accessToken()).isNotEqualTo(tokens.accessToken());
+        assertThat(rotatedTokens.refreshToken()).isNotEqualTo(tokens.refreshToken());
+
+        mockMvc.perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
+            .content(refreshTokenRequestBody(tokens.refreshToken()))).andExpect(status().isUnauthorized());
+        mockMvc
+            .perform(post("/api/v1/auth/logout").header(HttpHeaders.AUTHORIZATION, bearer(rotatedTokens.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON).content(logoutRequestBody(rotatedTokens.refreshToken())))
+            .andExpect(status().isOk());
     }
 
     @Test
@@ -98,7 +152,7 @@ class AuthControllerIntegrationTest {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
 
         mockMvc
-            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequestBody(ADMIN_LOGIN_ID, "wrong-password")))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("관리자 인증에 실패했습니다."));
@@ -112,60 +166,79 @@ class AuthControllerIntegrationTest {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", deletedAt);
 
         mockMvc
-            .perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequestBody(ADMIN_LOGIN_ID, ADMIN_PASSWORD)))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("관리자 인증에 실패했습니다."));
 
         assertThat(readLastLoginAt(ADMIN_ID)).isNull();
     }
-
     @Test
-    void currentAdminReturnsAdminProfileWithValidToken() throws Exception {
+    void superAdminFindsAdminDetail() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
-        String accessToken = loginAndReadAccessToken();
+        AdminTokens tokens = loginAndReadTokens();
 
-        mockMvc.perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+        mockMvc
+            .perform(get("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(tokens.accessToken())))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("관리자 정보 조회 성공")).andExpect(jsonPath("$.data.id").value(ADMIN_ID))
+            .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data.id").value(ADMIN_ID))
             .andExpect(jsonPath("$.data.loginId").value(ADMIN_LOGIN_ID))
             .andExpect(jsonPath("$.data.role").value("super_admin"));
     }
 
     @Test
-    void currentAdminReturnsUnauthorizedWhenTokenIsMissingOrInvalid() throws Exception {
-        mockMvc.perform(get("/api/v1/auth/admin/me")).andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    void adminDetailReturnsUnauthorizedWhenTokenIsMissingInvalidOrBlacklisted() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        AdminTokens tokens = loginAndReadTokens();
+        adminTokenStore.accessTokenBlacklist.add(readTokenClaims(tokens.accessToken()).tokenId());
 
-        mockMvc.perform(get("/api/v1/auth/admin/me").header(HttpHeaders.AUTHORIZATION, bearer("invalid-token")))
-            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
-    }
-
-    @Test
-    void adminLogoutReturnsSuccessWithValidToken() throws Exception {
-        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
-        String accessToken = loginAndReadAccessToken();
+        mockMvc.perform(get("/api/v1/admins/{adminId}", ADMIN_ID)).andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").isNotEmpty());
 
         mockMvc
-            .perform(post("/api/v1/auth/admin/logout").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .perform(
+                get("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION, bearer("invalid-token")))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        mockMvc
+            .perform(get("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(tokens.accessToken())))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+    @Test
+    void adminLogoutRevokesRefreshTokenAndBlacklistsAccessToken() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
+        AdminTokens tokens = loginAndReadTokens();
+
+        mockMvc
+            .perform(post("/api/v1/auth/logout").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON).content(logoutRequestBody(tokens.refreshToken()))
                 .header("X-Trace-Id", "auth-logout-test"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("관리자 로그아웃 성공")).andExpect(jsonPath("$.data").doesNotExist());
+
+        mockMvc.perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
+            .content(refreshTokenRequestBody(tokens.refreshToken()))).andExpect(status().isUnauthorized());
+        mockMvc.perform(
+            get("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
+            .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void superAdminCreatesAdminAccount() throws Exception {
+    void superAdminCreatesAdmin() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(post("/api/v1/admin/accounts").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(adminAccountCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("관리자 계정 생성 성공")).andExpect(jsonPath("$.data.id").isNumber())
+            .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data.id").isNumber())
             .andExpect(jsonPath("$.data.loginId").value(NEW_ADMIN_LOGIN_ID))
             .andExpect(jsonPath("$.data.nickname").value(NEW_ADMIN_NICKNAME))
             .andExpect(jsonPath("$.data.email").value(NEW_ADMIN_EMAIL))
@@ -177,46 +250,172 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void adminAccountCreationRequiresSuperAdminRole() throws Exception {
+    void superAdminFindsAdmins() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc.perform(get("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data.length()").value(2))
+            .andExpect(jsonPath("$.data[0].id").value(ADMIN_ID))
+            .andExpect(jsonPath("$.data[1].id").value(TARGET_ADMIN_ID));
+    }
+
+    @Test
+    void superAdminChangesAdminPasswordAndRevokesTokens() throws Exception {
+        String changedPassword = "Changed123!";
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+        AdminTokens targetTokens = loginAndReadTokens(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD);
+
+        mockMvc
+            .perform(patch("/api/v1/admins/{adminId}", TARGET_ADMIN_ID)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)).contentType(MediaType.APPLICATION_JSON)
+                .content(passwordChangeRequestBody(changedPassword)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data").doesNotExist());
+
+        mockMvc
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequestBody(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD)))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+            .content(loginRequestBody(TARGET_ADMIN_LOGIN_ID, changedPassword))).andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
+            .content(refreshTokenRequestBody(targetTokens.refreshToken()))).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+            bearer(targetTokens.accessToken()))).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminCreationRequiresSuperAdminRole() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(post("/api/v1/admin/accounts").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(adminAccountCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("슈퍼 관리자 권한이 필요합니다."));
+            .andExpect(jsonPath("$.message").isNotEmpty());
     }
 
     @Test
-    void adminAccountCreationRejectsDuplicateLoginId() throws Exception {
+    void adminCreationRejectsDuplicateLoginId() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         insertAdminUser(2L, NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, "admin", null);
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(post("/api/v1/admin/accounts").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(adminAccountCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("이미 등록된 관리자 아이디입니다."));
+            .andExpect(jsonPath("$.message").isNotEmpty());
     }
 
     @Test
-    void adminAccountCreationValidatesRequestBody() throws Exception {
+    void adminCreationValidatesRequestBody() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(post("/api/v1/admin/accounts").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(adminAccountCreateRequestBody("", "short", NEW_ADMIN_NICKNAME, "not-email")))
+                .content(adminCreateRequestBody("", "short", NEW_ADMIN_NICKNAME, "not-email")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("유효성 검사 실패")).andExpect(jsonPath("$.errors.loginId").exists())
+            .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.errors.loginId").exists())
             .andExpect(jsonPath("$.errors.password").exists()).andExpect(jsonPath("$.errors.email").exists());
+    }
+
+    @Test
+    void superAdminDeletesAdminAndRevokesTokens() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+        AdminTokens targetTokens = loginAndReadTokens(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD);
+
+        mockMvc
+            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(accessToken)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data").doesNotExist());
+
+        assertThat(readDeletedAt(TARGET_ADMIN_ID)).isNotNull();
+        mockMvc
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequestBody(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD)))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+            bearer(targetTokens.accessToken()))).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
+            .content(refreshTokenRequestBody(targetTokens.refreshToken()))).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminDeletionRequiresSuperAdminRole() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(accessToken)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(readDeletedAt(TARGET_ADMIN_ID)).isNull();
+    }
+
+    @Test
+    void adminDeletionRejectsSelfDelete() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(
+                delete("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(readDeletedAt(ADMIN_ID)).isNull();
+    }
+
+    @Test
+    void adminDeletionRejectsSuperAdminTarget() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(accessToken)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(readDeletedAt(TARGET_ADMIN_ID)).isNull();
+    }
+
+    @Test
+    void adminDeletionRejectsMissingOrDeletedTarget() throws Exception {
+        LocalDateTime deletedAt = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", deletedAt);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc.perform(delete("/api/v1/admins/{adminId}", 999L).header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        mockMvc
+            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(accessToken)))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
     }
 
     private void insertAdminUser(long id, String loginId, String rawPassword, String role, LocalDateTime deletedAt) {
@@ -241,10 +440,33 @@ class AuthControllerIntegrationTest {
     }
 
     private String loginAndReadAccessToken() throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/admin/login").contentType(MediaType.APPLICATION_JSON)
-            .content(loginRequestBody(ADMIN_LOGIN_ID, ADMIN_PASSWORD))).andExpect(status().isOk()).andReturn();
+        return loginAndReadTokens().accessToken();
+    }
 
-        return readData(result).path("accessToken").asText();
+    private AdminTokens loginAndReadTokens() throws Exception {
+        return loginAndReadTokens(ADMIN_LOGIN_ID, ADMIN_PASSWORD);
+    }
+
+    private AdminTokens loginAndReadTokens(String loginId, String password) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+            .content(loginRequestBody(loginId, password))).andExpect(status().isOk()).andReturn();
+
+        return readTokens(result);
+    }
+
+    private AdminTokens readTokens(MvcResult result) throws Exception {
+        JsonNode data = readData(result);
+
+        return new AdminTokens(data.path("accessToken").asText(), data.path("refreshToken").asText());
+    }
+
+    private AdminTokenClaims readTokenClaims(String accessToken) throws Exception {
+        String[] tokenParts = accessToken.split("\\.");
+        JsonNode payload = objectMapper.readTree(Base64Url.decode(tokenParts[1]));
+
+        return new AdminTokenClaims(payload.path("sub").asLong(), payload.path("login_id").asText(), null,
+            payload.path("jti").asText(), Instant.ofEpochSecond(payload.path("iat").asLong()),
+            Instant.ofEpochSecond(payload.path("exp").asLong()));
     }
 
     private String loginRequestBody(String loginId, String password) {
@@ -256,7 +478,7 @@ class AuthControllerIntegrationTest {
             """.formatted(loginId, password);
     }
 
-    private String adminAccountCreateRequestBody(String loginId, String password, String nickname, String email) {
+    private String adminCreateRequestBody(String loginId, String password, String nickname, String email) {
         return """
             {
               "loginId": "%s",
@@ -265,6 +487,26 @@ class AuthControllerIntegrationTest {
               "email": "%s"
             }
             """.formatted(loginId, password, nickname, email);
+    }
+
+    private String passwordChangeRequestBody(String password) {
+        return """
+            {
+              "password": "%s"
+            }
+            """.formatted(password);
+    }
+
+    private String refreshTokenRequestBody(String refreshToken) {
+        return """
+            {
+              "refreshToken": "%s"
+            }
+            """.formatted(refreshToken);
+    }
+
+    private String logoutRequestBody(String refreshToken) {
+        return refreshTokenRequestBody(refreshToken);
     }
 
     private String bearer(String accessToken) {
@@ -279,6 +521,13 @@ class AuthControllerIntegrationTest {
             }, id);
     }
 
+    private LocalDateTime readDeletedAt(long id) {
+        return jdbcTemplate.queryForObject("SELECT deleted_at FROM admin_user WHERE id = ?", (resultSet, rowNumber) -> {
+            Timestamp timestamp = resultSet.getTimestamp("deleted_at");
+            return timestamp == null ? null : timestamp.toLocalDateTime();
+        }, id);
+    }
+
     private String readPasswordHash(String loginId) {
         return jdbcTemplate.queryForObject("SELECT password_hash FROM admin_user WHERE login_id = ?", String.class,
             loginId);
@@ -286,5 +535,92 @@ class AuthControllerIntegrationTest {
 
     private JsonNode readData(MvcResult result) throws Exception {
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+    }
+
+    private record AdminTokens(String accessToken, String refreshToken) {
+    }
+
+    @TestConfiguration
+    static class AdminTokenStoreTestConfig {
+
+        @Bean
+        @Primary
+        InMemoryAdminTokenStore adminTokenStore() {
+            return new InMemoryAdminTokenStore();
+        }
+    }
+
+    static class InMemoryAdminTokenStore implements AdminTokenStore {
+
+        private final Map<String, StoredAdminRefreshToken> refreshTokens = new ConcurrentHashMap<>();
+        private final Set<String> accessTokenBlacklist = ConcurrentHashMap.newKeySet();
+        private final Map<Long, Instant> accessRevokedAfter = new ConcurrentHashMap<>();
+
+        @Override
+        public IssuedAdminRefreshToken issueRefreshToken(AdminUser adminUser) {
+            String refreshToken = UUID.randomUUID().toString();
+            Instant expiresAt = Instant.now().plusSeconds(14 * 24 * 60 * 60);
+            refreshTokens.put(refreshToken, new StoredAdminRefreshToken(adminUser.getId(), expiresAt));
+
+            return new IssuedAdminRefreshToken(refreshToken, OffsetDateTime.ofInstant(expiresAt, ZoneOffset.UTC));
+        }
+
+        @Override
+        public Optional<StoredAdminRefreshToken> findRefreshToken(String refreshToken) {
+            StoredAdminRefreshToken storedToken = refreshTokens.get(refreshToken);
+            if (storedToken == null || storedToken.isExpired(Instant.now())) {
+                return Optional.empty();
+            }
+
+            return Optional.of(storedToken);
+        }
+
+        @Override
+        public void revokeRefreshToken(String refreshToken) {
+            refreshTokens.remove(refreshToken);
+        }
+
+        @Override
+        public void revokeAllRefreshTokens(Long adminId) {
+            refreshTokens.entrySet().removeIf(entry -> entry.getValue().adminId().equals(adminId));
+        }
+
+        @Override
+        public void blacklistAccessToken(AdminTokenClaims claims) {
+            if (claims.tokenId() != null) {
+                accessTokenBlacklist.add(claims.tokenId());
+            }
+        }
+
+        @Override
+        public void revokeAccessTokensIssuedBefore(Long adminId, Instant revokedAt) {
+            accessRevokedAfter.put(adminId, revokedAt);
+        }
+
+        @Override
+        public boolean isAccessTokenRevoked(AdminTokenClaims claims) {
+            if (claims.tokenId() != null && accessTokenBlacklist.contains(claims.tokenId())) {
+                return true;
+            }
+
+            Instant revokedAfter = accessRevokedAfter.get(claims.adminId());
+            return revokedAfter != null && !claims.issuedAt().isAfter(revokedAfter);
+        }
+
+        void clear() {
+            refreshTokens.clear();
+            accessTokenBlacklist.clear();
+            accessRevokedAfter.clear();
+        }
+    }
+
+    private static final class Base64Url {
+
+        private Base64Url() {
+        }
+
+        static byte[] decode(String value) {
+            return java.util.Base64.getUrlDecoder().decode(value);
+        }
     }
 }

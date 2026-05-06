@@ -1,7 +1,7 @@
 package com.nemonicworld.common.jwt;
 
-import com.nemonicworld.auth.entity.AdminRole;
-import com.nemonicworld.auth.entity.AdminUser;
+import com.nemonicworld.admin.entity.AdminRole;
+import com.nemonicworld.admin.entity.AdminUser;
 
 public record AdminPrincipal(Long id, String loginId, String nickname, String email, AdminRole role) {
 

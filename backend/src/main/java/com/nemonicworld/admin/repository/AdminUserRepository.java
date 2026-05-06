@@ -1,12 +1,13 @@
-package com.nemonicworld.auth.repository;
+package com.nemonicworld.admin.repository;
 
-import com.nemonicworld.auth.entity.AdminRole;
-import com.nemonicworld.auth.entity.AdminUser;
+import com.nemonicworld.admin.entity.AdminRole;
+import com.nemonicworld.admin.entity.AdminUser;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -62,6 +63,24 @@ public class AdminUserRepository {
             """, this::mapAdminUser, id).stream().findFirst();
     }
 
+    public List<AdminUser> findActiveAll() {
+        return jdbcTemplate.query("""
+            SELECT id,
+                   login_id,
+                   password_hash,
+                   nickname,
+                   email,
+                   role,
+                   last_login_at,
+                   created_at,
+                   updated_at,
+                   deleted_at
+              FROM admin_user
+             WHERE deleted_at IS NULL
+             ORDER BY id ASC
+            """, this::mapAdminUser);
+    }
+
     public boolean existsByLoginId(String loginId) {
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM admin_user WHERE login_id = ?", Integer.class,
             loginId);
@@ -105,6 +124,26 @@ public class AdminUserRepository {
         }
 
         return findByLoginId(loginId).orElseThrow();
+    }
+
+    public int softDeleteById(Long id, LocalDateTime deletedAt) {
+        return jdbcTemplate.update("""
+            UPDATE admin_user
+               SET deleted_at = ?,
+                   updated_at = ?
+             WHERE id = ?
+               AND deleted_at IS NULL
+            """, deletedAt, deletedAt, id);
+    }
+
+    public int updatePasswordHashById(Long id, String passwordHash, LocalDateTime updatedAt) {
+        return jdbcTemplate.update("""
+            UPDATE admin_user
+               SET password_hash = ?,
+                   updated_at = ?
+             WHERE id = ?
+               AND deleted_at IS NULL
+            """, passwordHash, updatedAt, id);
     }
 
     public void updateLastLoginAt(Long id, LocalDateTime lastLoginAt) {

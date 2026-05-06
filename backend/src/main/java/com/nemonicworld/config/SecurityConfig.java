@@ -32,8 +32,8 @@ public class SecurityConfig {
         http.cors(Customizer.withDefaults()).csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exception -> exception.authenticationEntryPoint(jsonAuthenticationEntryPoint))
-            .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/admin/login").permitAll()
-                .requestMatchers("/api/v1/auth/admin/me", "/api/v1/auth/admin/logout", "/api/v1/admin/**")
+            .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/login", "/api/v1/auth/reissue")
+                .permitAll().requestMatchers("/api/v1/auth/logout", "/api/v1/admins", "/api/v1/admins/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN").anyRequest().permitAll())
             .addFilterBefore(adminJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

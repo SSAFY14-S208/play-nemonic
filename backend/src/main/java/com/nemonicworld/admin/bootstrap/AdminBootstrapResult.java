@@ -1,4 +1,4 @@
-package com.nemonicworld.auth.bootstrap;
+package com.nemonicworld.admin.bootstrap;
 
 public enum AdminBootstrapResult {
     CREATED, SKIPPED_EXISTING
