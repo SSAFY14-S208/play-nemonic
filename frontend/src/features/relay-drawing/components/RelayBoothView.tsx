@@ -24,7 +24,7 @@ export default function RelayBoothView() {
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
         <PostItNote
           title="안내 문구를 담은 노란 포스트잇 배경 이미지"
-          className="absolute left-[5.8%] top-[18%] h-[61.5%] w-[40.3%] text-brand-relay-drawing-primary"
+          className="absolute left-[5.8%] top-[18%] h-[61.5%] w-[40.3%] text-[#FFE787]"
         />
 
         <div className="absolute left-[9.7%] top-[28.7%] w-[33%]">
@@ -37,7 +37,7 @@ export default function RelayBoothView() {
           >
             우당탕 릴레이 드로잉
           </h1>
-          <div className="body-l-r mt-6 text-relay-accent-strong">
+          <div className="body-l-r mt-6 text-relay-ink">
             <p>얼굴 → 몸통 → 다리, 3라운드.</p>
             <p>캔버스가 다음 사람에게 넘어가요.</p>
             <p>이전 사람 그림의 하단 일부 힌트만 보고</p>
