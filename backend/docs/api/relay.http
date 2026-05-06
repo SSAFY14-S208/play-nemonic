@@ -212,6 +212,27 @@ Content-Type: image/png
 < ./sample/face-hint.png
 --relay-submit-boundary--
 
+### Close relay room manually
+# FINISHED 방을 방장이 즉시 CLOSED로 전환합니다.
+# 이미 CLOSED인 방은 성공 응답으로 alreadyClosed=true를 반환하며 ROOM_CLOSED 이벤트를 중복 발행하지 않습니다.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/close
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Close relay room manually - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/close
+Anonymous-User-UUID: not-a-uuid
+
+### Close relay room manually - missing user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/close
+
+### Close relay room manually - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/close
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Close relay room manually - not found
+POST {{host}}/api/v1/relay/rooms/ZZZZZZ/close
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Submit current relay part - BODY
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
 Anonymous-User-UUID: {{anonymousUserUuid}}
