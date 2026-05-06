@@ -180,6 +180,10 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Redis URL 형식 (코드가 REDIS_URL 직접 사용 시).
+      # Spring Data Redis 표준은 spring.data.redis.url → SPRING_DATA_REDIS_URL.
+      SPRING_DATA_REDIS_URL: ${REDIS_URL}
+      REDIS_URL: ${REDIS_URL}
       # 내부용 SDK: 컨테이너 간 직접 호출 (putObject/getObject 등)
       MINIO_ENDPOINT: http://minio:9000
       # 외부용 SDK: presigned URL 생성 시 사용. 클라이언트가 이 host로 직접 접근.
