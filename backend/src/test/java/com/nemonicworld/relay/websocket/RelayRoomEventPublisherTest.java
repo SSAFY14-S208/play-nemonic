@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomClosedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
@@ -186,6 +187,23 @@ class RelayRoomEventPublisherTest {
         assertThat(data.artifactIds()).containsExactly(artifactId);
         assertThat(data.results()).hasSize(1);
         assertThat(data.results().get(0).contentUrl()).isEqualTo("relay/results/%s/original.png".formatted(artifactId));
+    }
+
+    @Test
+    void publishRoomClosedSendsRoomClosedEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        LocalDateTime closedAt = LocalDateTime.now().minusSeconds(1);
+
+        publisher.publishRoomClosed(ROOM_CODE, closedAt);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.ROOM_CLOSED);
+
+        RelayRoomClosedEventResponse data = (RelayRoomClosedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.roomStatus()).isEqualTo(RelayRoomStatus.CLOSED);
+        assertThat(data.closedAt()).isEqualTo(closedAt);
     }
 
     /**
