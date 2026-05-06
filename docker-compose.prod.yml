@@ -21,6 +21,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      # MinIO S3 API 외부 노출 (presigned URL용)
+      - "9443:9443"
     volumes:
       - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/nginx/certs:/etc/nginx/certs:ro
@@ -143,6 +145,9 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BROWSER_REDIRECT_URL: https://${DOMAIN}/minio/
+      # presigned URL 서명에 사용될 외부 host. 클라이언트가 받을 URL과 일치해야
+      # MinIO가 서명을 검증할 때 통과한다.
+      MINIO_SERVER_URL: ${MINIO_PUBLIC_URL}
     expose:
       - "9000"
       - "9001"
@@ -175,7 +180,11 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # 내부용 SDK: 컨테이너 간 직접 호출 (putObject/getObject 등)
       MINIO_ENDPOINT: http://minio:9000
+      # 외부용 SDK: presigned URL 생성 시 사용. 클라이언트가 이 host로 직접 접근.
+      # 같은 도메인의 9443 포트를 nginx가 SSL 종단 후 minio:9000으로 프록시.
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET:-nemonic}
