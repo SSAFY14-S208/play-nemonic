@@ -6,10 +6,6 @@ export interface AnonymousUserResponse {
   createdAt: string
 }
 
-export interface AnonymousUserVerifyRequest {
-  userUuid: string
-}
-
 export interface AnonymousUserVerifyResponse {
   userUuid: string
   nickname: string
@@ -17,7 +13,6 @@ export interface AnonymousUserVerifyResponse {
 }
 
 export interface AnonymousUserBirthInfoRequest {
-  userUuid: string
   birthday: string
   birthtime: string
   isLunar: boolean
@@ -32,7 +27,6 @@ export interface AnonymousUserBirthInfoResponse {
 }
 
 export interface AnonymousUserNicknameRequest {
-  userUuid: string
   nickname: string
 }
 
