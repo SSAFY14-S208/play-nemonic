@@ -134,7 +134,7 @@ public class RelayRoomSubmissionUseCase {
                 currentAssignment.canvasIndex(), currentAssignment.part());
         }
 
-        throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
     private RelayDrawingPart parsePart(RelayRoomSubmissionRequest request) {

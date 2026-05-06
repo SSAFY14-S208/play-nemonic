@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.service.timeout;
 
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
@@ -104,7 +105,7 @@ public class RelayRoomTimeoutService {
             }
         }
 
-        throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
     private boolean isExpiredPlayingRoom(RelayRoomState roomState, LocalDateTime now) {

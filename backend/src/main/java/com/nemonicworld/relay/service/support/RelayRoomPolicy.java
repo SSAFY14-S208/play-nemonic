@@ -52,6 +52,7 @@ public class RelayRoomPolicy {
     private static final String ONLY_HOST_KICK_ALLOWED_MESSAGE = "방장만 사용할 수 있는 기능입니다.";
     private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
     private static final String WAITING_ROOM_KICK_ONLY_MESSAGE = "대기실에서만 강퇴할 수 있습니다.";
+    private static final String WAITING_ROOM_LEAVE_ONLY_MESSAGE = "대기실에서만 퇴장할 수 있습니다.";
     private static final String GAME_ALREADY_STARTED_MESSAGE = "이미 게임이 시작되었습니다.";
     private static final String NOT_ENOUGH_PARTICIPANTS_MESSAGE = "최소 2명이 모여야 시작할 수 있습니다.";
     private static final String PARTICIPANTS_DISCONNECTED_MESSAGE = "모든 참여자가 연결된 상태에서만 시작할 수 있습니다.";
@@ -127,6 +128,21 @@ public class RelayRoomPolicy {
         if (roomState.status() != RelayRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_KICK_ONLY_MESSAGE);
         }
+    }
+
+    /**
+     * 자발적 퇴장이 가능한 방 상태인지 검증합니다.
+     */
+    public void validateWaitingRoomForLeave(RelayRoomState roomState) {
+        if (roomState.status() == RelayRoomStatus.WAITING) {
+            return;
+        }
+
+        if (roomState.status() == RelayRoomStatus.CLOSED) {
+            throw new ConflictException(ROOM_CLOSED_MESSAGE);
+        }
+
+        throw new ConflictException(WAITING_ROOM_LEAVE_ONLY_MESSAGE);
     }
 
     /**

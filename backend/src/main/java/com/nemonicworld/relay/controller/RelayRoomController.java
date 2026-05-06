@@ -9,6 +9,7 @@ import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
@@ -24,6 +25,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,6 +53,7 @@ public class RelayRoomController {
     private static final String RELAY_ROOM_STATE_FOUND_MESSAGE = "릴레이 방 상태 조회 성공";
     private static final String RELAY_ROOM_JOINED_MESSAGE = "릴레이 방 입장/복귀 성공";
     private static final String RELAY_ROOM_PARTICIPANT_KICKED_MESSAGE = "참여자 강퇴 성공";
+    private static final String RELAY_ROOM_LEFT_MESSAGE = "릴레이 방 퇴장 성공";
     private static final String RELAY_ROOM_SETTINGS_UPDATED_MESSAGE = "릴레이 방 설정 변경 성공";
     private static final String RELAY_GAME_STARTED_MESSAGE = "릴레이 게임 시작 성공";
     private static final String RELAY_MY_ASSIGNMENT_FOUND_MESSAGE = "내 릴레이 배정 조회 성공";
@@ -284,6 +287,42 @@ public class RelayRoomController {
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(RELAY_ROOM_PARTICIPANT_KICKED_MESSAGE, response));
+    }
+
+    /**
+     * 참여자가 대기 중 방에서 스스로 퇴장하고 필요 시 방장 승계나 방 닫힘 이벤트를 알립니다.
+     */
+    @DeleteMapping("/{roomCode}/participants/me")
+    @Operation(summary = "릴레이 방 자발적 퇴장", description = "참여자가 WAITING 상태의 릴레이 대기실에서 스스로 퇴장합니다. 방장이 나가면 입장 순서 기준 다음 참여자에게 방장을 승계하고, 마지막 참여자가 나가면 방을 CLOSED로 전환합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "릴레이 방 퇴장 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "퇴장 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(name = "비참여자", value = OpenApiErrorExamples.RELAY_ROOM_PARTICIPANT_REQUIRED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.RELAY_ROOM_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "퇴장 불가 상태", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "대기실 아님", value = OpenApiErrorExamples.RELAY_WAITING_ROOM_LEAVE_ONLY),
+            @ExampleObject(name = "종료된 방", value = OpenApiErrorExamples.RELAY_ROOM_CLOSED)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<RelayRoomLeaveResponse>> leaveRoom(@PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        RelayRoomLeaveResponse response = relayRoomService.leaveRoom(userUuid, roomCode);
+        relayRoomEventPublisher.publishParticipantLeft(response);
+        if (response.hostChanged()) {
+            relayRoomEventPublisher.publishHostChanged(response);
+        }
+        if (response.roomClosed()) {
+            relayRoomEventPublisher.publishRoomClosed(response.roomCode(), response.leftAt());
+        }
+        relayRoomEventPublisher.closeLeftRoomSession(response.roomCode(), response.leftUserUuid());
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(RELAY_ROOM_LEFT_MESSAGE, response));
     }
 
     /**

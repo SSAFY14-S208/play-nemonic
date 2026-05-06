@@ -55,6 +55,13 @@ public record RelayRoomState(String roomCode, RelayRoomStatus status, String hos
             updatedAt, updatedKickedUserUuids);
     }
 
+    public RelayRoomState withParticipantsHostAndStatus(List<RelayRoomParticipant> updatedParticipants,
+        String updatedHostUserUuid, RelayRoomStatus updatedStatus, LocalDateTime updatedAt) {
+        return new RelayRoomState(roomCode, updatedStatus, updatedHostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, currentPart, updatedParticipants, assignments, partStartedAt, partDeadlineAt,
+            gameStartedAt, createdAt, updatedAt, kickedUserUuids);
+    }
+
     public RelayRoomState withTimeLimitSeconds(int updatedTimeLimitSeconds, LocalDateTime updatedAt) {
         return new RelayRoomState(roomCode, status, hostUserUuid, updatedTimeLimitSeconds, minParticipants,
             maxParticipants, currentPart, participants, assignments, partStartedAt, partDeadlineAt, gameStartedAt,

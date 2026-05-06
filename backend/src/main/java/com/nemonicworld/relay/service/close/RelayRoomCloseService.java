@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.service.close;
 
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
@@ -89,7 +90,7 @@ public class RelayRoomCloseService {
             }
         }
 
-        throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
     /**

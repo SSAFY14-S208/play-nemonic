@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.service.close;
 
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
@@ -55,6 +56,6 @@ public class RelayRoomManualCloseUseCase {
             }
         }
 
-        throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 }

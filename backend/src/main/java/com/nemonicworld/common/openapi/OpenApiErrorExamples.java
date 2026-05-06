@@ -179,6 +179,12 @@ public final class OpenApiErrorExamples {
           "message": "대기실에서만 강퇴할 수 있습니다."
         }
         """;
+    public static final String RELAY_WAITING_ROOM_LEAVE_ONLY = """
+        {
+          "success": false,
+          "message": "대기실에서만 퇴장할 수 있습니다."
+        }
+        """;
     public static final String RELAY_SELF_KICK_NOT_ALLOWED = """
         {
           "success": false,
