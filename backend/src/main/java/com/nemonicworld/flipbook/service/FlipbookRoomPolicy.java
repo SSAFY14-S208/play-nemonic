@@ -1,8 +1,11 @@
 package com.nemonicworld.flipbook.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerBlockedReason;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
@@ -10,6 +13,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.user.entity.AppUser;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -23,10 +27,17 @@ public class FlipbookRoomPolicy {
     static final int MIN_PARTICIPANTS = 2;
     static final int MAX_PARTICIPANTS = 6;
     static final int HOST_JOIN_ORDER = 0;
+    static final int ROOM_UPDATE_MAX_RETRIES = 3;
+    static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
 
+    private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
+    private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "제한 시간은 30초, 45초, 60초 중 하나여야 합니다.";
+    private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "플립북 방에 참여하지 않은 사용자입니다.";
+    private static final String ONLY_HOST_ALLOWED_MESSAGE = "방장만 사용할 수 있습니다.";
+    private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final FlipbookRoomRepository flipbookRoomRepository;
@@ -55,6 +66,18 @@ public class FlipbookRoomPolicy {
     }
 
     /**
+     * 제한 시간 요청값을 검증합니다.
+     */
+    int resolveTimeLimitSeconds(FlipbookRoomSettingsRequest request) {
+        if (request == null || request.timeLimitSeconds() == null
+            || !ALLOWED_TIME_LIMIT_SECONDS.contains(request.timeLimitSeconds())) {
+            throw new BadRequestException(INVALID_TIME_LIMIT_SECONDS_MESSAGE);
+        }
+
+        return request.timeLimitSeconds();
+    }
+
+    /**
      * Redis에 저장된 플립북 방 상태를 조회하고, 없으면 공통 404 응답으로 변환합니다.
      */
     FlipbookRoomState findRoomState(String roomCodeValue) {
@@ -68,6 +91,34 @@ public class FlipbookRoomPolicy {
     Optional<FlipbookRoomParticipant> findParticipant(FlipbookRoomState roomState, String userUuid) {
         return roomState.participants().stream().filter(participant -> participant.userUuid().equals(userUuid))
             .findFirst();
+    }
+
+    /**
+     * 설정 변경처럼 참여자 권한이 필요한 동작에서 현재 사용자의 참여자 정보를 요구합니다.
+     */
+    FlipbookRoomParticipant requireParticipant(FlipbookRoomState roomState, String userUuid) {
+        return findParticipant(roomState, userUuid)
+            .orElseThrow(() -> new ForbiddenException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
+    }
+
+    /**
+     * 방장 전용 동작인지 검증합니다.
+     */
+    void validateRoomHost(String viewerUserUuid, FlipbookRoomState roomState, FlipbookRoomParticipant participant) {
+        if (participant.host() || roomState.hostUserUuid().equals(viewerUserUuid)) {
+            return;
+        }
+
+        throw new ForbiddenException(ONLY_HOST_ALLOWED_MESSAGE);
+    }
+
+    /**
+     * 설정 변경 가능한 방 상태인지 검증합니다.
+     */
+    void validateWaitingRoomForSettings(FlipbookRoomState roomState) {
+        if (roomState.status() != FlipbookRoomStatus.WAITING) {
+            throw new ConflictException(WAITING_ROOM_SETTINGS_ONLY_MESSAGE);
+        }
     }
 
     /**
