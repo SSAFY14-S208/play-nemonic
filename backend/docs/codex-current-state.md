@@ -27,6 +27,9 @@ Last updated: 2026-05-06
 - Backoffice super admins can now create standard admin accounts with
   `POST /api/v1/admin/accounts`; the API stores BCrypt password hashes, fixes
   new accounts to the `admin` role, and rejects duplicate `login_id` values.
+- Backoffice super admins can now soft-delete standard admin accounts with
+  `DELETE /api/v1/admin/accounts/{adminId}`; self-delete, super-admin target
+  deletion, and missing or already deleted targets are rejected.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.
