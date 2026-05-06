@@ -2,6 +2,7 @@ package com.nemonicworld.relay.service.assignment;
 
 import com.nemonicworld.relay.dto.response.RelayRoomAssignmentHintResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
+import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomState;
@@ -23,11 +24,13 @@ public class RelayRoomAssignmentQueryUseCase {
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final RelayRoomPolicy relayRoomPolicy;
+    private final RelayHintImageUrlResolver relayHintImageUrlResolver;
 
-    public RelayRoomAssignmentQueryUseCase(AnonymousUserResolver anonymousUserResolver,
-        RelayRoomPolicy relayRoomPolicy) {
+    public RelayRoomAssignmentQueryUseCase(AnonymousUserResolver anonymousUserResolver, RelayRoomPolicy relayRoomPolicy,
+        RelayHintImageUrlResolver relayHintImageUrlResolver) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomPolicy = relayRoomPolicy;
+        this.relayHintImageUrlResolver = relayHintImageUrlResolver;
     }
 
     /**
@@ -67,7 +70,7 @@ public class RelayRoomAssignmentQueryUseCase {
         }
 
         return relayRoomPolicy.findAssignment(roomState, currentAssignment.canvasIndex(), previousPart)
-            .filter(this::hasHint).map(RelayRoomAssignmentHintResponse::from).orElse(null);
+            .filter(this::hasVisiblePreviousAssignment).map(this::toHintResponse).orElse(null);
     }
 
     private RelayDrawingPart previousPart(RelayDrawingPart currentPart) {
@@ -82,7 +85,16 @@ public class RelayRoomAssignmentQueryUseCase {
         return null;
     }
 
-    private boolean hasHint(RelayRoomAssignment assignment) {
-        return assignment.empty() || StringUtils.hasText(assignment.hintObjectKey());
+    private RelayRoomAssignmentHintResponse toHintResponse(RelayRoomAssignment assignment) {
+        String hintUrl = assignment.empty() ? null : relayHintImageUrlResolver.resolve(assignment.hintObjectKey());
+
+        return RelayRoomAssignmentHintResponse.from(assignment, hintUrl);
+    }
+
+    private boolean hasVisiblePreviousAssignment(RelayRoomAssignment assignment) {
+        return assignment.empty() || assignment.autoSubmitted()
+            || assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED
+            || assignment.status() == RelayAssignmentStatus.SUBMITTED
+            || StringUtils.hasText(assignment.hintObjectKey());
     }
 }

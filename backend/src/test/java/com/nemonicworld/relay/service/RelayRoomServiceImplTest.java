@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
@@ -24,7 +25,9 @@ import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.repository.RelayArtifactRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.assignment.RelayHintImageUrlResolver;
 import com.nemonicworld.relay.service.assignment.RelayRoomAssignmentQueryUseCase;
 import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
 import com.nemonicworld.relay.service.close.RelayRoomManualCloseUseCase;
@@ -37,6 +40,7 @@ import com.nemonicworld.relay.service.room.RelayRoomKickUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomLeaveUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomQueryUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomSettingsUseCase;
+import com.nemonicworld.relay.service.result.RelayRoomResultQueryUseCase;
 import com.nemonicworld.relay.service.submission.RelayRoomSubmissionUseCase;
 import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
@@ -76,6 +80,9 @@ class RelayRoomServiceImplTest {
     private RelayRoomRepository relayRoomRepository;
 
     @Mock
+    private RelayArtifactRepository relayArtifactRepository;
+
+    @Mock
     private InviteRepository inviteRepository;
 
     @Mock
@@ -98,9 +105,12 @@ class RelayRoomServiceImplTest {
             new RelayRoomLeaveUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy),
             new RelayRoomSettingsUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory),
-            new RelayRoomStartUseCase(
-                anonymousUserResolver, relayRoomRepository, relayRoomPolicy, relayRoomViewerFactory),
-            new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy),
+            new RelayRoomStartUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayRoomViewerFactory),
+            new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy,
+                new RelayHintImageUrlResolver(minioStorageProperties())),
+            new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
+                relayRoomPolicy, new ObjectMapper().findAndRegisterModules()),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomPartAdvanceService, relaySubmissionStorage, minioStorageProperties()),
             new RelayRoomManualCloseUseCase(anonymousUserResolver, relayRoomPolicy,

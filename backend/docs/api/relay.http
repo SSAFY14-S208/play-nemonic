@@ -38,6 +38,21 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 GET {{host}}/api/v1/relay/rooms/ZZZZZZ
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+### Get relay room results
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/results
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get relay room results - invalid user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/results
+Anonymous-User-UUID: not-a-uuid
+
+### Get relay room results - missing user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/results
+
+### Get relay room results - invalid room code
+GET {{host}}/api/v1/relay/rooms/not-a-room/results
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Join relay room
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
 Anonymous-User-UUID: {{anonymousUserUuid}}

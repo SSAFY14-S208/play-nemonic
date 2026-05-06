@@ -7,6 +7,7 @@ import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomResultsResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.service.assignment.RelayRoomAssignmentQueryUseCase;
@@ -19,6 +20,7 @@ import com.nemonicworld.relay.service.room.RelayRoomKickUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomLeaveUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomQueryUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomSettingsUseCase;
+import com.nemonicworld.relay.service.result.RelayRoomResultQueryUseCase;
 import com.nemonicworld.relay.service.submission.RelayRoomSubmissionUseCase;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +38,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private final RelayRoomSettingsUseCase relayRoomSettingsUseCase;
     private final RelayRoomStartUseCase relayRoomStartUseCase;
     private final RelayRoomAssignmentQueryUseCase relayRoomAssignmentQueryUseCase;
+    private final RelayRoomResultQueryUseCase relayRoomResultQueryUseCase;
     private final RelayRoomSubmissionUseCase relayRoomSubmissionUseCase;
     private final RelayRoomManualCloseUseCase relayRoomManualCloseUseCase;
     private final RelayRoomConnectionUseCase relayRoomConnectionUseCase;
@@ -45,7 +48,8 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         RelayRoomKickUseCase relayRoomKickUseCase, RelayRoomLeaveUseCase relayRoomLeaveUseCase,
         RelayRoomSettingsUseCase relayRoomSettingsUseCase, RelayRoomStartUseCase relayRoomStartUseCase,
         RelayRoomAssignmentQueryUseCase relayRoomAssignmentQueryUseCase,
-        RelayRoomSubmissionUseCase relayRoomSubmissionUseCase, RelayRoomManualCloseUseCase relayRoomManualCloseUseCase,
+        RelayRoomResultQueryUseCase relayRoomResultQueryUseCase, RelayRoomSubmissionUseCase relayRoomSubmissionUseCase,
+        RelayRoomManualCloseUseCase relayRoomManualCloseUseCase,
         RelayRoomConnectionUseCase relayRoomConnectionUseCase) {
         this.relayRoomCreateUseCase = relayRoomCreateUseCase;
         this.relayRoomQueryUseCase = relayRoomQueryUseCase;
@@ -55,6 +59,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         this.relayRoomSettingsUseCase = relayRoomSettingsUseCase;
         this.relayRoomStartUseCase = relayRoomStartUseCase;
         this.relayRoomAssignmentQueryUseCase = relayRoomAssignmentQueryUseCase;
+        this.relayRoomResultQueryUseCase = relayRoomResultQueryUseCase;
         this.relayRoomSubmissionUseCase = relayRoomSubmissionUseCase;
         this.relayRoomManualCloseUseCase = relayRoomManualCloseUseCase;
         this.relayRoomConnectionUseCase = relayRoomConnectionUseCase;
@@ -100,6 +105,11 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     @Override
     public RelayRoomMyAssignmentResponse getMyAssignment(String userUuidValue, String roomCodeValue) {
         return relayRoomAssignmentQueryUseCase.getMyAssignment(userUuidValue, roomCodeValue);
+    }
+
+    @Override
+    public RelayRoomResultsResponse getResults(String userUuidValue, String roomCodeValue) {
+        return relayRoomResultQueryUseCase.getResults(userUuidValue, roomCodeValue);
     }
 
     @Override

@@ -101,6 +101,28 @@ class RelayArtifactRepositoryTest {
             .containsExactly(artifacts.get(0).originalObjectKey(), artifacts.get(1).originalObjectKey());
     }
 
+    @Test
+    void findActiveRelayResultsByRoomCodeAndUserUuidReturnsOnlyActiveOwnedGalleryRows() {
+        UUID owner = UUID.randomUUID();
+        UUID otherUser = UUID.randomUUID();
+        List<RelayFinalizationArtifactResult> artifacts = List.of(artifact(0), artifact(1));
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        relayArtifactRepository.saveRelayDrawingResults(ROOM_CODE, artifacts,
+            List.of(owner.toString(), otherUser.toString()), now);
+        softDeleteGalleryRow(owner, artifacts.get(1).artifactId(), now.plusSeconds(1));
+
+        List<RelayResultArtifactRow> found = relayArtifactRepository
+            .findActiveRelayResultsByRoomCodeAndUserUuid(ROOM_CODE, owner);
+
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).galleryId()).isNotNull();
+        assertThat(found.get(0).artifactId()).isEqualTo(artifacts.get(0).artifactId());
+        assertThat(found.get(0).thumbnailUrl()).isEqualTo(artifacts.get(0).thumbnailObjectKey());
+        assertThat(found.get(0).contentUrl()).isEqualTo(artifacts.get(0).originalObjectKey());
+        assertThat(found.get(0).createdAt()).isEqualTo(now);
+        assertThat(relayArtifactRepository.countRelayResultsByRoomCode(ROOM_CODE)).isEqualTo(2);
+    }
+
     private RelayFinalizationArtifactResult artifact(int canvasIndex) {
         UUID artifactId = UUID.randomUUID();
         return new RelayFinalizationArtifactResult(artifactId, canvasIndex,
@@ -138,5 +160,10 @@ class RelayArtifactRepositoryTest {
 
     private String findMeta(UUID artifactId) {
         return jdbcTemplate.queryForObject("SELECT meta FROM artifact WHERE id = ?", String.class, artifactId);
+    }
+
+    private void softDeleteGalleryRow(UUID userUuid, UUID artifactId, LocalDateTime deletedAt) {
+        jdbcTemplate.update("UPDATE gallery SET deleted_at = ? WHERE user_id = ? AND artifact_id = ?", deletedAt,
+            userUuid, artifactId);
     }
 }

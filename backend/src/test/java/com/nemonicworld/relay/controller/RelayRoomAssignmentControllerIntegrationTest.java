@@ -49,7 +49,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @IntegrationTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
+@TestPropertySource(properties = {"spring.jpa.hibernate.ddl-auto=create-drop",
+    "nemonic.storage.minio.public-url=http://localhost:9000/", "nemonic.storage.minio.bucket=nemonic-local"})
 class RelayRoomAssignmentControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
@@ -153,7 +154,8 @@ class RelayRoomAssignmentControllerIntegrationTest {
         assertThat(data.path("hint").path("previousPart").asText()).isEqualTo("FACE");
         assertThat(data.path("hint").path("canvasIndex").asInt()).isEqualTo(1);
         assertThat(data.path("hint").path("objectKey").asText()).isEqualTo(hintObjectKey);
-        assertThat(data.path("hint").get("url").isNull()).isTrue();
+        assertThat(data.path("hint").path("url").asText())
+            .isEqualTo("http://localhost:9000/nemonic-local/relay/tmp/AB3K9Q/1/face-hint.png");
         assertThat(data.path("hint").path("empty").asBoolean()).isFalse();
         verifyReadOnlySideEffects();
     }
@@ -175,11 +177,13 @@ class RelayRoomAssignmentControllerIntegrationTest {
         assertThat(data.path("part").asText()).isEqualTo("LEGS");
         assertThat(data.path("hint").path("previousPart").asText()).isEqualTo("BODY");
         assertThat(data.path("hint").path("objectKey").asText()).isEqualTo(hintObjectKey);
+        assertThat(data.path("hint").path("url").asText())
+            .isEqualTo("http://localhost:9000/nemonic-local/relay/tmp/AB3K9Q/0/body-hint.png");
         verifyReadOnlySideEffects();
     }
 
     @Test
-    void getMyAssignmentReturnsNullHintWhenPreviousHintIsMissing() throws Exception {
+    void getMyAssignmentReturnsHintWithNullUrlWhenPreviousHintObjectKeyIsMissing() throws Exception {
         UUID hostUuid = createExistingUserWithNickname("Mango");
         UUID participantUuid = createExistingUserWithNickname("Peach");
         RelayRoomState roomState = playingRoom(RelayDrawingPart.BODY,
@@ -190,7 +194,11 @@ class RelayRoomAssignmentControllerIntegrationTest {
 
         JsonNode data = performSuccessGet(hostUuid);
 
-        assertThat(data.get("hint").isNull()).isTrue();
+        assertThat(data.path("hint").path("previousPart").asText()).isEqualTo("FACE");
+        assertThat(data.path("hint").path("canvasIndex").asInt()).isZero();
+        assertThat(data.path("hint").get("objectKey").isNull()).isTrue();
+        assertThat(data.path("hint").get("url").isNull()).isTrue();
+        assertThat(data.path("hint").path("empty").asBoolean()).isFalse();
         verifyReadOnlySideEffects();
     }
 
@@ -208,6 +216,7 @@ class RelayRoomAssignmentControllerIntegrationTest {
 
         assertThat(data.path("hint").path("previousPart").asText()).isEqualTo("FACE");
         assertThat(data.path("hint").get("objectKey").isNull()).isTrue();
+        assertThat(data.path("hint").get("url").isNull()).isTrue();
         assertThat(data.path("hint").path("empty").asBoolean()).isTrue();
         verifyReadOnlySideEffects();
     }
