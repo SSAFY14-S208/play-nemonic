@@ -1,6 +1,7 @@
 package com.nemonicworld.admin.controller;
 
 import com.nemonicworld.admin.dto.request.AdminAccountCreateRequest;
+import com.nemonicworld.admin.dto.request.AdminPasswordChangeRequest;
 import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.admin.service.AdminAccountService;
 import com.nemonicworld.common.jwt.AdminPrincipal;
@@ -14,11 +15,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,7 +30,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/admin/accounts")
+@RequestMapping("/admins")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
 @Tag(name = "Admin Accounts", description = "백오피스 관리자 계정 API")
 public class AdminAccountController {
@@ -34,6 +38,12 @@ public class AdminAccountController {
     private static final String CREATE_SUCCESS_MESSAGE = "관리자 계정 생성 성공";
 
     private static final String DELETE_SUCCESS_MESSAGE = "관리자 계정 삭제 성공";
+
+    private static final String LIST_SUCCESS_MESSAGE = "관리자 계정 목록 조회 성공";
+
+    private static final String DETAIL_SUCCESS_MESSAGE = "관리자 계정 상세 조회 성공";
+
+    private static final String PASSWORD_CHANGE_SUCCESS_MESSAGE = "관리자 비밀번호 변경 성공";
 
     private final AdminAccountService adminAccountService;
 
@@ -55,6 +65,53 @@ public class AdminAccountController {
 
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(CREATE_SUCCESS_MESSAGE, response));
+    }
+
+    @GetMapping
+    @Operation(summary = "관리자 계정 목록 조회", description = "슈퍼 관리자가 활성 관리자 계정 목록을 조회합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 계정 목록 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "슈퍼 관리자 권한 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_SUPER_ADMIN_REQUIRED)))})
+    public ResponseEntity<ApiResponse<List<AdminResponse>>> findAdminAccounts(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal) {
+        List<AdminResponse> response = adminAccountService.findAdminAccounts(adminPrincipal);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));
+    }
+
+    @GetMapping("/{adminId}")
+    @Operation(summary = "관리자 계정 상세 조회", description = "슈퍼 관리자가 관리자 계정 상세 정보를 조회합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 계정 상세 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "슈퍼 관리자 권한 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_SUPER_ADMIN_REQUIRED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "관리자 계정 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_ACCOUNT_NOT_FOUND)))})
+    public ResponseEntity<ApiResponse<AdminResponse>> findAdminAccount(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("adminId") Long adminId) {
+        AdminResponse response = adminAccountService.findAdminAccount(adminPrincipal, adminId);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(DETAIL_SUCCESS_MESSAGE, response));
+    }
+
+    @PatchMapping("/{adminId}")
+    @Operation(summary = "관리자 비밀번호 변경", description = "슈퍼 관리자가 일반 관리자 계정의 비밀번호를 변경합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 비밀번호 변경 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "관리자 비밀번호 변경 권한 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "superAdminRequired", value = OpenApiErrorExamples.ADMIN_SUPER_ADMIN_REQUIRED),
+            @ExampleObject(name = "super", value = OpenApiErrorExamples.ADMIN_SUPER_DELETE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "관리자 계정 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_ACCOUNT_NOT_FOUND)))})
+    public ResponseEntity<ApiResponse<Void>> changeAdminPassword(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
+        @PathVariable("adminId") Long adminId, @Valid @RequestBody AdminPasswordChangeRequest request) {
+        adminAccountService.changeAdminPassword(adminPrincipal, adminId, request);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(PASSWORD_CHANGE_SUCCESS_MESSAGE, null));
     }
 
     @DeleteMapping("/{adminId}")

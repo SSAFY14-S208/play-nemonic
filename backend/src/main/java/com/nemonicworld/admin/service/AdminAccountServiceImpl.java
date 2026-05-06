@@ -1,6 +1,7 @@
 package com.nemonicworld.admin.service;
 
 import com.nemonicworld.admin.dto.request.AdminAccountCreateRequest;
+import com.nemonicworld.admin.dto.request.AdminPasswordChangeRequest;
 import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
@@ -13,6 +14,7 @@ import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -62,6 +64,45 @@ public class AdminAccountServiceImpl implements AdminAccountService {
         } catch (DuplicateKeyException e) {
             throw new ConflictException(DUPLICATE_LOGIN_ID_MESSAGE);
         }
+    }
+
+    @Override
+    public List<AdminResponse> findAdminAccounts(AdminPrincipal adminPrincipal) {
+        requireSuperAdmin(adminPrincipal);
+
+        return adminUserRepository.findActiveAll().stream().map(AdminResponse::from).toList();
+    }
+
+    @Override
+    public AdminResponse findAdminAccount(AdminPrincipal adminPrincipal, Long adminId) {
+        requireSuperAdmin(adminPrincipal);
+
+        AdminUser adminUser = adminUserRepository.findActiveById(adminId)
+            .orElseThrow(() -> new NotFoundException(ADMIN_ACCOUNT_NOT_FOUND_MESSAGE));
+
+        return AdminResponse.from(adminUser);
+    }
+
+    @Override
+    @Transactional
+    public void changeAdminPassword(AdminPrincipal adminPrincipal, Long adminId, AdminPasswordChangeRequest request) {
+        requireSuperAdmin(adminPrincipal);
+
+        AdminUser targetAdmin = adminUserRepository.findActiveById(adminId)
+            .orElseThrow(() -> new NotFoundException(ADMIN_ACCOUNT_NOT_FOUND_MESSAGE));
+        if (targetAdmin.getRole() == AdminRole.SUPER_ADMIN) {
+            throw new ForbiddenException(SUPER_ADMIN_DELETE_FORBIDDEN_MESSAGE);
+        }
+
+        int updatedCount = adminUserRepository.updatePasswordHashById(adminId,
+            passwordEncoder.encode(request.password()), LocalDateTime.now());
+        if (updatedCount == 0) {
+            throw new NotFoundException(ADMIN_ACCOUNT_NOT_FOUND_MESSAGE);
+        }
+
+        Instant revokedAt = Instant.now();
+        adminTokenStore.revokeAllRefreshTokens(adminId);
+        adminTokenStore.revokeAccessTokensIssuedBefore(adminId, revokedAt);
     }
 
     @Override

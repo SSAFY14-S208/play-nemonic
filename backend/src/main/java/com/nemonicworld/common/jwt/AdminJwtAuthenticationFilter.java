@@ -24,9 +24,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final String ADMIN_ME_PATH = "/api/v1/auth/me";
     private static final String ADMIN_LOGOUT_PATH = "/api/v1/auth/logout";
-    private static final String ADMIN_API_PREFIX = "/api/v1/admin/";
+    private static final String ADMIN_API_PATH = "/api/v1/admins";
+    private static final String ADMIN_API_PREFIX = "/api/v1/admins/";
     private static final String UNAUTHORIZED_MESSAGE = "인증이 필요합니다.";
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -46,7 +46,7 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String servletPath = resolveRequestPath(request);
 
-        return !ADMIN_ME_PATH.equals(servletPath) && !ADMIN_LOGOUT_PATH.equals(servletPath)
+        return !ADMIN_LOGOUT_PATH.equals(servletPath) && !ADMIN_API_PATH.equals(servletPath)
             && !servletPath.startsWith(ADMIN_API_PREFIX);
     }
 

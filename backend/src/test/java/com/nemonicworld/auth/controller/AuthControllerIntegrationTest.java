@@ -3,6 +3,7 @@ package com.nemonicworld.auth.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -127,7 +128,7 @@ class AuthControllerIntegrationTest {
         AdminTokens tokens = loginAndReadTokens();
 
         MvcResult result = mockMvc
-            .perform(post("/api/v1/auth/token/refresh").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
                 .content(refreshTokenRequestBody(tokens.refreshToken())))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("관리자 토큰 재발급 성공"))
@@ -138,9 +139,11 @@ class AuthControllerIntegrationTest {
         assertThat(rotatedTokens.accessToken()).isNotEqualTo(tokens.accessToken());
         assertThat(rotatedTokens.refreshToken()).isNotEqualTo(tokens.refreshToken());
 
-        mockMvc.perform(post("/api/v1/auth/token/refresh").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
             .content(refreshTokenRequestBody(tokens.refreshToken()))).andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(rotatedTokens.accessToken())))
+        mockMvc
+            .perform(post("/api/v1/auth/logout").header(HttpHeaders.AUTHORIZATION, bearer(rotatedTokens.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON).content(logoutRequestBody(rotatedTokens.refreshToken())))
             .andExpect(status().isOk());
     }
 
@@ -170,37 +173,41 @@ class AuthControllerIntegrationTest {
 
         assertThat(readLastLoginAt(ADMIN_ID)).isNull();
     }
-
     @Test
-    void currentAdminReturnsAdminProfileWithValidToken() throws Exception {
+    void superAdminFindsAdminAccountDetail() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         AdminTokens tokens = loginAndReadTokens();
 
-        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
+        mockMvc
+            .perform(get("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(tokens.accessToken())))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("관리자 정보 조회 성공")).andExpect(jsonPath("$.data.id").value(ADMIN_ID))
+            .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data.id").value(ADMIN_ID))
             .andExpect(jsonPath("$.data.loginId").value(ADMIN_LOGIN_ID))
             .andExpect(jsonPath("$.data.role").value("super_admin"));
     }
 
     @Test
-    void currentAdminReturnsUnauthorizedWhenTokenIsMissingInvalidOrBlacklisted() throws Exception {
-        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
+    void adminAccountDetailReturnsUnauthorizedWhenTokenIsMissingInvalidOrBlacklisted() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         AdminTokens tokens = loginAndReadTokens();
         adminTokenStore.accessTokenBlacklist.add(readTokenClaims(tokens.accessToken()).tokenId());
 
-        mockMvc.perform(get("/api/v1/auth/me")).andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+        mockMvc.perform(get("/api/v1/admins/{adminId}", ADMIN_ID)).andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").isNotEmpty());
 
-        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer("invalid-token")))
+        mockMvc
+            .perform(
+                get("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION, bearer("invalid-token")))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+            .andExpect(jsonPath("$.message").isNotEmpty());
 
-        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
+        mockMvc
+            .perform(get("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+                bearer(tokens.accessToken())))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+            .andExpect(jsonPath("$.message").isNotEmpty());
     }
-
     @Test
     void adminLogoutRevokesRefreshTokenAndBlacklistsAccessToken() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
@@ -213,9 +220,10 @@ class AuthControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("관리자 로그아웃 성공")).andExpect(jsonPath("$.data").doesNotExist());
 
-        mockMvc.perform(post("/api/v1/auth/token/refresh").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
             .content(refreshTokenRequestBody(tokens.refreshToken()))).andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
+        mockMvc.perform(
+            get("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
             .andExpect(status().isUnauthorized());
     }
 
@@ -225,7 +233,7 @@ class AuthControllerIntegrationTest {
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(post("/api/v1/admin/accounts").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(adminAccountCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
@@ -242,12 +250,52 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void superAdminFindsAdminAccounts() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc.perform(get("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data.length()").value(2))
+            .andExpect(jsonPath("$.data[0].id").value(ADMIN_ID))
+            .andExpect(jsonPath("$.data[1].id").value(TARGET_ADMIN_ID));
+    }
+
+    @Test
+    void superAdminChangesAdminPasswordAndRevokesTokens() throws Exception {
+        String changedPassword = "Changed123!";
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+        AdminTokens targetTokens = loginAndReadTokens(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD);
+
+        mockMvc
+            .perform(patch("/api/v1/admins/{adminId}", TARGET_ADMIN_ID)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)).contentType(MediaType.APPLICATION_JSON)
+                .content(passwordChangeRequestBody(changedPassword)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data").doesNotExist());
+
+        mockMvc
+            .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequestBody(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD)))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+            .content(loginRequestBody(TARGET_ADMIN_LOGIN_ID, changedPassword))).andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
+            .content(refreshTokenRequestBody(targetTokens.refreshToken()))).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+            bearer(targetTokens.accessToken()))).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void adminAccountCreationRequiresSuperAdminRole() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(post("/api/v1/admin/accounts").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(adminAccountCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
@@ -262,7 +310,7 @@ class AuthControllerIntegrationTest {
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(post("/api/v1/admin/accounts").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(adminAccountCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
@@ -276,7 +324,7 @@ class AuthControllerIntegrationTest {
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(post("/api/v1/admin/accounts").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(adminAccountCreateRequestBody("", "short", NEW_ADMIN_NICKNAME, "not-email")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
@@ -292,7 +340,7 @@ class AuthControllerIntegrationTest {
         AdminTokens targetTokens = loginAndReadTokens(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD);
 
         mockMvc
-            .perform(delete("/api/v1/admin/accounts/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
                 bearer(accessToken)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data").doesNotExist());
@@ -302,9 +350,9 @@ class AuthControllerIntegrationTest {
             .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequestBody(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD)))
             .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(targetTokens.accessToken())))
-            .andExpect(status().isUnauthorized());
-        mockMvc.perform(post("/api/v1/auth/token/refresh").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(get("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+            bearer(targetTokens.accessToken()))).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
             .content(refreshTokenRequestBody(targetTokens.refreshToken()))).andExpect(status().isUnauthorized());
     }
 
@@ -315,7 +363,7 @@ class AuthControllerIntegrationTest {
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(delete("/api/v1/admin/accounts/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
                 bearer(accessToken)))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
@@ -329,8 +377,8 @@ class AuthControllerIntegrationTest {
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(delete("/api/v1/admin/accounts/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
-                bearer(accessToken)))
+            .perform(
+                delete("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
 
@@ -344,7 +392,7 @@ class AuthControllerIntegrationTest {
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
-            .perform(delete("/api/v1/admin/accounts/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
                 bearer(accessToken)))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
@@ -359,14 +407,12 @@ class AuthControllerIntegrationTest {
         insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", deletedAt);
         String accessToken = loginAndReadAccessToken();
 
-        mockMvc
-            .perform(
-                delete("/api/v1/admin/accounts/{adminId}", 999L).header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+        mockMvc.perform(delete("/api/v1/admins/{adminId}", 999L).header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
 
         mockMvc
-            .perform(delete("/api/v1/admin/accounts/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
+            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
                 bearer(accessToken)))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
@@ -441,6 +487,14 @@ class AuthControllerIntegrationTest {
               "email": "%s"
             }
             """.formatted(loginId, password, nickname, email);
+    }
+
+    private String passwordChangeRequestBody(String password) {
+        return """
+            {
+              "password": "%s"
+            }
+            """.formatted(password);
     }
 
     private String refreshTokenRequestBody(String refreshToken) {

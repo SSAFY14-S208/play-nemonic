@@ -4,7 +4,6 @@ import com.nemonicworld.auth.dto.request.LoginRequest;
 import com.nemonicworld.auth.dto.request.LogoutRequest;
 import com.nemonicworld.auth.dto.request.TokenRefreshRequest;
 import com.nemonicworld.auth.dto.response.LoginResponse;
-import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 
 public interface AuthService {
@@ -12,8 +11,6 @@ public interface AuthService {
     LoginResponse login(LoginRequest request, AdminClientInfo clientInfo);
 
     LoginResponse refreshToken(TokenRefreshRequest request);
-
-    AdminResponse getCurrentAdmin(AdminPrincipal adminPrincipal);
 
     void logout(AdminPrincipal adminPrincipal, LogoutRequest request, String accessToken, AdminClientInfo clientInfo);
 }

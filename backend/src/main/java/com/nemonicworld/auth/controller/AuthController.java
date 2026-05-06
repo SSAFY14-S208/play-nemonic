@@ -4,7 +4,6 @@ import com.nemonicworld.auth.dto.request.LoginRequest;
 import com.nemonicworld.auth.dto.request.LogoutRequest;
 import com.nemonicworld.auth.dto.request.TokenRefreshRequest;
 import com.nemonicworld.auth.dto.response.LoginResponse;
-import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.auth.service.AuthService;
@@ -25,7 +24,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,7 +37,6 @@ public class AuthController {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String ADMIN_LOGIN_SUCCESS_MESSAGE = "관리자 로그인 성공";
     private static final String ADMIN_TOKEN_REFRESH_SUCCESS_MESSAGE = "관리자 토큰 재발급 성공";
-    private static final String ADMIN_PROFILE_SUCCESS_MESSAGE = "관리자 정보 조회 성공";
     private static final String ADMIN_LOGOUT_SUCCESS_MESSAGE = "관리자 로그아웃 성공";
 
     private final AuthService authService;
@@ -65,7 +62,7 @@ public class AuthController {
             .body(ApiResponse.success(ADMIN_LOGIN_SUCCESS_MESSAGE, response));
     }
 
-    @PostMapping("/token/refresh")
+    @PostMapping("/reissue")
     @Operation(summary = "관리자 토큰 재발급", description = "Redis에 저장된 리프레시 토큰을 검증하고 새 access/refresh 토큰을 발급합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 토큰 재발급 성공"),
@@ -76,20 +73,6 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(ADMIN_TOKEN_REFRESH_SUCCESS_MESSAGE, response));
-    }
-
-    @GetMapping("/me")
-    @Operation(summary = "현재 관리자 정보 조회", description = "관리자 JWT로 현재 로그인한 운영자 계정 정보를 조회합니다.")
-    @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 정보 조회 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
-    public ResponseEntity<ApiResponse<AdminResponse>> getCurrentAdmin(
-        @AuthenticationPrincipal AdminPrincipal adminPrincipal) {
-        AdminResponse response = authService.getCurrentAdmin(adminPrincipal);
-
-        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
-            .body(ApiResponse.success(ADMIN_PROFILE_SUCCESS_MESSAGE, response));
     }
 
     @PostMapping("/logout")

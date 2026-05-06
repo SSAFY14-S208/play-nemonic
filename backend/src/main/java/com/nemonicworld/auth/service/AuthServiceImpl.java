@@ -72,12 +72,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AdminResponse getCurrentAdmin(AdminPrincipal adminPrincipal) {
-        return new AdminResponse(adminPrincipal.id(), adminPrincipal.loginId(), adminPrincipal.nickname(),
-            adminPrincipal.email(), adminPrincipal.role().getValue());
-    }
-
-    @Override
     public void logout(AdminPrincipal adminPrincipal, LogoutRequest request, String accessToken,
         AdminClientInfo clientInfo) {
         adminTokenStore.revokeRefreshToken(request.refreshToken());
