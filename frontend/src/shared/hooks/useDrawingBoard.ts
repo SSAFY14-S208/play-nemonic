@@ -32,7 +32,8 @@ export function useDrawingBoard({
   const [redoLines, setRedoLines] = useState<DrawingLine[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
 
-  const drawingColor = selectedToolKey === 'eraser' ? backgroundColor : selectedColor
+  const isEraserSelected = selectedToolKey === 'eraser'
+  const drawingColor = selectedColor
   const activeStrokeWidth = selectedToolKey === 'marker' ? strokeWidth + 4 : strokeWidth
 
   const clearDrawing = useCallback(() => {
@@ -95,6 +96,7 @@ export function useDrawingBoard({
           kind: 'stroke',
           color: drawingColor,
           strokeWidth: activeStrokeWidth,
+          compositeOperation: isEraserSelected ? 'destination-out' : 'source-over',
           points: [{ x: pointerPosition.x, y: pointerPosition.y }],
         },
       ])
@@ -105,6 +107,7 @@ export function useDrawingBoard({
       boardSize,
       drawArea,
       drawingColor,
+      isEraserSelected,
       lines,
       selectedColor,
       selectedToolKey,

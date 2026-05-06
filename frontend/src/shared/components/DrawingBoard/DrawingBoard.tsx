@@ -73,7 +73,7 @@ export default function DrawingBoard({
       onTouchMove={onDrawMove}
       onTouchEnd={onDrawEnd}
     >
-      <Layer>
+      <Layer listening={false}>
         <Rect
           x={0}
           y={0}
@@ -95,20 +95,23 @@ export default function DrawingBoard({
         ))}
 
         {childrenBeforeLines}
+      </Layer>
 
-        {onionSkinLines.length > 0 && (
+      {onionSkinLines.length > 0 && (
+        <Layer listening={false}>
           <Group
             opacity={onionSkinOpacity}
             clipX={0}
             clipY={clipArea.y}
             clipWidth={boardSize.width}
             clipHeight={clipArea.height}
-            listening={false}
           >
             <DrawingLineGroup lines={onionSkinLines} eraserColor={backgroundColor} />
           </Group>
-        )}
+        </Layer>
+      )}
 
+      <Layer>
         <Group
           clipX={0}
           clipY={clipArea.y}
@@ -117,7 +120,9 @@ export default function DrawingBoard({
         >
           <DrawingLineGroup lines={lines} eraserColor={backgroundColor} />
         </Group>
+      </Layer>
 
+      <Layer listening={false}>
         {childrenAfterLines}
       </Layer>
     </Stage>
@@ -160,7 +165,8 @@ function DrawingLineGroup({
             lineCap="round"
             lineJoin="round"
             globalCompositeOperation={
-              line.color === eraserColor ? 'destination-out' : 'source-over'
+              line.compositeOperation ??
+              (line.color === eraserColor ? 'destination-out' : 'source-over')
             }
           />
         )

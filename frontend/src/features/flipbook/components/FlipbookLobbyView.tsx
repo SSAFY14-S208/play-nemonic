@@ -36,9 +36,9 @@ export default function FlipbookLobbyView({
         <PostItNote className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-brand-flipbook-primary" />
 
         <section className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
-          <p className="h2-b text-flipbook-ink/80">입장 코드</p>
+          <p className="h2-b text-fg-inverse/85">입장 코드</p>
           <p
-            className="font-bold text-flipbook-ink"
+            className="font-bold text-fg-inverse"
             style={{ fontSize: 'clamp(4.5rem, 7vw, 6rem)', lineHeight: 1, letterSpacing: '8px' }}
           >
             {FLIPBOOK_ROOM_CODE}

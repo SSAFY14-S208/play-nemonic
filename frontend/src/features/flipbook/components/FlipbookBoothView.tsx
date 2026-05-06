@@ -20,12 +20,12 @@ export default function FlipbookBoothView({
             2~12명
           </span>
           <h1
-            className="mt-4 whitespace-nowrap text-flipbook-ink"
+            className="mt-4 whitespace-nowrap text-fg-inverse"
             style={{ fontSize: '49px', fontWeight: 700, lineHeight: '78px' }}
           >
             플립북
           </h1>
-          <div className="body-l-r mt-6 text-flipbook-muted">
+          <div className="body-l-r mt-6 text-fg-inverse/80">
             <p>주어진 주제로 한 명씩 한 페이지를 그리고</p>
             <p>다음 사람에게 넘겨요. 마지막엔 책장이</p>
             <p>넘어가는 GIF가 완성됩니다.</p>

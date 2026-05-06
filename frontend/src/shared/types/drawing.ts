@@ -23,6 +23,7 @@ export interface DrawingLine {
   strokeWidth: number
   points: DrawingPoint[]
   kind?: 'stroke' | 'fill'
+  compositeOperation?: 'source-over' | 'destination-out'
   imageDataUrl?: string
 }
 

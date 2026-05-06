@@ -33,7 +33,10 @@ function drawStrokeLineOnContext(
   context.lineWidth = line.strokeWidth
   context.strokeStyle = line.color
 
-  if (line.color === backgroundColor) {
+  if (
+    line.compositeOperation === 'destination-out' ||
+    (!line.compositeOperation && line.color === backgroundColor)
+  ) {
     context.globalCompositeOperation = 'destination-out'
   }
 
