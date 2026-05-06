@@ -25,3 +25,5 @@ nemonic:
       enabled: false
     finalization:
       enabled: false
+    close:
+      enabled: false

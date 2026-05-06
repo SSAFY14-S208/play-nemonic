@@ -75,3 +75,8 @@ nemonic:
       default-part-width: ${RELAY_FINALIZATION_DEFAULT_PART_WIDTH:512}
       default-part-height: ${RELAY_FINALIZATION_DEFAULT_PART_HEIGHT:512}
       thumbnail-max-size: ${RELAY_FINALIZATION_THUMBNAIL_MAX_SIZE:512}
+    close:
+      enabled: ${RELAY_CLOSE_ENABLED:true}
+      delay-seconds: ${RELAY_CLOSE_DELAY_SECONDS:300}
+      scan-delay-ms: ${RELAY_CLOSE_SCAN_DELAY_MS:30000}
+      scan-limit: ${RELAY_CLOSE_SCAN_LIMIT:100}
