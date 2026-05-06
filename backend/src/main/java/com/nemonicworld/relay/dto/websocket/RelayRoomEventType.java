@@ -39,6 +39,8 @@ public enum RelayRoomEventType {
     // 대기실 참여자가 스스로 퇴장했음을 알립니다.
     PARTICIPANT_LEFT,
 
+    PARTICIPANT_DROPPED,
+
     // 대기실 방장이 퇴장해 새 방장에게 승계되었음을 알립니다.
     HOST_CHANGED,
 

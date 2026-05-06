@@ -21,6 +21,8 @@ nemonic:
       secret: test-admin-jwt-secret-that-is-long-enough-for-hmac
       access-token-expiration: 30m
   relay:
+    disconnect:
+      enabled: false
     timeout:
       enabled: false
     finalization:

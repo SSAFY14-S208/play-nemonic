@@ -34,10 +34,11 @@ public class RelayRoomPolicy {
     public static final int MAX_PARTICIPANTS = 6;
     public static final int HOST_JOIN_ORDER = 0;
     public static final int ROOM_UPDATE_MAX_RETRIES = 3;
+    public static final long DEFAULT_RECONNECT_GRACE_SECONDS = 10L;
     public static final String ROOM_UPDATE_CONFLICT_MESSAGE = "릴레이 방 상태를 갱신할 수 없습니다.";
 
     private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
-    private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(10);
+    private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(DEFAULT_RECONNECT_GRACE_SECONDS);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
@@ -343,10 +344,27 @@ public class RelayRoomPolicy {
     }
 
     /**
+     * 이탈 확정된 UUID가 같은 방에 다시 입장하거나 WebSocket 재연결하는 것을 막습니다.
+     */
+    public void validateNotDropped(RelayRoomState roomState, String userUuid) {
+        if (isDropped(roomState, userUuid)) {
+            throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
+        }
+    }
+
+    /**
      * 사용자가 현재 방의 강퇴 목록에 포함되어 있는지 확인합니다.
      */
     public boolean isKicked(RelayRoomState roomState, String userUuid) {
         return roomState.kickedUserUuids().contains(userUuid);
+    }
+
+    /**
+     * 사용자가 현재 방에서 이탈 확정 처리되었는지 확인합니다.
+     */
+    public boolean isDropped(RelayRoomState roomState, String userUuid) {
+        return roomState.participants().stream()
+            .anyMatch(participant -> participant.userUuid().equals(userUuid) && participant.dropped());
     }
 
     /**
@@ -361,6 +379,10 @@ public class RelayRoomPolicy {
      * 재접속 가능 여부를 계산합니다.
      */
     public boolean canReconnect(RelayRoomParticipant participant, LocalDateTime now) {
+        if (participant.dropped()) {
+            return false;
+        }
+
         LocalDateTime disconnectedAt = participant.disconnectedAt();
 
         if (disconnectedAt == null) {
