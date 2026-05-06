@@ -1,24 +1,24 @@
-import Image from 'next/image'
-import { Copy, Crown, QrCode } from 'lucide-react'
-import { relayPostItNote } from '@/shared/assets'
-import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from '../constants'
-import { cn } from '@/shared/libs'
+import Image from "next/image";
+import { Copy, Crown, QrCode } from "lucide-react";
+import { relayPostItNote } from "@/shared/assets";
+import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from "../constants";
+import { cn } from "@/shared/libs";
 
 interface RelayLobbyViewProps {
-  onStartGame: () => void
+  onStartGame: () => void;
 }
 
 const LOBBY_PARTICIPANTS = [
-  { id: 'host', name: '여우 (나)', avatar: '🦊', isHost: true },
-  { id: 'cat-1', name: '고양이', avatar: '🦊', isHost: false },
-  { id: 'cat-2', name: '고양이', avatar: '🦊', isHost: false },
-]
+  { id: "host", name: "여우 (나)", avatar: "🦊", isHost: true },
+  { id: "cat-1", name: "고양이", avatar: "🦊", isHost: false },
+  { id: "cat-2", name: "고양이", avatar: "🦊", isHost: false },
+];
 
-const WAITING_SLOT_COUNT = 3
+const WAITING_SLOT_COUNT = 3;
 
 export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
   return (
-    <section className="relative min-h-[900px] overflow-hidden border border-relay-border bg-relay-background">
+    <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
         <Image
           src={relayPostItNote}
@@ -32,7 +32,7 @@ export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
           <p className="h2-b text-relay-ink/80">입장 코드</p>
           <p
             className="font-bold tracking-[8px] text-relay-ink"
-            style={{ fontSize: 'clamp(4.5rem, 7vw, 6rem)', lineHeight: 1 }}
+            style={{ fontSize: "clamp(4.5rem, 7vw, 6rem)", lineHeight: 1 }}
           >
             {RELAY_ROOM_CODE}
           </p>
@@ -63,16 +63,21 @@ export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               {LOBBY_PARTICIPANTS.map((participant) => (
-                <ParticipantTile key={participant.id} participant={participant} />
+                <ParticipantTile
+                  key={participant.id}
+                  participant={participant}
+                />
               ))}
-              {Array.from({ length: WAITING_SLOT_COUNT }).map((_, waitingSlotIndex) => (
-                <div
-                  key={waitingSlotIndex}
-                  className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
-                >
-                  초대를 기다리는 중...
-                </div>
-              ))}
+              {Array.from({ length: WAITING_SLOT_COUNT }).map(
+                (_, waitingSlotIndex) => (
+                  <div
+                    key={waitingSlotIndex}
+                    className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
+                  >
+                    초대를 기다리는 중...
+                  </div>
+                ),
+              )}
             </div>
           </section>
 
@@ -80,20 +85,20 @@ export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
             <h2 className="h3-b text-relay-muted">⏱ 제한 시간</h2>
             <div className="mt-5 grid grid-cols-3 gap-3">
               {RELAY_TIME_LIMITS_SECONDS.map((seconds) => {
-                const isSelected = seconds === 45
+                const isSelected = seconds === 45;
 
                 return (
                   <button
                     key={seconds}
                     type="button"
                     className={cn(
-                      'body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent',
-                      isSelected && 'text-relay-ink',
+                      "body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent",
+                      isSelected && "text-relay-ink",
                     )}
                   >
                     {seconds}초
                   </button>
-                )
+                );
               })}
             </div>
           </section>
@@ -108,13 +113,13 @@ export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 function ParticipantTile({
   participant,
 }: {
-  participant: (typeof LOBBY_PARTICIPANTS)[number]
+  participant: (typeof LOBBY_PARTICIPANTS)[number];
 }) {
   return (
     <div className="flex min-h-14 items-center gap-3 rounded-[16px] border border-relay-line bg-relay-active px-3.5">
@@ -129,5 +134,5 @@ function ParticipantTile({
         </span>
       )}
     </div>
-  )
+  );
 }

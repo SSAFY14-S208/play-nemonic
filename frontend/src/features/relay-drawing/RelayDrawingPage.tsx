@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import {
   RelayBoothView,
@@ -6,26 +6,26 @@ import {
   RelayLobbyView,
   RelayResultView,
   RelayStepTabs,
-} from './components'
-import { useRelayDrawing } from './useRelayDrawing'
+} from "./components";
+import { useRelayDrawing } from "./useRelayDrawing";
 
 export default function RelayDrawingPage() {
-  const relayDrawing = useRelayDrawing()
+  const relayDrawing = useRelayDrawing();
 
   return (
-    <main className="min-h-screen bg-relay-background text-relay-ink">
-      {relayDrawing.currentStep === 'booth' && (
+    <main className="min-h-screen max-h-full h-full bg-relay-background text-relay-ink">
+      {relayDrawing.currentStep === "booth" && (
         <RelayBoothView
           onCreateRoom={relayDrawing.goToNextStep}
           onEnterRoom={relayDrawing.goToNextStep}
         />
       )}
 
-      {relayDrawing.currentStep === 'lobby' && (
+      {relayDrawing.currentStep === "lobby" && (
         <RelayLobbyView onStartGame={relayDrawing.goToNextStep} />
       )}
 
-      {relayDrawing.currentStep === 'drawing' && (
+      {relayDrawing.currentStep === "drawing" && (
         <RelayDrawingView
           activeRoundKey={relayDrawing.activeRoundKey}
           activeRoundIndex={relayDrawing.activeRoundIndex}
@@ -47,7 +47,7 @@ export default function RelayDrawingPage() {
         />
       )}
 
-      {relayDrawing.currentStep === 'result' && (
+      {relayDrawing.currentStep === "result" && (
         <RelayResultView
           resultRevealStep={relayDrawing.resultRevealStep}
           roundLines={relayDrawing.roundLines}
@@ -55,7 +55,7 @@ export default function RelayDrawingPage() {
           canShowNextResultReveal={relayDrawing.canShowNextResultReveal}
           onShowPreviousResultReveal={relayDrawing.goToPreviousResultReveal}
           onShowNextResultReveal={relayDrawing.goToNextResultReveal}
-          onCreateAnother={() => relayDrawing.selectStep('booth')}
+          onCreateAnother={() => relayDrawing.selectStep("booth")}
         />
       )}
 
@@ -64,5 +64,5 @@ export default function RelayDrawingPage() {
         onSelectStep={relayDrawing.selectStep}
       />
     </main>
-  )
+  );
 }
