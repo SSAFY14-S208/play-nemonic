@@ -155,6 +155,36 @@ public final class OpenApiErrorExamples {
           "message": "대기 중인 방에서만 설정을 변경할 수 있습니다."
         }
         """;
+    public static final String FLIPBOOK_INVALID_TIME_LIMIT_SECONDS = """
+        {
+          "success": false,
+          "message": "제한 시간은 30초, 45초, 60초 중 하나여야 합니다."
+        }
+        """;
+    public static final String FLIPBOOK_ROOM_PARTICIPANT_REQUIRED = """
+        {
+          "success": false,
+          "message": "플립북 방에 참여하지 않은 사용자입니다."
+        }
+        """;
+    public static final String FLIPBOOK_ROOM_HOST_REQUIRED = """
+        {
+          "success": false,
+          "message": "방장만 사용할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_WAITING_ROOM_SETTINGS_ONLY = """
+        {
+          "success": false,
+          "message": "대기 중인 방에서만 설정을 변경할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_ROOM_UPDATE_CONFLICT = """
+        {
+          "success": false,
+          "message": "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요."
+        }
+        """;
     public static final String RELAY_GAME_ALREADY_STARTED = """
         {
           "success": false,
