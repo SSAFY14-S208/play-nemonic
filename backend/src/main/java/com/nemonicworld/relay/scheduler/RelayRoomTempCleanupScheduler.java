@@ -11,6 +11,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class RelayRoomTempCleanupScheduler {
 
+    private static final String OLD_TEMP_SCAN_DELAY_PROPERTY = "${nemonic.relay.cleanup."
+        + "old-temp-scan-delay-ms:86400000}";
+    private static final String OLD_TEMP_INITIAL_DELAY_PROPERTY = "${nemonic.relay.cleanup."
+        + "old-temp-initial-delay-ms:86400000}";
+
     private final RelayRoomTempCleanupService relayRoomTempCleanupService;
     private final boolean enabled;
     private final boolean oldTempEnabled;
@@ -37,7 +42,7 @@ public class RelayRoomTempCleanupScheduler {
     /**
      * Redis room state가 먼저 사라진 경우를 대비해 오래된 relay/tmp 파일을 fallback으로 삭제합니다.
      */
-    @Scheduled(fixedDelayString = "${nemonic.relay.cleanup.old-temp-scan-delay-ms:86400000}", initialDelayString = "${nemonic.relay.cleanup.old-temp-initial-delay-ms:86400000}")
+    @Scheduled(fixedDelayString = OLD_TEMP_SCAN_DELAY_PROPERTY, initialDelayString = OLD_TEMP_INITIAL_DELAY_PROPERTY)
     public void cleanupOldTempObjects() {
         if (!enabled || !oldTempEnabled) {
             return;
