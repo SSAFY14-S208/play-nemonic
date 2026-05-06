@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
  * 게임 중 재접속 유예가 끝난 릴레이 참여자의 배정을 주기적으로 자동 제출 처리합니다.
  */
 @Component
-@ConditionalOnProperty(prefix = "nemonic.relay.disconnect", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "nemonic.relay.disconnect", name = "enabled", havingValue = "true")
 public class RelayRoomDisconnectGraceScheduler {
 
     private final RelayRoomDisconnectGraceService relayRoomDisconnectGraceService;
