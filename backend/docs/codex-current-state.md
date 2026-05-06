@@ -20,9 +20,8 @@ Last updated: 2026-05-06
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
 - Backoffice admin authentication now exposes `POST /api/v1/auth/login`,
-  `POST /api/v1/auth/token/refresh`, `GET /api/v1/auth/me`, and
-  `POST /api/v1/auth/logout`; admin account management remains under
-  `/api/v1/admin/accounts`.
+  `POST /api/v1/auth/logout`, and `POST /api/v1/auth/reissue`; admin account
+  management remains under `/api/v1/admins`.
 - Backoffice admin code is split by domain: `com.nemonicworld.auth` owns
   authentication and token lifecycle, while `com.nemonicworld.admin` owns admin
   account resources and super-admin bootstrap.
@@ -30,17 +29,23 @@ Last updated: 2026-05-06
   and `ADMIN_JWT_ACCESS_TOKEN_EXPIRATION`; it is separate from anonymous UUID
   authentication.
 - Admin authentication now also issues opaque refresh tokens stored by hash in
-  Redis, rotates them through `POST /api/v1/auth/token/refresh`, and
+  Redis, rotates them through `POST /api/v1/auth/reissue`, and
   checks Redis-backed access-token revocation using JWT `jti` and
   `admin:access:revoked-after:{adminId}` markers.
 - Admin logout revokes the submitted refresh token and blacklists the current
   access token; deleting a standard admin account revokes all of that account's
   refresh tokens and blocks previously issued access tokens.
 - Backoffice super admins can now create standard admin accounts with
-  `POST /api/v1/admin/accounts`; the API stores BCrypt password hashes, fixes
+  `POST /api/v1/admins`; the API stores BCrypt password hashes, fixes
   new accounts to the `admin` role, and rejects duplicate `login_id` values.
+- Backoffice super admins can now list and inspect active admin accounts with
+  `GET /api/v1/admins` and `GET /api/v1/admins/{adminId}`.
+- Backoffice super admins can now change standard admin passwords with
+  `PATCH /api/v1/admins/{adminId}`; the API updates the BCrypt password hash,
+  revokes the target account's refresh tokens, and blocks previously issued
+  access tokens.
 - Backoffice super admins can now soft-delete standard admin accounts with
-  `DELETE /api/v1/admin/accounts/{adminId}`; self-delete, super-admin target
+  `DELETE /api/v1/admins/{adminId}`; self-delete, super-admin target
   deletion, and missing or already deleted targets are rejected.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global

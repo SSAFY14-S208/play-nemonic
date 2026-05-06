@@ -13,37 +13,6 @@ X-Trace-Id: auth-login-local
 > {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
 > {% client.global.set("adminRefreshToken", response.body.data.refreshToken); %}
 
-### Refresh admin token
-POST {{host}}/api/v1/auth/token/refresh
-Content-Type: application/json
-
-{
-  "refreshToken": "{{adminRefreshToken}}"
-}
-
-> {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
-> {% client.global.set("adminRefreshToken", response.body.data.refreshToken); %}
-
-### Current admin
-GET {{host}}/api/v1/auth/me
-Authorization: Bearer {{adminAccessToken}}
-
-### Create admin account
-POST {{host}}/api/v1/admin/accounts
-Content-Type: application/json
-Authorization: Bearer {{adminAccessToken}}
-
-{
-  "loginId": "manager01",
-  "password": "Password123!",
-  "nickname": "운영자",
-  "email": "manager01@example.com"
-}
-
-### Delete admin account
-DELETE {{host}}/api/v1/admin/accounts/2
-Authorization: Bearer {{adminAccessToken}}
-
 ### Admin logout
 POST {{host}}/api/v1/auth/logout
 Authorization: Bearer {{adminAccessToken}}
@@ -53,3 +22,47 @@ X-Trace-Id: auth-logout-local
 {
   "refreshToken": "{{adminRefreshToken}}"
 }
+
+### Reissue admin token
+POST {{host}}/api/v1/auth/reissue
+Content-Type: application/json
+
+{
+  "refreshToken": "{{adminRefreshToken}}"
+}
+
+> {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
+> {% client.global.set("adminRefreshToken", response.body.data.refreshToken); %}
+
+### Create admin account
+POST {{host}}/api/v1/admins
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "loginId": "manager01",
+  "password": "Password123!",
+  "nickname": "Operator",
+  "email": "manager01@example.com"
+}
+
+### List admin accounts
+GET {{host}}/api/v1/admins
+Authorization: Bearer {{adminAccessToken}}
+
+### Change admin password
+PATCH {{host}}/api/v1/admins/2
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "password": "Changed123!"
+}
+
+### Admin account detail
+GET {{host}}/api/v1/admins/2
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete admin account
+DELETE {{host}}/api/v1/admins/2
+Authorization: Bearer {{adminAccessToken}}
