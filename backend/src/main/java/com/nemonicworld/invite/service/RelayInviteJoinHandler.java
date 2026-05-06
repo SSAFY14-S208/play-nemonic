@@ -36,7 +36,7 @@ public class RelayInviteJoinHandler implements InviteJoinHandler {
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String ROOM_FULL_MESSAGE = "정원이 가득 찬 방입니다.";
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
-    private static final String ROOM_UPDATE_CONFLICT_MESSAGE = "방 입장 상태를 갱신할 수 없습니다.";
+    private static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 입장 요청이 많아 방 입장 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
     private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
 
     private final RelayRoomRepository relayRoomRepository;
@@ -72,7 +72,7 @@ public class RelayInviteJoinHandler implements InviteJoinHandler {
             }
         }
 
-        throw new IllegalStateException(ROOM_UPDATE_CONFLICT_MESSAGE);
+        throw new ConflictException(ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
     /**

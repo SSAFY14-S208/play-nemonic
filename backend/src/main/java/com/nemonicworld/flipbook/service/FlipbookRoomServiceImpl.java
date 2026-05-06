@@ -1,5 +1,6 @@
 package com.nemonicworld.flipbook.service;
 
+import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
 
     private final FlipbookRoomCreateUseCase flipbookRoomCreateUseCase;
     private final FlipbookRoomQueryUseCase flipbookRoomQueryUseCase;
+    private final FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
 
     @Override
     public FlipbookRoomCreateResponse createRoom(String userUuidValue) {
@@ -23,5 +25,11 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     @Override
     public FlipbookRoomStateResponse getRoomState(String userUuidValue, String roomCodeValue) {
         return flipbookRoomQueryUseCase.getRoomState(userUuidValue, roomCodeValue);
+    }
+
+    @Override
+    public FlipbookRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
+        FlipbookRoomSettingsRequest request) {
+        return flipbookRoomSettingsUseCase.updateRoomSettings(userUuidValue, roomCodeValue, request);
     }
 }
