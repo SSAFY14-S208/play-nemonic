@@ -1,5 +1,64 @@
 import type { DrawingLine } from './drawing'
 
+// REST API 도메인 (OpenAPI: tag "Flipbook")
+
+export type FlipbookRoomStatus = 'WAITING' | 'PLAYING' | 'FINISHED' | 'CLOSED'
+
+export type FlipbookBlockedReason =
+  | 'ROOM_FULL'
+  | 'GAME_IN_PROGRESS'
+  | 'ROOM_FINISHED'
+  | 'ROOM_CLOSED'
+
+export interface FlipbookRoomParticipantResponse {
+  userUuid: string
+  nickname: string
+  host: boolean
+  joinOrder: number
+  connected: boolean
+}
+
+export interface FlipbookRoomViewerResponse {
+  userUuid: string
+  participant: boolean
+  host: boolean
+  canJoin: boolean
+  canStart: boolean
+  blockedReason: FlipbookBlockedReason
+}
+
+export interface FlipbookRoomCreateResponse {
+  roomCode: string
+  status: FlipbookRoomStatus
+  hostUserUuid: string
+  timeLimitSeconds: number
+  minParticipants: number
+  maxParticipants: number
+  participantCount: number
+  participants: FlipbookRoomParticipantResponse[]
+  createdAt: string
+}
+
+export interface FlipbookRoomSettingsRequest {
+  timeLimitSeconds: number
+}
+
+export interface FlipbookRoomStateResponse {
+  roomCode: string
+  status: FlipbookRoomStatus
+  hostUserUuid: string
+  timeLimitSeconds: number
+  minParticipants: number
+  maxParticipants: number
+  participantCount: number
+  participants: FlipbookRoomParticipantResponse[]
+  viewer: FlipbookRoomViewerResponse
+  createdAt: string
+  updatedAt: string
+}
+
+// WebSocket 세션 도메인 (REST와 별개의 실시간 페이로드 타입)
+
 export type FlipbookRoomPhase = 'booth' | 'lobby' | 'drawing' | 'result' | 'closed'
 
 export type FlipbookConnectionStatus =
