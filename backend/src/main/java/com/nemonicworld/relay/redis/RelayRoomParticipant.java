@@ -1,4 +1,4 @@
-package com.nemonicworld.relay.entity;
+package com.nemonicworld.relay.redis;
 
 import java.time.LocalDateTime;
 

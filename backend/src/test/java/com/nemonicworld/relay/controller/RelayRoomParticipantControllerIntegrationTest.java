@@ -15,8 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
-import com.nemonicworld.relay.entity.RelayRoomParticipant;
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomParticipant;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;

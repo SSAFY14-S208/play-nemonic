@@ -3,7 +3,7 @@ package com.nemonicworld.relay.dto.response;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
-import com.nemonicworld.relay.entity.RelayRoomAssignment;
+import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;

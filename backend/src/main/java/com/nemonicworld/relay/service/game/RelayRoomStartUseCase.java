@@ -2,8 +2,8 @@ package com.nemonicworld.relay.service.game;
 
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
-import com.nemonicworld.relay.entity.RelayRoomParticipant;
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomParticipant;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;

@@ -1,7 +1,7 @@
 package com.nemonicworld.relay.dto.response;
 
 import com.nemonicworld.relay.entity.RelayDrawingPart;
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;

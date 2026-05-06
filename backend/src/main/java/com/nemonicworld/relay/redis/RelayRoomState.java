@@ -1,5 +1,7 @@
-package com.nemonicworld.relay.entity;
+package com.nemonicworld.relay.redis;
 
+import com.nemonicworld.relay.entity.RelayDrawingPart;
+import com.nemonicworld.relay.entity.RelayRoomStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 

@@ -2,8 +2,8 @@ package com.nemonicworld.relay.service.support;
 
 import com.nemonicworld.relay.dto.response.RelayRoomViewerBlockedReason;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
-import com.nemonicworld.relay.entity.RelayRoomParticipant;
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomParticipant;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.stereotype.Component;

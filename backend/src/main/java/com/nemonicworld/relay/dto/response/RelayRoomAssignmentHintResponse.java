@@ -1,7 +1,7 @@
 package com.nemonicworld.relay.dto.response;
 
 import com.nemonicworld.relay.entity.RelayDrawingPart;
-import com.nemonicworld.relay.entity.RelayRoomAssignment;
+import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "릴레이 현재 배정 힌트 응답")
