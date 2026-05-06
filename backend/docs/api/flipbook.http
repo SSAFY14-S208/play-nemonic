@@ -1,0 +1,18 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+
+### Create flipbook room
+POST {{host}}/api/v1/flipbook/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create flipbook room - invalid UUID
+POST {{host}}/api/v1/flipbook/rooms
+Anonymous-User-UUID: not-a-uuid
+
+### Create flipbook room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/flipbook/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create flipbook room - missing UUID
+POST {{host}}/api/v1/flipbook/rooms
