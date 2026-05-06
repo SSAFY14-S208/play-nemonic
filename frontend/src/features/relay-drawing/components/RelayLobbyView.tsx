@@ -1,12 +1,11 @@
+'use client'
+
 import Image from "next/image";
 import { Copy, Crown, QrCode } from "lucide-react";
+import { useRelayDrawingStore } from "../relayDrawingStore";
 import { relayPostItNote } from "@/shared/assets";
 import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from "../constants";
 import { cn } from "@/shared/libs";
-
-interface RelayLobbyViewProps {
-  onStartGame: () => void;
-}
 
 const LOBBY_PARTICIPANTS = [
   { id: "host", name: "여우 (나)", avatar: "🦊", isHost: true },
@@ -16,7 +15,9 @@ const LOBBY_PARTICIPANTS = [
 
 const WAITING_SLOT_COUNT = 3;
 
-export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
+export default function RelayLobbyView() {
+  const goToNextStep = useRelayDrawingStore((state) => state.goToNextStep);
+
   return (
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
@@ -105,7 +106,7 @@ export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
 
           <button
             type="button"
-            onClick={onStartGame}
+            onClick={goToNextStep}
             className="body-b min-h-16 rounded-[16px] bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)]"
           >
             🎨 게임 시작 (3명)

@@ -1,15 +1,11 @@
-import {
-  RELAY_ROUNDS,
-  type RelayRoundKey,
-} from '../constants'
-import type { RelayRoundLines } from '../useRelayDrawing'
-import { cn } from '@/shared/libs'
+'use client'
 
-interface RoundProgressPanelProps {
-  activeRoundKey: RelayRoundKey
-  activeRoundIndex: number
-  roundLines: RelayRoundLines
-}
+import {
+  RELAY_ROUND_ORDER,
+  RELAY_ROUNDS,
+} from '../constants'
+import { useRelayDrawingStore } from '../relayDrawingStore'
+import { cn } from '@/shared/libs'
 
 const DRAWING_PARTICIPANTS = [
   { id: 'fox', avatar: '🦊', name: '여우 (나)' },
@@ -17,11 +13,14 @@ const DRAWING_PARTICIPANTS = [
   { id: 'bear', avatar: '🐻', name: '곰돌이' },
 ] as const
 
-export default function RoundProgressPanel({
-  activeRoundKey,
-  activeRoundIndex,
-  roundLines,
-}: RoundProgressPanelProps) {
+export default function RoundProgressPanel() {
+  const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
+  const roundLines = useRelayDrawingStore((state) => state.roundLines)
+
+  const activeRoundIndex = RELAY_ROUND_ORDER.findIndex(
+    (roundKey) => roundKey === activeRoundKey,
+  )
+
   return (
     <div className="flex h-full flex-col gap-4">
       <p className="h4-b text-relay-ink">라운드 진행</p>

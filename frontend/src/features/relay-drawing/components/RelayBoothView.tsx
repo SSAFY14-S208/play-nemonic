@@ -1,12 +1,10 @@
+'use client'
+
 import Image from "next/image";
 import RelayArtworkCard from "./RelayArtworkCard";
+import { useRelayDrawingStore } from "../relayDrawingStore";
 import { relayPostItNote } from "@/shared/assets";
 import { cn } from "@/shared/libs";
-
-interface RelayBoothViewProps {
-  onCreateRoom: () => void;
-  onEnterRoom: () => void;
-}
 
 const FLOATING_PAPER_STYLES = [
   "left-[48.9%] top-[15.4%] h-11 w-14 rotate-[20deg] opacity-60",
@@ -19,10 +17,9 @@ const FLOATING_PAPER_STYLES = [
   "left-[84.9%] top-[79.9%] h-9 w-[46px] rotate-[10deg] opacity-50",
 ] as const;
 
-export default function RelayBoothView({
-  onCreateRoom,
-  onEnterRoom,
-}: RelayBoothViewProps) {
+export default function RelayBoothView() {
+  const goToNextStep = useRelayDrawingStore((state) => state.goToNextStep);
+
   return (
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
@@ -52,14 +49,14 @@ export default function RelayBoothView({
           <div className="mt-7 flex gap-3">
             <button
               type="button"
-              onClick={onCreateRoom}
+              onClick={goToNextStep}
               className="body-b min-h-[56px] rounded-[16px] bg-relay-accent px-8 text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.3)]"
             >
               방 만들기 →
             </button>
             <button
               type="button"
-              onClick={onEnterRoom}
+              onClick={goToNextStep}
               className="body-b min-h-[56px] rounded-[16px] border-2 border-relay-line bg-relay-paper px-7 text-relay-accent-strong"
             >
               방 입장

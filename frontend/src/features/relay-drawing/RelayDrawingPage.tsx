@@ -7,62 +7,18 @@ import {
   RelayResultView,
   RelayStepTabs,
 } from "./components";
-import { useRelayDrawing } from "./useRelayDrawing";
+import { useRelayDrawingStore } from "./relayDrawingStore";
 
 export default function RelayDrawingPage() {
-  const relayDrawing = useRelayDrawing();
+  const currentStep = useRelayDrawingStore((state) => state.currentStep);
 
   return (
     <main className="min-h-screen max-h-full h-full bg-relay-background text-relay-ink">
-      {relayDrawing.currentStep === "booth" && (
-        <RelayBoothView
-          onCreateRoom={relayDrawing.goToNextStep}
-          onEnterRoom={relayDrawing.goToNextStep}
-        />
-      )}
-
-      {relayDrawing.currentStep === "lobby" && (
-        <RelayLobbyView onStartGame={relayDrawing.goToNextStep} />
-      )}
-
-      {relayDrawing.currentStep === "drawing" && (
-        <RelayDrawingView
-          activeRoundKey={relayDrawing.activeRoundKey}
-          activeRoundIndex={relayDrawing.activeRoundIndex}
-          selectedToolKey={relayDrawing.selectedToolKey}
-          selectedColor={relayDrawing.selectedColor}
-          strokeWidth={relayDrawing.strokeWidth}
-          lines={relayDrawing.lines}
-          previousRoundLines={relayDrawing.previousRoundLines}
-          roundLines={relayDrawing.roundLines}
-          onSelectTool={relayDrawing.setSelectedToolKey}
-          onSelectColor={relayDrawing.setSelectedColor}
-          onStrokeWidthChange={relayDrawing.setStrokeWidth}
-          onUndoDrawing={relayDrawing.undoDrawing}
-          onClearDrawing={relayDrawing.clearDrawing}
-          onDrawStart={relayDrawing.beginDrawing}
-          onDrawMove={relayDrawing.continueDrawing}
-          onDrawEnd={relayDrawing.endDrawing}
-          onCompleteRound={relayDrawing.completeRound}
-        />
-      )}
-
-      {relayDrawing.currentStep === "result" && (
-        <RelayResultView
-          resultRevealStep={relayDrawing.resultRevealStep}
-          roundLines={relayDrawing.roundLines}
-          canShowPreviousResultReveal={relayDrawing.canShowPreviousResultReveal}
-          canShowNextResultReveal={relayDrawing.canShowNextResultReveal}
-          onShowPreviousResultReveal={relayDrawing.goToPreviousResultReveal}
-          onShowNextResultReveal={relayDrawing.goToNextResultReveal}
-          onCreateAnother={() => relayDrawing.selectStep("booth")}
-        />
-      )}
-
-      <RelayStepTabs
-        currentStep={relayDrawing.currentStep}
-        onSelectStep={relayDrawing.selectStep}
-      />
+      {currentStep === "booth" && <RelayBoothView />}
+      {currentStep === "lobby" && <RelayLobbyView />}
+      {currentStep === "drawing" && <RelayDrawingView />}
+      {currentStep === "result" && <RelayResultView />}
+      <RelayStepTabs />
     </main>
   );
 }

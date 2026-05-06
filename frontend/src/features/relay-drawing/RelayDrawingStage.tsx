@@ -1,36 +1,32 @@
 'use client'
 
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
-import type { KonvaEventObject } from 'konva/lib/Node'
 import {
+  RELAY_ROUND_ORDER,
   RELAY_ROUND_RULES,
   RELAY_STAGE_SIZE,
-  type RelayRoundKey,
 } from './constants'
 import {
   OutgoingHint,
   PreviousRoundHint,
   RasterFillImage,
 } from './components/drawing-stage'
-import type { RelayDrawLine } from './useRelayDrawing'
+import { useRelayDrawingStore } from './relayDrawingStore'
+import { useRelayCanvas } from './hooks'
 
-interface RelayDrawingStageProps {
-  activeRoundKey: RelayRoundKey
-  lines: RelayDrawLine[]
-  previousRoundLines: RelayDrawLine[]
-  onDrawStart: (event: KonvaEventObject<MouseEvent | TouchEvent>) => void
-  onDrawMove: (event: KonvaEventObject<MouseEvent | TouchEvent>) => void
-  onDrawEnd: () => void
-}
+export default function RelayDrawingStage() {
+  const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
+  const roundLines = useRelayDrawingStore((state) => state.roundLines)
 
-export default function RelayDrawingStage({
-  activeRoundKey,
-  lines,
-  previousRoundLines,
-  onDrawStart,
-  onDrawMove,
-  onDrawEnd,
-}: RelayDrawingStageProps) {
+  const { beginDrawing, continueDrawing, endDrawing } = useRelayCanvas()
+
+  const lines = roundLines[activeRoundKey]
+  const activeRoundIndex = RELAY_ROUND_ORDER.findIndex(
+    (roundKey) => roundKey === activeRoundKey,
+  )
+  const previousRoundKey = activeRoundIndex > 0 ? RELAY_ROUND_ORDER[activeRoundIndex - 1] : null
+  const previousRoundLines = previousRoundKey ? roundLines[previousRoundKey] : []
+
   const gridDots = []
   const activeRoundRule = RELAY_ROUND_RULES[activeRoundKey]
   const shouldShowPreviousHint =
@@ -66,13 +62,13 @@ export default function RelayDrawingStage({
       width={RELAY_STAGE_SIZE.width}
       height={RELAY_STAGE_SIZE.height}
       className="h-full w-full"
-      onMouseDown={onDrawStart}
-      onMouseMove={onDrawMove}
-      onMouseUp={onDrawEnd}
-      onMouseLeave={onDrawEnd}
-      onTouchStart={onDrawStart}
-      onTouchMove={onDrawMove}
-      onTouchEnd={onDrawEnd}
+      onMouseDown={beginDrawing}
+      onMouseMove={continueDrawing}
+      onMouseUp={endDrawing}
+      onMouseLeave={endDrawing}
+      onTouchStart={beginDrawing}
+      onTouchMove={continueDrawing}
+      onTouchEnd={endDrawing}
     >
       <Layer>
         <Rect

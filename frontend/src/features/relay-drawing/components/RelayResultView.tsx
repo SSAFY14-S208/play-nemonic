@@ -1,3 +1,5 @@
+'use client'
+
 import {
   RELAY_FINAL_STAGE_SIZE,
   RELAY_RESULT_ACTIONS,
@@ -9,18 +11,10 @@ import {
   type RelayResultRevealStep,
   type RelayRoundKey,
 } from '../constants'
-import type { RelayDrawLine, RelayRoundLines } from '../useRelayDrawing'
+import { useRelayDrawingStore } from '../relayDrawingStore'
+import { useRelayResult } from '../hooks'
+import type { RelayDrawLine, RelayRoundLines } from '../types'
 import { cn } from '@/shared/libs'
-
-interface RelayResultViewProps {
-  resultRevealStep: RelayResultRevealStep
-  roundLines: RelayRoundLines
-  canShowPreviousResultReveal: boolean
-  canShowNextResultReveal: boolean
-  onShowPreviousResultReveal: () => void
-  onShowNextResultReveal: () => void
-  onCreateAnother: () => void
-}
 
 const RESULT_SEGMENTS = [
   {
@@ -49,15 +43,17 @@ const RESULT_SEGMENTS = [
   },
 ] as const
 
-export default function RelayResultView({
-  resultRevealStep,
-  roundLines,
-  canShowPreviousResultReveal,
-  canShowNextResultReveal,
-  onShowPreviousResultReveal,
-  onShowNextResultReveal,
-  onCreateAnother,
-}: RelayResultViewProps) {
+export default function RelayResultView() {
+  const selectStep = useRelayDrawingStore((state) => state.selectStep)
+  const roundLines = useRelayDrawingStore((state) => state.roundLines)
+  const {
+    resultRevealStep,
+    canShowPreviousResultReveal,
+    canShowNextResultReveal,
+    goToNextResultReveal,
+    goToPreviousResultReveal,
+  } = useRelayResult()
+
   const activeReveal =
     RELAY_RESULT_REVEALS.find((reveal) => reveal.key === resultRevealStep) ??
     RELAY_RESULT_REVEALS[0]
@@ -88,8 +84,8 @@ export default function RelayResultView({
                 activeRevealIndex={activeRevealIndex}
                 canShowPreviousResultReveal={canShowPreviousResultReveal}
                 canShowNextResultReveal={canShowNextResultReveal}
-                onShowPreviousResultReveal={onShowPreviousResultReveal}
-                onShowNextResultReveal={onShowNextResultReveal}
+                onShowPreviousResultReveal={goToPreviousResultReveal}
+                onShowNextResultReveal={goToNextResultReveal}
               />
             )}
           </section>
@@ -126,7 +122,7 @@ export default function RelayResultView({
 
                 <button
                   type="button"
-                  onClick={onCreateAnother}
+                  onClick={() => selectStep("booth")}
                   className="caption-b self-center text-relay-muted"
                 >
                   새 릴레이 만들기

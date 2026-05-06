@@ -2,7 +2,7 @@
 
 import { Group, Line, Rect, Text } from 'react-konva'
 import { RELAY_STAGE_SIZE, type RelayRoundArea } from '../../constants'
-import type { RelayDrawLine } from '../../useRelayDrawing'
+import type { RelayDrawLine } from '../../types'
 import DashedGuide from './DashedGuide'
 import HintPill from './HintPill'
 import RasterFillImage from './RasterFillImage'

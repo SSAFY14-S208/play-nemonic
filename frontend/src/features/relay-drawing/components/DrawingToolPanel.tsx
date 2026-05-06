@@ -1,18 +1,8 @@
 'use client'
 
 import { RELAY_COLORS, type RelayToolKey } from '../constants'
+import { useRelayDrawingStore } from '../relayDrawingStore'
 import { cn } from '@/shared/libs'
-
-interface DrawingToolPanelProps {
-  selectedToolKey: RelayToolKey
-  selectedColor: string
-  strokeWidth: number
-  onSelectTool: (tool: RelayToolKey) => void
-  onSelectColor: (color: string) => void
-  onStrokeWidthChange: (strokeWidth: number) => void
-  onUndoDrawing: () => void
-  onClearDrawing: () => void
-}
 
 const DRAWING_TOOL_BUTTONS = [
   { key: 'pencil', label: '연필', icon: '✏️', action: 'select' },
@@ -25,16 +15,16 @@ const DRAWING_TOOL_BUTTONS = [
 
 const STROKE_WIDTH_OPTIONS = [3, 6, 10]
 
-export default function DrawingToolPanel({
-  selectedToolKey,
-  selectedColor,
-  strokeWidth,
-  onSelectTool,
-  onSelectColor,
-  onStrokeWidthChange,
-  onUndoDrawing,
-  onClearDrawing,
-}: DrawingToolPanelProps) {
+export default function DrawingToolPanel() {
+  const selectedToolKey = useRelayDrawingStore((state) => state.selectedToolKey)
+  const selectedColor = useRelayDrawingStore((state) => state.selectedColor)
+  const strokeWidth = useRelayDrawingStore((state) => state.strokeWidth)
+  const setSelectedToolKey = useRelayDrawingStore((state) => state.setSelectedToolKey)
+  const setSelectedColor = useRelayDrawingStore((state) => state.setSelectedColor)
+  const setStrokeWidth = useRelayDrawingStore((state) => state.setStrokeWidth)
+  const undoLine = useRelayDrawingStore((state) => state.undoLine)
+  const clearRoundLines = useRelayDrawingStore((state) => state.clearRoundLines)
+
   return (
     <>
       <section className="grid gap-4">
@@ -51,17 +41,17 @@ export default function DrawingToolPanel({
                 aria-label={tool.label}
                 onClick={() => {
                   if (tool.action === 'undo') {
-                    onUndoDrawing()
+                    undoLine()
                     return
                   }
                   if (tool.action === 'clear') {
-                    onClearDrawing()
+                    clearRoundLines()
                     return
                   }
                   if (tool.action === 'noop') {
                     return
                   }
-                  onSelectTool(tool.key)
+                  setSelectedToolKey(tool.key)
                 }}
                 className={cn(
                   'grid size-[50px] place-items-center rounded-[14px] border border-relay-line bg-relay-active text-[22px]',
@@ -83,7 +73,7 @@ export default function DrawingToolPanel({
               key={strokeWidthOption}
               type="button"
               aria-label={`${strokeWidthOption}px 굵기`}
-              onClick={() => onStrokeWidthChange(strokeWidthOption)}
+              onClick={() => setStrokeWidth(strokeWidthOption)}
               className={cn(
                 'grid min-h-8 place-items-center rounded-[12px] border border-relay-line bg-relay-active',
                 strokeWidth === strokeWidthOption && 'border-2 border-relay-line bg-relay-accent',
@@ -109,7 +99,7 @@ export default function DrawingToolPanel({
               key={color}
               type="button"
               aria-label={`${color} 색상`}
-              onClick={() => onSelectColor(color)}
+              onClick={() => setSelectedColor(color)}
               className={cn(
                 'size-9 rounded-full border border-transparent',
                 selectedColor === color && 'border-[3px] border-relay-accent-strong',
