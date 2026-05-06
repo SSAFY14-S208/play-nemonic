@@ -105,6 +105,9 @@ Last updated: 2026-05-06
   table for operator action trails.
 - Super admin bootstrap is environment-driven only. Do not hard-code initial
   admin passwords or password hashes in migrations, source code, or docs.
+- Relay drawing durable decisions are recorded in ADR 0005 through 0011,
+  covering runtime state, assignments, lobby controls, WebSocket events,
+  scheduler CAS processing, file lifecycle/finalization, and result ownership.
 
 ## Important Files
 
