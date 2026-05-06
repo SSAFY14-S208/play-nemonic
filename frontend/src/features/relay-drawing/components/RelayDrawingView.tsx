@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { RELAY_ROUND_ORDER, RELAY_ROUND_SEGMENTS } from "../constants";
 import { useRelayTimer } from "../hooks/useRelayTimer";
-import { useRelayDrawingStore } from "../relayDrawingStore";
+import { useRelayDrawingStore } from "../stores";
 import CountdownTimer from "./CountdownTimer";
 import DrawingToolPanel from "./DrawingToolPanel";
 import RoundProgressBar from "./RoundProgressBar";

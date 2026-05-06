@@ -11,7 +11,7 @@ import {
   PreviousRoundHint,
   RasterFillImage,
 } from './components/drawing-stage'
-import { useRelayDrawingStore } from './relayDrawingStore'
+import { useRelayDrawingStore } from './stores'
 import { useRelayCanvas } from './hooks'
 
 export default function RelayDrawingStage() {

@@ -1,24 +1,14 @@
-"use client";
+'use client'
 
-import {
-  RelayBoothView,
-  RelayDrawingView,
-  RelayLobbyView,
-  RelayResultView,
-  RelayStepTabs,
-} from "./components";
-import { useRelayDrawingStore } from "./relayDrawingStore";
+import { RelayBoothView } from './components'
 
+// 라우트: /relay-drawing
+// 부스(랜딩) 화면만 담당. 방 생성/입장 액션은 RelayBoothView 내부에서 처리하고,
+// 성공 시 router.push(`/relay-drawing/${roomCode}`)로 RelayRoomPage로 넘어간다.
 export default function RelayDrawingPage() {
-  const currentStep = useRelayDrawingStore((state) => state.currentStep);
-
   return (
-    <main className="min-h-screen max-h-full h-full bg-relay-background text-relay-ink">
-      {currentStep === "booth" && <RelayBoothView />}
-      {currentStep === "lobby" && <RelayLobbyView />}
-      {currentStep === "drawing" && <RelayDrawingView />}
-      {currentStep === "result" && <RelayResultView />}
-      <RelayStepTabs />
-    </main>
-  );
+    <div className="min-h-screen bg-relay-background text-relay-ink">
+      <RelayBoothView />
+    </div>
+  )
 }

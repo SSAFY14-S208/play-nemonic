@@ -7,7 +7,7 @@ import {
   RELAY_ROUND_RULES,
   type RelayRoundKey,
 } from '../constants'
-import { useRelayDrawingStore } from '../relayDrawingStore'
+import { useRelayDrawingStore } from '../stores'
 import type { RelayCompositeDrawingPayload, RelayDrawLine } from '../types'
 
 function moveLineToFinalPosition(line: RelayDrawLine, roundKey: RelayRoundKey): RelayDrawLine {

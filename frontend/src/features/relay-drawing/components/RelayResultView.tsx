@@ -1,5 +1,7 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
+
 import {
   RELAY_FINAL_STAGE_SIZE,
   RELAY_RESULT_ACTIONS,
@@ -11,7 +13,7 @@ import {
   type RelayResultRevealStep,
   type RelayRoundKey,
 } from '../constants'
-import { useRelayDrawingStore } from '../relayDrawingStore'
+import { useRelayDrawingStore } from '../stores'
 import { useRelayResult } from '../hooks'
 import type { RelayDrawLine, RelayRoundLines } from '../types'
 import { cn } from '@/shared/libs'
@@ -44,7 +46,8 @@ const RESULT_SEGMENTS = [
 ] as const
 
 export default function RelayResultView() {
-  const selectStep = useRelayDrawingStore((state) => state.selectStep)
+  const router = useRouter()
+  const clearRoom = useRelayDrawingStore((state) => state.clearRoom)
   const roundLines = useRelayDrawingStore((state) => state.roundLines)
   const {
     resultRevealStep,
@@ -53,6 +56,12 @@ export default function RelayResultView() {
     goToNextResultReveal,
     goToPreviousResultReveal,
   } = useRelayResult()
+
+  // "새 릴레이 만들기" — 현재 룸 정리 후 부스로 이동.
+  const handleStartNew = () => {
+    clearRoom()
+    router.push('/relay-drawing')
+  }
 
   const activeReveal =
     RELAY_RESULT_REVEALS.find((reveal) => reveal.key === resultRevealStep) ??
@@ -122,7 +131,7 @@ export default function RelayResultView() {
 
                 <button
                   type="button"
-                  onClick={() => selectStep("booth")}
+                  onClick={handleStartNew}
                   className="caption-b self-center text-relay-muted"
                 >
                   새 릴레이 만들기

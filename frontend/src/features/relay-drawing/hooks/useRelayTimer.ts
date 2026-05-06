@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRelayDrawingStore } from '../relayDrawingStore'
+import { useRelayDrawingStore } from '../stores'
 
 const EXPIRING_THRESHOLD_SECONDS = 10
 
@@ -15,7 +15,7 @@ interface UseRelayTimerReturn {
 export function useRelayTimer(): UseRelayTimerReturn {
   const timeLimitSeconds = useRelayDrawingStore((state) => state.timeLimitSeconds)
   const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
-  const currentStep = useRelayDrawingStore((state) => state.currentStep)
+  const roomStatus = useRelayDrawingStore((state) => state.roomStatus)
   const completeRound = useRelayDrawingStore((state) => state.completeRound)
 
   const [remainingSeconds, setRemainingSeconds] = useState(timeLimitSeconds)
@@ -27,7 +27,7 @@ export function useRelayTimer(): UseRelayTimerReturn {
   }, [activeRoundKey, timeLimitSeconds])
 
   useEffect(() => {
-    if (currentStep !== 'drawing') return
+    if (roomStatus !== 'PLAYING') return
 
     const intervalId = setInterval(() => {
       setRemainingSeconds((previous) => {
@@ -41,7 +41,7 @@ export function useRelayTimer(): UseRelayTimerReturn {
     }, 1000)
 
     return () => clearInterval(intervalId)
-  }, [currentStep, activeRoundKey, completeRound])
+  }, [roomStatus, activeRoundKey, completeRound])
 
   const syncRemainingTime = useCallback((seconds: number) => {
     setRemainingSeconds(seconds)

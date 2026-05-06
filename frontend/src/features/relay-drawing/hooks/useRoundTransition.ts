@@ -6,7 +6,7 @@ import {
   RELAY_ROUND_RULES,
   type RelayRoundKey,
 } from "../constants";
-import { useRelayDrawingStore } from "../relayDrawingStore";
+import { useRelayDrawingStore } from "../stores";
 import { renderLinesToRasterCanvas } from "../utils";
 
 const TOTAL_DURATION_MS = 3000;

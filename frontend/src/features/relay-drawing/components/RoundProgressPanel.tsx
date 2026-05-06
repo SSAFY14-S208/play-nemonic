@@ -1,7 +1,7 @@
 "use client";
 
 import { RELAY_ROUND_ORDER, RELAY_ROUNDS } from "../constants";
-import { useRelayDrawingStore } from "../relayDrawingStore";
+import { useRelayDrawingStore } from "../stores";
 import { cn } from "@/shared/libs";
 
 const DRAWING_PARTICIPANTS = [

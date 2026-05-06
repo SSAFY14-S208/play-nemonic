@@ -1,7 +1,7 @@
 "use client";
 
 import { RELAY_COLORS } from "../constants";
-import { useRelayDrawingStore } from "../relayDrawingStore";
+import { useRelayDrawingStore } from "../stores";
 import { cn } from "@/shared/libs";
 
 const DRAWING_TOOL_BUTTONS = [

@@ -1,7 +1,6 @@
 "use client";
 
 import RelayArtworkCard from "./RelayArtworkCard";
-import { useRelayDrawingStore } from "../relayDrawingStore";
 import { cn } from "@/shared/libs";
 import { PostItNote } from "@/shared/components";
 
@@ -17,7 +16,10 @@ const FLOATING_PAPER_STYLES = [
 ] as const;
 
 export default function RelayBoothView() {
-  const goToNextStep = useRelayDrawingStore((state) => state.goToNextStep);
+  // TODO(wiring): "방 만들기" → postRelayRoom() → router.push(`/relay-drawing/${roomCode}`)
+  // TODO(wiring): "방 입장" → 코드 입력 모달 → postRelayRoomParticipant(roomCode) → router.push
+  const handleCreateRoom = () => {};
+  const handleJoinRoom = () => {};
 
   return (
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
@@ -46,14 +48,14 @@ export default function RelayBoothView() {
           <div className="mt-7 flex gap-3">
             <button
               type="button"
-              onClick={goToNextStep}
+              onClick={handleCreateRoom}
               className="body-b min-h-[56px] rounded-[16px] bg-relay-accent px-8 text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.3)]"
             >
               방 만들기 →
             </button>
             <button
               type="button"
-              onClick={goToNextStep}
+              onClick={handleJoinRoom}
               className="body-b min-h-[56px] rounded-[16px] border-2 border-relay-line bg-relay-paper px-7 text-relay-accent-strong"
             >
               방 입장

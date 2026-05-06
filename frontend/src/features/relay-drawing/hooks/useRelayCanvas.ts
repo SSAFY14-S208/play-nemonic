@@ -3,7 +3,7 @@
 import { useCallback, useRef } from 'react'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { RELAY_ROUND_RULES } from '../constants'
-import { useRelayDrawingStore } from '../relayDrawingStore'
+import { useRelayDrawingStore } from '../stores'
 import { createBucketFillLine, isPointInsideArea } from '../utils'
 
 export function useRelayCanvas() {

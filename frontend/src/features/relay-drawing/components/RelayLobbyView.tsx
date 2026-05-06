@@ -1,7 +1,7 @@
 "use client";
 
 import { Copy, Crown, QrCode } from "lucide-react";
-import { useRelayDrawingStore } from "../relayDrawingStore";
+import { useRelayDrawingStore } from "../stores";
 import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from "../constants";
 import { cn } from "@/shared/libs";
 import { PostItNote } from "@/shared/components";
@@ -15,13 +15,17 @@ const LOBBY_PARTICIPANTS = [
 const WAITING_SLOT_COUNT = 3;
 
 export default function RelayLobbyView() {
-  const goToNextStep = useRelayDrawingStore((state) => state.goToNextStep);
+  const roomCode = useRelayDrawingStore((state) => state.roomCode);
   const timeLimitSeconds = useRelayDrawingStore(
     (state) => state.timeLimitSeconds,
   );
   const setTimeLimitSeconds = useRelayDrawingStore(
     (state) => state.setTimeLimitSeconds,
   );
+
+  // TODO(wiring): postRelayRoomStart(roomCode) — 시작은 GAME_STARTED WS 이벤트로
+  // 다시 받아 roomStatus를 PLAYING으로 전환한다.
+  const handleStartGame = () => {};
 
   return (
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
@@ -34,7 +38,7 @@ export default function RelayLobbyView() {
             className="font-bold tracking-[8px] text-relay-ink"
             style={{ fontSize: "clamp(4.5rem, 7vw, 6rem)", lineHeight: 1 }}
           >
-            {RELAY_ROOM_CODE}
+            {roomCode ?? RELAY_ROOM_CODE}
           </p>
           <div className="mt-2 flex gap-10">
             <button
@@ -107,7 +111,7 @@ export default function RelayLobbyView() {
 
           <button
             type="button"
-            onClick={goToNextStep}
+            onClick={handleStartGame}
             className="body-b min-h-16 rounded-[16px] bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)]"
           >
             🎨 게임 시작 (3명)
