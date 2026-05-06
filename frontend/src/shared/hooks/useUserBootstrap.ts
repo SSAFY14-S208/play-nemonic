@@ -47,7 +47,9 @@ export function useUserBootstrap() {
 
       if (stored) {
         try {
-          const verified = await postAnonymousVerify(stored)
+          // userUuid는 apiClient의 beforeRequest 훅이 store에서 읽어
+          // Anonymous-User-UUID 헤더로 자동 주입한다.
+          const verified = await postAnonymousVerify()
           if (cancelled) return
           useUserStore.getState().setUser(verified.userUuid, verified.nickname)
           return
@@ -58,6 +60,7 @@ export function useUserBootstrap() {
             return
           }
           // 백엔드가 이 UUID를 거부 — 폴백 발급 전에 stale 상태 정리.
+          // store가 비어야 다음 postAnonymous 호출 시 헤더가 주입되지 않는다.
           useUserStore.getState().clear()
         }
       }

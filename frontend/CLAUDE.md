@@ -399,26 +399,25 @@ export default function SharePage({ params }) {
 
 ### 인증 모델 — 두 흐름 분리
 
-이 프로젝트에는 **두 가지 인증 흐름**이 있고, 각각 **별도 클라이언트**를 사용합니다. 도메인 API는 자기가 어느 클라이언트를 써야 하는지를 의식적으로 선택합니다.
+이 프로젝트에는 **두 가지 인증 흐름**이 있고, 각각 **별도 클라이언트**를 사용합니다. 두 흐름 모두 인증 식별자를 **HTTP 헤더로** 보내며, 도메인 함수는 식별자를 **명시 인자로 받지 않습니다** — 클라이언트 인터셉터가 store에서 읽어 자동 주입합니다.
 
-| 클라이언트 | 위치 | 용도 | 인증 |
-| --- | --- | --- | --- |
-| `api` | `shared/libs/apiClient.ts` | 일반 사용자 도메인 (user, gallery, community, share, relay, invite, flipbook, file) | 익명 `userUuid` (body/query 필드) |
-| `adminApi` | `shared/libs/adminApiClient.ts` | 백오피스 도메인 (admins, auth/logout) | 관리자 Bearer access token (자동 헤더 주입) |
+| 클라이언트 | 위치 | 용도 | 인증 헤더 | 출처 store |
+| --- | --- | --- | --- | --- |
+| `api` | `shared/libs/apiClient.ts` | 일반 사용자 도메인 (user, gallery, community, share, relay, invite, flipbook, file) | `Anonymous-User-UUID: {userUuid}` | `useUserStore` (localStorage) |
+| `adminApi` | `shared/libs/adminApiClient.ts` | 백오피스 도메인 (admins, auth/logout) | `Authorization: Bearer {accessToken}` | `useAdminAuthStore` (sessionStorage) |
 
-**일반 사용자 흐름 — 익명 UUID:**
+**일반 사용자 흐름 — 익명 UUID 헤더:**
 
-JWT/세션 쿠키를 사용하지 않습니다. 서버는 첫 진입 시 `userUuid`를 발급하고, 이후 모든 식별은 다음 두 위치 중 하나로 이뤄집니다.
+JWT/세션 쿠키를 사용하지 않습니다. 서버는 첫 진입 시 `userUuid`를 발급하고, 이후 모든 요청은 `Anonymous-User-UUID` 헤더로 식별됩니다.
 
-- **요청 본문(body)** 의 `userUuid` 필드: POST / PUT / PATCH
-- **쿼리 파라미터(query)** 의 `userUuid`: GET / DELETE
-- 일부 엔드포인트는 `userUuid` 불필요(`POST /users/anonymous`, `GET /community/{id}` 등)
-
-일반 사용자 영역에 `Authorization` 헤더 / Bearer 토큰 / `localStorage.getItem('token')` 패턴을 다시 도입하지 않습니다. `api`(트랜스포트)는 인증 모델을 모르고, 도메인 API 계층(`shared/apis/{domain}Api.ts`)에서 호출자가 store에서 읽은 `userUuid`를 명시 인자로 받아 주입합니다.
+- `api`의 `beforeRequest` 훅이 `useUserStore.getState().userUuid`가 존재하면 `Anonymous-User-UUID` 헤더로 자동 주입.
+- 일부 엔드포인트는 식별자가 불필요(`POST /users/anonymous` — 발급 시점이라 store가 비어있음, `GET /community/{id}` 등). 이 경우 store가 null이면 헤더가 추가되지 않으므로 별도 처리 없음.
+- 도메인 함수는 `userUuid`를 인자로 받지 않습니다. body/query에 `userUuid` 필드를 넣지 않습니다 — 백엔드는 헤더만 사용합니다.
+- 다른 사용자의 UUID(예: 강퇴 대상 `targetUserUuid`)는 식별자가 아니라 도메인 데이터이므로 body 필드로 명시 전달.
 
 **백오피스 흐름 — 관리자 Bearer 토큰:**
 
-OpenAPI 명세상 `auth/*`, `admins/*`는 `Authorization: Bearer {accessToken}` 헤더를 요구합니다. 이 흐름은 익명 UUID 모델과 섞이지 않도록 **별도 클라이언트(`adminApi`)** 를 사용합니다.
+OpenAPI 명세상 `auth/*`, `admins/*`는 `Authorization: Bearer {accessToken}` 헤더를 요구합니다. 익명 UUID 흐름과 섞이지 않도록 **별도 클라이언트(`adminApi`)** 를 사용합니다.
 
 - 토큰은 `useAdminAuthStore`(Zustand `persist` 미들웨어, **sessionStorage**)에 보관합니다. 일반 사용자 store(`useUserStore`, localStorage)와 분리.
 - `adminApi`의 `beforeRequest` 훅이 store의 access token을 자동으로 헤더에 주입 — 도메인 함수 시그니처에 `accessToken` 인자가 등장하지 않습니다.
@@ -430,31 +429,23 @@ OpenAPI 명세상 `auth/*`, `admins/*`는 `Authorization: Bearer {accessToken}` 
 ### apiClient 트랜스포트
 
 ```ts
-// shared/libs/apiClient.ts
-import ky from "ky";
-import { runtime } from "@/shared/config";
-
-type Query = Record<string, string | number | boolean>;
-
+// shared/libs/apiClient.ts (요지)
 const client = ky.create({
   prefix: `${runtime.apiUrl}/api/v1`,
   timeout: 30_000,
-});
+  hooks: {
+    beforeRequest: [
+      ({ request }) => {
+        const userUuid = useUserStore.getState().userUuid
+        if (userUuid) request.headers.set('Anonymous-User-UUID', userUuid)
+      },
+    ],
+  },
+})
 
 export const api = {
-  get: <T>(path: string, searchParams?: Query) =>
-    client.get(path, searchParams ? { searchParams } : undefined).json<T>(),
-  post: <T>(path: string, body?: unknown) =>
-    client.post(path, body !== undefined ? { json: body } : undefined).json<T>(),
-  put: <T>(path: string, body?: unknown) =>
-    client.put(path, body !== undefined ? { json: body } : undefined).json<T>(),
-  patch: <T>(path: string, body?: unknown) =>
-    client.patch(path, body !== undefined ? { json: body } : undefined).json<T>(),
-  delete: <T>(path: string, searchParams?: Query) =>
-    client.delete(path, searchParams ? { searchParams } : undefined).json<T>(),
-  postForm: <T>(path: string, formData: FormData, searchParams?: Query) =>
-    client.post(path, { body: formData, ...(searchParams && { searchParams }) }).json<T>(),
-};
+  get / post / put / patch / delete / postForm  // 메서드 시그니처는 동일
+}
 ```
 
 - 모든 API 호출은 `api.*` 또는 `adminApi.*`를 통해서만 진행 — 새 ky 인스턴스를 각 도메인 파일에서 만들지 않습니다.
@@ -499,20 +490,21 @@ const adminClient = ky.create({
 
 ### 새 도메인을 추가할 때 — 클라이언트 선택 기준
 
-| 백엔드 OpenAPI security | 사용 클라이언트 | 비고 |
+| 백엔드 OpenAPI security | 사용 클라이언트 | 도메인 함수 식별자 인자 |
 | --- | --- | --- |
-| `Anonymous-User-UUID` 헤더 또는 무인증 | `api` | 본문/쿼리에 `userUuid` 명시 인자 |
-| `bearerAuth` (관리자 토큰) | `adminApi` | 토큰 인자 없음. store가 자동 주입 |
-| 토큰 없이 호출되어야 하는 인증 부트스트랩(`login`, `reissue`) | `api` | 위 표의 예외 — 인터셉터 재귀 방지 |
+| `Anonymous-User-UUID` 헤더 또는 무인증 | `api` | 없음 (인터셉터 자동 주입) |
+| `bearerAuth` (관리자 토큰) | `adminApi` | 없음 (인터셉터 자동 주입) |
+| 토큰 없이 호출되어야 하는 인증 부트스트랩(`login`, `reissue`) | `api` | 인자 없음 — 자기 식별자 자체가 없음 |
 
-판단이 애매하면 OpenAPI 명세의 `security` 필드와 헤더 요구사항을 확인하세요.
+두 클라이언트 모두 **자기 식별자는 인터셉터가 헤더로 자동 주입**합니다. 도메인 함수가 받는 인자는 path parameter와 도메인 데이터(닉네임, 페이지 번호, 다른 사용자 UUID 등)뿐입니다. 판단이 애매하면 OpenAPI 명세의 `security` 필드와 헤더 요구사항을 확인하세요.
 
 ### 도메인 API 계층 — `shared/apis/`
 
 백엔드 OpenAPI tag 1개당 프론트 파일 1개로 매핑합니다. 파일명은 camelCase 컨벤션 그대로(`userApi.ts`, `galleryApi.ts`, `communityApi.ts`).
 
 - 응답은 모두 `ApiResponse<T> = { success, message, data, errors }` 봉투로 옵니다. `apiUnwrap` 헬퍼(`shared/utils/apiUnwrap.ts`)로 `success === false`를 `ApiError` throw로 변환하고 `data: T`만 반환합니다. `ApiError` 클래스는 백엔드 봉투에 묶인 도메인 타입이라 `shared/apis/apiError.ts`에 두고, `apiUnwrap`은 일반 Promise 변환 유틸이라 `shared/utils/`에 분리되어 있습니다.
-- 도메인 함수는 `userUuid`를 **명시 인자**로 받습니다. feature 훅이 `useUserStore`에서 읽어 전달.
+- 도메인 함수는 **자기 식별자(`userUuid`/`accessToken`)를 인자로 받지 않습니다.** 클라이언트의 `beforeRequest` 훅이 store에서 자동 주입합니다.
+- 함수가 받는 인자는 (1) path parameter (`galleryId`, `roomCode` 등), (2) body/query 도메인 데이터 (닉네임, 페이지 번호, 다른 사용자 UUID 등) 둘 뿐입니다.
 - **객체로 묶지 않고 개별 함수로 export**합니다.
 
 #### 함수 네이밍 규칙
@@ -534,21 +526,23 @@ const adminClient = ky.create({
 
 원칙:
 - 단건/리스트가 같은 GET에서 갈리면 단건은 단수형(`getGallery`), 리스트는 `List` 접미사(`getGalleryList`).
-- path parameter를 받는 함수는 첫 인자로 그 id를, 그다음 `userUuid` 등 부가 인자를 받습니다.
+- path parameter를 받는 함수는 첫 인자로 그 id를, 그다음 도메인 데이터(닉네임, 페이지 번호 등) 인자를 받습니다.
 
 ```ts
 // shared/apis/userApi.ts (예시)
 export const postAnonymous = () =>
   apiUnwrap(api.post<ApiResponse<AnonymousUserResponse>>("users/anonymous"));
+// ↑ store 비어있을 때 호출 → 헤더 주입 안 됨 → 신규 발급 받음
 
-export const postAnonymousVerify = (userUuid: string) =>
-  apiUnwrap(api.post<ApiResponse<AnonymousUserVerifyResponse>>("users/anonymous/verify", { userUuid }));
+export const postAnonymousVerify = () =>
+  apiUnwrap(api.post<ApiResponse<AnonymousUserVerifyResponse>>("users/anonymous/verify"));
+// ↑ store의 stored UUID가 헤더로 자동 주입됨
 
-export const patchAnonymousNickname = (userUuid: string, nickname: string) =>
-  apiUnwrap(api.patch<ApiResponse<AnonymousUserNicknameResponse>>("users/anonymous/nickname", { userUuid, nickname }));
+export const patchAnonymousNickname = (payload: AnonymousUserNicknameRequest) =>
+  apiUnwrap(api.patch<ApiResponse<AnonymousUserNicknameResponse>>("users/anonymous/nickname", payload));
 
-export const getAnonymousProfile = (userUuid: string) =>
-  apiUnwrap(api.get<ApiResponse<AnonymousUserProfileResponse>>("users/anonymous/profile", { userUuid }));
+export const getAnonymousProfile = () =>
+  apiUnwrap(api.get<ApiResponse<AnonymousUserProfileResponse>>("users/anonymous/profile"));
 ```
 
 호출 측은 필요한 함수만 직접 import합니다.
@@ -1140,6 +1134,8 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - 타이포그래피에 raw Tailwind font 클래스 직접 조합 금지 → `h1-b`, `body-r` 등 유틸리티 클래스 사용
 - 조건부 클래스 병합 시 `cn()` 없이 문자열 연결 금지 → `cn()` 유틸리티 사용
 - 일반 `api`(익명 사용자 클라이언트)에 `Authorization` 헤더 / Bearer 토큰 주입 금지 → 백오피스 호출은 `adminApi` 사용
+- 일반 사용자 도메인 함수에 `userUuid`를 명시 인자로 받는 패턴 금지 → `useUserStore`에서 인터셉터가 `Anonymous-User-UUID` 헤더로 자동 주입
+- 일반 사용자 도메인 함수의 body/query에 `userUuid` 필드 포함 금지 → 백엔드는 헤더만 사용. 다른 사용자 UUID(`targetUserUuid` 등 도메인 데이터)는 body 필드로 둠
 - 백오피스 도메인 함수에 `accessToken`을 명시 인자로 받는 패턴 금지 → 토큰은 `useAdminAuthStore`에서 인터셉터가 자동 주입
 - `auth/login`, `auth/reissue`를 `adminApi`로 호출 금지 (인터셉터 재귀) → 일반 `api` 사용
 - 관리자 토큰을 `localStorage`에 저장 금지 → `useAdminAuthStore`(sessionStorage) 단일 경로

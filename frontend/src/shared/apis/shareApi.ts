@@ -4,10 +4,5 @@ import type { ApiResponse, ShareCreateRequest, ShareCreateResponse } from '@/sha
 import { apiUnwrap } from '@/shared/utils'
 
 // POST /share — SNS 공유 정보 생성
-export const postShare = (userUuid: string, payload: ShareCreateRequest) =>
-  apiUnwrap(
-    api.post<ApiResponse<ShareCreateResponse>>('share', {
-      ...payload,
-      userUuid,
-    }),
-  )
+export const postShare = (payload: ShareCreateRequest) =>
+  apiUnwrap(api.post<ApiResponse<ShareCreateResponse>>('share', payload))

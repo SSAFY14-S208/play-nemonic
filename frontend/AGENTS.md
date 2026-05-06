@@ -352,22 +352,21 @@ Backend: Spring (no DB access from client). All data via REST API.
 
 ### Two auth flows — two separate clients
 
-The codebase has two distinct authentication flows. Each has its own ky client. Domain functions explicitly choose which client they use.
+The codebase has two distinct authentication flows. Each has its own ky client. Both flows send their identifier as an **HTTP header**, and domain functions take **no identifier argument** — interceptors inject it from a Zustand store.
 
-| Client | File | Domains | Auth |
-| --- | --- | --- | --- |
-| `api` | `shared/libs/apiClient.ts` | user, gallery, community, share, relay, invite, flipbook, file | Anonymous `userUuid` (body/query field) |
-| `adminApi` | `shared/libs/adminApiClient.ts` | admins, `auth/logout` | Admin Bearer access token (auto-injected) |
+| Client | File | Domains | Auth header | Source store |
+| --- | --- | --- | --- | --- |
+| `api` | `shared/libs/apiClient.ts` | user, gallery, community, share, relay, invite, flipbook, file | `Anonymous-User-UUID: {userUuid}` | `useUserStore` (localStorage) |
+| `adminApi` | `shared/libs/adminApiClient.ts` | admins, `auth/logout` | `Authorization: Bearer {accessToken}` | `useAdminAuthStore` (sessionStorage) |
 
-**General user flow — anonymous UUID, no JWT:**
+**General user flow — anonymous UUID header:**
 
-The backend issues `userUuid` on first visit. There is no `Authorization` / Bearer header in this flow. Identification is split by HTTP method:
+The backend issues `userUuid` on first visit. Every subsequent request is identified via the `Anonymous-User-UUID` header. There is no JWT or session cookie.
 
-- **Body** `userUuid`: POST / PUT / PATCH (e.g. `POST /users/anonymous/verify`, `PATCH /users/anonymous/nickname`)
-- **Query** `userUuid`: GET / DELETE (e.g. `GET /gallery?userUuid=...`)
-- No `userUuid` needed: `POST /users/anonymous` (issuing endpoint), `GET /community/{id}`
-
-Do **not** reintroduce token/Bearer logic in the user-facing `api`. The `api` transport knows nothing about auth.
+- The `api` `beforeRequest` hook reads `useUserStore.getState().userUuid` and injects it as `Anonymous-User-UUID` when present.
+- Some endpoints don't need the header (`POST /users/anonymous` runs before issuance so the store is empty; `GET /community/{id}` is public). When the store is null the hook skips injection — no special-casing needed.
+- Domain functions do NOT take `userUuid` as an argument. Body/query never contains a `userUuid` field — the backend reads only the header.
+- Other users' UUIDs (e.g. a kick target's `targetUserUuid`) are domain data, not identity, and stay in the body.
 
 **Backoffice flow — admin Bearer token:**
 
@@ -404,18 +403,21 @@ type Query = Record<string, string | number | boolean>;
 
 const client = ky.create({ prefix: `${runtime.apiUrl}/api/v1`, timeout: 30_000 });
 
-export const api = {
-  get:    <T>(path: string, searchParams?: Query) => client.get(path, searchParams ? { searchParams } : undefined).json<T>(),
-  post:   <T>(path: string, body?: unknown) => client.post(path, body !== undefined ? { json: body } : undefined).json<T>(),
-  put:    <T>(path: string, body?: unknown) => client.put(path, body !== undefined ? { json: body } : undefined).json<T>(),
-  patch:  <T>(path: string, body?: unknown) => client.patch(path, body !== undefined ? { json: body } : undefined).json<T>(),
-  delete: <T>(path: string, searchParams?: Query) => client.delete(path, searchParams ? { searchParams } : undefined).json<T>(),
-  postForm: <T>(path: string, formData: FormData, searchParams?: Query) =>
-    client.post(path, { body: formData, ...(searchParams && { searchParams }) }).json<T>(),
-};
+const client = ky.create({
+  prefix: `${runtime.apiUrl}/api/v1`,
+  timeout: 30_000,
+  hooks: {
+    beforeRequest: [({ request }) => {
+      const userUuid = useUserStore.getState().userUuid;
+      if (userUuid) request.headers.set('Anonymous-User-UUID', userUuid);
+    }],
+  },
+});
+
+export const api = { get / post / put / patch / delete / postForm };  // method shapes unchanged
 ```
 
-`PATCH` is a first-class method (used for partial updates like nickname/birth-info). `searchParams` on GET/DELETE for `userUuid` and pagination. `postForm` is for multipart/form-data uploads (e.g. relay submissions).
+`PATCH` is a first-class method (used for partial updates like nickname/birth-info). `searchParams` on GET/DELETE is only for pagination/filter — never `userUuid`. `postForm` is for multipart/form-data uploads (e.g. relay submissions).
 
 ### adminApiClient — backoffice transport
 
@@ -449,11 +451,13 @@ export const adminApi = { /* same shape as api */ };
 
 ### Choosing a client for a new domain
 
-| Backend OpenAPI security | Client | Notes |
+| Backend OpenAPI security | Client | Identifier arg on domain functions |
 | --- | --- | --- |
-| `Anonymous-User-UUID` header or none | `api` | Pass `userUuid` as an explicit arg in body/query |
-| `bearerAuth` (admin token) | `adminApi` | No token arg — store auto-injects |
-| Bootstrap endpoints (`auth/login`, `auth/reissue`) | `api` | Exception — these must run without a token to avoid interceptor recursion |
+| `Anonymous-User-UUID` header or none | `api` | None — store auto-injects header |
+| `bearerAuth` (admin token) | `adminApi` | None — store auto-injects header |
+| Bootstrap endpoints (`auth/login`, `auth/reissue`) | `api` | None — these have no caller identity yet |
+
+Both clients auto-inject their identifier as a header. Domain functions only take path params and domain data (nicknames, page numbers, *other* users' UUIDs, etc.).
 
 ### ApiResponse envelope + apiUnwrap
 
@@ -476,7 +480,7 @@ import { ApiError } from "@/shared/apis";
 import { HTTPError } from "ky";
 
 try {
-  await patchAnonymousNickname(userUuid, "망고");
+  await patchAnonymousNickname({ nickname: "망고" });  // userUuid auto-injected as header
 } catch (error) {
   if (error instanceof ApiError) {
     setNicknameError(error.errors?.nickname);  // 200 + success:false
@@ -503,7 +507,7 @@ try {
 | DELETE | `/gallery/{galleryId}` | `deleteGallery` |
 | GET | `/community/{communityId}` | `getCommunity` |
 
-Path params first, then `userUuid`/extras: `getGallery(galleryId, userUuid)`.
+Signatures take only path params and domain data — never the caller's identifier. Examples: `getGallery(galleryId)`, `patchRelayRoomSettings(roomCode, timeLimitSeconds)`, `postRelayRoomKick(roomCode, targetUserUuid)`. The caller's `userUuid` / `accessToken` is auto-injected by the client interceptor.
 
 ```ts
 import { postAnonymous, getGalleryList } from "@/shared/apis";
@@ -941,6 +945,8 @@ Before completing any task, verify:
 - [ ] No `Authorization` / Bearer header injected via the regular `api` client
 - [ ] No new `ky.create(...)` instance in domain files — only `api` and `adminApi` exist
 - [ ] multipart uploads use `api.postForm(...)` (or `adminApi`-equivalent if admin-only)
+- [ ] User-facing domain functions take **no** `userUuid` argument — header is auto-injected from `useUserStore`
+- [ ] No `userUuid` field in body or query — backend reads only the `Anonymous-User-UUID` header. Other users' UUIDs (e.g. `targetUserUuid`) stay in body as domain data
 
 **R3F / Three.js**
 

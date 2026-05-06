@@ -1,12 +1,23 @@
 import ky from 'ky'
 
 import { runtime } from '@/shared/config'
+import { useUserStore } from '@/shared/stores'
 
 type Query = Record<string, string | number | boolean>
 
 const client = ky.create({
   prefix: `${runtime.apiUrl}/api/v1`,
   timeout: 30_000,
+  hooks: {
+    beforeRequest: [
+      ({ request }) => {
+        const userUuid = useUserStore.getState().userUuid
+        if (userUuid) {
+          request.headers.set('Anonymous-User-UUID', userUuid)
+        }
+      },
+    ],
+  },
 })
 
 export const api = {
