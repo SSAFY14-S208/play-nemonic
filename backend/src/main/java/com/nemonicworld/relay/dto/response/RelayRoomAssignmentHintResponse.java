@@ -13,7 +13,11 @@ public record RelayRoomAssignmentHintResponse(
     @Schema(description = "빈 제출 여부", example = "false") boolean empty) {
 
     public static RelayRoomAssignmentHintResponse from(RelayRoomAssignment assignment) {
+        return from(assignment, null);
+    }
+
+    public static RelayRoomAssignmentHintResponse from(RelayRoomAssignment assignment, String url) {
         return new RelayRoomAssignmentHintResponse(assignment.part(), assignment.canvasIndex(),
-            assignment.hintObjectKey(), null, assignment.empty());
+            assignment.hintObjectKey(), url, assignment.empty());
     }
 }

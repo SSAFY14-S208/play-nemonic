@@ -27,6 +27,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayArtifactRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.assignment.RelayHintImageUrlResolver;
 import com.nemonicworld.relay.service.assignment.RelayRoomAssignmentQueryUseCase;
 import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
 import com.nemonicworld.relay.service.close.RelayRoomManualCloseUseCase;
@@ -104,9 +105,10 @@ class RelayRoomServiceImplTest {
             new RelayRoomLeaveUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy),
             new RelayRoomSettingsUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory),
-            new RelayRoomStartUseCase(
-                anonymousUserResolver, relayRoomRepository, relayRoomPolicy, relayRoomViewerFactory),
-            new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy),
+            new RelayRoomStartUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayRoomViewerFactory),
+            new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy,
+                new RelayHintImageUrlResolver(minioStorageProperties())),
             new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
                 relayRoomPolicy, new ObjectMapper().findAndRegisterModules()),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
