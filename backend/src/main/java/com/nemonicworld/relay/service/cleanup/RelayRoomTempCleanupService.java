@@ -1,7 +1,7 @@
 package com.nemonicworld.relay.service.cleanup;
 
-import com.nemonicworld.relay.entity.RelayRoomAssignment;
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomAssignment;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import java.time.Duration;

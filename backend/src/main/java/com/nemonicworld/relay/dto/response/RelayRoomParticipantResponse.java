@@ -1,6 +1,6 @@
 package com.nemonicworld.relay.dto.response;
 
-import com.nemonicworld.relay.entity.RelayRoomParticipant;
+import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "릴레이 방 참여자 응답")

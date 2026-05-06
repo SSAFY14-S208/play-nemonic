@@ -1,8 +1,8 @@
 package com.nemonicworld.relay.service.close;
 
 import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
-import com.nemonicworld.relay.entity.RelayRoomParticipant;
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomParticipant;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;

@@ -13,7 +13,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomResultCreatedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomSimpleMessageResponse;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
-import com.nemonicworld.relay.entity.RelayRoomAssignment;
+import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationResult;
 import java.time.LocalDateTime;

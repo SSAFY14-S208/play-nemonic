@@ -1,6 +1,6 @@
 package com.nemonicworld.relay.repository;
 
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;

@@ -1,7 +1,7 @@
 package com.nemonicworld.relay.service.game;
 
 import com.nemonicworld.relay.entity.RelayDrawingPart;
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import java.time.LocalDateTime;
 

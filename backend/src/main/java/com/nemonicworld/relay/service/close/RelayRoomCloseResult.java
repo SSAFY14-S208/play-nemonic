@@ -1,6 +1,6 @@
 package com.nemonicworld.relay.service.close;
 
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import java.time.LocalDateTime;
 
 /**

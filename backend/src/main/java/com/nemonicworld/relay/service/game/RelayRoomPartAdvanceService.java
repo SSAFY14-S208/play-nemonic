@@ -2,8 +2,8 @@ package com.nemonicworld.relay.service.game;
 
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
-import com.nemonicworld.relay.entity.RelayRoomAssignment;
-import com.nemonicworld.relay.entity.RelayRoomState;
+import com.nemonicworld.relay.redis.RelayRoomAssignment;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Component;
 
