@@ -211,6 +211,32 @@ class RedisRelayRoomRepositoryTest {
     }
 
     @Test
+    void findClosableFinishedRoomsScansRoomKeysAndFiltersOldFinishedRooms() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime closeCutoff = now.minusMinutes(5);
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomParticipant host = participant(hostUuid, "Mango", true, 0);
+        RelayRoomState oldFinishedRoom = roomState("CLOSE1", RelayRoomStatus.FINISHED, RelayDrawingPart.LEGS,
+            now.minusMinutes(10), now.minusMinutes(9), host).finish(now.minusMinutes(6));
+        RelayRoomState recentFinishedRoom = roomState("RECENT", RelayRoomStatus.FINISHED, RelayDrawingPart.LEGS,
+            now.minusMinutes(10), now.minusMinutes(9), host).finish(now.minusMinutes(1));
+        RelayRoomState finalizingRoom = roomState("FINAL1", RelayRoomStatus.FINALIZING, RelayDrawingPart.LEGS,
+            now.minusMinutes(10), now.minusMinutes(9), host);
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, true, false);
+        given(cursor.next()).willReturn("relay:room:CLOSE1", "relay:room:RECENT", "relay:room:FINAL1");
+        given(valueOperations.get("relay:room:CLOSE1")).willReturn(serialize(oldFinishedRoom));
+        given(valueOperations.get("relay:room:RECENT")).willReturn(serialize(recentFinishedRoom));
+        given(valueOperations.get("relay:room:FINAL1")).willReturn(serialize(finalizingRoom));
+
+        List<RelayRoomState> closableRooms = repository.findClosableFinishedRooms(closeCutoff, 10);
+
+        assertThat(closableRooms).containsExactly(oldFinishedRoom);
+        verify(cursor).close();
+    }
+
+    @Test
     void acquireAndReleaseFinalizationLockUsesSeparateLockKey() {
         Duration lockTtl = Duration.ofSeconds(60);
         given(valueOperations.setIfAbsent("relay:room-finalization-lock:" + ROOM_CODE, "locked", lockTtl))

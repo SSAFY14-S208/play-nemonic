@@ -5,6 +5,7 @@ import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
+import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
@@ -50,6 +51,8 @@ public class RelayRoomController {
     private static final String RELAY_ROOM_SETTINGS_UPDATED_MESSAGE = "릴레이 방 설정 변경 성공";
     private static final String RELAY_GAME_STARTED_MESSAGE = "릴레이 게임 시작 성공";
     private static final String RELAY_MY_ASSIGNMENT_FOUND_MESSAGE = "내 릴레이 배정 조회 성공";
+    private static final String RELAY_ROOM_CLOSED_MESSAGE = "릴레이 방 종료 성공";
+    private static final String RELAY_ROOM_ALREADY_CLOSED_MESSAGE = "이미 종료된 방입니다.";
 
     private final RelayRoomService relayRoomService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
@@ -180,6 +183,37 @@ public class RelayRoomController {
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(RELAY_PART_SUBMITTED_MESSAGE, response));
+    }
+
+    @PostMapping("/{roomCode}/close")
+    @Operation(summary = "릴레이 방 수동 종료", description = "방장이 결과 생성이 완료된 릴레이 방을 즉시 CLOSED 상태로 전환합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "릴레이 방 종료 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방 종료 권한 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "비참여자", value = OpenApiErrorExamples.RELAY_ROOM_PARTICIPANT_REQUIRED),
+            @ExampleObject(name = "방장 아님", value = OpenApiErrorExamples.RELAY_ROOM_CLOSE_HOST_REQUIRED)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.RELAY_ROOM_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "방 종료 불가 상태", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "결과 생성 전", value = OpenApiErrorExamples.RELAY_CLOSE_BEFORE_RESULT),
+            @ExampleObject(name = "게임 진행 중", value = OpenApiErrorExamples.RELAY_CLOSE_WHILE_PLAYING),
+            @ExampleObject(name = "결과 생성 중", value = OpenApiErrorExamples.RELAY_CLOSE_WHILE_FINALIZING)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<RelayRoomCloseResponse>> closeRoom(@PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        RelayRoomCloseResponse response = relayRoomService.closeRoom(userUuid, roomCode);
+        if (!response.alreadyClosed()) {
+            relayRoomEventPublisher.publishRoomClosed(response.roomCode(), response.closedAt());
+        }
+        String message = response.alreadyClosed() ? RELAY_ROOM_ALREADY_CLOSED_MESSAGE : RELAY_ROOM_CLOSED_MESSAGE;
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(ApiResponse.success(message, response));
     }
 
     /**

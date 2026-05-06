@@ -2,6 +2,7 @@ package com.nemonicworld.relay.service;
 
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
+import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
@@ -48,6 +49,11 @@ public interface RelayRoomService {
      */
     RelayRoomSubmissionResponse submitCurrentPart(String userUuidValue, String roomCodeValue,
         RelayRoomSubmissionRequest request);
+
+    /**
+     * 결과 생성이 끝난 릴레이 방을 방장이 즉시 종료합니다.
+     */
+    RelayRoomCloseResponse closeRoom(String userUuidValue, String roomCodeValue);
 
     /**
      * WebSocket 연결 성공 시 기존 릴레이 참여자를 연결 상태로 갱신합니다.

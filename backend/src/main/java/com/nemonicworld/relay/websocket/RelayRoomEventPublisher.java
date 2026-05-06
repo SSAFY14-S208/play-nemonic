@@ -3,6 +3,7 @@ package com.nemonicworld.relay.websocket;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomClosedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
@@ -127,6 +128,13 @@ public class RelayRoomEventPublisher {
             finalizationResult.roomCode(), RelayRoomResultCreatedEventResponse.from(finalizationResult));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + finalizationResult.roomCode(), event);
+    }
+
+    public void publishRoomClosed(String roomCode, LocalDateTime closedAt) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.ROOM_CLOSED, roomCode,
+            new RelayRoomClosedEventResponse(roomCode, RelayRoomStatus.CLOSED, closedAt));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
     }
 
     /**

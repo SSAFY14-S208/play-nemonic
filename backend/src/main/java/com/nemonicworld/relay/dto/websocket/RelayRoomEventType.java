@@ -24,6 +24,9 @@ public enum RelayRoomEventType {
 
     RESULT_CREATED,
 
+    // 결과 확인 시간이 지나 방 런타임이 종료되었음을 알립니다.
+    ROOM_CLOSED,
+
     // 참여자의 WebSocket 연결이 활성화되었음을 알립니다.
     PARTICIPANT_CONNECTED,
 

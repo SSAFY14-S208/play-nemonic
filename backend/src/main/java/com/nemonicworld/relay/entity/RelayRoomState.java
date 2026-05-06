@@ -77,6 +77,15 @@ public record RelayRoomState(String roomCode, RelayRoomStatus status, String hos
     }
 
     /**
+     * 결과 확인 시간이 지난 방을 런타임 종료 상태로 전환합니다.
+     */
+    public RelayRoomState close(LocalDateTime closedAt) {
+        return new RelayRoomState(roomCode, RelayRoomStatus.CLOSED, hostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, currentPart, participants, assignments, partStartedAt, partDeadlineAt, gameStartedAt,
+            createdAt, closedAt);
+    }
+
+    /**
      * 게임 시작 시 FACE 파트와 전체 canvasIndex별 배정표를 함께 저장합니다.
      */
     public RelayRoomState startGame(List<RelayRoomAssignment> generatedAssignments, LocalDateTime startedAt) {

@@ -150,6 +150,26 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     }
 
     /**
+     * Redis room key를 SCAN하며 close 기준 시각을 지난 FINISHED 방만 골라냅니다.
+     */
+    @Override
+    public List<RelayRoomState> findClosableFinishedRooms(LocalDateTime closeCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<RelayRoomState> closableRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && closableRooms.size() < limit) {
+                findClosableFinishedRoom(roomKeys.next(), closeCutoff).ifPresent(closableRooms::add);
+            }
+        }
+
+        return closableRooms;
+    }
+
+    /**
      * 여러 서버나 스케줄 tick이 같은 방을 동시에 최종화하지 못하도록 lock을 잡습니다.
      */
     @Override
@@ -193,6 +213,21 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
 
         RelayRoomState roomState = deserialize(roomStateValue);
         if (roomState.status() != RelayRoomStatus.FINALIZING) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
+    private Optional<RelayRoomState> findClosableFinishedRoom(String roomKey, LocalDateTime closeCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.FINISHED || roomState.updatedAt() == null
+            || roomState.updatedAt().isAfter(closeCutoff)) {
             return Optional.empty();
         }
 
