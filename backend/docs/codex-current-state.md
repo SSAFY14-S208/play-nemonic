@@ -35,16 +35,16 @@ Last updated: 2026-05-06
 - Admin logout revokes the submitted refresh token and blacklists the current
   access token; deleting a standard admin account revokes all of that account's
   refresh tokens and blocks previously issued access tokens.
-- Backoffice super admins can now create standard admin accounts with
+- Backoffice super admins can now create standard admins with
   `POST /api/v1/admins`; the API stores BCrypt password hashes, fixes
   new accounts to the `admin` role, and rejects duplicate `login_id` values.
-- Backoffice super admins can now list and inspect active admin accounts with
+- Backoffice super admins can now list and inspect active admins with
   `GET /api/v1/admins` and `GET /api/v1/admins/{adminId}`.
 - Backoffice super admins can now change standard admin passwords with
   `PATCH /api/v1/admins/{adminId}`; the API updates the BCrypt password hash,
   revokes the target account's refresh tokens, and blocks previously issued
   access tokens.
-- Backoffice super admins can now soft-delete standard admin accounts with
+- Backoffice super admins can now soft-delete standard admins with
   `DELETE /api/v1/admins/{adminId}`; self-delete, super-admin target
   deletion, and missing or already deleted targets are rejected.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,

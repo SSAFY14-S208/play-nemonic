@@ -1,6 +1,6 @@
 package com.nemonicworld.admin.service;
 
-import com.nemonicworld.admin.dto.request.AdminAccountCreateRequest;
+import com.nemonicworld.admin.dto.request.AdminCreateRequest;
 import com.nemonicworld.admin.dto.request.AdminPasswordChangeRequest;
 import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.admin.entity.AdminRole;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class AdminAccountServiceImpl implements AdminAccountService {
+public class AdminServiceImpl implements AdminService {
 
     private static final String SUPER_ADMIN_REQUIRED_MESSAGE = "슈퍼 관리자 권한이 필요합니다.";
     private static final String DUPLICATE_LOGIN_ID_MESSAGE = "이미 등록된 관리자 아이디입니다.";
@@ -34,7 +34,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     private final AdminTokenStore adminTokenStore;
     private final PasswordEncoder passwordEncoder;
 
-    public AdminAccountServiceImpl(AdminUserRepository adminUserRepository, AdminTokenStore adminTokenStore,
+    public AdminServiceImpl(AdminUserRepository adminUserRepository, AdminTokenStore adminTokenStore,
         PasswordEncoder passwordEncoder) {
         this.adminUserRepository = adminUserRepository;
         this.adminTokenStore = adminTokenStore;
@@ -43,7 +43,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
 
     @Override
     @Transactional
-    public AdminResponse createAdminAccount(AdminPrincipal adminPrincipal, AdminAccountCreateRequest request) {
+    public AdminResponse createAdmin(AdminPrincipal adminPrincipal, AdminCreateRequest request) {
         if (adminPrincipal == null) {
             throw new UnauthorizedException("인증이 필요합니다.");
         }
@@ -67,14 +67,14 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     }
 
     @Override
-    public List<AdminResponse> findAdminAccounts(AdminPrincipal adminPrincipal) {
+    public List<AdminResponse> findAdmins(AdminPrincipal adminPrincipal) {
         requireSuperAdmin(adminPrincipal);
 
         return adminUserRepository.findActiveAll().stream().map(AdminResponse::from).toList();
     }
 
     @Override
-    public AdminResponse findAdminAccount(AdminPrincipal adminPrincipal, Long adminId) {
+    public AdminResponse findAdmin(AdminPrincipal adminPrincipal, Long adminId) {
         requireSuperAdmin(adminPrincipal);
 
         AdminUser adminUser = adminUserRepository.findActiveById(adminId)
@@ -107,7 +107,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
 
     @Override
     @Transactional
-    public void deleteAdminAccount(AdminPrincipal adminPrincipal, Long adminId) {
+    public void deleteAdmin(AdminPrincipal adminPrincipal, Long adminId) {
         requireSuperAdmin(adminPrincipal);
 
         if (adminPrincipal.id().equals(adminId)) {

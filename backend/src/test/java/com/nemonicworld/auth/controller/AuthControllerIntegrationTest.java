@@ -174,7 +174,7 @@ class AuthControllerIntegrationTest {
         assertThat(readLastLoginAt(ADMIN_ID)).isNull();
     }
     @Test
-    void superAdminFindsAdminAccountDetail() throws Exception {
+    void superAdminFindsAdminDetail() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         AdminTokens tokens = loginAndReadTokens();
 
@@ -188,7 +188,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void adminAccountDetailReturnsUnauthorizedWhenTokenIsMissingInvalidOrBlacklisted() throws Exception {
+    void adminDetailReturnsUnauthorizedWhenTokenIsMissingInvalidOrBlacklisted() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         AdminTokens tokens = loginAndReadTokens();
         adminTokenStore.accessTokenBlacklist.add(readTokenClaims(tokens.accessToken()).tokenId());
@@ -228,14 +228,14 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void superAdminCreatesAdminAccount() throws Exception {
+    void superAdminCreatesAdmin() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
             .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(adminAccountCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data.id").isNumber())
@@ -250,7 +250,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void superAdminFindsAdminAccounts() throws Exception {
+    void superAdminFindsAdmins() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
         String accessToken = loginAndReadAccessToken();
@@ -290,21 +290,21 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void adminAccountCreationRequiresSuperAdminRole() throws Exception {
+    void adminCreationRequiresSuperAdminRole() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
             .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(adminAccountCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
     }
 
     @Test
-    void adminAccountCreationRejectsDuplicateLoginId() throws Exception {
+    void adminCreationRejectsDuplicateLoginId() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         insertAdminUser(2L, NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, "admin", null);
         String accessToken = loginAndReadAccessToken();
@@ -312,28 +312,28 @@ class AuthControllerIntegrationTest {
         mockMvc
             .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(adminAccountCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
     }
 
     @Test
-    void adminAccountCreationValidatesRequestBody() throws Exception {
+    void adminCreationValidatesRequestBody() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         String accessToken = loginAndReadAccessToken();
 
         mockMvc
             .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(adminAccountCreateRequestBody("", "short", NEW_ADMIN_NICKNAME, "not-email")))
+                .content(adminCreateRequestBody("", "short", NEW_ADMIN_NICKNAME, "not-email")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.errors.loginId").exists())
             .andExpect(jsonPath("$.errors.password").exists()).andExpect(jsonPath("$.errors.email").exists());
     }
 
     @Test
-    void superAdminDeletesAdminAccountAndRevokesTokens() throws Exception {
+    void superAdminDeletesAdminAndRevokesTokens() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
         String accessToken = loginAndReadAccessToken();
@@ -357,7 +357,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void adminAccountDeletionRequiresSuperAdminRole() throws Exception {
+    void adminDeletionRequiresSuperAdminRole() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
         insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
         String accessToken = loginAndReadAccessToken();
@@ -372,7 +372,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void adminAccountDeletionRejectsSelfDelete() throws Exception {
+    void adminDeletionRejectsSelfDelete() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         String accessToken = loginAndReadAccessToken();
 
@@ -386,7 +386,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void adminAccountDeletionRejectsSuperAdminTarget() throws Exception {
+    void adminDeletionRejectsSuperAdminTarget() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "super_admin", null);
         String accessToken = loginAndReadAccessToken();
@@ -401,7 +401,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void adminAccountDeletionRejectsMissingOrDeletedTarget() throws Exception {
+    void adminDeletionRejectsMissingOrDeletedTarget() throws Exception {
         LocalDateTime deletedAt = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", deletedAt);
@@ -478,7 +478,7 @@ class AuthControllerIntegrationTest {
             """.formatted(loginId, password);
     }
 
-    private String adminAccountCreateRequestBody(String loginId, String password, String nickname, String email) {
+    private String adminCreateRequestBody(String loginId, String password, String nickname, String email) {
         return """
             {
               "loginId": "%s",

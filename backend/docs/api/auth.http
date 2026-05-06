@@ -46,7 +46,7 @@ Authorization: Bearer {{adminAccessToken}}
   "email": "manager01@example.com"
 }
 
-### List admin accounts
+### List admins
 GET {{host}}/api/v1/admins
 Authorization: Bearer {{adminAccessToken}}
 
