@@ -1,0 +1,148 @@
+package com.nemonicworld.flipbook.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
+import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
+import com.nemonicworld.flipbook.redis.FlipbookRoomState;
+import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.user.entity.AppUser;
+import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+/**
+ * 플립북 WebSocket 연결 상태 갱신 유스케이스를 검증합니다.
+ */
+@ExtendWith(MockitoExtension.class)
+class FlipbookRoomConnectionUseCaseTest {
+
+    private static final String ROOM_CODE = "FB3K9Q";
+
+    @Mock
+    private AnonymousUserResolver anonymousUserResolver;
+
+    @Mock
+    private RoomCodeGenerator roomCodeGenerator;
+
+    @Mock
+    private FlipbookRoomRepository flipbookRoomRepository;
+
+    private FlipbookRoomConnectionUseCase flipbookRoomConnectionUseCase;
+
+    @BeforeEach
+    void setUp() {
+        FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
+        FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
+        flipbookRoomConnectionUseCase = new FlipbookRoomConnectionUseCase(anonymousUserResolver, flipbookRoomRepository,
+            flipbookRoomPolicy, flipbookRoomViewerFactory);
+    }
+
+    /**
+     * 참여자가 WebSocket에 연결되면 Redis 참여자 상태를 connected=true로 갱신합니다.
+     */
+    @Test
+    void connectRoomMarksParticipantConnected() {
+        UUID userUuid = UUID.randomUUID();
+        AppUser user = appUserWithNickname(userUuid, "망고");
+        FlipbookRoomState roomState = roomState(participant(userUuid, "망고", true, false));
+        given(anonymousUserResolver.resolve(userUuid.toString())).willReturn(user);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookRoomStateResponse response = flipbookRoomConnectionUseCase.connectRoom(userUuid.toString(), ROOM_CODE);
+
+        assertThat(response.participants().get(0).connected()).isTrue();
+        assertThat(response.viewer().participant()).isTrue();
+
+        ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
+        assertThat(updatedStateCaptor.getValue().participants().get(0).connected()).isTrue();
+        assertThat(updatedStateCaptor.getValue().participants().get(0).disconnectedAt()).isNull();
+    }
+
+    /**
+     * 연결 해제 시에는 UUID 형식만 확인한 뒤 Redis 참여자 상태를 connected=false로 갱신합니다.
+     */
+    @Test
+    void disconnectRoomMarksParticipantDisconnected() {
+        UUID userUuid = UUID.randomUUID();
+        FlipbookRoomState roomState = roomState(participant(userUuid, "망고", true, true));
+        given(anonymousUserResolver.parseUuid(userUuid.toString())).willReturn(userUuid);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookRoomStateResponse response = flipbookRoomConnectionUseCase.disconnectRoom(userUuid.toString(),
+            ROOM_CODE);
+
+        assertThat(response.participants().get(0).connected()).isFalse();
+
+        ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
+        assertThat(updatedStateCaptor.getValue().participants().get(0).connected()).isFalse();
+        assertThat(updatedStateCaptor.getValue().participants().get(0).disconnectedAt()).isNotNull();
+    }
+
+    /**
+     * 연결 상태 저장 충돌이 반복되면 클라이언트가 재시도할 수 있는 409 예외를 던집니다.
+     */
+    @Test
+    void connectRoomFailsWhenOptimisticSaveConflictsKeepHappening() {
+        UUID userUuid = UUID.randomUUID();
+        AppUser user = appUserWithNickname(userUuid, "망고");
+        FlipbookRoomState roomState = roomState(participant(userUuid, "망고", true, false));
+        given(anonymousUserResolver.resolve(userUuid.toString())).willReturn(user);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(false);
+
+        assertThatThrownBy(() -> flipbookRoomConnectionUseCase.connectRoom(userUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 갱신하지 못했습니다. 다시 시도해주세요.");
+
+        verify(flipbookRoomRepository, times(3)).saveIfUnchanged(any(FlipbookRoomState.class),
+            any(FlipbookRoomState.class));
+    }
+
+    private FlipbookRoomState roomState(FlipbookRoomParticipant participant) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        return new FlipbookRoomState(ROOM_CODE, FlipbookRoomStatus.WAITING, participant.userUuid(), 45, 2, 6,
+            List.of(participant), now, now);
+    }
+
+    private FlipbookRoomParticipant participant(UUID userUuid, String nickname, boolean host, boolean connected) {
+        return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, 0, connected,
+            connected ? null : LocalDateTime.now().minusSeconds(5).truncatedTo(ChronoUnit.SECONDS),
+            LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private AppUser appUserWithNickname(UUID userUuid, String nickname) {
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        AppUser appUser = AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt);
+        appUser.updateNickname(nickname, createdAt.plusHours(1));
+
+        return appUser;
+    }
+}
