@@ -50,11 +50,11 @@ public class RedisInviteRepository implements InviteRepository {
     public Optional<InviteMetadata> findByInviteCode(String inviteCode) {
         String inviteValue = redisTemplate.opsForValue().get(createInviteKey(inviteCode));
 
-        if (!StringUtils.hasText(inviteValue)) {
-            return Optional.empty();
+        if (!StringUtils.hasText(inviteValue)) { // inviteValue가 null이거나 빈 문자열이나 공백이면
+            return Optional.empty(); // 값이 없음
         }
 
-        return Optional.of(deserialize(inviteValue));
+        return Optional.of(deserialize(inviteValue)); // inviteValue는 json문자열 (redis값) -> 역직렬화해서 객체화 -> 객체 반환
     }
 
     private String createInviteKey(String inviteCode) {
@@ -73,7 +73,8 @@ public class RedisInviteRepository implements InviteRepository {
     }
 
     /**
-     * Redis 문자열 JSON을 초대 메타데이터 모델로 복원합니다.
+     * Redis 문자열 JSON을 초대 메타데이터 모델로 복원합니다. (Redis에 문자열로 저장된 JSON을 Java 객체로 객체화, 즉
+     * 역직렬화(deserialize)하는 코드)
      */
     private InviteMetadata deserialize(String inviteValue) {
         try {

@@ -9,6 +9,8 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 
 /**
  * STOMP CONNECT 처리 단계에서 어떤 콘텐츠의 WebSocket인지 구분할 수 있도록 세션 속성을 저장합니다.
+ * 둘 다 같은 Spring WebSocket 구조를 공유하니까, 서버는 “이 연결이 릴레이인지 플립북인지” 구분해야함
+ * attributes.put(CONNECTION_TYPE, "flipbook");
  */
 public class WebSocketConnectionTypeHandshakeInterceptor implements HandshakeInterceptor {
 
