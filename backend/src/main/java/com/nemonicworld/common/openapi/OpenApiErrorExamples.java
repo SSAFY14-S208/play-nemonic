@@ -29,6 +29,12 @@ public final class OpenApiErrorExamples {
           "message": "닉네임을 먼저 설정해주세요."
         }
         """;
+    public static final String FLIPBOOK_NICKNAME_REQUIRED = """
+        {
+          "success": false,
+          "message": "닉네임을 먼저 설정해주세요."
+        }
+        """;
     public static final String INVALID_ROOM_CODE = """
         {
           "success": false,
