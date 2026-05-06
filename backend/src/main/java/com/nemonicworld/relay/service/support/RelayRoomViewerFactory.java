@@ -57,7 +57,7 @@ public class RelayRoomViewerFactory {
      */
     private RelayRoomViewerResponse createNonParticipantViewerResponse(String viewerUserUuid,
         RelayRoomState roomState) {
-        RelayRoomViewerBlockedReason blockedReason = relayRoomPolicy.findJoinBlockedReason(roomState);
+        RelayRoomViewerBlockedReason blockedReason = relayRoomPolicy.findJoinBlockedReason(roomState, viewerUserUuid);
         boolean canJoin = blockedReason == null;
 
         return new RelayRoomViewerResponse(viewerUserUuid, false, false, canJoin, false, blockedReason);

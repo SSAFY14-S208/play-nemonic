@@ -65,6 +65,7 @@ public class RelayRoomConnectionUseCase {
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
             relayRoomPolicy.validateWebSocketConnectableRoom(roomState);
+            relayRoomPolicy.validateNotKicked(roomState, viewerUserUuid);
             RelayRoomParticipant participant = relayRoomPolicy.requireConnectionParticipant(roomState, viewerUserUuid);
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             RelayRoomParticipant updatedParticipant = new RelayRoomParticipant(participant.userUuid(),

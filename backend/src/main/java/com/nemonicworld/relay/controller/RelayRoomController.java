@@ -3,10 +3,12 @@ package com.nemonicworld.relay.controller;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.relay.dto.request.RelayRoomKickRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
@@ -48,6 +50,7 @@ public class RelayRoomController {
     private static final String RELAY_ROOM_CREATED_MESSAGE = "릴레이 방 생성 성공";
     private static final String RELAY_ROOM_STATE_FOUND_MESSAGE = "릴레이 방 상태 조회 성공";
     private static final String RELAY_ROOM_JOINED_MESSAGE = "릴레이 방 입장/복귀 성공";
+    private static final String RELAY_ROOM_PARTICIPANT_KICKED_MESSAGE = "참여자 강퇴 성공";
     private static final String RELAY_ROOM_SETTINGS_UPDATED_MESSAGE = "릴레이 방 설정 변경 성공";
     private static final String RELAY_GAME_STARTED_MESSAGE = "릴레이 게임 시작 성공";
     private static final String RELAY_MY_ASSIGNMENT_FOUND_MESSAGE = "내 릴레이 배정 조회 성공";
@@ -232,6 +235,7 @@ public class RelayRoomController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
             @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.RELAY_ROOM_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "강퇴된 방 재입장 불가", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.RELAY_KICKED_ROOM_REJOIN))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "입장 또는 재접속 불가", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "정원 초과", value = OpenApiErrorExamples.RELAY_ROOM_FULL),
             @ExampleObject(name = "게임 진행 중", value = OpenApiErrorExamples.RELAY_GAME_IN_PROGRESS),
@@ -244,6 +248,42 @@ public class RelayRoomController {
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(RELAY_ROOM_JOINED_MESSAGE, response));
+    }
+
+    /**
+     * 방장이 대기 중 방의 일반 참여자를 강퇴하고 강퇴 이벤트를 알립니다.
+     */
+    @PostMapping("/{roomCode}/participants/kick")
+    @Operation(summary = "릴레이 방 참여자 강퇴", description = "방장이 WAITING 상태의 릴레이 대기실에서 일반 참여자를 강퇴합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "참여자 강퇴 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "강퇴 권한 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "비참여자", value = OpenApiErrorExamples.RELAY_ROOM_PARTICIPANT_REQUIRED),
+            @ExampleObject(name = "방장 아님", value = OpenApiErrorExamples.RELAY_ROOM_KICK_HOST_REQUIRED)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.RELAY_ROOM_NOT_FOUND),
+            @ExampleObject(name = "대상 없음", value = OpenApiErrorExamples.RELAY_KICK_TARGET_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "강퇴 불가 상태", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "대기실 아님", value = OpenApiErrorExamples.RELAY_WAITING_ROOM_KICK_ONLY),
+            @ExampleObject(name = "자기 자신 강퇴", value = OpenApiErrorExamples.RELAY_SELF_KICK_NOT_ALLOWED),
+            @ExampleObject(name = "방장 강퇴", value = OpenApiErrorExamples.RELAY_HOST_KICK_NOT_ALLOWED)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<RelayRoomKickResponse>> kickParticipant(@PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @RequestBody(required = false) RelayRoomKickRequest request) {
+        String targetUserUuid = request == null ? null : request.targetUserUuid();
+        RelayRoomKickResponse response = relayRoomService.kickParticipant(userUuid, roomCode, targetUserUuid);
+        relayRoomEventPublisher.publishParticipantKicked(response);
+        relayRoomEventPublisher.publishKickedFromRoom(response.roomCode(), response.kickedUserUuid());
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(RELAY_ROOM_PARTICIPANT_KICKED_MESSAGE, response));
     }
 
     /**
