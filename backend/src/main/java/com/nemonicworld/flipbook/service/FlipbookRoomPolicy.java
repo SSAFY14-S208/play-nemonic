@@ -29,6 +29,7 @@ public class FlipbookRoomPolicy {
     static final int HOST_JOIN_ORDER = 0;
     static final int ROOM_UPDATE_MAX_RETRIES = 3;
     static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
+    static final String ROOM_CONNECTION_UPDATE_CONFLICT_MESSAGE = "동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
 
     private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
@@ -38,6 +39,7 @@ public class FlipbookRoomPolicy {
     private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "플립북 방에 참여하지 않은 사용자입니다.";
     private static final String ONLY_HOST_ALLOWED_MESSAGE = "방장만 사용할 수 있습니다.";
     private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
+    private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final FlipbookRoomRepository flipbookRoomRepository;
@@ -102,6 +104,14 @@ public class FlipbookRoomPolicy {
     }
 
     /**
+     * WebSocket 연결 대상 참여자를 조회합니다.
+     */
+    FlipbookRoomParticipant requireConnectionParticipant(FlipbookRoomState roomState, String userUuid) {
+        return findParticipant(roomState, userUuid)
+            .orElseThrow(() -> new ConflictException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
+    }
+
+    /**
      * 방장 전용 동작인지 검증합니다.
      */
     void validateRoomHost(String viewerUserUuid, FlipbookRoomState roomState, FlipbookRoomParticipant participant) {
@@ -119,6 +129,17 @@ public class FlipbookRoomPolicy {
         if (roomState.status() != FlipbookRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_SETTINGS_ONLY_MESSAGE);
         }
+    }
+
+    /**
+     * 대기방과 플레이 중 방에서만 WebSocket 연결 상태를 관리합니다.
+     */
+    void validateWebSocketConnectableRoom(FlipbookRoomState roomState) {
+        if (roomState.status() == FlipbookRoomStatus.WAITING || roomState.status() == FlipbookRoomStatus.PLAYING) {
+            return;
+        }
+
+        throw new ConflictException(ROOM_CLOSED_MESSAGE);
     }
 
     /**

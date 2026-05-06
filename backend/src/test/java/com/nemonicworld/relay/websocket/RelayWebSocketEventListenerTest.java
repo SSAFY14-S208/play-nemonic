@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.relay.dto.response.RelayRoomParticipantResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
@@ -40,9 +41,11 @@ class RelayWebSocketEventListenerTest {
     @Test
     void handleSessionDisconnectUpdatesRedisWhenSessionIsCurrent() {
         RelayRoomStateResponse roomStateResponse = roomStateResponse();
-        ActiveWebSocketSession session = new ActiveWebSocketSession(ROOM_CODE, USER_UUID, SESSION_ID);
+        ActiveWebSocketSession session = new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY,
+            ROOM_CODE, USER_UUID, SESSION_ID);
         given(webSocketSessionRegistry.findBySessionId(SESSION_ID)).willReturn(Optional.of(session));
-        given(webSocketSessionRegistry.isCurrentSession(ROOM_CODE, USER_UUID, SESSION_ID)).willReturn(true);
+        given(webSocketSessionRegistry.isCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE,
+            USER_UUID, SESSION_ID)).willReturn(true);
         given(relayRoomService.disconnectRoom(USER_UUID, ROOM_CODE)).willReturn(roomStateResponse);
 
         listener.handleSessionDisconnect(disconnectEvent());
@@ -57,9 +60,11 @@ class RelayWebSocketEventListenerTest {
      */
     @Test
     void handleSessionDisconnectSkipsRedisUpdateWhenSessionIsStale() {
-        ActiveWebSocketSession session = new ActiveWebSocketSession(ROOM_CODE, USER_UUID, SESSION_ID);
+        ActiveWebSocketSession session = new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY,
+            ROOM_CODE, USER_UUID, SESSION_ID);
         given(webSocketSessionRegistry.findBySessionId(SESSION_ID)).willReturn(Optional.of(session));
-        given(webSocketSessionRegistry.isCurrentSession(ROOM_CODE, USER_UUID, SESSION_ID)).willReturn(false);
+        given(webSocketSessionRegistry.isCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE,
+            USER_UUID, SESSION_ID)).willReturn(false);
 
         listener.handleSessionDisconnect(disconnectEvent());
 

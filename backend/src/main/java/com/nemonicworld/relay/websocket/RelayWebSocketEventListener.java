@@ -2,6 +2,7 @@ package com.nemonicworld.relay.websocket;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.service.RelayRoomService;
 import java.util.Optional;
@@ -43,9 +44,14 @@ public class RelayWebSocketEventListener {
         }
 
         ActiveWebSocketSession session = activeSession.get();
+        if (!WebSocketSessionAttributes.CONNECTION_TYPE_RELAY.equals(session.connectionType())) {
+            return;
+        }
+
         String roomCode = session.connectionKey();
 
-        if (!webSocketSessionRegistry.isCurrentSession(roomCode, session.userUuid(), sessionId)) {
+        if (!webSocketSessionRegistry.isCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode,
+            session.userUuid(), sessionId)) {
             webSocketSessionRegistry.removeStaleSession(sessionId);
             return;
         }

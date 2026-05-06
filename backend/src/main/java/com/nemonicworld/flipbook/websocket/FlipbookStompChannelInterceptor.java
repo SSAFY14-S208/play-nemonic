@@ -1,14 +1,15 @@
-package com.nemonicworld.relay.websocket;
+package com.nemonicworld.flipbook.websocket;
 
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
+import com.nemonicworld.flipbook.service.FlipbookRoomService;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
-import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
-import com.nemonicworld.relay.service.RelayRoomService;
 import java.security.Principal;
 import java.util.Map;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -20,25 +21,18 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
 /**
- * 릴레이 STOMP CONNECT frame을 검증하고 활성 세션을 등록합니다.
+ * 플립북 STOMP CONNECT frame을 검증하고 활성 세션을 등록합니다.
  */
 @Component
-public class RelayStompChannelInterceptor implements ChannelInterceptor {
+@RequiredArgsConstructor
+public class FlipbookStompChannelInterceptor implements ChannelInterceptor {
 
     private static final String ROOM_CODE_CONNECT_HEADER = "roomCode";
-    private static final String CONNECTION_REJECTED_MESSAGE = "릴레이 웹소켓 연결을 허용할 수 없습니다.";
+    private static final String CONNECTION_REJECTED_MESSAGE = "플립북 웹소켓 연결을 허용할 수 없습니다.";
 
-    private final RelayRoomService relayRoomService;
+    private final FlipbookRoomService flipbookRoomService;
     private final WebSocketSessionRegistry webSocketSessionRegistry;
-    private final ObjectProvider<RelayRoomEventPublisher> relayRoomEventPublisherProvider;
-
-    public RelayStompChannelInterceptor(RelayRoomService relayRoomService,
-        WebSocketSessionRegistry webSocketSessionRegistry,
-        ObjectProvider<RelayRoomEventPublisher> relayRoomEventPublisherProvider) {
-        this.relayRoomService = relayRoomService;
-        this.webSocketSessionRegistry = webSocketSessionRegistry;
-        this.relayRoomEventPublisherProvider = relayRoomEventPublisherProvider;
-    }
+    private final ObjectProvider<FlipbookRoomEventPublisher> flipbookRoomEventPublisherProvider;
 
     /**
      * CONNECT frame의 roomCode와 Anonymous-User-UUID를 검증하고 중복 세션을 교체합니다.
@@ -47,7 +41,7 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
 
-        if (accessor.getCommand() != StompCommand.CONNECT || !isRelayConnection(accessor)) {
+        if (accessor.getCommand() != StompCommand.CONNECT || !isFlipbookConnection(accessor)) {
             return message;
         }
 
@@ -56,15 +50,15 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
         String userUuid = accessor.getFirstNativeHeader(AnonymousUserHeaders.ANONYMOUS_USER_UUID);
 
         try {
-            RelayRoomStateResponse roomStateResponse = relayRoomService.connectRoom(userUuid, roomCode);
+            FlipbookRoomStateResponse roomStateResponse = flipbookRoomService.connectRoom(userUuid, roomCode);
             configureSession(accessor, sessionId, roomCode, userUuid);
             Optional<ActiveWebSocketSession> replacedSession = webSocketSessionRegistry
-                .register(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode, userUuid, sessionId);
-            RelayRoomEventPublisher relayRoomEventPublisher = relayRoomEventPublisherProvider.getObject();
+                .register(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, roomCode, userUuid, sessionId);
+            FlipbookRoomEventPublisher flipbookRoomEventPublisher = flipbookRoomEventPublisherProvider.getObject();
 
-            replacedSession.ifPresent(session -> closeDuplicateSession(relayRoomEventPublisher, session.sessionId(),
+            replacedSession.ifPresent(session -> closeDuplicateSession(flipbookRoomEventPublisher, session.sessionId(),
                 session.connectionKey()));
-            relayRoomEventPublisher.publishParticipantConnected(roomStateResponse);
+            flipbookRoomEventPublisher.publishParticipantConnected(roomStateResponse);
 
             return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
         } catch (RuntimeException e) {
@@ -86,16 +80,16 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
         accessor.setUser(sessionPrincipal);
     }
 
-    private boolean isRelayConnection(StompHeaderAccessor accessor) {
+    private boolean isFlipbookConnection(StompHeaderAccessor accessor) {
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
 
-        return sessionAttributes != null && WebSocketSessionAttributes.CONNECTION_TYPE_RELAY
+        return sessionAttributes != null && WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK
             .equals(sessionAttributes.get(WebSocketSessionAttributes.CONNECTION_TYPE));
     }
 
-    private void closeDuplicateSession(RelayRoomEventPublisher relayRoomEventPublisher, String sessionId,
+    private void closeDuplicateSession(FlipbookRoomEventPublisher flipbookRoomEventPublisher, String sessionId,
         String roomCode) {
-        relayRoomEventPublisher.publishDuplicateSessionClosed(sessionId, roomCode);
+        flipbookRoomEventPublisher.publishDuplicateSessionClosed(sessionId, roomCode);
         webSocketSessionRegistry.closeWebSocketSession(sessionId);
         webSocketSessionRegistry.removeStaleSession(sessionId);
     }

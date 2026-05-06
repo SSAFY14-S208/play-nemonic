@@ -24,4 +24,14 @@ public interface FlipbookRoomService {
      */
     FlipbookRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
         FlipbookRoomSettingsRequest request);
+
+    /**
+     * 플립북 WebSocket 연결 성공을 방 참여자 상태에 반영합니다.
+     */
+    FlipbookRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue);
+
+    /**
+     * 플립북 WebSocket 연결 해제를 방 참여자 상태에 반영합니다.
+     */
+    FlipbookRoomStateResponse disconnectRoom(String userUuidValue, String roomCodeValue);
 }

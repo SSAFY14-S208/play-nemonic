@@ -1,6 +1,7 @@
 package com.nemonicworld.global.websocket.config;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import java.util.List;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.support.ChannelInterceptor;
@@ -33,7 +34,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws/relay").setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws/relay")
+            .addInterceptors(
+                new WebSocketConnectionTypeHandshakeInterceptor(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY))
+            .setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws/flipbook")
+            .addInterceptors(
+                new WebSocketConnectionTypeHandshakeInterceptor(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK))
+            .setAllowedOriginPatterns("*");
     }
 
     /**

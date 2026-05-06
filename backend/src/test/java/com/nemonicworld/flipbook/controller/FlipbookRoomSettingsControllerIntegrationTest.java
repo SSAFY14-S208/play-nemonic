@@ -15,6 +15,7 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
+import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -43,6 +44,9 @@ class FlipbookRoomSettingsControllerIntegrationTest {
 
     @MockitoBean
     private FlipbookRoomService flipbookRoomService;
+
+    @MockitoBean
+    private FlipbookRoomEventPublisher flipbookRoomEventPublisher;
 
     /**
      * PATCH 요청 본문을 설정 변경 요청 DTO로 변환하고 최신 방 상태 응답을 반환합니다.
@@ -73,6 +77,7 @@ class FlipbookRoomSettingsControllerIntegrationTest {
             .forClass(FlipbookRoomSettingsRequest.class);
         verify(flipbookRoomService).updateRoomSettings(eq(hostUuid.toString()), eq(ROOM_CODE), requestCaptor.capture());
         assertThat(requestCaptor.getValue().timeLimitSeconds()).isEqualTo(60);
+        verify(flipbookRoomEventPublisher).publishSettingsChanged(org.mockito.ArgumentMatchers.any());
     }
 
     private FlipbookRoomStateResponse roomStateResponse(UUID hostUuid, int timeLimitSeconds) {

@@ -169,6 +169,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 ```
 
+Recent flipbook lobby WebSocket work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew compileJava spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.relay.websocket.*' --no-daemon
+```
+
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.
 

@@ -5,6 +5,9 @@ package com.nemonicworld.global.websocket.session;
  */
 public final class WebSocketSessionAttributes {
 
+    public static final String CONNECTION_TYPE = "webSocketConnectionType";
+    public static final String CONNECTION_TYPE_RELAY = "relay";
+    public static final String CONNECTION_TYPE_FLIPBOOK = "flipbook";
     public static final String CONNECTION_KEY = "webSocketConnectionKey";
     public static final String USER_UUID = "webSocketUserUuid";
 
