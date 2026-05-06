@@ -39,6 +39,7 @@ Last updated: 2026-05-06
 - Relay room close now scans `FINISHED` Redis rooms after `updatedAt + close-delay` and also supports host-triggered `POST /api/v1/relay/rooms/{roomCode}/close`; both paths mark eligible rooms `CLOSED` through CAS and emit `ROOM_CLOSED` only on the successful state transition, while temp file cleanup, old temp cleanup, and artifact/gallery deletion remain out of scope.
 - Relay service internals are grouped under `service.room`, `service.game`, `service.assignment`, `service.submission`, `service.timeout`, `service.finalization`, `service.close`, and `service.support`, while `RelayRoomService` and `RelayRoomServiceImpl` remain the controller-facing facade.
 - Flipbook room creation now uses `POST /api/v1/flipbook/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `flipbook:room:{roomCode}` with a 24-hour TTL, and stores matching common invite metadata under `invite:{roomCode}` with `boothType=flipbook`.
+- Flipbook room state lookup now uses `GET /api/v1/flipbook/rooms/{roomCode}`, reads the Redis room snapshot without mutation, sorts participants by `joinOrder`, and computes viewer participation, host, joinable, startable, and blocked-reason flags from the requested `Anonymous-User-UUID`.
 - Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
   related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
   `super_admin` row in `admin_user` only when enabled and the login ID does not
