@@ -21,7 +21,13 @@ import type { RelayDrawLine, RelayDrawPoint, RelayRoundLines } from '../types'
 // 만족하는 최소 교집합. 게임 진행 필드(currentPart 등)는 다루지 않는다.
 export type RelayRoomHydratePayload = Pick<
   RelayRoomStateResponse,
-  'roomCode' | 'status' | 'hostUserUuid' | 'timeLimitSeconds' | 'participants'
+  | 'roomCode'
+  | 'status'
+  | 'hostUserUuid'
+  | 'timeLimitSeconds'
+  | 'minParticipants'
+  | 'maxParticipants'
+  | 'participants'
 >
 
 export interface RoomSlice {
@@ -30,6 +36,9 @@ export interface RoomSlice {
   hostUserUuid: string | null
   participants: RelayRoomParticipantResponse[]
   timeLimitSeconds: number
+  // 정원 — 가이드 §9·§15. 백엔드가 방 생성 시 결정해 응답에 함께 내려준다.
+  minParticipants: number
+  maxParticipants: number
 
   hydrateRoomState: (payload: RelayRoomHydratePayload) => void
   setRoomStatus: (roomStatus: RelayRoomStatus) => void

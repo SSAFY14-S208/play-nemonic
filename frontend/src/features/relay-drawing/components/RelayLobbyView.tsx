@@ -1,31 +1,39 @@
 "use client";
 
 import { Copy, Crown, QrCode } from "lucide-react";
-import { useRelayDrawingStore } from "../stores";
+
+import { useUserStore } from "@/shared/stores";
+import type { RelayRoomParticipantResponse } from "@/shared/types";
+
 import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from "../constants";
+import { useRelayLobby } from "../hooks";
+import { useRelayDrawingStore } from "../stores";
 import { cn } from "@/shared/libs";
 import { PostItNote } from "@/shared/components";
 
-const LOBBY_PARTICIPANTS = [
-  { id: "host", name: "여우 (나)", avatar: "🦊", isHost: true },
-  { id: "cat-1", name: "고양이", avatar: "🦊", isHost: false },
-  { id: "cat-2", name: "고양이", avatar: "🦊", isHost: false },
-];
-
-const WAITING_SLOT_COUNT = 3;
-
 export default function RelayLobbyView() {
   const roomCode = useRelayDrawingStore((state) => state.roomCode);
-  const timeLimitSeconds = useRelayDrawingStore(
-    (state) => state.timeLimitSeconds,
-  );
-  const setTimeLimitSeconds = useRelayDrawingStore(
-    (state) => state.setTimeLimitSeconds,
-  );
+  const participants = useRelayDrawingStore((state) => state.participants);
+  const maxParticipants = useRelayDrawingStore((state) => state.maxParticipants);
+  const timeLimitSeconds = useRelayDrawingStore((state) => state.timeLimitSeconds);
+  const currentUserUuid = useUserStore((state) => state.userUuid);
 
-  // TODO(wiring): postRelayRoomStart(roomCode) — 시작은 GAME_STARTED WS 이벤트로
-  // 다시 받아 roomStatus를 PLAYING으로 전환한다.
-  const handleStartGame = () => {};
+  const {
+    isHost,
+    canStartGame,
+    startError,
+    isStarting,
+    settingsError,
+    copyConfirm,
+    startGame,
+    changeTimeLimit,
+    copyInviteLink,
+  } = useRelayLobby();
+
+  const waitingSlotCount = Math.max(0, maxParticipants - participants.length);
+  const startButtonLabel = isStarting
+    ? "시작 중…"
+    : `🎨 게임 시작 (${participants.length}명)`;
 
   return (
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
@@ -46,11 +54,13 @@ export default function RelayLobbyView() {
           <div className="mt-2 flex gap-10">
             <button
               type="button"
+              onClick={copyInviteLink}
               className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
             >
               <Copy className="size-[17px]" aria-hidden />
-              링크 복사
+              {copyConfirm ? "복사됨" : "링크 복사"}
             </button>
+            {/* TODO(차기): QR 코드 모달. 현재는 시각 요소만 유지 */}
             <button
               type="button"
               className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
@@ -65,26 +75,27 @@ export default function RelayLobbyView() {
           <section className="rounded-[24px] bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
             <div className="flex items-center gap-1">
               <h2 className="h3-b text-relay-ink">참여자</h2>
-              <span className="h3-b text-relay-accent">3/6</span>
+              <span className="h3-b text-relay-accent">
+                {participants.length}/{maxParticipants}
+              </span>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-              {LOBBY_PARTICIPANTS.map((participant) => (
+              {participants.map((participant) => (
                 <ParticipantTile
-                  key={participant.id}
+                  key={participant.userUuid}
                   participant={participant}
+                  isMe={participant.userUuid === currentUserUuid}
                 />
               ))}
-              {Array.from({ length: WAITING_SLOT_COUNT }).map(
-                (_, waitingSlotIndex) => (
-                  <div
-                    key={waitingSlotIndex}
-                    className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
-                  >
-                    초대를 기다리는 중...
-                  </div>
-                ),
-              )}
+              {Array.from({ length: waitingSlotCount }).map((_, waitingSlotIndex) => (
+                <div
+                  key={`waiting-${waitingSlotIndex}`}
+                  className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
+                >
+                  초대를 기다리는 중...
+                </div>
+              ))}
             </div>
           </section>
 
@@ -98,11 +109,13 @@ export default function RelayLobbyView() {
                   <button
                     key={seconds}
                     type="button"
-                    onClick={() => setTimeLimitSeconds(seconds)}
+                    onClick={() => changeTimeLimit(seconds)}
+                    disabled={!isHost}
                     className={cn(
-                      "body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent",
+                      "body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent disabled:cursor-not-allowed",
                       isSelected &&
                         "border-relay-accent bg-relay-accent/20 text-relay-ink",
+                      !isHost && !isSelected && "opacity-60",
                     )}
                   >
                     {seconds}초
@@ -110,33 +123,67 @@ export default function RelayLobbyView() {
                 );
               })}
             </div>
+            {settingsError && (
+              <p role="alert" className="caption-r mt-3 text-error">
+                {settingsError}
+              </p>
+            )}
           </section>
 
-          <button
-            type="button"
-            onClick={handleStartGame}
-            className="body-b min-h-16 rounded-[16px] bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)]"
-          >
-            🎨 게임 시작 (3명)
-          </button>
+          {isHost ? (
+            <button
+              type="button"
+              onClick={startGame}
+              disabled={!canStartGame}
+              className="body-b min-h-16 rounded-[16px] bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)] disabled:opacity-45"
+            >
+              {startButtonLabel}
+            </button>
+          ) : (
+            <p className="body-r min-h-16 grid place-items-center text-relay-muted">
+              방장이 게임을 시작할 때까지 기다려주세요
+            </p>
+          )}
+          {startError && (
+            <p role="alert" className="caption-r text-error">
+              {startError}
+            </p>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function ParticipantTile({
-  participant,
-}: {
-  participant: (typeof LOBBY_PARTICIPANTS)[number];
-}) {
+interface ParticipantTileProps {
+  participant: RelayRoomParticipantResponse;
+  isMe: boolean;
+}
+
+function ParticipantTile({ participant, isMe }: ParticipantTileProps) {
+  // 닉네임 첫 글자를 아바타로 사용 — 백엔드가 별도 아바타 데이터를 주지 않아
+  // 임시로 첫 글자를 동그라미에 띄운다. 디자인이 별도 아바타 시스템을 정의하면
+  // 그때 교체한다.
+  const avatarChar = participant.nickname.slice(0, 1).toUpperCase();
+
   return (
-    <div className="flex min-h-14 items-center gap-3 rounded-[16px] border border-relay-line bg-relay-active px-3.5">
-      <span className="grid size-9 place-items-center rounded-full bg-relay-active text-[18px]">
-        {participant.avatar}
+    <div
+      className={cn(
+        "flex min-h-14 items-center gap-3 rounded-[16px] border border-relay-line bg-relay-active px-3.5",
+        !participant.connected && "opacity-60",
+      )}
+    >
+      <span className="grid size-9 place-items-center rounded-full bg-relay-paper text-[14px] font-bold text-relay-ink">
+        {avatarChar}
       </span>
-      <span className="body-b flex-1 text-relay-ink">{participant.name}</span>
-      {participant.isHost && (
+      <span className="body-b flex-1 truncate text-relay-ink">
+        {participant.nickname}
+        {isMe && " (나)"}
+      </span>
+      {!participant.connected && (
+        <span className="caption-r text-relay-muted">재연결 중...</span>
+      )}
+      {participant.host && (
         <span className="caption-b inline-flex items-center gap-1 rounded-full border border-relay-accent bg-relay-accent px-2 py-1 text-relay-ink">
           <Crown className="size-4" aria-hidden />
           방장

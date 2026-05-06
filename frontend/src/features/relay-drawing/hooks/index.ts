@@ -1,5 +1,6 @@
 export { useRelayBooth } from './useRelayBooth'
 export { useRelayCanvas } from './useRelayCanvas'
+export { useRelayLobby } from './useRelayLobby'
 export { useRelayNickname } from './useRelayNickname'
 export { useRelayResult } from './useRelayResult'
 export { useRelayRoom } from './useRelayRoom'
