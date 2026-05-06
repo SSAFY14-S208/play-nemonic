@@ -23,3 +23,5 @@ nemonic:
   relay:
     timeout:
       enabled: false
+    finalization:
+      enabled: false
