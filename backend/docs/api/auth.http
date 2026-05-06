@@ -1,7 +1,7 @@
 @host = http://localhost:8080
 
 ### Admin login
-POST {{host}}/api/v1/auth/admin/login
+POST {{host}}/api/v1/auth/login
 Content-Type: application/json
 X-Trace-Id: auth-login-local
 
@@ -14,7 +14,7 @@ X-Trace-Id: auth-login-local
 > {% client.global.set("adminRefreshToken", response.body.data.refreshToken); %}
 
 ### Refresh admin token
-POST {{host}}/api/v1/auth/admin/token/refresh
+POST {{host}}/api/v1/auth/token/refresh
 Content-Type: application/json
 
 {
@@ -25,7 +25,7 @@ Content-Type: application/json
 > {% client.global.set("adminRefreshToken", response.body.data.refreshToken); %}
 
 ### Current admin
-GET {{host}}/api/v1/auth/admin/me
+GET {{host}}/api/v1/auth/me
 Authorization: Bearer {{adminAccessToken}}
 
 ### Create admin account
@@ -45,7 +45,7 @@ DELETE {{host}}/api/v1/admin/accounts/2
 Authorization: Bearer {{adminAccessToken}}
 
 ### Admin logout
-POST {{host}}/api/v1/auth/admin/logout
+POST {{host}}/api/v1/auth/logout
 Authorization: Bearer {{adminAccessToken}}
 Content-Type: application/json
 X-Trace-Id: auth-logout-local

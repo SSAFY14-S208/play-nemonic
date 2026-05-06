@@ -19,13 +19,18 @@ Last updated: 2026-05-06
 - My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
-- Backoffice admin authentication now exposes `POST /api/v1/auth/admin/login`,
-  `GET /api/v1/auth/admin/me`, and `POST /api/v1/auth/admin/logout`.
+- Backoffice admin authentication now exposes `POST /api/v1/auth/login`,
+  `POST /api/v1/auth/token/refresh`, `GET /api/v1/auth/me`, and
+  `POST /api/v1/auth/logout`; admin account management remains under
+  `/api/v1/admin/accounts`.
+- Backoffice admin code is split by domain: `com.nemonicworld.auth` owns
+  authentication and token lifecycle, while `com.nemonicworld.admin` owns admin
+  account resources and super-admin bootstrap.
 - Admin authentication uses JWT access tokens configured by `ADMIN_JWT_SECRET`
   and `ADMIN_JWT_ACCESS_TOKEN_EXPIRATION`; it is separate from anonymous UUID
   authentication.
 - Admin authentication now also issues opaque refresh tokens stored by hash in
-  Redis, rotates them through `POST /api/v1/auth/admin/token/refresh`, and
+  Redis, rotates them through `POST /api/v1/auth/token/refresh`, and
   checks Redis-backed access-token revocation using JWT `jti` and
   `admin:access:revoked-after:{adminId}` markers.
 - Admin logout revokes the submitted refresh token and blacklists the current
