@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.GoneException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.invite.dto.response.InviteJoinResponse;
@@ -186,6 +187,23 @@ class InviteServiceImplTest {
 
         assertThatThrownBy(() -> inviteService.joinByInviteCode(INVITE_CODE, JOINER_UUID))
             .isInstanceOf(ConflictException.class).hasMessage("정원이 가득 찬 방입니다.");
+    }
+
+    /**
+     * 릴레이 방에서 강퇴된 UUID는 초대코드 입장 경로로도 재입장할 수 없습니다.
+     */
+    @Test
+    void joinByInviteCodeRejectsKickedRelayUser() {
+        AppUser joiner = user(JOINER_UUID, "다현");
+        RelayRoomState roomState = waitingRoom(hostParticipant()).withParticipantsAndKickedUserUuids(
+            List.of(hostParticipant()), List.of(JOINER_UUID), LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+
+        given(anonymousUserResolver.resolve(JOINER_UUID)).willReturn(joiner);
+        given(inviteRepository.findByInviteCode(INVITE_CODE)).willReturn(Optional.of(activeInvite()));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> inviteService.joinByInviteCode(INVITE_CODE, JOINER_UUID))
+            .isInstanceOf(ForbiddenException.class).hasMessage("강퇴된 방에는 다시 입장할 수 없습니다.");
     }
 
     private InviteMetadata activeInvite() {

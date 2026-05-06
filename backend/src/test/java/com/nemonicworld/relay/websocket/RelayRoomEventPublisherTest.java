@@ -3,9 +3,13 @@ package com.nemonicworld.relay.websocket;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventResponse;
@@ -15,6 +19,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventStateResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomResultCreatedEventResponse;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
@@ -25,6 +30,7 @@ import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationResult;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -40,7 +46,9 @@ class RelayRoomEventPublisherTest {
     private static final String SESSION_ID = "session-1";
 
     private final SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
-    private final RelayRoomEventPublisher publisher = new RelayRoomEventPublisher(messagingTemplate);
+    private final WebSocketSessionRegistry webSocketSessionRegistry = mock(WebSocketSessionRegistry.class);
+    private final RelayRoomEventPublisher publisher = new RelayRoomEventPublisher(messagingTemplate,
+        webSocketSessionRegistry);
 
     /**
      * 설정 변경 이벤트는 방 전체 topic에 SETTINGS_CHANGED 타입과 최신 방 상태를 보냅니다.
@@ -206,6 +214,27 @@ class RelayRoomEventPublisherTest {
         assertThat(data.closedAt()).isEqualTo(closedAt);
     }
 
+    @Test
+    void publishParticipantKickedSendsParticipantKickedEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        LocalDateTime kickedAt = LocalDateTime.now().minusSeconds(1);
+        RelayRoomKickResponse response = new RelayRoomKickResponse(ROOM_CODE, "11111111-1111-1111-1111-111111111111",
+            "포도", 2, kickedAt);
+
+        publisher.publishParticipantKicked(response);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.PARTICIPANT_KICKED);
+
+        RelayRoomParticipantKickedEventResponse data = (RelayRoomParticipantKickedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.kickedUserUuid()).isEqualTo(response.kickedUserUuid());
+        assertThat(data.kickedNickname()).isEqualTo("포도");
+        assertThat(data.participantCount()).isEqualTo(2);
+        assertThat(data.kickedAt()).isEqualTo(kickedAt);
+    }
+
     /**
      * 개인 큐 이벤트는 user destination resolver가 특정 sessionId로 해석할 수 있도록 simpSessionId
      * 헤더를 함께 보냅니다.
@@ -219,6 +248,24 @@ class RelayRoomEventPublisherTest {
         verify(messagingTemplate).convertAndSendToUser(eq(SESSION_ID), eq("/queue/relay/rooms/" + ROOM_CODE),
             any(RelayRoomEventResponse.class), headersCaptor.capture());
         assertThat(headersCaptor.getValue()).containsEntry(SimpMessageHeaderAccessor.SESSION_ID_HEADER, SESSION_ID);
+    }
+
+    @Test
+    void publishKickedFromRoomSendsPersonalQueueEventAndClosesActiveSession() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        ArgumentCaptor<Map<String, Object>> headersCaptor = ArgumentCaptor.forClass(Map.class);
+        String kickedUserUuid = "11111111-1111-1111-1111-111111111111";
+        given(webSocketSessionRegistry.findCurrentSession(ROOM_CODE, kickedUserUuid))
+            .willReturn(Optional.of(new ActiveWebSocketSession(ROOM_CODE, kickedUserUuid, SESSION_ID)));
+
+        publisher.publishKickedFromRoom(ROOM_CODE, kickedUserUuid);
+
+        verify(messagingTemplate).convertAndSendToUser(eq(SESSION_ID), eq("/queue/relay/rooms/" + ROOM_CODE),
+            eventCaptor.capture(), headersCaptor.capture());
+        assertThat(eventCaptor.getValue().type()).isEqualTo(RelayRoomEventType.KICKED_FROM_ROOM);
+        assertThat(headersCaptor.getValue()).containsEntry(SimpMessageHeaderAccessor.SESSION_ID_HEADER, SESSION_ID);
+        verify(webSocketSessionRegistry).removeStaleSession(SESSION_ID);
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), any());
     }
 
     private RelayRoomStateResponse roomStateResponse(int timeLimitSeconds) {

@@ -1,5 +1,8 @@
 package com.nemonicworld.relay.websocket;
 
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventResponse;
@@ -10,6 +13,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomResultCreatedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomSimpleMessageResponse;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
@@ -22,6 +26,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
 
 /**
  * 릴레이 방 WebSocket topic/user queue로 이벤트를 발행합니다.
@@ -32,12 +37,18 @@ public class RelayRoomEventPublisher {
     private static final String ROOM_TOPIC_PREFIX = "/topic/relay/rooms/";
     private static final String ROOM_USER_QUEUE_PREFIX = "/queue/relay/rooms/";
     private static final String DUPLICATE_SESSION_CLOSED_MESSAGE = "다른 곳에서 접속되어 연결이 종료되었습니다.";
+    private static final String KICKED_FROM_ROOM_MESSAGE = "방장에 의해 강퇴되었습니다.";
+    private static final CloseStatus KICKED_FROM_ROOM_CLOSE_STATUS = CloseStatus.POLICY_VIOLATION
+        .withReason("KICKED_FROM_ROOM");
     private static final String PONG_MESSAGE = "pong";
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final WebSocketSessionRegistry webSocketSessionRegistry;
 
-    public RelayRoomEventPublisher(SimpMessagingTemplate messagingTemplate) {
+    public RelayRoomEventPublisher(SimpMessagingTemplate messagingTemplate,
+        WebSocketSessionRegistry webSocketSessionRegistry) {
         this.messagingTemplate = messagingTemplate;
+        this.webSocketSessionRegistry = webSocketSessionRegistry;
     }
 
     /**
@@ -52,6 +63,16 @@ public class RelayRoomEventPublisher {
      */
     public void publishParticipantDisconnected(RelayRoomStateResponse roomStateResponse) {
         publishRoomEvent(RelayRoomEventType.PARTICIPANT_DISCONNECTED, roomStateResponse);
+    }
+
+    /**
+     * 대기실 참여자가 강퇴되었음을 방 전체에 알립니다.
+     */
+    public void publishParticipantKicked(RelayRoomKickResponse kickResponse) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PARTICIPANT_KICKED,
+            kickResponse.roomCode(), RelayRoomParticipantKickedEventResponse.from(kickResponse));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + kickResponse.roomCode(), event);
     }
 
     /**
@@ -146,6 +167,24 @@ public class RelayRoomEventPublisher {
 
         messagingTemplate.convertAndSendToUser(sessionId, ROOM_USER_QUEUE_PREFIX + roomCode, event,
             createSessionHeaders(sessionId));
+    }
+
+    /**
+     * 강퇴 대상자의 현재 개인 큐에 안내를 보낸 뒤 같은 서버의 활성 WebSocket 세션을 종료합니다.
+     */
+    public void publishKickedFromRoom(String roomCode, String kickedUserUuid) {
+        webSocketSessionRegistry.findCurrentSession(roomCode, kickedUserUuid)
+            .ifPresent(session -> publishKickedFromRoom(roomCode, session));
+    }
+
+    private void publishKickedFromRoom(String roomCode, ActiveWebSocketSession session) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.KICKED_FROM_ROOM, roomCode,
+            new RelayRoomSimpleMessageResponse(KICKED_FROM_ROOM_MESSAGE));
+
+        messagingTemplate.convertAndSendToUser(session.sessionId(), ROOM_USER_QUEUE_PREFIX + roomCode, event,
+            createSessionHeaders(session.sessionId()));
+        webSocketSessionRegistry.removeStaleSession(session.sessionId());
+        webSocketSessionRegistry.closeWebSocketSession(session.sessionId(), KICKED_FROM_ROOM_CLOSE_STATUS);
     }
 
     /**

@@ -46,9 +46,12 @@ public class RelayRoomPolicy {
     private static final String RECONNECT_EXPIRED_MESSAGE = "이미 자동 제출 처리되었습니다.";
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "릴레이 방에 참여하지 않은 사용자입니다.";
+    private static final String KICK_TARGET_NOT_FOUND_MESSAGE = "강퇴할 참여자를 찾을 수 없습니다.";
     private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "제한 시간은 30초, 45초, 60초 중 하나여야 합니다.";
     private static final String ONLY_HOST_ALLOWED_MESSAGE = "방장만 사용할 수 있습니다.";
+    private static final String ONLY_HOST_KICK_ALLOWED_MESSAGE = "방장만 사용할 수 있는 기능입니다.";
     private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
+    private static final String WAITING_ROOM_KICK_ONLY_MESSAGE = "대기실에서만 강퇴할 수 있습니다.";
     private static final String GAME_ALREADY_STARTED_MESSAGE = "이미 게임이 시작되었습니다.";
     private static final String NOT_ENOUGH_PARTICIPANTS_MESSAGE = "최소 2명이 모여야 시작할 수 있습니다.";
     private static final String PARTICIPANTS_DISCONNECTED_MESSAGE = "모든 참여자가 연결된 상태에서만 시작할 수 있습니다.";
@@ -58,6 +61,9 @@ public class RelayRoomPolicy {
     private static final String CLOSE_BEFORE_RESULT_MESSAGE = "결과 생성 전에는 방을 종료할 수 없습니다.";
     private static final String CLOSE_WHILE_PLAYING_MESSAGE = "게임 진행 중에는 방을 종료할 수 없습니다.";
     private static final String CLOSE_WHILE_FINALIZING_MESSAGE = "결과 생성 중에는 방을 종료할 수 없습니다.";
+    private static final String SELF_KICK_NOT_ALLOWED_MESSAGE = "자기 자신은 강퇴할 수 없습니다.";
+    private static final String HOST_KICK_NOT_ALLOWED_MESSAGE = "방장은 강퇴할 수 없습니다.";
+    private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final RelayRoomRepository relayRoomRepository;
@@ -111,6 +117,15 @@ public class RelayRoomPolicy {
     public void validateWaitingRoomForSettings(RelayRoomState roomState) {
         if (roomState.status() != RelayRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_SETTINGS_ONLY_MESSAGE);
+        }
+    }
+
+    /**
+     * 강퇴 가능한 방 상태인지 검증합니다.
+     */
+    public void validateWaitingRoomForKick(RelayRoomState roomState) {
+        if (roomState.status() != RelayRoomStatus.WAITING) {
+            throw new ConflictException(WAITING_ROOM_KICK_ONLY_MESSAGE);
         }
     }
 
@@ -206,6 +221,15 @@ public class RelayRoomPolicy {
     }
 
     /**
+     * 강퇴 요청자가 방장인지 검증합니다.
+     */
+    public void validateKickHost(String viewerUserUuid, RelayRoomState roomState, RelayRoomParticipant participant) {
+        if (!participant.host() && !roomState.hostUserUuid().equals(viewerUserUuid)) {
+            throw new ForbiddenException(ONLY_HOST_KICK_ALLOWED_MESSAGE);
+        }
+    }
+
+    /**
      * 수동 종료가 가능한 방 상태인지 검증합니다.
      */
     public void validateManualClosableRoom(RelayRoomState roomState) {
@@ -253,6 +277,28 @@ public class RelayRoomPolicy {
     }
 
     /**
+     * 강퇴 대상 참여자 정보를 필수로 조회합니다.
+     */
+    public RelayRoomParticipant requireKickTargetParticipant(RelayRoomState roomState, String targetUserUuid) {
+        return findParticipant(roomState, targetUserUuid)
+            .orElseThrow(() -> new NotFoundException(KICK_TARGET_NOT_FOUND_MESSAGE));
+    }
+
+    /**
+     * 강퇴 대상이 허용되는 참여자인지 검증합니다.
+     */
+    public void validateKickTarget(String viewerUserUuid, RelayRoomState roomState,
+        RelayRoomParticipant targetParticipant) {
+        if (viewerUserUuid.equals(targetParticipant.userUuid())) {
+            throw new ConflictException(SELF_KICK_NOT_ALLOWED_MESSAGE);
+        }
+
+        if (targetParticipant.host() || roomState.hostUserUuid().equals(targetParticipant.userUuid())) {
+            throw new ConflictException(HOST_KICK_NOT_ALLOWED_MESSAGE);
+        }
+    }
+
+    /**
      * 입장 가능한 방 상태인지 검증합니다.
      */
     public void validateJoinableRoom(RelayRoomState roomState) {
@@ -269,6 +315,22 @@ public class RelayRoomPolicy {
         }
 
         throw new ConflictException(ROOM_CLOSED_MESSAGE);
+    }
+
+    /**
+     * 강퇴된 UUID가 같은 방에 다시 입장하거나 WebSocket 재연결하는 것을 막습니다.
+     */
+    public void validateNotKicked(RelayRoomState roomState, String userUuid) {
+        if (isKicked(roomState, userUuid)) {
+            throw new ForbiddenException(KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE);
+        }
+    }
+
+    /**
+     * 사용자가 현재 방의 강퇴 목록에 포함되어 있는지 확인합니다.
+     */
+    public boolean isKicked(RelayRoomState roomState, String userUuid) {
+        return roomState.kickedUserUuids().contains(userUuid);
     }
 
     /**
@@ -315,7 +377,11 @@ public class RelayRoomPolicy {
     /**
      * 비참여자 입장 차단 사유를 계산합니다.
      */
-    public RelayRoomViewerBlockedReason findJoinBlockedReason(RelayRoomState roomState) {
+    public RelayRoomViewerBlockedReason findJoinBlockedReason(RelayRoomState roomState, String viewerUserUuid) {
+        if (isKicked(roomState, viewerUserUuid)) {
+            return RelayRoomViewerBlockedReason.KICKED;
+        }
+
         if (roomState.status() == RelayRoomStatus.WAITING) {
             if (roomState.participantCount() >= roomState.maxParticipants()) {
                 return RelayRoomViewerBlockedReason.ROOM_FULL;

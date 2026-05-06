@@ -47,6 +47,7 @@ public class RelayRoomJoinUseCase {
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
             String viewerUserUuid = viewerUser.getId().toString();
+            relayRoomPolicy.validateNotKicked(roomState, viewerUserUuid);
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             Optional<RelayRoomParticipant> participant = relayRoomPolicy.findParticipant(roomState, viewerUserUuid);
 

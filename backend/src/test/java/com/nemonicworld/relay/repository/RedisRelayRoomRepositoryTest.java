@@ -161,6 +161,7 @@ class RedisRelayRoomRepositoryTest {
         assertThat(roomState.partStartedAt()).isNull();
         assertThat(roomState.partDeadlineAt()).isNull();
         assertThat(roomState.gameStartedAt()).isNull();
+        assertThat(roomState.kickedUserUuids()).isEmpty();
         assertThat(roomState.participantCount()).isEqualTo(1);
     }
 

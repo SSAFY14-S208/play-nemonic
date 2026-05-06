@@ -63,6 +63,19 @@ public class WebSocketSessionRegistry {
     }
 
     /**
+     * 콘텐츠 식별자 + UUID 조합의 현재 활성 세션을 조회합니다.
+     */
+    public Optional<ActiveWebSocketSession> findCurrentSession(String connectionKey, String userUuid) {
+        String sessionId = activeSessionIds.get(createRegistryKey(connectionKey, userUuid));
+
+        if (sessionId == null) {
+            return Optional.empty();
+        }
+
+        return Optional.ofNullable(activeSessions.get(sessionId));
+    }
+
+    /**
      * disconnect 이벤트를 받은 세션이 현재 콘텐츠 식별자 + UUID 조합의 최신 세션인지 확인합니다.
      */
     public boolean isCurrentSession(String connectionKey, String userUuid, String sessionId) {
@@ -100,6 +113,13 @@ public class WebSocketSessionRegistry {
      * sessionId에 해당하는 실제 WebSocket 연결이 열려 있으면 안전한 close status로 종료합니다.
      */
     public void closeWebSocketSession(String sessionId) {
+        closeWebSocketSession(sessionId, DUPLICATE_SESSION_CLOSE_STATUS);
+    }
+
+    /**
+     * sessionId에 해당하는 실제 WebSocket 연결이 열려 있으면 지정한 close status로 종료합니다.
+     */
+    public void closeWebSocketSession(String sessionId, CloseStatus closeStatus) {
         WebSocketSession webSocketSession = webSocketSessions.get(sessionId);
 
         if (webSocketSession == null || !webSocketSession.isOpen()) {
@@ -107,9 +127,9 @@ public class WebSocketSessionRegistry {
         }
 
         try {
-            webSocketSession.close(DUPLICATE_SESSION_CLOSE_STATUS);
+            webSocketSession.close(closeStatus);
         } catch (IOException e) {
-            log.warn("Failed to close duplicated websocket session. sessionId={}", sessionId, e);
+            log.warn("Failed to close websocket session. sessionId={}", sessionId, e);
         }
     }
 
