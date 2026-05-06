@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import type { Group } from 'three'
+import type { HubContentKey } from '@/shared/stores'
 import {
   HUB_WITCH_PLATFORM_POSITION,
   HUB_WITCH_PLATFORM_ROTATION_Y,
@@ -10,14 +11,18 @@ import {
   useWitchModel,
 } from './hooks'
 
-export default function WitchMesh() {
+interface WitchMeshProps {
+  contentKey?: HubContentKey
+}
+
+export default function WitchMesh({ contentKey = 'fortune' }: WitchMeshProps) {
   const wrapperRef = useRef<Group>(null)
   const { model, shadow } = useWitchModel()
   const {
     handleWitchClick,
     handleWitchPointerEnter,
     handleWitchPointerLeave,
-  } = useWitchInteraction()
+  } = useWitchInteraction(contentKey)
 
   useWitchHoverMotion(wrapperRef, shadow)
 

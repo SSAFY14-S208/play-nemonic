@@ -1,8 +1,8 @@
 import { useCallback } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
-import { useHubViewStore } from '@/shared/stores'
+import { type HubContentKey, useHubViewStore } from '@/shared/stores'
 
-export function useWitchInteraction() {
+export function useWitchInteraction(contentKey: HubContentKey) {
   const setWitchHovered = useHubViewStore((state) => state.setWitchHovered)
   const selectContent = useHubViewStore((state) => state.selectContent)
 
@@ -18,8 +18,8 @@ export function useWitchInteraction() {
 
   const handleWitchClick = useCallback((event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
-    selectContent('fortune')
-  }, [selectContent])
+    selectContent(contentKey)
+  }, [contentKey, selectContent])
 
   return {
     handleWitchClick,

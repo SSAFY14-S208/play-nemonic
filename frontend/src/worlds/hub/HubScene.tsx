@@ -1,6 +1,7 @@
 import { Suspense, useRef } from 'react'
-import { Group } from 'three'
+import type { Group } from 'three'
 import { SkyDome } from '@/components'
+import HubLighting from '@/worlds/_infra/HubLighting'
 import {
   HUB_SKY_DOME_RADIUS,
   HUB_SKY_DOME_ROTATION_Y_OFFSET,
@@ -9,7 +10,7 @@ import {
   HUB_SKY_TEXTURE_REPEAT,
 } from './constants'
 import { useHubViewportControls } from './hooks'
-import HubPlatformMesh from './objects/HubPlatformMesh'
+import HubPlatformGroup from './objects/HubPlatformGroup'
 import NightStarFieldMesh from './objects/NightStarFieldMesh'
 
 export default function HubScene() {
@@ -30,16 +31,11 @@ export default function HubScene() {
           />
         </group>
       </Suspense>
-      <fog attach="fog" args={['#262449', 18, 34]} />
-      <hemisphereLight args={['#fffef8', '#d7d3cd', 1.7]} />
-      <directionalLight color="#ffffff" intensity={2.2} position={[6, 8, 8]} />
-      <directionalLight color="#f2f7ff" intensity={1.2} position={[-8, 3, -4]} />
+      <HubLighting />
       <NightStarFieldMesh />
-      <group ref={modelRootRef}>
-        <Suspense fallback={null}>
-          <HubPlatformMesh />
-        </Suspense>
-      </group>
+      <Suspense fallback={null}>
+        <HubPlatformGroup modelRootRef={modelRootRef} />
+      </Suspense>
     </>
   )
 }

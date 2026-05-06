@@ -22,7 +22,7 @@ function normalizeAngle(angle: number) {
 
 export function useHubViewportControls(
   modelRootRef: React.RefObject<Group | null>,
-  skyRootRef?: React.RefObject<Group | null>,
+  skyRootRef: React.RefObject<Group | null>,
 ) {
   const { camera, gl } = useThree()
   const currentRotationRef = useRef(useHubViewStore.getState().targetAngle)
@@ -34,6 +34,7 @@ export function useHubViewportControls(
   const pointerDownYRef = useRef(0)
   const lastPointerXRef = useRef(0)
   const isDraggingRef = useRef(false)
+  const activePointerIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     const unsubscribe = useHubViewStore.subscribe((state, previousState) => {
@@ -52,8 +53,25 @@ export function useHubViewportControls(
   useEffect(() => {
     const canvasElement = gl.domElement
 
+    const finishDragging = (event?: PointerEvent) => {
+      const activePointerId = activePointerIdRef.current
+      if (event && activePointerId !== event.pointerId) return
+
+      if (activePointerId !== null && canvasElement.hasPointerCapture(activePointerId)) {
+        canvasElement.releasePointerCapture(activePointerId)
+      }
+
+      activePointerIdRef.current = null
+      if (!isDraggingRef.current) return
+      isDraggingRef.current = false
+      useHubViewStore.getState().setDragging(false)
+    }
+
     const handlePointerDown = (event: PointerEvent) => {
+      event.preventDefault()
       isDraggingRef.current = true
+      activePointerIdRef.current = event.pointerId
+      canvasElement.setPointerCapture(event.pointerId)
       pointerDownXRef.current = event.clientX
       pointerDownYRef.current = event.clientY
       lastPointerXRef.current = event.clientX
@@ -66,6 +84,7 @@ export function useHubViewportControls(
 
     const handlePointerMove = (event: PointerEvent) => {
       if (!isDraggingRef.current) return
+      if (activePointerIdRef.current !== event.pointerId) return
 
       const dragDistance = Math.hypot(
         event.clientX - pointerDownXRef.current,
@@ -80,10 +99,8 @@ export function useHubViewportControls(
       }
     }
 
-    const handlePointerUp = () => {
-      if (!isDraggingRef.current) return
-      isDraggingRef.current = false
-      useHubViewStore.getState().setDragging(false)
+    const handlePointerUp = (event: PointerEvent) => {
+      finishDragging(event)
     }
 
     const handleWheel = (event: WheelEvent) => {
@@ -93,17 +110,20 @@ export function useHubViewportControls(
     }
 
     canvasElement.addEventListener('pointerdown', handlePointerDown)
+    canvasElement.addEventListener('pointermove', handlePointerMove)
+    canvasElement.addEventListener('pointerup', handlePointerUp)
+    canvasElement.addEventListener('pointercancel', handlePointerUp)
+    canvasElement.addEventListener('lostpointercapture', handlePointerUp)
     canvasElement.addEventListener('wheel', handleWheel, { passive: false })
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-    window.addEventListener('pointerleave', handlePointerUp)
 
     return () => {
+      finishDragging()
       canvasElement.removeEventListener('pointerdown', handlePointerDown)
+      canvasElement.removeEventListener('pointermove', handlePointerMove)
+      canvasElement.removeEventListener('pointerup', handlePointerUp)
+      canvasElement.removeEventListener('pointercancel', handlePointerUp)
+      canvasElement.removeEventListener('lostpointercapture', handlePointerUp)
       canvasElement.removeEventListener('wheel', handleWheel)
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointerleave', handlePointerUp)
     }
   }, [gl])
 
@@ -144,7 +164,7 @@ export function useHubViewportControls(
     camera.position.set(0, HUB_CAMERA_HEIGHT, currentZoomRef.current)
     camera.lookAt(0, 0.05, 0)
 
-    const skyRoot = skyRootRef?.current
+    const skyRoot = skyRootRef.current
     if (skyRoot) {
       const parallaxRotation = initialSkyRotationRef.current
         + (currentRotationRef.current - initialSkyRotationRef.current)
