@@ -22,6 +22,8 @@ nemonic:
       access-token-expiration: 30m
       refresh-token-expiration: 14d
   relay:
+    disconnect:
+      enabled: false
     timeout:
       enabled: false
     finalization:

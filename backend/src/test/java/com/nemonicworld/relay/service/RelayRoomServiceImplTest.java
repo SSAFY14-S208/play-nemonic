@@ -246,6 +246,22 @@ class RelayRoomServiceImplTest {
             .isInstanceOf(ForbiddenException.class).hasMessage("강퇴된 방에는 다시 입장할 수 없습니다.");
     }
 
+    @Test
+    void joinRoomRejectsDroppedUser() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID droppedUuid = UUID.randomUUID();
+        AppUser droppedUser = appUserWithNickname(droppedUuid, "포도");
+        RelayRoomState roomState = playingRoomState(RelayDrawingPart.FACE,
+            List.of(assignment(0, RelayDrawingPart.FACE, droppedUuid)), participant(hostUuid, "망고", true, 0),
+            droppedParticipant(droppedUuid, "포도", false, 1));
+        given(anonymousUserResolver.resolve(droppedUuid.toString())).willReturn(droppedUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> relayRoomService.joinRoom(droppedUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
+    }
+
     /**
      * 방장 퇴장 저장 중 충돌이 나면 최신 방 상태를 다시 읽고 joinOrder가 가장 작은 남은 참여자에게 방장을 승계합니다.
      */
@@ -461,6 +477,22 @@ class RelayRoomServiceImplTest {
 
         assertThatThrownBy(() -> relayRoomService.connectRoom(kickedUuid.toString(), ROOM_CODE))
             .isInstanceOf(ForbiddenException.class).hasMessage("강퇴된 방에는 다시 입장할 수 없습니다.");
+    }
+
+    @Test
+    void connectRoomRejectsDroppedUser() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID droppedUuid = UUID.randomUUID();
+        AppUser droppedUser = appUserWithNickname(droppedUuid, "포도");
+        RelayRoomState roomState = playingRoomState(RelayDrawingPart.FACE,
+            List.of(assignment(0, RelayDrawingPart.FACE, droppedUuid)), participant(hostUuid, "망고", true, 0),
+            droppedParticipant(droppedUuid, "포도", false, 1));
+        given(anonymousUserResolver.resolve(droppedUuid.toString())).willReturn(droppedUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> relayRoomService.connectRoom(droppedUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
     }
 
     /**
@@ -724,6 +756,13 @@ class RelayRoomServiceImplTest {
         boolean connected, LocalDateTime disconnectedAt) {
         return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, connected, disconnectedAt,
             LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private RelayRoomParticipant droppedParticipant(UUID userUuid, String nickname, boolean host, int joinOrder) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, false, now.minusSeconds(15),
+            now.minusMinutes(1), true, now.minusSeconds(5));
     }
 
     private RelayRoomState playingRoomState(RelayDrawingPart currentPart, List<RelayRoomAssignment> assignments,

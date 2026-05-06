@@ -49,6 +49,7 @@ public class RelayRoomJoinUseCase {
             RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
             String viewerUserUuid = viewerUser.getId().toString();
             relayRoomPolicy.validateNotKicked(roomState, viewerUserUuid);
+            relayRoomPolicy.validateNotDropped(roomState, viewerUserUuid);
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             Optional<RelayRoomParticipant> participant = relayRoomPolicy.findParticipant(roomState, viewerUserUuid);
 
@@ -86,8 +87,7 @@ public class RelayRoomJoinUseCase {
 
         relayRoomPolicy.requireReconnectable(participant, now);
 
-        RelayRoomParticipant reconnectedParticipant = new RelayRoomParticipant(participant.userUuid(),
-            participant.nickname(), participant.host(), participant.joinOrder(), true, null, participant.joinedAt());
+        RelayRoomParticipant reconnectedParticipant = participant.withConnection(true, null);
         RelayRoomState updatedRoomState = replaceParticipant(roomState, reconnectedParticipant, now);
 
         if (!relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {

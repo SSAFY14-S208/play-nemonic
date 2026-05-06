@@ -1,6 +1,7 @@
 package com.nemonicworld.relay.dto.websocket;
 
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
+import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
 import java.time.LocalDateTime;
 
 /**
@@ -12,5 +13,10 @@ public record RelayRoomHostChangedEventResponse(String roomCode, String previous
     public static RelayRoomHostChangedEventResponse from(RelayRoomLeaveResponse response) {
         return new RelayRoomHostChangedEventResponse(response.roomCode(), response.leftUserUuid(),
             response.newHostUserUuid(), response.newHostNickname(), response.leftAt());
+    }
+
+    public static RelayRoomHostChangedEventResponse from(RelayHostChangeResult result) {
+        return new RelayRoomHostChangedEventResponse(result.roomCode(), result.previousHostUserUuid(),
+            result.newHostUserUuid(), result.newHostNickname(), result.changedAt());
     }
 }

@@ -15,6 +15,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomHostChangedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantDroppedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantLeftEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomResultCreatedEventResponse;
@@ -22,6 +23,8 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomSimpleMessageResponse;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.service.disconnect.RelayDroppedParticipantResult;
+import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationResult;
 import java.time.LocalDateTime;
 import org.springframework.messaging.MessageHeaders;
@@ -97,6 +100,27 @@ public class RelayRoomEventPublisher {
             leaveResponse.roomCode(), RelayRoomHostChangedEventResponse.from(leaveResponse));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + leaveResponse.roomCode(), event);
+    }
+
+    /**
+     * 게임 중 방장 이탈 확정으로 새 방장에게 승계되었을 때 방 전체에 알립니다.
+     */
+    public void publishHostChanged(RelayHostChangeResult hostChangeResult) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.HOST_CHANGED,
+            hostChangeResult.roomCode(), RelayRoomHostChangedEventResponse.from(hostChangeResult));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + hostChangeResult.roomCode(), event);
+    }
+
+    /**
+     * 게임 중 참여자가 재접속 유예 만료로 이탈 확정되었을 때 방 전체에 알립니다.
+     */
+    public void publishParticipantDropped(RelayDroppedParticipantResult droppedParticipantResult) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PARTICIPANT_DROPPED,
+            droppedParticipantResult.roomCode(),
+            RelayRoomParticipantDroppedEventResponse.from(droppedParticipantResult));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + droppedParticipantResult.roomCode(), event);
     }
 
     /**

@@ -206,7 +206,7 @@ class RelayRoomParticipantControllerIntegrationTest {
             .perform(post("/api/v1/relay/rooms/{roomCode}/participants", DEFAULT_ROOM_CODE)
                 .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("이미 자동 제출 처리되었습니다."));
+            .andExpect(jsonPath("$.message").value("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다."));
 
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
     }

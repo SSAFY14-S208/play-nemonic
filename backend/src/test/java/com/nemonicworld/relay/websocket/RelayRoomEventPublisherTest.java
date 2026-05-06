@@ -21,6 +21,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomHostChangedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantDroppedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantLeftEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomResultCreatedEventResponse;
@@ -28,6 +29,8 @@ import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.service.disconnect.RelayDroppedParticipantResult;
+import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
 import com.nemonicworld.relay.service.finalization.RelayFinalizationArtifactResult;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationResult;
 import java.time.LocalDateTime;
@@ -278,6 +281,48 @@ class RelayRoomEventPublisherTest {
         assertThat(data.newHostUserUuid()).isEqualTo(response.newHostUserUuid());
         assertThat(data.newHostNickname()).isEqualTo("포도");
         assertThat(data.changedAt()).isEqualTo(leftAt);
+    }
+
+    @Test
+    void publishHostChangedAfterDropSendsHostChangedEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        LocalDateTime changedAt = LocalDateTime.now().minusSeconds(1);
+        RelayHostChangeResult result = new RelayHostChangeResult(ROOM_CODE, "11111111-1111-1111-1111-111111111111",
+            "22222222-2222-2222-2222-222222222222", "포도", changedAt);
+
+        publisher.publishHostChanged(result);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.HOST_CHANGED);
+
+        RelayRoomHostChangedEventResponse data = (RelayRoomHostChangedEventResponse) event.data();
+        assertThat(data.previousHostUserUuid()).isEqualTo(result.previousHostUserUuid());
+        assertThat(data.newHostUserUuid()).isEqualTo(result.newHostUserUuid());
+        assertThat(data.newHostNickname()).isEqualTo("포도");
+        assertThat(data.changedAt()).isEqualTo(changedAt);
+    }
+
+    @Test
+    void publishParticipantDroppedSendsParticipantDroppedEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        LocalDateTime disconnectedAt = LocalDateTime.now().minusSeconds(11);
+        LocalDateTime droppedAt = LocalDateTime.now().minusSeconds(1);
+        RelayDroppedParticipantResult result = new RelayDroppedParticipantResult(ROOM_CODE,
+            "11111111-1111-1111-1111-111111111111", "망고", disconnectedAt, droppedAt);
+
+        publisher.publishParticipantDropped(result);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.PARTICIPANT_DROPPED);
+
+        RelayRoomParticipantDroppedEventResponse data = (RelayRoomParticipantDroppedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.userUuid()).isEqualTo(result.userUuid());
+        assertThat(data.nickname()).isEqualTo("망고");
+        assertThat(data.disconnectedAt()).isEqualTo(disconnectedAt);
+        assertThat(data.droppedAt()).isEqualTo(droppedAt);
     }
 
     /**

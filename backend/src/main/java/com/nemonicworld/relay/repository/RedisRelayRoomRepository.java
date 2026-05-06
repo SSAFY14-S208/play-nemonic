@@ -2,6 +2,7 @@ package com.nemonicworld.relay.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import java.time.Duration;
@@ -133,6 +134,26 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     }
 
     /**
+     * Redis room key를 SCAN하며 이탈 확정 또는 이탈자 현재 배정 자동 제출이 필요한 PLAYING 방만 조회합니다.
+     */
+    @Override
+    public List<RelayRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<RelayRoomState> candidateRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && candidateRooms.size() < limit) {
+                findPlayingRoomForDisconnectGrace(roomKeys.next(), disconnectCutoff).ifPresent(candidateRooms::add);
+            }
+        }
+
+        return candidateRooms;
+    }
+
+    /**
      * Redis room key를 SCAN하며 최종 결과물 생성 대기 상태인 방만 골라냅니다.
      */
     @Override
@@ -257,6 +278,57 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         }
 
         return Optional.of(roomState);
+    }
+
+    private Optional<RelayRoomState> findPlayingRoomForDisconnectGrace(String roomKey, LocalDateTime disconnectCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.PLAYING || roomState.currentPart() == null) {
+            return Optional.empty();
+        }
+
+        if (hasExpiredDisconnectedParticipant(roomState, disconnectCutoff)
+            || hasDroppedParticipantPendingCurrentAssignment(roomState)
+            || hasDroppedHostWithConnectedCandidate(roomState)) {
+            return Optional.of(roomState);
+        }
+
+        return Optional.empty();
+    }
+
+    private boolean hasExpiredDisconnectedParticipant(RelayRoomState roomState, LocalDateTime disconnectCutoff) {
+        return roomState.participants().stream()
+            .anyMatch(participant -> !participant.dropped() && !participant.connected()
+                && participant.disconnectedAt() != null && !participant.disconnectedAt().isAfter(disconnectCutoff));
+    }
+
+    private boolean hasDroppedParticipantPendingCurrentAssignment(RelayRoomState roomState) {
+        List<String> droppedUserUuids = roomState.participants().stream().filter(participant -> participant.dropped())
+            .map(participant -> participant.userUuid()).toList();
+
+        if (droppedUserUuids.isEmpty()) {
+            return false;
+        }
+
+        return roomState.assignments().stream()
+            .anyMatch(assignment -> assignment.part() == roomState.currentPart()
+                && assignment.status() == RelayAssignmentStatus.PENDING
+                && droppedUserUuids.contains(assignment.assignedUserUuid()));
+    }
+
+    private boolean hasDroppedHostWithConnectedCandidate(RelayRoomState roomState) {
+        boolean droppedHostExists = roomState.participants().stream().anyMatch(participant -> participant.dropped()
+            && (participant.host() || participant.userUuid().equals(roomState.hostUserUuid())));
+        if (!droppedHostExists) {
+            return false;
+        }
+
+        return roomState.participants().stream()
+            .anyMatch(participant -> !participant.dropped() && participant.connected());
     }
 
     /**

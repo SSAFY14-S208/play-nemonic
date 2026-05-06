@@ -74,6 +74,13 @@ public record RelayRoomState(String roomCode, RelayRoomStatus status, String hos
             updatedAt, kickedUserUuids);
     }
 
+    public RelayRoomState withParticipantsAssignmentsAndHost(List<RelayRoomParticipant> updatedParticipants,
+        List<RelayRoomAssignment> updatedAssignments, String updatedHostUserUuid, LocalDateTime updatedAt) {
+        return new RelayRoomState(roomCode, status, updatedHostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, currentPart, updatedParticipants, updatedAssignments, partStartedAt, partDeadlineAt,
+            gameStartedAt, createdAt, updatedAt, kickedUserUuids);
+    }
+
     /**
      * 다음 릴레이 파트를 시작하고 현재 파트 마감 시각을 새로 계산합니다.
      */
