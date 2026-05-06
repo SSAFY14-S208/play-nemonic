@@ -7,6 +7,7 @@ import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomResultsResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 
@@ -59,6 +60,8 @@ public interface RelayRoomService {
     /**
      * 진행 중인 릴레이 방에서 자신의 순서일 때, 그린 그림을 제출합니다.
      */
+    RelayRoomResultsResponse getResults(String userUuidValue, String roomCodeValue);
+
     RelayRoomSubmissionResponse submitCurrentPart(String userUuidValue, String roomCodeValue,
         RelayRoomSubmissionRequest request);
 

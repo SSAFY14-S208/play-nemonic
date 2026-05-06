@@ -11,6 +11,7 @@ import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomResultsResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.service.RelayRoomService;
@@ -59,6 +60,8 @@ public class RelayRoomController {
     private static final String RELAY_MY_ASSIGNMENT_FOUND_MESSAGE = "내 릴레이 배정 조회 성공";
     private static final String RELAY_ROOM_CLOSED_MESSAGE = "릴레이 방 종료 성공";
     private static final String RELAY_ROOM_ALREADY_CLOSED_MESSAGE = "이미 종료된 방입니다.";
+
+    private static final String RELAY_RESULTS_FOUND_MESSAGE = "릴레이 결과 조회 성공";
 
     private final RelayRoomService relayRoomService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
@@ -119,6 +122,28 @@ public class RelayRoomController {
     /**
      * 진행 중인 릴레이 방에서 요청 사용자가 현재 그릴 캔버스와 파트, 힌트를 조회합니다.
      */
+    @GetMapping("/{roomCode}/results")
+    @Operation(summary = "릴레이 결과 조회", description = "최종 합성 이미지 URL과 canvasIndex별 FACE/BODY/LEGS 작성자 정보를 조회합니다. 파트별 임시 이미지 URL은 응답하지 않습니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "릴레이 결과 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "릴레이 결과 조회 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.RELAY_RESULT_ACCESS_DENIED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "결과 없음", value = OpenApiErrorExamples.RELAY_RESULT_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<RelayRoomResultsResponse>> getResults(@PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        RelayRoomResultsResponse response = relayRoomService.getResults(userUuid, roomCode);
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(RELAY_RESULTS_FOUND_MESSAGE, response));
+    }
+
     @GetMapping("/{roomCode}/assignments/me")
     @Operation(summary = "릴레이 내 현재 배정 조회", description = "진행 중인 릴레이 방에서 요청 사용자가 현재 그릴 캔버스, 파트, 남은 시간, 이전 파트 힌트를 조회합니다.")
     @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
