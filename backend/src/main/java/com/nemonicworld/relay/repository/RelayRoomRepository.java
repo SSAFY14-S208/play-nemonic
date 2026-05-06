@@ -45,6 +45,11 @@ public interface RelayRoomRepository {
     List<RelayRoomState> findFinalizingRooms(int limit);
 
     /**
+     * 결과 생성이 끝난 뒤 close 기준 시각을 지난 FINISHED 방을 최대 limit개 조회합니다.
+     */
+    List<RelayRoomState> findClosableFinishedRooms(LocalDateTime closeCutoff, int limit);
+
+    /**
      * 같은 방 최종화가 여러 서버에서 동시에 실행되지 않도록 짧은 Redis lock을 획득합니다.
      */
     boolean acquireFinalizationLock(String roomCode, Duration ttl);
