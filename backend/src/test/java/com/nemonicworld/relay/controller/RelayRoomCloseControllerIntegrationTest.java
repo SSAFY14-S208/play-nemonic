@@ -26,6 +26,7 @@ import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -151,7 +152,8 @@ class RelayRoomCloseControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value(ALREADY_CLOSED_MESSAGE))
             .andExpect(jsonPath("$.data.roomStatus").value("CLOSED"))
-            .andExpect(jsonPath("$.data.closedAt").value(roomState.updatedAt().toString()))
+            .andExpect(
+                jsonPath("$.data.closedAt").value(roomState.updatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
             .andExpect(jsonPath("$.data.alreadyClosed").value(true));
 
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
