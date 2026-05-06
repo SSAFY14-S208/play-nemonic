@@ -152,6 +152,7 @@ export const RELAY_COLORS = [
 ]
 
 export const RELAY_TIME_LIMITS_SECONDS = [30, 45, 60]
+export const DEFAULT_TIME_LIMIT_SECONDS = 45
 
 export const RELAY_ACTIONS = [
   { label: '링크 복사', Icon: Link2 },

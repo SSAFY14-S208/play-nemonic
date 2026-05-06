@@ -17,6 +17,8 @@ const WAITING_SLOT_COUNT = 3;
 
 export default function RelayLobbyView() {
   const goToNextStep = useRelayDrawingStore((state) => state.goToNextStep);
+  const timeLimitSeconds = useRelayDrawingStore((state) => state.timeLimitSeconds);
+  const setTimeLimitSeconds = useRelayDrawingStore((state) => state.setTimeLimitSeconds);
 
   return (
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
@@ -86,15 +88,16 @@ export default function RelayLobbyView() {
             <h2 className="h3-b text-relay-muted">⏱ 제한 시간</h2>
             <div className="mt-5 grid grid-cols-3 gap-3">
               {RELAY_TIME_LIMITS_SECONDS.map((seconds) => {
-                const isSelected = seconds === 45;
+                const isSelected = seconds === timeLimitSeconds;
 
                 return (
                   <button
                     key={seconds}
                     type="button"
+                    onClick={() => setTimeLimitSeconds(seconds)}
                     className={cn(
                       "body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent",
-                      isSelected && "text-relay-ink",
+                      isSelected && "border-relay-accent bg-relay-accent/20 text-relay-ink",
                     )}
                   >
                     {seconds}초

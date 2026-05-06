@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import {
+  DEFAULT_TIME_LIMIT_SECONDS,
   RELAY_COLORS,
   RELAY_RESULT_REVEALS,
   RELAY_ROUND_ORDER,
@@ -24,11 +25,13 @@ interface RelayDrawingStore {
   selectedToolKey: RelayToolKey
   selectedColor: string
   strokeWidth: number
+  timeLimitSeconds: number
   roundLines: RelayRoundLines
   resultRevealStep: RelayResultRevealStep
   completedAt: string | null
 
   selectStep: (step: RelayDrawingStep) => void
+  setTimeLimitSeconds: (seconds: number) => void
   goToNextStep: () => void
   goToPreviousStep: () => void
   setActiveRoundKey: (roundKey: RelayRoundKey) => void
@@ -51,9 +54,14 @@ export const useRelayDrawingStore = create<RelayDrawingStore>((set, get) => ({
   selectedToolKey: 'pencil',
   selectedColor: RELAY_COLORS[1],
   strokeWidth: DEFAULT_STROKE_WIDTH,
+  timeLimitSeconds: DEFAULT_TIME_LIMIT_SECONDS,
   roundLines: DEFAULT_ROUND_LINES,
   resultRevealStep: 'final',
   completedAt: null,
+
+  setTimeLimitSeconds: (seconds) => {
+    set({ timeLimitSeconds: seconds })
+  },
 
   selectStep: (step) => {
     set({ currentStep: step })

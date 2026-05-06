@@ -1,65 +1,25 @@
-'use client'
+"use client";
 
-import {
-  RELAY_ROUND_ORDER,
-  RELAY_ROUNDS,
-} from '../constants'
-import { useRelayDrawingStore } from '../relayDrawingStore'
-import { cn } from '@/shared/libs'
+import { RELAY_ROUND_ORDER, RELAY_ROUNDS } from "../constants";
+import { useRelayDrawingStore } from "../relayDrawingStore";
+import { cn } from "@/shared/libs";
 
 const DRAWING_PARTICIPANTS = [
-  { id: 'fox', avatar: '🦊', name: '여우 (나)' },
-  { id: 'cat', avatar: '🐱', name: '고양이' },
-  { id: 'bear', avatar: '🐻', name: '곰돌이' },
-] as const
+  { id: "fox", avatar: "🦊", name: "여우 (나)" },
+  { id: "cat", avatar: "🐱", name: "고양이" },
+  { id: "bear", avatar: "🐻", name: "곰돌이" },
+] as const;
 
 export default function RoundProgressPanel() {
-  const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
-  const roundLines = useRelayDrawingStore((state) => state.roundLines)
+  const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey);
+  const roundLines = useRelayDrawingStore((state) => state.roundLines);
 
   const activeRoundIndex = RELAY_ROUND_ORDER.findIndex(
     (roundKey) => roundKey === activeRoundKey,
-  )
+  );
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <p className="h4-b text-relay-ink">라운드 진행</p>
-      <div className="relative h-[188px] shrink-0">
-        {RELAY_ROUNDS.map((round, roundIndex) => {
-          const isDone = roundIndex < activeRoundIndex
-          const isActive = round.key === activeRoundKey
-          const hasDrawing = roundLines[round.key].length > 0
-
-          return (
-            <div
-              key={round.key}
-              className={cn(
-                'absolute left-0 flex h-[52px] w-full items-center rounded-[14px] px-5',
-                isActive && 'border-2 border-relay-line bg-relay-accent text-relay-ink',
-                !isActive && 'bg-relay-panel text-relay-muted',
-                roundIndex > activeRoundIndex && 'opacity-60',
-              )}
-              style={{ top: `${roundIndex * 68}px` }}
-            >
-              <span
-                className={cn(
-                  'body-b grid size-7 place-items-center rounded-full',
-                  isDone && 'bg-relay-accent-strong text-fg-inverse',
-                  isActive && 'bg-relay-active text-relay-ink',
-                  !isDone && !isActive && 'bg-relay-disabled text-fg-inverse',
-                )}
-              >
-                {isDone ? '✓' : roundIndex + 1}
-              </span>
-              <span className="body-b flex-1 text-center">{round.label}</span>
-              {isActive && <span className="size-2.5 rounded-full bg-relay-accent-strong" />}
-              {!isActive && hasDrawing && <span className="size-2.5 rounded-full bg-relay-green" />}
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="h-px w-full bg-relay-accent" />
       <p className="h4-b text-relay-ink">함께하는 친구들</p>
       <div className="grid gap-4">
         {DRAWING_PARTICIPANTS.map((participant) => (
@@ -82,5 +42,5 @@ export default function RoundProgressPanel() {
         </p>
       </div>
     </div>
-  )
+  );
 }
