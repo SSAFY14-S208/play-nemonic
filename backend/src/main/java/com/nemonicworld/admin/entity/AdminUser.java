@@ -1,4 +1,4 @@
-package com.nemonicworld.auth.entity;
+package com.nemonicworld.admin.entity;
 
 import java.time.LocalDateTime;
 

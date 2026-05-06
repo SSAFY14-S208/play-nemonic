@@ -4,7 +4,7 @@ import com.nemonicworld.auth.dto.request.AdminLoginRequest;
 import com.nemonicworld.auth.dto.request.AdminLogoutRequest;
 import com.nemonicworld.auth.dto.request.AdminTokenRefreshRequest;
 import com.nemonicworld.auth.dto.response.AdminLoginResponse;
-import com.nemonicworld.auth.dto.response.AdminResponse;
+import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.auth.service.AuthService;

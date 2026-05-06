@@ -1,4 +1,4 @@
-package com.nemonicworld.auth.entity;
+package com.nemonicworld.admin.entity;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.nemonicworld.common.exception.BadRequestException;

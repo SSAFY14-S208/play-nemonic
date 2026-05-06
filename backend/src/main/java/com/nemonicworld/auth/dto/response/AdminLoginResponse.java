@@ -1,5 +1,6 @@
 package com.nemonicworld.auth.dto.response;
 
+import com.nemonicworld.admin.dto.response.AdminResponse;
 import java.time.OffsetDateTime;
 
 public record AdminLoginResponse(String accessToken, String tokenType, OffsetDateTime expiresAt, String refreshToken,

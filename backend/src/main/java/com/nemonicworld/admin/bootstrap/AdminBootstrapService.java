@@ -1,4 +1,4 @@
-package com.nemonicworld.auth.bootstrap;
+package com.nemonicworld.admin.bootstrap;
 
 import java.time.LocalDateTime;
 import org.springframework.security.crypto.password.PasswordEncoder;

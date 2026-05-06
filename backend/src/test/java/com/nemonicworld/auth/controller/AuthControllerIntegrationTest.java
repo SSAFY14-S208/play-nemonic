@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nemonicworld.auth.entity.AdminUser;
+import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
 import com.nemonicworld.auth.service.StoredAdminRefreshToken;

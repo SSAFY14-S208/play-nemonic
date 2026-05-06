@@ -1,7 +1,7 @@
-package com.nemonicworld.auth.repository;
+package com.nemonicworld.admin.repository;
 
-import com.nemonicworld.auth.entity.AdminRole;
-import com.nemonicworld.auth.entity.AdminUser;
+import com.nemonicworld.admin.entity.AdminRole;
+import com.nemonicworld.admin.entity.AdminUser;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;

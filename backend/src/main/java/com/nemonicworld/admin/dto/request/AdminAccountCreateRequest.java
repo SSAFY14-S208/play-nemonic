@@ -1,4 +1,4 @@
-package com.nemonicworld.auth.dto.request;
+package com.nemonicworld.admin.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

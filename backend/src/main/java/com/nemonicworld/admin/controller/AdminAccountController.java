@@ -1,8 +1,8 @@
-package com.nemonicworld.auth.controller;
+package com.nemonicworld.admin.controller;
 
-import com.nemonicworld.auth.dto.request.AdminAccountCreateRequest;
-import com.nemonicworld.auth.dto.response.AdminResponse;
-import com.nemonicworld.auth.service.AdminAccountService;
+import com.nemonicworld.admin.dto.request.AdminAccountCreateRequest;
+import com.nemonicworld.admin.dto.response.AdminResponse;
+import com.nemonicworld.admin.service.AdminAccountService;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;

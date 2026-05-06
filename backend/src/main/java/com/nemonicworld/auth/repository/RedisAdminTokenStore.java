@@ -2,7 +2,7 @@ package com.nemonicworld.auth.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nemonicworld.auth.entity.AdminUser;
+import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
 import com.nemonicworld.auth.service.StoredAdminRefreshToken;

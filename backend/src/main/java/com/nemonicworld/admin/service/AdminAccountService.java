@@ -1,7 +1,7 @@
-package com.nemonicworld.auth.service;
+package com.nemonicworld.admin.service;
 
-import com.nemonicworld.auth.dto.request.AdminAccountCreateRequest;
-import com.nemonicworld.auth.dto.response.AdminResponse;
+import com.nemonicworld.admin.dto.request.AdminAccountCreateRequest;
+import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 
 public interface AdminAccountService {

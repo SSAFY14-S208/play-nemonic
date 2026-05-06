@@ -1,8 +1,8 @@
 package com.nemonicworld.common.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nemonicworld.auth.entity.AdminUser;
-import com.nemonicworld.auth.repository.AdminUserRepository;
+import com.nemonicworld.admin.entity.AdminUser;
+import com.nemonicworld.admin.repository.AdminUserRepository;
 import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.common.response.ApiResponse;
 import jakarta.servlet.FilterChain;

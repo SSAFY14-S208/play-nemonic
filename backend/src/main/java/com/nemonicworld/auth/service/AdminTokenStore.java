@@ -1,6 +1,6 @@
 package com.nemonicworld.auth.service;
 
-import com.nemonicworld.auth.entity.AdminUser;
+import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
 import java.time.Instant;
 import java.util.Optional;

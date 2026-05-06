@@ -1,4 +1,4 @@
-package com.nemonicworld.auth.bootstrap;
+package com.nemonicworld.admin.bootstrap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

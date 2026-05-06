@@ -1,4 +1,4 @@
-package com.nemonicworld.auth.bootstrap;
+package com.nemonicworld.admin.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
