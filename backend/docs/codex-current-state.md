@@ -24,6 +24,13 @@ Last updated: 2026-05-06
 - Admin authentication uses JWT access tokens configured by `ADMIN_JWT_SECRET`
   and `ADMIN_JWT_ACCESS_TOKEN_EXPIRATION`; it is separate from anonymous UUID
   authentication.
+- Admin authentication now also issues opaque refresh tokens stored by hash in
+  Redis, rotates them through `POST /api/v1/auth/admin/token/refresh`, and
+  checks Redis-backed access-token revocation using JWT `jti` and
+  `admin:access:revoked-after:{adminId}` markers.
+- Admin logout revokes the submitted refresh token and blacklists the current
+  access token; deleting a standard admin account revokes all of that account's
+  refresh tokens and blocks previously issued access tokens.
 - Backoffice super admins can now create standard admin accounts with
   `POST /api/v1/admin/accounts`; the API stores BCrypt password hashes, fixes
   new accounts to the `admin` role, and rejects duplicate `login_id` values.
