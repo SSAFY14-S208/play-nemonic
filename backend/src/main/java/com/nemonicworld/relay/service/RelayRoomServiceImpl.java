@@ -2,11 +2,13 @@ package com.nemonicworld.relay.service;
 
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
+import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.service.assignment.RelayRoomAssignmentQueryUseCase;
+import com.nemonicworld.relay.service.close.RelayRoomManualCloseUseCase;
 import com.nemonicworld.relay.service.game.RelayRoomStartUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomConnectionUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomCreateUseCase;
@@ -29,13 +31,15 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     private final RelayRoomStartUseCase relayRoomStartUseCase;
     private final RelayRoomAssignmentQueryUseCase relayRoomAssignmentQueryUseCase;
     private final RelayRoomSubmissionUseCase relayRoomSubmissionUseCase;
+    private final RelayRoomManualCloseUseCase relayRoomManualCloseUseCase;
     private final RelayRoomConnectionUseCase relayRoomConnectionUseCase;
 
     public RelayRoomServiceImpl(RelayRoomCreateUseCase relayRoomCreateUseCase,
         RelayRoomQueryUseCase relayRoomQueryUseCase, RelayRoomJoinUseCase relayRoomJoinUseCase,
         RelayRoomSettingsUseCase relayRoomSettingsUseCase, RelayRoomStartUseCase relayRoomStartUseCase,
         RelayRoomAssignmentQueryUseCase relayRoomAssignmentQueryUseCase,
-        RelayRoomSubmissionUseCase relayRoomSubmissionUseCase, RelayRoomConnectionUseCase relayRoomConnectionUseCase) {
+        RelayRoomSubmissionUseCase relayRoomSubmissionUseCase, RelayRoomManualCloseUseCase relayRoomManualCloseUseCase,
+        RelayRoomConnectionUseCase relayRoomConnectionUseCase) {
         this.relayRoomCreateUseCase = relayRoomCreateUseCase;
         this.relayRoomQueryUseCase = relayRoomQueryUseCase;
         this.relayRoomJoinUseCase = relayRoomJoinUseCase;
@@ -43,6 +47,7 @@ public class RelayRoomServiceImpl implements RelayRoomService {
         this.relayRoomStartUseCase = relayRoomStartUseCase;
         this.relayRoomAssignmentQueryUseCase = relayRoomAssignmentQueryUseCase;
         this.relayRoomSubmissionUseCase = relayRoomSubmissionUseCase;
+        this.relayRoomManualCloseUseCase = relayRoomManualCloseUseCase;
         this.relayRoomConnectionUseCase = relayRoomConnectionUseCase;
     }
 
@@ -81,6 +86,11 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     public RelayRoomSubmissionResponse submitCurrentPart(String userUuidValue, String roomCodeValue,
         RelayRoomSubmissionRequest request) {
         return relayRoomSubmissionUseCase.submitCurrentPart(userUuidValue, roomCodeValue, request);
+    }
+
+    @Override
+    public RelayRoomCloseResponse closeRoom(String userUuidValue, String roomCodeValue) {
+        return relayRoomManualCloseUseCase.closeRoom(userUuidValue, roomCodeValue);
     }
 
     @Override

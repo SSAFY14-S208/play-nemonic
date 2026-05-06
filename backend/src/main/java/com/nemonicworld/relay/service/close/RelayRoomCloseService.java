@@ -23,15 +23,17 @@ public class RelayRoomCloseService {
     private static final Logger log = LoggerFactory.getLogger(RelayRoomCloseService.class);
 
     private final RelayRoomRepository relayRoomRepository;
+    private final RelayRoomCloseCommand relayRoomCloseCommand;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final Duration closeDelay;
     private final int scanLimit;
 
-    public RelayRoomCloseService(RelayRoomRepository relayRoomRepository,
+    public RelayRoomCloseService(RelayRoomRepository relayRoomRepository, RelayRoomCloseCommand relayRoomCloseCommand,
         RelayRoomEventPublisher relayRoomEventPublisher,
         @Value("${nemonic.relay.close.delay-seconds:300}") long closeDelaySeconds,
         @Value("${nemonic.relay.close.scan-limit:100}") int scanLimit) {
         this.relayRoomRepository = relayRoomRepository;
+        this.relayRoomCloseCommand = relayRoomCloseCommand;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.closeDelay = Duration.ofSeconds(Math.max(0L, closeDelaySeconds));
         this.scanLimit = scanLimit;
@@ -81,15 +83,30 @@ public class RelayRoomCloseService {
                 return RelayRoomCloseResult.noOp(roomCode);
             }
 
-            RelayRoomState closedRoomState = roomState.close(closedAt);
-            if (relayRoomRepository.saveIfUnchanged(roomState, closedRoomState)) {
-                relayRoomEventPublisher.publishRoomClosed(roomCode, closedAt);
-
-                return RelayRoomCloseResult.closed(closedRoomState, closedAt);
+            RelayRoomCloseResult closeResult = closeFinishedRoomIfUnchanged(roomState, closedAt);
+            if (closeResult.closed()) {
+                return closeResult;
             }
         }
 
         throw new IllegalStateException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    /**
+     * 이미 검증한 FINISHED 방을 delay 없이 CLOSED로 전환합니다.
+     */
+    public RelayRoomCloseResult closeFinishedRoomIfUnchanged(RelayRoomState roomState, LocalDateTime now) {
+        LocalDateTime closedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        if (roomState == null || roomState.status() != RelayRoomStatus.FINISHED) {
+            return RelayRoomCloseResult.noOp(roomState == null ? null : roomState.roomCode());
+        }
+
+        RelayRoomCloseResult closeResult = relayRoomCloseCommand.closeFinishedRoomIfUnchanged(roomState, closedAt);
+        if (closeResult.closed()) {
+            relayRoomEventPublisher.publishRoomClosed(roomState.roomCode(), closedAt);
+        }
+
+        return closeResult;
     }
 
     private boolean isClosableFinishedRoom(RelayRoomState roomState, LocalDateTime now) {

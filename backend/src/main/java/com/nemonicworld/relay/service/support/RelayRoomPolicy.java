@@ -54,6 +54,10 @@ public class RelayRoomPolicy {
     private static final String PARTICIPANTS_DISCONNECTED_MESSAGE = "모든 참여자가 연결된 상태에서만 시작할 수 있습니다.";
     private static final String GAME_NOT_STARTED_MESSAGE = "게임이 아직 시작되지 않았습니다.";
     private static final String CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE = "현재 배정된 그림이 없습니다.";
+    private static final String ONLY_HOST_CLOSE_ALLOWED_MESSAGE = "방장만 사용할 수 있는 기능입니다.";
+    private static final String CLOSE_BEFORE_RESULT_MESSAGE = "결과 생성 전에는 방을 종료할 수 없습니다.";
+    private static final String CLOSE_WHILE_PLAYING_MESSAGE = "게임 진행 중에는 방을 종료할 수 없습니다.";
+    private static final String CLOSE_WHILE_FINALIZING_MESSAGE = "결과 생성 중에는 방을 종료할 수 없습니다.";
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final RelayRoomRepository relayRoomRepository;
@@ -189,6 +193,39 @@ public class RelayRoomPolicy {
         if (!participant.host() && !roomState.hostUserUuid().equals(viewerUserUuid)) {
             throw new ForbiddenException(ONLY_HOST_ALLOWED_MESSAGE);
         }
+    }
+
+    /**
+     * 수동 종료 요청자가 방장인지 검증합니다.
+     */
+    public void validateRoomCloseHost(String viewerUserUuid, RelayRoomState roomState,
+        RelayRoomParticipant participant) {
+        if (!participant.host() && !roomState.hostUserUuid().equals(viewerUserUuid)) {
+            throw new ForbiddenException(ONLY_HOST_CLOSE_ALLOWED_MESSAGE);
+        }
+    }
+
+    /**
+     * 수동 종료가 가능한 방 상태인지 검증합니다.
+     */
+    public void validateManualClosableRoom(RelayRoomState roomState) {
+        if (roomState.status() == RelayRoomStatus.FINISHED) {
+            return;
+        }
+
+        if (roomState.status() == RelayRoomStatus.WAITING) {
+            throw new ConflictException(CLOSE_BEFORE_RESULT_MESSAGE);
+        }
+
+        if (roomState.status() == RelayRoomStatus.PLAYING) {
+            throw new ConflictException(CLOSE_WHILE_PLAYING_MESSAGE);
+        }
+
+        if (roomState.status() == RelayRoomStatus.FINALIZING) {
+            throw new ConflictException(CLOSE_WHILE_FINALIZING_MESSAGE);
+        }
+
+        throw new ConflictException(ROOM_CLOSED_MESSAGE);
     }
 
     /**
