@@ -115,11 +115,17 @@ class OpenApiParameterNamingIntegrationTest {
         assertTrue("http".equals(scheme.path("type").asText()), "Admin auth must use an HTTP security scheme.");
         assertTrue("bearer".equals(scheme.path("scheme").asText()), "Admin auth must use bearer tokens.");
         assertTrue("JWT".equals(scheme.path("bearerFormat").asText()), "Admin auth must document JWT format.");
-        assertTrue(hasSecurityRequirement(root, "/api/v1/admin/accounts", "post"),
+        assertTrue(hasSecurityRequirement(root, "/api/v1/admins", "post"),
             "Admin account creation must require bearer auth in Swagger.");
-        assertTrue(hasSecurityRequirement(root, "/api/v1/auth/admin/me", "get"),
-            "Admin profile lookup must require bearer auth in Swagger.");
-        assertTrue(hasSecurityRequirement(root, "/api/v1/auth/admin/logout", "post"),
+        assertTrue(hasSecurityRequirement(root, "/api/v1/admins", "get"),
+            "Admin account listing must require bearer auth in Swagger.");
+        assertTrue(hasSecurityRequirement(root, "/api/v1/admins/{adminId}", "get"),
+            "Admin account detail lookup must require bearer auth in Swagger.");
+        assertTrue(hasSecurityRequirement(root, "/api/v1/admins/{adminId}", "patch"),
+            "Admin password change must require bearer auth in Swagger.");
+        assertTrue(hasSecurityRequirement(root, "/api/v1/admins/{adminId}", "delete"),
+            "Admin account deletion must require bearer auth in Swagger.");
+        assertTrue(hasSecurityRequirement(root, "/api/v1/auth/logout", "post"),
             "Admin logout must require bearer auth in Swagger.");
     }
 

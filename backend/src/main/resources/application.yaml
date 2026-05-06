@@ -45,6 +45,7 @@ nemonic:
     jwt:
       secret: ${ADMIN_JWT_SECRET:}
       access-token-expiration: ${ADMIN_JWT_ACCESS_TOKEN_EXPIRATION:30m}
+      refresh-token-expiration: ${ADMIN_JWT_REFRESH_TOKEN_EXPIRATION:14d}
     admin-bootstrap:
       enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}
       login-id: ${ADMIN_BOOTSTRAP_LOGIN_ID:}
