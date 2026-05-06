@@ -50,6 +50,11 @@ public interface RelayRoomRepository {
     List<RelayRoomState> findClosableFinishedRooms(LocalDateTime closeCutoff, int limit);
 
     /**
+     * 임시 파일 정리 대상인 CLOSED 릴레이 방을 최대 limit개 조회합니다.
+     */
+    List<RelayRoomState> findClosedRooms(int limit);
+
+    /**
      * 같은 방 최종화가 여러 서버에서 동시에 실행되지 않도록 짧은 Redis lock을 획득합니다.
      */
     boolean acquireFinalizationLock(String roomCode, Duration ttl);
@@ -58,4 +63,24 @@ public interface RelayRoomRepository {
      * 최종화 처리 후 Redis lock을 해제합니다.
      */
     void releaseFinalizationLock(String roomCode);
+
+    /**
+     * CLOSED 방의 임시 파일 정리가 끝났는지 별도 marker key로 확인합니다.
+     */
+    boolean isTempCleanupMarked(String roomCode);
+
+    /**
+     * CLOSED 방의 임시 파일 정리 완료 marker를 저장합니다.
+     */
+    void markTempCleanup(String roomCode, LocalDateTime cleanedAt, Duration ttl);
+
+    /**
+     * 같은 CLOSED 방의 임시 파일 정리를 중복 실행하지 않도록 lock을 획득합니다.
+     */
+    boolean acquireTempCleanupLock(String roomCode, Duration ttl);
+
+    /**
+     * CLOSED 방 임시 파일 정리 lock을 해제합니다.
+     */
+    void releaseTempCleanupLock(String roomCode);
 }

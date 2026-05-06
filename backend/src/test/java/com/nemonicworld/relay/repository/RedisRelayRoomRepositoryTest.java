@@ -237,6 +237,28 @@ class RedisRelayRoomRepositoryTest {
     }
 
     @Test
+    void findClosedRoomsScansRoomKeysAndFiltersClosedRooms() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomParticipant host = participant(hostUuid, "Mango", true, 0);
+        RelayRoomState closedRoom = roomState("CLOSED", RelayRoomStatus.CLOSED, RelayDrawingPart.LEGS,
+            now.minusMinutes(10), now.minusMinutes(9), host);
+        RelayRoomState finishedRoom = roomState("FINISH", RelayRoomStatus.FINISHED, RelayDrawingPart.LEGS,
+            now.minusMinutes(10), now.minusMinutes(9), host);
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, false);
+        given(cursor.next()).willReturn("relay:room:CLOSED", "relay:room:FINISH");
+        given(valueOperations.get("relay:room:CLOSED")).willReturn(serialize(closedRoom));
+        given(valueOperations.get("relay:room:FINISH")).willReturn(serialize(finishedRoom));
+
+        List<RelayRoomState> closedRooms = repository.findClosedRooms(10);
+
+        assertThat(closedRooms).containsExactly(closedRoom);
+        verify(cursor).close();
+    }
+
+    @Test
     void acquireAndReleaseFinalizationLockUsesSeparateLockKey() {
         Duration lockTtl = Duration.ofSeconds(60);
         given(valueOperations.setIfAbsent("relay:room-finalization-lock:" + ROOM_CODE, "locked", lockTtl))
@@ -248,6 +270,34 @@ class RedisRelayRoomRepositoryTest {
         assertThat(acquired).isTrue();
         verify(valueOperations).setIfAbsent("relay:room-finalization-lock:" + ROOM_CODE, "locked", lockTtl);
         verify(redisTemplate).delete("relay:room-finalization-lock:" + ROOM_CODE);
+    }
+
+    @Test
+    void tempCleanupMarkerUsesSeparateMarkerKey() {
+        LocalDateTime cleanedAt = LocalDateTime.of(2026, 5, 6, 16, 0);
+        Duration markerTtl = Duration.ofHours(24);
+        given(redisTemplate.hasKey("relay:room-temp-cleanup:" + ROOM_CODE)).willReturn(true);
+
+        boolean marked = repository.isTempCleanupMarked(ROOM_CODE);
+        repository.markTempCleanup(ROOM_CODE, cleanedAt, markerTtl);
+
+        assertThat(marked).isTrue();
+        verify(redisTemplate).hasKey("relay:room-temp-cleanup:" + ROOM_CODE);
+        verify(valueOperations).set("relay:room-temp-cleanup:" + ROOM_CODE, cleanedAt.toString(), markerTtl);
+    }
+
+    @Test
+    void acquireAndReleaseTempCleanupLockUsesSeparateLockKey() {
+        Duration lockTtl = Duration.ofSeconds(60);
+        given(valueOperations.setIfAbsent("relay:room-temp-cleanup-lock:" + ROOM_CODE, "locked", lockTtl))
+            .willReturn(true);
+
+        boolean acquired = repository.acquireTempCleanupLock(ROOM_CODE, lockTtl);
+        repository.releaseTempCleanupLock(ROOM_CODE);
+
+        assertThat(acquired).isTrue();
+        verify(valueOperations).setIfAbsent("relay:room-temp-cleanup-lock:" + ROOM_CODE, "locked", lockTtl);
+        verify(redisTemplate).delete("relay:room-temp-cleanup-lock:" + ROOM_CODE);
     }
 
     private RelayRoomState roomState(RelayRoomParticipant... participants) {

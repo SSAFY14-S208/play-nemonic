@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,8 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
 
     private static final String ROOM_KEY_PREFIX = "relay:room:";
     private static final String FINALIZATION_LOCK_KEY_PREFIX = "relay:room-finalization-lock:";
+    private static final String TEMP_CLEANUP_MARKER_KEY_PREFIX = "relay:room-temp-cleanup:";
+    private static final String TEMP_CLEANUP_LOCK_KEY_PREFIX = "relay:room-temp-cleanup-lock:";
     private static final String ROOM_STATE_SERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 저장할 수 없습니다.";
     private static final String ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 읽을 수 없습니다.";
 
@@ -170,10 +173,30 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     }
 
     /**
+     * Redis room key를 SCAN해서 CLOSED 상태인 방을 cleanup 후보로 모읍니다.
+     */
+    @Override
+    public List<RelayRoomState> findClosedRooms(int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<RelayRoomState> closedRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && closedRooms.size() < limit) {
+                findClosedRoom(roomKeys.next()).ifPresent(closedRooms::add);
+            }
+        }
+
+        return closedRooms;
+    }
+
+    /**
      * 여러 서버나 스케줄 tick이 같은 방을 동시에 최종화하지 못하도록 lock을 잡습니다.
      */
     @Override
-    public boolean acquireFinalizationLock(String roomCode, java.time.Duration ttl) {
+    public boolean acquireFinalizationLock(String roomCode, Duration ttl) {
         Boolean locked = redisTemplate.opsForValue().setIfAbsent(createFinalizationLockKey(roomCode), "locked", ttl);
 
         return Boolean.TRUE.equals(locked);
@@ -185,6 +208,40 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     @Override
     public void releaseFinalizationLock(String roomCode) {
         redisTemplate.delete(createFinalizationLockKey(roomCode));
+    }
+
+    /**
+     * CLOSED 방 임시 파일 cleanup 완료 marker가 있는지 확인합니다.
+     */
+    @Override
+    public boolean isTempCleanupMarked(String roomCode) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey(createTempCleanupMarkerKey(roomCode)));
+    }
+
+    /**
+     * cleanup 완료 marker는 room state와 분리해서 저장합니다.
+     */
+    @Override
+    public void markTempCleanup(String roomCode, LocalDateTime cleanedAt, Duration ttl) {
+        redisTemplate.opsForValue().set(createTempCleanupMarkerKey(roomCode), cleanedAt.toString(), ttl);
+    }
+
+    /**
+     * 여러 scheduler가 같은 CLOSED 방의 임시 파일을 동시에 삭제하지 않도록 lock을 얻습니다.
+     */
+    @Override
+    public boolean acquireTempCleanupLock(String roomCode, Duration ttl) {
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(createTempCleanupLockKey(roomCode), "locked", ttl);
+
+        return Boolean.TRUE.equals(locked);
+    }
+
+    /**
+     * CLOSED 방 임시 파일 cleanup lock을 해제합니다.
+     */
+    @Override
+    public void releaseTempCleanupLock(String roomCode) {
+        redisTemplate.delete(createTempCleanupLockKey(roomCode));
     }
 
     private Optional<RelayRoomState> findExpiredPlayingRoom(String roomKey, LocalDateTime now) {
@@ -219,6 +276,23 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         return Optional.of(roomState);
     }
 
+    /**
+     * SCAN으로 찾은 Redis 값이 실제 CLOSED 방인지 확인합니다.
+     */
+    private Optional<RelayRoomState> findClosedRoom(String roomKey) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.CLOSED) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
     private Optional<RelayRoomState> findClosableFinishedRoom(String roomKey, LocalDateTime closeCutoff) {
         String roomStateValue = redisTemplate.opsForValue().get(roomKey);
         if (!StringUtils.hasText(roomStateValue)) {
@@ -244,6 +318,14 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     private String createFinalizationLockKey(String roomCode) {
         return FINALIZATION_LOCK_KEY_PREFIX + roomCode;
+    }
+
+    private String createTempCleanupMarkerKey(String roomCode) {
+        return TEMP_CLEANUP_MARKER_KEY_PREFIX + roomCode;
+    }
+
+    private String createTempCleanupLockKey(String roomCode) {
+        return TEMP_CLEANUP_LOCK_KEY_PREFIX + roomCode;
     }
 
     @SuppressWarnings("unchecked")
