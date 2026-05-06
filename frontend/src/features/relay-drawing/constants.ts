@@ -1,7 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   BadgeCheck,
-  Brush,
   Cat,
   Crown,
   Download,
@@ -130,7 +129,6 @@ export const RELAY_RESULT_REVEALS: RelayResultReveal[] = [
 
 export const RELAY_TOOLS: RelayTool[] = [
   { key: 'pencil', label: '연필', Icon: Pencil, isPrimary: true },
-  { key: 'marker', label: '마커', Icon: Brush, isPrimary: true },
   { key: 'bucket', label: '채우기', Icon: PaintBucket, isPrimary: true },
   { key: 'undo', label: '되돌리기', Icon: Undo2 },
   { key: 'redo', label: '다시 실행', Icon: RotateCcw },

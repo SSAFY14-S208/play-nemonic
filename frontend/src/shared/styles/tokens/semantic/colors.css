@@ -56,4 +56,19 @@
   --color-relay-postit: #ffe887;
   --color-relay-postit-fold: #e6b85d;
   --color-relay-postit-fold-light: #f1c86b;
+
+  /* ── Flipbook (Figma v2 Flipbook Pastel semantic roles) ─────────────────── */
+  --color-flipbook-background: #fdecee;
+  --color-flipbook-tint: #fff5f7;
+  --color-flipbook-paper: #ffffff;
+  --color-flipbook-light: #fbbcc4;
+  --color-flipbook-primary: #f58c97;
+  --color-flipbook-active: #ffadbd;
+  --color-flipbook-deep: #cf5d68;
+  --color-flipbook-ink: #5e1f25;
+  --color-flipbook-muted: #ac626a;
+  --color-flipbook-grid: #ffa8b8;
+  --color-flipbook-timer: #2b1d3b;
+  --color-flipbook-shadow: rgb(94 31 37 / 18%);
+  --color-flipbook-result-soft: #ffe5e9;
 }

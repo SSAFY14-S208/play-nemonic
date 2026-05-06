@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { DrawingSessionControls } from '@/shared/components'
 import {
   RELAY_ROUND_ORDER,
   RELAY_ROUND_SEGMENTS,
@@ -19,6 +20,7 @@ const RelayDrawingStage = dynamic(() => import('../RelayDrawingStage'), {
 interface RelayDrawingViewProps {
   activeRoundKey: RelayRoundKey
   activeRoundIndex: number
+  remainingSeconds: number
   selectedToolKey: RelayToolKey
   selectedColor: string
   strokeWidth: number
@@ -33,12 +35,14 @@ interface RelayDrawingViewProps {
   onDrawStart: (event: KonvaEventObject<MouseEvent | TouchEvent>) => void
   onDrawMove: (event: KonvaEventObject<MouseEvent | TouchEvent>) => void
   onDrawEnd: () => void
+  onExit: () => void
   onCompleteRound: () => void
 }
 
 export default function RelayDrawingView({
   activeRoundKey,
   activeRoundIndex,
+  remainingSeconds,
   selectedToolKey,
   selectedColor,
   strokeWidth,
@@ -53,6 +57,7 @@ export default function RelayDrawingView({
   onDrawStart,
   onDrawMove,
   onDrawEnd,
+  onExit,
   onCompleteRound,
 }: RelayDrawingViewProps) {
   const activeRound = RELAY_ROUND_SEGMENTS[activeRoundKey]
@@ -61,6 +66,12 @@ export default function RelayDrawingView({
   return (
     <section className="relative min-h-[900px] overflow-hidden bg-relay-background text-relay-ink">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
+        <DrawingSessionControls
+          tone="relay"
+          remainingSeconds={remainingSeconds}
+          onExit={onExit}
+        />
+
         <aside className="absolute left-[33px] top-[184px] flex h-[481px] w-[225px] flex-col justify-center gap-4 rounded-[24px] bg-relay-paper p-6 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
           <DrawingToolPanel
             selectedToolKey={selectedToolKey}

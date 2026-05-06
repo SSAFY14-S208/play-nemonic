@@ -1,6 +1,5 @@
-import Image from 'next/image'
 import { Copy, Crown, QrCode } from 'lucide-react'
-import { relayPostItNote } from '@/shared/assets'
+import { PostItNote } from '@/shared/components'
 import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from '../constants'
 import { cn } from '@/shared/libs'
 
@@ -20,12 +19,8 @@ export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
   return (
     <section className="relative min-h-[900px] overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <Image
-          src={relayPostItNote}
-          alt=""
-          aria-hidden
-          priority
-          className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] object-contain"
+        <PostItNote
+          className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-brand-relay-drawing-primary"
         />
 
         <div className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">

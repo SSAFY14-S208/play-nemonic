@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import {
   RELAY_COLORS,
@@ -9,6 +9,7 @@ import {
   RELAY_ROUND_RULES,
   RELAY_STAGE_SIZE,
   RELAY_STEPS,
+  RELAY_TIME_LIMITS_SECONDS,
   type RelayDrawingStep,
   type RelayRoundArea,
   type RelayResultRevealStep,
@@ -39,6 +40,7 @@ export interface RelayCompositeDrawingPayload {
 }
 
 const DEFAULT_STROKE_WIDTH = 4
+const DEFAULT_REMAINING_SECONDS = RELAY_TIME_LIMITS_SECONDS[0]
 const TRANSPARENT_ALPHA_TOLERANCE = 16
 const COLOR_MATCH_TOLERANCE = 12
 const DEFAULT_ROUND_LINES: RelayRoundLines = {
@@ -304,6 +306,7 @@ export function useRelayDrawing() {
   const [selectedToolKey, setSelectedToolKey] = useState<RelayToolKey>('pencil')
   const [selectedColor, setSelectedColor] = useState(RELAY_COLORS[1])
   const [strokeWidth, setStrokeWidth] = useState(DEFAULT_STROKE_WIDTH)
+  const [remainingSeconds, setRemainingSeconds] = useState(DEFAULT_REMAINING_SECONDS)
   const [roundLines, setRoundLines] = useState<RelayRoundLines>(DEFAULT_ROUND_LINES)
   const [isDrawing, setIsDrawing] = useState(false)
   const [resultRevealStep, setResultRevealStep] = useState<RelayResultRevealStep>('final')
@@ -327,6 +330,7 @@ export function useRelayDrawing() {
 
   const resetDrawingSession = useCallback(() => {
     setActiveRoundKey('face')
+    setRemainingSeconds(DEFAULT_REMAINING_SECONDS)
     setRoundLines({
       face: [],
       body: [],
@@ -351,6 +355,7 @@ export function useRelayDrawing() {
       setCurrentStep(step)
       if (step === 'drawing') {
         setActiveRoundKey('face')
+        setRemainingSeconds(DEFAULT_REMAINING_SECONDS)
       }
       if (step === 'result') {
         setResultRevealStep('final')
@@ -380,6 +385,7 @@ export function useRelayDrawing() {
 
     if (nextRoundKey) {
       setActiveRoundKey(nextRoundKey)
+      setRemainingSeconds(DEFAULT_REMAINING_SECONDS)
       setIsDrawing(false)
       return
     }
@@ -501,11 +507,36 @@ export function useRelayDrawing() {
     [completedAt, roundLines],
   )
 
+  useEffect(() => {
+    if (currentStep !== 'drawing') return
+
+    const timerId = window.setInterval(() => {
+      setRemainingSeconds((currentSeconds) => Math.max(0, currentSeconds - 1))
+    }, 1000)
+
+    return () => window.clearInterval(timerId)
+  }, [currentStep, activeRoundKey])
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      if (currentStep === 'drawing' && remainingSeconds === 0 && !cancelled) {
+        completeRound()
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [completeRound, currentStep, remainingSeconds])
+
   return {
     currentStep,
     selectedStepLabel,
     activeRoundKey,
     activeRoundIndex,
+    remainingSeconds,
     selectedToolKey,
     resultRevealStep,
     selectedColor,

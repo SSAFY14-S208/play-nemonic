@@ -29,6 +29,7 @@ export default function RelayDrawingPage() {
         <RelayDrawingView
           activeRoundKey={relayDrawing.activeRoundKey}
           activeRoundIndex={relayDrawing.activeRoundIndex}
+          remainingSeconds={relayDrawing.remainingSeconds}
           selectedToolKey={relayDrawing.selectedToolKey}
           selectedColor={relayDrawing.selectedColor}
           strokeWidth={relayDrawing.strokeWidth}
@@ -43,6 +44,7 @@ export default function RelayDrawingPage() {
           onDrawStart={relayDrawing.beginDrawing}
           onDrawMove={relayDrawing.continueDrawing}
           onDrawEnd={relayDrawing.endDrawing}
+          onExit={relayDrawing.goToPreviousStep}
           onCompleteRound={relayDrawing.completeRound}
         />
       )}
