@@ -5,9 +5,12 @@ import com.nemonicworld.auth.entity.AdminUser;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -15,6 +18,8 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public class AdminUserRepository {
+
+    private static final String CREATED_ADMIN_ROLE = "admin";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -55,6 +60,51 @@ public class AdminUserRepository {
              WHERE id = ?
                AND deleted_at IS NULL
             """, this::mapAdminUser, id).stream().findFirst();
+    }
+
+    public boolean existsByLoginId(String loginId) {
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM admin_user WHERE login_id = ?", Integer.class,
+            loginId);
+
+        return count != null && count > 0;
+    }
+
+    public AdminUser insertAdmin(String loginId, String passwordHash, String nickname, String email,
+        LocalDateTime now) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        jdbcTemplate.update(connection -> {
+            var preparedStatement = connection.prepareStatement("""
+                INSERT INTO admin_user (
+                    login_id,
+                    password_hash,
+                    nickname,
+                    email,
+                    role,
+                    last_login_at,
+                    created_at,
+                    updated_at,
+                    deleted_at
+                )
+                VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL)
+                """, new String[]{"id"});
+            preparedStatement.setString(1, loginId);
+            preparedStatement.setString(2, passwordHash);
+            preparedStatement.setString(3, nickname);
+            preparedStatement.setString(4, email);
+            preparedStatement.setObject(5, CREATED_ADMIN_ROLE, Types.OTHER);
+            preparedStatement.setTimestamp(6, Timestamp.valueOf(now));
+            preparedStatement.setTimestamp(7, Timestamp.valueOf(now));
+
+            return preparedStatement;
+        }, keyHolder);
+
+        Number createdId = keyHolder.getKey();
+        if (createdId != null) {
+            return findActiveById(createdId.longValue()).orElseThrow();
+        }
+
+        return findByLoginId(loginId).orElseThrow();
     }
 
     public void updateLastLoginAt(Long id, LocalDateTime lastLoginAt) {

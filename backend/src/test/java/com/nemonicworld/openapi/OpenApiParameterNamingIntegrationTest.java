@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.config.OpenApiConfig;
 import com.nemonicworld.support.IntegrationTest;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -106,6 +107,22 @@ class OpenApiParameterNamingIntegrationTest {
                 + apiResponseSchemasWithDomainSpecificErrorsExample);
     }
 
+    @Test
+    void openApiDocumentsAdminBearerAuthentication() throws Exception {
+        JsonNode root = getOpenApiRoot();
+        JsonNode scheme = root.path("components").path("securitySchemes").path(OpenApiConfig.BEARER_AUTH_SCHEME);
+
+        assertTrue("http".equals(scheme.path("type").asText()), "Admin auth must use an HTTP security scheme.");
+        assertTrue("bearer".equals(scheme.path("scheme").asText()), "Admin auth must use bearer tokens.");
+        assertTrue("JWT".equals(scheme.path("bearerFormat").asText()), "Admin auth must document JWT format.");
+        assertTrue(hasSecurityRequirement(root, "/api/v1/admin/accounts", "post"),
+            "Admin account creation must require bearer auth in Swagger.");
+        assertTrue(hasSecurityRequirement(root, "/api/v1/auth/admin/me", "get"),
+            "Admin profile lookup must require bearer auth in Swagger.");
+        assertTrue(hasSecurityRequirement(root, "/api/v1/auth/admin/logout", "post"),
+            "Admin logout must require bearer auth in Swagger.");
+    }
+
     private JsonNode getOpenApiPaths() throws Exception {
         return getOpenApiRoot().path("paths");
     }
@@ -120,6 +137,17 @@ class OpenApiParameterNamingIntegrationTest {
         String body = new String(responseBody, StandardCharsets.UTF_8);
 
         return objectMapper.readTree(body);
+    }
+
+    private boolean hasSecurityRequirement(JsonNode root, String path, String method) {
+        JsonNode securityRequirements = root.path("paths").path(path).path(method).path("security");
+        for (JsonNode securityRequirement : securityRequirements) {
+            if (securityRequirement.has(OpenApiConfig.BEARER_AUTH_SCHEME)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void collectCompilerGeneratedParameterNames(String path, JsonNode pathItem,
