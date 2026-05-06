@@ -22,6 +22,8 @@ public enum RelayRoomEventType {
 
     ALL_PARTS_COMPLETED,
 
+    RESULT_CREATED,
+
     // 참여자의 WebSocket 연결이 활성화되었음을 알립니다.
     PARTICIPANT_CONNECTED,
 
