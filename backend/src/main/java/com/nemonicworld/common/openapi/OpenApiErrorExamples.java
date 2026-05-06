@@ -179,6 +179,12 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 갤러리 항목입니다."
         }
         """;
+    public static final String SHARE_IMAGE_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "공유할 이미지 URL이 없습니다."
+        }
+        """;
     public static final String INVALID_PAGE_REQUEST = """
         {
           "success": false,
