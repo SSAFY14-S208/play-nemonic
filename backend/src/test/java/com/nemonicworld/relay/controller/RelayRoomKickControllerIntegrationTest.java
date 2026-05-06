@@ -8,7 +8,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,10 +40,12 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @IntegrationTest
 @AutoConfigureMockMvc
@@ -108,11 +109,7 @@ class RelayRoomKickControllerIntegrationTest {
             participant(remainingUuid, "사과", false, 3));
         storeRoom(DEFAULT_ROOM_CODE, originalRoomState);
 
-        mockMvc
-            .perform(
-                delete("/api/v1/relay/rooms/{roomCode}/participants/{targetUserUuid}", DEFAULT_ROOM_CODE, targetUuid)
-                    .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+        performKick(hostUuid, targetUuid).andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("참여자 강퇴 성공"))
             .andExpect(jsonPath("$.data.roomCode").value(DEFAULT_ROOM_CODE))
             .andExpect(jsonPath("$.data.kickedUserUuid").value(targetUuid.toString()))
@@ -148,11 +145,8 @@ class RelayRoomKickControllerIntegrationTest {
         storeRoom(DEFAULT_ROOM_CODE, createRoomState(RelayRoomStatus.WAITING, participant(hostUuid, "망고", true, 0),
             participant(targetUuid, "포도", false, 1)));
 
-        mockMvc
-            .perform(
-                delete("/api/v1/relay/rooms/{roomCode}/participants/{targetUserUuid}", DEFAULT_ROOM_CODE, targetUuid)
-                    .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.data.participantCount").value(1));
+        performKick(hostUuid, targetUuid).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.participantCount").value(1));
 
         JsonNode storedRoom = readSavedRoom();
         assertThat(storedRoom.path("status").asText()).isEqualTo("WAITING");
@@ -171,11 +165,8 @@ class RelayRoomKickControllerIntegrationTest {
         storeRoom(DEFAULT_ROOM_CODE, createRoomState(RelayRoomStatus.WAITING, participant(hostUuid, "망고", true, 0),
             participant(participantUuid, "포도", false, 1), participant(targetUuid, "사과", false, 2)));
 
-        mockMvc
-            .perform(
-                delete("/api/v1/relay/rooms/{roomCode}/participants/{targetUserUuid}", DEFAULT_ROOM_CODE, targetUuid)
-                    .header(ANONYMOUS_USER_UUID_HEADER, participantUuid.toString()))
-            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+        performKick(participantUuid, targetUuid).andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("방장만 사용할 수 있는 기능입니다."));
 
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
@@ -193,11 +184,8 @@ class RelayRoomKickControllerIntegrationTest {
         storeRoom(DEFAULT_ROOM_CODE, createRoomState(RelayRoomStatus.WAITING, participant(hostUuid, "망고", true, 0),
             participant(targetUuid, "포도", false, 1)));
 
-        mockMvc
-            .perform(
-                delete("/api/v1/relay/rooms/{roomCode}/participants/{targetUserUuid}", DEFAULT_ROOM_CODE, targetUuid)
-                    .header(ANONYMOUS_USER_UUID_HEADER, requesterUuid.toString()))
-            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+        performKick(requesterUuid, targetUuid).andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("릴레이 방에 참여하지 않은 사용자입니다."));
 
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
@@ -210,11 +198,8 @@ class RelayRoomKickControllerIntegrationTest {
     void kickRelayRoomParticipantRejectsInvalidTargetUuid() throws Exception {
         UUID hostUuid = createExistingUserWithNickname("망고");
 
-        mockMvc
-            .perform(
-                delete("/api/v1/relay/rooms/{roomCode}/participants/{targetUserUuid}", DEFAULT_ROOM_CODE, "not-a-uuid")
-                    .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
-            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+        performKick(hostUuid, "not-a-uuid").andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
 
         verify(valueOperations, never()).get(anyString());
@@ -229,11 +214,7 @@ class RelayRoomKickControllerIntegrationTest {
         UUID targetUuid = createExistingUserWithNickname("포도");
         storeRoom(DEFAULT_ROOM_CODE, createRoomState(RelayRoomStatus.WAITING, participant(hostUuid, "망고", true, 0)));
 
-        mockMvc
-            .perform(
-                delete("/api/v1/relay/rooms/{roomCode}/participants/{targetUserUuid}", DEFAULT_ROOM_CODE, targetUuid)
-                    .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
-            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+        performKick(hostUuid, targetUuid).andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("강퇴할 참여자를 찾을 수 없습니다."));
 
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
@@ -247,10 +228,7 @@ class RelayRoomKickControllerIntegrationTest {
         UUID hostUuid = createExistingUserWithNickname("망고");
         storeRoom(DEFAULT_ROOM_CODE, createRoomState(RelayRoomStatus.WAITING, participant(hostUuid, "망고", true, 0)));
 
-        mockMvc
-            .perform(delete("/api/v1/relay/rooms/{roomCode}/participants/{targetUserUuid}", DEFAULT_ROOM_CODE, hostUuid)
-                .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
-            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+        performKick(hostUuid, hostUuid).andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("자기 자신은 강퇴할 수 없습니다."));
 
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
@@ -266,11 +244,7 @@ class RelayRoomKickControllerIntegrationTest {
         storeRoom(DEFAULT_ROOM_CODE, createRoomStateWithHostUserUuid(hostUuid.toString(), RelayRoomStatus.WAITING,
             participant(hostUuid, "망고", true, 0), participant(targetUuid, "포도", true, 1)));
 
-        mockMvc
-            .perform(
-                delete("/api/v1/relay/rooms/{roomCode}/participants/{targetUserUuid}", DEFAULT_ROOM_CODE, targetUuid)
-                    .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
-            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+        performKick(hostUuid, targetUuid).andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("방장은 강퇴할 수 없습니다."));
 
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
@@ -287,11 +261,7 @@ class RelayRoomKickControllerIntegrationTest {
         storeRoom(DEFAULT_ROOM_CODE,
             createRoomState(roomStatus, participant(hostUuid, "망고", true, 0), participant(targetUuid, "포도", false, 1)));
 
-        mockMvc
-            .perform(
-                delete("/api/v1/relay/rooms/{roomCode}/participants/{targetUserUuid}", DEFAULT_ROOM_CODE, targetUuid)
-                    .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
-            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+        performKick(hostUuid, targetUuid).andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("대기실에서만 강퇴할 수 있습니다."));
 
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
@@ -326,6 +296,16 @@ class RelayRoomKickControllerIntegrationTest {
         userRepository.saveAndFlush(appUser);
 
         return userUuid;
+    }
+
+    private ResultActions performKick(UUID requesterUuid, Object targetUserUuid) throws Exception {
+        return mockMvc.perform(post("/api/v1/relay/rooms/{roomCode}/participants/kick", DEFAULT_ROOM_CODE)
+            .contentType(MediaType.APPLICATION_JSON).header(ANONYMOUS_USER_UUID_HEADER, requesterUuid.toString())
+            .content("""
+                {
+                  "targetUserUuid": "%s"
+                }
+                """.formatted(targetUserUuid)));
     }
 
     private void storeRoom(String roomCode, RelayRoomState roomState) throws Exception {

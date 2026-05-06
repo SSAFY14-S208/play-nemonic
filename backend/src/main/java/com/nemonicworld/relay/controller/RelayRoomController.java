@@ -3,6 +3,7 @@ package com.nemonicworld.relay.controller;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.relay.dto.request.RelayRoomKickRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
@@ -23,7 +24,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -253,10 +253,9 @@ public class RelayRoomController {
     /**
      * 방장이 대기 중 방의 일반 참여자를 강퇴하고 강퇴 이벤트를 알립니다.
      */
-    @DeleteMapping("/{roomCode}/participants/{targetUserUuid}")
+    @PostMapping("/{roomCode}/participants/kick")
     @Operation(summary = "릴레이 방 참여자 강퇴", description = "방장이 WAITING 상태의 릴레이 대기실에서 일반 참여자를 강퇴합니다.")
     @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
-    @Parameter(name = "targetUserUuid", in = ParameterIn.PATH, required = true)
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "참여자 강퇴 성공"),
@@ -276,8 +275,9 @@ public class RelayRoomController {
             @ExampleObject(name = "방장 강퇴", value = OpenApiErrorExamples.RELAY_HOST_KICK_NOT_ALLOWED)})),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
     public ResponseEntity<ApiResponse<RelayRoomKickResponse>> kickParticipant(@PathVariable("roomCode") String roomCode,
-        @PathVariable("targetUserUuid") String targetUserUuid,
-        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @RequestBody(required = false) RelayRoomKickRequest request) {
+        String targetUserUuid = request == null ? null : request.targetUserUuid();
         RelayRoomKickResponse response = relayRoomService.kickParticipant(userUuid, roomCode, targetUserUuid);
         relayRoomEventPublisher.publishParticipantKicked(response);
         relayRoomEventPublisher.publishKickedFromRoom(response.roomCode(), response.kickedUserUuid());
