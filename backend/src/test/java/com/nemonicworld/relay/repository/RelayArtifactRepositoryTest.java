@@ -1,0 +1,142 @@
+package com.nemonicworld.relay.repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.nemonicworld.relay.service.finalization.RelayFinalizationArtifactResult;
+import com.nemonicworld.support.IntegrationTest;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
+
+@IntegrationTest
+@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
+class RelayArtifactRepositoryTest {
+
+    private static final String ROOM_CODE = "AB3K9Q";
+
+    @Autowired
+    private RelayArtifactRepository relayArtifactRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void prepareTables() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS artifact (
+                id UUID PRIMARY KEY,
+                kind VARCHAR(32) NOT NULL,
+                source_room_id VARCHAR(64) NULL,
+                thumbnail_url VARCHAR(200) NOT NULL,
+                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS gallery (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NOT NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
+                artifact_id UUID PRIMARY KEY,
+                combined_preview_url VARCHAR(200) NULL
+            )
+            """);
+
+        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
+        jdbcTemplate.update("DELETE FROM gallery");
+        jdbcTemplate.update("DELETE FROM artifact");
+    }
+
+    @Test
+    void saveRelayDrawingResultsCreatesArtifactSubtypeAndGalleryRowsForEveryParticipant() {
+        UUID participantA = UUID.randomUUID();
+        UUID participantB = UUID.randomUUID();
+        UUID participantC = UUID.randomUUID();
+        List<RelayFinalizationArtifactResult> artifacts = List.of(artifact(0), artifact(1), artifact(2));
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        relayArtifactRepository.saveRelayDrawingResults(ROOM_CODE, artifacts,
+            List.of(participantA.toString(), participantB.toString(), participantC.toString()), now);
+
+        assertThat(countRows("artifact")).isEqualTo(3);
+        assertThat(countRows("relay_drawing_artifact")).isEqualTo(3);
+        assertThat(countRows("gallery")).isEqualTo(9);
+        assertThat(countGalleryRows(participantA)).isEqualTo(3);
+        assertThat(countGalleryRows(participantB)).isEqualTo(3);
+        assertThat(countGalleryRows(participantC)).isEqualTo(3);
+        assertThat(findArtifactIdsByUser(participantA)).containsExactlyInAnyOrderElementsOf(artifactIds(artifacts));
+        assertThat(findArtifactIdsByUser(participantB)).containsExactlyInAnyOrderElementsOf(artifactIds(artifacts));
+        assertThat(findArtifactIdsByUser(participantC)).containsExactlyInAnyOrderElementsOf(artifactIds(artifacts));
+        assertThat(findThumbnailUrl(artifacts.get(0).artifactId())).isEqualTo(artifacts.get(0).thumbnailObjectKey());
+        assertThat(findCombinedPreviewUrl(artifacts.get(0).artifactId()))
+            .isEqualTo(artifacts.get(0).originalObjectKey());
+        assertThat(findMeta(artifacts.get(0).artifactId())).contains("\"canvasIndex\":0");
+    }
+
+    @Test
+    void findRelayArtifactsBySourceRoomIdReturnsCanvasIndexedRelayArtifacts() {
+        List<RelayFinalizationArtifactResult> artifacts = List.of(artifact(0), artifact(1));
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        relayArtifactRepository.saveRelayDrawingResults(ROOM_CODE, artifacts, List.of(UUID.randomUUID().toString()),
+            now);
+
+        List<RelayFinalizationArtifactResult> found = relayArtifactRepository
+            .findRelayArtifactsBySourceRoomId(ROOM_CODE);
+
+        assertThat(found).hasSize(2);
+        assertThat(found).extracting(RelayFinalizationArtifactResult::canvasIndex).containsExactly(0, 1);
+        assertThat(found).extracting(RelayFinalizationArtifactResult::originalObjectKey)
+            .containsExactly(artifacts.get(0).originalObjectKey(), artifacts.get(1).originalObjectKey());
+    }
+
+    private RelayFinalizationArtifactResult artifact(int canvasIndex) {
+        UUID artifactId = UUID.randomUUID();
+        return new RelayFinalizationArtifactResult(artifactId, canvasIndex,
+            "relay/results/%s/original.png".formatted(artifactId),
+            "relay/results/%s/thumbnail.png".formatted(artifactId),
+            "{\"canvasIndex\":%d,\"roomCode\":\"%s\",\"parts\":[\"FACE\",\"BODY\",\"LEGS\"]}".formatted(canvasIndex,
+                ROOM_CODE));
+    }
+
+    private long countRows(String tableName) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM %s".formatted(tableName), Long.class);
+    }
+
+    private long countGalleryRows(UUID userUuid) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM gallery WHERE user_id = ?", Long.class, userUuid);
+    }
+
+    private List<UUID> findArtifactIdsByUser(UUID userUuid) {
+        return jdbcTemplate.query("SELECT artifact_id FROM gallery WHERE user_id = ? ORDER BY artifact_id",
+            (resultSet, rowNumber) -> resultSet.getObject("artifact_id", UUID.class), userUuid);
+    }
+
+    private List<UUID> artifactIds(List<RelayFinalizationArtifactResult> artifacts) {
+        return artifacts.stream().map(RelayFinalizationArtifactResult::artifactId).toList();
+    }
+
+    private String findThumbnailUrl(UUID artifactId) {
+        return jdbcTemplate.queryForObject("SELECT thumbnail_url FROM artifact WHERE id = ?", String.class, artifactId);
+    }
+
+    private String findCombinedPreviewUrl(UUID artifactId) {
+        return jdbcTemplate.queryForObject(
+            "SELECT combined_preview_url FROM relay_drawing_artifact WHERE artifact_id = ?", String.class, artifactId);
+    }
+
+    private String findMeta(UUID artifactId) {
+        return jdbcTemplate.queryForObject("SELECT meta FROM artifact WHERE id = ?", String.class, artifactId);
+    }
+}
