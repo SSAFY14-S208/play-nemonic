@@ -317,6 +317,18 @@ public final class OpenApiErrorExamples {
           "message": "인증이 필요합니다."
         }
         """;
+    public static final String ADMIN_SUPER_ADMIN_REQUIRED = """
+        {
+          "success": false,
+          "message": "슈퍼 관리자 권한이 필요합니다."
+        }
+        """;
+    public static final String ADMIN_LOGIN_ID_DUPLICATED = """
+        {
+          "success": false,
+          "message": "이미 등록된 관리자 아이디입니다."
+        }
+        """;
 
     private OpenApiErrorExamples() {
     }
