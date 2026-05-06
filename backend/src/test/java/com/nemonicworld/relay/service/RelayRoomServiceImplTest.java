@@ -23,6 +23,8 @@ import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.assignment.RelayRoomAssignmentQueryUseCase;
+import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
+import com.nemonicworld.relay.service.close.RelayRoomManualCloseUseCase;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.game.RelayRoomStartUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomConnectionUseCase;
@@ -94,6 +96,8 @@ class RelayRoomServiceImplTest {
             new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomPartAdvanceService, relaySubmissionStorage, minioStorageProperties()),
+            new RelayRoomManualCloseUseCase(anonymousUserResolver, relayRoomPolicy,
+                new RelayRoomCloseCommand(relayRoomRepository)),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory));
     }

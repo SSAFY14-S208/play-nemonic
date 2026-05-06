@@ -16,6 +16,7 @@ import com.nemonicworld.relay.entity.RelayRoomParticipant;
 import com.nemonicworld.relay.entity.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
 import com.nemonicworld.relay.service.close.RelayRoomCloseProcessResult;
 import com.nemonicworld.relay.service.close.RelayRoomCloseResult;
 import com.nemonicworld.relay.service.close.RelayRoomCloseService;
@@ -53,8 +54,8 @@ class RelayRoomCloseServiceTest {
 
     @BeforeEach
     void setUp() {
-        relayRoomCloseService = new RelayRoomCloseService(relayRoomRepository, relayRoomEventPublisher,
-            CLOSE_DELAY_SECONDS, SCAN_LIMIT);
+        relayRoomCloseService = new RelayRoomCloseService(relayRoomRepository,
+            new RelayRoomCloseCommand(relayRoomRepository), relayRoomEventPublisher, CLOSE_DELAY_SECONDS, SCAN_LIMIT);
     }
 
     @Test
@@ -66,6 +67,33 @@ class RelayRoomCloseServiceTest {
 
         assertThat(result.closed()).isFalse();
         verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verifyNoInteractions(relayRoomEventPublisher);
+    }
+
+    @Test
+    void closeFinishedRoomIfUnchangedClosesWithoutCloseDelay() {
+        RelayRoomState roomState = finishedRoom(ROOM_CODE, NOW.minusSeconds(CLOSE_DELAY_SECONDS - 1));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomCloseResult result = relayRoomCloseService.closeFinishedRoomIfUnchanged(roomState, NOW);
+
+        assertThat(result.closed()).isTrue();
+        assertThat(result.roomState().status()).isEqualTo(RelayRoomStatus.CLOSED);
+        verify(relayRoomRepository).saveIfUnchanged(eq(roomState), any(RelayRoomState.class));
+        verify(relayRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW);
+    }
+
+    @Test
+    void closeFinishedRoomIfUnchangedDoesNotPublishEventWhenRedisSaveConflicts() {
+        RelayRoomState roomState = finishedRoom(ROOM_CODE, NOW.minusMinutes(10));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false);
+
+        RelayRoomCloseResult result = relayRoomCloseService.closeFinishedRoomIfUnchanged(roomState, NOW);
+
+        assertThat(result.closed()).isFalse();
+        verify(relayRoomRepository).saveIfUnchanged(eq(roomState), any(RelayRoomState.class));
         verifyNoInteractions(relayRoomEventPublisher);
     }
 
