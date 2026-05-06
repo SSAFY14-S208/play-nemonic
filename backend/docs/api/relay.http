@@ -46,6 +46,30 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+### Leave relay room
+DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave relay room - invalid user UUID
+DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: not-a-uuid
+
+### Leave relay room - missing user UUID
+DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
+
+### Leave relay room - invalid room code
+DELETE {{host}}/api/v1/relay/rooms/not-a-room/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave relay room - not found
+DELETE {{host}}/api/v1/relay/rooms/ZZZZZZ/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave relay room - non-waiting room
+# 퇴장은 WAITING 대기실에서만 가능합니다.
+DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Join relay room - invalid user UUID
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
 Anonymous-User-UUID: not-a-uuid
