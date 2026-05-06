@@ -33,7 +33,7 @@ export default function FlipbookLobbyView({
   return (
     <section className="relative min-h-[900px] overflow-hidden border border-flipbook-light bg-flipbook-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <PostItNote className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-brand-flipbook-primary" />
+        <PostItNote className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-flipbook-primary" />
 
         <section className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
           <p className="h2-b text-fg-inverse/85">입장 코드</p>

@@ -34,34 +34,32 @@ export function useFlipbookSettings({
   )
 
   const increaseRoundCount = useCallback(() => {
-    setRoundCount((currentRoundCount) => {
-      const nextRoundCount = currentRoundCount + 1
-      realtimeActions.enqueueSettingsUpdate(
-        createFlipbookSettings({
-          minimumRoundCount,
-          participantCount: FLIPBOOK_PARTICIPANTS.length,
-          roundCount: nextRoundCount,
-          selectedTimeLimitSeconds,
-        }),
-      )
-      return nextRoundCount
-    })
-  }, [minimumRoundCount, realtimeActions, selectedTimeLimitSeconds])
+    const nextRoundCount = roundCount + 1
+
+    setRoundCount(nextRoundCount)
+    realtimeActions.enqueueSettingsUpdate(
+      createFlipbookSettings({
+        minimumRoundCount,
+        participantCount: FLIPBOOK_PARTICIPANTS.length,
+        roundCount: nextRoundCount,
+        selectedTimeLimitSeconds,
+      }),
+    )
+  }, [minimumRoundCount, realtimeActions, roundCount, selectedTimeLimitSeconds])
 
   const decreaseRoundCount = useCallback(() => {
-    setRoundCount((currentRoundCount) => {
-      const nextRoundCount = Math.max(minimumRoundCount, currentRoundCount - 1)
-      realtimeActions.enqueueSettingsUpdate(
-        createFlipbookSettings({
-          minimumRoundCount,
-          participantCount: FLIPBOOK_PARTICIPANTS.length,
-          roundCount: nextRoundCount,
-          selectedTimeLimitSeconds,
-        }),
-      )
-      return nextRoundCount
-    })
-  }, [minimumRoundCount, realtimeActions, selectedTimeLimitSeconds])
+    const nextRoundCount = Math.max(minimumRoundCount, roundCount - 1)
+
+    setRoundCount(nextRoundCount)
+    realtimeActions.enqueueSettingsUpdate(
+      createFlipbookSettings({
+        minimumRoundCount,
+        participantCount: FLIPBOOK_PARTICIPANTS.length,
+        roundCount: nextRoundCount,
+        selectedTimeLimitSeconds,
+      }),
+    )
+  }, [minimumRoundCount, realtimeActions, roundCount, selectedTimeLimitSeconds])
 
   const selectTimeLimit = useCallback(
     (timeLimitSeconds: FlipbookTimeLimitSeconds) => {

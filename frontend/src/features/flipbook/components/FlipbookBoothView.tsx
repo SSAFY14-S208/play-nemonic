@@ -13,7 +13,7 @@ export default function FlipbookBoothView({
   return (
     <section className="relative min-h-[900px] overflow-hidden bg-flipbook-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <PostItNote className="absolute left-[5.8%] top-[18%] h-[61.5%] w-[40.3%] text-brand-flipbook-primary" />
+        <PostItNote className="absolute left-[5.8%] top-[18%] h-[61.5%] w-[40.3%] text-flipbook-primary" />
 
         <div className="absolute left-[9.7%] top-[28.6%] w-[33%]">
           <span className="body-b inline-flex min-h-[43px] items-center rounded-full bg-flipbook-result-soft px-5 text-flipbook-deep">
