@@ -36,3 +36,25 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 ### Get flipbook room state - not found
 GET {{host}}/api/v1/flipbook/rooms/ZZZZZZ
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Update flipbook room settings
+PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update flipbook room settings - invalid time limit
+PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "timeLimitSeconds": 10
+}
+
+### Update flipbook room settings - missing body
+PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
+Anonymous-User-UUID: {{anonymousUserUuid}}
