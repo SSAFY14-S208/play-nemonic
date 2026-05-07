@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @IntegrationTest
 @AutoConfigureMockMvc
 /**
- * Swagger/OpenAPI 문서에 산출물 API가 노출되는지 검증합니다.
+ * Swagger/OpenAPI 문서에 산출물 이미지 URL 조회 API가 산출물 카테고리로 노출되는지 검증합니다.
  */
 class ArtifactOpenApiIntegrationTest {
 
