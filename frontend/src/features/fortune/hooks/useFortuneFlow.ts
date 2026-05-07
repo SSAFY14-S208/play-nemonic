@@ -197,6 +197,12 @@ export function useFortuneFlow() {
     userUuid,
   ])
 
+  useEffect(() => {
+    return () => {
+      useFortuneSessionStore.getState().resetSession()
+    }
+  }, [])
+
   const isBirthInfoReady = useMemo(() => isBirthInfoComplete(birthInfo), [birthInfo])
   const sajuPreview = useMemo(() => {
     if (!isBirthInfoComplete(birthInfo)) {
