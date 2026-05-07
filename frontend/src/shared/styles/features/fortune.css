@@ -61,6 +61,35 @@
   }
 }
 
+@keyframes fortune-dialogue-glyph-tap {
+  0% {
+    opacity: 0;
+    transform: translateY(0.16rem) scale(0.92);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-0.03rem) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fortune-dialogue-caret-blink {
+  0%,
+  48% {
+    opacity: 1;
+  }
+
+  49%,
+  100% {
+    opacity: 0.26;
+  }
+}
+
 @keyframes fortune-2d-stage-drift {
   0%,
   100% {
@@ -1326,7 +1355,27 @@
   text-shadow:
     0 0.16rem 0.45rem rgba(7, 1, 16, 0.72),
     0 0 0.86rem rgba(160, 87, 255, 0.3);
+  white-space: pre-wrap;
   word-break: keep-all;
+}
+
+.fortune-dialogue-glyph {
+  display: inline-block;
+  animation: fortune-dialogue-glyph-tap 92ms ease-out both;
+  transform-origin: 50% 82%;
+}
+
+.fortune-dialogue-caret {
+  display: inline-block;
+  width: 0.12em;
+  height: 1em;
+  margin-left: 0.08em;
+  transform: translateY(0.16em);
+  border-radius: 999px;
+  background: rgba(255, 242, 205, 0.92);
+  box-shadow: 0 0 0.48rem rgba(206, 129, 255, 0.56);
+  animation: fortune-dialogue-caret-blink 720ms steps(1, end) infinite;
+  vertical-align: baseline;
 }
 
 .fortune-dialogue-next {
@@ -2669,9 +2718,12 @@
   }
 
   .fortune-dialogue-next,
+  .fortune-dialogue-caret,
+  .fortune-dialogue-glyph,
   .fortune-2d-curtain-piece,
   .fortune-primary-button,
   .fortune-primary-button::after {
+    animation: none;
     transition: none;
   }
 
