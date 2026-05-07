@@ -1,5 +1,6 @@
 package com.nemonicworld.inquiry.controller;
 
+import static org.hamcrest.Matchers.aMapWithSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -253,6 +254,88 @@ class AdminInquiryControllerIntegrationTest {
             .andExpect(jsonPath("$.message").isNotEmpty());
     }
 
+    @Test
+    void adminGetsInquiryDetail() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime respondedAt = createdAt.plusHours(1);
+        insertInquiry(100L, userUuid, "error", "결제 오류 문의", "결제는 완료됐는데 서비스가 활성화되지 않았습니다.", "user@example.com",
+            "in_progress", ADMIN_ID, "결제 내역 확인 중", respondedAt,
+            "[\"https://cdn.example.com/1.png\",\"https://cdn.example.com/2.png\"]",
+            "{\"userAgent\":\"MockMvc/1.0\",\"referer\":\"https://k14s208.p.ssafy.io/support\"}", createdAt);
+
+        mockMvc
+            .perform(
+                get("/api/v1/admin/inquiries/{inquiryId}", 100L).header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.id").value(100L))
+            .andExpect(jsonPath("$.data.userId").value(userUuid.toString()))
+            .andExpect(jsonPath("$.data.type").value("error")).andExpect(jsonPath("$.data.title").value("결제 오류 문의"))
+            .andExpect(jsonPath("$.data.content").value("결제는 완료됐는데 서비스가 활성화되지 않았습니다."))
+            .andExpect(jsonPath("$.data.email").value("user@example.com"))
+            .andExpect(jsonPath("$.data.attachments.length()").value(2))
+            .andExpect(jsonPath("$.data.attachments[0]").value("https://cdn.example.com/1.png"))
+            .andExpect(jsonPath("$.data.meta.userAgent").value("MockMvc/1.0"))
+            .andExpect(jsonPath("$.data.meta.referer").value("https://k14s208.p.ssafy.io/support"))
+            .andExpect(jsonPath("$.data.status").value("in_progress"))
+            .andExpect(jsonPath("$.data.assignedTo").value(ADMIN_ID))
+            .andExpect(jsonPath("$.data.responseNote").value("결제 내역 확인 중"))
+            .andExpect(jsonPath("$.data.respondedAt").isNotEmpty()).andExpect(jsonPath("$.data.createdAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.updatedAt").isNotEmpty());
+    }
+
+    @Test
+    void superAdminGetsInquiryDetail() throws Exception {
+        UUID userUuid = insertAppUser();
+        insertInquiry(100L, userUuid, "error", "오류 문의", "문의 내용", "user@example.com", "new",
+            LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS));
+
+        mockMvc
+            .perform(get("/api/v1/admin/inquiries/{inquiryId}", 100L).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_EMAIL, AdminRole.SUPER_ADMIN)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.id").value(100L));
+    }
+
+    @Test
+    void inquiryDetailRejectsUnauthenticatedRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/inquiries/{inquiryId}", 100L)).andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void inquiryDetailRejectsUnknownId() throws Exception {
+        mockMvc
+            .perform(
+                get("/api/v1/admin/inquiries/{inquiryId}", 999L).header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("고객 문의를 찾을 수 없습니다."));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0", "-1", "abc"})
+    void inquiryDetailRejectsInvalidId(String inquiryId) throws Exception {
+        mockMvc
+            .perform(get("/api/v1/admin/inquiries/{inquiryId}", inquiryId).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("문의 ID가 올바르지 않습니다."));
+    }
+
+    @Test
+    void inquiryDetailReturnsEmptyAttachmentsAndMetaWhenStoredValuesAreNull() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertInquiry(100L, userUuid, "other", "기타 문의", "문의 내용", "user@example.com", "new", null, null, null, null,
+            null, createdAt);
+
+        mockMvc
+            .perform(
+                get("/api/v1/admin/inquiries/{inquiryId}", 100L).header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.attachments.length()").value(0))
+            .andExpect(jsonPath("$.data.meta").value(aMapWithSize(0)));
+    }
+
     private void insertAdminUser(long id, String loginId, String email, AdminRole role) {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
@@ -296,6 +379,13 @@ class AdminInquiryControllerIntegrationTest {
 
     private void insertInquiry(long id, UUID userUuid, String type, String title, String content, String email,
         String status, LocalDateTime createdAt) {
+        insertInquiry(id, userUuid, type, title, content, email, status, null, "관리자 내부 메모", null,
+            "[\"https://cdn.example.com/1.png\"]", "{\"source\":\"test\"}", createdAt);
+    }
+
+    private void insertInquiry(long id, UUID userUuid, String type, String title, String content, String email,
+        String status, Long assignedTo, String responseNote, LocalDateTime respondedAt, String attachments, String meta,
+        LocalDateTime createdAt) {
         jdbcTemplate.update("""
             INSERT INTO cs_inquiry (
                 id,
@@ -313,9 +403,10 @@ class AdminInquiryControllerIntegrationTest {
                 created_at,
                 updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?)
-            """, id, userUuid, type, title, content, email, "[\"https://cdn.example.com/1.png\"]",
-            "{\"source\":\"test\"}", status, "관리자 내부 메모", Timestamp.valueOf(createdAt), Timestamp.valueOf(createdAt));
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, id, userUuid, type, title, content, email, attachments, meta, status, assignedTo, responseNote,
+            respondedAt == null ? null : Timestamp.valueOf(respondedAt), Timestamp.valueOf(createdAt),
+            Timestamp.valueOf(createdAt));
     }
 
     private String bearerAccessToken() {
