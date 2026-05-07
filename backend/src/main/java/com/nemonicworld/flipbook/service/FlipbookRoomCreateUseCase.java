@@ -52,7 +52,7 @@ public class FlipbookRoomCreateUseCase {
         String roomCode = roomCodeGenerator.generateUnique(inviteRepository::existsByInviteCode);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         FlipbookRoomParticipant hostParticipant = new FlipbookRoomParticipant(hostUser.getId().toString(),
-            hostUser.getNickname(), true, FlipbookRoomPolicy.HOST_JOIN_ORDER, true, null, now);
+            hostUser.getNickname(), true, FlipbookRoomPolicy.HOST_JOIN_ORDER, false, null, now);
         FlipbookRoomState roomState = new FlipbookRoomState(roomCode, FlipbookRoomStatus.WAITING,
             hostUser.getId().toString(), FlipbookRoomPolicy.DEFAULT_TIME_LIMIT_SECONDS,
             FlipbookRoomPolicy.MIN_PARTICIPANTS, FlipbookRoomPolicy.MAX_PARTICIPANTS, List.of(hostParticipant), now,

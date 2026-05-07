@@ -83,6 +83,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
                 return createResponse(invite, updatedRoomState, userUuid, false);
             }
         }
+
         // 여러 번 재시도했는데도 계속 충돌하면 입장 실패 처리한다.
         throw new ConflictException(ROOM_UPDATE_CONFLICT_MESSAGE);
     }
@@ -117,7 +118,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private FlipbookRoomState addParticipant(FlipbookRoomState roomState, AppUser user) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         FlipbookRoomParticipant newParticipant = new FlipbookRoomParticipant(user.getId().toString(),
-            user.getNickname(), false, nextJoinOrder(roomState), true, null, now);
+            user.getNickname(), false, nextJoinOrder(roomState), false, null, now);
 
         List<FlipbookRoomParticipant> participants = new ArrayList<>(roomState.participants());
         participants.add(newParticipant);
