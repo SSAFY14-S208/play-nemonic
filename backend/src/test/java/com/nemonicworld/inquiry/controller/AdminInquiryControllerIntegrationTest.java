@@ -1,7 +1,9 @@
 package com.nemonicworld.inquiry.controller;
 
 import static org.hamcrest.Matchers.aMapWithSize;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -10,8 +12,10 @@ import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
 import com.nemonicworld.auth.service.StoredAdminRefreshToken;
+import com.nemonicworld.common.exception.EmailDeliveryException;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.JwtTokenProvider;
+import com.nemonicworld.inquiry.service.InquiryMailSender;
 import com.nemonicworld.support.IntegrationTest;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -31,6 +35,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -56,6 +61,9 @@ class AdminInquiryControllerIntegrationTest {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private FakeInquiryMailSender inquiryMailSender;
 
     @BeforeEach
     void prepareTables() {
@@ -111,6 +119,7 @@ class AdminInquiryControllerIntegrationTest {
         jdbcTemplate.execute("ALTER TABLE admin_user ALTER COLUMN id RESTART WITH 100");
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_EMAIL, AdminRole.ADMIN);
         insertAdminUser(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_EMAIL, AdminRole.SUPER_ADMIN);
+        inquiryMailSender.reset();
     }
 
     @Test
@@ -336,6 +345,165 @@ class AdminInquiryControllerIntegrationTest {
             .andExpect(jsonPath("$.data.meta").value(aMapWithSize(0)));
     }
 
+    @Test
+    void adminRepliesInquiryEmail() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertInquiry(100L, userUuid, "error", "결제 오류 문의", "문의 내용", "user@example.com", "new", null, null, null, null,
+            null, createdAt);
+
+        mockMvc
+            .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(replyRequestBody("답변드립니다", "문의하신 결제 내역을 확인했습니다.")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.id").value(100L)).andExpect(jsonPath("$.data.status").value("resolved"))
+            .andExpect(jsonPath("$.data.respondedAt").isNotEmpty());
+
+        assertThat(inquiryMailSender.to).isEqualTo("user@example.com");
+        assertThat(inquiryMailSender.subject).isEqualTo("답변드립니다");
+        assertThat(inquiryMailSender.message).isEqualTo("문의하신 결제 내역을 확인했습니다.");
+        assertThat(readStringColumn(100L, "status")).isEqualTo("resolved");
+        assertThat(readLongColumn(100L, "assigned_to")).isEqualTo(ADMIN_ID);
+        assertThat(readStringColumn(100L, "response_note")).isEqualTo("문의하신 결제 내역을 확인했습니다.");
+        assertThat(readTimestampColumn(100L, "responded_at")).isNotNull();
+    }
+
+    @Test
+    void superAdminRepliesInquiryEmail() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertInquiry(100L, userUuid, "error", "오류 문의", "문의 내용", "user@example.com", "new", null, null, null, null,
+            null, createdAt);
+
+        mockMvc
+            .perform(
+                post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
+                    .header(HttpHeaders.AUTHORIZATION,
+                        bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_EMAIL,
+                            AdminRole.SUPER_ADMIN))
+                    .contentType(MediaType.APPLICATION_JSON).content(replyRequestBody("답변", "슈퍼 관리자 답변입니다.")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("resolved"));
+
+        assertThat(readLongColumn(100L, "assigned_to")).isEqualTo(SUPER_ADMIN_ID);
+    }
+
+    @Test
+    void inquiryReplyRejectsUnauthenticatedRequest() throws Exception {
+        mockMvc
+            .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L).contentType(MediaType.APPLICATION_JSON)
+                .content(replyRequestBody("답변", "문의 답변입니다.")))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void inquiryReplyRejectsUnknownId() throws Exception {
+        mockMvc
+            .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 999L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(replyRequestBody("답변", "문의 답변입니다.")))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("고객 문의를 찾을 수 없습니다."));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0", "-1", "abc"})
+    void inquiryReplyRejectsInvalidId(String inquiryId) throws Exception {
+        mockMvc
+            .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", inquiryId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(replyRequestBody("답변", "문의 답변입니다.")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("문의 ID가 올바르지 않습니다."));
+    }
+
+    @Test
+    void inquiryReplyRejectsInquiryWithoutEmail() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertInquiry(100L, userUuid, "other", "기타 문의", "문의 내용", null, "new", null, null, null, null, null, createdAt);
+
+        mockMvc
+            .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(replyRequestBody("답변", "문의 답변입니다.")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("이메일이 없어 회신할 수 없습니다."));
+    }
+
+    @Test
+    void inquiryReplyRejectsMissingSubjectAndMessage() throws Exception {
+        mockMvc
+            .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.errors.subject").value("이메일 제목을 입력해 주세요."))
+            .andExpect(jsonPath("$.errors.message").value("회신 내용을 입력해 주세요."));
+    }
+
+    @Test
+    void inquiryReplyRejectsBlankSubject() throws Exception {
+        mockMvc
+            .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(replyRequestBody(" ", "문의 답변입니다.")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.errors.subject").value("이메일 제목을 입력해 주세요."));
+    }
+
+    @Test
+    void inquiryReplyRejectsBlankMessage() throws Exception {
+        mockMvc
+            .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(replyRequestBody("답변", " ")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.errors.message").value("회신 내용을 입력해 주세요."));
+    }
+
+    @Test
+    void inquiryReplyDoesNotResolveInquiryWhenEmailDeliveryFails() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertInquiry(100L, userUuid, "error", "오류 문의", "문의 내용", "user@example.com", "new", null, null, null, null,
+            null, createdAt);
+        inquiryMailSender.failNext();
+
+        mockMvc
+            .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(replyRequestBody("답변", "문의 답변입니다.")))
+            .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("이메일 발송에 실패했습니다."));
+
+        assertThat(readStringColumn(100L, "status")).isEqualTo("new");
+        assertThat(readLongColumn(100L, "assigned_to")).isNull();
+        assertThat(readStringColumn(100L, "response_note")).isNull();
+        assertThat(readTimestampColumn(100L, "responded_at")).isNull();
+    }
+
+    @Test
+    void inquiryDetailShowsReplyResultAfterReply() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertInquiry(100L, userUuid, "error", "오류 문의", "문의 내용", "user@example.com", "new", null, null, null, null,
+            null, createdAt);
+
+        mockMvc.perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+            .content(replyRequestBody("답변", "상세에서 보일 답변입니다."))).andExpect(status().isOk());
+
+        mockMvc
+            .perform(
+                get("/api/v1/admin/inquiries/{inquiryId}", 100L).header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("resolved"))
+            .andExpect(jsonPath("$.data.assignedTo").value(ADMIN_ID))
+            .andExpect(jsonPath("$.data.responseNote").value("상세에서 보일 답변입니다."))
+            .andExpect(jsonPath("$.data.respondedAt").isNotEmpty());
+    }
+
     private void insertAdminUser(long id, String loginId, String email, AdminRole role) {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
@@ -420,6 +588,30 @@ class AdminInquiryControllerIntegrationTest {
         return "Bearer %s".formatted(jwtTokenProvider.createAccessToken(adminUser).accessToken());
     }
 
+    private String replyRequestBody(String subject, String message) {
+        return """
+            {
+              "subject": "%s",
+              "message": "%s"
+            }
+            """.formatted(subject, message);
+    }
+
+    private String readStringColumn(long inquiryId, String columnName) {
+        return jdbcTemplate.queryForObject("SELECT %s FROM cs_inquiry WHERE id = ?".formatted(columnName), String.class,
+            inquiryId);
+    }
+
+    private Long readLongColumn(long inquiryId, String columnName) {
+        return jdbcTemplate.queryForObject("SELECT %s FROM cs_inquiry WHERE id = ?".formatted(columnName), Long.class,
+            inquiryId);
+    }
+
+    private Timestamp readTimestampColumn(long inquiryId, String columnName) {
+        return jdbcTemplate.queryForObject("SELECT %s FROM cs_inquiry WHERE id = ?".formatted(columnName),
+            Timestamp.class, inquiryId);
+    }
+
     @TestConfiguration
     static class InquiryAdminTokenStoreTestConfig {
 
@@ -427,6 +619,42 @@ class AdminInquiryControllerIntegrationTest {
         @Primary
         AdminTokenStore adminTokenStore() {
             return new NoOpAdminTokenStore();
+        }
+
+        @Bean
+        @Primary
+        FakeInquiryMailSender inquiryMailSender() {
+            return new FakeInquiryMailSender();
+        }
+    }
+
+    static class FakeInquiryMailSender implements InquiryMailSender {
+
+        private boolean failNext;
+        private String to;
+        private String subject;
+        private String message;
+
+        @Override
+        public void sendReply(String to, String subject, String message) {
+            if (failNext) {
+                throw new EmailDeliveryException("이메일 발송에 실패했습니다.");
+            }
+
+            this.to = to;
+            this.subject = subject;
+            this.message = message;
+        }
+
+        private void failNext() {
+            this.failNext = true;
+        }
+
+        private void reset() {
+            failNext = false;
+            to = null;
+            subject = null;
+            message = null;
         }
     }
 

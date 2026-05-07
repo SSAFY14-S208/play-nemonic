@@ -4,14 +4,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.inquiry.dto.request.CsInquiryCreateRequest;
+import com.nemonicworld.inquiry.dto.request.CsInquiryReplyRequest;
 import com.nemonicworld.inquiry.dto.response.CsInquiryCreateResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryDetailResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryListItemResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryListResponse;
+import com.nemonicworld.inquiry.dto.response.CsInquiryReplyResponse;
+import com.nemonicworld.inquiry.entity.CsInquiry;
 import com.nemonicworld.inquiry.entity.CsInquiryStatus;
 import com.nemonicworld.inquiry.entity.CsInquiryType;
 import com.nemonicworld.inquiry.repository.CsInquiryInsertCommand;
@@ -41,6 +45,8 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final String INVALID_INQUIRY_ID_MESSAGE = "문의 ID가 올바르지 않습니다.";
     private static final String INQUIRY_NOT_FOUND_MESSAGE = "고객 문의를 찾을 수 없습니다.";
+    private static final String REQUIRED_EMAIL_MESSAGE = "이메일이 없어 회신할 수 없습니다.";
+    private static final String CLOSED_INQUIRY_REPLY_MESSAGE = "종료된 문의에는 회신할 수 없습니다.";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 50;
@@ -51,12 +57,14 @@ public class CsInquiryServiceImpl implements CsInquiryService {
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final CsInquiryRepository csInquiryRepository;
+    private final InquiryMailSender inquiryMailSender;
     private final ObjectMapper objectMapper;
 
     public CsInquiryServiceImpl(AnonymousUserResolver anonymousUserResolver, CsInquiryRepository csInquiryRepository,
-        ObjectMapper objectMapper) {
+        InquiryMailSender inquiryMailSender, ObjectMapper objectMapper) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.csInquiryRepository = csInquiryRepository;
+        this.inquiryMailSender = inquiryMailSender;
         this.objectMapper = objectMapper;
     }
 
@@ -109,6 +117,36 @@ public class CsInquiryServiceImpl implements CsInquiryService {
             .findById(inquiryId).map(inquiry -> CsInquiryDetailResponse.of(inquiry,
                 parseAttachments(inquiry.getAttachments()), parseMeta(inquiry.getMeta())))
             .orElseThrow(() -> new NotFoundException(INQUIRY_NOT_FOUND_MESSAGE));
+    }
+
+    @Override
+    @Transactional
+    public CsInquiryReplyResponse replyInquiry(AdminPrincipal adminPrincipal, String inquiryIdValue,
+        CsInquiryReplyRequest request) {
+        requireAdmin(adminPrincipal);
+
+        Long inquiryId = parseInquiryId(inquiryIdValue);
+        CsInquiry inquiry = csInquiryRepository.findById(inquiryId)
+            .orElseThrow(() -> new NotFoundException(INQUIRY_NOT_FOUND_MESSAGE));
+        if (!StringUtils.hasText(inquiry.getEmail())) {
+            throw new BadRequestException(REQUIRED_EMAIL_MESSAGE);
+        }
+        if (CsInquiryStatus.CLOSED.getValue().equals(inquiry.getStatus())) {
+            throw new ConflictException(CLOSED_INQUIRY_REPLY_MESSAGE);
+        }
+
+        String subject = normalizeRequiredTrimmed(request.subject());
+        String message = normalizeRequiredTrimmed(request.message());
+        inquiryMailSender.sendReply(inquiry.getEmail(), subject, message);
+
+        LocalDateTime respondedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        int updatedCount = csInquiryRepository.updateReply(inquiryId, adminPrincipal.id(), message, respondedAt,
+            CsInquiryStatus.RESOLVED.getValue());
+        if (updatedCount == 0) {
+            throw new NotFoundException(INQUIRY_NOT_FOUND_MESSAGE);
+        }
+
+        return CsInquiryReplyResponse.from(csInquiryRepository.findById(inquiryId).orElseThrow());
     }
 
     private void requireAdmin(AdminPrincipal adminPrincipal) {
