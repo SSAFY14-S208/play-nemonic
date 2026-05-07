@@ -1,15 +1,21 @@
 package com.nemonicworld.flipbook.websocket;
 
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomClosedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventStateResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventType;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomHostChangedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantLeftEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomSimpleMessageResponse;
+import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -31,6 +37,7 @@ public class FlipbookRoomEventPublisher {
     private static final String KICKED_FROM_ROOM_MESSAGE = "방장에 의해 강퇴되었습니다.";
     private static final CloseStatus KICKED_FROM_ROOM_CLOSE_STATUS = CloseStatus.POLICY_VIOLATION
         .withReason("KICKED_FROM_ROOM");
+    private static final CloseStatus LEFT_ROOM_CLOSE_STATUS = CloseStatus.NORMAL.withReason("LEFT_ROOM");
     private static final String PONG_MESSAGE = "pong";
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -74,6 +81,45 @@ public class FlipbookRoomEventPublisher {
         webSocketSessionRegistry
             .findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, roomCode, kickedUserUuid)
             .ifPresent(session -> publishKickedFromRoom(roomCode, session));
+    }
+
+    /**
+     * 참여자가 대기실에서 스스로 퇴장했음을 방 전체에 알립니다.
+     */
+    public void publishParticipantLeft(FlipbookRoomLeaveResponse leaveResponse) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.PARTICIPANT_LEFT,
+            leaveResponse.roomCode(), FlipbookRoomParticipantLeftEventResponse.from(leaveResponse));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + leaveResponse.roomCode(), event);
+    }
+
+    /**
+     * 방장 퇴장으로 새 방장이 승계되었음을 방 전체에 알립니다.
+     */
+    public void publishHostChanged(FlipbookRoomLeaveResponse leaveResponse) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.HOST_CHANGED,
+            leaveResponse.roomCode(), FlipbookRoomHostChangedEventResponse.from(leaveResponse));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + leaveResponse.roomCode(), event);
+    }
+
+    /**
+     * 마지막 참여자 퇴장으로 방이 종료되었음을 방 전체에 알립니다.
+     */
+    public void publishRoomClosed(String roomCode, LocalDateTime closedAt) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.ROOM_CLOSED, roomCode,
+            new FlipbookRoomClosedEventResponse(roomCode, FlipbookRoomStatus.CLOSED, closedAt));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+    }
+
+    /**
+     * 스스로 퇴장한 사용자의 같은 서버 활성 WebSocket 세션이 있으면 정상 종료합니다.
+     */
+    public void closeLeftRoomSession(String roomCode, String leftUserUuid) {
+        webSocketSessionRegistry
+            .findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, roomCode, leftUserUuid)
+            .ifPresent(this::closeLeftRoomSession);
     }
 
     /**
@@ -124,6 +170,11 @@ public class FlipbookRoomEventPublisher {
             createSessionHeaders(session.sessionId()));
         webSocketSessionRegistry.removeStaleSession(session.sessionId());
         webSocketSessionRegistry.closeWebSocketSession(session.sessionId(), KICKED_FROM_ROOM_CLOSE_STATUS);
+    }
+
+    private void closeLeftRoomSession(ActiveWebSocketSession session) {
+        webSocketSessionRegistry.removeStaleSession(session.sessionId());
+        webSocketSessionRegistry.closeWebSocketSession(session.sessionId(), LEFT_ROOM_CLOSE_STATUS);
     }
 
     private MessageHeaders createSessionHeaders(String sessionId) {

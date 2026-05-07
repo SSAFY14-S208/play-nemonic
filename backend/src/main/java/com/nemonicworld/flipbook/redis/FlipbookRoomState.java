@@ -42,6 +42,12 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
             updatedParticipants, createdAt, updatedAt, updatedKickedUserUuids);
     }
 
+    public FlipbookRoomState withParticipantsHostAndStatus(List<FlipbookRoomParticipant> updatedParticipants,
+        String updatedHostUserUuid, FlipbookRoomStatus updatedStatus, LocalDateTime updatedAt) {
+        return new FlipbookRoomState(roomCode, updatedStatus, updatedHostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, updatedParticipants, createdAt, updatedAt, kickedUserUuids);
+    }
+
     // 나머지 값은 그대로, updatedAt만 현재 시각으로 변경 (record라 기존의 객체 값을 변경할 수 없음)
     public FlipbookRoomState withTimeLimitSeconds(int updatedTimeLimitSeconds, LocalDateTime updatedAt) {
         return new FlipbookRoomState(roomCode, status, hostUserUuid, updatedTimeLimitSeconds, minParticipants,
