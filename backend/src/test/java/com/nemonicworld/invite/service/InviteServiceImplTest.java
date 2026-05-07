@@ -19,6 +19,7 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -53,12 +54,15 @@ class InviteServiceImplTest {
     @Mock
     private RelayRoomRepository relayRoomRepository;
 
+    @Mock
+    private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+
     private InviteServiceImpl inviteService;
 
     @BeforeEach
     void setUp() {
         inviteService = new InviteServiceImpl(inviteRepository, anonymousUserResolver,
-            List.of(new RelayInviteJoinHandler(relayRoomRepository)));
+            List.of(new RelayInviteJoinHandler(relayRoomRepository, relayInviteMetadataSyncService)));
     }
 
     /**

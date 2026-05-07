@@ -18,6 +18,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.timeout.RelayRoomTimeoutResult;
 import com.nemonicworld.relay.service.timeout.RelayRoomTimeoutService;
 import com.nemonicworld.relay.service.timeout.RelayTimeoutProcessResult;
@@ -53,12 +54,15 @@ class RelayRoomTimeoutServiceTest {
     @Mock
     private RelayRoomEventPublisher relayRoomEventPublisher;
 
+    @Mock
+    private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+
     private RelayRoomTimeoutService relayRoomTimeoutService;
 
     @BeforeEach
     void setUp() {
         relayRoomTimeoutService = new RelayRoomTimeoutService(relayRoomRepository, new RelayRoomPartAdvanceService(),
-            relayRoomEventPublisher, 100, AUTO_SUBMIT_GRACE_MS);
+            relayRoomEventPublisher, relayInviteMetadataSyncService, 100, AUTO_SUBMIT_GRACE_MS);
     }
 
     @Test
@@ -248,7 +252,8 @@ class RelayRoomTimeoutServiceTest {
         RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
         RelayRoomTimeoutService limitedService = new RelayRoomTimeoutService(relayRoomRepository,
-            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, 5, AUTO_SUBMIT_GRACE_MS);
+            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, relayInviteMetadataSyncService, 5,
+            AUTO_SUBMIT_GRACE_MS);
         given(relayRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(5)))
             .willReturn(List.of(roomState));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
