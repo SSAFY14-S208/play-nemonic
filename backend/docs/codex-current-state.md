@@ -296,6 +296,16 @@ Recent artifact image URL lookup work added `GET /api/v1/artifacts/{artifactId}/
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.artifact.*' --no-daemon
 ```
 
+Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/result`.
+
+- Existing artifact/gallery rows are returned first for idempotent result lookup.
+- If Redis room state is `FINISHED` and no DB result exists yet, submitted non-empty frames are grouped by `flipbookIndex`, converted into GIF files under `flipbook/results/{artifactId}/result.gif`, and stored as `artifact` + `flipbook_artifact` + gallery rows for non-dropped participants.
+- The response mirrors relay result shape with `ready`, `resultCount`, per-result `galleryId`/`artifactId`, `thumbnailUrl`, `gifUrl`, `firstImageUrl`, and ordered frame metadata.
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
+```
+
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.
 
