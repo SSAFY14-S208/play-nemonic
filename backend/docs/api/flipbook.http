@@ -1,0 +1,60 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@roomCode = FB3K9Q
+
+### Create flipbook room
+POST {{host}}/api/v1/flipbook/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create flipbook room - invalid UUID
+POST {{host}}/api/v1/flipbook/rooms
+Anonymous-User-UUID: not-a-uuid
+
+### Create flipbook room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/flipbook/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create flipbook room - missing UUID
+POST {{host}}/api/v1/flipbook/rooms
+
+### Get flipbook room state
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get flipbook room state - invalid user UUID
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}
+Anonymous-User-UUID: not-a-uuid
+
+### Get flipbook room state - missing user UUID
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}
+
+### Get flipbook room state - invalid room code
+GET {{host}}/api/v1/flipbook/rooms/not-a-room
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get flipbook room state - not found
+GET {{host}}/api/v1/flipbook/rooms/ZZZZZZ
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Update flipbook room settings
+PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update flipbook room settings - invalid time limit
+PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "timeLimitSeconds": 10
+}
+
+### Update flipbook room settings - missing body
+PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
+Anonymous-User-UUID: {{anonymousUserUuid}}
