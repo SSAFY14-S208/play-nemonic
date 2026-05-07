@@ -3,12 +3,17 @@ package com.nemonicworld.flipbook.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
+import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -99,6 +104,63 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         }
 
         return Optional.of(deserialize(roomStateValue)); // 해당하는 값이 있으면 역직렬화해서 객체화한 후 객체를 반환 (메타데이타 정보)
+    }
+
+    /**
+     * Redis room key를 SCAN하며 이탈 확정 처리가 필요한 PLAYING 방만 조회합니다.
+     */
+    @Override
+    public List<FlipbookRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<FlipbookRoomState> candidateRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && candidateRooms.size() < limit) {
+                findPlayingRoomForDisconnectGrace(roomKeys.next(), disconnectCutoff).ifPresent(candidateRooms::add);
+            }
+        }
+
+        return candidateRooms;
+    }
+
+    private Optional<FlipbookRoomState> findPlayingRoomForDisconnectGrace(String roomKey,
+        LocalDateTime disconnectCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        FlipbookRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != FlipbookRoomStatus.PLAYING || roomState.currentRound() == null) {
+            return Optional.empty();
+        }
+
+        if (hasExpiredDisconnectedParticipant(roomState, disconnectCutoff)
+            || hasDroppedHostWithConnectedCandidate(roomState)) {
+            return Optional.of(roomState);
+        }
+
+        return Optional.empty();
+    }
+
+    private boolean hasExpiredDisconnectedParticipant(FlipbookRoomState roomState, LocalDateTime disconnectCutoff) {
+        return roomState.participants().stream()
+            .anyMatch(participant -> !participant.dropped() && !participant.connected()
+                && participant.disconnectedAt() != null && !participant.disconnectedAt().isAfter(disconnectCutoff));
+    }
+
+    private boolean hasDroppedHostWithConnectedCandidate(FlipbookRoomState roomState) {
+        boolean droppedHostExists = roomState.participants().stream().anyMatch(participant -> participant.dropped()
+            && (participant.host() || participant.userUuid().equals(roomState.hostUserUuid())));
+        if (!droppedHostExists) {
+            return false;
+        }
+
+        return roomState.participants().stream()
+            .anyMatch(participant -> !participant.dropped() && participant.connected());
     }
 
     private String createRoomKey(String roomCode) {

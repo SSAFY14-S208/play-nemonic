@@ -38,6 +38,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class RelayRoomResultsControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
+    private static final String MINIO_PUBLIC_URL = "http://localhost:9000/nemonic-local/";
     private static final String ROOM_CODE = "AB3K9Q";
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 6, 17, 0).truncatedTo(ChronoUnit.SECONDS);
 
@@ -85,8 +86,8 @@ class RelayRoomResultsControllerIntegrationTest {
             .andExpect(jsonPath("$.data.roomCode").value(ROOM_CODE)).andExpect(jsonPath("$.data.ready").value(true))
             .andExpect(jsonPath("$.data.resultCount").value(2))
             .andExpect(jsonPath("$.data.results[0].canvasIndex").value(0))
-            .andExpect(jsonPath("$.data.results[0].thumbnailUrl").value("relay/results/0/thumbnail.png"))
-            .andExpect(jsonPath("$.data.results[0].contentUrl").value("relay/results/0/original.png"))
+            .andExpect(jsonPath("$.data.results[0].thumbnailUrl").value(publicUrl("relay/results/0/thumbnail.png")))
+            .andExpect(jsonPath("$.data.results[0].contentUrl").value(publicUrl("relay/results/0/original.png")))
             .andExpect(jsonPath("$.data.results[0].parts[0].part").value("FACE"))
             .andExpect(jsonPath("$.data.results[0].parts[0].drawerUserUuid").value(ownerUuid.toString()))
             .andExpect(jsonPath("$.data.results[0].parts[0].drawerNickname").value("Mango"))
@@ -214,6 +215,10 @@ class RelayRoomResultsControllerIntegrationTest {
     private void storeRoom(RelayRoomState roomState) throws Exception {
         given(valueOperations.get("relay:room:%s".formatted(ROOM_CODE)))
             .willReturn(objectMapper.writeValueAsString(roomState));
+    }
+
+    private String publicUrl(String objectKey) {
+        return MINIO_PUBLIC_URL + objectKey;
     }
 
     @SuppressWarnings("unchecked")

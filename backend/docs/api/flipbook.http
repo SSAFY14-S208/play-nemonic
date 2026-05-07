@@ -74,6 +74,22 @@ POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/start
 POST {{host}}/api/v1/flipbook/rooms/not-a-room/start
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+### Get my flipbook frame assignment
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my flipbook frame assignment - game not started
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my flipbook frame assignment - invalid user UUID
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: not-a-uuid
+
+### Get my flipbook frame assignment - invalid room code
+GET {{host}}/api/v1/flipbook/rooms/not-a-room/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Kick flipbook participant
 POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
 Anonymous-User-UUID: {{anonymousUserUuid}}

@@ -60,6 +60,7 @@ nemonic:
       secret-key: ${MINIO_SECRET_KEY:minioadmin}
       bucket: ${MINIO_BUCKET:nemonic-local}
       presign-expiration-minutes: ${MINIO_PRESIGN_EXPIRATION_MINUTES:10}
+      view-url-expiration-minutes: ${MINIO_VIEW_URL_EXPIRATION_MINUTES:1440}
       max-upload-byte-size: ${FILE_UPLOAD_MAX_BYTE_SIZE:52428800}
 
   share:
@@ -98,3 +99,10 @@ nemonic:
       delay-seconds: ${RELAY_CLOSE_DELAY_SECONDS:300}
       scan-delay-ms: ${RELAY_CLOSE_SCAN_DELAY_MS:30000}
       scan-limit: ${RELAY_CLOSE_SCAN_LIMIT:100}
+
+  flipbook:
+    disconnect:
+      enabled: ${FLIPBOOK_DISCONNECT_ENABLED:true}
+      reconnect-grace-seconds: ${FLIPBOOK_DISCONNECT_RECONNECT_GRACE_SECONDS:10}
+      scan-delay-ms: ${FLIPBOOK_DISCONNECT_SCAN_DELAY_MS:1000}
+      scan-limit: ${FLIPBOOK_DISCONNECT_SCAN_LIMIT:100}

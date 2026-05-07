@@ -2,6 +2,8 @@ package com.nemonicworld.flipbook.repository;
 
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -31,4 +33,9 @@ public interface FlipbookRoomRepository {
      * 방코드로 Redis에 저장된 플립북 방 상태를 조회합니다.
      */
     Optional<FlipbookRoomState> findByRoomCode(String roomCode);
+
+    /**
+     * 게임 중 재접속 유예가 만료된 참여자가 있는 방을 조회합니다.
+     */
+    List<FlipbookRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit);
 }

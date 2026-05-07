@@ -8,20 +8,32 @@ import java.util.List;
  */
 public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, String hostUserUuid, int timeLimitSeconds,
     int minParticipants, int maxParticipants, Integer currentRound, Integer totalRounds, LocalDateTime roundStartedAt,
-    LocalDateTime roundDeadlineAt, LocalDateTime gameStartedAt, List<FlipbookRoomParticipant> participants,
-    LocalDateTime createdAt, LocalDateTime updatedAt, List<String> kickedUserUuids) {
+    LocalDateTime roundDeadlineAt, LocalDateTime gameStartedAt, List<FlipbookFrameAssignment> assignments,
+    List<FlipbookRoomParticipant> participants, LocalDateTime createdAt, LocalDateTime updatedAt,
+    List<String> kickedUserUuids) {
 
     public FlipbookRoomState {
         // Redis에서 복원한 뒤에도 외부 코드가 참여자 목록을 직접 바꾸지 못하도록 불변 복사합니다.
+        assignments = assignments == null ? List.of() : List.copyOf(assignments);
         participants = participants == null ? List.of() : List.copyOf(participants);
         kickedUserUuids = kickedUserUuids == null ? List.of() : List.copyOf(kickedUserUuids);
+    }
+
+    public FlipbookRoomState(String roomCode, FlipbookRoomStatus status, String hostUserUuid, int timeLimitSeconds,
+        int minParticipants, int maxParticipants, Integer currentRound, Integer totalRounds,
+        LocalDateTime roundStartedAt, LocalDateTime roundDeadlineAt, LocalDateTime gameStartedAt,
+        List<FlipbookRoomParticipant> participants, LocalDateTime createdAt, LocalDateTime updatedAt,
+        List<String> kickedUserUuids) {
+        this(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants, currentRound,
+            totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt, List.of(), participants, createdAt, updatedAt,
+            kickedUserUuids);
     }
 
     public FlipbookRoomState(String roomCode, FlipbookRoomStatus status, String hostUserUuid, int timeLimitSeconds,
         int minParticipants, int maxParticipants, List<FlipbookRoomParticipant> participants, LocalDateTime createdAt,
         LocalDateTime updatedAt, List<String> kickedUserUuids) {
         this(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants, null, null, null, null,
-            null, participants, createdAt, updatedAt, kickedUserUuids);
+            null, List.of(), participants, createdAt, updatedAt, kickedUserUuids);
     }
 
     public FlipbookRoomState(String roomCode, FlipbookRoomStatus status, String hostUserUuid, int timeLimitSeconds,
@@ -41,28 +53,35 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
     public FlipbookRoomState withParticipants(List<FlipbookRoomParticipant> updatedParticipants,
         LocalDateTime updatedAt) {
         return new FlipbookRoomState(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants,
-            currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt, updatedParticipants, createdAt,
-            updatedAt, kickedUserUuids);
+            currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt, assignments, updatedParticipants,
+            createdAt, updatedAt, kickedUserUuids);
     }
 
     public FlipbookRoomState withParticipantsAndKickedUserUuids(List<FlipbookRoomParticipant> updatedParticipants,
         List<String> updatedKickedUserUuids, LocalDateTime updatedAt) {
         return new FlipbookRoomState(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants,
-            currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt, updatedParticipants, createdAt,
-            updatedAt, updatedKickedUserUuids);
+            currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt, assignments, updatedParticipants,
+            createdAt, updatedAt, updatedKickedUserUuids);
     }
 
     public FlipbookRoomState withParticipantsHostAndStatus(List<FlipbookRoomParticipant> updatedParticipants,
         String updatedHostUserUuid, FlipbookRoomStatus updatedStatus, LocalDateTime updatedAt) {
         return new FlipbookRoomState(roomCode, updatedStatus, updatedHostUserUuid, timeLimitSeconds, minParticipants,
-            maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt,
+            maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt, assignments,
             updatedParticipants, createdAt, updatedAt, kickedUserUuids);
     }
 
     // 나머지 값은 그대로, updatedAt만 현재 시각으로 변경 (record라 기존의 객체 값을 변경할 수 없음)
     public FlipbookRoomState withTimeLimitSeconds(int updatedTimeLimitSeconds, LocalDateTime updatedAt) {
         return new FlipbookRoomState(roomCode, status, hostUserUuid, updatedTimeLimitSeconds, minParticipants,
-            maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt, participants,
+            maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt, assignments,
+            participants, createdAt, updatedAt, kickedUserUuids);
+    }
+
+    public FlipbookRoomState withAssignments(List<FlipbookFrameAssignment> updatedAssignments,
+        LocalDateTime updatedAt) {
+        return new FlipbookRoomState(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants,
+            currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt, updatedAssignments, participants,
             createdAt, updatedAt, kickedUserUuids);
     }
 
@@ -70,9 +89,18 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
      * 첫 라운드를 시작하고 현재 라운드 마감 시각을 계산합니다.
      */
     public FlipbookRoomState startGame(int resolvedTotalRounds, LocalDateTime startedAt) {
+        return startGame(resolvedTotalRounds, List.of(), startedAt);
+    }
+
+    /**
+     * 첫 라운드와 전체 프레임 배정표를 함께 시작 상태로 저장합니다.
+     */
+    public FlipbookRoomState startGame(int resolvedTotalRounds, List<FlipbookFrameAssignment> generatedAssignments,
+        LocalDateTime startedAt) {
         return new FlipbookRoomState(roomCode, FlipbookRoomStatus.PLAYING, hostUserUuid, timeLimitSeconds,
             minParticipants, maxParticipants, 1, resolvedTotalRounds, startedAt,
-            startedAt.plusSeconds(timeLimitSeconds), startedAt, participants, createdAt, startedAt, kickedUserUuids);
+            startedAt.plusSeconds(timeLimitSeconds), startedAt, generatedAssignments, participants, createdAt,
+            startedAt, kickedUserUuids);
     }
 
 }

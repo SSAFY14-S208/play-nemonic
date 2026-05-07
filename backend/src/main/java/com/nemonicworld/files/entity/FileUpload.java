@@ -104,5 +104,4 @@ public class FileUpload {
     public boolean hasPurpose(FileUploadPurpose purpose) {
         return this.purpose == purpose;
     }
-
 }

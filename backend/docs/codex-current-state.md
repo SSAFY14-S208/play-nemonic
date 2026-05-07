@@ -17,7 +17,10 @@ Last updated: 2026-05-07
 - My gallery listing now uses `GET /api/v1/gallery` with `Anonymous-User-UUID` and reads existing gallery/artifact rows without MinIO calls.
 - My gallery item detail now uses `GET /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and returns one active owned gallery artifact with parsed `meta` and content URL fallback.
 - My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
+- Gallery list/detail and relay result APIs now convert stored MinIO object keys into browser-renderable public URLs through `MinioPublicUrlResolver`, while preserving already absolute URLs as-is and keeping the database storage model object-key based.
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
+- Files presigned PUT/GET URLs are signed with the public MinIO origin and then re-prefixed with the configured `MINIO_PUBLIC_URL` path such as `/minio`, because the MinIO Java SDK does not allow path segments inside the client endpoint.
+- Files private GET view URLs use a separate `MINIO_VIEW_URL_EXPIRATION_MINUTES` setting with a 24-hour default, while upload PUT presigned URLs keep the shorter `MINIO_PRESIGN_EXPIRATION_MINUTES` setting.
 - Anonymous CS inquiry creation now uses `POST /api/v1/inquiries` with
   `Anonymous-User-UUID`, stores into the existing `cs_inquiry` table with
   initial status `new`, and preserves optional attachments and metadata as JSON
@@ -111,7 +114,9 @@ Last updated: 2026-05-07
 - Flipbook room creation now uses `POST /api/v1/flipbook/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `flipbook:room:{roomCode}` with a 24-hour TTL, and stores matching common invite metadata under `invite:{roomCode}` with `boothType=flipbook`.
 - Flipbook room state lookup now uses `GET /api/v1/flipbook/rooms/{roomCode}`, reads the Redis room snapshot without mutation, sorts participants by `joinOrder`, and computes viewer participation, host, joinable, startable, and blocked-reason flags from the requested `Anonymous-User-UUID`.
 - Flipbook waiting-room host kick now uses `POST /api/v1/flipbook/rooms/{roomCode}/kick` with `targetUserUuid` in the JSON body, removes only non-host participants while preserving remaining `joinOrder` values, records `kickedUserUuids` in the Redis room state, blocks kicked UUIDs from invite re-entry and WebSocket reconnect paths, and emits `PARTICIPANT_KICKED` plus a best-effort personal `KICKED_FROM_ROOM` queue event before closing the same-server active session.
-- Flipbook game start now uses `POST /api/v1/flipbook/rooms/{roomCode}/start`, requires the caller to be the host of a WAITING room, requires at least two connected WebSocket participants, calculates the default total rounds from the minimum 8-frame policy, stores `currentRound`, `totalRounds`, round deadline, and `gameStartedAt` in Redis, syncs invite TTL metadata, and emits `GAME_STARTED`.
+- Flipbook game start now uses `POST /api/v1/flipbook/rooms/{roomCode}/start`, requires the caller to be the host of a WAITING room, requires at least two connected WebSocket participants, calculates the default total rounds from the minimum 8-frame policy, stores `currentRound`, `totalRounds`, round deadline, `gameStartedAt`, and generated frame assignments in Redis, syncs invite TTL metadata, and emits `GAME_STARTED`.
+- Flipbook current assignment lookup now uses `GET /api/v1/flipbook/rooms/{roomCode}/assignments/me`, requires the caller to be a non-dropped participant in a PLAYING room, returns the current round assignment, remaining seconds, and previous-frame hint metadata when a submitted/auto-submitted previous frame exists.
+- Flipbook PLAYING-room re-entry now applies a 10-second reconnect grace period to both common invite re-entry and WebSocket CONNECT; the frontend should call invite and immediately open WebSocket, and either path returns the reconnect-expired 409 once `disconnectedAt + 10s` has passed.
 - Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
   related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
   `super_admin` row in `admin_user` only when enabled and the login ID does not
@@ -212,6 +217,14 @@ Recent room code generator work passed with:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 ```
 
+Recent MinIO file/view URL and public artifact URL work passed with:
+
+```bash
+cd backend
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessApply --no-daemon
+GRADLE_USER_HOME=.gradle-user-home ./gradlew test --tests 'com.nemonicworld.files.*' --tests 'com.nemonicworld.gallery.controller.GalleryControllerIntegrationTest' --tests 'com.nemonicworld.relay.controller.RelayRoomResultsControllerIntegrationTest' --tests 'com.nemonicworld.relay.service.RelayRoomResultQueryUseCaseTest' --tests 'com.nemonicworld.relay.service.RelayRoomServiceImplTest' --no-daemon
+```
+
 Recent GMS prompt creation API work passed with:
 
 ```powershell
@@ -251,6 +264,25 @@ Recent flipbook game start work passed with:
 
 ```bash
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.invite.service.FlipbookInviteJoinHandlerTest' --no-daemon
+```
+
+Recent file private view URL work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.files.*' --no-daemon
+GRADLE_USER_HOME=.gradle-user-home ./gradlew test --tests 'com.nemonicworld.relay.controller.RelayRoomAssignmentControllerIntegrationTest' --no-daemon
+```
+
+Recent flipbook reconnect grace work added PLAYING-room disconnect scanning:
+
+- `flipbook:room:{roomCode}` participants now keep `dropped`/`droppedAt` fields like relay.
+- The flipbook disconnect scheduler scans PLAYING rooms, marks participants dropped after the 10-second reconnect grace, blocks dropped users from invite/WebSocket reconnect, and transfers a dropped host to the connected non-dropped participant with the lowest `joinOrder`.
+- `PARTICIPANT_DROPPED` and `HOST_CHANGED` WebSocket events are emitted after successful Redis CAS updates.
+
+Recent flipbook current assignment lookup work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.invite.service.FlipbookInviteJoinHandlerTest' --no-daemon
 ```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real

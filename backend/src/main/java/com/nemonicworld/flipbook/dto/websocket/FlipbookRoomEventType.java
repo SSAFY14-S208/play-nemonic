@@ -10,6 +10,9 @@ public enum FlipbookRoomEventType {
     // 참여자의 WebSocket 연결이 해제되었음을 알립니다.
     PARTICIPANT_DISCONNECTED,
 
+    // 참여자의 재접속 유예가 만료되어 이탈 확정되었음을 알립니다.
+    PARTICIPANT_DROPPED,
+
     // 방 설정이 변경되었음을 알립니다.
     SETTINGS_CHANGED,
 

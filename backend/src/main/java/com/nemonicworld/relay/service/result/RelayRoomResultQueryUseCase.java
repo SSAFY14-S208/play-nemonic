@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
+import com.nemonicworld.files.service.MinioPublicUrlResolver;
 import com.nemonicworld.relay.dto.response.RelayRoomResultItemResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomResultPartResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomResultsResponse;
@@ -38,15 +39,17 @@ public class RelayRoomResultQueryUseCase {
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomPolicy relayRoomPolicy;
     private final ObjectMapper objectMapper;
+    private final MinioPublicUrlResolver minioPublicUrlResolver;
 
     public RelayRoomResultQueryUseCase(AnonymousUserResolver anonymousUserResolver,
         RelayArtifactRepository relayArtifactRepository, RelayRoomRepository relayRoomRepository,
-        RelayRoomPolicy relayRoomPolicy, ObjectMapper objectMapper) {
+        RelayRoomPolicy relayRoomPolicy, ObjectMapper objectMapper, MinioPublicUrlResolver minioPublicUrlResolver) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayArtifactRepository = relayArtifactRepository;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
         this.objectMapper = objectMapper;
+        this.minioPublicUrlResolver = minioPublicUrlResolver;
     }
 
     /**
@@ -90,8 +93,8 @@ public class RelayRoomResultQueryUseCase {
 
     private RelayRoomResultItemResponse toResponse(RelayResultArtifactRow row) {
         return new RelayRoomResultItemResponse(extractCanvasIndex(row.meta()), row.galleryId().toString(),
-            row.artifactId().toString(), row.thumbnailUrl(), row.contentUrl(), row.createdAt(),
-            extractParts(row.meta()));
+            row.artifactId().toString(), minioPublicUrlResolver.resolve(row.thumbnailUrl()),
+            minioPublicUrlResolver.resolve(row.contentUrl()), row.createdAt(), extractParts(row.meta()));
     }
 
     private Comparator<RelayResultArtifactRow> resultRowComparator() {
