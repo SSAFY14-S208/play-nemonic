@@ -1,5 +1,5 @@
 import { HTTPError } from 'ky'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import {
   ApiError,
@@ -18,7 +18,8 @@ import type {
 } from '@/shared/types'
 
 import { FORTUNE_EMPTY_BIRTH_INFO, FORTUNE_RESET_QUERY_PARAM } from '../constants'
-import type { FortuneBirthInfo, FortuneResult, FortuneStep } from '../types'
+import { useFortuneSessionStore } from '../fortuneSessionStore'
+import type { FortuneBirthInfo } from '../types'
 import {
   calculateFortuneSaju,
   clearStoredFortune,
@@ -34,17 +35,24 @@ import {
 
 export function useFortuneFlow() {
   const userUuid = useUserStore((state) => state.userUuid)
-  const [hasUserStoreHydrated, setHasUserStoreHydrated] = useState(
-    () => typeof window !== 'undefined' && useUserStore.persist?.hasHydrated() === true,
-  )
-  const [step, setStep] = useState<FortuneStep>('intro')
-  const [birthInfo, setBirthInfo] = useState<FortuneBirthInfo>(FORTUNE_EMPTY_BIRTH_INFO)
-  const [result, setResult] = useState<FortuneResult | null>(null)
-  const [hasHydrated, setHasHydrated] = useState(false)
-  const [hasServerBirthInfo, setHasServerBirthInfo] = useState(false)
-  const [isSubmittingBirthInfo, setIsSubmittingBirthInfo] = useState(false)
-  const [isDrawingFortune, setIsDrawingFortune] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
+  const step = useFortuneSessionStore((state) => state.step)
+  const birthInfo = useFortuneSessionStore((state) => state.birthInfo)
+  const result = useFortuneSessionStore((state) => state.result)
+  const hasUserStoreHydrated = useFortuneSessionStore((state) => state.hasUserStoreHydrated)
+  const hasHydrated = useFortuneSessionStore((state) => state.hasHydrated)
+  const hasServerBirthInfo = useFortuneSessionStore((state) => state.hasServerBirthInfo)
+  const isSubmittingBirthInfo = useFortuneSessionStore((state) => state.isSubmittingBirthInfo)
+  const isDrawingFortune = useFortuneSessionStore((state) => state.isDrawingFortune)
+  const errorMessage = useFortuneSessionStore((state) => state.errorMessage)
+  const setStep = useFortuneSessionStore((state) => state.setStep)
+  const setBirthInfo = useFortuneSessionStore((state) => state.setBirthInfo)
+  const setResult = useFortuneSessionStore((state) => state.setResult)
+  const setHasUserStoreHydrated = useFortuneSessionStore((state) => state.setUserStoreHydrated)
+  const setHasHydrated = useFortuneSessionStore((state) => state.setHydrated)
+  const setHasServerBirthInfo = useFortuneSessionStore((state) => state.setHasServerBirthInfo)
+  const setIsSubmittingBirthInfo = useFortuneSessionStore((state) => state.setSubmittingBirthInfo)
+  const setIsDrawingFortune = useFortuneSessionStore((state) => state.setDrawingFortune)
+  const setErrorMessage = useFortuneSessionStore((state) => state.setErrorMessage)
 
   useEffect(() => {
     if (hasUserStoreHydrated) return
@@ -82,7 +90,7 @@ export function useFortuneFlow() {
       window.clearTimeout(fallbackTimerId)
       unsubscribe()
     }
-  }, [hasUserStoreHydrated])
+  }, [hasUserStoreHydrated, setHasUserStoreHydrated])
 
   useEffect(() => {
     if (!hasUserStoreHydrated || hasHydrated) {
@@ -161,7 +169,16 @@ export function useFortuneFlow() {
     return () => {
       cancelled = true
     }
-  }, [hasHydrated, hasUserStoreHydrated, userUuid])
+  }, [
+    hasHydrated,
+    hasUserStoreHydrated,
+    setBirthInfo,
+    setHasHydrated,
+    setHasServerBirthInfo,
+    setResult,
+    setStep,
+    userUuid,
+  ])
 
   const isBirthInfoReady = useMemo(() => isBirthInfoComplete(birthInfo), [birthInfo])
   const sajuPreview = useMemo(() => {
