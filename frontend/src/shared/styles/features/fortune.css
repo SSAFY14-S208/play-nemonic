@@ -433,6 +433,59 @@
   isolation: isolate;
 }
 
+.fortune-bgm-toggle {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + clamp(0.65rem, 1.6vw, 1.15rem));
+  right: calc(env(safe-area-inset-right) + clamp(0.55rem, 1.7vw, 1.15rem));
+  z-index: 20;
+  width: clamp(5.2rem, 7.4vw, 7.4rem);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 1.4rem;
+  background: transparent url("/images/fortune/stage/bgm-on-button.png") center / contain no-repeat;
+  cursor: pointer;
+  filter:
+    drop-shadow(0 0 0.76rem rgba(157, 80, 255, 0.34))
+    drop-shadow(0 0.48rem 0.92rem rgba(4, 1, 12, 0.46));
+  transition:
+    filter 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.fortune-bgm-toggle.is-muted {
+  background-image: url("/images/fortune/stage/bgm-muted-button.png");
+}
+
+.fortune-bgm-toggle:hover {
+  filter:
+    drop-shadow(0 0 1rem rgba(218, 144, 255, 0.62))
+    drop-shadow(0 0.54rem 1rem rgba(4, 1, 12, 0.5))
+    saturate(1.08)
+    brightness(1.04);
+  transform: translateY(-0.08rem) scale(1.035);
+}
+
+.fortune-bgm-toggle:active {
+  transform: translateY(0.02rem) scale(0.985);
+}
+
+.fortune-bgm-toggle:focus-visible {
+  outline: 2px solid rgba(255, 236, 183, 0.96);
+  outline-offset: -0.15rem;
+}
+
+.fortune-bgm-toggle-label {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .fortune-magic-backdrop {
   position: absolute;
   inset: 0;
@@ -2838,6 +2891,12 @@
     padding: 0.9rem;
   }
 
+  .fortune-bgm-toggle {
+    top: calc(env(safe-area-inset-top) + 0.58rem);
+    right: calc(env(safe-area-inset-right) + 0.48rem);
+    width: clamp(4.35rem, 18vw, 5.7rem);
+  }
+
   .fortune-stage-overlay-dialogue {
     padding: 0 0 clamp(0.2rem, 1.2vh, 0.55rem);
   }
@@ -3076,6 +3135,7 @@
   .fortune-dialogue-next,
   .fortune-dialogue-caret,
   .fortune-dialogue-glyph,
+  .fortune-bgm-toggle,
   .fortune-2d-curtain-piece,
   .fortune-primary-button,
   .fortune-primary-button::after {

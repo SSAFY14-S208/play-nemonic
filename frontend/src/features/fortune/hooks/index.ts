@@ -1,3 +1,4 @@
+export { useFortuneBgm } from './useFortuneBgm'
 export { useFortuneAudio } from './useFortuneAudio'
 export { useFortuneFlow } from './useFortuneFlow'
 export {

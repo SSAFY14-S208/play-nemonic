@@ -19,7 +19,7 @@ import {
   FortuneResultCard,
 } from './components'
 import FortuneVisual from './FortuneVisual'
-import { useFortuneAudio, useFortuneFlow } from './hooks'
+import { useFortuneAudio, useFortuneBgm, useFortuneFlow } from './hooks'
 
 const LAST_DIALOGUE_INDEX = FORTUNE_DIALOGUES.length - 1
 
@@ -51,6 +51,7 @@ export default function FortunePage() {
     submitBirthInfo,
   } = useFortuneFlow()
   const { playPrintComplete, playPrintStart } = useFortuneAudio()
+  const { isBgmMuted, toggleFortuneBgmMuted } = useFortuneBgm()
 
   const handleDialogueNext = () => {
     if (dialogueIndex < LAST_DIALOGUE_INDEX) {
@@ -154,6 +155,20 @@ export default function FortunePage() {
       {shouldPrepareEntrySpotlight && (
         <div className={cn('fortune-entry-spotlight-cover', shouldPlayEntrySpotlight && 'is-lit')} aria-hidden />
       )}
+      <button
+        type="button"
+        aria-label={isBgmMuted ? '타로 배경음악 켜기' : '타로 배경음악 음소거'}
+        aria-pressed={isBgmMuted}
+        className={cn('fortune-bgm-toggle', isBgmMuted && 'is-muted')}
+        title={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+        onClick={toggleFortuneBgmMuted}
+        onKeyDown={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <span className="fortune-bgm-toggle-label">
+          {isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+        </span>
+      </button>
     </main>
   )
 

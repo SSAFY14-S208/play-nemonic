@@ -18,6 +18,7 @@ export const FORTUNE_POPO_MODEL_HEIGHT = 3.75
 export const FORTUNE_SOUND_PATHS = {
   print: '/sounds/print_label.mp3',
   cut: '/sounds/cut_label.mp3',
+  bgm: '/sounds/fortune/moonlit-tarot-shelf.mp3',
 } as const
 
 export const FORTUNE_SCORE_LABELS = [
