@@ -52,7 +52,7 @@ public class RelayRoomCreateUseCase {
         String roomCode = roomCodeGenerator.generateUnique(inviteRepository::existsByInviteCode);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         RelayRoomParticipant hostParticipant = new RelayRoomParticipant(hostUser.getId().toString(),
-            hostUser.getNickname(), true, RelayRoomPolicy.HOST_JOIN_ORDER, true, null, now);
+            hostUser.getNickname(), true, RelayRoomPolicy.HOST_JOIN_ORDER, false, null, now);
         RelayRoomState roomState = new RelayRoomState(roomCode, RelayRoomStatus.WAITING, hostUser.getId().toString(),
             RelayRoomPolicy.DEFAULT_TIME_LIMIT_SECONDS, RelayRoomPolicy.MIN_PARTICIPANTS,
             RelayRoomPolicy.MAX_PARTICIPANTS, null, List.of(hostParticipant), List.of(), null, null, null, now, now);

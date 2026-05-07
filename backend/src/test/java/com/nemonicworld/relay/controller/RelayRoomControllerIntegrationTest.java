@@ -108,7 +108,7 @@ class RelayRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.participants[0].nickname").value("망고"))
             .andExpect(jsonPath("$.data.participants[0].host").value(true))
             .andExpect(jsonPath("$.data.participants[0].joinOrder").value(0))
-            .andExpect(jsonPath("$.data.participants[0].connected").value(true))
+            .andExpect(jsonPath("$.data.participants[0].connected").value(false))
             .andExpect(jsonPath("$.data.createdAt").exists()).andReturn();
 
         JsonNode responseData = readData(result);
@@ -126,7 +126,7 @@ class RelayRoomControllerIntegrationTest {
         assertThat(storedRoom.path("participants").get(0).path("nickname").asText()).isEqualTo("망고");
         assertThat(storedRoom.path("participants").get(0).path("host").asBoolean()).isTrue();
         assertThat(storedRoom.path("participants").get(0).path("joinOrder").asInt()).isZero();
-        assertThat(storedRoom.path("participants").get(0).path("connected").asBoolean()).isTrue();
+        assertThat(storedRoom.path("participants").get(0).path("connected").asBoolean()).isFalse();
         assertThat(storedRoom.path("participants").get(0).path("joinedAt").asText()).isNotBlank();
         assertThat(storedRoom.path("createdAt").asText()).isEqualTo(responseData.path("createdAt").asText());
         assertThat(storedRoom.path("updatedAt").asText()).isEqualTo(responseData.path("createdAt").asText());

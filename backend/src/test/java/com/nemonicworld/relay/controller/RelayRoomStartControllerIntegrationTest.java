@@ -279,7 +279,25 @@ class RelayRoomStartControllerIntegrationTest {
             .perform(post("/api/v1/relay/rooms/{roomCode}/start", DEFAULT_ROOM_CODE).header(ANONYMOUS_USER_UUID_HEADER,
                 hostUuid.toString()))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("모든 참여자가 연결된 상태에서만 시작할 수 있습니다."));
+            .andExpect(jsonPath("$.message").value("모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다."));
+
+        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
+        verify(relayRoomEventPublisher, never()).publishGameStarted(any(RelayRoomStateResponse.class));
+    }
+
+    @Test
+    void startRelayGameRejectsParticipantRegisteredWithoutWebSocketConnection() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        storeRoom(DEFAULT_ROOM_CODE,
+            createRoomState(RelayRoomStatus.WAITING, 45, participant(hostUuid, "Mango", true, 0, true),
+                participant(participantUuid, "Peach", false, 1, false, null)));
+
+        mockMvc
+            .perform(post("/api/v1/relay/rooms/{roomCode}/start", DEFAULT_ROOM_CODE).header(ANONYMOUS_USER_UUID_HEADER,
+                hostUuid.toString()))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다."));
 
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
         verify(relayRoomEventPublisher, never()).publishGameStarted(any(RelayRoomStateResponse.class));
@@ -449,6 +467,13 @@ class RelayRoomStartControllerIntegrationTest {
 
         return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, connected,
             connected ? null : now, now);
+    }
+
+    private RelayRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder,
+        boolean connected, LocalDateTime disconnectedAt) {
+        LocalDateTime now = LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, connected, disconnectedAt, now);
     }
 
     private JsonNode readSavedRoom() throws Exception {
