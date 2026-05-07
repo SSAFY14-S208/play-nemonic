@@ -22,6 +22,7 @@ export default function FlipbookPage() {
 
       {flipbook.currentStep === 'lobby' && (
         <FlipbookLobbyView
+          currentParticipant={flipbook.currentParticipant}
           selectedTimeLimitSeconds={flipbook.selectedTimeLimitSeconds}
           roundCount={flipbook.roundCount}
           minimumRoundCount={flipbook.minimumRoundCount}

@@ -6,7 +6,6 @@ import { cn } from '@/shared/libs'
 import {
   FLIPBOOK_BACKGROUND_COLOR,
   FLIPBOOK_BOARD_SIZE,
-  FLIPBOOK_PARTICIPANTS,
   FLIPBOOK_TOPIC,
 } from '../constants'
 import type { FlipbookFrame } from '../types'
@@ -43,7 +42,7 @@ export default function FlipbookResultView({
           <div className="flex flex-wrap items-center gap-2">
             <span className="caption-b text-flipbook-deep">2026.04.28 ·</span>
             <span className="caption-b rounded-full bg-flipbook-light px-3 py-1 text-flipbook-ink">
-              🐱 고양이 님의 앨범
+              내 플립북 앨범
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -69,7 +68,7 @@ export default function FlipbookResultView({
                 <p className="caption-b text-flipbook-deep">STEP {resultFrameIndex + 1}</p>
                 <h1 className="h2-b mt-1 flex flex-wrap items-center gap-2 text-flipbook-ink">
                   <span className="rounded-full bg-flipbook-light px-3 py-0.5">
-                    {activeFrame?.drawnBy ?? '친구'} 님의 작품
+                    프레임 {activeFrame ? activeFrame.index + 1 : resultFrameIndex + 1}
                   </span>
                 </h1>
               </div>
@@ -90,10 +89,7 @@ export default function FlipbookResultView({
             <div className="relative h-[460px] overflow-hidden rounded-[14px] border-[1.5px] border-flipbook-light bg-flipbook-paper">
               <FrameDrawing lines={activeFrame?.lines ?? []} />
               <div className="caption-b absolute right-4 top-4 flex items-center gap-2 rounded-full border border-flipbook-light bg-flipbook-paper py-1.5 pl-2 pr-4 text-flipbook-deep shadow-[0_6px_7px_var(--color-flipbook-shadow)]">
-                <span className="grid size-8 place-items-center rounded-full bg-flipbook-light">
-                  {activeFrame?.participantAvatar ?? '📖'}
-                </span>
-                {activeFrame?.drawnBy ?? '아직 프레임 없음'}
+                {activeFrame ? `프레임 ${activeFrame.index + 1}` : '아직 프레임 없음'}
               </div>
             </div>
 
@@ -130,7 +126,7 @@ export default function FlipbookResultView({
 
           <aside className="flex min-h-[716px] flex-col gap-4">
             <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper px-5 py-4">
-              <p className="caption-b text-flipbook-deep">이번엔 {FLIPBOOK_PARTICIPANTS.length}명이 모였어요</p>
+              <p className="caption-b text-flipbook-deep">완성된 프레임</p>
               <h2 className="h4-b mt-2 text-flipbook-ink">{FLIPBOOK_TOPIC}</h2>
               <div className="mt-4 grid gap-2">
                 {frames.map((frame, frameIndex) => (
@@ -143,8 +139,9 @@ export default function FlipbookResultView({
                         'border-[1.5px] border-flipbook-deep bg-flipbook-paper shadow-[0_4px_5px_var(--color-flipbook-shadow)]',
                     )}
                   >
-                    <span className="h4-b">{frame.participantAvatar}</span>
-                    <span className="body-b text-flipbook-ink">{frame.drawnBy}</span>
+                    <span className="body-b text-flipbook-ink">
+                      프레임 {frame.index + 1}
+                    </span>
                     <span className="caption-b ml-auto text-flipbook-deep">
                       {frame.index + 1}장
                     </span>

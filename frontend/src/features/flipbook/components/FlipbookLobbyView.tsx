@@ -1,17 +1,18 @@
 'use client'
 
 import { Copy, Minus, Palette, Plus, QrCode, type LucideIcon } from 'lucide-react'
+import { cn } from '@/shared/libs'
 import {
-  FLIPBOOK_PARTICIPANTS,
   FLIPBOOK_ROOM_CODE,
   FLIPBOOK_TIME_LIMITS_SECONDS,
   FLIPBOOK_TOPIC,
+  type FlipbookParticipant,
   type FlipbookTimeLimitSeconds,
 } from '../constants'
-import { cn } from '@/shared/libs'
 import FlipbookPaperBackground from './FlipbookPaperBackground'
 
 interface FlipbookLobbyViewProps {
+  currentParticipant: FlipbookParticipant
   selectedTimeLimitSeconds: number
   roundCount: number
   minimumRoundCount: number
@@ -39,6 +40,7 @@ const WAITING_SLOTS = Array.from(
 )
 
 export default function FlipbookLobbyView({
+  currentParticipant,
   selectedTimeLimitSeconds,
   roundCount,
   minimumRoundCount,
@@ -47,6 +49,8 @@ export default function FlipbookLobbyView({
   onIncreaseRoundCount,
   onStartGame,
 }: FlipbookLobbyViewProps) {
+  const sessionParticipantName = currentParticipant.name.replace(' (나)', '')
+
   return (
     <section className="relative min-h-screen overflow-hidden bg-flipbook-background text-flipbook-ink">
       <FlipbookPaperBackground />
@@ -88,23 +92,14 @@ export default function FlipbookLobbyView({
             <div className="grid gap-5">
               <div className="flex items-end justify-between gap-4 border-b border-flipbook-light pb-3">
                 <h2 className="h2-b text-flipbook-ink">참여자</h2>
-                <span className="h3-b text-flipbook-deep">
-                  {FLIPBOOK_PARTICIPANTS.length} / 12
-                </span>
+                <span className="h3-b text-flipbook-deep">1 / 12</span>
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {FLIPBOOK_PARTICIPANTS.map((participant, participantIndex) => (
-                  <ParticipantNameTag
-                    key={participant.id}
-                    name={participant.name}
-                    tiltClassName={
-                      PARTICIPANT_TILT_CLASSES[
-                        participantIndex % PARTICIPANT_TILT_CLASSES.length
-                      ]
-                    }
-                  />
-                ))}
+                <ParticipantNameTag
+                  name={sessionParticipantName}
+                  tiltClassName={PARTICIPANT_TILT_CLASSES[0]}
+                />
                 {WAITING_SLOTS.map((waitingSlot) => (
                   <div
                     key={waitingSlot}

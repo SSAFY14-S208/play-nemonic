@@ -3,11 +3,7 @@
 import dynamic from 'next/dynamic'
 import { DrawingSessionControls, DrawingToolPanel } from '@/shared/components'
 import type { DrawingLine, DrawingPointerEvent, DrawingToolKey } from '@/shared/types'
-import {
-  FLIPBOOK_COLORS,
-  FLIPBOOK_PARTICIPANTS,
-  type FlipbookParticipant,
-} from '../constants'
+import { FLIPBOOK_COLORS, type FlipbookParticipant } from '../constants'
 
 const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
   ssr: false,
@@ -93,7 +89,7 @@ export default function FlipbookDrawingView({
           />
           {previousFrameLines.length > 0 && (
             <div className="caption-b pointer-events-none absolute left-5 top-5 rounded-full bg-flipbook-paper/90 px-4 py-2 text-flipbook-deep shadow-[0_4px_12px_var(--color-flipbook-shadow)]">
-              {currentParticipant.name} 차례 · 이전 그림을 희미하게 보고 이어 그려요
+              내 차례 · 이전 그림을 희미하게 보고 이어 그려요
             </div>
           )}
         </main>
@@ -106,19 +102,14 @@ export default function FlipbookDrawingView({
             </p>
           </div>
           <div className="mt-4 h-px bg-flipbook-primary" />
-          <p className="h4-b mt-4 text-flipbook-ink">함께하는 친구들</p>
+          <p className="h4-b mt-4 text-flipbook-ink">내 세션</p>
           <div className="mt-4 grid gap-4">
-            {FLIPBOOK_PARTICIPANTS.map((participant) => (
-              <div
-                key={participant.id}
-                className="flex min-h-12 items-center gap-3 rounded-[12px] bg-flipbook-light px-3 text-flipbook-deep"
-              >
-                <span className="grid size-7 place-items-center rounded-full border border-flipbook-paper bg-flipbook-light">
-                  {participant.avatar}
-                </span>
-                <span className="body-b">{participant.name}</span>
-              </div>
-            ))}
+            <div className="flex min-h-12 items-center gap-3 rounded-[12px] bg-flipbook-light px-3 text-flipbook-deep">
+              <span className="grid size-7 place-items-center rounded-full border border-flipbook-paper bg-flipbook-light">
+                {currentParticipant.avatar}
+              </span>
+              <span className="body-b">{currentParticipant.name}</span>
+            </div>
           </div>
           <div className="caption-r mt-4 rounded-[14px] bg-flipbook-primary px-4 py-3 text-flipbook-ink">
             <p className="caption-b">팁</p>

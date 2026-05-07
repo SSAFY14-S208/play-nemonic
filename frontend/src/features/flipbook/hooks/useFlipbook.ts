@@ -1,26 +1,35 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDrawingBoard } from '@/shared/hooks'
+import { useUserStore } from '@/shared/stores'
 import { createRasterizedDrawingLine } from '@/shared/utils'
 import {
   FLIPBOOK_BACKGROUND_COLOR,
   FLIPBOOK_BOARD_SIZE,
   FLIPBOOK_COLORS,
-  FLIPBOOK_PARTICIPANTS,
   type FlipbookStep,
-  getMinimumRoundCount,
 } from '../constants'
 import type { FlipbookFrame } from '../types'
+import { createLocalFlipbookParticipant } from '../utils'
 import { useFlipbookRealtimeActions } from './useFlipbookRealtimeActions'
+import { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
 import { useFlipbookResultPlayback } from './useFlipbookResultPlayback'
 import { useFlipbookSessionModel } from './useFlipbookSessionModel'
 import { useFlipbookSettings } from './useFlipbookSettings'
 import { useFlipbookTimer } from './useFlipbookTimer'
 
 export function useFlipbook() {
+  const userUuid = useUserStore((state) => state.userUuid)
+  const nickname = useUserStore((state) => state.nickname)
   const realtimeActions = useFlipbookRealtimeActions()
-  const minimumRoundCount = getMinimumRoundCount(FLIPBOOK_PARTICIPANTS.length)
+  const currentParticipant = useMemo(
+    () => createLocalFlipbookParticipant({ nickname, userUuid }),
+    [nickname, userUuid],
+  )
+  const sessionParticipants = useMemo(() => [currentParticipant], [currentParticipant])
+  const participantCount = 1
+  const minimumRoundCount = 1
   const drawingBoard = useDrawingBoard({
     boardSize: FLIPBOOK_BOARD_SIZE,
     backgroundColor: FLIPBOOK_BACKGROUND_COLOR,
@@ -31,9 +40,12 @@ export function useFlipbook() {
   const [activeRoundIndex, setActiveRoundIndex] = useState(0)
   const [frames, setFrames] = useState<FlipbookFrame[]>([])
   const isCompletingRoundRef = useRef(false)
-  const flipbookSettings = useFlipbookSettings({ minimumRoundCount, realtimeActions })
-  const currentParticipant =
-    FLIPBOOK_PARTICIPANTS[activeRoundIndex % FLIPBOOK_PARTICIPANTS.length]
+  useFlipbookRealtimeConnection({ enabled: currentStep !== 'booth' })
+  const flipbookSettings = useFlipbookSettings({
+    minimumRoundCount,
+    participantCount,
+    realtimeActions,
+  })
   const sessionModel = useFlipbookSessionModel({
     activeRoundIndex,
     currentFrameLines: drawingBoard.lines,
@@ -43,6 +55,7 @@ export function useFlipbook() {
     roomId: realtimeActions.roomId,
     roundCount: flipbookSettings.roundCount,
     settings: flipbookSettings.settings,
+    participants: sessionParticipants,
   })
   const resultPlayback = useFlipbookResultPlayback({
     currentStep,
@@ -92,7 +105,6 @@ export function useFlipbook() {
 
     try {
       const submittedLines = drawingBoard.lines
-      const participant = FLIPBOOK_PARTICIPANTS[activeRoundIndex % FLIPBOOK_PARTICIPANTS.length]
       const frameId = `frame-${activeRoundIndex + 1}`
       const rasterizedFrameLine = await createRasterizedDrawingLine({
         backgroundColor: FLIPBOOK_BACKGROUND_COLOR,
@@ -112,9 +124,9 @@ export function useFlipbook() {
         {
           id: frameId,
           index: currentFrames.length,
-          drawnByUserUuid: participant.userUuid,
-          drawnBy: participant.name.replace(' (나)', ''),
-          participantAvatar: participant.avatar,
+          drawnByUserUuid: currentParticipant.userUuid,
+          drawnBy: currentParticipant.name.replace(' (나)', ''),
+          participantAvatar: currentParticipant.avatar,
           lines: frameLines,
         },
       ])
@@ -133,6 +145,7 @@ export function useFlipbook() {
     }
   }, [
     activeRoundIndex,
+    currentParticipant,
     drawingBoard,
     flipbookSettings.roundCount,
     realtimeActions,

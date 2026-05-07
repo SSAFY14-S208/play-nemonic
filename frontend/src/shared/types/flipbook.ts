@@ -7,6 +7,7 @@ export type FlipbookRoomStatus = 'WAITING' | 'PLAYING' | 'FINISHED' | 'CLOSED'
 export type FlipbookBlockedReason =
   | 'ROOM_FULL'
   | 'GAME_IN_PROGRESS'
+  | 'KICKED'
   | 'ROOM_FINISHED'
   | 'ROOM_CLOSED'
 
@@ -24,7 +25,7 @@ export interface FlipbookRoomViewerResponse {
   host: boolean
   canJoin: boolean
   canStart: boolean
-  blockedReason: FlipbookBlockedReason
+  blockedReason: FlipbookBlockedReason | null
 }
 
 export interface FlipbookRoomCreateResponse {
@@ -43,6 +44,31 @@ export interface FlipbookRoomSettingsRequest {
   timeLimitSeconds: number
 }
 
+export interface FlipbookRoomKickRequest {
+  targetUserUuid: string
+}
+
+export interface FlipbookRoomKickResponse {
+  roomCode: string
+  kickedUserUuid: string
+  kickedNickname: string
+  participantCount: number
+  kickedAt: string
+}
+
+export interface FlipbookRoomLeaveResponse {
+  roomCode: string
+  leftUserUuid: string
+  leftNickname: string
+  participantCount: number
+  hostChanged: boolean
+  newHostUserUuid: string | null
+  newHostNickname: string | null
+  roomClosed: boolean
+  roomStatus: FlipbookRoomStatus
+  leftAt: string
+}
+
 export interface FlipbookRoomStateResponse {
   roomCode: string
   status: FlipbookRoomStatus
@@ -51,6 +77,11 @@ export interface FlipbookRoomStateResponse {
   minParticipants: number
   maxParticipants: number
   participantCount: number
+  currentRound: number | null
+  totalRounds: number | null
+  roundStartedAt: string | null
+  roundDeadlineAt: string | null
+  gameStartedAt: string | null
   participants: FlipbookRoomParticipantResponse[]
   viewer: FlipbookRoomViewerResponse
   createdAt: string

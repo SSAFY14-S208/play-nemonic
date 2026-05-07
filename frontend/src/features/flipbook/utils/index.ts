@@ -1,6 +1,7 @@
 export {
   compactFlipbookFrames,
   createFlipbookAssignment,
+  createLocalFlipbookParticipant,
   createFlipbookRequestId,
   createFlipbookSessionSnapshot,
   createFlipbookSettings,
