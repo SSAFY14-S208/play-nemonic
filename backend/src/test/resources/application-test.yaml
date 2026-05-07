@@ -33,3 +33,5 @@ nemonic:
   flipbook:
     disconnect:
       enabled: false
+    timeout:
+      enabled: false

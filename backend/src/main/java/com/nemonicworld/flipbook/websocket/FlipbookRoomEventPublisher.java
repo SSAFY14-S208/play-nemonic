@@ -4,6 +4,8 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookAllRoundsCompletedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookFrameAutoSubmittedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomClosedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventStateResponse;
@@ -13,6 +15,8 @@ import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEven
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantDroppedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantLeftEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomSimpleMessageResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
+import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDroppedParticipantResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
@@ -95,6 +99,37 @@ public class FlipbookRoomEventPublisher {
             submitResponse.roomCode(), submitResponse);
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submitResponse.roomCode(), event);
+    }
+
+    /**
+     * 마감 시간으로 프레임이 빈 제출 처리되었음을 방 전체에 알립니다.
+     */
+    public void publishFrameAutoSubmitted(String roomCode, String nickname, FlipbookFrameAssignment assignment) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.FRAME_AUTO_SUBMITTED,
+            roomCode, FlipbookFrameAutoSubmittedEventResponse.from(roomCode, nickname, assignment));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+    }
+
+    /**
+     * 현재 라운드가 완료되어 다음 라운드가 시작되었음을 방 전체에 알립니다.
+     */
+    public void publishRoundStarted(String roomCode, Integer previousRound, Integer round, LocalDateTime roundStartedAt,
+        LocalDateTime roundDeadlineAt) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.ROUND_STARTED, roomCode,
+            FlipbookRoundStartedEventResponse.of(roomCode, previousRound, round, roundStartedAt, roundDeadlineAt));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+    }
+
+    /**
+     * 마지막 라운드까지 완료되어 결과 생성 대기 상태가 되었음을 방 전체에 알립니다.
+     */
+    public void publishAllRoundsCompleted(String roomCode, FlipbookRoomStatus roomStatus, LocalDateTime completedAt) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.ALL_ROUNDS_COMPLETED,
+            roomCode, new FlipbookAllRoundsCompletedEventResponse(roomCode, roomStatus, completedAt));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
     }
 
     /**

@@ -97,3 +97,8 @@ nemonic:
       reconnect-grace-seconds: ${FLIPBOOK_DISCONNECT_RECONNECT_GRACE_SECONDS:10}
       scan-delay-ms: ${FLIPBOOK_DISCONNECT_SCAN_DELAY_MS:1000}
       scan-limit: ${FLIPBOOK_DISCONNECT_SCAN_LIMIT:100}
+    timeout:
+      enabled: ${FLIPBOOK_TIMEOUT_ENABLED:true}
+      scan-delay-ms: ${FLIPBOOK_TIMEOUT_SCAN_DELAY_MS:1000}
+      scan-limit: ${FLIPBOOK_TIMEOUT_SCAN_LIMIT:100}
+      auto-submit-grace-ms: ${FLIPBOOK_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}
