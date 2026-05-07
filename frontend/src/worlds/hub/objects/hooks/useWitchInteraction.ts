@@ -1,8 +1,6 @@
 import { useCallback } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
-import { useRouter } from 'next/navigation'
-import { useHubViewStore } from '@/shared/stores'
-import { HUB_FORTUNE_PATH } from '../../constants'
+import { type HubContentKey, useHubViewStore } from '@/shared/stores'
 
 function setBodyCursor(cursor: string) {
   if (typeof document === 'undefined') {
@@ -12,8 +10,7 @@ function setBodyCursor(cursor: string) {
   document.body.style.cursor = cursor
 }
 
-export function useWitchInteraction() {
-  const router = useRouter()
+export function useWitchInteraction(contentKey: HubContentKey) {
   const setWitchHovered = useHubViewStore((state) => state.setWitchHovered)
   const selectContent = useHubViewStore((state) => state.selectContent)
 
@@ -31,10 +28,9 @@ export function useWitchInteraction() {
 
   const handleWitchClick = useCallback((event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
-    selectContent('fortune')
+    selectContent(contentKey)
     setBodyCursor('')
-    router.push(HUB_FORTUNE_PATH)
-  }, [router, selectContent])
+  }, [contentKey, selectContent])
 
   return {
     handleWitchClick,

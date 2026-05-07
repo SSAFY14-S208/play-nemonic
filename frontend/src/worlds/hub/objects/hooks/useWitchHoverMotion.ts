@@ -43,7 +43,7 @@ export function useWitchHoverMotion(
       + Math.sin(elapsedTime * WITCH_IDLE_ROTATION_SPEED)
       * WITCH_IDLE_ROTATION_AMOUNT
       + hoverProgress * WITCH_HOVER_ROTATION_AMOUNT
-    wrapper.position.y = HUB_WITCH_PLATFORM_POSITION.y
+    wrapper.position.y = HUB_WITCH_PLATFORM_POSITION[1]
       + Math.sin(elapsedTime * WITCH_IDLE_FLOAT_SPEED)
       * WITCH_IDLE_FLOAT_AMOUNT
       + hoverProgress * WITCH_HOVER_FLOAT_AMOUNT
