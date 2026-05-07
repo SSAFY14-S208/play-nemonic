@@ -167,6 +167,35 @@ services:
       - cicd-net
 
   # ============================================================
+  # MinIO 부트스트랩 - 1회성 init 컨테이너
+  # 버킷 생성 + 산출물 prefix(public read) 정책 적용.
+  # idempotent — 매 deploy마다 실행되어도 안전 (mc mb --ignore-existing,
+  # set-json은 덮어쓰기). 정책 변경 시 policy-public-results.json만 수정.
+  # ============================================================
+  minio-init:
+    image: minio/mc:latest
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-nemonic}
+    volumes:
+      - ./deploy/minio/policy-public-results.json:/etc/minio/policy-public-results.json:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        mc anonymous set-json /etc/minio/policy-public-results.json "local/$$MINIO_BUCKET"
+        echo "MinIO bootstrap done: bucket=$$MINIO_BUCKET, public-read prefixes applied."
+    networks:
+      - cicd-net
+
+  # ============================================================
   # Spring Boot 애플리케이션
   # Registry에서 pull (build 안 함)
   # 이미지: localhost:5000/nemonic/app:latest
