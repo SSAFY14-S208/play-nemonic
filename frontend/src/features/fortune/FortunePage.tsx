@@ -1,5 +1,7 @@
 'use client'
 
+import './fortune.css'
+
 import { AnimatePresence, motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
