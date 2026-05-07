@@ -181,6 +181,7 @@ export type RelayWsEventType =
   | 'RESULT_CREATED'
   | 'HOST_CHANGED'
   | 'ROOM_CLOSED'
+  | 'PARTICIPANT_KICKED'
   | 'KICKED_FROM_ROOM'
   | 'DUPLICATE_SESSION_CLOSED'
 
@@ -319,6 +320,16 @@ export interface RelayWsRoomClosedData {
   closedAt: string
 }
 
+// 호스트가 다른 참여자를 강퇴 — 방 전체 브로드캐스트.
+// 강퇴 대상자에게는 별도로 KICKED_FROM_ROOM 개인 큐 이벤트가 함께 전달된다.
+export interface RelayWsParticipantKickedData {
+  roomCode: string
+  kickedUserUuid: string
+  kickedNickname: string
+  participantCount: number
+  kickedAt: string
+}
+
 // 개인 큐 이벤트 (해당 사용자에게만 전달)
 export interface RelayWsKickedFromRoomData {
   message: string
@@ -343,5 +354,6 @@ export type RelayWsEvent =
   | RelayWsEnvelope<'RESULT_CREATED', RelayWsResultCreatedData>
   | RelayWsEnvelope<'HOST_CHANGED', RelayWsHostChangedData>
   | RelayWsEnvelope<'ROOM_CLOSED', RelayWsRoomClosedData>
+  | RelayWsEnvelope<'PARTICIPANT_KICKED', RelayWsParticipantKickedData>
   | RelayWsEnvelope<'KICKED_FROM_ROOM', RelayWsKickedFromRoomData>
   | RelayWsEnvelope<'DUPLICATE_SESSION_CLOSED', RelayWsDuplicateSessionClosedData>

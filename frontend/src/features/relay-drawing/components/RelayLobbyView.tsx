@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Copy, Crown, QrCode } from "lucide-react";
+import { ArrowLeft, Copy, Crown, QrCode, X } from "lucide-react";
 
 import { useUserStore } from "@/shared/stores";
 import type { RelayRoomParticipantResponse } from "@/shared/types";
@@ -24,9 +24,12 @@ export default function RelayLobbyView() {
     startError,
     isStarting,
     settingsError,
+    kickingTargetUuid,
+    kickError,
     copyConfirm,
     startGame,
     changeTimeLimit,
+    kickParticipant,
     copyInviteLink,
     leaveRoom,
   } = useRelayLobby();
@@ -96,6 +99,9 @@ export default function RelayLobbyView() {
                   key={participant.userUuid}
                   participant={participant}
                   isMe={participant.userUuid === currentUserUuid}
+                  canKick={isHost && participant.userUuid !== currentUserUuid}
+                  isKicking={kickingTargetUuid === participant.userUuid}
+                  onKick={() => kickParticipant(participant.userUuid)}
                 />
               ))}
               {Array.from({ length: waitingSlotCount }).map((_, waitingSlotIndex) => (
@@ -107,6 +113,11 @@ export default function RelayLobbyView() {
                 </div>
               ))}
             </div>
+            {kickError && (
+              <p role="alert" className="caption-r mt-3 text-error">
+                {kickError}
+              </p>
+            )}
           </section>
 
           <section className="rounded-[24px] bg-relay-paper px-8 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
@@ -168,9 +179,18 @@ export default function RelayLobbyView() {
 interface ParticipantTileProps {
   participant: RelayRoomParticipantResponse;
   isMe: boolean;
+  canKick: boolean;
+  isKicking: boolean;
+  onKick: () => void;
 }
 
-function ParticipantTile({ participant, isMe }: ParticipantTileProps) {
+function ParticipantTile({
+  participant,
+  isMe,
+  canKick,
+  isKicking,
+  onKick,
+}: ParticipantTileProps) {
   // 닉네임 첫 글자를 아바타로 사용 — 백엔드가 별도 아바타 데이터를 주지 않아
   // 임시로 첫 글자를 동그라미에 띄운다. 디자인이 별도 아바타 시스템을 정의하면
   // 그때 교체한다.
@@ -198,6 +218,17 @@ function ParticipantTile({ participant, isMe }: ParticipantTileProps) {
           <Crown className="size-4" aria-hidden />
           방장
         </span>
+      )}
+      {canKick && (
+        <button
+          type="button"
+          onClick={onKick}
+          disabled={isKicking}
+          aria-label={`${participant.nickname} 강퇴`}
+          className="grid size-7 place-items-center rounded-full text-relay-muted transition-colors hover:bg-relay-paper hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <X className="size-4" aria-hidden />
+        </button>
       )}
     </div>
   );

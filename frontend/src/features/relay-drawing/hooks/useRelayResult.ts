@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
+import { ApiError, postRelayRoomClose } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 import type { RelayPart } from '@/shared/types'
 import { buildMinioUrl, parseServerInstant } from '@/shared/utils'
@@ -50,6 +51,8 @@ function formatDateLabel(isoString: string): string {
 // ── 훅 ────────────────────────────────────────────────────────────────
 
 export function useRelayResult() {
+  const roomCode = useRelayDrawingStore((state) => state.roomCode)
+  const hostUserUuid = useRelayDrawingStore((state) => state.hostUserUuid)
   const resultRevealStep = useRelayDrawingStore((state) => state.resultRevealStep)
   const resultItems = useRelayDrawingStore((state) => state.resultItems)
   const activeResultIndex = useRelayDrawingStore((state) => state.activeResultIndex)
@@ -63,6 +66,32 @@ export function useRelayResult() {
   const participants = useRelayDrawingStore((state) => state.participants)
 
   const currentUserUuid = useUserStore((state) => state.userUuid)
+  const isHost = currentUserUuid !== null && currentUserUuid === hostUserUuid
+
+  // 호스트 전용 방 종료 — 가이드 §21.
+  // 성공 시 ROOM_CLOSED WS 이벤트가 도착해 dismissalReason이 세팅되고,
+  // RelayDismissalModal이 자동으로 안내한다. 여기서는 store를 직접 건드리지 않는다.
+  const [isClosingRoom, setIsClosingRoom] = useState(false)
+  const [closeRoomError, setCloseRoomError] = useState<string | null>(null)
+
+  const closeRoom = () => {
+    if (!roomCode || !isHost || isClosingRoom) return
+    setCloseRoomError(null)
+    setIsClosingRoom(true)
+    void (async () => {
+      try {
+        await postRelayRoomClose(roomCode)
+      } catch (caughtError) {
+        const message =
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : '방 종료에 실패했어요'
+        setCloseRoomError(message)
+      } finally {
+        setIsClosingRoom(false)
+      }
+    })()
+  }
 
   const activeResultItem = resultItems[activeResultIndex] ?? null
   const hasServerResults = resultItems.length > 0 && activeResultItem !== null
@@ -208,6 +237,12 @@ export function useRelayResult() {
     ownerNickname,
     ownerAvatar,
     completedAtLabel,
+
+    // Host actions
+    isHost,
+    isClosingRoom,
+    closeRoomError,
+    closeRoom,
 
     // Fallback
     compositeDrawingPayload,

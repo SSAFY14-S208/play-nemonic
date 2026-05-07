@@ -70,6 +70,36 @@ export default function RelayDrawingView() {
     submitDrawing,
   ]);
 
+  // 게임 중 이탈 시 best-effort 자동 제출 — 가이드 §27a.
+  // - 탭 닫기/새로고침: beforeunload에서 fire-and-forget. fetch가 끝까지 갈
+  //   보장은 없지만, 가능한 만큼 시도한다(서버 fallback은 빈 제출이라 손해).
+  // - 라우트 이동(뒤로가기, 다른 페이지 push): 컴포넌트 언마운트 시 cleanup이
+  //   동일 핸들러를 호출. SPA 내 전환은 보통 fetch가 완료된다.
+  // dismissalReason이 세팅된 상태(강퇴/방종료/중복세션)에서는 모달 확인 흐름의
+  // 부산물이므로 제출 시도하지 않는다 — 어차피 서버가 이미 정리한 세션이다.
+  useEffect(() => {
+    const attemptSubmitOnLeave = () => {
+      const store = useRelayDrawingStore.getState();
+      if (
+        store.roomCode &&
+        store.roomStatus === "PLAYING" &&
+        !store.isSubmitted &&
+        !store.isSubmitting &&
+        store.canvasIndex !== null &&
+        store.currentPart !== null &&
+        !store.dismissalReason
+      ) {
+        void submitDrawing();
+      }
+    };
+
+    window.addEventListener("beforeunload", attemptSubmitOnLeave);
+    return () => {
+      window.removeEventListener("beforeunload", attemptSubmitOnLeave);
+      attemptSubmitOnLeave();
+    };
+  }, [submitDrawing]);
+
   // 버튼은 "이 라운드에서 이미 제출했는가"만 체크한다.
   const buttonDisabled = isSubmitting || isSubmitted;
 

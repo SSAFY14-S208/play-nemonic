@@ -1,11 +1,19 @@
 'use client'
 
 import { HTTPError } from 'ky'
+import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { ApiError, deleteRelayRoomParticipantMe, getRelayRoom, getRelayRoomResults } from '@/shared/apis'
+import {
+  ApiError,
+  deleteRelayRoomParticipantMe,
+  getRelayRoom,
+  getRelayRoomResults,
+  postRelayRoomParticipant,
+} from '@/shared/apis'
 import type { RelaySocketStatus } from '@/shared/libs'
+import { useUserStore } from '@/shared/stores'
 
 import { useRelayDrawingStore } from '../stores'
 import { useRelaySocket } from './useRelaySocket'
@@ -32,6 +40,7 @@ interface UseRelayRoomReturn {
  *   - 드로잉/결과 단계의 PART_* 이벤트 처리 — 다음 wiring 단계에서 추가.
  */
 export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
+  const router = useRouter()
   const storeRoomCode = useRelayDrawingStore((state) => state.roomCode)
   const hydrateRoomState = useRelayDrawingStore((state) => state.hydrateRoomState)
   const setRoomStatus = useRelayDrawingStore((state) => state.setRoomStatus)
@@ -39,6 +48,7 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
   const setHostUserUuid = useRelayDrawingStore((state) => state.setHostUserUuid)
   const setTimeLimitSeconds = useRelayDrawingStore((state) => state.setTimeLimitSeconds)
   const setDismissalReason = useRelayDrawingStore((state) => state.setDismissalReason)
+  const clearRoom = useRelayDrawingStore((state) => state.clearRoom)
 
   // 부스에서 방 만들기 직후엔 store가 이미 같은 roomCode로 hydrate된 상태.
   // 추가 fetch가 끝날 때까지 굳이 로딩 UI를 띄울 필요가 없다.
@@ -59,6 +69,31 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         const room = await getRelayRoom(roomCode)
         if (cancelled) return
         hydrateRoomState(room)
+
+        // 공유 링크 진입 자동 join — 가이드 §11.
+        // 본인이 아직 참여자가 아니고 입장 가능한 WAITING 상태면 자동으로
+        // postRelayRoomParticipant를 호출해 백엔드 participants 목록에 등록한다.
+        // 이미 참여자(부스에서 방 만들기/입장 직후 또는 새로고침)인 경우는 건너뛴다.
+        // PLAYING/FINISHED/CLOSED 상태에서는 신규 입장 불가하므로 시도하지 않는다.
+        if (
+          room.status === 'WAITING' &&
+          room.viewer.canJoin &&
+          !room.viewer.participant
+        ) {
+          try {
+            const joined = await postRelayRoomParticipant(roomCode)
+            if (cancelled) return
+            hydrateRoomState(joined)
+          } catch (joinError) {
+            if (cancelled) return
+            const message =
+              joinError instanceof ApiError
+                ? joinError.message
+                : '방 입장에 실패했어요'
+            setHydrationError(message)
+            return
+          }
+        }
 
         // PLAYING 상태에서 새로고침 시 deadline을 즉시 반영 — 타이머가 정확한 남은 시간으로 시작한다.
         if (room.status === 'PLAYING') {
@@ -221,11 +256,39 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         wasDismissedRef.current = true
         setDismissalReason('ROOM_CLOSED')
       },
+      // 호스트가 다른 참여자를 강퇴 — 방 전체 브로드캐스트.
+      // 본인이 강퇴 대상이면 KICKED_FROM_ROOM(개인 큐)을 기다리지 않고 여기서 즉시
+      // 부스로 복귀시킨다. 두 이벤트의 도착 순서가 보장되지 않고, 브로드캐스트가
+      // 먼저 오는 경우도 있어 양쪽 모두에서 처리하되 wasDismissedRef로 dedup한다.
+      PARTICIPANT_KICKED: (event) => {
+        const currentUserUuid = useUserStore.getState().userUuid
+
+        if (currentUserUuid === event.data.kickedUserUuid) {
+          if (wasDismissedRef.current) return
+          wasDismissedRef.current = true
+          toast.error('호스트에 의해 방에서 내보내졌습니다.')
+          clearRoom()
+          router.push('/relay-drawing')
+          return
+        }
+
+        // 다른 사람이 강퇴 — 남아있는 참여자 목록에서 제거 + 토스트.
+        const current = useRelayDrawingStore.getState().participants
+        setParticipants(
+          current.filter((participant) => participant.userUuid !== event.data.kickedUserUuid),
+        )
+        toast(`${event.data.kickedNickname}님이 강퇴되었습니다.`)
+      },
 
       // ── 개인 큐: 본인에게만 전달되는 종료성 이벤트 ────────────────
+      // 강퇴 대상자: 모달로 멈추지 않고 즉시 부스로 복귀시키고 토스트로 사유를 알린다.
+      // PARTICIPANT_KICKED 브로드캐스트가 먼저 도착해 이미 처리됐으면 dedup으로 건너뛴다.
       KICKED_FROM_ROOM: () => {
+        if (wasDismissedRef.current) return
         wasDismissedRef.current = true
-        setDismissalReason('KICKED')
+        toast.error('호스트에 의해 방에서 내보내졌습니다.')
+        clearRoom()
+        router.push('/relay-drawing')
       },
       DUPLICATE_SESSION_CLOSED: () => {
         wasDismissedRef.current = true

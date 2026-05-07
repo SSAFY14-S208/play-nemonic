@@ -23,7 +23,10 @@ import type { RelayDrawLine, RelayDrawPoint, RelayRoundLines } from '../types'
 // WS 종료성 이벤트 수신 시 모달에 표시할 사유.
 // 핸들러가 즉시 clear/redirect 하지 않고, 이 값을 store에 세팅하면
 // RelayRoomPage가 RelayDismissalModal을 렌더한다.
-export type RelayDismissalReason = 'KICKED' | 'DUPLICATE_SESSION' | 'ROOM_CLOSED'
+//
+// KICKED는 모달 흐름이 아니라 즉시 redirect + toast로 처리되므로 여기 포함되지 않는다
+// (useRelayRoom의 KICKED_FROM_ROOM 핸들러 참고).
+export type RelayDismissalReason = 'DUPLICATE_SESSION' | 'ROOM_CLOSED'
 
 // hydrateRoomState 인자 — REST(getRelayRoom)와 방 생성/입장 응답이 모두
 // 만족하는 최소 교집합. 게임 진행 필드(currentPart 등)는 다루지 않는다.

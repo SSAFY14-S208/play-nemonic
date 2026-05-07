@@ -3,7 +3,12 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { ApiError, patchRelayRoomSettings, postRelayRoomStart } from '@/shared/apis'
+import {
+  ApiError,
+  patchRelayRoomSettings,
+  postRelayRoomKick,
+  postRelayRoomStart,
+} from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 
 import { useRelayDrawingStore } from '../stores'
@@ -19,11 +24,16 @@ interface UseRelayLobbyReturn {
   settingsError: string | null
   isUpdatingSettings: boolean
 
+  // 강퇴 진행 중인 대상자의 UUID. 같은 타일의 X 버튼을 비활성화하는 데 쓴다.
+  kickingTargetUuid: string | null
+  kickError: string | null
+
   // "링크 복사" 클릭 직후 잠깐 true — UI에서 "복사됨" 토스트 표시용.
   copyConfirm: boolean
 
   startGame: () => void
   changeTimeLimit: (seconds: number) => void
+  kickParticipant: (targetUserUuid: string) => void
   copyInviteLink: () => void
   clearErrors: () => void
   leaveRoom: () => void
@@ -56,6 +66,9 @@ export function useRelayLobby(): UseRelayLobbyReturn {
 
   const [isUpdatingSettings, startSettingsTransition] = useTransition()
   const [settingsError, setSettingsError] = useState<string | null>(null)
+
+  const [kickingTargetUuid, setKickingTargetUuid] = useState<string | null>(null)
+  const [kickError, setKickError] = useState<string | null>(null)
 
   const [copyConfirm, setCopyConfirm] = useState(false)
 
@@ -106,6 +119,29 @@ export function useRelayLobby(): UseRelayLobbyReturn {
     })
   }
 
+  // 호스트가 다른 참여자를 강퇴 — 가이드 §13.
+  // 성공 시 PARTICIPANT_LEFT/KICKED_FROM_ROOM WS 이벤트로 자연 갱신되므로
+  // 응답 데이터를 직접 store에 반영하지 않는다.
+  const kickParticipant = (targetUserUuid: string) => {
+    if (!roomCode || !isHost || kickingTargetUuid) return
+    if (targetUserUuid === userUuid) return
+    setKickError(null)
+    setKickingTargetUuid(targetUserUuid)
+    void (async () => {
+      try {
+        await postRelayRoomKick(roomCode, targetUserUuid)
+      } catch (caughtError) {
+        const message =
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : '참여자 강퇴에 실패했어요'
+        setKickError(message)
+      } finally {
+        setKickingTargetUuid(null)
+      }
+    })()
+  }
+
   const copyInviteLink = () => {
     if (typeof window === 'undefined') return
     void navigator.clipboard.writeText(window.location.href).then(() => {
@@ -117,6 +153,7 @@ export function useRelayLobby(): UseRelayLobbyReturn {
   const clearErrors = () => {
     setStartError(null)
     setSettingsError(null)
+    setKickError(null)
   }
 
   // 자발적 퇴장 — clearRoom()으로 store를 비우고 부스로 이동한다.
@@ -134,9 +171,12 @@ export function useRelayLobby(): UseRelayLobbyReturn {
     isStarting,
     settingsError,
     isUpdatingSettings,
+    kickingTargetUuid,
+    kickError,
     copyConfirm,
     startGame,
     changeTimeLimit,
+    kickParticipant,
     copyInviteLink,
     clearErrors,
     leaveRoom,

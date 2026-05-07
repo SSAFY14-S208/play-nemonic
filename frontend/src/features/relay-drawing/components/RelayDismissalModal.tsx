@@ -1,22 +1,17 @@
 'use client'
 
 import { Dialog } from '@base-ui/react/dialog'
-import { LogOut, MonitorSmartphone, UserX } from 'lucide-react'
+import { LogOut, MonitorSmartphone } from 'lucide-react'
 
 import type { RelayDismissalReason } from '../stores'
 
 interface DismissalContent {
-  Icon: typeof UserX
+  Icon: typeof LogOut
   title: string
   description: string
 }
 
 const DISMISSAL_CONTENT: Record<RelayDismissalReason, DismissalContent> = {
-  KICKED: {
-    Icon: UserX,
-    title: '방에서 내보내졌어요',
-    description: '호스트에 의해 방에서 내보내졌습니다.',
-  },
   DUPLICATE_SESSION: {
     Icon: MonitorSmartphone,
     title: '다른 곳에서 접속했어요',

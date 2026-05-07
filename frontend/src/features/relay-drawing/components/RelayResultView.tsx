@@ -47,6 +47,12 @@ export default function RelayResultView() {
     ownerAvatar,
     completedAtLabel,
 
+    // Host actions
+    isHost,
+    isClosingRoom,
+    closeRoomError,
+    closeRoom,
+
     // Fallback
     roundLines,
   } = useRelayResult()
@@ -144,6 +150,24 @@ export default function RelayResultView() {
                 >
                   새 릴레이 만들기
                 </button>
+
+                {isHost && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={closeRoom}
+                      disabled={isClosingRoom}
+                      className="caption-b self-center text-relay-muted underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isClosingRoom ? '방 종료 중…' : '방 종료하기'}
+                    </button>
+                    {closeRoomError && (
+                      <p role="alert" className="caption-r self-center text-error">
+                        {closeRoomError}
+                      </p>
+                    )}
+                  </>
+                )}
               </>
             )}
           </aside>

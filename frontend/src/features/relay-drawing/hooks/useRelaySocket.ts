@@ -127,6 +127,9 @@ export const useRelaySocket = ({
         case 'ROOM_CLOSED':
           handlersRef.current.ROOM_CLOSED?.(event)
           break
+        case 'PARTICIPANT_KICKED':
+          handlersRef.current.PARTICIPANT_KICKED?.(event)
+          break
         case 'KICKED_FROM_ROOM':
           handlersRef.current.KICKED_FROM_ROOM?.(event)
           break
