@@ -49,19 +49,29 @@ public class FlipbookRoomConnectionUseCase {
         return updateParticipantConnectionState(viewerUserUuid, roomCodeValue, false);
     }
 
+    // connected 상태 업데이트 메서드
     private FlipbookRoomStateResponse updateParticipantConnectionState(String viewerUserUuid, String roomCodeValue,
         boolean connected) {
         for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
+            // 현재 방 상태
             FlipbookRoomState roomState = flipbookRoomPolicy.findRoomState(roomCodeValue);
+
+            // ws 접속할 수 있는 상태인지 (대기방, 플레이 중)
             flipbookRoomPolicy.validateWebSocketConnectableRoom(roomState);
+
+            // WebSocket 연결 대상 참여자를 조회
             FlipbookRoomParticipant participant = flipbookRoomPolicy.requireConnectionParticipant(roomState,
                 viewerUserUuid);
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+            // 해당 사용자의 connected 상태 업데이트
             FlipbookRoomParticipant updatedParticipant = new FlipbookRoomParticipant(participant.userUuid(),
                 participant.nickname(), participant.host(), participant.joinOrder(), connected, connected ? null : now,
                 participant.joinedAt());
+            // 대체
             FlipbookRoomState updatedRoomState = replaceParticipant(roomState, updatedParticipant, now);
 
+            // 저장 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 

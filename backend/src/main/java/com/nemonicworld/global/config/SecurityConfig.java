@@ -1,4 +1,4 @@
-package com.nemonicworld.config;
+package com.nemonicworld.global.config;
 
 import com.nemonicworld.common.jwt.AdminJwtAuthenticationFilter;
 import com.nemonicworld.common.jwt.JsonAuthenticationEntryPoint;
