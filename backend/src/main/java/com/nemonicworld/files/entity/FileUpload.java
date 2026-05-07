@@ -97,4 +97,11 @@ public class FileUpload {
         return this.status == FileUploadStatus.UPLOADED;
     }
 
+    public boolean isDeleted() {
+        return this.deletedAt != null || this.status == FileUploadStatus.DELETED;
+    }
+
+    public boolean hasPurpose(FileUploadPurpose purpose) {
+        return this.purpose == purpose;
+    }
 }

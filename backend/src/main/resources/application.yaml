@@ -66,6 +66,15 @@ nemonic:
   share:
     site-url: ${NEMONIC_SITE_URL:http://localhost:3000}
 
+  community:
+    moderation:
+      enabled: ${COMMUNITY_MODERATION_ENABLED:true}
+      base-url: ${COMMUNITY_MODERATION_BASE_URL:http://localhost:8000}
+      check-path: ${COMMUNITY_MODERATION_CHECK_PATH:/check}
+      connect-timeout-ms: ${COMMUNITY_MODERATION_CONNECT_TIMEOUT_MS:1000}
+      read-timeout-ms: ${COMMUNITY_MODERATION_READ_TIMEOUT_MS:3000}
+      fail-closed: ${COMMUNITY_MODERATION_FAIL_CLOSED:true}
+
   relay:
     disconnect:
       enabled: ${RELAY_DISCONNECT_ENABLED:true}

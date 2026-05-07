@@ -3,6 +3,7 @@ package com.nemonicworld.community.controller;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
 import com.nemonicworld.community.service.CommunityMemoService;
@@ -11,13 +12,16 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,11 +37,59 @@ public class CommunityMemoController {
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String COMMUNITY_MEMOS_FOUND_MESSAGE = "커뮤니티 메모 목록 조회 성공";
     private static final String COMMUNITY_MEMO_FOUND_MESSAGE = "커뮤니티 메모 상세 조회 성공";
+    private static final String COMMUNITY_MEMO_CREATED_MESSAGE = "커뮤니티 메모 생성 성공";
 
     private final CommunityMemoService communityMemoService;
 
     public CommunityMemoController(CommunityMemoService communityMemoService) {
         this.communityMemoService = communityMemoService;
+    }
+
+    @PostMapping
+    @Operation(summary = "커뮤니티 메모 생성", description = "files API로 업로드 및 confirm 완료한 최종 원본/썸네일 스냅샷을 커뮤니티 메모로 생성합니다.")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @RequestBody(required = true, content = @Content(examples = @ExampleObject(value = """
+        {
+          "sourceType": "DIRECT",
+          "originalFileId": "550e8400-e29b-41d4-a716-446655440000",
+          "thumbnailFileId": "660e8400-e29b-41d4-a716-446655440000",
+          "sourceGalleryId": null,
+          "positionX": 0.0,
+          "positionY": 0.0,
+          "zIndex": 1,
+          "rotationDeg": 0.0,
+          "decoration": {
+            "layers": []
+          },
+          "clientText": "텍스트박스 원문"
+        }
+        """)))
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "커뮤니티 메모 생성 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청값 오류", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "원본 정보 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_SOURCE),
+            @ExampleObject(name = "originalFileId 형식 오류", value = OpenApiErrorExamples.INVALID_ORIGINAL_FILE_ID),
+            @ExampleObject(name = "thumbnailFileId 형식 오류", value = OpenApiErrorExamples.INVALID_THUMBNAIL_FILE_ID),
+            @ExampleObject(name = "sourceGalleryId 형식 오류", value = OpenApiErrorExamples.INVALID_SOURCE_GALLERY_ID),
+            @ExampleObject(name = "원본/썸네일 파일 중복", value = OpenApiErrorExamples.DUPLICATED_COMMUNITY_MEMO_FILE),
+            @ExampleObject(name = "위치 정보 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_POSITION),
+            @ExampleObject(name = "데코레이션 정보 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_DECORATION),
+            @ExampleObject(name = "모더레이션 차단", value = OpenApiErrorExamples.COMMUNITY_MEMO_MODERATION_BLOCKED),
+            @ExampleObject(name = "모더레이션 실패", value = OpenApiErrorExamples.COMMUNITY_MEMO_MODERATION_UNAVAILABLE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "파일 접근 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FILE_ACCESS_DENIED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 또는 파일 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "파일 없음", value = OpenApiErrorExamples.FILE_UPLOAD_NOT_FOUND),
+            @ExampleObject(name = "갤러리 항목 없음", value = OpenApiErrorExamples.GALLERY_ITEM_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "파일 업로드 상태 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FILE_UPLOAD_STATUS_CONFLICT)))})
+    public ResponseEntity<ApiResponse<CommunityMemoDetailResponse>> createCommunityMemo(
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @Valid @org.springframework.web.bind.annotation.RequestBody CommunityMemoCreateRequest request) {
+        CommunityMemoDetailResponse response = communityMemoService.createCommunityMemo(userUuid, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(COMMUNITY_MEMO_CREATED_MESSAGE, response));
     }
 
     /**
