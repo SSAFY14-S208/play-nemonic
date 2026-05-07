@@ -1,5 +1,6 @@
 @host = http://localhost:8080
 @anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@memoId = 3f22df4f-b187-42dd-81f3-d9f2fa5ce001
 
 ### Get community memos
 GET {{host}}/api/v1/community/memos
@@ -10,4 +11,18 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Get community memos - invalid UUID
 GET {{host}}/api/v1/community/memos
+Anonymous-User-UUID: not-a-uuid
+
+### Get community memo detail
+GET {{host}}/api/v1/community/memos/{{memoId}}
+
+### Get community memo detail with ownedByMe
+GET {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get community memo detail - invalid memo UUID
+GET {{host}}/api/v1/community/memos/not-a-uuid
+
+### Get community memo detail - invalid anonymous user UUID
+GET {{host}}/api/v1/community/memos/{{memoId}}
 Anonymous-User-UUID: not-a-uuid
