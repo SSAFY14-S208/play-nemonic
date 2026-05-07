@@ -40,7 +40,8 @@ public class FlipbookRoomViewerFactory {
 
     private FlipbookRoomViewerResponse createNonParticipantViewerResponse(String viewerUserUuid,
         FlipbookRoomState roomState) {
-        FlipbookRoomViewerBlockedReason blockedReason = flipbookRoomPolicy.findJoinBlockedReason(roomState);
+        FlipbookRoomViewerBlockedReason blockedReason = flipbookRoomPolicy.findJoinBlockedReason(roomState,
+            viewerUserUuid);
         boolean canJoin = blockedReason == null;
 
         return new FlipbookRoomViewerResponse(viewerUserUuid, false, false, canJoin, false, blockedReason);

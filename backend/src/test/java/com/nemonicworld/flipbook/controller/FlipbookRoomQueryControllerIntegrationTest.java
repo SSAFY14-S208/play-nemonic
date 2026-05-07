@@ -145,6 +145,26 @@ class FlipbookRoomQueryControllerIntegrationTest {
     }
 
     /**
+     * 강퇴된 사용자가 방 상태를 조회하면 재입장 차단 사유를 함께 반환합니다.
+     */
+    @Test
+    void getFlipbookRoomStateReturnsKickedBlockedReasonForKickedViewer() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("망고");
+        UUID viewerUuid = createExistingUserWithNickname("다현");
+        FlipbookRoomState baseRoomState = waitingRoomState(hostUuid, 6);
+        FlipbookRoomState roomState = baseRoomState.withParticipantsAndKickedUserUuids(baseRoomState.participants(),
+            List.of(viewerUuid.toString()), LocalDateTime.now());
+        givenStoredRoom(roomState);
+
+        mockMvc
+            .perform(get("/api/v1/flipbook/rooms/{roomCode}", DEFAULT_ROOM_CODE).header(ANONYMOUS_USER_UUID_HEADER,
+                viewerUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.viewer.participant").value(false))
+            .andExpect(jsonPath("$.data.viewer.canJoin").value(false))
+            .andExpect(jsonPath("$.data.viewer.blockedReason").value("KICKED"));
+    }
+
+    /**
      * UUID 헤더가 없으면 기존 공통 UUID 오류 메시지로 400 응답을 반환합니다.
      */
     @Test

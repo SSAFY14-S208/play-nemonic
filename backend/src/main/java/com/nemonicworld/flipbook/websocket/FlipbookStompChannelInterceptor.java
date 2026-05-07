@@ -47,10 +47,11 @@ public class FlipbookStompChannelInterceptor implements ChannelInterceptor {
 
         String sessionId = accessor.getSessionId();
         // STOMP CONNECT
-        /*
-         * 프론트에서 보내는 정보 connectHeaders: { roomCode: "8VU792", "Anonymous-User-UUID":
-         * userUuid, }
-         */
+        // 프론트에서 보내는 정보
+        // connectHeaders: {
+        // roomCode: "8VU792",
+        // "Anonymous-User-UUID": userUuid,
+        // }
         String roomCode = accessor.getFirstNativeHeader(ROOM_CODE_CONNECT_HEADER);
         String userUuid = accessor.getFirstNativeHeader(AnonymousUserHeaders.ANONYMOUS_USER_UUID);
 

@@ -58,3 +58,30 @@ Content-Type: application/json
 ### Update flipbook room settings - missing body
 PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Kick flipbook participant
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "targetUserUuid": "11111111-1111-1111-1111-111111111111"
+}
+
+### Kick flipbook participant - self kick
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "targetUserUuid": "{{anonymousUserUuid}}"
+}
+
+### Kick flipbook participant - invalid target UUID
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "targetUserUuid": "not-a-uuid"
+}

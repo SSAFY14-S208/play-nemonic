@@ -31,6 +31,7 @@ public class FlipbookRoomPolicy {
     static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
     static final String ROOM_CONNECTION_UPDATE_CONFLICT_MESSAGE = "동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 "
         + "갱신하지 못했습니다. 다시 시도해주세요.";
+    static final String ROOM_KICK_UPDATE_CONFLICT_MESSAGE = "동시 강퇴 요청이 많아 플립북 방 강퇴 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
 
     private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
@@ -38,9 +39,15 @@ public class FlipbookRoomPolicy {
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
     private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "제한 시간은 30초, 45초, 60초 중 하나여야 합니다.";
     private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "플립북 방에 참여하지 않은 사용자입니다.";
+    private static final String KICK_TARGET_NOT_FOUND_MESSAGE = "강퇴할 참여자를 찾을 수 없습니다.";
     private static final String ONLY_HOST_ALLOWED_MESSAGE = "방장만 사용할 수 있습니다.";
+    private static final String ONLY_HOST_KICK_ALLOWED_MESSAGE = "방장만 사용할 수 있는 기능입니다.";
     private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
+    private static final String WAITING_ROOM_KICK_ONLY_MESSAGE = "대기실에서만 강퇴할 수 있습니다.";
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
+    private static final String SELF_KICK_NOT_ALLOWED_MESSAGE = "자기 자신은 강퇴할 수 없습니다.";
+    private static final String HOST_KICK_NOT_ALLOWED_MESSAGE = "방장은 강퇴할 수 없습니다.";
+    private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final FlipbookRoomRepository flipbookRoomRepository;
@@ -113,6 +120,14 @@ public class FlipbookRoomPolicy {
     }
 
     /**
+     * 강퇴 대상 참여자 정보를 필수로 조회합니다.
+     */
+    FlipbookRoomParticipant requireKickTargetParticipant(FlipbookRoomState roomState, String targetUserUuid) {
+        return findParticipant(roomState, targetUserUuid)
+            .orElseThrow(() -> new NotFoundException(KICK_TARGET_NOT_FOUND_MESSAGE));
+    }
+
+    /**
      * 방장 전용 동작인지 검증합니다.
      */
     void validateRoomHost(String viewerUserUuid, FlipbookRoomState roomState, FlipbookRoomParticipant participant) {
@@ -124,11 +139,45 @@ public class FlipbookRoomPolicy {
     }
 
     /**
+     * 강퇴 요청자가 방장인지 검증합니다.
+     */
+    void validateKickHost(String viewerUserUuid, FlipbookRoomState roomState, FlipbookRoomParticipant participant) {
+        if (participant.host() || roomState.hostUserUuid().equals(viewerUserUuid)) {
+            return;
+        }
+
+        throw new ForbiddenException(ONLY_HOST_KICK_ALLOWED_MESSAGE);
+    }
+
+    /**
      * 설정 변경 가능한 방 상태인지 검증합니다.
      */
     void validateWaitingRoomForSettings(FlipbookRoomState roomState) {
         if (roomState.status() != FlipbookRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_SETTINGS_ONLY_MESSAGE);
+        }
+    }
+
+    /**
+     * 강퇴 가능한 방 상태인지 검증합니다.
+     */
+    void validateWaitingRoomForKick(FlipbookRoomState roomState) {
+        if (roomState.status() != FlipbookRoomStatus.WAITING) {
+            throw new ConflictException(WAITING_ROOM_KICK_ONLY_MESSAGE);
+        }
+    }
+
+    /**
+     * 강퇴 대상이 허용되는 참여자인지 검증합니다.
+     */
+    void validateKickTarget(String viewerUserUuid, FlipbookRoomState roomState,
+        FlipbookRoomParticipant targetParticipant) {
+        if (viewerUserUuid.equals(targetParticipant.userUuid())) {
+            throw new ConflictException(SELF_KICK_NOT_ALLOWED_MESSAGE);
+        }
+
+        if (targetParticipant.host() || roomState.hostUserUuid().equals(targetParticipant.userUuid())) {
+            throw new ConflictException(HOST_KICK_NOT_ALLOWED_MESSAGE);
         }
     }
 
@@ -144,9 +193,29 @@ public class FlipbookRoomPolicy {
     }
 
     /**
+     * 강퇴된 UUID가 같은 방에 다시 입장하거나 WebSocket 재연결하는 것을 막습니다.
+     */
+    public void validateNotKicked(FlipbookRoomState roomState, String userUuid) {
+        if (isKicked(roomState, userUuid)) {
+            throw new ForbiddenException(KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE);
+        }
+    }
+
+    /**
+     * 사용자가 현재 방의 강퇴 목록에 포함되어 있는지 확인합니다.
+     */
+    public boolean isKicked(FlipbookRoomState roomState, String userUuid) {
+        return roomState.kickedUserUuids().contains(userUuid);
+    }
+
+    /**
      * 비참여자가 지금 플립북 방에 신규 입장할 수 없는 이유를 계산합니다.
      */
-    FlipbookRoomViewerBlockedReason findJoinBlockedReason(FlipbookRoomState roomState) {
+    FlipbookRoomViewerBlockedReason findJoinBlockedReason(FlipbookRoomState roomState, String viewerUserUuid) {
+        if (isKicked(roomState, viewerUserUuid)) {
+            return FlipbookRoomViewerBlockedReason.KICKED;
+        }
+
         if (roomState.status() == FlipbookRoomStatus.WAITING) {
             if (roomState.participantCount() >= roomState.maxParticipants()) {
                 return FlipbookRoomViewerBlockedReason.ROOM_FULL;

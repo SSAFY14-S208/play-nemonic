@@ -56,6 +56,22 @@ Last updated: 2026-05-07
   `DELETE /api/v1/backoffice/gms/prompts/{promptId}`; the API updates
   `gms_prompt_template.deleted_at` and `updated_at` without changing the DB
   schema, and treats missing or already deleted prompts as not found.
+- Backoffice admins can now update active GMS prompt templates through
+  `PATCH /api/v1/backoffice/gms/prompts/{promptId}`; the API accepts optional
+  `name`, `content`, and `featureType` fields, updates existing
+  `gms_prompt_template` columns and `updated_at` without changing the DB
+  schema, and rejects empty update bodies, duplicate prompt names, missing
+  prompts, and already deleted prompts.
+- Backoffice admins can now inspect one active GMS prompt template through
+  `GET /api/v1/backoffice/gms/prompts/{promptId}`; the API reuses
+  `GmsPromptResponse`, reads only `deleted_at IS NULL` rows from the existing
+  `gms_prompt_template` table, and treats missing or already deleted prompts as
+  not found.
+- Backoffice admins can now list active GMS prompt templates through
+  `GET /api/v1/backoffice/gms/prompts`; the API supports `keyword`,
+  `featureType`, `page`, and `size`, returns the local pagination DTO shape
+  (`items`, `page`, `size`, `totalElements`, `hasNext`), and reads only
+  `deleted_at IS NULL` rows from the existing `gms_prompt_template` table.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.
@@ -80,6 +96,7 @@ Last updated: 2026-05-07
 - Relay service internals are grouped under `service.room`, `service.game`, `service.assignment`, `service.submission`, `service.timeout`, `service.finalization`, `service.close`, `service.cleanup`, and `service.support`, while `RelayRoomService` and `RelayRoomServiceImpl` remain the controller-facing facade.
 - Flipbook room creation now uses `POST /api/v1/flipbook/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `flipbook:room:{roomCode}` with a 24-hour TTL, and stores matching common invite metadata under `invite:{roomCode}` with `boothType=flipbook`.
 - Flipbook room state lookup now uses `GET /api/v1/flipbook/rooms/{roomCode}`, reads the Redis room snapshot without mutation, sorts participants by `joinOrder`, and computes viewer participation, host, joinable, startable, and blocked-reason flags from the requested `Anonymous-User-UUID`.
+- Flipbook waiting-room host kick now uses `POST /api/v1/flipbook/rooms/{roomCode}/kick` with `targetUserUuid` in the JSON body, removes only non-host participants while preserving remaining `joinOrder` values, records `kickedUserUuids` in the Redis room state, blocks kicked UUIDs from invite re-entry and WebSocket reconnect paths, and emits `PARTICIPANT_KICKED` plus a best-effort personal `KICKED_FROM_ROOM` queue event before closing the same-server active session.
 - Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
   related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
   `super_admin` row in `admin_user` only when enabled and the login ID does not
@@ -195,6 +212,13 @@ Recent flipbook lobby WebSocket work passed with:
 
 ```bash
 GRADLE_USER_HOME=.gradle-user-home ./gradlew compileJava spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.relay.websocket.*' --no-daemon
+```
+
+Recent flipbook waiting-room kick work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck --no-daemon
+GRADLE_USER_HOME=.gradle-user-home ./gradlew compileJava test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.invite.service.FlipbookInviteJoinHandlerTest' --tests 'com.nemonicworld.global.websocket.session.WebSocketSessionRegistryTest' --no-daemon
 ```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real

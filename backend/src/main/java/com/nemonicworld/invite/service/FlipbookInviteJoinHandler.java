@@ -2,6 +2,7 @@ package com.nemonicworld.invite.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
@@ -37,6 +38,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 입장 요청이 많아 방 입장 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
     private static final String DEFAULT_ROOM_NAME_SUFFIX = "의 플립북";
+    private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
 
     private final FlipbookRoomRepository flipbookRoomRepository;
 
@@ -57,6 +59,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
             // Redis에서 flipbook:room:{roomCode} 방 상태를 조회한다.
             FlipbookRoomState roomState = flipbookRoomRepository.findByRoomCode(invite.roomId())
                 .orElseThrow(() -> new ConflictException(ROOM_CLOSED_MESSAGE));
+            validateNotKicked(roomState, userUuid);
 
             // 해당 userUuid를 가진 사용자가 있는지 확인 (사용자의 정보를 반환)
             Optional<FlipbookRoomParticipant> existingParticipant = findParticipant(roomState, userUuid);
@@ -104,6 +107,12 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private void validateNicknameRegistered(AppUser appUser) {
         if (!StringUtils.hasText(appUser.getNickname()) || AppUser.ANONYMOUS_NICKNAME.equals(appUser.getNickname())) {
             throw new BadRequestException(NICKNAME_REQUIRED_MESSAGE);
+        }
+    }
+
+    private void validateNotKicked(FlipbookRoomState roomState, String userUuid) {
+        if (roomState.kickedUserUuids().contains(userUuid)) {
+            throw new ForbiddenException(KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE);
         }
     }
 
