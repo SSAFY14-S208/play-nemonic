@@ -135,7 +135,9 @@ export interface RelayRoomMyAssignmentResponse {
   partStartedAt: string
   partDeadlineAt: string
   remainingSeconds: number
-  hint: RelayRoomAssignmentHintResponse
+  // FACE 라운드는 이전 파트가 없으므로 null. BODY/LEGS는 객체 형태로 내려온다.
+  // (가이드 §16: "FACE는 이전 파트가 없으므로 hint가 null이다")
+  hint: RelayRoomAssignmentHintResponse | null
 }
 
 export interface RelayRoomResultPartResponse {
@@ -167,6 +169,8 @@ export interface RelayRoomResultsResponse {
 //   /user/queue/relay/rooms/{roomCode} : 개인 큐
 export type RelayWsEventType =
   | 'PARTICIPANT_CONNECTED'
+  | 'PARTICIPANT_DISCONNECTED'
+  | 'PARTICIPANT_LEFT'
   | 'PARTICIPANT_DROPPED'
   | 'SETTINGS_CHANGED'
   | 'GAME_STARTED'
@@ -202,6 +206,22 @@ export interface RelayWsParticipantConnectedData {
   partDeadlineAt: string | null
   gameStartedAt: string | null
   participants: RelayRoomParticipantResponse[]
+}
+
+export interface RelayWsParticipantDisconnectedData {
+  roomCode: string
+  userUuid: string
+  nickname: string
+  disconnectedAt: string
+}
+
+// 임시 — 백엔드가 PARTICIPANT_DISCONNECTED에서 퇴장 유저를 제거하면 이 타입/핸들러 제거 예정
+export interface RelayWsParticipantLeftData {
+  roomCode: string
+  leftUserUuid: string
+  leftNickname: string
+  participantCount: number
+  leftAt: string
 }
 
 export interface RelayWsParticipantDroppedData {
@@ -311,6 +331,8 @@ export interface RelayWsDuplicateSessionClosedData {
 // Discriminated union — switch (evt.type)으로 narrowing 가능
 export type RelayWsEvent =
   | RelayWsEnvelope<'PARTICIPANT_CONNECTED', RelayWsParticipantConnectedData>
+  | RelayWsEnvelope<'PARTICIPANT_DISCONNECTED', RelayWsParticipantDisconnectedData>
+  | RelayWsEnvelope<'PARTICIPANT_LEFT', RelayWsParticipantLeftData>
   | RelayWsEnvelope<'PARTICIPANT_DROPPED', RelayWsParticipantDroppedData>
   | RelayWsEnvelope<'SETTINGS_CHANGED', RelayWsSettingsChangedData>
   | RelayWsEnvelope<'GAME_STARTED', RelayWsGameStartedData>
