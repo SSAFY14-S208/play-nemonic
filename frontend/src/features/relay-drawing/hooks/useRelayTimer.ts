@@ -1,71 +1,71 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { parseServerInstant } from '@/shared/utils'
 import { useRelayDrawingStore } from '../stores'
 
 const EXPIRING_THRESHOLD_SECONDS = 10
+// 매 250ms tick — 1초 단위 표시 정확도와 deadline 도달 감지 지연을 동시에 잡기 위함.
+const TICK_INTERVAL_MS = 250
 
 interface UseRelayTimerReturn {
   remainingSeconds: number
   isExpiring: boolean
   formattedTime: string
-  syncRemainingTime: (seconds: number) => void
 }
 
+/**
+ * 드로잉 라운드 카운트다운 타이머.
+ *
+ * `partDeadlineAt`(서버가 보내는 절대 시각)을 단일 진실의 기준으로 두고,
+ * 매 tick마다 `Date.now()` 와 비교해 남은 초를 재계산한다. 로컬 카운터를
+ * 누적해서 줄이는 방식이 아니므로 다음 문제들이 발생하지 않는다:
+ *   - 라운드 전환 시 stale 0초가 다음 라운드의 effect 의존성에 흘러드는 race
+ *   - 탭 비활성/throttle 후 시각이 어긋나는 drift
+ *   - 시스템/클럭 변경 시의 누적 오차
+ *
+ * deadline이 없으면(GAME_STARTED 전 lobby/preview 등) `timeLimitSeconds` 폴백.
+ */
 export function useRelayTimer(): UseRelayTimerReturn {
   const timeLimitSeconds = useRelayDrawingStore((state) => state.timeLimitSeconds)
-  const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
+  const partDeadlineAt = useRelayDrawingStore((state) => state.partDeadlineAt)
   const roomStatus = useRelayDrawingStore((state) => state.roomStatus)
-  const completeRound = useRelayDrawingStore((state) => state.completeRound)
 
-  const [remainingSeconds, setRemainingSeconds] = useState(timeLimitSeconds)
-  // 라운드/제한시간 변경을 "이전 렌더 정보"로 추적해, 변경이 감지되는 순간
-  // 같은 렌더 안에서 즉시 리셋한다. effect로 처리하면 commit 후 추가 setState
-  // 가 일어나 cascading re-render(React 19 lint: react-hooks/set-state-in-effect)
-  // 가 발생한다.
+  const computeRemaining = useCallback(() => {
+    if (!partDeadlineAt) return timeLimitSeconds
+    // 서버가 timezone suffix 없이 LocalDateTime으로 직렬화하므로 parseServerInstant
+    // 로 UTC 강제 해석. 그렇지 않으면 브라우저 로컬 timezone에 따라 deadline이
+    // 9시간(KST 기준) 어긋나 timer가 즉시 0으로 떨어진다.
+    const deadlineMs = parseServerInstant(partDeadlineAt).getTime()
+    const nowMs = Date.now()
+    return Math.max(0, Math.ceil((deadlineMs - nowMs) / 1000))
+  }, [partDeadlineAt, timeLimitSeconds])
+
+  const [remainingSeconds, setRemainingSeconds] = useState(computeRemaining)
+
+  // partDeadlineAt이 바뀌면 즉시 동기 재계산 — 다음 tick(최대 TICK_INTERVAL_MS)을
+  // 기다리지 않고 라운드 전환 즉시 정확한 남은 시간을 표시한다.
   // https://react.dev/reference/react/useState#storing-information-from-previous-renders
-  const [previousRoundKey, setPreviousRoundKey] = useState(activeRoundKey)
-  const [previousTimeLimit, setPreviousTimeLimit] = useState(timeLimitSeconds)
-
-  if (
-    previousRoundKey !== activeRoundKey ||
-    previousTimeLimit !== timeLimitSeconds
-  ) {
-    setPreviousRoundKey(activeRoundKey)
-    setPreviousTimeLimit(timeLimitSeconds)
-    setRemainingSeconds(timeLimitSeconds)
+  const [previousDeadline, setPreviousDeadline] = useState(partDeadlineAt)
+  if (previousDeadline !== partDeadlineAt) {
+    setPreviousDeadline(partDeadlineAt)
+    setRemainingSeconds(computeRemaining())
   }
 
-  // 카운트다운 — PLAYING 상태일 때만 매 초 1씩 감소.
-  // remainingSeconds가 dep이 아니라서 interval은 라운드 단위로만 재생성된다.
   useEffect(() => {
     if (roomStatus !== 'PLAYING') return
 
     const intervalId = setInterval(() => {
-      setRemainingSeconds((previous) => Math.max(previous - 1, 0))
-    }, 1000)
+      setRemainingSeconds(computeRemaining())
+    }, TICK_INTERVAL_MS)
 
     return () => clearInterval(intervalId)
-  }, [roomStatus, activeRoundKey])
-
-  // 0이 되는 시점에 정확히 한 번 completeRound 호출.
-  // remainingSeconds가 계속 0이어도 dep이 변하지 않아 추가 호출 없음 —
-  // completeRound가 activeRoundKey를 바꾸면 위 if-during-render 분기가 새 값으로
-  // 리셋해 다음 라운드의 카운트다운이 시작된다.
-  useEffect(() => {
-    if (remainingSeconds === 0 && roomStatus === 'PLAYING') {
-      completeRound()
-    }
-  }, [remainingSeconds, roomStatus, completeRound])
-
-  const syncRemainingTime = useCallback((seconds: number) => {
-    setRemainingSeconds(seconds)
-  }, [])
+  }, [roomStatus, computeRemaining])
 
   const isExpiring = remainingSeconds <= EXPIRING_THRESHOLD_SECONDS
   const minutes = Math.floor(remainingSeconds / 60)
   const seconds = remainingSeconds % 60
   const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 
-  return { remainingSeconds, isExpiring, formattedTime, syncRemainingTime }
+  return { remainingSeconds, isExpiring, formattedTime }
 }
