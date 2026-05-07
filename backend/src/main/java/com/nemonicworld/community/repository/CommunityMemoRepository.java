@@ -93,6 +93,36 @@ public class CommunityMemoRepository {
           AND cm.id = :memoId
         """;
 
+    private static final String INSERT_DIRECT_MEMO_SQL = """
+        INSERT INTO community_memo (
+            id,
+            user_id,
+            artifact_id,
+            position_x,
+            position_y,
+            z_index,
+            rotation_deg,
+            decoration,
+            body_image_url,
+            attached_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            :memoId,
+            :userId,
+            NULL,
+            :positionX,
+            :positionY,
+            :zIndex,
+            :rotationDeg,
+            :decoration,
+            :bodyImageUrl,
+            :attachedAt,
+            :createdAt,
+            :updatedAt
+        )
+        """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public CommunityMemoRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -109,6 +139,17 @@ public class CommunityMemoRepository {
             this::mapDetailRow);
 
         return rows.stream().findFirst();
+    }
+
+    public void insertDirectMemo(CommunityMemoCreateCommand command) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", command.memoId())
+            .addValue("userId", command.userId()).addValue("positionX", command.positionX())
+            .addValue("positionY", command.positionY()).addValue("zIndex", command.zIndex())
+            .addValue("rotationDeg", command.rotationDeg()).addValue("decoration", command.decoration())
+            .addValue("bodyImageUrl", command.bodyImageUrl()).addValue("attachedAt", command.attachedAt())
+            .addValue("createdAt", command.createdAt()).addValue("updatedAt", command.updatedAt());
+
+        jdbcTemplate.update(INSERT_DIRECT_MEMO_SQL, params);
     }
 
     private CommunityMemoRow mapRow(ResultSet resultSet, int rowNumber) throws SQLException {

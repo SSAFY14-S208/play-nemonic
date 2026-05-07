@@ -377,6 +377,30 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 커뮤니티 메모입니다."
         }
         """;
+    public static final String UNSUPPORTED_COMMUNITY_MEMO_SOURCE_TYPE = """
+        {
+          "success": false,
+          "message": "지원하지 않는 커뮤니티 메모 sourceType입니다."
+        }
+        """;
+    public static final String INVALID_COMMUNITY_MEMO_SOURCE = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 원본 정보가 올바르지 않습니다."
+        }
+        """;
+    public static final String INVALID_COMMUNITY_MEMO_POSITION = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 위치 정보가 올바르지 않습니다."
+        }
+        """;
+    public static final String INVALID_COMMUNITY_MEMO_DECORATION = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 데코레이션 정보가 올바르지 않습니다."
+        }
+        """;
     public static final String SHARE_IMAGE_NOT_FOUND = """
         {
           "success": false,

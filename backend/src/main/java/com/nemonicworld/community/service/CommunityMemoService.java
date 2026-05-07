@@ -1,5 +1,6 @@
 package com.nemonicworld.community.service;
 
+import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 
@@ -17,4 +18,6 @@ public interface CommunityMemoService {
      * 공용 벽에 노출 가능한 커뮤니티 메모 한 건의 상세를 조회합니다.
      */
     CommunityMemoDetailResponse getCommunityMemo(String memoIdValue, String viewerUserUuidValue);
+
+    CommunityMemoDetailResponse createCommunityMemo(String userUuidValue, CommunityMemoCreateRequest request);
 }
