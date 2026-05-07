@@ -1,8 +1,8 @@
 'use client'
 
 import {
-  FlipbookBoothView,
   FlipbookDrawingView,
+  FlipbookEntranceView,
   FlipbookLobbyView,
   FlipbookResultView,
 } from './components'
@@ -14,7 +14,7 @@ export default function FlipbookPage() {
   return (
     <main className="min-h-screen bg-flipbook-background text-flipbook-ink">
       {flipbook.currentStep === 'booth' && (
-        <FlipbookBoothView
+        <FlipbookEntranceView
           onCreateRoom={flipbook.createRoom}
           onEnterRoom={flipbook.enterRoom}
         />
