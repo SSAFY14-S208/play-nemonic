@@ -16,6 +16,7 @@ import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
 import com.nemonicworld.relay.service.game.RelayPartProgress;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -54,17 +55,19 @@ public class RelayRoomSubmissionUseCase {
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelaySubmissionStorage relaySubmissionStorage;
     private final MinioStorageProperties minioStorageProperties;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
     public RelayRoomSubmissionUseCase(AnonymousUserResolver anonymousUserResolver,
         RelayRoomRepository relayRoomRepository, RelayRoomPolicy relayRoomPolicy,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelaySubmissionStorage relaySubmissionStorage,
-        MinioStorageProperties minioStorageProperties) {
+        MinioStorageProperties minioStorageProperties, RelayInviteMetadataSyncService relayInviteMetadataSyncService) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relaySubmissionStorage = relaySubmissionStorage;
         this.minioStorageProperties = minioStorageProperties;
+        this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
     }
 
     @Transactional(readOnly = true)
@@ -125,6 +128,7 @@ public class RelayRoomSubmissionUseCase {
                 .advancePartIfCompleted(submittedRoomState, currentAssignment.part(), now);
 
             if (relayRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
+                relayInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
                 return createResponse(advanceResult.roomState(), submittedAssignment, false, viewerUserUuid,
                     participant.nickname(), advanceResult);
             }

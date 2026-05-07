@@ -34,6 +34,7 @@ class FlipbookRoomEventPublisherTest {
 
     private static final String ROOM_CODE = "FB3K9Q";
     private static final String SESSION_ID = "session-1";
+    private static final String USER_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
     private final SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
     private final WebSocketSessionRegistry webSocketSessionRegistry = mock(WebSocketSessionRegistry.class);
@@ -60,6 +61,31 @@ class FlipbookRoomEventPublisherTest {
         FlipbookRoomEventStateResponse data = (FlipbookRoomEventStateResponse) event.data();
         assertThat(data.timeLimitSeconds()).isEqualTo(60);
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.changedParticipant()).isNull();
+    }
+
+    /**
+     * 참여자 연결 이벤트는 최신 방 상태와 함께 연결된 사용자 UUID/닉네임을 보냅니다.
+     */
+    @Test
+    void publishParticipantConnectedSendsChangedUserInfoToRoomTopic() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        FlipbookRoomStateResponse roomStateResponse = roomStateResponse(60);
+
+        publisher.publishParticipantConnected(roomStateResponse, USER_UUID);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.PARTICIPANT_CONNECTED);
+
+        FlipbookRoomEventStateResponse data = (FlipbookRoomEventStateResponse) event.data();
+        assertThat(data.changedParticipant()).isNotNull();
+        assertThat(data.changedParticipant().userUuid()).isEqualTo(USER_UUID);
+        assertThat(data.changedParticipant().nickname()).isEqualTo("망고");
+        assertThat(data.changedParticipant().host()).isTrue();
+        assertThat(data.changedParticipant().joinOrder()).isZero();
+        assertThat(data.changedParticipant().connected()).isTrue();
     }
 
     /**
@@ -134,9 +160,7 @@ class FlipbookRoomEventPublisherTest {
     private FlipbookRoomStateResponse roomStateResponse(int timeLimitSeconds) {
         LocalDateTime now = LocalDateTime.now();
 
-        return new FlipbookRoomStateResponse(ROOM_CODE, FlipbookRoomStatus.WAITING,
-            "550e8400-e29b-41d4-a716-446655440000", timeLimitSeconds, 2, 6, 1,
-            List.of(new FlipbookRoomParticipantResponse("550e8400-e29b-41d4-a716-446655440000", "망고", true, 0, true)),
-            null, now, now);
+        return new FlipbookRoomStateResponse(ROOM_CODE, FlipbookRoomStatus.WAITING, USER_UUID, timeLimitSeconds, 2, 6,
+            1, List.of(new FlipbookRoomParticipantResponse(USER_UUID, "망고", true, 0, true)), null, now, now);
     }
 }

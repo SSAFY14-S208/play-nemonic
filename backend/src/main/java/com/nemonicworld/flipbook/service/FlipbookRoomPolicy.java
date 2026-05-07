@@ -44,6 +44,7 @@ public class FlipbookRoomPolicy {
     private static final String ONLY_HOST_KICK_ALLOWED_MESSAGE = "방장만 사용할 수 있는 기능입니다.";
     private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
     private static final String WAITING_ROOM_KICK_ONLY_MESSAGE = "대기실에서만 강퇴할 수 있습니다.";
+    private static final String WAITING_ROOM_LEAVE_ONLY_MESSAGE = "대기실에서만 퇴장할 수 있습니다.";
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String SELF_KICK_NOT_ALLOWED_MESSAGE = "자기 자신은 강퇴할 수 없습니다.";
     private static final String HOST_KICK_NOT_ALLOWED_MESSAGE = "방장은 강퇴할 수 없습니다.";
@@ -164,6 +165,15 @@ public class FlipbookRoomPolicy {
     void validateWaitingRoomForKick(FlipbookRoomState roomState) {
         if (roomState.status() != FlipbookRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_KICK_ONLY_MESSAGE);
+        }
+    }
+
+    /**
+     * 자발적 퇴장이 가능한 방 상태인지 검증합니다.
+     */
+    void validateWaitingRoomForLeave(FlipbookRoomState roomState) {
+        if (roomState.status() != FlipbookRoomStatus.WAITING) {
+            throw new ConflictException(WAITING_ROOM_LEAVE_ONLY_MESSAGE);
         }
     }
 

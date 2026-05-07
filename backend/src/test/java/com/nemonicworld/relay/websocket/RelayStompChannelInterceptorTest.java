@@ -77,7 +77,7 @@ class RelayStompChannelInterceptorTest {
         verify(relayRoomEventPublisher).publishDuplicateSessionClosed(OLD_SESSION_ID, ROOM_CODE);
         verify(webSocketSessionRegistry).closeWebSocketSession(OLD_SESSION_ID);
         verify(webSocketSessionRegistry).removeStaleSession(OLD_SESSION_ID);
-        verify(relayRoomEventPublisher).publishParticipantConnected(roomStateResponse);
+        verify(relayRoomEventPublisher).publishParticipantConnected(roomStateResponse, USER_UUID);
     }
 
     /**

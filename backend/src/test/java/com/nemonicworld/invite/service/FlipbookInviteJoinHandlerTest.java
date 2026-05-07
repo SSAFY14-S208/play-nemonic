@@ -11,6 +11,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.user.entity.AppUser;
 import java.time.LocalDateTime;
@@ -35,6 +36,9 @@ class FlipbookInviteJoinHandlerTest {
     @Mock
     private FlipbookRoomRepository flipbookRoomRepository;
 
+    @Mock
+    private FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+
     /**
      * 플립북 방에서 강퇴된 UUID는 초대코드 입장 경로로도 재입장할 수 없습니다.
      */
@@ -45,7 +49,8 @@ class FlipbookInviteJoinHandlerTest {
         FlipbookRoomState baseRoomState = waitingRoom(participant(hostUuid, "망고", true, 0));
         FlipbookRoomState roomState = baseRoomState.withParticipantsAndKickedUserUuids(baseRoomState.participants(),
             List.of(kickedUuid.toString()), LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
-        FlipbookInviteJoinHandler handler = new FlipbookInviteJoinHandler(flipbookRoomRepository);
+        FlipbookInviteJoinHandler handler = new FlipbookInviteJoinHandler(flipbookRoomRepository,
+            flipbookInviteMetadataSyncService);
 
         given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
 
@@ -53,6 +58,7 @@ class FlipbookInviteJoinHandlerTest {
             .isInstanceOf(ForbiddenException.class).hasMessage("강퇴된 방에는 다시 입장할 수 없습니다.");
 
         verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(flipbookInviteMetadataSyncService, never()).syncWithRoomState(any());
     }
 
     private InviteMetadata activeInvite() {

@@ -6,6 +6,7 @@ import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.invite.dto.response.InviteJoinResponse;
 import com.nemonicworld.invite.redis.InviteMetadata;
@@ -41,6 +42,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
 
     private final FlipbookRoomRepository flipbookRoomRepository;
+    private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
     @Override
     public boolean supports(String boothType) {
@@ -83,6 +85,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
 
             // 현재 상태가 초기 상태와 같다면 복사본으로 대체
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 return createResponse(invite, updatedRoomState, userUuid, false);
             }
         }

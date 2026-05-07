@@ -58,7 +58,7 @@ public class RelayWebSocketEventListener {
 
         try {
             RelayRoomStateResponse roomStateResponse = relayRoomService.disconnectRoom(session.userUuid(), roomCode);
-            relayRoomEventPublisher.publishParticipantDisconnected(roomStateResponse);
+            relayRoomEventPublisher.publishParticipantDisconnected(roomStateResponse, session.userUuid());
         } catch (RuntimeException e) {
             log.warn("Failed to update relay websocket disconnect state. roomCode={}, sessionId={}", roomCode,
                 sessionId, e);

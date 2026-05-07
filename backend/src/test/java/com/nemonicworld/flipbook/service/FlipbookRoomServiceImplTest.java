@@ -15,6 +15,7 @@ import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
@@ -51,17 +52,23 @@ class FlipbookRoomServiceImplTest {
     @Mock
     private FlipbookRoomRepository flipbookRoomRepository;
 
+    @Mock
+    private FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+
     private FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
     private FlipbookRoomKickUseCase flipbookRoomKickUseCase;
+    private FlipbookRoomLeaveUseCase flipbookRoomLeaveUseCase;
 
     @BeforeEach
     void setUp() {
         FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
         FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
         flipbookRoomSettingsUseCase = new FlipbookRoomSettingsUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy, flipbookRoomViewerFactory);
+            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);
         flipbookRoomKickUseCase = new FlipbookRoomKickUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy);
+            flipbookRoomPolicy, flipbookInviteMetadataSyncService);
+        flipbookRoomLeaveUseCase = new FlipbookRoomLeaveUseCase(anonymousUserResolver, flipbookRoomRepository,
+            flipbookRoomPolicy, flipbookInviteMetadataSyncService);
     }
 
     /**
@@ -93,6 +100,7 @@ class FlipbookRoomServiceImplTest {
         assertThat(updatedRoomState.participants()).isEqualTo(roomState.participants());
         assertThat(updatedRoomState.createdAt()).isEqualTo(roomState.createdAt());
         assertThat(updatedRoomState.updatedAt()).isAfterOrEqualTo(roomState.updatedAt());
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
     }
 
     /**
@@ -204,6 +212,7 @@ class FlipbookRoomServiceImplTest {
             .containsExactly(60, 60);
         assertThat(updatedStateCaptor.getAllValues().get(1).participants())
             .isEqualTo(secondReadRoomState.participants());
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedStateCaptor.getAllValues().get(1));
     }
 
     /**
@@ -261,6 +270,7 @@ class FlipbookRoomServiceImplTest {
         assertThat(updatedRoomState.participants()).extracting(FlipbookRoomParticipant::joinOrder).containsExactly(0,
             3);
         assertThat(updatedRoomState.kickedUserUuids()).containsExactly(targetUuid.toString());
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
     }
 
     /**
@@ -302,6 +312,122 @@ class FlipbookRoomServiceImplTest {
         assertThatThrownBy(
             () -> flipbookRoomKickUseCase.kickParticipant(hostUuid.toString(), ROOM_CODE, hostUuid.toString()))
             .isInstanceOf(ConflictException.class).hasMessage("자기 자신은 강퇴할 수 없습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    /**
+     * 일반 참여자가 WAITING 방에서 퇴장하면 참여자 목록에서 제거하고 방장은 그대로 유지합니다.
+     */
+    @Test
+    void leaveRoomParticipantRemovesRequesterAndKeepsHost() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID leaverUuid = UUID.randomUUID();
+        AppUser leaverUser = appUserWithNickname(leaverUuid, "포도");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0),
+            participant(leaverUuid, "포도", false, 1));
+        given(anonymousUserResolver.resolve(leaverUuid.toString())).willReturn(leaverUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookRoomLeaveResponse response = flipbookRoomLeaveUseCase.leaveRoom(leaverUuid.toString(), ROOM_CODE);
+
+        assertThat(response.leftUserUuid()).isEqualTo(leaverUuid.toString());
+        assertThat(response.leftNickname()).isEqualTo("포도");
+        assertThat(response.participantCount()).isEqualTo(1);
+        assertThat(response.hostChanged()).isFalse();
+        assertThat(response.roomClosed()).isFalse();
+        assertThat(response.roomStatus()).isEqualTo(FlipbookRoomStatus.WAITING);
+
+        ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
+        FlipbookRoomState updatedRoomState = updatedStateCaptor.getValue();
+        assertThat(updatedRoomState.hostUserUuid()).isEqualTo(hostUuid.toString());
+        assertThat(updatedRoomState.participants()).extracting(FlipbookRoomParticipant::userUuid)
+            .containsExactly(hostUuid.toString());
+        assertThat(updatedRoomState.kickedUserUuids()).isEmpty();
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
+    }
+
+    /**
+     * 방장이 WAITING 방에서 퇴장하면 joinOrder가 가장 작은 남은 참여자에게 방장을 승계합니다.
+     */
+    @Test
+    void leaveRoomHostTransfersHostToLowestJoinOrderParticipant() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID laterParticipantUuid = UUID.randomUUID();
+        UUID newHostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0),
+            participant(laterParticipantUuid, "사과", false, 3), participant(newHostUuid, "포도", false, 1));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookRoomLeaveResponse response = flipbookRoomLeaveUseCase.leaveRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.hostChanged()).isTrue();
+        assertThat(response.newHostUserUuid()).isEqualTo(newHostUuid.toString());
+        assertThat(response.newHostNickname()).isEqualTo("포도");
+
+        ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
+        FlipbookRoomState updatedRoomState = updatedStateCaptor.getValue();
+        assertThat(updatedRoomState.hostUserUuid()).isEqualTo(newHostUuid.toString());
+        assertThat(updatedRoomState.participants()).extracting(FlipbookRoomParticipant::userUuid)
+            .containsExactly(laterParticipantUuid.toString(), newHostUuid.toString());
+        assertThat(updatedRoomState.participants()).extracting(FlipbookRoomParticipant::host).containsExactly(false,
+            true);
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
+    }
+
+    /**
+     * 마지막 참여자가 퇴장하면 방은 CLOSED가 되고 cleanup은 기존 TTL에 맡깁니다.
+     */
+    @Test
+    void leaveRoomLastParticipantClosesRoom() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookRoomLeaveResponse response = flipbookRoomLeaveUseCase.leaveRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.roomClosed()).isTrue();
+        assertThat(response.roomStatus()).isEqualTo(FlipbookRoomStatus.CLOSED);
+        assertThat(response.participantCount()).isZero();
+
+        ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
+        FlipbookRoomState updatedRoomState = updatedStateCaptor.getValue();
+        assertThat(updatedRoomState.status()).isEqualTo(FlipbookRoomStatus.CLOSED);
+        assertThat(updatedRoomState.hostUserUuid()).isNull();
+        assertThat(updatedRoomState.participants()).isEmpty();
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
+    }
+
+    /**
+     * 게임 시작 이후 상태에서는 자발적 퇴장 API를 사용할 수 없습니다.
+     */
+    @Test
+    void leaveRoomRejectsNonWaitingRoom() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.PLAYING, 45, participant(hostUuid, "망고", true, 0));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> flipbookRoomLeaveUseCase.leaveRoom(hostUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("대기실에서만 퇴장할 수 있습니다.");
 
         verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
     }

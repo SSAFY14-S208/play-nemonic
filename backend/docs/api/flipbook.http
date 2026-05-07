@@ -85,3 +85,22 @@ Content-Type: application/json
 {
   "targetUserUuid": "not-a-uuid"
 }
+
+### Leave flipbook room
+DELETE {{host}}/api/v1/flipbook/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave flipbook room - invalid user UUID
+DELETE {{host}}/api/v1/flipbook/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: not-a-uuid
+
+### Leave flipbook room - missing user UUID
+DELETE {{host}}/api/v1/flipbook/rooms/{{roomCode}}/participants/me
+
+### Leave flipbook room - invalid room code
+DELETE {{host}}/api/v1/flipbook/rooms/not-a-room/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave flipbook room - not found
+DELETE {{host}}/api/v1/flipbook/rooms/ZZZZZZ/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}

@@ -10,4 +10,8 @@ import java.time.LocalDateTime;
  */
 public record InviteMetadata(String inviteCode, String boothType, String roomId, String roomName,
     LocalDateTime expiresAt) {
+
+    public InviteMetadata withExpiresAt(LocalDateTime updatedExpiresAt) {
+        return new InviteMetadata(inviteCode, boothType, roomId, roomName, updatedExpiresAt);
+    }
 }

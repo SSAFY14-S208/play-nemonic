@@ -61,15 +61,15 @@ public class RelayRoomEventPublisher {
     /**
      * 참여자 연결 상태가 바뀐 최신 방 상태를 방 전체에 알립니다.
      */
-    public void publishParticipantConnected(RelayRoomStateResponse roomStateResponse) {
-        publishRoomEvent(RelayRoomEventType.PARTICIPANT_CONNECTED, roomStateResponse);
+    public void publishParticipantConnected(RelayRoomStateResponse roomStateResponse, String connectedUserUuid) {
+        publishRoomEvent(RelayRoomEventType.PARTICIPANT_CONNECTED, roomStateResponse, connectedUserUuid);
     }
 
     /**
      * 참여자 연결 해제 상태가 반영된 최신 방 상태를 방 전체에 알립니다.
      */
-    public void publishParticipantDisconnected(RelayRoomStateResponse roomStateResponse) {
-        publishRoomEvent(RelayRoomEventType.PARTICIPANT_DISCONNECTED, roomStateResponse);
+    public void publishParticipantDisconnected(RelayRoomStateResponse roomStateResponse, String disconnectedUserUuid) {
+        publishRoomEvent(RelayRoomEventType.PARTICIPANT_DISCONNECTED, roomStateResponse, disconnectedUserUuid);
     }
 
     /**
@@ -270,8 +270,13 @@ public class RelayRoomEventPublisher {
     }
 
     private void publishRoomEvent(RelayRoomEventType type, RelayRoomStateResponse roomStateResponse) {
+        publishRoomEvent(type, roomStateResponse, null);
+    }
+
+    private void publishRoomEvent(RelayRoomEventType type, RelayRoomStateResponse roomStateResponse,
+        String changedUserUuid) {
         RelayRoomEventResponse event = RelayRoomEventResponse.of(type, roomStateResponse.roomCode(),
-            RelayRoomEventStateResponse.from(roomStateResponse));
+            RelayRoomEventStateResponse.from(roomStateResponse, changedUserUuid));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomStateResponse.roomCode(), event);
     }

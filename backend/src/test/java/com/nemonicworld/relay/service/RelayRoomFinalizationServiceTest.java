@@ -24,6 +24,7 @@ import com.nemonicworld.relay.service.finalization.RelayResultComposer;
 import com.nemonicworld.relay.service.finalization.RelayResultStorage;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationResult;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationService;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
@@ -59,13 +60,16 @@ class RelayRoomFinalizationServiceTest {
     @Mock
     private RelayRoomEventPublisher relayRoomEventPublisher;
 
+    @Mock
+    private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+
     private RelayRoomFinalizationService service;
 
     @BeforeEach
     void setUp() {
         service = new RelayRoomFinalizationService(relayRoomRepository, relayArtifactRepository, relayResultStorage,
-            new RelayResultComposer(4, 3, 4), relayRoomEventPublisher, new ObjectMapper().findAndRegisterModules(), 50,
-            60);
+            new RelayResultComposer(4, 3, 4), relayRoomEventPublisher, new ObjectMapper().findAndRegisterModules(),
+            relayInviteMetadataSyncService, 50, 60);
     }
 
     @Test

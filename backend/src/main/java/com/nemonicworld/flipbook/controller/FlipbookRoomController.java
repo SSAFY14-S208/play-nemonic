@@ -7,6 +7,7 @@ import com.nemonicworld.flipbook.dto.request.FlipbookRoomKickRequest;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
@@ -20,6 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +41,7 @@ public class FlipbookRoomController {
     private static final String FLIPBOOK_ROOM_STATE_FOUND_MESSAGE = "플립북 방 상태 조회 성공";
     private static final String FLIPBOOK_ROOM_SETTINGS_UPDATED_MESSAGE = "플립북 방 설정 변경 성공";
     private static final String FLIPBOOK_ROOM_PARTICIPANT_KICKED_MESSAGE = "참여자 강퇴 성공";
+    private static final String FLIPBOOK_ROOM_LEFT_MESSAGE = "플립북 방 퇴장 성공";
 
     private final FlipbookRoomService flipbookRoomService;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
@@ -164,5 +167,39 @@ public class FlipbookRoomController {
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(FLIPBOOK_ROOM_PARTICIPANT_KICKED_MESSAGE, response));
+    }
+
+    /**
+     * 참여자가 대기 중 방에서 스스로 퇴장하고 필요 시 방장 승계나 방 닫힘 이벤트를 알립니다.
+     */
+    @DeleteMapping("/{roomCode}/participants/me")
+    @Operation(summary = "플립북 방 자발적 퇴장", description = "참여자가 WAITING 상태의 플립북 대기실에서 스스로 퇴장합니다. 방장이 나가면 입장 순서 기준 다음 참여자에게 방장을 승계하고, 마지막 참여자가 나가면 방을 CLOSED로 전환합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "플립북 방 퇴장 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "퇴장 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(name = "비참여자", value = OpenApiErrorExamples.FLIPBOOK_ROOM_PARTICIPANT_REQUIRED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.FLIPBOOK_ROOM_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "퇴장 불가 상태", content = @Content(mediaType = "application/json", examples = @ExampleObject(name = "대기실 아님", value = OpenApiErrorExamples.FLIPBOOK_WAITING_ROOM_LEAVE_ONLY))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<FlipbookRoomLeaveResponse>> leaveRoom(@PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        FlipbookRoomLeaveResponse response = flipbookRoomService.leaveRoom(userUuid, roomCode);
+        flipbookRoomEventPublisher.publishParticipantLeft(response);
+        if (response.hostChanged()) {
+            flipbookRoomEventPublisher.publishHostChanged(response);
+        }
+        if (response.roomClosed()) {
+            flipbookRoomEventPublisher.publishRoomClosed(response.roomCode(), response.leftAt());
+        }
+        flipbookRoomEventPublisher.closeLeftRoomSession(response.roomCode(), response.leftUserUuid());
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(FLIPBOOK_ROOM_LEFT_MESSAGE, response));
     }
 }

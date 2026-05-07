@@ -23,6 +23,7 @@ import com.nemonicworld.relay.service.disconnect.RelayDisconnectGraceRoomResult;
 import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
 import com.nemonicworld.relay.service.disconnect.RelayRoomDisconnectGraceService;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -52,12 +53,16 @@ class RelayRoomDisconnectGraceServiceTest {
     @Mock
     private RelayRoomEventPublisher relayRoomEventPublisher;
 
+    @Mock
+    private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+
     private RelayRoomDisconnectGraceService relayRoomDisconnectGraceService;
 
     @BeforeEach
     void setUp() {
         relayRoomDisconnectGraceService = new RelayRoomDisconnectGraceService(relayRoomRepository,
-            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, RECONNECT_GRACE_SECONDS, 100);
+            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, relayInviteMetadataSyncService,
+            RECONNECT_GRACE_SECONDS, 100);
     }
 
     @Test
