@@ -9,9 +9,10 @@ import type { FortuneBirthInfo, FortuneCalendarType } from '../types'
 interface FortuneBirthFormProps {
   birthInfo: FortuneBirthInfo
   isComplete: boolean
+  isSubmitting: boolean
   onBack: () => void
   onChange: (birthInfo: FortuneBirthInfo) => void
-  onSubmit: () => void
+  onSubmit: () => Promise<void>
 }
 
 type BirthDatePart = 'year' | 'month' | 'day'
@@ -38,6 +39,7 @@ const BIRTH_MINUTE_OPTIONS = Array.from({ length: 12 }, (_, minuteIndex) => padD
 export default function FortuneBirthForm({
   birthInfo,
   isComplete,
+  isSubmitting,
   onBack,
   onChange,
   onSubmit,
@@ -48,7 +50,7 @@ export default function FortuneBirthForm({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    onSubmit()
+    void onSubmit()
   }
 
   const updateCalendarType = (calendarType: FortuneCalendarType) => {
@@ -244,10 +246,10 @@ export default function FortuneBirthForm({
       <div className="fortune-birth-actions">
         <button
           type="submit"
-          disabled={!isComplete}
+          disabled={!isComplete || isSubmitting}
           className="fortune-birth-submit fortune-primary-button"
         >
-          운세 메모 뽑기 준비
+          {isSubmitting ? '정보 저장 중' : '운세 메모 뽑기 준비'}
           <span>
             <ArrowRight className="size-6" aria-hidden />
           </span>

@@ -35,6 +35,8 @@ export default function FortunePage() {
     errorMessage,
     hasHydrated,
     isBirthInfoReady,
+    isDrawingFortune,
+    isSubmittingBirthInfo,
     nextResetLabel,
     result,
     retryAfterError,
@@ -68,7 +70,7 @@ export default function FortunePage() {
 
   const handleStartPrinting = () => {
     playPrintStart()
-    startPrinting()
+    void startPrinting()
   }
 
   const handlePrintComplete = () => {
@@ -127,6 +129,7 @@ export default function FortunePage() {
           'fortune-stage-overlay',
           shouldPlayEntrySpotlight && 'fortune-stage-overlay-entry',
           step === 'birthInfo' && 'fortune-stage-overlay-center fortune-stage-overlay-birth',
+          step === 'intro' && 'fortune-stage-overlay-dialogue',
           (step === 'draw' || step === 'printing' || step === 'limit' || step === 'error') && 'fortune-stage-overlay-panel',
           step === 'result' && 'fortune-stage-overlay-scroll',
         )}
@@ -168,6 +171,7 @@ export default function FortunePage() {
         <FortuneBirthForm
           birthInfo={birthInfo}
           isComplete={isBirthInfoReady}
+          isSubmitting={isSubmittingBirthInfo}
           onBack={handleReturnToDialogue}
           onChange={setBirthInfo}
           onSubmit={submitBirthInfo}
@@ -176,7 +180,15 @@ export default function FortunePage() {
     }
 
     if (step === 'draw') {
-      return <FortuneDrawPanel birthInfo={birthInfo} saju={sajuPreview} onDraw={handleStartPrinting} onEdit={editBirthInfo} />
+      return (
+        <FortuneDrawPanel
+          birthInfo={birthInfo}
+          isDrawing={isDrawingFortune}
+          saju={sajuPreview}
+          onDraw={handleStartPrinting}
+          onEdit={editBirthInfo}
+        />
+      )
     }
 
     if (step === 'printing') {

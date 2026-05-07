@@ -13,6 +13,7 @@ import {
   FORTUNE_STORAGE_KEY,
   FORTUNE_TITLES,
 } from './constants'
+import type { FortuneCreateRequest, FortuneIssuedResponse } from '@/shared/types'
 import type {
   FortuneBirthInfo,
   FortuneGenerationPayload,
@@ -101,6 +102,22 @@ export function createFortuneGenerationPayload(birthInfo: FortuneBirthInfo): For
   }
 }
 
+export function createFortuneCreateRequest(birthInfo: FortuneBirthInfo): FortuneCreateRequest {
+  const saju = calculateFortuneSaju(birthInfo)
+
+  return {
+    calendarType: birthInfo.calendarType,
+    yearPillar: saju.sajuYear,
+    monthPillar: saju.sajuMonth,
+    dayPillar: saju.sajuDay,
+    ...(birthInfo.timeUnknown ? {} : { hourPillar: saju.sajuHour }),
+    dayMasterElement: saju.dayElemental,
+    dayBranchElement: saju.dayBranchElemental,
+    dayMasterYinYang: saju.dayYinYang,
+    dayBranchYinYang: saju.dayBranchYinYang,
+  }
+}
+
 export function calculateFortuneSaju(birthInfo: FortuneBirthInfo): FortuneSaju {
   const birthDate = parseBirthDate(birthInfo.birthDate)
   const birthTime = parseBirthTime(birthInfo)
@@ -165,6 +182,38 @@ export function calculateFortuneSaju(birthInfo: FortuneBirthInfo): FortuneSaju {
   }
 }
 
+export function createFortuneResultFromIssuedResponse(
+  issuedFortune: FortuneIssuedResponse,
+  birthInfo: FortuneBirthInfo,
+): FortuneResult {
+  const saju = calculateFortuneSaju(birthInfo)
+  const scoreFallback = issuedFortune.score ?? 72
+  const luckyColor = normalizeLuckyColor(issuedFortune.luckyColor, issuedFortune.fortuneId)
+  const luckyKeyword = issuedFortune.luckyKeyword ?? '흐름'
+  const postitLine = issuedFortune.postitLine ?? createPostitLineFromIssuedFortune(issuedFortune, luckyKeyword)
+
+  return {
+    id: issuedFortune.fortuneId,
+    issuedDateKey: issuedFortune.date,
+    fortuneImageUrl: issuedFortune.fortuneImageUrl,
+    title: issuedFortune.title ?? '오늘의 흐름이 도착했어요',
+    postitLine,
+    summary: issuedFortune.summary,
+    scores: {
+      overall: issuedFortune.overallLuck ?? scoreFallback,
+      love: issuedFortune.loveLuck ?? scoreFallback,
+      work: issuedFortune.workLuck ?? scoreFallback,
+      money: issuedFortune.moneyLuck ?? scoreFallback,
+    },
+    luckyColor,
+    luckyKeyword,
+    caution: issuedFortune.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
+    cardTheme: pickCardTheme(issuedFortune.fortuneId),
+    saju,
+    sajuSummary: createSajuSummary(birthInfo, saju),
+  }
+}
+
 export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateKey = getKoreanDateKey()) {
   const saju = calculateFortuneSaju(birthInfo)
   const seed = createHash(
@@ -204,6 +253,41 @@ function createFortuneResultId(issuedDateKey: string, seed: number) {
 
 function createSummary(luckyKeyword: string) {
   return `${luckyKeyword}의 기운이 또렷한 하루예요. 해야 할 일을 작게 나누면 포포가 적어 준 메모처럼 길이 선명해집니다.`
+}
+
+function createPostitLineFromIssuedFortune(issuedFortune: FortuneIssuedResponse, luckyKeyword: string) {
+  if (issuedFortune.sections?.종합운) {
+    return issuedFortune.sections.종합운
+  }
+
+  if (issuedFortune.summary.length <= 28) {
+    return issuedFortune.summary
+  }
+
+  return `${luckyKeyword}을 기억하면 운이 열려요`
+}
+
+function normalizeLuckyColor(luckyColorName: string | undefined, seedSource: string) {
+  if (!luckyColorName) {
+    return pickBySeed(FORTUNE_LUCKY_COLORS, createHash(seedSource))
+  }
+
+  const matchingColor = FORTUNE_LUCKY_COLORS.find((color) => color.name === luckyColorName)
+
+  if (matchingColor) {
+    return matchingColor
+  }
+
+  const knownColorHex = KOREAN_LUCKY_COLOR_HEX[luckyColorName]
+
+  return {
+    name: luckyColorName,
+    hex: knownColorHex ?? pickBySeed(FORTUNE_LUCKY_COLORS, createHash(`${seedSource}-${luckyColorName}`)).hex,
+  }
+}
+
+function pickCardTheme(seedSource: string) {
+  return createHash(seedSource) % 2 === 0 ? 'moon-paper' : 'soft-star'
 }
 
 function createSajuSummary(birthInfo: FortuneBirthInfo, saju: FortuneSaju) {
@@ -331,4 +415,21 @@ function createHash(value: string) {
 
 function pickBySeed<T>(items: readonly T[], seed: number) {
   return items[seed % items.length]
+}
+
+const KOREAN_LUCKY_COLOR_HEX: Record<string, string> = {
+  은회색: '#c0c0c0',
+  노랑: '#f4d35e',
+  노란색: '#f4d35e',
+  보라: '#a281d0',
+  보라색: '#a281d0',
+  초록: '#8ccf92',
+  초록색: '#8ccf92',
+  파랑: '#82b9e6',
+  파란색: '#82b9e6',
+  분홍: '#ef9aa7',
+  분홍색: '#ef9aa7',
+  흰색: '#f8f6ef',
+  검정: '#2f2a33',
+  검은색: '#2f2a33',
 }

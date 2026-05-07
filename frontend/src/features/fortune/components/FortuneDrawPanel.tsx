@@ -4,12 +4,13 @@ import type { FortuneBirthInfo, FortuneSaju } from '../types'
 
 interface FortuneDrawPanelProps {
   birthInfo: FortuneBirthInfo
+  isDrawing: boolean
   saju: FortuneSaju | null
   onDraw: () => void
   onEdit: () => void
 }
 
-export default function FortuneDrawPanel({ birthInfo, saju, onDraw, onEdit }: FortuneDrawPanelProps) {
+export default function FortuneDrawPanel({ birthInfo, isDrawing, saju, onDraw, onEdit }: FortuneDrawPanelProps) {
   const calendarLabel = birthInfo.calendarType === 'solar' ? '양력' : '음력'
   const timeLabel = birthInfo.timeUnknown ? '시간 모름' : birthInfo.birthTime
 
@@ -51,10 +52,11 @@ export default function FortuneDrawPanel({ birthInfo, saju, onDraw, onEdit }: Fo
         <button
           type="button"
           className="body-l-b fortune-primary-button flex min-h-14 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-fortune-accent px-5 text-fortune-inverse shadow-soft-lg transition hover:-translate-y-0.5"
+          disabled={isDrawing}
           onClick={onDraw}
         >
           <WandSparkles className="size-5" aria-hidden />
-          운세 뽑기
+          {isDrawing ? '포포가 준비 중' : '운세 뽑기'}
         </button>
       </div>
     </section>
