@@ -6,3 +6,4 @@ export {
 } from './useFortunePopoModel'
 export { useFortunePrinterMotion } from './useFortunePrinterMotion'
 export { useFortuneReducedMotion } from './useFortuneReducedMotion'
+export { useFortuneTypewriterText } from './useFortuneTypewriterText'
