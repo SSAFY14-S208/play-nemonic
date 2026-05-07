@@ -10,7 +10,7 @@ public record FlipbookRoomLeaveResponse(@Schema(description = "방 코드", exam
     @Schema(description = "퇴장한 사용자 닉네임", example = "망고") String leftNickname,
     @Schema(description = "퇴장 후 현재 참여자 수", example = "2") int participantCount,
     @Schema(description = "방장 승계 발생 여부", example = "false") boolean hostChanged,
-    @Schema(description = "새 방장 UUID. 승계가 없으면 null입니다.", example = "11111111-1111-1111-1111-111111111111") String newHostUserUuid,
+    @Schema(description = "새 방장 UUID", example = "11111111-1111-1111-1111-111111111111") String newHostUserUuid,
     @Schema(description = "새 방장 닉네임. 승계가 없으면 null입니다.", example = "포도") String newHostNickname,
     @Schema(description = "마지막 참여자 퇴장으로 방이 닫혔는지 여부", example = "false") boolean roomClosed,
     @Schema(description = "퇴장 후 방 상태", example = "WAITING") FlipbookRoomStatus roomStatus,

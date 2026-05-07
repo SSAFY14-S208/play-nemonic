@@ -6,12 +6,15 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 @Repository
 public class CsInquiryRepository {
@@ -81,6 +84,72 @@ public class CsInquiryRepository {
             FROM cs_inquiry
             WHERE id = ?
             """, this::mapInquiry, id).stream().findFirst();
+    }
+
+    public List<CsInquiry> findInquiries(String status, String type, String keyword, UUID userUuid, int limit,
+        long offset) {
+        StringBuilder sql = new StringBuilder(SELECT_COLUMNS).append("""
+            FROM cs_inquiry
+            WHERE 1 = 1
+            """);
+        List<Object> params = new ArrayList<>();
+        appendSearchConditions(sql, params, status, type, keyword, userUuid);
+        sql.append("""
+            ORDER BY created_at DESC, id DESC
+            LIMIT ? OFFSET ?
+            """);
+        params.add(limit);
+        params.add(offset);
+
+        return jdbcTemplate.query(sql.toString(), this::mapInquiry, params.toArray());
+    }
+
+    public long countInquiries(String status, String type, String keyword, UUID userUuid) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+            FROM cs_inquiry
+            WHERE 1 = 1
+            """);
+        List<Object> params = new ArrayList<>();
+        appendSearchConditions(sql, params, status, type, keyword, userUuid);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
+
+        return count == null ? 0L : count;
+    }
+
+    private void appendSearchConditions(StringBuilder sql, List<Object> params, String status, String type,
+        String keyword, UUID userUuid) {
+        if (StringUtils.hasText(status)) {
+            sql.append("""
+                  AND LOWER(CAST(status AS VARCHAR)) = ?
+                """);
+            params.add(status);
+        }
+
+        if (StringUtils.hasText(type)) {
+            sql.append("""
+                  AND LOWER(CAST(inquiry_type AS VARCHAR)) = ?
+                """);
+            params.add(type);
+        }
+
+        if (StringUtils.hasText(keyword)) {
+            String keywordPattern = "%" + keyword + "%";
+            sql.append("""
+                  AND (LOWER(title) LIKE ? OR LOWER(content) LIKE ? OR LOWER(email) LIKE ?)
+                """);
+            params.add(keywordPattern);
+            params.add(keywordPattern);
+            params.add(keywordPattern);
+        }
+
+        if (userUuid != null) {
+            sql.append("""
+                  AND user_id = ?
+                """);
+            params.add(userUuid);
+        }
     }
 
     private CsInquiry mapInquiry(ResultSet resultSet, int rowNumber) throws SQLException {
