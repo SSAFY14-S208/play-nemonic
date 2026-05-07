@@ -85,18 +85,13 @@ public class RelayRoomJoinUseCase {
             return Optional.of(RelayRoomStateResponse.from(roomState, viewer));
         }
 
-        relayRoomPolicy.requireReconnectable(participant, now);
-
-        RelayRoomParticipant reconnectedParticipant = participant.withConnection(true, null);
-        RelayRoomState updatedRoomState = replaceParticipant(roomState, reconnectedParticipant, now);
-
-        if (!relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
-            return Optional.empty();
+        if (participant.disconnectedAt() != null) {
+            relayRoomPolicy.requireReconnectable(participant, now);
         }
 
-        RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now);
+        RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, roomState, now);
 
-        return Optional.of(RelayRoomStateResponse.from(updatedRoomState, viewer));
+        return Optional.of(RelayRoomStateResponse.from(roomState, viewer));
     }
 
     /**
@@ -108,7 +103,7 @@ public class RelayRoomJoinUseCase {
         relayRoomPolicy.validateNicknameRegistered(viewerUser);
 
         RelayRoomParticipant newParticipant = new RelayRoomParticipant(viewerUser.getId().toString(),
-            viewerUser.getNickname(), false, relayRoomPolicy.nextJoinOrder(roomState), true, null, now);
+            viewerUser.getNickname(), false, relayRoomPolicy.nextJoinOrder(roomState), false, null, now);
         List<RelayRoomParticipant> participants = new ArrayList<>(roomState.participants());
         participants.add(newParticipant);
         RelayRoomState updatedRoomState = roomState.withParticipants(participants, now);
@@ -123,17 +118,4 @@ public class RelayRoomJoinUseCase {
         return Optional.of(RelayRoomStateResponse.from(updatedRoomState, viewer));
     }
 
-    /**
-     * 특정 참여자를 교체한 방 상태를 생성합니다.
-     */
-    private RelayRoomState replaceParticipant(RelayRoomState roomState, RelayRoomParticipant updatedParticipant,
-        LocalDateTime updatedAt) {
-        List<RelayRoomParticipant> participants = roomState.participants().stream()
-            .map(participant -> participant.userUuid().equals(updatedParticipant.userUuid())
-                ? updatedParticipant
-                : participant)
-            .toList();
-
-        return roomState.withParticipants(participants, updatedAt);
-    }
 }

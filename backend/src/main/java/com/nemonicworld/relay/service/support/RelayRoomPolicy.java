@@ -56,7 +56,7 @@ public class RelayRoomPolicy {
     private static final String WAITING_ROOM_LEAVE_ONLY_MESSAGE = "대기실에서만 퇴장할 수 있습니다.";
     private static final String GAME_ALREADY_STARTED_MESSAGE = "이미 게임이 시작되었습니다.";
     private static final String NOT_ENOUGH_PARTICIPANTS_MESSAGE = "최소 2명이 모여야 시작할 수 있습니다.";
-    private static final String PARTICIPANTS_DISCONNECTED_MESSAGE = "모든 참여자가 연결된 상태에서만 시작할 수 있습니다.";
+    private static final String PARTICIPANTS_DISCONNECTED_MESSAGE = "모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다.";
     private static final String GAME_NOT_STARTED_MESSAGE = "게임이 아직 시작되지 않았습니다.";
     private static final String CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE = "현재 배정된 그림이 없습니다.";
     private static final String ONLY_HOST_CLOSE_ALLOWED_MESSAGE = "방장만 사용할 수 있는 기능입니다.";
