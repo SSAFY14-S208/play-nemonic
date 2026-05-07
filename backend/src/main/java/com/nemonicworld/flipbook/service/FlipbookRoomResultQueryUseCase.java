@@ -19,6 +19,7 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.result.FlipbookGifComposer;
 import com.nemonicworld.flipbook.service.result.FlipbookResultArtifactResult;
 import com.nemonicworld.flipbook.service.result.FlipbookResultStorage;
+import com.nemonicworld.flipbook.service.result.FlipbookThumbnailComposer;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -43,6 +44,7 @@ import org.springframework.util.StringUtils;
 public class FlipbookRoomResultQueryUseCase {
 
     private static final String GIF_CONTENT_TYPE = "image/gif";
+    private static final String PNG_CONTENT_TYPE = "image/png";
     private static final String RESULT_NOT_FOUND_MESSAGE = "플립북 결과를 찾을 수 없습니다.";
     private static final String RESULT_ACCESS_DENIED_MESSAGE = "플립북 결과를 조회할 권한이 없습니다.";
     private static final String RESULT_STATE_ERROR_MESSAGE = "플립북 결과 상태가 올바르지 않습니다.";
@@ -54,6 +56,7 @@ public class FlipbookRoomResultQueryUseCase {
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookResultStorage flipbookResultStorage;
     private final FlipbookGifComposer flipbookGifComposer;
+    private final FlipbookThumbnailComposer flipbookThumbnailComposer;
     private final ObjectMapper objectMapper;
     private final MinioPublicUrlResolver minioPublicUrlResolver;
 
@@ -61,13 +64,14 @@ public class FlipbookRoomResultQueryUseCase {
         FlipbookArtifactRepository flipbookArtifactRepository, FlipbookRoomRepository flipbookRoomRepository,
         FlipbookRoomPolicy flipbookRoomPolicy, FlipbookResultStorage flipbookResultStorage,
         FlipbookGifComposer flipbookGifComposer, ObjectMapper objectMapper,
-        MinioPublicUrlResolver minioPublicUrlResolver) {
+        FlipbookThumbnailComposer flipbookThumbnailComposer, MinioPublicUrlResolver minioPublicUrlResolver) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.flipbookArtifactRepository = flipbookArtifactRepository;
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.flipbookRoomPolicy = flipbookRoomPolicy;
         this.flipbookResultStorage = flipbookResultStorage;
         this.flipbookGifComposer = flipbookGifComposer;
+        this.flipbookThumbnailComposer = flipbookThumbnailComposer;
         this.objectMapper = objectMapper;
         this.minioPublicUrlResolver = minioPublicUrlResolver;
     }
@@ -149,14 +153,18 @@ public class FlipbookRoomResultQueryUseCase {
         List<FrameSource> frameSources) {
         UUID artifactId = UUID.randomUUID();
         String gifObjectKey = createResultObjectKey(artifactId, "result.gif");
+        String thumbnailObjectKey = createResultObjectKey(artifactId, "thumbnail.png");
         String firstImageObjectKey = frameSources.get(0).objectKey();
-        byte[] gifBytes = flipbookGifComposer
-            .compose(frameSources.stream().map(FrameSource::objectKey).map(flipbookResultStorage::download).toList());
+        List<byte[]> frameImageBytes = frameSources.stream().map(FrameSource::objectKey)
+            .map(flipbookResultStorage::download).toList();
+        byte[] gifBytes = flipbookGifComposer.compose(frameImageBytes);
+        byte[] thumbnailBytes = flipbookThumbnailComposer.compose(frameImageBytes.get(0));
 
         flipbookResultStorage.upload(gifObjectKey, gifBytes, GIF_CONTENT_TYPE);
+        flipbookResultStorage.upload(thumbnailObjectKey, thumbnailBytes, PNG_CONTENT_TYPE);
 
         return new FlipbookResultArtifactResult(artifactId, flipbookIndex, gifObjectKey, firstImageObjectKey,
-            firstImageObjectKey, createArtifactMeta(roomState, flipbookIndex, frameSources));
+            thumbnailObjectKey, createArtifactMeta(roomState, flipbookIndex, frameSources));
     }
 
     private Map<Integer, List<FrameSource>> groupFrameSourcesByFlipbookIndex(FlipbookRoomState roomState) {
