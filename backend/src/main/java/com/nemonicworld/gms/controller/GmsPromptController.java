@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/backoffice/gms/prompts")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "GMS Prompts", description = "Backoffice GMS prompt management API")
+@Tag(name = "GMS Prompts", description = "백오피스 GMS 프롬프트 관리 API")
 public class GmsPromptController {
 
     private static final String DELETE_SUCCESS_MESSAGE = "GMS 프롬프트 삭제 성공";
@@ -73,15 +73,15 @@ public class GmsPromptController {
     }
 
     @GetMapping
-    @Operation(summary = "GMS prompt list", description = "Backoffice admins can search active GMS prompts.")
-    @Parameter(name = "keyword", in = ParameterIn.QUERY, description = "Search keyword for prompt name or content")
-    @Parameter(name = "featureType", in = ParameterIn.QUERY, description = "Prompt feature type")
-    @Parameter(name = "page", in = ParameterIn.QUERY, description = "Page number", example = "0")
-    @Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size", example = "20")
+    @Operation(summary = "GMS 프롬프트 목록 조회", description = "백오피스 관리자가 활성 GMS 프롬프트 목록을 검색 조건으로 조회합니다.")
+    @Parameter(name = "keyword", in = ParameterIn.QUERY, description = "프롬프트 이름 또는 본문 검색어")
+    @Parameter(name = "featureType", in = ParameterIn.QUERY, description = "프롬프트 기능 타입")
+    @Parameter(name = "page", in = ParameterIn.QUERY, description = "페이지 번호", example = "0")
+    @Parameter(name = "size", in = ParameterIn.QUERY, description = "페이지 크기", example = "20")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS prompt list success"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Request parameter error", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Admin authentication required", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 목록 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 파라미터 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
     public ResponseEntity<ApiResponse<GmsPromptListResponse>> getPrompts(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestParam(name = "keyword", required = false) String keyword,
