@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadOnArtifactPrefixes",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": ["*"]
+      },
+      "Action": ["s3:GetObject"],
+      "Resource": [
+        "arn:aws:s3:::nemonic/relay/results/*",
+        "arn:aws:s3:::nemonic/flipbook/results/*"
+      ]
+    }
+  ]
+}
