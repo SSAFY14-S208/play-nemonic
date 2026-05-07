@@ -6,6 +6,7 @@ import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
 import com.nemonicworld.gms.dto.request.GmsPromptCreateRequest;
 import com.nemonicworld.gms.dto.request.GmsPromptUpdateRequest;
+import com.nemonicworld.gms.dto.response.GmsPromptListResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptResponse;
 import com.nemonicworld.gms.service.GmsPromptService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -46,6 +48,7 @@ public class GmsPromptController {
 
     private static final String CREATE_SUCCESS_MESSAGE = "GMS 프롬프트 생성 성공";
     private static final String DETAIL_SUCCESS_MESSAGE = "GMS 프롬프트 상세 조회 성공";
+    private static final String LIST_SUCCESS_MESSAGE = "GMS 프롬프트 목록 조회 성공";
     private static final String UPDATE_SUCCESS_MESSAGE = "GMS 프롬프트 수정 성공";
 
     private final GmsPromptService gmsPromptService;
@@ -67,6 +70,28 @@ public class GmsPromptController {
 
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(CREATE_SUCCESS_MESSAGE, response));
+    }
+
+    @GetMapping
+    @Operation(summary = "GMS prompt list", description = "Backoffice admins can search active GMS prompts.")
+    @Parameter(name = "keyword", in = ParameterIn.QUERY, description = "Search keyword for prompt name or content")
+    @Parameter(name = "featureType", in = ParameterIn.QUERY, description = "Prompt feature type")
+    @Parameter(name = "page", in = ParameterIn.QUERY, description = "Page number", example = "0")
+    @Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size", example = "20")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS prompt list success"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Request parameter error", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Admin authentication required", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
+    public ResponseEntity<ApiResponse<GmsPromptListResponse>> getPrompts(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal,
+        @RequestParam(name = "keyword", required = false) String keyword,
+        @RequestParam(name = "featureType", required = false) String featureType,
+        @RequestParam(name = "page", required = false) String page,
+        @RequestParam(name = "size", required = false) String size) {
+        GmsPromptListResponse response = gmsPromptService.getPrompts(adminPrincipal, keyword, featureType, page, size);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));
     }
 
     @GetMapping("/{promptId}")
