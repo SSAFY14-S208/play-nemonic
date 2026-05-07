@@ -35,6 +35,19 @@ class WebSocketSessionRegistryTest {
     }
 
     /**
+     * 콘텐츠 종류를 구분해 등록한 세션은 같은 종류로 조회해야 현재 세션을 찾을 수 있습니다.
+     */
+    @Test
+    void findCurrentSessionUsesConnectionTypeWhenSessionWasRegisteredWithType() {
+        registry.register(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE, USER_UUID, "session-1");
+
+        assertThat(
+            registry.findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE, USER_UUID))
+            .isPresent();
+        assertThat(registry.findCurrentSession(ROOM_CODE, USER_UUID)).isEmpty();
+    }
+
+    /**
      * 교체된 이전 세션을 제거해도 최신 세션 매핑은 지워지지 않습니다.
      */
     @Test
