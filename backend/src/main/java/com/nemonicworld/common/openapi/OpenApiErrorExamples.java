@@ -437,6 +437,12 @@ public final class OpenApiErrorExamples {
           "message": "확인할 수 없는 파일 업로드 상태입니다."
         }
         """;
+    public static final String FILE_VIEW_STATUS_CONFLICT = """
+        {
+          "success": false,
+          "message": "조회할 수 없는 파일 업로드 상태입니다."
+        }
+        """;
     public static final String FILE_DELETE_STATUS_CONFLICT = """
         {
           "success": false,
