@@ -71,7 +71,7 @@ public class FlipbookRoomConnectionUseCase {
             // 대체
             FlipbookRoomState updatedRoomState = replaceParticipant(roomState, updatedParticipant, now);
 
-            // 저장 
+            // 저장
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 

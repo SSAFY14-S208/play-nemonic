@@ -48,17 +48,15 @@ public class FlipbookStompChannelInterceptor implements ChannelInterceptor {
         String sessionId = accessor.getSessionId();
         // STOMP CONNECT
         /*
-        프론트에서 보내는 정보
-        connectHeaders: {
-          roomCode: "8VU792",
-          "Anonymous-User-UUID": userUuid,
-        }
+         * 프론트에서 보내는 정보 connectHeaders: { roomCode: "8VU792", "Anonymous-User-UUID":
+         * userUuid, }
          */
         String roomCode = accessor.getFirstNativeHeader(ROOM_CODE_CONNECT_HEADER);
         String userUuid = accessor.getFirstNativeHeader(AnonymousUserHeaders.ANONYMOUS_USER_UUID);
 
         try {
-            // UUID가 유효한지, roodCode 형식 확인, Redis에 방이 있는지, 이 사용자가 해당 방 participants에 있는지, Redis에 connected=true로 변경
+            // UUID가 유효한지, roodCode 형식 확인, Redis에 방이 있는지, 이 사용자가 해당 방 participants에 있는지,
+            // Redis에 connected=true로 변경
             FlipbookRoomStateResponse roomStateResponse = flipbookRoomService.connectRoom(userUuid, roomCode);
 
             configureSession(accessor, sessionId, roomCode, userUuid);
