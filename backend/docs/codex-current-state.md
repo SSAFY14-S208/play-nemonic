@@ -285,6 +285,16 @@ Recent flipbook current assignment lookup work passed with:
 GRADLE_USER_HOME=.gradle-user-home ./gradlew test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.invite.service.FlipbookInviteJoinHandlerTest' --no-daemon
 ```
 
+Recent artifact image URL lookup work added `GET /api/v1/artifacts/{artifactId}/image-urls`.
+
+- Keep `GET /api/v1/files/{fileId}/view-url` for `file_upload.id` based private upload lookup only.
+- The artifact image URL API reads active `gallery` ownership, `artifact.thumbnail_url`, and subtype image columns, then converts object keys with `MinioPublicUrlResolver`.
+- Flipbook responses return multiple `contents` entries, including `gif` and `first_image` when both object keys exist.
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.artifact.*' --no-daemon
+```
+
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.
 
