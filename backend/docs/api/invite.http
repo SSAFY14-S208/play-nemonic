@@ -1,0 +1,8 @@
+@host = http://localhost:8080
+@userUuid = 550e8400-e29b-41d4-a716-446655440000
+@inviteCode = A3K9P2
+
+### Join cooperative booth by invite code
+POST {{host}}/api/v1/invites/{{inviteCode}}
+Content-Type: application/json
+Anonymous-User-UUID: {{userUuid}}

@@ -27,6 +27,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
@@ -64,7 +65,19 @@ tasks.named('test') {
 }
 
 tasks.named('bootRun') {
-	file('.env').readLines()
+	def envFileName = providers.gradleProperty('envFile')
+		.orElse(providers.environmentVariable('ENV_FILE'))
+		.orElse('.env')
+		.get()
+	def envFile = file(envFileName)
+
+	if (!envFile.exists()) {
+		throw new GradleException("Environment file not found: ${envFile.path}")
+	}
+
+	println "Using bootRun environment file: ${envFile.path}"
+
+	envFile.readLines()
 		.findAll { it ==~ /^[^#=]+=.*$/ }
 		.each {
 			def (name, value) = it.split('=', 2)

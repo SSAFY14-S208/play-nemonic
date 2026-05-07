@@ -64,17 +64,34 @@ be/refactor/common-response
 
 로컬 환경 파일을 만든다.
 
+```bash
+# macOS / Linux
+cp backend/.env.example backend/.env
+```
+
 ```powershell
+# Windows
 Copy-Item .\backend\.env.example .\backend\.env
 ```
 
 필요하면 `backend/.env` 값을 개인 로컬 환경에 맞게 수정한다.
 
-로컬 의존성을 실행한다.
+로컬 의존성(PostgreSQL, Redis, MinIO)을 실행한다.
+
+```bash
+# macOS / Linux
+cd backend
+docker compose -f docker-compose.local.yml up -d
+```
 
 ```powershell
+# Windows
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\local-up.ps1
 ```
+
+IntelliJ에서는 EnvFile 플러그인으로 `backend/.env`를 Run Configuration에 연결한다 (또는 `./gradlew bootRun`을 사용하면 자동으로 `.env`를 읽는다).
+
+> 서버 DB에 직접 접속해야 할 때는 `backend/.env.server`를 별도 작성하고 별도 Run Configuration의 EnvFile에 연결한다. SSH 터널 필요.
 
 ## 5. 검증 명령
 
