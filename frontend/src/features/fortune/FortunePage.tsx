@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { runtime } from '@/shared/config'
 import { cn } from '@/shared/libs'
@@ -90,6 +90,26 @@ export default function FortunePage() {
 
   const shouldPrepareEntrySpotlight = step === 'intro' && dialogueIndex === 0
   const shouldPlayEntrySpotlight = shouldPrepareEntrySpotlight && isEntrySceneReady
+
+  useEffect(() => {
+    if (!shouldPrepareEntrySpotlight || isEntrySceneReady) {
+      return
+    }
+
+    let cancelled = false
+
+    ;(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, ENTRY_SCENE_READY_FALLBACK_DELAY_MS))
+
+      if (!cancelled) {
+        setIsEntrySceneReady(true)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isEntrySceneReady, shouldPrepareEntrySpotlight])
 
   return (
     <main className="fortune-page-shell relative min-h-dvh overflow-hidden bg-fortune-backdrop text-fortune-ink">
@@ -182,3 +202,5 @@ export default function FortunePage() {
     return <FortuneErrorView message={errorMessage} onRetry={retryAfterError} />
   }
 }
+
+const ENTRY_SCENE_READY_FALLBACK_DELAY_MS = 900
