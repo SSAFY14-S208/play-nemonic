@@ -6,6 +6,7 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -25,12 +26,14 @@ public class RelayRoomLeaveUseCase {
     private final AnonymousUserResolver anonymousUserResolver;
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomPolicy relayRoomPolicy;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
     public RelayRoomLeaveUseCase(AnonymousUserResolver anonymousUserResolver, RelayRoomRepository relayRoomRepository,
-        RelayRoomPolicy relayRoomPolicy) {
+        RelayRoomPolicy relayRoomPolicy, RelayInviteMetadataSyncService relayInviteMetadataSyncService) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
+        this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
     }
 
     /**
@@ -51,6 +54,7 @@ public class RelayRoomLeaveUseCase {
             LeaveResult leaveResult = leaveParticipant(roomState, leavingParticipant, now);
 
             if (relayRoomRepository.saveIfUnchanged(roomState, leaveResult.roomState())) {
+                relayInviteMetadataSyncService.syncWithRoomState(leaveResult.roomState());
                 return new RelayRoomLeaveResponse(leaveResult.roomState().roomCode(), leavingParticipant.userUuid(),
                     leavingParticipant.nickname(), leaveResult.roomState().participantCount(),
                     leaveResult.hostChanged(), leaveResult.newHostUserUuid(), leaveResult.newHostNickname(),

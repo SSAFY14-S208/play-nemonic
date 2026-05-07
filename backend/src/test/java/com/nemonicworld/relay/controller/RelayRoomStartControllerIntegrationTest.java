@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -479,11 +480,16 @@ class RelayRoomStartControllerIntegrationTest {
     private JsonNode readSavedRoom() throws Exception {
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).set(keyCaptor.capture(), jsonCaptor.capture(), eq(ROOM_STATE_TTL));
+        verify(valueOperations, atLeastOnce()).set(keyCaptor.capture(), jsonCaptor.capture(), eq(ROOM_STATE_TTL));
 
-        assertThat(keyCaptor.getValue()).isEqualTo("relay:room:%s".formatted(DEFAULT_ROOM_CODE));
+        String expectedKey = "relay:room:%s".formatted(DEFAULT_ROOM_CODE);
+        for (int index = 0; index < keyCaptor.getAllValues().size(); index++) {
+            if (expectedKey.equals(keyCaptor.getAllValues().get(index))) {
+                return objectMapper.readTree(jsonCaptor.getAllValues().get(index));
+            }
+        }
 
-        return objectMapper.readTree(jsonCaptor.getValue());
+        throw new AssertionError("Redis 저장 key를 찾을 수 없습니다. expectedKey=" + expectedKey);
     }
 
     private void assertAssignment(JsonNode assignment, int canvasIndex, String part, UUID assignedUserUuid) {

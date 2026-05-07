@@ -3,6 +3,7 @@ package com.nemonicworld.relay.service.close;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Component;
@@ -14,9 +15,12 @@ import org.springframework.stereotype.Component;
 public class RelayRoomCloseCommand {
 
     private final RelayRoomRepository relayRoomRepository;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
-    public RelayRoomCloseCommand(RelayRoomRepository relayRoomRepository) {
+    public RelayRoomCloseCommand(RelayRoomRepository relayRoomRepository,
+        RelayInviteMetadataSyncService relayInviteMetadataSyncService) {
         this.relayRoomRepository = relayRoomRepository;
+        this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
     }
 
     /**
@@ -32,6 +36,7 @@ public class RelayRoomCloseCommand {
         if (!relayRoomRepository.saveIfUnchanged(roomState, closedRoomState)) {
             return RelayRoomCloseResult.noOp(roomState.roomCode());
         }
+        relayInviteMetadataSyncService.syncWithRoomState(closedRoomState);
 
         return RelayRoomCloseResult.closed(closedRoomState, closedAt);
     }

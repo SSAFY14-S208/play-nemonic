@@ -69,7 +69,7 @@ public class FlipbookStompChannelInterceptor implements ChannelInterceptor {
                 session.connectionKey()));
 
             // /topic/flipbook/rooms/{roomCode}로 PARTICIPANT_CONNECTED 이벤트를 보냄
-            flipbookRoomEventPublisher.publishParticipantConnected(roomStateResponse);
+            flipbookRoomEventPublisher.publishParticipantConnected(roomStateResponse, userUuid);
 
             return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
         } catch (RuntimeException e) {

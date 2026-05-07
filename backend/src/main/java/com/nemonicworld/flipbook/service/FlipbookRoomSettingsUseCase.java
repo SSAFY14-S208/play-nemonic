@@ -26,6 +26,7 @@ public class FlipbookRoomSettingsUseCase {
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookRoomViewerFactory flipbookRoomViewerFactory;
+    private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
     /**
      * 대기 중인 플립북 방의 라운드별 제한 시간을 변경합니다.
@@ -48,6 +49,7 @@ public class FlipbookRoomSettingsUseCase {
             FlipbookRoomState updatedRoomState = roomState.withTimeLimitSeconds(timeLimitSeconds, now);
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 
                 return FlipbookRoomStateResponse.from(updatedRoomState, viewer);

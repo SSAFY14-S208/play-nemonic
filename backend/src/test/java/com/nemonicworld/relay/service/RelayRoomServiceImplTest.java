@@ -43,6 +43,7 @@ import com.nemonicworld.relay.service.room.RelayRoomSettingsUseCase;
 import com.nemonicworld.relay.service.result.RelayRoomResultQueryUseCase;
 import com.nemonicworld.relay.service.submission.RelayRoomSubmissionUseCase;
 import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
 import com.nemonicworld.user.entity.AppUser;
@@ -88,6 +89,9 @@ class RelayRoomServiceImplTest {
     @Mock
     private RelaySubmissionStorage relaySubmissionStorage;
 
+    @Mock
+    private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+
     private RelayRoomService relayRoomService;
 
     @BeforeEach
@@ -97,26 +101,29 @@ class RelayRoomServiceImplTest {
         RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
         relayRoomService = new RelayRoomServiceImpl(
             new RelayRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator, relayRoomRepository, inviteRepository,
-                relayRoomPolicy),
+                relayRoomPolicy, relayInviteMetadataSyncService),
             new RelayRoomQueryUseCase(anonymousUserResolver, relayRoomPolicy, relayRoomViewerFactory),
             new RelayRoomJoinUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory),
-            new RelayRoomKickUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy),
-            new RelayRoomLeaveUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy),
+                relayRoomViewerFactory, relayInviteMetadataSyncService),
+            new RelayRoomKickUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayInviteMetadataSyncService),
+            new RelayRoomLeaveUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
+                relayInviteMetadataSyncService),
             new RelayRoomSettingsUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory),
+                relayRoomViewerFactory, relayInviteMetadataSyncService),
             new RelayRoomStartUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory),
+                relayRoomViewerFactory, relayInviteMetadataSyncService),
             new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayHintImageUrlResolver(minioStorageProperties())),
             new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
                 relayRoomPolicy, new ObjectMapper().findAndRegisterModules()),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomPartAdvanceService, relaySubmissionStorage, minioStorageProperties()),
+                relayRoomPartAdvanceService, relaySubmissionStorage, minioStorageProperties(),
+                relayInviteMetadataSyncService),
             new RelayRoomManualCloseUseCase(anonymousUserResolver, relayRoomPolicy,
-                new RelayRoomCloseCommand(relayRoomRepository)),
+                new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService)),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory));
+                relayRoomViewerFactory, relayInviteMetadataSyncService));
     }
 
     /**

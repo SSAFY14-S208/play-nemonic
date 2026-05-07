@@ -21,6 +21,7 @@ import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
 import com.nemonicworld.relay.service.close.RelayRoomCloseProcessResult;
 import com.nemonicworld.relay.service.close.RelayRoomCloseResult;
 import com.nemonicworld.relay.service.close.RelayRoomCloseService;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -51,12 +52,16 @@ class RelayRoomCloseServiceTest {
     @Mock
     private RelayRoomEventPublisher relayRoomEventPublisher;
 
+    @Mock
+    private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+
     private RelayRoomCloseService relayRoomCloseService;
 
     @BeforeEach
     void setUp() {
         relayRoomCloseService = new RelayRoomCloseService(relayRoomRepository,
-            new RelayRoomCloseCommand(relayRoomRepository), relayRoomEventPublisher, CLOSE_DELAY_SECONDS, SCAN_LIMIT);
+            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), relayRoomEventPublisher,
+            CLOSE_DELAY_SECONDS, SCAN_LIMIT);
     }
 
     @Test

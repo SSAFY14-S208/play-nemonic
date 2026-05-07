@@ -3,6 +3,7 @@ package com.nemonicworld.flipbook.service;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     private final FlipbookRoomQueryUseCase flipbookRoomQueryUseCase;
     private final FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
     private final FlipbookRoomKickUseCase flipbookRoomKickUseCase;
+    private final FlipbookRoomLeaveUseCase flipbookRoomLeaveUseCase;
     private final FlipbookRoomConnectionUseCase flipbookRoomConnectionUseCase;
 
     @Override
@@ -40,6 +42,11 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     public FlipbookRoomKickResponse kickParticipant(String userUuidValue, String roomCodeValue,
         String targetUserUuidValue) {
         return flipbookRoomKickUseCase.kickParticipant(userUuidValue, roomCodeValue, targetUserUuidValue);
+    }
+
+    @Override
+    public FlipbookRoomLeaveResponse leaveRoom(String userUuidValue, String roomCodeValue) {
+        return flipbookRoomLeaveUseCase.leaveRoom(userUuidValue, roomCodeValue);
     }
 
     @Override

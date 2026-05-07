@@ -10,6 +10,7 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.Duration;
@@ -33,16 +34,19 @@ public class RelayRoomTimeoutService {
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final int scanLimit;
     private final Duration autoSubmitGrace;
 
     public RelayRoomTimeoutService(RelayRoomRepository relayRoomRepository,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
+        RelayInviteMetadataSyncService relayInviteMetadataSyncService,
         @Value("${nemonic.relay.timeout.scan-limit:100}") int scanLimit,
         @Value("${nemonic.relay.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs) {
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
+        this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.scanLimit = scanLimit;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
     }
@@ -97,6 +101,7 @@ public class RelayRoomTimeoutService {
             }
 
             if (relayRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
+                relayInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
                 RelayRoomTimeoutResult result = new RelayRoomTimeoutResult(roomCode, true, currentPart,
                     autoSubmitUpdate.autoSubmissions(), advanceResult);
                 publishTimeoutEvents(result);

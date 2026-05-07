@@ -26,6 +26,7 @@ public class FlipbookRoomKickUseCase {
     private final AnonymousUserResolver anonymousUserResolver;
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookRoomPolicy flipbookRoomPolicy;
+    private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
     /**
      * 방장이 WAITING 상태의 플립북 방에서 일반 참여자를 강퇴합니다.
@@ -58,6 +59,7 @@ public class FlipbookRoomKickUseCase {
             FlipbookRoomState updatedRoomState = kickParticipant(roomState, targetParticipant, now);
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 return new FlipbookRoomKickResponse(updatedRoomState.roomCode(), targetParticipant.userUuid(),
                     targetParticipant.nickname(), updatedRoomState.participantCount(), now);
             }

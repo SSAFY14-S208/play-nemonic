@@ -6,6 +6,7 @@ import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
 import com.nemonicworld.user.entity.AppUser;
@@ -28,13 +29,16 @@ public class RelayRoomJoinUseCase {
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomPolicy relayRoomPolicy;
     private final RelayRoomViewerFactory relayRoomViewerFactory;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
     public RelayRoomJoinUseCase(AnonymousUserResolver anonymousUserResolver, RelayRoomRepository relayRoomRepository,
-        RelayRoomPolicy relayRoomPolicy, RelayRoomViewerFactory relayRoomViewerFactory) {
+        RelayRoomPolicy relayRoomPolicy, RelayRoomViewerFactory relayRoomViewerFactory,
+        RelayInviteMetadataSyncService relayInviteMetadataSyncService) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
         this.relayRoomViewerFactory = relayRoomViewerFactory;
+        this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
     }
 
     /**
@@ -112,6 +116,7 @@ public class RelayRoomJoinUseCase {
             return Optional.empty();
         }
 
+        relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
         RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUser.getId().toString(), updatedRoomState,
             now);
 

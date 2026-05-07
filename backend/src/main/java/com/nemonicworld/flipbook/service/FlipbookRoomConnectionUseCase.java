@@ -26,6 +26,7 @@ public class FlipbookRoomConnectionUseCase {
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookRoomViewerFactory flipbookRoomViewerFactory;
+    private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
     /**
      * WebSocket CONNECT 성공을 Redis 참여자 상태에 반영합니다.
@@ -74,6 +75,7 @@ public class FlipbookRoomConnectionUseCase {
 
             // 저장
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 
                 return FlipbookRoomStateResponse.from(updatedRoomState, viewer);
