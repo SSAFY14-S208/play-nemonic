@@ -51,7 +51,7 @@ class FlipbookWebSocketEventListenerTest {
         listener.handleSessionDisconnect(disconnectEvent());
 
         verify(flipbookRoomService).disconnectRoom(USER_UUID, ROOM_CODE);
-        verify(flipbookRoomEventPublisher).publishParticipantDisconnected(roomStateResponse);
+        verify(flipbookRoomEventPublisher).publishParticipantDisconnected(roomStateResponse, USER_UUID);
         verify(webSocketSessionRegistry).removeIfCurrent(SESSION_ID);
     }
 
@@ -69,7 +69,8 @@ class FlipbookWebSocketEventListenerTest {
         listener.handleSessionDisconnect(disconnectEvent());
 
         verify(flipbookRoomService, never()).disconnectRoom(USER_UUID, ROOM_CODE);
-        verify(flipbookRoomEventPublisher, never()).publishParticipantDisconnected(org.mockito.ArgumentMatchers.any());
+        verify(flipbookRoomEventPublisher, never()).publishParticipantDisconnected(org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.anyString());
         verify(webSocketSessionRegistry).removeStaleSession(SESSION_ID);
     }
 

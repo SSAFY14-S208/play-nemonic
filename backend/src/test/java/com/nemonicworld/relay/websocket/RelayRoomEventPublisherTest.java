@@ -11,6 +11,7 @@ import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
+import com.nemonicworld.relay.dto.response.RelayRoomParticipantResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomAllPartsCompletedEventResponse;
@@ -50,6 +51,7 @@ class RelayRoomEventPublisherTest {
 
     private static final String ROOM_CODE = "QUDNKQ";
     private static final String SESSION_ID = "session-1";
+    private static final String USER_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
     private final SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
     private final WebSocketSessionRegistry webSocketSessionRegistry = mock(WebSocketSessionRegistry.class);
@@ -75,6 +77,30 @@ class RelayRoomEventPublisherTest {
         RelayRoomEventStateResponse data = (RelayRoomEventStateResponse) event.data();
         assertThat(data.timeLimitSeconds()).isEqualTo(45);
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.changedParticipant()).isNull();
+    }
+
+    /**
+     * 참여자 연결 이벤트는 최신 방 상태와 함께 연결된 사용자 UUID/닉네임을 보냅니다.
+     */
+    @Test
+    void publishParticipantConnectedSendsChangedUserInfoToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        RelayRoomStateResponse roomStateResponse = roomStateResponse(45);
+
+        publisher.publishParticipantConnected(roomStateResponse, USER_UUID);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.PARTICIPANT_CONNECTED);
+
+        RelayRoomEventStateResponse data = (RelayRoomEventStateResponse) event.data();
+        assertThat(data.changedParticipant()).isNotNull();
+        assertThat(data.changedParticipant().userUuid()).isEqualTo(USER_UUID);
+        assertThat(data.changedParticipant().nickname()).isEqualTo("망고");
+        assertThat(data.changedParticipant().host()).isTrue();
+        assertThat(data.changedParticipant().joinOrder()).isZero();
+        assertThat(data.changedParticipant().connected()).isTrue();
     }
 
     /**
@@ -372,9 +398,10 @@ class RelayRoomEventPublisherTest {
 
     private RelayRoomStateResponse roomStateResponse(int timeLimitSeconds) {
         LocalDateTime createdAt = LocalDateTime.now().minusMinutes(1);
+        RelayRoomParticipantResponse participant = new RelayRoomParticipantResponse(USER_UUID, "망고", true, 0, true);
 
-        return new RelayRoomStateResponse(ROOM_CODE, RelayRoomStatus.WAITING, "550e8400-e29b-41d4-a716-446655440000",
-            timeLimitSeconds, 2, 6, 1, null, List.of(), null, createdAt, createdAt.plusSeconds(1));
+        return new RelayRoomStateResponse(ROOM_CODE, RelayRoomStatus.WAITING, USER_UUID, timeLimitSeconds, 2, 6, 1,
+            null, List.of(participant), null, createdAt, createdAt.plusSeconds(1));
     }
 
     private RelayRoomStateResponse startedRoomStateResponse() {

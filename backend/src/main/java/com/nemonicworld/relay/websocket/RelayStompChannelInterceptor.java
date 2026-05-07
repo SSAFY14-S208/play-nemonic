@@ -64,7 +64,7 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
 
             replacedSession.ifPresent(session -> closeDuplicateSession(relayRoomEventPublisher, session.sessionId(),
                 session.connectionKey()));
-            relayRoomEventPublisher.publishParticipantConnected(roomStateResponse);
+            relayRoomEventPublisher.publishParticipantConnected(roomStateResponse, userUuid);
 
             return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
         } catch (RuntimeException e) {
