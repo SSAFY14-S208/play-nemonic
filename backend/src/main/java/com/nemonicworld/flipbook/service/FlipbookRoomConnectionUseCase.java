@@ -58,6 +58,7 @@ public class FlipbookRoomConnectionUseCase {
 
             // ws 접속할 수 있는 상태인지 (대기방, 플레이 중)
             flipbookRoomPolicy.validateWebSocketConnectableRoom(roomState);
+            flipbookRoomPolicy.validateNotKicked(roomState, viewerUserUuid);
 
             // WebSocket 연결 대상 참여자를 조회
             FlipbookRoomParticipant participant = flipbookRoomPolicy.requireConnectionParticipant(roomState,

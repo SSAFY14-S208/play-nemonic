@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.service;
 
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 
 /**
@@ -24,6 +25,11 @@ public interface FlipbookRoomService {
      */
     FlipbookRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
         FlipbookRoomSettingsRequest request);
+
+    /**
+     * 기존 익명 사용자인 방장이 대기 중 플립북 방의 일반 참여자를 강퇴합니다.
+     */
+    FlipbookRoomKickResponse kickParticipant(String userUuidValue, String roomCodeValue, String targetUserUuidValue);
 
     /**
      * 플립북 WebSocket 연결 성공을 방 참여자 상태에 반영합니다.

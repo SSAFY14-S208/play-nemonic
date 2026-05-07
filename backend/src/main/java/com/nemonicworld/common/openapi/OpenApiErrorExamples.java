@@ -215,10 +215,46 @@ public final class OpenApiErrorExamples {
           "message": "방장만 사용할 수 있습니다."
         }
         """;
+    public static final String FLIPBOOK_ROOM_KICK_HOST_REQUIRED = """
+        {
+          "success": false,
+          "message": "방장만 사용할 수 있는 기능입니다."
+        }
+        """;
+    public static final String FLIPBOOK_KICK_TARGET_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "강퇴할 참여자를 찾을 수 없습니다."
+        }
+        """;
     public static final String FLIPBOOK_WAITING_ROOM_SETTINGS_ONLY = """
         {
           "success": false,
           "message": "대기 중인 방에서만 설정을 변경할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_WAITING_ROOM_KICK_ONLY = """
+        {
+          "success": false,
+          "message": "대기실에서만 강퇴할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_SELF_KICK_NOT_ALLOWED = """
+        {
+          "success": false,
+          "message": "자기 자신은 강퇴할 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_HOST_KICK_NOT_ALLOWED = """
+        {
+          "success": false,
+          "message": "방장은 강퇴할 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_KICKED_ROOM_REJOIN = """
+        {
+          "success": false,
+          "message": "강퇴된 방에는 다시 입장할 수 없습니다."
         }
         """;
     public static final String FLIPBOOK_ROOM_UPDATE_CONFLICT = """
