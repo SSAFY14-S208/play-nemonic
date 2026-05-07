@@ -1,4 +1,6 @@
-import { Copy, Crown, Minus, Plus, QrCode } from 'lucide-react'
+'use client'
+
+import { Copy, Minus, Plus, QrCode } from 'lucide-react'
 import { PostItNote } from '@/shared/components'
 import {
   FLIPBOOK_PARTICIPANTS,
@@ -37,10 +39,7 @@ export default function FlipbookLobbyView({
 
         <section className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
           <p className="h2-b text-fg-inverse/85">입장 코드</p>
-          <p
-            className="font-bold text-fg-inverse"
-            style={{ fontSize: 'clamp(4.5rem, 7vw, 6rem)', lineHeight: 1, letterSpacing: '8px' }}
-          >
+          <p className="h1-b text-fg-inverse">
             {FLIPBOOK_ROOM_CODE}
           </p>
           <div className="mt-2 flex gap-8">
@@ -62,18 +61,9 @@ export default function FlipbookLobbyView({
               {FLIPBOOK_PARTICIPANTS.map((participant) => (
                 <div
                   key={participant.id}
-                  className="flex min-h-14 items-center gap-3 rounded-[16px] border border-flipbook-light bg-flipbook-light px-3.5"
+                  className="flex min-h-14 items-center rounded-[16px] border border-flipbook-light bg-flipbook-light px-5"
                 >
-                  <span className="grid size-9 place-items-center rounded-full bg-flipbook-result-soft text-[18px]">
-                    {participant.avatar}
-                  </span>
                   <span className="body-b flex-1 text-flipbook-ink">{participant.name}</span>
-                  {participant.isHost && (
-                    <span className="caption-b inline-flex items-center gap-1 rounded-full border border-flipbook-deep bg-flipbook-primary px-2 py-1 text-flipbook-ink">
-                      <Crown className="size-4" aria-hidden />
-                      방장
-                    </span>
-                  )}
                 </div>
               ))}
               {Array.from({ length: WAITING_SLOT_COUNT }).map((unusedSlot, waitingSlotIndex) => (

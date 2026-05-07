@@ -29,6 +29,19 @@ const FLIPBOOK_BUTTON_IMAGES = {
   enterRoom: '/images/flipbook-buttons/enter-room.png',
 }
 
+const FLIPBOOK_ENTRANCE_ACTIONS = [
+  {
+    key: 'create-room',
+    imageSrc: FLIPBOOK_BUTTON_IMAGES.createRoom,
+    label: '방 만들기',
+  },
+  {
+    key: 'enter-room',
+    imageSrc: FLIPBOOK_BUTTON_IMAGES.enterRoom,
+    label: '입장하기',
+  },
+] as const
+
 export default function FlipbookEntranceView({
   onCreateRoom,
   onEnterRoom,
@@ -37,8 +50,11 @@ export default function FlipbookEntranceView({
   const timeline = useFlipbookEntranceTimeline(sectionRef, FLIPBOOK_ENTRANCE_FRAMES.length)
   const activeEntranceFrame =
     FLIPBOOK_ENTRANCE_FRAMES[timeline.activeFrameIndex] ?? FLIPBOOK_ENTRANCE_FRAMES.at(-1)
+  const actionHandlers = {
+    'create-room': onCreateRoom,
+    'enter-room': onEnterRoom,
+  }
 
-    //svh 범위 260~340(클수록 느림)
   return (
     <section ref={sectionRef} className="relative h-[260svh] bg-flipbook-background text-flipbook-ink">
       <div className="sticky top-0 grid h-[100svh] min-h-[620px] overflow-hidden">
@@ -52,8 +68,7 @@ export default function FlipbookEntranceView({
             }}
           >
             <h1
-              className="h1-b text-flipbook-ink drop-shadow-[0_5px_0_rgba(251,188,196,0.62)]"
-              style={{ fontSize: '62px', lineHeight: 1.02 }}
+              className="h1-b origin-center scale-150 text-flipbook-ink drop-shadow-[0_5px_0_rgba(251,188,196,0.62)]"
             >
               플립북
             </h1>
@@ -69,7 +84,7 @@ export default function FlipbookEntranceView({
               transformOrigin: 'center center',
             }}
           >
-            <div className="absolute inset-0 overflow-hidden rounded-[8px] border border-[rgb(223_205_161_/_54%)] bg-[rgb(255_250_224)] shadow-[0_16px_26px_rgb(94_31_37_/_16%),0_2px_0_rgb(255_255_255_/_75%)_inset]">
+            <div className="absolute inset-0 overflow-hidden rounded-[8px] border border-flipbook-light bg-flipbook-paper shadow-[0_16px_26px_var(--color-flipbook-shadow)]">
               {activeEntranceFrame && (
                 <Image
                   src={activeEntranceFrame.src}
@@ -85,7 +100,7 @@ export default function FlipbookEntranceView({
             <motion.div
               key={`blank-paper-flight-${timeline.activeFrameIndex}`}
               aria-hidden
-              className="absolute inset-0 origin-top-left rounded-[8px] bg-[rgb(255_250_224)] shadow-[0_12px_24px_rgb(94_31_37_/_14%)]"
+              className="absolute inset-0 origin-top-left rounded-[8px] bg-flipbook-paper shadow-[0_12px_24px_var(--color-flipbook-shadow)]"
               initial={{
                 opacity: timeline.activeFrameIndex === 0 ? 0 : 0.92,
                 x: 0,
@@ -115,16 +130,14 @@ export default function FlipbookEntranceView({
               y: timeline.actionY,
             }}
           >
-            <FlipbookEntranceImageButton
-              imageSrc={FLIPBOOK_BUTTON_IMAGES.createRoom}
-              label="방 만들기"
-              onClick={onCreateRoom}
-            />
-            <FlipbookEntranceImageButton
-              imageSrc={FLIPBOOK_BUTTON_IMAGES.enterRoom}
-              label="입장하기"
-              onClick={onEnterRoom}
-            />
+            {FLIPBOOK_ENTRANCE_ACTIONS.map((action) => (
+              <FlipbookEntranceImageButton
+                key={action.key}
+                imageSrc={action.imageSrc}
+                label={action.label}
+                onClick={actionHandlers[action.key]}
+              />
+            ))}
           </motion.div>
         </div>
       </div>
@@ -208,12 +221,12 @@ function FlipbookEntranceImageButton({
     >
       <Image
         src={imageSrc}
-        alt={label}
+        alt=""
         fill
         sizes="(max-width: 640px) 42vw, 320px"
         className="object-contain"
       />
-      <span className="h3-b pointer-events-none absolute left-[30%] right-[20%] top-1/2 -translate-y-1/2 text-center text-flipbook-ink drop-shadow-[0_2px_0_rgb(255_255_255_/_80%)] max-sm:text-[14px]">
+      <span className="h4-b pointer-events-none absolute left-[30%] right-[20%] top-1/2 -translate-y-1/2 text-center text-flipbook-ink drop-shadow-[0_2px_0_rgb(255_255_255_/_80%)]">
         {label}
       </span>
     </motion.button>

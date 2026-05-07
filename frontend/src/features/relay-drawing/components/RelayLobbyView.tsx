@@ -1,4 +1,6 @@
-import { Copy, Crown, QrCode } from 'lucide-react'
+'use client'
+
+import { Copy, QrCode } from 'lucide-react'
 import { PostItNote } from '@/shared/components'
 import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from '../constants'
 import { cn } from '@/shared/libs'
@@ -8,9 +10,9 @@ interface RelayLobbyViewProps {
 }
 
 const LOBBY_PARTICIPANTS = [
-  { id: 'host', name: '여우 (나)', avatar: '🦊', isHost: true },
-  { id: 'cat-1', name: '고양이', avatar: '🦊', isHost: false },
-  { id: 'cat-2', name: '고양이', avatar: '🦊', isHost: false },
+  { id: 'host', name: '여우 (나)' },
+  { id: 'cat-1', name: '고양이' },
+  { id: 'cat-2', name: '고양이' },
 ]
 
 const WAITING_SLOT_COUNT = 3
@@ -112,17 +114,8 @@ function ParticipantTile({
   participant: (typeof LOBBY_PARTICIPANTS)[number]
 }) {
   return (
-    <div className="flex min-h-14 items-center gap-3 rounded-[16px] border border-relay-line bg-relay-active px-3.5">
-      <span className="grid size-9 place-items-center rounded-full bg-relay-active text-[18px]">
-        {participant.avatar}
-      </span>
+    <div className="flex min-h-14 items-center rounded-[16px] border border-relay-line bg-relay-active px-5">
       <span className="body-b flex-1 text-relay-ink">{participant.name}</span>
-      {participant.isHost && (
-        <span className="caption-b inline-flex items-center gap-1 rounded-full border border-relay-accent bg-relay-accent px-2 py-1 text-relay-ink">
-          <Crown className="size-4" aria-hidden />
-          방장
-        </span>
-      )}
     </div>
   )
 }

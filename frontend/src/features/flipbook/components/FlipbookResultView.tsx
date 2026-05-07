@@ -143,7 +143,7 @@ export default function FlipbookResultView({
                         'border-[1.5px] border-flipbook-deep bg-flipbook-paper shadow-[0_4px_5px_var(--color-flipbook-shadow)]',
                     )}
                   >
-                    <span className="text-[18px]">{frame.participantAvatar}</span>
+                    <span className="h4-b">{frame.participantAvatar}</span>
                     <span className="body-b text-flipbook-ink">{frame.drawnBy}</span>
                     <span className="caption-b ml-auto text-flipbook-deep">
                       {frame.index + 1}장
