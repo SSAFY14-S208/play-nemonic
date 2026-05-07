@@ -38,4 +38,9 @@ public interface FlipbookRoomRepository {
      * 게임 중 재접속 유예가 만료된 참여자가 있는 방을 조회합니다.
      */
     List<FlipbookRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit);
+
+    /**
+     * 현재 라운드 마감 시각이 지난 PLAYING 방을 최대 limit개 조회합니다.
+     */
+    List<FlipbookRoomState> findExpiredPlayingRooms(LocalDateTime roundDeadlineCutoff, int limit);
 }
