@@ -3,6 +3,7 @@
 @memoId = 3f22df4f-b187-42dd-81f3-d9f2fa5ce001
 @originalFileId = 550e8400-e29b-41d4-a716-446655440000
 @thumbnailFileId = 660e8400-e29b-41d4-a716-446655440000
+@sourceGalleryId = 8d25f3a5-3c5a-4f21-9f54-68fa4a402011
 
 ### Get community memos
 GET {{host}}/api/v1/community/memos
@@ -38,6 +39,7 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
   "sourceType": "DIRECT",
   "originalFileId": "{{originalFileId}}",
   "thumbnailFileId": "{{thumbnailFileId}}",
+  "sourceGalleryId": null,
   "positionX": 0.0,
   "positionY": 0.0,
   "zIndex": 1,
@@ -61,6 +63,26 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
   "positionY": -7.25,
   "zIndex": 10,
   "rotationDeg": 5.5
+}
+
+### Create community memo from gallery snapshot
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "sourceType": "GALLERY",
+  "sourceGalleryId": "{{sourceGalleryId}}",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
+  "positionX": 12.5,
+  "positionY": -7.25,
+  "zIndex": 10,
+  "rotationDeg": 0.0,
+  "decoration": {
+    "scale": 1.0
+  },
+  "clientText": "사용자가 추가한 텍스트"
 }
 
 ### Create community memo - missing thumbnail file
@@ -92,18 +114,34 @@ Anonymous-User-UUID: not-a-uuid
   "rotationDeg": 0.0
 }
 
-### Create community memo - unsupported sourceType for this MR
+### Create community memo - missing source gallery
 POST {{host}}/api/v1/community/memos
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "sourceType": "GALLERY",
-  "sourceGalleryId": "8d25f3a5-3c5a-4f21-9f54-68fa4a402011",
   "originalFileId": "{{originalFileId}}",
   "thumbnailFileId": "{{thumbnailFileId}}",
   "positionX": 0.0,
   "positionY": 0.0,
   "zIndex": 1,
   "rotationDeg": 0.0
+}
+
+### Create community memo - moderation may block
+# FastAPI moderation can return 400 before DB insert if the final snapshot is not allowed.
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "sourceType": "DIRECT",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
+  "positionX": 0.0,
+  "positionY": 0.0,
+  "zIndex": 1,
+  "rotationDeg": 0.0,
+  "clientText": "모더레이션 차단 테스트 문구"
 }
