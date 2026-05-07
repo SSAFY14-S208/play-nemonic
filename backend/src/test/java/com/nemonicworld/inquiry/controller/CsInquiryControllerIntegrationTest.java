@@ -145,7 +145,7 @@ class CsInquiryControllerIntegrationTest {
                     }
                     """))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.errors.title").isNotEmpty());
+            .andExpect(jsonPath("$.errors.title").value("제목 필수"));
 
         assertThat(countInquiries()).isZero();
     }
@@ -164,7 +164,7 @@ class CsInquiryControllerIntegrationTest {
                     }
                     """))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").isNotEmpty());
+            .andExpect(jsonPath("$.message").value("지원하지 않는 문의 유형입니다."));
 
         assertThat(countInquiries()).isZero();
     }
@@ -188,7 +188,7 @@ class CsInquiryControllerIntegrationTest {
                     }
                     """))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.errors.attachments").isNotEmpty());
+            .andExpect(jsonPath("$.errors.attachments").value("첨부 파일은 최대 3개입니다."));
 
         assertThat(countInquiries()).isZero();
     }
@@ -208,7 +208,7 @@ class CsInquiryControllerIntegrationTest {
                     }
                     """.formatted(content)))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.errors.content").isNotEmpty());
+            .andExpect(jsonPath("$.errors.content").value("내용은 1000자 이하입니다."));
 
         assertThat(countInquiries()).isZero();
     }
@@ -227,7 +227,7 @@ class CsInquiryControllerIntegrationTest {
                     }
                     """))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.errors.email").isNotEmpty());
+            .andExpect(jsonPath("$.errors.email").value("이메일 형식 오류"));
 
         assertThat(countInquiries()).isZero();
     }

@@ -5,7 +5,7 @@ import com.nemonicworld.common.exception.BadRequestException;
 public enum CsInquiryType {
     ERROR("error"), FEATURE_REQUEST("feature_request"), CONTENT_REPORT("content_report"), OTHER("other");
 
-    private static final String UNSUPPORTED_TYPE_MESSAGE = "Unsupported inquiry type.";
+    private static final String UNSUPPORTED_TYPE_MESSAGE = "지원하지 않는 문의 유형입니다.";
 
     private final String value;
 

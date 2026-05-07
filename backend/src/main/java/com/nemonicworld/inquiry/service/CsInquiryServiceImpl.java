@@ -11,6 +11,7 @@ import com.nemonicworld.inquiry.repository.CsInquiryInsertCommand;
 import com.nemonicworld.inquiry.repository.CsInquiryRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
@@ -23,7 +24,9 @@ import org.springframework.util.StringUtils;
 @Service
 public class CsInquiryServiceImpl implements CsInquiryService {
 
-    private static final String INVALID_JSON_MESSAGE = "Invalid inquiry JSON data.";
+    private static final String INVALID_JSON_MESSAGE = "문의 데이터 형식이 올바르지 않습니다.";
+    private static final String REQUIRED_ATTACHMENT_URL_MESSAGE = "첨부 파일 URL을 입력해 주세요.";
+    private static final String INVALID_ATTACHMENT_URL_MESSAGE = "첨부 파일 URL 형식이 올바르지 않습니다.";
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final CsInquiryRepository csInquiryRepository;
@@ -69,7 +72,32 @@ public class CsInquiryServiceImpl implements CsInquiryService {
             return null;
         }
 
+        validateAttachmentUrls(attachments);
+
         return writeJson(attachments);
+    }
+
+    private void validateAttachmentUrls(List<String> attachments) {
+        for (String attachment : attachments) {
+            if (!StringUtils.hasText(attachment)) {
+                throw new BadRequestException(REQUIRED_ATTACHMENT_URL_MESSAGE);
+            }
+
+            if (!isHttpUrl(attachment)) {
+                throw new BadRequestException(INVALID_ATTACHMENT_URL_MESSAGE);
+            }
+        }
+    }
+
+    private boolean isHttpUrl(String value) {
+        try {
+            URI uri = URI.create(value);
+
+            return StringUtils.hasText(uri.getScheme()) && StringUtils.hasText(uri.getHost())
+                && ("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private String serializeMeta(Map<String, Object> requestMeta, String userAgent, String referer,
