@@ -2,6 +2,7 @@ package com.nemonicworld.gms.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.gms.dto.request.GmsPromptCreateRequest;
@@ -18,6 +19,8 @@ import org.springframework.util.StringUtils;
 
 @Service
 public class GmsPromptServiceImpl implements GmsPromptService {
+
+    private static final String PROMPT_NOT_FOUND_MESSAGE = "GMS 프롬프트를 찾을 수 없습니다.";
 
     private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String DUPLICATE_NAME_MESSAGE = "이미 등록된 GMS 프롬프트 이름입니다.";
@@ -51,6 +54,20 @@ public class GmsPromptServiceImpl implements GmsPromptService {
             return GmsPromptResponse.from(gmsPromptRepository.insertPrompt(command));
         } catch (DuplicateKeyException e) {
             throw new ConflictException(DUPLICATE_NAME_MESSAGE);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deletePrompt(AdminPrincipal adminPrincipal, Long promptId) {
+        requireAdmin(adminPrincipal);
+
+        gmsPromptRepository.findActiveById(promptId).orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
+
+        LocalDateTime deletedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        int deletedCount = gmsPromptRepository.softDeleteById(promptId, deletedAt);
+        if (deletedCount == 0) {
+            throw new NotFoundException(PROMPT_NOT_FOUND_MESSAGE);
         }
     }
 

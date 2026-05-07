@@ -77,6 +77,16 @@ public class GmsPromptRepository {
         return findActiveById(createdId.longValue()).orElseThrow();
     }
 
+    public int softDeleteById(Long id, LocalDateTime deletedAt) {
+        return jdbcTemplate.update("""
+            UPDATE gms_prompt_template
+               SET deleted_at = ?,
+                   updated_at = ?
+             WHERE id = ?
+               AND deleted_at IS NULL
+            """, Timestamp.valueOf(deletedAt), Timestamp.valueOf(deletedAt), id);
+    }
+
     private GmsPrompt mapPrompt(ResultSet resultSet, int rowNumber) throws SQLException {
         return new GmsPrompt(resultSet.getLong("id"), resultSet.getString("prompt_name"),
             resultSet.getString("template_text"), resultSet.getString("feature_type"), resultSet.getLong("created_by"),

@@ -3,11 +3,13 @@ package com.nemonicworld.gms.controller;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
-import com.nemonicworld.config.OpenApiConfig;
+import com.nemonicworld.global.config.OpenApiConfig;
 import com.nemonicworld.gms.dto.request.GmsPromptCreateRequest;
 import com.nemonicworld.gms.dto.response.GmsPromptResponse;
 import com.nemonicworld.gms.service.GmsPromptService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -18,6 +20,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +32,14 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
 @Tag(name = "GMS Prompts", description = "Backoffice GMS prompt management API")
 public class GmsPromptController {
+
+    private static final String DELETE_SUCCESS_MESSAGE = "GMS 프롬프트 삭제 성공";
+    private static final String PROMPT_NOT_FOUND_EXAMPLE = """
+        {
+          "success": false,
+          "message": "GMS 프롬프트를 찾을 수 없습니다."
+        }
+        """;
 
     private static final String CREATE_SUCCESS_MESSAGE = "GMS 프롬프트 생성 성공";
 
@@ -50,5 +62,20 @@ public class GmsPromptController {
 
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(CREATE_SUCCESS_MESSAGE, response));
+    }
+
+    @DeleteMapping("/{promptId}")
+    @Operation(summary = "GMS 프롬프트 삭제", description = "백오피스 관리자가 GMS 프롬프트를 삭제합니다.")
+    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "삭제할 GMS 프롬프트 ID")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 삭제 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS 프롬프트 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
+    public ResponseEntity<ApiResponse<Void>> deletePrompt(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
+        @PathVariable("promptId") Long promptId) {
+        gmsPromptService.deletePrompt(adminPrincipal, promptId);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(DELETE_SUCCESS_MESSAGE, null));
     }
 }
