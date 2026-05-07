@@ -16,6 +16,10 @@ import org.springframework.stereotype.Repository;
  */
 public class CommunityMemoRepository {
 
+    /*
+     * 목록/상세 조회가 같은 대표 이미지 선택 정책을 쓰도록 SQL 조각으로 공유합니다. subtype URL이 빈 문자열인 기존 row도
+     * thumbnail fallback을 타도록 NULLIF로 비웁니다.
+     */
     private static final String IMAGE_REFERENCE_SQL = """
         CASE
             WHEN cm.artifact_id IS NULL THEN cm.body_image_url
@@ -32,6 +36,10 @@ public class CommunityMemoRepository {
         END
         """;
 
+    /*
+     * V2 이후 community_memo의 FK가 느슨할 수 있어 작성자와 artifact 계열은 LEFT JOIN으로 둡니다. 비정상 로컬
+     * 데이터가 있어도 조회 API가 500으로 터지지 않고 null 필드로 내려가게 하기 위함입니다.
+     */
     private static final String VISIBLE_MEMO_FROM = """
         FROM community_memo cm
         LEFT JOIN app_user au ON au.id = cm.user_id

@@ -73,6 +73,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             return null;
         }
 
+        // 커뮤니티 감상 조회는 사용자 존재 확인 없이 UUID 형식과 ownedByMe 계산에만 헤더를 사용합니다.
         return anonymousUserResolver.parseUuid(viewerUserUuidValue);
     }
 
@@ -115,6 +116,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             Map<String, Object> parsedDecoration = objectMapper.readValue(decoration, DECORATION_TYPE);
             return parsedDecoration == null ? Map.of() : parsedDecoration;
         } catch (JsonProcessingException e) {
+            // 깨진 decoration 데이터가 있어도 상세 패널 조회는 실패시키지 않고 빈 객체로 낮춥니다.
             log.warn("커뮤니티 메모 decoration JSON을 파싱할 수 없습니다. decoration={}", decoration, e);
 
             return Map.of();

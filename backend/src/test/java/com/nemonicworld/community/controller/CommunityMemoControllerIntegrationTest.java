@@ -49,6 +49,7 @@ class CommunityMemoControllerIntegrationTest {
 
     @BeforeEach
     void prepareCommunityTables() {
+        // H2 통합 테스트에서는 갤러리/커뮤니티 최소 스키마만 직접 구성해 조회 정책을 고정합니다.
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS artifact (
                 id UUID PRIMARY KEY,
@@ -120,6 +121,7 @@ class CommunityMemoControllerIntegrationTest {
                 deleted_at TIMESTAMP NULL
             )
             """);
+        // 다른 테스트가 만든 community_memo 테이블과도 공존하도록 상세 조회에 필요한 컬럼을 보강합니다.
         jdbcTemplate.execute(
             "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_x DOUBLE PRECISION DEFAULT 0 NOT NULL");
         jdbcTemplate.execute(
