@@ -9,6 +9,8 @@ public interface GmsPromptService {
 
     GmsPromptResponse createPrompt(AdminPrincipal adminPrincipal, GmsPromptCreateRequest request);
 
+    GmsPromptResponse getPrompt(AdminPrincipal adminPrincipal, Long promptId);
+
     void deletePrompt(AdminPrincipal adminPrincipal, Long promptId);
 
     GmsPromptResponse updatePrompt(AdminPrincipal adminPrincipal, Long promptId, GmsPromptUpdateRequest request);
