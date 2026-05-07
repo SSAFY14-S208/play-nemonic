@@ -1,9 +1,11 @@
 // 결과 화면 순차 공개 단계 메타데이터 + 결과 액션.
-// 현재의 `participantName`/`avatar`는 mock이며, 실제 결과 wiring 시
-// `getRelayRoomResults` 응답의 `parts[].drawerNickname`으로 교체된다.
+// useRelayResult 훅이 서버 응답(parts[].drawerNickname)으로 동적 reveals/segments를
+// 생성한다. RELAY_RESULT_REVEALS는 서버 데이터 로드 전 fallback으로 남긴다.
 
 import { Download, Share2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+
+import type { RelayRoundKey } from './rounds'
 
 export type RelayResultRevealStep = 'face' | 'body' | 'legs' | 'final'
 
@@ -75,3 +77,23 @@ export const RELAY_RESULT_ACTIONS: RelayResultAction[] = [
   { label: '보관함에', Icon: Download },
   { label: '광장에 전시하기', Icon: Share2 },
 ]
+
+// ── 결과 세그먼트 (얼굴/몸통/다리 카드·태그 메타) ─────────────────────
+export interface RelayResultSegment {
+  key: RelayRoundKey
+  avatar: string
+  participantName: string
+  roleLabel: string
+  tagLabel: string
+  tagClassName: string
+}
+
+// 동적 reveal/segment 생성 시 drawer에 할당하는 기본 아바타 팔레트.
+export const DRAWER_AVATARS = ['🐱', '🦊', '🐻', '🐼', '🐨', '🐰']
+
+// 세그먼트 태그 배경색 매핑.
+export const SEGMENT_TAG_CLASSNAMES: Record<RelayRoundKey, string> = {
+  face: 'bg-relay-active',
+  body: 'bg-relay-segment-body',
+  legs: 'bg-relay-segment-legs',
+}

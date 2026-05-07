@@ -1,12 +1,14 @@
-import type { RelayResultReveal } from '../../constants'
+import type { RelayResultReveal, RelayResultSegment } from '../../constants'
 import { cn } from '@/shared/libs'
-
-import { RESULT_SEGMENTS } from './resultSegments'
 
 interface ResultCreditsPanelProps {
   activeReveal: RelayResultReveal
   activeRevealIndex: number
   isFinalReveal: boolean
+  segments: RelayResultSegment[]
+  participantCount: number
+  ownerNickname: string
+  ownerAvatar: string
 }
 
 // 우측 사이드 — 작성자 크레딧. 단계 진행에 따라 active/complete 마크가 바뀐다.
@@ -14,14 +16,22 @@ export default function ResultCreditsPanel({
   activeReveal,
   activeRevealIndex,
   isFinalReveal,
+  segments,
+  participantCount,
+  ownerNickname,
+  ownerAvatar,
 }: ResultCreditsPanelProps) {
   return (
     <section className="rounded-[18px] border border-relay-line bg-relay-paper px-5 py-4">
-      <p className="caption-b text-relay-accent-strong">이번엔 3명이 모였어요</p>
-      <h2 className="h4-b mt-2 text-relay-ink">🐱 고양이 님의 캐릭터</h2>
+      <p className="caption-b text-relay-accent-strong">
+        이번엔 {participantCount}명이 모였어요
+      </p>
+      <h2 className="h4-b mt-2 text-relay-ink">
+        {ownerAvatar} {ownerNickname} 님의 캐릭터
+      </h2>
 
       <div className="mt-4 grid gap-2">
-        {RESULT_SEGMENTS.map((segment, segmentIndex) => {
+        {segments.map((segment, segmentIndex) => {
           const isActive = !isFinalReveal && segment.roleLabel === activeReveal.roleLabel
           const isComplete = isFinalReveal || segmentIndex < activeRevealIndex
 

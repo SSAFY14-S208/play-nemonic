@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 
-import { RELAY_RESULT_ACTIONS, RELAY_RESULT_REVEALS } from '../constants'
+import { RELAY_RESULT_ACTIONS } from '../constants'
 import { useRelayResult } from '../hooks'
 import { useRelayDrawingStore } from '../stores'
 import { cn } from '@/shared/libs'
@@ -25,13 +25,30 @@ import {
 export default function RelayResultView() {
   const router = useRouter()
   const clearRoom = useRelayDrawingStore((state) => state.clearRoom)
-  const roundLines = useRelayDrawingStore((state) => state.roundLines)
   const {
-    resultRevealStep,
+    // Reveal navigation
+    reveals,
+    activeReveal,
+    activeRevealIndex,
+    isFinalReveal,
     canShowPreviousResultReveal,
     canShowNextResultReveal,
     goToNextResultReveal,
     goToPreviousResultReveal,
+
+    // Result data
+    resultItems,
+    activeResultIndex,
+    setActiveResultIndex,
+    resultImageUrl,
+    segments,
+    participantCount,
+    ownerNickname,
+    ownerAvatar,
+    completedAtLabel,
+
+    // Fallback
+    roundLines,
   } = useRelayResult()
 
   // "새 릴레이 만들기" — 현재 룸 정리 후 부스로 이동.
@@ -41,18 +58,17 @@ export default function RelayResultView() {
     router.push('/relay-drawing')
   }
 
-  const activeReveal =
-    RELAY_RESULT_REVEALS.find((reveal) => reveal.key === resultRevealStep) ??
-    RELAY_RESULT_REVEALS[0]
-  const activeRevealIndex = RELAY_RESULT_REVEALS.findIndex(
-    (reveal) => reveal.key === activeReveal.key,
-  )
-  const isFinalReveal = activeReveal.key === 'final'
-
   return (
     <section className="min-h-screen bg-relay-background px-6 py-10 text-relay-ink lg:px-12 lg:py-14">
       <div className="mx-auto w-full max-w-[1312px]">
-        <ResultProgressStrip activeReveal={activeReveal} activeRevealIndex={activeRevealIndex} />
+        <ResultProgressStrip
+          activeReveal={activeReveal}
+          activeRevealIndex={activeRevealIndex}
+          reveals={reveals}
+          completedAtLabel={completedAtLabel}
+          ownerNickname={ownerNickname}
+          ownerAvatar={ownerAvatar}
+        />
 
         <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,880px)_400px] lg:items-start">
           <section
@@ -63,12 +79,18 @@ export default function RelayResultView() {
           >
             {!isFinalReveal && <ResultStageHeader activeReveal={activeReveal} />}
 
-            <ResultCanvas resultRevealStep={activeReveal.key} roundLines={roundLines} />
+            <ResultCanvas
+              activeReveal={activeReveal}
+              roundLines={roundLines}
+              resultImageUrl={resultImageUrl}
+              segments={segments}
+            />
 
             {!isFinalReveal && (
               <ResultStepNav
                 activeReveal={activeReveal}
                 activeRevealIndex={activeRevealIndex}
+                revealCount={reveals.length}
                 canShowPreviousResultReveal={canShowPreviousResultReveal}
                 canShowNextResultReveal={canShowNextResultReveal}
                 onShowPreviousResultReveal={goToPreviousResultReveal}
@@ -82,8 +104,16 @@ export default function RelayResultView() {
               activeReveal={activeReveal}
               activeRevealIndex={activeRevealIndex}
               isFinalReveal={isFinalReveal}
+              segments={segments}
+              participantCount={participantCount}
+              ownerNickname={ownerNickname}
+              ownerAvatar={ownerAvatar}
             />
-            <ResultAlbumsPanel />
+            <ResultAlbumsPanel
+              resultItems={resultItems}
+              activeResultIndex={activeResultIndex}
+              onSelectResult={setActiveResultIndex}
+            />
             <div className="hidden flex-1 lg:block" />
 
             {isFinalReveal && (

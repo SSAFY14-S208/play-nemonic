@@ -1,8 +1,9 @@
-import { RELAY_RESULT_REVEALS, type RelayResultReveal } from '../../constants'
+import type { RelayResultReveal } from '../../constants'
 
 interface ResultStepNavProps {
   activeReveal: RelayResultReveal
   activeRevealIndex: number
+  revealCount: number
   canShowPreviousResultReveal: boolean
   canShowNextResultReveal: boolean
   onShowPreviousResultReveal: () => void
@@ -13,12 +14,13 @@ interface ResultStepNavProps {
 export default function ResultStepNav({
   activeReveal,
   activeRevealIndex,
+  revealCount,
   canShowPreviousResultReveal,
   canShowNextResultReveal,
   onShowPreviousResultReveal,
   onShowNextResultReveal,
 }: ResultStepNavProps) {
-  const progressPercent = ((activeRevealIndex + 1) / RELAY_RESULT_REVEALS.length) * 100
+  const progressPercent = ((activeRevealIndex + 1) / revealCount) * 100
 
   return (
     <div className="mt-4 flex min-h-11 items-center gap-3">
@@ -26,7 +28,7 @@ export default function ResultStepNav({
         type="button"
         onClick={onShowPreviousResultReveal}
         disabled={!canShowPreviousResultReveal}
-        className="body-b min-h-11 rounded-[12px] border-[1.5px] border-relay-line bg-relay-paper px-4 text-relay-accent-strong disabled:opacity-45"
+        className="body-b min-h-11 rounded-xl border-[1.5px] border-relay-line bg-relay-paper px-4 text-relay-accent-strong disabled:opacity-45"
       >
         ◀ 이전
       </button>
@@ -42,7 +44,7 @@ export default function ResultStepNav({
         type="button"
         onClick={onShowNextResultReveal}
         disabled={!canShowNextResultReveal}
-        className="body-b min-h-11 rounded-[12px] bg-relay-accent px-4 text-relay-ink disabled:opacity-45"
+        className="body-b min-h-11 rounded-xl bg-relay-accent px-4 text-relay-ink disabled:opacity-45"
       >
         {activeReveal.nextLabel}
       </button>

@@ -13,21 +13,54 @@ interface CompositeDrawingCanvasProps {
   visibleRoundKeys: RelayRoundKey[]
   roundLines: RelayRoundLines
   isFinalReveal: boolean
+  resultImageUrl: string | null
 }
 
-// 결과 화면의 SVG 캔버스 — 단계별로 보일 라운드(visibleRoundKeys)만 그리고,
-// 최종 단계에선 세로 합성된 1장 그림을 그린다. 빈 라운드는 안내 텍스트.
+// 결과 화면의 SVG 캔버스.
+// 서버 합성 이미지(resultImageUrl)가 있으면 <image>로 렌더하고,
+// 없으면 로컬 SVG 라인 드로잉으로 fallback 한다.
 export default function CompositeDrawingCanvas({
   visibleRoundKeys,
   roundLines,
   isFinalReveal,
+  resultImageUrl,
 }: CompositeDrawingCanvasProps) {
-  const hasVisibleLines = visibleRoundKeys.some(
-    (roundKey) => roundLines[roundKey].length > 0,
-  )
   const viewBoxHeight = isFinalReveal
     ? RELAY_FINAL_STAGE_SIZE.height
     : RELAY_STAGE_SIZE.height
+
+  // ── 서버 합성 이미지 렌더 ────────────────────────────────────────
+  if (resultImageUrl) {
+    // 서버 이미지는 848×1920 전체 합성본. 단계별 reveal에서는 해당 라운드
+    // 영역만 보이도록 y 오프셋을 잡는다 (viewBox가 720px로 클립).
+    const imageOffsetY = isFinalReveal
+      ? 0
+      : -RELAY_ROUND_RULES[visibleRoundKeys[0]].finalOffsetY
+
+    return (
+      <svg
+        className="h-full w-full"
+        viewBox={`0 0 ${RELAY_STAGE_SIZE.width} ${viewBoxHeight}`}
+        role="img"
+        aria-label="완성된 릴레이 드로잉"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <rect width={RELAY_STAGE_SIZE.width} height={viewBoxHeight} fill="#fffdf7" />
+        <image
+          href={resultImageUrl}
+          x={0}
+          y={imageOffsetY}
+          width={RELAY_STAGE_SIZE.width}
+          height={RELAY_FINAL_STAGE_SIZE.height}
+        />
+      </svg>
+    )
+  }
+
+  // ── SVG 라인 fallback ────────────────────────────────────────────
+  const hasVisibleLines = visibleRoundKeys.some(
+    (roundKey) => roundLines[roundKey].length > 0,
+  )
   const dotRowCount = Math.ceil(viewBoxHeight / 20)
   const separatorPositions = RELAY_ROUND_ORDER.slice(1).map(
     (roundKey) =>

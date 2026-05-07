@@ -1,6 +1,7 @@
 import {
   RELAY_ROUND_ORDER,
-  type RelayResultRevealStep,
+  type RelayResultReveal,
+  type RelayResultSegment,
   type RelayRoundKey,
 } from '../../constants'
 import type { RelayRoundLines } from '../../types'
@@ -11,18 +12,25 @@ import ResultSegmentTags from './ResultSegmentTags'
 import ResultSpotlight from './ResultSpotlight'
 
 interface ResultCanvasProps {
-  resultRevealStep: RelayResultRevealStep
+  activeReveal: RelayResultReveal
   roundLines: RelayRoundLines
+  resultImageUrl: string | null
+  segments: RelayResultSegment[]
 }
 
 // 결과 캔버스 박스 — 단계에 따라 한 라운드만 보이거나 최종 3개 합성을 보여준다.
 // 컨텍스트별 부가 UI(스포트라이트/세그먼트 태그)도 여기서 결합.
-export default function ResultCanvas({ resultRevealStep, roundLines }: ResultCanvasProps) {
-  const isFinalReveal = resultRevealStep === 'final'
+export default function ResultCanvas({
+  activeReveal,
+  roundLines,
+  resultImageUrl,
+  segments,
+}: ResultCanvasProps) {
+  const isFinalReveal = activeReveal.key === 'final'
   const visibleRoundKeys =
-    resultRevealStep === 'final'
+    activeReveal.key === 'final'
       ? RELAY_ROUND_ORDER
-      : [resultRevealStep as RelayRoundKey]
+      : [activeReveal.key as RelayRoundKey]
 
   return (
     <div
@@ -35,11 +43,12 @@ export default function ResultCanvas({ resultRevealStep, roundLines }: ResultCan
         visibleRoundKeys={visibleRoundKeys}
         roundLines={roundLines}
         isFinalReveal={isFinalReveal}
+        resultImageUrl={resultImageUrl}
       />
 
-      {!isFinalReveal && <ResultSpotlight revealStep={resultRevealStep} />}
+      {!isFinalReveal && <ResultSpotlight activeReveal={activeReveal} />}
 
-      {isFinalReveal && <ResultSegmentTags />}
+      {isFinalReveal && <ResultSegmentTags segments={segments} />}
     </div>
   )
 }
