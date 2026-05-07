@@ -3,6 +3,9 @@ import type { FortuneBirthInfo } from './types'
 export const FORTUNE_STORAGE_KEY = 'nemonic-world:today-fortune'
 export const FORTUNE_RESET_QUERY_PARAM = 'resetFortune'
 
+export const FORTUNE_USER_NOT_READY_ERROR = 'USER_NOT_READY'
+export const FORTUNE_NOON_FALLBACK_BIRTH_TIME = '12:00:00'
+
 export const FORTUNE_EMPTY_BIRTH_INFO: FortuneBirthInfo = {
   birthDate: '',
   birthTime: '',

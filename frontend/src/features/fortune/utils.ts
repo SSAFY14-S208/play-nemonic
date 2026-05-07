@@ -1,3 +1,4 @@
+import { HTTPError } from 'ky'
 import {
   calculateFourPillars,
   lunarToSolar,
@@ -7,13 +8,31 @@ import {
 } from 'manseryeok'
 
 import {
+  ApiError,
+  getFortune,
+  getFortuneTodayAvailability,
+  patchAnonymousBirthInfo,
+  postAnonymousBirthInfo,
+  postFortune,
+} from '@/shared/apis'
+import { runtime } from '@/shared/config'
+import { useUserStore } from '@/shared/stores'
+import type {
+  AnonymousUserBirthInfoRequest,
+  AnonymousUserProfileResponse,
+  FortuneCreateRequest,
+  FortuneIssuedResponse,
+} from '@/shared/types'
+
+import {
   FORTUNE_KEYWORDS,
   FORTUNE_LUCKY_COLORS,
+  FORTUNE_NOON_FALLBACK_BIRTH_TIME,
   FORTUNE_POSTIT_LINES,
   FORTUNE_STORAGE_KEY,
   FORTUNE_TITLES,
+  FORTUNE_USER_NOT_READY_ERROR,
 } from './constants'
-import type { FortuneCreateRequest, FortuneIssuedResponse } from '@/shared/types'
 import type {
   FortuneBirthInfo,
   FortuneGenerationPayload,
@@ -432,4 +451,136 @@ const KOREAN_LUCKY_COLOR_HEX: Record<string, string> = {
   흰색: '#f8f6ef',
   검정: '#2f2a33',
   검은색: '#2f2a33',
+}
+
+export function createBirthInfoRequest(birthInfo: FortuneBirthInfo): AnonymousUserBirthInfoRequest {
+  return {
+    birthday: birthInfo.birthDate,
+    birthtime: birthInfo.timeUnknown ? FORTUNE_NOON_FALLBACK_BIRTH_TIME : `${birthInfo.birthTime}:00`,
+    isLunar: birthInfo.calendarType === 'lunar',
+  }
+}
+
+export function createBirthInfoFromProfile(
+  profile: AnonymousUserProfileResponse,
+): FortuneBirthInfo | null {
+  if (!profile.birthday || !profile.birthtime || profile.isLunar === null) {
+    return null
+  }
+
+  return {
+    birthDate: profile.birthday,
+    birthTime: profile.birthtime.slice(0, 5),
+    calendarType: profile.isLunar ? 'lunar' : 'solar',
+    timeUnknown: false,
+  }
+}
+
+export function canUseLocalFortuneFallback(error: unknown) {
+  if (!runtime.isDev) {
+    return false
+  }
+
+  if (error instanceof Error && error.message === FORTUNE_USER_NOT_READY_ERROR) {
+    return true
+  }
+
+  if (error instanceof ApiError) {
+    return false
+  }
+
+  if (error instanceof HTTPError) {
+    return error.response.status === 404 || error.response.status === 405 || error.response.status >= 500
+  }
+
+  return true
+}
+
+export function isFortuneConflictError(error: unknown) {
+  if (error instanceof HTTPError) {
+    return error.response.status === 409
+  }
+
+  return error instanceof ApiError && error.message.includes('이미')
+}
+
+export function resolveBirthInfoErrorMessage(error: unknown) {
+  if (error instanceof ApiError || error instanceof HTTPError) {
+    return '생년월일 정보를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.'
+  }
+
+  return '사용자 정보를 준비하는 중이에요. 잠시 후 다시 시도해 주세요.'
+}
+
+export function resolveFortuneErrorMessage(error: unknown) {
+  if (error instanceof HTTPError && error.response.status === 412) {
+    return '생년월일 등록이 필요해요. 정보를 다시 확인해 주세요.'
+  }
+
+  if (error instanceof HTTPError && error.response.status === 502) {
+    return '운세 생성 서비스에 일시적 장애가 발생했어요. 잠시 후 다시 시도해 주세요.'
+  }
+
+  if (error instanceof ApiError) {
+    return error.message
+  }
+
+  return '운세를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.'
+}
+
+export async function saveBirthInfo(birthInfo: FortuneBirthInfo, hasServerBirthInfo: boolean) {
+  if (!useUserStore.getState().userUuid) {
+    throw new Error(FORTUNE_USER_NOT_READY_ERROR)
+  }
+
+  const payload = createBirthInfoRequest(birthInfo)
+
+  if (hasServerBirthInfo) {
+    await patchAnonymousBirthInfo(payload)
+    return
+  }
+
+  try {
+    await postAnonymousBirthInfo(payload)
+  } catch (error) {
+    if (!isFortuneConflictError(error)) {
+      throw error
+    }
+
+    await patchAnonymousBirthInfo(payload)
+  }
+}
+
+export async function issueNewFortune(birthInfo: FortuneBirthInfo) {
+  if (!useUserStore.getState().userUuid) {
+    throw new Error(FORTUNE_USER_NOT_READY_ERROR)
+  }
+
+  const issuedFortune = await postFortune(createFortuneCreateRequest(birthInfo))
+
+  return createFortuneResultFromIssuedResponse(issuedFortune, birthInfo)
+}
+
+export async function getTodayFortuneResult(birthInfo: FortuneBirthInfo | null) {
+  const availability = await getFortuneTodayAvailability()
+
+  if (availability.canDraw || !availability.fortuneId || !birthInfo) {
+    return null
+  }
+
+  const issuedFortune = await getFortune(availability.fortuneId)
+
+  return createFortuneResultFromIssuedResponse(issuedFortune, birthInfo)
+}
+
+export async function resolveAlreadyIssuedResult(error: unknown, birthInfo: FortuneBirthInfo) {
+  if (!isFortuneConflictError(error)) {
+    return null
+  }
+
+  try {
+    return await getTodayFortuneResult(birthInfo)
+  } catch {
+    return null
+  }
 }
