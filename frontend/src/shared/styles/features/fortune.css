@@ -158,7 +158,7 @@
   }
 }
 
-@keyframes fortune-2d-curtain-tug {
+@keyframes fortune-2d-curtain-tap-ripple {
   0% {
     transform:
       translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
@@ -168,7 +168,7 @@
       scaleY(1);
   }
 
-  24% {
+  14% {
     transform:
       translate3d(
         calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-hover-x)),
@@ -181,7 +181,7 @@
       scaleY(var(--fortune-curtain-pull-scale-y));
   }
 
-  52% {
+  32% {
     transform:
       translate3d(
         calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-sway-x)),
@@ -194,7 +194,7 @@
       scaleY(var(--fortune-curtain-recoil-scale-y));
   }
 
-  74% {
+  62% {
     transform:
       translate3d(
         calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-settle-x)),
@@ -209,15 +209,57 @@
 
   100% {
     transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+}
+
+@keyframes fortune-2d-curtain-soft-tap-ripple {
+  0% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+
+  22% {
+    transform:
       translate3d(
-        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-idle-pull-x)),
-        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-idle-pull-y)),
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-soft-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-soft-y)),
         0
       )
-      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-idle-pull-rotate)))
-      skewX(var(--fortune-curtain-idle-pull-skew-x))
-      scaleX(var(--fortune-curtain-idle-pull-scale-x))
-      scaleY(var(--fortune-curtain-idle-pull-scale-y));
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-soft-rotate)))
+      skewX(var(--fortune-curtain-soft-skew-x))
+      scaleX(var(--fortune-curtain-soft-scale-x))
+      scaleY(var(--fortune-curtain-soft-scale-y));
+  }
+
+  52% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) - var(--fortune-curtain-soft-x)),
+        calc(var(--fortune-curtain-rest-y) - var(--fortune-curtain-soft-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) - var(--fortune-curtain-soft-rotate)))
+      skewX(0deg)
+      scaleX(1.0004)
+      scaleY(0.9996);
+  }
+
+  100% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
   }
 }
 
@@ -708,18 +750,32 @@
   pointer-events: auto;
 }
 
-.fortune-2d-curtain-hit-zone-left {
-  top: 22%;
+.fortune-2d-curtain-hit-zone-lower-left {
+  top: 56%;
   bottom: 0;
   left: 0;
   width: 38%;
 }
 
-.fortune-2d-curtain-hit-zone-right {
-  top: 22%;
+.fortune-2d-curtain-hit-zone-lower-right {
+  top: 56%;
   right: 0;
   bottom: 0;
   width: 38%;
+}
+
+.fortune-2d-curtain-hit-zone-middle-left {
+  top: 24%;
+  left: 0;
+  width: 38%;
+  height: 32%;
+}
+
+.fortune-2d-curtain-hit-zone-middle-right {
+  top: 24%;
+  right: 0;
+  width: 38%;
+  height: 32%;
 }
 
 .fortune-2d-curtain-hit-zone-top-left {
@@ -727,7 +783,7 @@
   left: 0;
   z-index: 9;
   width: 50%;
-  height: 32%;
+  height: 24%;
 }
 
 .fortune-2d-curtain-hit-zone-top-right {
@@ -735,7 +791,7 @@
   right: 0;
   z-index: 9;
   width: 50%;
-  height: 32%;
+  height: 24%;
 }
 
 .fortune-2d-curtain-piece {
@@ -746,26 +802,38 @@
   --fortune-curtain-hover-y: 0px;
   --fortune-curtain-hover-rotate: 0deg;
   --fortune-curtain-pull-skew-x: 0deg;
-  --fortune-curtain-pull-scale-x: 1.08;
-  --fortune-curtain-pull-scale-y: 0.97;
+  --fortune-curtain-pull-scale-x: 0.9985;
+  --fortune-curtain-pull-scale-y: 1.003;
   --fortune-curtain-sway-x: var(--fortune-curtain-hover-x);
   --fortune-curtain-sway-y: var(--fortune-curtain-hover-y);
   --fortune-curtain-sway-rotate: var(--fortune-curtain-hover-rotate);
   --fortune-curtain-recoil-skew-x: 0deg;
-  --fortune-curtain-recoil-scale-x: 0.985;
-  --fortune-curtain-recoil-scale-y: 1.018;
+  --fortune-curtain-recoil-scale-x: 1.0015;
+  --fortune-curtain-recoil-scale-y: 0.999;
   --fortune-curtain-settle-x: var(--fortune-curtain-sway-x);
   --fortune-curtain-settle-y: var(--fortune-curtain-sway-y);
   --fortune-curtain-settle-rotate: var(--fortune-curtain-sway-rotate);
   --fortune-curtain-settle-skew-x: 0deg;
-  --fortune-curtain-settle-scale-x: 1.018;
-  --fortune-curtain-settle-scale-y: 0.995;
+  --fortune-curtain-settle-scale-x: 1.0004;
+  --fortune-curtain-settle-scale-y: 1;
   --fortune-curtain-idle-pull-x: var(--fortune-curtain-sway-x);
   --fortune-curtain-idle-pull-y: var(--fortune-curtain-sway-y);
   --fortune-curtain-idle-pull-rotate: 0deg;
   --fortune-curtain-idle-pull-skew-x: 0deg;
-  --fortune-curtain-idle-pull-scale-x: 1.012;
+  --fortune-curtain-idle-pull-scale-x: 1;
   --fortune-curtain-idle-pull-scale-y: 1;
+  --fortune-curtain-soft-x: 0px;
+  --fortune-curtain-soft-y: 0px;
+  --fortune-curtain-soft-rotate: 0deg;
+  --fortune-curtain-soft-skew-x: 0deg;
+  --fortune-curtain-soft-scale-x: 1.0005;
+  --fortune-curtain-soft-scale-y: 1.0004;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
+  --fortune-curtain-soft-idle-scale-x: 1;
+  --fortune-curtain-soft-idle-scale-y: 1;
 
   position: absolute;
   display: block;
@@ -783,58 +851,64 @@
   will-change: transform;
 }
 
-.fortune-2d-curtain-frame.is-left-active .fortune-2d-curtain-lower-left,
-.fortune-2d-curtain-frame.is-left-active .fortune-2d-curtain-middle-left,
-.fortune-2d-curtain-frame.is-left-active .fortune-2d-curtain-top-left,
-.fortune-2d-curtain-frame.is-right-active .fortune-2d-curtain-lower-right,
-.fortune-2d-curtain-frame.is-right-active .fortune-2d-curtain-middle-right,
-.fortune-2d-curtain-frame.is-right-active .fortune-2d-curtain-top-right,
 .fortune-2d-curtain-piece.is-active,
-.fortune-2d-curtain-hit-zone-left:hover ~ .fortune-2d-curtain-lower-left,
-.fortune-2d-curtain-hit-zone-left:hover ~ .fortune-2d-curtain-middle-left,
-.fortune-2d-curtain-hit-zone-left:hover ~ .fortune-2d-curtain-top-left,
-.fortune-2d-curtain-hit-zone-right:hover ~ .fortune-2d-curtain-lower-right,
-.fortune-2d-curtain-hit-zone-right:hover ~ .fortune-2d-curtain-middle-right,
-.fortune-2d-curtain-hit-zone-right:hover ~ .fortune-2d-curtain-top-right,
+.fortune-2d-curtain-hit-zone-lower-left:hover ~ .fortune-2d-curtain-lower-left,
+.fortune-2d-curtain-hit-zone-lower-right:hover ~ .fortune-2d-curtain-lower-right,
+.fortune-2d-curtain-hit-zone-middle-left:hover ~ .fortune-2d-curtain-middle-left,
+.fortune-2d-curtain-hit-zone-middle-right:hover ~ .fortune-2d-curtain-middle-right,
+.fortune-2d-curtain-hit-zone-top-left:hover ~ .fortune-2d-curtain-top-left,
+.fortune-2d-curtain-hit-zone-top-right:hover ~ .fortune-2d-curtain-top-right {
+  animation: fortune-2d-curtain-tap-ripple 780ms cubic-bezier(0.2, 0.86, 0.24, 1) both;
+  filter:
+    saturate(1.055)
+    brightness(1.018)
+    drop-shadow(0 0.88rem 1.42rem rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 0.3rem rgba(202, 121, 255, 0.08));
+  transform:
+    translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+    rotate(var(--fortune-curtain-rest-rotate))
+    skewX(0deg)
+    scaleX(1)
+    scaleY(1);
+  transition-duration: 220ms;
+}
+
+.fortune-2d-curtain-piece.is-soft-active,
+.fortune-2d-curtain-hit-zone-lower-left:hover ~ .fortune-2d-curtain-middle-left,
+.fortune-2d-curtain-hit-zone-lower-left:hover ~ .fortune-2d-curtain-top-left,
+.fortune-2d-curtain-hit-zone-middle-left:hover ~ .fortune-2d-curtain-lower-left,
+.fortune-2d-curtain-hit-zone-middle-left:hover ~ .fortune-2d-curtain-top-left,
 .fortune-2d-curtain-hit-zone-top-left:hover ~ .fortune-2d-curtain-lower-left,
 .fortune-2d-curtain-hit-zone-top-left:hover ~ .fortune-2d-curtain-middle-left,
-.fortune-2d-curtain-hit-zone-top-left:hover ~ .fortune-2d-curtain-top-left,
+.fortune-2d-curtain-hit-zone-lower-right:hover ~ .fortune-2d-curtain-middle-right,
+.fortune-2d-curtain-hit-zone-lower-right:hover ~ .fortune-2d-curtain-top-right,
+.fortune-2d-curtain-hit-zone-middle-right:hover ~ .fortune-2d-curtain-lower-right,
+.fortune-2d-curtain-hit-zone-middle-right:hover ~ .fortune-2d-curtain-top-right,
 .fortune-2d-curtain-hit-zone-top-right:hover ~ .fortune-2d-curtain-lower-right,
-.fortune-2d-curtain-hit-zone-top-right:hover ~ .fortune-2d-curtain-middle-right,
-.fortune-2d-curtain-hit-zone-top-right:hover ~ .fortune-2d-curtain-top-right {
-  animation: fortune-2d-curtain-tug 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
+.fortune-2d-curtain-hit-zone-top-right:hover ~ .fortune-2d-curtain-middle-right {
+  animation: fortune-2d-curtain-soft-tap-ripple 980ms cubic-bezier(0.2, 0.86, 0.24, 1) both;
   filter:
-    saturate(1.2)
-    brightness(1.1)
-    drop-shadow(0 1rem 1.55rem rgba(0, 0, 0, 0.42))
-    drop-shadow(0 0 1rem rgba(202, 121, 255, 0.26));
+    saturate(1.025)
+    brightness(1.008)
+    drop-shadow(0 0.86rem 1.42rem rgba(0, 0, 0, 0.38))
+    drop-shadow(0 0 0.16rem rgba(202, 121, 255, 0.04));
   transform:
-    translate3d(
-      calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-idle-pull-x)),
-      calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-idle-pull-y)),
-      0
-    )
-    rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-idle-pull-rotate)))
-    skewX(var(--fortune-curtain-idle-pull-skew-x))
-    scaleX(var(--fortune-curtain-idle-pull-scale-x))
-    scaleY(var(--fortune-curtain-idle-pull-scale-y));
-  transition-duration: 180ms;
+    translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+    rotate(var(--fortune-curtain-rest-rotate))
+    skewX(0deg)
+    scaleX(1)
+    scaleY(1);
+  transition-duration: 320ms;
 }
 
 .fortune-2d-curtain-piece.is-active:active,
-.fortune-2d-curtain-hit-zone-left:active ~ .fortune-2d-curtain-lower-left,
-.fortune-2d-curtain-hit-zone-left:active ~ .fortune-2d-curtain-middle-left,
-.fortune-2d-curtain-hit-zone-left:active ~ .fortune-2d-curtain-top-left,
-.fortune-2d-curtain-hit-zone-right:active ~ .fortune-2d-curtain-lower-right,
-.fortune-2d-curtain-hit-zone-right:active ~ .fortune-2d-curtain-middle-right,
-.fortune-2d-curtain-hit-zone-right:active ~ .fortune-2d-curtain-top-right,
-.fortune-2d-curtain-hit-zone-top-left:active ~ .fortune-2d-curtain-lower-left,
-.fortune-2d-curtain-hit-zone-top-left:active ~ .fortune-2d-curtain-middle-left,
+.fortune-2d-curtain-hit-zone-lower-left:active ~ .fortune-2d-curtain-lower-left,
+.fortune-2d-curtain-hit-zone-lower-right:active ~ .fortune-2d-curtain-lower-right,
+.fortune-2d-curtain-hit-zone-middle-left:active ~ .fortune-2d-curtain-middle-left,
+.fortune-2d-curtain-hit-zone-middle-right:active ~ .fortune-2d-curtain-middle-right,
 .fortune-2d-curtain-hit-zone-top-left:active ~ .fortune-2d-curtain-top-left,
-.fortune-2d-curtain-hit-zone-top-right:active ~ .fortune-2d-curtain-lower-right,
-.fortune-2d-curtain-hit-zone-top-right:active ~ .fortune-2d-curtain-middle-right,
 .fortune-2d-curtain-hit-zone-top-right:active ~ .fortune-2d-curtain-top-right {
-  animation-duration: 420ms;
+  animation-duration: 560ms;
   transform:
     translate3d(
       calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-hover-x)),
@@ -843,33 +917,46 @@
     )
     rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-hover-rotate)))
     skewX(var(--fortune-curtain-pull-skew-x))
-    scaleX(calc(var(--fortune-curtain-pull-scale-x) + 0.035))
+    scaleX(calc(var(--fortune-curtain-pull-scale-x) + 0.001))
     scaleY(var(--fortune-curtain-pull-scale-y));
 }
 
 .fortune-2d-curtain-lower-left {
-  --fortune-curtain-hover-x: clamp(2.8rem, 9vw, 6rem);
-  --fortune-curtain-hover-y: clamp(0.7rem, 2.2dvh, 1.8rem);
-  --fortune-curtain-hover-rotate: 2.2deg;
-  --fortune-curtain-pull-skew-x: 9deg;
-  --fortune-curtain-pull-scale-x: 1.2;
-  --fortune-curtain-pull-scale-y: 0.955;
-  --fortune-curtain-sway-x: clamp(-0.55rem, -1.2vw, -0.2rem);
-  --fortune-curtain-sway-y: clamp(-0.34rem, -0.8dvh, -0.12rem);
-  --fortune-curtain-sway-rotate: -1.2deg;
-  --fortune-curtain-recoil-skew-x: -4.5deg;
-  --fortune-curtain-settle-x: clamp(1rem, 3vw, 2.2rem);
-  --fortune-curtain-settle-y: clamp(0.2rem, 0.8dvh, 0.62rem);
-  --fortune-curtain-settle-rotate: 0.6deg;
-  --fortune-curtain-settle-skew-x: 3deg;
-  --fortune-curtain-idle-pull-x: clamp(0.58rem, 1.8vw, 1.5rem);
-  --fortune-curtain-idle-pull-y: clamp(0.08rem, 0.36dvh, 0.34rem);
-  --fortune-curtain-idle-pull-skew-x: 1.6deg;
+  --fortune-curtain-hover-x: clamp(0.016rem, 0.055vw, 0.045rem);
+  --fortune-curtain-hover-y: clamp(0.004rem, 0.025dvh, 0.014rem);
+  --fortune-curtain-hover-rotate: 0.075deg;
+  --fortune-curtain-pull-skew-x: 0.5deg;
+  --fortune-curtain-pull-scale-x: 0.9982;
+  --fortune-curtain-pull-scale-y: 1.0032;
+  --fortune-curtain-sway-x: clamp(-0.022rem, -0.045vw, -0.008rem);
+  --fortune-curtain-sway-y: clamp(-0.014rem, -0.03dvh, -0.004rem);
+  --fortune-curtain-sway-rotate: -0.055deg;
+  --fortune-curtain-recoil-skew-x: -0.22deg;
+  --fortune-curtain-recoil-scale-x: 1.0018;
+  --fortune-curtain-recoil-scale-y: 0.999;
+  --fortune-curtain-settle-x: clamp(0.004rem, 0.015vw, 0.014rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.006dvh, 0.004rem);
+  --fortune-curtain-settle-rotate: 0.018deg;
+  --fortune-curtain-settle-skew-x: 0.04deg;
+  --fortune-curtain-settle-scale-x: 1.0004;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(0.004rem, 0.018vw, 0.014rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.006dvh, 0.004rem);
+  --fortune-curtain-soft-rotate: 0.006deg;
+  --fortune-curtain-soft-skew-x: 0.01deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
 
-  bottom: -3.4dvh;
+  bottom: -8.8dvh;
   left: -6.6vw;
   z-index: 1;
-  height: min(78dvh, 51rem);
+  height: min(54dvh, 35rem);
   opacity: 0.94;
   filter:
     saturate(1.04)
@@ -879,28 +966,41 @@
 }
 
 .fortune-2d-curtain-lower-right {
-  --fortune-curtain-hover-x: clamp(-6rem, -9vw, -2.8rem);
-  --fortune-curtain-hover-y: clamp(0.7rem, 2.2dvh, 1.8rem);
-  --fortune-curtain-hover-rotate: -2.2deg;
-  --fortune-curtain-pull-skew-x: -9deg;
-  --fortune-curtain-pull-scale-x: 1.2;
-  --fortune-curtain-pull-scale-y: 0.955;
-  --fortune-curtain-sway-x: clamp(0.2rem, 1.2vw, 0.55rem);
-  --fortune-curtain-sway-y: clamp(-0.34rem, -0.8dvh, -0.12rem);
-  --fortune-curtain-sway-rotate: 1.2deg;
-  --fortune-curtain-recoil-skew-x: 4.5deg;
-  --fortune-curtain-settle-x: clamp(-2.2rem, -3vw, -1rem);
-  --fortune-curtain-settle-y: clamp(0.2rem, 0.8dvh, 0.62rem);
-  --fortune-curtain-settle-rotate: -0.6deg;
-  --fortune-curtain-settle-skew-x: -3deg;
-  --fortune-curtain-idle-pull-x: clamp(-1.5rem, -1.8vw, -0.58rem);
-  --fortune-curtain-idle-pull-y: clamp(0.08rem, 0.36dvh, 0.34rem);
-  --fortune-curtain-idle-pull-skew-x: -1.6deg;
+  --fortune-curtain-hover-x: clamp(-0.045rem, -0.055vw, -0.016rem);
+  --fortune-curtain-hover-y: clamp(0.004rem, 0.025dvh, 0.014rem);
+  --fortune-curtain-hover-rotate: -0.075deg;
+  --fortune-curtain-pull-skew-x: -0.5deg;
+  --fortune-curtain-pull-scale-x: 0.9982;
+  --fortune-curtain-pull-scale-y: 1.0032;
+  --fortune-curtain-sway-x: clamp(0.008rem, 0.045vw, 0.022rem);
+  --fortune-curtain-sway-y: clamp(-0.014rem, -0.03dvh, -0.004rem);
+  --fortune-curtain-sway-rotate: 0.055deg;
+  --fortune-curtain-recoil-skew-x: 0.22deg;
+  --fortune-curtain-recoil-scale-x: 1.0018;
+  --fortune-curtain-recoil-scale-y: 0.999;
+  --fortune-curtain-settle-x: clamp(-0.014rem, -0.015vw, -0.004rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.006dvh, 0.004rem);
+  --fortune-curtain-settle-rotate: -0.018deg;
+  --fortune-curtain-settle-skew-x: -0.04deg;
+  --fortune-curtain-settle-scale-x: 1.0004;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(-0.014rem, -0.018vw, -0.004rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.006dvh, 0.004rem);
+  --fortune-curtain-soft-rotate: -0.006deg;
+  --fortune-curtain-soft-skew-x: -0.01deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
 
   right: -6.6vw;
-  bottom: -3.4dvh;
+  bottom: -8.8dvh;
   z-index: 1;
-  height: min(78dvh, 51rem);
+  height: min(54dvh, 35rem);
   opacity: 0.94;
   filter:
     saturate(1.04)
@@ -910,25 +1010,38 @@
 }
 
 .fortune-2d-curtain-middle-left {
-  --fortune-curtain-hover-x: clamp(2.35rem, 7.5vw, 5rem);
-  --fortune-curtain-hover-y: clamp(0.48rem, 1.8dvh, 1.42rem);
-  --fortune-curtain-hover-rotate: 1.8deg;
-  --fortune-curtain-pull-skew-x: 8deg;
-  --fortune-curtain-pull-scale-x: 1.17;
-  --fortune-curtain-pull-scale-y: 0.965;
-  --fortune-curtain-sway-x: clamp(-0.46rem, -1vw, -0.18rem);
-  --fortune-curtain-sway-y: clamp(-0.24rem, -0.7dvh, -0.08rem);
-  --fortune-curtain-sway-rotate: -0.9deg;
-  --fortune-curtain-recoil-skew-x: -3.8deg;
-  --fortune-curtain-settle-x: clamp(0.82rem, 2.5vw, 1.9rem);
-  --fortune-curtain-settle-y: clamp(0.14rem, 0.6dvh, 0.48rem);
-  --fortune-curtain-settle-rotate: 0.48deg;
-  --fortune-curtain-settle-skew-x: 2.4deg;
-  --fortune-curtain-idle-pull-x: clamp(0.48rem, 1.5vw, 1.2rem);
-  --fortune-curtain-idle-pull-y: clamp(0.06rem, 0.28dvh, 0.28rem);
-  --fortune-curtain-idle-pull-skew-x: 1.35deg;
+  --fortune-curtain-hover-x: clamp(0.012rem, 0.045vw, 0.034rem);
+  --fortune-curtain-hover-y: clamp(0.003rem, 0.02dvh, 0.012rem);
+  --fortune-curtain-hover-rotate: 0.06deg;
+  --fortune-curtain-pull-skew-x: 0.42deg;
+  --fortune-curtain-pull-scale-x: 0.9987;
+  --fortune-curtain-pull-scale-y: 1.0026;
+  --fortune-curtain-sway-x: clamp(-0.018rem, -0.036vw, -0.006rem);
+  --fortune-curtain-sway-y: clamp(-0.012rem, -0.026dvh, -0.004rem);
+  --fortune-curtain-sway-rotate: -0.044deg;
+  --fortune-curtain-recoil-skew-x: -0.18deg;
+  --fortune-curtain-recoil-scale-x: 1.0014;
+  --fortune-curtain-recoil-scale-y: 0.9992;
+  --fortune-curtain-settle-x: clamp(0.003rem, 0.012vw, 0.011rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.005dvh, 0.003rem);
+  --fortune-curtain-settle-rotate: 0.014deg;
+  --fortune-curtain-settle-skew-x: 0.032deg;
+  --fortune-curtain-settle-scale-x: 1.0003;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(0.003rem, 0.014vw, 0.011rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.005dvh, 0.003rem);
+  --fortune-curtain-soft-rotate: 0.005deg;
+  --fortune-curtain-soft-skew-x: 0.008deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
 
-  top: -1.3dvh;
+  top: 1.2dvh;
   left: -4.6vw;
   z-index: 2;
   width: min(30vw, 24rem);
@@ -941,25 +1054,38 @@
 }
 
 .fortune-2d-curtain-middle-right {
-  --fortune-curtain-hover-x: clamp(-5rem, -7.5vw, -2.35rem);
-  --fortune-curtain-hover-y: clamp(0.48rem, 1.8dvh, 1.42rem);
-  --fortune-curtain-hover-rotate: -1.8deg;
-  --fortune-curtain-pull-skew-x: -8deg;
-  --fortune-curtain-pull-scale-x: 1.17;
-  --fortune-curtain-pull-scale-y: 0.965;
-  --fortune-curtain-sway-x: clamp(0.18rem, 1vw, 0.46rem);
-  --fortune-curtain-sway-y: clamp(-0.24rem, -0.7dvh, -0.08rem);
-  --fortune-curtain-sway-rotate: 0.9deg;
-  --fortune-curtain-recoil-skew-x: 3.8deg;
-  --fortune-curtain-settle-x: clamp(-1.9rem, -2.5vw, -0.82rem);
-  --fortune-curtain-settle-y: clamp(0.14rem, 0.6dvh, 0.48rem);
-  --fortune-curtain-settle-rotate: -0.48deg;
-  --fortune-curtain-settle-skew-x: -2.4deg;
-  --fortune-curtain-idle-pull-x: clamp(-1.2rem, -1.5vw, -0.48rem);
-  --fortune-curtain-idle-pull-y: clamp(0.06rem, 0.28dvh, 0.28rem);
-  --fortune-curtain-idle-pull-skew-x: -1.35deg;
+  --fortune-curtain-hover-x: clamp(-0.034rem, -0.045vw, -0.012rem);
+  --fortune-curtain-hover-y: clamp(0.003rem, 0.02dvh, 0.012rem);
+  --fortune-curtain-hover-rotate: -0.06deg;
+  --fortune-curtain-pull-skew-x: -0.42deg;
+  --fortune-curtain-pull-scale-x: 0.9987;
+  --fortune-curtain-pull-scale-y: 1.0026;
+  --fortune-curtain-sway-x: clamp(0.006rem, 0.036vw, 0.018rem);
+  --fortune-curtain-sway-y: clamp(-0.012rem, -0.026dvh, -0.004rem);
+  --fortune-curtain-sway-rotate: 0.044deg;
+  --fortune-curtain-recoil-skew-x: 0.18deg;
+  --fortune-curtain-recoil-scale-x: 1.0014;
+  --fortune-curtain-recoil-scale-y: 0.9992;
+  --fortune-curtain-settle-x: clamp(-0.011rem, -0.012vw, -0.003rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.005dvh, 0.003rem);
+  --fortune-curtain-settle-rotate: -0.014deg;
+  --fortune-curtain-settle-skew-x: -0.032deg;
+  --fortune-curtain-settle-scale-x: 1.0003;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(-0.011rem, -0.014vw, -0.003rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.005dvh, 0.003rem);
+  --fortune-curtain-soft-rotate: -0.005deg;
+  --fortune-curtain-soft-skew-x: -0.008deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
 
-  top: -1.4dvh;
+  top: 1.2dvh;
   right: -4.6vw;
   z-index: 2;
   width: min(30vw, 24rem);
@@ -972,23 +1098,36 @@
 }
 
 .fortune-2d-curtain-top-left {
-  --fortune-curtain-hover-x: clamp(1.7rem, 5.4vw, 3.8rem);
-  --fortune-curtain-hover-y: clamp(0.34rem, 1.2dvh, 1rem);
-  --fortune-curtain-hover-rotate: 1deg;
-  --fortune-curtain-pull-skew-x: 5.4deg;
-  --fortune-curtain-pull-scale-x: 1.11;
-  --fortune-curtain-pull-scale-y: 0.975;
-  --fortune-curtain-sway-x: clamp(-0.3rem, -0.8vw, -0.12rem);
-  --fortune-curtain-sway-y: clamp(-0.18rem, -0.45dvh, -0.06rem);
-  --fortune-curtain-sway-rotate: -0.55deg;
-  --fortune-curtain-recoil-skew-x: -2.4deg;
-  --fortune-curtain-settle-x: clamp(0.52rem, 1.7vw, 1.4rem);
-  --fortune-curtain-settle-y: clamp(0.08rem, 0.4dvh, 0.32rem);
-  --fortune-curtain-settle-rotate: 0.2deg;
-  --fortune-curtain-settle-skew-x: 1.5deg;
-  --fortune-curtain-idle-pull-x: clamp(0.28rem, 1vw, 0.8rem);
-  --fortune-curtain-idle-pull-y: clamp(0.04rem, 0.2dvh, 0.18rem);
-  --fortune-curtain-idle-pull-skew-x: 0.75deg;
+  --fortune-curtain-hover-x: clamp(0.008rem, 0.032vw, 0.022rem);
+  --fortune-curtain-hover-y: clamp(0.002rem, 0.014dvh, 0.008rem);
+  --fortune-curtain-hover-rotate: 0.045deg;
+  --fortune-curtain-pull-skew-x: 0.28deg;
+  --fortune-curtain-pull-scale-x: 0.999;
+  --fortune-curtain-pull-scale-y: 1.0018;
+  --fortune-curtain-sway-x: clamp(-0.012rem, -0.026vw, -0.004rem);
+  --fortune-curtain-sway-y: clamp(-0.008rem, -0.018dvh, -0.003rem);
+  --fortune-curtain-sway-rotate: -0.032deg;
+  --fortune-curtain-recoil-skew-x: -0.12deg;
+  --fortune-curtain-recoil-scale-x: 1.001;
+  --fortune-curtain-recoil-scale-y: 0.9994;
+  --fortune-curtain-settle-x: clamp(0.002rem, 0.008vw, 0.007rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.004dvh, 0.002rem);
+  --fortune-curtain-settle-rotate: 0.01deg;
+  --fortune-curtain-settle-skew-x: 0.024deg;
+  --fortune-curtain-settle-scale-x: 1.0002;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(0.002rem, 0.01vw, 0.007rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.003dvh, 0.002rem);
+  --fortune-curtain-soft-rotate: 0.003deg;
+  --fortune-curtain-soft-skew-x: 0.005deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
 
   top: max(-4.35rem, -6.2dvh);
   left: -4.8vw;
@@ -1003,23 +1142,36 @@
 }
 
 .fortune-2d-curtain-top-right {
-  --fortune-curtain-hover-x: clamp(-3.8rem, -5.4vw, -1.7rem);
-  --fortune-curtain-hover-y: clamp(0.34rem, 1.2dvh, 1rem);
-  --fortune-curtain-hover-rotate: -1deg;
-  --fortune-curtain-pull-skew-x: -5.4deg;
-  --fortune-curtain-pull-scale-x: 1.11;
-  --fortune-curtain-pull-scale-y: 0.975;
-  --fortune-curtain-sway-x: clamp(0.12rem, 0.8vw, 0.3rem);
-  --fortune-curtain-sway-y: clamp(-0.18rem, -0.45dvh, -0.06rem);
-  --fortune-curtain-sway-rotate: 0.55deg;
-  --fortune-curtain-recoil-skew-x: 2.4deg;
-  --fortune-curtain-settle-x: clamp(-1.4rem, -1.7vw, -0.52rem);
-  --fortune-curtain-settle-y: clamp(0.08rem, 0.4dvh, 0.32rem);
-  --fortune-curtain-settle-rotate: -0.2deg;
-  --fortune-curtain-settle-skew-x: -1.5deg;
-  --fortune-curtain-idle-pull-x: clamp(-0.8rem, -1vw, -0.28rem);
-  --fortune-curtain-idle-pull-y: clamp(0.04rem, 0.2dvh, 0.18rem);
-  --fortune-curtain-idle-pull-skew-x: -0.75deg;
+  --fortune-curtain-hover-x: clamp(-0.022rem, -0.032vw, -0.008rem);
+  --fortune-curtain-hover-y: clamp(0.002rem, 0.014dvh, 0.008rem);
+  --fortune-curtain-hover-rotate: -0.045deg;
+  --fortune-curtain-pull-skew-x: -0.28deg;
+  --fortune-curtain-pull-scale-x: 0.999;
+  --fortune-curtain-pull-scale-y: 1.0018;
+  --fortune-curtain-sway-x: clamp(0.004rem, 0.026vw, 0.012rem);
+  --fortune-curtain-sway-y: clamp(-0.008rem, -0.018dvh, -0.003rem);
+  --fortune-curtain-sway-rotate: 0.032deg;
+  --fortune-curtain-recoil-skew-x: 0.12deg;
+  --fortune-curtain-recoil-scale-x: 1.001;
+  --fortune-curtain-recoil-scale-y: 0.9994;
+  --fortune-curtain-settle-x: clamp(-0.007rem, -0.008vw, -0.002rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.004dvh, 0.002rem);
+  --fortune-curtain-settle-rotate: -0.01deg;
+  --fortune-curtain-settle-skew-x: -0.024deg;
+  --fortune-curtain-settle-scale-x: 1.0002;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(-0.007rem, -0.01vw, -0.002rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.003dvh, 0.002rem);
+  --fortune-curtain-soft-rotate: -0.003deg;
+  --fortune-curtain-soft-skew-x: -0.005deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
 
   top: max(-4.35rem, -6.2dvh);
   right: -4.8vw;
@@ -1035,13 +1187,15 @@
 
 .fortune-2d-screen-ornaments {
   position: absolute;
-  top: -1.8%;
+  top: 0%;
   left: 50%;
   z-index: 5;
-  width: min(106vw, 92rem);
+  width: min(101vw, 88rem);
+  height: min(66dvh, 50rem);
   max-width: none;
+  object-fit: fill;
   transform: translate3d(-50%, 0, 0);
-  opacity: 0.86;
+  opacity: 0.84;
   filter:
     drop-shadow(0 0 0.42rem rgba(190, 99, 255, 0.28))
     drop-shadow(0 0.9rem 1.2rem rgba(0, 0, 0, 0.34));
@@ -1138,24 +1292,24 @@
 
   .fortune-2d-curtain-lower-left {
     left: -52vw;
-    bottom: -3.2dvh;
-    height: min(78dvh, 51rem);
+    bottom: -8.4dvh;
+    height: min(54dvh, 35rem);
   }
 
   .fortune-2d-curtain-lower-right {
     right: -52vw;
-    bottom: -3.2dvh;
-    height: min(78dvh, 51rem);
+    bottom: -8.4dvh;
+    height: min(54dvh, 35rem);
   }
 
   .fortune-2d-curtain-middle-left {
-    top: -1.3dvh;
+    top: 1dvh;
     left: -18vw;
     width: 36vw;
   }
 
   .fortune-2d-curtain-middle-right {
-    top: -1.4dvh;
+    top: 1dvh;
     right: -18vw;
     width: 36vw;
   }
@@ -1173,8 +1327,9 @@
   }
 
   .fortune-2d-screen-ornaments {
-    top: 0.4%;
-    width: 118vw;
+    top: 0.6%;
+    width: 110vw;
+    height: 58dvh;
     opacity: 0.74;
   }
 }
@@ -1434,7 +1589,7 @@
 .fortune-dialogue-speaker {
   position: absolute;
   top: 6.3%;
-  left: 10.4%;
+  left: 11.1%;
   display: grid;
   width: min(29.8%, 18rem);
   height: 21%;
@@ -1466,10 +1621,10 @@
   align-self: center;
   color: rgba(255, 249, 228, 0.98);
   font-family: var(--font-paperlogy);
-  font-size: clamp(1rem, 1.85vw, 1.48rem);
+  font-size: clamp(1.14rem, 2.12vw, 1.72rem);
   font-weight: 500;
   letter-spacing: 0;
-  line-height: 1.46;
+  line-height: 1.42;
   text-shadow:
     0 0.16rem 0.45rem rgba(7, 1, 16, 0.72),
     0 0 0.86rem rgba(160, 87, 255, 0.3);
@@ -1501,6 +1656,7 @@
   align-self: center;
   width: clamp(2.55rem, 4.9vw, 4.35rem);
   aspect-ratio: 1;
+  margin-right: clamp(0.65rem, 3.1vw, 2.45rem);
   min-height: 0;
   border: 0;
   background: transparent url("/images/fortune/stage/dialogue-next-button.png") center / contain no-repeat;
@@ -2620,7 +2776,7 @@
 
   .fortune-dialogue-speaker {
     top: 6%;
-    left: 10.6%;
+    left: 11.2%;
     width: 30%;
     min-width: 5.3rem;
     padding-left: clamp(0.72rem, 3.4vw, 1.2rem);
@@ -2628,7 +2784,7 @@
   }
 
   .fortune-dialogue-copy {
-    font-size: clamp(0.84rem, 3.72vw, 1.06rem);
+    font-size: clamp(0.92rem, 4vw, 1.16rem);
     line-height: 1.42;
   }
 
@@ -2636,6 +2792,7 @@
     grid-column: auto;
     justify-self: end;
     width: clamp(2.05rem, 9.7vw, 3.15rem);
+    margin-right: clamp(0.2rem, 1.8vw, 0.55rem);
   }
 
   .fortune-paper-panel {
@@ -2859,5 +3016,18 @@
       skewX(var(--fortune-curtain-idle-pull-skew-x))
       scaleX(var(--fortune-curtain-idle-pull-scale-x))
       scaleY(var(--fortune-curtain-idle-pull-scale-y));
+  }
+
+  .fortune-2d-curtain-piece.is-soft-active {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-soft-idle-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-soft-idle-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-soft-idle-rotate)))
+      skewX(var(--fortune-curtain-soft-idle-skew-x))
+      scaleX(var(--fortune-curtain-soft-idle-scale-x))
+      scaleY(var(--fortune-curtain-soft-idle-scale-y));
   }
 }

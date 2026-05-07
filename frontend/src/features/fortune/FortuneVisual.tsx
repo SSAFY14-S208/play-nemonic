@@ -50,10 +50,30 @@ const FORTUNE_CURTAIN_LAYERS = [
 ] as const
 
 const FORTUNE_CURTAIN_HIT_ZONES = [
-  'fortune-2d-curtain-hit-zone-left',
-  'fortune-2d-curtain-hit-zone-right',
-  'fortune-2d-curtain-hit-zone-top-left',
-  'fortune-2d-curtain-hit-zone-top-right',
+  {
+    className: 'fortune-2d-curtain-hit-zone-lower-left',
+    curtainClassName: 'fortune-2d-curtain-lower-left',
+  },
+  {
+    className: 'fortune-2d-curtain-hit-zone-lower-right',
+    curtainClassName: 'fortune-2d-curtain-lower-right',
+  },
+  {
+    className: 'fortune-2d-curtain-hit-zone-middle-left',
+    curtainClassName: 'fortune-2d-curtain-middle-left',
+  },
+  {
+    className: 'fortune-2d-curtain-hit-zone-middle-right',
+    curtainClassName: 'fortune-2d-curtain-middle-right',
+  },
+  {
+    className: 'fortune-2d-curtain-hit-zone-top-left',
+    curtainClassName: 'fortune-2d-curtain-top-left',
+  },
+  {
+    className: 'fortune-2d-curtain-hit-zone-top-right',
+    curtainClassName: 'fortune-2d-curtain-top-right',
+  },
 ] as const
 
 const CURTAIN_FRAME_TOP_RATIO = 0.24
@@ -195,15 +215,26 @@ export default function FortuneVisual({
       </div>
       <div
         ref={curtainFrameRef}
-        className={cn(
-          'fortune-2d-curtain-frame',
-          activeCurtainSide === 'left' && 'is-left-active',
-          activeCurtainSide === 'right' && 'is-right-active',
-        )}
+        className="fortune-2d-curtain-frame"
+        onPointerLeave={() => setActiveCurtainClassName(null)}
         aria-hidden
       >
-        {FORTUNE_CURTAIN_HIT_ZONES.map((hitZoneClassName) => (
-          <span key={hitZoneClassName} className={cn('fortune-2d-curtain-hit-zone', hitZoneClassName)} />
+        {FORTUNE_CURTAIN_HIT_ZONES.map((hitZone) => (
+          <span
+            key={hitZone.className}
+            className={cn('fortune-2d-curtain-hit-zone', hitZone.className)}
+            data-fortune-curtain-hit-zone={hitZone.curtainClassName}
+            onPointerDown={() => setActiveCurtainClassName(hitZone.curtainClassName)}
+            onPointerEnter={() => setActiveCurtainClassName(hitZone.curtainClassName)}
+            onPointerMove={() => setActiveCurtainClassName(hitZone.curtainClassName)}
+            onPointerUp={() => setActiveCurtainClassName(null)}
+            onPointerCancel={() => setActiveCurtainClassName(null)}
+            onPointerLeave={() =>
+              setActiveCurtainClassName((currentCurtainClassName) =>
+                currentCurtainClassName === hitZone.curtainClassName ? null : currentCurtainClassName,
+              )
+            }
+          />
         ))}
         {FORTUNE_CURTAIN_LAYERS.map((curtainLayer) => (
           <img
@@ -211,7 +242,8 @@ export default function FortuneVisual({
             className={cn(
               'fortune-2d-curtain-piece',
               curtainLayer.className,
-              isCurtainLayerActive(curtainLayer.className, activeCurtainClassName, activeCurtainSide) && 'is-active',
+              curtainLayer.className === activeCurtainClassName && 'is-active',
+              isSameSideCurtainLayer(curtainLayer.className, activeCurtainClassName, activeCurtainSide) && 'is-soft-active',
             )}
             data-fortune-curtain-layer={curtainLayer.className}
             draggable={false}
@@ -258,10 +290,10 @@ function getCurtainSideFromClassName(curtainClassName: string | null) {
   return null
 }
 
-function isCurtainLayerActive(
+function isSameSideCurtainLayer(
   curtainClassName: string,
   activeCurtainClassName: string | null,
   activeCurtainSide: 'left' | 'right' | null,
 ) {
-  return curtainClassName === activeCurtainClassName || Boolean(activeCurtainSide && curtainClassName.endsWith(`-${activeCurtainSide}`))
+  return curtainClassName !== activeCurtainClassName && Boolean(activeCurtainSide && curtainClassName.endsWith(`-${activeCurtainSide}`))
 }
