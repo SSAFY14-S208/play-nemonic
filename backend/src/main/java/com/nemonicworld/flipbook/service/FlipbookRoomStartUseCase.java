@@ -3,6 +3,7 @@ package com.nemonicworld.flipbook.service;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;
+import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
@@ -45,8 +46,10 @@ public class FlipbookRoomStartUseCase {
 
             List<FlipbookRoomParticipant> startParticipants = flipbookRoomPolicy.findStartParticipants(roomState);
             int totalRounds = flipbookRoomPolicy.resolveDefaultTotalRounds(startParticipants.size());
+            List<FlipbookFrameAssignment> assignments = FlipbookFrameAssignmentGenerator.generate(startParticipants,
+                totalRounds);
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            FlipbookRoomState updatedRoomState = roomState.startGame(totalRounds, now);
+            FlipbookRoomState updatedRoomState = roomState.startGame(totalRounds, assignments, now);
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
