@@ -7,6 +7,7 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomMyAssignmentResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomResultsResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 
 /**
@@ -45,6 +46,11 @@ public interface FlipbookRoomService {
      */
     FlipbookFrameSubmitResponse submitFrame(String userUuidValue, String roomCodeValue, int round,
         FlipbookFrameSubmitRequest request);
+
+    /**
+     * 기존 익명 사용자인 참여자의 플립북 최종 결과를 조회합니다.
+     */
+    FlipbookRoomResultsResponse getResults(String userUuidValue, String roomCodeValue);
 
     /**
      * 기존 익명 사용자인 방장이 대기 중 플립북 방의 일반 참여자를 강퇴합니다.

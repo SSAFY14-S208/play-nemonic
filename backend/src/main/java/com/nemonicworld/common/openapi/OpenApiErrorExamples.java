@@ -353,6 +353,18 @@ public final class OpenApiErrorExamples {
           "message": "이미 종료된 방입니다."
         }
         """;
+    public static final String FLIPBOOK_RESULT_ACCESS_DENIED = """
+        {
+          "success": false,
+          "message": "플립북 결과를 조회할 권한이 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_RESULT_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "플립북 결과를 찾을 수 없습니다."
+        }
+        """;
     public static final String RELAY_GAME_ALREADY_STARTED = """
         {
           "success": false,
