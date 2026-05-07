@@ -120,6 +120,7 @@ class FlipbookRoomControllerIntegrationTest {
         assertThat(storedRoom.path("participants").get(0).path("joinOrder").asInt()).isZero();
         assertThat(storedRoom.path("participants").get(0).path("connected").asBoolean()).isFalse();
         assertThat(storedRoom.path("participants").get(0).path("joinedAt").asText()).isNotBlank();
+        assertThat(storedRoom.path("kickedUserUuids")).isEmpty();
         assertThat(storedRoom.path("createdAt").asText()).isEqualTo(responseData.path("createdAt").asText());
         assertThat(storedRoom.path("updatedAt").asText()).isEqualTo(responseData.path("createdAt").asText());
         assertThat(storedInvite.path("inviteCode").asText()).isEqualTo(DEFAULT_ROOM_CODE);

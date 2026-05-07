@@ -13,6 +13,12 @@ public enum FlipbookRoomEventType {
     // 방 설정이 변경되었음을 알립니다.
     SETTINGS_CHANGED,
 
+    // 방장이 대기실 참여자를 강퇴했음을 알립니다.
+    PARTICIPANT_KICKED,
+
+    // 강퇴 대상자 개인 큐로 전달하는 강퇴 안내입니다.
+    KICKED_FROM_ROOM,
+
     // 같은 UUID의 기존 세션이 중복 접속으로 종료되었음을 알립니다.
     DUPLICATE_SESSION_CLOSED,
 
