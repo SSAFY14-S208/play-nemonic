@@ -1,5 +1,6 @@
 import { HTTPError } from 'ky'
 import { useEffect, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import {
   ApiError,
@@ -35,24 +36,40 @@ import {
 
 export function useFortuneFlow() {
   const userUuid = useUserStore((state) => state.userUuid)
-  const step = useFortuneSessionStore((state) => state.step)
-  const birthInfo = useFortuneSessionStore((state) => state.birthInfo)
-  const result = useFortuneSessionStore((state) => state.result)
-  const hasUserStoreHydrated = useFortuneSessionStore((state) => state.hasUserStoreHydrated)
-  const hasHydrated = useFortuneSessionStore((state) => state.hasHydrated)
-  const hasServerBirthInfo = useFortuneSessionStore((state) => state.hasServerBirthInfo)
-  const isSubmittingBirthInfo = useFortuneSessionStore((state) => state.isSubmittingBirthInfo)
-  const isDrawingFortune = useFortuneSessionStore((state) => state.isDrawingFortune)
-  const errorMessage = useFortuneSessionStore((state) => state.errorMessage)
-  const setStep = useFortuneSessionStore((state) => state.setStep)
-  const setBirthInfo = useFortuneSessionStore((state) => state.setBirthInfo)
-  const setResult = useFortuneSessionStore((state) => state.setResult)
-  const setHasUserStoreHydrated = useFortuneSessionStore((state) => state.setUserStoreHydrated)
-  const setHasHydrated = useFortuneSessionStore((state) => state.setHydrated)
-  const setHasServerBirthInfo = useFortuneSessionStore((state) => state.setHasServerBirthInfo)
-  const setIsSubmittingBirthInfo = useFortuneSessionStore((state) => state.setSubmittingBirthInfo)
-  const setIsDrawingFortune = useFortuneSessionStore((state) => state.setDrawingFortune)
-  const setErrorMessage = useFortuneSessionStore((state) => state.setErrorMessage)
+  const {
+    step,
+    birthInfo,
+    result,
+    hasUserStoreHydrated,
+    hasHydrated,
+    hasServerBirthInfo,
+    isSubmittingBirthInfo,
+    isDrawingFortune,
+    errorMessage,
+  } = useFortuneSessionStore(
+    useShallow((state) => ({
+      step: state.step,
+      birthInfo: state.birthInfo,
+      result: state.result,
+      hasUserStoreHydrated: state.hasUserStoreHydrated,
+      hasHydrated: state.hasHydrated,
+      hasServerBirthInfo: state.hasServerBirthInfo,
+      isSubmittingBirthInfo: state.isSubmittingBirthInfo,
+      isDrawingFortune: state.isDrawingFortune,
+      errorMessage: state.errorMessage,
+    })),
+  )
+  const {
+    setStep,
+    setBirthInfo,
+    setResult,
+    setHasUserStoreHydrated,
+    setHasHydrated,
+    setHasServerBirthInfo,
+    setIsSubmittingBirthInfo,
+    setIsDrawingFortune,
+    setErrorMessage,
+  } = useFortuneSessionStore.getState()
 
   useEffect(() => {
     if (hasUserStoreHydrated) return

@@ -19,19 +19,33 @@ interface FortuneSessionState {
   setStep: (step: FortuneStep) => void
   setBirthInfo: (birthInfo: FortuneBirthInfo) => void
   setResult: (result: FortuneResult | null) => void
-  setUserStoreHydrated: (hasUserStoreHydrated: boolean) => void
-  setHydrated: (hasHydrated: boolean) => void
+  setHasUserStoreHydrated: (hasUserStoreHydrated: boolean) => void
+  setHasHydrated: (hasHydrated: boolean) => void
   setHasServerBirthInfo: (hasServerBirthInfo: boolean) => void
-  setSubmittingBirthInfo: (isSubmittingBirthInfo: boolean) => void
-  setDrawingFortune: (isDrawingFortune: boolean) => void
+  setIsSubmittingBirthInfo: (isSubmittingBirthInfo: boolean) => void
+  setIsDrawingFortune: (isDrawingFortune: boolean) => void
   setErrorMessage: (errorMessage: string) => void
   resetSession: () => void
 }
 
-const INITIAL_STATE = {
-  step: 'intro' as FortuneStep,
+type FortuneSessionStateValues = Omit<
+  FortuneSessionState,
+  | 'setStep'
+  | 'setBirthInfo'
+  | 'setResult'
+  | 'setHasUserStoreHydrated'
+  | 'setHasHydrated'
+  | 'setHasServerBirthInfo'
+  | 'setIsSubmittingBirthInfo'
+  | 'setIsDrawingFortune'
+  | 'setErrorMessage'
+  | 'resetSession'
+>
+
+const INITIAL_STATE: FortuneSessionStateValues = {
+  step: 'intro',
   birthInfo: FORTUNE_EMPTY_BIRTH_INFO,
-  result: null as FortuneResult | null,
+  result: null,
   hasUserStoreHydrated: false,
   hasHydrated: false,
   hasServerBirthInfo: false,
@@ -45,11 +59,11 @@ export const useFortuneSessionStore = create<FortuneSessionState>((set) => ({
   setStep: (step) => set({ step }),
   setBirthInfo: (birthInfo) => set({ birthInfo }),
   setResult: (result) => set({ result }),
-  setUserStoreHydrated: (hasUserStoreHydrated) => set({ hasUserStoreHydrated }),
-  setHydrated: (hasHydrated) => set({ hasHydrated }),
+  setHasUserStoreHydrated: (hasUserStoreHydrated) => set({ hasUserStoreHydrated }),
+  setHasHydrated: (hasHydrated) => set({ hasHydrated }),
   setHasServerBirthInfo: (hasServerBirthInfo) => set({ hasServerBirthInfo }),
-  setSubmittingBirthInfo: (isSubmittingBirthInfo) => set({ isSubmittingBirthInfo }),
-  setDrawingFortune: (isDrawingFortune) => set({ isDrawingFortune }),
+  setIsSubmittingBirthInfo: (isSubmittingBirthInfo) => set({ isSubmittingBirthInfo }),
+  setIsDrawingFortune: (isDrawingFortune) => set({ isDrawingFortune }),
   setErrorMessage: (errorMessage) => set({ errorMessage }),
   resetSession: () => set(INITIAL_STATE),
 }))
