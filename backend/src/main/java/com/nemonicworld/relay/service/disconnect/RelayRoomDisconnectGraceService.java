@@ -10,6 +10,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.service.timeout.RelayRoomAutoSubmissionResult;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
@@ -38,17 +39,20 @@ public class RelayRoomDisconnectGraceService {
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final Duration reconnectGrace;
     private final int scanLimit;
 
-    public RelayRoomDisconnectGraceService(
-        RelayRoomRepository relayRoomRepository, RelayRoomPartAdvanceService relayRoomPartAdvanceService,
-        RelayRoomEventPublisher relayRoomEventPublisher, @Value("${nemonic.relay.disconnect.reconnect-grace-seconds:"
-            + RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS + "}") long reconnectGraceSeconds,
+    public RelayRoomDisconnectGraceService(RelayRoomRepository relayRoomRepository,
+        RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
+        RelayInviteMetadataSyncService relayInviteMetadataSyncService,
+        @Value("${nemonic.relay.disconnect.reconnect-grace-seconds:" + RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS
+            + "}") long reconnectGraceSeconds,
         @Value("${nemonic.relay.disconnect.scan-limit:100}") int scanLimit) {
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
+        this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.reconnectGrace = Duration.ofSeconds(Math.max(0L, reconnectGraceSeconds));
         this.scanLimit = scanLimit;
     }
@@ -120,6 +124,7 @@ public class RelayRoomDisconnectGraceService {
             }
 
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 RelayDisconnectGraceRoomResult result = new RelayDisconnectGraceRoomResult(roomCode, true,
                     participantDropUpdate.droppedParticipants(), participantDropUpdate.hostChange(),
                     autoSubmitUpdate.autoSubmissions(), advanceResult);
