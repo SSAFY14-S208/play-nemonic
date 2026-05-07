@@ -33,6 +33,16 @@ class CommunityMemoImageUrlResolverTest {
     }
 
     @Test
+    void resolveReturnsAbsoluteUrlAsIs() {
+        CommunityMemoImageUrlResolver resolver = new CommunityMemoImageUrlResolver(new MinioStorageProperties(
+            "http://minio:9000", "http://localhost:9000", "access", "secret", "nemonic-local", 10, 1024));
+
+        String url = resolver.resolve(" https://cdn.example.com/community/memo image.png ");
+
+        assertThat(url).isEqualTo("https://cdn.example.com/community/memo image.png");
+    }
+
+    @Test
     void resolveReturnsNullWhenObjectKeyIsBlank() {
         CommunityMemoImageUrlResolver resolver = new CommunityMemoImageUrlResolver(new MinioStorageProperties(
             "http://minio:9000", "http://localhost:9000", "access", "secret", "nemonic-local", 10, 1024));
