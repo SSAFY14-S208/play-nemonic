@@ -22,6 +22,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -68,7 +69,8 @@ class FlipbookFrameSubmitUseCaseTest {
             new MinioStorageProperties("http://minio:9000", "https://example.com/minio", "access", "secret", "nemonic",
                 10, 10_485_760));
         flipbookFrameSubmitUseCase = new FlipbookFrameSubmitUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy, flipbookFrameImageUrlResolver, flipbookInviteMetadataSyncService, fileUploadRepository);
+            flipbookRoomPolicy, flipbookFrameImageUrlResolver, flipbookInviteMetadataSyncService,
+            new FlipbookRoomRoundAdvanceService(), fileUploadRepository);
     }
 
     /**

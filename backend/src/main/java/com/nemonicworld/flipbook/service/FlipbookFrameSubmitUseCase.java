@@ -15,6 +15,9 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
+import com.nemonicworld.flipbook.service.game.FlipbookRoundProgress;
+import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -52,6 +55,7 @@ public class FlipbookFrameSubmitUseCase {
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookFrameImageUrlResolver flipbookFrameImageUrlResolver;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+    private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
     private final FileUploadRepository fileUploadRepository;
 
     /**
@@ -101,8 +105,9 @@ public class FlipbookFrameSubmitUseCase {
             FlipbookFrameAssignment submittedAssignment = submitAssignment(currentAssignment, frameFile, now);
             List<FlipbookFrameAssignment> updatedAssignments = replaceAssignment(roomState.assignments(),
                 currentAssignment, submittedAssignment);
-            FlipbookRoundAdvanceResult advanceResult = advanceRoundIfCompleted(roomState, updatedAssignments, round,
-                now);
+            FlipbookRoomState submittedRoomState = roomState.withAssignments(updatedAssignments, now);
+            FlipbookRoundAdvanceResult advanceResult = flipbookRoomRoundAdvanceService
+                .advanceRoundIfCompleted(submittedRoomState, round, now);
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
@@ -208,84 +213,31 @@ public class FlipbookFrameSubmitUseCase {
         return updatedAssignments;
     }
 
-    private FlipbookRoundAdvanceResult advanceRoundIfCompleted(FlipbookRoomState roomState,
-        List<FlipbookFrameAssignment> updatedAssignments, int submittedRound, LocalDateTime now) {
-        FlipbookRoundProgress progress = calculateProgress(updatedAssignments, submittedRound);
-        if (!progress.currentRoundCompleted()) {
-            return FlipbookRoundAdvanceResult.notAdvanced(roomState.withAssignments(updatedAssignments, now), progress);
-        }
-
-        if (roomState.totalRounds() == null || submittedRound >= roomState.totalRounds()) {
-            FlipbookRoomState finishedRoomState = roomState.finishGame(updatedAssignments, now);
-
-            return FlipbookRoundAdvanceResult.finished(finishedRoomState, progress);
-        }
-
-        int nextRound = submittedRound + 1;
-        FlipbookRoomState nextRoundRoomState = roomState.startNextRound(nextRound, updatedAssignments, now);
-
-        return FlipbookRoundAdvanceResult.advanced(nextRoundRoomState, progress, nextRound);
-    }
-
-    private FlipbookRoundProgress calculateProgress(List<FlipbookFrameAssignment> assignments, int round) {
-        List<FlipbookFrameAssignment> roundAssignments = assignments.stream()
-            .filter(assignment -> assignment.round() == round).toList();
-        int submittedCount = (int) roundAssignments.stream().filter(this::isSubmitted).count();
-        int totalCount = roundAssignments.size();
-
-        return new FlipbookRoundProgress(submittedCount == totalCount && totalCount > 0, submittedCount, totalCount);
-    }
-
-    private boolean isSubmitted(FlipbookFrameAssignment assignment) {
-        return assignment.status() == FlipbookFrameAssignmentStatus.SUBMITTED
-            || assignment.status() == FlipbookFrameAssignmentStatus.AUTO_SUBMITTED || assignment.autoSubmitted()
-            || assignment.empty();
-    }
-
     private FlipbookFrameSubmitResponse createResponse(FlipbookRoomState roomState, FlipbookFrameAssignment assignment,
         boolean alreadySubmitted, FlipbookRoomParticipant participant) {
-        FlipbookRoundProgress progress = calculateProgress(roomState.assignments(), assignment.round());
+        FlipbookRoundProgress progress = flipbookRoomRoundAdvanceService.calculateProgress(roomState,
+            assignment.round());
         boolean allRoundsCompleted = roomState.status() == FlipbookRoomStatus.FINISHED;
         boolean advanced = allRoundsCompleted
             || roomState.currentRound() != null && roomState.currentRound() > assignment.round();
         Integer nextRound = advanced && roomState.status() == FlipbookRoomStatus.PLAYING
             ? roomState.currentRound()
             : null;
+        LocalDateTime nextRoundStartedAt = nextRound == null ? null : roomState.roundStartedAt();
+        LocalDateTime nextRoundDeadlineAt = nextRound == null ? null : roomState.roundDeadlineAt();
 
-        return createResponse(roomState, assignment, alreadySubmitted, participant,
-            new FlipbookRoundAdvanceResult(roomState, progress, advanced, nextRound, allRoundsCompleted));
+        return createResponse(roomState, assignment, alreadySubmitted, participant, new FlipbookRoundAdvanceResult(
+            roomState, advanced, nextRound, nextRoundStartedAt, nextRoundDeadlineAt, allRoundsCompleted, progress));
     }
 
     private FlipbookFrameSubmitResponse createResponse(FlipbookRoomState roomState, FlipbookFrameAssignment assignment,
         boolean alreadySubmitted, FlipbookRoomParticipant participant, FlipbookRoundAdvanceResult advanceResult) {
         String frameUrl = flipbookFrameImageUrlResolver.resolve(assignment.objectKey());
-        LocalDateTime nextRoundStartedAt = advanceResult.nextRound() == null ? null : roomState.roundStartedAt();
-        LocalDateTime nextRoundDeadlineAt = advanceResult.nextRound() == null ? null : roomState.roundDeadlineAt();
 
         return FlipbookFrameSubmitResponse.from(roomState.roomCode(), assignment, frameUrl, alreadySubmitted,
             advanceResult.progress().currentRoundCompleted(), advanceResult.progress().submittedCount(),
             advanceResult.progress().totalCount(), advanceResult.advanced(), advanceResult.nextRound(),
-            nextRoundStartedAt, nextRoundDeadlineAt, advanceResult.allRoundsCompleted(), roomState.status(),
-            participant.userUuid(), participant.nickname());
-    }
-
-    private record FlipbookRoundProgress(boolean currentRoundCompleted, int submittedCount, int totalCount) {
-    }
-
-    private record FlipbookRoundAdvanceResult(FlipbookRoomState roomState, FlipbookRoundProgress progress,
-        boolean advanced, Integer nextRound, boolean allRoundsCompleted) {
-
-        static FlipbookRoundAdvanceResult notAdvanced(FlipbookRoomState roomState, FlipbookRoundProgress progress) {
-            return new FlipbookRoundAdvanceResult(roomState, progress, false, null, false);
-        }
-
-        static FlipbookRoundAdvanceResult advanced(FlipbookRoomState roomState, FlipbookRoundProgress progress,
-            int nextRound) {
-            return new FlipbookRoundAdvanceResult(roomState, progress, true, nextRound, false);
-        }
-
-        static FlipbookRoundAdvanceResult finished(FlipbookRoomState roomState, FlipbookRoundProgress progress) {
-            return new FlipbookRoundAdvanceResult(roomState, progress, true, null, true);
-        }
+            advanceResult.nextRoundStartedAt(), advanceResult.nextRoundDeadlineAt(), advanceResult.allRoundsCompleted(),
+            roomState.status(), participant.userUuid(), participant.nickname());
     }
 }
