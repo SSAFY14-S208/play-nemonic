@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Moon, Sun } from 'lucide-react'
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 
@@ -99,7 +99,7 @@ export default function FortuneBirthForm({
   }
 
   return (
-    <form className="fortune-paper-panel fortune-birth-form" onSubmit={handleSubmit}>
+    <form className="fortune-birth-form" onSubmit={handleSubmit}>
       <div className="fortune-birth-topbar">
         <button
           type="button"
@@ -112,20 +112,30 @@ export default function FortuneBirthForm({
       </div>
 
       <div className="fortune-birth-heading">
-        <p className="caption-b">포포의 질문</p>
-        <h1>운세 메모에 필요한 정보를 알려줘</h1>
-        <p>입력한 정보는 오늘의 운세 메모를 만드는 데만 사용돼요.</p>
+        <span className="fortune-birth-heading-spark" aria-hidden />
+        <h1>
+          오늘의 운세를 위한
+          <br />
+          사주 정보를 알려줘
+        </h1>
+        <p>입력한 정보로 오늘의 운세 메모를 정성껏 준비할게요.</p>
       </div>
 
       <fieldset className="fortune-birth-fieldset">
-        <legend>음/양력</legend>
-        <div className="fortune-birth-segmented" role="group" aria-label="양력 음력 선택">
+        <legend>날짜 기준</legend>
+        <div
+          className="fortune-birth-segmented"
+          data-calendar={birthInfo.calendarType}
+          role="group"
+          aria-label="양력 음력 선택"
+        >
           <button
             type="button"
             className={optionButtonClassName(birthInfo.calendarType === 'solar')}
             aria-pressed={birthInfo.calendarType === 'solar'}
             onClick={() => updateCalendarType('solar')}
           >
+            <Sun className="fortune-birth-option-icon" aria-hidden />
             양력
           </button>
           <button
@@ -134,6 +144,7 @@ export default function FortuneBirthForm({
             aria-pressed={birthInfo.calendarType === 'lunar'}
             onClick={() => updateCalendarType('lunar')}
           >
+            <Moon className="fortune-birth-option-icon" aria-hidden />
             음력
           </button>
         </div>
@@ -238,21 +249,22 @@ export default function FortuneBirthForm({
             checked={birthInfo.timeUnknown}
             onChange={updateTimeUnknown}
           />
-          <span aria-hidden />
-          모름
+          <span className="fortune-birth-checkbox" aria-hidden />
+          <span className="fortune-birth-unknown-text">시간 모름</span>
         </label>
+        <p className="fortune-birth-helper">태어난 시간을 모르면 체크해도 괜찮아요.</p>
       </fieldset>
 
       <div className="fortune-birth-actions">
         <button
           type="submit"
           disabled={!isComplete || isSubmitting}
-          className="fortune-birth-submit fortune-primary-button"
+          className="fortune-birth-submit"
         >
-          {isSubmitting ? '정보 저장 중' : '운세 메모 뽑기 준비'}
-          <span>
-            <ArrowRight className="size-6" aria-hidden />
+          <span className="fortune-birth-submit-copy">
+            {isSubmitting ? '정보 저장 중' : '오늘의 운세 인쇄하기'}
           </span>
+          <span className="fortune-birth-submit-orb" aria-hidden />
         </button>
       </div>
     </form>
