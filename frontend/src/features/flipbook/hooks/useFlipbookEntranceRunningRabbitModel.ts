@@ -13,7 +13,7 @@ import {
 } from 'three'
 
 const RUNNING_RABBIT_MODEL_URL = '/models/runrabbit.glb'
-const RUNNING_RABBIT_HEIGHT = 0.72
+const RUNNING_RABBIT_HEIGHT = 1.44
 const RUNNING_RABBIT_ANIMATION_FADE_SECONDS = 0.12
 const RUNNING_RABBIT_SPEED = 1.25
 

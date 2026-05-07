@@ -115,7 +115,7 @@ export default function FlipbookEntranceView({
                 </h1>
             </div>
 
-            <div className="relative z-20 mt-7 grid w-full max-w-[820px] gap-5 sm:grid-cols-2">
+            <div className="relative z-20 mt-7 grid w-full max-w-[820px] items-start gap-5 sm:grid-cols-2">
               <FlipbookEntranceActionButton
                 icon={<BookOpen className="size-5" aria-hidden />}
                 label="방 만들기"
@@ -159,6 +159,7 @@ function FlipbookEntranceActionButton({
       whileTap={{ y: 1, scale: 0.985 }}
       className={cn(
         'group relative inline-flex min-h-[86px] items-center justify-between overflow-hidden rounded-[18px] border-[3px] px-5 text-left shadow-[0_12px_0_rgb(94_31_37_/_18%),0_20px_34px_var(--color-flipbook-shadow)] transition-colors',
+        'h-[86px] self-start',
         variant === 'primary' &&
           'border-flipbook-ink bg-flipbook-paper text-flipbook-ink',
         variant === 'secondary' &&
