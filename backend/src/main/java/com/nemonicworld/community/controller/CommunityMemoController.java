@@ -3,6 +3,7 @@ package com.nemonicworld.community.controller;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
 import com.nemonicworld.community.service.CommunityMemoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,6 +32,7 @@ public class CommunityMemoController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String COMMUNITY_MEMOS_FOUND_MESSAGE = "커뮤니티 메모 목록 조회 성공";
+    private static final String COMMUNITY_MEMO_FOUND_MESSAGE = "커뮤니티 메모 상세 조회 성공";
 
     private final CommunityMemoService communityMemoService;
 
@@ -52,5 +55,25 @@ public class CommunityMemoController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(COMMUNITY_MEMOS_FOUND_MESSAGE, response));
+    }
+
+    /**
+     * 공용 벽에 노출 가능한 커뮤니티 메모 한 건의 상세 정보를 조회합니다.
+     */
+    @GetMapping("/{memoId}")
+    @Operation(summary = "커뮤니티 메모 상세 조회", description = "공용 벽에 노출 가능한 커뮤니티 메모 한 건의 상세 정보를 조회합니다.")
+    @Parameter(name = "memoId", in = ParameterIn.PATH, required = true, description = "조회할 커뮤니티 메모 UUID")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = false)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "커뮤니티 메모 상세 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 커뮤니티 메모", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)))})
+    public ResponseEntity<ApiResponse<CommunityMemoDetailResponse>> getCommunityMemo(
+        @PathVariable("memoId") String memoId,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        CommunityMemoDetailResponse response = communityMemoService.getCommunityMemo(memoId, userUuid);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(COMMUNITY_MEMO_FOUND_MESSAGE, response));
     }
 }

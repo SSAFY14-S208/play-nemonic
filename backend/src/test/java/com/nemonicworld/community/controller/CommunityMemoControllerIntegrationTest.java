@@ -1,6 +1,7 @@
 package com.nemonicworld.community.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -48,6 +49,7 @@ class CommunityMemoControllerIntegrationTest {
 
     @BeforeEach
     void prepareCommunityTables() {
+        // H2 통합 테스트에서는 갤러리/커뮤니티 최소 스키마만 직접 구성해 조회 정책을 고정합니다.
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS artifact (
                 id UUID PRIMARY KEY,
@@ -108,12 +110,18 @@ class CommunityMemoControllerIntegrationTest {
                 position_y DOUBLE PRECISION NOT NULL DEFAULT 0,
                 z_index INT NOT NULL DEFAULT 0,
                 rotation_deg REAL NOT NULL DEFAULT 0,
+                decoration VARCHAR(1000) NULL DEFAULT '{}',
                 body_image_url VARCHAR(1000) NULL,
                 attached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                report_count INT NOT NULL DEFAULT 0,
                 is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
+                moderation_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 deleted_at TIMESTAMP NULL
             )
             """);
+        // 다른 테스트가 만든 community_memo 테이블과도 공존하도록 상세 조회에 필요한 컬럼을 보강합니다.
         jdbcTemplate.execute(
             "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_x DOUBLE PRECISION DEFAULT 0 NOT NULL");
         jdbcTemplate.execute(
@@ -121,17 +129,31 @@ class CommunityMemoControllerIntegrationTest {
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS z_index INT DEFAULT 0 NOT NULL");
         jdbcTemplate
             .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS rotation_deg REAL DEFAULT 0 NOT NULL");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS decoration VARCHAR(1000) NULL " + "DEFAULT '{}'");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS body_image_url VARCHAR(1000) NULL");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS attached_at TIMESTAMP "
             + "DEFAULT CURRENT_TIMESTAMP NOT NULL");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0 NOT NULL");
         jdbcTemplate
             .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE NOT NULL");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_status VARCHAR(32) "
+            + "DEFAULT 'pending' NOT NULL");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS created_at TIMESTAMP "
+            + "DEFAULT CURRENT_TIMESTAMP NOT NULL");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP "
+            + "DEFAULT CURRENT_TIMESTAMP NOT NULL");
         jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN position_x SET DEFAULT 0");
         jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN position_y SET DEFAULT 0");
         jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN z_index SET DEFAULT 0");
         jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN rotation_deg SET DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN decoration SET DEFAULT '{}'");
         jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN attached_at SET DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN report_count SET DEFAULT 0");
         jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN is_hidden SET DEFAULT FALSE");
+        jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN moderation_status SET DEFAULT 'pending'");
+        jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP");
 
         jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM gallery");
@@ -292,6 +314,195 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items", hasSize(0))).andExpect(jsonPath("$.data.totalElements").value(0));
     }
 
+    /**
+     * DIRECT 메모 상세가 목록 공통 필드와 상세 필드를 함께 반환하는지 검증합니다.
+     */
+    @Test
+    void getCommunityMemoReturnsDirectMemoDetail() throws Exception {
+        UUID userUuid = createExistingUser("상세");
+        LocalDateTime attachedAt = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime createdAt = attachedAt.minusMinutes(1);
+        LocalDateTime updatedAt = attachedAt.plusMinutes(1);
+        UUID memoId = UUID.randomUUID();
+
+        insertCommunityMemo(memoId, userUuid, null, DIRECT_OBJECT_KEY, 3, attachedAt, null, false, "{\"scale\":1.0}", 2,
+            "allowed", createdAt, updatedAt);
+
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", memoId)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.message").value("커뮤니티 메모 상세 조회 성공"))
+            .andExpect(jsonPath("$.data.memoUuid").value(memoId.toString()))
+            .andExpect(jsonPath("$.data.authorNickname").value("상세"))
+            .andExpect(jsonPath("$.data.sourceType").value("DIRECT"))
+            .andExpect(jsonPath("$.data.memoImageUrl").value(DIRECT_PUBLIC_URL))
+            .andExpect(jsonPath("$.data.positionX").value(120.5)).andExpect(jsonPath("$.data.positionY").value(80.0))
+            .andExpect(jsonPath("$.data.zIndex").value(3)).andExpect(jsonPath("$.data.rotationDeg").value(-4.5))
+            .andExpect(jsonPath("$.data.ownedByMe").value(false)).andExpect(jsonPath("$.data.attachedAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.decoration.scale").value(1.0))
+            .andExpect(jsonPath("$.data.artifactId").value(nullValue()))
+            .andExpect(jsonPath("$.data.galleryContentKind").value(nullValue()))
+            .andExpect(jsonPath("$.data.moderationStatus").value("allowed"))
+            .andExpect(jsonPath("$.data.reportCount").value(2)).andExpect(jsonPath("$.data.createdAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.updatedAt").isNotEmpty()).andExpect(jsonPath("$.data.userId").doesNotExist())
+            .andExpect(jsonPath("$.data.authorUuid").doesNotExist());
+    }
+
+    /**
+     * GALLERY 메모 상세가 artifact 식별자, kind, 대표 이미지 URL과 ownedByMe=true를 반환하는지 검증합니다.
+     */
+    @Test
+    void getCommunityMemoReturnsGalleryMemoDetailWithOwnedByMe() throws Exception {
+        UUID userUuid = createExistingUser("릴레이");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactId = UUID.randomUUID();
+        UUID memoId = UUID.randomUUID();
+
+        insertArtifact(artifactId, "relay_drawing", OBJECT_KEY_PREFIX + "relay-thumb.png", now);
+        insertSubtypeArtifact("relay_drawing", artifactId, OBJECT_KEY_PREFIX + "relay.png");
+        insertCommunityMemo(memoId, userUuid, artifactId, null, 4, now, null, false, "{\"frame\":\"gold\"}", 1,
+            "pending", now.minusMinutes(1), now.plusMinutes(1));
+
+        mockMvc
+            .perform(
+                get("/api/v1/community/memos/{memoId}", memoId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.sourceType").value("GALLERY"))
+            .andExpect(jsonPath("$.data.memoImageUrl").value(PUBLIC_URL_PREFIX + "relay.png"))
+            .andExpect(jsonPath("$.data.ownedByMe").value(true))
+            .andExpect(jsonPath("$.data.artifactId").value(artifactId.toString()))
+            .andExpect(jsonPath("$.data.galleryContentKind").value("relay_drawing"))
+            .andExpect(jsonPath("$.data.decoration.frame").value("gold"))
+            .andExpect(jsonPath("$.data.moderationStatus").value("pending"))
+            .andExpect(jsonPath("$.data.reportCount").value(1));
+    }
+
+    /**
+     * 상세 조회도 optional 헤더 기준으로 ownedByMe를 계산하고, 헤더가 없거나 다르면 false를 반환합니다.
+     */
+    @Test
+    void getCommunityMemoCalculatesOwnedByMeFromOptionalViewerUuid() throws Exception {
+        UUID userUuid = createExistingUser("소유자");
+        UUID memoId = insertDirectMemo(userUuid, "owned.png", 1, LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS),
+            null, false);
+
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", memoId)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.ownedByMe").value(false));
+
+        mockMvc
+            .perform(
+                get("/api/v1/community/memos/{memoId}", memoId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.ownedByMe").value(true));
+
+        mockMvc
+            .perform(get("/api/v1/community/memos/{memoId}", memoId).header(ANONYMOUS_USER_UUID_HEADER,
+                UUID.randomUUID().toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.ownedByMe").value(false));
+    }
+
+    /**
+     * decoration이 null, blank, 깨진 JSON이어도 서버 오류 대신 빈 객체로 fallback하는지 검증합니다.
+     */
+    @Test
+    void getCommunityMemoFallsBackToEmptyDecorationForNullBlankAndInvalidJson() throws Exception {
+        UUID userUuid = createExistingUser("꾸미기");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID nullDecorationMemoId = UUID.randomUUID();
+        UUID blankDecorationMemoId = UUID.randomUUID();
+        UUID invalidDecorationMemoId = UUID.randomUUID();
+
+        insertCommunityMemo(nullDecorationMemoId, userUuid, null, "null-decoration.png", 1, now, null, false, null, 0,
+            "pending", now, now);
+        insertCommunityMemo(blankDecorationMemoId, userUuid, null, "blank-decoration.png", 2, now.plusMinutes(1), null,
+            false, " ", 0, "pending", now, now);
+        insertCommunityMemo(invalidDecorationMemoId, userUuid, null, "invalid-decoration.png", 3, now.plusMinutes(2),
+            null, false, "{broken", 0, "pending", now, now);
+
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", nullDecorationMemoId)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.decoration").value(anEmptyMap()));
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", blankDecorationMemoId)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.decoration").value(anEmptyMap()));
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", invalidDecorationMemoId)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.decoration").value(anEmptyMap()));
+    }
+
+    /**
+     * 없는 메모, 삭제된 메모, 숨김 메모는 모두 같은 404 응답으로 처리하는지 검증합니다.
+     */
+    @Test
+    void getCommunityMemoReturnsNotFoundForMissingDeletedAndHiddenMemos() throws Exception {
+        UUID userUuid = createExistingUser("조회불가");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID deletedMemoId = insertDirectMemo(userUuid, "deleted.png", 1, now, now, false);
+        UUID hiddenMemoId = insertDirectMemo(userUuid, "hidden.png", 2, now.plusMinutes(1), null, true);
+
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", UUID.randomUUID())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", deletedMemoId)).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", hiddenMemoId)).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+    }
+
+    /**
+     * memoId 또는 optional 헤더 UUID 형식이 잘못되면 기존 invalid UUID 400 응답을 반환하는지 검증합니다.
+     */
+    @Test
+    void getCommunityMemoRejectsInvalidUuidValues() throws Exception {
+        UUID userUuid = createExistingUser("검증");
+        UUID memoId = insertDirectMemo(userUuid, "memo.png", 1, LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS),
+            null, false);
+
+        mockMvc.perform(get("/api/v1/community/memos/not-a-uuid")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc
+            .perform(get("/api/v1/community/memos/{memoId}", memoId).header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+    }
+
+    /**
+     * 비정상 로컬 데이터에서 작성자나 artifact가 없어도 상세 조회가 서버 오류로 터지지 않는지 검증합니다.
+     */
+    @Test
+    void getCommunityMemoReturnsNullFieldsForOrphanRowsWithoutServerError() throws Exception {
+        UUID missingAuthorUuid = UUID.randomUUID();
+        UUID missingArtifactId = UUID.randomUUID();
+        UUID memoId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        insertCommunityMemo(memoId, missingAuthorUuid, missingArtifactId, null, 1, now, null, false, "{}", 0, "pending",
+            now, now);
+
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", memoId)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.memoUuid").value(memoId.toString()))
+            .andExpect(jsonPath("$.data.authorNickname").value(nullValue()))
+            .andExpect(jsonPath("$.data.sourceType").value("GALLERY"))
+            .andExpect(jsonPath("$.data.memoImageUrl").value(nullValue()))
+            .andExpect(jsonPath("$.data.artifactId").value(missingArtifactId.toString()))
+            .andExpect(jsonPath("$.data.galleryContentKind").value(nullValue()));
+    }
+
+    /**
+     * 상세 조회 성공은 사용자의 방문 메타데이터를 갱신하지 않는지 검증합니다.
+     */
+    @Test
+    void getCommunityMemoDoesNotUpdateUserMetadata() throws Exception {
+        UUID userUuid = createExistingUser("상세방문");
+        AppUser beforeUser = userRepository.findById(userUuid).orElseThrow();
+        LocalDateTime beforeLastSeenAt = beforeUser.getLastSeenAt();
+        LocalDateTime beforeUpdatedAt = beforeUser.getUpdatedAt();
+        String beforeUserAgent = beforeUser.getUserAgent();
+        UUID memoId = insertDirectMemo(userUuid, "memo.png", 1, LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS),
+            null, false);
+
+        mockMvc
+            .perform(
+                get("/api/v1/community/memos/{memoId}", memoId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk());
+
+        AppUser afterUser = userRepository.findById(userUuid).orElseThrow();
+        assertThat(afterUser.getLastSeenAt()).isEqualTo(beforeLastSeenAt);
+        assertThat(afterUser.getUpdatedAt()).isEqualTo(beforeUpdatedAt);
+        assertThat(afterUser.getUserAgent()).isEqualTo(beforeUserAgent);
+    }
+
     private UUID createExistingUser(String nickname) {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
@@ -352,12 +563,20 @@ class CommunityMemoControllerIntegrationTest {
 
     private void insertCommunityMemo(UUID memoId, UUID userUuid, UUID artifactId, String bodyImageUrl, int zIndex,
         LocalDateTime attachedAt, LocalDateTime deletedAt, boolean hidden) {
+        insertCommunityMemo(memoId, userUuid, artifactId, bodyImageUrl, zIndex, attachedAt, deletedAt, hidden, "{}", 0,
+            "pending", attachedAt, attachedAt);
+    }
+
+    private void insertCommunityMemo(UUID memoId, UUID userUuid, UUID artifactId, String bodyImageUrl, int zIndex,
+        LocalDateTime attachedAt, LocalDateTime deletedAt, boolean hidden, String decoration, int reportCount,
+        String moderationStatus, LocalDateTime createdAt, LocalDateTime updatedAt) {
         jdbcTemplate.update("""
             INSERT INTO community_memo (
                 id, user_id, artifact_id, position_x, position_y, z_index, rotation_deg, body_image_url,
-                attached_at, is_hidden, deleted_at
+                attached_at, is_hidden, deleted_at, decoration, report_count, moderation_status, created_at, updated_at
             )
-            VALUES (?, ?, ?, 120.5, 80.0, ?, -4.5, ?, ?, ?, ?)
-            """, memoId, userUuid, artifactId, zIndex, bodyImageUrl, attachedAt, hidden, deletedAt);
+            VALUES (?, ?, ?, 120.5, 80.0, ?, -4.5, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, memoId, userUuid, artifactId, zIndex, bodyImageUrl, attachedAt, hidden, deletedAt, decoration,
+            reportCount, moderationStatus, createdAt, updatedAt);
     }
 }
