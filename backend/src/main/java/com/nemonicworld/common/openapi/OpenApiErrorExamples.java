@@ -269,6 +269,36 @@ public final class OpenApiErrorExamples {
           "message": "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요."
         }
         """;
+    public static final String FLIPBOOK_ROOM_START_UPDATE_CONFLICT = """
+        {
+          "success": false,
+          "message": "동시 게임 시작 요청이 많아 플립북 방 시작 상태를 갱신하지 못했습니다. 다시 시도해주세요."
+        }
+        """;
+    public static final String FLIPBOOK_GAME_ALREADY_STARTED = """
+        {
+          "success": false,
+          "message": "이미 게임이 시작되었습니다."
+        }
+        """;
+    public static final String FLIPBOOK_NOT_ENOUGH_PARTICIPANTS = """
+        {
+          "success": false,
+          "message": "최소 2명이 모여야 시작할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_PARTICIPANTS_DISCONNECTED = """
+        {
+          "success": false,
+          "message": "모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_ROOM_CLOSED = """
+        {
+          "success": false,
+          "message": "이미 종료된 방입니다."
+        }
+        """;
     public static final String RELAY_GAME_ALREADY_STARTED = """
         {
           "success": false,

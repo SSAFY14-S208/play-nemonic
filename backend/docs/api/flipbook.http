@@ -59,6 +59,21 @@ Content-Type: application/json
 PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+### Start flipbook room
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start flipbook room - invalid user UUID
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/start
+Anonymous-User-UUID: not-a-uuid
+
+### Start flipbook room - missing user UUID
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/start
+
+### Start flipbook room - invalid room code
+POST {{host}}/api/v1/flipbook/rooms/not-a-room/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Kick flipbook participant
 POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
 Anonymous-User-UUID: {{anonymousUserUuid}}
