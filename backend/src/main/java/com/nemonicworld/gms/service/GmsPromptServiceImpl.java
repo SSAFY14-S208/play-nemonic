@@ -62,6 +62,15 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public GmsPromptResponse getPrompt(AdminPrincipal adminPrincipal, Long promptId) {
+        requireAdmin(adminPrincipal);
+
+        return GmsPromptResponse.from(gmsPromptRepository.findActiveById(promptId)
+            .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE)));
+    }
+
+    @Override
     @Transactional
     public void deletePrompt(AdminPrincipal adminPrincipal, Long promptId) {
         requireAdmin(adminPrincipal);

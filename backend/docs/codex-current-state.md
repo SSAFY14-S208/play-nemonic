@@ -62,6 +62,11 @@ Last updated: 2026-05-07
   `gms_prompt_template` columns and `updated_at` without changing the DB
   schema, and rejects empty update bodies, duplicate prompt names, missing
   prompts, and already deleted prompts.
+- Backoffice admins can now inspect one active GMS prompt template through
+  `GET /api/v1/backoffice/gms/prompts/{promptId}`; the API reuses
+  `GmsPromptResponse`, reads only `deleted_at IS NULL` rows from the existing
+  `gms_prompt_template` table, and treats missing or already deleted prompts as
+  not found.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.

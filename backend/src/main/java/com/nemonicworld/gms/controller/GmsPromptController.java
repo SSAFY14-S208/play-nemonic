@@ -22,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +45,7 @@ public class GmsPromptController {
         """;
 
     private static final String CREATE_SUCCESS_MESSAGE = "GMS 프롬프트 생성 성공";
+    private static final String DETAIL_SUCCESS_MESSAGE = "GMS 프롬프트 상세 조회 성공";
     private static final String UPDATE_SUCCESS_MESSAGE = "GMS 프롬프트 수정 성공";
 
     private final GmsPromptService gmsPromptService;
@@ -65,6 +67,21 @@ public class GmsPromptController {
 
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(CREATE_SUCCESS_MESSAGE, response));
+    }
+
+    @GetMapping("/{promptId}")
+    @Operation(summary = "GMS 프롬프트 상세 조회", description = "백오피스 관리자가 GMS 프롬프트 상세 정보를 조회합니다.")
+    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "조회할 GMS 프롬프트 ID")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 상세 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS 프롬프트 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
+    public ResponseEntity<ApiResponse<GmsPromptResponse>> getPrompt(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("promptId") Long promptId) {
+        GmsPromptResponse response = gmsPromptService.getPrompt(adminPrincipal, promptId);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(DETAIL_SUCCESS_MESSAGE, response));
     }
 
     @DeleteMapping("/{promptId}")
