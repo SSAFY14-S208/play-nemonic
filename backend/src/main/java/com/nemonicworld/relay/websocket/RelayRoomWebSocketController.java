@@ -2,6 +2,7 @@ package com.nemonicworld.relay.websocket;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import java.util.Optional;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -31,10 +32,15 @@ public class RelayRoomWebSocketController {
         String sessionId = headerAccessor.getSessionId();
         Optional<ActiveWebSocketSession> activeSession = webSocketSessionRegistry.findBySessionId(sessionId);
 
-        if (activeSession.isEmpty() || !roomCode.equals(activeSession.get().connectionKey())) {
+        if (activeSession.isEmpty() || !isCurrentRelayRoomSession(roomCode, activeSession.get())) {
             return;
         }
 
         relayRoomEventPublisher.publishPong(sessionId, roomCode);
+    }
+
+    private boolean isCurrentRelayRoomSession(String roomCode, ActiveWebSocketSession activeSession) {
+        return WebSocketSessionAttributes.CONNECTION_TYPE_RELAY.equals(activeSession.connectionType())
+            && roomCode.equals(activeSession.connectionKey());
     }
 }

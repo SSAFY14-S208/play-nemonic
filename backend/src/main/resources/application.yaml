@@ -66,6 +66,11 @@ nemonic:
     site-url: ${NEMONIC_SITE_URL:http://localhost:3000}
 
   relay:
+    disconnect:
+      enabled: ${RELAY_DISCONNECT_ENABLED:true}
+      reconnect-grace-seconds: ${RELAY_DISCONNECT_RECONNECT_GRACE_SECONDS:10}
+      scan-delay-ms: ${RELAY_DISCONNECT_SCAN_DELAY_MS:1000}
+      scan-limit: ${RELAY_DISCONNECT_SCAN_LIMIT:100}
     timeout:
       enabled: ${RELAY_TIMEOUT_ENABLED:true}
       scan-delay-ms: ${RELAY_TIMEOUT_SCAN_DELAY_MS:1000}

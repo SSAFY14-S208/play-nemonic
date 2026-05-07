@@ -16,6 +16,7 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     private final FlipbookRoomCreateUseCase flipbookRoomCreateUseCase;
     private final FlipbookRoomQueryUseCase flipbookRoomQueryUseCase;
     private final FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
+    private final FlipbookRoomConnectionUseCase flipbookRoomConnectionUseCase;
 
     @Override
     public FlipbookRoomCreateResponse createRoom(String userUuidValue) {
@@ -31,5 +32,15 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     public FlipbookRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
         FlipbookRoomSettingsRequest request) {
         return flipbookRoomSettingsUseCase.updateRoomSettings(userUuidValue, roomCodeValue, request);
+    }
+
+    @Override
+    public FlipbookRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue) {
+        return flipbookRoomConnectionUseCase.connectRoom(userUuidValue, roomCodeValue);
+    }
+
+    @Override
+    public FlipbookRoomStateResponse disconnectRoom(String userUuidValue, String roomCodeValue) {
+        return flipbookRoomConnectionUseCase.disconnectRoom(userUuidValue, roomCodeValue);
     }
 }

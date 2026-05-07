@@ -66,7 +66,9 @@ Last updated: 2026-05-06
 - Relay room WebSocket lobby connections use the STOMP endpoint `/ws/relay`, CONNECT headers `roomCode` and `Anonymous-User-UUID`, topic `/topic/relay/rooms/{roomCode}`, user queue `/user/queue/relay/rooms/{roomCode}`, Redis `connected`/`disconnectedAt` updates, session-id-scoped duplicate-session close events, and common `global.websocket` infrastructure for single-server in-memory active session tracking.
 - Relay drawing submissions now advance the Redis room state from `FACE` to `BODY` and `BODY` to `LEGS` when every assignment in the current part is `SUBMITTED` or `AUTO_SUBMITTED`; completing `LEGS` moves the room to `FINALIZING` and emits `ALL_PARTS_COMPLETED`, while final image composition, artifact/gallery persistence, and temp cleanup remain separate follow-up work.
 - Relay timeout auto-submit now scans `PLAYING` Redis rooms only after `partDeadlineAt + auto-submit-grace-ms`, marks remaining current-part `PENDING` assignments as `AUTO_SUBMITTED` empty entries without MinIO upload, reuses the shared part advancement flow, and emits `PART_AUTO_SUBMITTED` plus existing transition events after successful CAS saves.
+- Relay disconnect grace processing now scans candidate `PLAYING` Redis rooms after the 10-second reconnect grace, marks expired disconnected participants as `dropped` with `droppedAt`, blocks dropped UUIDs from REST rejoin and WebSocket reconnect, auto-submits only their current-part `PENDING` assignments as empty `AUTO_SUBMITTED`, leaves future part assignments pending until that part becomes current, transfers a dropped host to the lowest `joinOrder` connected non-dropped participant when available, and emits `PARTICIPANT_DROPPED`, `HOST_CHANGED`, `PART_AUTO_SUBMITTED`, and existing part transition events only after successful CAS saves.
 - Relay finalization now scans `FINALIZING` Redis rooms, composes one vertical FACE/BODY/LEGS PNG per `canvasIndex`, stores final original and thumbnail objects under `relay/results/{artifactId}/`, writes matching `artifact`, `relay_drawing_artifact`, and participant gallery rows, marks the Redis room `FINISHED`, and emits `RESULT_CREATED`; presigned result URLs remain follow-up work.
+- Relay result lookup now uses `GET /api/v1/relay/rooms/{roomCode}/results`, reads PostgreSQL `artifact`/`relay_drawing_artifact`/active `gallery` rows as the source of truth, returns final combined/thumbnail URLs plus canvasIndex FACE/BODY/LEGS drawer metadata parsed from `artifact.meta`, and succeeds even after Redis room state expires when DB result ownership exists.
 - Relay room close now scans `FINISHED` Redis rooms after `updatedAt + close-delay` and also supports host-triggered `POST /api/v1/relay/rooms/{roomCode}/close`; both paths mark eligible rooms `CLOSED` through CAS and emit `ROOM_CLOSED` only on the successful state transition, while artifact/gallery deletion remains out of scope.
 - Relay temp cleanup now scans `CLOSED` Redis rooms, collects distinct assignment `objectKey` and `hintObjectKey` values only under `relay/tmp/{roomCode}/`, hard-deletes those temporary objects from MinIO, and records cleanup completion with a separate Redis marker plus cleanup lock; it also has a fallback scheduler that lists `relay/tmp/` objects and deletes only objects older than the configured threshold (24 hours by default), while `relay/results/**` and artifact/gallery rows remain out of scope.
 - Relay waiting-room host kick now uses `POST /api/v1/relay/rooms/{roomCode}/participants/kick` with `targetUserUuid` in the JSON body, removes only non-host participants while preserving remaining `joinOrder` values, records `kickedUserUuids` in the Redis room state, blocks kicked UUIDs from REST invite/join and WebSocket reconnect paths, and emits `PARTICIPANT_KICKED` plus a best-effort personal `KICKED_FROM_ROOM` queue event before closing the same-server active session.
@@ -108,6 +110,9 @@ Last updated: 2026-05-06
   table for operator action trails.
 - Super admin bootstrap is environment-driven only. Do not hard-code initial
   admin passwords or password hashes in migrations, source code, or docs.
+- Relay drawing durable decisions are recorded in ADR 0005 through 0011,
+  covering runtime state, assignments, lobby controls, WebSocket events,
+  scheduler CAS processing, file lifecycle/finalization, and result ownership.
 
 ## Important Files
 
@@ -178,6 +183,12 @@ Recent relay waiting-room kick work passed with:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\format.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1 -Fast
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
+```
+
+Recent flipbook lobby WebSocket work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew compileJava spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.relay.websocket.*' --no-daemon
 ```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real

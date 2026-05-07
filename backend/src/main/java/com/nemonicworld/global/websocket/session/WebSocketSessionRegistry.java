@@ -11,7 +11,7 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 
 /**
- * 단일 서버 안에서 WebSocket 활성 세션을 콘텐츠 식별자 + UUID 기준으로 관리합니다.
+ * 단일 서버 안에서 WebSocket 활성 세션을 콘텐츠 종류 + 식별자 + UUID 기준으로 관리합니다.
  */
 @Component
 public class WebSocketSessionRegistry {
@@ -42,10 +42,19 @@ public class WebSocketSessionRegistry {
      * 콘텐츠 식별자 + UUID 조합에 대한 최신 STOMP sessionId를 등록하고, 교체된 기존 세션을 반환합니다.
      */
     public Optional<ActiveWebSocketSession> register(String connectionKey, String userUuid, String sessionId) {
-        ActiveWebSocketSession activeSession = new ActiveWebSocketSession(connectionKey, userUuid, sessionId);
+        return register(null, connectionKey, userUuid, sessionId);
+    }
+
+    /**
+     * 콘텐츠 종류 + 식별자 + UUID 조합에 대한 최신 STOMP sessionId를 등록하고, 교체된 기존 세션을 반환합니다.
+     */
+    public Optional<ActiveWebSocketSession> register(String connectionType, String connectionKey, String userUuid,
+        String sessionId) {
+        ActiveWebSocketSession activeSession = new ActiveWebSocketSession(connectionType, connectionKey, userUuid,
+            sessionId);
         activeSessions.put(sessionId, activeSession);
 
-        String registryKey = createRegistryKey(connectionKey, userUuid);
+        String registryKey = createRegistryKey(connectionType, connectionKey, userUuid);
         String replacedSessionId = activeSessionIds.put(registryKey, sessionId);
 
         if (replacedSessionId == null || replacedSessionId.equals(sessionId)) {
@@ -79,7 +88,14 @@ public class WebSocketSessionRegistry {
      * disconnect 이벤트를 받은 세션이 현재 콘텐츠 식별자 + UUID 조합의 최신 세션인지 확인합니다.
      */
     public boolean isCurrentSession(String connectionKey, String userUuid, String sessionId) {
-        return sessionId.equals(activeSessionIds.get(createRegistryKey(connectionKey, userUuid)));
+        return isCurrentSession(null, connectionKey, userUuid, sessionId);
+    }
+
+    /**
+     * disconnect 이벤트를 받은 세션이 현재 콘텐츠 종류 + 식별자 + UUID 조합의 최신 세션인지 확인합니다.
+     */
+    public boolean isCurrentSession(String connectionType, String connectionKey, String userUuid, String sessionId) {
+        return sessionId.equals(activeSessionIds.get(createRegistryKey(connectionType, connectionKey, userUuid)));
     }
 
     /**
@@ -92,7 +108,9 @@ public class WebSocketSessionRegistry {
             return Optional.empty();
         }
 
-        activeSessionIds.remove(createRegistryKey(activeSession.connectionKey(), activeSession.userUuid()), sessionId);
+        activeSessionIds.remove(
+            createRegistryKey(activeSession.connectionType(), activeSession.connectionKey(), activeSession.userUuid()),
+            sessionId);
 
         return Optional.of(activeSession);
     }
@@ -104,8 +122,8 @@ public class WebSocketSessionRegistry {
         ActiveWebSocketSession activeSession = activeSessions.remove(sessionId);
 
         if (activeSession != null) {
-            activeSessionIds.remove(createRegistryKey(activeSession.connectionKey(), activeSession.userUuid()),
-                sessionId);
+            activeSessionIds.remove(createRegistryKey(activeSession.connectionType(), activeSession.connectionKey(),
+                activeSession.userUuid()), sessionId);
         }
     }
 
@@ -134,12 +152,21 @@ public class WebSocketSessionRegistry {
     }
 
     private String createRegistryKey(String connectionKey, String userUuid) {
-        return connectionKey + ":" + userUuid;
+        return createRegistryKey(null, connectionKey, userUuid);
+    }
+
+    private String createRegistryKey(String connectionType, String connectionKey, String userUuid) {
+        return (connectionType == null ? "default" : connectionType) + ":" + connectionKey + ":" + userUuid;
     }
 
     /**
      * STOMP sessionId와 콘텐츠 참여자 식별자를 함께 보관하는 세션 메타데이터입니다.
      */
-    public record ActiveWebSocketSession(String connectionKey, String userUuid, String sessionId) {
+    public record ActiveWebSocketSession(String connectionType, String connectionKey, String userUuid,
+        String sessionId) {
+
+        public ActiveWebSocketSession(String connectionKey, String userUuid, String sessionId) {
+            this(null, connectionKey, userUuid, sessionId);
+        }
     }
 }

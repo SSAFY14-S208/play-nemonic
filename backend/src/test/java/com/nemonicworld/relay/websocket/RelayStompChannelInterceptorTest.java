@@ -61,8 +61,10 @@ class RelayStompChannelInterceptorTest {
         RelayRoomStateResponse roomStateResponse = roomStateResponse();
         Message<byte[]> message = connectMessage();
         given(relayRoomService.connectRoom(USER_UUID, ROOM_CODE)).willReturn(roomStateResponse);
-        given(webSocketSessionRegistry.register(ROOM_CODE, USER_UUID, NEW_SESSION_ID))
-            .willReturn(Optional.of(new ActiveWebSocketSession(ROOM_CODE, USER_UUID, OLD_SESSION_ID)));
+        given(webSocketSessionRegistry.register(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE, USER_UUID,
+            NEW_SESSION_ID))
+            .willReturn(Optional.of(new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY,
+                ROOM_CODE, USER_UUID, OLD_SESSION_ID)));
 
         Message<?> result = interceptor.preSend(message, mock(MessageChannel.class));
         StompHeaderAccessor resultAccessor = StompHeaderAccessor.wrap(result);
@@ -95,7 +97,10 @@ class RelayStompChannelInterceptorTest {
     private Message<byte[]> connectMessage() {
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
         accessor.setSessionId(NEW_SESSION_ID);
-        accessor.setSessionAttributes(new HashMap<>());
+        HashMap<String, Object> sessionAttributes = new HashMap<>();
+        sessionAttributes.put(WebSocketSessionAttributes.CONNECTION_TYPE,
+            WebSocketSessionAttributes.CONNECTION_TYPE_RELAY);
+        accessor.setSessionAttributes(sessionAttributes);
         accessor.addNativeHeader("roomCode", ROOM_CODE);
         accessor.addNativeHeader(AnonymousUserHeaders.ANONYMOUS_USER_UUID, USER_UUID);
         accessor.setLeaveMutable(true);

@@ -53,23 +53,38 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
         String userUuid = user.getId().toString();
 
         for (int attempt = 0; attempt < ROOM_UPDATE_MAX_RETRIES; attempt++) {
+            // invite.roomId()는 실제 플립북 roomCode 역할을 함.
+            // Redis에서 flipbook:room:{roomCode} 방 상태를 조회한다.
             FlipbookRoomState roomState = flipbookRoomRepository.findByRoomCode(invite.roomId())
                 .orElseThrow(() -> new ConflictException(ROOM_CLOSED_MESSAGE));
+
+            // 해당 userUuid를 가진 사용자가 있는지 확인 (사용자의 정보를 반환)
             Optional<FlipbookRoomParticipant> existingParticipant = findParticipant(roomState, userUuid);
 
+            // 이미 참여자 목록에 있으면 새로 추가하지 않고 그대로 성공 응답한다.
+            // 이게 멱등 처리. 같은 API를 여러 번 호출해도 중복 참가자가 생기지 않음.
             if (existingParticipant.isPresent()) {
                 return createResponse(invite, roomState, userUuid, true);
             }
 
+            // 신규 참여자라면 먼저 방이 입장 가능한 상태인지 확인한다.
+            // 예: WAITING 상태인지, 정원이 꽉 차지 않았는지.
             validateJoinableRoom(roomState);
+
+            // 닉네임이 설정된 사용자만 입장할 수 있게 검증한다.
             validateNicknameRegistered(user);
 
+            // 기존 roomState를 직접 수정하지 않고,
+            // 참여자 1명이 추가된 새로운 roomState 복사본을 만든다.
             FlipbookRoomState updatedRoomState = addParticipant(roomState, user);
+
+            // 현재 상태가 초기 상태와 같다면 복사본으로 대체
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 return createResponse(invite, updatedRoomState, userUuid, false);
             }
         }
 
+        // 여러 번 재시도했는데도 계속 충돌하면 입장 실패 처리한다.
         throw new ConflictException(ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
@@ -103,7 +118,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private FlipbookRoomState addParticipant(FlipbookRoomState roomState, AppUser user) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         FlipbookRoomParticipant newParticipant = new FlipbookRoomParticipant(user.getId().toString(),
-            user.getNickname(), false, nextJoinOrder(roomState), true, null, now);
+            user.getNickname(), false, nextJoinOrder(roomState), false, null, now);
 
         List<FlipbookRoomParticipant> participants = new ArrayList<>(roomState.participants());
         participants.add(newParticipant);

@@ -1,6 +1,7 @@
 package com.nemonicworld.global.websocket.config;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import java.util.List;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.support.ChannelInterceptor;
@@ -33,11 +34,22 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws/relay").setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws/relay")
+            .addInterceptors(
+                new WebSocketConnectionTypeHandshakeInterceptor(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY))
+            .setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws/flipbook")
+            .addInterceptors(
+                new WebSocketConnectionTypeHandshakeInterceptor(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK))
+            .setAllowedOriginPatterns("*");
     }
 
     /**
      * 전체 topic, 개인 queue, 클라이언트 send prefix를 애플리케이션 공통 규칙으로 설정합니다.
+     * /topic -> 방 전체 방송
+     * /queue -> 개인 메시지
+     * /app   -> 프론트가 서버로 보내는 메시지
+     * /user  -> 특정 사용자/세션에게 보내는 메시지
      */
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {

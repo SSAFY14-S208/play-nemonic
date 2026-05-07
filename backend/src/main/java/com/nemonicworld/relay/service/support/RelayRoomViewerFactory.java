@@ -40,6 +40,11 @@ public class RelayRoomViewerFactory {
         RelayRoomParticipant participant, LocalDateTime now) {
         boolean host = participant.host() || roomState.hostUserUuid().equals(viewerUserUuid);
 
+        if (participant.dropped()) {
+            return new RelayRoomViewerResponse(viewerUserUuid, true, host, false, false,
+                RelayRoomViewerBlockedReason.RECONNECT_EXPIRED);
+        }
+
         if (participant.connected()) {
             return new RelayRoomViewerResponse(viewerUserUuid, true, host, false, false, null);
         }

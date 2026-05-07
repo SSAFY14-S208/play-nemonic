@@ -172,7 +172,7 @@ public class RelayRoomFinalizationService {
         relayResultStorage.upload(thumbnailObjectKey, composedImage.thumbnailPng(), PNG_CONTENT_TYPE);
 
         return new RelayFinalizationArtifactResult(artifactId, canvasIndex, originalObjectKey, thumbnailObjectKey,
-            createArtifactMeta(roomState.roomCode(), canvasIndex));
+            createArtifactMeta(roomState, canvasIndex));
     }
 
     /**
@@ -228,7 +228,8 @@ public class RelayRoomFinalizationService {
      * 갤러리 지급 대상인 참여자 UUID 목록을 중복 없이 추출합니다.
      */
     private List<String> findParticipantUuidValues(RelayRoomState roomState) {
-        return roomState.participants().stream().map(RelayRoomParticipant::userUuid).distinct().toList();
+        return roomState.participants().stream().filter(participant -> !participant.dropped())
+            .map(RelayRoomParticipant::userUuid).distinct().toList();
     }
 
     /**
@@ -252,17 +253,34 @@ public class RelayRoomFinalizationService {
     /**
      * artifact.meta에 저장할 canvasIndex와 방 정보를 JSON으로 생성합니다.
      */
-    private String createArtifactMeta(String roomCode, int canvasIndex) {
+    private String createArtifactMeta(RelayRoomState roomState, int canvasIndex) {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("canvasIndex", canvasIndex);
-        meta.put("roomCode", roomCode);
+        meta.put("roomCode", roomState.roomCode());
         meta.put("parts",
-            List.of(RelayDrawingPart.FACE.name(), RelayDrawingPart.BODY.name(), RelayDrawingPart.LEGS.name()));
+            List.of(createPartMeta(roomState, canvasIndex, RelayDrawingPart.FACE),
+                createPartMeta(roomState, canvasIndex, RelayDrawingPart.BODY),
+                createPartMeta(roomState, canvasIndex, RelayDrawingPart.LEGS)));
 
         try {
             return objectMapper.writeValueAsString(meta);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(FINALIZATION_META_ERROR_MESSAGE, e);
         }
+    }
+
+    private Map<String, Object> createPartMeta(RelayRoomState roomState, int canvasIndex, RelayDrawingPart part) {
+        RelayRoomAssignment assignment = findAssignment(roomState, canvasIndex, part);
+        Map<String, Object> partMeta = new LinkedHashMap<>();
+        partMeta.put("part", part.name());
+        partMeta.put("drawerUserUuid", assignment.assignedUserUuid());
+        partMeta.put("drawerNickname", findParticipantNickname(roomState, assignment.assignedUserUuid()));
+
+        return partMeta;
+    }
+
+    private String findParticipantNickname(RelayRoomState roomState, String userUuid) {
+        return roomState.participants().stream().filter(participant -> participant.userUuid().equals(userUuid))
+            .map(RelayRoomParticipant::nickname).findFirst().orElse(null);
     }
 }

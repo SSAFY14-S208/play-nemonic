@@ -92,7 +92,8 @@ class RelayRoomFinalizationServiceTest {
                 .isEqualTo("relay/results/%s/original.png".formatted(artifact.artifactId()));
             assertThat(artifact.thumbnailObjectKey())
                 .isEqualTo("relay/results/%s/thumbnail.png".formatted(artifact.artifactId()));
-            assertThat(artifact.meta()).contains("\"canvasIndex\":").contains("\"roomCode\":\"AB3K9Q\"");
+            assertThat(artifact.meta()).contains("\"canvasIndex\":").contains("\"roomCode\":\"AB3K9Q\"")
+                .contains("\"drawerUserUuid\"").contains("\"drawerNickname\"");
         });
 
         ArgumentCaptor<List<RelayFinalizationArtifactResult>> artifactCaptor = ArgumentCaptor.forClass(List.class);
@@ -108,6 +109,27 @@ class RelayRoomFinalizationServiceTest {
         assertThat(updatedRoomCaptor.getValue().status()).isEqualTo(RelayRoomStatus.FINISHED);
         assertThat(updatedRoomCaptor.getValue().assignments()).isEqualTo(roomState.assignments());
         verify(relayRoomEventPublisher).publishResultCreated(any(RelayRoomFinalizationResult.class));
+    }
+
+    @Test
+    void processFinalizingRoomDoesNotCreateGalleryRowsForDroppedParticipants() {
+        UUID participantA = UUID.randomUUID();
+        UUID droppedUuid = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA, droppedUuid).withParticipants(
+            List.of(participant(participantA, true, 0), droppedParticipant(droppedUuid, false, 1)), NOW);
+        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        service.processFinalizingRoom(ROOM_CODE);
+
+        ArgumentCaptor<List<String>> participantCaptor = ArgumentCaptor.forClass(List.class);
+        verify(relayArtifactRepository).saveRelayDrawingResults(anyString(), any(), participantCaptor.capture(),
+            any(LocalDateTime.class));
+        assertThat(participantCaptor.getValue()).containsExactly(participantA.toString());
     }
 
     @Test
@@ -232,6 +254,11 @@ class RelayRoomFinalizationServiceTest {
     private RelayRoomParticipant participant(UUID userUuid, boolean host, int joinOrder) {
         return new RelayRoomParticipant(userUuid.toString(), "Mango-%d".formatted(joinOrder), host, joinOrder, true,
             null, NOW.minusMinutes(10));
+    }
+
+    private RelayRoomParticipant droppedParticipant(UUID userUuid, boolean host, int joinOrder) {
+        return new RelayRoomParticipant(userUuid.toString(), "Mango-%d".formatted(joinOrder), host, joinOrder, false,
+            NOW.minusSeconds(20), NOW.minusMinutes(10), true, NOW.minusSeconds(5));
     }
 
     private RelayRoomAssignment assignment(int canvasIndex, RelayDrawingPart part, UUID assignedUserUuid,

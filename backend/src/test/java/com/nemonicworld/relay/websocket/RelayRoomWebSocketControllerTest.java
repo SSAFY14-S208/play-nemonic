@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -31,7 +32,8 @@ class RelayRoomWebSocketControllerTest {
         SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create();
         headerAccessor.setSessionId(SESSION_ID);
         given(webSocketSessionRegistry.findBySessionId(SESSION_ID))
-            .willReturn(Optional.of(new ActiveWebSocketSession(ROOM_CODE, "user-uuid", SESSION_ID)));
+            .willReturn(Optional.of(new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY,
+                ROOM_CODE, "user-uuid", SESSION_ID)));
 
         controller.ping(ROOM_CODE, headerAccessor);
 

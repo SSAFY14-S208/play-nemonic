@@ -7,6 +7,7 @@ import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
+import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -37,9 +38,12 @@ public class FlipbookRoomController {
     private static final String FLIPBOOK_ROOM_SETTINGS_UPDATED_MESSAGE = "플립북 방 설정 변경 성공";
 
     private final FlipbookRoomService flipbookRoomService;
+    private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
 
-    public FlipbookRoomController(FlipbookRoomService flipbookRoomService) {
+    public FlipbookRoomController(FlipbookRoomService flipbookRoomService,
+        FlipbookRoomEventPublisher flipbookRoomEventPublisher) {
         this.flipbookRoomService = flipbookRoomService;
+        this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
     }
 
     /**
@@ -116,6 +120,7 @@ public class FlipbookRoomController {
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
         @RequestBody(required = false) FlipbookRoomSettingsRequest request) {
         FlipbookRoomStateResponse response = flipbookRoomService.updateRoomSettings(userUuid, roomCode, request);
+        flipbookRoomEventPublisher.publishSettingsChanged(response);
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(FLIPBOOK_ROOM_SETTINGS_UPDATED_MESSAGE, response));

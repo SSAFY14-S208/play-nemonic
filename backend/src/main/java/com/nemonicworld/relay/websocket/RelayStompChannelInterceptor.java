@@ -47,7 +47,7 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
 
-        if (accessor.getCommand() != StompCommand.CONNECT) {
+        if (accessor.getCommand() != StompCommand.CONNECT || !isRelayConnection(accessor)) {
             return message;
         }
 
@@ -58,8 +58,8 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
         try {
             RelayRoomStateResponse roomStateResponse = relayRoomService.connectRoom(userUuid, roomCode);
             configureSession(accessor, sessionId, roomCode, userUuid);
-            Optional<ActiveWebSocketSession> replacedSession = webSocketSessionRegistry.register(roomCode, userUuid,
-                sessionId);
+            Optional<ActiveWebSocketSession> replacedSession = webSocketSessionRegistry
+                .register(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode, userUuid, sessionId);
             RelayRoomEventPublisher relayRoomEventPublisher = relayRoomEventPublisherProvider.getObject();
 
             replacedSession.ifPresent(session -> closeDuplicateSession(relayRoomEventPublisher, session.sessionId(),
@@ -84,6 +84,13 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
         // 사용자 큐를 세션 단위로 격리하기 위해 Principal name은 STOMP sessionId로 둡니다.
         Principal sessionPrincipal = () -> sessionId;
         accessor.setUser(sessionPrincipal);
+    }
+
+    private boolean isRelayConnection(StompHeaderAccessor accessor) {
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+
+        return sessionAttributes != null && WebSocketSessionAttributes.CONNECTION_TYPE_RELAY
+            .equals(sessionAttributes.get(WebSocketSessionAttributes.CONNECTION_TYPE));
     }
 
     private void closeDuplicateSession(RelayRoomEventPublisher relayRoomEventPublisher, String sessionId,

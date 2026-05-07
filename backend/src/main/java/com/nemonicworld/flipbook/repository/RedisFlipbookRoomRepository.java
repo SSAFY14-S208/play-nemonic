@@ -94,11 +94,11 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
     public Optional<FlipbookRoomState> findByRoomCode(String roomCode) {
         String roomStateValue = redisTemplate.opsForValue().get(createRoomKey(roomCode));
 
-        if (!StringUtils.hasText(roomStateValue)) {
-            return Optional.empty();
+        if (!StringUtils.hasText(roomStateValue)) { // 해당하는 값이 없으면
+            return Optional.empty(); // 값이 없음
         }
 
-        return Optional.of(deserialize(roomStateValue));
+        return Optional.of(deserialize(roomStateValue)); // 해당하는 값이 있으면 역직렬화해서 객체화한 후 객체를 반환 (메타데이타 정보)
     }
 
     private String createRoomKey(String roomCode) {

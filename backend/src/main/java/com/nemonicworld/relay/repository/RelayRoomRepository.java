@@ -40,6 +40,11 @@ public interface RelayRoomRepository {
     List<RelayRoomState> findExpiredPlayingRooms(LocalDateTime now, int limit);
 
     /**
+     * 재접속 유예 만료 또는 이탈 확정 참여자의 현재 파트 자동 제출이 필요한 PLAYING 방을 최대 limit개 조회합니다.
+     */
+    List<RelayRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit);
+
+    /**
      * 최종 결과물 생성이 필요한 FINALIZING 방을 최대 limit개 조회합니다.
      */
     List<RelayRoomState> findFinalizingRooms(int limit);
