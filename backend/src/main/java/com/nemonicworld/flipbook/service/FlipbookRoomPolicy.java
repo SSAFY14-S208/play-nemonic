@@ -12,6 +12,8 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.user.entity.AppUser;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Component;
@@ -26,12 +28,14 @@ public class FlipbookRoomPolicy {
     static final int DEFAULT_TIME_LIMIT_SECONDS = 45;
     static final int MIN_PARTICIPANTS = 2;
     static final int MAX_PARTICIPANTS = 6;
+    static final int MIN_FRAMES_PER_FLIPBOOK = 8;
     static final int HOST_JOIN_ORDER = 0;
     static final int ROOM_UPDATE_MAX_RETRIES = 3;
     static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
     static final String ROOM_CONNECTION_UPDATE_CONFLICT_MESSAGE = "동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 "
         + "갱신하지 못했습니다. 다시 시도해주세요.";
     static final String ROOM_KICK_UPDATE_CONFLICT_MESSAGE = "동시 강퇴 요청이 많아 플립북 방 강퇴 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
+    static final String ROOM_START_UPDATE_CONFLICT_MESSAGE = "동시 게임 시작 요청이 많아 플립북 방 시작 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
 
     private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
@@ -45,6 +49,9 @@ public class FlipbookRoomPolicy {
     private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
     private static final String WAITING_ROOM_KICK_ONLY_MESSAGE = "대기실에서만 강퇴할 수 있습니다.";
     private static final String WAITING_ROOM_LEAVE_ONLY_MESSAGE = "대기실에서만 퇴장할 수 있습니다.";
+    private static final String GAME_ALREADY_STARTED_MESSAGE = "이미 게임이 시작되었습니다.";
+    private static final String NOT_ENOUGH_PARTICIPANTS_MESSAGE = "최소 2명이 모여야 시작할 수 있습니다.";
+    private static final String PARTICIPANTS_DISCONNECTED_MESSAGE = "모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다.";
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String SELF_KICK_NOT_ALLOWED_MESSAGE = "자기 자신은 강퇴할 수 없습니다.";
     private static final String HOST_KICK_NOT_ALLOWED_MESSAGE = "방장은 강퇴할 수 없습니다.";
@@ -178,6 +185,46 @@ public class FlipbookRoomPolicy {
     }
 
     /**
+     * 게임 시작 가능한 방 상태인지 검증합니다.
+     */
+    void validateStartableRoomStatus(FlipbookRoomState roomState) {
+        if (roomState.status() == FlipbookRoomStatus.WAITING) {
+            return;
+        }
+
+        if (roomState.status() == FlipbookRoomStatus.PLAYING) {
+            throw new ConflictException(GAME_ALREADY_STARTED_MESSAGE);
+        }
+
+        throw new ConflictException(ROOM_CLOSED_MESSAGE);
+    }
+
+    /**
+     * 게임 시작에 참여할 대상자를 입장 순서대로 조회합니다.
+     */
+    List<FlipbookRoomParticipant> findStartParticipants(FlipbookRoomState roomState) {
+        List<FlipbookRoomParticipant> startParticipants = roomState.participants().stream()
+            .sorted(Comparator.comparingInt(FlipbookRoomParticipant::joinOrder)).toList();
+
+        if (startParticipants.stream().anyMatch(participant -> !participant.connected())) {
+            throw new ConflictException(PARTICIPANTS_DISCONNECTED_MESSAGE);
+        }
+
+        if (startParticipants.size() < roomState.minParticipants()) {
+            throw new ConflictException(NOT_ENOUGH_PARTICIPANTS_MESSAGE);
+        }
+
+        return startParticipants;
+    }
+
+    /**
+     * 참여자 수에 맞춰 플립북당 최소 8프레임이 보장되는 기본 라운드 수를 계산합니다.
+     */
+    int resolveDefaultTotalRounds(int participantCount) {
+        return (int) Math.ceil((double) MIN_FRAMES_PER_FLIPBOOK / participantCount);
+    }
+
+    /**
      * 강퇴 대상이 허용되는 참여자인지 검증합니다.
      */
     void validateKickTarget(String viewerUserUuid, FlipbookRoomState roomState,
@@ -250,6 +297,7 @@ public class FlipbookRoomPolicy {
      */
     boolean canStart(FlipbookRoomState roomState, boolean host) {
         return host && roomState.status() == FlipbookRoomStatus.WAITING
-            && roomState.participantCount() >= roomState.minParticipants();
+            && roomState.participantCount() >= roomState.minParticipants()
+            && roomState.participants().stream().allMatch(FlipbookRoomParticipant::connected);
     }
 }

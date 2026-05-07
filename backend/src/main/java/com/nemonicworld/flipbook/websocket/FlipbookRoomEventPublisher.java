@@ -66,6 +66,13 @@ public class FlipbookRoomEventPublisher {
     }
 
     /**
+     * 게임 시작이 반영된 최신 방 상태를 방 전체에 알립니다.
+     */
+    public void publishGameStarted(FlipbookRoomStateResponse roomStateResponse) {
+        publishRoomEvent(FlipbookRoomEventType.GAME_STARTED, roomStateResponse);
+    }
+
+    /**
      * 대기실 참여자가 강퇴되었음을 방 전체에 알립니다.
      */
     public void publishParticipantKicked(FlipbookRoomKickResponse kickResponse) {
