@@ -103,8 +103,10 @@ Last updated: 2026-05-07
   already exist.
 - Feature services now follow the `Service` interface plus `ServiceImpl` implementation structure; controllers depend on service interfaces.
 - Swagger/OpenAPI docs now explicitly declare path, query, and header parameter names so UI fields do not fall back to `arg0`, `arg1`, or similar compiler-generated names.
-- Swagger/OpenAPI failure responses now include representative `success: false` JSON examples for User, Gallery, Files, and Community APIs.
+- Swagger/OpenAPI failure responses now include representative `success: false` JSON examples for User, Gallery, and Files APIs.
 - The common `ApiResponse.errors` schema is documented as optional field-level validation details with a neutral example; domain-specific failure messages are documented on each API response instead.
+- Community canvas product planning now defines a first backend phase focused on memo CRUD and 50-item FIFO, using the existing Files API with `purpose=COMMUNITY` for direct memo image uploads, a single create flow split by `sourceType` (`DIRECT` or `GALLERY`), object-key storage with public URL responses, front-end-friendly `ownedByMe` list responses, decoration JSON pass-through, and no WebSocket requirement for the initial CRUD/FIFO phase.
+- The sample `GET /api/v1/community/{communityId}` API, its sample service/DTO, OpenAPI test, and `.http` request were removed; actual community canvas APIs should be implemented in follow-up MRs from `backend/docs/product-spec/01-community-canvas.md`.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
