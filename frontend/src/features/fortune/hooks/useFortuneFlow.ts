@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { getAnonymousProfile } from '@/shared/apis'
@@ -8,13 +8,11 @@ import { useUserStore } from '@/shared/stores'
 import { FORTUNE_EMPTY_BIRTH_INFO, FORTUNE_RESET_QUERY_PARAM } from '../constants'
 import { useFortuneSessionStore } from '../fortuneSessionStore'
 import {
-  calculateFortuneSaju,
   canUseLocalFortuneFallback,
   clearStoredFortune,
   createBirthInfoFromProfile,
   createMockFortuneResult,
   getKoreanDateKey,
-  getNextKoreanMidnightLabel,
   getTodayFortuneResult,
   isBirthInfoComplete,
   issueNewFortune,
@@ -37,7 +35,6 @@ export function useFortuneFlow() {
     hasServerBirthInfo,
     isSubmittingBirthInfo,
     isDrawingFortune,
-    errorMessage,
   } = useFortuneSessionStore(
     useShallow((state) => ({
       step: state.step,
@@ -48,7 +45,6 @@ export function useFortuneFlow() {
       hasServerBirthInfo: state.hasServerBirthInfo,
       isSubmittingBirthInfo: state.isSubmittingBirthInfo,
       isDrawingFortune: state.isDrawingFortune,
-      errorMessage: state.errorMessage,
     })),
   )
   const {
@@ -195,20 +191,6 @@ export function useFortuneFlow() {
     }
   }, [])
 
-  const isBirthInfoReady = useMemo(() => isBirthInfoComplete(birthInfo), [birthInfo])
-  const sajuPreview = useMemo(() => {
-    if (!isBirthInfoComplete(birthInfo)) {
-      return null
-    }
-
-    try {
-      return calculateFortuneSaju(birthInfo)
-    } catch {
-      return null
-    }
-  }, [birthInfo])
-  const nextResetLabel = getNextKoreanMidnightLabel()
-
   const startBirthInfo = () => {
     setStep('birthInfo')
   }
@@ -316,21 +298,13 @@ export function useFortuneFlow() {
   }
 
   return {
-    birthInfo,
     completePrinting,
     editBirthInfo,
-    errorMessage,
     hasHydrated,
-    isBirthInfoReady,
-    isDrawingFortune,
-    isSubmittingBirthInfo,
-    nextResetLabel,
     result,
     retryAfterError,
     resetTodayFortune,
     returnToIntro,
-    sajuPreview,
-    setBirthInfo,
     showTodayResult,
     startBirthInfo,
     startPrinting,

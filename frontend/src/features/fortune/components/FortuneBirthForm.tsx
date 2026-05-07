@@ -1,17 +1,16 @@
 import { ChevronLeft, Moon, Sun } from 'lucide-react'
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { cn } from '@/shared/libs'
 
-import type { FortuneBirthInfo, FortuneCalendarType } from '../types'
+import { useFortuneSessionStore } from '../fortuneSessionStore'
+import type { FortuneCalendarType } from '../types'
+import { isBirthInfoComplete } from '../utils'
 
 interface FortuneBirthFormProps {
-  birthInfo: FortuneBirthInfo
-  isComplete: boolean
-  isSubmitting: boolean
   onBack: () => void
-  onChange: (birthInfo: FortuneBirthInfo) => void
   onSubmit: () => Promise<void>
 }
 
@@ -36,14 +35,15 @@ const BIRTH_MONTH_OPTIONS = Array.from({ length: 12 }, (_, monthIndex) => padDat
 const BIRTH_HOUR_OPTIONS = Array.from({ length: 24 }, (_, hourIndex) => padDatePart(hourIndex))
 const BIRTH_MINUTE_OPTIONS = Array.from({ length: 12 }, (_, minuteIndex) => padDatePart(minuteIndex * 5))
 
-export default function FortuneBirthForm({
-  birthInfo,
-  isComplete,
-  isSubmitting,
-  onBack,
-  onChange,
-  onSubmit,
-}: FortuneBirthFormProps) {
+export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormProps) {
+  const { birthInfo, isSubmitting, setBirthInfo } = useFortuneSessionStore(
+    useShallow((state) => ({
+      birthInfo: state.birthInfo,
+      isSubmitting: state.isSubmittingBirthInfo,
+      setBirthInfo: state.setBirthInfo,
+    })),
+  )
+  const isComplete = isBirthInfoComplete(birthInfo)
   const [birthDateParts, setBirthDateParts] = useState<BirthDateParts>(() => splitBirthDate(birthInfo.birthDate))
   const [birthTimeParts, setBirthTimeParts] = useState<BirthTimeParts>(() => splitBirthTime(birthInfo.birthTime))
   const birthDayOptions = createBirthDayOptions(birthDateParts.year, birthDateParts.month)
@@ -54,7 +54,7 @@ export default function FortuneBirthForm({
   }
 
   const updateCalendarType = (calendarType: FortuneCalendarType) => {
-    onChange({ ...birthInfo, calendarType })
+    setBirthInfo({ ...birthInfo, calendarType })
   }
 
   const updateBirthDatePart = (part: BirthDatePart, value: string) => {
@@ -64,7 +64,7 @@ export default function FortuneBirthForm({
     })
 
     setBirthDateParts(nextBirthDateParts)
-    onChange({
+    setBirthInfo({
       ...birthInfo,
       birthDate: formatBirthDate(nextBirthDateParts),
     })
@@ -77,7 +77,7 @@ export default function FortuneBirthForm({
     }
 
     setBirthTimeParts(nextBirthTimeParts)
-    onChange({
+    setBirthInfo({
       ...birthInfo,
       birthTime: formatBirthTime(nextBirthTimeParts),
       timeUnknown: false,
@@ -91,7 +91,7 @@ export default function FortuneBirthForm({
       setBirthTimeParts({ hour: '', minute: '' })
     }
 
-    onChange({
+    setBirthInfo({
       ...birthInfo,
       birthTime: isTimeUnknown ? '' : birthInfo.birthTime,
       timeUnknown: isTimeUnknown,

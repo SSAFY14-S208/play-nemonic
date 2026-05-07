@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { cn } from '@/shared/libs'
 
@@ -10,14 +11,12 @@ import {
   FORTUNE_PRINT_DURATION_SECONDS,
   FORTUNE_REDUCED_MOTION_DURATION_SECONDS,
 } from './constants'
+import { useFortuneSessionStore } from './fortuneSessionStore'
 import { useFortuneReducedMotion } from './hooks'
-import type { FortuneResult } from './types'
 
 interface FortuneVisualProps {
-  isPrinting: boolean
   playEntrySpotlight?: boolean
   runEntrySpotlight?: boolean
-  result: FortuneResult | null
   onEntrySceneReady?: () => void
   onPrintComplete: () => void
 }
@@ -85,13 +84,17 @@ const CUBE_HOVER_WIDTH_RATIO = 0.2
 const CUBE_HOVER_HEIGHT_RATIO = 0.22
 
 export default function FortuneVisual({
-  isPrinting,
   playEntrySpotlight = false,
   runEntrySpotlight = false,
-  result,
   onEntrySceneReady,
   onPrintComplete,
 }: FortuneVisualProps) {
+  const { isPrinting, result } = useFortuneSessionStore(
+    useShallow((state) => ({
+      isPrinting: state.step === 'printing',
+      result: state.result,
+    })),
+  )
   const prefersReducedMotion = useFortuneReducedMotion()
   const curtainFrameRef = useRef<HTMLDivElement>(null)
   const [activeCurtainClassName, setActiveCurtainClassName] = useState<string | null>(null)

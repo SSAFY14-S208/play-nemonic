@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 
-import { runtime } from '@/shared/config'
 import { cn } from '@/shared/libs'
 
 import {
@@ -31,21 +30,13 @@ export default function FortunePage() {
   const [dialogueIndex, setDialogueIndex] = useState(0)
   const [isEntrySceneReady, setIsEntrySceneReady] = useState(false)
   const {
-    birthInfo,
     completePrinting,
     editBirthInfo,
-    errorMessage,
     hasHydrated,
-    isBirthInfoReady,
-    isDrawingFortune,
-    isSubmittingBirthInfo,
-    nextResetLabel,
     result,
     retryAfterError,
     resetTodayFortune,
     returnToIntro,
-    sajuPreview,
-    setBirthInfo,
     showTodayResult,
     startBirthInfo,
     startPrinting,
@@ -120,10 +111,8 @@ export default function FortunePage() {
     <main className="fortune-page-shell relative min-h-dvh overflow-hidden bg-fortune-backdrop text-fortune-ink">
       <div className="fortune-magic-backdrop" aria-hidden />
       <FortuneVisual
-        isPrinting={step === 'printing'}
         playEntrySpotlight={shouldPrepareEntrySpotlight}
         runEntrySpotlight={shouldPlayEntrySpotlight}
-        result={result}
         onEntrySceneReady={handleEntrySceneReady}
         onPrintComplete={handlePrintComplete}
       />
@@ -186,11 +175,7 @@ export default function FortunePage() {
     if (step === 'birthInfo') {
       return (
         <FortuneBirthForm
-          birthInfo={birthInfo}
-          isComplete={isBirthInfoReady}
-          isSubmitting={isSubmittingBirthInfo}
           onBack={handleReturnToDialogue}
-          onChange={setBirthInfo}
           onSubmit={submitBirthInfo}
         />
       )
@@ -199,9 +184,6 @@ export default function FortunePage() {
     if (step === 'draw') {
       return (
         <FortuneDrawPanel
-          birthInfo={birthInfo}
-          isDrawing={isDrawingFortune}
-          saju={sajuPreview}
           onDraw={handleStartPrinting}
           onEdit={editBirthInfo}
         />
@@ -209,26 +191,23 @@ export default function FortunePage() {
     }
 
     if (step === 'printing') {
-      return <FortunePrintStatus isPrinting />
+      return <FortunePrintStatus />
     }
 
     if (step === 'result' && result) {
-      return <FortuneResultCard result={result} onAttach={handleAttach} onBackToHub={goBackToHub} />
+      return <FortuneResultCard onAttach={handleAttach} onBackToHub={goBackToHub} />
     }
 
     if (step === 'limit') {
       return (
         <FortuneLimitNotice
-          nextResetLabel={nextResetLabel}
-          result={result}
-          showResetAction={runtime.isDev}
           onReset={resetTodayFortune}
           onShowResult={showTodayResult}
         />
       )
     }
 
-    return <FortuneErrorView message={errorMessage} onRetry={retryAfterError} />
+    return <FortuneErrorView onRetry={retryAfterError} />
   }
 }
 

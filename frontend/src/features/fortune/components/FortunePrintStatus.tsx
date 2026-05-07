@@ -1,8 +1,8 @@
-interface FortunePrintStatusProps {
-  isPrinting: boolean
-}
+import { useFortuneSessionStore } from '../fortuneSessionStore'
 
-export default function FortunePrintStatus({ isPrinting }: FortunePrintStatusProps) {
+export default function FortunePrintStatus() {
+  const isPrinting = useFortuneSessionStore((state) => state.step === 'printing')
+
   return (
     <section className="fortune-floating-panel rounded-[var(--radius-xl)] border border-fortune-border bg-fortune-panel p-6 text-center shadow-soft-lg">
       <div className="fortune-print-sigil" aria-hidden />
