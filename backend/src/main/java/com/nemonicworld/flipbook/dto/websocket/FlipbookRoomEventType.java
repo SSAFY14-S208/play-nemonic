@@ -13,6 +13,9 @@ public enum FlipbookRoomEventType {
     // 방 설정이 변경되었음을 알립니다.
     SETTINGS_CHANGED,
 
+    // 방장이 게임을 시작했음을 알립니다.
+    GAME_STARTED,
+
     // 마지막 참여자 퇴장으로 방이 종료되었음을 알립니다.
     ROOM_CLOSED,
 

@@ -10,7 +10,8 @@ import java.util.List;
  * 방 전체 topic에 노출할 플립북 방 상태 스냅샷입니다.
  */
 public record FlipbookRoomEventStateResponse(String roomCode, FlipbookRoomStatus status, String hostUserUuid,
-    int timeLimitSeconds, int minParticipants, int maxParticipants, int participantCount,
+    int timeLimitSeconds, int minParticipants, int maxParticipants, int participantCount, Integer currentRound,
+    Integer totalRounds, LocalDateTime roundStartedAt, LocalDateTime roundDeadlineAt, LocalDateTime gameStartedAt,
     List<FlipbookRoomParticipantResponse> participants, FlipbookRoomParticipantResponse changedParticipant,
     LocalDateTime createdAt, LocalDateTime updatedAt) {
 
@@ -28,7 +29,9 @@ public record FlipbookRoomEventStateResponse(String roomCode, FlipbookRoomStatus
         String changedUserUuid) {
         return new FlipbookRoomEventStateResponse(roomStateResponse.roomCode(), roomStateResponse.status(),
             roomStateResponse.hostUserUuid(), roomStateResponse.timeLimitSeconds(), roomStateResponse.minParticipants(),
-            roomStateResponse.maxParticipants(), roomStateResponse.participantCount(), roomStateResponse.participants(),
+            roomStateResponse.maxParticipants(), roomStateResponse.participantCount(), roomStateResponse.currentRound(),
+            roomStateResponse.totalRounds(), roomStateResponse.roundStartedAt(), roomStateResponse.roundDeadlineAt(),
+            roomStateResponse.gameStartedAt(), roomStateResponse.participants(),
             findChangedParticipant(roomStateResponse, changedUserUuid), roomStateResponse.createdAt(),
             roomStateResponse.updatedAt());
     }

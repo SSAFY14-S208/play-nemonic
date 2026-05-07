@@ -23,6 +23,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -56,6 +57,7 @@ class FlipbookRoomServiceImplTest {
     private FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
     private FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
+    private FlipbookRoomStartUseCase flipbookRoomStartUseCase;
     private FlipbookRoomKickUseCase flipbookRoomKickUseCase;
     private FlipbookRoomLeaveUseCase flipbookRoomLeaveUseCase;
 
@@ -64,6 +66,8 @@ class FlipbookRoomServiceImplTest {
         FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
         FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
         flipbookRoomSettingsUseCase = new FlipbookRoomSettingsUseCase(anonymousUserResolver, flipbookRoomRepository,
+            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);
+        flipbookRoomStartUseCase = new FlipbookRoomStartUseCase(anonymousUserResolver, flipbookRoomRepository,
             flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);
         flipbookRoomKickUseCase = new FlipbookRoomKickUseCase(anonymousUserResolver, flipbookRoomRepository,
             flipbookRoomPolicy, flipbookInviteMetadataSyncService);
@@ -235,6 +239,141 @@ class FlipbookRoomServiceImplTest {
 
         verify(flipbookRoomRepository, times(3)).saveIfUnchanged(any(FlipbookRoomState.class),
             any(FlipbookRoomState.class));
+    }
+
+    /**
+     * 방장은 참여자가 모두 연결된 대기 중 플립북 방을 시작할 수 있습니다.
+     */
+    @Test
+    void startRoomChangesWaitingRoomToPlaying() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID secondUuid = UUID.randomUUID();
+        UUID thirdUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0),
+            participant(secondUuid, "다현", false, 1), participant(thirdUuid, "포도", false, 2));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookRoomStateResponse response = flipbookRoomStartUseCase.startRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.status()).isEqualTo(FlipbookRoomStatus.PLAYING);
+        assertThat(response.currentRound()).isEqualTo(1);
+        assertThat(response.totalRounds()).isEqualTo(3);
+        assertThat(response.viewer().host()).isTrue();
+        assertThat(response.viewer().canStart()).isFalse();
+
+        ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
+        FlipbookRoomState updatedRoomState = updatedStateCaptor.getValue();
+        assertThat(updatedRoomState.status()).isEqualTo(FlipbookRoomStatus.PLAYING);
+        assertThat(updatedRoomState.currentRound()).isEqualTo(1);
+        assertThat(updatedRoomState.totalRounds()).isEqualTo(3);
+        assertThat(Duration.between(updatedRoomState.roundStartedAt(), updatedRoomState.roundDeadlineAt()))
+            .isEqualTo(Duration.ofSeconds(updatedRoomState.timeLimitSeconds()));
+        assertThat(updatedRoomState.gameStartedAt()).isEqualTo(updatedRoomState.roundStartedAt());
+        assertThat(updatedRoomState.participants()).isEqualTo(roomState.participants());
+        assertThat(updatedRoomState.createdAt()).isEqualTo(roomState.createdAt());
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
+    }
+
+    /**
+     * 방장이 아닌 참여자는 플립북 게임을 시작할 수 없습니다.
+     */
+    @Test
+    void startRoomRejectsNonHostParticipant() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        AppUser participantUser = appUserWithNickname(participantUuid, "다현");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0),
+            participant(participantUuid, "다현", false, 1));
+        given(anonymousUserResolver.resolve(participantUuid.toString())).willReturn(participantUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> flipbookRoomStartUseCase.startRoom(participantUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ForbiddenException.class).hasMessage("방장만 사용할 수 있습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    /**
+     * 최소 시작 인원보다 적은 방은 시작할 수 없습니다.
+     */
+    @Test
+    void startRoomRejectsNotEnoughParticipants() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> flipbookRoomStartUseCase.startRoom(hostUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("최소 2명이 모여야 시작할 수 있습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    /**
+     * 참여자는 Redis 참여자로 등록되어 있어도 WebSocket 연결 전이면 게임 시작 대상이 될 수 없습니다.
+     */
+    @Test
+    void startRoomRejectsParticipantRegisteredWithoutWebSocketConnection() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0),
+            participant(participantUuid, "다현", false, 1, false, null));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> flipbookRoomStartUseCase.startRoom(hostUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    /**
+     * 게임 시작 저장 중 충돌이 나면 최신 방 상태를 다시 읽고 그 시점의 참여자 수로 라운드 수를 계산합니다.
+     */
+    @Test
+    void startRoomRetriesOptimisticSaveConflictWithLatestRoomState() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID secondUuid = UUID.randomUUID();
+        UUID thirdUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FlipbookRoomState firstReadRoomState = roomState(FlipbookRoomStatus.WAITING, 45,
+            participant(hostUuid, "망고", true, 0), participant(secondUuid, "다현", false, 1));
+        FlipbookRoomState secondReadRoomState = roomState(FlipbookRoomStatus.WAITING, 45,
+            participant(hostUuid, "망고", true, 0), participant(secondUuid, "다현", false, 1),
+            participant(thirdUuid, "포도", false, 2));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(firstReadRoomState),
+            Optional.of(secondReadRoomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(false, true);
+
+        FlipbookRoomStateResponse response = flipbookRoomStartUseCase.startRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.status()).isEqualTo(FlipbookRoomStatus.PLAYING);
+        assertThat(response.participantCount()).isEqualTo(3);
+        assertThat(response.totalRounds()).isEqualTo(3);
+
+        ArgumentCaptor<FlipbookRoomState> expectedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository, times(2)).saveIfUnchanged(expectedStateCaptor.capture(),
+            updatedStateCaptor.capture());
+        assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
+        assertThat(updatedStateCaptor.getAllValues().get(1).participants())
+            .isEqualTo(secondReadRoomState.participants());
+        assertThat(updatedStateCaptor.getAllValues().get(1).totalRounds()).isEqualTo(3);
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedStateCaptor.getAllValues().get(1));
     }
 
     /**
@@ -441,7 +580,12 @@ class FlipbookRoomServiceImplTest {
     }
 
     private FlipbookRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder) {
-        return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, joinOrder, true, null,
+        return participant(userUuid, nickname, host, joinOrder, true, null);
+    }
+
+    private FlipbookRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder,
+        boolean connected, LocalDateTime disconnectedAt) {
+        return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, joinOrder, connected, disconnectedAt,
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
     }
 

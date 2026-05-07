@@ -65,6 +65,33 @@ class FlipbookRoomEventPublisherTest {
     }
 
     /**
+     * 게임 시작 이벤트는 방 전체 topic에 GAME_STARTED 타입과 현재 라운드 타이밍을 함께 보냅니다.
+     */
+    @Test
+    void publishGameStartedSendsGameStartedEventToRoomTopic() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        LocalDateTime now = LocalDateTime.now();
+        FlipbookRoomStateResponse roomStateResponse = playingRoomStateResponse(now);
+
+        publisher.publishGameStarted(roomStateResponse);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.GAME_STARTED);
+        assertThat(event.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(event.data()).isInstanceOf(FlipbookRoomEventStateResponse.class);
+
+        FlipbookRoomEventStateResponse data = (FlipbookRoomEventStateResponse) event.data();
+        assertThat(data.status()).isEqualTo(FlipbookRoomStatus.PLAYING);
+        assertThat(data.currentRound()).isEqualTo(1);
+        assertThat(data.totalRounds()).isEqualTo(4);
+        assertThat(data.roundStartedAt()).isEqualTo(now);
+        assertThat(data.roundDeadlineAt()).isEqualTo(now.plusSeconds(60));
+        assertThat(data.gameStartedAt()).isEqualTo(now);
+    }
+
+    /**
      * 참여자 연결 이벤트는 최신 방 상태와 함께 연결된 사용자 UUID/닉네임을 보냅니다.
      */
     @Test
@@ -162,5 +189,13 @@ class FlipbookRoomEventPublisherTest {
 
         return new FlipbookRoomStateResponse(ROOM_CODE, FlipbookRoomStatus.WAITING, USER_UUID, timeLimitSeconds, 2, 6,
             1, List.of(new FlipbookRoomParticipantResponse(USER_UUID, "망고", true, 0, true)), null, now, now);
+    }
+
+    private FlipbookRoomStateResponse playingRoomStateResponse(LocalDateTime now) {
+        return new FlipbookRoomStateResponse(ROOM_CODE, FlipbookRoomStatus.PLAYING, USER_UUID, 60, 2, 6, 2, 1, 4, now,
+            now.plusSeconds(60), now,
+            List.of(new FlipbookRoomParticipantResponse(USER_UUID, "망고", true, 0, true),
+                new FlipbookRoomParticipantResponse("11111111-1111-1111-1111-111111111111", "다현", false, 1, true)),
+            null, now.minusMinutes(1), now);
     }
 }
