@@ -1,4 +1,4 @@
-package com.nemonicworld.files.config;
+package com.nemonicworld.global.storage.minio;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;

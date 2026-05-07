@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
-import com.nemonicworld.files.service.MinioPublicUrlResolver;
+import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.relay.dto.response.RelayRoomResultItemResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomResultPartResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomResultsResponse;

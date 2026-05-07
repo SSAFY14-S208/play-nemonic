@@ -6,7 +6,7 @@ import com.nemonicworld.artifact.repository.ArtifactImageUrlRepository;
 import com.nemonicworld.artifact.repository.ArtifactImageUrlRow;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.NotFoundException;
-import com.nemonicworld.files.service.MinioPublicUrlResolver;
+import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.util.ArrayList;
 import java.util.List;

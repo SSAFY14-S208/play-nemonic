@@ -1,6 +1,5 @@
-package com.nemonicworld.files.service;
+package com.nemonicworld.global.storage.minio;
 
-import com.nemonicworld.files.config.MinioStorageProperties;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
