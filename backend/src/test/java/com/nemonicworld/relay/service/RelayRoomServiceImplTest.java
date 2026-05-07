@@ -12,6 +12,7 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.files.config.MinioStorageProperties;
+import com.nemonicworld.files.service.MinioPublicUrlResolver;
 import com.nemonicworld.invite.repository.InviteRepository;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
@@ -116,7 +117,8 @@ class RelayRoomServiceImplTest {
             new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayHintImageUrlResolver(minioStorageProperties())),
             new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
-                relayRoomPolicy, new ObjectMapper().findAndRegisterModules()),
+                relayRoomPolicy, new ObjectMapper().findAndRegisterModules(),
+                new MinioPublicUrlResolver(minioStorageProperties())),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomPartAdvanceService, relaySubmissionStorage, minioStorageProperties(),
                 relayInviteMetadataSyncService),

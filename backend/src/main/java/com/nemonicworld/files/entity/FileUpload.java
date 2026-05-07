@@ -93,4 +93,8 @@ public class FileUpload {
         return this.status == FileUploadStatus.PENDING;
     }
 
+    public boolean isUploaded() {
+        return this.status == FileUploadStatus.UPLOADED;
+    }
+
 }
