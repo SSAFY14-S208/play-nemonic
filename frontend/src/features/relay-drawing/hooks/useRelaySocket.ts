@@ -91,6 +91,12 @@ export const useRelaySocket = ({
         case 'PARTICIPANT_CONNECTED':
           handlersRef.current.PARTICIPANT_CONNECTED?.(event)
           break
+        case 'PARTICIPANT_DISCONNECTED':
+          handlersRef.current.PARTICIPANT_DISCONNECTED?.(event)
+          break
+        case 'PARTICIPANT_LEFT':
+          handlersRef.current.PARTICIPANT_LEFT?.(event)
+          break
         case 'PARTICIPANT_DROPPED':
           handlersRef.current.PARTICIPANT_DROPPED?.(event)
           break
