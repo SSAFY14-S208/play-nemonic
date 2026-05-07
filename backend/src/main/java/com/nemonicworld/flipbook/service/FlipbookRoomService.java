@@ -1,6 +1,8 @@
 package com.nemonicworld.flipbook.service;
 
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
+import com.nemonicworld.flipbook.dto.request.FlipbookFrameSubmitRequest;
+import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
@@ -37,6 +39,12 @@ public interface FlipbookRoomService {
      * 기존 익명 사용자인 참여자의 현재 라운드 프레임 배정을 조회합니다.
      */
     FlipbookRoomMyAssignmentResponse getMyAssignment(String userUuidValue, String roomCodeValue);
+
+    /**
+     * 기존 익명 사용자인 참여자가 현재 라운드 프레임을 제출합니다.
+     */
+    FlipbookFrameSubmitResponse submitFrame(String userUuidValue, String roomCodeValue, int round,
+        FlipbookFrameSubmitRequest request);
 
     /**
      * 기존 익명 사용자인 방장이 대기 중 플립북 방의 일반 참여자를 강퇴합니다.

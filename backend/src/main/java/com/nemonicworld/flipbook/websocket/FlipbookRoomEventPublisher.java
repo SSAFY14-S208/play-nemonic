@@ -3,6 +3,7 @@ package com.nemonicworld.flipbook.websocket;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomClosedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventStateResponse;
@@ -84,6 +85,16 @@ public class FlipbookRoomEventPublisher {
      */
     public void publishGameStarted(FlipbookRoomStateResponse roomStateResponse) {
         publishRoomEvent(FlipbookRoomEventType.GAME_STARTED, roomStateResponse);
+    }
+
+    /**
+     * 참여자의 프레임 제출 결과와 라운드 진행 상태를 방 전체에 알립니다.
+     */
+    public void publishFrameSubmitted(FlipbookFrameSubmitResponse submitResponse) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.FRAME_SUBMITTED,
+            submitResponse.roomCode(), submitResponse);
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submitResponse.roomCode(), event);
     }
 
     /**

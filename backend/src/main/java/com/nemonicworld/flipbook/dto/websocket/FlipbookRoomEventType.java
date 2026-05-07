@@ -19,6 +19,9 @@ public enum FlipbookRoomEventType {
     // 방장이 게임을 시작했음을 알립니다.
     GAME_STARTED,
 
+    // 참여자가 현재 라운드 프레임을 제출했음을 알립니다.
+    FRAME_SUBMITTED,
+
     // 마지막 참여자 퇴장으로 방이 종료되었음을 알립니다.
     ROOM_CLOSED,
 

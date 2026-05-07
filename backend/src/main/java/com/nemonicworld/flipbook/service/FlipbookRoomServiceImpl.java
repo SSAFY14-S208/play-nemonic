@@ -1,6 +1,8 @@
 package com.nemonicworld.flipbook.service;
 
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
+import com.nemonicworld.flipbook.dto.request.FlipbookFrameSubmitRequest;
+import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
@@ -21,6 +23,7 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     private final FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
     private final FlipbookRoomStartUseCase flipbookRoomStartUseCase;
     private final FlipbookRoomAssignmentQueryUseCase flipbookRoomAssignmentQueryUseCase;
+    private final FlipbookFrameSubmitUseCase flipbookFrameSubmitUseCase;
     private final FlipbookRoomKickUseCase flipbookRoomKickUseCase;
     private final FlipbookRoomLeaveUseCase flipbookRoomLeaveUseCase;
     private final FlipbookRoomConnectionUseCase flipbookRoomConnectionUseCase;
@@ -49,6 +52,12 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     @Override
     public FlipbookRoomMyAssignmentResponse getMyAssignment(String userUuidValue, String roomCodeValue) {
         return flipbookRoomAssignmentQueryUseCase.getMyAssignment(userUuidValue, roomCodeValue);
+    }
+
+    @Override
+    public FlipbookFrameSubmitResponse submitFrame(String userUuidValue, String roomCodeValue, int round,
+        FlipbookFrameSubmitRequest request) {
+        return flipbookFrameSubmitUseCase.submitFrame(userUuidValue, roomCodeValue, round, request);
     }
 
     @Override

@@ -86,6 +86,26 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
     }
 
     /**
+     * 현재 라운드를 다음 라운드로 넘기고 새 마감 시각을 계산합니다.
+     */
+    public FlipbookRoomState startNextRound(int nextRound, List<FlipbookFrameAssignment> updatedAssignments,
+        LocalDateTime startedAt) {
+        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.PLAYING, hostUserUuid, timeLimitSeconds,
+            minParticipants, maxParticipants, nextRound, totalRounds, startedAt,
+            startedAt.plusSeconds(timeLimitSeconds), gameStartedAt, updatedAssignments, participants, createdAt,
+            startedAt, kickedUserUuids);
+    }
+
+    /**
+     * 모든 라운드 제출이 끝난 방을 결과 조회 가능한 종료 상태로 전환합니다.
+     */
+    public FlipbookRoomState finishGame(List<FlipbookFrameAssignment> updatedAssignments, LocalDateTime finishedAt) {
+        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.FINISHED, hostUserUuid, timeLimitSeconds,
+            minParticipants, maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt,
+            updatedAssignments, participants, createdAt, finishedAt, kickedUserUuids);
+    }
+
+    /**
      * 첫 라운드를 시작하고 현재 라운드 마감 시각을 계산합니다.
      */
     public FlipbookRoomState startGame(int resolvedTotalRounds, LocalDateTime startedAt) {
