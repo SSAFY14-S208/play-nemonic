@@ -21,6 +21,12 @@ const FLIPBOOK_ENTRANCE_FRAMES = Array.from({ length: 12 }, (unusedValue, frameI
     alt: `플립북 입장 애니메이션 ${frameIndex + 1}번째 장면`,
   }
 })
+const FLIPBOOK_BACKGROUND_IMAGES = {
+  paper: '/images/flipbook-background/paper-background.png',
+  stars: '/images/flipbook-background/stars.png',
+  dots: '/images/flipbook-background/dots.png',
+  crayon: '/images/flipbook-background/crayon-corners.png',
+}
 const FlipbookEntranceRabbitVisual = dynamic(
   () => import('../FlipbookEntranceRabbitVisual'),
   {
@@ -43,8 +49,10 @@ export default function FlipbookEntranceView({
     <section ref={sectionRef} className="relative h-[260svh] bg-flipbook-background text-flipbook-ink">
       <div className="sticky top-0 grid h-[100svh] min-h-[620px] overflow-hidden px-5 py-8">
         <div className="relative grid h-full place-items-center">
+          <FlipbookEntranceBackground timeline={timeline} />
+
           <motion.div
-            className="relative aspect-[626/480] w-[min(82vw,626px)]"
+            className="relative z-10 aspect-[626/480] w-[min(82vw,626px)]"
             style={{
               opacity: timeline.frameOpacity,
               scale: timeline.frameScale,
@@ -101,7 +109,7 @@ export default function FlipbookEntranceView({
           </motion.div>
 
           <motion.div
-            className="absolute inset-x-0 top-[5.5svh] mx-auto flex w-full max-w-[1180px] flex-col items-center px-4 text-center"
+            className="absolute inset-x-0 top-[5.5svh] z-20 mx-auto flex w-full max-w-[1180px] flex-col items-center px-4 text-center"
             style={{
               opacity: timeline.actionOpacity,
               y: timeline.actionY,
@@ -142,6 +150,62 @@ export default function FlipbookEntranceView({
         </div>
       </div>
     </section>
+  )
+}
+
+function FlipbookEntranceBackground({
+  timeline,
+}: {
+  timeline: ReturnType<typeof useFlipbookEntranceTimeline>
+}) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      <Image
+        src={FLIPBOOK_BACKGROUND_IMAGES.paper}
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-flipbook-background/10" />
+      <motion.div
+        className="absolute inset-[-3%]"
+        style={timeline.background.crayon}
+      >
+        <Image
+          src={FLIPBOOK_BACKGROUND_IMAGES.crayon}
+          alt=""
+          fill
+          sizes="106vw"
+          className="object-fill"
+        />
+      </motion.div>
+      <motion.div
+        className="absolute inset-[-3%]"
+        style={timeline.background.stars}
+      >
+        <Image
+          src={FLIPBOOK_BACKGROUND_IMAGES.stars}
+          alt=""
+          fill
+          sizes="106vw"
+          className="object-fill"
+        />
+      </motion.div>
+      <motion.div
+        className="absolute inset-[-3%]"
+        style={timeline.background.dots}
+      >
+        <Image
+          src={FLIPBOOK_BACKGROUND_IMAGES.dots}
+          alt=""
+          fill
+          sizes="106vw"
+          className="object-fill"
+        />
+      </motion.div>
+    </div>
   )
 }
 
