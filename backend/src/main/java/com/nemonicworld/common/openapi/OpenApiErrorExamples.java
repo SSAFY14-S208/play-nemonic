@@ -371,6 +371,12 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 갤러리 항목입니다."
         }
         """;
+    public static final String COMMUNITY_MEMO_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "존재하지 않는 커뮤니티 메모입니다."
+        }
+        """;
     public static final String SHARE_IMAGE_NOT_FOUND = """
         {
           "success": false,
