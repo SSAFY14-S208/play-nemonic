@@ -270,6 +270,12 @@ GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nem
 GRADLE_USER_HOME=.gradle-user-home ./gradlew test --tests 'com.nemonicworld.relay.controller.RelayRoomAssignmentControllerIntegrationTest' --no-daemon
 ```
 
+Recent flipbook reconnect grace work added PLAYING-room disconnect scanning:
+
+- `flipbook:room:{roomCode}` participants now keep `dropped`/`droppedAt` fields like relay.
+- The flipbook disconnect scheduler scans PLAYING rooms, marks participants dropped after the 10-second reconnect grace, blocks dropped users from invite/WebSocket reconnect, and transfers a dropped host to the connected non-dropped participant with the lowest `joinOrder`.
+- `PARTICIPANT_DROPPED` and `HOST_CHANGED` WebSocket events are emitted after successful Redis CAS updates.
+
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.
 
