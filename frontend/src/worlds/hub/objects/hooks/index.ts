@@ -14,6 +14,7 @@ export {
   preloadFlipbookRunningRabbitModel,
   useFlipbookRunningRabbitModel,
 } from './useFlipbookRunningRabbitModel'
+export { useDeferredHubAssetMount } from './useDeferredHubAssetMount'
 export { useFlipbookRunningRabbitMotion } from './useFlipbookRunningRabbitMotion'
 export {
   preloadHubPlatformModel,
