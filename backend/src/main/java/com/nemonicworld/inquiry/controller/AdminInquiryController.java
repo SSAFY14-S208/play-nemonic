@@ -4,6 +4,7 @@ import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
+import com.nemonicworld.inquiry.dto.response.CsInquiryDetailResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryListResponse;
 import com.nemonicworld.inquiry.service.CsInquiryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,7 +31,14 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "관리자 문의", description = "백오피스 고객 문의 관리 API")
 public class AdminInquiryController {
 
+    private static final String DETAIL_SUCCESS_MESSAGE = "고객 문의 상세 조회 성공";
     private static final String LIST_SUCCESS_MESSAGE = "고객 문의 목록 조회 성공";
+    private static final String INQUIRY_NOT_FOUND_EXAMPLE = """
+        {
+          "success": false,
+          "message": "고객 문의를 찾을 수 없습니다."
+        }
+        """;
 
     private final CsInquiryService csInquiryService;
 
@@ -62,5 +71,21 @@ public class AdminInquiryController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));
+    }
+
+    @GetMapping("/{inquiryId}")
+    @Operation(summary = "고객 문의 상세 조회", description = "관리자가 고객 문의 상세 정보를 조회합니다.")
+    @Parameter(name = "inquiryId", in = ParameterIn.PATH, required = true, description = "조회할 문의 ID")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "고객 문의 상세 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "문의 ID 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "고객 문의 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INQUIRY_NOT_FOUND_EXAMPLE)))})
+    public ResponseEntity<ApiResponse<CsInquiryDetailResponse>> getInquiry(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("inquiryId") String inquiryId) {
+        CsInquiryDetailResponse response = csInquiryService.getInquiry(adminPrincipal, inquiryId);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(DETAIL_SUCCESS_MESSAGE, response));
     }
 }

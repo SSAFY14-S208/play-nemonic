@@ -1,12 +1,15 @@
 package com.nemonicworld.inquiry.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.inquiry.dto.request.CsInquiryCreateRequest;
 import com.nemonicworld.inquiry.dto.response.CsInquiryCreateResponse;
+import com.nemonicworld.inquiry.dto.response.CsInquiryDetailResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryListItemResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryListResponse;
 import com.nemonicworld.inquiry.entity.CsInquiryStatus;
@@ -36,9 +39,15 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String INVALID_USER_UUID_MESSAGE = "사용자 UUID 형식이 올바르지 않습니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
+    private static final String INVALID_INQUIRY_ID_MESSAGE = "문의 ID가 올바르지 않습니다.";
+    private static final String INQUIRY_NOT_FOUND_MESSAGE = "고객 문의를 찾을 수 없습니다.";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 50;
+    private static final TypeReference<List<String>> ATTACHMENTS_TYPE = new TypeReference<>() {
+    };
+    private static final TypeReference<Map<String, Object>> META_TYPE = new TypeReference<>() {
+    };
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final CsInquiryRepository csInquiryRepository;
@@ -87,6 +96,19 @@ public class CsInquiryServiceImpl implements CsInquiryService {
             .map(CsInquiryListItemResponse::from).toList();
 
         return new CsInquiryListResponse(items, page, size, totalElements, calculateHasNext(page, size, totalElements));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CsInquiryDetailResponse getInquiry(AdminPrincipal adminPrincipal, String inquiryIdValue) {
+        requireAdmin(adminPrincipal);
+
+        Long inquiryId = parseInquiryId(inquiryIdValue);
+
+        return csInquiryRepository
+            .findById(inquiryId).map(inquiry -> CsInquiryDetailResponse.of(inquiry,
+                parseAttachments(inquiry.getAttachments()), parseMeta(inquiry.getMeta())))
+            .orElseThrow(() -> new NotFoundException(INQUIRY_NOT_FOUND_MESSAGE));
     }
 
     private void requireAdmin(AdminPrincipal adminPrincipal) {
@@ -174,6 +196,51 @@ public class CsInquiryServiceImpl implements CsInquiryService {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
             throw new BadRequestException(INVALID_PAGE_REQUEST_MESSAGE);
+        }
+    }
+
+    private Long parseInquiryId(String value) {
+        if (!StringUtils.hasText(value)) {
+            throw new BadRequestException(INVALID_INQUIRY_ID_MESSAGE);
+        }
+
+        try {
+            long inquiryId = Long.parseLong(value);
+            if (inquiryId <= 0) {
+                throw new BadRequestException(INVALID_INQUIRY_ID_MESSAGE);
+            }
+
+            return inquiryId;
+        } catch (NumberFormatException e) {
+            throw new BadRequestException(INVALID_INQUIRY_ID_MESSAGE);
+        }
+    }
+
+    private List<String> parseAttachments(String attachments) {
+        if (!StringUtils.hasText(attachments)) {
+            return List.of();
+        }
+
+        try {
+            List<String> parsedAttachments = objectMapper.readValue(attachments, ATTACHMENTS_TYPE);
+
+            return parsedAttachments == null ? List.of() : parsedAttachments;
+        } catch (JsonProcessingException e) {
+            return List.of();
+        }
+    }
+
+    private Map<String, Object> parseMeta(String meta) {
+        if (!StringUtils.hasText(meta)) {
+            return Map.of();
+        }
+
+        try {
+            Map<String, Object> parsedMeta = objectMapper.readValue(meta, META_TYPE);
+
+            return parsedMeta == null ? Map.of() : parsedMeta;
+        } catch (JsonProcessingException e) {
+            return Map.of();
         }
     }
 

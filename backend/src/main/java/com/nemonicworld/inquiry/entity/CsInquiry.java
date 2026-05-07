@@ -14,11 +14,15 @@ public class CsInquiry {
     private final String attachments;
     private final String meta;
     private final String status;
+    private final Long assignedTo;
+    private final String responseNote;
+    private final LocalDateTime respondedAt;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
     public CsInquiry(Long id, UUID userId, String type, String title, String content, String email, String attachments,
-        String meta, String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        String meta, String status, Long assignedTo, String responseNote, LocalDateTime respondedAt,
+        LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.type = type;
@@ -28,6 +32,9 @@ public class CsInquiry {
         this.attachments = attachments;
         this.meta = meta;
         this.status = status;
+        this.assignedTo = assignedTo;
+        this.responseNote = responseNote;
+        this.respondedAt = respondedAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -66,6 +73,18 @@ public class CsInquiry {
 
     public String getStatus() {
         return status;
+    }
+
+    public Long getAssignedTo() {
+        return assignedTo;
+    }
+
+    public String getResponseNote() {
+        return responseNote;
+    }
+
+    public LocalDateTime getRespondedAt() {
+        return respondedAt;
     }
 
     public LocalDateTime getCreatedAt() {

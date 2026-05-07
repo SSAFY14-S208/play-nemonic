@@ -29,6 +29,9 @@ public class CsInquiryRepository {
                attachments,
                meta,
                CAST(status AS VARCHAR) AS status,
+               assigned_to,
+               response_note,
+               responded_at,
                created_at,
                updated_at
         """;
@@ -156,8 +159,9 @@ public class CsInquiryRepository {
         return new CsInquiry(resultSet.getLong("id"), resultSet.getObject("user_id", UUID.class),
             resultSet.getString("inquiry_type"), resultSet.getString("title"), resultSet.getString("content"),
             resultSet.getString("email"), resultSet.getString("attachments"), resultSet.getString("meta"),
-            resultSet.getString("status"), timestampToLocalDateTime(resultSet, "created_at"),
-            timestampToLocalDateTime(resultSet, "updated_at"));
+            resultSet.getString("status"), resultSet.getObject("assigned_to", Long.class),
+            resultSet.getString("response_note"), timestampToLocalDateTime(resultSet, "responded_at"),
+            timestampToLocalDateTime(resultSet, "created_at"), timestampToLocalDateTime(resultSet, "updated_at"));
     }
 
     private LocalDateTime timestampToLocalDateTime(ResultSet resultSet, String columnName) throws SQLException {
