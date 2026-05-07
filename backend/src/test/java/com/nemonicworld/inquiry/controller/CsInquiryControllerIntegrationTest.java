@@ -87,7 +87,7 @@ class CsInquiryControllerIntegrationTest {
         UUID userUuid = createExistingUser();
 
         MvcResult result = mockMvc
-            .perform(post("/api/v1/cs-inquiries").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/inquiries").contentType(MediaType.APPLICATION_JSON)
                 .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).header(HttpHeaders.USER_AGENT, "MangoApp/1.0")
                 .header(HttpHeaders.REFERER, "https://nemonic.example/support").content(validRequestBody()))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
@@ -113,7 +113,7 @@ class CsInquiryControllerIntegrationTest {
     @Test
     void inquiryCreationRejectsInvalidUserUuidHeader() throws Exception {
         mockMvc
-            .perform(post("/api/v1/cs-inquiries").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/inquiries").contentType(MediaType.APPLICATION_JSON)
                 .header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid").content(validRequestBody()))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
@@ -124,7 +124,7 @@ class CsInquiryControllerIntegrationTest {
     @Test
     void inquiryCreationReturnsNotFoundWhenUserDoesNotExist() throws Exception {
         mockMvc
-            .perform(post("/api/v1/cs-inquiries").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/inquiries").contentType(MediaType.APPLICATION_JSON)
                 .header(ANONYMOUS_USER_UUID_HEADER, UUID.randomUUID().toString()).content(validRequestBody()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
@@ -137,7 +137,7 @@ class CsInquiryControllerIntegrationTest {
         UUID userUuid = createExistingUser();
 
         mockMvc
-            .perform(post("/api/v1/cs-inquiries").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/inquiries").contentType(MediaType.APPLICATION_JSON)
                 .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content("""
                     {
                       "type": "error",
@@ -155,7 +155,7 @@ class CsInquiryControllerIntegrationTest {
         UUID userUuid = createExistingUser();
 
         mockMvc
-            .perform(post("/api/v1/cs-inquiries").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/inquiries").contentType(MediaType.APPLICATION_JSON)
                 .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content("""
                     {
                       "title": "Payment error",
@@ -174,7 +174,7 @@ class CsInquiryControllerIntegrationTest {
         UUID userUuid = createExistingUser();
 
         mockMvc
-            .perform(post("/api/v1/cs-inquiries").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/inquiries").contentType(MediaType.APPLICATION_JSON)
                 .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content("""
                     {
                       "title": "Payment error",
@@ -199,7 +199,7 @@ class CsInquiryControllerIntegrationTest {
         String content = "a".repeat(1001);
 
         mockMvc
-            .perform(post("/api/v1/cs-inquiries").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/inquiries").contentType(MediaType.APPLICATION_JSON)
                 .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content("""
                     {
                       "title": "Payment error",
@@ -218,7 +218,7 @@ class CsInquiryControllerIntegrationTest {
         UUID userUuid = createExistingUser();
 
         mockMvc
-            .perform(post("/api/v1/cs-inquiries").contentType(MediaType.APPLICATION_JSON)
+            .perform(post("/api/v1/inquiries").contentType(MediaType.APPLICATION_JSON)
                 .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).content("""
                     {
                       "title": "Payment error",

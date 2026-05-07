@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/cs-inquiries")
+@RequestMapping("/inquiries")
 @Tag(name = "CS 문의", description = "익명 사용자 CS 문의 API")
 public class CsInquiryController {
 
