@@ -45,7 +45,7 @@ public class FileController {
     private final FileService fileService;
 
     @PostMapping("/presign")
-    @Operation(summary = "이미지 업로드 Presigned URL 발급", description = "MinIO 직접 PUT 업로드 URL을 발급합니다.")
+    @Operation(summary = "이미지 업로드 Presigned URL 발급", description = "file_upload 테이블 기반 private 업로드 메타데이터를 만들고 MinIO 직접 PUT 업로드 URL을 발급합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Presigned URL 발급 성공"),
@@ -68,7 +68,7 @@ public class FileController {
     }
 
     @GetMapping("/{fileId}/view-url")
-    @Operation(summary = "파일 조회 Presigned URL 발급", description = "업로드 완료된 private MinIO 객체를 조회하기 위한 GET URL을 발급합니다.")
+    @Operation(summary = "파일 조회 Presigned URL 발급", description = "file_upload 테이블에 업로드 완료로 기록된 private MinIO 객체를 조회하기 위한 GET URL을 발급합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @Parameter(name = "fileId", in = ParameterIn.PATH, required = true, description = "파일 업로드 ID")
     @ApiResponses({
@@ -92,7 +92,7 @@ public class FileController {
     }
 
     @PostMapping("/{fileId}/confirm")
-    @Operation(summary = "파일 업로드 완료 확인", description = "MinIO에 업로드된 객체를 확인하고 파일 상태를 UPLOADED로 변경합니다.")
+    @Operation(summary = "파일 업로드 완료 확인", description = "file_upload 테이블의 pending 파일에 대해 MinIO 업로드 객체를 확인하고 파일 상태를 UPLOADED로 변경합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @Parameter(name = "fileId", in = ParameterIn.PATH, required = true, description = "파일 업로드 ID")
     @ApiResponses({
