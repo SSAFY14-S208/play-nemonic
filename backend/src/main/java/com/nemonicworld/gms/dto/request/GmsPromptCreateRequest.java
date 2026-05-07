@@ -5,11 +5,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "GMS prompt creation request")
+@Schema(description = "GMS 프롬프트 생성 요청")
 public record GmsPromptCreateRequest(
-    @NotBlank @Size(max = 64) @Schema(description = "Prompt name", example = "Daily fortune prompt") String name,
+    @NotBlank @Size(max = 64) @Schema(description = "프롬프트 이름", example = "오늘의 운세 프롬프트") String name,
 
-    @NotBlank @Schema(description = "Prompt body") String content,
+    @NotBlank @Schema(description = "프롬프트 본문") String content,
 
     @NotBlank @Pattern(regexp = "fortune|sticker") String featureType) {
 }

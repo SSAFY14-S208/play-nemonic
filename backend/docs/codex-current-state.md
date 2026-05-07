@@ -67,6 +67,11 @@ Last updated: 2026-05-07
   `GmsPromptResponse`, reads only `deleted_at IS NULL` rows from the existing
   `gms_prompt_template` table, and treats missing or already deleted prompts as
   not found.
+- Backoffice admins can now list active GMS prompt templates through
+  `GET /api/v1/backoffice/gms/prompts`; the API supports `keyword`,
+  `featureType`, `page`, and `size`, returns the local pagination DTO shape
+  (`items`, `page`, `size`, `totalElements`, `hasNext`), and reads only
+  `deleted_at IS NULL` rows from the existing `gms_prompt_template` table.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.

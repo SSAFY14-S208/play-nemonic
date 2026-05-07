@@ -117,6 +117,104 @@ class GmsPromptControllerIntegrationTest {
     }
 
     @Test
+    void adminGetsPromptList() throws Exception {
+        insertPrompt(10L, "Daily fortune", "fortune", null);
+        insertPrompt(11L, "Sticker prompt", "sticker", null);
+
+        mockMvc.perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.items.length()").value(2)).andExpect(jsonPath("$.data.items[0].id").value(11L))
+            .andExpect(jsonPath("$.data.items[0].name").value("Sticker prompt"))
+            .andExpect(jsonPath("$.data.items[1].id").value(10L)).andExpect(jsonPath("$.data.page").value(0))
+            .andExpect(jsonPath("$.data.size").value(20)).andExpect(jsonPath("$.data.totalElements").value(2))
+            .andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    @Test
+    void adminGetsEmptyPromptList() throws Exception {
+        mockMvc.perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.items.length()").value(0)).andExpect(jsonPath("$.data.totalElements").value(0))
+            .andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    @Test
+    void adminSearchesPromptListByNameKeyword() throws Exception {
+        insertPrompt(10L, "Daily fortune", "fortune", null);
+        insertPrompt(11L, "Sticker prompt", "sticker", null);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "daily"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(10L))
+            .andExpect(jsonPath("$.data.items[0].name").value("Daily fortune"))
+            .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    void adminSearchesPromptListByContentKeyword() throws Exception {
+        insertPrompt(10L, "Daily fortune", "Use moon phase for fortune.", "fortune", null);
+        insertPrompt(11L, "Sticker prompt", "Sticker image generation prompt.", "sticker", null);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "moon"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(10L))
+            .andExpect(jsonPath("$.data.items[0].content").value("Use moon phase for fortune."))
+            .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    void adminFiltersPromptListByFeatureType() throws Exception {
+        insertPrompt(10L, "Daily fortune", "fortune", null);
+        insertPrompt(11L, "Sticker prompt", "sticker", null);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("featureType", "sticker"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(11L))
+            .andExpect(jsonPath("$.data.items[0].featureType").value("sticker"))
+            .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    void adminPromptListExcludesDeletedPrompt() throws Exception {
+        LocalDateTime deletedAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertPrompt(10L, "Daily fortune", "fortune", null);
+        insertPrompt(11L, "Deleted prompt", "fortune", deletedAt);
+
+        mockMvc.perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(10L)).andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    void adminPromptListAppliesPagination() throws Exception {
+        insertPrompt(10L, "First prompt", "fortune", null);
+        insertPrompt(11L, "Second prompt", "fortune", null);
+        insertPrompt(12L, "Third prompt", "sticker", null);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("page", "1").queryParam("size", "1"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(11L)).andExpect(jsonPath("$.data.page").value(1))
+            .andExpect(jsonPath("$.data.size").value(1)).andExpect(jsonPath("$.data.totalElements").value(3))
+            .andExpect(jsonPath("$.data.hasNext").value(true));
+    }
+
+    @Test
+    void adminPromptListRejectsUnauthenticatedRequest() throws Exception {
+        insertPrompt(10L, "Daily fortune", "fortune", null);
+
+        mockMvc.perform(get("/api/v1/backoffice/gms/prompts")).andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
     void adminGetsPromptDetail() throws Exception {
         insertPrompt(10L, "Daily fortune", "fortune", null);
 
@@ -367,6 +465,10 @@ class GmsPromptControllerIntegrationTest {
     }
 
     private void insertPrompt(long id, String name, String featureType, LocalDateTime deletedAt) {
+        insertPrompt(id, name, "Prompt body for {{nickname}}.", featureType, deletedAt);
+    }
+
+    private void insertPrompt(long id, String name, String content, String featureType, LocalDateTime deletedAt) {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
             INSERT INTO gms_prompt_template (
@@ -380,8 +482,8 @@ class GmsPromptControllerIntegrationTest {
                 deleted_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, id, name, "Prompt body for {{nickname}}.", featureType, ADMIN_ID, Timestamp.valueOf(now),
-            Timestamp.valueOf(now), deletedAt == null ? null : Timestamp.valueOf(deletedAt));
+            """, id, name, content, featureType, ADMIN_ID, Timestamp.valueOf(now), Timestamp.valueOf(now),
+            deletedAt == null ? null : Timestamp.valueOf(deletedAt));
     }
 
     private String createRequestBody(String name) {

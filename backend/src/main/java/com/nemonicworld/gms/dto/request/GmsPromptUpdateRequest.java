@@ -4,11 +4,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "GMS prompt update request")
+@Schema(description = "GMS 프롬프트 수정 요청")
 public record GmsPromptUpdateRequest(
-    @Size(max = 64) @Schema(description = "Prompt name", example = "Daily fortune prompt") String name,
+    @Size(max = 64) @Schema(description = "프롬프트 이름", example = "오늘의 운세 프롬프트") String name,
 
-    @Schema(description = "Prompt body") String content,
+    @Schema(description = "프롬프트 본문") String content,
 
     @Pattern(regexp = "fortune|sticker") String featureType) {
 }
