@@ -1,5 +1,6 @@
 import { Vector3 } from 'three'
 
+export const HUB_FORTUNE_PATH = '/fortune'
 export const HUB_CAMERA_HEIGHT = 2.65
 export const HUB_MODEL_ROOT_VERTICAL_OFFSET = -0.35
 export const HUB_NORMAL_ROTATION_EASE = 0.14
