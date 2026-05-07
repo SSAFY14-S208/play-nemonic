@@ -18,6 +18,7 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
   timeLimitSeconds: DEFAULT_TIME_LIMIT_SECONDS,
   minParticipants: DEFAULT_MIN_PARTICIPANTS,
   maxParticipants: DEFAULT_MAX_PARTICIPANTS,
+  dismissalReason: null,
 
   hydrateRoomState: (payload) => {
     set({
@@ -35,6 +36,7 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
   setParticipants: (participants) => set({ participants }),
   setHostUserUuid: (hostUserUuid) => set({ hostUserUuid }),
   setTimeLimitSeconds: (seconds) => set({ timeLimitSeconds: seconds }),
+  setDismissalReason: (reason) => set({ dismissalReason: reason }),
 
   // clearRoom은 룸 슬라이스가 주체지만, 다음 룸 진입이 stale state로 시작하지
   // 않도록 캔버스/결과 슬라이스도 함께 비워준다. set()이 shallow merge라서
@@ -48,10 +50,25 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
       participants: [],
       minParticipants: DEFAULT_MIN_PARTICIPANTS,
       maxParticipants: DEFAULT_MAX_PARTICIPANTS,
+      dismissalReason: null,
+      // 캔버스 슬라이스 리셋
       activeRoundKey: 'face',
       roundLines: { face: [], body: [], legs: [] },
+      canvasIndex: null,
+      currentPart: null,
+      partDeadlineAt: null,
+      hintImageUrl: null,
+      isSubmitting: false,
+      isSubmitted: false,
+      submittedCount: 0,
+      totalCount: 0,
+      isTransitioning: false,
+      partFetchTrigger: 0,
+      // 결과 슬라이스 리셋
       completedAt: null,
       resultRevealStep: 'final',
+      resultItems: [],
+      activeResultIndex: 0,
     })
   },
 })

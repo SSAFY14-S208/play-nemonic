@@ -2,7 +2,17 @@
 // 가이드 §18의 512×512 PNG 규격 자체와는 별개로, 이 프로젝트는 클라 캔버스를
 // 848×720으로 그려 후처리 시 백엔드 규격에 맞춘다는 정책으로 둔다.
 
+import type { RelayPart } from '@/shared/types'
+
 export type RelayRoundKey = 'face' | 'body' | 'legs'
+
+// 서버 RelayPart → 클라이언트 RelayRoundKey 매핑.
+// 자동 제출 게이트(라운드 시그니처 검사)와 setAssignment에서 공통으로 사용한다.
+export const PART_TO_ROUND_KEY: Record<RelayPart, RelayRoundKey> = {
+  FACE: 'face',
+  BODY: 'body',
+  LEGS: 'legs',
+}
 
 export interface RelayRound {
   key: RelayRoundKey

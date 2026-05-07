@@ -10,6 +10,12 @@ export const createResultSlice: StateCreator<RelayDrawingStore, [], [], ResultSl
 ) => ({
   resultRevealStep: 'final',
   completedAt: null,
+  resultItems: [],
+  activeResultIndex: 0,
+
+  setResults: (items) => set({ resultItems: items, resultRevealStep: 'face' }),
+
+  setActiveResultIndex: (index) => set({ activeResultIndex: index, resultRevealStep: 'face' }),
 
   goToNextResultReveal: () => {
     const { resultRevealStep } = get()
@@ -38,6 +44,8 @@ export const createResultSlice: StateCreator<RelayDrawingStore, [], [], ResultSl
       roundLines: { face: [], body: [], legs: [] },
       completedAt: null,
       resultRevealStep: 'final',
+      resultItems: [],
+      activeResultIndex: 0,
     })
   },
 })

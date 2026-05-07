@@ -13,6 +13,7 @@ export const useRelayDrawingStore = create<RelayDrawingStore>()((...args) => ({
 
 export type {
   CanvasSlice,
+  RelayDismissalReason,
   RelayDrawingStore,
   RelayRoomHydratePayload,
   ResultSlice,
