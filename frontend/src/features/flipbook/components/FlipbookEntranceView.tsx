@@ -13,7 +13,7 @@ interface FlipbookEntranceViewProps {
   onEnterRoom: () => void
 }
 
-const FLIPBOOK_ENTRANCE_FRAMES = Array.from({ length: 13 }, (unusedValue, frameIndex) => {
+const FLIPBOOK_ENTRANCE_FRAMES = Array.from({ length: 12 }, (unusedValue, frameIndex) => {
   const frameNumber = String(frameIndex + 1).padStart(2, '0')
 
   return {
@@ -34,7 +34,9 @@ export default function FlipbookEntranceView({
   onEnterRoom,
 }: FlipbookEntranceViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
-  const timeline = useFlipbookEntranceTimeline(sectionRef)
+  const timeline = useFlipbookEntranceTimeline(sectionRef, FLIPBOOK_ENTRANCE_FRAMES.length)
+  const activeEntranceFrame =
+    FLIPBOOK_ENTRANCE_FRAMES[timeline.activeFrameIndex] ?? FLIPBOOK_ENTRANCE_FRAMES.at(-1)
 
   return (
     <section ref={sectionRef} className="relative h-[420svh] bg-flipbook-background text-flipbook-ink">
@@ -59,15 +61,17 @@ export default function FlipbookEntranceView({
               className="absolute inset-0 -translate-x-1.5 -translate-y-1.5 rounded-[18px] bg-flipbook-result-soft shadow-[0_14px_26px_var(--color-flipbook-shadow)]"
             />
             <div className="absolute inset-0 overflow-hidden rounded-[18px] bg-flipbook-paper shadow-[0_22px_48px_var(--color-flipbook-shadow)]">
-              <Image
-                src={FLIPBOOK_ENTRANCE_FRAMES[timeline.activeFrameIndex].src}
-                alt={FLIPBOOK_ENTRANCE_FRAMES[timeline.activeFrameIndex].alt}
-                fill
-                priority={timeline.activeFrameIndex === 0}
-                unoptimized
-                sizes="(max-width: 768px) 82vw, 626px"
-                className="object-cover"
-              />
+              {activeEntranceFrame && (
+                <Image
+                  src={activeEntranceFrame.src}
+                  alt={activeEntranceFrame.alt}
+                  fill
+                  priority={timeline.activeFrameIndex === 0}
+                  unoptimized
+                  sizes="(max-width: 768px) 82vw, 626px"
+                  className="object-cover"
+                />
+              )}
             </div>
             <motion.div
               key={`blank-paper-flight-${timeline.activeFrameIndex}`}

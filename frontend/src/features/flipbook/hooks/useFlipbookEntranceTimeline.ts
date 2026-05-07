@@ -4,12 +4,14 @@ import type { RefObject } from 'react'
 import { useState } from 'react'
 import { useMotionValueEvent, useScroll, useSpring, useTransform } from 'motion/react'
 
-const FLIPBOOK_ENTRANCE_FRAME_COUNT = 13
 const FRAME_SEQUENCE_START_PROGRESS = 0.08
 const FRAME_SEQUENCE_END_PROGRESS = 0.78
 const RABBIT_VISUAL_MOUNT_PROGRESS = 0.8
 
-export function useFlipbookEntranceTimeline(sectionRef: RefObject<HTMLElement | null>) {
+export function useFlipbookEntranceTimeline(
+  sectionRef: RefObject<HTMLElement | null>,
+  frameCount: number,
+) {
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
   const [shouldMountRabbitVisual, setShouldMountRabbitVisual] = useState(false)
   const { scrollYProgress } = useScroll({
@@ -24,13 +26,15 @@ export function useFlipbookEntranceTimeline(sectionRef: RefObject<HTMLElement | 
   })
 
   useMotionValueEvent(smoothProgress, 'change', (latestProgress) => {
+    if (!Number.isFinite(latestProgress) || frameCount <= 0) return
+
     const sequenceProgress =
       (latestProgress - FRAME_SEQUENCE_START_PROGRESS) /
       (FRAME_SEQUENCE_END_PROGRESS - FRAME_SEQUENCE_START_PROGRESS)
     const boundedSequenceProgress = Math.min(1, Math.max(0, sequenceProgress))
     const nextFrameIndex = Math.min(
-      FLIPBOOK_ENTRANCE_FRAME_COUNT - 1,
-      Math.floor(boundedSequenceProgress * FLIPBOOK_ENTRANCE_FRAME_COUNT),
+      frameCount - 1,
+      Math.floor(boundedSequenceProgress * frameCount),
     )
 
     setActiveFrameIndex((currentFrameIndex) =>
