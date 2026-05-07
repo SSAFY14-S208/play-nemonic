@@ -4,11 +4,13 @@ import { PHONE_DRAWING_LAYOUT } from '../../constants'
 import { DRAWING_ACTION_BUTTONS } from './constants'
 
 interface DrawingActionButtonRowProps {
-  onCreateArtifact: (action: 'save' | 'print') => void
+  onCreateArtifact: (action: 'save' | 'print') => void | Promise<void>
+  isSaving?: boolean
 }
 
 export function DrawingActionButtonRow({
   onCreateArtifact,
+  isSaving = false,
 }: DrawingActionButtonRowProps) {
   return (
     <footer
@@ -19,8 +21,14 @@ export function DrawingActionButtonRow({
         <button
           key={actionButton.action}
           type="button"
-          onClick={() => onCreateArtifact(actionButton.action)}
-          className="phone-drawing-action-label flex h-full w-full items-center justify-center gap-[4.1%] transition hover:-translate-y-0.5"
+          disabled={isSaving}
+          onClick={() => {
+            void onCreateArtifact(actionButton.action)
+          }}
+          className={cn(
+            'phone-drawing-action-label flex h-full w-full items-center justify-center gap-[4.1%] transition hover:-translate-y-0.5',
+            isSaving && 'pointer-events-none opacity-60',
+          )}
           style={actionButton.style}
         >
           <span className={cn('relative block', actionButton.iconClassName)}>
@@ -33,7 +41,9 @@ export function DrawingActionButtonRow({
               sizes="28px"
             />
           </span>
-          <span className="text-center">{actionButton.label}</span>
+          <span className="text-center">
+            {isSaving ? '저장 중...' : actionButton.label}
+          </span>
         </button>
       ))}
     </footer>

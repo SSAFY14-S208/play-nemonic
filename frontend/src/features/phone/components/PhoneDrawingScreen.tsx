@@ -27,7 +27,6 @@ import {
 } from './drawing-screen'
 
 export function PhoneDrawingScreen() {
-  const addDrawingArtifact = usePhoneStore((state) => state.addDrawingArtifact)
   const goHome = usePhoneStore((state) => state.goHome)
 
   const {
@@ -37,6 +36,7 @@ export function PhoneDrawingScreen() {
     createArtifact,
     draw,
     endDrawing,
+    isSaving,
     lines,
     redoLines,
     redoDrawing,
@@ -46,7 +46,7 @@ export function PhoneDrawingScreen() {
     stageRef,
     startDrawing,
     undoDrawing,
-  } = usePhoneDrawing(addDrawingArtifact)
+  } = usePhoneDrawing()
 
   const [isToolControlOpen, setIsToolControlOpen] = useState(true)
   const isPenActive = activeTool === 'pen'
@@ -208,7 +208,10 @@ export function PhoneDrawingScreen() {
         </div>
       </main>
 
-      <DrawingActionButtonRow onCreateArtifact={createArtifact} />
+      <DrawingActionButtonRow
+        onCreateArtifact={createArtifact}
+        isSaving={isSaving}
+      />
     </div>
   )
 }
