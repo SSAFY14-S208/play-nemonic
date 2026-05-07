@@ -1,8 +1,10 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
 import {
+  RelayDismissalModal,
   RelayDrawingView,
   RelayFinalizingView,
   RelayLobbyView,
@@ -25,6 +27,13 @@ export default function RelayRoomPage() {
   const { roomCode } = useParams<{ roomCode: string }>()
   const { isHydrating, hydrationError } = useRelayRoom(roomCode ?? null)
   const roomStatus = useRelayDrawingStore((state) => state.roomStatus)
+  const dismissalReason = useRelayDrawingStore((state) => state.dismissalReason)
+  const clearRoom = useRelayDrawingStore((state) => state.clearRoom)
+
+  const handleDismissalConfirm = useCallback(() => {
+    clearRoom()
+    router.push('/relay-drawing')
+  }, [clearRoom, router])
 
   if (isHydrating) {
     return (
@@ -57,8 +66,26 @@ export default function RelayRoomPage() {
     )
   }
 
-  if (roomStatus === 'PLAYING') return <RelayDrawingView />
-  if (roomStatus === 'FINALIZING') return <RelayFinalizingView />
-  if (roomStatus === 'FINISHED') return <RelayResultView />
-  return <RelayLobbyView />
+  const view =
+    roomStatus === 'PLAYING' ? (
+      <RelayDrawingView />
+    ) : roomStatus === 'FINALIZING' ? (
+      <RelayFinalizingView />
+    ) : roomStatus === 'FINISHED' ? (
+      <RelayResultView />
+    ) : (
+      <RelayLobbyView />
+    )
+
+  return (
+    <>
+      {view}
+      {dismissalReason && (
+        <RelayDismissalModal
+          reason={dismissalReason}
+          onConfirm={handleDismissalConfirm}
+        />
+      )}
+    </>
+  )
 }
