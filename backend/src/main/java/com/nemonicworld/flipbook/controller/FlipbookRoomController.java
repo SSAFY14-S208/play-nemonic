@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -171,7 +172,7 @@ public class FlipbookRoomController {
     /**
      * 참여자가 대기 중 방에서 스스로 퇴장하고 필요 시 방장 승계나 방 닫힘 이벤트를 알립니다.
      */
-    @PostMapping("/{roomCode}/leave")
+    @DeleteMapping("/{roomCode}/participants/me")
     @Operation(summary = "플립북 방 자발적 퇴장", description = "참여자가 WAITING 상태의 플립북 대기실에서 스스로 퇴장합니다. 방장이 나가면 입장 순서 기준 다음 참여자에게 방장을 승계하고, 마지막 참여자가 나가면 방을 CLOSED로 전환합니다.")
     @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
