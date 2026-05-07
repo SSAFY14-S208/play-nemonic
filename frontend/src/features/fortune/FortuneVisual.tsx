@@ -79,6 +79,10 @@ const FORTUNE_CURTAIN_HIT_ZONES = [
 const CURTAIN_FRAME_TOP_RATIO = 0.24
 const CURTAIN_FRAME_SIDE_RATIO = 0.34
 const CURTAIN_FRAME_MIDDLE_RATIO = 0.56
+const CUBE_HOVER_LEFT_RATIO = 0.402
+const CUBE_HOVER_TOP_RATIO = 0.58
+const CUBE_HOVER_WIDTH_RATIO = 0.2
+const CUBE_HOVER_HEIGHT_RATIO = 0.22
 
 export default function FortuneVisual({
   isPrinting,
@@ -91,6 +95,7 @@ export default function FortuneVisual({
   const prefersReducedMotion = useFortuneReducedMotion()
   const curtainFrameRef = useRef<HTMLDivElement>(null)
   const [activeCurtainClassName, setActiveCurtainClassName] = useState<string | null>(null)
+  const [isCubeHovered, setIsCubeHovered] = useState(false)
 
   useEffect(() => {
     if (!playEntrySpotlight) {
@@ -138,25 +143,32 @@ export default function FortuneVisual({
 
       if (isPointerOutsideFrame) {
         setActiveCurtainClassName((currentClassName) => (currentClassName === null ? currentClassName : null))
+        setIsCubeHovered(false)
         return
       }
 
       const pointerXRatio = (event.clientX - frameBounds.left) / frameBounds.width
       const pointerYRatio = (event.clientY - frameBounds.top) / frameBounds.height
       const curtainClassName = getCurtainClassNameFromFramePosition(pointerXRatio, pointerYRatio)
+      const isPointerOverCube = getIsPointerOverCube(pointerXRatio, pointerYRatio)
 
       setActiveCurtainClassName((currentClassName) =>
         currentClassName === curtainClassName ? currentClassName : curtainClassName,
+      )
+      setIsCubeHovered((currentIsCubeHovered) =>
+        currentIsCubeHovered === isPointerOverCube ? currentIsCubeHovered : isPointerOverCube,
       )
     }
 
     const handleWindowCurtainLeave = () => {
       setActiveCurtainClassName(null)
+      setIsCubeHovered(false)
     }
 
     const handleWindowMouseOut = (event: MouseEvent) => {
       if (event.relatedTarget === null) {
         setActiveCurtainClassName(null)
+        setIsCubeHovered(false)
       }
     }
 
@@ -182,6 +194,7 @@ export default function FortuneVisual({
         playEntrySpotlight && 'fortune-stage-visual-entry',
         runEntrySpotlight && 'fortune-2d-entry-ready',
         isPrinting && 'fortune-2d-printing',
+        isCubeHovered && 'fortune-2d-cube-hovered',
       )}
     >
       <div className="fortune-2d-stage" aria-hidden>
@@ -216,9 +229,18 @@ export default function FortuneVisual({
       <div
         ref={curtainFrameRef}
         className="fortune-2d-curtain-frame"
-        onPointerLeave={() => setActiveCurtainClassName(null)}
+        onPointerLeave={() => {
+          setActiveCurtainClassName(null)
+          setIsCubeHovered(false)
+        }}
         aria-hidden
       >
+        <span
+          className="fortune-2d-cube-hit-zone"
+          onPointerEnter={() => setIsCubeHovered(true)}
+          onPointerMove={() => setIsCubeHovered(true)}
+          onPointerLeave={() => setIsCubeHovered(false)}
+        />
         {FORTUNE_CURTAIN_HIT_ZONES.map((hitZone) => (
           <span
             key={hitZone.className}
@@ -276,6 +298,15 @@ function getCurtainClassNameFromFramePosition(pointerXRatio: number, pointerYRat
   }
 
   return null
+}
+
+function getIsPointerOverCube(pointerXRatio: number, pointerYRatio: number) {
+  return (
+    pointerXRatio >= CUBE_HOVER_LEFT_RATIO &&
+    pointerXRatio <= CUBE_HOVER_LEFT_RATIO + CUBE_HOVER_WIDTH_RATIO &&
+    pointerYRatio >= CUBE_HOVER_TOP_RATIO &&
+    pointerYRatio <= CUBE_HOVER_TOP_RATIO + CUBE_HOVER_HEIGHT_RATIO
+  )
 }
 
 function getCurtainSideFromClassName(curtainClassName: string | null) {

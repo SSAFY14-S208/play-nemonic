@@ -139,22 +139,30 @@
 @keyframes fortune-2d-arm-breathe {
   0%,
   100% {
-    translate: 0 0;
+    transform: translate3d(-50%, -50%, 0) rotate(var(--fortune-arm-rest-rotate));
   }
 
-  50% {
-    translate: 0 -0.36%;
+  38% {
+    transform:
+      translate3d(-50%, calc(-50% + var(--fortune-arm-lift-y)), 0)
+      rotate(calc(var(--fortune-arm-rest-rotate) + var(--fortune-arm-swing-rotate)));
+  }
+
+  68% {
+    transform:
+      translate3d(-50%, calc(-50% + var(--fortune-arm-settle-y)), 0)
+      rotate(calc(var(--fortune-arm-rest-rotate) + var(--fortune-arm-settle-rotate)));
   }
 }
 
 @keyframes fortune-2d-hanging-sway {
   0%,
   100% {
-    transform: translate3d(-50%, -50%, 0) rotate(-0.35deg);
+    transform: translate3d(-50%, 0, 0) rotate(-0.35deg);
   }
 
   50% {
-    transform: translate3d(-49.82%, -50.18%, 0) rotate(0.45deg);
+    transform: translate3d(-49.82%, 0.24%, 0) rotate(0.45deg);
   }
 }
 
@@ -638,6 +646,12 @@
 }
 
 .fortune-2d-arm {
+  --fortune-arm-rest-rotate: 0deg;
+  --fortune-arm-swing-rotate: 0.6deg;
+  --fortune-arm-settle-rotate: -0.22deg;
+  --fortune-arm-lift-y: -0.34%;
+  --fortune-arm-settle-y: -0.1%;
+
   z-index: 8;
   width: 18.8%;
   filter:
@@ -648,16 +662,34 @@
 }
 
 .fortune-2d-arm-right {
+  --fortune-arm-rest-rotate: 4deg;
+  --fortune-arm-swing-rotate: -0.82deg;
+  --fortune-arm-settle-rotate: 0.24deg;
+  --fortune-arm-lift-y: -0.42%;
+  --fortune-arm-settle-y: -0.12%;
+
   top: 67.2%;
   left: 43.4%;
   transform: translate3d(-50%, -50%, 0) rotate(4deg);
+  transform-origin: 62% 19%;
+  animation-duration: 8.2s;
+  animation-delay: -1.35s;
 }
 
 .fortune-2d-arm-left {
+  --fortune-arm-rest-rotate: -4deg;
+  --fortune-arm-swing-rotate: 0.66deg;
+  --fortune-arm-settle-rotate: -0.18deg;
+  --fortune-arm-lift-y: -0.26%;
+  --fortune-arm-settle-y: -0.08%;
+
   top: 67%;
   left: 61%;
   width: 19.2%;
   transform: translate3d(-50%, -50%, 0) rotate(-4deg);
+  transform-origin: 39% 18%;
+  animation-duration: 9.1s;
+  animation-delay: -4.2s;
 }
 
 .fortune-2d-cube {
@@ -666,7 +698,12 @@
   z-index: 9;
   width: 19.8%;
   transform: translate3d(-50%, -50%, 0);
-  animation: fortune-2d-cube-pulse 3.8s ease-in-out infinite;
+  filter:
+    drop-shadow(0 0.65rem 1.1rem rgba(13, 3, 27, 0.3))
+    drop-shadow(0 0 0.4rem rgba(171, 86, 255, 0.14));
+  transition:
+    filter 240ms ease,
+    transform 240ms ease;
 }
 
 .fortune-2d-cube-flare {
@@ -682,7 +719,8 @@
     radial-gradient(ellipse, rgba(124, 78, 255, 0.34), rgba(124, 78, 255, 0) 68%);
   filter: blur(1.2rem);
   mix-blend-mode: screen;
-  animation: fortune-2d-flare-pulse 3.2s ease-in-out infinite;
+  opacity: 0;
+  transition: opacity 220ms ease;
 }
 
 .fortune-2d-print-note {
@@ -734,11 +772,31 @@
   animation: fortune-2d-flare-pulse 0.82s ease-in-out infinite;
 }
 
+.fortune-2d-cube-hovered .fortune-2d-cube {
+  animation: fortune-2d-cube-pulse 2.6s ease-in-out infinite;
+}
+
+.fortune-2d-cube-hovered .fortune-2d-cube-flare {
+  animation: fortune-2d-flare-pulse 2.4s ease-in-out infinite;
+}
+
 .fortune-2d-curtain-frame {
   position: absolute;
   inset: 0;
   z-index: 3;
   overflow: hidden;
+  pointer-events: auto;
+}
+
+.fortune-2d-cube-hit-zone {
+  position: absolute;
+  top: 58%;
+  left: 40.2%;
+  z-index: 16;
+  display: block;
+  width: 20%;
+  height: 22%;
+  cursor: pointer;
   pointer-events: auto;
 }
 
@@ -954,7 +1012,7 @@
   --fortune-curtain-soft-idle-skew-x: 0deg;
 
   bottom: -8.8dvh;
-  left: -6.6vw;
+  left: -1.2vw;
   z-index: 1;
   height: min(54dvh, 35rem);
   opacity: 0.94;
@@ -997,7 +1055,7 @@
   --fortune-curtain-soft-idle-rotate: 0deg;
   --fortune-curtain-soft-idle-skew-x: 0deg;
 
-  right: -6.6vw;
+  right: -1.2vw;
   bottom: -8.8dvh;
   z-index: 1;
   height: min(54dvh, 35rem);
@@ -1007,6 +1065,28 @@
     brightness(0.98)
     drop-shadow(0 0.85rem 1.5rem rgba(0, 0, 0, 0.42));
   transform-origin: 84% 4%;
+}
+
+.fortune-2d-curtain-lower-left,
+.fortune-2d-curtain-lower-right {
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.16) 8%,
+    rgba(0, 0, 0, 0.72) 18%,
+    #000 30%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.16) 8%,
+    rgba(0, 0, 0, 0.72) 18%,
+    #000 30%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
 }
 
 .fortune-2d-curtain-middle-left {
@@ -1291,13 +1371,13 @@
   }
 
   .fortune-2d-curtain-lower-left {
-    left: -52vw;
+    left: -4vw;
     bottom: -8.4dvh;
     height: min(54dvh, 35rem);
   }
 
   .fortune-2d-curtain-lower-right {
-    right: -52vw;
+    right: -4vw;
     bottom: -8.4dvh;
     height: min(54dvh, 35rem);
   }
@@ -1539,7 +1619,7 @@
 .fortune-stage-overlay-panel {
   justify-content: flex-end;
   align-items: center;
-  padding-bottom: clamp(1.4rem, 5vh, 3rem);
+  padding-bottom: clamp(2rem, 6.4vh, 4.1rem);
 }
 
 .fortune-stage-overlay-panel > div {
