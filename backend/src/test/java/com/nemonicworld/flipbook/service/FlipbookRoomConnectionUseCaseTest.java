@@ -46,6 +46,9 @@ class FlipbookRoomConnectionUseCaseTest {
     @Mock
     private FlipbookRoomRepository flipbookRoomRepository;
 
+    @Mock
+    private FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+
     private FlipbookRoomConnectionUseCase flipbookRoomConnectionUseCase;
 
     @BeforeEach
@@ -53,7 +56,7 @@ class FlipbookRoomConnectionUseCaseTest {
         FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
         FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
         flipbookRoomConnectionUseCase = new FlipbookRoomConnectionUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy, flipbookRoomViewerFactory);
+            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);
     }
 
     /**
@@ -79,6 +82,7 @@ class FlipbookRoomConnectionUseCaseTest {
         verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
         assertThat(updatedStateCaptor.getValue().participants().get(0).connected()).isTrue();
         assertThat(updatedStateCaptor.getValue().participants().get(0).disconnectedAt()).isNull();
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedStateCaptor.getValue());
     }
 
     /**
@@ -103,6 +107,7 @@ class FlipbookRoomConnectionUseCaseTest {
         verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
         assertThat(updatedStateCaptor.getValue().participants().get(0).connected()).isFalse();
         assertThat(updatedStateCaptor.getValue().participants().get(0).disconnectedAt()).isNotNull();
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedStateCaptor.getValue());
     }
 
     /**

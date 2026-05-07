@@ -52,6 +52,9 @@ class FlipbookRoomServiceImplTest {
     @Mock
     private FlipbookRoomRepository flipbookRoomRepository;
 
+    @Mock
+    private FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+
     private FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
     private FlipbookRoomKickUseCase flipbookRoomKickUseCase;
     private FlipbookRoomLeaveUseCase flipbookRoomLeaveUseCase;
@@ -61,11 +64,11 @@ class FlipbookRoomServiceImplTest {
         FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
         FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
         flipbookRoomSettingsUseCase = new FlipbookRoomSettingsUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy, flipbookRoomViewerFactory);
+            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);
         flipbookRoomKickUseCase = new FlipbookRoomKickUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy);
+            flipbookRoomPolicy, flipbookInviteMetadataSyncService);
         flipbookRoomLeaveUseCase = new FlipbookRoomLeaveUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy);
+            flipbookRoomPolicy, flipbookInviteMetadataSyncService);
     }
 
     /**
@@ -97,6 +100,7 @@ class FlipbookRoomServiceImplTest {
         assertThat(updatedRoomState.participants()).isEqualTo(roomState.participants());
         assertThat(updatedRoomState.createdAt()).isEqualTo(roomState.createdAt());
         assertThat(updatedRoomState.updatedAt()).isAfterOrEqualTo(roomState.updatedAt());
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
     }
 
     /**
@@ -208,6 +212,7 @@ class FlipbookRoomServiceImplTest {
             .containsExactly(60, 60);
         assertThat(updatedStateCaptor.getAllValues().get(1).participants())
             .isEqualTo(secondReadRoomState.participants());
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedStateCaptor.getAllValues().get(1));
     }
 
     /**
@@ -265,6 +270,7 @@ class FlipbookRoomServiceImplTest {
         assertThat(updatedRoomState.participants()).extracting(FlipbookRoomParticipant::joinOrder).containsExactly(0,
             3);
         assertThat(updatedRoomState.kickedUserUuids()).containsExactly(targetUuid.toString());
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
     }
 
     /**
@@ -342,6 +348,7 @@ class FlipbookRoomServiceImplTest {
         assertThat(updatedRoomState.participants()).extracting(FlipbookRoomParticipant::userUuid)
             .containsExactly(hostUuid.toString());
         assertThat(updatedRoomState.kickedUserUuids()).isEmpty();
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
     }
 
     /**
@@ -375,6 +382,7 @@ class FlipbookRoomServiceImplTest {
             .containsExactly(laterParticipantUuid.toString(), newHostUuid.toString());
         assertThat(updatedRoomState.participants()).extracting(FlipbookRoomParticipant::host).containsExactly(false,
             true);
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
     }
 
     /**
@@ -403,6 +411,7 @@ class FlipbookRoomServiceImplTest {
         assertThat(updatedRoomState.status()).isEqualTo(FlipbookRoomStatus.CLOSED);
         assertThat(updatedRoomState.hostUserUuid()).isNull();
         assertThat(updatedRoomState.participants()).isEmpty();
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
     }
 
     /**

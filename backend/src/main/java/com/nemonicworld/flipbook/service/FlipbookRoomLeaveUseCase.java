@@ -26,6 +26,7 @@ public class FlipbookRoomLeaveUseCase {
     private final AnonymousUserResolver anonymousUserResolver;
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookRoomPolicy flipbookRoomPolicy;
+    private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
     /**
      * WAITING 상태의 플립북 방에서 요청 참여자를 제거하고 필요하면 방장을 승계하거나 방을 닫습니다.
@@ -46,6 +47,7 @@ public class FlipbookRoomLeaveUseCase {
             LeaveResult leaveResult = leaveParticipant(roomState, leavingParticipant, now);
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, leaveResult.roomState())) {
+                flipbookInviteMetadataSyncService.syncWithRoomState(leaveResult.roomState());
                 return new FlipbookRoomLeaveResponse(leaveResult.roomState().roomCode(), leavingParticipant.userUuid(),
                     leavingParticipant.nickname(), leaveResult.roomState().participantCount(),
                     leaveResult.hostChanged(), leaveResult.newHostUserUuid(), leaveResult.newHostNickname(),
