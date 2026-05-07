@@ -115,7 +115,7 @@ class RelayRoomParticipantControllerIntegrationTest {
             .andExpect(jsonPath("$.data.participants[1].nickname").value("포도"))
             .andExpect(jsonPath("$.data.participants[1].host").value(false))
             .andExpect(jsonPath("$.data.participants[1].joinOrder").value(1))
-            .andExpect(jsonPath("$.data.participants[1].connected").value(true))
+            .andExpect(jsonPath("$.data.participants[1].connected").value(false))
             .andExpect(jsonPath("$.data.viewer.userUuid").value(joinerUuid.toString()))
             .andExpect(jsonPath("$.data.viewer.participant").value(true))
             .andExpect(jsonPath("$.data.viewer.host").value(false))
@@ -129,7 +129,7 @@ class RelayRoomParticipantControllerIntegrationTest {
         assertThat(storedJoiner.path("nickname").asText()).isEqualTo("포도");
         assertThat(storedJoiner.path("host").asBoolean()).isFalse();
         assertThat(storedJoiner.path("joinOrder").asInt()).isEqualTo(1);
-        assertThat(storedJoiner.path("connected").asBoolean()).isTrue();
+        assertThat(storedJoiner.path("connected").asBoolean()).isFalse();
         assertThat(storedJoiner.path("disconnectedAt").isNull()).isTrue();
         assertThat(storedJoiner.path("joinedAt").asText()).isNotBlank();
         assertThat(storedRoom.path("updatedAt").asText()).isNotEqualTo(storedRoom.path("createdAt").asText());
@@ -163,10 +163,10 @@ class RelayRoomParticipantControllerIntegrationTest {
     }
 
     /**
-     * 연결이 끊긴 기존 참여자가 10초 이내에 호출하면 connected 상태만 복구하고 기존 표시 정보는 유지합니다.
+     * 연결이 끊긴 기존 참여자가 10초 이내에 REST로 재입장해도 WebSocket 연결 전까지 connected=false를 유지합니다.
      */
     @Test
-    void joinRelayRoomReconnectsDisconnectedParticipantWithinGracePeriod() throws Exception {
+    void joinRelayRoomKeepsDisconnectedParticipantWithinGracePeriodUntilWebSocketConnect() throws Exception {
         UUID hostUuid = createExistingUserWithNickname("망고");
         LocalDateTime joinedAt = LocalDateTime.now().minusMinutes(3).truncatedTo(ChronoUnit.SECONDS);
         RelayRoomParticipant disconnectedParticipant = participant(hostUuid, "예전닉", true, 0, false,
@@ -177,19 +177,13 @@ class RelayRoomParticipantControllerIntegrationTest {
             .perform(post("/api/v1/relay/rooms/{roomCode}/participants", DEFAULT_ROOM_CODE)
                 .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.viewer.participant").value(true))
-            .andExpect(jsonPath("$.data.viewer.canReconnect").value(false))
+            .andExpect(jsonPath("$.data.viewer.canReconnect").value(true))
             .andExpect(jsonPath("$.data.participants[0].nickname").value("예전닉"))
             .andExpect(jsonPath("$.data.participants[0].host").value(true))
             .andExpect(jsonPath("$.data.participants[0].joinOrder").value(0))
-            .andExpect(jsonPath("$.data.participants[0].connected").value(true));
+            .andExpect(jsonPath("$.data.participants[0].connected").value(false));
 
-        JsonNode storedParticipant = readSavedRoom().path("participants").get(0);
-        assertThat(storedParticipant.path("connected").asBoolean()).isTrue();
-        assertThat(storedParticipant.path("disconnectedAt").isNull()).isTrue();
-        assertThat(storedParticipant.path("nickname").asText()).isEqualTo("예전닉");
-        assertThat(storedParticipant.path("host").asBoolean()).isTrue();
-        assertThat(storedParticipant.path("joinOrder").asInt()).isZero();
-        assertThat(LocalDateTime.parse(storedParticipant.path("joinedAt").asText())).isEqualTo(joinedAt);
+        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
     }
 
     /**

@@ -143,6 +143,7 @@ class RelayRoomServiceImplTest {
         assertThat(response.participants()).extracting("userUuid").containsExactly(hostUuid.toString(),
             otherJoinerUuid.toString(), joinerUuid.toString());
         assertThat(response.participants().get(2).joinOrder()).isEqualTo(2);
+        assertThat(response.participants().get(2).connected()).isFalse();
 
         ArgumentCaptor<RelayRoomState> expectedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
         ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
@@ -151,6 +152,7 @@ class RelayRoomServiceImplTest {
         assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
         assertThat(updatedStateCaptor.getAllValues().get(0).participantCount()).isEqualTo(2);
         assertThat(updatedStateCaptor.getAllValues().get(1).participantCount()).isEqualTo(3);
+        assertThat(updatedStateCaptor.getAllValues().get(1).participants().get(2).connected()).isFalse();
     }
 
     /**
@@ -399,6 +401,30 @@ class RelayRoomServiceImplTest {
      * WebSocket 연결 성공 시 기존 participant만 connected=true, disconnectedAt=null로 갱신합니다.
      */
     @Test
+    void connectRoomMarksRegisteredParticipantConnectedWithoutReconnectGrace() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomParticipant registeredParticipant = participant(hostUuid, "망고", true, 0, false, null);
+        RelayRoomState roomState = roomState(registeredParticipant);
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomStateResponse response = relayRoomService.connectRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.participants().get(0).connected()).isTrue();
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomParticipant storedParticipant = updatedStateCaptor.getValue().participants().get(0);
+        assertThat(storedParticipant.connected()).isTrue();
+        assertThat(storedParticipant.disconnectedAt()).isNull();
+        assertThat(storedParticipant.joinOrder()).isZero();
+    }
+
+    @Test
     void connectRoomMarksExistingParticipantConnected() {
         UUID hostUuid = UUID.randomUUID();
         AppUser hostUser = appUserWithNickname(hostUuid, "망고");
@@ -519,6 +545,21 @@ class RelayRoomServiceImplTest {
 
         assertThatThrownBy(() -> relayRoomService.connectRoom(hostUuid.toString(), ROOM_CODE))
             .isInstanceOf(ConflictException.class).hasMessage("이미 종료된 방입니다.");
+    }
+
+    @Test
+    void startRoomRejectsParticipantRegisteredWithoutWebSocketConnection() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "Mango");
+        RelayRoomState roomState = roomState(participant(hostUuid, "Mango", true, 0),
+            participant(participantUuid, "Peach", false, 1, false, null));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> relayRoomService.startRoom(hostUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다.");
     }
 
     /**
