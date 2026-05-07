@@ -47,6 +47,11 @@ Last updated: 2026-05-06
 - Backoffice super admins can now soft-delete standard admins with
   `DELETE /api/v1/admins/{adminId}`; self-delete, super-admin target
   deletion, and missing or already deleted targets are rejected.
+- Backoffice admins can now create GMS prompt templates through
+  `POST /api/v1/backoffice/gms/prompts`; the API writes to the existing
+  `gms_prompt_template` columns (`prompt_name`, `template_text`,
+  `feature_type`, `created_by`, timestamps) without changing the DB schema, and
+  rejects duplicate prompt names.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.
@@ -161,6 +166,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 Recent room code generator work passed with:
 
 ```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
+```
+
+Recent GMS prompt creation API work passed with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\format.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1 -Fast
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 ```
 

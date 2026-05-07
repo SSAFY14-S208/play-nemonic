@@ -1,4 +1,4 @@
-package com.nemonicworld.config;
+package com.nemonicworld.global.config;
 
 import java.util.List;
 import org.springframework.context.annotation.Bean;

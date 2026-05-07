@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nemonicworld.config.OpenApiConfig;
+import com.nemonicworld.global.config.OpenApiConfig;
 import com.nemonicworld.support.IntegrationTest;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
