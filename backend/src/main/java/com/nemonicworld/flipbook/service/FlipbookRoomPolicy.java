@@ -7,6 +7,7 @@ import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerBlockedReason;
+import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
@@ -54,9 +55,11 @@ public class FlipbookRoomPolicy {
     private static final String WAITING_ROOM_KICK_ONLY_MESSAGE = "대기실에서만 강퇴할 수 있습니다.";
     private static final String WAITING_ROOM_LEAVE_ONLY_MESSAGE = "대기실에서만 퇴장할 수 있습니다.";
     private static final String GAME_ALREADY_STARTED_MESSAGE = "이미 게임이 시작되었습니다.";
+    private static final String GAME_NOT_STARTED_MESSAGE = "게임이 아직 시작되지 않았습니다.";
     private static final String NOT_ENOUGH_PARTICIPANTS_MESSAGE = "최소 2명이 모여야 시작할 수 있습니다.";
     private static final String PARTICIPANTS_DISCONNECTED_MESSAGE = "모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다.";
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
+    private static final String CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE = "현재 배정된 프레임이 없습니다.";
     private static final String SELF_KICK_NOT_ALLOWED_MESSAGE = "자기 자신은 강퇴할 수 없습니다.";
     private static final String HOST_KICK_NOT_ALLOWED_MESSAGE = "방장은 강퇴할 수 없습니다.";
     private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
@@ -202,6 +205,44 @@ public class FlipbookRoomPolicy {
         }
 
         throw new ConflictException(ROOM_CLOSED_MESSAGE);
+    }
+
+    /**
+     * 내 프레임 배정 조회가 가능한 방 상태인지 검증합니다.
+     */
+    void validateAssignmentQueryableRoom(FlipbookRoomState roomState) {
+        if (roomState.status() == FlipbookRoomStatus.PLAYING) {
+            return;
+        }
+
+        if (roomState.status() == FlipbookRoomStatus.WAITING) {
+            throw new ConflictException(GAME_NOT_STARTED_MESSAGE);
+        }
+
+        throw new ConflictException(ROOM_CLOSED_MESSAGE);
+    }
+
+    /**
+     * 현재 라운드에서 사용자가 맡은 프레임 배정을 조회합니다.
+     */
+    FlipbookFrameAssignment requireCurrentAssignment(FlipbookRoomState roomState, String viewerUserUuid) {
+        Integer currentRound = roomState.currentRound();
+        if (currentRound == null) {
+            throw new ConflictException(CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE);
+        }
+
+        return roomState.assignments().stream().filter(assignment -> assignment.round() == currentRound)
+            .filter(assignment -> viewerUserUuid.equals(assignment.assignedUserUuid())).findFirst()
+            .orElseThrow(() -> new ConflictException(CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE));
+    }
+
+    /**
+     * 특정 플립북과 프레임 번호에 해당하는 배정을 조회합니다.
+     */
+    Optional<FlipbookFrameAssignment> findFrameAssignment(FlipbookRoomState roomState, int flipbookIndex,
+        int frameIndex) {
+        return roomState.assignments().stream().filter(assignment -> assignment.flipbookIndex() == flipbookIndex)
+            .filter(assignment -> assignment.frameIndex() == frameIndex).findFirst();
     }
 
     /**

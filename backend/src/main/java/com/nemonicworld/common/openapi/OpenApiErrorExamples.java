@@ -281,6 +281,18 @@ public final class OpenApiErrorExamples {
           "message": "이미 게임이 시작되었습니다."
         }
         """;
+    public static final String FLIPBOOK_GAME_NOT_STARTED = """
+        {
+          "success": false,
+          "message": "게임이 아직 시작되지 않았습니다."
+        }
+        """;
+    public static final String FLIPBOOK_CURRENT_ASSIGNMENT_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "현재 배정된 프레임이 없습니다."
+        }
+        """;
     public static final String FLIPBOOK_NOT_ENOUGH_PARTICIPANTS = """
         {
           "success": false,
