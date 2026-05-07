@@ -55,7 +55,7 @@ class FlipbookRoomResultControllerIntegrationTest {
         FlipbookRoomResultFrameResponse frame = new FlipbookRoomResultFrameResponse(0,
             "https://example.com/minio/nemonic/uploads/flipbook/frame.png", participantUuid.toString(), "망고");
         FlipbookRoomResultItemResponse result = new FlipbookRoomResultItemResponse(0, galleryId.toString(),
-            artifactId.toString(), "https://example.com/minio/nemonic/uploads/flipbook/frame.png",
+            artifactId.toString(), "https://example.com/minio/nemonic/flipbook/results/thumbnail.png",
             "https://example.com/minio/nemonic/flipbook/results/result.gif",
             "https://example.com/minio/nemonic/uploads/flipbook/frame.png", now, List.of(frame));
         FlipbookRoomResultsResponse response = new FlipbookRoomResultsResponse(ROOM_CODE, FlipbookRoomStatus.FINISHED,

@@ -22,6 +22,7 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.result.FlipbookGifComposer;
 import com.nemonicworld.flipbook.service.result.FlipbookResultArtifactResult;
 import com.nemonicworld.flipbook.service.result.FlipbookResultStorage;
+import com.nemonicworld.flipbook.service.result.FlipbookThumbnailComposer;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.user.entity.AppUser;
@@ -75,7 +76,7 @@ class FlipbookRoomResultQueryUseCaseTest {
         MinioPublicUrlResolver minioPublicUrlResolver = new MinioPublicUrlResolver(minioStorageProperties());
         useCase = new FlipbookRoomResultQueryUseCase(anonymousUserResolver, flipbookArtifactRepository,
             flipbookRoomRepository, flipbookRoomPolicy, flipbookResultStorage, new FlipbookGifComposer(200),
-            new ObjectMapper().findAndRegisterModules(), minioPublicUrlResolver);
+            new ObjectMapper().findAndRegisterModules(), new FlipbookThumbnailComposer(512), minioPublicUrlResolver);
     }
 
     @Test
@@ -142,11 +143,16 @@ class FlipbookRoomResultQueryUseCaseTest {
         assertThat(artifactsCaptor.getValue()).hasSize(1);
         assertThat(artifactsCaptor.getValue().get(0).gifObjectKey()).startsWith("flipbook/results/")
             .endsWith("/result.gif");
+        assertThat(artifactsCaptor.getValue().get(0).firstImageObjectKey()).isEqualTo("uploads/flipbook/frame-0.png");
+        assertThat(artifactsCaptor.getValue().get(0).thumbnailObjectKey()).startsWith("flipbook/results/")
+            .endsWith("/thumbnail.png");
         assertThat(participantUuidsCaptor.getValue()).containsExactlyInAnyOrder(VIEWER_UUID.toString(),
             PARTICIPANT_UUID.toString());
         assertThat(participantUuidsCaptor.getValue()).doesNotContain(DROPPED_UUID.toString());
         verify(flipbookResultStorage).upload(anyString(), org.mockito.ArgumentMatchers.any(byte[].class),
             org.mockito.ArgumentMatchers.eq("image/gif"));
+        verify(flipbookResultStorage).upload(anyString(), org.mockito.ArgumentMatchers.any(byte[].class),
+            org.mockito.ArgumentMatchers.eq("image/png"));
     }
 
     @Test
@@ -185,7 +191,7 @@ class FlipbookRoomResultQueryUseCaseTest {
     private FlipbookResultArtifactRow resultRow(int flipbookIndex) {
         UUID artifactId = UUID.randomUUID();
         return new FlipbookResultArtifactRow(UUID.randomUUID(), artifactId,
-            "uploads/flipbook/%d/frame-0.png".formatted(flipbookIndex),
+            "flipbook/results/%s/thumbnail.png".formatted(artifactId),
             "flipbook/results/%s/result.gif".formatted(artifactId),
             "uploads/flipbook/%d/frame-0.png".formatted(flipbookIndex), meta(flipbookIndex),
             NOW.plusSeconds(flipbookIndex));
