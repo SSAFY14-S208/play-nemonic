@@ -123,6 +123,18 @@ Content-Type: application/json
   "fileId": "not-a-uuid"
 }
 
+### Get flipbook room result
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/result
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get flipbook room result - invalid user UUID
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/result
+Anonymous-User-UUID: not-a-uuid
+
+### Get flipbook room result - invalid room code
+GET {{host}}/api/v1/flipbook/rooms/not-a-room/result
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Kick flipbook participant
 POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
 Anonymous-User-UUID: {{anonymousUserUuid}}

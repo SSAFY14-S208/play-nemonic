@@ -11,6 +11,7 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomMyAssignmentResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomResultsResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
@@ -46,6 +47,7 @@ public class FlipbookRoomController {
     private static final String FLIPBOOK_GAME_STARTED_MESSAGE = "플립북 게임 시작 성공";
     private static final String FLIPBOOK_MY_ASSIGNMENT_FOUND_MESSAGE = "내 플립북 프레임 배정 조회 성공";
     private static final String FLIPBOOK_FRAME_SUBMITTED_MESSAGE = "플립북 프레임 제출 성공";
+    private static final String FLIPBOOK_RESULTS_FOUND_MESSAGE = "플립북 결과 조회 성공";
     private static final String FLIPBOOK_ROOM_PARTICIPANT_KICKED_MESSAGE = "참여자 강퇴 성공";
     private static final String FLIPBOOK_ROOM_LEFT_MESSAGE = "플립북 방 퇴장 성공";
 
@@ -244,6 +246,32 @@ public class FlipbookRoomController {
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(FLIPBOOK_FRAME_SUBMITTED_MESSAGE, response));
+    }
+
+    /**
+     * 플립북 최종 결과를 조회하고, 아직 DB 결과가 없으면 종료된 Redis 방 상태에서 결과를 생성합니다.
+     */
+    @GetMapping("/{roomCode}/result")
+    @Operation(summary = "플립북 결과 조회", description = "플립북 게임 결과 화면에 필요한 프레임 목록, GIF URL, gallery/artifact 정보를 조회합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "플립북 결과 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "결과 조회 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FLIPBOOK_RESULT_ACCESS_DENIED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "결과 없음", value = OpenApiErrorExamples.FLIPBOOK_RESULT_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<FlipbookRoomResultsResponse>> getResults(
+        @PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        FlipbookRoomResultsResponse response = flipbookRoomService.getResults(userUuid, roomCode);
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(FLIPBOOK_RESULTS_FOUND_MESSAGE, response));
     }
 
     /**
