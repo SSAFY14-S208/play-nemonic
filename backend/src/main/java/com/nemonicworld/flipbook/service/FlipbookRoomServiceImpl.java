@@ -4,6 +4,7 @@ import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomMyAssignmentResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     private final FlipbookRoomQueryUseCase flipbookRoomQueryUseCase;
     private final FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
     private final FlipbookRoomStartUseCase flipbookRoomStartUseCase;
+    private final FlipbookRoomAssignmentQueryUseCase flipbookRoomAssignmentQueryUseCase;
     private final FlipbookRoomKickUseCase flipbookRoomKickUseCase;
     private final FlipbookRoomLeaveUseCase flipbookRoomLeaveUseCase;
     private final FlipbookRoomConnectionUseCase flipbookRoomConnectionUseCase;
@@ -42,6 +44,11 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     @Override
     public FlipbookRoomStateResponse startRoom(String userUuidValue, String roomCodeValue) {
         return flipbookRoomStartUseCase.startRoom(userUuidValue, roomCodeValue);
+    }
+
+    @Override
+    public FlipbookRoomMyAssignmentResponse getMyAssignment(String userUuidValue, String roomCodeValue) {
+        return flipbookRoomAssignmentQueryUseCase.getMyAssignment(userUuidValue, roomCodeValue);
     }
 
     @Override
