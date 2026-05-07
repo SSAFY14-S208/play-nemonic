@@ -25,6 +25,7 @@ import com.nemonicworld.community.service.moderation.CommunityMemoModerationResu
 import com.nemonicworld.files.entity.FileUpload;
 import com.nemonicworld.files.entity.FileUploadPurpose;
 import com.nemonicworld.files.repository.FileUploadRepository;
+import com.nemonicworld.files.service.MinioPublicUrlResolver;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -64,18 +65,18 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     };
 
     private final CommunityMemoRepository communityMemoRepository;
-    private final CommunityMemoImageUrlResolver communityMemoImageUrlResolver;
+    private final MinioPublicUrlResolver minioPublicUrlResolver;
     private final AnonymousUserResolver anonymousUserResolver;
     private final FileUploadRepository fileUploadRepository;
     private final CommunityMemoModerationClient communityMemoModerationClient;
     private final ObjectMapper objectMapper;
 
     public CommunityMemoServiceImpl(CommunityMemoRepository communityMemoRepository,
-        CommunityMemoImageUrlResolver communityMemoImageUrlResolver, AnonymousUserResolver anonymousUserResolver,
+        MinioPublicUrlResolver minioPublicUrlResolver, AnonymousUserResolver anonymousUserResolver,
         FileUploadRepository fileUploadRepository, CommunityMemoModerationClient communityMemoModerationClient,
         ObjectMapper objectMapper) {
         this.communityMemoRepository = communityMemoRepository;
-        this.communityMemoImageUrlResolver = communityMemoImageUrlResolver;
+        this.minioPublicUrlResolver = minioPublicUrlResolver;
         this.anonymousUserResolver = anonymousUserResolver;
         this.fileUploadRepository = fileUploadRepository;
         this.communityMemoModerationClient = communityMemoModerationClient;
@@ -121,8 +122,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         validateCommunityFile(originalFileUpload, userUuid);
         validateCommunityFile(thumbnailFileUpload, userUuid);
 
-        String originalImageUrl = communityMemoImageUrlResolver.resolve(originalFileUpload.getObjectKey());
-        String thumbnailImageUrl = communityMemoImageUrlResolver.resolve(thumbnailFileUpload.getObjectKey());
+        String originalImageUrl = minioPublicUrlResolver.resolve(originalFileUpload.getObjectKey());
+        String thumbnailImageUrl = minioPublicUrlResolver.resolve(thumbnailFileUpload.getObjectKey());
         if (!StringUtils.hasText(originalImageUrl) || !StringUtils.hasText(thumbnailImageUrl)) {
             throw new BadRequestException(INVALID_MEMO_SOURCE_MESSAGE);
         }
@@ -295,8 +296,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
     private CommunityMemoItemResponse toResponse(CommunityMemoRow row, UUID viewerUserUuid) {
         String sourceType = resolveSourceType(row.artifactId());
-        String memoOriginalImageUrl = communityMemoImageUrlResolver.resolve(row.originalImageReference());
-        String memoThumbnailImageUrl = communityMemoImageUrlResolver.resolve(row.thumbnailImageReference());
+        String memoOriginalImageUrl = minioPublicUrlResolver.resolve(row.originalImageReference());
+        String memoThumbnailImageUrl = minioPublicUrlResolver.resolve(row.thumbnailImageReference());
         String memoImageUrl = representativeImageUrl(memoOriginalImageUrl, memoThumbnailImageUrl);
         boolean ownedByMe = isOwnedByViewer(row.userId(), viewerUserUuid);
 
@@ -307,8 +308,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
     private CommunityMemoDetailResponse toDetailResponse(CommunityMemoDetailRow row, UUID viewerUserUuid) {
         String sourceType = resolveSourceType(row.artifactId());
-        String memoOriginalImageUrl = communityMemoImageUrlResolver.resolve(row.originalImageReference());
-        String memoThumbnailImageUrl = communityMemoImageUrlResolver.resolve(row.thumbnailImageReference());
+        String memoOriginalImageUrl = minioPublicUrlResolver.resolve(row.originalImageReference());
+        String memoThumbnailImageUrl = minioPublicUrlResolver.resolve(row.thumbnailImageReference());
         String memoImageUrl = representativeImageUrl(memoOriginalImageUrl, memoThumbnailImageUrl);
         boolean ownedByMe = isOwnedByViewer(row.userId(), viewerUserUuid);
         String artifactId = row.artifactId() == null ? null : row.artifactId().toString();
