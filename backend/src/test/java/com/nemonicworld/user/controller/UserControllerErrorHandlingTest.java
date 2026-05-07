@@ -37,7 +37,7 @@ class UserControllerErrorHandlingTest {
     void createAnonymousUserDoesNotExposeInternalError() throws Exception {
         given(userService.createAnonymousUser(any())).willThrow(new IllegalStateException("database password=secret"));
 
-        mockMvc.perform(post("/users/anonymous")).andExpect(status().isInternalServerError())
+        mockMvc.perform(post("/api/v1/users/anonymous")).andExpect(status().isInternalServerError())
             .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").value("서버 오류가 발생했습니다."))
             .andExpect(content().string(not(containsString("database password=secret"))));
     }

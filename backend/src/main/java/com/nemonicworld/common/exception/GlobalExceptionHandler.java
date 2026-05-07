@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -44,6 +45,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.fail(e.getMessage(), null));
     }
 
+    // 410 Gone - 만료된 리소스
+    @ExceptionHandler(GoneException.class)
+    public ResponseEntity<ApiResponse<Void>> handleGone(GoneException e) {
+        return ResponseEntity.status(HttpStatus.GONE).body(ApiResponse.fail(e.getMessage(), null));
+    }
+
+    // 413 Payload Too Large - 요청 파일 크기 초과
+    @ExceptionHandler(PayloadTooLargeException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePayloadTooLarge(PayloadTooLargeException e) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(ApiResponse.fail(e.getMessage(), null));
+    }
+
+    // 500 Internal Server Error - 파일 저장소 처리 실패
+    @ExceptionHandler(FileStorageException.class)
+    public ResponseEntity<ApiResponse<Void>> handleFileStorage(FileStorageException e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.fail(e.getMessage(), null));
+    }
+
     // 400 Bad Request - 유효성 검사 실패
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException e) {
@@ -54,6 +73,12 @@ public class GlobalExceptionHandler {
         }
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.fail("유효성 검사 실패", errors));
+    }
+
+    // 400 Bad Request - JSON 본문 누락/파싱 오류
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.fail("요청 본문 형식이 올바르지 않습니다.", null));
     }
 
     // 500 Internal Server Error - 서버 오류
