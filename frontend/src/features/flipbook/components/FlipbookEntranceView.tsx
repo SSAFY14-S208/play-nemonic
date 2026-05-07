@@ -2,7 +2,6 @@
 
 import { useRef, type ReactNode } from 'react'
 import Image from 'next/image'
-import dynamic from 'next/dynamic'
 import { motion } from 'motion/react'
 import { ArrowRight, BookOpen, DoorOpen, Sparkles } from 'lucide-react'
 import { cn } from '@/shared/libs'
@@ -27,13 +26,6 @@ const FLIPBOOK_BACKGROUND_IMAGES = {
   dots: '/images/flipbook-background/dots.png',
   crayon: '/images/flipbook-background/crayon-corners.png',
 }
-const FlipbookEntranceRabbitVisual = dynamic(
-  () => import('../FlipbookEntranceRabbitVisual'),
-  {
-    ssr: false,
-    loading: () => null,
-  },
-)
 
 export default function FlipbookEntranceView({
   onCreateRoom,
@@ -143,9 +135,6 @@ export default function FlipbookEntranceView({
               />
             </div>
 
-            <div className="pointer-events-none relative z-0 mt-7 w-full">
-              {timeline.shouldMountRabbitVisual && <FlipbookEntranceRabbitVisual />}
-            </div>
           </motion.div>
         </div>
       </div>

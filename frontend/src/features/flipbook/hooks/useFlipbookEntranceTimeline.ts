@@ -6,14 +6,12 @@ import { useMotionValueEvent, useScroll, useSpring, useTransform } from 'motion/
 
 const FRAME_SEQUENCE_START_PROGRESS = 0.08
 const FRAME_SEQUENCE_END_PROGRESS = 0.78
-const RABBIT_VISUAL_MOUNT_PROGRESS = 0.8
 
 export function useFlipbookEntranceTimeline(
   sectionRef: RefObject<HTMLElement | null>,
   frameCount: number,
 ) {
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
-  const [shouldMountRabbitVisual, setShouldMountRabbitVisual] = useState(false)
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start start', 'end end'],
@@ -39,9 +37,6 @@ export function useFlipbookEntranceTimeline(
 
     setActiveFrameIndex((currentFrameIndex) =>
       currentFrameIndex === nextFrameIndex ? currentFrameIndex : nextFrameIndex,
-    )
-    setShouldMountRabbitVisual((currentShouldMountRabbitVisual) =>
-      currentShouldMountRabbitVisual || latestProgress >= RABBIT_VISUAL_MOUNT_PROGRESS,
     )
   })
 
@@ -71,7 +66,6 @@ export function useFlipbookEntranceTimeline(
     frameScale,
     frameY,
     frameRotate,
-    shouldMountRabbitVisual,
     actionOpacity,
     actionY,
     background: {
