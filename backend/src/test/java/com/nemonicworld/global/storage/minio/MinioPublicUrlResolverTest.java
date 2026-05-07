@@ -1,8 +1,7 @@
-package com.nemonicworld.files.service;
+package com.nemonicworld.global.storage.minio;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.nemonicworld.files.config.MinioStorageProperties;
 import org.junit.jupiter.api.Test;
 
 class MinioPublicUrlResolverTest {

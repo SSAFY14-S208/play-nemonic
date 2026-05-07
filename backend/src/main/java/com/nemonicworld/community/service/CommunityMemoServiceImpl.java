@@ -25,7 +25,7 @@ import com.nemonicworld.community.service.moderation.CommunityMemoModerationResu
 import com.nemonicworld.files.entity.FileUpload;
 import com.nemonicworld.files.entity.FileUploadPurpose;
 import com.nemonicworld.files.repository.FileUploadRepository;
-import com.nemonicworld.files.service.MinioPublicUrlResolver;
+import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
 import java.util.List;

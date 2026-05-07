@@ -1,4 +1,4 @@
-package com.nemonicworld.files.config;
+package com.nemonicworld.global.storage.minio;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 

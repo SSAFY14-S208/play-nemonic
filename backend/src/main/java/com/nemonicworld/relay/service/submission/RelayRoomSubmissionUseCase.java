@@ -3,7 +3,7 @@ package com.nemonicworld.relay.service.submission;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.PayloadTooLargeException;
-import com.nemonicworld.files.config.MinioStorageProperties;
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;

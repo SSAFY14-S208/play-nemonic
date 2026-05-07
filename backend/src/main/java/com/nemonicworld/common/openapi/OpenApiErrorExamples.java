@@ -383,6 +383,18 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 갤러리 항목입니다."
         }
         """;
+    public static final String INVALID_ARTIFACT_ID = """
+        {
+          "success": false,
+          "message": "유효하지 않은 산출물 ID 형식입니다."
+        }
+        """;
+    public static final String ARTIFACT_IMAGE_URL_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "조회 가능한 산출물 이미지 URL을 찾을 수 없습니다."
+        }
+        """;
     public static final String COMMUNITY_MEMO_NOT_FOUND = """
         {
           "success": false,
