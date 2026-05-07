@@ -153,6 +153,25 @@ class FlipbookRoomConnectionUseCaseTest {
     }
 
     /**
+     * 이미 이탈 확정된 참여자의 WebSocket 재연결은 거부됩니다.
+     */
+    @Test
+    void connectRoomRejectsDroppedParticipant() {
+        UUID userUuid = UUID.randomUUID();
+        AppUser user = appUserWithNickname(userUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.PLAYING, droppedParticipant(userUuid, "망고", true));
+        given(anonymousUserResolver.resolve(userUuid.toString())).willReturn(user);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> flipbookRoomConnectionUseCase.connectRoom(userUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(flipbookInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
+    /**
      * 강퇴된 UUID의 WebSocket 재연결은 participant 연결 갱신 전에 거부합니다.
      */
     @Test
@@ -191,6 +210,13 @@ class FlipbookRoomConnectionUseCaseTest {
         return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, 0, false,
             LocalDateTime.now().minusSeconds(disconnectedSecondsAgo).truncatedTo(ChronoUnit.SECONDS),
             LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private FlipbookRoomParticipant droppedParticipant(UUID userUuid, String nickname, boolean host) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, 0, false, now.minusSeconds(20),
+            now.minusMinutes(1), true, now.minusSeconds(10));
     }
 
     private AppUser appUserWithNickname(UUID userUuid, String nickname) {

@@ -85,6 +85,25 @@ class FlipbookInviteJoinHandlerTest {
         verify(flipbookInviteMetadataSyncService, never()).syncWithRoomState(any());
     }
 
+    /**
+     * 이미 이탈 확정된 참여자는 초대코드 복귀도 거부됩니다.
+     */
+    @Test
+    void joinRejectsDroppedParticipant() {
+        UUID participantUuid = UUID.randomUUID();
+        FlipbookRoomState roomState = room(FlipbookRoomStatus.PLAYING,
+            droppedParticipant(participantUuid, "망고", true, 0));
+        FlipbookInviteJoinHandler handler = handler();
+
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> handler.join(activeInvite(), user(participantUuid, "망고")))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(flipbookInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
     private FlipbookInviteJoinHandler handler() {
         return new FlipbookInviteJoinHandler(flipbookRoomRepository, flipbookInviteMetadataSyncService,
             new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository));
@@ -117,6 +136,13 @@ class FlipbookInviteJoinHandlerTest {
 
         return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, joinOrder, false,
             now.minusSeconds(disconnectedSecondsAgo), now.minusMinutes(5));
+    }
+
+    private FlipbookRoomParticipant droppedParticipant(UUID userUuid, String nickname, boolean host, int joinOrder) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, joinOrder, false, now.minusSeconds(20),
+            now.minusMinutes(5), true, now.minusSeconds(10));
     }
 
     private AppUser user(UUID userUuid, String nickname) {
