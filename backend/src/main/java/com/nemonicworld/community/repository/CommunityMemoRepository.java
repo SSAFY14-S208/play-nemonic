@@ -1,5 +1,7 @@
 package com.nemonicworld.community.repository;
 
+import com.nemonicworld.community.entity.CommunityMemoDeletedReason;
+import com.nemonicworld.community.entity.CommunityMemoModerationStatus;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -111,7 +113,7 @@ public class CommunityMemoRepository {
             :decoration,
             :bodyImageUrl,
             :thumbnailImageUrl,
-            'allowed',
+            :moderationStatus,
             :ocrText,
             :ocrCategories,
             :moderationCheckedAt,
@@ -131,7 +133,7 @@ public class CommunityMemoRepository {
     private static final String EXPIRE_OLDEST_VISIBLE_MEMOS_SQL = """
         UPDATE community_memo
         SET deleted_at = :deletedAt,
-            deleted_reason = 'expired',
+            deleted_reason = :deletedReason,
             updated_at = :deletedAt
         WHERE id IN (
             SELECT id
@@ -180,6 +182,7 @@ public class CommunityMemoRepository {
             .addValue("decoration", command.decoration()).addValue("bodyImageUrl", command.bodyImageUrl())
             .addValue("thumbnailImageUrl", command.thumbnailImageUrl()).addValue("ocrText", command.ocrText())
             .addValue("ocrCategories", command.ocrCategories())
+            .addValue("moderationStatus", CommunityMemoModerationStatus.ALLOWED.value())
             .addValue("moderationCheckedAt", command.moderationCheckedAt()).addValue("attachedAt", command.attachedAt())
             .addValue("createdAt", command.createdAt()).addValue("updatedAt", command.updatedAt());
 
@@ -199,7 +202,8 @@ public class CommunityMemoRepository {
         }
 
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("newMemoId", newMemoId)
-            .addValue("deletedAt", deletedAt).addValue("limit", limit);
+            .addValue("deletedAt", deletedAt).addValue("deletedReason", CommunityMemoDeletedReason.EXPIRED.value())
+            .addValue("limit", limit);
 
         return jdbcTemplate.update(EXPIRE_OLDEST_VISIBLE_MEMOS_SQL, params);
     }

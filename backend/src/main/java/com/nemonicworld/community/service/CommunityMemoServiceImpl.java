@@ -12,6 +12,7 @@ import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoItemResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
+import com.nemonicworld.community.entity.CommunityMemoSourceType;
 import com.nemonicworld.community.repository.CommunityMemoCreateCommand;
 import com.nemonicworld.community.repository.CommunityMemoDetailRow;
 import com.nemonicworld.community.repository.CommunityMemoRepository;
@@ -42,8 +43,6 @@ import org.springframework.util.StringUtils;
 public class CommunityMemoServiceImpl implements CommunityMemoService {
 
     private static final Logger log = LoggerFactory.getLogger(CommunityMemoServiceImpl.class);
-    private static final String DIRECT_SOURCE_TYPE = "DIRECT";
-    private static final String GALLERY_SOURCE_TYPE = "GALLERY";
     private static final String COMMUNITY_MEMO_NOT_FOUND_MESSAGE = "존재하지 않는 커뮤니티 메모입니다.";
     private static final String UNSUPPORTED_SOURCE_TYPE_MESSAGE = "지원하지 않는 커뮤니티 메모 sourceType입니다.";
     private static final String INVALID_MEMO_SOURCE_MESSAGE = "커뮤니티 메모 원본 정보가 올바르지 않습니다.";
@@ -109,7 +108,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     public CommunityMemoDetailResponse createCommunityMemo(String userUuidValue, CommunityMemoCreateRequest request) {
         UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         anonymousUserResolver.resolve(userUuid);
-        String sourceType = validateSourceType(request);
+        CommunityMemoSourceType sourceType = validateSourceType(request);
         UUID sourceArtifactId = resolveSourceArtifactId(sourceType, request.sourceGalleryId(), userUuid);
 
         UUID originalFileId = parseFileId(request.originalFileId(), INVALID_ORIGINAL_FILE_ID_MESSAGE);
@@ -154,22 +153,22 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         return anonymousUserResolver.parseUuid(viewerUserUuidValue);
     }
 
-    private String validateSourceType(CommunityMemoCreateRequest request) {
+    private CommunityMemoSourceType validateSourceType(CommunityMemoCreateRequest request) {
         String sourceType = request == null ? null : request.sourceType();
-        if (DIRECT_SOURCE_TYPE.equals(sourceType)) {
+        if (CommunityMemoSourceType.DIRECT.value().equals(sourceType)) {
             if (StringUtils.hasText(request.sourceGalleryId())) {
                 throw new BadRequestException(INVALID_MEMO_SOURCE_MESSAGE);
             }
 
-            return DIRECT_SOURCE_TYPE;
+            return CommunityMemoSourceType.DIRECT;
         }
 
-        if (GALLERY_SOURCE_TYPE.equals(sourceType)) {
+        if (CommunityMemoSourceType.GALLERY.value().equals(sourceType)) {
             if (!StringUtils.hasText(request.sourceGalleryId())) {
                 throw new BadRequestException(INVALID_SOURCE_GALLERY_ID_MESSAGE);
             }
 
-            return GALLERY_SOURCE_TYPE;
+            return CommunityMemoSourceType.GALLERY;
         }
 
         if (!StringUtils.hasText(sourceType)) {
@@ -179,8 +178,9 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         throw new BadRequestException(UNSUPPORTED_SOURCE_TYPE_MESSAGE);
     }
 
-    private UUID resolveSourceArtifactId(String sourceType, String sourceGalleryIdValue, UUID userUuid) {
-        if (DIRECT_SOURCE_TYPE.equals(sourceType)) {
+    private UUID resolveSourceArtifactId(CommunityMemoSourceType sourceType, String sourceGalleryIdValue,
+        UUID userUuid) {
+        if (sourceType == CommunityMemoSourceType.DIRECT) {
             return null;
         }
 
@@ -262,10 +262,11 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     }
 
     private CommunityMemoModerationResult checkModeration(String originalImageUrl, String thumbnailImageUrl,
-        String clientText, String sourceType) {
+        String clientText, CommunityMemoSourceType sourceType) {
         try {
             CommunityMemoModerationResult result = communityMemoModerationClient
-                .check(new CommunityMemoModerationRequest(originalImageUrl, thumbnailImageUrl, clientText, sourceType));
+                .check(new CommunityMemoModerationRequest(originalImageUrl, thumbnailImageUrl, clientText,
+                    sourceType.value()));
             if (!result.allowed()) {
                 throw new BadRequestException(MODERATION_BLOCKED_MESSAGE);
             }
@@ -324,7 +325,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     }
 
     private String resolveSourceType(UUID artifactId) {
-        return artifactId == null ? DIRECT_SOURCE_TYPE : GALLERY_SOURCE_TYPE;
+        return artifactId == null ? CommunityMemoSourceType.DIRECT.value() : CommunityMemoSourceType.GALLERY.value();
     }
 
     private boolean isOwnedByViewer(UUID userId, UUID viewerUserUuid) {
