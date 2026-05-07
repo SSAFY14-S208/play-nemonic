@@ -17,6 +17,7 @@ import { useRelayCanvas } from './hooks'
 export default function RelayDrawingStage() {
   const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
   const roundLines = useRelayDrawingStore((state) => state.roundLines)
+  const hintImageUrl = useRelayDrawingStore((state) => state.hintImageUrl)
 
   const { beginDrawing, continueDrawing, endDrawing } = useRelayCanvas()
 
@@ -29,8 +30,10 @@ export default function RelayDrawingStage() {
 
   const gridDots = []
   const activeRoundRule = RELAY_ROUND_RULES[activeRoundKey]
+  // 서버 힌트 이미지가 있거나 로컬 라인이 있으면 이전 라운드 힌트를 표시한다.
+  const hasHintContent = hintImageUrl !== null || previousRoundLines.length > 0
   const shouldShowPreviousHint =
-    previousRoundLines.length > 0 &&
+    hasHintContent &&
     activeRoundRule.incomingHintSourceArea !== undefined &&
     activeRoundRule.incomingHintTargetArea !== undefined
   const incomingHintSourceArea = activeRoundRule.incomingHintSourceArea
@@ -106,6 +109,7 @@ export default function RelayDrawingStage() {
           <PreviousRoundHint
             hintTargetArea={incomingHintTargetArea}
             hintVerticalOffset={hintVerticalOffset}
+            hintImageUrl={hintImageUrl}
             previousRoundLines={previousRoundLines}
           />
         )}
