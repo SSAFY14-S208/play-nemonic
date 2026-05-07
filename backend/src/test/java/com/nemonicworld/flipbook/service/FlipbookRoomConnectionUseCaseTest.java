@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
@@ -123,6 +124,23 @@ class FlipbookRoomConnectionUseCaseTest {
 
         verify(flipbookRoomRepository, times(3)).saveIfUnchanged(any(FlipbookRoomState.class),
             any(FlipbookRoomState.class));
+    }
+
+    /**
+     * 강퇴된 UUID의 WebSocket 재연결은 participant 연결 갱신 전에 거부합니다.
+     */
+    @Test
+    void connectRoomRejectsKickedUser() {
+        UUID userUuid = UUID.randomUUID();
+        AppUser user = appUserWithNickname(userUuid, "망고");
+        FlipbookRoomState roomState = roomState(participant(userUuid, "망고", true, false))
+            .withParticipantsAndKickedUserUuids(List.of(), List.of(userUuid.toString()), LocalDateTime.now());
+        given(anonymousUserResolver.resolve(userUuid.toString())).willReturn(user);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> flipbookRoomConnectionUseCase.connectRoom(userUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ForbiddenException.class).hasMessage("강퇴된 방에는 다시 입장할 수 없습니다.");
     }
 
     private FlipbookRoomState roomState(FlipbookRoomParticipant participant) {

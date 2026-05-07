@@ -14,6 +14,7 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
@@ -51,6 +52,7 @@ class FlipbookRoomServiceImplTest {
     private FlipbookRoomRepository flipbookRoomRepository;
 
     private FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
+    private FlipbookRoomKickUseCase flipbookRoomKickUseCase;
 
     @BeforeEach
     void setUp() {
@@ -58,6 +60,8 @@ class FlipbookRoomServiceImplTest {
         FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
         flipbookRoomSettingsUseCase = new FlipbookRoomSettingsUseCase(anonymousUserResolver, flipbookRoomRepository,
             flipbookRoomPolicy, flipbookRoomViewerFactory);
+        flipbookRoomKickUseCase = new FlipbookRoomKickUseCase(anonymousUserResolver, flipbookRoomRepository,
+            flipbookRoomPolicy);
     }
 
     /**
@@ -222,6 +226,84 @@ class FlipbookRoomServiceImplTest {
 
         verify(flipbookRoomRepository, times(3)).saveIfUnchanged(any(FlipbookRoomState.class),
             any(FlipbookRoomState.class));
+    }
+
+    /**
+     * 방장이 WAITING 방의 일반 참여자를 강퇴하면 참여자 목록에서 제거하고 강퇴 목록에 UUID를 기록합니다.
+     */
+    @Test
+    void kickParticipantRemovesTargetAndStoresKickedUserUuid() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID targetUuid = UUID.randomUUID();
+        UUID remainingUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0),
+            participant(targetUuid, "포도", false, 1), participant(remainingUuid, "사과", false, 3));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(anonymousUserResolver.parseUuid(targetUuid.toString())).willReturn(targetUuid);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookRoomKickResponse response = flipbookRoomKickUseCase.kickParticipant(hostUuid.toString(), ROOM_CODE,
+            targetUuid.toString());
+
+        assertThat(response.kickedUserUuid()).isEqualTo(targetUuid.toString());
+        assertThat(response.kickedNickname()).isEqualTo("포도");
+        assertThat(response.participantCount()).isEqualTo(2);
+
+        ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
+        FlipbookRoomState updatedRoomState = updatedStateCaptor.getValue();
+        assertThat(updatedRoomState.participants()).extracting(FlipbookRoomParticipant::userUuid)
+            .containsExactly(hostUuid.toString(), remainingUuid.toString());
+        assertThat(updatedRoomState.participants()).extracting(FlipbookRoomParticipant::joinOrder).containsExactly(0,
+            3);
+        assertThat(updatedRoomState.kickedUserUuids()).containsExactly(targetUuid.toString());
+    }
+
+    /**
+     * 방장이 아닌 참여자는 강퇴할 수 없습니다.
+     */
+    @Test
+    void kickParticipantRejectsNonHostParticipant() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        UUID targetUuid = UUID.randomUUID();
+        AppUser participantUser = appUserWithNickname(participantUuid, "다현");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0),
+            participant(participantUuid, "다현", false, 1), participant(targetUuid, "포도", false, 2));
+        given(anonymousUserResolver.resolve(participantUuid.toString())).willReturn(participantUser);
+        given(anonymousUserResolver.parseUuid(targetUuid.toString())).willReturn(targetUuid);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(
+            () -> flipbookRoomKickUseCase.kickParticipant(participantUuid.toString(), ROOM_CODE, targetUuid.toString()))
+            .isInstanceOf(ForbiddenException.class).hasMessage("방장만 사용할 수 있는 기능입니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    /**
+     * 방장은 자기 자신을 강퇴할 수 없습니다.
+     */
+    @Test
+    void kickParticipantRejectsSelfKick() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(anonymousUserResolver.parseUuid(hostUuid.toString())).willReturn(hostUuid);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(
+            () -> flipbookRoomKickUseCase.kickParticipant(hostUuid.toString(), ROOM_CODE, hostUuid.toString()))
+            .isInstanceOf(ConflictException.class).hasMessage("자기 자신은 강퇴할 수 없습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
     }
 
     private FlipbookRoomState roomState(FlipbookRoomStatus status, int timeLimitSeconds,

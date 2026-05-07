@@ -8,11 +8,19 @@ import java.util.List;
  */
 public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, String hostUserUuid, int timeLimitSeconds,
     int minParticipants, int maxParticipants, List<FlipbookRoomParticipant> participants, LocalDateTime createdAt,
-    LocalDateTime updatedAt) {
+    LocalDateTime updatedAt, List<String> kickedUserUuids) {
 
     public FlipbookRoomState {
         // Redis에서 복원한 뒤에도 외부 코드가 참여자 목록을 직접 바꾸지 못하도록 불변 복사합니다.
         participants = participants == null ? List.of() : List.copyOf(participants);
+        kickedUserUuids = kickedUserUuids == null ? List.of() : List.copyOf(kickedUserUuids);
+    }
+
+    public FlipbookRoomState(String roomCode, FlipbookRoomStatus status, String hostUserUuid, int timeLimitSeconds,
+        int minParticipants, int maxParticipants, List<FlipbookRoomParticipant> participants, LocalDateTime createdAt,
+        LocalDateTime updatedAt) {
+        this(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants, participants,
+            createdAt, updatedAt, List.of());
     }
 
     /**
@@ -25,13 +33,19 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
     public FlipbookRoomState withParticipants(List<FlipbookRoomParticipant> updatedParticipants,
         LocalDateTime updatedAt) {
         return new FlipbookRoomState(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants,
-            updatedParticipants, createdAt, updatedAt);
+            updatedParticipants, createdAt, updatedAt, kickedUserUuids);
+    }
+
+    public FlipbookRoomState withParticipantsAndKickedUserUuids(List<FlipbookRoomParticipant> updatedParticipants,
+        List<String> updatedKickedUserUuids, LocalDateTime updatedAt) {
+        return new FlipbookRoomState(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants,
+            updatedParticipants, createdAt, updatedAt, updatedKickedUserUuids);
     }
 
     // 나머지 값은 그대로, updatedAt만 현재 시각으로 변경 (record라 기존의 객체 값을 변경할 수 없음)
     public FlipbookRoomState withTimeLimitSeconds(int updatedTimeLimitSeconds, LocalDateTime updatedAt) {
         return new FlipbookRoomState(roomCode, status, hostUserUuid, updatedTimeLimitSeconds, minParticipants,
-            maxParticipants, participants, createdAt, updatedAt);
+            maxParticipants, participants, createdAt, updatedAt, kickedUserUuids);
     }
 
 }

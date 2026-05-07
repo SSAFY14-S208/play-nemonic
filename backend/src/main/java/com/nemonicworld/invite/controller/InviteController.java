@@ -47,6 +47,7 @@ public class InviteController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "초대코드 없음", value = OpenApiErrorExamples.INVITE_NOT_FOUND),
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "입장 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(name = "강퇴된 방", value = OpenApiErrorExamples.FLIPBOOK_KICKED_ROOM_REJOIN))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "410", description = "만료된 초대코드", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVITE_EXPIRED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "입장 불가 상태", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "종료된 방", value = OpenApiErrorExamples.INVITE_ROOM_CLOSED),
