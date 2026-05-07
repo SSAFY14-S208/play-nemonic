@@ -43,7 +43,14 @@ Manage active WebSocket sessions in the common same-server
 When a duplicate same-server session connects, close the previous session and
 let the new session become the active one.
 
-Update Redis participant connection state on WebSocket connect/disconnect.
+Treat Redis `participant.connected` as approved WebSocket connectivity, not as
+REST room membership. Room creation, room join, and REST reconnect keep
+participants registered with `connected=false`; a successful `/ws/relay` STOMP
+CONNECT is the only path that sets the participant to `connected=true`.
+DISCONNECT sets it back to `connected=false` and records `disconnectedAt` for
+the reconnect grace flow.
+
+The game start command requires every participant to have `connected=true`.
 Publish relay room events only after the corresponding Redis CAS save succeeds.
 Personal kick messages and same-server session closes are best-effort.
 
@@ -51,6 +58,8 @@ Personal kick messages and same-server session closes are best-effort.
 
 - Positive: REST room state and WebSocket room state share the same Redis
   source of truth.
+- Positive: Clients can distinguish registered lobby participants from
+  participants whose WebSocket session is actually connected.
 - Positive: Clients can listen to one room topic and optional personal queue.
 - Positive: Event emission does not announce state transitions that failed CAS.
 - Negative: The current session registry is in-memory and same-server only.

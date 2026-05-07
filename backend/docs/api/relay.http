@@ -4,6 +4,8 @@
 @roomCode = AB3K9Q
 
 ### Create relay room
+# REST room creation registers the host participant with connected=false.
+# connected becomes true only after approved /ws/relay STOMP CONNECT.
 POST {{host}}/api/v1/relay/rooms
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
@@ -54,10 +56,13 @@ GET {{host}}/api/v1/relay/rooms/not-a-room/results
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Join relay room
+# REST room join registers the participant with connected=false.
+# The frontend must connect to /ws/relay before game start is allowed.
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Reconnect relay room
+# REST reconnect validates eligibility but keeps connected=false until WebSocket CONNECT.
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
