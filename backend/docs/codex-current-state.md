@@ -111,6 +111,8 @@ Last updated: 2026-05-07
 - The common `ApiResponse.errors` schema is documented as optional field-level validation details with a neutral example; domain-specific failure messages are documented on each API response instead.
 - Community canvas product planning now defines a first backend phase focused on memo CRUD and 50-item FIFO, using the existing Files API with `purpose=COMMUNITY` for direct memo image uploads, a single create flow split by `sourceType` (`DIRECT` or `GALLERY`), object-key storage with public URL responses, front-end-friendly `ownedByMe` list responses, decoration JSON pass-through, and no WebSocket requirement for the initial CRUD/FIFO phase.
 - The sample `GET /api/v1/community/{communityId}` API, its sample service/DTO, OpenAPI test, and `.http` request were removed; actual community canvas APIs should be implemented in follow-up MRs from `backend/docs/product-spec/01-community-canvas.md`.
+- `CommunityMemoImageUrlResolver` converts community memo MinIO object keys into public renderable URLs using configured `publicUrl` and `bucket`, passes through absolute URLs, and performs no MinIO existence checks or presigned URL issuance.
+- Community memo listing now uses `GET /api/v1/community/memos` to return visible `community_memo` rows (`deleted_at IS NULL`, `is_hidden = false`) ordered by `z_index ASC, attached_at ASC`; optional `Anonymous-User-UUID` is parsed only for `ownedByMe` and does not require app user lookup or visit metadata updates.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
