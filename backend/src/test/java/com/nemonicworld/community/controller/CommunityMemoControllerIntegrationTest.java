@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -19,9 +20,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @IntegrationTest
 @AutoConfigureMockMvc
@@ -66,6 +69,22 @@ class CommunityMemoControllerIntegrationTest {
                 id UUID PRIMARY KEY,
                 user_id UUID NOT NULL,
                 artifact_id UUID NOT NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS file_upload (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                purpose VARCHAR(32) NOT NULL,
+                original_file_name VARCHAR(255) NOT NULL,
+                content_type VARCHAR(100) NOT NULL,
+                byte_size BIGINT NOT NULL,
+                object_key VARCHAR(1000) NOT NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+                expires_at TIMESTAMP NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
                 deleted_at TIMESTAMP NULL
             )
             """);
@@ -156,6 +175,7 @@ class CommunityMemoControllerIntegrationTest {
         jdbcTemplate.execute("ALTER TABLE community_memo ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP");
 
         jdbcTemplate.update("DELETE FROM community_memo");
+        jdbcTemplate.update("DELETE FROM file_upload");
         jdbcTemplate.update("DELETE FROM gallery");
         jdbcTemplate.update("DELETE FROM fortune_artifact");
         jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
@@ -503,6 +523,251 @@ class CommunityMemoControllerIntegrationTest {
         assertThat(afterUser.getUserAgent()).isEqualTo(beforeUserAgent);
     }
 
+    @Test
+    void createCommunityMemoCreatesDirectMemoFromConfirmedCommunityFile() throws Exception {
+        UUID userUuid = createExistingUser("생성메모");
+        UUID fileId = insertFileUpload(userUuid, DIRECT_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
+
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "sourceType": "DIRECT",
+                      "fileId": "%s",
+                      "positionX": 12.5,
+                      "positionY": -7.25,
+                      "zIndex": 10,
+                      "rotationDeg": 5.5,
+                      "decoration": {
+                        "scale": 1.0,
+                        "theme": "default"
+                      }
+                    }
+                    """.formatted(fileId)))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 생성 성공"))
+            .andExpect(jsonPath("$.data.authorNickname").value("생성메모"))
+            .andExpect(jsonPath("$.data.sourceType").value("DIRECT"))
+            .andExpect(jsonPath("$.data.memoImageUrl").value(DIRECT_PUBLIC_URL))
+            .andExpect(jsonPath("$.data.positionX").value(12.5)).andExpect(jsonPath("$.data.positionY").value(-7.25))
+            .andExpect(jsonPath("$.data.zIndex").value(10)).andExpect(jsonPath("$.data.rotationDeg").value(5.5))
+            .andExpect(jsonPath("$.data.ownedByMe").value(true))
+            .andExpect(jsonPath("$.data.decoration.scale").value(1.0))
+            .andExpect(jsonPath("$.data.decoration.theme").value("default"))
+            .andExpect(jsonPath("$.data.artifactId").value(nullValue()))
+            .andExpect(jsonPath("$.data.galleryContentKind").value(nullValue()))
+            .andExpect(jsonPath("$.data.moderationStatus").value("pending"))
+            .andExpect(jsonPath("$.data.reportCount").value(0)).andExpect(jsonPath("$.data.attachedAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.createdAt").isNotEmpty()).andExpect(jsonPath("$.data.updatedAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.userId").doesNotExist())
+            .andExpect(jsonPath("$.data.authorUuid").doesNotExist());
+
+        UUID memoId = jdbcTemplate.queryForObject("SELECT id FROM community_memo WHERE body_image_url = ?", UUID.class,
+            DIRECT_OBJECT_KEY);
+        assertThat(memoId).isNotNull();
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT body_image_url FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo(DIRECT_OBJECT_KEY);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT artifact_id FROM community_memo WHERE id = ?", UUID.class, memoId))
+            .isNull();
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT report_count FROM community_memo WHERE id = ?", Integer.class, memoId))
+            .isZero();
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT is_hidden FROM community_memo WHERE id = ?", Boolean.class, memoId))
+            .isFalse();
+        assertThat(jdbcTemplate.queryForObject("SELECT moderation_status FROM community_memo WHERE id = ?",
+            String.class, memoId)).isEqualTo("pending");
+
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", memoId)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.memoUuid").value(memoId.toString()))
+            .andExpect(jsonPath("$.data.memoImageUrl").value(DIRECT_PUBLIC_URL));
+        mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalElements").value(1))
+            .andExpect(jsonPath("$.data.items[0].memoUuid").value(memoId.toString()));
+    }
+
+    @Test
+    void createCommunityMemoStoresEmptyDecorationWhenDecorationIsOmitted() throws Exception {
+        UUID userUuid = createExistingUser("기본데코");
+        UUID fileId = insertFileUpload(userUuid, "uploads/community/2026/05/07/direct-user/no-decoration.png",
+            "COMMUNITY", "UPLOADED", null);
+
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "sourceType": "DIRECT",
+                      "fileId": "%s",
+                      "positionX": 0.0,
+                      "positionY": 0.0,
+                      "zIndex": 1,
+                      "rotationDeg": 0.0
+                    }
+                    """.formatted(fileId)))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.decoration").value(anEmptyMap()));
+
+        assertThat(jdbcTemplate.queryForObject("SELECT decoration FROM community_memo WHERE body_image_url = ?",
+            String.class, "uploads/community/2026/05/07/direct-user/no-decoration.png")).isEqualTo("{}");
+    }
+
+    @Test
+    void createCommunityMemoValidatesFileUploadOwnershipPurposeAndStatus() throws Exception {
+        UUID userUuid = createExistingUser("파일검증");
+        UUID otherUserUuid = createExistingUser("다른소유");
+        UUID otherUserFileId = insertFileUpload(otherUserUuid, "uploads/community/other-owner.png", "COMMUNITY",
+            "UPLOADED", null);
+        UUID wrongPurposeFileId = insertFileUpload(userUuid, "uploads/community/wrong-purpose.png", "RELAY_DRAWING",
+            "UPLOADED", null);
+        UUID pendingFileId = insertFileUpload(userUuid, "uploads/community/pending.png", "COMMUNITY", "PENDING", null);
+        UUID deletedStatusFileId = insertFileUpload(userUuid, "uploads/community/deleted-status.png", "COMMUNITY",
+            "DELETED", null);
+        UUID softDeletedFileId = insertFileUpload(userUuid, "uploads/community/soft-deleted.png", "COMMUNITY",
+            "UPLOADED", LocalDateTime.now());
+
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest(UUID.randomUUID().toString())))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("파일 업로드 정보를 찾을 수 없습니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest(otherUserFileId.toString())))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.message").value("파일에 접근할 권한이 없습니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest(wrongPurposeFileId.toString())))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 원본 정보가 올바르지 않습니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest(pendingFileId.toString())))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.message").value("확인할 수 없는 파일 업로드 상태입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest(deletedStatusFileId.toString())))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.message").value("확인할 수 없는 파일 업로드 상태입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest(softDeletedFileId.toString())))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.message").value("확인할 수 없는 파일 업로드 상태입니다."));
+    }
+
+    @Test
+    void createCommunityMemoValidatesRequiredHeaderSourceAndPayload() throws Exception {
+        UUID userUuid = createExistingUser("요청검증");
+        UUID fileId = insertFileUpload(userUuid, "uploads/community/request-validation.png", "COMMUNITY", "UPLOADED",
+            null);
+
+        mockMvc
+            .perform(post("/api/v1/community/memos").contentType(MediaType.APPLICATION_JSON)
+                .content(directCreateRequest(fileId.toString())))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, "not-a-uuid")
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest(fileId.toString())))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, UUID.randomUUID().toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest(fileId.toString())))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequestWithSource(fileId, null)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("지원하지 않는 커뮤니티 메모 sourceType입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequestWithSource(fileId, "GALLERY")))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("지원하지 않는 커뮤니티 메모 sourceType입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequestWithSource(fileId, "UNKNOWN")))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("지원하지 않는 커뮤니티 메모 sourceType입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "sourceType": "DIRECT",
+                      "positionX": 0.0,
+                      "positionY": 0.0,
+                      "zIndex": 1,
+                      "rotationDeg": 0.0
+                    }
+                    """))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 fileId 형식입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "sourceType": "DIRECT",
+                      "fileId": "%s",
+                      "galleryId": "8d25f3a5-3c5a-4f21-9f54-68fa4a402011",
+                      "positionX": 0.0,
+                      "positionY": 0.0,
+                      "zIndex": 1,
+                      "rotationDeg": 0.0
+                    }
+                    """.formatted(fileId)))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 원본 정보가 올바르지 않습니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest("not-a-uuid")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 fileId 형식입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "sourceType": "DIRECT",
+                      "fileId": "%s",
+                      "positionY": 0.0,
+                      "zIndex": 1,
+                      "rotationDeg": 0.0
+                    }
+                    """.formatted(fileId)))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 정보가 올바르지 않습니다."));
+    }
+
+    @Test
+    void createCommunityMemoRejectsNonObjectDecoration() throws Exception {
+        UUID userUuid = createExistingUser("데코검증");
+        UUID fileId = insertFileUpload(userUuid, "uploads/community/decoration-validation.png", "COMMUNITY", "UPLOADED",
+            null);
+
+        mockMvc.perform(createRequestWithDecoration(userUuid, fileId, "[1,2,3]")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 데코레이션 정보가 올바르지 않습니다."));
+        mockMvc.perform(createRequestWithDecoration(userUuid, fileId, "\"memo\"")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 데코레이션 정보가 올바르지 않습니다."));
+        mockMvc.perform(createRequestWithDecoration(userUuid, fileId, "1")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 데코레이션 정보가 올바르지 않습니다."));
+        mockMvc.perform(createRequestWithDecoration(userUuid, fileId, "true")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 데코레이션 정보가 올바르지 않습니다."));
+    }
+
+    @Test
+    void createCommunityMemoDoesNotApplyFifoLimitYet() throws Exception {
+        UUID userUuid = createExistingUser("FIFO제외");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
+        for (int i = 0; i < 50; i++) {
+            insertDirectMemo(userUuid, "uploads/community/existing-" + i + ".png", i, baseTime.plusMinutes(i), null,
+                false);
+        }
+        UUID fileId = insertFileUpload(userUuid, "uploads/community/2026/05/07/direct-user/fifo-excluded.png",
+            "COMMUNITY", "UPLOADED", null);
+
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(directCreateRequest(fileId.toString())))
+            .andExpect(status().isCreated());
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM community_memo WHERE deleted_at IS NULL AND is_hidden = FALSE", Integer.class))
+            .isEqualTo(51);
+        mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalElements").value(51));
+    }
+
     private UUID createExistingUser(String nickname) {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
@@ -511,6 +776,63 @@ class CommunityMemoControllerIntegrationTest {
         userRepository.saveAndFlush(appUser);
 
         return userUuid;
+    }
+
+    private UUID insertFileUpload(UUID userUuid, String objectKey, String purpose, String status,
+        LocalDateTime deletedAt) {
+        UUID fileId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO file_upload (
+                id, user_id, purpose, original_file_name, content_type, byte_size, object_key, status, expires_at,
+                created_at, updated_at, deleted_at
+            )
+            VALUES (?, ?, ?, 'memo.png', 'image/png', 1024, ?, ?, ?, ?, ?, ?)
+            """, fileId, userUuid, purpose, objectKey, status, now.plusHours(1), now, now, deletedAt);
+
+        return fileId;
+    }
+
+    private String directCreateRequest(String fileIdValue) {
+        return """
+            {
+              "sourceType": "DIRECT",
+              "fileId": "%s",
+              "positionX": 0.0,
+              "positionY": 0.0,
+              "zIndex": 1,
+              "rotationDeg": 0.0
+            }
+            """.formatted(fileIdValue);
+    }
+
+    private String directCreateRequestWithSource(UUID fileId, String sourceType) {
+        String sourceTypeLine = sourceType == null ? "" : "\"sourceType\": \"%s\",".formatted(sourceType);
+        return """
+            {
+              %s
+              "fileId": "%s",
+              "positionX": 0.0,
+              "positionY": 0.0,
+              "zIndex": 1,
+              "rotationDeg": 0.0
+            }
+            """.formatted(sourceTypeLine, fileId);
+    }
+
+    private MockHttpServletRequestBuilder createRequestWithDecoration(UUID userUuid, UUID fileId, String decoration) {
+        return post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+            .contentType(MediaType.APPLICATION_JSON).content("""
+                {
+                  "sourceType": "DIRECT",
+                  "fileId": "%s",
+                  "positionX": 0.0,
+                  "positionY": 0.0,
+                  "zIndex": 1,
+                  "rotationDeg": 0.0,
+                  "decoration": %s
+                }
+                """.formatted(fileId, decoration));
     }
 
     private UUID insertDirectMemo(UUID userUuid, String bodyImageUrl, int zIndex, LocalDateTime attachedAt,

@@ -64,4 +64,26 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.responses['404'].description")
                 .value("존재하지 않는 커뮤니티 메모"));
     }
+
+    @Test
+    void communityMemoCreateApiIsExposedInOpenApiDocs() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.summary").value("커뮤니티 메모 생성"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.parameters[*].name")
+                .value(hasItems("Anonymous-User-UUID")))
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/community/memos'].post.parameters[?(@.name == 'Anonymous-User-UUID')].required")
+                .value(hasItems(true)))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.requestBody.required").value(true))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/community/memos'].post.responses['201'].description").value("커뮤니티 메모 생성 성공"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.responses['400'].description").value("요청값 오류"))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/community/memos'].post.responses['403'].description").value("파일 접근 권한 없음"))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/community/memos'].post.responses['404'].description").value("사용자 또는 파일 없음"))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/community/memos'].post.responses['409'].description").value("파일 업로드 상태 오류"));
+    }
 }
