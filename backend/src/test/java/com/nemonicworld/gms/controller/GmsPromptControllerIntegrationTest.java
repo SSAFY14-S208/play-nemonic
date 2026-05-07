@@ -2,6 +2,7 @@ package com.nemonicworld.gms.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -113,6 +114,50 @@ class GmsPromptControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(createRequestBody("Daily fortune")))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void adminGetsPromptDetail() throws Exception {
+        insertPrompt(10L, "Daily fortune", "fortune", null);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts/{promptId}", 10L).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.id").value(10L)).andExpect(jsonPath("$.data.name").value("Daily fortune"))
+            .andExpect(jsonPath("$.data.content").value("Prompt body for {{nickname}}."))
+            .andExpect(jsonPath("$.data.featureType").value("fortune"))
+            .andExpect(jsonPath("$.data.createdBy").value(ADMIN_ID))
+            .andExpect(jsonPath("$.data.createdAt").isNotEmpty()).andExpect(jsonPath("$.data.updatedAt").isNotEmpty());
+    }
+
+    @Test
+    void adminPromptDetailRejectsUnknownId() throws Exception {
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts/{promptId}", 999L).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void adminPromptDetailRejectsAlreadyDeletedPrompt() throws Exception {
+        LocalDateTime deletedAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertPrompt(10L, "Daily fortune", "fortune", deletedAt);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts/{promptId}", 10L).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void adminPromptDetailRejectsUnauthenticatedRequest() throws Exception {
+        insertPrompt(10L, "Daily fortune", "fortune", null);
+
+        mockMvc.perform(get("/api/v1/backoffice/gms/prompts/{promptId}", 10L)).andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").isNotEmpty());
     }
 
     @Test
