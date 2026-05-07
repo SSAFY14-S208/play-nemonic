@@ -431,6 +431,12 @@ public final class OpenApiErrorExamples {
           "message": "유효하지 않은 thumbnailFileId 형식입니다."
         }
         """;
+    public static final String INVALID_SOURCE_GALLERY_ID = """
+        {
+          "success": false,
+          "message": "유효하지 않은 sourceGalleryId 형식입니다."
+        }
+        """;
     public static final String DUPLICATED_COMMUNITY_MEMO_FILE = """
         {
           "success": false,

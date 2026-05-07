@@ -86,6 +86,7 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.requestBody.required").value(true))
             .andExpect(jsonPath("$.components.schemas.CommunityMemoCreateRequest.properties.originalFileId").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoCreateRequest.properties.thumbnailFileId").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoCreateRequest.properties.sourceGalleryId").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoCreateRequest.properties.clientText").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoCreateRequest.properties.fileId").doesNotExist())
             .andExpect(

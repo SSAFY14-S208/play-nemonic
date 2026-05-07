@@ -203,6 +203,7 @@ class CommunityMemoControllerIntegrationTest {
             .forClass(CommunityMemoModerationRequest.class);
         verify(moderationClient).check(requestCaptor.capture());
         assertThat(requestCaptor.getValue().imageUrl()).isEqualTo(ORIGINAL_PUBLIC_URL);
+        assertThat(requestCaptor.getValue().thumbnailUrl()).isEqualTo(THUMBNAIL_PUBLIC_URL);
         assertThat(requestCaptor.getValue().clientText()).isEqualTo("텍스트박스 원문");
         assertThat(requestCaptor.getValue().sourceType()).isEqualTo("DIRECT");
 
@@ -242,7 +243,72 @@ class CommunityMemoControllerIntegrationTest {
         ArgumentCaptor<CommunityMemoModerationRequest> requestCaptor = ArgumentCaptor
             .forClass(CommunityMemoModerationRequest.class);
         verify(moderationClient).check(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().thumbnailUrl())
+            .isEqualTo("http://localhost:9000/nemonic-local/uploads/community/no-decoration-thumbnail.png");
         assertThat(requestCaptor.getValue().clientText()).isEmpty();
+    }
+
+    @Test
+    void createCommunityMemoCreatesGallerySnapshotMemoWithSourceArtifact() throws Exception {
+        UUID userUuid = createExistingUser("갤러리게시");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactId = UUID.randomUUID();
+        UUID galleryId = UUID.randomUUID();
+        UUID originalFileId = insertFileUpload(userUuid, OBJECT_KEY_PREFIX + "posted-original.png", "COMMUNITY",
+            "UPLOADED", null);
+        UUID thumbnailFileId = insertFileUpload(userUuid, OBJECT_KEY_PREFIX + "posted-thumbnail.png", "COMMUNITY",
+            "UPLOADED", null);
+        insertArtifact(artifactId, "flipbook", "artifact-thumbnail-should-not-render.png", now);
+        insertGallery(galleryId, userUuid, artifactId, null);
+        when(moderationClient.check(any()))
+            .thenReturn(new CommunityMemoModerationResult(true, "갤러리 OCR", objectMapper.readTree("[\"safe\"]")));
+
+        mockMvc
+            .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "sourceType": "GALLERY",
+                      "sourceGalleryId": "%s",
+                      "originalFileId": "%s",
+                      "thumbnailFileId": "%s",
+                      "positionX": 12.5,
+                      "positionY": -7.25,
+                      "zIndex": 10,
+                      "rotationDeg": 0.0,
+                      "decoration": {
+                        "scale": 1.0
+                      },
+                      "clientText": "사용자가 추가한 텍스트"
+                    }
+                    """.formatted(galleryId, originalFileId, thumbnailFileId)))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.sourceType").value("GALLERY"))
+            .andExpect(jsonPath("$.data.artifactId").value(artifactId.toString()))
+            .andExpect(jsonPath("$.data.galleryContentKind").value("flipbook"))
+            .andExpect(jsonPath("$.data.memoOriginalImageUrl").value(PUBLIC_URL_PREFIX + "posted-original.png"))
+            .andExpect(jsonPath("$.data.memoThumbnailImageUrl").value(PUBLIC_URL_PREFIX + "posted-thumbnail.png"))
+            .andExpect(jsonPath("$.data.memoImageUrl").value(PUBLIC_URL_PREFIX + "posted-thumbnail.png"))
+            .andExpect(jsonPath("$.data.decoration.scale").value(1.0))
+            .andExpect(jsonPath("$.data.ownedByMe").value(true))
+            .andExpect(jsonPath("$.data.moderationStatus").value("allowed"));
+
+        UUID memoId = jdbcTemplate.queryForObject("SELECT id FROM community_memo WHERE body_image_url = ?", UUID.class,
+            OBJECT_KEY_PREFIX + "posted-original.png");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT artifact_id FROM community_memo WHERE id = ?", UUID.class, memoId))
+            .isEqualTo(artifactId);
+        assertThat(jdbcTemplate.queryForObject("SELECT thumbnail_image_url FROM community_memo WHERE id = ?",
+            String.class, memoId)).isEqualTo(OBJECT_KEY_PREFIX + "posted-thumbnail.png");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT ocr_categories FROM community_memo WHERE id = ?", String.class, memoId))
+            .contains("safe");
+
+        ArgumentCaptor<CommunityMemoModerationRequest> requestCaptor = ArgumentCaptor
+            .forClass(CommunityMemoModerationRequest.class);
+        verify(moderationClient).check(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().imageUrl()).isEqualTo(PUBLIC_URL_PREFIX + "posted-original.png");
+        assertThat(requestCaptor.getValue().thumbnailUrl()).isEqualTo(PUBLIC_URL_PREFIX + "posted-thumbnail.png");
+        assertThat(requestCaptor.getValue().clientText()).isEqualTo("사용자가 추가한 텍스트");
+        assertThat(requestCaptor.getValue().sourceType()).isEqualTo("GALLERY");
     }
 
     @Test
@@ -284,9 +350,12 @@ class CommunityMemoControllerIntegrationTest {
         UUID originalFileId = UUID.randomUUID();
         UUID thumbnailFileId = UUID.randomUUID();
 
-        mockMvc.perform(createRequestWithSource(userUuid, originalFileId, thumbnailFileId, "GALLERY", null))
+        mockMvc.perform(createRequestWithSource(userUuid, originalFileId, thumbnailFileId, "UNKNOWN", null))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("지원하지 않는 커뮤니티 메모 sourceType입니다."));
+        mockMvc.perform(createRequestWithSource(userUuid, originalFileId, thumbnailFileId, "GALLERY", null))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 sourceGalleryId 형식입니다."));
         mockMvc.perform(createRequestWithSource(userUuid, originalFileId, thumbnailFileId, "DIRECT", UUID.randomUUID()))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 원본 정보가 올바르지 않습니다."));
         mockMvc
@@ -304,6 +373,61 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 정보가 올바르지 않습니다."));
         mockMvc.perform(createRequestWithDecoration(userUuid, originalFileId, thumbnailFileId, "[1,2,3]"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 데코레이션 정보가 올바르지 않습니다."));
+    }
+
+    @Test
+    void createCommunityMemoValidatesGallerySource() throws Exception {
+        UUID userUuid = createExistingUser("갤러리검증");
+        UUID otherUserUuid = createExistingUser("다른소유자");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID originalFileId = insertFileUpload(userUuid, "uploads/community/gallery-source-original.png", "COMMUNITY",
+            "UPLOADED", null);
+        UUID thumbnailFileId = insertFileUpload(userUuid, "uploads/community/gallery-source-thumbnail.png", "COMMUNITY",
+            "UPLOADED", null);
+        UUID ownedArtifactId = UUID.randomUUID();
+        UUID otherArtifactId = UUID.randomUUID();
+        UUID deletedArtifactId = UUID.randomUUID();
+        UUID ownedGalleryId = UUID.randomUUID();
+        UUID otherGalleryId = UUID.randomUUID();
+        UUID deletedGalleryId = UUID.randomUUID();
+        UUID orphanGalleryId = UUID.randomUUID();
+        insertArtifact(ownedArtifactId, "relay_drawing", "owned-artifact.png", now);
+        insertArtifact(otherArtifactId, "relay_drawing", "other-artifact.png", now);
+        insertArtifact(deletedArtifactId, "relay_drawing", "deleted-artifact.png", now);
+        insertGallery(ownedGalleryId, userUuid, ownedArtifactId, null);
+        insertGallery(otherGalleryId, otherUserUuid, otherArtifactId, null);
+        insertGallery(deletedGalleryId, userUuid, deletedArtifactId, now);
+        insertGallery(orphanGalleryId, userUuid, UUID.randomUUID(), null);
+
+        mockMvc.perform(createGalleryRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString(), null))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 sourceGalleryId 형식입니다."));
+        mockMvc
+            .perform(
+                createGalleryRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString(), "not-a-uuid"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 sourceGalleryId 형식입니다."));
+        mockMvc
+            .perform(createGalleryRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString(),
+                UUID.randomUUID().toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 갤러리 항목입니다."));
+        mockMvc
+            .perform(createGalleryRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString(),
+                otherGalleryId.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 갤러리 항목입니다."));
+        mockMvc
+            .perform(createGalleryRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString(),
+                deletedGalleryId.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 갤러리 항목입니다."));
+        mockMvc
+            .perform(createGalleryRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString(),
+                orphanGalleryId.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 갤러리 항목입니다."));
+
+        mockMvc
+            .perform(createGalleryRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString(),
+                ownedGalleryId.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.artifactId").value(ownedArtifactId.toString()));
     }
 
     @Test
@@ -366,6 +490,73 @@ class CommunityMemoControllerIntegrationTest {
     }
 
     @Test
+    void createCommunityMemoExpiresOldestVisibleMemoWhenVisibleLimitIsExceeded() throws Exception {
+        UUID userUuid = createExistingUser("FIFO");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
+        UUID oldestMemoId = null;
+        for (int index = 0; index < 50; index++) {
+            UUID memoId = insertDirectMemo(userUuid, "fifo-original-%02d.png".formatted(index),
+                "fifo-thumbnail-%02d.png".formatted(index), 1, baseTime.plusMinutes(index), null, false);
+            if (index == 0) {
+                oldestMemoId = memoId;
+            }
+        }
+        UUID originalFileId = insertFileUpload(userUuid, "uploads/community/fifo-new-original.png", "COMMUNITY",
+            "UPLOADED", null);
+        UUID thumbnailFileId = insertFileUpload(userUuid, "uploads/community/fifo-new-thumbnail.png", "COMMUNITY",
+            "UPLOADED", null);
+
+        mockMvc.perform(createRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.memoImageUrl")
+                .value("http://localhost:9000/nemonic-local/uploads/community/fifo-new-thumbnail.png"));
+
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+            """, Integer.class)).isEqualTo(50);
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_reason FROM community_memo WHERE id = ?", String.class,
+            oldestMemoId)).isEqualTo("expired");
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE body_image_url = 'uploads/community/fifo-new-original.png'
+              AND deleted_at IS NULL
+            """, Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void createCommunityMemoDoesNotCountHiddenMemosForFifoLimit() throws Exception {
+        UUID userUuid = createExistingUser("숨김제외");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
+        for (int index = 0; index < 49; index++) {
+            insertDirectMemo(userUuid, "visible-original-%02d.png".formatted(index),
+                "visible-thumbnail-%02d.png".formatted(index), 1, baseTime.plusMinutes(index), null, false);
+        }
+        UUID hiddenMemoId = insertDirectMemo(userUuid, "hidden-fifo-original.png", "hidden-fifo-thumbnail.png", 1,
+            baseTime.minusMinutes(1), null, true);
+        UUID originalFileId = insertFileUpload(userUuid, "uploads/community/hidden-fifo-new-original.png", "COMMUNITY",
+            "UPLOADED", null);
+        UUID thumbnailFileId = insertFileUpload(userUuid, "uploads/community/hidden-fifo-new-thumbnail.png",
+            "COMMUNITY", "UPLOADED", null);
+
+        mockMvc.perform(createRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString()))
+            .andExpect(status().isCreated());
+
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, hiddenMemoId)).isNull();
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+            """, Integer.class)).isEqualTo(50);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM community_memo WHERE deleted_reason = 'expired'",
+            Integer.class)).isZero();
+    }
+
+    @Test
     void getCommunityMemoReturnsNotFoundForMissingDeletedAndHiddenMemos() throws Exception {
         UUID userUuid = createExistingUser("상세조건");
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -407,6 +598,14 @@ class CommunityMemoControllerIntegrationTest {
             )
             """);
         jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS gallery (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NOT NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS file_upload (
                 id UUID PRIMARY KEY,
                 user_id UUID NOT NULL,
@@ -443,7 +642,8 @@ class CommunityMemoControllerIntegrationTest {
                 moderation_checked_at TIMESTAMP NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TIMESTAMP NULL
+                deleted_at TIMESTAMP NULL,
+                deleted_reason VARCHAR(32) NULL
             )
             """);
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS thumbnail_image_url VARCHAR(1000)");
@@ -454,6 +654,7 @@ class CommunityMemoControllerIntegrationTest {
 
     private void cleanTables() {
         jdbcTemplate.update("DELETE FROM community_memo");
+        jdbcTemplate.update("DELETE FROM gallery");
         jdbcTemplate.update("DELETE FROM file_upload");
         jdbcTemplate.update("DELETE FROM artifact");
     }
@@ -497,6 +698,11 @@ class CommunityMemoControllerIntegrationTest {
             INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
             VALUES (?, ?, NULL, ?, '{}', ?, ?)
             """, artifactId, kind, thumbnailUrl, createdAt, createdAt);
+    }
+
+    private void insertGallery(UUID galleryId, UUID userUuid, UUID artifactId, LocalDateTime deletedAt) {
+        jdbcTemplate.update("INSERT INTO gallery (id, user_id, artifact_id, deleted_at) VALUES (?, ?, ?, ?)", galleryId,
+            userUuid, artifactId, deletedAt);
     }
 
     private void insertCommunityMemo(UUID memoId, UUID userUuid, UUID artifactId, String bodyImageUrl,
@@ -572,5 +778,26 @@ class CommunityMemoControllerIntegrationTest {
                   "decoration": %s
                 }
                 """.formatted(originalFileId, thumbnailFileId, decoration));
+    }
+
+    private MockHttpServletRequestBuilder createGalleryRequest(UUID userUuid, String originalFileIdValue,
+        String thumbnailFileIdValue, String sourceGalleryIdValue) {
+        String sourceGalleryField = sourceGalleryIdValue == null
+            ? ""
+            : "\"sourceGalleryId\": \"%s\",".formatted(sourceGalleryIdValue);
+
+        return post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+            .contentType(MediaType.APPLICATION_JSON).content("""
+                {
+                  "sourceType": "GALLERY",
+                  %s
+                  "originalFileId": "%s",
+                  "thumbnailFileId": "%s",
+                  "positionX": 0.0,
+                  "positionY": 0.0,
+                  "zIndex": 1,
+                  "rotationDeg": 0.0
+                }
+                """.formatted(sourceGalleryField, originalFileIdValue, thumbnailFileIdValue));
     }
 }

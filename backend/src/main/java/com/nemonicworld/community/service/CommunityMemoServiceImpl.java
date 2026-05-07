@@ -16,6 +16,7 @@ import com.nemonicworld.community.repository.CommunityMemoCreateCommand;
 import com.nemonicworld.community.repository.CommunityMemoDetailRow;
 import com.nemonicworld.community.repository.CommunityMemoRepository;
 import com.nemonicworld.community.repository.CommunityMemoRow;
+import com.nemonicworld.community.repository.CommunityMemoSourceGalleryRow;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationException;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationRequest;
@@ -48,15 +49,18 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final String INVALID_MEMO_SOURCE_MESSAGE = "커뮤니티 메모 원본 정보가 올바르지 않습니다.";
     private static final String INVALID_ORIGINAL_FILE_ID_MESSAGE = "유효하지 않은 originalFileId 형식입니다.";
     private static final String INVALID_THUMBNAIL_FILE_ID_MESSAGE = "유효하지 않은 thumbnailFileId 형식입니다.";
+    private static final String INVALID_SOURCE_GALLERY_ID_MESSAGE = "유효하지 않은 sourceGalleryId 형식입니다.";
     private static final String DUPLICATED_FILE_MESSAGE = "커뮤니티 메모 원본과 썸네일 파일은 서로 달라야 합니다.";
     private static final String FILE_UPLOAD_NOT_FOUND_MESSAGE = "파일 업로드 정보를 찾을 수 없습니다.";
     private static final String FILE_ACCESS_DENIED_MESSAGE = "파일에 접근할 권한이 없습니다.";
+    private static final String GALLERY_ITEM_NOT_FOUND_MESSAGE = "존재하지 않는 갤러리 항목입니다.";
     private static final String FILE_UPLOAD_STATUS_CONFLICT_MESSAGE = "확인할 수 없는 파일 업로드 상태입니다.";
     private static final String INVALID_POSITION_MESSAGE = "커뮤니티 메모 위치 정보가 올바르지 않습니다.";
     private static final String INVALID_DECORATION_MESSAGE = "커뮤니티 메모 데코레이션 정보가 올바르지 않습니다.";
     private static final String MODERATION_BLOCKED_MESSAGE = "부적절한 표현이 감지되어 게시할 수 없습니다.";
     private static final String MODERATION_UNAVAILABLE_MESSAGE = "커뮤니티 메모 모더레이션을 완료할 수 없습니다.";
     private static final String EMPTY_DECORATION_JSON = "{}";
+    private static final int MAX_VISIBLE_MEMO_COUNT = 50;
     private static final TypeReference<Map<String, Object>> DECORATION_TYPE = new TypeReference<>() {
     };
 
@@ -105,7 +109,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     public CommunityMemoDetailResponse createCommunityMemo(String userUuidValue, CommunityMemoCreateRequest request) {
         UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         anonymousUserResolver.resolve(userUuid);
-        validateDirectSourceType(request);
+        String sourceType = validateSourceType(request);
+        UUID sourceArtifactId = resolveSourceArtifactId(sourceType, request.sourceGalleryId(), userUuid);
 
         UUID originalFileId = parseFileId(request.originalFileId(), INVALID_ORIGINAL_FILE_ID_MESSAGE);
         UUID thumbnailFileId = parseFileId(request.thumbnailFileId(), INVALID_THUMBNAIL_FILE_ID_MESSAGE);
@@ -114,24 +119,26 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         String decorationJson = serializeDecoration(request.decoration());
         FileUpload originalFileUpload = findFileUpload(originalFileId);
         FileUpload thumbnailFileUpload = findFileUpload(thumbnailFileId);
-        validateDirectFile(originalFileUpload, userUuid);
-        validateDirectFile(thumbnailFileUpload, userUuid);
+        validateCommunityFile(originalFileUpload, userUuid);
+        validateCommunityFile(thumbnailFileUpload, userUuid);
 
         String originalImageUrl = communityMemoImageUrlResolver.resolve(originalFileUpload.getObjectKey());
-        if (!StringUtils.hasText(originalImageUrl)) {
+        String thumbnailImageUrl = communityMemoImageUrlResolver.resolve(thumbnailFileUpload.getObjectKey());
+        if (!StringUtils.hasText(originalImageUrl) || !StringUtils.hasText(thumbnailImageUrl)) {
             throw new BadRequestException(INVALID_MEMO_SOURCE_MESSAGE);
         }
-        CommunityMemoModerationResult moderationResult = checkModeration(originalImageUrl,
-            normalizeClientText(request.clientText()));
+        CommunityMemoModerationResult moderationResult = checkModeration(originalImageUrl, thumbnailImageUrl,
+            normalizeClientText(request.clientText()), sourceType);
 
         LocalDateTime now = LocalDateTime.now();
         UUID memoId = UUID.randomUUID();
-        CommunityMemoCreateCommand command = new CommunityMemoCreateCommand(memoId, userUuid,
+        CommunityMemoCreateCommand command = new CommunityMemoCreateCommand(memoId, userUuid, sourceArtifactId,
             originalFileUpload.getObjectKey(), thumbnailFileUpload.getObjectKey(), request.positionX(),
             request.positionY(), request.zIndex(), request.rotationDeg().floatValue(), decorationJson,
             moderationResult.ocrText(), serializeModerationCategories(moderationResult.categories()), now, now, now,
             now);
-        communityMemoRepository.insertDirectMemo(command);
+        communityMemoRepository.insertMemo(command);
+        expireOverflowVisibleMemos(memoId, now);
 
         CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
@@ -147,15 +154,42 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         return anonymousUserResolver.parseUuid(viewerUserUuidValue);
     }
 
-    private void validateDirectSourceType(CommunityMemoCreateRequest request) {
+    private String validateSourceType(CommunityMemoCreateRequest request) {
         String sourceType = request == null ? null : request.sourceType();
-        if (!DIRECT_SOURCE_TYPE.equals(sourceType)) {
+        if (DIRECT_SOURCE_TYPE.equals(sourceType)) {
+            if (StringUtils.hasText(request.sourceGalleryId())) {
+                throw new BadRequestException(INVALID_MEMO_SOURCE_MESSAGE);
+            }
+
+            return DIRECT_SOURCE_TYPE;
+        }
+
+        if (GALLERY_SOURCE_TYPE.equals(sourceType)) {
+            if (!StringUtils.hasText(request.sourceGalleryId())) {
+                throw new BadRequestException(INVALID_SOURCE_GALLERY_ID_MESSAGE);
+            }
+
+            return GALLERY_SOURCE_TYPE;
+        }
+
+        if (!StringUtils.hasText(sourceType)) {
             throw new BadRequestException(UNSUPPORTED_SOURCE_TYPE_MESSAGE);
         }
 
-        if (StringUtils.hasText(request.sourceGalleryId())) {
-            throw new BadRequestException(INVALID_MEMO_SOURCE_MESSAGE);
+        throw new BadRequestException(UNSUPPORTED_SOURCE_TYPE_MESSAGE);
+    }
+
+    private UUID resolveSourceArtifactId(String sourceType, String sourceGalleryIdValue, UUID userUuid) {
+        if (DIRECT_SOURCE_TYPE.equals(sourceType)) {
+            return null;
         }
+
+        UUID sourceGalleryId = parseFileId(sourceGalleryIdValue, INVALID_SOURCE_GALLERY_ID_MESSAGE);
+        CommunityMemoSourceGalleryRow sourceGallery = communityMemoRepository
+            .findActiveSourceGallery(sourceGalleryId, userUuid)
+            .orElseThrow(() -> new NotFoundException(GALLERY_ITEM_NOT_FOUND_MESSAGE));
+
+        return sourceGallery.artifactId();
     }
 
     private UUID parseFileId(String fileIdValue, String invalidMessage) {
@@ -185,7 +219,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         }
     }
 
-    private void validateDirectFile(FileUpload fileUpload, UUID userUuid) {
+    private void validateCommunityFile(FileUpload fileUpload, UUID userUuid) {
         if (!fileUpload.isOwnedBy(userUuid)) {
             throw new ForbiddenException(FILE_ACCESS_DENIED_MESSAGE);
         }
@@ -220,10 +254,18 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         }
     }
 
-    private CommunityMemoModerationResult checkModeration(String originalImageUrl, String clientText) {
+    private void expireOverflowVisibleMemos(UUID newMemoId, LocalDateTime now) {
+        int overflowCount = communityMemoRepository.countVisibleMemos() - MAX_VISIBLE_MEMO_COUNT;
+        if (overflowCount > 0) {
+            communityMemoRepository.expireOldestVisibleMemos(newMemoId, now, overflowCount);
+        }
+    }
+
+    private CommunityMemoModerationResult checkModeration(String originalImageUrl, String thumbnailImageUrl,
+        String clientText, String sourceType) {
         try {
             CommunityMemoModerationResult result = communityMemoModerationClient
-                .check(new CommunityMemoModerationRequest(originalImageUrl, clientText, DIRECT_SOURCE_TYPE));
+                .check(new CommunityMemoModerationRequest(originalImageUrl, thumbnailImageUrl, clientText, sourceType));
             if (!result.allowed()) {
                 throw new BadRequestException(MODERATION_BLOCKED_MESSAGE);
             }

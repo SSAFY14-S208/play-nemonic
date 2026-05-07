@@ -53,6 +53,7 @@ public class CommunityMemoController {
           "sourceType": "DIRECT",
           "originalFileId": "550e8400-e29b-41d4-a716-446655440000",
           "thumbnailFileId": "660e8400-e29b-41d4-a716-446655440000",
+          "sourceGalleryId": null,
           "positionX": 0.0,
           "positionY": 0.0,
           "zIndex": 1,
@@ -70,6 +71,7 @@ public class CommunityMemoController {
             @ExampleObject(name = "원본 정보 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_SOURCE),
             @ExampleObject(name = "originalFileId 형식 오류", value = OpenApiErrorExamples.INVALID_ORIGINAL_FILE_ID),
             @ExampleObject(name = "thumbnailFileId 형식 오류", value = OpenApiErrorExamples.INVALID_THUMBNAIL_FILE_ID),
+            @ExampleObject(name = "sourceGalleryId 형식 오류", value = OpenApiErrorExamples.INVALID_SOURCE_GALLERY_ID),
             @ExampleObject(name = "원본/썸네일 파일 중복", value = OpenApiErrorExamples.DUPLICATED_COMMUNITY_MEMO_FILE),
             @ExampleObject(name = "위치 정보 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_POSITION),
             @ExampleObject(name = "데코레이션 정보 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_DECORATION),
@@ -78,7 +80,8 @@ public class CommunityMemoController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "파일 접근 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FILE_ACCESS_DENIED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 또는 파일 없음", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
-            @ExampleObject(name = "파일 없음", value = OpenApiErrorExamples.FILE_UPLOAD_NOT_FOUND)})),
+            @ExampleObject(name = "파일 없음", value = OpenApiErrorExamples.FILE_UPLOAD_NOT_FOUND),
+            @ExampleObject(name = "갤러리 항목 없음", value = OpenApiErrorExamples.GALLERY_ITEM_NOT_FOUND)})),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "파일 업로드 상태 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FILE_UPLOAD_STATUS_CONFLICT)))})
     public ResponseEntity<ApiResponse<CommunityMemoDetailResponse>> createCommunityMemo(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,

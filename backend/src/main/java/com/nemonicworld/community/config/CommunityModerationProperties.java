@@ -5,7 +5,7 @@ import org.springframework.util.StringUtils;
 
 @ConfigurationProperties(prefix = "nemonic.community.moderation")
 public record CommunityModerationProperties(Boolean enabled, String baseUrl, String checkPath, Long connectTimeoutMs,
-    Long readTimeoutMs) {
+    Long readTimeoutMs, Boolean failClosed) {
 
     public boolean isEnabled() {
         return enabled == null || enabled;
@@ -25,5 +25,9 @@ public record CommunityModerationProperties(Boolean enabled, String baseUrl, Str
 
     public long resolvedReadTimeoutMs() {
         return readTimeoutMs == null ? 3000L : readTimeoutMs;
+    }
+
+    public boolean isFailClosed() {
+        return failClosed == null || failClosed;
     }
 }

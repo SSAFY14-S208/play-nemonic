@@ -2,6 +2,7 @@ package com.nemonicworld.community.repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -68,7 +69,19 @@ public class CommunityMemoRepository {
           AND cm.id = :memoId
         """;
 
-    private static final String INSERT_DIRECT_MEMO_SQL = """
+    private static final String FIND_ACTIVE_SOURCE_GALLERY_SQL = """
+        SELECT
+            g.id AS gallery_id,
+            g.artifact_id AS artifact_id,
+            CAST(a.kind AS VARCHAR) AS artifact_kind
+        FROM gallery g
+        JOIN artifact a ON a.id = g.artifact_id
+        WHERE g.id = :galleryId
+          AND g.user_id = :userId
+          AND g.deleted_at IS NULL
+        """;
+
+    private static final String INSERT_MEMO_SQL = """
         INSERT INTO community_memo (
             id,
             user_id,
@@ -90,7 +103,7 @@ public class CommunityMemoRepository {
         ) VALUES (
             :memoId,
             :userId,
-            NULL,
+            :artifactId,
             :positionX,
             :positionY,
             :zIndex,
@@ -105,6 +118,29 @@ public class CommunityMemoRepository {
             :attachedAt,
             :createdAt,
             :updatedAt
+        )
+        """;
+
+    private static final String COUNT_VISIBLE_MEMOS_SQL = """
+        SELECT COUNT(*)
+        FROM community_memo
+        WHERE deleted_at IS NULL
+          AND is_hidden = FALSE
+        """;
+
+    private static final String EXPIRE_OLDEST_VISIBLE_MEMOS_SQL = """
+        UPDATE community_memo
+        SET deleted_at = :deletedAt,
+            deleted_reason = 'expired',
+            updated_at = :deletedAt
+        WHERE id IN (
+            SELECT id
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+              AND id <> :newMemoId
+            ORDER BY attached_at ASC, id ASC
+            LIMIT :limit
         )
         """;
 
@@ -126,17 +162,46 @@ public class CommunityMemoRepository {
         return rows.stream().findFirst();
     }
 
-    public void insertDirectMemo(CommunityMemoCreateCommand command) {
+    public Optional<CommunityMemoSourceGalleryRow> findActiveSourceGallery(UUID galleryId, UUID userId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("galleryId", galleryId).addValue("userId",
+            userId);
+        List<CommunityMemoSourceGalleryRow> rows = jdbcTemplate.query(FIND_ACTIVE_SOURCE_GALLERY_SQL, params,
+            (resultSet, rowNumber) -> new CommunityMemoSourceGalleryRow(resultSet.getObject("gallery_id", UUID.class),
+                resultSet.getObject("artifact_id", UUID.class), resultSet.getString("artifact_kind")));
+
+        return rows.stream().findFirst();
+    }
+
+    public void insertMemo(CommunityMemoCreateCommand command) {
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", command.memoId())
-            .addValue("userId", command.userId()).addValue("positionX", command.positionX())
-            .addValue("positionY", command.positionY()).addValue("zIndex", command.zIndex())
-            .addValue("rotationDeg", command.rotationDeg()).addValue("decoration", command.decoration())
-            .addValue("bodyImageUrl", command.bodyImageUrl()).addValue("thumbnailImageUrl", command.thumbnailImageUrl())
-            .addValue("ocrText", command.ocrText()).addValue("ocrCategories", command.ocrCategories())
+            .addValue("userId", command.userId()).addValue("artifactId", command.artifactId())
+            .addValue("positionX", command.positionX()).addValue("positionY", command.positionY())
+            .addValue("zIndex", command.zIndex()).addValue("rotationDeg", command.rotationDeg())
+            .addValue("decoration", command.decoration()).addValue("bodyImageUrl", command.bodyImageUrl())
+            .addValue("thumbnailImageUrl", command.thumbnailImageUrl()).addValue("ocrText", command.ocrText())
+            .addValue("ocrCategories", command.ocrCategories())
             .addValue("moderationCheckedAt", command.moderationCheckedAt()).addValue("attachedAt", command.attachedAt())
             .addValue("createdAt", command.createdAt()).addValue("updatedAt", command.updatedAt());
 
-        jdbcTemplate.update(INSERT_DIRECT_MEMO_SQL, params);
+        jdbcTemplate.update(INSERT_MEMO_SQL, params);
+    }
+
+    public int countVisibleMemos() {
+        Integer count = jdbcTemplate.queryForObject(COUNT_VISIBLE_MEMOS_SQL, new MapSqlParameterSource(),
+            Integer.class);
+
+        return count == null ? 0 : count;
+    }
+
+    public int expireOldestVisibleMemos(UUID newMemoId, LocalDateTime deletedAt, int limit) {
+        if (limit <= 0) {
+            return 0;
+        }
+
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("newMemoId", newMemoId)
+            .addValue("deletedAt", deletedAt).addValue("limit", limit);
+
+        return jdbcTemplate.update(EXPIRE_OLDEST_VISIBLE_MEMOS_SQL, params);
     }
 
     private CommunityMemoRow mapRow(ResultSet resultSet, int rowNumber) throws SQLException {

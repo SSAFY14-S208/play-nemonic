@@ -42,20 +42,30 @@ public class FastApiCommunityMemoModerationClient implements CommunityMemoModera
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(request))).build();
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new CommunityMemoModerationException(MODERATION_CALL_ERROR_MESSAGE);
+                return handleModerationFailure(MODERATION_CALL_ERROR_MESSAGE, null);
             }
 
             return parseResponse(response.body());
         } catch (JsonProcessingException e) {
-            throw new CommunityMemoModerationException(MODERATION_RESPONSE_ERROR_MESSAGE, e);
+            return handleModerationFailure(MODERATION_RESPONSE_ERROR_MESSAGE, e);
+        } catch (CommunityMemoModerationException e) {
+            return handleModerationFailure(e.getMessage(), e);
         } catch (IOException e) {
-            throw new CommunityMemoModerationException(MODERATION_CALL_ERROR_MESSAGE, e);
+            return handleModerationFailure(MODERATION_CALL_ERROR_MESSAGE, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new CommunityMemoModerationException(MODERATION_CALL_ERROR_MESSAGE, e);
+            return handleModerationFailure(MODERATION_CALL_ERROR_MESSAGE, e);
         } catch (IllegalArgumentException e) {
-            throw new CommunityMemoModerationException(MODERATION_CALL_ERROR_MESSAGE, e);
+            return handleModerationFailure(MODERATION_CALL_ERROR_MESSAGE, e);
         }
+    }
+
+    private CommunityMemoModerationResult handleModerationFailure(String message, Throwable cause) {
+        if (!properties.isFailClosed()) {
+            return CommunityMemoModerationResult.allowedResult();
+        }
+
+        throw new CommunityMemoModerationException(message, cause);
     }
 
     private URI moderationUri() {
