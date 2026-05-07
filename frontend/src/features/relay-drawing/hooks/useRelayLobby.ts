@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 
 import { ApiError, patchRelayRoomSettings, postRelayRoomStart } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
@@ -25,6 +26,7 @@ interface UseRelayLobbyReturn {
   changeTimeLimit: (seconds: number) => void
   copyInviteLink: () => void
   clearErrors: () => void
+  leaveRoom: () => void
 }
 
 const COPY_CONFIRM_DURATION_MS = 2000
@@ -40,12 +42,14 @@ const COPY_CONFIRM_DURATION_MS = 2000
  * 백엔드가 거부했을 때만 이전 값으로 명시적으로 롤백한다.
  */
 export function useRelayLobby(): UseRelayLobbyReturn {
+  const router = useRouter()
   const userUuid = useUserStore((state) => state.userUuid)
   const roomCode = useRelayDrawingStore((state) => state.roomCode)
   const hostUserUuid = useRelayDrawingStore((state) => state.hostUserUuid)
   const participants = useRelayDrawingStore((state) => state.participants)
   const minParticipants = useRelayDrawingStore((state) => state.minParticipants)
   const setTimeLimitSeconds = useRelayDrawingStore((state) => state.setTimeLimitSeconds)
+  const clearRoom = useRelayDrawingStore((state) => state.clearRoom)
 
   const [isStarting, startStartTransition] = useTransition()
   const [startError, setStartError] = useState<string | null>(null)
@@ -115,6 +119,14 @@ export function useRelayLobby(): UseRelayLobbyReturn {
     setSettingsError(null)
   }
 
+  // 자발적 퇴장 — clearRoom()으로 store를 비우고 부스로 이동한다.
+  // 실제 서버 퇴장 API(deleteRelayRoomParticipantMe)는 useRelayRoom의
+  // cleanup effect가 roomCode 변경을 감지해 자동으로 호출한다.
+  const leaveRoom = () => {
+    clearRoom()
+    router.push('/relay-drawing')
+  }
+
   return {
     isHost,
     canStartGame,
@@ -127,5 +139,6 @@ export function useRelayLobby(): UseRelayLobbyReturn {
     changeTimeLimit,
     copyInviteLink,
     clearErrors,
+    leaveRoom,
   }
 }

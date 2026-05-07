@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Crown, QrCode } from "lucide-react";
+import { ArrowLeft, Copy, Crown, QrCode } from "lucide-react";
 
 import { useUserStore } from "@/shared/stores";
 import type { RelayRoomParticipantResponse } from "@/shared/types";
@@ -28,6 +28,7 @@ export default function RelayLobbyView() {
     startGame,
     changeTimeLimit,
     copyInviteLink,
+    leaveRoom,
   } = useRelayLobby();
 
   const waitingSlotCount = Math.max(0, maxParticipants - participants.length);
@@ -38,6 +39,15 @@ export default function RelayLobbyView() {
   return (
     <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
       <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
+        <button
+          type="button"
+          onClick={leaveRoom}
+          className="body-b absolute left-[3%] top-[4%] z-10 inline-flex items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm"
+        >
+          <ArrowLeft className="size-5" aria-hidden />
+          나가기
+        </button>
+
         <PostItNote
           title="입장 코드를 담은 노란 포스트잇 배경 이미지"
           className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-[#FFE787]"
