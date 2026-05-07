@@ -36,7 +36,6 @@ class CommunityMemoOpenApiIntegrationTest {
                 .value(hasItems(false)))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.responses['200'].description")
                 .value("커뮤니티 메모 목록 조회 성공"))
-            .andExpect(
-                jsonPath("$.paths['/api/v1/community/memos'].get.responses['400'].description").value("잘못된 UUID 형식"));
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.responses['400'].description").value("잘못된 요청"));
     }
 }

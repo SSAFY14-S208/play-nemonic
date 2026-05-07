@@ -38,11 +38,11 @@ public class CommunityMemoRepository {
                 WHEN cm.artifact_id IS NULL THEN cm.body_image_url
                 ELSE
                     CASE CAST(a.kind AS VARCHAR)
-                        WHEN 'fortune' THEN COALESCE(fa.fortune_image_url, a.thumbnail_url)
-                        WHEN 'relay_drawing' THEN COALESCE(rda.combined_preview_url, a.thumbnail_url)
-                        WHEN 'flipbook' THEN COALESCE(fba.gif_url, a.thumbnail_url)
-                        WHEN 'infinite_canvas' THEN COALESCE(ica.canvas_image_url, a.thumbnail_url)
-                        WHEN 'phone' THEN COALESCE(pa.phone_image_url, a.thumbnail_url)
+                        WHEN 'fortune' THEN COALESCE(NULLIF(fa.fortune_image_url, ''), a.thumbnail_url)
+                        WHEN 'relay_drawing' THEN COALESCE(NULLIF(rda.combined_preview_url, ''), a.thumbnail_url)
+                        WHEN 'flipbook' THEN COALESCE(NULLIF(fba.gif_url, ''), a.thumbnail_url)
+                        WHEN 'infinite_canvas' THEN COALESCE(NULLIF(ica.canvas_image_url, ''), a.thumbnail_url)
+                        WHEN 'phone' THEN COALESCE(NULLIF(pa.phone_image_url, ''), a.thumbnail_url)
                         WHEN 'community_memo' THEN a.thumbnail_url
                         ELSE a.thumbnail_url
                     END
@@ -56,8 +56,6 @@ public class CommunityMemoRepository {
         ORDER BY cm.z_index ASC, cm.attached_at ASC
         """;
 
-    private static final String COUNT_VISIBLE_MEMOS_SQL = "SELECT COUNT(*) " + VISIBLE_MEMO_FROM;
-
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public CommunityMemoRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -66,12 +64,6 @@ public class CommunityMemoRepository {
 
     public List<CommunityMemoRow> findVisibleMemos() {
         return jdbcTemplate.query(FIND_VISIBLE_MEMOS_SQL, new MapSqlParameterSource(), this::mapRow);
-    }
-
-    public long countVisibleMemos() {
-        Long count = jdbcTemplate.queryForObject(COUNT_VISIBLE_MEMOS_SQL, new MapSqlParameterSource(), Long.class);
-
-        return count == null ? 0L : count;
     }
 
     private CommunityMemoRow mapRow(ResultSet resultSet, int rowNumber) throws SQLException {

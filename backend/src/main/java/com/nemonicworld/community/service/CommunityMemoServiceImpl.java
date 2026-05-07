@@ -38,7 +38,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         List<CommunityMemoItemResponse> items = communityMemoRepository.findVisibleMemos().stream()
             .map(row -> toResponse(row, viewerUserUuid)).toList();
 
-        return new CommunityMemoListResponse(items, communityMemoRepository.countVisibleMemos());
+        return new CommunityMemoListResponse(items, items.size());
     }
 
     private UUID parseOptionalViewerUuid(String viewerUserUuidValue) {

@@ -194,9 +194,10 @@ class CommunityMemoControllerIntegrationTest {
         insertGalleryMemo(userUuid, "phone", "phone-thumb.png", "phone.png", 5, baseTime.plusMinutes(5));
         insertGalleryMemo(userUuid, "community_memo", "community-thumb.png", null, 6, baseTime.plusMinutes(6));
         insertGalleryMemo(userUuid, "fortune", "fallback-thumb.png", null, 7, baseTime.plusMinutes(7));
+        insertGalleryMemo(userUuid, "fortune", "blank-fallback-thumb.png", "", 8, baseTime.plusMinutes(8));
 
         mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.items", hasSize(7)))
+            .andExpect(jsonPath("$.data.items", hasSize(8)))
             .andExpect(jsonPath("$.data.items[0].sourceType").value("GALLERY"))
             .andExpect(jsonPath("$.data.items[0].memoImageUrl").value(PUBLIC_URL_PREFIX + "fortune.png"))
             .andExpect(jsonPath("$.data.items[1].memoImageUrl").value(PUBLIC_URL_PREFIX + "relay.png"))
@@ -204,7 +205,8 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[3].memoImageUrl").value(PUBLIC_URL_PREFIX + "canvas.png"))
             .andExpect(jsonPath("$.data.items[4].memoImageUrl").value(PUBLIC_URL_PREFIX + "phone.png"))
             .andExpect(jsonPath("$.data.items[5].memoImageUrl").value(PUBLIC_URL_PREFIX + "community-thumb.png"))
-            .andExpect(jsonPath("$.data.items[6].memoImageUrl").value(PUBLIC_URL_PREFIX + "fallback-thumb.png"));
+            .andExpect(jsonPath("$.data.items[6].memoImageUrl").value(PUBLIC_URL_PREFIX + "fallback-thumb.png"))
+            .andExpect(jsonPath("$.data.items[7].memoImageUrl").value(PUBLIC_URL_PREFIX + "blank-fallback-thumb.png"));
     }
 
     /**
@@ -312,7 +314,7 @@ class CommunityMemoControllerIntegrationTest {
         int zIndex, LocalDateTime attachedAt) {
         UUID artifactId = UUID.randomUUID();
         String thumbnailUrl = OBJECT_KEY_PREFIX + thumbnailFileName;
-        String contentUrl = contentFileName == null || contentFileName.startsWith("http")
+        String contentUrl = contentFileName == null || contentFileName.isBlank() || contentFileName.startsWith("http")
             ? contentFileName
             : OBJECT_KEY_PREFIX + contentFileName;
 
