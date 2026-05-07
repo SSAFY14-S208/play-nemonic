@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import Image from 'next/image'
 import { motion } from 'motion/react'
 import { useFlipbookEntranceTimeline } from '../hooks'
+import FlipbookPaperBackground from './FlipbookPaperBackground'
 
 interface FlipbookEntranceViewProps {
   onCreateRoom: () => void
@@ -18,12 +19,6 @@ const FLIPBOOK_ENTRANCE_FRAMES = Array.from({ length: 12 }, (unusedValue, frameI
     alt: `플립북 입장 애니메이션 ${frameIndex + 1}번째 장면`,
   }
 })
-const FLIPBOOK_BACKGROUND_IMAGES = {
-  paper: '/images/flipbook-background/paper-background.png',
-  stars: '/images/flipbook-background/stars.png',
-  dots: '/images/flipbook-background/dots.png',
-  crayon: '/images/flipbook-background/crayon-corners.png',
-}
 const FLIPBOOK_BUTTON_IMAGES = {
   createRoom: '/images/flipbook-buttons/create-room.png',
   enterRoom: '/images/flipbook-buttons/enter-room.png',
@@ -58,7 +53,7 @@ export default function FlipbookEntranceView({
   return (
     <section ref={sectionRef} className="relative h-[260svh] bg-flipbook-background text-flipbook-ink">
       <div className="sticky top-0 grid h-[100svh] min-h-[620px] overflow-hidden">
-        <FlipbookEntranceBackground timeline={timeline} />
+        <FlipbookPaperBackground layerStyles={timeline.background} />
         <div className="relative z-10 grid h-full place-items-center px-5 py-8">
           <motion.div
             className="absolute inset-x-0 top-[max(3svh,18px)] z-20 mx-auto flex justify-center px-5"
@@ -142,62 +137,6 @@ export default function FlipbookEntranceView({
         </div>
       </div>
     </section>
-  )
-}
-
-function FlipbookEntranceBackground({
-  timeline,
-}: {
-  timeline: ReturnType<typeof useFlipbookEntranceTimeline>
-}) {
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-      <Image
-        src={FLIPBOOK_BACKGROUND_IMAGES.paper}
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover"
-      />
-      <div className="absolute inset-0 bg-flipbook-background/10" />
-      <motion.div
-        className="absolute inset-[-3%]"
-        style={timeline.background.crayon}
-      >
-        <Image
-          src={FLIPBOOK_BACKGROUND_IMAGES.crayon}
-          alt=""
-          fill
-          sizes="106vw"
-          className="object-fill"
-        />
-      </motion.div>
-      <motion.div
-        className="absolute inset-[-3%]"
-        style={timeline.background.stars}
-      >
-        <Image
-          src={FLIPBOOK_BACKGROUND_IMAGES.stars}
-          alt=""
-          fill
-          sizes="106vw"
-          className="object-fill"
-        />
-      </motion.div>
-      <motion.div
-        className="absolute inset-[-3%]"
-        style={timeline.background.dots}
-      >
-        <Image
-          src={FLIPBOOK_BACKGROUND_IMAGES.dots}
-          alt=""
-          fill
-          sizes="106vw"
-          className="object-fill"
-        />
-      </motion.div>
-    </div>
   )
 }
 

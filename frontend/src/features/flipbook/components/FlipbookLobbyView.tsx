@@ -1,7 +1,6 @@
 'use client'
 
-import { Copy, Minus, Plus, QrCode } from 'lucide-react'
-import { PostItNote } from '@/shared/components'
+import { Copy, Minus, Palette, Plus, QrCode, type LucideIcon } from 'lucide-react'
 import {
   FLIPBOOK_PARTICIPANTS,
   FLIPBOOK_ROOM_CODE,
@@ -10,6 +9,7 @@ import {
   type FlipbookTimeLimitSeconds,
 } from '../constants'
 import { cn } from '@/shared/libs'
+import FlipbookPaperBackground from './FlipbookPaperBackground'
 
 interface FlipbookLobbyViewProps {
   selectedTimeLimitSeconds: number
@@ -22,6 +22,21 @@ interface FlipbookLobbyViewProps {
 }
 
 const WAITING_SLOT_COUNT = 1
+const SHARE_ACTIONS: { label: string; Icon: LucideIcon }[] = [
+  { label: '링크 복사', Icon: Copy },
+  { label: 'QR 코드', Icon: QrCode },
+]
+const PARTICIPANT_TILT_CLASSES = [
+  '-rotate-1',
+  'rotate-[0.8deg]',
+  '-rotate-[0.6deg]',
+  'rotate-1',
+  '-rotate-[0.4deg]',
+]
+const WAITING_SLOTS = Array.from(
+  { length: WAITING_SLOT_COUNT },
+  (_, waitingSlotIndex) => `waiting-${waitingSlotIndex}`,
+)
 
 export default function FlipbookLobbyView({
   selectedTimeLimitSeconds,
@@ -33,110 +48,162 @@ export default function FlipbookLobbyView({
   onStartGame,
 }: FlipbookLobbyViewProps) {
   return (
-    <section className="relative min-h-[900px] overflow-hidden border border-flipbook-light bg-flipbook-background">
-      <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <PostItNote className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-flipbook-primary" />
+    <section className="relative min-h-screen overflow-hidden bg-flipbook-background text-flipbook-ink">
+      <FlipbookPaperBackground />
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1160px] flex-col px-5 py-8 sm:px-7">
+        <header className="flex flex-col items-center text-center">
+          <h1 className="h1-b origin-center scale-125 text-flipbook-ink drop-shadow-[0_5px_0_var(--color-flipbook-shadow)]">
+            플립북
+          </h1>
+          <p className="body-b mt-5 text-flipbook-deep">친구들이 모이면 바로 시작해요</p>
+        </header>
 
-        <section className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
-          <p className="h2-b text-fg-inverse/85">입장 코드</p>
-          <p className="h1-b text-fg-inverse">
-            {FLIPBOOK_ROOM_CODE}
-          </p>
-          <div className="mt-2 flex gap-8">
-            <ShareButton label="링크 복사" Icon={Copy} />
-            <ShareButton label="QR 코드" Icon={QrCode} />
-          </div>
-        </section>
-
-        <div className="absolute left-[49.9%] top-[13.7%] flex h-[72%] w-[43.3%] flex-col gap-5">
-          <section className="rounded-[24px] bg-flipbook-paper px-6 py-5 shadow-[0_4px_16px_10px_var(--color-flipbook-shadow)]">
-            <div className="flex items-center gap-1">
-              <h2 className="h3-b text-flipbook-ink">참여자</h2>
-              <span className="h3-b text-flipbook-primary">
-                {FLIPBOOK_PARTICIPANTS.length} / 12
-              </span>
+        <main className="mt-10 grid flex-1 content-center gap-8 lg:grid-cols-[0.86fr_1.14fr]">
+          <aside className="relative -rotate-2 self-center rounded-[7px] border border-flipbook-light bg-flipbook-primary px-7 py-8 text-center shadow-[0_12px_20px_var(--color-flipbook-shadow)]">
+            <span
+              aria-hidden
+              className="absolute left-1/2 top-0 h-7 w-[46%] -translate-x-1/2 -translate-y-4 rotate-1 rounded-[3px] bg-flipbook-light/75 shadow-[0_4px_8px_var(--color-flipbook-shadow)]"
+            />
+            <div className="rounded-[6px] border border-flipbook-light bg-flipbook-paper/26 px-5 py-8">
+              <p className="h4-b text-flipbook-ink">입장 코드</p>
+              <p className="h1-b mt-4 text-flipbook-ink">{FLIPBOOK_ROOM_CODE}</p>
+              <div className="mt-6 flex justify-center gap-3">
+                {SHARE_ACTIONS.map((action) => (
+                  <ShareButton key={action.label} label={action.label} Icon={action.Icon} />
+                ))}
+              </div>
             </div>
+          </aside>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {FLIPBOOK_PARTICIPANTS.map((participant) => (
-                <div
-                  key={participant.id}
-                  className="flex min-h-14 items-center rounded-[16px] border border-flipbook-light bg-flipbook-light px-5"
-                >
-                  <span className="body-b flex-1 text-flipbook-ink">{participant.name}</span>
+          <section className="relative rounded-[7px] border border-flipbook-light bg-flipbook-paper/88 px-6 py-6 shadow-[0_14px_24px_var(--color-flipbook-shadow)]">
+            <span
+              aria-hidden
+              className="absolute left-7 top-0 h-7 w-28 -translate-y-4 -rotate-2 rounded-[3px] bg-flipbook-light/70"
+            />
+            <span
+              aria-hidden
+              className="absolute right-10 top-0 h-7 w-24 -translate-y-4 rotate-2 rounded-[3px] bg-flipbook-light/62"
+            />
+
+            <div className="grid gap-5">
+              <div className="flex items-end justify-between gap-4 border-b border-flipbook-light pb-3">
+                <h2 className="h2-b text-flipbook-ink">참여자</h2>
+                <span className="h3-b text-flipbook-deep">
+                  {FLIPBOOK_PARTICIPANTS.length} / 12
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {FLIPBOOK_PARTICIPANTS.map((participant, participantIndex) => (
+                  <ParticipantNameTag
+                    key={participant.id}
+                    name={participant.name}
+                    tiltClassName={
+                      PARTICIPANT_TILT_CLASSES[
+                        participantIndex % PARTICIPANT_TILT_CLASSES.length
+                      ]
+                    }
+                  />
+                ))}
+                {WAITING_SLOTS.map((waitingSlot) => (
+                  <div
+                    key={waitingSlot}
+                    className="caption-b grid min-h-14 place-items-center rounded-[6px] border border-dashed border-flipbook-primary bg-flipbook-paper/65 text-flipbook-muted"
+                  >
+                    초대 대기중
+                  </div>
+                ))}
+              </div>
+
+              <div className="rotate-[0.6deg] rounded-[6px] border border-flipbook-light bg-flipbook-light px-5 py-4">
+                <p className="caption-b text-flipbook-deep">오늘의 주제</p>
+                <h3 className="h3-b mt-2 text-flipbook-ink">{FLIPBOOK_TOPIC}</h3>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                <div className="rounded-[6px] border border-flipbook-light bg-flipbook-paper/72 px-4 py-3">
+                  <p className="caption-b text-flipbook-muted">제한 시간</p>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {FLIPBOOK_TIME_LIMITS_SECONDS.map((seconds) => (
+                      <button
+                        key={seconds}
+                        type="button"
+                        onClick={() => onSelectTimeLimit(seconds)}
+                        className={cn(
+                          'body-b min-h-11 rounded-[6px] border border-flipbook-light bg-flipbook-light text-flipbook-primary shadow-[0_3px_6px_var(--color-flipbook-shadow)]',
+                          selectedTimeLimitSeconds === seconds &&
+                            'border-flipbook-deep bg-flipbook-primary text-flipbook-ink',
+                        )}
+                      >
+                        {seconds}초
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ))}
-              {Array.from({ length: WAITING_SLOT_COUNT }).map((unusedSlot, waitingSlotIndex) => (
-                <div
-                  key={`${unusedSlot}-${waitingSlotIndex}`}
-                  className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-flipbook-primary text-flipbook-muted"
-                >
-                  초대를 기다리는 중...
+
+                <div className="flex items-center justify-between gap-4 rounded-[6px] border border-flipbook-light bg-flipbook-light px-4 py-3">
+                  <div>
+                    <p className="caption-b text-flipbook-muted">라운드</p>
+                    <p className="caption-r mt-1 text-flipbook-muted">
+                      최소 {minimumRoundCount}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      aria-label="라운드 줄이기"
+                      onClick={onDecreaseRoundCount}
+                      className="grid size-10 place-items-center rounded-full bg-flipbook-paper text-flipbook-ink shadow-[0_3px_6px_var(--color-flipbook-shadow)]"
+                    >
+                      <Minus className="size-4" aria-hidden />
+                    </button>
+                    <span className="h2-b min-w-8 text-center text-flipbook-ink">
+                      {roundCount}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="라운드 늘리기"
+                      onClick={onIncreaseRoundCount}
+                      className="grid size-10 place-items-center rounded-full bg-flipbook-primary text-flipbook-ink shadow-[0_3px_6px_var(--color-flipbook-shadow)]"
+                    >
+                      <Plus className="size-4" aria-hidden />
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </section>
+              </div>
 
-          <section className="rounded-[24px] bg-flipbook-paper px-8 py-5 shadow-[0_4px_16px_10px_var(--color-flipbook-shadow)]">
-            <h2 className="h3-b text-flipbook-muted">주제</h2>
-            <p className="h4-b mt-2 text-flipbook-ink">{FLIPBOOK_TOPIC}</p>
-          </section>
-
-          <section className="rounded-[24px] bg-flipbook-paper px-8 py-5 shadow-[0_4px_16px_10px_var(--color-flipbook-shadow)]">
-            <h2 className="h3-b text-flipbook-muted">⏱ 제한 시간</h2>
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              {FLIPBOOK_TIME_LIMITS_SECONDS.map((seconds) => (
-                <button
-                  key={seconds}
-                  type="button"
-                  onClick={() => onSelectTimeLimit(seconds)}
-                  className={cn(
-                    'body-b min-h-12 rounded-[12px] border border-flipbook-light bg-flipbook-light text-flipbook-primary',
-                    selectedTimeLimitSeconds === seconds && 'text-flipbook-ink',
-                  )}
-                >
-                  {seconds}초
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="flex items-center justify-between rounded-[24px] bg-flipbook-paper px-8 py-5 shadow-[0_4px_16px_10px_var(--color-flipbook-shadow)]">
-            <div>
-              <h2 className="h3-b text-flipbook-muted">라운드 수</h2>
-              <p className="caption-r mt-1 text-flipbook-muted">최소 {minimumRoundCount}라운드</p>
-            </div>
-            <div className="flex items-center gap-3">
               <button
                 type="button"
-                aria-label="라운드 줄이기"
-                onClick={onDecreaseRoundCount}
-                className="grid size-10 place-items-center rounded-full bg-flipbook-light text-flipbook-ink"
+                onClick={onStartGame}
+                className="body-b mx-auto inline-flex min-h-15 w-full max-w-[420px] items-center justify-center gap-2 rounded-[8px] border-2 border-flipbook-deep bg-flipbook-primary text-flipbook-ink shadow-[0_8px_14px_var(--color-flipbook-shadow)]"
               >
-                <Minus className="size-4" aria-hidden />
-              </button>
-              <span className="h2-b min-w-8 text-center text-flipbook-ink">{roundCount}</span>
-              <button
-                type="button"
-                aria-label="라운드 늘리기"
-                onClick={onIncreaseRoundCount}
-                className="grid size-10 place-items-center rounded-full bg-flipbook-primary text-flipbook-ink"
-              >
-                <Plus className="size-4" aria-hidden />
+                <Palette className="size-5" aria-hidden />
+                게임 시작
               </button>
             </div>
           </section>
-
-          <button
-            type="button"
-            onClick={onStartGame}
-            className="body-b min-h-16 rounded-[16px] bg-flipbook-primary text-flipbook-ink shadow-[0_6px_16px_var(--color-flipbook-shadow)]"
-          >
-            🎨 게임 시작
-          </button>
-        </div>
+        </main>
       </div>
     </section>
+  )
+}
+
+function ParticipantNameTag({
+  name,
+  tiltClassName,
+}: {
+  name: string
+  tiltClassName: string
+}) {
+  return (
+    <div
+      className={cn(
+        'flex min-h-14 items-center rounded-[6px] border border-flipbook-light bg-flipbook-light px-5 shadow-[0_5px_8px_var(--color-flipbook-shadow)]',
+        tiltClassName,
+      )}
+    >
+      <span className="body-l-b flex-1 text-flipbook-ink">{name}</span>
+    </div>
   )
 }
 
@@ -145,12 +212,12 @@ function ShareButton({
   Icon,
 }: {
   label: string
-  Icon: typeof Copy
+  Icon: LucideIcon
 }) {
   return (
     <button
       type="button"
-      className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-flipbook-primary bg-flipbook-light px-4 text-flipbook-deep"
+      className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-[8px] border border-flipbook-primary bg-flipbook-light px-4 text-flipbook-deep"
     >
       <Icon className="size-[17px]" aria-hidden />
       {label}
