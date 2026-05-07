@@ -63,6 +63,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
             FlipbookRoomState roomState = flipbookRoomRepository.findByRoomCode(invite.roomId())
                 .orElseThrow(() -> new ConflictException(ROOM_CLOSED_MESSAGE));
             flipbookRoomPolicy.validateNotKicked(roomState, userUuid);
+            flipbookRoomPolicy.validateNotDropped(roomState, userUuid);
 
             // 해당 userUuid를 가진 사용자가 있는지 확인 (사용자의 정보를 반환)
             Optional<FlipbookRoomParticipant> existingParticipant = findParticipant(roomState, userUuid);

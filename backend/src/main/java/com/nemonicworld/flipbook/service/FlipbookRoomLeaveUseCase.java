@@ -93,8 +93,7 @@ public class FlipbookRoomLeaveUseCase {
     }
 
     private FlipbookRoomParticipant withHost(FlipbookRoomParticipant participant, boolean host) {
-        return new FlipbookRoomParticipant(participant.userUuid(), participant.nickname(), host,
-            participant.joinOrder(), participant.connected(), participant.disconnectedAt(), participant.joinedAt());
+        return participant.withHost(host);
     }
 
     private record LeaveResult(FlipbookRoomState roomState, boolean hostChanged, String newHostUserUuid,

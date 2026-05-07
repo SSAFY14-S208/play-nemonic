@@ -9,9 +9,12 @@ import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventStateResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventType;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomHostChangedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantDroppedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantLeftEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomSimpleMessageResponse;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.service.disconnect.FlipbookDroppedParticipantResult;
+import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
@@ -56,6 +59,17 @@ public class FlipbookRoomEventPublisher {
     public void publishParticipantDisconnected(FlipbookRoomStateResponse roomStateResponse,
         String disconnectedUserUuid) {
         publishRoomEvent(FlipbookRoomEventType.PARTICIPANT_DISCONNECTED, roomStateResponse, disconnectedUserUuid);
+    }
+
+    /**
+     * 게임 중 재접속 유예가 끝나 참여자가 이탈 확정되었음을 방 전체에 알립니다.
+     */
+    public void publishParticipantDropped(FlipbookDroppedParticipantResult droppedParticipantResult) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.PARTICIPANT_DROPPED,
+            droppedParticipantResult.roomCode(),
+            FlipbookRoomParticipantDroppedEventResponse.from(droppedParticipantResult));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + droppedParticipantResult.roomCode(), event);
     }
 
     /**
@@ -109,6 +123,16 @@ public class FlipbookRoomEventPublisher {
             leaveResponse.roomCode(), FlipbookRoomHostChangedEventResponse.from(leaveResponse));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + leaveResponse.roomCode(), event);
+    }
+
+    /**
+     * 게임 중 방장 이탈 확정으로 새 방장이 승계되었음을 방 전체에 알립니다.
+     */
+    public void publishHostChanged(FlipbookHostChangeResult hostChangeResult) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.HOST_CHANGED,
+            hostChangeResult.roomCode(), FlipbookRoomHostChangedEventResponse.from(hostChangeResult));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + hostChangeResult.roomCode(), event);
     }
 
     /**

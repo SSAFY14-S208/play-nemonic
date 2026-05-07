@@ -62,6 +62,7 @@ public class FlipbookRoomConnectionUseCase {
 
             if (connected) {
                 flipbookRoomPolicy.validateNotKicked(roomState, viewerUserUuid);
+                flipbookRoomPolicy.validateNotDropped(roomState, viewerUserUuid);
             }
 
             // WebSocket 연결 대상 참여자를 조회
@@ -74,9 +75,7 @@ public class FlipbookRoomConnectionUseCase {
             }
 
             // 해당 사용자의 connected 상태 업데이트
-            FlipbookRoomParticipant updatedParticipant = new FlipbookRoomParticipant(participant.userUuid(),
-                participant.nickname(), participant.host(), participant.joinOrder(), connected, connected ? null : now,
-                participant.joinedAt());
+            FlipbookRoomParticipant updatedParticipant = participant.withConnection(connected, connected ? null : now);
             // 대체
             FlipbookRoomState updatedRoomState = replaceParticipant(roomState, updatedParticipant, now);
 
