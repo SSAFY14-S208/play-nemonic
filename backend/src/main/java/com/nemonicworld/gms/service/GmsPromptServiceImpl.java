@@ -6,9 +6,12 @@ import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.gms.dto.request.GmsPromptCreateRequest;
+import com.nemonicworld.gms.dto.request.GmsPromptUpdateRequest;
 import com.nemonicworld.gms.dto.response.GmsPromptResponse;
+import com.nemonicworld.gms.entity.GmsPrompt;
 import com.nemonicworld.gms.repository.GmsPromptInsertCommand;
 import com.nemonicworld.gms.repository.GmsPromptRepository;
+import com.nemonicworld.gms.repository.GmsPromptUpdateCommand;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -27,6 +30,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     private static final String REQUIRED_NAME_MESSAGE = "프롬프트 이름을 입력해야 합니다.";
     private static final String REQUIRED_CONTENT_MESSAGE = "프롬프트 본문을 입력해야 합니다.";
     private static final String REQUIRED_FEATURE_TYPE_MESSAGE = "프롬프트 기능 타입을 입력해야 합니다.";
+    private static final String REQUIRED_UPDATE_FIELD_MESSAGE = "수정할 프롬프트 정보를 하나 이상 입력해야 합니다.";
 
     private final GmsPromptRepository gmsPromptRepository;
 
@@ -68,6 +72,52 @@ public class GmsPromptServiceImpl implements GmsPromptService {
         int deletedCount = gmsPromptRepository.softDeleteById(promptId, deletedAt);
         if (deletedCount == 0) {
             throw new NotFoundException(PROMPT_NOT_FOUND_MESSAGE);
+        }
+    }
+
+    @Override
+    @Transactional
+    public GmsPromptResponse updatePrompt(AdminPrincipal adminPrincipal, Long promptId,
+        GmsPromptUpdateRequest request) {
+        requireAdmin(adminPrincipal);
+        if (request == null || request.name() == null && request.content() == null && request.featureType() == null) {
+            throw new BadRequestException(REQUIRED_UPDATE_FIELD_MESSAGE);
+        }
+
+        GmsPrompt existingPrompt = gmsPromptRepository.findActiveById(promptId)
+            .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
+
+        String name = existingPrompt.getName();
+        if (request.name() != null) {
+            name = normalizeRequiredTrimmed(request.name(), REQUIRED_NAME_MESSAGE);
+            if (!existingPrompt.getName().equals(name) && gmsPromptRepository.existsByName(name)) {
+                throw new ConflictException(DUPLICATE_NAME_MESSAGE);
+            }
+        }
+
+        String content = existingPrompt.getContent();
+        if (request.content() != null) {
+            content = normalizeRequired(request.content(), REQUIRED_CONTENT_MESSAGE);
+        }
+
+        String featureType = existingPrompt.getFeatureType();
+        if (request.featureType() != null) {
+            featureType = normalizeRequiredTrimmed(request.featureType(), REQUIRED_FEATURE_TYPE_MESSAGE)
+                .toLowerCase(Locale.ROOT);
+        }
+
+        LocalDateTime updatedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        GmsPromptUpdateCommand command = new GmsPromptUpdateCommand(promptId, name, content, featureType, updatedAt);
+
+        try {
+            int updatedCount = gmsPromptRepository.updatePrompt(command);
+            if (updatedCount == 0) {
+                throw new NotFoundException(PROMPT_NOT_FOUND_MESSAGE);
+            }
+
+            return GmsPromptResponse.from(gmsPromptRepository.findActiveById(promptId).orElseThrow());
+        } catch (DuplicateKeyException e) {
+            throw new ConflictException(DUPLICATE_NAME_MESSAGE);
         }
     }
 

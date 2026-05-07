@@ -87,6 +87,27 @@ public class GmsPromptRepository {
             """, Timestamp.valueOf(deletedAt), Timestamp.valueOf(deletedAt), id);
     }
 
+    public int updatePrompt(GmsPromptUpdateCommand command) {
+        return jdbcTemplate.update(connection -> {
+            var preparedStatement = connection.prepareStatement("""
+                UPDATE gms_prompt_template
+                   SET prompt_name = ?,
+                       template_text = ?,
+                       feature_type = ?,
+                       updated_at = ?
+                 WHERE id = ?
+                   AND deleted_at IS NULL
+                """);
+            preparedStatement.setString(1, command.name());
+            preparedStatement.setString(2, command.content());
+            preparedStatement.setObject(3, command.featureType(), Types.OTHER);
+            preparedStatement.setTimestamp(4, Timestamp.valueOf(command.updatedAt()));
+            preparedStatement.setLong(5, command.id());
+
+            return preparedStatement;
+        });
+    }
+
     private GmsPrompt mapPrompt(ResultSet resultSet, int rowNumber) throws SQLException {
         return new GmsPrompt(resultSet.getLong("id"), resultSet.getString("prompt_name"),
             resultSet.getString("template_text"), resultSet.getString("feature_type"), resultSet.getLong("created_by"),
