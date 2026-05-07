@@ -22,6 +22,16 @@ Last updated: 2026-05-07
   `Anonymous-User-UUID`, stores into the existing `cs_inquiry` table with
   initial status `new`, and preserves optional attachments and metadata as JSON
   text without adding a new migration.
+- Backoffice admins can now list customer inquiries through
+  `GET /api/v1/admin/inquiries`; the API requires an admin JWT, supports
+  `status`, `type`, `keyword`, `userUuid`, `page`, and `size` filters, returns
+  the local pagination DTO shape, and omits detail-only fields such as
+  `content`, `attachments`, `meta`, and `responseNote`.
+- Backoffice admins can now inspect one customer inquiry through
+  `GET /api/v1/admin/inquiries/{inquiryId}`; the API requires an admin JWT,
+  returns detail-only fields including parsed `attachments`, parsed `meta`,
+  `assignedTo`, `responseNote`, and `respondedAt`, and treats missing or
+  invalid inquiry IDs with Korean error messages.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
 - Backoffice admin authentication now exposes `POST /api/v1/auth/login`,
   `POST /api/v1/auth/logout`, and `POST /api/v1/auth/reissue`; admin account
