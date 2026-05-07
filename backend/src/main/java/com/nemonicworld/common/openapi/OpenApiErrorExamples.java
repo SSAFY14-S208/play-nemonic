@@ -419,6 +419,36 @@ public final class OpenApiErrorExamples {
           "message": "유효하지 않은 fileId 형식입니다."
         }
         """;
+    public static final String INVALID_ORIGINAL_FILE_ID = """
+        {
+          "success": false,
+          "message": "유효하지 않은 originalFileId 형식입니다."
+        }
+        """;
+    public static final String INVALID_THUMBNAIL_FILE_ID = """
+        {
+          "success": false,
+          "message": "유효하지 않은 thumbnailFileId 형식입니다."
+        }
+        """;
+    public static final String DUPLICATED_COMMUNITY_MEMO_FILE = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 원본과 썸네일 파일은 서로 달라야 합니다."
+        }
+        """;
+    public static final String COMMUNITY_MEMO_MODERATION_BLOCKED = """
+        {
+          "success": false,
+          "message": "부적절한 표현이 감지되어 게시할 수 없습니다."
+        }
+        """;
+    public static final String COMMUNITY_MEMO_MODERATION_UNAVAILABLE = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 모더레이션을 완료할 수 없습니다."
+        }
+        """;
     public static final String INVALID_FILE_NAME = """
         {
           "success": false,

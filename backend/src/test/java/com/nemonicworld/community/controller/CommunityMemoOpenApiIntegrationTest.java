@@ -40,7 +40,11 @@ class CommunityMemoOpenApiIntegrationTest {
                 .value(hasItems(false)))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.responses['200'].description")
                 .value("커뮤니티 메모 목록 조회 성공"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.responses['400'].description").value("잘못된 요청"));
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.responses['400'].description").value("잘못된 요청"))
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoOriginalImageUrl").exists())
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoThumbnailImageUrl").exists());
     }
 
     /**
@@ -62,7 +66,11 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.responses['400'].description")
                 .value("잘못된 요청"))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.responses['404'].description")
-                .value("존재하지 않는 커뮤니티 메모"));
+                .value("존재하지 않는 커뮤니티 메모"))
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoOriginalImageUrl").exists())
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoThumbnailImageUrl").exists());
     }
 
     @Test
@@ -76,6 +84,10 @@ class CommunityMemoOpenApiIntegrationTest {
                 "$.paths['/api/v1/community/memos'].post.parameters[?(@.name == 'Anonymous-User-UUID')].required")
                 .value(hasItems(true)))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.requestBody.required").value(true))
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoCreateRequest.properties.originalFileId").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoCreateRequest.properties.thumbnailFileId").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoCreateRequest.properties.clientText").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoCreateRequest.properties.fileId").doesNotExist())
             .andExpect(
                 jsonPath("$.paths['/api/v1/community/memos'].post.responses['201'].description").value("커뮤니티 메모 생성 성공"))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.responses['400'].description").value("요청값 오류"))
