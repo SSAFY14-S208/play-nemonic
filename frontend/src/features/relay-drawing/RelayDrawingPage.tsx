@@ -13,7 +13,7 @@ export default function RelayDrawingPage() {
   const relayDrawing = useRelayDrawing()
 
   return (
-    <main className="bg-relay-background text-relay-ink">
+    <main className="min-h-screen bg-relay-background text-relay-ink">
       {relayDrawing.currentStep === 'booth' && (
         <RelayBoothView
           onCreateRoom={relayDrawing.goToNextStep}
@@ -27,10 +27,15 @@ export default function RelayDrawingPage() {
 
       {relayDrawing.currentStep === 'drawing' && (
         <RelayDrawingView
+          activeRoundKey={relayDrawing.activeRoundKey}
+          activeRoundIndex={relayDrawing.activeRoundIndex}
+          remainingSeconds={relayDrawing.remainingSeconds}
           selectedToolKey={relayDrawing.selectedToolKey}
           selectedColor={relayDrawing.selectedColor}
           strokeWidth={relayDrawing.strokeWidth}
           lines={relayDrawing.lines}
+          previousRoundLines={relayDrawing.previousRoundLines}
+          roundLines={relayDrawing.roundLines}
           onSelectTool={relayDrawing.setSelectedToolKey}
           onSelectColor={relayDrawing.setSelectedColor}
           onStrokeWidthChange={relayDrawing.setStrokeWidth}
@@ -39,12 +44,21 @@ export default function RelayDrawingPage() {
           onDrawStart={relayDrawing.beginDrawing}
           onDrawMove={relayDrawing.continueDrawing}
           onDrawEnd={relayDrawing.endDrawing}
-          onCompleteRound={relayDrawing.goToNextStep}
+          onExit={relayDrawing.goToPreviousStep}
+          onCompleteRound={relayDrawing.completeRound}
         />
       )}
 
       {relayDrawing.currentStep === 'result' && (
-        <RelayResultView onCreateAnother={() => relayDrawing.selectStep('booth')} />
+        <RelayResultView
+          resultRevealStep={relayDrawing.resultRevealStep}
+          roundLines={relayDrawing.roundLines}
+          canShowPreviousResultReveal={relayDrawing.canShowPreviousResultReveal}
+          canShowNextResultReveal={relayDrawing.canShowNextResultReveal}
+          onShowPreviousResultReveal={relayDrawing.goToPreviousResultReveal}
+          onShowNextResultReveal={relayDrawing.goToNextResultReveal}
+          onCreateAnother={() => relayDrawing.selectStep('booth')}
+        />
       )}
 
       <RelayStepTabs

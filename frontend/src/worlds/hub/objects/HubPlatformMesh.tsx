@@ -1,19 +1,12 @@
-import CenterNemonicMesh from './CenterNemonicMesh'
-import CommunityCanvasBookMesh from './CommunityCanvasBookMesh'
-import { preloadHubPlatformModel, useHubPlatformModel } from './hooks'
-import WitchMesh from './WitchMesh'
+import type { Object3D } from 'three'
+import { preloadHubPlatformModel } from './hooks'
 
-export default function HubPlatformMesh() {
-  const preparedPlatform = useHubPlatformModel()
+interface HubPlatformMeshProps {
+  platform: Object3D
+}
 
-  return (
-    <group position={preparedPlatform.position} scale={preparedPlatform.scale}>
-      <primitive object={preparedPlatform.platform} dispose={null} />
-      <CommunityCanvasBookMesh />
-      <CenterNemonicMesh />
-      <WitchMesh />
-    </group>
-  )
+export default function HubPlatformMesh({ platform }: HubPlatformMeshProps) {
+  return <primitive object={platform} dispose={null} />
 }
 
 preloadHubPlatformModel()

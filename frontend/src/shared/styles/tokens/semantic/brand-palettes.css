@@ -1,0 +1,37 @@
+/* Brand palette semantic roles exported as Tailwind color utilities. */
+@theme {
+  /* Sketchbook */
+  --color-brand-sketchbook-tint: var(--p-brand-sketchbook-tint);
+  --color-brand-sketchbook-light: var(--p-brand-sketchbook-light);
+  --color-brand-sketchbook-primary: var(--p-brand-sketchbook-primary);
+  --color-brand-sketchbook-deep: var(--p-brand-sketchbook-deep);
+  --color-brand-sketchbook-ink: var(--p-brand-sketchbook-ink);
+
+  /* Fortune */
+  --color-brand-fortune-tint: var(--p-brand-fortune-tint);
+  --color-brand-fortune-light: var(--p-brand-fortune-light);
+  --color-brand-fortune-primary: var(--p-brand-fortune-primary);
+  --color-brand-fortune-deep: var(--p-brand-fortune-deep);
+  --color-brand-fortune-ink: var(--p-brand-fortune-ink);
+
+  /* Relay Drawing */
+  --color-brand-relay-drawing-tint: var(--p-brand-relay-drawing-tint);
+  --color-brand-relay-drawing-light: var(--p-brand-relay-drawing-light);
+  --color-brand-relay-drawing-primary: var(--p-brand-relay-drawing-primary);
+  --color-brand-relay-drawing-deep: var(--p-brand-relay-drawing-deep);
+  --color-brand-relay-drawing-ink: var(--p-brand-relay-drawing-ink);
+
+  /* Community Canvas */
+  --color-brand-community-canvas-tint: var(--p-brand-community-canvas-tint);
+  --color-brand-community-canvas-light: var(--p-brand-community-canvas-light);
+  --color-brand-community-canvas-primary: var(--p-brand-community-canvas-primary);
+  --color-brand-community-canvas-deep: var(--p-brand-community-canvas-deep);
+  --color-brand-community-canvas-ink: var(--p-brand-community-canvas-ink);
+
+  /* Flipbook */
+  --color-brand-flipbook-tint: var(--p-brand-flipbook-tint);
+  --color-brand-flipbook-light: var(--p-brand-flipbook-light);
+  --color-brand-flipbook-primary: var(--p-brand-flipbook-primary);
+  --color-brand-flipbook-deep: var(--p-brand-flipbook-deep);
+  --color-brand-flipbook-ink: var(--p-brand-flipbook-ink);
+}

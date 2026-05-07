@@ -1,29 +1,41 @@
 import { Suspense, useRef } from 'react'
-import { Group } from 'three'
-import HubPlatformMesh from './objects/HubPlatformMesh'
+import type { Group } from 'three'
+import { SkyDome } from '@/components'
+import HubLighting from '@/worlds/_infra/HubLighting'
+import {
+  HUB_SKY_DOME_RADIUS,
+  HUB_SKY_DOME_ROTATION_Y_OFFSET,
+  HUB_SKY_DOME_SCALE,
+  HUB_SKY_TEXTURE_OFFSET,
+  HUB_SKY_TEXTURE_REPEAT,
+} from './constants'
+import { useHubViewportControls } from './hooks'
+import HubPlatformGroup from './objects/HubPlatformGroup'
 import NightStarFieldMesh from './objects/NightStarFieldMesh'
-import { useHubViewportControls } from './useHubViewportControls'
 
 export default function HubScene() {
   const modelRootRef = useRef<Group>(null)
-  useHubViewportControls(modelRootRef)
+  const skyRootRef = useRef<Group>(null)
+  useHubViewportControls(modelRootRef, skyRootRef)
 
   return (
     <>
-      <fog attach="fog" args={['#262449', 18, 34]} />
-      <hemisphereLight args={['#fffef8', '#d7d3cd', 1.7]} />
-      <directionalLight color="#ffffff" intensity={2.2} position={[6, 8, 8]} />
-      <directionalLight color="#f2f7ff" intensity={1.2} position={[-8, 3, -4]} />
+      <Suspense fallback={null}>
+        <group ref={skyRootRef}>
+          <SkyDome
+            radius={HUB_SKY_DOME_RADIUS}
+            rotationY={HUB_SKY_DOME_ROTATION_Y_OFFSET}
+            domeScale={HUB_SKY_DOME_SCALE}
+            textureOffset={HUB_SKY_TEXTURE_OFFSET}
+            textureRepeat={HUB_SKY_TEXTURE_REPEAT}
+          />
+        </group>
+      </Suspense>
+      <HubLighting />
       <NightStarFieldMesh />
-      <mesh position={[0, -2.58, 0]}>
-        <cylinderGeometry args={[4.5, 5.5, 0.25, 96]} />
-        <meshStandardMaterial color="#ece8de" roughness={0.95} metalness={0} />
-      </mesh>
-      <group ref={modelRootRef}>
-        <Suspense fallback={null}>
-          <HubPlatformMesh />
-        </Suspense>
-      </group>
+      <Suspense fallback={null}>
+        <HubPlatformGroup modelRootRef={modelRootRef} />
+      </Suspense>
     </>
   )
 }

@@ -1,105 +1,128 @@
-import {
-  RELAY_ACTIONS,
-  RELAY_EMPTY_SLOTS,
-  RELAY_PARTICIPANTS,
-  RELAY_ROOM_CODE,
-  RELAY_TIME_LIMITS_SECONDS,
-} from '../constants'
+import { Copy, Crown, QrCode } from 'lucide-react'
+import { PostItNote } from '@/shared/components'
+import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from '../constants'
+import { cn } from '@/shared/libs'
 
 interface RelayLobbyViewProps {
   onStartGame: () => void
 }
 
+const LOBBY_PARTICIPANTS = [
+  { id: 'host', name: '여우 (나)', avatar: '🦊', isHost: true },
+  { id: 'cat-1', name: '고양이', avatar: '🦊', isHost: false },
+  { id: 'cat-2', name: '고양이', avatar: '🦊', isHost: false },
+]
+
+const WAITING_SLOT_COUNT = 3
+
 export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
   return (
-    <section className="mx-auto grid min-h-[calc(100svh-72px)] w-full max-w-[1280px] items-start gap-16 px-6 py-14 lg:grid-cols-[0.95fr_1.05fr] lg:py-20">
-      <div className="grid min-h-[460px] place-items-center rounded-[2rem] border border-relay-border bg-relay-background">
-        <div className="text-center">
-          <p className="body-m text-relay-ink">방 코드</p>
+    <section className="relative min-h-[900px] overflow-hidden border border-relay-border bg-relay-background">
+      <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
+        <PostItNote
+          className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-brand-relay-drawing-primary"
+        />
+
+        <div className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
+          <p className="h2-b text-relay-ink/80">입장 코드</p>
           <p
-            className="h1-b mt-8 text-relay-ink"
-            style={{ fontSize: 'clamp(4.25rem, 8vw, 6rem)', lineHeight: 1 }}
+            className="font-bold tracking-[8px] text-relay-ink"
+            style={{ fontSize: 'clamp(4.5rem, 7vw, 6rem)', lineHeight: 1 }}
           >
             {RELAY_ROOM_CODE}
           </p>
-          <div className="mt-8 flex justify-center gap-3">
-            {RELAY_ACTIONS.map(({ label, Icon }) => (
-              <button
-                key={label}
-                type="button"
-                className="caption-b inline-flex min-h-9 items-center gap-2 rounded-full bg-relay-panel px-4 text-relay-ink"
-              >
-                <Icon className="size-4 text-relay-muted" aria-hidden />
-                {label}
-              </button>
-            ))}
+          <div className="mt-2 flex gap-10">
+            <button
+              type="button"
+              className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
+            >
+              <Copy className="size-[17px]" aria-hidden />
+              링크 복사
+            </button>
+            <button
+              type="button"
+              className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
+            >
+              <QrCode className="size-[17px]" aria-hidden />
+              QR 코드
+            </button>
           </div>
         </div>
-      </div>
 
-      <div className="grid gap-5">
-        <section className="rounded-[2rem] bg-relay-paper p-8 shadow-sm">
-          <div className="flex items-center gap-1">
-            <h2 className="h4-b text-relay-ink">참여자</h2>
-            <span className="body-b text-relay-accent-strong">3 / 6</span>
-          </div>
+        <div className="absolute left-[49.9%] top-[19.2%] flex h-[65.4%] w-[43.3%] flex-col gap-5">
+          <section className="rounded-[24px] bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
+            <div className="flex items-center gap-1">
+              <h2 className="h3-b text-relay-ink">참여자</h2>
+              <span className="h3-b text-relay-accent">3/6</span>
+            </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {RELAY_PARTICIPANTS.map((participant) => {
-              const ParticipantIcon = participant.Icon
-
-              return (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {LOBBY_PARTICIPANTS.map((participant) => (
+                <ParticipantTile key={participant.id} participant={participant} />
+              ))}
+              {Array.from({ length: WAITING_SLOT_COUNT }).map((_, waitingSlotIndex) => (
                 <div
-                  key={participant.id}
-                  className="flex min-h-16 items-center justify-between rounded-[var(--radius-lg)] border border-relay-line bg-relay-active px-5"
+                  key={waitingSlotIndex}
+                  className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-9 place-items-center rounded-full bg-relay-panel text-relay-accent-strong">
-                      <ParticipantIcon className="size-5" aria-hidden />
-                    </span>
-                    <span className="body-b text-relay-ink">{participant.name}</span>
-                  </div>
-                  <span className="caption-b rounded-full bg-relay-panel px-3 py-1 text-relay-muted">
-                    {participant.role}
-                  </span>
+                  초대를 기다리는 중...
                 </div>
-              )
-            })}
+              ))}
+            </div>
+          </section>
 
-            {RELAY_EMPTY_SLOTS.map((slotLabel, index) => (
-              <div
-                key={`${slotLabel}-${index}`}
-                className="caption-m grid min-h-16 place-items-center rounded-[var(--radius-lg)] border border-dashed border-relay-line text-relay-muted"
-              >
-                {slotLabel}
-              </div>
-            ))}
-          </div>
-        </section>
+          <section className="rounded-[24px] bg-relay-paper px-8 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
+            <h2 className="h3-b text-relay-muted">⏱ 제한 시간</h2>
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              {RELAY_TIME_LIMITS_SECONDS.map((seconds) => {
+                const isSelected = seconds === 45
 
-        <section className="rounded-[var(--radius-xl)] border border-relay-border bg-relay-background p-6">
-          <p className="body-b text-relay-muted">⏱ 제한 시간</p>
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            {RELAY_TIME_LIMITS_SECONDS.map((seconds) => (
-              <button
-                key={seconds}
-                type="button"
-                className="body-b min-h-12 rounded-[var(--radius-md)] border border-relay-border bg-relay-panel text-relay-ink transition-colors hover:bg-relay-active"
-              >
-                {seconds}초
-              </button>
-            ))}
-          </div>
-        </section>
+                return (
+                  <button
+                    key={seconds}
+                    type="button"
+                    className={cn(
+                      'body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent',
+                      isSelected && 'text-relay-ink',
+                    )}
+                  >
+                    {seconds}초
+                  </button>
+                )
+              })}
+            </div>
+          </section>
 
-        <button
-          type="button"
-          onClick={onStartGame}
-          className="body-b min-h-16 rounded-[var(--radius-xl)] border border-relay-accent-strong bg-relay-accent text-relay-ink shadow-[0_14px_24px_rgba(255,184,46,0.28)] transition-transform hover:-translate-y-0.5"
-        >
-          🎨 게임 시작 (3명)
-        </button>
+          <button
+            type="button"
+            onClick={onStartGame}
+            className="body-b min-h-16 rounded-[16px] bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)]"
+          >
+            🎨 게임 시작 (3명)
+          </button>
+        </div>
       </div>
     </section>
+  )
+}
+
+function ParticipantTile({
+  participant,
+}: {
+  participant: (typeof LOBBY_PARTICIPANTS)[number]
+}) {
+  return (
+    <div className="flex min-h-14 items-center gap-3 rounded-[16px] border border-relay-line bg-relay-active px-3.5">
+      <span className="grid size-9 place-items-center rounded-full bg-relay-active text-[18px]">
+        {participant.avatar}
+      </span>
+      <span className="body-b flex-1 text-relay-ink">{participant.name}</span>
+      {participant.isHost && (
+        <span className="caption-b inline-flex items-center gap-1 rounded-full border border-relay-accent bg-relay-accent px-2 py-1 text-relay-ink">
+          <Crown className="size-4" aria-hidden />
+          방장
+        </span>
+      )}
+    </div>
   )
 }

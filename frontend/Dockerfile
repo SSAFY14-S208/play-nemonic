@@ -2,22 +2,23 @@
 # Next.js 16 Standalone Dockerfile (pnpm)
 #
 # 빌드 최적화:
-# - 멀티 스테이지로 최종 이미지 크기 최소화
-# - corepack으로 pnpm 활성화 (Node 16.13+ 내장 기능)
-# - 의존성 레이어 분리로 캐시 최대 활용
+# - builder 단일 스테이지에서 install + build (pnpm symlink 구조와
+#   Docker stage 간 COPY 충돌 회피)
+# - corepack으로 pnpm 버전 pin (재현 가능한 빌드)
+# - 최종 runner는 .next/standalone만 복사해 이미지 크기 최소화
 # - non-root user (보안)
 # ============================================================
 
-# ===== Stage 1: Dependencies =====
-FROM node:20-alpine AS deps
+# ===== Stage 1: Builder =====
+FROM node:20-alpine AS builder
 
 # 일부 native 모듈에 필요
 RUN apk add --no-cache libc6-compat
 
-# corepack으로 pnpm 활성화 (npm i -g 대신 권장 방식)
-# package.json의 packageManager 필드를 자동으로 인식
+# corepack으로 pnpm 활성화 + 버전 pin
+# (latest 사용 시 빌드 시점마다 pnpm 버전이 바뀌어 결과가 흔들리는 문제 방지)
 RUN corepack enable && \
-    corepack prepare pnpm@latest --activate
+    corepack prepare pnpm@10.25.0 --activate
 
 WORKDIR /app
 
@@ -27,18 +28,6 @@ COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* .npmrc* ./
 
 # --frozen-lockfile: lockfile과 package.json 불일치 시 실패 (재현 가능한 빌드)
 RUN pnpm install --frozen-lockfile
-
-# ===== Stage 2: Builder =====
-FROM node:20-alpine AS builder
-
-# corepack 활성화
-RUN corepack enable && \
-    corepack prepare pnpm@latest --activate
-
-WORKDIR /app
-
-# 의존성 복사 (deps 스테이지에서 설치한 것)
-COPY --from=deps /app/node_modules ./node_modules
 
 # 소스 복사
 COPY . .
@@ -52,7 +41,7 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # 빌드 (next.config의 output: 'standalone' 필요)
 RUN pnpm build
 
-# ===== Stage 3: Runner =====
+# ===== Stage 2: Runner =====
 FROM node:20-alpine AS runner
 
 WORKDIR /app

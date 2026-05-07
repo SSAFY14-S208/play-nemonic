@@ -2,15 +2,13 @@ import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AnimationAction, AnimationMixer } from "three";
-
-const FADE_DURATION = 0.2;
-
-const IDLE_ANIMATION = "idle";
-const WALK_ANIMATION = "walk";
-const DANCE_ANIMATION = "dance";
-
-// Ctrl+1~9는 브라우저 탭 전환 단축키로 예약되어 가로챌 수 없음 → KeyD 사용
-const DANCE_KEY_CODE = "KeyD";
+import {
+  DANCE_ANIMATION,
+  DANCE_KEY_CODE,
+  FADE_DURATION,
+  IDLE_ANIMATION,
+  WALK_ANIMATION,
+} from "../constants";
 
 type ActionMap = Record<string, AnimationAction | null>;
 

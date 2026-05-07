@@ -87,9 +87,12 @@ src/
 │           └── use{Section}.ts
 │
 ├── shared/                          # 어느 레이어에서나 쓸 수 있는 공용 자원
-│   ├── apis/                        # 백엔드 API 호출 함수 (도메인별 분리)
+│   ├── apis/                        # 백엔드 API 호출 함수 (도메인별 파일, 개별 export)
 │   │   ├── index.ts
-│   │   └── {domain}Api.ts
+│   │   ├── apiError.ts              # ApiError 클래스 (백엔드 봉투에 묶인 도메인 타입)
+│   │   ├── userApi.ts               # User 도메인 (postAnonymous, patchAnonymousNickname, ...)
+│   │   ├── galleryApi.ts            # Gallery 도메인 (getGalleryList, getGallery, deleteGallery)
+│   │   └── communityApi.ts          # community-controller 도메인 (getCommunity)
 │   ├── assets/                      # 컴포넌트 import용 정적 자산 (svg, glb, mp3)
 │   │   └── {name}.{ext}
 │   ├── components/                  # 자체 구현 공용 UI 컴포넌트 (컴포넌트마다 폴더)
@@ -131,6 +134,7 @@ src/
 │   │   └── {domain}.ts
 │   └── utils/                       # 순수 유틸리티 함수
 │       ├── index.ts
+│       ├── apiUnwrap.ts             # ApiResponse<T> 봉투 해제 헬퍼
 │       └── {name}.ts
 ```
 
@@ -435,6 +439,14 @@ export const runtime = {
 
 **컴포넌트 파일(`*.tsx`)은 렌더링만 담당합니다.** 로직은 반드시 외부 훅 또는 스토어 파일로 분리합니다.
 
+### 컴포넌트 분리와 반복 렌더링
+
+- 같은 컴포넌트가 위치, 라벨, 상태만 바뀌어 반복되면 배열 상수 + `map()`으로 렌더링합니다.
+- 반복 렌더링에는 안정적인 `key`를 사용합니다. 단순 index는 순서 변경 가능성이 없을 때만 허용합니다.
+- 화면 영역이 명확히 나뉘거나 컴포넌트가 비대해지면 영역 단위 자식 컴포넌트로 분리합니다.
+- 자식 컴포넌트가 중간 전달만 하는 구조라도 prop 흐름을 유지하고, 전역 상태는 prop chain이 깊어지거나 다른 feature가 공유할 때 검토합니다.
+- 의미 있는 이미지는 `alt`에 어떤 이미지인지 설명합니다. 순수 장식 이미지만 `alt=""`와 `aria-hidden`을 함께 사용합니다.
+
 ### 컴포넌트 안에 있어도 되는 것
 
 - `isOpen`, `isHovered` 같은 순수 UI 상태 (`useState`)
@@ -545,46 +557,122 @@ worlds/hub/useHubInteraction.ts
 
 ## API 클라이언트 (ky)
 
-`shared/libs/apiClient.ts`에 단일 클라이언트를 정의하고 프로젝트 전체에서 사용합니다.
+이 프로젝트는 Spring 백엔드와 협업합니다. DB를 직접 조작하지 않으며, 모든 데이터는 백엔드 API를 통해서만 접근합니다.
+
+### 인증 모델 — 익명 UUID
+
+JWT/세션 쿠키를 사용하지 않습니다. 서버는 첫 진입 시 `userUuid`를 발급하고, 모든 식별은 다음 두 위치 중 하나로 이뤄집니다.
+
+- **요청 본문(body)** 의 `userUuid` 필드: POST / PUT / PATCH
+- **쿼리 파라미터(query)** 의 `userUuid`: GET / DELETE
+- 일부 엔드포인트는 `userUuid` 불필요 (`POST /users/anonymous`, `GET /community/{id}` 등)
+
+`Authorization` 헤더 / Bearer 토큰 / `localStorage.getItem('token')` 패턴은 다시 도입하지 않습니다. `apiClient`(트랜스포트)는 인증 모델을 모릅니다.
+
+### 계층 분리
+
+```
+shared/libs/apiClient.ts         ← ky 트랜스포트 (인증·봉투 모름)
+shared/utils/apiUnwrap.ts        ← ApiResponse<T> 봉투 해제 헬퍼
+shared/apis/apiError.ts          ← ApiError 클래스 (도메인 타입)
+shared/apis/{domain}Api.ts       ← 엔드포인트 1개당 함수 1개, 개별 export
+shared/stores/userStore.ts       ← Zustand persist — userUuid 단일 출처
+shared/hooks/useUserBootstrap.ts ← 마운트 시 verify/create 호출
+shared/components/UserBootstrap  ← app/layout.tsx에 1회 마운트
+```
+
+### apiClient 트랜스포트
 
 ```ts
 // shared/libs/apiClient.ts
 import ky from "ky";
+import { runtime } from "@/shared/config";
 
-const client = ky.create({
-  prefix: process.env.NEXT_PUBLIC_API_URL, // ky v2: prefixUrl → prefix
-  timeout: 30_000,
-  hooks: {
-    beforeRequest: [
-      ({ request }) => {
-        const token = getToken();
-        if (token) request.headers.set("Authorization", `Bearer ${token}`);
-      },
-    ],
-    afterResponse: [
-      async ({ response }) => {
-        if (response.status === 401) {
-          // 인증 만료 처리
-        }
-        return response;
-      },
-    ],
-  },
-});
+type Query = Record<string, string | number | boolean>;
+
+const client = ky.create({ prefix: `${runtime.apiUrl}/api/v1`, timeout: 30_000 });
 
 export const api = {
-  get: <T>(path: string) => client.get(path).json<T>(),
-  post: <T>(path: string, body: unknown) =>
-    client.post(path, { json: body }).json<T>(),
-  put: <T>(path: string, body: unknown) =>
-    client.put(path, { json: body }).json<T>(),
-  delete: <T>(path: string) => client.delete(path).json<T>(),
+  get:    <T>(path: string, searchParams?: Query) =>
+    client.get(path,    searchParams ? { searchParams } : undefined).json<T>(),
+  post:   <T>(path: string, body?: unknown) =>
+    client.post(path,   body !== undefined ? { json: body } : undefined).json<T>(),
+  put:    <T>(path: string, body?: unknown) =>
+    client.put(path,    body !== undefined ? { json: body } : undefined).json<T>(),
+  patch:  <T>(path: string, body?: unknown) =>
+    client.patch(path,  body !== undefined ? { json: body } : undefined).json<T>(),
+  delete: <T>(path: string, searchParams?: Query) =>
+    client.delete(path, searchParams ? { searchParams } : undefined).json<T>(),
 };
 ```
 
-- 모든 API 호출은 `api.get()`, `api.post()` 등을 통해서만 진행
+- 모든 API 호출은 `api.get/post/put/patch/delete`를 통해서만 진행
 - 서버 컴포넌트에서 Next.js 캐싱(`next: { revalidate }`)이 필요한 경우에만 native `fetch` 직접 사용 허용
-- `process.env` 직접 참조는 feature 코드에서 금지 → `shared/config/`를 통해 접근
+- feature 코드에서 `process.env.X` 직접 참조 금지 → `shared/config/` 경유
+
+### 응답 봉투 + apiUnwrap
+
+서버 응답은 모두 `ApiResponse<T> = { success, message, data, errors? }` 봉투 구조입니다. `apiUnwrap`이 `success === false`를 `ApiError` throw로 변환하고 `data: T`만 반환합니다. `ApiError`는 백엔드 봉투에 묶인 도메인 타입이라 `shared/apis/apiError.ts`에 두고, `apiUnwrap`은 일반 Promise 변환 유틸이라 `shared/utils/apiUnwrap.ts`에 분리되어 있습니다.
+
+```ts
+// shared/apis/userApi.ts
+import { api } from "@/shared/libs";
+import { apiUnwrap } from "@/shared/utils";
+import type { ApiResponse, AnonymousUserResponse } from "@/shared/types";
+
+export const postAnonymous = () =>
+  apiUnwrap(api.post<ApiResponse<AnonymousUserResponse>>("users/anonymous"));
+```
+
+호출 측 catch:
+
+```ts
+import { ApiError } from "@/shared/apis";
+import { HTTPError } from "ky";
+
+try {
+  await patchAnonymousNickname(userUuid, "망고");
+} catch (error) {
+  if (error instanceof ApiError) {
+    setNicknameError(error.errors?.nickname); // 200 + success:false 비즈니스 실패
+  } else if (error instanceof HTTPError) {
+    // 4xx/5xx — ky가 자동 throw
+  }
+}
+```
+
+### 도메인 API 네이밍 규칙
+
+도메인 객체로 묶지 않고 **개별 함수로 export**합니다. 호출 측은 필요한 함수만 import합니다.
+
+`{httpMethod}{ResourcePath}` camelCase. `users/`처럼 도메인 prefix가 자명한 경우 생략하고, 의미가 드러나는 segment부터 PascalCase로 이어 붙입니다.
+
+| HTTP | 경로 | 함수명 |
+| --- | --- | --- |
+| POST | `/users/anonymous` | `postAnonymous` |
+| POST | `/users/anonymous/verify` | `postAnonymousVerify` |
+| POST | `/users/anonymous/birth-info` | `postAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/birth-info` | `patchAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/nickname` | `patchAnonymousNickname` |
+| GET | `/users/anonymous/profile` | `getAnonymousProfile` |
+| GET | `/gallery` (목록) | `getGalleryList` |
+| GET | `/gallery/{galleryId}` (단건) | `getGallery` |
+| DELETE | `/gallery/{galleryId}` | `deleteGallery` |
+| GET | `/community/{communityId}` | `getCommunity` |
+
+- 단건/리스트가 같은 GET에서 갈리면 단건은 단수형(`getGallery`), 리스트는 `List` 접미사(`getGalleryList`).
+- path parameter를 받는 함수는 첫 인자로 그 id를, 그다음 `userUuid` 등 부가 인자를 받습니다.
+
+```ts
+// 호출 측
+import { postAnonymous, getGalleryList, ApiError } from "@/shared/apis";
+```
+
+### 사용자 식별 부트스트랩
+
+- `userUuid`는 `useUserStore`(Zustand `persist` 미들웨어, storage key `nemonic-user`)에서 단일하게 관리됩니다. 별도의 `localStorage` 동기화 코드를 추가로 작성하지 않습니다.
+- 루트 `app/layout.tsx`에 `<UserBootstrap />`(`'use client'`)을 1회 마운트 — `useUserBootstrap`이 persist hydration 후 `postAnonymousVerify` 또는 `postAnonymous`를 호출해 store/스토리지를 동기화합니다.
+- 페이지/feature가 직접 verify/create를 호출하지 않습니다. `useUserStore`에서 `userUuid`를 읽어 도메인 API에 명시 인자로 전달.
 
 ---
 
@@ -708,6 +796,9 @@ useEffect(() => {
 
 - 2D 캔버스 기능에만 사용, `features/` 하위에 `*Stage.tsx` 파일로 배치
 - `Stage > Layer > Shape` 구조 준수
+- `*Stage.tsx`는 `<Stage>`와 최상위 `<Layer>` 조립 중심으로 유지합니다.
+- 그리드, 힌트 영역, 선택 박스, 커서 프리뷰, 도구 오버레이 등 반복/독립 시각 요소는 하위 컴포넌트로 분리합니다.
+- `react-konva` 컴포넌트 파일은 client boundary 밖으로 새지 않게 `'use client'` 또는 `dynamic(..., { ssr: false })` 경계를 확인합니다.
 
 ### CSS 파일 구조
 

@@ -1,0 +1,1 @@
+export { PostItNote } from './PostItNote'

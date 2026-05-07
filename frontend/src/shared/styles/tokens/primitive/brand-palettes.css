@@ -1,0 +1,37 @@
+/* Figma brand palette primitives. Do not reference these directly in components. */
+:root {
+  /* Sketchbook */
+  --p-brand-sketchbook-tint: #f0f6fc;
+  --p-brand-sketchbook-light: #cce0f0;
+  --p-brand-sketchbook-primary: #aacfe8;
+  --p-brand-sketchbook-deep: #5b8db1;
+  --p-brand-sketchbook-ink: #1f3a52;
+
+  /* Fortune */
+  --p-brand-fortune-tint: #f4eefb;
+  --p-brand-fortune-light: #cdb8e6;
+  --p-brand-fortune-primary: #a281d0;
+  --p-brand-fortune-deep: #7553a8;
+  --p-brand-fortune-ink: #3d2659;
+
+  /* Relay Drawing */
+  --p-brand-relay-drawing-tint: #fff7e0;
+  --p-brand-relay-drawing-light: #ffe6a8;
+  --p-brand-relay-drawing-primary: #ffd56f;
+  --p-brand-relay-drawing-deep: #d49b1f;
+  --p-brand-relay-drawing-ink: #5a3d05;
+
+  /* Community Canvas */
+  --p-brand-community-canvas-tint: #eff8e9;
+  --p-brand-community-canvas-light: #c5e6b6;
+  --p-brand-community-canvas-primary: #96d27f;
+  --p-brand-community-canvas-deep: #5ea247;
+  --p-brand-community-canvas-ink: #27451a;
+
+  /* Flipbook */
+  --p-brand-flipbook-tint: #fdecee;
+  --p-brand-flipbook-light: #fbbcc4;
+  --p-brand-flipbook-primary: #f58c97;
+  --p-brand-flipbook-deep: #cf5d68;
+  --p-brand-flipbook-ink: #5e1f25;
+}

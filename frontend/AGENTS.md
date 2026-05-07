@@ -270,6 +270,13 @@ Import rules:
 - Pure UI state: `isOpen`, `isHovered` (useState)
 - Simple UI flow: button click → open modal
 
+**Rendering structure rules:**
+
+- Repeated UI should be rendered from arrays with stable `key`s.
+- Extract repeated item markup and large visual sections into child components.
+- Konva `*Stage.tsx` should own Stage/Layer composition; split shapes, hints, tools, and overlays into child components.
+- Every non-decorative image needs meaningful `alt` text; use `alt=""` only for decorative images with `aria-hidden`.
+
 ```tsx
 // ✅ Correct
 export default function LabelPrinter() {
@@ -341,16 +348,185 @@ export default function Page() {
 
 ## API Calls
 
-This project uses a Spring/NestJS backend. Do NOT access the database directly. All data goes through the backend API.
+Backend: Spring (no DB access from client). All data via REST API.
 
-All HTTP requests go through `shared/libs/apiClient.ts`:
+### Two auth flows — two separate clients
+
+The codebase has two distinct authentication flows. Each has its own ky client. Both flows send their identifier as an **HTTP header**, and domain functions take **no identifier argument** — interceptors inject it from a Zustand store.
+
+| Client | File | Domains | Auth header | Source store |
+| --- | --- | --- | --- | --- |
+| `api` | `shared/libs/apiClient.ts` | user, gallery, community, share, relay, invite, flipbook, file | `Anonymous-User-UUID: {userUuid}` | `useUserStore` (localStorage) |
+| `adminApi` | `shared/libs/adminApiClient.ts` | admins, `auth/logout` | `Authorization: Bearer {accessToken}` | `useAdminAuthStore` (sessionStorage) |
+
+**General user flow — anonymous UUID header:**
+
+The backend issues `userUuid` on first visit. Every subsequent request is identified via the `Anonymous-User-UUID` header. There is no JWT or session cookie.
+
+- The `api` `beforeRequest` hook reads `useUserStore.getState().userUuid` and injects it as `Anonymous-User-UUID` when present.
+- Some endpoints don't need the header (`POST /users/anonymous` runs before issuance so the store is empty; `GET /community/{id}` is public). When the store is null the hook skips injection — no special-casing needed.
+- Domain functions do NOT take `userUuid` as an argument. Body/query never contains a `userUuid` field — the backend reads only the header.
+- Other users' UUIDs (e.g. a kick target's `targetUserUuid`) are domain data, not identity, and stay in the body.
+
+**Backoffice flow — admin Bearer token:**
+
+`auth/*` and `admins/*` require `Authorization: Bearer {accessToken}`. To keep the user-facing transport unaware of this, the backoffice uses a separate ky instance (`adminApi`) with hooks that:
+
+- inject the access token from `useAdminAuthStore` on every request (`beforeRequest`),
+- catch a 401 response, call `auth/reissue` with the stored refresh token, update the store, and retry the original request once (`afterResponse`),
+- de-duplicate concurrent reissue calls so multiple in-flight 401s share a single refresh.
+
+Admin domain functions therefore have **no `accessToken` argument** — the token is injected automatically. `auth/login` and `auth/reissue` must use the regular `api` (calling them with `adminApi` would either lack the token or recurse on 401). Only `auth/logout` uses `adminApi`.
+
+### Three layers
+
+```
+shared/libs/apiClient.ts        ← user-facing ky transport. No auth, no envelope.
+shared/libs/adminApiClient.ts   ← backoffice ky transport. Token auto-inject + 401 reissue retry.
+shared/utils/apiUnwrap.ts       ← ApiResponse<T> unwrap helper.
+shared/apis/apiError.ts         ← ApiError class (domain — bound to backend envelope).
+shared/apis/{domain}Api.ts      ← Individual function exports per endpoint.
+shared/stores/userStore.ts      ← Zustand persist (localStorage) — userUuid.
+shared/stores/adminAuthStore.ts ← Zustand persist (sessionStorage) — admin tokens.
+shared/hooks/useUserBootstrap.ts← Calls postAnonymousVerify → postAnonymous on mount.
+shared/components/UserBootstrap ← Mounted once in app/layout.tsx.
+```
+
+### apiClient transport
 
 ```ts
-import { api } from "@/shared/libs";
+// shared/libs/apiClient.ts
+import ky from "ky";
+import { runtime } from "@/shared/config";
 
-const data = await api.get<User[]>("/users");
-const result = await api.post<Post>("/posts", { title: "..." });
+type Query = Record<string, string | number | boolean>;
+
+const client = ky.create({ prefix: `${runtime.apiUrl}/api/v1`, timeout: 30_000 });
+
+const client = ky.create({
+  prefix: `${runtime.apiUrl}/api/v1`,
+  timeout: 30_000,
+  hooks: {
+    beforeRequest: [({ request }) => {
+      const userUuid = useUserStore.getState().userUuid;
+      if (userUuid) request.headers.set('Anonymous-User-UUID', userUuid);
+    }],
+  },
+});
+
+export const api = { get / post / put / patch / delete / postForm };  // method shapes unchanged
 ```
+
+`PATCH` is a first-class method (used for partial updates like nickname/birth-info). `searchParams` on GET/DELETE is only for pagination/filter — never `userUuid`. `postForm` is for multipart/form-data uploads (e.g. relay submissions).
+
+### adminApiClient — backoffice transport
+
+```ts
+// shared/libs/adminApiClient.ts (essentials)
+const adminClient = ky.create({
+  prefix: `${runtime.apiUrl}/api/v1`,
+  timeout: 30_000,
+  hooks: {
+    beforeRequest: [({ request }) => {
+      const accessToken = useAdminAuthStore.getState().accessToken;
+      if (accessToken) request.headers.set('Authorization', `Bearer ${accessToken}`);
+    }],
+    afterResponse: [async ({ request, response }) => {
+      if (response.status !== 401) return;
+      if (request.url.includes('/auth/reissue')) return; // safety
+      const newAccessToken = await refreshAccessToken();
+      if (!newAccessToken) return;
+      const retry = request.clone();
+      retry.headers.set('Authorization', `Bearer ${newAccessToken}`);
+      return fetch(retry);
+    }],
+  },
+});
+export const adminApi = { /* same shape as api */ };
+```
+
+- Admin domain functions take no `accessToken` argument — `getAdminList()`, `postAdmin(payload)`, `deleteAdmin(adminId)`.
+- Concurrent 401s share a single in-flight reissue (deduped via a module-scoped `pendingReissue` promise).
+- If reissue itself fails the store is cleared. Hooks reading `useAdminAuthStore.accessToken === null` should redirect to the admin login page.
+
+### Choosing a client for a new domain
+
+| Backend OpenAPI security | Client | Identifier arg on domain functions |
+| --- | --- | --- |
+| `Anonymous-User-UUID` header or none | `api` | None — store auto-injects header |
+| `bearerAuth` (admin token) | `adminApi` | None — store auto-injects header |
+| Bootstrap endpoints (`auth/login`, `auth/reissue`) | `api` | None — these have no caller identity yet |
+
+Both clients auto-inject their identifier as a header. Domain functions only take path params and domain data (nicknames, page numbers, *other* users' UUIDs, etc.).
+
+### ApiResponse envelope + apiUnwrap
+
+All backend responses come as `ApiResponse<T> = { success, message, data, errors? }`. `apiUnwrap` converts `success: false` to a thrown `ApiError` and returns `data: T`. ApiError carries the `errors` field-level map for form rendering.
+
+```ts
+// shared/apis/userApi.ts
+import { api } from "@/shared/libs";
+import { apiUnwrap } from "@/shared/utils";
+import type { ApiResponse, AnonymousUserResponse } from "@/shared/types";
+
+export const postAnonymous = () =>
+  apiUnwrap(api.post<ApiResponse<AnonymousUserResponse>>("users/anonymous"));
+```
+
+Catch-side handling (in feature hook):
+
+```ts
+import { ApiError } from "@/shared/apis";
+import { HTTPError } from "ky";
+
+try {
+  await patchAnonymousNickname({ nickname: "망고" });  // userUuid auto-injected as header
+} catch (error) {
+  if (error instanceof ApiError) {
+    setNicknameError(error.errors?.nickname);  // 200 + success:false
+  } else if (error instanceof HTTPError) {
+    // 4xx/5xx
+  }
+}
+```
+
+### Domain API naming — individual exports, never grouped objects
+
+`{httpMethod}{ResourcePath}` camelCase. Domain prefix obvious from context (e.g. `users/`) is dropped. Single resource = singular noun; list = `List` suffix.
+
+| HTTP | Path | Function |
+| --- | --- | --- |
+| POST | `/users/anonymous` | `postAnonymous` |
+| POST | `/users/anonymous/verify` | `postAnonymousVerify` |
+| POST | `/users/anonymous/birth-info` | `postAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/birth-info` | `patchAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/nickname` | `patchAnonymousNickname` |
+| GET | `/users/anonymous/profile` | `getAnonymousProfile` |
+| GET | `/gallery` (list) | `getGalleryList` |
+| GET | `/gallery/{galleryId}` (single) | `getGallery` |
+| DELETE | `/gallery/{galleryId}` | `deleteGallery` |
+| GET | `/community/{communityId}` | `getCommunity` |
+
+Signatures take only path params and domain data — never the caller's identifier. Examples: `getGallery(galleryId)`, `patchRelayRoomSettings(roomCode, timeLimitSeconds)`, `postRelayRoomKick(roomCode, targetUserUuid)`. The caller's `userUuid` / `accessToken` is auto-injected by the client interceptor.
+
+```ts
+import { postAnonymous, getGalleryList } from "@/shared/apis";
+```
+
+Do **not** group these into `userApi.foo()` style objects. Feature hooks import only what they need.
+
+### User identity bootstrap
+
+- `userUuid` lives in `useUserStore` (Zustand `persist` middleware, **localStorage**, key `nemonic-user`). No separate localStorage sync code — persist handles it.
+- Root `app/layout.tsx` mounts `<UserBootstrap />` (`'use client'`). After persist hydration completes, `useUserBootstrap` calls `postAnonymousVerify` (if uuid stored) or `postAnonymous` (cold start), and updates the store.
+- Pages/features must NOT call verify/createAnonymous directly — read `userUuid` from `useUserStore`.
+
+### Admin auth bootstrap
+
+- Admin access/refresh tokens live in `useAdminAuthStore` (Zustand `persist`, **sessionStorage**, key `nemonic-admin-auth`). sessionStorage is intentional — tokens must not survive tab close on shared devices. Do NOT switch to localStorage.
+- Successful login: `postLogin` → `useAdminAuthStore.setTokens(loginResponse)`. The interceptor injects the token from then on.
+- Logout: `postLogout(refreshToken)` → backend blacklist → `useAdminAuthStore.clear()`.
+- `app/admin/layout.tsx` `<AdminAuthGuard>` redirects to `/admin/login` when `useAdminAuthStore.accessToken === null`.
 
 Use native `fetch` directly only in server components for OG metadata generation.
 
@@ -737,6 +913,8 @@ Before completing any task, verify:
 - [ ] New file placed in the correct layer (`app/`, `worlds/`, `features/`, `shared/`)
 - [ ] Filename matches the suffix convention (`{Scene}Loader`, `{Scene}Canvas`, `{Scene}Scene`, `*Page`, `*Modal`, `*Stage`, `*Mesh`, `*Visual`, `use*Interaction`, etc.)
 - [ ] Component file contains no API calls, data transformation, or game logic
+- [ ] Repeated UI is rendered from arrays with stable `key`s, not duplicated JSX
+- [ ] Large visual sections and repeated item markup are extracted into child components
 - [ ] Business logic extracted to `use*.ts` hook
 - [ ] Shared state extracted to `*Store.ts`
 - [ ] `index.ts` barrel updated if a new public export was added
@@ -757,6 +935,18 @@ Before completing any task, verify:
 
 - [ ] Admin features only import from `shared/` — never from normal `features/`
 - [ ] Normal features do not import from `features/admin/`
+- [ ] Backoffice domain APIs (`adminsApi`, `auth/logout`) use `adminApi`, not `api`
+- [ ] Admin domain functions take **no** `accessToken` argument — token is auto-injected from `useAdminAuthStore`
+- [ ] `auth/login` and `auth/reissue` use the regular `api` client (avoid 401 interceptor recursion)
+- [ ] Admin tokens live in `useAdminAuthStore` (sessionStorage) — never `localStorage`, never a custom global var
+
+**API client choice**
+
+- [ ] No `Authorization` / Bearer header injected via the regular `api` client
+- [ ] No new `ky.create(...)` instance in domain files — only `api` and `adminApi` exist
+- [ ] multipart uploads use `api.postForm(...)` (or `adminApi`-equivalent if admin-only)
+- [ ] User-facing domain functions take **no** `userUuid` argument — header is auto-injected from `useUserStore`
+- [ ] No `userUuid` field in body or query — backend reads only the `Anonymous-User-UUID` header. Other users' UUIDs (e.g. `targetUserUuid`) stay in body as domain data
 
 **R3F / Three.js**
 
@@ -783,6 +973,12 @@ Before completing any task, verify:
 - [ ] Conditional class merging uses `cn()` — no template literal string concatenation
 - [ ] Variant components use CVA (`cva()`) — no manual variant switching via conditionals
 - [ ] `app/layout.tsx` imports `@/shared/styles/index.css`
+- [ ] Non-decorative `<Image>` usage has meaningful `alt` text; decorative images use `alt=""` with `aria-hidden`
+
+**Konva / 2D Canvas**
+
+- [ ] `*Stage.tsx` owns `<Stage>` / top-level `<Layer>` composition only
+- [ ] Reusable shapes, hints, guides, cursors, and overlays are split into child components
 
 **Next.js**
 

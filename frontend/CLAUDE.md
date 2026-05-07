@@ -257,6 +257,14 @@ meshRef.current.scale.x = uniformScale * (1 - progress);
 - `isOpen`, `isHovered` 같은 순수 UI 상태
 - 버튼 클릭 → 모달 열기 같은 단순 UI 흐름
 
+### 컴포넌트 분리와 반복 렌더링
+
+- 같은 컴포넌트가 위치, 라벨, 상태만 바뀌어 반복되면 배열 상수 + `map()`으로 렌더링합니다.
+- 반복 렌더링에는 안정적인 `key`를 사용합니다. 단순 index는 순서 변경 가능성이 없을 때만 허용합니다.
+- 화면 영역이 명확히 나뉘거나 컴포넌트가 비대해지면 영역 단위 자식 컴포넌트로 분리합니다.
+- 자식 컴포넌트가 중간 전달만 하는 구조라도 prop 흐름을 유지하고, 전역 상태는 prop chain이 깊어지거나 다른 feature가 공유할 때 검토합니다.
+- 의미 있는 이미지는 `alt`에 어떤 이미지인지 설명합니다. 순수 장식 이미지만 `alt=""`와 `aria-hidden`을 함께 사용합니다.
+
 ```tsx
 // ✅ 올바른 구조
 export default function LabelPrinter() {
@@ -387,47 +395,174 @@ export default function SharePage({ params }) {
 
 ## API 클라이언트 규칙
 
-이 프로젝트는 Spring/NestJS 백엔드와 협업합니다. DB를 직접 조작하지 않으며, 모든 데이터는 백엔드 API를 통해서만 접근합니다.
+이 프로젝트는 Spring 백엔드와 협업합니다. DB를 직접 조작하지 않으며, 모든 데이터는 백엔드 API를 통해서만 접근합니다.
+
+### 인증 모델 — 두 흐름 분리
+
+이 프로젝트에는 **두 가지 인증 흐름**이 있고, 각각 **별도 클라이언트**를 사용합니다. 두 흐름 모두 인증 식별자를 **HTTP 헤더로** 보내며, 도메인 함수는 식별자를 **명시 인자로 받지 않습니다** — 클라이언트 인터셉터가 store에서 읽어 자동 주입합니다.
+
+| 클라이언트 | 위치 | 용도 | 인증 헤더 | 출처 store |
+| --- | --- | --- | --- | --- |
+| `api` | `shared/libs/apiClient.ts` | 일반 사용자 도메인 (user, gallery, community, share, relay, invite, flipbook, file) | `Anonymous-User-UUID: {userUuid}` | `useUserStore` (localStorage) |
+| `adminApi` | `shared/libs/adminApiClient.ts` | 백오피스 도메인 (admins, auth/logout) | `Authorization: Bearer {accessToken}` | `useAdminAuthStore` (sessionStorage) |
+
+**일반 사용자 흐름 — 익명 UUID 헤더:**
+
+JWT/세션 쿠키를 사용하지 않습니다. 서버는 첫 진입 시 `userUuid`를 발급하고, 이후 모든 요청은 `Anonymous-User-UUID` 헤더로 식별됩니다.
+
+- `api`의 `beforeRequest` 훅이 `useUserStore.getState().userUuid`가 존재하면 `Anonymous-User-UUID` 헤더로 자동 주입.
+- 일부 엔드포인트는 식별자가 불필요(`POST /users/anonymous` — 발급 시점이라 store가 비어있음, `GET /community/{id}` 등). 이 경우 store가 null이면 헤더가 추가되지 않으므로 별도 처리 없음.
+- 도메인 함수는 `userUuid`를 인자로 받지 않습니다. body/query에 `userUuid` 필드를 넣지 않습니다 — 백엔드는 헤더만 사용합니다.
+- 다른 사용자의 UUID(예: 강퇴 대상 `targetUserUuid`)는 식별자가 아니라 도메인 데이터이므로 body 필드로 명시 전달.
+
+**백오피스 흐름 — 관리자 Bearer 토큰:**
+
+OpenAPI 명세상 `auth/*`, `admins/*`는 `Authorization: Bearer {accessToken}` 헤더를 요구합니다. 익명 UUID 흐름과 섞이지 않도록 **별도 클라이언트(`adminApi`)** 를 사용합니다.
+
+- 토큰은 `useAdminAuthStore`(Zustand `persist` 미들웨어, **sessionStorage**)에 보관합니다. 일반 사용자 store(`useUserStore`, localStorage)와 분리.
+- `adminApi`의 `beforeRequest` 훅이 store의 access token을 자동으로 헤더에 주입 — 도메인 함수 시그니처에 `accessToken` 인자가 등장하지 않습니다.
+- `adminApi`의 `afterResponse` 훅이 401 응답을 잡아 `auth/reissue` 호출 → 새 토큰으로 store 갱신 → 원본 요청 1회 재시도. 도메인 함수는 토큰 만료 흐름을 신경쓰지 않습니다.
+- `auth/login`, `auth/reissue`는 토큰이 없거나 만료된 상태에서 호출되므로 **일반 `api` 클라이언트**를 사용합니다(인터셉터 재귀 방지). `auth/logout`만 `adminApi`로 호출합니다.
+
+도메인 API는 **객체로 묶지 않고 개별 함수로 export**합니다(아래 네이밍 규칙 참조).
+
+### apiClient 트랜스포트
 
 ```ts
-// shared/libs/apiClient.ts
-import ky from "ky";
-
+// shared/libs/apiClient.ts (요지)
 const client = ky.create({
-  prefix: process.env.NEXT_PUBLIC_API_URL, // ky v2: prefixUrl → prefix
+  prefix: `${runtime.apiUrl}/api/v1`,
   timeout: 30_000,
   hooks: {
     beforeRequest: [
-      (request) => {
-        const token = getToken();
-        if (token) request.headers.set("Authorization", `Bearer ${token}`);
-      },
-    ],
-    afterResponse: [
-      async (_request, _options, response) => {
-        if (response.status === 401) {
-          // 인증 만료 처리
-        }
-        return response;
+      ({ request }) => {
+        const userUuid = useUserStore.getState().userUuid
+        if (userUuid) request.headers.set('Anonymous-User-UUID', userUuid)
       },
     ],
   },
-});
+})
 
 export const api = {
-  get: <T>(path: string) => client.get(path).json<T>(),
-  post: <T>(path: string, body: unknown) =>
-    client.post(path, { json: body }).json<T>(),
-  put: <T>(path: string, body: unknown) =>
-    client.put(path, { json: body }).json<T>(),
-  delete: <T>(path: string) => client.delete(path).json<T>(),
-};
+  get / post / put / patch / delete / postForm  // 메서드 시그니처는 동일
+}
 ```
 
-- 모든 API 호출은 `api.get/post/put/delete`를 통해서만 진행
+- 모든 API 호출은 `api.*` 또는 `adminApi.*`를 통해서만 진행 — 새 ky 인스턴스를 각 도메인 파일에서 만들지 않습니다.
+- multipart/form-data 업로드(릴레이 제출 등)는 `api.postForm`을 사용합니다. 일반 JSON 호출과 섞지 않습니다.
 - 서버 컴포넌트에서 Next.js 캐싱(`next: { revalidate }`)이 필요한 경우에만 native `fetch` 직접 사용 허용
 - `useEffect` 안에서 `fetch`를 직접 호출하는 패턴 금지 → 훅으로 분리
 - feature 코드에서 `process.env.X` 직접 참조 금지 → `shared/config/` 경유
+
+### adminApiClient — 백오피스 전용 트랜스포트
+
+```ts
+// shared/libs/adminApiClient.ts (요지)
+const adminClient = ky.create({
+  prefix: `${runtime.apiUrl}/api/v1`,
+  timeout: 30_000,
+  hooks: {
+    beforeRequest: [
+      ({ request }) => {
+        const accessToken = useAdminAuthStore.getState().accessToken
+        if (accessToken) request.headers.set('Authorization', `Bearer ${accessToken}`)
+      },
+    ],
+    afterResponse: [
+      async ({ request, response }) => {
+        if (response.status !== 401) return
+        if (request.url.includes('/auth/reissue')) return
+        const newAccessToken = await refreshAccessToken() // store의 refreshToken으로 reissue
+        if (!newAccessToken) return
+        const retry = request.clone()
+        retry.headers.set('Authorization', `Bearer ${newAccessToken}`)
+        return fetch(retry)
+      },
+    ],
+  },
+})
+```
+
+- `adminApi`는 `api`와 같은 메서드 셋(`get/post/put/patch/delete`)을 노출. 도메인 함수에서 `api`만 `adminApi`로 바꿔 쓰면 됨.
+- 토큰 자동 주입 / 401 자동 재시도 / reissue 동시 호출 합치기는 모두 클라이언트 인터셉터 책임 — **도메인 함수는 토큰 인자도, refresh 흐름도 모릅니다**.
+- reissue 자체가 401을 받으면 `useAdminAuthStore.clear()` → 다음 요청은 토큰 없이 나가고 401로 실패. 호출 측 훅에서 `useAdminAuthStore.accessToken`이 null인지 체크해 로그인 페이지로 리다이렉트하도록 처리하세요.
+- `auth/login`, `auth/reissue`는 절대 `adminApi`로 호출하지 않습니다(토큰 없는 호출 → 401 → reissue 시도 → 무한루프). 이 두 엔드포인트는 일반 `api`로 호출.
+
+### 새 도메인을 추가할 때 — 클라이언트 선택 기준
+
+| 백엔드 OpenAPI security | 사용 클라이언트 | 도메인 함수 식별자 인자 |
+| --- | --- | --- |
+| `Anonymous-User-UUID` 헤더 또는 무인증 | `api` | 없음 (인터셉터 자동 주입) |
+| `bearerAuth` (관리자 토큰) | `adminApi` | 없음 (인터셉터 자동 주입) |
+| 토큰 없이 호출되어야 하는 인증 부트스트랩(`login`, `reissue`) | `api` | 인자 없음 — 자기 식별자 자체가 없음 |
+
+두 클라이언트 모두 **자기 식별자는 인터셉터가 헤더로 자동 주입**합니다. 도메인 함수가 받는 인자는 path parameter와 도메인 데이터(닉네임, 페이지 번호, 다른 사용자 UUID 등)뿐입니다. 판단이 애매하면 OpenAPI 명세의 `security` 필드와 헤더 요구사항을 확인하세요.
+
+### 도메인 API 계층 — `shared/apis/`
+
+백엔드 OpenAPI tag 1개당 프론트 파일 1개로 매핑합니다. 파일명은 camelCase 컨벤션 그대로(`userApi.ts`, `galleryApi.ts`, `communityApi.ts`).
+
+- 응답은 모두 `ApiResponse<T> = { success, message, data, errors }` 봉투로 옵니다. `apiUnwrap` 헬퍼(`shared/utils/apiUnwrap.ts`)로 `success === false`를 `ApiError` throw로 변환하고 `data: T`만 반환합니다. `ApiError` 클래스는 백엔드 봉투에 묶인 도메인 타입이라 `shared/apis/apiError.ts`에 두고, `apiUnwrap`은 일반 Promise 변환 유틸이라 `shared/utils/`에 분리되어 있습니다.
+- 도메인 함수는 **자기 식별자(`userUuid`/`accessToken`)를 인자로 받지 않습니다.** 클라이언트의 `beforeRequest` 훅이 store에서 자동 주입합니다.
+- 함수가 받는 인자는 (1) path parameter (`galleryId`, `roomCode` 등), (2) body/query 도메인 데이터 (닉네임, 페이지 번호, 다른 사용자 UUID 등) 둘 뿐입니다.
+- **객체로 묶지 않고 개별 함수로 export**합니다.
+
+#### 함수 네이밍 규칙
+
+`{httpMethod}{ResourcePath}` 형태의 camelCase. `users/`처럼 도메인 prefix가 자명한 경우 생략하고, 의미가 드러나는 segment부터 PascalCase로 이어 붙입니다.
+
+| HTTP | 경로 | 함수명 |
+| --- | --- | --- |
+| POST | `/users/anonymous` | `postAnonymous` |
+| POST | `/users/anonymous/verify` | `postAnonymousVerify` |
+| POST | `/users/anonymous/birth-info` | `postAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/birth-info` | `patchAnonymousBirthInfo` |
+| PATCH | `/users/anonymous/nickname` | `patchAnonymousNickname` |
+| GET | `/users/anonymous/profile` | `getAnonymousProfile` |
+| GET | `/gallery` (목록) | `getGalleryList` |
+| GET | `/gallery/{galleryId}` (단건) | `getGallery` |
+| DELETE | `/gallery/{galleryId}` | `deleteGallery` |
+| GET | `/community/{communityId}` | `getCommunity` |
+
+원칙:
+- 단건/리스트가 같은 GET에서 갈리면 단건은 단수형(`getGallery`), 리스트는 `List` 접미사(`getGalleryList`).
+- path parameter를 받는 함수는 첫 인자로 그 id를, 그다음 도메인 데이터(닉네임, 페이지 번호 등) 인자를 받습니다.
+
+```ts
+// shared/apis/userApi.ts (예시)
+export const postAnonymous = () =>
+  apiUnwrap(api.post<ApiResponse<AnonymousUserResponse>>("users/anonymous"));
+// ↑ store 비어있을 때 호출 → 헤더 주입 안 됨 → 신규 발급 받음
+
+export const postAnonymousVerify = () =>
+  apiUnwrap(api.post<ApiResponse<AnonymousUserVerifyResponse>>("users/anonymous/verify"));
+// ↑ store의 stored UUID가 헤더로 자동 주입됨
+
+export const patchAnonymousNickname = (payload: AnonymousUserNicknameRequest) =>
+  apiUnwrap(api.patch<ApiResponse<AnonymousUserNicknameResponse>>("users/anonymous/nickname", payload));
+
+export const getAnonymousProfile = () =>
+  apiUnwrap(api.get<ApiResponse<AnonymousUserProfileResponse>>("users/anonymous/profile"));
+```
+
+호출 측은 필요한 함수만 직접 import합니다.
+
+```ts
+import { postAnonymous, postAnonymousVerify } from "@/shared/apis";
+```
+
+### 사용자 식별 부트스트랩
+
+- `userUuid`는 `useUserStore`(Zustand `persist` 미들웨어, **localStorage**)에서 단일하게 관리됩니다. 별도의 `localStorage` 동기화 코드를 추가로 작성하지 않습니다.
+- 루트 `app/layout.tsx`에 `<UserBootstrap />`(`'use client'`) 1회 마운트 — `useUserBootstrap`이 persist hydration 후 `postAnonymousVerify` 또는 `postAnonymous`를 호출해 store/스토리지를 동기화합니다.
+- 페이지/feature가 직접 verify/create를 호출하지 않습니다.
+
+### 관리자 인증 부트스트랩
+
+- 관리자 access/refresh 토큰은 `useAdminAuthStore`(Zustand `persist` 미들웨어, **sessionStorage**)에서 관리합니다. 디바이스 공유 환경에서 탭 종료 후 잔존하지 않도록 sessionStorage를 의도적으로 선택했습니다 — `localStorage`로 바꾸지 않습니다.
+- 로그인 성공 시 `postLogin` → `useAdminAuthStore.setTokens(loginResponse)`. 이후 모든 admin API 호출은 인터셉터가 토큰을 자동 주입.
+- 로그아웃 시 `postLogout(refreshToken)` → 백엔드 블랙리스트 등록 → `useAdminAuthStore.clear()`.
+- `app/admin/layout.tsx`의 `<AdminAuthGuard>`가 `useAdminAuthStore.accessToken === null`이면 `/admin/login`으로 리다이렉트.
 
 ---
 
@@ -682,6 +817,9 @@ useEffect(() => {
 
 - 2D 캔버스 기능에만 사용, `features/` 하위에 `*Stage.tsx` 파일로 배치
 - `Stage > Layer > Shape` 구조 준수
+- `*Stage.tsx`는 `<Stage>`와 최상위 `<Layer>` 조립 중심으로 유지합니다.
+- 그리드, 힌트 영역, 선택 박스, 커서 프리뷰, 도구 오버레이 등 반복/독립 시각 요소는 하위 컴포넌트로 분리합니다.
+- `react-konva` 컴포넌트 파일은 client boundary 밖으로 새지 않게 `'use client'` 또는 `dynamic(..., { ssr: false })` 경계를 확인합니다.
 
 ### CSS 파일 구조
 
@@ -958,6 +1096,10 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 ## 핵심 금지사항 (반드시 준수)
 
 - `*.tsx`에 API 호출, 데이터 변환, 게임 로직 직접 작성 금지 → 훅/스토어로 분리
+- 반복 UI를 중복 JSX로 나열 금지 → 배열 상수 + `map()` + 안정적인 `key` 사용
+- 비대해진 화면 영역/반복 markup을 한 파일에 계속 누적 금지 → 자식 컴포넌트로 분리
+- 의미 있는 `<Image>`에 빈 `alt` 사용 금지 → 어떤 이미지인지 설명하는 `alt` 작성
+- 장식 이미지가 아닌데 `aria-hidden` 처리 금지
 - `useEffect` 안에서 `fetch` 직접 호출 금지 → 훅으로 분리
 - `{Scene}Canvas.tsx` 외에서 `<Canvas>` 선언 금지
 - `{Scene}Canvas.tsx` 외에서 `<Physics>` 선언 금지
@@ -976,6 +1118,7 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - `TextureLoader` 사용 시 파일마다 `new LoadingManager()` 중복 선언 금지 → 씬 공유 `textureLoader.ts` 싱글턴에서 import
 - `useEffect` 본문에서 `setState` 동기 호출 금지 (React Compiler 오류) → async IIFE 안에서 처리
 - R3F `<Canvas>` 내부에서 `motion.*` 사용 금지
+- Konva `*Stage.tsx`에 shape, 힌트, 가이드, 도구 오버레이를 과도하게 누적 금지 → 하위 컴포넌트로 분리
 - Rapier 도입 후 `groupRef.current.position` 직접 수정 금지 → `setNextKinematicTranslation()` 사용
 - 캐릭터에 `dynamic` RigidBody 사용 금지 → `kinematicPosition` 사용
 - Rapier 사용 시 경계를 `MathUtils.clamp`로 처리 금지 → `fixed` RigidBody + Collider로 처리
@@ -990,3 +1133,17 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - Semantic 토큰 대신 Primitive 토큰 직접 참조 금지 (`bg-cream-50`, `text-brown-720` 등)
 - 타이포그래피에 raw Tailwind font 클래스 직접 조합 금지 → `h1-b`, `body-r` 등 유틸리티 클래스 사용
 - 조건부 클래스 병합 시 `cn()` 없이 문자열 연결 금지 → `cn()` 유틸리티 사용
+- 일반 `api`(익명 사용자 클라이언트)에 `Authorization` 헤더 / Bearer 토큰 주입 금지 → 백오피스 호출은 `adminApi` 사용
+- 일반 사용자 도메인 함수에 `userUuid`를 명시 인자로 받는 패턴 금지 → `useUserStore`에서 인터셉터가 `Anonymous-User-UUID` 헤더로 자동 주입
+- 일반 사용자 도메인 함수의 body/query에 `userUuid` 필드 포함 금지 → 백엔드는 헤더만 사용. 다른 사용자 UUID(`targetUserUuid` 등 도메인 데이터)는 body 필드로 둠
+- 백오피스 도메인 함수에 `accessToken`을 명시 인자로 받는 패턴 금지 → 토큰은 `useAdminAuthStore`에서 인터셉터가 자동 주입
+- `auth/login`, `auth/reissue`를 `adminApi`로 호출 금지 (인터셉터 재귀) → 일반 `api` 사용
+- 관리자 토큰을 `localStorage`에 저장 금지 → `useAdminAuthStore`(sessionStorage) 단일 경로
+- 도메인 파일에서 `ky.create(...)` 새 인스턴스 생성 금지 → `api` 또는 `adminApi`만 사용
+
+## Closed Visual System Exception
+
+- Semantic token rules can be bypassed only when an ADR in `frontend/docs/decisions/` explicitly accepts the feature as a closed visual mock.
+- The exception is scoped to the accepted feature folder only.
+- Other features must not import closed-system colors or typography as reusable design tokens.
+- Current accepted exception: `features/phone` via `0001-phone-closed-visual-mock.md`.

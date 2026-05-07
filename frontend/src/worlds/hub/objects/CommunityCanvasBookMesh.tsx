@@ -2,10 +2,7 @@ import {
   HUB_COMMUNITY_CANVAS_BOOK_POSITION,
   HUB_COMMUNITY_CANVAS_BOOK_ROTATION_Y,
 } from '../constants'
-import {
-  preloadCommunityCanvasBookModel,
-  useCommunityCanvasBookModel,
-} from './hooks'
+import { useCommunityCanvasBookModel } from './hooks'
 
 export default function CommunityCanvasBookMesh() {
   const model = useCommunityCanvasBookModel()
@@ -19,5 +16,3 @@ export default function CommunityCanvasBookMesh() {
     </group>
   )
 }
-
-preloadCommunityCanvasBookModel()

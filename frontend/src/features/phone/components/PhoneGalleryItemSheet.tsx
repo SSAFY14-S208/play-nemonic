@@ -1,0 +1,156 @@
+'use client'
+
+import Image from 'next/image'
+import { ArrowRight, Download, Share2, X } from 'lucide-react'
+import { PHONE_COLORS, PHONE_GALLERY_ITEM_STYLES } from '../constants'
+import type { PhoneGalleryItem } from '../types'
+
+interface PhoneGalleryItemSheetProps {
+  item: PhoneGalleryItem
+  onClose: () => void
+}
+
+function PhoneGalleryPreview({ item }: { item: PhoneGalleryItem }) {
+  const itemStyle = PHONE_GALLERY_ITEM_STYLES[item.kind]
+
+  if (item.imageDataUrl) {
+    return (
+      <Image
+        src={item.imageDataUrl}
+        alt={`${item.title} 미리보기`}
+        fill
+        unoptimized
+        className="object-contain"
+      />
+    )
+  }
+
+  return (
+    <div
+      className="flex h-full w-full items-center justify-center"
+      style={{ background: itemStyle.background }}
+    >
+      <div
+        className="relative grid size-[10.5rem] place-items-center border bg-white"
+        style={{
+          borderColor: `${itemStyle.color}33`,
+          boxShadow: PHONE_COLORS.gallerySheetPreviewShadow,
+        }}
+      >
+        <div
+          aria-hidden
+          className="size-16 rounded-[0.35rem]"
+          style={{ background: itemStyle.color }}
+        />
+        <div className="absolute bottom-5 left-5 right-5 space-y-1.5">
+          {Array.from({ length: 4 }).map((_, lineIndex) => (
+            <span
+              key={`sheet-preview-line-${lineIndex}`}
+              aria-hidden
+              className="block h-1 rounded-full opacity-45"
+              style={{ background: itemStyle.color }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function PhoneGalleryItemSheet({
+  item,
+  onClose,
+}: PhoneGalleryItemSheetProps) {
+  const itemStyle = PHONE_GALLERY_ITEM_STYLES[item.kind]
+
+  return (
+    <div className="absolute inset-0 z-30 flex items-end">
+      <button
+        type="button"
+        aria-label="아이템 상세 닫기"
+        className="absolute inset-0 backdrop-blur-[1px]"
+        onClick={onClose}
+        style={{ background: PHONE_COLORS.gallerySheetBackdrop }}
+      />
+      <section
+        className="relative w-full rounded-t-[1rem] border-t border-border-default px-5 pb-7 pt-3"
+        style={{
+          background: PHONE_COLORS.galleryBackground,
+          boxShadow: PHONE_COLORS.gallerySheetShadow,
+        }}
+      >
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border-default" />
+        <header className="mb-3 flex items-center justify-between">
+          <span
+            className="caption-b inline-flex items-center gap-1.5 rounded-[0.45rem] px-2.5 py-1.5"
+            style={{
+              background: itemStyle.background,
+              color: itemStyle.color,
+            }}
+          >
+            <span
+              aria-hidden
+              className="size-1.5 rounded-full"
+              style={{ background: itemStyle.color }}
+            />
+            {itemStyle.label}
+          </span>
+          <button
+            type="button"
+            aria-label="닫기"
+            onClick={onClose}
+            className="grid size-9 place-items-center rounded-full bg-white text-fg-secondary transition hover:text-fg-primary"
+          >
+            <X className="size-5" />
+          </button>
+        </header>
+
+        <div
+          className="relative mb-4 aspect-square overflow-hidden rounded-[0.45rem] bg-white"
+          style={{ boxShadow: PHONE_COLORS.gallerySheetPreviewShadow }}
+        >
+          <PhoneGalleryPreview item={item} />
+          {item.badgeLabel && (
+            <span className="caption-b absolute left-3 top-3 rounded-[0.35rem] bg-white/90 px-2 py-1 text-fg-primary">
+              {item.badgeLabel}
+            </span>
+          )}
+        </div>
+
+        <h3 className="h3-b text-fg-primary">{item.title}</h3>
+        <p className="caption-r mt-1 text-fg-secondary">
+          {item.createdAtLabel}
+          {item.contributorLabel ? ` · ${item.contributorLabel}` : ''}
+        </p>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle"
+          >
+            <Download className="size-4" />
+            저장
+          </button>
+          <button
+            type="button"
+            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle"
+          >
+            <Share2 className="size-4" />
+            공유
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className="body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary text-fg-inverse transition hover:-translate-y-0.5"
+        >
+          커뮤니티 캔버스에 붙이기
+          <ArrowRight className="size-5" />
+        </button>
+        <p className="caption-r mt-3 text-center text-fg-secondary">
+          월드 캔버스에 메모지로 부착됩니다.
+        </p>
+      </section>
+    </div>
+  )
+}
