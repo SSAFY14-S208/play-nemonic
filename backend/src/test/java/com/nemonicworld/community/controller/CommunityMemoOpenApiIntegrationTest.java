@@ -14,12 +14,16 @@ import org.springframework.test.web.servlet.MockMvc;
 @IntegrationTest
 @AutoConfigureMockMvc
 /**
- * Swagger/OpenAPI 문서에 커뮤니티 메모 목록 조회 API가 노출되는지 검증합니다.
+ * Swagger/OpenAPI 문서에 커뮤니티 메모 조회 API가 노출되는지 검증합니다.
  */
 class CommunityMemoOpenApiIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    private static final String DETAIL_HEADER_REQUIRED_JSON_PATH = """
+        $.paths['/api/v1/community/memos/{memoId}'].get.parameters[?(@.name == 'Anonymous-User-UUID')].required
+        """.trim();
 
     /**
      * /v3/api-docs 응답에 GET /api/v1/community/memos 문서 정보가 포함되는지 확인합니다.
@@ -37,5 +41,27 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.responses['200'].description")
                 .value("커뮤니티 메모 목록 조회 성공"))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.responses['400'].description").value("잘못된 요청"));
+    }
+
+    /**
+     * /v3/api-docs 응답에 GET /api/v1/community/memos/{memoId} 문서 정보가 포함되는지 확인합니다.
+     */
+    @Test
+    void communityMemoDetailApiIsExposedInOpenApiDocs() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.summary").value("커뮤니티 메모 상세 조회"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.parameters[*].name")
+                .value(hasItems("memoId", "Anonymous-User-UUID")))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.parameters[?(@.name == 'memoId')].required")
+                    .value(hasItems(true)))
+            .andExpect(jsonPath(DETAIL_HEADER_REQUIRED_JSON_PATH).value(hasItems(false)))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.responses['200'].description")
+                .value("커뮤니티 메모 상세 조회 성공"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.responses['400'].description")
+                .value("잘못된 요청"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.responses['404'].description")
+                .value("존재하지 않는 커뮤니티 메모"));
     }
 }
