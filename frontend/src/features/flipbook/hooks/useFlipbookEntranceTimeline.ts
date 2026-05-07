@@ -45,10 +45,10 @@ export function useFlipbookEntranceTimeline(
     )
   })
 
-  const frameOpacity = useTransform(smoothProgress, [0, 0.05, 0.82, 0.95], [0, 1, 1, 0.26])
-  const frameScale = useTransform(smoothProgress, [0, 0.18, 0.6, 0.8, 0.95], [0.38, 0.72, 1.04, 1.36, 1.74])
-  const frameY = useTransform(smoothProgress, [0, 0.18, 0.72, 0.95], [96, 0, -20, -92])
-  const frameRotate = useTransform(smoothProgress, [0, 0.18, 0.78, 0.95], [-3, 0, 0, 2])
+  const frameOpacity = useTransform(smoothProgress, [0, 0.82, 0.95], [1, 1, 0.26])
+  const frameScale = useTransform(smoothProgress, [0, 0.18, 0.6, 0.8, 0.95], [0.8, 0.82, 1.04, 1.36, 1.74])
+  const frameY = useTransform(smoothProgress, [0, 0.72, 0.95], [0, -20, -92])
+  const frameRotate = useTransform(smoothProgress, [0, 0.78, 0.95], [0, 0, 2])
 
   const actionOpacity = useTransform(smoothProgress, [0.82, 0.92], [0, 1])
   const actionY = useTransform(smoothProgress, [0.82, 0.94], [34, 0])

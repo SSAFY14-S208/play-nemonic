@@ -38,8 +38,9 @@ export default function FlipbookEntranceView({
   const activeEntranceFrame =
     FLIPBOOK_ENTRANCE_FRAMES[timeline.activeFrameIndex] ?? FLIPBOOK_ENTRANCE_FRAMES.at(-1)
 
+    //svh 범위 260~340(클수록 느림)
   return (
-    <section ref={sectionRef} className="relative h-[420svh] bg-flipbook-background text-flipbook-ink">
+    <section ref={sectionRef} className="relative h-[260svh] bg-flipbook-background text-flipbook-ink">
       <div className="sticky top-0 grid h-[100svh] min-h-[620px] overflow-hidden px-5 py-8">
         <div className="relative grid h-full place-items-center">
           <motion.div
