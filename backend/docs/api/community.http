@@ -1,7 +1,8 @@
 @host = http://localhost:8080
 @anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
 @memoId = 3f22df4f-b187-42dd-81f3-d9f2fa5ce001
-@fileId = 550e8400-e29b-41d4-a716-446655440000
+@originalFileId = 550e8400-e29b-41d4-a716-446655440000
+@thumbnailFileId = 660e8400-e29b-41d4-a716-446655440000
 
 ### Get community memos
 GET {{host}}/api/v1/community/memos
@@ -28,36 +29,52 @@ GET {{host}}/api/v1/community/memos/not-a-uuid
 GET {{host}}/api/v1/community/memos/{{memoId}}
 Anonymous-User-UUID: not-a-uuid
 
-### Create community memo from direct upload
+### Create community memo from final rendered direct snapshot
 POST {{host}}/api/v1/community/memos
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "sourceType": "DIRECT",
-  "fileId": "{{fileId}}",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
   "positionX": 0.0,
   "positionY": 0.0,
   "zIndex": 1,
   "rotationDeg": 0.0,
   "decoration": {
-    "scale": 1.0,
-    "theme": "default"
-  }
+    "layers": []
+  },
+  "clientText": "텍스트박스 원문"
 }
 
-### Create community memo from direct upload - no decoration
+### Create community memo from final rendered direct snapshot - no decoration
 POST {{host}}/api/v1/community/memos
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "sourceType": "DIRECT",
-  "fileId": "{{fileId}}",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
   "positionX": 12.5,
   "positionY": -7.25,
   "zIndex": 10,
   "rotationDeg": 5.5
+}
+
+### Create community memo - missing thumbnail file
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "sourceType": "DIRECT",
+  "originalFileId": "{{originalFileId}}",
+  "positionX": 0.0,
+  "positionY": 0.0,
+  "zIndex": 1,
+  "rotationDeg": 0.0
 }
 
 ### Create community memo - invalid anonymous user UUID
@@ -67,7 +84,8 @@ Anonymous-User-UUID: not-a-uuid
 
 {
   "sourceType": "DIRECT",
-  "fileId": "{{fileId}}",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
   "positionX": 0.0,
   "positionY": 0.0,
   "zIndex": 1,
@@ -81,7 +99,9 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
   "sourceType": "GALLERY",
-  "galleryId": "8d25f3a5-3c5a-4f21-9f54-68fa4a402011",
+  "sourceGalleryId": "8d25f3a5-3c5a-4f21-9f54-68fa4a402011",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
   "positionX": 0.0,
   "positionY": 0.0,
   "zIndex": 1,
