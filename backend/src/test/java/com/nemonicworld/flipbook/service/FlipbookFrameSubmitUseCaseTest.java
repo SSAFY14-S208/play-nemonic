@@ -181,6 +181,30 @@ class FlipbookFrameSubmitUseCaseTest {
     }
 
     /**
+     * 자동 제출 처리된 프레임은 사용자가 다시 수동 제출할 수 없습니다.
+     */
+    @Test
+    void submitFrameRejectsAutoSubmittedAssignment() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        UUID fileId = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FileUpload fileUpload = uploadedFile(fileId, hostUuid, FileUploadPurpose.FLIPBOOK);
+        FlipbookRoomState roomState = playingRoomState(hostUuid, participantUuid, 1, 2, List.of(assignment(0, 0, 1,
+            hostUuid, FlipbookFrameAssignmentStatus.AUTO_SUBMITTED, null, null, LocalDateTime.now().minusSeconds(3))));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(fileUploadRepository.findById(fileId)).willReturn(Optional.of(fileUpload));
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> flipbookFrameSubmitUseCase.submitFrame(hostUuid.toString(), ROOM_CODE, 1,
+            new FlipbookFrameSubmitRequest(0, 0, fileId.toString()))).isInstanceOf(ConflictException.class)
+            .hasMessage("이미 자동 제출 처리되었습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    /**
      * 다른 사용자가 업로드한 fileId는 제출에 사용할 수 없습니다.
      */
     @Test

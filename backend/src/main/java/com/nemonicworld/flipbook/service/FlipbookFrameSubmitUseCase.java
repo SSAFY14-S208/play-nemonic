@@ -75,8 +75,14 @@ public class FlipbookFrameSubmitUseCase {
 
             Optional<FlipbookFrameAssignment> requestedAssignment = findRequestedAssignment(roomState, viewerUserUuid,
                 round, request.flipbookIndex(), request.frameIndex());
-            if (requestedAssignment.isPresent() && isSubmitted(requestedAssignment.get())) {
-                return createResponse(roomState, requestedAssignment.get(), true, participant);
+            if (requestedAssignment.isPresent()) {
+                FlipbookFrameAssignment assignment = requestedAssignment.get();
+                if (assignment.status() == FlipbookFrameAssignmentStatus.SUBMITTED) {
+                    return createResponse(roomState, assignment, true, participant);
+                }
+                if (assignment.status() == FlipbookFrameAssignmentStatus.AUTO_SUBMITTED || assignment.autoSubmitted()) {
+                    throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
+                }
             }
 
             FlipbookFrameAssignment currentAssignment = flipbookRoomPolicy.requireCurrentAssignment(roomState,
