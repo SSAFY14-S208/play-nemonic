@@ -12,6 +12,8 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.user.entity.AppUser;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +33,7 @@ public class FlipbookRoomPolicy {
     static final int MIN_FRAMES_PER_FLIPBOOK = 8;
     static final int HOST_JOIN_ORDER = 0;
     static final int ROOM_UPDATE_MAX_RETRIES = 3;
+    static final long DEFAULT_RECONNECT_GRACE_SECONDS = 10L;
     static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
     static final String ROOM_CONNECTION_UPDATE_CONFLICT_MESSAGE = "동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 "
         + "갱신하지 못했습니다. 다시 시도해주세요.";
@@ -38,6 +41,7 @@ public class FlipbookRoomPolicy {
     static final String ROOM_START_UPDATE_CONFLICT_MESSAGE = "동시 게임 시작 요청이 많아 플립북 방 시작 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
 
     private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
+    private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(DEFAULT_RECONNECT_GRACE_SECONDS);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
@@ -56,6 +60,7 @@ public class FlipbookRoomPolicy {
     private static final String SELF_KICK_NOT_ALLOWED_MESSAGE = "자기 자신은 강퇴할 수 없습니다.";
     private static final String HOST_KICK_NOT_ALLOWED_MESSAGE = "방장은 강퇴할 수 없습니다.";
     private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
+    private static final String RECONNECT_EXPIRED_MESSAGE = "재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.";
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final FlipbookRoomRepository flipbookRoomRepository;
@@ -263,6 +268,49 @@ public class FlipbookRoomPolicy {
      */
     public boolean isKicked(FlipbookRoomState roomState, String userUuid) {
         return roomState.kickedUserUuids().contains(userUuid);
+    }
+
+    /**
+     * 재접속 유예 시간 검사가 필요한 방 상태인지 판단합니다.
+     */
+    public boolean requiresReconnectGrace(FlipbookRoomState roomState) {
+        return roomState.status() == FlipbookRoomStatus.PLAYING;
+    }
+
+    /**
+     * 끊겼던 참여자가 아직 재접속 가능한 시간 안에 있는지 계산합니다.
+     */
+    public boolean canReconnect(FlipbookRoomParticipant participant, LocalDateTime now) {
+        LocalDateTime disconnectedAt = participant.disconnectedAt();
+
+        if (disconnectedAt == null) {
+            return false;
+        }
+
+        return !disconnectedAt.plus(RECONNECT_GRACE_PERIOD).isBefore(now);
+    }
+
+    /**
+     * 재접속 가능 시간이 지난 참여자의 invite 재입장과 WebSocket 재연결을 막습니다.
+     */
+    public void requireReconnectable(FlipbookRoomParticipant participant, LocalDateTime now) {
+        if (!canReconnect(participant, now)) {
+            throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
+        }
+    }
+
+    /**
+     * 기존 참여자가 방에 다시 들어오려고 할 때 재접속 유예 시간 정책을 검증합니다.
+     */
+    public void validateExistingParticipantReturn(FlipbookRoomState roomState, FlipbookRoomParticipant participant,
+        LocalDateTime now) {
+        if (participant.connected()) {
+            return;
+        }
+
+        if (participant.disconnectedAt() != null && requiresReconnectGrace(roomState)) {
+            requireReconnectable(participant, now);
+        }
     }
 
     /**

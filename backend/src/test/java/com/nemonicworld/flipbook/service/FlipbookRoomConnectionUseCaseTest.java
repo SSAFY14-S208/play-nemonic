@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -132,6 +133,26 @@ class FlipbookRoomConnectionUseCaseTest {
     }
 
     /**
+     * 게임 중 끊긴 참여자는 10초 재접속 유예 시간이 지나면 WebSocket 재연결이 거부됩니다.
+     */
+    @Test
+    void connectRoomRejectsReconnectAfterGracePeriod() {
+        UUID userUuid = UUID.randomUUID();
+        AppUser user = appUserWithNickname(userUuid, "망고");
+        FlipbookRoomState roomState = roomState(FlipbookRoomStatus.PLAYING,
+            disconnectedParticipant(userUuid, "망고", true, 11));
+        given(anonymousUserResolver.resolve(userUuid.toString())).willReturn(user);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> flipbookRoomConnectionUseCase.connectRoom(userUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(flipbookInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
+    /**
      * 강퇴된 UUID의 WebSocket 재연결은 participant 연결 갱신 전에 거부합니다.
      */
     @Test
@@ -149,15 +170,26 @@ class FlipbookRoomConnectionUseCaseTest {
     }
 
     private FlipbookRoomState roomState(FlipbookRoomParticipant participant) {
+        return roomState(FlipbookRoomStatus.WAITING, participant);
+    }
+
+    private FlipbookRoomState roomState(FlipbookRoomStatus status, FlipbookRoomParticipant participant) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
-        return new FlipbookRoomState(ROOM_CODE, FlipbookRoomStatus.WAITING, participant.userUuid(), 45, 2, 6,
-            List.of(participant), now, now);
+        return new FlipbookRoomState(ROOM_CODE, status, participant.userUuid(), 45, 2, 6, List.of(participant), now,
+            now);
     }
 
     private FlipbookRoomParticipant participant(UUID userUuid, String nickname, boolean host, boolean connected) {
         return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, 0, connected,
             connected ? null : LocalDateTime.now().minusSeconds(5).truncatedTo(ChronoUnit.SECONDS),
+            LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private FlipbookRoomParticipant disconnectedParticipant(UUID userUuid, String nickname, boolean host,
+        int disconnectedSecondsAgo) {
+        return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, 0, false,
+            LocalDateTime.now().minusSeconds(disconnectedSecondsAgo).truncatedTo(ChronoUnit.SECONDS),
             LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
     }
 

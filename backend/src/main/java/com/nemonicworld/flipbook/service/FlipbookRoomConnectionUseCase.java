@@ -59,12 +59,19 @@ public class FlipbookRoomConnectionUseCase {
 
             // ws 접속할 수 있는 상태인지 (대기방, 플레이 중)
             flipbookRoomPolicy.validateWebSocketConnectableRoom(roomState);
-            flipbookRoomPolicy.validateNotKicked(roomState, viewerUserUuid);
+
+            if (connected) {
+                flipbookRoomPolicy.validateNotKicked(roomState, viewerUserUuid);
+            }
 
             // WebSocket 연결 대상 참여자를 조회
             FlipbookRoomParticipant participant = flipbookRoomPolicy.requireConnectionParticipant(roomState,
                 viewerUserUuid);
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+            if (connected) {
+                flipbookRoomPolicy.validateExistingParticipantReturn(roomState, participant, now);
+            }
 
             // 해당 사용자의 connected 상태 업데이트
             FlipbookRoomParticipant updatedParticipant = new FlipbookRoomParticipant(participant.userUuid(),
