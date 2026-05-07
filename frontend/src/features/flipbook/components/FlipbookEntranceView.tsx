@@ -1,10 +1,8 @@
 'use client'
 
-import { useRef, type ReactNode } from 'react'
+import { useRef } from 'react'
 import Image from 'next/image'
 import { motion } from 'motion/react'
-import { ArrowRight, BookOpen, DoorOpen, Sparkles } from 'lucide-react'
-import { cn } from '@/shared/libs'
 import { useFlipbookEntranceTimeline } from '../hooks'
 
 interface FlipbookEntranceViewProps {
@@ -26,6 +24,10 @@ const FLIPBOOK_BACKGROUND_IMAGES = {
   dots: '/images/flipbook-background/dots.png',
   crayon: '/images/flipbook-background/crayon-corners.png',
 }
+const FLIPBOOK_BUTTON_IMAGES = {
+  createRoom: '/images/flipbook-buttons/create-room.png',
+  enterRoom: '/images/flipbook-buttons/enter-room.png',
+}
 
 export default function FlipbookEntranceView({
   onCreateRoom,
@@ -43,6 +45,21 @@ export default function FlipbookEntranceView({
         <FlipbookEntranceBackground timeline={timeline} />
         <div className="relative z-10 grid h-full place-items-center px-5 py-8">
           <motion.div
+            className="absolute inset-x-0 top-[max(3svh,18px)] z-20 mx-auto flex justify-center px-5"
+            style={{
+              opacity: timeline.actionOpacity,
+              y: timeline.actionY,
+            }}
+          >
+            <h1
+              className="h1-b text-flipbook-ink drop-shadow-[0_5px_0_rgba(251,188,196,0.62)]"
+              style={{ fontSize: '62px', lineHeight: 1.02 }}
+            >
+              플립북
+            </h1>
+          </motion.div>
+
+          <motion.div
             className="relative z-10 aspect-[626/480] w-[min(82vw,626px)]"
             style={{
               opacity: timeline.frameOpacity,
@@ -52,15 +69,7 @@ export default function FlipbookEntranceView({
               transformOrigin: 'center center',
             }}
           >
-            <div
-              aria-hidden
-              className="absolute inset-0 -translate-x-3 -translate-y-3 rounded-[18px] bg-flipbook-light/55 shadow-[0_18px_32px_var(--color-flipbook-shadow)]"
-            />
-            <div
-              aria-hidden
-              className="absolute inset-0 -translate-x-1.5 -translate-y-1.5 rounded-[18px] bg-flipbook-result-soft shadow-[0_14px_26px_var(--color-flipbook-shadow)]"
-            />
-            <div className="absolute inset-0 overflow-hidden rounded-[18px] bg-flipbook-paper shadow-[0_22px_48px_var(--color-flipbook-shadow)]">
+            <div className="absolute inset-0 overflow-hidden rounded-[8px] border border-[rgb(223_205_161_/_54%)] bg-[rgb(255_250_224)] shadow-[0_16px_26px_rgb(94_31_37_/_16%),0_2px_0_rgb(255_255_255_/_75%)_inset]">
               {activeEntranceFrame && (
                 <Image
                   src={activeEntranceFrame.src}
@@ -76,7 +85,7 @@ export default function FlipbookEntranceView({
             <motion.div
               key={`blank-paper-flight-${timeline.activeFrameIndex}`}
               aria-hidden
-              className="absolute inset-0 origin-top-left rounded-[18px] bg-flipbook-paper shadow-[0_18px_34px_rgb(94_31_37_/_20%)]"
+              className="absolute inset-0 origin-top-left rounded-[8px] bg-[rgb(255_250_224)] shadow-[0_12px_24px_rgb(94_31_37_/_14%)]"
               initial={{
                 opacity: timeline.activeFrameIndex === 0 ? 0 : 0.92,
                 x: 0,
@@ -100,40 +109,22 @@ export default function FlipbookEntranceView({
           </motion.div>
 
           <motion.div
-            className="absolute inset-x-0 top-[5.5svh] z-20 mx-auto flex w-full max-w-[1180px] flex-col items-center px-4 text-center"
+            className="absolute inset-x-0 bottom-[max(3.5svh,18px)] z-20 mx-auto grid w-full max-w-[680px] grid-cols-2 items-center gap-4 px-5 sm:gap-6"
             style={{
               opacity: timeline.actionOpacity,
               y: timeline.actionY,
             }}
           >
-            <div className="relative z-10">
-                <Sparkles
-                  className="absolute -right-8 top-0 size-5 rotate-12 text-flipbook-primary"
-                  aria-hidden
-                />
-                <h1
-                  className="h1-b text-flipbook-ink drop-shadow-[0_5px_0_rgba(251,188,196,0.62)]"
-                  style={{ fontSize: '62px', lineHeight: 1.02 }}
-                >
-                  플립북
-                </h1>
-            </div>
-
-            <div className="relative z-20 mt-7 grid w-full max-w-[820px] items-start gap-5 sm:grid-cols-2">
-              <FlipbookEntranceActionButton
-                icon={<BookOpen className="size-5" aria-hidden />}
-                label="방 만들기"
-                variant="primary"
-                onClick={onCreateRoom}
-              />
-              <FlipbookEntranceActionButton
-                icon={<DoorOpen className="size-5" aria-hidden />}
-                label="방 입장"
-                variant="secondary"
-                onClick={onEnterRoom}
-              />
-            </div>
-
+            <FlipbookEntranceImageButton
+              imageSrc={FLIPBOOK_BUTTON_IMAGES.createRoom}
+              label="방 만들기"
+              onClick={onCreateRoom}
+            />
+            <FlipbookEntranceImageButton
+              imageSrc={FLIPBOOK_BUTTON_IMAGES.enterRoom}
+              label="입장하기"
+              onClick={onEnterRoom}
+            />
           </motion.div>
         </div>
       </div>
@@ -197,64 +188,34 @@ function FlipbookEntranceBackground({
   )
 }
 
-function FlipbookEntranceActionButton({
-  icon,
+function FlipbookEntranceImageButton({
+  imageSrc,
   label,
-  variant,
   onClick,
 }: {
-  icon: ReactNode
+  imageSrc: string
   label: string
-  variant: 'primary' | 'secondary'
   onClick: () => void
 }) {
   return (
     <motion.button
       type="button"
       onClick={onClick}
-      whileHover={{ y: -5, scale: 1.025 }}
+      aria-label={label}
+      whileHover={{ y: -4, scale: 1.025 }}
       whileTap={{ y: 1, scale: 0.985 }}
-      className={cn(
-        'group relative inline-flex min-h-[86px] items-center justify-between overflow-hidden rounded-[18px] border-[3px] px-5 text-left shadow-[0_12px_0_rgb(94_31_37_/_18%),0_20px_34px_var(--color-flipbook-shadow)] transition-colors',
-        'h-[86px] self-start',
-        variant === 'primary' &&
-          'border-flipbook-ink bg-flipbook-paper text-flipbook-ink',
-        variant === 'secondary' &&
-          'border-flipbook-ink bg-flipbook-paper text-flipbook-ink',
-      )}
+      className="relative aspect-[649/255] w-full overflow-hidden rounded-[18px] transition-transform focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary"
     >
-      <span
-        aria-hidden
-        className={cn(
-          'absolute inset-x-0 bottom-0 h-2 transition-transform group-hover:scale-x-100',
-          variant === 'primary' && 'bg-flipbook-primary',
-          variant === 'secondary' && 'bg-flipbook-light',
-        )}
+      <Image
+        src={imageSrc}
+        alt={label}
+        fill
+        sizes="(max-width: 640px) 42vw, 320px"
+        className="object-contain"
       />
-      <span
-        aria-hidden
-        className="absolute left-4 top-4 size-2 rounded-full bg-flipbook-light"
-      />
-      <span
-        aria-hidden
-        className="absolute right-4 top-4 size-2 rounded-full bg-flipbook-light"
-      />
-      <span className="flex items-center gap-4">
-        <span
-          className={cn(
-            'grid size-12 place-items-center rounded-[14px] border-2 border-flipbook-ink shadow-[inset_0_-4px_0_rgb(94_31_37_/_12%)]',
-            variant === 'primary' && 'bg-flipbook-primary',
-            variant === 'secondary' && 'bg-flipbook-result-soft',
-          )}
-        >
-          {icon}
-        </span>
-        <span className="body-l-b text-flipbook-ink">{label}</span>
+      <span className="h3-b pointer-events-none absolute left-[30%] right-[20%] top-1/2 -translate-y-1/2 text-center text-flipbook-ink drop-shadow-[0_2px_0_rgb(255_255_255_/_80%)] max-sm:text-[14px]">
+        {label}
       </span>
-      <ArrowRight
-        className="size-5 text-flipbook-muted transition-transform group-hover:translate-x-1 group-hover:text-flipbook-ink"
-        aria-hidden
-      />
     </motion.button>
   )
 }
