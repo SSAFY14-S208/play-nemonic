@@ -53,6 +53,10 @@ public class RelayRoomViewerFactory {
             return new RelayRoomViewerResponse(viewerUserUuid, true, host, false, false, null);
         }
 
+        if (relayRoomPolicy.allowsReconnectWithoutGrace(roomState)) {
+            return new RelayRoomViewerResponse(viewerUserUuid, true, host, false, true, null);
+        }
+
         if (relayRoomPolicy.canReconnect(participant, now)) {
             return new RelayRoomViewerResponse(viewerUserUuid, true, host, false, true, null);
         }

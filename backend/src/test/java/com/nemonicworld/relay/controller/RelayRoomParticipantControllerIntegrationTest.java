@@ -186,6 +186,24 @@ class RelayRoomParticipantControllerIntegrationTest {
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
     }
 
+    @Test
+    void joinRelayRoomAllowsWaitingParticipantAfterGracePeriodUntilWebSocketConnect() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("망고");
+        RelayRoomParticipant disconnectedParticipant = participant(hostUuid, "망고", true, 0, false,
+            LocalDateTime.now().minusSeconds(20).truncatedTo(ChronoUnit.SECONDS));
+        storeRoom(DEFAULT_ROOM_CODE, createRoomState(RelayRoomStatus.WAITING, disconnectedParticipant));
+
+        mockMvc
+            .perform(post("/api/v1/relay/rooms/{roomCode}/participants", DEFAULT_ROOM_CODE)
+                .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.viewer.participant").value(true))
+            .andExpect(jsonPath("$.data.viewer.canReconnect").value(true))
+            .andExpect(jsonPath("$.data.viewer.blockedReason").doesNotExist())
+            .andExpect(jsonPath("$.data.participants[0].connected").value(false));
+
+        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
+    }
+
     /**
      * 재접속 유예 시간이 지나면 자동 제출 처리로 보고 Redis 상태를 변경하지 않습니다.
      */

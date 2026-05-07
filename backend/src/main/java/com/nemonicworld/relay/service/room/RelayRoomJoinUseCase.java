@@ -85,7 +85,7 @@ public class RelayRoomJoinUseCase {
             return Optional.of(RelayRoomStateResponse.from(roomState, viewer));
         }
 
-        if (participant.disconnectedAt() != null) {
+        if (participant.disconnectedAt() != null && relayRoomPolicy.requiresReconnectGrace(roomState)) {
             relayRoomPolicy.requireReconnectable(participant, now);
         }
 

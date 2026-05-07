@@ -72,7 +72,8 @@ public class RelayRoomConnectionUseCase {
             if (connected) {
                 relayRoomPolicy.validateNotKicked(roomState, viewerUserUuid);
                 relayRoomPolicy.validateNotDropped(roomState, viewerUserUuid);
-                if (!participant.connected() && participant.disconnectedAt() != null) {
+                if (!participant.connected() && participant.disconnectedAt() != null
+                    && relayRoomPolicy.requiresReconnectGrace(roomState)) {
                     relayRoomPolicy.requireReconnectable(participant, now);
                 }
             }

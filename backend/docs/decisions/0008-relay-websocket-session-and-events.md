@@ -48,7 +48,10 @@ REST room membership. Room creation, room join, and REST reconnect keep
 participants registered with `connected=false`; a successful `/ws/relay` STOMP
 CONNECT is the only path that sets the participant to `connected=true`.
 DISCONNECT sets it back to `connected=false` and records `disconnectedAt` for
-the reconnect grace flow.
+the reconnect flow. The 10-second reconnect grace limit applies only after the
+game enters `PLAYING`; in `WAITING`, disconnected registered participants may
+REST re-enter and WebSocket reconnect without a grace-time cutoff unless they
+were kicked.
 
 The game start command requires every participant to have `connected=true`.
 Publish relay room events only after the corresponding Redis CAS save succeeds.

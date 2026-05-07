@@ -62,7 +62,8 @@ POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Reconnect relay room
-# REST reconnect validates eligibility but keeps connected=false until WebSocket CONNECT.
+# REST reconnect keeps connected=false until WebSocket CONNECT.
+# WAITING rooms have no reconnect grace cutoff; PLAYING rooms keep the 10-second cutoff.
 POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
 Anonymous-User-UUID: {{anonymousUserUuid}}
 

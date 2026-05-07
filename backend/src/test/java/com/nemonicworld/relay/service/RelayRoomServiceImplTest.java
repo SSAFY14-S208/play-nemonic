@@ -451,6 +451,45 @@ class RelayRoomServiceImplTest {
         assertThat(storedParticipant.joinOrder()).isZero();
     }
 
+    @Test
+    void connectRoomAllowsWaitingParticipantAfterGracePeriod() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomParticipant disconnectedParticipant = participant(hostUuid, "망고", true, 0, false,
+            LocalDateTime.now().minusSeconds(20).truncatedTo(ChronoUnit.SECONDS));
+        RelayRoomState roomState = roomState(RelayRoomStatus.WAITING, disconnectedParticipant);
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomStateResponse response = relayRoomService.connectRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.participants().get(0).connected()).isTrue();
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomParticipant storedParticipant = updatedStateCaptor.getValue().participants().get(0);
+        assertThat(storedParticipant.connected()).isTrue();
+        assertThat(storedParticipant.disconnectedAt()).isNull();
+    }
+
+    @Test
+    void connectRoomRejectsPlayingParticipantAfterGracePeriod() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomParticipant disconnectedParticipant = participant(hostUuid, "망고", true, 0, false,
+            LocalDateTime.now().minusSeconds(20).truncatedTo(ChronoUnit.SECONDS));
+        RelayRoomState roomState = roomState(RelayRoomStatus.PLAYING, disconnectedParticipant);
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> relayRoomService.connectRoom(hostUuid.toString(), ROOM_CODE))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
+    }
+
     /**
      * WebSocket 연결 해제 시 기존 participant를 connected=false와 현재 disconnectedAt으로 갱신합니다.
      */

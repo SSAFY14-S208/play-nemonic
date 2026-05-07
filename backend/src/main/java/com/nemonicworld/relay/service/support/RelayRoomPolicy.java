@@ -393,6 +393,20 @@ public class RelayRoomPolicy {
     }
 
     /**
+     * 재접속 유예 시간 검사가 필요한 방 상태인지 판단합니다.
+     */
+    public boolean requiresReconnectGrace(RelayRoomState roomState) {
+        return roomState.status() == RelayRoomStatus.PLAYING;
+    }
+
+    /**
+     * 재접속 유예 시간 없이 기존 참여자의 재연결을 허용하는 방 상태인지 판단합니다.
+     */
+    public boolean allowsReconnectWithoutGrace(RelayRoomState roomState) {
+        return roomState.status() == RelayRoomStatus.WAITING;
+    }
+
+    /**
      * 재접속 가능 상태인지 검증합니다.
      */
     public void requireReconnectable(RelayRoomParticipant participant, LocalDateTime now) {
