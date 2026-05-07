@@ -1,6 +1,7 @@
 package com.nemonicworld.gms.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -113,6 +114,44 @@ class GmsPromptControllerIntegrationTest {
             .andExpect(jsonPath("$.message").isNotEmpty());
     }
 
+    @Test
+    void adminDeletesPrompt() throws Exception {
+        insertPrompt(10L, "Daily fortune", "fortune", null);
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/gms/prompts/{promptId}", 10L).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(countPromptsByName("Daily fortune")).isEqualTo(1);
+        assertThat(countActivePromptsById(10L)).isZero();
+        assertThat(findPromptDeletedAt(10L)).isNotNull();
+    }
+
+    @Test
+    void adminPromptDeletionRejectsUnknownId() throws Exception {
+        mockMvc
+            .perform(delete("/api/v1/backoffice/gms/prompts/{promptId}", 999L).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void adminPromptDeletionRejectsAlreadyDeletedPrompt() throws Exception {
+        LocalDateTime deletedAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertPrompt(10L, "Daily fortune", "fortune", deletedAt);
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/gms/prompts/{promptId}", 10L).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(findPromptDeletedAt(10L)).isEqualTo(deletedAt);
+    }
+
     private void insertAdminUser() {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
@@ -174,6 +213,20 @@ class GmsPromptControllerIntegrationTest {
             Integer.class, name);
 
         return count == null ? 0 : count;
+    }
+
+    private int countActivePromptsById(long id) {
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM gms_prompt_template WHERE id = ? AND deleted_at IS NULL", Integer.class, id);
+
+        return count == null ? 0 : count;
+    }
+
+    private LocalDateTime findPromptDeletedAt(long id) {
+        Timestamp deletedAt = jdbcTemplate.queryForObject("SELECT deleted_at FROM gms_prompt_template WHERE id = ?",
+            Timestamp.class, id);
+
+        return deletedAt == null ? null : deletedAt.toLocalDateTime();
     }
 
     private int countPromptsByFeatureType(String featureType) {

@@ -52,6 +52,10 @@ Last updated: 2026-05-06
   `gms_prompt_template` columns (`prompt_name`, `template_text`,
   `feature_type`, `created_by`, timestamps) without changing the DB schema, and
   rejects duplicate prompt names.
+- Backoffice admins can now soft-delete GMS prompt templates through
+  `DELETE /api/v1/backoffice/gms/prompts/{promptId}`; the API updates
+  `gms_prompt_template.deleted_at` and `updated_at` without changing the DB
+  schema, and treats missing or already deleted prompts as not found.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.
