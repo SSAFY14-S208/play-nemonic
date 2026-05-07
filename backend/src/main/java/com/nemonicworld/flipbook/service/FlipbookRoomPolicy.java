@@ -40,6 +40,8 @@ public class FlipbookRoomPolicy {
         + "갱신하지 못했습니다. 다시 시도해주세요.";
     public static final String ROOM_KICK_UPDATE_CONFLICT_MESSAGE = "동시 강퇴 요청이 많아 플립북 방 강퇴 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
     public static final String ROOM_START_UPDATE_CONFLICT_MESSAGE = "동시 게임 시작 요청이 많아 플립북 방 시작 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
+    public static final String ROOM_TIMEOUT_UPDATE_CONFLICT_MESSAGE = "동시 타임아웃 처리 요청이 많아 플립북 프레임 자동 제출 상태를 "
+        + "갱신하지 못했습니다. 다시 시도해주세요.";
 
     private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
     private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(DEFAULT_RECONNECT_GRACE_SECONDS);

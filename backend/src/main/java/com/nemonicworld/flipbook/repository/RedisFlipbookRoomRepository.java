@@ -126,6 +126,26 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         return candidateRooms;
     }
 
+    /**
+     * Redis room key를 SCAN하며 현재 라운드 마감 시각이 지난 PLAYING 방만 조회합니다.
+     */
+    @Override
+    public List<FlipbookRoomState> findExpiredPlayingRooms(LocalDateTime roundDeadlineCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<FlipbookRoomState> expiredRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && expiredRooms.size() < limit) {
+                findExpiredPlayingRoom(roomKeys.next(), roundDeadlineCutoff).ifPresent(expiredRooms::add);
+            }
+        }
+
+        return expiredRooms;
+    }
+
     private Optional<FlipbookRoomState> findPlayingRoomForDisconnectGrace(String roomKey,
         LocalDateTime disconnectCutoff) {
         String roomStateValue = redisTemplate.opsForValue().get(roomKey);
@@ -140,6 +160,25 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
 
         if (hasExpiredDisconnectedParticipant(roomState, disconnectCutoff)
             || hasDroppedHostWithConnectedCandidate(roomState)) {
+            return Optional.of(roomState);
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<FlipbookRoomState> findExpiredPlayingRoom(String roomKey, LocalDateTime roundDeadlineCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        FlipbookRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != FlipbookRoomStatus.PLAYING || roomState.currentRound() == null
+            || roomState.roundDeadlineAt() == null) {
+            return Optional.empty();
+        }
+
+        if (!roomState.roundDeadlineAt().isAfter(roundDeadlineCutoff)) {
             return Optional.of(roomState);
         }
 

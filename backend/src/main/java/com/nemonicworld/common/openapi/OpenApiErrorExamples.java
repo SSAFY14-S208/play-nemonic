@@ -293,6 +293,48 @@ public final class OpenApiErrorExamples {
           "message": "현재 배정된 프레임이 없습니다."
         }
         """;
+    public static final String FLIPBOOK_ASSIGNMENT_MISMATCH = """
+        {
+          "success": false,
+          "message": "현재 배정 정보와 일치하지 않습니다."
+        }
+        """;
+    public static final String FLIPBOOK_INVALID_ROUND = """
+        {
+          "success": false,
+          "message": "유효하지 않은 라운드입니다."
+        }
+        """;
+    public static final String FLIPBOOK_SUBMISSION_EXPIRED = """
+        {
+          "success": false,
+          "message": "제출 시간이 만료되었습니다."
+        }
+        """;
+    public static final String FLIPBOOK_AUTO_SUBMITTED = """
+        {
+          "success": false,
+          "message": "이미 자동 제출 처리되었습니다."
+        }
+        """;
+    public static final String FLIPBOOK_FRAME_FILE_STATUS_CONFLICT = """
+        {
+          "success": false,
+          "message": "업로드 완료된 파일만 제출할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_FRAME_FILE_PURPOSE_CONFLICT = """
+        {
+          "success": false,
+          "message": "플립북 프레임 파일만 제출할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_FRAME_SUBMIT_UPDATE_CONFLICT = """
+        {
+          "success": false,
+          "message": "동시 프레임 제출 요청이 많아 플립북 프레임을 저장하지 못했습니다. 다시 시도해주세요."
+        }
+        """;
     public static final String FLIPBOOK_NOT_ENOUGH_PARTICIPANTS = """
         {
           "success": false,
