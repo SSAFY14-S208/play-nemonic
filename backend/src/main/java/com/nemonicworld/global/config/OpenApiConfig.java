@@ -1,4 +1,4 @@
-package com.nemonicworld.config;
+package com.nemonicworld.global.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Components;
