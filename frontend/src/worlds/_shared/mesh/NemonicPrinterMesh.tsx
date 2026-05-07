@@ -1,95 +1,128 @@
-import { useRef, useEffect } from "react";
-import { useGLTF, useAnimations } from "@react-three/drei";
-import { useThree } from "@react-three/fiber";
-import type { ThreeEvent } from "@react-three/fiber";
-import * as THREE from "three";
-import type { AnimationAction } from "three";
-import { RigidBody } from "@react-three/rapier";
+import { useEffect, useRef } from 'react'
+import type { MutableRefObject } from 'react'
+import { useAnimations, useGLTF } from '@react-three/drei'
+import { useThree } from '@react-three/fiber'
+import type { ThreeElements, ThreeEvent } from '@react-three/fiber'
+import { RigidBody } from '@react-three/rapier'
+import * as THREE from 'three'
+import type { AnimationAction } from 'three'
 
-const MODEL_PATH = "/models/nemonic-printer.glb";
+const MODEL_PATH = '/models/nemonic-printer.glb'
 const BUTTON_MESH_NAMES = new Set([
-  "NEMONIC_PRINT_BUTTON",
-  "NEMONIC_OPEN_BUTTON",
-]);
+  'NEMONIC_PRINT_BUTTON',
+  'NEMONIC_OPEN_BUTTON',
+])
 
-interface NemonicPrinterMeshProps {
-  position?: [number, number, number];
-  actionsRef?: React.MutableRefObject<Record<string, AnimationAction | null>>;
-  onPrintButtonClick?: () => void;
-  onOpenButtonClick?: () => void;
+type NemonicPrinterMeshProps = ThreeElements['group'] & {
+  actionsRef?: MutableRefObject<Record<string, AnimationAction | null>>
+  modelScale?: number
+  onPrintButtonClick?: () => void
+  onOpenButtonClick?: () => void
+  withPhysics?: boolean
 }
 
 export default function NemonicPrinterMesh({
-  position,
   actionsRef,
+  modelScale = 1,
   onPrintButtonClick,
   onOpenButtonClick,
+  withPhysics = true,
+  ...groupProps
 }: NemonicPrinterMeshProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const { gl } = useThree();
-  const { scene, animations } = useGLTF(MODEL_PATH);
-  const { actions } = useAnimations(animations, groupRef);
+  const groupRef = useRef<THREE.Group>(null)
+  const { gl } = useThree()
+  const { scene, animations } = useGLTF(MODEL_PATH)
+  const { actions } = useAnimations(animations, groupRef)
 
-  // 그림자 + 텍스처 anisotropy 적용 (DeskMesh 동일 패턴)
   useEffect(() => {
-    const maxAnisotropy = gl.capabilities.getMaxAnisotropy();
+    const maxAnisotropy = gl.capabilities.getMaxAnisotropy()
+
     scene.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      child.castShadow = true;
-      child.receiveShadow = true;
+      if (!(child instanceof THREE.Mesh)) {
+        return
+      }
+
+      child.castShadow = true
+      child.receiveShadow = true
+
       const materials = Array.isArray(child.material)
         ? child.material
-        : [child.material];
+        : [child.material]
+
       materials.forEach((material) => {
-        if (!(material instanceof THREE.MeshStandardMaterial)) return;
+        if (!(material instanceof THREE.MeshStandardMaterial)) {
+          return
+        }
+
         [
           material.map,
           material.normalMap,
           material.roughnessMap,
           material.metalnessMap,
         ].forEach((texture) => {
-          if (!texture) return;
-          texture.anisotropy = maxAnisotropy;
-          texture.needsUpdate = true;
-        });
-      });
-    });
-  }, [scene, gl]);
+          if (!texture) {
+            return
+          }
 
-  // 부모 훅에 actions 노출 (애니메이션 제어용)
+          texture.anisotropy = maxAnisotropy
+          texture.needsUpdate = true
+        })
+      })
+    })
+  }, [scene, gl])
+
   useEffect(() => {
-    if (actionsRef) actionsRef.current = actions;
-  }, [actions, actionsRef]);
+    if (actionsRef) {
+      actionsRef.current = actions
+    }
+  }, [actions, actionsRef])
 
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation();
-    if (event.object.name === "NEMONIC_PRINT_BUTTON") onPrintButtonClick?.();
-    else if (event.object.name === "NEMONIC_OPEN_BUTTON") onOpenButtonClick?.();
-  };
+    event.stopPropagation()
+
+    if (event.object.name === 'NEMONIC_PRINT_BUTTON') {
+      onPrintButtonClick?.()
+      return
+    }
+
+    if (event.object.name === 'NEMONIC_OPEN_BUTTON') {
+      onOpenButtonClick?.()
+    }
+  }
 
   const handlePointerOver = (event: ThreeEvent<PointerEvent>) => {
-    if (BUTTON_MESH_NAMES.has(event.object.name)) {
-      document.body.style.cursor = "pointer";
+    if (typeof document !== 'undefined' && BUTTON_MESH_NAMES.has(event.object.name)) {
+      document.body.style.cursor = 'pointer'
     }
-  };
+  }
 
   const handlePointerOut = () => {
-    document.body.style.cursor = "auto";
-  };
+    if (typeof document !== 'undefined') {
+      document.body.style.cursor = ''
+    }
+  }
+
+  const printerGroup = (
+    <group
+      ref={groupRef}
+      {...groupProps}
+      onClick={handleClick}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
+    >
+      <primitive object={scene} scale={modelScale} />
+    </group>
+  )
+
+  if (!withPhysics) {
+    return printerGroup
+  }
 
   return (
     <RigidBody type="fixed" colliders="hull">
-      <group
-        ref={groupRef}
-        position={position}
-        onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-      >
-        <primitive object={scene} />
-      </group>
+      {printerGroup}
     </RigidBody>
-  );
+  )
 }
 
-useGLTF.preload(MODEL_PATH);
+useGLTF.preload(MODEL_PATH)
