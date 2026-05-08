@@ -188,7 +188,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET:-nemonic}
       # 쉼표 구분. 예: "relay,gallery,share"
-      MINIO_PUBLIC_PREFIXES: ${MINIO_PUBLIC_PREFIXES:-relay,gallery,share}
+      MINIO_PUBLIC_PREFIXES: ${MINIO_PUBLIC_PREFIXES:-public,relay,gallery,share}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
