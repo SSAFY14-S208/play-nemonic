@@ -12,7 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.common.exception.FileStorageException;
-import com.nemonicworld.files.config.MinioStorageProperties;
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.relay.service.cleanup.MinioRelayTempFileStorage;
 import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;

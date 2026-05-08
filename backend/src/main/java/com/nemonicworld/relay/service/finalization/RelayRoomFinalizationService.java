@@ -11,6 +11,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayArtifactRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.Duration;
@@ -45,13 +46,15 @@ public class RelayRoomFinalizationService {
     private final RelayResultComposer relayResultComposer;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final ObjectMapper objectMapper;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final int scanLimit;
     private final Duration lockTtl;
 
     public RelayRoomFinalizationService(RelayRoomRepository relayRoomRepository,
         RelayArtifactRepository relayArtifactRepository, RelayResultStorage relayResultStorage,
         RelayResultComposer relayResultComposer, RelayRoomEventPublisher relayRoomEventPublisher,
-        ObjectMapper objectMapper, @Value("${nemonic.relay.finalization.scan-limit:50}") int scanLimit,
+        ObjectMapper objectMapper, RelayInviteMetadataSyncService relayInviteMetadataSyncService,
+        @Value("${nemonic.relay.finalization.scan-limit:50}") int scanLimit,
         @Value("${nemonic.relay.finalization.lock-ttl-seconds:60}") long lockTtlSeconds) {
         this.relayRoomRepository = relayRoomRepository;
         this.relayArtifactRepository = relayArtifactRepository;
@@ -59,6 +62,7 @@ public class RelayRoomFinalizationService {
         this.relayResultComposer = relayResultComposer;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.objectMapper = objectMapper;
+        this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.scanLimit = scanLimit;
         this.lockTtl = Duration.ofSeconds(Math.max(1L, lockTtlSeconds));
     }
@@ -124,6 +128,7 @@ public class RelayRoomFinalizationService {
         if (!relayRoomRepository.saveIfUnchanged(roomState, finishedRoomState)) {
             throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
         }
+        relayInviteMetadataSyncService.syncWithRoomState(finishedRoomState);
 
         RelayRoomFinalizationResult result = RelayRoomFinalizationResult.finished(roomCode, artifacts, now);
         relayRoomEventPublisher.publishResultCreated(result);

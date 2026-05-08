@@ -8,8 +8,10 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.Duration;
@@ -31,18 +33,24 @@ public class RelayRoomTimeoutService {
     private static final Logger log = LoggerFactory.getLogger(RelayRoomTimeoutService.class);
 
     private final RelayRoomRepository relayRoomRepository;
+    private final RelaySubmissionLockRepository relaySubmissionLockRepository;
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final int scanLimit;
     private final Duration autoSubmitGrace;
 
     public RelayRoomTimeoutService(RelayRoomRepository relayRoomRepository,
+        RelaySubmissionLockRepository relaySubmissionLockRepository,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
+        RelayInviteMetadataSyncService relayInviteMetadataSyncService,
         @Value("${nemonic.relay.timeout.scan-limit:100}") int scanLimit,
         @Value("${nemonic.relay.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs) {
         this.relayRoomRepository = relayRoomRepository;
+        this.relaySubmissionLockRepository = relaySubmissionLockRepository;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
+        this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.scanLimit = scanLimit;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
     }
@@ -97,6 +105,7 @@ public class RelayRoomTimeoutService {
             }
 
             if (relayRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
+                relayInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
                 RelayRoomTimeoutResult result = new RelayRoomTimeoutResult(roomCode, true, currentPart,
                     autoSubmitUpdate.autoSubmissions(), advanceResult);
                 publishTimeoutEvents(result);
@@ -119,7 +128,8 @@ public class RelayRoomTimeoutService {
         List<RelayRoomAutoSubmissionResult> autoSubmissions = new ArrayList<>();
 
         for (RelayRoomAssignment assignment : roomState.assignments()) {
-            if (assignment.part() == currentPart && assignment.status() == RelayAssignmentStatus.PENDING) {
+            if (assignment.part() == currentPart && assignment.status() == RelayAssignmentStatus.PENDING
+                && !isSubmissionLocked(roomState, assignment)) {
                 RelayRoomAssignment autoSubmittedAssignment = autoSubmitAssignment(assignment, submittedAt);
                 updatedAssignments.add(autoSubmittedAssignment);
                 autoSubmissions.add(new RelayRoomAutoSubmissionResult(roomState.roomCode(),
@@ -135,6 +145,11 @@ public class RelayRoomTimeoutService {
     private RelayRoomAssignment autoSubmitAssignment(RelayRoomAssignment assignment, LocalDateTime submittedAt) {
         return new RelayRoomAssignment(assignment.canvasIndex(), assignment.part(), assignment.assignedUserUuid(),
             RelayAssignmentStatus.AUTO_SUBMITTED, assignment.fileId(), null, null, true, true, submittedAt);
+    }
+
+    private boolean isSubmissionLocked(RelayRoomState roomState, RelayRoomAssignment assignment) {
+        return relaySubmissionLockRepository.isSubmissionLocked(roomState.roomCode(), assignment.canvasIndex(),
+            assignment.part(), assignment.assignedUserUuid());
     }
 
     private String findNickname(RelayRoomState roomState, String userUuid) {

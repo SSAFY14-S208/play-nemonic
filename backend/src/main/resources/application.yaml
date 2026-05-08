@@ -19,6 +19,18 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
 
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+
   jpa:
     open-in-view: false
     hibernate:
@@ -60,10 +72,24 @@ nemonic:
       secret-key: ${MINIO_SECRET_KEY:minioadmin}
       bucket: ${MINIO_BUCKET:nemonic-local}
       presign-expiration-minutes: ${MINIO_PRESIGN_EXPIRATION_MINUTES:10}
+      view-url-expiration-minutes: ${MINIO_VIEW_URL_EXPIRATION_MINUTES:1440}
       max-upload-byte-size: ${FILE_UPLOAD_MAX_BYTE_SIZE:52428800}
 
   share:
     site-url: ${NEMONIC_SITE_URL:http://localhost:3000}
+
+  inquiry:
+    mail:
+      from: ${MAIL_FROM:}
+
+  community:
+    moderation:
+      enabled: ${COMMUNITY_MODERATION_ENABLED:true}
+      base-url: ${COMMUNITY_MODERATION_BASE_URL:http://localhost:8000}
+      check-path: ${COMMUNITY_MODERATION_CHECK_PATH:/check}
+      connect-timeout-ms: ${COMMUNITY_MODERATION_CONNECT_TIMEOUT_MS:1000}
+      read-timeout-ms: ${COMMUNITY_MODERATION_READ_TIMEOUT_MS:3000}
+      fail-closed: ${COMMUNITY_MODERATION_FAIL_CLOSED:false}
 
   relay:
     disconnect:
@@ -89,3 +115,23 @@ nemonic:
       delay-seconds: ${RELAY_CLOSE_DELAY_SECONDS:300}
       scan-delay-ms: ${RELAY_CLOSE_SCAN_DELAY_MS:30000}
       scan-limit: ${RELAY_CLOSE_SCAN_LIMIT:100}
+
+  flipbook:
+    disconnect:
+      enabled: ${FLIPBOOK_DISCONNECT_ENABLED:true}
+      reconnect-grace-seconds: ${FLIPBOOK_DISCONNECT_RECONNECT_GRACE_SECONDS:10}
+      scan-delay-ms: ${FLIPBOOK_DISCONNECT_SCAN_DELAY_MS:1000}
+      scan-limit: ${FLIPBOOK_DISCONNECT_SCAN_LIMIT:100}
+    timeout:
+      enabled: ${FLIPBOOK_TIMEOUT_ENABLED:true}
+      scan-delay-ms: ${FLIPBOOK_TIMEOUT_SCAN_DELAY_MS:1000}
+      scan-limit: ${FLIPBOOK_TIMEOUT_SCAN_LIMIT:100}
+      auto-submit-grace-ms: ${FLIPBOOK_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}
+
+  fortune:
+    gms:
+      api-key: ${GMS_API_KEY:}
+      model: ${GMS_MODEL:gpt-5.2}
+      base-url: ${GMS_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions}
+      connect-timeout-ms: ${GMS_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${GMS_READ_TIMEOUT_MS:30000}

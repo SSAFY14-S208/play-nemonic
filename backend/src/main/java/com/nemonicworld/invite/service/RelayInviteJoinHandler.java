@@ -9,6 +9,7 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.user.entity.AppUser;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -40,6 +41,7 @@ public class RelayInviteJoinHandler implements InviteJoinHandler {
     private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
 
     private final RelayRoomRepository relayRoomRepository;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
     @Override
     public boolean supports(String boothType) {
@@ -68,6 +70,7 @@ public class RelayInviteJoinHandler implements InviteJoinHandler {
 
             RelayRoomState updatedRoomState = addParticipant(roomState, user);
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 return createResponse(invite, updatedRoomState, userUuid, false);
             }
         }

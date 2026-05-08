@@ -6,7 +6,6 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
-import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.invite.repository.InviteRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -22,23 +21,22 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class FlipbookRoomCreateUseCase {
 
-    private static final String BOOTH_TYPE_FLIPBOOK = "flipbook";
-    private static final String DEFAULT_ROOM_NAME_SUFFIX = "의 플립북";
-
     private final AnonymousUserResolver anonymousUserResolver;
     private final RoomCodeGenerator roomCodeGenerator;
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final InviteRepository inviteRepository;
     private final FlipbookRoomPolicy flipbookRoomPolicy;
+    private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
     public FlipbookRoomCreateUseCase(AnonymousUserResolver anonymousUserResolver, RoomCodeGenerator roomCodeGenerator,
         FlipbookRoomRepository flipbookRoomRepository, InviteRepository inviteRepository,
-        FlipbookRoomPolicy flipbookRoomPolicy) {
+        FlipbookRoomPolicy flipbookRoomPolicy, FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.roomCodeGenerator = roomCodeGenerator;
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.inviteRepository = inviteRepository;
         this.flipbookRoomPolicy = flipbookRoomPolicy;
+        this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
     }
 
     /**
@@ -59,16 +57,8 @@ public class FlipbookRoomCreateUseCase {
             now);
 
         flipbookRoomRepository.save(roomState);
-        inviteRepository.save(createInviteMetadata(roomCode, hostUser, now), FlipbookRoomRepository.ROOM_STATE_TTL);
+        flipbookInviteMetadataSyncService.syncWithRoomState(roomState);
 
         return FlipbookRoomCreateResponse.from(roomState);
-    }
-
-    /**
-     * 플립북 방코드를 공통 초대코드로도 저장해 /invites/{inviteCode}에서 재사용합니다.
-     */
-    private InviteMetadata createInviteMetadata(String roomCode, AppUser hostUser, LocalDateTime now) {
-        return new InviteMetadata(roomCode, BOOTH_TYPE_FLIPBOOK, roomCode,
-            hostUser.getNickname() + DEFAULT_ROOM_NAME_SUFFIX, now.plus(FlipbookRoomRepository.ROOM_STATE_TTL));
     }
 }

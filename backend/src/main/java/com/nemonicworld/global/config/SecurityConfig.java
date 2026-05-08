@@ -35,6 +35,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/login", "/api/v1/auth/reissue")
                 .permitAll().requestMatchers("/api/v1/auth/logout", "/api/v1/admins", "/api/v1/admins/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/admin/inquiries", "/api/v1/admin/inquiries/**")
+                .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/backoffice/gms/prompts", "/api/v1/backoffice/gms/prompts/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN").anyRequest().permitAll())
             .addFilterBefore(adminJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

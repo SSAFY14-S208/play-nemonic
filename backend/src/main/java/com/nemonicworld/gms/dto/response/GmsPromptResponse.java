@@ -4,7 +4,7 @@ import com.nemonicworld.gms.entity.GmsPrompt;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
-@Schema(description = "GMS prompt response")
+@Schema(description = "GMS 프롬프트 응답")
 public record GmsPromptResponse(Long id, String name, String content, String featureType, Long createdBy,
     LocalDateTime createdAt, LocalDateTime updatedAt) {
 

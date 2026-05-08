@@ -51,7 +51,7 @@ class RelayWebSocketEventListenerTest {
         listener.handleSessionDisconnect(disconnectEvent());
 
         verify(relayRoomService).disconnectRoom(USER_UUID, ROOM_CODE);
-        verify(relayRoomEventPublisher).publishParticipantDisconnected(roomStateResponse);
+        verify(relayRoomEventPublisher).publishParticipantDisconnected(roomStateResponse, USER_UUID);
         verify(webSocketSessionRegistry).removeIfCurrent(SESSION_ID);
     }
 
@@ -69,7 +69,8 @@ class RelayWebSocketEventListenerTest {
         listener.handleSessionDisconnect(disconnectEvent());
 
         verify(relayRoomService, never()).disconnectRoom(USER_UUID, ROOM_CODE);
-        verify(relayRoomEventPublisher, never()).publishParticipantDisconnected(org.mockito.ArgumentMatchers.any());
+        verify(relayRoomEventPublisher, never()).publishParticipantDisconnected(org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.anyString());
         verify(webSocketSessionRegistry).removeStaleSession(SESSION_ID);
     }
 

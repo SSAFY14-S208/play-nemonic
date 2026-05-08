@@ -57,9 +57,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(ApiResponse.fail(e.getMessage(), null));
     }
 
+    // 503 Service Unavailable - 외부 서비스 일시 실패
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleServiceUnavailable(ServiceUnavailableException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.fail(e.getMessage(), null));
+    }
+
     // 500 Internal Server Error - 파일 저장소 처리 실패
     @ExceptionHandler(FileStorageException.class)
     public ResponseEntity<ApiResponse<Void>> handleFileStorage(FileStorageException e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.fail(e.getMessage(), null));
+    }
+
+    // 500 Internal Server Error - 이메일 발송 실패
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEmailDelivery(EmailDeliveryException e) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.fail(e.getMessage(), null));
     }
 

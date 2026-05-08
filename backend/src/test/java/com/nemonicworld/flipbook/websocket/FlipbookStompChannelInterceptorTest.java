@@ -78,7 +78,7 @@ class FlipbookStompChannelInterceptorTest {
         verify(flipbookRoomEventPublisher).publishDuplicateSessionClosed(OLD_SESSION_ID, ROOM_CODE);
         verify(webSocketSessionRegistry).closeWebSocketSession(OLD_SESSION_ID);
         verify(webSocketSessionRegistry).removeStaleSession(OLD_SESSION_ID);
-        verify(flipbookRoomEventPublisher).publishParticipantConnected(roomStateResponse);
+        verify(flipbookRoomEventPublisher).publishParticipantConnected(roomStateResponse, USER_UUID);
     }
 
     /**

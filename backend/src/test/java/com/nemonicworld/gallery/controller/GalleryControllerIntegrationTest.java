@@ -13,6 +13,7 @@ import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -33,6 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class GalleryControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
+    private static final String MINIO_PUBLIC_URL = "http://localhost:9000/nemonic-local/";
 
     @Autowired
     private MockMvc mockMvc;
@@ -68,9 +70,13 @@ class GalleryControllerIntegrationTest {
             CREATE TABLE IF NOT EXISTS fortune_artifact (
                 artifact_id UUID PRIMARY KEY,
                 description VARCHAR(1000) NOT NULL,
-                fortune_image_url VARCHAR(200) NULL
+                fortune_image_url VARCHAR(200) NULL,
+                user_id UUID NOT NULL,
+                fortune_date DATE NOT NULL
             )
             """);
+        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS user_id UUID");
+        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS fortune_date DATE");
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
                 artifact_id UUID PRIMARY KEY,
@@ -138,18 +144,18 @@ class GalleryControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("내 갤러리 목록 조회 성공")).andExpect(jsonPath("$.data.items", hasSize(6)))
             .andExpect(jsonPath("$.data.items[0].kind").value("fortune"))
-            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("fortune-thumb"))
-            .andExpect(jsonPath("$.data.items[0].contentUrl").value("fortune-content"))
+            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value(publicUrl("fortune-thumb")))
+            .andExpect(jsonPath("$.data.items[0].contentUrl").value(publicUrl("fortune-content")))
             .andExpect(jsonPath("$.data.items[1].kind").value("relay_drawing"))
-            .andExpect(jsonPath("$.data.items[1].contentUrl").value("relay-content"))
+            .andExpect(jsonPath("$.data.items[1].contentUrl").value(publicUrl("relay-content")))
             .andExpect(jsonPath("$.data.items[2].kind").value("flipbook"))
-            .andExpect(jsonPath("$.data.items[2].contentUrl").value("flipbook-content"))
+            .andExpect(jsonPath("$.data.items[2].contentUrl").value(publicUrl("flipbook-content")))
             .andExpect(jsonPath("$.data.items[3].kind").value("infinite_canvas"))
-            .andExpect(jsonPath("$.data.items[3].contentUrl").value("canvas-content"))
+            .andExpect(jsonPath("$.data.items[3].contentUrl").value(publicUrl("canvas-content")))
             .andExpect(jsonPath("$.data.items[4].kind").value("community_memo"))
-            .andExpect(jsonPath("$.data.items[4].contentUrl").value("community-thumb"))
+            .andExpect(jsonPath("$.data.items[4].contentUrl").value(publicUrl("community-thumb")))
             .andExpect(jsonPath("$.data.items[5].kind").value("phone"))
-            .andExpect(jsonPath("$.data.items[5].contentUrl").value("phone-content"))
+            .andExpect(jsonPath("$.data.items[5].contentUrl").value(publicUrl("phone-content")))
             .andExpect(jsonPath("$.data.page").value(0)).andExpect(jsonPath("$.data.size").value(20))
             .andExpect(jsonPath("$.data.totalElements").value(6)).andExpect(jsonPath("$.data.hasNext").value(false));
     }
@@ -180,7 +186,7 @@ class GalleryControllerIntegrationTest {
 
         mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
-            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("active-thumb"))
+            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value(publicUrl("active-thumb")))
             .andExpect(jsonPath("$.data.totalElements").value(1));
     }
 
@@ -199,7 +205,7 @@ class GalleryControllerIntegrationTest {
 
         mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
-            .andExpect(jsonPath("$.data.items[0].contentUrl").value("fallback-thumb"));
+            .andExpect(jsonPath("$.data.items[0].contentUrl").value(publicUrl("fallback-thumb")));
     }
 
     /**
@@ -220,8 +226,8 @@ class GalleryControllerIntegrationTest {
             .andExpect(jsonPath("$.data.galleryId").value(row.galleryId().toString()))
             .andExpect(jsonPath("$.data.artifactId").value(row.artifactId().toString()))
             .andExpect(jsonPath("$.data.kind").value("fortune"))
-            .andExpect(jsonPath("$.data.thumbnailUrl").value("fortune-thumb"))
-            .andExpect(jsonPath("$.data.contentUrl").value("fortune-content"))
+            .andExpect(jsonPath("$.data.thumbnailUrl").value(publicUrl("fortune-thumb")))
+            .andExpect(jsonPath("$.data.contentUrl").value(publicUrl("fortune-content")))
             .andExpect(jsonPath("$.data.sourceRoomId").doesNotExist())
             .andExpect(jsonPath("$.data.meta.title").value("오늘의 운세")).andExpect(jsonPath("$.data.meta.score").value(88))
             .andExpect(jsonPath("$.data.createdAt").isNotEmpty()).andExpect(jsonPath("$.data.updatedAt").isNotEmpty());
@@ -247,12 +253,12 @@ class GalleryControllerIntegrationTest {
         GalleryTestRow community = insertGalleryItem(userUuid, "community_memo", "community-thumb", null, null, now,
             null);
 
-        assertDetailContentUrl(userUuid, fortune.galleryId(), "fortune-content");
-        assertDetailContentUrl(userUuid, relay.galleryId(), "relay-content");
-        assertDetailContentUrl(userUuid, flipbook.galleryId(), "flipbook-content");
-        assertDetailContentUrl(userUuid, canvas.galleryId(), "canvas-content");
-        assertDetailContentUrl(userUuid, phone.galleryId(), "phone-content");
-        assertDetailContentUrl(userUuid, community.galleryId(), "community-thumb");
+        assertDetailContentUrl(userUuid, fortune.galleryId(), publicUrl("fortune-content"));
+        assertDetailContentUrl(userUuid, relay.galleryId(), publicUrl("relay-content"));
+        assertDetailContentUrl(userUuid, flipbook.galleryId(), publicUrl("flipbook-content"));
+        assertDetailContentUrl(userUuid, canvas.galleryId(), publicUrl("canvas-content"));
+        assertDetailContentUrl(userUuid, phone.galleryId(), publicUrl("phone-content"));
+        assertDetailContentUrl(userUuid, community.galleryId(), publicUrl("community-thumb"));
     }
 
     /**
@@ -267,11 +273,11 @@ class GalleryControllerIntegrationTest {
 
         insertArtifact(artifactWithoutSubtypeId, "fortune", "no-subtype-thumb", null, now);
         insertGalleryOnly(galleryWithoutSubtypeId, userUuid, artifactWithoutSubtypeId, null);
-        GalleryTestRow rowWithNullSubtypeUrl = insertGalleryItem(userUuid, "fortune", "null-url-thumb", null, null, now,
-            null);
+        GalleryTestRow rowWithNullSubtypeUrl = insertGalleryItem(userUuid, "relay_drawing", "null-url-thumb", null,
+            null, now, null);
 
-        assertDetailContentUrl(userUuid, galleryWithoutSubtypeId, "no-subtype-thumb");
-        assertDetailContentUrl(userUuid, rowWithNullSubtypeUrl.galleryId(), "null-url-thumb");
+        assertDetailContentUrl(userUuid, galleryWithoutSubtypeId, publicUrl("no-subtype-thumb"));
+        assertDetailContentUrl(userUuid, rowWithNullSubtypeUrl.galleryId(), publicUrl("null-url-thumb"));
     }
 
     /**
@@ -392,7 +398,7 @@ class GalleryControllerIntegrationTest {
             .perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).param("page", "0")
                 .param("size", "2"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(2)))
-            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("first-thumb"))
+            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value(publicUrl("first-thumb")))
             .andExpect(jsonPath("$.data.page").value(0)).andExpect(jsonPath("$.data.size").value(2))
             .andExpect(jsonPath("$.data.totalElements").value(3)).andExpect(jsonPath("$.data.hasNext").value(true));
 
@@ -400,7 +406,7 @@ class GalleryControllerIntegrationTest {
             .perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).param("page", "1")
                 .param("size", "2"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
-            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value("third-thumb"))
+            .andExpect(jsonPath("$.data.items[0].thumbnailUrl").value(publicUrl("third-thumb")))
             .andExpect(jsonPath("$.data.page").value(1)).andExpect(jsonPath("$.data.size").value(2))
             .andExpect(jsonPath("$.data.totalElements").value(3)).andExpect(jsonPath("$.data.hasNext").value(false));
     }
@@ -595,7 +601,7 @@ class GalleryControllerIntegrationTest {
         UUID galleryId = UUID.randomUUID();
 
         insertArtifact(artifactId, kind, thumbnailUrl, sourceRoomId, createdAt);
-        insertSubtypeArtifact(kind, artifactId, contentUrl);
+        insertSubtypeArtifact(kind, artifactId, contentUrl, userUuid, createdAt.toLocalDate());
         insertGalleryOnly(galleryId, userUuid, artifactId, deletedAt);
 
         return new GalleryTestRow(galleryId, artifactId);
@@ -607,7 +613,7 @@ class GalleryControllerIntegrationTest {
         UUID galleryId = UUID.randomUUID();
 
         insertArtifact(artifactId, kind, thumbnailUrl, sourceRoomId, createdAt, meta);
-        insertSubtypeArtifact(kind, artifactId, contentUrl);
+        insertSubtypeArtifact(kind, artifactId, contentUrl, userUuid, createdAt.toLocalDate());
         insertGalleryOnly(galleryId, userUuid, artifactId, deletedAt);
 
         return new GalleryTestRow(galleryId, artifactId);
@@ -628,11 +634,19 @@ class GalleryControllerIntegrationTest {
         jdbcTemplate.update(sql, artifactId, kind, sourceRoomId, thumbnailUrl, meta, createdAt, createdAt);
     }
 
-    private void insertSubtypeArtifact(String kind, UUID artifactId, String contentUrl) {
+    private void insertSubtypeArtifact(String kind, UUID artifactId, String contentUrl, UUID userUuid,
+        LocalDate fortuneDate) {
         if ("fortune".equals(kind)) {
-            jdbcTemplate.update(
-                "INSERT INTO fortune_artifact (artifact_id, description, fortune_image_url) VALUES (?, '{}', ?)",
-                artifactId, contentUrl);
+            jdbcTemplate.update("""
+                INSERT INTO fortune_artifact (
+                    artifact_id,
+                    description,
+                    fortune_image_url,
+                    user_id,
+                    fortune_date
+                )
+                VALUES (?, '{}', ?, ?, ?)
+                """, artifactId, contentUrl, userUuid, fortuneDate);
         } else if ("relay_drawing".equals(kind)) {
             jdbcTemplate.update("INSERT INTO relay_drawing_artifact (artifact_id, combined_preview_url) VALUES (?, ?)",
                 artifactId, contentUrl);
@@ -689,6 +703,10 @@ class GalleryControllerIntegrationTest {
             .perform(
                 get("/api/v1/gallery/{galleryId}", galleryId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.meta").value(anEmptyMap()));
+    }
+
+    private String publicUrl(String objectKey) {
+        return MINIO_PUBLIC_URL + objectKey;
     }
 
     private LocalDateTime findGalleryDeletedAt(UUID galleryId) {

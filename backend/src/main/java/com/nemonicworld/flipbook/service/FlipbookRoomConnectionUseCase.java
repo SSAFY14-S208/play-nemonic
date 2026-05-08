@@ -26,6 +26,7 @@ public class FlipbookRoomConnectionUseCase {
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookRoomViewerFactory flipbookRoomViewerFactory;
+    private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
     /**
      * WebSocket CONNECT 성공을 Redis 참여자 상태에 반영합니다.
@@ -59,20 +60,28 @@ public class FlipbookRoomConnectionUseCase {
             // ws 접속할 수 있는 상태인지 (대기방, 플레이 중)
             flipbookRoomPolicy.validateWebSocketConnectableRoom(roomState);
 
+            if (connected) {
+                flipbookRoomPolicy.validateNotKicked(roomState, viewerUserUuid);
+                flipbookRoomPolicy.validateNotDropped(roomState, viewerUserUuid);
+            }
+
             // WebSocket 연결 대상 참여자를 조회
             FlipbookRoomParticipant participant = flipbookRoomPolicy.requireConnectionParticipant(roomState,
                 viewerUserUuid);
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
+            if (connected) {
+                flipbookRoomPolicy.validateExistingParticipantReturn(roomState, participant, now);
+            }
+
             // 해당 사용자의 connected 상태 업데이트
-            FlipbookRoomParticipant updatedParticipant = new FlipbookRoomParticipant(participant.userUuid(),
-                participant.nickname(), participant.host(), participant.joinOrder(), connected, connected ? null : now,
-                participant.joinedAt());
+            FlipbookRoomParticipant updatedParticipant = participant.withConnection(connected, connected ? null : now);
             // 대체
             FlipbookRoomState updatedRoomState = replaceParticipant(roomState, updatedParticipant, now);
 
             // 저장
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 
                 return FlipbookRoomStateResponse.from(updatedRoomState, viewer);

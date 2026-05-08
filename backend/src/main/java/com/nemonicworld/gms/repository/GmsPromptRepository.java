@@ -6,11 +6,14 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 @Repository
 public class GmsPromptRepository {
@@ -38,6 +41,47 @@ public class GmsPromptRepository {
             WHERE id = ?
               AND deleted_at IS NULL
             """, this::mapPrompt, id).stream().findFirst();
+    }
+
+    public Optional<GmsPrompt> findLatestActiveByFeatureType(String featureType) {
+        return jdbcTemplate.query(SELECT_COLUMNS + """
+            FROM gms_prompt_template
+            WHERE deleted_at IS NULL
+              AND LOWER(CAST(feature_type AS VARCHAR)) = ?
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 1
+            """, this::mapPrompt, featureType).stream().findFirst();
+    }
+
+    public List<GmsPrompt> findActivePrompts(String keyword, String featureType, int limit, long offset) {
+        StringBuilder sql = new StringBuilder(SELECT_COLUMNS).append("""
+            FROM gms_prompt_template
+            WHERE deleted_at IS NULL
+            """);
+        List<Object> params = new ArrayList<>();
+        appendSearchConditions(sql, params, keyword, featureType);
+        sql.append("""
+            ORDER BY created_at DESC, id DESC
+            LIMIT ? OFFSET ?
+            """);
+        params.add(limit);
+        params.add(offset);
+
+        return jdbcTemplate.query(sql.toString(), this::mapPrompt, params.toArray());
+    }
+
+    public long countActivePrompts(String keyword, String featureType) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+            FROM gms_prompt_template
+            WHERE deleted_at IS NULL
+            """);
+        List<Object> params = new ArrayList<>();
+        appendSearchConditions(sql, params, keyword, featureType);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
+
+        return count == null ? 0L : count;
     }
 
     public boolean existsByName(String name) {
@@ -85,6 +129,45 @@ public class GmsPromptRepository {
              WHERE id = ?
                AND deleted_at IS NULL
             """, Timestamp.valueOf(deletedAt), Timestamp.valueOf(deletedAt), id);
+    }
+
+    public int updatePrompt(GmsPromptUpdateCommand command) {
+        return jdbcTemplate.update(connection -> {
+            var preparedStatement = connection.prepareStatement("""
+                UPDATE gms_prompt_template
+                   SET prompt_name = ?,
+                       template_text = ?,
+                       feature_type = ?,
+                       updated_at = ?
+                 WHERE id = ?
+                   AND deleted_at IS NULL
+                """);
+            preparedStatement.setString(1, command.name());
+            preparedStatement.setString(2, command.content());
+            preparedStatement.setObject(3, command.featureType(), Types.OTHER);
+            preparedStatement.setTimestamp(4, Timestamp.valueOf(command.updatedAt()));
+            preparedStatement.setLong(5, command.id());
+
+            return preparedStatement;
+        });
+    }
+
+    private void appendSearchConditions(StringBuilder sql, List<Object> params, String keyword, String featureType) {
+        if (StringUtils.hasText(keyword)) {
+            String keywordPattern = "%" + keyword + "%";
+            sql.append("""
+                  AND (LOWER(prompt_name) LIKE ? OR LOWER(template_text) LIKE ?)
+                """);
+            params.add(keywordPattern);
+            params.add(keywordPattern);
+        }
+
+        if (StringUtils.hasText(featureType)) {
+            sql.append("""
+                  AND LOWER(CAST(feature_type AS VARCHAR)) = ?
+                """);
+            params.add(featureType);
+        }
     }
 
     private GmsPrompt mapPrompt(ResultSet resultSet, int rowNumber) throws SQLException {

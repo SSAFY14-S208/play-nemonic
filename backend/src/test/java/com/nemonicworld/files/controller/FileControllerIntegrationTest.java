@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -45,7 +46,9 @@ import org.springframework.test.web.servlet.MvcResult;
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {"spring.jpa.hibernate.ddl-auto=create-drop",
-    "nemonic.storage.minio.presign-expiration-minutes=10", "nemonic.storage.minio.max-upload-byte-size=52428800"})
+    "nemonic.storage.minio.public-url=http://localhost:9000/minio",
+    "nemonic.storage.minio.presign-expiration-minutes=10", "nemonic.storage.minio.view-url-expiration-minutes=1440",
+    "nemonic.storage.minio.max-upload-byte-size=52428800"})
 @Sql(statements = {"DELETE FROM file_upload", "DELETE FROM app_user"})
 /**
  * MinIO 직접 업로드 파일 API를 검증합니다.
@@ -53,7 +56,12 @@ import org.springframework.test.web.servlet.MvcResult;
 class FileControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
-    private static final String PRESIGNED_URL = "http://localhost:9000/nemonic-local/uploads/example.png";
+    private static final String SIGNED_PRESIGNED_URL = "http://localhost:9000/nemonic-local/uploads/example.png";
+    private static final String SIGNED_VIEW_URL = "http://localhost:9000/nemonic-local/uploads/example.png"
+        + "?X-Amz-Signature=view";
+    private static final String PRESIGNED_URL = "http://localhost:9000/minio/nemonic-local/uploads/example.png";
+    private static final String VIEW_URL = "http://localhost:9000/minio/nemonic-local/uploads/example.png"
+        + "?X-Amz-Signature=view";
 
     @Autowired
     private MockMvc mockMvc;
@@ -67,8 +75,11 @@ class FileControllerIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
-    @MockitoBean
+    @MockitoBean(name = "minioClient")
     private MinioClient minioClient;
+
+    @MockitoBean(name = "publicMinioClient")
+    private MinioClient publicMinioClient;
 
     /**
      * 정상 요청이면 pending 업로드 메타데이터를 저장하고 presigned PUT URL 정보를 반환합니다.
@@ -76,7 +87,8 @@ class FileControllerIntegrationTest {
     @Test
     void presignReturnsUrlAndPersistsPendingUpload() throws Exception {
         UUID userUuid = createExistingUser();
-        given(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class))).willReturn(PRESIGNED_URL);
+        given(publicMinioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+            .willReturn(SIGNED_PRESIGNED_URL);
 
         MvcResult result = mockMvc
             .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
@@ -96,6 +108,106 @@ class FileControllerIntegrationTest {
         assertThat(readLongColumn(fileId, "byte_size")).isEqualTo(1024L);
         assertThat(readStringColumn(fileId, "object_key")).startsWith("uploads/flipbook/")
             .endsWith("/%s/drawing.png".formatted(fileId));
+    }
+
+    /**
+     * 업로드 완료된 파일이면 private 객체 조회를 위한 GET presigned URL을 발급합니다.
+     */
+    @Test
+    void presignPhoneUsesResultStyleObjectKey() throws Exception {
+        UUID userUuid = createExistingUser();
+        given(publicMinioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+            .willReturn(SIGNED_PRESIGNED_URL);
+
+        MvcResult result = mockMvc
+            .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .content(presignRequestBody("phone-drawing.png", "image/png", "PHONE")))
+            .andExpect(status().isOk()).andReturn();
+
+        UUID fileId = UUID.fromString(readData(result).path("fileId").asText());
+        assertThat(readStringColumn(fileId, "object_key"))
+            .isEqualTo("phone/results/%s/phone-drawing.png".formatted(fileId));
+    }
+
+    @Test
+    void viewUrlReturnsPresignedGetUrlForUploadedFileOwner() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "UPLOADED", 1024L);
+        given(minioClient.statObject(any(StatObjectArgs.class))).willReturn(statObjectResponse(1024L));
+        given(publicMinioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+            .willReturn(SIGNED_VIEW_URL);
+
+        mockMvc
+            .perform(
+                get("/api/v1/files/{fileId}/view-url", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("파일 조회 URL 발급 성공"))
+            .andExpect(jsonPath("$.data.fileId").value(fileId.toString()))
+            .andExpect(jsonPath("$.data.viewUrl").value(VIEW_URL)).andExpect(jsonPath("$.data.expiresIn").value(86400));
+
+        verify(minioClient).statObject(any(StatObjectArgs.class));
+        verify(publicMinioClient).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
+    }
+
+    /**
+     * 조회 URL 요청의 fileId가 UUID 형식이 아니면 400으로 응답합니다.
+     */
+    @Test
+    void viewUrlRejectsInvalidFileId() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+
+        mockMvc
+            .perform(get("/api/v1/files/not-a-uuid/view-url").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 fileId 형식입니다."));
+    }
+
+    /**
+     * 다른 사용자의 업로드 파일 조회 URL은 발급하지 않습니다.
+     */
+    @Test
+    void viewUrlRejectsFileUploadOwnedByAnotherUser() throws Exception {
+        UUID ownerUuid = createExistingUser();
+        UUID requesterUuid = createExistingUser();
+        UUID fileId = insertFileUpload(ownerUuid, "UPLOADED", 1024L);
+
+        mockMvc
+            .perform(get("/api/v1/files/{fileId}/view-url", fileId).header(ANONYMOUS_USER_UUID_HEADER,
+                requesterUuid.toString()))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("파일에 접근할 권한이 없습니다."));
+    }
+
+    /**
+     * 업로드 완료 전 pending 파일은 아직 조회 URL을 발급하지 않습니다.
+     */
+    @Test
+    void viewUrlRejectsPendingFileUpload() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
+
+        mockMvc
+            .perform(
+                get("/api/v1/files/{fileId}/view-url", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("조회할 수 없는 파일 업로드 상태입니다."));
+    }
+
+    /**
+     * DB에는 업로드 완료로 남아 있어도 실제 MinIO object가 없으면 404로 응답합니다.
+     */
+    @Test
+    void viewUrlReturnsNotFoundWhenMinioObjectDoesNotExist() throws Exception {
+        UUID userUuid = createExistingUser();
+        UUID fileId = insertFileUpload(userUuid, "UPLOADED", 1024L);
+        given(minioClient.statObject(any(StatObjectArgs.class))).willThrow(minioError("NoSuchKey"));
+
+        mockMvc
+            .perform(
+                get("/api/v1/files/{fileId}/view-url", fileId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("파일 업로드 정보를 찾을 수 없습니다."));
     }
 
     /**

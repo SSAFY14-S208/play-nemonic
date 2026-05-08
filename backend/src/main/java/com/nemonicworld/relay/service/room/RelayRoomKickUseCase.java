@@ -5,6 +5,7 @@ import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -25,12 +26,14 @@ public class RelayRoomKickUseCase {
     private final AnonymousUserResolver anonymousUserResolver;
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomPolicy relayRoomPolicy;
+    private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
     public RelayRoomKickUseCase(AnonymousUserResolver anonymousUserResolver, RelayRoomRepository relayRoomRepository,
-        RelayRoomPolicy relayRoomPolicy) {
+        RelayRoomPolicy relayRoomPolicy, RelayInviteMetadataSyncService relayInviteMetadataSyncService) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
+        this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
     }
 
     /**
@@ -58,6 +61,7 @@ public class RelayRoomKickUseCase {
             RelayRoomState updatedRoomState = kickParticipant(roomState, targetParticipant, now);
 
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 return new RelayRoomKickResponse(updatedRoomState.roomCode(), targetParticipant.userUuid(),
                     targetParticipant.nickname(), updatedRoomState.participantCount(), now);
             }

@@ -1,4 +1,3 @@
-
 package com.nemonicworld.files.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
@@ -7,11 +6,12 @@ import com.nemonicworld.common.exception.FileStorageException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.PayloadTooLargeException;
-import com.nemonicworld.files.config.MinioStorageProperties;
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.files.dto.request.FilePresignRequest;
 import com.nemonicworld.files.dto.response.FileConfirmResponse;
 import com.nemonicworld.files.dto.response.FileDeleteResponse;
 import com.nemonicworld.files.dto.response.FilePresignResponse;
+import com.nemonicworld.files.dto.response.FileViewUrlResponse;
 import com.nemonicworld.files.entity.FileUpload;
 import com.nemonicworld.files.entity.FileUploadPurpose;
 import com.nemonicworld.files.entity.FileUploadStatus;
@@ -24,13 +24,14 @@ import io.minio.StatObjectArgs;
 import io.minio.StatObjectResponse;
 import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -43,7 +44,6 @@ import org.springframework.util.StringUtils;
  * 이후 confirm/delete API에서 추적할 수 있도록 file_upload pending 메타데이터를 먼저 저장합니다.
  */
 @Service
-@RequiredArgsConstructor
 public class FileServiceImpl implements FileService {
 
     private static final String INVALID_FILE_NAME_MESSAGE = "파일명이 올바르지 않습니다.";
@@ -54,6 +54,7 @@ public class FileServiceImpl implements FileService {
     private static final String FILE_UPLOAD_NOT_FOUND_MESSAGE = "파일 업로드 정보를 찾을 수 없습니다.";
     private static final String FILE_ACCESS_DENIED_MESSAGE = "파일에 접근할 권한이 없습니다.";
     private static final String FILE_UPLOAD_STATUS_CONFLICT_MESSAGE = "확인할 수 없는 파일 업로드 상태입니다.";
+    private static final String FILE_VIEW_STATUS_CONFLICT_MESSAGE = "조회할 수 없는 파일 업로드 상태입니다.";
     private static final String FILE_STORAGE_ERROR_MESSAGE = "파일 저장소 처리 중 오류가 발생했습니다.";
     private static final String MINIO_NO_SUCH_KEY_CODE = "NoSuchKey";
     private static final String MINIO_NO_SUCH_OBJECT_CODE = "NoSuchObject";
@@ -63,9 +64,20 @@ public class FileServiceImpl implements FileService {
         "image/webp");
 
     private final MinioClient minioClient;
+    private final MinioClient publicMinioClient;
     private final MinioStorageProperties properties;
     private final FileUploadRepository fileUploadRepository;
     private final AnonymousUserResolver anonymousUserResolver;
+
+    public FileServiceImpl(MinioClient minioClient, @Qualifier("publicMinioClient") MinioClient publicMinioClient,
+        MinioStorageProperties properties, FileUploadRepository fileUploadRepository,
+        AnonymousUserResolver anonymousUserResolver) {
+        this.minioClient = minioClient;
+        this.publicMinioClient = publicMinioClient;
+        this.properties = properties;
+        this.fileUploadRepository = fileUploadRepository;
+        this.anonymousUserResolver = anonymousUserResolver;
+    }
 
     /**
      * 업로드 가능한 사용자와 파일 요청인지 검증한 뒤, DB에 pending 업로드 기록을 남기고 임시 PUT URL을 반환합니다.
@@ -93,6 +105,36 @@ public class FileServiceImpl implements FileService {
         fileUploadRepository.save(fileUpload);
 
         return new FilePresignResponse(fileId.toString(), presignedUrl, expiresIn);
+    }
+
+    /**
+     * 업로드 완료된 private 파일을 브라우저에서 잠깐 조회할 수 있는 GET URL을 반환합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public FileViewUrlResponse createViewUrl(String userUuidValue, String fileIdValue) {
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
+        UUID fileId = parseFileId(fileIdValue);
+
+        anonymousUserResolver.resolve(userUuid);
+
+        FileUpload fileUpload = fileUploadRepository.findById(fileId)
+            .orElseThrow(() -> new NotFoundException(FILE_UPLOAD_NOT_FOUND_MESSAGE));
+
+        if (!fileUpload.isOwnedBy(userUuid)) {
+            throw new ForbiddenException(FILE_ACCESS_DENIED_MESSAGE);
+        }
+
+        if (!fileUpload.isUploaded()) {
+            throw new ConflictException(FILE_VIEW_STATUS_CONFLICT_MESSAGE);
+        }
+
+        statObject(fileUpload.getObjectKey());
+
+        int expiresIn = properties.viewUrlExpirationSeconds();
+        String viewUrl = createGetPresignedUrl(fileUpload.getObjectKey(), expiresIn);
+
+        return new FileViewUrlResponse(fileUpload.getId().toString(), viewUrl, expiresIn);
     }
 
     /**
@@ -240,6 +282,10 @@ public class FileServiceImpl implements FileService {
      * 운영자가 추적하기 쉽고 충돌이 나지 않도록 날짜와 fileId를 포함한 MinIO object key를 만듭니다.
      */
     private String createObjectKey(FileUploadPurpose purpose, UUID fileId, String safeFileName) {
+        if (purpose == FileUploadPurpose.PHONE) {
+            return "phone/results/%s/%s".formatted(fileId, safeFileName);
+        }
+
         LocalDate today = LocalDate.now();
 
         return "uploads/%s/%04d/%02d/%02d/%s/%s".formatted(purpose.name().toLowerCase(Locale.ROOT), today.getYear(),
@@ -251,12 +297,65 @@ public class FileServiceImpl implements FileService {
      */
     private String createPutPresignedUrl(String objectKey, String contentType, int expiresIn) {
         try {
-            return minioClient.getPresignedObjectUrl(
+            String presignedUrl = publicMinioClient.getPresignedObjectUrl(
                 GetPresignedObjectUrlArgs.builder().method(Method.PUT).bucket(properties.bucket()).object(objectKey)
                     .expiry(expiresIn).extraHeaders(Map.of("Content-Type", contentType)).build());
+
+            return applyPublicPathPrefix(presignedUrl);
         } catch (Exception e) {
             throw new FileStorageException(FILE_STORAGE_ERROR_MESSAGE, e);
         }
+    }
+
+    /**
+     * private 파일을 직접 조회할 수 있는 만료 시간 제한 URL을 생성합니다.
+     */
+    private String createGetPresignedUrl(String objectKey, int expiresIn) {
+        try {
+            String presignedUrl = publicMinioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+                .method(Method.GET).bucket(properties.bucket()).object(objectKey).expiry(expiresIn).build());
+
+            return applyPublicPathPrefix(presignedUrl);
+        } catch (Exception e) {
+            throw new FileStorageException(FILE_STORAGE_ERROR_MESSAGE, e);
+        }
+    }
+
+    /**
+     * 공개 MinIO 주소가 /minio 같은 path prefix를 포함하면 presigned URL 반환값에만 prefix를 붙입니다.
+     */
+    private String applyPublicPathPrefix(String presignedUrl) {
+        URI publicUri = URI.create(properties.publicUrl());
+        String publicPath = normalizePathPrefix(publicUri.getRawPath());
+        if (!StringUtils.hasText(publicPath)) {
+            return presignedUrl;
+        }
+
+        URI presignedUri = URI.create(presignedUrl);
+        String publicOrigin = origin(publicUri);
+        String presignedOrigin = origin(presignedUri);
+        if (!publicOrigin.equals(presignedOrigin)) {
+            return presignedUrl;
+        }
+
+        String query = presignedUri.getRawQuery() == null ? "" : "?%s".formatted(presignedUri.getRawQuery());
+        String fragment = presignedUri.getRawFragment() == null ? "" : "#%s".formatted(presignedUri.getRawFragment());
+
+        return "%s%s%s%s%s".formatted(publicOrigin, publicPath, presignedUri.getRawPath(), query, fragment);
+    }
+
+    private String normalizePathPrefix(String rawPath) {
+        if (!StringUtils.hasText(rawPath) || "/".equals(rawPath)) {
+            return "";
+        }
+
+        return rawPath.replaceAll("/+$", "");
+    }
+
+    private String origin(URI uri) {
+        String port = uri.getPort() == -1 ? "" : ":%d".formatted(uri.getPort());
+
+        return "%s://%s%s".formatted(uri.getScheme(), uri.getHost(), port);
     }
 
     private StatObjectResponse statObject(String objectKey) {

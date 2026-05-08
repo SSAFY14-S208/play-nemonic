@@ -35,12 +35,18 @@ public class FlipbookRoomViewerFactory {
         boolean host = participant.host() || roomState.hostUserUuid().equals(viewerUserUuid);
         boolean canStart = flipbookRoomPolicy.canStart(roomState, host);
 
+        if (participant.dropped()) {
+            return new FlipbookRoomViewerResponse(viewerUserUuid, true, host, false, false,
+                FlipbookRoomViewerBlockedReason.RECONNECT_EXPIRED);
+        }
+
         return new FlipbookRoomViewerResponse(viewerUserUuid, true, host, false, canStart, null);
     }
 
     private FlipbookRoomViewerResponse createNonParticipantViewerResponse(String viewerUserUuid,
         FlipbookRoomState roomState) {
-        FlipbookRoomViewerBlockedReason blockedReason = flipbookRoomPolicy.findJoinBlockedReason(roomState);
+        FlipbookRoomViewerBlockedReason blockedReason = flipbookRoomPolicy.findJoinBlockedReason(roomState,
+            viewerUserUuid);
         boolean canJoin = blockedReason == null;
 
         return new FlipbookRoomViewerResponse(viewerUserUuid, false, false, canJoin, false, blockedReason);

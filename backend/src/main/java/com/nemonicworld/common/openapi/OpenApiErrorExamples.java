@@ -17,6 +17,12 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 사용자입니다."
         }
         """;
+    public static final String FORTUNE_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "오늘 생성된 운세를 찾을 수 없습니다."
+        }
+        """;
     public static final String INVALID_NICKNAME = """
         {
           "success": false,
@@ -215,16 +221,154 @@ public final class OpenApiErrorExamples {
           "message": "방장만 사용할 수 있습니다."
         }
         """;
+    public static final String FLIPBOOK_ROOM_KICK_HOST_REQUIRED = """
+        {
+          "success": false,
+          "message": "방장만 사용할 수 있는 기능입니다."
+        }
+        """;
+    public static final String FLIPBOOK_KICK_TARGET_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "강퇴할 참여자를 찾을 수 없습니다."
+        }
+        """;
     public static final String FLIPBOOK_WAITING_ROOM_SETTINGS_ONLY = """
         {
           "success": false,
           "message": "대기 중인 방에서만 설정을 변경할 수 있습니다."
         }
         """;
+    public static final String FLIPBOOK_WAITING_ROOM_KICK_ONLY = """
+        {
+          "success": false,
+          "message": "대기실에서만 강퇴할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_WAITING_ROOM_LEAVE_ONLY = """
+        {
+          "success": false,
+          "message": "대기실에서만 퇴장할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_SELF_KICK_NOT_ALLOWED = """
+        {
+          "success": false,
+          "message": "자기 자신은 강퇴할 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_HOST_KICK_NOT_ALLOWED = """
+        {
+          "success": false,
+          "message": "방장은 강퇴할 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_KICKED_ROOM_REJOIN = """
+        {
+          "success": false,
+          "message": "강퇴된 방에는 다시 입장할 수 없습니다."
+        }
+        """;
     public static final String FLIPBOOK_ROOM_UPDATE_CONFLICT = """
         {
           "success": false,
           "message": "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요."
+        }
+        """;
+    public static final String FLIPBOOK_ROOM_START_UPDATE_CONFLICT = """
+        {
+          "success": false,
+          "message": "동시 게임 시작 요청이 많아 플립북 방 시작 상태를 갱신하지 못했습니다. 다시 시도해주세요."
+        }
+        """;
+    public static final String FLIPBOOK_GAME_ALREADY_STARTED = """
+        {
+          "success": false,
+          "message": "이미 게임이 시작되었습니다."
+        }
+        """;
+    public static final String FLIPBOOK_GAME_NOT_STARTED = """
+        {
+          "success": false,
+          "message": "게임이 아직 시작되지 않았습니다."
+        }
+        """;
+    public static final String FLIPBOOK_CURRENT_ASSIGNMENT_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "현재 배정된 프레임이 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_ASSIGNMENT_MISMATCH = """
+        {
+          "success": false,
+          "message": "현재 배정 정보와 일치하지 않습니다."
+        }
+        """;
+    public static final String FLIPBOOK_INVALID_ROUND = """
+        {
+          "success": false,
+          "message": "유효하지 않은 라운드입니다."
+        }
+        """;
+    public static final String FLIPBOOK_SUBMISSION_EXPIRED = """
+        {
+          "success": false,
+          "message": "제출 시간이 만료되었습니다."
+        }
+        """;
+    public static final String FLIPBOOK_AUTO_SUBMITTED = """
+        {
+          "success": false,
+          "message": "이미 자동 제출 처리되었습니다."
+        }
+        """;
+    public static final String FLIPBOOK_FRAME_FILE_STATUS_CONFLICT = """
+        {
+          "success": false,
+          "message": "업로드 완료된 파일만 제출할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_FRAME_FILE_PURPOSE_CONFLICT = """
+        {
+          "success": false,
+          "message": "플립북 프레임 파일만 제출할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_FRAME_SUBMIT_UPDATE_CONFLICT = """
+        {
+          "success": false,
+          "message": "동시 프레임 제출 요청이 많아 플립북 프레임을 저장하지 못했습니다. 다시 시도해주세요."
+        }
+        """;
+    public static final String FLIPBOOK_NOT_ENOUGH_PARTICIPANTS = """
+        {
+          "success": false,
+          "message": "최소 2명이 모여야 시작할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_PARTICIPANTS_DISCONNECTED = """
+        {
+          "success": false,
+          "message": "모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다."
+        }
+        """;
+    public static final String FLIPBOOK_ROOM_CLOSED = """
+        {
+          "success": false,
+          "message": "이미 종료된 방입니다."
+        }
+        """;
+    public static final String FLIPBOOK_RESULT_ACCESS_DENIED = """
+        {
+          "success": false,
+          "message": "플립북 결과를 조회할 권한이 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_RESULT_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "플립북 결과를 찾을 수 없습니다."
         }
         """;
     public static final String RELAY_GAME_ALREADY_STARTED = """
@@ -287,6 +431,24 @@ public final class OpenApiErrorExamples {
           "message": "등록된 생년월일 정보가 없습니다."
         }
         """;
+    public static final String INVALID_FORTUNE_SAJU = """
+        {
+          "success": false,
+          "message": "만세력 결과 정보가 올바르지 않습니다."
+        }
+        """;
+    public static final String FORTUNE_ALREADY_CREATED = """
+        {
+          "success": false,
+          "message": "오늘의 운세는 이미 생성했습니다. 내일 다시 이용해주세요."
+        }
+        """;
+    public static final String FORTUNE_GMS_UNAVAILABLE = """
+        {
+          "success": false,
+          "message": "운세를 가져오지 못했어요. 잠시 후 다시 시도해 주세요."
+        }
+        """;
     public static final String INVALID_GALLERY_ID = """
         {
           "success": false,
@@ -297,6 +459,48 @@ public final class OpenApiErrorExamples {
         {
           "success": false,
           "message": "존재하지 않는 갤러리 항목입니다."
+        }
+        """;
+    public static final String INVALID_ARTIFACT_ID = """
+        {
+          "success": false,
+          "message": "유효하지 않은 산출물 ID 형식입니다."
+        }
+        """;
+    public static final String ARTIFACT_IMAGE_URL_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "조회 가능한 산출물 이미지 URL을 찾을 수 없습니다."
+        }
+        """;
+    public static final String COMMUNITY_MEMO_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "존재하지 않는 커뮤니티 메모입니다."
+        }
+        """;
+    public static final String UNSUPPORTED_COMMUNITY_MEMO_SOURCE_TYPE = """
+        {
+          "success": false,
+          "message": "지원하지 않는 커뮤니티 메모 sourceType입니다."
+        }
+        """;
+    public static final String INVALID_COMMUNITY_MEMO_SOURCE = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 원본 정보가 올바르지 않습니다."
+        }
+        """;
+    public static final String INVALID_COMMUNITY_MEMO_POSITION = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 위치 정보가 올바르지 않습니다."
+        }
+        """;
+    public static final String INVALID_COMMUNITY_MEMO_DECORATION = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 데코레이션 정보가 올바르지 않습니다."
         }
         """;
     public static final String SHARE_IMAGE_NOT_FOUND = """
@@ -315,6 +519,42 @@ public final class OpenApiErrorExamples {
         {
           "success": false,
           "message": "유효하지 않은 fileId 형식입니다."
+        }
+        """;
+    public static final String INVALID_ORIGINAL_FILE_ID = """
+        {
+          "success": false,
+          "message": "유효하지 않은 originalFileId 형식입니다."
+        }
+        """;
+    public static final String INVALID_THUMBNAIL_FILE_ID = """
+        {
+          "success": false,
+          "message": "유효하지 않은 thumbnailFileId 형식입니다."
+        }
+        """;
+    public static final String INVALID_SOURCE_GALLERY_ID = """
+        {
+          "success": false,
+          "message": "유효하지 않은 sourceGalleryId 형식입니다."
+        }
+        """;
+    public static final String DUPLICATED_COMMUNITY_MEMO_FILE = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 원본과 썸네일 파일은 서로 달라야 합니다."
+        }
+        """;
+    public static final String COMMUNITY_MEMO_MODERATION_BLOCKED = """
+        {
+          "success": false,
+          "message": "부적절한 표현이 감지되어 게시할 수 없습니다."
+        }
+        """;
+    public static final String COMMUNITY_MEMO_MODERATION_UNAVAILABLE = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 모더레이션을 완료할 수 없습니다."
         }
         """;
     public static final String INVALID_FILE_NAME = """
@@ -357,6 +597,12 @@ public final class OpenApiErrorExamples {
         {
           "success": false,
           "message": "확인할 수 없는 파일 업로드 상태입니다."
+        }
+        """;
+    public static final String FILE_VIEW_STATUS_CONFLICT = """
+        {
+          "success": false,
+          "message": "조회할 수 없는 파일 업로드 상태입니다."
         }
         """;
     public static final String FILE_DELETE_STATUS_CONFLICT = """

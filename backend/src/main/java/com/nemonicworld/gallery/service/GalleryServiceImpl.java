@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.NotFoundException;
+import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.gallery.dto.response.GalleryDeleteResponse;
 import com.nemonicworld.gallery.dto.response.GalleryDetailResponse;
 import com.nemonicworld.gallery.dto.response.GalleryItemResponse;
@@ -16,8 +17,8 @@ import com.nemonicworld.gallery.repository.GalleryRepository.GalleryDeleteTarget
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,12 +42,14 @@ public class GalleryServiceImpl implements GalleryService {
     private final GalleryRepository galleryRepository;
     private final AnonymousUserResolver anonymousUserResolver;
     private final ObjectMapper objectMapper;
+    private final MinioPublicUrlResolver minioPublicUrlResolver;
 
     public GalleryServiceImpl(GalleryRepository galleryRepository, AnonymousUserResolver anonymousUserResolver,
-        ObjectMapper objectMapper) {
+        ObjectMapper objectMapper, MinioPublicUrlResolver minioPublicUrlResolver) {
         this.galleryRepository = galleryRepository;
         this.anonymousUserResolver = anonymousUserResolver;
         this.objectMapper = objectMapper;
+        this.minioPublicUrlResolver = minioPublicUrlResolver;
     }
 
     /**
@@ -84,8 +87,8 @@ public class GalleryServiceImpl implements GalleryService {
             .orElseThrow(() -> new NotFoundException(GALLERY_ITEM_NOT_FOUND_MESSAGE));
 
         return new GalleryDetailResponse(row.galleryId().toString(), row.artifactId().toString(), row.kind(),
-            row.thumbnailUrl(), row.contentUrl(), row.sourceRoomId(), parseMeta(row.meta()), row.createdAt(),
-            row.updatedAt());
+            minioPublicUrlResolver.resolve(row.thumbnailUrl()), minioPublicUrlResolver.resolve(row.contentUrl()),
+            row.sourceRoomId(), parseMeta(row.meta()), row.createdAt(), row.updatedAt());
     }
 
     /**
@@ -180,6 +183,7 @@ public class GalleryServiceImpl implements GalleryService {
 
     private GalleryItemResponse toResponse(GalleryItemRow row) {
         return new GalleryItemResponse(row.galleryId().toString(), row.artifactId().toString(), row.kind(),
-            row.thumbnailUrl(), row.contentUrl(), row.sourceRoomId(), row.createdAt());
+            minioPublicUrlResolver.resolve(row.thumbnailUrl()), minioPublicUrlResolver.resolve(row.contentUrl()),
+            row.sourceRoomId(), row.createdAt());
     }
 }

@@ -54,7 +54,7 @@ public class FlipbookWebSocketEventListener {
         try {
             FlipbookRoomStateResponse roomStateResponse = flipbookRoomService.disconnectRoom(session.userUuid(),
                 roomCode);
-            flipbookRoomEventPublisher.publishParticipantDisconnected(roomStateResponse);
+            flipbookRoomEventPublisher.publishParticipantDisconnected(roomStateResponse, session.userUuid());
         } catch (RuntimeException e) {
             log.warn("Failed to update flipbook websocket disconnect state. roomCode={}, sessionId={}", roomCode,
                 sessionId, e);

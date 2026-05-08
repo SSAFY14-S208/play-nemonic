@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-06
+Last updated: 2026-05-08
 
 ## Current Focus
 
@@ -17,7 +17,41 @@ Last updated: 2026-05-06
 - My gallery listing now uses `GET /api/v1/gallery` with `Anonymous-User-UUID` and reads existing gallery/artifact rows without MinIO calls.
 - My gallery item detail now uses `GET /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and returns one active owned gallery artifact with parsed `meta` and content URL fallback.
 - My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
+- Phone drawings can now be saved into the user's gallery through
+  `POST /api/v1/gallery/drawings`; the API accepts confirmed `PHONE`
+  `file_upload` rows, stores a new `artifact(kind=phone)`, matching
+  `phone_artifact`, and `gallery` row, and returns public image URLs while
+  keeping DB storage object-key based. PHONE presigned uploads use
+  `phone/results/{fileId}/{fileName}` object keys to align with gallery result
+  storage paths.
+- Gallery list/detail and relay result APIs now convert stored MinIO object keys into browser-renderable public URLs through `global.storage.minio.MinioPublicUrlResolver`, while preserving already absolute URLs as-is and keeping the database storage model object-key based.
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
+- Files presigned PUT/GET URLs are signed with the public MinIO origin and then re-prefixed with the configured `MINIO_PUBLIC_URL` path such as `/minio`, because the MinIO Java SDK does not allow path segments inside the client endpoint.
+- Files private GET view URLs use a separate `MINIO_VIEW_URL_EXPIRATION_MINUTES` setting with a 24-hour default, while upload PUT presigned URLs keep the shorter `MINIO_PRESIGN_EXPIRATION_MINUTES` setting.
+- Anonymous CS inquiry creation now uses `POST /api/v1/inquiries` with
+  `Anonymous-User-UUID`, stores into the existing `cs_inquiry` table with
+  initial status `new`, and preserves optional attachments and metadata as JSON
+  text without adding a new migration.
+- Backoffice admins can now list customer inquiries through
+  `GET /api/v1/admin/inquiries`; the API requires an admin JWT, supports
+  `status`, `type`, `keyword`, `userUuid`, `page`, and `size` filters, returns
+  the local pagination DTO shape, and omits detail-only fields such as
+  `content`, `attachments`, `meta`, and `responseNote`.
+- Backoffice admins can now inspect one customer inquiry through
+  `GET /api/v1/admin/inquiries/{inquiryId}`; the API requires an admin JWT,
+  returns detail-only fields including parsed `attachments`, parsed `meta`,
+  `assignedTo`, `responseNote`, and `respondedAt`, and treats missing or
+  invalid inquiry IDs with Korean error messages.
+- Backoffice admins can now reply to customer inquiries by email through
+  `POST /api/v1/admin/inquiries/{inquiryId}/reply`; the API sends SMTP mail
+  before marking the inquiry `resolved`, then stores `assignedTo`,
+  `responseNote`, `respondedAt`, and `updatedAt`. SMTP settings are
+  environment-driven through `MAIL_*` variables.
+- Backoffice admins can now change a customer inquiry status through
+  `PATCH /api/v1/admin/inquiries/{inquiryId}/status`; the API accepts
+  `new`, `in_progress`, `resolved`, and `closed`, updates only `status` and
+  `updatedAt`, and leaves reply fields such as `assignedTo`, `responseNote`,
+  and `respondedAt` untouched.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
 - Backoffice admin authentication now exposes `POST /api/v1/auth/login`,
   `POST /api/v1/auth/logout`, and `POST /api/v1/auth/reissue`; admin account
@@ -56,6 +90,22 @@ Last updated: 2026-05-06
   `DELETE /api/v1/backoffice/gms/prompts/{promptId}`; the API updates
   `gms_prompt_template.deleted_at` and `updated_at` without changing the DB
   schema, and treats missing or already deleted prompts as not found.
+- Backoffice admins can now update active GMS prompt templates through
+  `PATCH /api/v1/backoffice/gms/prompts/{promptId}`; the API accepts optional
+  `name`, `content`, and `featureType` fields, updates existing
+  `gms_prompt_template` columns and `updated_at` without changing the DB
+  schema, and rejects empty update bodies, duplicate prompt names, missing
+  prompts, and already deleted prompts.
+- Backoffice admins can now inspect one active GMS prompt template through
+  `GET /api/v1/backoffice/gms/prompts/{promptId}`; the API reuses
+  `GmsPromptResponse`, reads only `deleted_at IS NULL` rows from the existing
+  `gms_prompt_template` table, and treats missing or already deleted prompts as
+  not found.
+- Backoffice admins can now list active GMS prompt templates through
+  `GET /api/v1/backoffice/gms/prompts`; the API supports `keyword`,
+  `featureType`, `page`, and `size`, returns the local pagination DTO shape
+  (`items`, `page`, `size`, `totalElements`, `hasNext`), and reads only
+  `deleted_at IS NULL` rows from the existing `gms_prompt_template` table.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.
@@ -70,6 +120,7 @@ Last updated: 2026-05-06
 - Relay room WebSocket lobby connections use the STOMP endpoint `/ws/relay`, CONNECT headers `roomCode` and `Anonymous-User-UUID`, topic `/topic/relay/rooms/{roomCode}`, user queue `/user/queue/relay/rooms/{roomCode}`, Redis `connected`/`disconnectedAt` updates where successful CONNECT is the only path to `connected=true` and DISCONNECT returns it to `false`, applies the reconnect grace cutoff only in PLAYING rooms, keeps WAITING-room reconnection available without a time cutoff, session-id-scoped duplicate-session close events, and common `global.websocket` infrastructure for single-server in-memory active session tracking.
 - Relay drawing submissions now advance the Redis room state from `FACE` to `BODY` and `BODY` to `LEGS` when every assignment in the current part is `SUBMITTED` or `AUTO_SUBMITTED`; completing `LEGS` moves the room to `FINALIZING` and emits `ALL_PARTS_COMPLETED`, while final image composition, artifact/gallery persistence, and temp cleanup remain separate follow-up work.
 - Relay timeout auto-submit now scans `PLAYING` Redis rooms only after `partDeadlineAt + auto-submit-grace-ms`, marks remaining current-part `PENDING` assignments as `AUTO_SUBMITTED` empty entries without MinIO upload, reuses the shared part advancement flow, and emits `PART_AUTO_SUBMITTED` plus existing transition events after successful CAS saves.
+- Relay drawing submissions now acquire assignment-scoped Redis submit-in-progress locks before file upload; the timeout scheduler skips locked pending assignments until the lock TTL expires, preventing deadline-time user submissions from racing against `AUTO_SUBMITTED` fallback processing.
 - Relay disconnect grace processing now scans candidate `PLAYING` Redis rooms after the 10-second reconnect grace, marks expired disconnected participants as `dropped` with `droppedAt`, blocks dropped UUIDs from REST rejoin and WebSocket reconnect, auto-submits only their current-part `PENDING` assignments as empty `AUTO_SUBMITTED`, leaves future part assignments pending until that part becomes current, transfers a dropped host to the lowest `joinOrder` connected non-dropped participant when available, and emits `PARTICIPANT_DROPPED`, `HOST_CHANGED`, `PART_AUTO_SUBMITTED`, and existing part transition events only after successful CAS saves.
 - Relay finalization now scans `FINALIZING` Redis rooms, composes one vertical FACE/BODY/LEGS PNG per `canvasIndex`, stores final original and thumbnail objects under `relay/results/{artifactId}/`, writes matching `artifact`, `relay_drawing_artifact`, and participant gallery rows, marks the Redis room `FINISHED`, and emits `RESULT_CREATED`; presigned result URLs remain follow-up work.
 - Relay result lookup now uses `GET /api/v1/relay/rooms/{roomCode}/results`, reads PostgreSQL `artifact`/`relay_drawing_artifact`/active `gallery` rows as the source of truth, returns final combined/thumbnail URLs plus canvasIndex FACE/BODY/LEGS drawer metadata parsed from `artifact.meta`, and succeeds even after Redis room state expires when DB result ownership exists.
@@ -80,14 +131,25 @@ Last updated: 2026-05-06
 - Relay service internals are grouped under `service.room`, `service.game`, `service.assignment`, `service.submission`, `service.timeout`, `service.finalization`, `service.close`, `service.cleanup`, and `service.support`, while `RelayRoomService` and `RelayRoomServiceImpl` remain the controller-facing facade.
 - Flipbook room creation now uses `POST /api/v1/flipbook/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `flipbook:room:{roomCode}` with a 24-hour TTL, and stores matching common invite metadata under `invite:{roomCode}` with `boothType=flipbook`.
 - Flipbook room state lookup now uses `GET /api/v1/flipbook/rooms/{roomCode}`, reads the Redis room snapshot without mutation, sorts participants by `joinOrder`, and computes viewer participation, host, joinable, startable, and blocked-reason flags from the requested `Anonymous-User-UUID`.
+- Flipbook waiting-room host kick now uses `POST /api/v1/flipbook/rooms/{roomCode}/kick` with `targetUserUuid` in the JSON body, removes only non-host participants while preserving remaining `joinOrder` values, records `kickedUserUuids` in the Redis room state, blocks kicked UUIDs from invite re-entry and WebSocket reconnect paths, and emits `PARTICIPANT_KICKED` plus a best-effort personal `KICKED_FROM_ROOM` queue event before closing the same-server active session.
+- Flipbook game start now uses `POST /api/v1/flipbook/rooms/{roomCode}/start`, requires the caller to be the host of a WAITING room, requires at least two connected WebSocket participants, calculates the default total rounds from the minimum 8-frame policy, stores `currentRound`, `totalRounds`, round deadline, `gameStartedAt`, and generated frame assignments in Redis, syncs invite TTL metadata, and emits `GAME_STARTED`.
+- Flipbook current assignment lookup now uses `GET /api/v1/flipbook/rooms/{roomCode}/assignments/me`, requires the caller to be a non-dropped participant in a PLAYING room, returns the current round assignment, remaining seconds, and previous-frame hint metadata when a submitted/auto-submitted previous frame exists.
+- Flipbook PLAYING-room re-entry now applies a 10-second reconnect grace period to both common invite re-entry and WebSocket CONNECT; the frontend should call invite and immediately open WebSocket, and either path returns the reconnect-expired 409 once `disconnectedAt + 10s` has passed.
 - Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
   related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
   `super_admin` row in `admin_user` only when enabled and the login ID does not
   already exist.
 - Feature services now follow the `Service` interface plus `ServiceImpl` implementation structure; controllers depend on service interfaces.
 - Swagger/OpenAPI docs now explicitly declare path, query, and header parameter names so UI fields do not fall back to `arg0`, `arg1`, or similar compiler-generated names.
-- Swagger/OpenAPI failure responses now include representative `success: false` JSON examples for User, Gallery, Files, and Community APIs.
+- Swagger/OpenAPI failure responses now include representative `success: false` JSON examples for User, Gallery, and Files APIs.
 - The common `ApiResponse.errors` schema is documented as optional field-level validation details with a neutral example; domain-specific failure messages are documented on each API response instead.
+- Community canvas product planning now defines a first backend phase focused on memo CRUD and 50-item FIFO, using the existing Files API with `purpose=COMMUNITY` for direct memo image uploads, a single create flow split by `sourceType` (`DIRECT` or `GALLERY`), object-key storage with public URL responses, front-end-friendly `ownedByMe` list responses, decoration JSON pass-through, and no WebSocket requirement for the initial CRUD/FIFO phase.
+- The sample `GET /api/v1/community/{communityId}` API, its sample service/DTO, OpenAPI test, and `.http` request were removed; actual community canvas APIs should be implemented in follow-up MRs from `backend/docs/product-spec/01-community-canvas.md`.
+- `CommunityMemoImageUrlResolver` converts community memo MinIO object keys into public renderable URLs using configured `publicUrl` and `bucket`, passes through absolute URLs, and performs no MinIO existence checks or presigned URL issuance.
+- Community memo listing now uses `GET /api/v1/community/memos` to return visible `community_memo` rows (`deleted_at IS NULL`, `is_hidden = false`) ordered by `z_index ASC, attached_at ASC`; optional `Anonymous-User-UUID` is parsed only for `ownedByMe` and does not require app user lookup or visit metadata updates.
+- Community memo detail now uses `GET /api/v1/community/memos/{memoId}` for visible memos only, returns list fields plus decoration/artifact/moderation metadata, parses optional `Anonymous-User-UUID` only for `ownedByMe`, and falls back to `{}` for blank or invalid decoration JSON.
+- Community memo creation now uses `POST /api/v1/community/memos` with required `Anonymous-User-UUID`, supports `sourceType=DIRECT` and `sourceType=GALLERY`, requires distinct confirmed `COMMUNITY` `originalFileId` and `thumbnailFileId`, links GALLERY posts to an owned active gallery artifact only for source attribution, runs pre-publication moderation before insert, stores the final original object key in `community_memo.body_image_url` and thumbnail object key in `community_memo.thumbnail_image_url`, and applies 50-visible-memo FIFO soft deletion with `deleted_reason=expired`.
+- Community canvas planning now treats each posted memo as a final rendered image snapshot: frontend editing can start from a blank canvas or gallery source, then uploads both original and thumbnail `COMMUNITY` files, with `thumbnail_image_url` planned as a required schema addition; `clientText` is included as OCR moderation helper input, the original gallery artifact remains source attribution only, rendering/moderation use the posted snapshot, the default moderation policy is pre-publication FastAPI blocking with a hidden `pending` fallback only if synchronous latency becomes unacceptable, first-pass updates are layout-only, and external sharing remains a follow-up scope.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
 ## Stable Decisions
@@ -173,6 +235,14 @@ Recent room code generator work passed with:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\verify.ps1
 ```
 
+Recent MinIO file/view URL and public artifact URL work passed with:
+
+```bash
+cd backend
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessApply --no-daemon
+GRADLE_USER_HOME=.gradle-user-home ./gradlew test --tests 'com.nemonicworld.files.*' --tests 'com.nemonicworld.gallery.controller.GalleryControllerIntegrationTest' --tests 'com.nemonicworld.relay.controller.RelayRoomResultsControllerIntegrationTest' --tests 'com.nemonicworld.relay.service.RelayRoomResultQueryUseCaseTest' --tests 'com.nemonicworld.relay.service.RelayRoomServiceImplTest' --no-daemon
+```
+
 Recent GMS prompt creation API work passed with:
 
 ```powershell
@@ -193,6 +263,78 @@ Recent flipbook lobby WebSocket work passed with:
 
 ```bash
 GRADLE_USER_HOME=.gradle-user-home ./gradlew compileJava spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.relay.websocket.*' --no-daemon
+```
+
+Recent flipbook waiting-room kick work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck --no-daemon
+GRADLE_USER_HOME=.gradle-user-home ./gradlew compileJava test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.invite.service.FlipbookInviteJoinHandlerTest' --tests 'com.nemonicworld.global.websocket.session.WebSocketSessionRegistryTest' --no-daemon
+```
+
+Recent relay invite TTL synchronization work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.relay.service.*' --tests 'com.nemonicworld.invite.service.*' --tests 'com.nemonicworld.relay.controller.*' --no-daemon
+```
+
+Recent flipbook game start work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.invite.service.FlipbookInviteJoinHandlerTest' --no-daemon
+```
+
+Recent file private view URL work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.files.*' --no-daemon
+GRADLE_USER_HOME=.gradle-user-home ./gradlew test --tests 'com.nemonicworld.relay.controller.RelayRoomAssignmentControllerIntegrationTest' --no-daemon
+```
+
+Recent flipbook reconnect grace work added PLAYING-room disconnect scanning:
+
+- `flipbook:room:{roomCode}` participants now keep `dropped`/`droppedAt` fields like relay.
+- The flipbook disconnect scheduler scans PLAYING rooms, marks participants dropped after the 10-second reconnect grace, blocks dropped users from invite/WebSocket reconnect, and transfers a dropped host to the connected non-dropped participant with the lowest `joinOrder`.
+- `PARTICIPANT_DROPPED` and `HOST_CHANGED` WebSocket events are emitted after successful Redis CAS updates.
+
+Recent flipbook current assignment lookup work passed with:
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.invite.service.FlipbookInviteJoinHandlerTest' --no-daemon
+```
+
+Recent artifact image URL lookup work added `GET /api/v1/artifacts/{artifactId}/image-urls`.
+
+- Keep `GET /api/v1/files/{fileId}/view-url` for `file_upload.id` based private upload lookup only.
+- The artifact image URL API reads active `gallery` ownership, `artifact.thumbnail_url`, and subtype image columns, then converts object keys with `global.storage.minio.MinioPublicUrlResolver`.
+- Flipbook responses return multiple `contents` entries, including `gif` and `first_image` when both object keys exist.
+- MinIO shared infrastructure now lives under `com.nemonicworld.global.storage.minio`; the `files` package remains scoped to `file_upload` based upload/presign/confirm/view/delete behavior.
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.artifact.*' --no-daemon
+```
+
+Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/result`.
+
+- Existing artifact/gallery rows are returned first for idempotent result lookup.
+- If Redis room state is `FINISHED` and no DB result exists yet, submitted non-empty frames are grouped by `flipbookIndex`, converted into GIF files under `flipbook/results/{artifactId}/result.gif`, and stored as `artifact` + `flipbook_artifact` + gallery rows for non-dropped participants.
+- The response mirrors relay result shape with `ready`, `resultCount`, per-result `galleryId`/`artifactId`, `thumbnailUrl`, `gifUrl`, `firstImageUrl`, and ordered frame metadata.
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
+```
+
+Recent fortune result re-query work added `GET /api/v1/fortune/today`.
+
+- The API reuses `Anonymous-User-UUID`, resolves the KST current date, reads the caller's stored `fortune_artifact.description`, and returns the same result fields as fortune creation without calling GMS or card storage.
+- Fortune create/re-query responses now use `FortuneResponse`, grouping rendered content under `fortune`, saved request data under `saju`, and card render metadata under `design`.
+- Birth-time unknown flows are supported: `hourPillar` is optional/nullable in request and response, while `cardTheme`/`bgColor`/`accentColor`/`iconKey` may also be null until card asset metadata is ready.
+- Missing same-day fortune rows return 404 with `오늘 생성된 운세를 찾을 수 없습니다.`, while malformed stored result JSON returns the existing common error envelope as a bad request.
+
+```bash
+./gradlew test --tests 'com.nemonicworld.fortune.controller.FortuneControllerIntegrationTest'
+./gradlew test
+./gradlew spotlessCheck
 ```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real

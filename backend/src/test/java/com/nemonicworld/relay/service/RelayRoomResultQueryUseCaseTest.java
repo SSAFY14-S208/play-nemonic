@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
+import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.relay.dto.response.RelayRoomResultsResponse;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
@@ -37,6 +39,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class RelayRoomResultQueryUseCaseTest {
 
     private static final String ROOM_CODE = "AB3K9Q";
+    private static final String MINIO_PUBLIC_URL = "http://localhost:9000/nemonic-local/";
     private static final UUID VIEWER_UUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 6, 16, 0).truncatedTo(ChronoUnit.SECONDS);
 
@@ -57,8 +60,9 @@ class RelayRoomResultQueryUseCaseTest {
     @BeforeEach
     void setUp() {
         RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
+        MinioPublicUrlResolver minioPublicUrlResolver = new MinioPublicUrlResolver(minioStorageProperties());
         useCase = new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
-            relayRoomPolicy, new ObjectMapper().findAndRegisterModules());
+            relayRoomPolicy, new ObjectMapper().findAndRegisterModules(), minioPublicUrlResolver);
     }
 
     @Test
@@ -76,8 +80,8 @@ class RelayRoomResultQueryUseCaseTest {
         assertThat(response.ready()).isTrue();
         assertThat(response.resultCount()).isEqualTo(2);
         assertThat(response.results()).extracting("canvasIndex").containsExactly(0, 1);
-        assertThat(response.results().get(0).contentUrl()).contains("/original.png");
-        assertThat(response.results().get(0).thumbnailUrl()).contains("/thumbnail.png");
+        assertThat(response.results().get(0).contentUrl()).startsWith(MINIO_PUBLIC_URL).contains("/original.png");
+        assertThat(response.results().get(0).thumbnailUrl()).startsWith(MINIO_PUBLIC_URL).contains("/thumbnail.png");
         assertThat(response.results().get(0).parts()).extracting("part").containsExactly(RelayDrawingPart.FACE,
             RelayDrawingPart.BODY, RelayDrawingPart.LEGS);
         assertThat(response.results().get(0).parts()).extracting("drawerNickname").containsExactly("Mango", "Peach",
@@ -182,5 +186,10 @@ class RelayRoomResultQueryUseCaseTest {
         return new RelayRoomState(ROOM_CODE, RelayRoomStatus.FINALIZING, VIEWER_UUID.toString(), 45, 2, 6,
             RelayDrawingPart.LEGS, List.of(participant), List.of(), NOW.minusMinutes(3), NOW.minusMinutes(2),
             NOW.minusMinutes(10), NOW.minusMinutes(20), NOW);
+    }
+
+    private MinioStorageProperties minioStorageProperties() {
+        return new MinioStorageProperties("http://minio:9000", "http://localhost:9000", "minioadmin", "minioadmin",
+            "nemonic-local", 10, 10 * 1024 * 1024);
     }
 }

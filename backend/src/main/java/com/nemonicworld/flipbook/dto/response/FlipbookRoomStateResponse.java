@@ -18,10 +18,23 @@ public record FlipbookRoomStateResponse(@Schema(description = "공유 방코드"
     @Schema(description = "최소 시작 인원", example = "2") int minParticipants,
     @Schema(description = "최대 참여 인원", example = "6") int maxParticipants,
     @Schema(description = "현재 참여자 수", example = "1") int participantCount,
+    @Schema(description = "현재 라운드. 게임 시작 전에는 null입니다.", example = "1") Integer currentRound,
+    @Schema(description = "전체 라운드 수. 게임 시작 전에는 null입니다.", example = "4") Integer totalRounds,
+    @Schema(description = "현재 라운드 시작 시각", example = "2026-05-06T12:00:00") LocalDateTime roundStartedAt,
+    @Schema(description = "현재 라운드 마감 시각", example = "2026-05-06T12:00:45") LocalDateTime roundDeadlineAt,
+    @Schema(description = "게임 시작 시각", example = "2026-05-06T12:00:00") LocalDateTime gameStartedAt,
     @Schema(description = "현재 참여자 목록") List<FlipbookRoomParticipantResponse> participants,
     @Schema(description = "조회 요청자 기준 상태") FlipbookRoomViewerResponse viewer,
     @Schema(description = "방 생성 시각", example = "2026-05-06T12:00:00") LocalDateTime createdAt,
     @Schema(description = "방 수정 시각", example = "2026-05-06T12:00:00") LocalDateTime updatedAt) {
+
+    public FlipbookRoomStateResponse(String roomCode, FlipbookRoomStatus status, String hostUserUuid,
+        int timeLimitSeconds, int minParticipants, int maxParticipants, int participantCount,
+        List<FlipbookRoomParticipantResponse> participants, FlipbookRoomViewerResponse viewer, LocalDateTime createdAt,
+        LocalDateTime updatedAt) {
+        this(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants, participantCount, null,
+            null, null, null, null, participants, viewer, createdAt, updatedAt);
+    }
 
     /**
      * Redis 상태 모델에서 외부에 노출할 조회 응답 값을 구성합니다.
@@ -34,6 +47,8 @@ public record FlipbookRoomStateResponse(@Schema(description = "공유 방코드"
 
         return new FlipbookRoomStateResponse(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(),
             roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
-            roomState.participantCount(), participantResponses, viewer, roomState.createdAt(), roomState.updatedAt());
+            roomState.participantCount(), roomState.currentRound(), roomState.totalRounds(), roomState.roundStartedAt(),
+            roomState.roundDeadlineAt(), roomState.gameStartedAt(), participantResponses, viewer, roomState.createdAt(),
+            roomState.updatedAt());
     }
 }

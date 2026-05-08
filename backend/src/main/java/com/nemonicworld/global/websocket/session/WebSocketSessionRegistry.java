@@ -75,7 +75,15 @@ public class WebSocketSessionRegistry {
      * 콘텐츠 식별자 + UUID 조합의 현재 활성 세션을 조회합니다.
      */
     public Optional<ActiveWebSocketSession> findCurrentSession(String connectionKey, String userUuid) {
-        String sessionId = activeSessionIds.get(createRegistryKey(connectionKey, userUuid));
+        return findCurrentSession(null, connectionKey, userUuid);
+    }
+
+    /**
+     * 콘텐츠 종류 + 식별자 + UUID 조합의 현재 활성 세션을 조회합니다.
+     */
+    public Optional<ActiveWebSocketSession> findCurrentSession(String connectionType, String connectionKey,
+        String userUuid) {
+        String sessionId = activeSessionIds.get(createRegistryKey(connectionType, connectionKey, userUuid));
 
         if (sessionId == null) {
             return Optional.empty();
