@@ -137,8 +137,8 @@ export default function FortunePage() {
           'fortune-stage-overlay',
           shouldPlayEntrySpotlight && 'fortune-stage-overlay-entry',
           step === 'birthInfo' && 'fortune-stage-overlay-center fortune-stage-overlay-birth',
-          step === 'intro' && 'fortune-stage-overlay-dialogue',
-          (step === 'draw' || (step === 'printing' && prefersReducedMotion) || step === 'limit' || step === 'error') && 'fortune-stage-overlay-panel',
+          (step === 'intro' || step === 'limit') && 'fortune-stage-overlay-dialogue',
+          (step === 'draw' || (step === 'printing' && prefersReducedMotion) || step === 'error') && 'fortune-stage-overlay-panel',
           step === 'result' && 'fortune-stage-overlay-scroll',
         )}
       >
@@ -225,6 +225,7 @@ export default function FortunePage() {
         <FortuneLimitNotice
           onReset={resetTodayFortune}
           onShowResult={showTodayResult}
+          onBackToHub={goBackToHub}
         />
       )
     }
