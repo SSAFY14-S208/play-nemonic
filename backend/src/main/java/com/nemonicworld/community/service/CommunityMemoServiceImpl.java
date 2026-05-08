@@ -269,7 +269,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             CommunityMemoModerationResult result = communityMemoModerationClient
                 .check(new CommunityMemoModerationRequest(originalImageUrl, thumbnailImageUrl, clientText,
                     sourceType.value()));
-            logModerationResult(result);
+            logModerationResult(result, clientText);
             if (!result.allowed()) {
                 throw new BadRequestException(MODERATION_BLOCKED_MESSAGE);
             }
@@ -284,12 +284,12 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         return clientText == null ? "" : clientText;
     }
 
-    private void logModerationResult(CommunityMemoModerationResult result) {
+    private void logModerationResult(CommunityMemoModerationResult result, String clientText) {
         String categories = result.categories() == null || result.categories().isNull()
             ? "[]"
             : result.categories().toString();
-        log.info("커뮤니티 메모 모더레이션 결과 allowed={} textPreview={} categories={}", result.allowed(),
-            previewModerationText(result.ocrText()), categories);
+        log.info("커뮤니티 메모 모더레이션 결과 allowed={} clientTextPreview={} checkedTextPreview={} categories={}",
+            result.allowed(), previewModerationText(clientText), previewModerationText(result.ocrText()), categories);
     }
 
     private String previewModerationText(String text) {

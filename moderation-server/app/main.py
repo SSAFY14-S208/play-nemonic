@@ -9,7 +9,8 @@ from app.moderation import classify_text, warm_up_model
 from app.ocr import OcrError, extract_text_from_image_data, extract_text_from_image_url
 from app.schemas import CheckRequest, CheckResponse
 
-logger = logging.getLogger("nemonic.moderation")
+# uvicorn.error 로거를 사용하면 개발 서버 콘솔에 INFO 로그까지 바로 보입니다.
+logger = logging.getLogger("uvicorn.error")
 LOG_TEXT_PREVIEW_LIMIT = 300
 
 
@@ -105,8 +106,13 @@ def _build_check_response(ocr_text: str, client_text: str | None) -> CheckRespon
     allowed = len(detected_categories) == 0
 
     logger.info(
-        "UnSmile 검사 완료 allowed=%s textLength=%d textPreview=%s categories=%s",
+        "UnSmile 검사 완료 allowed=%s ocrTextLength=%d ocrTextPreview=%s clientTextLength=%d clientTextPreview=%s "
+        "checkedTextLength=%d checkedTextPreview=%s categories=%s",
         allowed,
+        len(ocr_text),
+        _preview_text(ocr_text),
+        len(client_text or ""),
+        _preview_text(client_text or ""),
         len(text),
         _preview_text(text),
         [category.model_dump() for category in detected_categories],

@@ -7,7 +7,6 @@ import httpx
 
 from app.settings import get_settings
 
-LOCAL_IMAGE_HOSTS = {"localhost", "127.0.0.1", "::1"}
 MIN_MEANINGFUL_TEXT_LENGTH = 2
 
 
@@ -22,11 +21,11 @@ def extract_text_from_image_url(image_url: str) -> str:
     if not settings.ocr_enabled:
         return ""
 
-    # /check는 Spring Boot가 넘겨준 공개 접근 가능한 이미지 URL을 Google Vision에 전달합니다.
+    # /check는 Spring Boot가 넘겨준 MinIO 이미지 URL을 FastAPI가 먼저 읽고, 이미지 바이트를 Google Vision에 보냅니다.
+    # 이렇게 해야 Google 서버가 접근할 수 없는 localhost/private URL도 로컬 개발 환경에서 OCR 테스트가 됩니다.
     _ensure_google_settings()
-    _validate_public_image_url(image_url)
-
-    payload = _build_google_url_payload(image_url)
+    image_data = _download_image_url(image_url)
+    payload = _build_google_data_payload(image_data)
     return _request_google_vision(payload)
 
 
@@ -76,8 +75,26 @@ def _request_google_vision(payload: dict[str, Any]) -> str:
         raise OcrError("Google Vision OCR 응답 JSON을 해석할 수 없습니다.") from exc
 
 
-def _build_google_url_payload(image_url: str) -> dict[str, Any]:
-    return _build_google_payload({"source": {"imageUri": image_url}})
+def _download_image_url(image_url: str) -> bytes:
+    parsed = urlparse(image_url)
+    if parsed.scheme not in {"http", "https"}:
+        raise OcrError("OCR 이미지 URL은 http 또는 https 형식이어야 합니다.")
+
+    settings = get_settings()
+    timeout = httpx.Timeout(settings.google_vision_timeout_seconds)
+    try:
+        response = httpx.get(image_url, timeout=timeout, follow_redirects=True)
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        raise OcrError(f"OCR 이미지 다운로드에 실패했습니다. status={exc.response.status_code}") from exc
+    except httpx.RequestError as exc:
+        raise OcrError(f"OCR 이미지 다운로드 요청을 전송하지 못했습니다. error={exc.__class__.__name__}") from exc
+
+    image_data = response.content
+    if not image_data:
+        raise OcrError("OCR 이미지 다운로드 결과가 비어 있습니다.")
+
+    return image_data
 
 
 def _build_google_data_payload(image_data: bytes) -> dict[str, Any]:
@@ -95,13 +112,6 @@ def _build_google_payload(image: dict[str, Any]) -> dict[str, Any]:
         request["imageContext"] = {"languageHints": [settings.google_vision_language_hint]}
 
     return {"requests": [request]}
-
-
-def _validate_public_image_url(image_url: str) -> None:
-    parsed = urlparse(image_url)
-    if parsed.hostname in LOCAL_IMAGE_HOSTS:
-        # Google 서버는 개발자 PC의 localhost에 접근할 수 없으므로 URL 방식에서는 미리 막습니다.
-        raise OcrError("Google Vision OCR은 localhost 이미지 URL에 접근할 수 없습니다.")
 
 
 def _extract_google_vision_text(response_body: dict[str, Any]) -> str:
