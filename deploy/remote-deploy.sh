@@ -50,10 +50,17 @@ INFRA_DIR="$BASE_DIR/infra"
 [[ -f "$ENV_FILE"  ]] || { echo "Env file not found: $ENV_FILE" >&2; exit 1; }
 [[ -d "$INFRA_DIR" ]] || { echo "Infra dir not found: $INFRA_DIR" >&2; exit 1; }
 
-# 이미지 이름
-IMAGE_NAME="localhost:5000/nemonic/${DEPLOY_TARGET}"
-SERVICE_NAME="${DEPLOY_TARGET}"  # backend → app, frontend → frontend
-[[ "$DEPLOY_TARGET" == "backend" ]] && SERVICE_NAME="app"
+# 이미지 이름과 서비스 이름.
+# Jenkinsfile_backend는 nemonic/app으로 push하고 docker-compose도 nemonic/app:latest를
+# pull하므로, DEPLOY_TARGET=backend일 때 IMAGE_REPO를 'app'으로 맞춰준다.
+# 예전 버전은 nemonic/backend로 tag/push해서 롤백이 무효했음.
+SERVICE_NAME="${DEPLOY_TARGET}"
+IMAGE_REPO="${DEPLOY_TARGET}"
+if [[ "$DEPLOY_TARGET" == "backend" ]]; then
+  SERVICE_NAME="app"
+  IMAGE_REPO="app"
+fi
+IMAGE_NAME="localhost:5000/nemonic/${IMAGE_REPO}"
 
 echo "=========================================="
 echo "원격 배포 시작 ($DEPLOY_TARGET)"

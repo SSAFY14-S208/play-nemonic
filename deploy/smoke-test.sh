@@ -94,9 +94,25 @@ if [[ "$DEPLOY_TARGET" == "backend" || "$DEPLOY_TARGET" == "all" ]]; then
   fi
 
   echo ""
-  echo "[backend] Nginx -> App 경로 확인"
-  curl -fsSk -H "Host: ${DOMAIN}" \
-    "https://nginx/actuator/health" | head -c 300
+  echo "[backend] Nginx -> App 경로 확인 (최대 60초 retry)"
+  # app 컨테이너 재생성 직후 nginx upstream DNS 캐시(TTL 10s)가 만료되기 전에는
+  # stale IP로 503이 나올 수 있어서 단발 호출 대신 retry. resolver 패턴이 적용된
+  # /actuator/ 블록과 함께 동작.
+  MAX_WAIT=60
+  WAITED=0
+  until curl -fsSk -H "Host: ${DOMAIN}" \
+              -o /tmp/smoke-actuator.out \
+              "https://nginx/actuator/health"; do
+    if [[ $WAITED -ge $MAX_WAIT ]]; then
+      echo "  [ERROR] Nginx -> App 헬스체크 60초 내 미통과" >&2
+      exit 1
+    fi
+    printf "  대기 중... (${WAITED}s/${MAX_WAIT}s)\r"
+    sleep 5; WAITED=$((WAITED + 5))
+  done
+  echo ""
+  head -c 300 /tmp/smoke-actuator.out
+  rm -f /tmp/smoke-actuator.out
   echo ""
 fi
 
@@ -139,9 +155,21 @@ if [[ "$DEPLOY_TARGET" == "frontend" || "$DEPLOY_TARGET" == "all" ]]; then
   fi
 
   echo ""
-  echo "[frontend 2/2] Nginx -> Frontend 경로 확인"
-  curl -fsSk -H "Host: ${DOMAIN}" \
-    "https://nginx/" -o /dev/null -w "  HTTP %{http_code}\n"
+  echo "[frontend 2/2] Nginx -> Frontend 경로 확인 (최대 60초 retry)"
+  # frontend 컨테이너 재생성 직후 nginx upstream DNS 캐시 만료 대기.
+  MAX_WAIT=60
+  WAITED=0
+  until curl -fsSk -H "Host: ${DOMAIN}" \
+              -o /dev/null \
+              "https://nginx/"; do
+    if [[ $WAITED -ge $MAX_WAIT ]]; then
+      echo "  [ERROR] Nginx -> Frontend 헬스체크 60초 내 미통과" >&2
+      exit 1
+    fi
+    printf "  대기 중... (${WAITED}s/${MAX_WAIT}s)\r"
+    sleep 5; WAITED=$((WAITED + 5))
+  done
+  echo "  HTTP 200"
 fi
 
 echo ""
