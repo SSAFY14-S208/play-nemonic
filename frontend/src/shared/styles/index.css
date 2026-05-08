@@ -1,15 +1,16 @@
-/* ─────────────────────────────────────────────────────────────────────────────
-   shared/styles/index.css  —  전체 CSS 진입점
-   app/layout.tsx 에서 이 파일 하나만 import
+/* ---------------------------------------------------------------------------
+   shared/styles/index.css - global CSS entrypoint
+   Imported once from app/layout.tsx.
 
-   로딩 순서:
+   Load order:
    1. Tailwind core
-   2. Primitive tokens  (원시 값, 컴포넌트에서 직접 참조 금지)
-   3. Semantic tokens   (역할 기반, 컴포넌트에서 이것만 참조)
-   4. Tailwind theme    (커스텀 shadow·radius 등 Tailwind 유틸리티 등록)
-   5. Base             (전역 리셋 + Pretendard 폰트)
-   6. Utilities         (타이포그래피 유틸리티 클래스)
-───────────────────────────────────────────────────────────────────────────── */
+   2. Primitive tokens
+   3. Semantic tokens
+   4. Tailwind theme
+   5. Base
+   6. Utilities
+   7. Feature-level shared styles
+--------------------------------------------------------------------------- */
 
 @import "tailwindcss";
 
@@ -23,3 +24,4 @@
 @import "./layers/theme.css";
 @import "./layers/base.css";
 @import "./layers/utilities.css";
+@import "./features/fortune.css";

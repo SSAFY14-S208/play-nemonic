@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, type CSSProperties } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   HUB_CONTENT_VIEWS,
   type HubContentKey,
@@ -16,6 +17,8 @@ const HUB_BUTTONS: Array<{ key: HubContentKey; label: string }> = [
   { key: 'infinite', label: '무한' },
   { key: 'flipbook', label: '플립북' },
 ]
+
+const HUB_FORTUNE_PATH = '/fortune'
 
 const PLATFORM_BUTTON_STYLES: Record<HubContentKey, CSSProperties> = {
   community: {
@@ -46,6 +49,7 @@ const PLATFORM_BUTTON_STYLES: Record<HubContentKey, CSSProperties> = {
 }
 
 export default function HubOverlay() {
+  const router = useRouter()
   const selectedContentKey = useHubViewStore((state) => state.selectedContentKey)
   const currentCopy = useHubViewStore((state) => state.currentCopy)
   const selectContent = useHubViewStore((state) => state.selectContent)
@@ -74,6 +78,10 @@ export default function HubOverlay() {
     [selectContent, selectedContentKey],
   )
 
+  const handleEnterFortune = () => {
+    router.push(HUB_FORTUNE_PATH)
+  }
+
   return (
     <>
       <header className={styles.viewerCopy}>
@@ -90,6 +98,15 @@ export default function HubOverlay() {
           <p className={styles.viewerDescription}>
             {currentCopy.description}
           </p>
+          {selectedContentKey === 'fortune' && (
+            <button
+              type="button"
+              className={styles.entryButton}
+              onClick={handleEnterFortune}
+            >
+              운세 부스 입장
+            </button>
+          )}
         </div>
       </header>
 

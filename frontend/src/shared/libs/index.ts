@@ -12,3 +12,16 @@ export type {
   JsonWebSocketTransport,
   JsonWebSocketTransportOptions,
 } from './websocketClient'
+export {
+  connectRelaySocket,
+  connectRelaySocketForCurrentUser,
+  disconnectRelaySocket,
+  getRelaySocketRoomCode,
+  getRelaySocketStatus,
+  sendRelayPing,
+} from './relaySocketClient'
+export type {
+  RelayEventListener,
+  RelaySocketStatus,
+  RelaySocketStatusListener,
+} from './relaySocketClient'
