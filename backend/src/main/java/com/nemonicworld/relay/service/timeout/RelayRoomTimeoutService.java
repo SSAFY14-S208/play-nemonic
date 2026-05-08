@@ -7,6 +7,7 @@ import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
@@ -19,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,25 +36,31 @@ public class RelayRoomTimeoutService {
 
     private final RelayRoomRepository relayRoomRepository;
     private final RelaySubmissionLockRepository relaySubmissionLockRepository;
+    private final RelayRoomMutationLockRepository relayRoomMutationLockRepository;
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final int scanLimit;
     private final Duration autoSubmitGrace;
+    private final Duration roomMutationLockTtl;
 
     public RelayRoomTimeoutService(RelayRoomRepository relayRoomRepository,
         RelaySubmissionLockRepository relaySubmissionLockRepository,
+        RelayRoomMutationLockRepository relayRoomMutationLockRepository,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
         RelayInviteMetadataSyncService relayInviteMetadataSyncService,
         @Value("${nemonic.relay.timeout.scan-limit:100}") int scanLimit,
-        @Value("${nemonic.relay.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs) {
+        @Value("${nemonic.relay.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs,
+        @Value("${nemonic.relay.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.relayRoomRepository = relayRoomRepository;
         this.relaySubmissionLockRepository = relaySubmissionLockRepository;
+        this.relayRoomMutationLockRepository = relayRoomMutationLockRepository;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.scanLimit = scanLimit;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
+        this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
     }
 
     /**
@@ -85,7 +93,29 @@ public class RelayRoomTimeoutService {
      */
     public RelayRoomTimeoutResult processExpiredRoom(String roomCode, LocalDateTime now) {
         LocalDateTime processedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        RelayRoomState candidateRoomState = relayRoomRepository.findByRoomCode(roomCode).orElse(null);
+        if (!isExpiredPlayingRoom(candidateRoomState, processedAt)) {
+            return RelayRoomTimeoutResult.noOp(roomCode);
+        }
 
+        String roomMutationLockToken = createRoomMutationLockToken("timeout", roomCode);
+        boolean locked = relayRoomMutationLockRepository.acquireRoomMutationLock(roomCode, roomMutationLockToken,
+            roomMutationLockTtl);
+        if (!locked) {
+            return RelayRoomTimeoutResult.noOp(roomCode);
+        }
+
+        try {
+            RelayRoomTimeoutResult result = processExpiredRoomWithLock(roomCode, processedAt);
+            publishTimeoutEvents(result);
+
+            return result;
+        } finally {
+            relayRoomMutationLockRepository.releaseRoomMutationLock(roomCode, roomMutationLockToken);
+        }
+    }
+
+    private RelayRoomTimeoutResult processExpiredRoomWithLock(String roomCode, LocalDateTime processedAt) {
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomRepository.findByRoomCode(roomCode).orElse(null);
             if (!isExpiredPlayingRoom(roomState, processedAt)) {
@@ -106,15 +136,17 @@ public class RelayRoomTimeoutService {
 
             if (relayRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
                 relayInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
-                RelayRoomTimeoutResult result = new RelayRoomTimeoutResult(roomCode, true, currentPart,
-                    autoSubmitUpdate.autoSubmissions(), advanceResult);
-                publishTimeoutEvents(result);
-
-                return result;
+                return new RelayRoomTimeoutResult(roomCode, true, currentPart, autoSubmitUpdate.autoSubmissions(),
+                    advanceResult);
             }
         }
 
         throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    private String createRoomMutationLockToken(String owner, String roomCode) {
+        return "token=%s,requestedAt=%s,owner=%s,roomCode=%s".formatted(UUID.randomUUID(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), owner, roomCode);
     }
 
     private boolean isExpiredPlayingRoom(RelayRoomState roomState, LocalDateTime now) {

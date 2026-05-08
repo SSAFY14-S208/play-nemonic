@@ -12,6 +12,7 @@ import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
@@ -52,6 +53,9 @@ public class RelayRoomSubmissionUseCase {
 
     private static final String SUBMISSION_IN_PROGRESS_MESSAGE = "이미 제출 처리 중입니다.";
 
+    private static final int ROOM_MUTATION_LOCK_ACQUIRE_ATTEMPTS = 5;
+    private static final Duration ROOM_MUTATION_LOCK_RETRY_DELAY = Duration.ofMillis(50);
+
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/png", "image/jpeg", "image/gif",
         "image/webp");
 
@@ -61,28 +65,34 @@ public class RelayRoomSubmissionUseCase {
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelaySubmissionStorage relaySubmissionStorage;
     private final RelaySubmissionLockRepository relaySubmissionLockRepository;
+    private final RelayRoomMutationLockRepository relayRoomMutationLockRepository;
     private final MinioStorageProperties minioStorageProperties;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final Duration autoSubmitGrace;
     private final Duration submitLockTtl;
+    private final Duration roomMutationLockTtl;
 
     public RelayRoomSubmissionUseCase(AnonymousUserResolver anonymousUserResolver,
         RelayRoomRepository relayRoomRepository, RelayRoomPolicy relayRoomPolicy,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelaySubmissionStorage relaySubmissionStorage,
-        RelaySubmissionLockRepository relaySubmissionLockRepository, MinioStorageProperties minioStorageProperties,
+        RelaySubmissionLockRepository relaySubmissionLockRepository,
+        RelayRoomMutationLockRepository relayRoomMutationLockRepository, MinioStorageProperties minioStorageProperties,
         RelayInviteMetadataSyncService relayInviteMetadataSyncService,
         @Value("${nemonic.relay.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs,
-        @Value("${nemonic.relay.timeout.submit-lock-ttl-ms:10000}") long submitLockTtlMs) {
+        @Value("${nemonic.relay.timeout.submit-lock-ttl-ms:10000}") long submitLockTtlMs,
+        @Value("${nemonic.relay.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relaySubmissionStorage = relaySubmissionStorage;
         this.relaySubmissionLockRepository = relaySubmissionLockRepository;
+        this.relayRoomMutationLockRepository = relayRoomMutationLockRepository;
         this.minioStorageProperties = minioStorageProperties;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
         this.submitLockTtl = Duration.ofMillis(Math.max(1L, submitLockTtlMs));
+        this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
     }
 
     @Transactional(readOnly = true)
@@ -94,75 +104,107 @@ public class RelayRoomSubmissionUseCase {
         RelayDrawingPart requestedPart = parsePart(request);
         Integer requestedCanvasIndex = request == null ? null : request.canvasIndex();
         String submissionLockToken = createSubmissionLockToken(viewerUserUuid);
+        String roomMutationLockToken = createRoomMutationLockToken("submission", viewerUserUuid);
         boolean submissionLocked = false;
+        boolean roomMutationLocked = false;
 
         try {
-            for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
-                RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
-                RelayRoomParticipant participant = relayRoomPolicy.requireParticipant(roomState, viewerUserUuid);
+            RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
+            RelayRoomParticipant participant = relayRoomPolicy.requireParticipant(roomState, viewerUserUuid);
 
-                Optional<RelayRoomAssignment> requestedAssignment = findRequestedAssignment(roomState, viewerUserUuid,
-                    requestedCanvasIndex, requestedPart);
-                if (isDuplicateLookupAllowed(roomState) && requestedAssignment.isPresent()) {
-                    RelayRoomAssignment assignment = requestedAssignment.get();
+            Optional<RelayRoomAssignment> requestedAssignment = findRequestedAssignment(roomState, viewerUserUuid,
+                requestedCanvasIndex, requestedPart);
+            if (isDuplicateLookupAllowed(roomState) && requestedAssignment.isPresent()) {
+                RelayRoomAssignment assignment = requestedAssignment.get();
+                if (assignment.status() == RelayAssignmentStatus.SUBMITTED) {
+                    return createResponse(roomState, assignment, true, viewerUserUuid, participant.nickname(),
+                        RelayPartAdvanceResult.notAdvanced(roomState,
+                            relayRoomPartAdvanceService.calculateProgress(roomState, assignment.part())));
+                }
+                if (assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED || assignment.autoSubmitted()) {
+                    throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
+                }
+            }
+
+            relayRoomPolicy.validateAssignmentQueryableRoom(roomState);
+            RelayRoomAssignment currentAssignment = relayRoomPolicy.requireCurrentAssignment(roomState, viewerUserUuid);
+            validateAssignmentMatches(currentAssignment, requestedCanvasIndex, requestedPart);
+
+            if (currentAssignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED
+                || currentAssignment.autoSubmitted()) {
+                throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
+            }
+
+            validateDeadline(roomState.partDeadlineAt());
+            submissionLocked = acquireSubmissionLock(roomState.roomCode(), currentAssignment, submissionLockToken);
+            validateFile(request.drawingImage());
+            MultipartFile hintImage = resolveHintImage(request, requestedPart);
+
+            String drawingObjectKey = createObjectKey(roomState.roomCode(), currentAssignment.canvasIndex(),
+                currentAssignment.part(), false);
+            String hintObjectKey = hintImage == null
+                ? null
+                : createObjectKey(roomState.roomCode(), currentAssignment.canvasIndex(), currentAssignment.part(),
+                    true);
+
+            uploadSubmissionImages(drawingObjectKey, request.drawingImage(), hintObjectKey, hintImage);
+
+            String cleanupMessage = "릴레이 제출 Redis 갱신 충돌로 임시 업로드 파일이 정리 대상에 남을 수 있습니다.";
+            roomMutationLocked = acquireRoomMutationLock(roomCodeValue, roomMutationLockToken);
+
+            for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
+                RelayRoomState latestRoomState = relayRoomPolicy.findRoomState(roomCodeValue);
+                RelayRoomParticipant latestParticipant = relayRoomPolicy.requireParticipant(latestRoomState,
+                    viewerUserUuid);
+
+                Optional<RelayRoomAssignment> latestRequestedAssignment = findRequestedAssignment(latestRoomState,
+                    viewerUserUuid, requestedCanvasIndex, requestedPart);
+                if (latestRequestedAssignment.isPresent()) {
+                    RelayRoomAssignment assignment = latestRequestedAssignment.get();
                     if (assignment.status() == RelayAssignmentStatus.SUBMITTED) {
-                        return createResponse(roomState, assignment, true, viewerUserUuid, participant.nickname(),
-                            RelayPartAdvanceResult.notAdvanced(roomState,
-                                relayRoomPartAdvanceService.calculateProgress(roomState, assignment.part())));
+                        return createResponse(latestRoomState, assignment, true, viewerUserUuid,
+                            latestParticipant.nickname(), RelayPartAdvanceResult.notAdvanced(latestRoomState,
+                                relayRoomPartAdvanceService.calculateProgress(latestRoomState, assignment.part())));
                     }
                     if (assignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED || assignment.autoSubmitted()) {
                         throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
                     }
                 }
 
-                relayRoomPolicy.validateAssignmentQueryableRoom(roomState);
-                RelayRoomAssignment currentAssignment = relayRoomPolicy.requireCurrentAssignment(roomState,
+                relayRoomPolicy.validateAssignmentQueryableRoom(latestRoomState);
+                RelayRoomAssignment latestCurrentAssignment = relayRoomPolicy.requireCurrentAssignment(latestRoomState,
                     viewerUserUuid);
-                validateAssignmentMatches(currentAssignment, requestedCanvasIndex, requestedPart);
+                validateAssignmentMatches(latestCurrentAssignment, requestedCanvasIndex, requestedPart);
 
-                if (currentAssignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED
-                    || currentAssignment.autoSubmitted()) {
+                if (latestCurrentAssignment.status() == RelayAssignmentStatus.AUTO_SUBMITTED
+                    || latestCurrentAssignment.autoSubmitted()) {
                     throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
                 }
 
-                if (!submissionLocked) {
-                    validateDeadline(roomState.partDeadlineAt());
-                    submissionLocked = acquireSubmissionLock(roomState.roomCode(), currentAssignment,
-                        submissionLockToken);
-                }
-                validateFile(request.drawingImage());
-                MultipartFile hintImage = resolveHintImage(request, requestedPart);
-
                 LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-                String drawingObjectKey = createObjectKey(roomState.roomCode(), currentAssignment.canvasIndex(),
-                    currentAssignment.part(), false);
-                String hintObjectKey = hintImage == null
-                    ? null
-                    : createObjectKey(roomState.roomCode(), currentAssignment.canvasIndex(), currentAssignment.part(),
-                        true);
-
-                uploadSubmissionImages(drawingObjectKey, request.drawingImage(), hintObjectKey, hintImage);
-
-                RelayRoomAssignment submittedAssignment = submitAssignment(currentAssignment, drawingObjectKey,
+                RelayRoomAssignment submittedAssignment = submitAssignment(latestCurrentAssignment, drawingObjectKey,
                     hintObjectKey, now);
-                RelayRoomState submittedRoomState = roomState.withAssignments(
-                    replaceAssignment(roomState.assignments(), currentAssignment, submittedAssignment), now);
+                RelayRoomState submittedRoomState = latestRoomState.withAssignments(
+                    replaceAssignment(latestRoomState.assignments(), latestCurrentAssignment, submittedAssignment),
+                    now);
                 RelayPartAdvanceResult advanceResult = relayRoomPartAdvanceService
-                    .advancePartIfCompleted(submittedRoomState, currentAssignment.part(), now);
+                    .advancePartIfCompleted(submittedRoomState, latestCurrentAssignment.part(), now);
 
-                if (relayRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
+                if (relayRoomRepository.saveIfUnchanged(latestRoomState, advanceResult.roomState())) {
                     relayInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
                     return createResponse(advanceResult.roomState(), submittedAssignment, false, viewerUserUuid,
-                        participant.nickname(), advanceResult);
+                        latestParticipant.nickname(), advanceResult);
                 }
 
-                String cleanupMessage = "릴레이 제출 Redis 갱신 충돌로 임시 업로드 파일이 정리 대상에 남을 수 있습니다.";
-                log.warn("{} roomCode={}, canvasIndex={}, part={}", cleanupMessage, roomState.roomCode(),
-                    currentAssignment.canvasIndex(), currentAssignment.part());
+                log.warn("{} roomCode={}, canvasIndex={}, part={}", cleanupMessage, latestRoomState.roomCode(),
+                    latestCurrentAssignment.canvasIndex(), latestCurrentAssignment.part());
             }
 
             throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
         } finally {
+            if (roomMutationLocked) {
+                relayRoomMutationLockRepository.releaseRoomMutationLock(roomCodeValue, roomMutationLockToken);
+            }
             if (submissionLocked) {
                 relaySubmissionLockRepository.releaseSubmissionLock(roomCodeValue, requestedCanvasIndex, requestedPart,
                     viewerUserUuid, submissionLockToken);
@@ -229,6 +271,36 @@ public class RelayRoomSubmissionUseCase {
     private String createSubmissionLockToken(String viewerUserUuid) {
         return "token=%s,requestedAt=%s,userUuid=%s".formatted(UUID.randomUUID(),
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), viewerUserUuid);
+    }
+
+    private boolean acquireRoomMutationLock(String roomCode, String roomMutationLockToken) {
+        for (int attempt = 0; attempt < ROOM_MUTATION_LOCK_ACQUIRE_ATTEMPTS; attempt++) {
+            boolean locked = relayRoomMutationLockRepository.acquireRoomMutationLock(roomCode, roomMutationLockToken,
+                roomMutationLockTtl);
+            if (locked) {
+                return true;
+            }
+
+            if (attempt < ROOM_MUTATION_LOCK_ACQUIRE_ATTEMPTS - 1) {
+                sleepBeforeRoomMutationLockRetry();
+            }
+        }
+
+        throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    private void sleepBeforeRoomMutationLockRetry() {
+        try {
+            Thread.sleep(ROOM_MUTATION_LOCK_RETRY_DELAY.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        }
+    }
+
+    private String createRoomMutationLockToken(String owner, String viewerUserUuid) {
+        return "token=%s,requestedAt=%s,owner=%s,userUuid=%s".formatted(UUID.randomUUID(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), owner, viewerUserUuid);
     }
 
     private MultipartFile resolveHintImage(RelayRoomSubmissionRequest request, RelayDrawingPart requestedPart) {

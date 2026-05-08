@@ -30,6 +30,7 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayArtifactRepository;
+import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.assignment.RelayHintImageUrlResolver;
@@ -98,6 +99,9 @@ class RelayRoomServiceImplTest {
     private RelaySubmissionLockRepository relaySubmissionLockRepository;
 
     @Mock
+    private RelayRoomMutationLockRepository relayRoomMutationLockRepository;
+
+    @Mock
     private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
     private RelayRoomService relayRoomService;
@@ -106,6 +110,10 @@ class RelayRoomServiceImplTest {
     void setUp() {
         lenient().when(relaySubmissionLockRepository.acquireSubmissionLock(anyString(), anyInt(),
             any(RelayDrawingPart.class), anyString(), anyString(), any(Duration.class))).thenReturn(true);
+        lenient()
+            .when(
+                relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
+            .thenReturn(true);
         RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
         RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
@@ -130,7 +138,8 @@ class RelayRoomServiceImplTest {
                 new MinioPublicUrlResolver(minioStorageProperties())),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomPartAdvanceService, relaySubmissionStorage, relaySubmissionLockRepository,
-                minioStorageProperties(), relayInviteMetadataSyncService, 2000L, 10000L),
+                relayRoomMutationLockRepository, minioStorageProperties(), relayInviteMetadataSyncService, 2000L,
+                10000L, 5000L),
             new RelayRoomManualCloseUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService)),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
@@ -715,13 +724,13 @@ class RelayRoomServiceImplTest {
         assertThat(response.submittedCount()).isEqualTo(1);
         assertThat(response.totalCount()).isEqualTo(2);
         assertThat(response.currentPartCompleted()).isFalse();
-        verify(relaySubmissionStorage, times(4)).upload(any(String.class), any());
+        verify(relaySubmissionStorage, times(2)).upload(any(String.class), any());
 
         ArgumentCaptor<RelayRoomState> expectedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
         ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
         verify(relayRoomRepository, times(2)).saveIfUnchanged(expectedStateCaptor.capture(),
             updatedStateCaptor.capture());
-        assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
+        assertThat(expectedStateCaptor.getAllValues()).containsExactly(secondReadRoomState, secondReadRoomState);
         assertThat(updatedStateCaptor.getAllValues().get(1).assignments().get(0).status())
             .isEqualTo(RelayAssignmentStatus.SUBMITTED);
         assertThat(updatedStateCaptor.getAllValues().get(1).assignments().get(0).objectKey())
@@ -747,7 +756,7 @@ class RelayRoomServiceImplTest {
             submissionRequest(0, RelayDrawingPart.FACE))).isInstanceOf(ConflictException.class);
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
-        verify(relaySubmissionStorage, times(6)).upload(any(String.class), any());
+        verify(relaySubmissionStorage, times(2)).upload(any(String.class), any());
     }
 
     @Test
