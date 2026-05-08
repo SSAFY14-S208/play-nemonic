@@ -69,6 +69,8 @@ export default function FlipbookLobbyView({
     (_, waitingSlotIndex) => `waiting-${waitingSlotIndex}`,
   )
   const isConnectionReady = connectionStatus === 'connected'
+  const startGameButtonDisabled = !isHost || !canStartGame || !isConnectionReady || isBusy
+  const startGameButtonLabel = !isHost ? '게임 대기중' : isBusy ? '시작 중' : '게임 시작'
 
   return (
     <section className="relative min-h-screen overflow-hidden bg-flipbook-background text-flipbook-ink">
@@ -207,11 +209,11 @@ export default function FlipbookLobbyView({
               <button
                 type="button"
                 onClick={onStartGame}
-                disabled={!canStartGame || !isConnectionReady || isBusy}
-                className="body-b mx-auto inline-flex min-h-15 w-full max-w-[420px] items-center justify-center gap-2 rounded-[8px] border-2 border-flipbook-deep bg-flipbook-primary text-flipbook-ink shadow-[0_8px_14px_var(--color-flipbook-shadow)]"
+                disabled={startGameButtonDisabled}
+                className="body-b mx-auto inline-flex min-h-15 w-full max-w-[420px] items-center justify-center gap-2 rounded-[8px] border-2 border-flipbook-deep bg-flipbook-primary text-flipbook-ink shadow-[0_8px_14px_var(--color-flipbook-shadow)] disabled:opacity-55"
               >
                 <Palette className="size-5" aria-hidden />
-                {isBusy ? '시작 중' : '게임 시작'}
+                {startGameButtonLabel}
               </button>
               {errorMessage && (
                 <p className="caption-b text-center text-flipbook-deep">{errorMessage}</p>

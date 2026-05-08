@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   FileConfirmResponse,
   FileDeleteResponse,
+  FilePresignedUploadRequest,
   FilePresignRequest,
   FilePresignResponse,
 } from '@/shared/types'
@@ -16,6 +17,25 @@ export const postFilePresign = (payload: FilePresignRequest) =>
 // POST /files/{fileId}/confirm — 파일 업로드 완료 확인
 export const postFileConfirm = (fileId: string) =>
   apiUnwrap(api.post<ApiResponse<FileConfirmResponse>>(`files/${fileId}/confirm`))
+
+// PUT {presignedUrl} — MinIO Presigned URL로 파일 바이너리 직접 업로드
+export const putFileToPresignedUrl = async ({
+  presignedUrl,
+  file,
+  contentType,
+}: FilePresignedUploadRequest) => {
+  const response = await fetch(presignedUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': contentType,
+    },
+    body: file,
+  })
+
+  if (!response.ok) {
+    throw new Error('파일 업로드에 실패했습니다.')
+  }
+}
 
 // DELETE /files/{fileId} — 파일 삭제
 export const deleteFile = (fileId: string) =>

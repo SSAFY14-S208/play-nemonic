@@ -95,8 +95,8 @@ export interface FlipbookAssignmentHintResponse {
   flipbookIndex: number
   frameIndex: number
   round: number
-  objectKey: string
-  url: string
+  objectKey: string | null
+  url: string | null
   empty: boolean
 }
 
@@ -174,6 +174,139 @@ export interface FlipbookRealtimeEvent<TData = unknown> {
   data: TData
   occurredAt: string
 }
+
+export type FlipbookWsEventType =
+  | 'PARTICIPANT_CONNECTED'
+  | 'PARTICIPANT_DISCONNECTED'
+  | 'PARTICIPANT_DROPPED'
+  | 'SETTINGS_CHANGED'
+  | 'GAME_STARTED'
+  | 'FRAME_SUBMITTED'
+  | 'FRAME_AUTO_SUBMITTED'
+  | 'ROUND_STARTED'
+  | 'ALL_ROUNDS_COMPLETED'
+  | 'ROOM_CLOSED'
+  | 'PARTICIPANT_KICKED'
+  | 'PARTICIPANT_LEFT'
+  | 'HOST_CHANGED'
+  | 'KICKED_FROM_ROOM'
+  | 'DUPLICATE_SESSION_CLOSED'
+  | 'PONG'
+  | 'ERROR'
+
+export interface FlipbookWsEnvelope<TType extends FlipbookWsEventType, TData> {
+  type: TType
+  roomCode: string
+  data: TData
+  occurredAt: string
+}
+
+export interface FlipbookRoomSnapshotResponse {
+  roomCode: string
+  status: FlipbookRoomStatus
+  hostUserUuid: string
+  timeLimitSeconds: number
+  minParticipants: number
+  maxParticipants: number
+  participantCount: number
+  currentRound: number | null
+  totalRounds: number | null
+  roundStartedAt: string | null
+  roundDeadlineAt: string | null
+  gameStartedAt: string | null
+  participants: FlipbookRoomParticipantResponse[]
+  changedParticipant: FlipbookRoomParticipantResponse | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FlipbookWsParticipantDroppedData {
+  roomCode: string
+  userUuid: string
+  nickname: string
+  disconnectedAt: string
+  droppedAt: string
+}
+
+export interface FlipbookWsFrameAutoSubmittedData {
+  roomCode: string
+  userUuid: string
+  nickname: string
+  flipbookIndex: number
+  frameIndex: number
+  round: number
+  assignmentStatus: 'AUTO_SUBMITTED'
+  empty: boolean
+  submittedAt: string
+}
+
+export interface FlipbookWsRoundStartedData {
+  roomCode: string
+  previousRound: number
+  round: number
+  roundStartedAt: string
+  roundDeadlineAt: string
+  timeLimitSeconds: number
+}
+
+export interface FlipbookWsAllRoundsCompletedData {
+  roomCode: string
+  roomStatus: 'FINISHED'
+  completedAt: string
+}
+
+export interface FlipbookWsRoomClosedData {
+  roomCode: string
+  roomStatus: 'CLOSED'
+  closedAt: string
+}
+
+export interface FlipbookWsParticipantKickedData {
+  roomCode: string
+  kickedUserUuid: string
+  kickedNickname: string
+  participantCount: number
+  kickedAt: string
+}
+
+export interface FlipbookWsParticipantLeftData {
+  roomCode: string
+  leftUserUuid: string
+  leftNickname: string
+  participantCount: number
+  leftAt: string
+}
+
+export interface FlipbookWsHostChangedData {
+  roomCode: string
+  previousHostUserUuid: string
+  newHostUserUuid: string
+  newHostNickname: string
+  changedAt: string
+}
+
+export interface FlipbookWsMessageData {
+  message: string
+}
+
+export type FlipbookWsEvent =
+  | FlipbookWsEnvelope<'PARTICIPANT_CONNECTED', FlipbookRoomSnapshotResponse>
+  | FlipbookWsEnvelope<'PARTICIPANT_DISCONNECTED', FlipbookRoomSnapshotResponse>
+  | FlipbookWsEnvelope<'SETTINGS_CHANGED', FlipbookRoomSnapshotResponse>
+  | FlipbookWsEnvelope<'GAME_STARTED', FlipbookRoomSnapshotResponse>
+  | FlipbookWsEnvelope<'FRAME_SUBMITTED', FlipbookFrameSubmitResponse>
+  | FlipbookWsEnvelope<'FRAME_AUTO_SUBMITTED', FlipbookWsFrameAutoSubmittedData>
+  | FlipbookWsEnvelope<'ROUND_STARTED', FlipbookWsRoundStartedData>
+  | FlipbookWsEnvelope<'ALL_ROUNDS_COMPLETED', FlipbookWsAllRoundsCompletedData>
+  | FlipbookWsEnvelope<'ROOM_CLOSED', FlipbookWsRoomClosedData>
+  | FlipbookWsEnvelope<'PARTICIPANT_KICKED', FlipbookWsParticipantKickedData>
+  | FlipbookWsEnvelope<'PARTICIPANT_LEFT', FlipbookWsParticipantLeftData>
+  | FlipbookWsEnvelope<'PARTICIPANT_DROPPED', FlipbookWsParticipantDroppedData>
+  | FlipbookWsEnvelope<'HOST_CHANGED', FlipbookWsHostChangedData>
+  | FlipbookWsEnvelope<'KICKED_FROM_ROOM', FlipbookWsMessageData>
+  | FlipbookWsEnvelope<'DUPLICATE_SESSION_CLOSED', FlipbookWsMessageData>
+  | FlipbookWsEnvelope<'PONG', FlipbookWsMessageData>
+  | FlipbookWsEnvelope<'ERROR', FlipbookWsMessageData>
 
 // WebSocket 세션 도메인 (REST와 별개의 실시간 페이로드 타입)
 

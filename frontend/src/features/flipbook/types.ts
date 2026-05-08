@@ -9,3 +9,5 @@ export interface FlipbookFrame {
   lines: DrawingLine[]
   imageUrl?: string
 }
+
+export type FlipbookDrawingSubmissionState = 'drawing' | 'submitting' | 'waiting'

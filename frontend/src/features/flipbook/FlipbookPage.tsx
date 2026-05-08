@@ -54,6 +54,7 @@ export default function FlipbookPage() {
           remainingSeconds={flipbook.remainingSeconds}
           currentParticipant={flipbook.currentParticipant}
           isSubmitting={flipbook.isSubmitting}
+          isRoundSubmitted={flipbook.isRoundSubmitted}
           connectionStatus={flipbook.connectionStatus}
           errorMessage={flipbook.errorMessage}
           lines={flipbook.drawingBoard.lines}
@@ -78,6 +79,8 @@ export default function FlipbookPage() {
       {flipbook.currentStep === 'result' && (
         <FlipbookResultView
           frames={flipbook.frames}
+          resultItems={flipbook.resultItems}
+          activeResultIndex={flipbook.activeResultIndex}
           gifUrl={flipbook.gifUrl}
           resultCount={flipbook.resultCount}
           activeFrame={flipbook.activeResultFrame}
@@ -86,8 +89,10 @@ export default function FlipbookPage() {
           canGoPreviousResultFrame={flipbook.canGoPreviousResultFrame}
           canGoNextResultFrame={flipbook.canGoNextResultFrame}
           onToggleGifPlaying={flipbook.setIsGifPlaying}
+          onShowFrame={flipbook.showResultFrame}
           onShowPreviousFrame={flipbook.showPreviousResultFrame}
           onShowNextFrame={flipbook.showNextResultFrame}
+          onSelectResult={flipbook.selectResult}
           onCreateAnother={() => flipbook.selectStep('booth')}
         />
       )}

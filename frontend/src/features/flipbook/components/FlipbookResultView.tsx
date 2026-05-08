@@ -1,13 +1,15 @@
 'use client'
 
 import { Download, Pause, Play, Share2 } from 'lucide-react'
-import type { DrawingLine } from '@/shared/types'
+import type { DrawingLine, FlipbookResultItemResponse } from '@/shared/types'
 import { cn } from '@/shared/libs'
 import { FLIPBOOK_BACKGROUND_COLOR, FLIPBOOK_BOARD_SIZE } from '../constants'
 import type { FlipbookFrame } from '../types'
 
 interface FlipbookResultViewProps {
   frames: FlipbookFrame[]
+  resultItems: FlipbookResultItemResponse[]
+  activeResultIndex: number
   gifUrl: string | null
   resultCount: number
   activeFrame: FlipbookFrame | null
@@ -16,13 +18,17 @@ interface FlipbookResultViewProps {
   canGoPreviousResultFrame: boolean
   canGoNextResultFrame: boolean
   onToggleGifPlaying: (isPlaying: boolean) => void
+  onShowFrame: (frameIndex: number) => void
   onShowPreviousFrame: () => void
   onShowNextFrame: () => void
+  onSelectResult: (resultIndex: number) => void
   onCreateAnother: () => void
 }
 
 export default function FlipbookResultView({
   frames,
+  resultItems,
+  activeResultIndex,
   gifUrl,
   resultCount,
   activeFrame,
@@ -31,10 +37,14 @@ export default function FlipbookResultView({
   canGoPreviousResultFrame,
   canGoNextResultFrame,
   onToggleGifPlaying,
+  onShowFrame,
   onShowPreviousFrame,
   onShowNextFrame,
+  onSelectResult,
   onCreateAnother,
 }: FlipbookResultViewProps) {
+  const activeResult = resultItems[activeResultIndex] ?? null
+
   return (
     <section className="min-h-screen bg-flipbook-background px-6 py-10 text-flipbook-ink lg:px-12 lg:py-14">
       <div className="mx-auto w-full max-w-[1312px]">
@@ -68,13 +78,16 @@ export default function FlipbookResultView({
                 <p className="caption-b text-flipbook-deep">STEP {resultFrameIndex + 1}</p>
                 <h1 className="h2-b mt-1 flex flex-wrap items-center gap-2 text-flipbook-ink">
                   <span className="rounded-full bg-flipbook-light px-3 py-0.5">
+                    작품 {(activeResult?.flipbookIndex ?? activeResultIndex) + 1}
+                  </span>
+                  <span className="rounded-full bg-flipbook-result-soft px-3 py-0.5">
                     프레임 {activeFrame ? activeFrame.index + 1 : resultFrameIndex + 1}
                   </span>
                 </h1>
               </div>
               <button
                 type="button"
-                aria-label={isGifPlaying ? 'GIF 재생 멈춤' : 'GIF 재생 시작'}
+                aria-label={isGifPlaying ? '프레임 자동 재생 멈춤' : '프레임 자동 재생 시작'}
                 onClick={() => onToggleGifPlaying(!isGifPlaying)}
                 className="grid size-11 place-items-center rounded-full bg-flipbook-primary text-flipbook-ink"
               >
@@ -87,19 +100,10 @@ export default function FlipbookResultView({
             </header>
 
             <div className="relative h-[460px] overflow-hidden rounded-[14px] border-[1.5px] border-flipbook-light bg-flipbook-paper">
-              {isGifPlaying && gifUrl ? (
-                <div
-                  className="h-full w-full bg-white bg-contain bg-center bg-no-repeat"
-                  role="img"
-                  aria-label="완성된 플립북 GIF"
-                  style={{ backgroundImage: `url("${gifUrl}")` }}
-                />
-              ) : (
-                <FrameDrawing
-                  lines={activeFrame?.lines ?? []}
-                  imageUrl={activeFrame?.imageUrl ?? null}
-                />
-              )}
+              <FrameDrawing
+                lines={activeFrame?.lines ?? []}
+                imageUrl={activeFrame?.imageUrl ?? null}
+              />
               <div className="caption-b absolute right-4 top-4 flex items-center gap-2 rounded-full border border-flipbook-light bg-flipbook-paper py-1.5 pl-2 pr-4 text-flipbook-deep shadow-[0_6px_7px_var(--color-flipbook-shadow)]">
                 {activeFrame ? `프레임 ${activeFrame.index + 1}` : '아직 프레임 없음'}
               </div>
@@ -138,15 +142,66 @@ export default function FlipbookResultView({
 
           <aside className="flex min-h-[716px] flex-col gap-4">
             <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper px-5 py-4">
-              <p className="caption-b text-flipbook-deep">완성된 프레임</p>
+              <p className="caption-b text-flipbook-deep">완성된 작품</p>
               <p className="caption-b mt-2 text-flipbook-muted">
-                총 {resultCount}개의 플립북 중 첫 번째 결과
+                총 {resultCount}개의 플립북 중 {activeResultIndex + 1}번째 결과
+              </p>
+              <div className="mt-4 grid gap-2">
+                {resultItems.map((resultItem, resultIndex) => {
+                  const firstDrawer = resultItem.frames[0]?.drawnByNickname ?? '알 수 없음'
+                  const isActiveResult = resultIndex === activeResultIndex
+
+                  return (
+                    <button
+                      key={resultItem.artifactId}
+                      type="button"
+                      onClick={() => onSelectResult(resultIndex)}
+                      className={cn(
+                        'flex min-h-[68px] items-center gap-3 rounded-[14px] bg-flipbook-result-soft px-3.5 text-left',
+                        isActiveResult &&
+                          'border-[1.5px] border-flipbook-deep bg-flipbook-paper shadow-[0_4px_5px_var(--color-flipbook-shadow)]',
+                      )}
+                    >
+                      <span
+                        className="block size-11 rounded-[10px] border border-flipbook-light bg-white bg-cover bg-center"
+                        aria-hidden
+                        style={{
+                          backgroundImage: `url("${resultItem.thumbnailUrl || resultItem.firstImageUrl}")`,
+                        }}
+                      />
+                      <span className="min-w-0">
+                        <span className="body-b block text-flipbook-ink">
+                          작품 {resultItem.flipbookIndex + 1}
+                        </span>
+                        <span className="caption-m block truncate text-flipbook-deep">
+                          시작: {firstDrawer}
+                        </span>
+                      </span>
+                      <span className="caption-b ml-auto text-flipbook-deep">
+                        {resultItem.frames.length}장
+                      </span>
+                    </button>
+                  )
+                })}
+                {resultItems.length === 0 && (
+                  <p className="caption-m rounded-[14px] bg-flipbook-result-soft px-3.5 py-4 text-flipbook-muted">
+                    결과를 불러오는 중이에요
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper px-5 py-4">
+              <p className="caption-b text-flipbook-deep">작품 프레임</p>
+              <p className="caption-b mt-2 text-flipbook-muted">
+                선택한 작품의 프레임만 재생돼요
               </p>
               <div className="mt-4 grid gap-2">
                 {frames.map((frame, frameIndex) => (
                   <button
                     key={frame.id}
                     type="button"
+                    onClick={() => onShowFrame(frameIndex)}
                     className={cn(
                       'flex min-h-11 items-center gap-3 rounded-[14px] bg-flipbook-result-soft px-3.5',
                       frameIndex === resultFrameIndex &&
