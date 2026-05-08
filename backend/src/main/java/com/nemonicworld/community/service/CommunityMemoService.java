@@ -20,8 +20,14 @@ public interface CommunityMemoService {
      */
     CommunityMemoDetailResponse getCommunityMemo(String memoIdValue, String viewerUserUuidValue);
 
+    /**
+     * 최종 렌더링된 원본/썸네일 스냅샷을 검수한 뒤 커뮤니티 벽에 새 메모로 붙입니다.
+     */
     CommunityMemoDetailResponse createCommunityMemo(String userUuidValue, CommunityMemoCreateRequest request);
 
+    /**
+     * 본인 visible 메모의 위치, 레이어, 회전값만 수정합니다.
+     */
     CommunityMemoDetailResponse updateCommunityMemoLayout(String memoIdValue, String userUuidValue,
         CommunityMemoLayoutUpdateRequest request);
 }

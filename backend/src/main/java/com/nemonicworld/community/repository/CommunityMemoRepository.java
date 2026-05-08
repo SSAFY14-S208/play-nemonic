@@ -46,6 +46,7 @@ public class CommunityMemoRepository {
             cm.rotation_deg AS rotation_deg,
             cm.attached_at AS attached_at
         """ + VISIBLE_MEMO_FROM + """
+        -- 벽 렌더링 순서는 z-index가 낮은 메모부터, 같은 층에서는 먼저 붙은 메모부터입니다.
         ORDER BY cm.z_index ASC, cm.attached_at ASC
         """;
 
@@ -73,6 +74,7 @@ public class CommunityMemoRepository {
         """;
 
     private static final String FIND_ACTIVE_SOURCE_GALLERY_SQL = """
+        -- GALLERY 게시에서는 갤러리 이미지를 복사하지 않고, 소유한 gallery의 artifact만 출처로 연결합니다.
         SELECT
             g.id AS gallery_id,
             g.artifact_id AS artifact_id,
@@ -142,12 +144,14 @@ public class CommunityMemoRepository {
             WHERE deleted_at IS NULL
               AND is_hidden = FALSE
               AND id <> :newMemoId
+            -- 숨김 메모는 노출 개수에서 제외하고, 새 메모가 바로 만료되지 않도록 id 조건을 둡니다.
             ORDER BY attached_at ASC, id ASC
             LIMIT :limit
         )
         """;
 
     private static final String UPDATE_MEMO_LAYOUT_SQL = """
+        -- 배치 수정은 본인 visible 메모만 대상으로 하며, 이미지/출처/데코레이션/검수 정보는 건드리지 않습니다.
         UPDATE community_memo
         SET position_x = :positionX,
             position_y = :positionY,
