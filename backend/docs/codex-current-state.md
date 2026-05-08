@@ -17,6 +17,13 @@ Last updated: 2026-05-08
 - My gallery listing now uses `GET /api/v1/gallery` with `Anonymous-User-UUID` and reads existing gallery/artifact rows without MinIO calls.
 - My gallery item detail now uses `GET /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and returns one active owned gallery artifact with parsed `meta` and content URL fallback.
 - My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
+- Phone drawings can now be saved into the user's gallery through
+  `POST /api/v1/gallery/drawings`; the API accepts confirmed `PHONE`
+  `file_upload` rows, stores a new `artifact(kind=phone)`, matching
+  `phone_artifact`, and `gallery` row, and returns public image URLs while
+  keeping DB storage object-key based. PHONE presigned uploads use
+  `phone/results/{fileId}/{fileName}` object keys to align with gallery result
+  storage paths.
 - Gallery list/detail and relay result APIs now convert stored MinIO object keys into browser-renderable public URLs through `global.storage.minio.MinioPublicUrlResolver`, while preserving already absolute URLs as-is and keeping the database storage model object-key based.
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Files presigned PUT/GET URLs are signed with the public MinIO origin and then re-prefixed with the configured `MINIO_PUBLIC_URL` path such as `/minio`, because the MinIO Java SDK does not allow path segments inside the client endpoint.
@@ -323,6 +330,19 @@ Recent relay submission concurrency work added a room-scoped Redis mutation lock
 - Room mutation locks now serialize `relay:room:{roomCode}` JSON updates between submission API requests and timeout auto-submit.
 - The mutation lock key uses `relay:room-mutation-lock:{roomCode}` so it is not picked up by existing `relay:room:*` room scans.
 - Submission uploads still happen before the room mutation lock; only latest room state read, validation, mutation, and save run inside the lock.
+
+Recent fortune result re-query work added `GET /api/v1/fortune/today`.
+
+- The API reuses `Anonymous-User-UUID`, resolves the KST current date, reads the caller's stored `fortune_artifact.description`, and returns the same result fields as fortune creation without calling GMS or card storage.
+- Fortune create/re-query responses now use `FortuneResponse`, grouping rendered content under `fortune`, saved request data under `saju`, and card render metadata under `design`.
+- Birth-time unknown flows are supported: `hourPillar` is optional/nullable in request and response, while `cardTheme`/`bgColor`/`accentColor`/`iconKey` may also be null until card asset metadata is ready.
+- Missing same-day fortune rows return 404 with `오늘 생성된 운세를 찾을 수 없습니다.`, while malformed stored result JSON returns the existing common error envelope as a bad request.
+
+```bash
+./gradlew test --tests 'com.nemonicworld.fortune.controller.FortuneControllerIntegrationTest'
+./gradlew test
+./gradlew spotlessCheck
+```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.

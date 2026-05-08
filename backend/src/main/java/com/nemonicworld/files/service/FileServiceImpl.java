@@ -282,6 +282,10 @@ public class FileServiceImpl implements FileService {
      * 운영자가 추적하기 쉽고 충돌이 나지 않도록 날짜와 fileId를 포함한 MinIO object key를 만듭니다.
      */
     private String createObjectKey(FileUploadPurpose purpose, UUID fileId, String safeFileName) {
+        if (purpose == FileUploadPurpose.PHONE) {
+            return "phone/results/%s/%s".formatted(fileId, safeFileName);
+        }
+
         LocalDate today = LocalDate.now();
 
         return "uploads/%s/%04d/%02d/%02d/%s/%s".formatted(purpose.name().toLowerCase(Locale.ROOT), today.getYear(),

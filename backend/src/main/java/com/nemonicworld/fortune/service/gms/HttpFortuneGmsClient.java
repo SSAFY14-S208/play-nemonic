@@ -46,7 +46,8 @@ public class HttpFortuneGmsClient implements FortuneGmsClient {
           "iconKey": "moon_waning"
         }
         점수는 0 이상 100 이하의 정수로 만든다.
-        bgColor와 accentColor는 반드시 #RRGGBB 형식으로 만든다.
+        cardTheme, bgColor, accentColor, iconKey는 카드 에셋 메타데이터가 없으면 null로 둘 수 있다.
+        bgColor와 accentColor를 넣는다면 반드시 #RRGGBB 형식으로 만든다.
         postitLine은 네모닉 출력에 어울리는 짧은 한 문장으로 만든다.
         """;
 
@@ -132,8 +133,8 @@ public class HttpFortuneGmsClient implements FortuneGmsClient {
             requiredScore(result, "overallLuck"), requiredScore(result, "loveLuck"), requiredScore(result, "workLuck"),
             requiredScore(result, "moneyLuck"), requiredText(result, "luckyColor"),
             requiredText(result, "luckyKeyword"), optionalText(result, "caution"), requiredText(result, "postitLine"),
-            requiredText(result, "cardTheme"), requiredText(result, "bgColor"), requiredText(result, "accentColor"),
-            requiredText(result, "iconKey"));
+            optionalText(result, "cardTheme"), optionalText(result, "bgColor"), optionalText(result, "accentColor"),
+            optionalText(result, "iconKey"));
     }
 
     private String stripJsonFence(String content) {
