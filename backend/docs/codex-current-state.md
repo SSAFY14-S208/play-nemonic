@@ -35,6 +35,11 @@ Last updated: 2026-05-08
   returns detail-only fields including parsed `attachments`, parsed `meta`,
   `assignedTo`, `responseNote`, and `respondedAt`, and treats missing or
   invalid inquiry IDs with Korean error messages.
+- Backoffice admins can now reply to customer inquiries by email through
+  `POST /api/v1/admin/inquiries/{inquiryId}/reply`; the API sends SMTP mail
+  before marking the inquiry `resolved`, then stores `assignedTo`,
+  `responseNote`, `respondedAt`, and `updatedAt`. SMTP settings are
+  environment-driven through `MAIL_*` variables.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
 - Backoffice admin authentication now exposes `POST /api/v1/auth/login`,
   `POST /api/v1/auth/logout`, and `POST /api/v1/auth/reissue`; admin account

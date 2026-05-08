@@ -121,6 +121,28 @@ public class CsInquiryRepository {
         return count == null ? 0L : count;
     }
 
+    public int updateReply(Long id, Long assignedTo, String responseNote, LocalDateTime respondedAt, String status) {
+        return jdbcTemplate.update(connection -> {
+            var preparedStatement = connection.prepareStatement("""
+                UPDATE cs_inquiry
+                   SET status = ?,
+                       assigned_to = ?,
+                       response_note = ?,
+                       responded_at = ?,
+                       updated_at = ?
+                 WHERE id = ?
+                """);
+            preparedStatement.setObject(1, status, Types.OTHER);
+            preparedStatement.setLong(2, assignedTo);
+            preparedStatement.setString(3, responseNote);
+            preparedStatement.setTimestamp(4, Timestamp.valueOf(respondedAt));
+            preparedStatement.setTimestamp(5, Timestamp.valueOf(respondedAt));
+            preparedStatement.setLong(6, id);
+
+            return preparedStatement;
+        });
+    }
+
     private void appendSearchConditions(StringBuilder sql, List<Object> params, String status, String type,
         String keyword, UUID userUuid) {
         if (StringUtils.hasText(status)) {
