@@ -17,6 +17,12 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 사용자입니다."
         }
         """;
+    public static final String FORTUNE_NOT_FOUND = """
+        {
+          "success": false,
+          "message": "오늘 생성된 운세를 찾을 수 없습니다."
+        }
+        """;
     public static final String INVALID_NICKNAME = """
         {
           "success": false,
