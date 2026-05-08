@@ -114,6 +114,23 @@ class FileControllerIntegrationTest {
      * 업로드 완료된 파일이면 private 객체 조회를 위한 GET presigned URL을 발급합니다.
      */
     @Test
+    void presignPhoneUsesResultStyleObjectKey() throws Exception {
+        UUID userUuid = createExistingUser();
+        given(publicMinioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+            .willReturn(SIGNED_PRESIGNED_URL);
+
+        MvcResult result = mockMvc
+            .perform(post("/api/v1/files/presign").contentType(MediaType.APPLICATION_JSON)
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .content(presignRequestBody("phone-drawing.png", "image/png", "PHONE")))
+            .andExpect(status().isOk()).andReturn();
+
+        UUID fileId = UUID.fromString(readData(result).path("fileId").asText());
+        assertThat(readStringColumn(fileId, "object_key"))
+            .isEqualTo("phone/results/%s/phone-drawing.png".formatted(fileId));
+    }
+
+    @Test
     void viewUrlReturnsPresignedGetUrlForUploadedFileOwner() throws Exception {
         UUID userUuid = createExistingUser();
         UUID fileId = insertFileUpload(userUuid, "UPLOADED", 1024L);
