@@ -251,6 +251,15 @@ services:
       ADMIN_BOOTSTRAP_NICKNAME: ${ADMIN_BOOTSTRAP_NICKNAME:-}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
       NEMONIC_SITE_URL: ${NEMONIC_SITE_URL}
+      # SMTP — application.yml의 ${MAIL_*} placeholder로 주입.
+      # 비어있으면 Spring mail HealthIndicator가 DOWN을 리포트해서
+      # /actuator/health가 503을 반환 → smoke test 실패.
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_SMTP_STARTTLS_ENABLE:-true}
     depends_on:
       postgres:
         condition: service_healthy
