@@ -1,0 +1,9 @@
+package com.nemonicworld.backoffice.setting.service;
+
+import com.nemonicworld.backoffice.setting.dto.response.SystemParameterListResponse;
+import com.nemonicworld.common.jwt.AdminPrincipal;
+
+public interface SystemParameterService {
+
+    SystemParameterListResponse getSystemParameters(AdminPrincipal adminPrincipal, String keyword);
+}
