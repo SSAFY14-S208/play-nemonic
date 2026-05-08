@@ -6,3 +6,4 @@ export {
   parseHexColor,
   renderLinesToRasterCanvas,
 } from './drawingRaster'
+export { parseServerInstant } from './parseServerInstant'
