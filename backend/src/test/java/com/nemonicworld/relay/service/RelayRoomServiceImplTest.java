@@ -3,7 +3,10 @@ package com.nemonicworld.relay.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -28,6 +31,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayArtifactRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.assignment.RelayHintImageUrlResolver;
 import com.nemonicworld.relay.service.assignment.RelayRoomAssignmentQueryUseCase;
 import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
@@ -91,12 +95,17 @@ class RelayRoomServiceImplTest {
     private RelaySubmissionStorage relaySubmissionStorage;
 
     @Mock
+    private RelaySubmissionLockRepository relaySubmissionLockRepository;
+
+    @Mock
     private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
     private RelayRoomService relayRoomService;
 
     @BeforeEach
     void setUp() {
+        lenient().when(relaySubmissionLockRepository.acquireSubmissionLock(anyString(), anyInt(),
+            any(RelayDrawingPart.class), anyString(), anyString(), any(Duration.class))).thenReturn(true);
         RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
         RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
@@ -120,8 +129,8 @@ class RelayRoomServiceImplTest {
                 relayRoomPolicy, new ObjectMapper().findAndRegisterModules(),
                 new MinioPublicUrlResolver(minioStorageProperties())),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomPartAdvanceService, relaySubmissionStorage, minioStorageProperties(),
-                relayInviteMetadataSyncService, 2000L),
+                relayRoomPartAdvanceService, relaySubmissionStorage, relaySubmissionLockRepository,
+                minioStorageProperties(), relayInviteMetadataSyncService, 2000L, 10000L),
             new RelayRoomManualCloseUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService)),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
