@@ -34,6 +34,10 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
   submittedCount: 0,
   totalCount: 0,
 
+  // 라운드별 데드라인/제출 상태
+  roundDeadlines: { face: null, body: null, legs: null },
+  roundSubmitted: { face: false, body: false, legs: false },
+
   // 라운드 전환 애니메이션
   isTransitioning: false,
 
@@ -141,6 +145,12 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
       totalCount: 0,
       isTransitioning: false,
       selectedToolKey: 'pencil',
+      // 라운드별 데드라인 — 새로고침 복귀 시 WS 이벤트 없이도 deadline이 복원되도록.
+      // roundSubmitted는 리셋하지 않는다 — 라운드 간 누적 이력.
+      roundDeadlines: {
+        ...get().roundDeadlines,
+        [roundKey]: assignment.partDeadlineAt,
+      },
     })
   },
 
@@ -151,7 +161,22 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
 
   setIsSubmitting: (isSubmitting) => set({ isSubmitting }),
 
-  markSubmitted: () => set({ isSubmitting: false, isSubmitted: true }),
+  markSubmitted: (roundKey?) => {
+    const targetRound = roundKey ?? get().activeRoundKey
+    const isSameRound = targetRound === get().activeRoundKey
+    set({
+      // 현재 라운드 제출 완료일 때만 공유 UI 플래그 갱신
+      // (이전 라운드의 in-flight 응답이 현재 라운드 UI를 덮어쓰지 않도록)
+      isSubmitting: isSameRound ? false : get().isSubmitting,
+      isSubmitted: isSameRound ? true : get().isSubmitted,
+      roundSubmitted: { ...get().roundSubmitted, [targetRound]: true },
+    })
+  },
+
+  setRoundDeadline: (roundKey, deadline) =>
+    set((state) => ({
+      roundDeadlines: { ...state.roundDeadlines, [roundKey]: deadline },
+    })),
 
   updateSubmissionProgress: (submittedCount, totalCount) =>
     set({ submittedCount, totalCount }),
@@ -176,5 +201,7 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
       totalCount: 0,
       isTransitioning: false,
       partFetchTrigger: 0,
+      roundDeadlines: { face: null, body: null, legs: null },
+      roundSubmitted: { face: false, body: false, legs: false },
     }),
 })

@@ -82,6 +82,12 @@ export interface CanvasSlice {
   submittedCount: number
   totalCount: number
 
+  // 라운드별 데드라인/제출 상태 — 라운드 전환 시 cross-round auto-submit 방지.
+  // roundDeadlines[round] === null이면 해당 라운드 데드라인 미수신 → 자동 제출 금지.
+  // roundSubmitted[round] === true이면 해당 라운드 제출 완료 → 재제출 금지.
+  roundDeadlines: Record<RelayRoundKey, string | null>
+  roundSubmitted: Record<RelayRoundKey, boolean>
+
   // 라운드 전환 애니메이션
   isTransitioning: boolean
 
@@ -107,7 +113,8 @@ export interface CanvasSlice {
   setAssignment: (assignment: RelayRoomMyAssignmentResponse) => void
   setPartDeadlineAt: (deadline: string) => void
   setIsSubmitting: (isSubmitting: boolean) => void
-  markSubmitted: () => void
+  markSubmitted: (roundKey?: RelayRoundKey) => void
+  setRoundDeadline: (roundKey: RelayRoundKey, deadline: string) => void
   updateSubmissionProgress: (submittedCount: number, totalCount: number) => void
   // beginTransition / advanceToNextRound: 라운드 전환 애니메이션 제어.
   beginTransition: () => void

@@ -15,6 +15,7 @@ import {
 import type { RelaySocketStatus } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
+import { PART_TO_ROUND_KEY } from '../constants'
 import { useRelayDrawingStore } from '../stores'
 import { useRelaySocket } from './useRelaySocket'
 
@@ -98,6 +99,9 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         // PLAYING 상태에서 새로고침 시 deadline을 즉시 반영 — 타이머가 정확한 남은 시간으로 시작한다.
         if (room.status === 'PLAYING') {
           useRelayDrawingStore.getState().setPartDeadlineAt(room.partDeadlineAt)
+          // 라운드별 데드라인 세팅 — 새로고침 복귀 시에도 auto-submit 게이트가 열리도록.
+          const roundKey = PART_TO_ROUND_KEY[room.currentPart]
+          useRelayDrawingStore.getState().setRoundDeadline(roundKey, room.partDeadlineAt)
           // WS GAME_STARTED가 먼저 도착해 trigger를 이미 올렸으면 건너뛴다.
           // 중복 increment는 진행 중인 assignment fetch의 retry를 취소시켜서
           // 서버 배정 생성 시간만큼의 retry 윈도우를 낭비한다.
@@ -234,6 +238,9 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         useRelayDrawingStore.getState().setIsSubmitting(false)
         // 첫 파트 deadline을 즉시 반영 — 타이머가 정확한 남은 시간으로 시작한다.
         useRelayDrawingStore.getState().setPartDeadlineAt(event.data.partDeadlineAt)
+        // 라운드별 데드라인 세팅 — auto-submit이 이 라운드의 데드라인 수신을 확인할 수 있게.
+        const roundKey = PART_TO_ROUND_KEY[event.data.currentPart]
+        useRelayDrawingStore.getState().setRoundDeadline(roundKey, event.data.partDeadlineAt)
         // effect 트리거 — fetch가 currentPart/canvasIndex/hint를 채운다.
         useRelayDrawingStore.getState().incrementPartFetchTrigger()
       },
@@ -320,6 +327,9 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         // hint, currentPart)은 useRelayDrawingGame이 getRelayRoomAssignmentMe로 가져온다.
         setTimeLimitSeconds(event.data.timeLimitSeconds)
         useRelayDrawingStore.getState().setPartDeadlineAt(event.data.partDeadlineAt)
+        // 라운드별 데드라인 세팅 — 새 라운드의 auto-submit 게이트 해제.
+        const roundKey = PART_TO_ROUND_KEY[event.data.part]
+        useRelayDrawingStore.getState().setRoundDeadline(roundKey, event.data.partDeadlineAt)
         // effect 트리거 — partDeadlineAt 대신 전용 카운터 사용
         useRelayDrawingStore.getState().incrementPartFetchTrigger()
       },

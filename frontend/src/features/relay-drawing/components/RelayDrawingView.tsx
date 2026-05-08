@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 
 import { RELAY_ROUND_SEGMENTS } from "../constants";
@@ -19,7 +19,8 @@ const RelayDrawingStage = dynamic(() => import("../RelayDrawingStage"), {
 export default function RelayDrawingView() {
   const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey);
   const currentPart = useRelayDrawingStore((state) => state.currentPart);
-  const partDeadlineAt = useRelayDrawingStore((state) => state.partDeadlineAt);
+  const roundDeadlines = useRelayDrawingStore((state) => state.roundDeadlines);
+  const roundSubmitted = useRelayDrawingStore((state) => state.roundSubmitted);
   const { formattedTime, isExpiring, remainingSeconds } = useRelayTimer();
   const {
     submitDrawing,
@@ -32,41 +33,32 @@ export default function RelayDrawingView() {
   const activeRound = RELAY_ROUND_SEGMENTS[activeRoundKey];
   const isLastRound = activeRoundKey === "legs";
 
-  // submitDrawing이 보낼 데이터(canvasIndex/part/deadline)가 store에 채워졌는지.
-  // 버튼 비활성에는 사용하지 않고, 자동 제출 게이트와 클릭 핸들러에서만 본다.
-  const isAssignmentLoaded = currentPart !== null && partDeadlineAt !== null;
+  // 현재 라운드의 데드라인/제출 상태 — 라운드 전환 시 cross-round auto-submit 방지.
+  const currentRoundDeadline = roundDeadlines[activeRoundKey];
+  const isCurrentRoundSubmitted = roundSubmitted[activeRoundKey];
 
-  // 자동 제출 freshness 잠금:
-  // "양수 remainingSeconds로 한 번이라도 카운트다운한 partDeadlineAt"만 ref에
-  // 기록한다. 라운드 전환 직후 setAssignment commit이 stale 0초와 함께 떨어지는
-  // 경계, fetch 지연으로 직전 라운드 deadline이 과거인 채로 0초가 유지되는 경계,
-  // clock skew로 deadline이 과거인 경우 — 이런 모든 시나리오에서 ref가 현재
-  // partDeadlineAt과 일치하지 않아 자동 제출이 발사되지 않는다.
-  // 정상 카운트다운에서는 매 tick마다 ref가 갱신되므로 0 도달 시점에 일치한다.
-  const validDeadlineRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (partDeadlineAt !== null && remainingSeconds > 0) {
-      validDeadlineRef.current = partDeadlineAt;
-    }
-  }, [partDeadlineAt, remainingSeconds]);
+  // submitDrawing이 보낼 데이터(canvasIndex/part)가 store에 채워졌는지.
+  const isAssignmentLoaded = currentPart !== null && currentRoundDeadline !== null;
 
-  // 자동 제출: 데드라인 도달 + 아직 미제출이면 보낸다.
+  // 자동 제출: 데드라인 도달 + 이 라운드의 데드라인 수신 완료 + 미제출이면 보낸다.
+  // roundDeadlines[activeRoundKey] === null이면 이 라운드의 PART_STARTED를 아직
+  // 수신하지 않은 것이므로 발사하지 않는다 — stale 0초 방어.
   useEffect(() => {
     if (
       remainingSeconds === 0 &&
-      isAssignmentLoaded &&
-      validDeadlineRef.current === partDeadlineAt &&
+      currentRoundDeadline !== null &&
+      !isCurrentRoundSubmitted &&
       !isSubmitting &&
-      !isSubmitted
+      isAssignmentLoaded
     ) {
       void submitDrawing();
     }
   }, [
     remainingSeconds,
-    isAssignmentLoaded,
-    partDeadlineAt,
+    currentRoundDeadline,
+    isCurrentRoundSubmitted,
     isSubmitting,
-    isSubmitted,
+    isAssignmentLoaded,
     submitDrawing,
   ]);
 
@@ -83,7 +75,7 @@ export default function RelayDrawingView() {
       if (
         store.roomCode &&
         store.roomStatus === "PLAYING" &&
-        !store.isSubmitted &&
+        !store.roundSubmitted[store.activeRoundKey] &&
         !store.isSubmitting &&
         store.canvasIndex !== null &&
         store.currentPart !== null &&
