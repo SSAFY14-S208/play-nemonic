@@ -1,9 +1,12 @@
+import { useFortuneSessionStore } from '../fortuneSessionStore'
+
 interface FortuneErrorViewProps {
-  message: string
   onRetry: () => void
 }
 
-export default function FortuneErrorView({ message, onRetry }: FortuneErrorViewProps) {
+export default function FortuneErrorView({ onRetry }: FortuneErrorViewProps) {
+  const message = useFortuneSessionStore((state) => state.errorMessage)
+
   return (
     <section className="fortune-floating-panel grid gap-5 rounded-[var(--radius-xl)] border border-fortune-border bg-fortune-panel p-6 text-center shadow-soft-lg">
       <h1 className="h2-b text-fortune-ink">운세를 가져오지 못했어요</h1>

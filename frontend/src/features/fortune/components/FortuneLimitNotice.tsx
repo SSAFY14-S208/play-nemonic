@@ -1,20 +1,18 @@
-import type { FortuneResult } from '../types'
+import { runtime } from '@/shared/config'
+
+import { useFortuneSessionStore } from '../fortuneSessionStore'
+import { getNextKoreanMidnightLabel } from '../utils'
 
 interface FortuneLimitNoticeProps {
-  nextResetLabel: string
-  result: FortuneResult | null
-  showResetAction?: boolean
   onReset: () => void
   onShowResult: () => void
 }
 
-export default function FortuneLimitNotice({
-  nextResetLabel,
-  result,
-  showResetAction = false,
-  onReset,
-  onShowResult,
-}: FortuneLimitNoticeProps) {
+export default function FortuneLimitNotice({ onReset, onShowResult }: FortuneLimitNoticeProps) {
+  const result = useFortuneSessionStore((state) => state.result)
+  const nextResetLabel = getNextKoreanMidnightLabel()
+  const showResetAction = runtime.isDev
+
   return (
     <section className="fortune-floating-panel grid gap-5 rounded-[var(--radius-xl)] border border-fortune-border bg-fortune-panel p-6 text-center shadow-soft-lg">
       <p className="caption-b text-fortune-muted">{nextResetLabel}</p>

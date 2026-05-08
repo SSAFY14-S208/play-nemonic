@@ -1,15 +1,20 @@
 import { CheckCircle2, Home, Pin, Sparkles, Star } from 'lucide-react'
 
 import { FORTUNE_SCORE_LABELS } from '../constants'
-import type { FortuneResult } from '../types'
+import { useFortuneSessionStore } from '../fortuneSessionStore'
 
 interface FortuneResultCardProps {
-  result: FortuneResult
   onAttach: () => void
   onBackToHub: () => void
 }
 
-export default function FortuneResultCard({ result, onAttach, onBackToHub }: FortuneResultCardProps) {
+export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResultCardProps) {
+  const result = useFortuneSessionStore((state) => state.result)
+
+  if (!result) {
+    return null
+  }
+
   return (
     <section className="fortune-result-scene grid gap-5">
       <article className="fortune-postit-sheet" data-theme={result.cardTheme} aria-label="오늘의 운세 포스트잇">

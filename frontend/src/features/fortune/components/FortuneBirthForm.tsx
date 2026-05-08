@@ -1,17 +1,16 @@
-import { ArrowRight, ChevronLeft } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { cn } from '@/shared/libs'
 
-import type { FortuneBirthInfo, FortuneCalendarType } from '../types'
+import { useFortuneSessionStore } from '../fortuneSessionStore'
+import type { FortuneCalendarType } from '../types'
+import { isBirthInfoComplete } from '../utils'
 
 interface FortuneBirthFormProps {
-  birthInfo: FortuneBirthInfo
-  isComplete: boolean
-  onBack: () => void
-  onChange: (birthInfo: FortuneBirthInfo) => void
-  onSubmit: () => void
+  onSubmit: () => Promise<void>
 }
 
 type BirthDatePart = 'year' | 'month' | 'day'
@@ -35,24 +34,26 @@ const BIRTH_MONTH_OPTIONS = Array.from({ length: 12 }, (_, monthIndex) => padDat
 const BIRTH_HOUR_OPTIONS = Array.from({ length: 24 }, (_, hourIndex) => padDatePart(hourIndex))
 const BIRTH_MINUTE_OPTIONS = Array.from({ length: 12 }, (_, minuteIndex) => padDatePart(minuteIndex * 5))
 
-export default function FortuneBirthForm({
-  birthInfo,
-  isComplete,
-  onBack,
-  onChange,
-  onSubmit,
-}: FortuneBirthFormProps) {
+export default function FortuneBirthForm({ onSubmit }: FortuneBirthFormProps) {
+  const { birthInfo, isSubmitting, setBirthInfo } = useFortuneSessionStore(
+    useShallow((state) => ({
+      birthInfo: state.birthInfo,
+      isSubmitting: state.isSubmittingBirthInfo,
+      setBirthInfo: state.setBirthInfo,
+    })),
+  )
+  const isComplete = isBirthInfoComplete(birthInfo)
   const [birthDateParts, setBirthDateParts] = useState<BirthDateParts>(() => splitBirthDate(birthInfo.birthDate))
   const [birthTimeParts, setBirthTimeParts] = useState<BirthTimeParts>(() => splitBirthTime(birthInfo.birthTime))
   const birthDayOptions = createBirthDayOptions(birthDateParts.year, birthDateParts.month)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    onSubmit()
+    void onSubmit()
   }
 
   const updateCalendarType = (calendarType: FortuneCalendarType) => {
-    onChange({ ...birthInfo, calendarType })
+    setBirthInfo({ ...birthInfo, calendarType })
   }
 
   const updateBirthDatePart = (part: BirthDatePart, value: string) => {
@@ -62,7 +63,7 @@ export default function FortuneBirthForm({
     })
 
     setBirthDateParts(nextBirthDateParts)
-    onChange({
+    setBirthInfo({
       ...birthInfo,
       birthDate: formatBirthDate(nextBirthDateParts),
     })
@@ -75,7 +76,7 @@ export default function FortuneBirthForm({
     }
 
     setBirthTimeParts(nextBirthTimeParts)
-    onChange({
+    setBirthInfo({
       ...birthInfo,
       birthTime: formatBirthTime(nextBirthTimeParts),
       timeUnknown: false,
@@ -89,7 +90,7 @@ export default function FortuneBirthForm({
       setBirthTimeParts({ hour: '', minute: '' })
     }
 
-    onChange({
+    setBirthInfo({
       ...birthInfo,
       birthTime: isTimeUnknown ? '' : birthInfo.birthTime,
       timeUnknown: isTimeUnknown,
@@ -97,33 +98,32 @@ export default function FortuneBirthForm({
   }
 
   return (
-    <form className="fortune-paper-panel fortune-birth-form" onSubmit={handleSubmit}>
-      <div className="fortune-birth-topbar">
-        <button
-          type="button"
-          className="fortune-birth-back-button"
-          onClick={onBack}
-        >
-          <ChevronLeft className="size-5" aria-hidden />
-          뒤로
-        </button>
-      </div>
-
+    <form className="fortune-birth-form" onSubmit={handleSubmit}>
       <div className="fortune-birth-heading">
-        <p className="caption-b">포포의 질문</p>
-        <h1>운세 메모에 필요한 정보를 알려줘</h1>
-        <p>입력한 정보는 오늘의 운세 메모를 만드는 데만 사용돼요.</p>
+        <span className="fortune-birth-heading-spark" aria-hidden />
+        <h1>
+          오늘의 운세를 위한
+          <br />
+          사주 정보를 알려줘
+        </h1>
+        <p>입력한 정보로 오늘의 운세 메모를 정성껏 준비할게요.</p>
       </div>
 
       <fieldset className="fortune-birth-fieldset">
-        <legend>음/양력</legend>
-        <div className="fortune-birth-segmented" role="group" aria-label="양력 음력 선택">
+        <legend>날짜 기준</legend>
+        <div
+          className="fortune-birth-segmented"
+          data-calendar={birthInfo.calendarType}
+          role="group"
+          aria-label="양력 음력 선택"
+        >
           <button
             type="button"
             className={optionButtonClassName(birthInfo.calendarType === 'solar')}
             aria-pressed={birthInfo.calendarType === 'solar'}
             onClick={() => updateCalendarType('solar')}
           >
+            <Sun className="fortune-birth-option-icon" aria-hidden />
             양력
           </button>
           <button
@@ -132,6 +132,7 @@ export default function FortuneBirthForm({
             aria-pressed={birthInfo.calendarType === 'lunar'}
             onClick={() => updateCalendarType('lunar')}
           >
+            <Moon className="fortune-birth-option-icon" aria-hidden />
             음력
           </button>
         </div>
@@ -148,7 +149,7 @@ export default function FortuneBirthForm({
               value={birthDateParts.year}
               onChange={(event) => updateBirthDatePart('year', event.target.value)}
             >
-              <option value="">년</option>
+              <option value=""></option>
               {BIRTH_YEAR_OPTIONS.map((yearOption) => (
                 <option key={yearOption} value={yearOption}>
                   {yearOption}
@@ -164,10 +165,10 @@ export default function FortuneBirthForm({
               value={birthDateParts.month}
               onChange={(event) => updateBirthDatePart('month', event.target.value)}
             >
-              <option value="">월</option>
+              <option value=""></option>
               {BIRTH_MONTH_OPTIONS.map((monthOption) => (
                 <option key={monthOption} value={monthOption}>
-                  {Number(monthOption)}월
+                  {Number(monthOption)}
                 </option>
               ))}
             </select>
@@ -180,10 +181,10 @@ export default function FortuneBirthForm({
               value={birthDateParts.day}
               onChange={(event) => updateBirthDatePart('day', event.target.value)}
             >
-              <option value="">일</option>
+              <option value=""></option>
               {birthDayOptions.map((dayOption) => (
                 <option key={dayOption} value={dayOption}>
-                  {Number(dayOption)}일
+                  {Number(dayOption)}
                 </option>
               ))}
             </select>
@@ -203,10 +204,10 @@ export default function FortuneBirthForm({
               value={birthTimeParts.hour}
               onChange={(event) => updateBirthTimePart('hour', event.target.value)}
             >
-              <option value="">시</option>
+              <option value=""></option>
               {BIRTH_HOUR_OPTIONS.map((hourOption) => (
                 <option key={hourOption} value={hourOption}>
-                  {Number(hourOption)}시
+                  {Number(hourOption)}
                 </option>
               ))}
             </select>
@@ -220,10 +221,10 @@ export default function FortuneBirthForm({
               value={birthTimeParts.minute}
               onChange={(event) => updateBirthTimePart('minute', event.target.value)}
             >
-              <option value="">분</option>
+              <option value=""></option>
               {BIRTH_MINUTE_OPTIONS.map((minuteOption) => (
                 <option key={minuteOption} value={minuteOption}>
-                  {minuteOption}분
+                  {minuteOption}
                 </option>
               ))}
             </select>
@@ -236,21 +237,22 @@ export default function FortuneBirthForm({
             checked={birthInfo.timeUnknown}
             onChange={updateTimeUnknown}
           />
-          <span aria-hidden />
-          모름
+          <span className="fortune-birth-checkbox" aria-hidden />
+          <span className="fortune-birth-unknown-text">시간 모름</span>
         </label>
+        <p className="fortune-birth-helper">태어난 시간을 모르면 체크해도 괜찮아요.</p>
       </fieldset>
 
       <div className="fortune-birth-actions">
         <button
           type="submit"
-          disabled={!isComplete}
-          className="fortune-birth-submit fortune-primary-button"
+          disabled={!isComplete || isSubmitting}
+          className="fortune-birth-submit"
         >
-          운세 메모 뽑기 준비
-          <span>
-            <ArrowRight className="size-6" aria-hidden />
+          <span className="fortune-birth-submit-copy">
+            {isSubmitting ? '정보 저장 중' : '오늘의 운세 인쇄하기'}
           </span>
+          <span className="fortune-birth-submit-orb" aria-hidden />
         </button>
       </div>
     </form>
