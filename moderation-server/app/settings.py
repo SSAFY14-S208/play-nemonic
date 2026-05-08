@@ -5,7 +5,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # MODERATION_THRESHOLD 같은 환경변수와 moderation-server/.env 파일 값을 자동으로 읽습니다.
-    model_config = SettingsConfigDict(env_prefix="MODERATION_", env_file=".env", env_file_encoding="utf-8")
+    # pydantic-settings는 dotenv 값을 읽을 때 원래 환경변수 이름도 함께 볼 수 있어 extra 입력은 무시합니다.
+    model_config = SettingsConfigDict(
+        env_prefix="MODERATION_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     model_name: str = "smilegate-ai/kor_unsmile"
     # threshold가 낮을수록 더 민감하게 차단하고, 높을수록 명확한 유해 표현만 차단합니다.
