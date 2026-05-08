@@ -180,7 +180,7 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
               <option value="">월</option>
               {BIRTH_MONTH_OPTIONS.map((monthOption) => (
                 <option key={monthOption} value={monthOption}>
-                  {Number(monthOption)}월
+                  {Number(monthOption)}
                 </option>
               ))}
             </select>
@@ -196,7 +196,7 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
               <option value="">일</option>
               {birthDayOptions.map((dayOption) => (
                 <option key={dayOption} value={dayOption}>
-                  {Number(dayOption)}일
+                  {Number(dayOption)}
                 </option>
               ))}
             </select>
@@ -219,7 +219,7 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
               <option value="">시</option>
               {BIRTH_HOUR_OPTIONS.map((hourOption) => (
                 <option key={hourOption} value={hourOption}>
-                  {Number(hourOption)}시
+                  {Number(hourOption)}
                 </option>
               ))}
             </select>
@@ -236,7 +236,7 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
               <option value="">분</option>
               {BIRTH_MINUTE_OPTIONS.map((minuteOption) => (
                 <option key={minuteOption} value={minuteOption}>
-                  {minuteOption}분
+                  {minuteOption}
                 </option>
               ))}
             </select>
