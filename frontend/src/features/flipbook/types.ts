@@ -7,4 +7,5 @@ export interface FlipbookFrame {
   drawnBy: string
   participantAvatar: string
   lines: DrawingLine[]
+  imageUrl?: string
 }

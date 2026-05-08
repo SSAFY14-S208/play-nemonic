@@ -8,6 +8,7 @@ export type FlipbookBlockedReason =
   | 'ROOM_FULL'
   | 'GAME_IN_PROGRESS'
   | 'KICKED'
+  | 'RECONNECT_EXPIRED'
   | 'ROOM_FINISHED'
   | 'ROOM_CLOSED'
 
@@ -86,6 +87,92 @@ export interface FlipbookRoomStateResponse {
   viewer: FlipbookRoomViewerResponse
   createdAt: string
   updatedAt: string
+}
+
+export type FlipbookAssignmentStatus = 'PENDING' | 'SUBMITTED' | 'AUTO_SUBMITTED'
+
+export interface FlipbookAssignmentHintResponse {
+  flipbookIndex: number
+  frameIndex: number
+  round: number
+  objectKey: string
+  url: string
+  empty: boolean
+}
+
+export interface FlipbookAssignmentResponse {
+  roomCode: string
+  currentRound: number
+  totalRounds: number
+  flipbookIndex: number
+  frameIndex: number
+  assignmentStatus: FlipbookAssignmentStatus
+  timeLimitSeconds: number
+  roundStartedAt: string
+  roundDeadlineAt: string
+  remainingSeconds: number
+  hint: FlipbookAssignmentHintResponse | null
+}
+
+export interface FlipbookFrameSubmitRequest {
+  flipbookIndex: number
+  frameIndex: number
+  fileId: string
+}
+
+export interface FlipbookFrameSubmitResponse {
+  roomCode: string
+  round: number
+  flipbookIndex: number
+  frameIndex: number
+  assignmentStatus: FlipbookAssignmentStatus
+  fileId: string
+  objectKey: string
+  frameUrl: string
+  submittedAt: string
+  alreadySubmitted: boolean
+  currentRoundCompleted: boolean
+  submittedCount: number
+  totalCount: number
+  advanced: boolean
+  nextRound: number | null
+  nextRoundStartedAt: string | null
+  nextRoundDeadlineAt: string | null
+  allRoundsCompleted: boolean
+  roomStatus: FlipbookRoomStatus
+}
+
+export interface FlipbookResultFrameResponse {
+  frameIndex: number
+  imageUrl: string
+  drawnByUserUuid: string
+  drawnByNickname: string
+}
+
+export interface FlipbookResultItemResponse {
+  flipbookIndex: number
+  galleryId: string
+  artifactId: string
+  thumbnailUrl: string
+  gifUrl: string
+  firstImageUrl: string
+  createdAt: string
+  frames: FlipbookResultFrameResponse[]
+}
+
+export interface FlipbookResultResponse {
+  roomCode: string
+  roomStatus: FlipbookRoomStatus
+  ready: boolean
+  resultCount: number
+  results: FlipbookResultItemResponse[]
+}
+
+export interface FlipbookRealtimeEvent<TData = unknown> {
+  type: string
+  roomCode: string
+  data: TData
+  occurredAt: string
 }
 
 // WebSocket 세션 도메인 (REST와 별개의 실시간 페이로드 타입)

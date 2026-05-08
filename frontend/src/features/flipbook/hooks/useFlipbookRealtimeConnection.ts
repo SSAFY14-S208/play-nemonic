@@ -1,150 +1,118 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Client, type IMessage } from '@stomp/stompjs'
 import { runtime } from '@/shared/config'
-import {
-  createJsonWebSocketTransport,
-  type JsonWebSocketTransport,
-} from '@/shared/libs'
-import type { FlipbookClientMessage, FlipbookServerMessage } from '@/shared/types'
-import { useFlipbookRealtimeStore } from '../flipbookRealtimeStore'
+import { resolveWebSocketUrl } from '@/shared/libs'
+import { useUserStore } from '@/shared/stores'
+import type { FlipbookConnectionStatus, FlipbookRealtimeEvent } from '@/shared/types'
 
-const DEFAULT_FLIPBOOK_WEBSOCKET_PATH = 'ws'
-const NORMAL_CLOSE_CODE = 1000
-const DISABLED_CLOSE_REASON = 'flipbook realtime disabled'
-const UNMOUNT_CLOSE_REASON = 'flipbook realtime unmounted'
+const FLIPBOOK_WEBSOCKET_PATH = 'ws/flipbook'
+const RECONNECT_DELAY_MS = 3000
+const HEARTBEAT_INTERVAL_MS = 5000
 
-export function useFlipbookRealtimeConnection({ enabled }: { enabled: boolean }) {
-  const connectionStatus = useFlipbookRealtimeStore((state) => state.connectionStatus)
-  const outboundMessages = useFlipbookRealtimeStore((state) => state.outboundMessages)
-  const setConnectionStatus = useFlipbookRealtimeStore((state) => state.setConnectionStatus)
-  const markClientMessageSent = useFlipbookRealtimeStore((state) => state.markClientMessageSent)
-  const applyServerMessage = useFlipbookRealtimeStore((state) => state.applyServerMessage)
-  const transportRef =
-    useRef<JsonWebSocketTransport<FlipbookClientMessage, FlipbookServerMessage> | null>(null)
-  const sentRequestIdsRef = useRef<Set<string>>(new Set())
-  const isClosingIntentionallyRef = useRef(false)
+interface UseFlipbookRealtimeConnectionOptions {
+  enabled: boolean
+  roomCode: string | null
+  onEvent: (event: FlipbookRealtimeEvent) => void
+}
 
-  const getTransport = useCallback(() => {
-    if (!transportRef.current) {
-      transportRef.current = createJsonWebSocketTransport<
-        FlipbookClientMessage,
-        FlipbookServerMessage
-      >({
-        path: runtime.websocketUrl ? '' : DEFAULT_FLIPBOOK_WEBSOCKET_PATH,
-      })
-    }
+export function useFlipbookRealtimeConnection({
+  enabled,
+  roomCode,
+  onEvent,
+}: UseFlipbookRealtimeConnectionOptions) {
+  const userUuid = useUserStore((state) => state.userUuid)
+  const [connectionStatus, setConnectionStatus] = useState<FlipbookConnectionStatus>('idle')
+  const stompClientRef = useRef<Client | null>(null)
+  const pingTimerRef = useRef<number | null>(null)
+  const onEventRef = useRef(onEvent)
 
-    return transportRef.current
+  useEffect(() => {
+    onEventRef.current = onEvent
+  }, [onEvent])
+
+  const clearPingTimer = useCallback(() => {
+    if (pingTimerRef.current === null) return
+    window.clearInterval(pingTimerRef.current)
+    pingTimerRef.current = null
   }, [])
 
-  const connect = useCallback(() => {
-    const transport = getTransport()
+  const startPingTimer = useCallback((client: Client, activeRoomCode: string) => {
+    if (pingTimerRef.current !== null) {
+      window.clearInterval(pingTimerRef.current)
+    }
 
-    if (transport.getReadyState() === WebSocket.OPEN) {
+    pingTimerRef.current = window.setInterval(() => {
+      if (!client.connected) return
+      client.publish({
+        destination: `/app/flipbook/rooms/${activeRoomCode}/ping`,
+        body: '{}',
+      })
+    }, HEARTBEAT_INTERVAL_MS)
+  }, [])
+
+  const handleMessage = useCallback((message: IMessage) => {
+    try {
+      const event = JSON.parse(message.body) as FlipbookRealtimeEvent
+      onEventRef.current(event)
+    } catch {
+      setConnectionStatus('rejected')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!enabled || !roomCode || !userUuid) {
+      clearPingTimer()
+      void stompClientRef.current?.deactivate()
+      stompClientRef.current = null
+      void Promise.resolve().then(() => setConnectionStatus('idle'))
       return
     }
 
-    if (transport.getReadyState() === WebSocket.CONNECTING) {
-      return
-    }
-
-    isClosingIntentionallyRef.current = false
-    setConnectionStatus(connectionStatus === 'disconnected' ? 'reconnecting' : 'connecting')
-    transport.connect({
-      onOpen: () => {
+    const brokerURL = resolveWebSocketUrl(
+      runtime.websocketUrl ? '' : FLIPBOOK_WEBSOCKET_PATH,
+      runtime.websocketUrl || runtime.apiUrl,
+    )
+    const client = new Client({
+      brokerURL,
+      connectHeaders: {
+        roomCode,
+        'Anonymous-User-UUID': userUuid,
+      },
+      reconnectDelay: RECONNECT_DELAY_MS,
+      onConnect: () => {
         setConnectionStatus('connected')
+        client.subscribe(`/topic/flipbook/rooms/${roomCode}`, handleMessage)
+        client.subscribe(`/user/queue/flipbook/rooms/${roomCode}`, handleMessage)
+        startPingTimer(client, roomCode)
       },
-      onMessage: (message) => {
-        applyServerMessage(message)
-      },
-      onInvalidMessage: () => {
+      onStompError: () => {
         setConnectionStatus('rejected')
       },
-      onError: () => {
-        setConnectionStatus('rejected')
+      onWebSocketClose: () => {
+        clearPingTimer()
+        setConnectionStatus(client.active ? 'reconnecting' : 'disconnected')
       },
-      onClose: () => {
-        if (isClosingIntentionallyRef.current) {
-          setConnectionStatus('idle')
-          return
-        }
-
-        setConnectionStatus('disconnected')
+      onWebSocketError: () => {
+        setConnectionStatus('rejected')
       },
     })
-  }, [applyServerMessage, connectionStatus, getTransport, setConnectionStatus])
 
-  useEffect(() => {
-    let cancelled = false
-
-    ;(async () => {
-      if (cancelled) return
-
-      if (!enabled) {
-        isClosingIntentionallyRef.current = true
-        sentRequestIdsRef.current.clear()
-        transportRef.current?.close(NORMAL_CLOSE_CODE, DISABLED_CLOSE_REASON)
-        setConnectionStatus('idle')
-        return
-      }
-
-      connect()
-    })()
+    void Promise.resolve().then(() => setConnectionStatus('connecting'))
+    stompClientRef.current = client
+    client.activate()
 
     return () => {
-      cancelled = true
-    }
-  }, [connect, enabled, setConnectionStatus])
-
-  useEffect(() => {
-    let cancelled = false
-
-    ;(async () => {
-      if (cancelled || !enabled || outboundMessages.length === 0) return
-
-      const transport = getTransport()
-      if (transport.getReadyState() !== WebSocket.OPEN || connectionStatus !== 'connected') {
-        connect()
-        return
+      clearPingTimer()
+      void client.deactivate()
+      if (stompClientRef.current === client) {
+        stompClientRef.current = null
       }
-
-      for (const message of outboundMessages) {
-        if (cancelled || sentRequestIdsRef.current.has(message.requestId)) continue
-
-        const sent = transport.send(message)
-        if (!sent) {
-          setConnectionStatus('reconnecting')
-          connect()
-          return
-        }
-
-        sentRequestIdsRef.current.add(message.requestId)
-        markClientMessageSent(message.requestId)
-      }
-    })()
-
-    return () => {
-      cancelled = true
     }
-  }, [
-    connect,
+  }, [clearPingTimer, enabled, handleMessage, roomCode, startPingTimer, userUuid])
+
+  return {
     connectionStatus,
-    enabled,
-    getTransport,
-    markClientMessageSent,
-    outboundMessages,
-    setConnectionStatus,
-  ])
-
-  useEffect(() => {
-    const sentRequestIds = sentRequestIdsRef.current
-
-    return () => {
-      isClosingIntentionallyRef.current = true
-      transportRef.current?.close(NORMAL_CLOSE_CODE, UNMOUNT_CLOSE_REASON)
-      transportRef.current = null
-      sentRequestIds.clear()
-    }
-  }, [])
+  }
 }

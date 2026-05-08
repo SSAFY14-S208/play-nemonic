@@ -7,6 +7,10 @@ import { useFlipbookEntranceTimeline } from '../hooks'
 import FlipbookPaperBackground from './FlipbookPaperBackground'
 
 interface FlipbookEntranceViewProps {
+  roomCodeDraft: string
+  isBusy: boolean
+  errorMessage: string | null
+  onRoomCodeDraftChange: (roomCode: string) => void
   onCreateRoom: () => void
   onEnterRoom: () => void
 }
@@ -38,6 +42,10 @@ const FLIPBOOK_ENTRANCE_ACTIONS = [
 ] as const
 
 export default function FlipbookEntranceView({
+  roomCodeDraft,
+  isBusy,
+  errorMessage,
+  onRoomCodeDraftChange,
   onCreateRoom,
   onEnterRoom,
 }: FlipbookEntranceViewProps) {
@@ -119,20 +127,39 @@ export default function FlipbookEntranceView({
           </motion.div>
 
           <motion.div
-            className="absolute inset-x-0 bottom-[max(3.5svh,18px)] z-20 mx-auto grid w-full max-w-[680px] grid-cols-2 items-center gap-4 px-5 sm:gap-6"
+            className="absolute inset-x-0 bottom-[max(3.5svh,18px)] z-20 mx-auto grid w-full max-w-[680px] gap-4 px-5 sm:gap-5"
             style={{
               opacity: timeline.actionOpacity,
               y: timeline.actionY,
             }}
           >
-            {FLIPBOOK_ENTRANCE_ACTIONS.map((action) => (
-              <FlipbookEntranceImageButton
-                key={action.key}
-                imageSrc={action.imageSrc}
-                label={action.label}
-                onClick={actionHandlers[action.key]}
+            <div className="mx-auto grid w-full max-w-[520px] gap-2 rounded-[12px] border border-flipbook-light bg-flipbook-paper/85 p-3 shadow-[0_8px_18px_var(--color-flipbook-shadow)]">
+              <label className="caption-b text-flipbook-deep" htmlFor="flipbook-room-code">
+                입장 코드
+              </label>
+              <input
+                id="flipbook-room-code"
+                value={roomCodeDraft}
+                onChange={(event) => onRoomCodeDraftChange(event.target.value.toUpperCase())}
+                maxLength={12}
+                placeholder="예: AB3K9Q"
+                className="body-b min-h-11 rounded-[8px] border border-flipbook-light bg-white px-4 text-center uppercase text-flipbook-ink outline-none focus:border-flipbook-primary"
               />
-            ))}
+              {errorMessage && (
+                <p className="caption-b text-center text-flipbook-deep">{errorMessage}</p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 items-center gap-4 sm:gap-6">
+              {FLIPBOOK_ENTRANCE_ACTIONS.map((action) => (
+                <FlipbookEntranceImageButton
+                  key={action.key}
+                  imageSrc={action.imageSrc}
+                  label={isBusy ? '처리 중' : action.label}
+                  disabled={isBusy}
+                  onClick={actionHandlers[action.key]}
+                />
+              ))}
+            </div>
           </motion.div>
         </div>
       </div>
@@ -143,16 +170,19 @@ export default function FlipbookEntranceView({
 function FlipbookEntranceImageButton({
   imageSrc,
   label,
+  disabled,
   onClick,
 }: {
   imageSrc: string
   label: string
+  disabled: boolean
   onClick: () => void
 }) {
   return (
     <motion.button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       whileHover={{ y: -4, scale: 1.025 }}
       whileTap={{ y: 1, scale: 0.985 }}

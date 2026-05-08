@@ -15,6 +15,10 @@ export default function FlipbookPage() {
     <main className="min-h-screen bg-flipbook-background text-flipbook-ink">
       {flipbook.currentStep === 'booth' && (
         <FlipbookEntranceView
+          roomCodeDraft={flipbook.roomCodeDraft}
+          isBusy={flipbook.isBusy}
+          errorMessage={flipbook.errorMessage}
+          onRoomCodeDraftChange={flipbook.setRoomCodeDraft}
           onCreateRoom={flipbook.createRoom}
           onEnterRoom={flipbook.enterRoom}
         />
@@ -23,9 +27,18 @@ export default function FlipbookPage() {
       {flipbook.currentStep === 'lobby' && (
         <FlipbookLobbyView
           currentParticipant={flipbook.currentParticipant}
+          participants={flipbook.participants}
+          roomCode={flipbook.roomCode}
+          participantCount={flipbook.participantCount}
+          maxParticipants={flipbook.maxParticipants}
           selectedTimeLimitSeconds={flipbook.selectedTimeLimitSeconds}
           roundCount={flipbook.roundCount}
           minimumRoundCount={flipbook.minimumRoundCount}
+          connectionStatus={flipbook.connectionStatus}
+          canStartGame={flipbook.canStartGame}
+          isHost={flipbook.isHost}
+          isBusy={flipbook.isBusy}
+          errorMessage={flipbook.errorMessage}
           onSelectTimeLimit={flipbook.selectTimeLimit}
           onDecreaseRoundCount={flipbook.decreaseRoundCount}
           onIncreaseRoundCount={flipbook.increaseRoundCount}
@@ -39,6 +52,9 @@ export default function FlipbookPage() {
           roundCount={flipbook.roundCount}
           remainingSeconds={flipbook.remainingSeconds}
           currentParticipant={flipbook.currentParticipant}
+          isSubmitting={flipbook.isSubmitting}
+          connectionStatus={flipbook.connectionStatus}
+          errorMessage={flipbook.errorMessage}
           lines={flipbook.drawingBoard.lines}
           previousFrameLines={flipbook.previousFrameLines}
           selectedToolKey={flipbook.drawingBoard.selectedToolKey}
@@ -61,6 +77,8 @@ export default function FlipbookPage() {
       {flipbook.currentStep === 'result' && (
         <FlipbookResultView
           frames={flipbook.frames}
+          gifUrl={flipbook.gifUrl}
+          resultCount={flipbook.resultCount}
           activeFrame={flipbook.activeResultFrame}
           resultFrameIndex={flipbook.resultFrameIndex}
           isGifPlaying={flipbook.isGifPlaying}

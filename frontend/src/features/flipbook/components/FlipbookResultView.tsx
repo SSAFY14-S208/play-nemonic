@@ -12,6 +12,8 @@ import type { FlipbookFrame } from '../types'
 
 interface FlipbookResultViewProps {
   frames: FlipbookFrame[]
+  gifUrl: string | null
+  resultCount: number
   activeFrame: FlipbookFrame | null
   resultFrameIndex: number
   isGifPlaying: boolean
@@ -25,6 +27,8 @@ interface FlipbookResultViewProps {
 
 export default function FlipbookResultView({
   frames,
+  gifUrl,
+  resultCount,
   activeFrame,
   resultFrameIndex,
   isGifPlaying,
@@ -87,7 +91,19 @@ export default function FlipbookResultView({
             </header>
 
             <div className="relative h-[460px] overflow-hidden rounded-[14px] border-[1.5px] border-flipbook-light bg-flipbook-paper">
-              <FrameDrawing lines={activeFrame?.lines ?? []} />
+              {isGifPlaying && gifUrl ? (
+                <div
+                  className="h-full w-full bg-white bg-contain bg-center bg-no-repeat"
+                  role="img"
+                  aria-label="완성된 플립북 GIF"
+                  style={{ backgroundImage: `url("${gifUrl}")` }}
+                />
+              ) : (
+                <FrameDrawing
+                  lines={activeFrame?.lines ?? []}
+                  imageUrl={activeFrame?.imageUrl ?? null}
+                />
+              )}
               <div className="caption-b absolute right-4 top-4 flex items-center gap-2 rounded-full border border-flipbook-light bg-flipbook-paper py-1.5 pl-2 pr-4 text-flipbook-deep shadow-[0_6px_7px_var(--color-flipbook-shadow)]">
                 {activeFrame ? `프레임 ${activeFrame.index + 1}` : '아직 프레임 없음'}
               </div>
@@ -128,6 +144,9 @@ export default function FlipbookResultView({
             <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper px-5 py-4">
               <p className="caption-b text-flipbook-deep">완성된 프레임</p>
               <h2 className="h4-b mt-2 text-flipbook-ink">{FLIPBOOK_TOPIC}</h2>
+              <p className="caption-b mt-1 text-flipbook-muted">
+                총 {resultCount}개의 플립북 중 첫 번째 결과
+              </p>
               <div className="mt-4 grid gap-2">
                 {frames.map((frame, frameIndex) => (
                   <button
@@ -153,13 +172,19 @@ export default function FlipbookResultView({
             <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper p-5">
               <p className="caption-b text-flipbook-deep">GIF 다운로드 URL</p>
               <p className="caption-r mt-2 rounded-[12px] bg-flipbook-result-soft p-3 text-flipbook-muted">
-                /api/mock/flipbook/flipbook_uuid.gif
+                {gifUrl ?? '결과 GIF 생성 중'}
               </p>
             </section>
 
             <div className="mt-auto grid min-h-[60px] gap-3 sm:grid-cols-2">
               <button
                 type="button"
+                onClick={() => {
+                  if (gifUrl) {
+                    window.open(gifUrl, '_blank', 'noopener,noreferrer')
+                  }
+                }}
+                disabled={!gifUrl}
                 className="body-b inline-flex items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-flipbook-light bg-flipbook-paper px-5 text-flipbook-ink"
               >
                 <Download className="size-4" aria-hidden />
@@ -167,6 +192,11 @@ export default function FlipbookResultView({
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  if (!gifUrl || !navigator.share) return
+                  void navigator.share({ title: '플립북', url: gifUrl })
+                }}
+                disabled={!gifUrl}
                 className="body-b inline-flex items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-flipbook-primary bg-flipbook-primary px-5 text-flipbook-ink shadow-[0_4px_10px_var(--color-flipbook-shadow)]"
               >
                 <Share2 className="size-4" aria-hidden />
@@ -188,8 +218,25 @@ export default function FlipbookResultView({
   )
 }
 
-function FrameDrawing({ lines }: { lines: DrawingLine[] }) {
+function FrameDrawing({
+  lines,
+  imageUrl,
+}: {
+  lines: DrawingLine[]
+  imageUrl: string | null
+}) {
   const hasLines = lines.length > 0
+
+  if (imageUrl) {
+    return (
+      <div
+        className="h-full w-full bg-white bg-contain bg-center bg-no-repeat"
+        role="img"
+        aria-label="플립북 프레임"
+        style={{ backgroundImage: `url("${imageUrl}")` }}
+      />
+    )
+  }
 
   return (
     <svg

@@ -2,8 +2,8 @@
 
 import { Copy, Minus, Palette, Plus, QrCode, type LucideIcon } from 'lucide-react'
 import { cn } from '@/shared/libs'
+import type { FlipbookConnectionStatus } from '@/shared/types'
 import {
-  FLIPBOOK_ROOM_CODE,
   FLIPBOOK_TIME_LIMITS_SECONDS,
   FLIPBOOK_TOPIC,
   type FlipbookParticipant,
@@ -13,16 +13,24 @@ import FlipbookPaperBackground from './FlipbookPaperBackground'
 
 interface FlipbookLobbyViewProps {
   currentParticipant: FlipbookParticipant
+  participants: FlipbookParticipant[]
+  roomCode: string | null
+  participantCount: number
+  maxParticipants: number
   selectedTimeLimitSeconds: number
   roundCount: number
   minimumRoundCount: number
+  connectionStatus: FlipbookConnectionStatus
+  canStartGame: boolean
+  isHost: boolean
+  isBusy: boolean
+  errorMessage: string | null
   onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
   onDecreaseRoundCount: () => void
   onIncreaseRoundCount: () => void
   onStartGame: () => void
 }
 
-const WAITING_SLOT_COUNT = 1
 const SHARE_ACTIONS: { label: string; Icon: LucideIcon }[] = [
   { label: '링크 복사', Icon: Copy },
   { label: 'QR 코드', Icon: QrCode },
@@ -34,22 +42,32 @@ const PARTICIPANT_TILT_CLASSES = [
   'rotate-1',
   '-rotate-[0.4deg]',
 ]
-const WAITING_SLOTS = Array.from(
-  { length: WAITING_SLOT_COUNT },
-  (_, waitingSlotIndex) => `waiting-${waitingSlotIndex}`,
-)
 
 export default function FlipbookLobbyView({
   currentParticipant,
+  participants,
+  roomCode,
+  participantCount,
+  maxParticipants,
   selectedTimeLimitSeconds,
   roundCount,
   minimumRoundCount,
+  connectionStatus,
+  canStartGame,
+  isHost,
+  isBusy,
+  errorMessage,
   onSelectTimeLimit,
   onDecreaseRoundCount,
   onIncreaseRoundCount,
   onStartGame,
 }: FlipbookLobbyViewProps) {
   const sessionParticipantName = currentParticipant.name.replace(' (나)', '')
+  const waitingSlots = Array.from(
+    { length: Math.min(4, Math.max(0, maxParticipants - participantCount)) },
+    (_, waitingSlotIndex) => `waiting-${waitingSlotIndex}`,
+  )
+  const isConnectionReady = connectionStatus === 'connected'
 
   return (
     <section className="relative min-h-screen overflow-hidden bg-flipbook-background text-flipbook-ink">
@@ -70,10 +88,10 @@ export default function FlipbookLobbyView({
             />
             <div className="rounded-[6px] border border-flipbook-light bg-flipbook-paper/26 px-5 py-8">
               <p className="h4-b text-flipbook-ink">입장 코드</p>
-              <p className="h1-b mt-4 text-flipbook-ink">{FLIPBOOK_ROOM_CODE}</p>
+              <p className="h1-b mt-4 text-flipbook-ink">{roomCode ?? '------'}</p>
               <div className="mt-6 flex justify-center gap-3">
                 {SHARE_ACTIONS.map((action) => (
-                  <ShareButton key={action.label} label={action.label} Icon={action.Icon} />
+                  <ShareButton key={action.label} label={action.label} Icon={action.Icon} roomCode={roomCode} />
                 ))}
               </div>
             </div>
@@ -92,15 +110,29 @@ export default function FlipbookLobbyView({
             <div className="grid gap-5">
               <div className="flex items-end justify-between gap-4 border-b border-flipbook-light pb-3">
                 <h2 className="h2-b text-flipbook-ink">참여자</h2>
-                <span className="h3-b text-flipbook-deep">1 / 12</span>
+                <span className="h3-b text-flipbook-deep">
+                  {participantCount} / {maxParticipants}
+                </span>
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <ParticipantNameTag
-                  name={sessionParticipantName}
-                  tiltClassName={PARTICIPANT_TILT_CLASSES[0]}
-                />
-                {WAITING_SLOTS.map((waitingSlot) => (
+                {participants.map((participant, participantIndex) => (
+                  <ParticipantNameTag
+                    key={participant.userUuid}
+                    name={
+                      participant.userUuid === currentParticipant.userUuid
+                        ? sessionParticipantName
+                        : participant.name
+                    }
+                    isHost={participant.isHost === true}
+                    tiltClassName={
+                      PARTICIPANT_TILT_CLASSES[
+                        participantIndex % PARTICIPANT_TILT_CLASSES.length
+                      ]
+                    }
+                  />
+                ))}
+                {waitingSlots.map((waitingSlot) => (
                   <div
                     key={waitingSlot}
                     className="caption-b grid min-h-14 place-items-center rounded-[6px] border border-dashed border-flipbook-primary bg-flipbook-paper/65 text-flipbook-muted"
@@ -113,6 +145,9 @@ export default function FlipbookLobbyView({
               <div className="rotate-[0.6deg] rounded-[6px] border border-flipbook-light bg-flipbook-light px-5 py-4">
                 <p className="caption-b text-flipbook-deep">오늘의 주제</p>
                 <h3 className="h3-b mt-2 text-flipbook-ink">{FLIPBOOK_TOPIC}</h3>
+                <p className="caption-b mt-2 text-flipbook-muted">
+                  연결 상태: {isConnectionReady ? '준비 완료' : '연결 중'}
+                </p>
               </div>
 
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
@@ -124,6 +159,7 @@ export default function FlipbookLobbyView({
                         key={seconds}
                         type="button"
                         onClick={() => onSelectTimeLimit(seconds)}
+                        disabled={!isHost}
                         className={cn(
                           'body-b min-h-11 rounded-[6px] border border-flipbook-light bg-flipbook-light text-flipbook-primary shadow-[0_3px_6px_var(--color-flipbook-shadow)]',
                           selectedTimeLimitSeconds === seconds &&
@@ -148,6 +184,7 @@ export default function FlipbookLobbyView({
                       type="button"
                       aria-label="라운드 줄이기"
                       onClick={onDecreaseRoundCount}
+                      disabled={!isHost}
                       className="grid size-10 place-items-center rounded-full bg-flipbook-paper text-flipbook-ink shadow-[0_3px_6px_var(--color-flipbook-shadow)]"
                     >
                       <Minus className="size-4" aria-hidden />
@@ -159,6 +196,7 @@ export default function FlipbookLobbyView({
                       type="button"
                       aria-label="라운드 늘리기"
                       onClick={onIncreaseRoundCount}
+                      disabled={!isHost}
                       className="grid size-10 place-items-center rounded-full bg-flipbook-primary text-flipbook-ink shadow-[0_3px_6px_var(--color-flipbook-shadow)]"
                     >
                       <Plus className="size-4" aria-hidden />
@@ -170,11 +208,15 @@ export default function FlipbookLobbyView({
               <button
                 type="button"
                 onClick={onStartGame}
+                disabled={!canStartGame || !isConnectionReady || isBusy}
                 className="body-b mx-auto inline-flex min-h-15 w-full max-w-[420px] items-center justify-center gap-2 rounded-[8px] border-2 border-flipbook-deep bg-flipbook-primary text-flipbook-ink shadow-[0_8px_14px_var(--color-flipbook-shadow)]"
               >
                 <Palette className="size-5" aria-hidden />
-                게임 시작
+                {isBusy ? '시작 중' : '게임 시작'}
               </button>
+              {errorMessage && (
+                <p className="caption-b text-center text-flipbook-deep">{errorMessage}</p>
+              )}
             </div>
           </section>
         </main>
@@ -185,9 +227,11 @@ export default function FlipbookLobbyView({
 
 function ParticipantNameTag({
   name,
+  isHost,
   tiltClassName,
 }: {
   name: string
+  isHost: boolean
   tiltClassName: string
 }) {
   return (
@@ -198,6 +242,7 @@ function ParticipantNameTag({
       )}
     >
       <span className="body-l-b flex-1 text-flipbook-ink">{name}</span>
+      {isHost && <span className="caption-b text-flipbook-deep">방장</span>}
     </div>
   )
 }
@@ -205,13 +250,22 @@ function ParticipantNameTag({
 function ShareButton({
   label,
   Icon,
+  roomCode,
 }: {
   label: string
   Icon: LucideIcon
+  roomCode: string | null
 }) {
+  const copyShareText = () => {
+    if (!roomCode || typeof window === 'undefined') return
+    const shareUrl = `${window.location.origin}${window.location.pathname}?roomCode=${roomCode}`
+    void window.navigator.clipboard?.writeText(label === '링크 복사' ? shareUrl : roomCode)
+  }
+
   return (
     <button
       type="button"
+      onClick={copyShareText}
       className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-[8px] border border-flipbook-primary bg-flipbook-light px-4 text-flipbook-deep"
     >
       <Icon className="size-[17px]" aria-hidden />

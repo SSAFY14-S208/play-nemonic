@@ -28,7 +28,7 @@ export default function FlipbookStage({
       lines={lines}
       onionSkinLines={previousFrameLines}
       backgroundColor={FLIPBOOK_BACKGROUND_COLOR}
-      gridColor="#ffa8b8"
+      gridColor={FLIPBOOK_BACKGROUND_COLOR}
       gridGap={20}
       onionSkinOpacity={0.2}
       className="h-full w-full"

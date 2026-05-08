@@ -9,6 +9,8 @@ type DrawingSessionTone = 'relay' | 'flipbook'
 interface DrawingSessionControlsProps {
   remainingSeconds: number
   tone?: DrawingSessionTone
+  exitButtonClassName?: string
+  timerBadgeClassName?: string
   onExit: () => void
 }
 
@@ -26,6 +28,8 @@ const DRAWING_SESSION_TONE_STYLES = {
 export function DrawingSessionControls({
   remainingSeconds,
   tone = 'relay',
+  exitButtonClassName,
+  timerBadgeClassName,
   onExit,
 }: DrawingSessionControlsProps) {
   const toneStyle = DRAWING_SESSION_TONE_STYLES[tone]
@@ -38,6 +42,7 @@ export function DrawingSessionControls({
         className={cn(
           'body-b absolute left-[123px] top-16 min-h-[49px] rounded-full px-7',
           toneStyle.exitButton,
+          exitButtonClassName,
         )}
       >
         ‹ 나가기
@@ -47,6 +52,7 @@ export function DrawingSessionControls({
         className={cn(
           'body-b absolute left-[1136px] top-16 inline-flex min-h-[49px] min-w-[82px] items-center justify-center gap-2 rounded-full px-5',
           toneStyle.timerBadge,
+          timerBadgeClassName,
         )}
       >
         <Timer className="size-5" aria-hidden />
