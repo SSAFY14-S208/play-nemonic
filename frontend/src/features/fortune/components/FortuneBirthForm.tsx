@@ -161,7 +161,7 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
               value={birthDateParts.year}
               onChange={(event) => updateBirthDatePart('year', event.target.value)}
             >
-              <option value="">년</option>
+              <option value=""></option>
               {BIRTH_YEAR_OPTIONS.map((yearOption) => (
                 <option key={yearOption} value={yearOption}>
                   {yearOption}
@@ -177,7 +177,7 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
               value={birthDateParts.month}
               onChange={(event) => updateBirthDatePart('month', event.target.value)}
             >
-              <option value="">월</option>
+              <option value=""></option>
               {BIRTH_MONTH_OPTIONS.map((monthOption) => (
                 <option key={monthOption} value={monthOption}>
                   {Number(monthOption)}
@@ -193,7 +193,7 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
               value={birthDateParts.day}
               onChange={(event) => updateBirthDatePart('day', event.target.value)}
             >
-              <option value="">일</option>
+              <option value=""></option>
               {birthDayOptions.map((dayOption) => (
                 <option key={dayOption} value={dayOption}>
                   {Number(dayOption)}
@@ -216,7 +216,7 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
               value={birthTimeParts.hour}
               onChange={(event) => updateBirthTimePart('hour', event.target.value)}
             >
-              <option value="">시</option>
+              <option value=""></option>
               {BIRTH_HOUR_OPTIONS.map((hourOption) => (
                 <option key={hourOption} value={hourOption}>
                   {Number(hourOption)}
@@ -233,7 +233,7 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
               value={birthTimeParts.minute}
               onChange={(event) => updateBirthTimePart('minute', event.target.value)}
             >
-              <option value="">분</option>
+              <option value=""></option>
               {BIRTH_MINUTE_OPTIONS.map((minuteOption) => (
                 <option key={minuteOption} value={minuteOption}>
                   {minuteOption}
