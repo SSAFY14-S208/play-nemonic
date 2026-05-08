@@ -121,7 +121,7 @@ class RelayRoomServiceImplTest {
                 new MinioPublicUrlResolver(minioStorageProperties())),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomPartAdvanceService, relaySubmissionStorage, minioStorageProperties(),
-                relayInviteMetadataSyncService),
+                relayInviteMetadataSyncService, 2000L),
             new RelayRoomManualCloseUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService)),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
