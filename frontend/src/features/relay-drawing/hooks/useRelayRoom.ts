@@ -61,10 +61,10 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
     if (!roomCode) return
 
     let cancelled = false
-    setIsFetching(true)
-    setHydrationError(null)
 
     void (async () => {
+      setIsFetching(true)
+      setHydrationError(null)
       try {
         const room = await getRelayRoom(roomCode)
         if (cancelled) return
