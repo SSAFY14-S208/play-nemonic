@@ -57,7 +57,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final String GALLERY_ITEM_NOT_FOUND_MESSAGE = "존재하지 않는 갤러리 항목입니다.";
     private static final String FILE_UPLOAD_STATUS_CONFLICT_MESSAGE = "확인할 수 없는 파일 업로드 상태입니다.";
     private static final String INVALID_POSITION_MESSAGE = "커뮤니티 메모 위치 정보가 올바르지 않습니다.";
-    private static final String MEMO_ACCESS_DENIED_MESSAGE = "커뮤니티 메모를 수정할 권한이 없습니다.";
+    private static final String MEMO_ACCESS_DENIED_MESSAGE = "커뮤니티 메모 위치를 수정할 권한이 없습니다.";
     private static final String INVALID_DECORATION_MESSAGE = "커뮤니티 메모 데코레이션 정보가 올바르지 않습니다.";
     private static final String MODERATION_BLOCKED_MESSAGE = "부적절한 표현이 감지되어 게시할 수 없습니다.";
     private static final String MODERATION_UNAVAILABLE_MESSAGE = "커뮤니티 메모 모더레이션을 완료할 수 없습니다.";
@@ -144,7 +144,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             moderationResult.ocrText(), serializeModerationCategories(moderationResult.categories()), now, now, now,
             now);
         communityMemoRepository.insertMemo(command);
-        // FIFO는 생성 성공 직후에만 적용합니다. 배치 수정은 오래된 메모 정리에 영향을 주지 않습니다.
+        // FIFO는 생성 성공 직후에만 적용합니다. 위치 수정은 오래된 메모 정리에 영향을 주지 않습니다.
         expireOverflowVisibleMemos(memoId, now);
 
         CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
@@ -168,7 +168,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             throw new ForbiddenException(MEMO_ACCESS_DENIED_MESSAGE);
         }
 
-        // 배치 수정은 레이아웃 필드와 updated_at만 바꿉니다. 이미지, decoration, moderation, attached_at은
+        // 위치 수정은 레이아웃 필드와 updated_at만 바꿉니다. 이미지, decoration, moderation, attached_at은
         // 유지합니다.
         LocalDateTime updatedAt = LocalDateTime.now();
         int updatedCount = communityMemoRepository.updateMemoLayout(memoId, userUuid, request.positionX(),

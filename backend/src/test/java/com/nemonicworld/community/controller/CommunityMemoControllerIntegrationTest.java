@@ -585,7 +585,7 @@ class CommunityMemoControllerIntegrationTest {
                     }
                     """))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("커뮤니티 메모 수정 성공"))
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 수정 성공"))
             .andExpect(jsonPath("$.data.memoUuid").value(memoId.toString()))
             .andExpect(jsonPath("$.data.sourceType").value("GALLERY"))
             .andExpect(jsonPath("$.data.memoOriginalImageUrl").value(ORIGINAL_PUBLIC_URL))
@@ -643,7 +643,7 @@ class CommunityMemoControllerIntegrationTest {
             now, null, true);
 
         mockMvc.perform(updateRequest(visibleMemoId, otherUserUuid.toString())).andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.message").value("커뮤니티 메모를 수정할 권한이 없습니다."));
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치를 수정할 권한이 없습니다."));
         mockMvc.perform(updateRequest(UUID.randomUUID(), ownerUuid.toString())).andExpect(status().isNotFound())
             .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
         mockMvc.perform(updateRequest(deletedMemoId, ownerUuid.toString())).andExpect(status().isNotFound())

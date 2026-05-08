@@ -30,7 +30,7 @@ GET {{host}}/api/v1/community/memos/not-a-uuid
 GET {{host}}/api/v1/community/memos/{{memoId}}
 Anonymous-User-UUID: not-a-uuid
 
-### Update community memo layout
+### Update community memo position
 PATCH {{host}}/api/v1/community/memos/{{memoId}}
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
@@ -42,7 +42,7 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
   "rotationDeg": 5.5
 }
 
-### Update community memo layout - invalid memo UUID
+### Update community memo position - invalid memo UUID
 PATCH {{host}}/api/v1/community/memos/not-a-uuid
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
@@ -54,7 +54,7 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
   "rotationDeg": 5.5
 }
 
-### Update community memo layout - invalid anonymous user UUID
+### Update community memo position - invalid anonymous user UUID
 PATCH {{host}}/api/v1/community/memos/{{memoId}}
 Content-Type: application/json
 Anonymous-User-UUID: not-a-uuid
@@ -66,7 +66,7 @@ Anonymous-User-UUID: not-a-uuid
   "rotationDeg": 5.5
 }
 
-### Update community memo layout - invalid position
+### Update community memo position - invalid position
 PATCH {{host}}/api/v1/community/memos/{{memoId}}
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
@@ -77,7 +77,7 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
   "rotationDeg": 5.5
 }
 
-### Update community memo layout - forbidden owner
+### Update community memo position - forbidden owner
 PATCH {{host}}/api/v1/community/memos/{{memoId}}
 Content-Type: application/json
 Anonymous-User-UUID: 00000000-0000-0000-0000-000000000001

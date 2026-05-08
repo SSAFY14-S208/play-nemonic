@@ -151,7 +151,7 @@ public class CommunityMemoRepository {
         """;
 
     private static final String UPDATE_MEMO_LAYOUT_SQL = """
-        -- 배치 수정은 본인 visible 메모만 대상으로 하며, 이미지/출처/데코레이션/검수 정보는 건드리지 않습니다.
+        -- 위치 수정은 본인 visible 메모만 대상으로 하며, 이미지/출처/데코레이션/검수 정보는 건드리지 않습니다.
         UPDATE community_memo
         SET position_x = :positionX,
             position_y = :positionY,
