@@ -32,12 +32,14 @@ public class FastApiCommunityMemoModerationClient implements CommunityMemoModera
     @Override
     public CommunityMemoModerationResult check(CommunityMemoModerationRequest request) {
         if (!properties.isEnabled()) {
+            // 로컬 개발이나 장애 대응 시 모더레이션을 끄면 게시 흐름을 그대로 통과시킵니다.
             return CommunityMemoModerationResult.allowedResult();
         }
 
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder(moderationUri())
-                .timeout(Duration.ofMillis(properties.resolvedReadTimeoutMs()))
+                // Uvicorn 개발 서버가 Java HttpClient의 HTTP/2 upgrade 요청을 잘못 해석하지 않도록 고정합니다.
+                .version(HttpClient.Version.HTTP_1_1).timeout(Duration.ofMillis(properties.resolvedReadTimeoutMs()))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(request))).build();
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
@@ -62,6 +64,7 @@ public class FastApiCommunityMemoModerationClient implements CommunityMemoModera
 
     private CommunityMemoModerationResult handleModerationFailure(String message, Throwable cause) {
         if (!properties.isFailClosed()) {
+            // OCR/API 장애는 신고 정책으로 보완할 수 있으므로 기본 운영은 fail-open으로 둡니다.
             return CommunityMemoModerationResult.allowedResult();
         }
 
@@ -79,6 +82,7 @@ public class FastApiCommunityMemoModerationClient implements CommunityMemoModera
         JsonNode root = objectMapper.readTree(responseBody);
         JsonNode allowedNode = root.get("allowed");
         if (allowedNode == null || !allowedNode.isBoolean()) {
+            // FastAPI 계약이 깨지면 설정에 따라 게시 허용 또는 예외 처리됩니다.
             throw new CommunityMemoModerationException(MODERATION_RESPONSE_ERROR_MESSAGE);
         }
 

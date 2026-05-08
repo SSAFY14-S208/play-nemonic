@@ -28,6 +28,6 @@ public record CommunityModerationProperties(Boolean enabled, String baseUrl, Str
     }
 
     public boolean isFailClosed() {
-        return failClosed == null || failClosed;
+        return failClosed != null && failClosed;
     }
 }

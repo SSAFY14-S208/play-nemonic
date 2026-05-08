@@ -1,0 +1,9 @@
+project-includes = ["moderation-server/app"]
+project-excludes = [
+    "**/.venv/**",
+    "**/site-packages/**",
+    "**/__pycache__/**",
+]
+search-path = ["moderation-server"]
+python-interpreter-path = "moderation-server/.venv/Scripts/python.exe"
+

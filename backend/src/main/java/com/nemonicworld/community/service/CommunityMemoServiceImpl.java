@@ -61,6 +61,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final String MODERATION_UNAVAILABLE_MESSAGE = "커뮤니티 메모 모더레이션을 완료할 수 없습니다.";
     private static final String EMPTY_DECORATION_JSON = "{}";
     private static final int MAX_VISIBLE_MEMO_COUNT = 50;
+    private static final int MODERATION_LOG_TEXT_PREVIEW_LIMIT = 300;
     private static final TypeReference<Map<String, Object>> DECORATION_TYPE = new TypeReference<>() {
     };
 
@@ -268,6 +269,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             CommunityMemoModerationResult result = communityMemoModerationClient
                 .check(new CommunityMemoModerationRequest(originalImageUrl, thumbnailImageUrl, clientText,
                     sourceType.value()));
+            logModerationResult(result, clientText);
             if (!result.allowed()) {
                 throw new BadRequestException(MODERATION_BLOCKED_MESSAGE);
             }
@@ -280,6 +282,28 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
     private String normalizeClientText(String clientText) {
         return clientText == null ? "" : clientText;
+    }
+
+    private void logModerationResult(CommunityMemoModerationResult result, String clientText) {
+        String categories = result.categories() == null || result.categories().isNull()
+            ? "[]"
+            : result.categories().toString();
+        log.info("커뮤니티 메모 모더레이션 결과 allowed={} clientTextPreview={} checkedTextPreview={} categories={}",
+            result.allowed(), previewModerationText(clientText), previewModerationText(result.ocrText()), categories);
+    }
+
+    private String previewModerationText(String text) {
+        if (!StringUtils.hasText(text)) {
+            return "";
+        }
+
+        // OCR/텍스트박스 원문은 길 수 있으므로 운영 로그에는 한 줄 미리보기만 남깁니다.
+        String compactText = text.replaceAll("\\s+", " ").trim();
+        if (compactText.length() <= MODERATION_LOG_TEXT_PREVIEW_LIMIT) {
+            return compactText;
+        }
+
+        return compactText.substring(0, MODERATION_LOG_TEXT_PREVIEW_LIMIT) + "...";
     }
 
     private String serializeModerationCategories(JsonNode categories) {
