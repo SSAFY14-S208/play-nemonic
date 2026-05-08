@@ -324,6 +324,13 @@ Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
 ```
 
+Recent relay submission concurrency work added a room-scoped Redis mutation lock.
+
+- Assignment submit locks still protect a single user/canvas/part submission from timeout auto-submit.
+- Room mutation locks now serialize `relay:room:{roomCode}` JSON updates between submission API requests and timeout auto-submit.
+- The mutation lock key uses `relay:room-mutation-lock:{roomCode}` so it is not picked up by existing `relay:room:*` room scans.
+- Submission uploads still happen before the room mutation lock; only latest room state read, validation, mutation, and save run inside the lock.
+
 Recent fortune result re-query work added `GET /api/v1/fortune/today`.
 
 - The API reuses `Anonymous-User-UUID`, resolves the KST current date, reads the caller's stored `fortune_artifact.description`, and returns the same result fields as fortune creation without calling GMS or card storage.
