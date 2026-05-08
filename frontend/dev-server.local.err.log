@@ -109,3 +109,4 @@ Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (f
 [browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
 [browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
 [browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+Several Konva instances detected. It is not recommended to use multiple Konva instances in the same environment.

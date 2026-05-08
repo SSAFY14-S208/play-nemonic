@@ -3,11 +3,7 @@
 import { Download, Pause, Play, Share2 } from 'lucide-react'
 import type { DrawingLine } from '@/shared/types'
 import { cn } from '@/shared/libs'
-import {
-  FLIPBOOK_BACKGROUND_COLOR,
-  FLIPBOOK_BOARD_SIZE,
-  FLIPBOOK_TOPIC,
-} from '../constants'
+import { FLIPBOOK_BACKGROUND_COLOR, FLIPBOOK_BOARD_SIZE } from '../constants'
 import type { FlipbookFrame } from '../types'
 
 interface FlipbookResultViewProps {
@@ -143,8 +139,7 @@ export default function FlipbookResultView({
           <aside className="flex min-h-[716px] flex-col gap-4">
             <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper px-5 py-4">
               <p className="caption-b text-flipbook-deep">완성된 프레임</p>
-              <h2 className="h4-b mt-2 text-flipbook-ink">{FLIPBOOK_TOPIC}</h2>
-              <p className="caption-b mt-1 text-flipbook-muted">
+              <p className="caption-b mt-2 text-flipbook-muted">
                 총 {resultCount}개의 플립북 중 첫 번째 결과
               </p>
               <div className="mt-4 grid gap-2">

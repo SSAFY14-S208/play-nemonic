@@ -93,3 +93,16 @@ Creating turbopack project { dir: 'C:\\binz\\망고\\git\\frontend', testMode: t
  GET /flipbook 200 in 102ms (next.js: 6ms, application-code: 96ms)
  GET /flipbook 200 in 77ms (next.js: 5ms, application-code: 72ms)
  GET /flipbook 200 in 80ms (next.js: 5ms, application-code: 75ms)
+✓ Compiled in 590ms
+ GET /flipbook 200 in 607ms (next.js: 189ms, application-code: 418ms)
+ GET /flipbook 200 in 612ms (next.js: 421ms, application-code: 192ms)
+ GET /flipbook 200 in 128ms (next.js: 31ms, application-code: 97ms)
+✓ Compiled in 435ms
+ GET /flipbook 200 in 470ms (next.js: 172ms, application-code: 298ms)
+ GET /flipbook 200 in 466ms (next.js: 285ms, application-code: 182ms)
+ GET /flipbook 200 in 109ms (next.js: 19ms, application-code: 90ms)
+ GET /flipbook 200 in 391ms (next.js: 7ms, application-code: 384ms)
+✓ Compiled in 207ms
+ GET /flipbook 200 in 363ms (next.js: 137ms, application-code: 226ms)
+ GET /flipbook 200 in 373ms (next.js: 239ms, application-code: 133ms)
+ GET /flipbook 200 in 89ms (next.js: 6ms, application-code: 82ms)

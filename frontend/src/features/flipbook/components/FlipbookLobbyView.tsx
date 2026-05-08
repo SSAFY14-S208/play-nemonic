@@ -1,11 +1,11 @@
 'use client'
 
 import { Copy, Minus, Palette, Plus, QrCode, type LucideIcon } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { cn } from '@/shared/libs'
 import type { FlipbookConnectionStatus } from '@/shared/types'
 import {
   FLIPBOOK_TIME_LIMITS_SECONDS,
-  FLIPBOOK_TOPIC,
   type FlipbookParticipant,
   type FlipbookTimeLimitSeconds,
 } from '../constants'
@@ -31,10 +31,11 @@ interface FlipbookLobbyViewProps {
   onStartGame: () => void
 }
 
-const SHARE_ACTIONS: { label: string; Icon: LucideIcon }[] = [
-  { label: '링크 복사', Icon: Copy },
-  { label: 'QR 코드', Icon: QrCode },
+const SHARE_ACTIONS: { key: ShareActionKey; label: string; Icon: LucideIcon }[] = [
+  { key: 'copyLink', label: '링크 복사', Icon: Copy },
+  { key: 'qrCode', label: 'QR 코드', Icon: QrCode },
 ]
+type ShareActionKey = 'copyLink' | 'qrCode'
 const PARTICIPANT_TILT_CLASSES = [
   '-rotate-1',
   'rotate-[0.8deg]',
@@ -91,7 +92,13 @@ export default function FlipbookLobbyView({
               <p className="h1-b mt-4 text-flipbook-ink">{roomCode ?? '------'}</p>
               <div className="mt-6 flex justify-center gap-3">
                 {SHARE_ACTIONS.map((action) => (
-                  <ShareButton key={action.label} label={action.label} Icon={action.Icon} roomCode={roomCode} />
+                  <ShareButton
+                    key={action.key}
+                    actionKey={action.key}
+                    label={action.label}
+                    Icon={action.Icon}
+                    roomCode={roomCode}
+                  />
                 ))}
               </div>
             </div>
@@ -140,14 +147,6 @@ export default function FlipbookLobbyView({
                     초대 대기중
                   </div>
                 ))}
-              </div>
-
-              <div className="rotate-[0.6deg] rounded-[6px] border border-flipbook-light bg-flipbook-light px-5 py-4">
-                <p className="caption-b text-flipbook-deep">오늘의 주제</p>
-                <h3 className="h3-b mt-2 text-flipbook-ink">{FLIPBOOK_TOPIC}</h3>
-                <p className="caption-b mt-2 text-flipbook-muted">
-                  연결 상태: {isConnectionReady ? '준비 완료' : '연결 중'}
-                </p>
               </div>
 
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
@@ -248,28 +247,86 @@ function ParticipantNameTag({
 }
 
 function ShareButton({
+  actionKey,
   label,
   Icon,
   roomCode,
 }: {
+  actionKey: ShareActionKey
   label: string
   Icon: LucideIcon
   roomCode: string | null
 }) {
+  const [copyLabel, setCopyLabel] = useState(label)
+  const resetLabelTimerRef = useRef<number | null>(null)
+
+  const copyTextWithFallback = async (text: string) => {
+    if (window.navigator.clipboard?.writeText) {
+      try {
+        await window.navigator.clipboard.writeText(text)
+        return
+      } catch {
+        // 브라우저 권한 정책으로 Clipboard API가 거부되면 DOM 기반 복사로 한 번 더 시도한다.
+      }
+    }
+
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.top = '-9999px'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    textarea.setSelectionRange(0, text.length)
+    const copied = document.execCommand('copy')
+    document.body.removeChild(textarea)
+
+    if (!copied) {
+      throw new Error('클립보드 복사에 실패했습니다.')
+    }
+  }
+
+  const createShareUrl = () => {
+    const shareUrl = new URL(window.location.href)
+    shareUrl.searchParams.set('roomCode', roomCode ?? '')
+    shareUrl.hash = ''
+    return shareUrl.toString()
+  }
+
   const copyShareText = () => {
     if (!roomCode || typeof window === 'undefined') return
-    const shareUrl = `${window.location.origin}${window.location.pathname}?roomCode=${roomCode}`
-    void window.navigator.clipboard?.writeText(label === '링크 복사' ? shareUrl : roomCode)
+    const copyText = actionKey === 'copyLink' ? createShareUrl() : roomCode
+
+    void (async () => {
+      try {
+        await copyTextWithFallback(copyText)
+        setCopyLabel('복사됨')
+
+        if (resetLabelTimerRef.current) {
+          window.clearTimeout(resetLabelTimerRef.current)
+        }
+
+        resetLabelTimerRef.current = window.setTimeout(() => {
+          setCopyLabel(label)
+          resetLabelTimerRef.current = null
+        }, 1400)
+      } catch {
+        setCopyLabel('복사 실패')
+      }
+    })()
   }
 
   return (
     <button
       type="button"
       onClick={copyShareText}
+      disabled={!roomCode}
       className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-[8px] border border-flipbook-primary bg-flipbook-light px-4 text-flipbook-deep"
     >
       <Icon className="size-[17px]" aria-hidden />
-      {label}
+      {copyLabel}
     </button>
   )
 }
