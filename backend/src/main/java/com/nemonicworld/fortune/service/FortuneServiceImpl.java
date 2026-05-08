@@ -6,11 +6,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.ServiceUnavailableException;
 import com.nemonicworld.fortune.dto.request.FortuneCreateRequest;
 import com.nemonicworld.fortune.dto.response.FortuneAvailabilityResponse;
-import com.nemonicworld.fortune.dto.response.FortuneCreateResponse;
+import com.nemonicworld.fortune.dto.response.FortuneResponse;
+import com.nemonicworld.fortune.dto.response.FortuneResponse.FortuneDesign;
+import com.nemonicworld.fortune.dto.response.FortuneResponse.FortuneResult;
+import com.nemonicworld.fortune.dto.response.FortuneResponse.SajuInfo;
 import com.nemonicworld.fortune.repository.FortuneCreateCommand;
+import com.nemonicworld.fortune.repository.FortuneDetailRow;
 import com.nemonicworld.fortune.repository.FortuneRepository;
 import com.nemonicworld.fortune.repository.FortuneTodayRow;
 import com.nemonicworld.fortune.service.gms.FortuneGmsClient;
@@ -48,18 +53,21 @@ public class FortuneServiceImpl implements FortuneService {
     private static final String PNG_CONTENT_TYPE = "image/png";
     private static final String INVALID_SAJU_MESSAGE = "만세력 결과 정보가 올바르지 않습니다.";
     private static final String FORTUNE_ALREADY_CREATED_MESSAGE = "오늘의 운세는 이미 생성했습니다. 내일 다시 이용해주세요.";
+    private static final String FORTUNE_NOT_FOUND_MESSAGE = "오늘 생성된 운세를 찾을 수 없습니다.";
     private static final String FORTUNE_GMS_UNAVAILABLE_MESSAGE = "운세를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.";
     private static final String FORTUNE_GMS_RESULT_INVALID_MESSAGE = "운세 생성 결과 형식이 올바르지 않습니다.";
     private static final String FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE = "운세 결과를 저장 형식으로 변환할 수 없습니다.";
+    private static final String FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE = "저장된 운세 결과 형식이 올바르지 않습니다.";
     private static final String DEFAULT_PROMPT_TEMPLATE = """
         프론트엔드 만세력 결과를 바탕으로 오늘의 운세를 생성한다.
         응답은 title, summary, overallLuck, loveLuck, workLuck, moneyLuck, luckyColor, luckyKeyword,
-        caution, postitLine, cardTheme, bgColor, accentColor, iconKey를 포함해야 한다.
+        caution, postitLine을 포함해야 한다.
+        cardTheme, bgColor, accentColor, iconKey는 카드 에셋 메타데이터가 없으면 null로 둘 수 있다.
         """;
     private static final int GMS_MAX_ATTEMPTS = 3;
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#[0-9A-Fa-f]{6}$");
     private static final String[] REQUIRED_SAJU_FIELDS = {"calendarType", "yearPillar", "monthPillar", "dayPillar",
-        "hourPillar", "dayMasterElement", "dayBranchElement", "dayMasterYinYang", "dayBranchYinYang"};
+        "dayMasterElement", "dayBranchElement", "dayMasterYinYang", "dayBranchYinYang"};
 
     private final FortuneRepository fortuneRepository;
     private final AnonymousUserResolver anonymousUserResolver;
@@ -102,11 +110,25 @@ public class FortuneServiceImpl implements FortuneService {
     }
 
     /**
+     * KST 오늘 날짜에 이미 생성된 운세 결과를 저장된 JSON에서 복원해 반환합니다.
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public FortuneResponse getTodayFortune(String userUuidValue) {
+        AppUser user = anonymousUserResolver.resolve(userUuidValue);
+        LocalDate today = LocalDate.now(KST_ZONE);
+        FortuneDetailRow row = fortuneRepository.findTodayFortuneDetail(user.getId(), today)
+            .orElseThrow(() -> new NotFoundException(FORTUNE_NOT_FOUND_MESSAGE));
+
+        return toFortuneResponse(row);
+    }
+
+    /**
      * 만세력 결과로 오늘의 운세를 생성하고 artifact/fortune_artifact/gallery에 저장합니다.
      */
     @Transactional
     @Override
-    public FortuneCreateResponse createFortune(String userUuidValue, FortuneCreateRequest request) {
+    public FortuneResponse createFortune(String userUuidValue, FortuneCreateRequest request) {
         AppUser user = anonymousUserResolver.resolve(userUuidValue);
         LocalDate today = LocalDate.now(KST_ZONE);
         JsonNode saju = validateAndGetSaju(request);
@@ -118,8 +140,7 @@ public class FortuneServiceImpl implements FortuneService {
         log.info("business_event event_name=fortune_request user_uuid={} fortune_date={}", user.getId(), today);
 
         String promptTemplate = findFortunePromptTemplate();
-        FortuneGmsResult gmsResult = generateFortune(promptTemplate, saju);
-        validateGmsResult(gmsResult);
+        FortuneGmsResult gmsResult = generateFortune(promptTemplate, saju, user.getId(), today);
 
         UUID fortuneId = UUID.randomUUID();
         UUID galleryId = UUID.randomUUID();
@@ -135,9 +156,8 @@ public class FortuneServiceImpl implements FortuneService {
         log.info("business_event event_name=fortune_gms_success user_uuid={} fortune_id={} fortune_date={}",
             user.getId(), fortuneId, today);
 
-        return new FortuneCreateResponse(fortuneId.toString(), today, gmsResult.title(), gmsResult.summary(),
-            gmsResult.overallLuck(), gmsResult.loveLuck(), gmsResult.workLuck(), gmsResult.moneyLuck(),
-            gmsResult.luckyColor(), gmsResult.luckyKeyword(), gmsResult.caution(), gmsResult.postitLine());
+        return new FortuneResponse(fortuneId.toString(), today, toFortuneResult(gmsResult), toSajuInfo(saju),
+            toFortuneDesign(gmsResult));
     }
 
     private JsonNode validateAndGetSaju(FortuneCreateRequest request) {
@@ -160,30 +180,110 @@ public class FortuneServiceImpl implements FortuneService {
             .map(prompt -> prompt.getContent()).orElse(DEFAULT_PROMPT_TEMPLATE);
     }
 
-    private FortuneGmsResult generateFortune(String promptTemplate, JsonNode saju) {
+    private FortuneGmsResult generateFortune(String promptTemplate, JsonNode saju, UUID userUuid,
+        LocalDate fortuneDate) {
         RuntimeException lastFailure = null;
         for (int attempt = 1; attempt <= GMS_MAX_ATTEMPTS; attempt++) {
             try {
-                return fortuneGmsClient.generate(promptTemplate, saju);
+                FortuneGmsResult result = fortuneGmsClient.generate(promptTemplate, saju);
+                validateGmsResult(result);
+                return result;
             } catch (RuntimeException e) {
                 lastFailure = e;
-                log.warn("business_event event_name=fortune_gms_retry attempt={}", attempt, e);
+                if (attempt < GMS_MAX_ATTEMPTS) {
+                    log.warn("business_event event_name=fortune_gms_retry user_uuid={} fortune_date={} attempt={}",
+                        userUuid, fortuneDate, attempt, e);
+                } else {
+                    log.error(
+                        "business_event event_name=fortune_gms_final_fail user_uuid={} fortune_date={} attempt_count={} retry_count={}",
+                        userUuid, fortuneDate, attempt, attempt - 1, e);
+                }
             }
         }
 
         throw new ServiceUnavailableException(FORTUNE_GMS_UNAVAILABLE_MESSAGE, lastFailure);
     }
 
+    private FortuneResponse toFortuneResponse(FortuneDetailRow row) {
+        try {
+            JsonNode description = objectMapper.readTree(row.description());
+            return new FortuneResponse(row.fortuneId().toString(), row.fortuneDate(), toFortuneResult(description),
+                toSajuInfo(description), toFortuneDesign(description));
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            throw new BadRequestException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
+        }
+    }
+
+    private FortuneResult toFortuneResult(FortuneGmsResult result) {
+        return new FortuneResult(result.title(), result.summary(), result.overallLuck(), result.loveLuck(),
+            result.workLuck(), result.moneyLuck(), result.luckyColor(), result.luckyKeyword(), result.caution(),
+            result.postitLine());
+    }
+
+    private FortuneResult toFortuneResult(JsonNode description) {
+        return new FortuneResult(requiredText(description, "title"), requiredText(description, "summary"),
+            requiredScore(description, "overallLuck"), requiredScore(description, "loveLuck"),
+            requiredScore(description, "workLuck"), requiredScore(description, "moneyLuck"),
+            requiredText(description, "luckyColor"), requiredText(description, "luckyKeyword"),
+            nullableText(description, "caution"), requiredText(description, "postitLine"));
+    }
+
+    private SajuInfo toSajuInfo(JsonNode description) {
+        JsonNode saju = description.path("saju");
+        JsonNode source = saju.isObject() ? saju : description;
+        return new SajuInfo(nullableText(source, "calendarType"), nullableText(source, "yearPillar"),
+            nullableText(source, "monthPillar"), nullableText(source, "dayPillar"), nullableText(source, "hourPillar"),
+            nullableText(source, "dayMasterElement"), nullableText(source, "dayBranchElement"),
+            nullableText(source, "dayMasterYinYang"), nullableText(source, "dayBranchYinYang"));
+    }
+
+    private FortuneDesign toFortuneDesign(FortuneGmsResult result) {
+        return new FortuneDesign(result.cardTheme(), result.bgColor(), result.accentColor(), result.iconKey());
+    }
+
+    private FortuneDesign toFortuneDesign(JsonNode description) {
+        return new FortuneDesign(nullableText(description, "cardTheme"), nullableText(description, "bgColor"),
+            nullableText(description, "accentColor"), nullableText(description, "iconKey"));
+    }
+
+    private String requiredText(JsonNode node, String fieldName) {
+        String value = text(node, fieldName);
+        if (!StringUtils.hasText(value)) {
+            throw new IllegalArgumentException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
+        }
+        return value;
+    }
+
+    private String nullableText(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        if (value == null || value.isMissingNode() || value.isNull()) {
+            return null;
+        }
+
+        return value.asText().trim();
+    }
+
+    private int requiredScore(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        if (value == null || !value.canConvertToInt() || !isScore(value.asInt())) {
+            throw new IllegalArgumentException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
+        }
+
+        return value.asInt();
+    }
+
     private void validateGmsResult(FortuneGmsResult result) {
         if (result == null || !StringUtils.hasText(result.title()) || !StringUtils.hasText(result.summary())
             || !StringUtils.hasText(result.luckyColor()) || !StringUtils.hasText(result.luckyKeyword())
-            || !StringUtils.hasText(result.postitLine()) || !StringUtils.hasText(result.cardTheme())
-            || !StringUtils.hasText(result.bgColor()) || !StringUtils.hasText(result.accentColor())
-            || !StringUtils.hasText(result.iconKey()) || !isScore(result.overallLuck()) || !isScore(result.loveLuck())
-            || !isScore(result.workLuck()) || !isScore(result.moneyLuck()) || !isHexColor(result.bgColor())
-            || !isHexColor(result.accentColor())) {
-            throw new BadRequestException(FORTUNE_GMS_RESULT_INVALID_MESSAGE);
+            || !StringUtils.hasText(result.postitLine()) || !isScore(result.overallLuck())
+            || !isScore(result.loveLuck()) || !isScore(result.workLuck()) || !isScore(result.moneyLuck())
+            || hasInvalidHexColor(result.bgColor()) || hasInvalidHexColor(result.accentColor())) {
+            throw new ServiceUnavailableException(FORTUNE_GMS_RESULT_INVALID_MESSAGE);
         }
+    }
+
+    private boolean hasInvalidHexColor(String color) {
+        return StringUtils.hasText(color) && !isHexColor(color);
     }
 
     private boolean isScore(int score) {

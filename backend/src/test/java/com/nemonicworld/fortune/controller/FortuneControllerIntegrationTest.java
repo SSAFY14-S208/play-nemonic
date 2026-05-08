@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.fortune.service.gms.FortuneGmsClient;
 import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
@@ -31,17 +32,22 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.http.MediaType;
 
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
+@ExtendWith(OutputCaptureExtension.class)
 /**
  * 오늘의 운세 생성 가능 여부 조회 API를 통합 검증합니다.
  */
@@ -55,6 +61,9 @@ class FortuneControllerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private UserRepository userRepository;
@@ -133,14 +142,23 @@ class FortuneControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("오늘의 운세 생성 성공")).andExpect(jsonPath("$.data.fortuneId").isNotEmpty())
             .andExpect(jsonPath("$.data.date").value(LocalDate.now(KST_ZONE).toString()))
-            .andExpect(jsonPath("$.data.title").value("오늘은 흐름을 정리하는 날"))
-            .andExpect(jsonPath("$.data.summary").value("차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다."))
-            .andExpect(jsonPath("$.data.overallLuck").value(78)).andExpect(jsonPath("$.data.loveLuck").value(66))
-            .andExpect(jsonPath("$.data.workLuck").value(84)).andExpect(jsonPath("$.data.moneyLuck").value(71))
-            .andExpect(jsonPath("$.data.luckyColor").value("은회색"))
-            .andExpect(jsonPath("$.data.luckyKeyword").value("정리"))
-            .andExpect(jsonPath("$.data.caution").value("결정은 한 템포 늦추는 것이 좋습니다."))
-            .andExpect(jsonPath("$.data.postitLine").value("오늘은 정리할수록 운이 열린다"));
+            .andExpect(jsonPath("$.data.fortune.title").value("오늘은 흐름을 정리하는 날"))
+            .andExpect(jsonPath("$.data.fortune.summary").value("차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다."))
+            .andExpect(jsonPath("$.data.fortune.overallLuck").value(78))
+            .andExpect(jsonPath("$.data.fortune.loveLuck").value(66))
+            .andExpect(jsonPath("$.data.fortune.workLuck").value(84))
+            .andExpect(jsonPath("$.data.fortune.moneyLuck").value(71))
+            .andExpect(jsonPath("$.data.fortune.luckyColor").value("은회색"))
+            .andExpect(jsonPath("$.data.fortune.luckyKeyword").value("정리"))
+            .andExpect(jsonPath("$.data.fortune.caution").value("결정은 한 템포 늦추는 것이 좋습니다."))
+            .andExpect(jsonPath("$.data.fortune.postitLine").value("오늘은 정리할수록 운이 열린다"))
+            .andExpect(jsonPath("$.data.saju.calendarType").value("solar"))
+            .andExpect(jsonPath("$.data.saju.yearPillar").value("임신"))
+            .andExpect(jsonPath("$.data.saju.hourPillar").value("을묘"))
+            .andExpect(jsonPath("$.data.design.cardTheme").value("moon"))
+            .andExpect(jsonPath("$.data.design.bgColor").value("#2C2C4A"))
+            .andExpect(jsonPath("$.data.design.accentColor").value("#C0C0C0"))
+            .andExpect(jsonPath("$.data.design.iconKey").value("moon_waning"));
 
         String savedDescription = jdbcTemplate
             .queryForObject("SELECT description FROM fortune_artifact WHERE user_id = ?", String.class, userUuid);
@@ -153,6 +171,33 @@ class FortuneControllerIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(galleryCount).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(savedDescription).contains("\"title\":\"오늘은 흐름을 정리하는 날\"")
             .contains("\"yearPillar\":\"임신\"");
+        verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
+            eq("image/png"));
+    }
+
+    /**
+     * 하루 1회 제한 정책상 재조회는 다시 생성하지 않고 최초 생성 응답과 같은 data를 반환합니다.
+     */
+    @Test
+    void getTodayFortuneReturnsSameDataAsCreatedFortune() throws Exception {
+        UUID userUuid = createExistingUser();
+        insertPrompt();
+        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResult());
+
+        MvcResult createResult = mockMvc
+            .perform(post("/api/v1/fortune").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(sajuRequestBody()))
+            .andExpect(status().isOk()).andReturn();
+
+        MvcResult requeryResult = mockMvc
+            .perform(get("/api/v1/fortune/today").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andReturn();
+
+        JsonNode createData = responseData(createResult);
+        JsonNode requeryData = responseData(requeryResult);
+
+        org.assertj.core.api.Assertions.assertThat(requeryData).isEqualTo(createData);
+        verify(fortuneGmsClient).generate(anyString(), any(JsonNode.class));
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
             eq("image/png"));
     }
@@ -196,10 +241,55 @@ class FortuneControllerIntegrationTest {
     }
 
     /**
+     * 태어난 시간을 모르는 사용자는 시주 없이도 운세를 생성할 수 있습니다.
+     */
+    @Test
+    void createFortuneAllowsMissingHourPillar() throws Exception {
+        UUID userUuid = createExistingUser();
+        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResult());
+
+        mockMvc
+            .perform(post("/api/v1/fortune").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(sajuRequestBodyWithoutHourPillar()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("오늘의 운세 생성 성공"))
+            .andExpect(jsonPath("$.data.saju.hourPillar").value(nullValue()));
+
+        String savedDescription = jdbcTemplate
+            .queryForObject("SELECT description FROM fortune_artifact WHERE user_id = ?", String.class, userUuid);
+
+        org.assertj.core.api.Assertions.assertThat(savedDescription).contains("\"hourPillar\":null");
+        verify(fortuneGmsClient).generate(anyString(), any(JsonNode.class));
+        verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
+            eq("image/png"));
+    }
+
+    /**
+     * 카드 에셋 메타데이터가 아직 없으면 디자인 필드는 null로 내려도 운세 생성을 허용합니다.
+     */
+    @Test
+    void createFortuneAllowsMissingDesignMetadata() throws Exception {
+        UUID userUuid = createExistingUser();
+        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResultWithoutDesign());
+
+        mockMvc
+            .perform(post("/api/v1/fortune").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(sajuRequestBody()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.design.cardTheme").value(nullValue()))
+            .andExpect(jsonPath("$.data.design.bgColor").value(nullValue()))
+            .andExpect(jsonPath("$.data.design.accentColor").value(nullValue()))
+            .andExpect(jsonPath("$.data.design.iconKey").value(nullValue()));
+
+        verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
+            eq("image/png"));
+    }
+
+    /**
      * GMS 생성이 최종 실패하면 DB 저장 없이 503을 반환합니다.
      */
     @Test
-    void createFortuneDoesNotConsumeDailyLimitWhenGmsFails() throws Exception {
+    void createFortuneDoesNotConsumeDailyLimitWhenGmsFails(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         insertPrompt();
         when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenThrow(new RuntimeException("gms down"));
@@ -212,6 +302,34 @@ class FortuneControllerIntegrationTest {
 
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM fortune_artifact", Integer.class);
         org.assertj.core.api.Assertions.assertThat(count).isZero();
+        org.assertj.core.api.Assertions.assertThat(output).contains("event_name=fortune_gms_retry")
+            .contains("event_name=fortune_gms_final_fail").contains("retry_count=2")
+            .doesNotContain("event_name=fortune_gms_retry user_uuid=%s fortune_date=%s attempt=3".formatted(userUuid,
+                LocalDate.now(KST_ZONE)));
+        verify(fortuneGmsClient, times(3)).generate(anyString(), any(JsonNode.class));
+        verifyNoInteractions(fortuneCardStorage);
+    }
+
+    /**
+     * GMS가 형식이 맞지 않는 결과를 반환하면 클라이언트 오류가 아니라 GMS 실패로 재시도 후 503을 반환합니다.
+     */
+    @Test
+    void createFortuneRetriesAndReturnsServiceUnavailableWhenGmsResultIsInvalid(CapturedOutput output)
+        throws Exception {
+        UUID userUuid = createExistingUser();
+        insertPrompt();
+        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(invalidGmsResult());
+
+        mockMvc
+            .perform(post("/api/v1/fortune").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(sajuRequestBody()))
+            .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("운세를 가져오지 못했어요. 잠시 후 다시 시도해 주세요."));
+
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM fortune_artifact", Integer.class);
+        org.assertj.core.api.Assertions.assertThat(count).isZero();
+        org.assertj.core.api.Assertions.assertThat(output).contains("event_name=fortune_gms_retry")
+            .contains("event_name=fortune_gms_final_fail").contains("retry_count=2");
         verify(fortuneGmsClient, times(3)).generate(anyString(), any(JsonNode.class));
         verifyNoInteractions(fortuneCardStorage);
     }
@@ -273,6 +391,56 @@ class FortuneControllerIntegrationTest {
     }
 
     /**
+     * 오늘 생성된 운세가 있으면 저장된 description JSON을 생성 응답 형식으로 복원해 반환합니다.
+     */
+    @Test
+    void getTodayFortuneReturnsStoredFortuneResult() throws Exception {
+        UUID userUuid = createExistingUser();
+        LocalDate today = LocalDate.now(KST_ZONE);
+        UUID fortuneId = insertFortuneArtifact(userUuid, today, LocalDateTime.now().minusMinutes(10),
+            storedFortuneDescription());
+
+        mockMvc.perform(get("/api/v1/fortune/today").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("오늘의 운세 조회 성공"))
+            .andExpect(jsonPath("$.data.fortuneId").value(fortuneId.toString()))
+            .andExpect(jsonPath("$.data.date").value(today.toString()))
+            .andExpect(jsonPath("$.data.fortune.title").value("오늘은 흐름을 정리하는 날"))
+            .andExpect(jsonPath("$.data.fortune.summary").value("차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다."))
+            .andExpect(jsonPath("$.data.fortune.overallLuck").value(78))
+            .andExpect(jsonPath("$.data.fortune.loveLuck").value(66))
+            .andExpect(jsonPath("$.data.fortune.workLuck").value(84))
+            .andExpect(jsonPath("$.data.fortune.moneyLuck").value(71))
+            .andExpect(jsonPath("$.data.fortune.luckyColor").value("은회색"))
+            .andExpect(jsonPath("$.data.fortune.luckyKeyword").value("정리"))
+            .andExpect(jsonPath("$.data.fortune.caution").value("결정은 한 템포 늦추는 것이 좋습니다."))
+            .andExpect(jsonPath("$.data.fortune.postitLine").value("오늘은 정리할수록 운이 열린다"))
+            .andExpect(jsonPath("$.data.saju.calendarType").value("solar"))
+            .andExpect(jsonPath("$.data.saju.yearPillar").value("임신"))
+            .andExpect(jsonPath("$.data.saju.hourPillar").value(nullValue()))
+            .andExpect(jsonPath("$.data.design.cardTheme").value("moon"))
+            .andExpect(jsonPath("$.data.design.bgColor").value("#2C2C4A"))
+            .andExpect(jsonPath("$.data.design.accentColor").value("#C0C0C0"))
+            .andExpect(jsonPath("$.data.design.iconKey").value("moon_waning"));
+
+        verifyNoInteractions(fortuneGmsClient, fortuneCardStorage);
+    }
+
+    /**
+     * 오늘 생성된 운세가 없으면 재조회 API는 404를 반환합니다.
+     */
+    @Test
+    void getTodayFortuneReturnsNotFoundWhenUserHasNoFortuneToday() throws Exception {
+        UUID userUuid = createExistingUser();
+
+        mockMvc.perform(get("/api/v1/fortune/today").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("오늘 생성된 운세를 찾을 수 없습니다."));
+
+        verifyNoInteractions(fortuneGmsClient, fortuneCardStorage);
+    }
+
+    /**
      * UUID 헤더가 없거나 형식이 올바르지 않으면 400을 반환합니다.
      */
     @Test
@@ -307,7 +475,16 @@ class FortuneControllerIntegrationTest {
         return userUuid;
     }
 
+    private JsonNode responseData(MvcResult result) throws Exception {
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+    }
+
     private UUID insertFortuneArtifact(UUID userUuid, LocalDate fortuneDate, LocalDateTime createdAt) {
+        return insertFortuneArtifact(userUuid, fortuneDate, createdAt, "{}");
+    }
+
+    private UUID insertFortuneArtifact(UUID userUuid, LocalDate fortuneDate, LocalDateTime createdAt,
+        String description) {
         UUID fortuneId = UUID.randomUUID();
 
         jdbcTemplate.update("""
@@ -320,7 +497,7 @@ class FortuneControllerIntegrationTest {
                 artifact_id, description, fortune_image_url, user_id, fortune_date
             )
             VALUES (?, ?, ?, ?, ?)
-            """, fortuneId, "{}", "fortune/card.png", userUuid, fortuneDate);
+            """, fortuneId, description, "fortune/card.png", userUuid, fortuneDate);
 
         return fortuneId;
     }
@@ -341,6 +518,16 @@ class FortuneControllerIntegrationTest {
             "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", "moon", "#2C2C4A", "#C0C0C0", "moon_waning");
     }
 
+    private FortuneGmsResult sampleGmsResultWithoutDesign() {
+        return new FortuneGmsResult("오늘은 흐름을 정리하는 날", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 78, 66, 84, 71, "은회색", "정리",
+            "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", null, null, null, null);
+    }
+
+    private FortuneGmsResult invalidGmsResult() {
+        return new FortuneGmsResult("", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 101, 66, 84, 71, "은회색", "정리",
+            "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", null, null, null, null);
+    }
+
     private String sajuRequestBody() {
         return """
             {
@@ -353,6 +540,62 @@ class FortuneControllerIntegrationTest {
               "dayBranchElement": "금",
               "dayMasterYinYang": "음",
               "dayBranchYinYang": "음"
+            }
+            """;
+    }
+
+    private String sajuRequestBodyWithoutHourPillar() {
+        return """
+            {
+              "calendarType": "solar",
+              "yearPillar": "임신",
+              "monthPillar": "경술",
+              "dayPillar": "계유",
+              "dayMasterElement": "수",
+              "dayBranchElement": "금",
+              "dayMasterYinYang": "음",
+              "dayBranchYinYang": "음"
+            }
+            """;
+    }
+
+    private String storedFortuneDescription() {
+        return """
+            {
+              "calendarType": "solar",
+              "yearPillar": "임신",
+              "monthPillar": "경술",
+              "dayPillar": "계유",
+              "hourPillar": null,
+              "dayMasterElement": "수",
+              "dayBranchElement": "금",
+              "dayMasterYinYang": "음",
+              "dayBranchYinYang": "음",
+              "saju": {
+                "calendarType": "solar",
+                "yearPillar": "임신",
+                "monthPillar": "경술",
+                "dayPillar": "계유",
+                "hourPillar": null,
+                "dayMasterElement": "수",
+                "dayBranchElement": "금",
+                "dayMasterYinYang": "음",
+                "dayBranchYinYang": "음"
+              },
+              "title": "오늘은 흐름을 정리하는 날",
+              "summary": "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.",
+              "overallLuck": 78,
+              "loveLuck": 66,
+              "workLuck": 84,
+              "moneyLuck": 71,
+              "luckyColor": "은회색",
+              "luckyKeyword": "정리",
+              "caution": "결정은 한 템포 늦추는 것이 좋습니다.",
+              "postitLine": "오늘은 정리할수록 운이 열린다",
+              "cardTheme": "moon",
+              "bgColor": "#2C2C4A",
+              "accentColor": "#C0C0C0",
+              "iconKey": "moon_waning"
             }
             """;
     }

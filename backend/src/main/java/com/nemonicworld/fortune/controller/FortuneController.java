@@ -5,7 +5,7 @@ import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.fortune.dto.request.FortuneCreateRequest;
 import com.nemonicworld.fortune.dto.response.FortuneAvailabilityResponse;
-import com.nemonicworld.fortune.dto.response.FortuneCreateResponse;
+import com.nemonicworld.fortune.dto.response.FortuneResponse;
 import com.nemonicworld.fortune.service.FortuneService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,6 +34,7 @@ public class FortuneController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String FORTUNE_AVAILABILITY_FOUND_MESSAGE = "오늘의 운세 생성 가능 여부 조회 성공";
+    private static final String FORTUNE_FOUND_MESSAGE = "오늘의 운세 조회 성공";
     private static final String FORTUNE_CREATED_MESSAGE = "오늘의 운세 생성 성공";
 
     private final FortuneService fortuneService;
@@ -62,6 +63,27 @@ public class FortuneController {
     }
 
     /**
+     * UUID와 KST 날짜 기준으로 오늘 이미 생성된 운세 결과를 재조회합니다.
+     */
+    @GetMapping("/today")
+    @Operation(summary = "오늘의 운세 재조회", description = "UUID와 KST 날짜 기준으로 오늘 이미 생성된 운세 결과를 조회합니다.")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "오늘의 운세 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_UUID))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "오늘 운세 없음", value = OpenApiErrorExamples.FORTUNE_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<FortuneResponse>> getTodayFortune(
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        FortuneResponse response = fortuneService.getTodayFortune(userUuid);
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(FORTUNE_FOUND_MESSAGE, response));
+    }
+
+    /**
      * 프론트에서 계산한 만세력 결과를 기반으로 오늘의 운세를 생성하고 갤러리에 보관합니다.
      */
     @PostMapping
@@ -76,10 +98,10 @@ public class FortuneController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "오늘 운세 이미 생성됨", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FORTUNE_ALREADY_CREATED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "GMS 생성 실패", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FORTUNE_GMS_UNAVAILABLE))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
-    public ResponseEntity<ApiResponse<FortuneCreateResponse>> createFortune(
+    public ResponseEntity<ApiResponse<FortuneResponse>> createFortune(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
         @Valid @RequestBody FortuneCreateRequest request) {
-        FortuneCreateResponse response = fortuneService.createFortune(userUuid, request);
+        FortuneResponse response = fortuneService.createFortune(userUuid, request);
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(FORTUNE_CREATED_MESSAGE, response));
