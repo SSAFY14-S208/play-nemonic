@@ -30,7 +30,9 @@ export default function RelayJoinRoomModal({
   // 모달이 닫힐 때 입력값을 비운다 — 다음 열림에서 이전 시도 코드가 남지 않도록.
   // open 변화를 추적하는 effect는 React 19 권장: dialog의 부수효과(외부 시스템 동기)
   useEffect(() => {
-    if (!open) setRoomCode('')
+    (async () => {
+      if (!open) setRoomCode('')
+    })()
   }, [open])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {

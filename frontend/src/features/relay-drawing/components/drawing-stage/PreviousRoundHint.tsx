@@ -26,18 +26,21 @@ export default function PreviousRoundHint({
   const [serverHintImage, setServerHintImage] = useState<HTMLImageElement | null>(null)
 
   useEffect(() => {
-    if (!hintImageUrl) {
-      setServerHintImage(null)
-      return
-    }
-
     let isCancelled = false
-    const imageElement = new window.Image()
-    imageElement.crossOrigin = 'anonymous'
-    imageElement.onload = () => {
-      if (!isCancelled) setServerHintImage(imageElement)
-    }
-    imageElement.src = hintImageUrl
+
+    ;(async () => {
+      if (!hintImageUrl) {
+        if (!isCancelled) setServerHintImage(null)
+        return
+      }
+
+      const imageElement = new window.Image()
+      imageElement.crossOrigin = 'anonymous'
+      imageElement.onload = () => {
+        if (!isCancelled) setServerHintImage(imageElement)
+      }
+      imageElement.src = hintImageUrl
+    })()
 
     return () => {
       isCancelled = true

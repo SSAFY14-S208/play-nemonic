@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   RELAY_ROUND_ORDER,
-  RELAY_ROUND_RULES,
   type RelayRoundKey,
 } from "../constants";
 import { useRelayDrawingStore } from "../stores";
@@ -101,8 +100,10 @@ export function useRoundTransition(): UseRoundTransitionReturn {
 
   useEffect(() => {
     if (!isTransitioning) {
-      setPhase("idle");
-      setPhaseProgress(0);
+      (async () => {
+        setPhase("idle");
+        setPhaseProgress(0);
+      })();
       return;
     }
 
@@ -112,11 +113,10 @@ export function useRoundTransition(): UseRoundTransitionReturn {
     );
     const nextKey = RELAY_ROUND_ORDER[currentRoundIndex + 1] ?? null;
 
-    setCompletedRoundKey(currentRoundKey);
-    setNextRoundKey(nextKey);
-
     let cancelled = false;
     (async () => {
+      setCompletedRoundKey(currentRoundKey);
+      setNextRoundKey(nextKey);
       const currentImage = await captureRoundImage(currentRoundKey);
       if (cancelled) return;
       setStickerImageUrl(currentImage);

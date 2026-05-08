@@ -35,10 +35,12 @@ export default function RelayNicknameModal({
 
   // 모달이 닫힐 때 입력값/에러 초기화 — 다음 열림에서 stale 상태 방지.
   useEffect(() => {
-    if (!open) {
-      setNickname('')
-      clearError()
-    }
+    (async () => {
+      if (!open) {
+        setNickname('')
+        clearError()
+      }
+    })()
   }, [open, clearError])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {

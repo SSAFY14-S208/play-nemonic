@@ -30,10 +30,10 @@ export default function RelayDrawingStage() {
 
   const gridDots = []
   const activeRoundRule = RELAY_ROUND_RULES[activeRoundKey]
-  // 서버 힌트 이미지가 있거나 로컬 라인이 있으면 이전 라운드 힌트를 표시한다.
-  const hasHintContent = hintImageUrl !== null || previousRoundLines.length > 0
+  // BODY/LEGS 라운드에서는 힌트 콘텐츠 유무와 관계없이 힌트 영역을 표시한다.
+  // 이전 사람이 아무것도 그리지 않아 서버가 빈 제출을 처리한 경우에도
+  // 가이드 라인과 안내 텍스트가 보여야 사용자가 그릴 위치를 파악할 수 있다.
   const shouldShowPreviousHint =
-    hasHintContent &&
     activeRoundRule.incomingHintSourceArea !== undefined &&
     activeRoundRule.incomingHintTargetArea !== undefined
   const incomingHintSourceArea = activeRoundRule.incomingHintSourceArea
