@@ -20,6 +20,7 @@ import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -56,11 +58,13 @@ public class RelayRoomSubmissionUseCase {
     private final RelaySubmissionStorage relaySubmissionStorage;
     private final MinioStorageProperties minioStorageProperties;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+    private final Duration autoSubmitGrace;
 
     public RelayRoomSubmissionUseCase(AnonymousUserResolver anonymousUserResolver,
         RelayRoomRepository relayRoomRepository, RelayRoomPolicy relayRoomPolicy,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelaySubmissionStorage relaySubmissionStorage,
-        MinioStorageProperties minioStorageProperties, RelayInviteMetadataSyncService relayInviteMetadataSyncService) {
+        MinioStorageProperties minioStorageProperties, RelayInviteMetadataSyncService relayInviteMetadataSyncService,
+        @Value("${nemonic.relay.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
@@ -68,6 +72,7 @@ public class RelayRoomSubmissionUseCase {
         this.relaySubmissionStorage = relaySubmissionStorage;
         this.minioStorageProperties = minioStorageProperties;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
+        this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
     }
 
     @Transactional(readOnly = true)
@@ -177,7 +182,12 @@ public class RelayRoomSubmissionUseCase {
     }
 
     private void validateDeadline(LocalDateTime partDeadlineAt) {
-        if (partDeadlineAt != null && partDeadlineAt.isBefore(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS))) {
+        if (partDeadlineAt == null) {
+            return;
+        }
+
+        LocalDateTime expiresAt = partDeadlineAt.plus(autoSubmitGrace);
+        if (!expiresAt.isAfter(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS))) {
             throw new ConflictException(SUBMISSION_EXPIRED_MESSAGE);
         }
     }
