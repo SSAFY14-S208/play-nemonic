@@ -4,6 +4,7 @@ import com.nemonicworld.community.entity.CommunityMemoDeletedReason;
 import com.nemonicworld.community.entity.CommunityMemoModerationStatus;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -175,6 +176,7 @@ public class CommunityMemoRepository {
     }
 
     public void insertMemo(CommunityMemoCreateCommand command) {
+        // PostgreSQL enum 컬럼은 문자열만 넘기면 타입 추론에 실패할 수 있어 Types.OTHER로 전달합니다.
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", command.memoId())
             .addValue("userId", command.userId()).addValue("artifactId", command.artifactId())
             .addValue("positionX", command.positionX()).addValue("positionY", command.positionY())
@@ -182,7 +184,7 @@ public class CommunityMemoRepository {
             .addValue("decoration", command.decoration()).addValue("bodyImageUrl", command.bodyImageUrl())
             .addValue("thumbnailImageUrl", command.thumbnailImageUrl()).addValue("ocrText", command.ocrText())
             .addValue("ocrCategories", command.ocrCategories())
-            .addValue("moderationStatus", CommunityMemoModerationStatus.ALLOWED.value())
+            .addValue("moderationStatus", CommunityMemoModerationStatus.ALLOWED.value(), Types.OTHER)
             .addValue("moderationCheckedAt", command.moderationCheckedAt()).addValue("attachedAt", command.attachedAt())
             .addValue("createdAt", command.createdAt()).addValue("updatedAt", command.updatedAt());
 
@@ -201,8 +203,10 @@ public class CommunityMemoRepository {
             return 0;
         }
 
+        // deleted_reason도 PostgreSQL enum이므로 insert와 같은 방식으로 타입을 명시합니다.
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("newMemoId", newMemoId)
-            .addValue("deletedAt", deletedAt).addValue("deletedReason", CommunityMemoDeletedReason.EXPIRED.value())
+            .addValue("deletedAt", deletedAt)
+            .addValue("deletedReason", CommunityMemoDeletedReason.EXPIRED.value(), Types.OTHER)
             .addValue("limit", limit);
 
         return jdbcTemplate.update(EXPIRE_OLDEST_VISIBLE_MEMOS_SQL, params);

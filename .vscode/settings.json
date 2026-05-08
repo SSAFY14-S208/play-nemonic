@@ -1,0 +1,14 @@
+{
+  "files.exclude": {
+    "**/.venv": true
+  },
+  "search.exclude": {
+    "**/.venv": true
+  },
+  "python.analysis.exclude": [
+    "**/.venv/**",
+    "**/site-packages/**"
+  ],
+  "python.defaultInterpreterPath": "moderation-server/.venv/Scripts/python.exe"
+}
+
