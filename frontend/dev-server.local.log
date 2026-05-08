@@ -1,0 +1,95 @@
+
+> frontend@0.1.0 dev C:\binz\망고\git\frontend
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.56.1:3000
+- Environments: .env.local
+✓ Ready in 3.8s
+Creating turbopack project { dir: 'C:\\binz\\망고\\git\\frontend', testMode: true }
+
+○ Compiling /flipbook ...
+ GET /flipbook 200 in 14.9s (next.js: 13.4s, application-code: 1502ms)
+ GET /flipbook 200 in 15.2s (next.js: 13.5s, application-code: 1640ms)
+ GET /flipbook 200 in 99ms (next.js: 8ms, application-code: 91ms)
+  Reload env: .env.local
+ GET /flipbook 200 in 525ms (next.js: 267ms, application-code: 258ms)
+ GET /flipbook 200 in 504ms (next.js: 182ms, application-code: 322ms)
+ GET /flipbook 200 in 249ms (next.js: 3ms, application-code: 246ms)
+ GET /flipbook 200 in 249ms (next.js: 20ms, application-code: 229ms)
+ GET /flipbook 200 in 205ms (next.js: 5ms, application-code: 199ms)
+ GET /flipbook 200 in 205ms (next.js: 25ms, application-code: 180ms)
+ GET /flipbook 200 in 205ms (next.js: 67ms, application-code: 138ms)
+ GET /flipbook 200 in 206ms (next.js: 47ms, application-code: 159ms)
+ GET /flipbook 200 in 206ms (next.js: 91ms, application-code: 115ms)
+ GET /flipbook 200 in 206ms (next.js: 129ms, application-code: 77ms)
+ GET /flipbook 200 in 207ms (next.js: 110ms, application-code: 97ms)
+ GET /flipbook 200 in 120ms (next.js: 67ms, application-code: 53ms)
+ GET /flipbook 200 in 1229ms (next.js: 4ms, application-code: 1225ms)
+  Reload env: .env.local
+✓ Compiled in 3ms
+ GET /flipbook 200 in 474ms (next.js: 247ms, application-code: 227ms)
+ GET /flipbook 200 in 480ms (next.js: 194ms, application-code: 286ms)
+ GET /flipbook 200 in 212ms (next.js: 19ms, application-code: 193ms)
+ GET /flipbook 200 in 213ms (next.js: 2ms, application-code: 211ms)
+ GET /flipbook 200 in 169ms (next.js: 42ms, application-code: 127ms)
+ GET /flipbook 200 in 171ms (next.js: 25ms, application-code: 146ms)
+ GET /flipbook 200 in 170ms (next.js: 79ms, application-code: 91ms)
+ GET /flipbook 200 in 170ms (next.js: 122ms, application-code: 48ms)
+ GET /flipbook 200 in 171ms (next.js: 104ms, application-code: 67ms)
+ GET /flipbook 200 in 172ms (next.js: 59ms, application-code: 113ms)
+ GET /flipbook 200 in 172ms (next.js: 139ms, application-code: 33ms)
+ GET /flipbook 200 in 175ms (next.js: 5ms, application-code: 170ms)
+ GET /flipbook 200 in 112ms (next.js: 50ms, application-code: 62ms)
+ GET /flipbook 200 in 113ms (next.js: 87ms, application-code: 26ms)
+○ Compiling / ...
+ GET / 200 in 5.6s (next.js: 4.0s, application-code: 1606ms)
+ GET /flipbook 200 in 167ms (next.js: 7ms, application-code: 160ms)
+ GET /flipbook 200 in 76ms (next.js: 5ms, application-code: 71ms)
+✓ Compiled in 1148ms
+ GET /flipbook 200 in 1053ms (next.js: 586ms, application-code: 467ms)
+ GET /flipbook 200 in 1214ms (next.js: 590ms, application-code: 624ms)
+ GET /flipbook 200 in 413ms (next.js: 6ms, application-code: 408ms)
+ GET /flipbook 200 in 415ms (next.js: 43ms, application-code: 373ms)
+ GET /flipbook 200 in 340ms (next.js: 8ms, application-code: 332ms)
+ GET /flipbook 200 in 342ms (next.js: 42ms, application-code: 300ms)
+ GET /flipbook 200 in 343ms (next.js: 113ms, application-code: 229ms)
+ GET /flipbook 200 in 345ms (next.js: 81ms, application-code: 264ms)
+ GET /flipbook 200 in 345ms (next.js: 145ms, application-code: 200ms)
+ GET /flipbook 200 in 346ms (next.js: 193ms, application-code: 153ms)
+ GET /flipbook 200 in 346ms (next.js: 259ms, application-code: 87ms)
+ GET /flipbook 200 in 349ms (next.js: 226ms, application-code: 123ms)
+✓ Compiled in 377ms
+ GET /flipbook 200 in 361ms (next.js: 155ms, application-code: 206ms)
+ GET /flipbook 200 in 77ms (next.js: 11ms, application-code: 66ms)
+✓ Compiled in 300ms
+ GET /flipbook 200 in 388ms (next.js: 116ms, application-code: 272ms)
+ GET /flipbook 200 in 395ms (next.js: 201ms, application-code: 195ms)
+ GET /flipbook 200 in 139ms (next.js: 6ms, application-code: 133ms)
+ GET /flipbook 200 in 102ms (next.js: 8ms, application-code: 94ms)
+✓ Compiled in 261ms
+ GET /flipbook 200 in 300ms (next.js: 131ms, application-code: 169ms)
+ GET /flipbook 200 in 301ms (next.js: 232ms, application-code: 69ms)
+✓ Compiled in 157ms
+ GET /flipbook 200 in 269ms (next.js: 122ms, application-code: 147ms)
+ GET /flipbook 200 in 58ms (next.js: 6ms, application-code: 52ms)
+ GET /flipbook 200 in 341ms (next.js: 9ms, application-code: 332ms)
+ GET /flipbook 200 in 122ms (next.js: 9ms, application-code: 113ms)
+ GET /flipbook 200 in 102ms (next.js: 5ms, application-code: 96ms)
+ GET /flipbook 200 in 91ms (next.js: 5ms, application-code: 86ms)
+ GET /flipbook 200 in 73ms (next.js: 4ms, application-code: 68ms)
+ GET /flipbook 200 in 95ms (next.js: 7ms, application-code: 88ms)
+ GET /flipbook 200 in 94ms (next.js: 3ms, application-code: 91ms)
+ GET /flipbook 200 in 94ms (next.js: 6ms, application-code: 88ms)
+ GET /flipbook 200 in 110ms (next.js: 6ms, application-code: 105ms)
+✓ Compiled in 312ms
+ GET /flipbook 200 in 297ms (next.js: 136ms, application-code: 161ms)
+ GET /flipbook 200 in 71ms (next.js: 6ms, application-code: 65ms)
+ GET /flipbook 200 in 378ms (next.js: 7ms, application-code: 370ms)
+ GET /flipbook 200 in 100ms (next.js: 9ms, application-code: 91ms)
+ GET /flipbook 200 in 84ms (next.js: 5ms, application-code: 78ms)
+ GET /flipbook 200 in 100ms (next.js: 6ms, application-code: 94ms)
+ GET /flipbook 200 in 102ms (next.js: 6ms, application-code: 96ms)
+ GET /flipbook 200 in 77ms (next.js: 5ms, application-code: 72ms)
+ GET /flipbook 200 in 80ms (next.js: 5ms, application-code: 75ms)

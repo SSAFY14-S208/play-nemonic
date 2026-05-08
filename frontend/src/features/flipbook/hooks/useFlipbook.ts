@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { HTTPError } from 'ky'
 import {
+  ApiError,
   deleteFlipbookRoomParticipantMe,
   getFlipbookRoom,
   getFlipbookRoomAssignmentMe,
@@ -17,6 +19,7 @@ import {
 import { useDrawingBoard } from '@/shared/hooks'
 import { useUserStore } from '@/shared/stores'
 import type {
+  ApiResponse,
   DrawingLine,
   FlipbookAssignmentResponse,
   FlipbookFrameSubmitResponse,
@@ -44,6 +47,8 @@ import { useFlipbookTimer } from './useFlipbookTimer'
 const FLIPBOOK_FILE_CONTENT_TYPE = 'image/png'
 const FLIPBOOK_FILE_PURPOSE = 'FLIPBOOK'
 const RESULT_POLLING_INTERVAL_MS = 1500
+
+type FlipbookNicknamePendingAction = 'createRoom' | 'enterRoom'
 
 function isFlipbookTimeLimitSeconds(seconds: number): seconds is FlipbookTimeLimitSeconds {
   return FLIPBOOK_TIME_LIMITS_SECONDS.includes(seconds as FlipbookTimeLimitSeconds)
@@ -93,6 +98,49 @@ function getResultFrames(result: FlipbookResultItemResponse | null): FlipbookFra
     lines: [],
     imageUrl: frame.imageUrl,
   }))
+}
+
+function hasConfiguredNickname(nickname: string | null) {
+  return Boolean(nickname?.trim())
+}
+
+function isNicknameRequiredMessage(message: string | undefined) {
+  if (!message) return false
+  return message.includes('닉네임') && message.includes('설정')
+}
+
+async function getFlipbookActionError(error: unknown, fallbackRequiresNickname = false) {
+  if (error instanceof ApiError) {
+    return {
+      message: error.message,
+      requiresNickname: isNicknameRequiredMessage(error.message),
+    }
+  }
+
+  if (error instanceof HTTPError) {
+    try {
+      const responseText = await error.response.clone().text()
+      const responseBody = JSON.parse(responseText) as Partial<ApiResponse<unknown>>
+      const message = responseBody.message ?? error.message
+
+      return {
+        message,
+        requiresNickname:
+          isNicknameRequiredMessage(message) || (fallbackRequiresNickname && error.response.status === 400),
+      }
+    } catch {
+      return {
+        message: error.message,
+        requiresNickname:
+          isNicknameRequiredMessage(error.message) || (fallbackRequiresNickname && error.response.status === 400),
+      }
+    }
+  }
+
+  return {
+    message: error instanceof Error ? error.message : '플립북 요청에 실패했습니다.',
+    requiresNickname: false,
+  }
 }
 
 async function createCanvasBlobFromLines(lines: DrawingLine[]) {
@@ -156,7 +204,9 @@ export function useFlipbook() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
   const isCompletingRoundRef = useRef(false)
+  const pendingNicknameActionRef = useRef<FlipbookNicknamePendingAction | null>(null)
 
   const participantCount = roomState?.participantCount ?? 1
   const minimumRoundCount = getMinimumRoundCount(participantCount)
@@ -367,7 +417,20 @@ export function useFlipbook() {
     [roomCode],
   )
 
-  const createRoom = useCallback(async () => {
+  const openNicknameModal = useCallback(
+    (pendingAction: FlipbookNicknamePendingAction) => {
+      if (userUuid) {
+        useUserStore.getState().setUser(userUuid, null)
+      }
+
+      pendingNicknameActionRef.current = pendingAction
+      setErrorMessage(null)
+      setNicknameModalOpen(true)
+    },
+    [userUuid],
+  )
+
+  const performCreateRoom = useCallback(async () => {
     if (!userUuid || isBusy) return
 
     setIsBusy(true)
@@ -380,13 +443,19 @@ export function useFlipbook() {
       await refreshRoom(createdRoom.roomCode)
       setCurrentStep('lobby')
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '방 생성에 실패했습니다.')
+      const actionError = await getFlipbookActionError(error, true)
+      if (actionError.requiresNickname) {
+        openNicknameModal('createRoom')
+        return
+      }
+
+      setErrorMessage(actionError.message || '방 생성에 실패했습니다.')
     } finally {
       setIsBusy(false)
     }
-  }, [isBusy, refreshRoom, userUuid])
+  }, [isBusy, openNicknameModal, refreshRoom, userUuid])
 
-  const enterRoom = useCallback(async () => {
+  const performEnterRoom = useCallback(async () => {
     if (!userUuid || isBusy) return
 
     const targetRoomCode = roomCodeDraft.trim().toUpperCase()
@@ -409,11 +478,49 @@ export function useFlipbook() {
       await refreshRoom(joinedRoom.roomId)
       setCurrentStep('lobby')
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '방 입장에 실패했습니다.')
+      const actionError = await getFlipbookActionError(error)
+      if (actionError.requiresNickname) {
+        openNicknameModal('enterRoom')
+        return
+      }
+
+      setErrorMessage(actionError.message || '방 입장에 실패했습니다.')
     } finally {
       setIsBusy(false)
     }
-  }, [isBusy, refreshRoom, roomCodeDraft, userUuid])
+  }, [isBusy, openNicknameModal, refreshRoom, roomCodeDraft, userUuid])
+
+  const createRoom = useCallback(() => {
+    if (!hasConfiguredNickname(nickname)) {
+      openNicknameModal('createRoom')
+      return
+    }
+
+    void performCreateRoom()
+  }, [nickname, openNicknameModal, performCreateRoom])
+
+  const enterRoom = useCallback(() => {
+    if (!hasConfiguredNickname(nickname)) {
+      openNicknameModal('enterRoom')
+      return
+    }
+
+    void performEnterRoom()
+  }, [nickname, openNicknameModal, performEnterRoom])
+
+  const continuePendingNicknameAction = useCallback(() => {
+    const pendingAction = pendingNicknameActionRef.current
+    pendingNicknameActionRef.current = null
+
+    if (pendingAction === 'createRoom') {
+      void performCreateRoom()
+      return
+    }
+
+    if (pendingAction === 'enterRoom') {
+      void performEnterRoom()
+    }
+  }, [performCreateRoom, performEnterRoom])
 
   const startGame = useCallback(async () => {
     if (!roomCode || isBusy || !canStartGame) return
@@ -608,9 +715,12 @@ export function useFlipbook() {
     isHost,
     isBusy,
     isSubmitting,
+    nicknameModalOpen,
     errorMessage,
     drawingBoard,
     setRoomCodeDraft,
+    setNicknameModalOpen,
+    continuePendingNicknameAction,
     createRoom,
     enterRoom,
     selectStep,

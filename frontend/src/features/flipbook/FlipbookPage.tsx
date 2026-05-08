@@ -4,6 +4,7 @@ import {
   FlipbookDrawingView,
   FlipbookEntranceView,
   FlipbookLobbyView,
+  FlipbookNicknameModal,
   FlipbookResultView,
 } from './components'
 import { useFlipbook } from './hooks'
@@ -90,6 +91,12 @@ export default function FlipbookPage() {
           onCreateAnother={() => flipbook.selectStep('booth')}
         />
       )}
+
+      <FlipbookNicknameModal
+        open={flipbook.nicknameModalOpen}
+        onOpenChange={flipbook.setNicknameModalOpen}
+        onSuccess={flipbook.continuePendingNicknameAction}
+      />
     </main>
   )
 }

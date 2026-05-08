@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Client, type IMessage } from '@stomp/stompjs'
 import { runtime } from '@/shared/config'
-import { resolveWebSocketUrl } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import type { FlipbookConnectionStatus, FlipbookRealtimeEvent } from '@/shared/types'
 
-const FLIPBOOK_WEBSOCKET_PATH = 'ws/flipbook'
+const FLIPBOOK_WEBSOCKET_ENDPOINT = '/ws/flipbook'
 const RECONNECT_DELAY_MS = 3000
 const HEARTBEAT_INTERVAL_MS = 5000
 
@@ -15,6 +14,24 @@ interface UseFlipbookRealtimeConnectionOptions {
   enabled: boolean
   roomCode: string | null
   onEvent: (event: FlipbookRealtimeEvent) => void
+}
+
+const resolveFlipbookBrokerUrl = () => {
+  const rawUrl = runtime.websocketUrl || runtime.apiUrl
+  if (!rawUrl) {
+    throw new Error('NEXT_PUBLIC_WEBSOCKET_URL / NEXT_PUBLIC_API_URL 둘 다 비어있습니다.')
+  }
+
+  const websocketUrl = rawUrl.replace(/^http(s?):\/\//i, (match, secure: string) =>
+    secure ? 'wss://' : 'ws://',
+  )
+  const normalizedWebsocketUrl = websocketUrl.replace(/\/$/, '')
+
+  if (normalizedWebsocketUrl.endsWith(FLIPBOOK_WEBSOCKET_ENDPOINT)) {
+    return normalizedWebsocketUrl
+  }
+
+  return `${normalizedWebsocketUrl}${FLIPBOOK_WEBSOCKET_ENDPOINT}`
 }
 
 export function useFlipbookRealtimeConnection({
@@ -70,10 +87,7 @@ export function useFlipbookRealtimeConnection({
       return
     }
 
-    const brokerURL = resolveWebSocketUrl(
-      runtime.websocketUrl ? '' : FLIPBOOK_WEBSOCKET_PATH,
-      runtime.websocketUrl || runtime.apiUrl,
-    )
+    const brokerURL = resolveFlipbookBrokerUrl()
     const client = new Client({
       brokerURL,
       connectHeaders: {

@@ -2,13 +2,13 @@
 
 export interface AnonymousUserResponse {
   userUuid: string
-  nickname: string
+  nickname: string | null
   createdAt: string
 }
 
 export interface AnonymousUserVerifyResponse {
   userUuid: string
-  nickname: string
+  nickname: string | null
   lastSeenAt: string
 }
 
@@ -38,7 +38,7 @@ export interface AnonymousUserNicknameResponse {
 
 export interface AnonymousUserProfileResponse {
   userUuid: string
-  nickname: string
+  nickname: string | null
   birthday: string | null
   birthtime: string | null
   isLunar: boolean | null

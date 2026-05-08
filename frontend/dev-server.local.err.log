@@ -1,0 +1,111 @@
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+Several Konva instances detected. It is not recommended to use multiple Konva instances in the same environment.
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+Several Konva instances detected. It is not recommended to use multiple Konva instances in the same environment.
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] using deprecated parameters for the initialization function; pass a single object instead (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/12.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+Several Konva instances detected. It is not recommended to use multiple Konva instances in the same environment.
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/05.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/06.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/07.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/12.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/12.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Uncaught Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <RedirectBoundary>
+      <RedirectErrorBoundary router={{...}}>
+        <InnerLayoutRouter url="/flipbook" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+          <SegmentViewNode type="page" pagePath="(service)/...">
+            <SegmentTrieNode>
+            <Page>
+              <FlipbookPage>
+                <main className="min-h-scre...">
+                  <FlipbookEntranceView roomCodeDraft="" isBusy={false} errorMessage={null} ...>
+                    <section ref={{current:null}} className="relative h...">
+                      <div className="sticky top...">
+                        <FlipbookPaperBackground>
+                        <div className="relative z...">
+                          <motion.div>
+                          <motion.div className="relative z..." style={{opacity:{...}, ...}}>
+                            <div className="relative z..." style={{...}} ref={function useMotionRef.useCallback}>
+                              <div className="absolute i...">
+-                               <div
+-                                 style={{position:"absolute",top:"8px",left:"8px",z-index:"1000",cursor:"pointer",opacity:"1", ...}}
+-                               >
+                              ...
+                          ...
+                  ...
+          ...
+        ...
+
+    at <unknown> (https://react.dev/link/hydration-mismatch)
+    at throwOnHydrationMismatch (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:3318:56)
+    at popHydrationState (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:3403:13)
+    at completeWork (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:6922:25)
+    at runWithFiberInDEV (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:965:74)
+    at completeUnitOfWork (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:9622:23)
+    at performUnitOfWork (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:9557:28)
+    at workLoopConcurrentByScheduler (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:9551:58)
+    at renderRootConcurrent (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:9534:71)
+    at performWorkOnRoot (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:9061:150)
+    at performWorkOnRootViaSchedulerTask (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_react-dom_0luqc1q._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_compiled_0fzwmub._.js:2647:64)
+    at div (<anonymous>)
+    at FlipbookEntranceView (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/src_0f8q1-0._.js:3697:327)
+    at FlipbookPage (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/src_0f8q1-0._.js:6669:363)
+    at Page (src\app\(service)\(game)\flipbook\page.tsx:4:10)
+  2 |
+  3 | export default function Page() {
+> 4 |   return <FlipbookPage />
+    |          ^
+  5 | }
+  6 |
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/12.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/12.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+Several Konva instances detected. It is not recommended to use multiple Konva instances in the same environment.
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/03.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-entrance/04.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Image with src "/images/flipbook-background/dots.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)
+[browser] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. (file://C:/binz/망고/git/frontend/.next/dev/static/chunks/0im5_next_dist_0~_dl5p._.js:2431:13)

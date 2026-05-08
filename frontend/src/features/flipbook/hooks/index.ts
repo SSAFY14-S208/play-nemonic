@@ -1,3 +1,4 @@
 export { useFlipbook } from './useFlipbook'
 export { useFlipbookEntranceTimeline } from './useFlipbookEntranceTimeline'
+export { useFlipbookNickname } from './useFlipbookNickname'
 export { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
