@@ -22,9 +22,26 @@
   src: url("/fonts/fortune/LeeSeoyun.ttf") format("truetype");
 }
 
+@font-face {
+  font-family: "Eulyoo1945";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/Eulyoo1945-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Eulyoo1945";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/Eulyoo1945-SemiBold.woff2") format("woff2");
+}
+
 .fortune-page-shell {
   --font-fortune-serif: "GraceSerif", var(--font-paperlogy);
   --font-fortune-hand: "LeeSeoyun", var(--font-paperlogy);
+  --font-fortune-eulyoo: "Eulyoo1945", var(--font-paperlogy);
 }
 
 @keyframes fortune-sparkle-drift {
@@ -1829,6 +1846,162 @@
 
 .fortune-stage-overlay-panel > div {
   max-width: min(90vw, 600px);
+}
+
+/* === Draw step (사주 입력 정보 확인) ============================== */
+
+.fortune-stage-overlay-draw {
+  padding: 0;
+}
+
+/* motion.div의 transform이 fixed 자식의 containing block을 잡는 걸 무력화 */
+.fortune-stage-overlay-draw > div {
+  transform: none !important;
+}
+
+.fortune-draw-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.fortune-draw-stage > * {
+  pointer-events: auto;
+}
+
+.fortune-draw-info-panel {
+  position: absolute;
+  top: clamp(6dvh, 12dvh, 18dvh);
+  right: clamp(0vw, 2vw, 4vw);
+  width: min(69vw, 54rem);
+  aspect-ratio: 358 / 245;
+  pointer-events: none;
+}
+
+.fortune-draw-info-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.fortune-draw-info-date {
+  position: absolute;
+  top: 32%;
+  left: calc(50% + 4vw);
+  transform: translateX(-50%);
+  width: 84%;
+  text-align: center;
+  font-family: var(--font-fortune-eulyoo);
+  font-weight: 600;
+  font-size: clamp(1.3rem, 2.4vw, 2rem);
+  letter-spacing: 0.04em;
+  color: #fff8ff;
+  text-shadow:
+    0 0 0.5rem rgba(220, 170, 255, 0.7),
+    0 0 0.18rem rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.fortune-draw-pillar-grid {
+  position: absolute;
+  top: 57%;
+  left: calc(50% + 4vw);
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 64%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fortune-draw-pillar-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fortune-draw-pillar-value {
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.05rem, 1.85vw, 1.55rem);
+  color: #fff;
+  text-shadow:
+    0 0 0.5rem rgba(220, 170, 255, 0.75),
+    0 0 0.15rem rgba(255, 255, 255, 0.55);
+}
+
+.fortune-draw-dialogue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(11dvh, 14dvh, 18dvh);
+  transform: translateX(-50%);
+  width: min(82vw, 60rem);
+}
+
+.fortune-draw-actions {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(3dvh, 5dvh, 7dvh);
+  transform: translateX(-50%);
+  display: flex;
+  gap: clamp(1rem, 2vw, 2.2rem);
+  align-items: center;
+}
+
+.fortune-draw-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-height: clamp(8.8rem, 14dvh, 11.2rem);
+  min-width: clamp(26rem, 44vw, 38rem);
+  padding: 0 clamp(3rem, 4.5vw, 5rem);
+  background: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-fortune-eulyoo);
+  font-weight: 600;
+  font-size: clamp(1.1rem, 1.7vw, 1.45rem);
+  letter-spacing: 0.06em;
+  color: #fff8ff;
+  text-shadow:
+    0 0 0.4rem rgba(180, 110, 255, 0.55),
+    0 0 0.18rem rgba(255, 255, 255, 0.5);
+  transition: transform 220ms ease, filter 220ms ease;
+}
+
+.fortune-draw-action:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08) drop-shadow(0 0 0.6rem rgba(220, 170, 255, 0.55));
+}
+
+.fortune-draw-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+  filter: none;
+}
+
+.fortune-draw-action-edit {
+  background-image: url('/images/fortune/draw/action-edit.png');
+  color: #f5e8ff;
+}
+
+.fortune-draw-action-print {
+  background-image: url('/images/fortune/draw/action-print.png');
+}
+
+.fortune-draw-action-icon {
+  width: clamp(1.1rem, 1.5vw, 1.4rem);
+  height: clamp(1.1rem, 1.5vw, 1.4rem);
 }
 
 .fortune-stage-overlay-scroll {

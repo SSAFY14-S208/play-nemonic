@@ -138,7 +138,8 @@ export default function FortunePage() {
           shouldPlayEntrySpotlight && 'fortune-stage-overlay-entry',
           step === 'birthInfo' && 'fortune-stage-overlay-center fortune-stage-overlay-birth',
           (step === 'intro' || step === 'limit') && 'fortune-stage-overlay-dialogue',
-          (step === 'draw' || (step === 'printing' && prefersReducedMotion) || step === 'error') && 'fortune-stage-overlay-panel',
+          step === 'draw' && 'fortune-stage-overlay-draw',
+          ((step === 'printing' && prefersReducedMotion) || step === 'error') && 'fortune-stage-overlay-panel',
           step === 'result' && 'fortune-stage-overlay-scroll',
         )}
       >
