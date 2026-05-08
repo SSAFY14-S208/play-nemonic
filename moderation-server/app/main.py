@@ -10,6 +10,7 @@ from app.ocr import OcrError, extract_text_from_image_data, extract_text_from_im
 from app.schemas import CheckRequest, CheckResponse
 
 logger = logging.getLogger("nemonic.moderation")
+LOG_TEXT_PREVIEW_LIMIT = 300
 
 
 @asynccontextmanager
@@ -101,10 +102,19 @@ async def check_file(
 def _build_check_response(ocr_text: str, client_text: str | None) -> CheckResponse:
     text = _combine_texts(ocr_text, client_text)
     detected_categories = classify_text(text)
+    allowed = len(detected_categories) == 0
+
+    logger.info(
+        "UnSmile 검사 완료 allowed=%s textLength=%d textPreview=%s categories=%s",
+        allowed,
+        len(text),
+        _preview_text(text),
+        [category.model_dump() for category in detected_categories],
+    )
 
     # allowed=false는 UnSmile이 차단 라벨을 임계값 이상으로 감지한 경우에만 내려갑니다.
     return CheckResponse(
-        allowed=len(detected_categories) == 0,
+        allowed=allowed,
         ocrText=text,
         categories=detected_categories,
         reason=None if not detected_categories else "부적절한 표현이 감지되었습니다.",
@@ -115,3 +125,12 @@ def _combine_texts(ocr_text: str, client_text: str | None) -> str:
     # OCR 결과와 프론트가 알고 있는 텍스트박스 원문을 함께 검사합니다.
     parts = [ocr_text.strip(), (client_text or "").strip()]
     return "\n".join(part for part in parts if part)
+
+
+def _preview_text(text: str) -> str:
+    # 로그가 여러 줄로 깨지지 않도록 공백을 정리하고, 과도하게 긴 원문은 앞부분만 남깁니다.
+    compact_text = " ".join(text.split())
+    if len(compact_text) <= LOG_TEXT_PREVIEW_LIMIT:
+        return compact_text
+
+    return f"{compact_text[:LOG_TEXT_PREVIEW_LIMIT]}..."
