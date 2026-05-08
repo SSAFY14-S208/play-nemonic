@@ -2,10 +2,12 @@ package com.nemonicworld.relay.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.atLeastOnce;
@@ -26,6 +28,7 @@ import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
@@ -42,6 +45,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.data.redis.core.RedisOperations;
@@ -75,6 +79,8 @@ class RelayRoomSubmissionControllerIntegrationTest {
     private static final String SUBMISSION_EXPIRED_MESSAGE = "제출 시간이 만료되었습니다.";
     private static final String HINT_IMAGE_REQUIRED_MESSAGE = "힌트 이미지가 필요합니다.";
 
+    private static final String SUBMISSION_IN_PROGRESS_MESSAGE = "이미 제출 처리 중입니다.";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -95,6 +101,9 @@ class RelayRoomSubmissionControllerIntegrationTest {
 
     @MockitoBean
     private RelaySubmissionStorage relaySubmissionStorage;
+
+    @MockitoBean
+    private RelaySubmissionLockRepository relaySubmissionLockRepository;
 
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
@@ -118,6 +127,8 @@ class RelayRoomSubmissionControllerIntegrationTest {
 
             return callback.execute(redisOperations);
         });
+        given(relaySubmissionLockRepository.acquireSubmissionLock(anyString(), anyInt(), any(RelayDrawingPart.class),
+            anyString(), anyString(), any(Duration.class))).willReturn(true);
     }
 
     @Test
@@ -149,6 +160,12 @@ class RelayRoomSubmissionControllerIntegrationTest {
 
         verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face.png"), any());
         verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face-hint.png"), any());
+        InOrder inOrder = inOrder(relaySubmissionLockRepository, relaySubmissionStorage);
+        inOrder.verify(relaySubmissionLockRepository).acquireSubmissionLock(eq(DEFAULT_ROOM_CODE), eq(0),
+            eq(RelayDrawingPart.FACE), eq(hostUuid.toString()), anyString(), eq(Duration.ofMillis(10000)));
+        inOrder.verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face.png"), any());
+        verify(relaySubmissionLockRepository).releaseSubmissionLock(eq(DEFAULT_ROOM_CODE), eq(0),
+            eq(RelayDrawingPart.FACE), eq(hostUuid.toString()), anyString());
         JsonNode storedRoom = readSavedRoom();
         JsonNode submittedAssignment = storedRoom.path("assignments").get(0);
         assertThat(storedRoom.path("status").asText()).isEqualTo("PLAYING");
@@ -329,6 +346,8 @@ class RelayRoomSubmissionControllerIntegrationTest {
             .andExpect(jsonPath("$.data.hintObjectKey").value("relay/tmp/AB3K9Q/0/face-hint.png"));
 
         verifyNoInteractions(relaySubmissionStorage, relayRoomEventPublisher);
+        verify(relaySubmissionLockRepository, never()).acquireSubmissionLock(anyString(), anyInt(),
+            any(RelayDrawingPart.class), anyString(), anyString(), any(Duration.class));
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
     }
 
@@ -389,6 +408,28 @@ class RelayRoomSubmissionControllerIntegrationTest {
         assertThat(submittedAssignment.path("objectKey").asText()).isEqualTo("relay/tmp/AB3K9Q/0/face.png");
         assertThat(submittedAssignment.path("hintObjectKey").asText()).isEqualTo("relay/tmp/AB3K9Q/0/face-hint.png");
         verify(relayRoomEventPublisher).publishPartSubmitted(any(RelayRoomSubmissionResponse.class));
+    }
+
+    @Test
+    void submitAssignmentRejectsWhenSubmissionLockAlreadyExists() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        given(relaySubmissionLockRepository.acquireSubmissionLock(anyString(), anyInt(), any(RelayDrawingPart.class),
+            anyString(), anyString(), any(Duration.class))).willReturn(false);
+        storeRoom(DEFAULT_ROOM_CODE,
+            room(RelayRoomStatus.PLAYING, RelayDrawingPart.FACE, now.minusSeconds(46), now.minusSeconds(1),
+                List.of(assignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0),
+                participant(participantUuid, "Peach", false, 1)));
+
+        mockMvc.perform(multipart("/api/v1/relay/rooms/{roomCode}/submissions", DEFAULT_ROOM_CODE)
+            .file(pngFile("drawingImage", "face.png")).file(pngFile("hintImage", "face-hint.png"))
+            .param("canvasIndex", "0").param("part", "FACE").header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value(SUBMISSION_IN_PROGRESS_MESSAGE));
+
+        verifyNoInteractions(relaySubmissionStorage, relayRoomEventPublisher);
+        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
     }
 
     @Test
@@ -619,6 +660,8 @@ class RelayRoomSubmissionControllerIntegrationTest {
             .andExpect(jsonPath("$.message").value(AUTO_SUBMITTED_MESSAGE));
 
         verifyNoInteractions(relaySubmissionStorage, relayRoomEventPublisher);
+        verify(relaySubmissionLockRepository, never()).acquireSubmissionLock(anyString(), anyInt(),
+            any(RelayDrawingPart.class), anyString(), anyString(), any(Duration.class));
     }
 
     @Test
