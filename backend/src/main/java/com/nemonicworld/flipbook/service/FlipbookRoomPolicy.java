@@ -7,11 +7,14 @@ import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerBlockedReason;
+import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.user.entity.AppUser;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -30,14 +33,18 @@ public class FlipbookRoomPolicy {
     static final int MAX_PARTICIPANTS = 6;
     static final int MIN_FRAMES_PER_FLIPBOOK = 8;
     static final int HOST_JOIN_ORDER = 0;
-    static final int ROOM_UPDATE_MAX_RETRIES = 3;
-    static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
-    static final String ROOM_CONNECTION_UPDATE_CONFLICT_MESSAGE = "동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 "
+    public static final int ROOM_UPDATE_MAX_RETRIES = 3;
+    public static final long DEFAULT_RECONNECT_GRACE_SECONDS = 10L;
+    public static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
+    public static final String ROOM_CONNECTION_UPDATE_CONFLICT_MESSAGE = "동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 "
         + "갱신하지 못했습니다. 다시 시도해주세요.";
-    static final String ROOM_KICK_UPDATE_CONFLICT_MESSAGE = "동시 강퇴 요청이 많아 플립북 방 강퇴 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
-    static final String ROOM_START_UPDATE_CONFLICT_MESSAGE = "동시 게임 시작 요청이 많아 플립북 방 시작 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
+    public static final String ROOM_KICK_UPDATE_CONFLICT_MESSAGE = "동시 강퇴 요청이 많아 플립북 방 강퇴 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
+    public static final String ROOM_START_UPDATE_CONFLICT_MESSAGE = "동시 게임 시작 요청이 많아 플립북 방 시작 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
+    public static final String ROOM_TIMEOUT_UPDATE_CONFLICT_MESSAGE = "동시 타임아웃 처리 요청이 많아 플립북 프레임 자동 제출 상태를 "
+        + "갱신하지 못했습니다. 다시 시도해주세요.";
 
     private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
+    private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(DEFAULT_RECONNECT_GRACE_SECONDS);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
@@ -50,12 +57,15 @@ public class FlipbookRoomPolicy {
     private static final String WAITING_ROOM_KICK_ONLY_MESSAGE = "대기실에서만 강퇴할 수 있습니다.";
     private static final String WAITING_ROOM_LEAVE_ONLY_MESSAGE = "대기실에서만 퇴장할 수 있습니다.";
     private static final String GAME_ALREADY_STARTED_MESSAGE = "이미 게임이 시작되었습니다.";
+    private static final String GAME_NOT_STARTED_MESSAGE = "게임이 아직 시작되지 않았습니다.";
     private static final String NOT_ENOUGH_PARTICIPANTS_MESSAGE = "최소 2명이 모여야 시작할 수 있습니다.";
     private static final String PARTICIPANTS_DISCONNECTED_MESSAGE = "모든 참여자가 웹소켓에 연결되어야 게임을 시작할 수 있습니다.";
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
+    private static final String CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE = "현재 배정된 프레임이 없습니다.";
     private static final String SELF_KICK_NOT_ALLOWED_MESSAGE = "자기 자신은 강퇴할 수 없습니다.";
     private static final String HOST_KICK_NOT_ALLOWED_MESSAGE = "방장은 강퇴할 수 없습니다.";
     private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
+    private static final String RECONNECT_EXPIRED_MESSAGE = "재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.";
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final FlipbookRoomRepository flipbookRoomRepository;
@@ -200,6 +210,44 @@ public class FlipbookRoomPolicy {
     }
 
     /**
+     * 내 프레임 배정 조회가 가능한 방 상태인지 검증합니다.
+     */
+    void validateAssignmentQueryableRoom(FlipbookRoomState roomState) {
+        if (roomState.status() == FlipbookRoomStatus.PLAYING) {
+            return;
+        }
+
+        if (roomState.status() == FlipbookRoomStatus.WAITING) {
+            throw new ConflictException(GAME_NOT_STARTED_MESSAGE);
+        }
+
+        throw new ConflictException(ROOM_CLOSED_MESSAGE);
+    }
+
+    /**
+     * 현재 라운드에서 사용자가 맡은 프레임 배정을 조회합니다.
+     */
+    FlipbookFrameAssignment requireCurrentAssignment(FlipbookRoomState roomState, String viewerUserUuid) {
+        Integer currentRound = roomState.currentRound();
+        if (currentRound == null) {
+            throw new ConflictException(CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE);
+        }
+
+        return roomState.assignments().stream().filter(assignment -> assignment.round() == currentRound)
+            .filter(assignment -> viewerUserUuid.equals(assignment.assignedUserUuid())).findFirst()
+            .orElseThrow(() -> new ConflictException(CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE));
+    }
+
+    /**
+     * 특정 플립북과 프레임 번호에 해당하는 배정을 조회합니다.
+     */
+    Optional<FlipbookFrameAssignment> findFrameAssignment(FlipbookRoomState roomState, int flipbookIndex,
+        int frameIndex) {
+        return roomState.assignments().stream().filter(assignment -> assignment.flipbookIndex() == flipbookIndex)
+            .filter(assignment -> assignment.frameIndex() == frameIndex).findFirst();
+    }
+
+    /**
      * 게임 시작에 참여할 대상자를 입장 순서대로 조회합니다.
      */
     List<FlipbookRoomParticipant> findStartParticipants(FlipbookRoomState roomState) {
@@ -259,10 +307,78 @@ public class FlipbookRoomPolicy {
     }
 
     /**
+     * 이탈 확정된 UUID가 같은 방에 다시 입장하거나 WebSocket 재연결하는 것을 막습니다.
+     */
+    public void validateNotDropped(FlipbookRoomState roomState, String userUuid) {
+        if (isDropped(roomState, userUuid)) {
+            throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
+        }
+    }
+
+    /**
      * 사용자가 현재 방의 강퇴 목록에 포함되어 있는지 확인합니다.
      */
     public boolean isKicked(FlipbookRoomState roomState, String userUuid) {
         return roomState.kickedUserUuids().contains(userUuid);
+    }
+
+    /**
+     * 사용자가 현재 방에서 이탈 확정 처리되었는지 확인합니다.
+     */
+    public boolean isDropped(FlipbookRoomState roomState, String userUuid) {
+        return roomState.participants().stream()
+            .anyMatch(participant -> participant.userUuid().equals(userUuid) && participant.dropped());
+    }
+
+    /**
+     * 재접속 유예 시간 검사가 필요한 방 상태인지 판단합니다.
+     */
+    public boolean requiresReconnectGrace(FlipbookRoomState roomState) {
+        return roomState.status() == FlipbookRoomStatus.PLAYING;
+    }
+
+    /**
+     * 끊겼던 참여자가 아직 재접속 가능한 시간 안에 있는지 계산합니다.
+     */
+    public boolean canReconnect(FlipbookRoomParticipant participant, LocalDateTime now) {
+        if (participant.dropped()) {
+            return false;
+        }
+
+        LocalDateTime disconnectedAt = participant.disconnectedAt();
+
+        if (disconnectedAt == null) {
+            return false;
+        }
+
+        return !disconnectedAt.plus(RECONNECT_GRACE_PERIOD).isBefore(now);
+    }
+
+    /**
+     * 재접속 가능 시간이 지난 참여자의 invite 재입장과 WebSocket 재연결을 막습니다.
+     */
+    public void requireReconnectable(FlipbookRoomParticipant participant, LocalDateTime now) {
+        if (!canReconnect(participant, now)) {
+            throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
+        }
+    }
+
+    /**
+     * 기존 참여자가 방에 다시 들어오려고 할 때 재접속 유예 시간 정책을 검증합니다.
+     */
+    public void validateExistingParticipantReturn(FlipbookRoomState roomState, FlipbookRoomParticipant participant,
+        LocalDateTime now) {
+        if (participant.dropped()) {
+            throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
+        }
+
+        if (participant.connected()) {
+            return;
+        }
+
+        if (participant.disconnectedAt() != null && requiresReconnectGrace(roomState)) {
+            requireReconnectable(participant, now);
+        }
     }
 
     /**
@@ -271,6 +387,10 @@ public class FlipbookRoomPolicy {
     FlipbookRoomViewerBlockedReason findJoinBlockedReason(FlipbookRoomState roomState, String viewerUserUuid) {
         if (isKicked(roomState, viewerUserUuid)) {
             return FlipbookRoomViewerBlockedReason.KICKED;
+        }
+
+        if (isDropped(roomState, viewerUserUuid)) {
+            return FlipbookRoomViewerBlockedReason.RECONNECT_EXPIRED;
         }
 
         if (roomState.status() == FlipbookRoomStatus.WAITING) {

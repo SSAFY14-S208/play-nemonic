@@ -17,7 +17,8 @@
 #      -InFile "C:\Users\SSAFY\Desktop\drawing.png" `
 #      -ContentType "image/png"
 # 4. Run "Confirm uploaded file".
-# 5. To test delete success, call DELETE while the file is still PENDING. Confirmed files return 409 by design.
+# 5. Run "Issue file view URL" to preview an UPLOADED private file with a GET presigned URL.
+# 6. To test delete success, call DELETE while the file is still PENDING. Confirmed files return 409 by design.
 
 ### Issue presigned upload URL
 POST {{host}}/api/v1/files/presign
@@ -108,6 +109,11 @@ Anonymous-User-UUID: not-a-uuid
 # 2. PUT the file to MinIO with the returned presignedUrl.
 # 3. Replace the path UUID below with the returned fileId.
 POST {{host}}/api/v1/files/{{fileId}}/confirm
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Issue file view URL
+# Replace the path UUID below with an UPLOADED fileId.
+GET {{host}}/api/v1/files/{{fileId}}/view-url
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Delete pending uploaded file

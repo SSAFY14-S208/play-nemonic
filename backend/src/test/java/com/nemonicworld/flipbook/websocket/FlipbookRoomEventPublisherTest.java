@@ -9,10 +9,15 @@ import static org.mockito.Mockito.verify;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomParticipantResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookAllRoundsCompletedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookFrameAutoSubmittedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventStateResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventType;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
+import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
+import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
@@ -113,6 +118,81 @@ class FlipbookRoomEventPublisherTest {
         assertThat(data.changedParticipant().host()).isTrue();
         assertThat(data.changedParticipant().joinOrder()).isZero();
         assertThat(data.changedParticipant().connected()).isTrue();
+    }
+
+    /**
+     * 자동 제출 이벤트는 방 전체 topic에 자동 제출 사용자와 프레임 정보를 보냅니다.
+     */
+    @Test
+    void publishFrameAutoSubmittedSendsAutoSubmittedEventToRoomTopic() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        LocalDateTime submittedAt = LocalDateTime.now().minusSeconds(1);
+        FlipbookFrameAssignment assignment = new FlipbookFrameAssignment(1, 2, 3, USER_UUID,
+            FlipbookFrameAssignmentStatus.AUTO_SUBMITTED, null, null, true, true, submittedAt);
+
+        publisher.publishFrameAutoSubmitted(ROOM_CODE, "망고", assignment);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.FRAME_AUTO_SUBMITTED);
+
+        FlipbookFrameAutoSubmittedEventResponse data = (FlipbookFrameAutoSubmittedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.userUuid()).isEqualTo(USER_UUID);
+        assertThat(data.nickname()).isEqualTo("망고");
+        assertThat(data.flipbookIndex()).isEqualTo(1);
+        assertThat(data.frameIndex()).isEqualTo(2);
+        assertThat(data.round()).isEqualTo(3);
+        assertThat(data.assignmentStatus()).isEqualTo(FlipbookFrameAssignmentStatus.AUTO_SUBMITTED);
+        assertThat(data.empty()).isTrue();
+        assertThat(data.submittedAt()).isEqualTo(submittedAt);
+    }
+
+    /**
+     * 라운드 시작 이벤트는 다음 라운드 번호와 제한 시간을 방 전체 topic에 보냅니다.
+     */
+    @Test
+    void publishRoundStartedSendsRoundStartedEventToRoomTopic() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        LocalDateTime startedAt = LocalDateTime.now().minusSeconds(1);
+        LocalDateTime deadlineAt = startedAt.plusSeconds(45);
+
+        publisher.publishRoundStarted(ROOM_CODE, 1, 2, startedAt, deadlineAt);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.ROUND_STARTED);
+
+        FlipbookRoundStartedEventResponse data = (FlipbookRoundStartedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.previousRound()).isEqualTo(1);
+        assertThat(data.round()).isEqualTo(2);
+        assertThat(data.roundStartedAt()).isEqualTo(startedAt);
+        assertThat(data.roundDeadlineAt()).isEqualTo(deadlineAt);
+        assertThat(data.timeLimitSeconds()).isEqualTo(45);
+    }
+
+    /**
+     * 전체 라운드 완료 이벤트는 완료 후 방 상태와 완료 시각을 방 전체 topic에 보냅니다.
+     */
+    @Test
+    void publishAllRoundsCompletedSendsAllRoundsCompletedEventToRoomTopic() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        LocalDateTime completedAt = LocalDateTime.now().minusSeconds(1);
+
+        publisher.publishAllRoundsCompleted(ROOM_CODE, FlipbookRoomStatus.FINISHED, completedAt);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.ALL_ROUNDS_COMPLETED);
+
+        FlipbookAllRoundsCompletedEventResponse data = (FlipbookAllRoundsCompletedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.FINISHED);
+        assertThat(data.completedAt()).isEqualTo(completedAt);
     }
 
     /**

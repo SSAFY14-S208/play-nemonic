@@ -1,6 +1,7 @@
 package com.nemonicworld.flipbook.dto.websocket;
 
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
+import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
 import java.time.LocalDateTime;
 
 /**
@@ -12,5 +13,10 @@ public record FlipbookRoomHostChangedEventResponse(String roomCode, String previ
     public static FlipbookRoomHostChangedEventResponse from(FlipbookRoomLeaveResponse response) {
         return new FlipbookRoomHostChangedEventResponse(response.roomCode(), response.leftUserUuid(),
             response.newHostUserUuid(), response.newHostNickname(), response.leftAt());
+    }
+
+    public static FlipbookRoomHostChangedEventResponse from(FlipbookHostChangeResult result) {
+        return new FlipbookRoomHostChangedEventResponse(result.roomCode(), result.previousHostUserUuid(),
+            result.newHostUserUuid(), result.newHostNickname(), result.changedAt());
     }
 }

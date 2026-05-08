@@ -72,6 +72,7 @@ nemonic:
       secret-key: ${MINIO_SECRET_KEY:minioadmin}
       bucket: ${MINIO_BUCKET:nemonic-local}
       presign-expiration-minutes: ${MINIO_PRESIGN_EXPIRATION_MINUTES:10}
+      view-url-expiration-minutes: ${MINIO_VIEW_URL_EXPIRATION_MINUTES:1440}
       max-upload-byte-size: ${FILE_UPLOAD_MAX_BYTE_SIZE:52428800}
 
   share:
@@ -80,6 +81,15 @@ nemonic:
   inquiry:
     mail:
       from: ${MAIL_FROM:}
+
+  community:
+    moderation:
+      enabled: ${COMMUNITY_MODERATION_ENABLED:true}
+      base-url: ${COMMUNITY_MODERATION_BASE_URL:http://localhost:8000}
+      check-path: ${COMMUNITY_MODERATION_CHECK_PATH:/check}
+      connect-timeout-ms: ${COMMUNITY_MODERATION_CONNECT_TIMEOUT_MS:1000}
+      read-timeout-ms: ${COMMUNITY_MODERATION_READ_TIMEOUT_MS:3000}
+      fail-closed: ${COMMUNITY_MODERATION_FAIL_CLOSED:true}
 
   relay:
     disconnect:
@@ -105,3 +115,15 @@ nemonic:
       delay-seconds: ${RELAY_CLOSE_DELAY_SECONDS:300}
       scan-delay-ms: ${RELAY_CLOSE_SCAN_DELAY_MS:30000}
       scan-limit: ${RELAY_CLOSE_SCAN_LIMIT:100}
+
+  flipbook:
+    disconnect:
+      enabled: ${FLIPBOOK_DISCONNECT_ENABLED:true}
+      reconnect-grace-seconds: ${FLIPBOOK_DISCONNECT_RECONNECT_GRACE_SECONDS:10}
+      scan-delay-ms: ${FLIPBOOK_DISCONNECT_SCAN_DELAY_MS:1000}
+      scan-limit: ${FLIPBOOK_DISCONNECT_SCAN_LIMIT:100}
+    timeout:
+      enabled: ${FLIPBOOK_TIMEOUT_ENABLED:true}
+      scan-delay-ms: ${FLIPBOOK_TIMEOUT_SCAN_DELAY_MS:1000}
+      scan-limit: ${FLIPBOOK_TIMEOUT_SCAN_LIMIT:100}
+      auto-submit-grace-ms: ${FLIPBOOK_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}

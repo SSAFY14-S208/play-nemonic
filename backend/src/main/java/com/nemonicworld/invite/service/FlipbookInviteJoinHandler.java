@@ -2,12 +2,12 @@ package com.nemonicworld.invite.service;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
-import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
-import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
+import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
 import com.nemonicworld.invite.dto.response.InviteJoinResponse;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.user.entity.AppUser;
@@ -39,10 +39,10 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 입장 요청이 많아 방 입장 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
     private static final String DEFAULT_ROOM_NAME_SUFFIX = "의 플립북";
-    private static final String KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE = "강퇴된 방에는 다시 입장할 수 없습니다.";
 
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+    private final FlipbookRoomPolicy flipbookRoomPolicy;
 
     @Override
     public boolean supports(String boothType) {
@@ -57,11 +57,13 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
         String userUuid = user.getId().toString();
 
         for (int attempt = 0; attempt < ROOM_UPDATE_MAX_RETRIES; attempt++) {
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             // invite.roomId()는 실제 플립북 roomCode 역할을 함.
             // Redis에서 flipbook:room:{roomCode} 방 상태를 조회한다.
             FlipbookRoomState roomState = flipbookRoomRepository.findByRoomCode(invite.roomId())
                 .orElseThrow(() -> new ConflictException(ROOM_CLOSED_MESSAGE));
-            validateNotKicked(roomState, userUuid);
+            flipbookRoomPolicy.validateNotKicked(roomState, userUuid);
+            flipbookRoomPolicy.validateNotDropped(roomState, userUuid);
 
             // 해당 userUuid를 가진 사용자가 있는지 확인 (사용자의 정보를 반환)
             Optional<FlipbookRoomParticipant> existingParticipant = findParticipant(roomState, userUuid);
@@ -69,6 +71,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
             // 이미 참여자 목록에 있으면 새로 추가하지 않고 그대로 성공 응답한다.
             // 이게 멱등 처리. 같은 API를 여러 번 호출해도 중복 참가자가 생기지 않음.
             if (existingParticipant.isPresent()) {
+                flipbookRoomPolicy.validateExistingParticipantReturn(roomState, existingParticipant.get(), now);
                 return createResponse(invite, roomState, userUuid, true);
             }
 
@@ -110,12 +113,6 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private void validateNicknameRegistered(AppUser appUser) {
         if (!StringUtils.hasText(appUser.getNickname()) || AppUser.ANONYMOUS_NICKNAME.equals(appUser.getNickname())) {
             throw new BadRequestException(NICKNAME_REQUIRED_MESSAGE);
-        }
-    }
-
-    private void validateNotKicked(FlipbookRoomState roomState, String userUuid) {
-        if (roomState.kickedUserUuids().contains(userUuid)) {
-            throw new ForbiddenException(KICKED_ROOM_REJOIN_FORBIDDEN_MESSAGE);
         }
     }
 

@@ -1,7 +1,7 @@
 package com.nemonicworld.relay.service.cleanup;
 
 import com.nemonicworld.common.exception.FileStorageException;
-import com.nemonicworld.files.config.MinioStorageProperties;
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.RemoveObjectArgs;

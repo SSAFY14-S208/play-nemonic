@@ -2,7 +2,7 @@ package com.nemonicworld.relay.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.nemonicworld.files.config.MinioStorageProperties;
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.relay.service.assignment.RelayHintImageUrlResolver;
 import org.junit.jupiter.api.Test;
 
