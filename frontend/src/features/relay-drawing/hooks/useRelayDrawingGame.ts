@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 
 import { getRelayRoomAssignmentMe, postRelayRoomSubmission } from '@/shared/apis'
 
-import { RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
+import { PART_TO_ROUND_KEY, RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
 import { useRelayDrawingStore } from '../stores'
 import { renderLinesToRasterCanvas } from '../utils'
 
@@ -81,7 +81,8 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
           // 이미 제출한 배정이면(새로고침 후 복귀 등) submitted 상태로 둔다.
           if (assignment.assignmentStatus !== 'PENDING') {
             setAssignment(assignment)
-            useRelayDrawingStore.getState().markSubmitted()
+            const roundKey = PART_TO_ROUND_KEY[assignment.part]
+            useRelayDrawingStore.getState().markSubmitted(roundKey)
             return
           }
           setAssignment(assignment)
@@ -153,9 +154,12 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
 
   const submitDrawing = useCallback(async () => {
     const store = useRelayDrawingStore.getState()
-    
+
     if (store.isSubmitting || store.isSubmitted) return
     if (!store.roomCode || store.canvasIndex === null || !store.currentPart) return
+
+    // 제출 시점의 라운드를 캡처 — in-flight 도중 라운드가 전환되어도 올바른 라운드가 마킹된다.
+    const submittingRoundKey = store.activeRoundKey
 
     store.setIsSubmitting(true)
 
@@ -179,7 +183,7 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
         hintImage: hintImage ?? undefined,
       })
 
-      useRelayDrawingStore.getState().markSubmitted()
+      useRelayDrawingStore.getState().markSubmitted(submittingRoundKey)
       // REST 응답으로 즉시 진행도 반영 — WS PART_SUBMITTED를 기다리지 않고 대기 UI에 카운트 표시.
       useRelayDrawingStore.getState().updateSubmissionProgress(
         response.submittedCount,
@@ -189,7 +193,7 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
       // 409 Conflict = 서버가 이미 auto-submit 처리했거나 데드라인 만료.
       // 클라이언트는 "제출 완료"로 간주하고 대기 상태로 전환한다.
       if (error instanceof HTTPError && error.response.status === 409) {
-        useRelayDrawingStore.getState().markSubmitted()
+        useRelayDrawingStore.getState().markSubmitted(submittingRoundKey)
         return
       }
 
