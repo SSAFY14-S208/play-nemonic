@@ -1,15 +1,33 @@
 import { WandSparkles } from 'lucide-react'
+import { useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
-import type { FortuneBirthInfo, FortuneSaju } from '../types'
+import { useFortuneSessionStore } from '../fortuneSessionStore'
+import { calculateFortuneSaju, isBirthInfoComplete } from '../utils'
 
 interface FortuneDrawPanelProps {
-  birthInfo: FortuneBirthInfo
-  saju: FortuneSaju | null
   onDraw: () => void
   onEdit: () => void
 }
 
-export default function FortuneDrawPanel({ birthInfo, saju, onDraw, onEdit }: FortuneDrawPanelProps) {
+export default function FortuneDrawPanel({ onDraw, onEdit }: FortuneDrawPanelProps) {
+  const { birthInfo, isDrawing } = useFortuneSessionStore(
+    useShallow((state) => ({
+      birthInfo: state.birthInfo,
+      isDrawing: state.isDrawingFortune,
+    })),
+  )
+  const saju = useMemo(() => {
+    if (!isBirthInfoComplete(birthInfo)) {
+      return null
+    }
+
+    try {
+      return calculateFortuneSaju(birthInfo)
+    } catch {
+      return null
+    }
+  }, [birthInfo])
   const calendarLabel = birthInfo.calendarType === 'solar' ? '양력' : '음력'
   const timeLabel = birthInfo.timeUnknown ? '시간 모름' : birthInfo.birthTime
 
@@ -51,10 +69,11 @@ export default function FortuneDrawPanel({ birthInfo, saju, onDraw, onEdit }: Fo
         <button
           type="button"
           className="body-l-b fortune-primary-button flex min-h-14 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-fortune-accent px-5 text-fortune-inverse shadow-soft-lg transition hover:-translate-y-0.5"
+          disabled={isDrawing}
           onClick={onDraw}
         >
           <WandSparkles className="size-5" aria-hidden />
-          운세 뽑기
+          {isDrawing ? '포포가 준비 중' : '운세 뽑기'}
         </button>
       </div>
     </section>
