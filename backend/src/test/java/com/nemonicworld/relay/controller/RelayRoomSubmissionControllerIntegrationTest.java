@@ -56,7 +56,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @IntegrationTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
+@TestPropertySource(properties = {"spring.jpa.hibernate.ddl-auto=create-drop",
+    "nemonic.relay.timeout.auto-submit-grace-ms=10000"})
 class RelayRoomSubmissionControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
@@ -355,6 +356,39 @@ class RelayRoomSubmissionControllerIntegrationTest {
 
         verifyNoInteractions(relaySubmissionStorage, relayRoomEventPublisher);
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
+    }
+
+    @Test
+    void submitAssignmentAcceptsDeadlineWithinAutoSubmitGrace() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime partStartedAt = now.minusSeconds(46);
+        LocalDateTime partDeadlineAt = now.minusSeconds(1);
+        storeRoom(DEFAULT_ROOM_CODE,
+            room(RelayRoomStatus.PLAYING, RelayDrawingPart.FACE, partStartedAt, partDeadlineAt,
+                List.of(assignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0),
+                participant(participantUuid, "Peach", false, 1)));
+
+        mockMvc
+            .perform(multipart("/api/v1/relay/rooms/{roomCode}/submissions", DEFAULT_ROOM_CODE)
+                .file(pngFile("drawingImage", "face.png")).file(pngFile("hintImage", "face-hint.png"))
+                .param("canvasIndex", "0").param("part", "FACE")
+                .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.alreadySubmitted").value(false))
+            .andExpect(jsonPath("$.data.assignmentStatus").value("SUBMITTED"))
+            .andExpect(jsonPath("$.data.drawingObjectKey").value("relay/tmp/AB3K9Q/0/face.png"))
+            .andExpect(jsonPath("$.data.hintObjectKey").value("relay/tmp/AB3K9Q/0/face-hint.png"));
+
+        verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face.png"), any());
+        verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face-hint.png"), any());
+        JsonNode storedRoom = readSavedRoom();
+        JsonNode submittedAssignment = storedRoom.path("assignments").get(0);
+        assertThat(submittedAssignment.path("status").asText()).isEqualTo("SUBMITTED");
+        assertThat(submittedAssignment.path("objectKey").asText()).isEqualTo("relay/tmp/AB3K9Q/0/face.png");
+        assertThat(submittedAssignment.path("hintObjectKey").asText()).isEqualTo("relay/tmp/AB3K9Q/0/face-hint.png");
+        verify(relayRoomEventPublisher).publishPartSubmitted(any(RelayRoomSubmissionResponse.class));
     }
 
     @Test
