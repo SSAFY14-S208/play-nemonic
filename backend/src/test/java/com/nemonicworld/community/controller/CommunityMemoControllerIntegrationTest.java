@@ -647,9 +647,29 @@ class CommunityMemoControllerIntegrationTest {
             )
             """);
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS thumbnail_image_url VARCHAR(1000)");
+        jdbcTemplate
+            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_x DOUBLE PRECISION DEFAULT 0");
+        jdbcTemplate
+            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_y DOUBLE PRECISION DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS z_index INT DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS rotation_deg REAL DEFAULT 0");
+        jdbcTemplate
+            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS decoration VARCHAR(1000) DEFAULT '{}'");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS body_image_url VARCHAR(1000)");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS attached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_status VARCHAR(32) DEFAULT 'pending'");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_text VARCHAR(1000)");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_categories VARCHAR(1000)");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_checked_at TIMESTAMP");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_reason VARCHAR(32)");
     }
 
     private void cleanTables() {

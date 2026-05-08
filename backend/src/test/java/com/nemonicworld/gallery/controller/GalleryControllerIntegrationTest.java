@@ -75,6 +75,8 @@ class GalleryControllerIntegrationTest {
                 fortune_date DATE NOT NULL
             )
             """);
+        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS user_id UUID");
+        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS fortune_date DATE");
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
                 artifact_id UUID PRIMARY KEY,
