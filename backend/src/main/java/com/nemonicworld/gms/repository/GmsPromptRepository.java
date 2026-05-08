@@ -43,6 +43,16 @@ public class GmsPromptRepository {
             """, this::mapPrompt, id).stream().findFirst();
     }
 
+    public Optional<GmsPrompt> findLatestActiveByFeatureType(String featureType) {
+        return jdbcTemplate.query(SELECT_COLUMNS + """
+            FROM gms_prompt_template
+            WHERE deleted_at IS NULL
+              AND LOWER(CAST(feature_type AS VARCHAR)) = ?
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 1
+            """, this::mapPrompt, featureType).stream().findFirst();
+    }
+
     public List<GmsPrompt> findActivePrompts(String keyword, String featureType, int limit, long offset) {
         StringBuilder sql = new StringBuilder(SELECT_COLUMNS).append("""
             FROM gms_prompt_template

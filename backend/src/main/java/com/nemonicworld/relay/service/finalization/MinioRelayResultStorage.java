@@ -1,7 +1,7 @@
 package com.nemonicworld.relay.service.finalization;
 
 import com.nemonicworld.common.exception.FileStorageException;
-import com.nemonicworld.files.config.MinioStorageProperties;
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;

@@ -1,0 +1,61 @@
+package com.nemonicworld.artifact.controller;
+
+import com.nemonicworld.artifact.dto.response.ArtifactImageUrlResponse;
+import com.nemonicworld.artifact.service.ArtifactService;
+import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.openapi.OpenApiErrorExamples;
+import com.nemonicworld.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/artifacts")
+@Tag(name = "Artifact", description = "산출물 API")
+public class ArtifactController {
+
+    private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
+    private static final String ARTIFACT_IMAGE_URL_FOUND_MESSAGE = "산출물 이미지 URL 조회 성공";
+
+    private final ArtifactService artifactService;
+
+    public ArtifactController(ArtifactService artifactService) {
+        this.artifactService = artifactService;
+    }
+
+    /**
+     * artifact ID로 공통 썸네일과 산출물 종류별 콘텐츠 URL을 조회합니다.
+     */
+    @GetMapping("/{artifactId}/image-urls")
+    @Operation(summary = "산출물 이미지 URL 조회", description = "artifact 테이블 기반 산출물의 썸네일과 원본/GIF 등 콘텐츠 URL 목록을 조회합니다.")
+    @Parameter(name = "artifactId", in = ParameterIn.PATH, required = true, description = "산출물 ID")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "산출물 이미지 URL 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "산출물 ID 형식 오류", value = OpenApiErrorExamples.INVALID_ARTIFACT_ID)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 사용자 또는 산출물", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "산출물 이미지 없음", value = OpenApiErrorExamples.ARTIFACT_IMAGE_URL_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<ArtifactImageUrlResponse>> getArtifactImageUrls(
+        @PathVariable("artifactId") String artifactId,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        ArtifactImageUrlResponse response = artifactService.getArtifactImageUrls(userUuid, artifactId);
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(ARTIFACT_IMAGE_URL_FOUND_MESSAGE, response));
+    }
+}

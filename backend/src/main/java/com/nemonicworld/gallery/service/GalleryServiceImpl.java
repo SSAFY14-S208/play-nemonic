@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.NotFoundException;
-import com.nemonicworld.files.service.MinioPublicUrlResolver;
+import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.gallery.dto.response.GalleryDeleteResponse;
 import com.nemonicworld.gallery.dto.response.GalleryDetailResponse;
 import com.nemonicworld.gallery.dto.response.GalleryItemResponse;

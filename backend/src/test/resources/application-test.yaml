@@ -14,6 +14,8 @@ management:
   health:
     redis:
       enabled: false
+    mail:
+      enabled: false
 
 nemonic:
   auth:
@@ -32,4 +34,6 @@ nemonic:
       enabled: false
   flipbook:
     disconnect:
+      enabled: false
+    timeout:
       enabled: false

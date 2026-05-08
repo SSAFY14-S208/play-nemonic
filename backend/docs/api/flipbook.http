@@ -90,6 +90,51 @@ Anonymous-User-UUID: not-a-uuid
 GET {{host}}/api/v1/flipbook/rooms/not-a-room/assignments/me
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+### Submit flipbook frame
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/rounds/1/frames
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "flipbookIndex": 0,
+  "frameIndex": 0,
+  "fileId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+}
+
+### Submit flipbook frame - assignment mismatch
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/rounds/1/frames
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "flipbookIndex": 99,
+  "frameIndex": 99,
+  "fileId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+}
+
+### Submit flipbook frame - invalid fileId
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/rounds/1/frames
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "flipbookIndex": 0,
+  "frameIndex": 0,
+  "fileId": "not-a-uuid"
+}
+
+### Get flipbook room result
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/result
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get flipbook room result - invalid user UUID
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/result
+Anonymous-User-UUID: not-a-uuid
+
+### Get flipbook room result - invalid room code
+GET {{host}}/api/v1/flipbook/rooms/not-a-room/result
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Kick flipbook participant
 POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
 Anonymous-User-UUID: {{anonymousUserUuid}}

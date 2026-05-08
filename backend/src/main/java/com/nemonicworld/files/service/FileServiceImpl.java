@@ -6,7 +6,7 @@ import com.nemonicworld.common.exception.FileStorageException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.PayloadTooLargeException;
-import com.nemonicworld.files.config.MinioStorageProperties;
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.files.dto.request.FilePresignRequest;
 import com.nemonicworld.files.dto.response.FileConfirmResponse;
 import com.nemonicworld.files.dto.response.FileDeleteResponse;

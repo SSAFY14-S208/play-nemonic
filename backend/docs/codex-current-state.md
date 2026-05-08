@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 
 ## Current Focus
 
@@ -17,7 +17,7 @@ Last updated: 2026-05-07
 - My gallery listing now uses `GET /api/v1/gallery` with `Anonymous-User-UUID` and reads existing gallery/artifact rows without MinIO calls.
 - My gallery item detail now uses `GET /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and returns one active owned gallery artifact with parsed `meta` and content URL fallback.
 - My gallery deletion now uses `DELETE /api/v1/gallery/{galleryId}` with `Anonymous-User-UUID` and only updates `gallery.deleted_at`; artifact, subtype rows, community memo rows, and MinIO files are preserved.
-- Gallery list/detail and relay result APIs now convert stored MinIO object keys into browser-renderable public URLs through `MinioPublicUrlResolver`, while preserving already absolute URLs as-is and keeping the database storage model object-key based.
+- Gallery list/detail and relay result APIs now convert stored MinIO object keys into browser-renderable public URLs through `global.storage.minio.MinioPublicUrlResolver`, while preserving already absolute URLs as-is and keeping the database storage model object-key based.
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Files presigned PUT/GET URLs are signed with the public MinIO origin and then re-prefixed with the configured `MINIO_PUBLIC_URL` path such as `/minio`, because the MinIO Java SDK does not allow path segments inside the client endpoint.
 - Files private GET view URLs use a separate `MINIO_VIEW_URL_EXPIRATION_MINUTES` setting with a 24-hour default, while upload PUT presigned URLs keep the shorter `MINIO_PRESIGN_EXPIRATION_MINUTES` setting.
@@ -35,6 +35,11 @@ Last updated: 2026-05-07
   returns detail-only fields including parsed `attachments`, parsed `meta`,
   `assignedTo`, `responseNote`, and `respondedAt`, and treats missing or
   invalid inquiry IDs with Korean error messages.
+- Backoffice admins can now reply to customer inquiries by email through
+  `POST /api/v1/admin/inquiries/{inquiryId}/reply`; the API sends SMTP mail
+  before marking the inquiry `resolved`, then stores `assignedTo`,
+  `responseNote`, `respondedAt`, and `updatedAt`. SMTP settings are
+  environment-driven through `MAIL_*` variables.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
 - Backoffice admin authentication now exposes `POST /api/v1/auth/login`,
   `POST /api/v1/auth/logout`, and `POST /api/v1/auth/reissue`; admin account
@@ -283,6 +288,27 @@ Recent flipbook current assignment lookup work passed with:
 
 ```bash
 GRADLE_USER_HOME=.gradle-user-home ./gradlew test --tests 'com.nemonicworld.flipbook.*' --tests 'com.nemonicworld.invite.service.FlipbookInviteJoinHandlerTest' --no-daemon
+```
+
+Recent artifact image URL lookup work added `GET /api/v1/artifacts/{artifactId}/image-urls`.
+
+- Keep `GET /api/v1/files/{fileId}/view-url` for `file_upload.id` based private upload lookup only.
+- The artifact image URL API reads active `gallery` ownership, `artifact.thumbnail_url`, and subtype image columns, then converts object keys with `global.storage.minio.MinioPublicUrlResolver`.
+- Flipbook responses return multiple `contents` entries, including `gif` and `first_image` when both object keys exist.
+- MinIO shared infrastructure now lives under `com.nemonicworld.global.storage.minio`; the `files` package remains scoped to `file_upload` based upload/presign/confirm/view/delete behavior.
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.artifact.*' --no-daemon
+```
+
+Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/result`.
+
+- Existing artifact/gallery rows are returned first for idempotent result lookup.
+- If Redis room state is `FINISHED` and no DB result exists yet, submitted non-empty frames are grouped by `flipbookIndex`, converted into GIF files under `flipbook/results/{artifactId}/result.gif`, and stored as `artifact` + `flipbook_artifact` + gallery rows for non-dropped participants.
+- The response mirrors relay result shape with `ready`, `resultCount`, per-result `galleryId`/`artifactId`, `thumbnailUrl`, `gifUrl`, `firstImageUrl`, and ordered frame metadata.
+
+```bash
+GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
 ```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real

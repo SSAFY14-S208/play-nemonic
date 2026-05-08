@@ -1,4 +1,4 @@
-package com.nemonicworld.files.config;
+package com.nemonicworld.global.storage.minio;
 
 import io.minio.MinioClient;
 import java.net.URI;
