@@ -31,7 +31,7 @@ class CheckResponse(BaseModel):
     allowed: bool = Field(description="게시 허용 여부입니다. false이면 Spring Boot가 메모를 저장하지 않습니다.")
     ocrText: str | None = Field(
         default=None,
-        description="검사에 사용한 텍스트입니다. 현재 MVP에서는 clientText와 동일합니다.",
+        description="검사에 사용한 텍스트입니다. OCR 결과와 clientText를 합친 값입니다.",
     )
     categories: list[Category] = Field(default_factory=list, description="임계값 이상으로 감지된 차단 카테고리 목록")
     reason: str | None = Field(default=None, description="차단 사유 안내 문구")
