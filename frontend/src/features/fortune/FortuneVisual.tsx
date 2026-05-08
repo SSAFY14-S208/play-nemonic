@@ -8,7 +8,8 @@ import { useShallow } from 'zustand/react/shallow'
 import { cn } from '@/shared/libs'
 
 import {
-  FORTUNE_PRINT_DURATION_SECONDS,
+  FORTUNE_PRINT_FALLBACK_TIMEOUT_SECONDS,
+  FORTUNE_PRINT_VIDEO_PATH,
   FORTUNE_REDUCED_MOTION_DURATION_SECONDS,
 } from './constants'
 import { useFortuneSessionStore } from './fortuneSessionStore'
@@ -97,8 +98,19 @@ export default function FortuneVisual({
   )
   const prefersReducedMotion = useFortuneReducedMotion()
   const curtainFrameRef = useRef<HTMLDivElement>(null)
+  const printVideoRef = useRef<HTMLVideoElement>(null)
+  const printCompleteFiredRef = useRef(false)
   const [activeCurtainClassName, setActiveCurtainClassName] = useState<string | null>(null)
   const [isCubeHovered, setIsCubeHovered] = useState(false)
+  const shouldShowPrintVideo = isPrinting && !prefersReducedMotion
+
+  const firePrintCompleteOnce = () => {
+    if (printCompleteFiredRef.current) {
+      return
+    }
+    printCompleteFiredRef.current = true
+    onPrintComplete()
+  }
 
   useEffect(() => {
     if (!playEntrySpotlight) {
@@ -119,10 +131,17 @@ export default function FortuneVisual({
       return
     }
 
-    const printDuration = prefersReducedMotion
+    printCompleteFiredRef.current = false
+
+    const fallbackDuration = prefersReducedMotion
       ? FORTUNE_REDUCED_MOTION_DURATION_SECONDS
-      : FORTUNE_PRINT_DURATION_SECONDS
-    const timerId = window.setTimeout(onPrintComplete, printDuration * 1000)
+      : FORTUNE_PRINT_FALLBACK_TIMEOUT_SECONDS
+    const timerId = window.setTimeout(() => {
+      if (!printCompleteFiredRef.current) {
+        printCompleteFiredRef.current = true
+        onPrintComplete()
+      }
+    }, fallbackDuration * 1000)
 
     return () => {
       window.clearTimeout(timerId)
@@ -130,6 +149,36 @@ export default function FortuneVisual({
   }, [isPrinting, onPrintComplete, prefersReducedMotion])
 
   useEffect(() => {
+    if (!shouldShowPrintVideo) {
+      return
+    }
+
+    const videoElement = printVideoRef.current
+    if (!videoElement) {
+      return
+    }
+
+    videoElement.currentTime = 0
+    const playPromise = videoElement.play()
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {
+        if (!printCompleteFiredRef.current) {
+          printCompleteFiredRef.current = true
+          onPrintComplete()
+        }
+      })
+    }
+
+    return () => {
+      videoElement.pause()
+    }
+  }, [onPrintComplete, shouldShowPrintVideo])
+
+  useEffect(() => {
+    if (isPrinting) {
+      return
+    }
+
     const handleWindowCurtainMove = (event: MouseEvent | PointerEvent) => {
       const curtainFrame = curtainFrameRef.current
 
@@ -186,9 +235,11 @@ export default function FortuneVisual({
       window.removeEventListener('pointermove', handleWindowCurtainMove)
       window.removeEventListener('pointerleave', handleWindowCurtainLeave)
     }
-  }, [])
+  }, [isPrinting])
 
-  const activeCurtainSide = getCurtainSideFromClassName(activeCurtainClassName)
+  const effectiveActiveCurtainClassName = isPrinting ? null : activeCurtainClassName
+  const effectiveIsCubeHovered = isPrinting ? false : isCubeHovered
+  const activeCurtainSide = getCurtainSideFromClassName(effectiveActiveCurtainClassName)
 
   return (
     <div
@@ -197,7 +248,8 @@ export default function FortuneVisual({
         playEntrySpotlight && 'fortune-stage-visual-entry',
         runEntrySpotlight && 'fortune-2d-entry-ready',
         isPrinting && 'fortune-2d-printing',
-        isCubeHovered && 'fortune-2d-cube-hovered',
+        shouldShowPrintVideo && 'fortune-2d-print-video-active',
+        effectiveIsCubeHovered && 'fortune-2d-cube-hovered',
       )}
     >
       <div className="fortune-2d-stage" aria-hidden>
@@ -228,6 +280,22 @@ export default function FortuneVisual({
           <span />
           <span />
         </div>
+        {shouldShowPrintVideo && (
+          <video
+            ref={printVideoRef}
+            className="fortune-2d-layer fortune-2d-print-video"
+            src={FORTUNE_PRINT_VIDEO_PATH}
+            autoPlay
+            muted
+            playsInline
+            preload="auto"
+            controls={false}
+            disablePictureInPicture
+            onEnded={firePrintCompleteOnce}
+            onError={firePrintCompleteOnce}
+            aria-hidden
+          />
+        )}
       </div>
       <div
         ref={curtainFrameRef}
@@ -267,8 +335,8 @@ export default function FortuneVisual({
             className={cn(
               'fortune-2d-curtain-piece',
               curtainLayer.className,
-              curtainLayer.className === activeCurtainClassName && 'is-active',
-              isSameSideCurtainLayer(curtainLayer.className, activeCurtainClassName, activeCurtainSide) && 'is-soft-active',
+              curtainLayer.className === effectiveActiveCurtainClassName && 'is-active',
+              isSameSideCurtainLayer(curtainLayer.className, effectiveActiveCurtainClassName, activeCurtainSide) && 'is-soft-active',
             )}
             data-fortune-curtain-layer={curtainLayer.className}
             draggable={false}

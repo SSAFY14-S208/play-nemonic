@@ -27,6 +27,7 @@ import {
   useFortuneActions,
   useFortuneAudio,
   useFortuneBgm,
+  useFortuneReducedMotion,
   useFortuneSessionHydration,
 } from './hooks'
 
@@ -59,6 +60,7 @@ export default function FortunePage() {
   )
   const { playPrintComplete, playPrintStart } = useFortuneAudio()
   const { isBgmMuted, toggleFortuneBgmMuted } = useFortuneBgm()
+  const prefersReducedMotion = useFortuneReducedMotion()
 
   const handleDialogueNext = () => {
     if (dialogueIndex < LAST_DIALOGUE_INDEX) {
@@ -136,7 +138,7 @@ export default function FortunePage() {
           shouldPlayEntrySpotlight && 'fortune-stage-overlay-entry',
           step === 'birthInfo' && 'fortune-stage-overlay-center fortune-stage-overlay-birth',
           step === 'intro' && 'fortune-stage-overlay-dialogue',
-          (step === 'draw' || step === 'printing' || step === 'limit' || step === 'error') && 'fortune-stage-overlay-panel',
+          (step === 'draw' || (step === 'printing' && prefersReducedMotion) || step === 'limit' || step === 'error') && 'fortune-stage-overlay-panel',
           step === 'result' && 'fortune-stage-overlay-scroll',
         )}
       >
@@ -211,7 +213,7 @@ export default function FortunePage() {
     }
 
     if (step === 'printing') {
-      return <FortunePrintStatus />
+      return prefersReducedMotion ? <FortunePrintStatus /> : null
     }
 
     if (step === 'result' && result) {

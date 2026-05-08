@@ -15,6 +15,8 @@ export const FORTUNE_EMPTY_BIRTH_INFO: FortuneBirthInfo = {
 
 export const FORTUNE_PRINT_DURATION_SECONDS = 4.2
 export const FORTUNE_REDUCED_MOTION_DURATION_SECONDS = 0.9
+export const FORTUNE_PRINT_FALLBACK_TIMEOUT_SECONDS = 14
+export const FORTUNE_PRINT_VIDEO_PATH = '/videos/fortune/printing-aura.mp4'
 export const FORTUNE_POPO_MODEL_PATH = '/models/mnemonic_witch_asset.glb'
 export const FORTUNE_POPO_MODEL_HEIGHT = 3.75
 
