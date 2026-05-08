@@ -2,7 +2,6 @@ import Image from 'next/image'
 
 import { cn } from '@/shared/libs'
 import type { RelayRoomResultItemResponse } from '@/shared/types'
-import { buildMinioUrl } from '@/shared/utils'
 
 interface ResultAlbumsPanelProps {
   resultItems: RelayRoomResultItemResponse[]
@@ -42,7 +41,7 @@ export default function ResultAlbumsPanel({
             >
               {resultItem.thumbnailUrl ? (
                 <Image
-                  src={buildMinioUrl(resultItem.thumbnailUrl)}
+                  src={resultItem.thumbnailUrl}
                   alt={`${displayName} 님의 릴레이 결과`}
                   width={120}
                   height={88}

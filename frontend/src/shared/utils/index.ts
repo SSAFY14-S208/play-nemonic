@@ -1,5 +1,4 @@
 export { apiUnwrap } from './apiUnwrap'
-export { buildMinioUrl } from './buildMinioUrl'
 export { createBucketFillLine } from './drawingBucketFill'
 export { isPointInsideDrawingArea } from './drawingGeometry'
 export {

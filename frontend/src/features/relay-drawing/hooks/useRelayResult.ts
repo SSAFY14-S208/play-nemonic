@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { ApiError, postRelayRoomClose } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 import type { RelayPart } from '@/shared/types'
-import { buildMinioUrl, parseServerInstant } from '@/shared/utils'
+import { parseServerInstant } from '@/shared/utils'
 
 import {
   DRAWER_AVATARS,
@@ -183,9 +183,7 @@ export function useRelayResult() {
       return {
         reveals: dynamicReveals,
         segments: dynamicSegments,
-        resultImageUrl: activeResultItem.contentUrl
-          ? buildMinioUrl(activeResultItem.contentUrl)
-          : null,
+        resultImageUrl: activeResultItem.contentUrl ?? null,
         ownerNickname: ownerName,
         ownerAvatar: faceAvatarEmoji,
         completedAtLabel: formatDateLabel(activeResultItem.createdAt),

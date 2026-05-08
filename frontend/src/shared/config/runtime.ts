@@ -2,7 +2,5 @@
 export const runtime = {
   apiUrl: process.env.NEXT_PUBLIC_API_URL ?? '',
   websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL ?? '',
-  minioUrl: process.env.NEXT_PUBLIC_MINIO_URL ?? '',
-  minioBucket: process.env.NEXT_PUBLIC_MINIO_BUCKET ?? '',
   isDev: process.env.NODE_ENV === 'development',
 }

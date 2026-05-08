@@ -99,8 +99,6 @@ export const deleteRelayRoomParticipantMe = (roomCode: string) =>
 
 // GET /relay/rooms/{roomCode}/results — 릴레이 결과 조회
 // RESULT_CREATED 이벤트 수신 후 결과 화면에서 호출.
-// 응답의 thumbnailUrl/contentUrl은 MinIO object key이므로 프론트가
-// `${MINIO_PUBLIC_URL}/${MINIO_BUCKET}/${contentUrl}` 형태로 조합해 사용한다.
 export const getRelayRoomResults = (roomCode: string) =>
   apiUnwrap(
     api.get<ApiResponse<RelayRoomResultsResponse>>(`relay/rooms/${roomCode}/results`),
