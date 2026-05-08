@@ -1,0 +1,13 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+
+### Get today fortune availability
+GET {{host}}/api/v1/fortune/today/availability
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get today fortune availability - invalid UUID
+GET {{host}}/api/v1/fortune/today/availability
+Anonymous-User-UUID: not-a-uuid
+
+### Get today fortune availability - missing UUID
+GET {{host}}/api/v1/fortune/today/availability
