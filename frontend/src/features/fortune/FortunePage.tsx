@@ -2,6 +2,7 @@
 
 import './fortune.css'
 
+import { ChevronLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
@@ -159,6 +160,17 @@ export default function FortunePage() {
       {shouldPrepareEntrySpotlight && (
         <div className={cn('fortune-entry-spotlight-cover', shouldPlayEntrySpotlight && 'is-lit')} aria-hidden />
       )}
+      {step === 'birthInfo' && (
+        <button
+          type="button"
+          aria-label="이전 화면으로 돌아가기"
+          className="fortune-page-back-toggle"
+          onClick={handleReturnToDialogue}
+        >
+          <ChevronLeft className="size-5" aria-hidden />
+          <span className="fortune-page-back-toggle-label">뒤로</span>
+        </button>
+      )}
       <button
         type="button"
         aria-label={isBgmMuted ? '타로 배경음악 켜기' : '타로 배경음악 음소거'}
@@ -186,12 +198,7 @@ export default function FortunePage() {
     }
 
     if (step === 'birthInfo') {
-      return (
-        <FortuneBirthForm
-          onBack={handleReturnToDialogue}
-          onSubmit={submitBirthInfo}
-        />
-      )
+      return <FortuneBirthForm onSubmit={submitBirthInfo} />
     }
 
     if (step === 'draw') {

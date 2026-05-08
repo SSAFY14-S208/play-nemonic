@@ -515,6 +515,59 @@
   white-space: nowrap;
 }
 
+.fortune-page-back-toggle {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + clamp(1.4rem, 2.8vw, 2.2rem));
+  left: calc(env(safe-area-inset-left) + clamp(1.4rem, 2.8vw, 2.2rem));
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  min-width: clamp(5.6rem, 9.5vw, 7.4rem);
+  min-height: clamp(2.6rem, 4.2vw, 3.1rem);
+  padding: 0.4rem 1.15rem 0.45rem 0.85rem;
+  border: 0;
+  background: transparent url("/images/fortune/form/birth-label-plaque.png") center / 100% 100% no-repeat;
+  color: rgba(255, 244, 214, 0.96);
+  cursor: pointer;
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(0.92rem, 1.7vw, 1.08rem);
+  font-weight: 800;
+  text-shadow:
+    0 0.12rem 0.24rem rgba(9, 1, 20, 0.8),
+    0 0 0.45rem rgba(215, 130, 255, 0.48);
+  filter:
+    drop-shadow(0 0 0.76rem rgba(157, 80, 255, 0.34))
+    drop-shadow(0 0.48rem 0.92rem rgba(4, 1, 12, 0.46));
+  transition:
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.fortune-page-back-toggle:hover {
+  filter:
+    drop-shadow(0 0 1rem rgba(218, 144, 255, 0.62))
+    drop-shadow(0 0.54rem 1rem rgba(4, 1, 12, 0.5))
+    saturate(1.08)
+    brightness(1.04);
+  transform: translateY(-0.08rem) scale(1.025);
+}
+
+.fortune-page-back-toggle:active {
+  transform: translateY(0.02rem) scale(0.985);
+}
+
+.fortune-page-back-toggle:focus-visible {
+  outline: 2px solid rgba(255, 236, 183, 0.96);
+  outline-offset: -0.15rem;
+}
+
+.fortune-page-back-toggle-label {
+  position: relative;
+  z-index: 1;
+}
+
 .fortune-magic-backdrop {
   position: absolute;
   inset: 0;
@@ -2277,7 +2330,7 @@
   padding:
     clamp(2.4rem, 5.1vw, 4.05rem)
     clamp(2.15rem, 5.2vw, 4.3rem)
-    clamp(2.45rem, 4.8vw, 3.75rem);
+    clamp(3.6rem, 6.6vw, 5.4rem);
   border: 0;
   background-image: url("/images/fortune/form/birth-panel-frame.png");
   background-position: center;

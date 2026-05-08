@@ -1,4 +1,4 @@
-import { ChevronLeft, Moon, Sun } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -10,7 +10,6 @@ import type { FortuneCalendarType } from '../types'
 import { isBirthInfoComplete } from '../utils'
 
 interface FortuneBirthFormProps {
-  onBack: () => void
   onSubmit: () => Promise<void>
 }
 
@@ -35,7 +34,7 @@ const BIRTH_MONTH_OPTIONS = Array.from({ length: 12 }, (_, monthIndex) => padDat
 const BIRTH_HOUR_OPTIONS = Array.from({ length: 24 }, (_, hourIndex) => padDatePart(hourIndex))
 const BIRTH_MINUTE_OPTIONS = Array.from({ length: 12 }, (_, minuteIndex) => padDatePart(minuteIndex * 5))
 
-export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormProps) {
+export default function FortuneBirthForm({ onSubmit }: FortuneBirthFormProps) {
   const { birthInfo, isSubmitting, setBirthInfo } = useFortuneSessionStore(
     useShallow((state) => ({
       birthInfo: state.birthInfo,
@@ -100,17 +99,6 @@ export default function FortuneBirthForm({ onBack, onSubmit }: FortuneBirthFormP
 
   return (
     <form className="fortune-birth-form" onSubmit={handleSubmit}>
-      <div className="fortune-birth-topbar">
-        <button
-          type="button"
-          className="fortune-birth-back-button"
-          onClick={onBack}
-        >
-          <ChevronLeft className="size-5" aria-hidden />
-          뒤로
-        </button>
-      </div>
-
       <div className="fortune-birth-heading">
         <span className="fortune-birth-heading-spark" aria-hidden />
         <h1>
