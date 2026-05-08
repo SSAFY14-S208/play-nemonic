@@ -26,6 +26,16 @@ class FastApiCommunityMemoModerationClientTest {
 
     @Test
     void checkAllowsOnClientErrorOnlyWhenFailClosedIsDisabled() {
+        CommunityModerationProperties defaultProperties = new CommunityModerationProperties(true, "://invalid",
+            "/check", 1000L, 3000L, null);
+        FastApiCommunityMemoModerationClient defaultClient = new FastApiCommunityMemoModerationClient(defaultProperties,
+            objectMapper);
+
+        CommunityMemoModerationResult defaultResult = defaultClient
+            .check(new CommunityMemoModerationRequest("http://image", "http://thumb", "", "GALLERY"));
+
+        assertThat(defaultResult.allowed()).isTrue();
+
         CommunityModerationProperties openProperties = new CommunityModerationProperties(true, "://invalid", "/check",
             1000L, 3000L, false);
         FastApiCommunityMemoModerationClient openClient = new FastApiCommunityMemoModerationClient(openProperties,
