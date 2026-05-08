@@ -27,6 +27,20 @@
   --color-primary-5: var(--p-primary-50);   /* 활성 탭 배경 (연한 강조색) */
 
   /* ── Relay Drawing (Figma v2_07 semantic roles) ─────────────────────────── */
+  --color-fortune-backdrop: oklch(94% 0.034 315);
+  --color-fortune-stage: oklch(91% 0.045 312);
+  --color-fortune-panel: oklch(98% 0.011 86);
+  --color-fortune-paper: oklch(96.5% 0.017 86);
+  --color-fortune-card: oklch(97.8% 0.014 92);
+  --color-fortune-glow: oklch(92% 0.043 303);
+  --color-fortune-border: oklch(82% 0.035 303);
+  --color-fortune-ink: oklch(30% 0.052 302);
+  --color-fortune-muted: oklch(48% 0.038 300);
+  --color-fortune-accent: oklch(56% 0.132 293);
+  --color-fortune-accent-strong: oklch(43% 0.128 291);
+  --color-fortune-inverse: oklch(98% 0.011 86);
+  --color-fortune-disabled: oklch(73% 0.025 300);
+
   --color-relay-background: #fff5dc;
   --color-relay-panel: #fff9ea;
   --color-relay-paper: #ffffff;

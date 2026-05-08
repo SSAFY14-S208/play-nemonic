@@ -1,12 +1,14 @@
 'use client'
 
 import { useMemo, type CSSProperties } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   HUB_CONTENT_VIEWS,
   type HubContentKey,
   useHubViewStore,
 } from '@/shared/stores'
 import { cn } from '@/shared/libs'
+import styles from './HubOverlay.module.css'
 
 const HUB_BUTTONS: Array<{ key: HubContentKey; label: string }> = [
   { key: 'community', label: '커뮤니티' },
@@ -15,6 +17,8 @@ const HUB_BUTTONS: Array<{ key: HubContentKey; label: string }> = [
   { key: 'infinite', label: '무한' },
   { key: 'flipbook', label: '플립북' },
 ]
+
+const HUB_FORTUNE_PATH = '/fortune'
 
 const PLATFORM_BUTTON_STYLES: Record<HubContentKey, CSSProperties> = {
   community: {
@@ -45,6 +49,7 @@ const PLATFORM_BUTTON_STYLES: Record<HubContentKey, CSSProperties> = {
 }
 
 export default function HubOverlay() {
+  const router = useRouter()
   const selectedContentKey = useHubViewStore((state) => state.selectedContentKey)
   const currentCopy = useHubViewStore((state) => state.currentCopy)
   const selectContent = useHubViewStore((state) => state.selectContent)
@@ -64,7 +69,7 @@ export default function HubOverlay() {
             data-platform={platform}
             style={PLATFORM_BUTTON_STYLES[key]}
             onClick={() => selectContent(key)}
-            className={cn('hub-platform-button', isActive && 'is-active')}
+            className={cn(styles.platformButton, isActive && styles.active)}
           >
             {label}
           </button>
@@ -73,27 +78,40 @@ export default function HubOverlay() {
     [selectContent, selectedContentKey],
   )
 
+  const handleEnterFortune = () => {
+    router.push(HUB_FORTUNE_PATH)
+  }
+
   return (
     <>
-      <header className="hub-viewer-copy">
+      <header className={styles.viewerCopy}>
         <div
           key={copyKey}
-          className="hub-copy-swap"
+          className={styles.copySwap}
         >
-          <p className="hub-eyebrow">
+          <p className={styles.eyebrow}>
             {currentCopy.eyebrow}
           </p>
-          <h1 className="hub-viewer-title">
+          <h1 className={styles.viewerTitle}>
             {currentCopy.title}
           </h1>
-          <p className="hub-viewer-description">
+          <p className={styles.viewerDescription}>
             {currentCopy.description}
           </p>
+          {selectedContentKey === 'fortune' && (
+            <button
+              type="button"
+              className={styles.entryButton}
+              onClick={handleEnterFortune}
+            >
+              운세 부스 입장
+            </button>
+          )}
         </div>
       </header>
 
-      <footer className="hub-viewer-controls">
-        <div className="hub-platform-buttons">
+      <footer className={styles.viewerControls}>
+        <div className={styles.platformButtons}>
           {renderedButtons}
         </div>
       </footer>

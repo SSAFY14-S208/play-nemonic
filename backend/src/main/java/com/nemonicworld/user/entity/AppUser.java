@@ -38,6 +38,9 @@ public class AppUser {
     @Column(name = "birthtime")
     private LocalTime birthtime;
 
+    @Column(name = "is_lunar")
+    private Boolean isLunar;
+
     @Column(name = "user_agent", nullable = false)
     private String userAgent;
 
@@ -84,6 +87,23 @@ public class AppUser {
         this.updatedAt = updatedAt;
     }
 
+    /**
+     * 운세 기능에서 재사용할 생년월일 정보가 모두 등록되어 있는지 확인합니다.
+     */
+    public boolean hasBirthInfo() {
+        return birthday != null && birthtime != null && isLunar != null;
+    }
+
+    /**
+     * 생년월일, 생시, 양력/음력 여부를 함께 갱신해 부분 저장 상태를 만들지 않도록 합니다.
+     */
+    public void updateBirthInfo(LocalDate birthday, LocalTime birthtime, Boolean isLunar, LocalDateTime updatedAt) {
+        this.birthday = birthday;
+        this.birthtime = birthtime;
+        this.isLunar = isLunar;
+        this.updatedAt = updatedAt;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -102,6 +122,10 @@ public class AppUser {
 
     public LocalTime getBirthtime() {
         return birthtime;
+    }
+
+    public Boolean getIsLunar() {
+        return isLunar;
     }
 
     public String getUserAgent() {

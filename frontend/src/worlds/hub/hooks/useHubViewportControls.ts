@@ -7,6 +7,7 @@ import {
   HUB_MODEL_ROOT_VERTICAL_OFFSET,
   HUB_NORMAL_ROTATION_EASE,
   HUB_NORMAL_ZOOM_EASE,
+  HUB_SKY_DOME_PARALLAX_FACTOR,
   HUB_VIEW_TRANSITION_ROTATION_EASE,
   HUB_VIEW_TRANSITION_ZOOM_EASE,
 } from '../constants'
@@ -19,16 +20,21 @@ function normalizeAngle(angle: number) {
   return Math.atan2(Math.sin(angle), Math.cos(angle))
 }
 
-export function useHubViewportControls(modelRootRef: React.RefObject<Group | null>) {
+export function useHubViewportControls(
+  modelRootRef: React.RefObject<Group | null>,
+  skyRootRef: React.RefObject<Group | null>,
+) {
   const { camera, gl } = useThree()
   const currentRotationRef = useRef(useHubViewStore.getState().targetAngle)
   const targetRotationRef = useRef(useHubViewStore.getState().targetAngle)
+  const initialSkyRotationRef = useRef(useHubViewStore.getState().targetAngle)
   const currentZoomRef = useRef(useHubViewStore.getState().targetZoom)
   const targetZoomRef = useRef(useHubViewStore.getState().targetZoom)
   const pointerDownXRef = useRef(0)
   const pointerDownYRef = useRef(0)
   const lastPointerXRef = useRef(0)
   const isDraggingRef = useRef(false)
+  const activePointerIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     const unsubscribe = useHubViewStore.subscribe((state, previousState) => {
@@ -47,8 +53,25 @@ export function useHubViewportControls(modelRootRef: React.RefObject<Group | nul
   useEffect(() => {
     const canvasElement = gl.domElement
 
+    const finishDragging = (event?: PointerEvent) => {
+      const activePointerId = activePointerIdRef.current
+      if (event && activePointerId !== event.pointerId) return
+
+      if (activePointerId !== null && canvasElement.hasPointerCapture(activePointerId)) {
+        canvasElement.releasePointerCapture(activePointerId)
+      }
+
+      activePointerIdRef.current = null
+      if (!isDraggingRef.current) return
+      isDraggingRef.current = false
+      useHubViewStore.getState().setDragging(false)
+    }
+
     const handlePointerDown = (event: PointerEvent) => {
+      event.preventDefault()
       isDraggingRef.current = true
+      activePointerIdRef.current = event.pointerId
+      canvasElement.setPointerCapture(event.pointerId)
       pointerDownXRef.current = event.clientX
       pointerDownYRef.current = event.clientY
       lastPointerXRef.current = event.clientX
@@ -61,6 +84,7 @@ export function useHubViewportControls(modelRootRef: React.RefObject<Group | nul
 
     const handlePointerMove = (event: PointerEvent) => {
       if (!isDraggingRef.current) return
+      if (activePointerIdRef.current !== event.pointerId) return
 
       const dragDistance = Math.hypot(
         event.clientX - pointerDownXRef.current,
@@ -75,10 +99,8 @@ export function useHubViewportControls(modelRootRef: React.RefObject<Group | nul
       }
     }
 
-    const handlePointerUp = () => {
-      if (!isDraggingRef.current) return
-      isDraggingRef.current = false
-      useHubViewStore.getState().setDragging(false)
+    const handlePointerUp = (event: PointerEvent) => {
+      finishDragging(event)
     }
 
     const handleWheel = (event: WheelEvent) => {
@@ -88,17 +110,20 @@ export function useHubViewportControls(modelRootRef: React.RefObject<Group | nul
     }
 
     canvasElement.addEventListener('pointerdown', handlePointerDown)
+    canvasElement.addEventListener('pointermove', handlePointerMove)
+    canvasElement.addEventListener('pointerup', handlePointerUp)
+    canvasElement.addEventListener('pointercancel', handlePointerUp)
+    canvasElement.addEventListener('lostpointercapture', handlePointerUp)
     canvasElement.addEventListener('wheel', handleWheel, { passive: false })
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-    window.addEventListener('pointerleave', handlePointerUp)
 
     return () => {
+      finishDragging()
       canvasElement.removeEventListener('pointerdown', handlePointerDown)
+      canvasElement.removeEventListener('pointermove', handlePointerMove)
+      canvasElement.removeEventListener('pointerup', handlePointerUp)
+      canvasElement.removeEventListener('pointercancel', handlePointerUp)
+      canvasElement.removeEventListener('lostpointercapture', handlePointerUp)
       canvasElement.removeEventListener('wheel', handleWheel)
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointerleave', handlePointerUp)
     }
   }, [gl])
 
@@ -139,9 +164,17 @@ export function useHubViewportControls(modelRootRef: React.RefObject<Group | nul
     camera.position.set(0, HUB_CAMERA_HEIGHT, currentZoomRef.current)
     camera.lookAt(0, 0.05, 0)
 
+    const skyRoot = skyRootRef.current
+    if (skyRoot) {
+      const parallaxRotation = initialSkyRotationRef.current
+        + (currentRotationRef.current - initialSkyRotationRef.current)
+        * HUB_SKY_DOME_PARALLAX_FACTOR
+
+      skyRoot.rotation.set(0, parallaxRotation, 0)
+    }
+
     const modelRoot = modelRootRef.current
     if (!modelRoot) return
-
     modelRoot.rotation.set(0, currentRotationRef.current, 0)
     modelRoot.position.y = HUB_MODEL_ROOT_VERTICAL_OFFSET
   })

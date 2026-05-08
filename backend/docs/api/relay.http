@@ -1,0 +1,438 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@targetUserUuid = 11111111-1111-1111-1111-111111111111
+@roomCode = AB3K9Q
+
+### Create relay room
+# REST room creation registers the host participant with connected=false.
+# connected becomes true only after approved /ws/relay STOMP CONNECT.
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create relay room - invalid UUID
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: not-a-uuid
+
+### Create relay room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/relay/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create relay room - missing UUID
+POST {{host}}/api/v1/relay/rooms
+
+### Get relay room state
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get relay room state - invalid user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}
+Anonymous-User-UUID: not-a-uuid
+
+### Get relay room state - missing user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}
+
+### Get relay room state - invalid room code
+GET {{host}}/api/v1/relay/rooms/not-a-room
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get relay room state - not found
+GET {{host}}/api/v1/relay/rooms/ZZZZZZ
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get relay room results
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/results
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get relay room results - invalid user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/results
+Anonymous-User-UUID: not-a-uuid
+
+### Get relay room results - missing user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/results
+
+### Get relay room results - invalid room code
+GET {{host}}/api/v1/relay/rooms/not-a-room/results
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room
+# REST room join registers the participant with connected=false.
+# The frontend must connect to /ws/relay before game start is allowed.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Reconnect relay room
+# REST reconnect keeps connected=false until WebSocket CONNECT.
+# WAITING rooms have no reconnect grace cutoff; PLAYING rooms keep the 10-second cutoff.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave relay room
+DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave relay room - invalid user UUID
+DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: not-a-uuid
+
+### Leave relay room - missing user UUID
+DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
+
+### Leave relay room - invalid room code
+DELETE {{host}}/api/v1/relay/rooms/not-a-room/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave relay room - not found
+DELETE {{host}}/api/v1/relay/rooms/ZZZZZZ/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave relay room - non-waiting room
+# 퇴장은 WAITING 대기실에서만 가능합니다.
+DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: not-a-uuid
+
+### Join relay room - missing user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+
+### Join relay room - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room - not found
+POST {{host}}/api/v1/relay/rooms/ZZZZZZ/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Join relay room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Kick relay room participant
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "targetUserUuid": "{{targetUserUuid}}"
+}
+
+### Kick relay room participant - invalid target UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "targetUserUuid": "not-a-uuid"
+}
+
+### Kick relay room participant - not host
+# Use a participant UUID that is not the room host.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "targetUserUuid": "{{targetUserUuid}}"
+}
+
+### Kick relay room participant - non-waiting room
+# 강퇴는 WAITING 대기실에서만 가능합니다.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "targetUserUuid": "{{targetUserUuid}}"
+}
+
+### Update relay room settings
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - 30 seconds
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 30
+}
+
+### Update relay room settings - invalid time limit
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 15
+}
+
+### Update relay room settings - invalid user UUID
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - missing user UUID
+PATCH {{host}}/api/v1/relay/rooms/{{roomCode}}/settings
+Content-Type: application/json
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - invalid room code
+PATCH {{host}}/api/v1/relay/rooms/not-a-room/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update relay room settings - not found
+PATCH {{host}}/api/v1/relay/rooms/ZZZZZZ/settings
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Start relay game
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: not-a-uuid
+
+### Start relay game - missing user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+
+### Start relay game - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - not found
+POST {{host}}/api/v1/relay/rooms/ZZZZZZ/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - not host
+# Use a participant UUID that is not the room host.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start relay game - not enough participants
+# Use a room with only one connected participant.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment - invalid user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: not-a-uuid
+
+### Get my relay assignment - missing user UUID
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+
+### Get my relay assignment - invalid room code
+GET {{host}}/api/v1/relay/rooms/not-a-room/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment - not found
+GET {{host}}/api/v1/relay/rooms/ZZZZZZ/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment - not participant
+# Use a user UUID that is not included in the room participants.
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my relay assignment - game not started
+# Use a room that is still WAITING.
+GET {{host}}/api/v1/relay/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Submit current relay part - FACE
+# If this is the last FACE submission, the response includes advanced=true and nextPart=BODY.
+# The room topic receives PART_SUBMITTED followed by PART_STARTED.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+0
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+FACE
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="face.png"
+Content-Type: image/png
+
+< ./sample/face.png
+--relay-submit-boundary
+Content-Disposition: form-data; name="hintImage"; filename="face-hint.png"
+Content-Type: image/png
+
+< ./sample/face-hint.png
+--relay-submit-boundary--
+
+### Close relay room manually
+# FINISHED 방을 방장이 즉시 CLOSED로 전환합니다.
+# 이미 CLOSED인 방은 성공 응답으로 alreadyClosed=true를 반환하며 ROOM_CLOSED 이벤트를 중복 발행하지 않습니다.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/close
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Close relay room manually - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/close
+Anonymous-User-UUID: not-a-uuid
+
+### Close relay room manually - missing user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/close
+
+### Close relay room manually - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/close
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Close relay room manually - not found
+POST {{host}}/api/v1/relay/rooms/ZZZZZZ/close
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Submit current relay part - BODY
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+1
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+BODY
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="body.png"
+Content-Type: image/png
+
+< ./sample/body.png
+--relay-submit-boundary
+Content-Disposition: form-data; name="hintImage"; filename="body-hint.png"
+Content-Type: image/png
+
+< ./sample/body-hint.png
+--relay-submit-boundary--
+
+### Submit current relay part - LEGS
+# 마지막 LEGS 제출이면 방 상태가 FINALIZING으로 전환됩니다.
+# 이후 서버 스케줄러가 canvasIndex별 최종 결과물을 생성하고,
+# 모든 참여자의 갤러리에 모든 최종 결과물을 지급한 뒤 FINISHED로 변경하며,
+# 방 topic으로 RESULT_CREATED 이벤트를 발행합니다.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+2
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+LEGS
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="legs.png"
+Content-Type: image/png
+
+< ./sample/legs.png
+--relay-submit-boundary--
+
+### Submit current relay part - missing hint image
+# FACE and BODY submissions require hintImage.
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+0
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+FACE
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="face.png"
+Content-Type: image/png
+
+< ./sample/face.png
+--relay-submit-boundary--
+
+### Submit current relay part - invalid user UUID
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/submissions
+Anonymous-User-UUID: not-a-uuid
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+0
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+FACE
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="face.png"
+Content-Type: image/png
+
+< ./sample/face.png
+--relay-submit-boundary
+Content-Disposition: form-data; name="hintImage"; filename="face-hint.png"
+Content-Type: image/png
+
+< ./sample/face-hint.png
+--relay-submit-boundary--
+
+### Submit current relay part - invalid room code
+POST {{host}}/api/v1/relay/rooms/not-a-room/submissions
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: multipart/form-data; boundary=relay-submit-boundary
+
+--relay-submit-boundary
+Content-Disposition: form-data; name="canvasIndex"
+
+0
+--relay-submit-boundary
+Content-Disposition: form-data; name="part"
+
+FACE
+--relay-submit-boundary
+Content-Disposition: form-data; name="drawingImage"; filename="face.png"
+Content-Type: image/png
+
+< ./sample/face.png
+--relay-submit-boundary
+Content-Disposition: form-data; name="hintImage"; filename="face-hint.png"
+Content-Type: image/png
+
+< ./sample/face-hint.png
+--relay-submit-boundary--
