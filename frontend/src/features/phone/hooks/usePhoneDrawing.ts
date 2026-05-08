@@ -147,8 +147,8 @@ export function usePhoneDrawing() {
       setSavingDrawing(true)
       try {
         const blob = await dataUrlToBlob(imageDataUrl)
-        const { fileId } = await uploadDrawingArtifact(blob)
-        addDrawingArtifact({ fileId, imageDataUrl, action })
+        const saveResponse = await uploadDrawingArtifact(blob)
+        addDrawingArtifact({ saveResponse, imageDataUrl, action })
         clearDrawing()
       } catch (error) {
         const message =

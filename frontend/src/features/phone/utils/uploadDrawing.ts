@@ -1,15 +1,17 @@
-import { postFileConfirm, postFilePresign } from '@/shared/apis'
+import { postFileConfirm, postFilePresign, postPhoneDrawing } from '@/shared/apis'
+import type { PhoneDrawingSaveResponse } from '@/shared/types'
 
 interface UploadDrawingArtifactOptions {
   fileName?: string
   contentType?: string
   purpose?: string
+  meta?: Record<string, unknown> | null
 }
 
 export async function uploadDrawingArtifact(
   blob: Blob,
   options: UploadDrawingArtifactOptions = {},
-): Promise<{ fileId: string }> {
+): Promise<PhoneDrawingSaveResponse> {
   const fileName = options.fileName ?? `phone-drawing-${Date.now()}.png`
   const contentType = options.contentType ?? 'image/png'
   const purpose = options.purpose ?? 'PHONE'
@@ -32,6 +34,12 @@ export async function uploadDrawingArtifact(
     throw new Error(`upload-failed-${putResponse.status}`)
   }
 
+  // 파일 업로드 완료 신호. 이 호출만으론 갤러리에 들어가지 않고
+  // 별도 POST /gallery/drawings 호출로 artifact + phone_artifact + gallery가 한 번에 생성된다.
   await postFileConfirm(presign.fileId)
-  return { fileId: presign.fileId }
+
+  return postPhoneDrawing({
+    imageFileId: presign.fileId,
+    meta: options.meta ?? null,
+  })
 }

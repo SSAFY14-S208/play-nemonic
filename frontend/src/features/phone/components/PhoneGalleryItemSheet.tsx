@@ -79,7 +79,6 @@ export function PhoneGalleryItemSheet({
   const clearGalleryDetail = usePhoneStore((state) => state.clearGalleryDetail)
   const deleteGalleryItem = usePhoneStore((state) => state.deleteGalleryItem)
 
-  const isOptimistic = item.id.startsWith('optimistic-')
   const isLoading = galleryDetailStatus === 'loading'
   const detailImageUrl =
     galleryDetail && galleryDetail.galleryId === item.id
@@ -87,18 +86,13 @@ export function PhoneGalleryItemSheet({
       : null
 
   useEffect(() => {
-    if (isOptimistic) return
     void loadGalleryDetail(item.id)
     return () => {
       clearGalleryDetail()
     }
-  }, [clearGalleryDetail, isOptimistic, item.id, loadGalleryDetail])
+  }, [clearGalleryDetail, item.id, loadGalleryDetail])
 
   const handleDelete = async () => {
-    if (isOptimistic) {
-      onClose()
-      return
-    }
     if (typeof window !== 'undefined') {
       const confirmed = window.confirm('이 항목을 삭제할까요?')
       if (!confirmed) return
@@ -188,8 +182,7 @@ export function PhoneGalleryItemSheet({
           <button
             type="button"
             onClick={handleDelete}
-            disabled={isOptimistic}
-            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-red-200 bg-white text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-red-200 bg-white text-red-500 transition hover:bg-red-50"
           >
             <Trash2 className="size-4" />
             삭제
