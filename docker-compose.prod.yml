@@ -167,6 +167,52 @@ services:
       - cicd-net
 
   # ============================================================
+  # MinIO 정책 초기화 (oneshot)
+  #
+  # MinIO 기동 후 1회 실행되며 다음을 수행한다:
+  #   1. ${MINIO_BUCKET} 버킷 생성 (없을 때만)
+  #   2. ${MINIO_PUBLIC_PREFIXES}에 나열된 prefix들에 anonymous read 정책 부여
+  #      (= GET/HEAD만 인증 없이 허용, PUT/DELETE는 여전히 root credential 필요)
+  #
+  # 멱등 — 매 배포마다 다시 돌아도 동일 상태로 수렴.
+  # 신규 prefix를 공개하려면 .env의 MINIO_PUBLIC_PREFIXES에만 추가하면 됨.
+  # ============================================================
+  minio-init:
+    image: minio/mc:latest
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-nemonic}
+      # 쉼표 구분. 예: "relay,gallery,share"
+      MINIO_PUBLIC_PREFIXES: ${MINIO_PUBLIC_PREFIXES:-relay,gallery,share}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        echo "[minio-init] alias 등록"
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+
+        echo "[minio-init] 버킷 보장: $$MINIO_BUCKET"
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+
+        echo "[minio-init] anonymous download 정책 부여"
+        IFS=','
+        for prefix in $$MINIO_PUBLIC_PREFIXES; do
+          prefix=$$(echo "$$prefix" | tr -d '[:space:]')
+          [ -z "$$prefix" ] && continue
+          echo "  - local/$$MINIO_BUCKET/$$prefix"
+          mc anonymous set download "local/$$MINIO_BUCKET/$$prefix"
+        done
+
+        echo "[minio-init] 완료"
+    networks:
+      - cicd-net
+
+  # ============================================================
   # Spring Boot 애플리케이션
   # Registry에서 pull (build 안 함)
   # 이미지: localhost:5000/nemonic/app:latest
