@@ -13,6 +13,7 @@ import { useUserStore } from '@/shared/stores'
 import type {
   AnonymousUserProfileResponse,
   GalleryDetailResponse,
+  PhoneDrawingSaveResponse,
 } from '@/shared/types'
 import type { PhoneGalleryItem, PhoneScreenKey } from './types'
 import { mapGalleryItemResponseToPhoneItem } from './utils/galleryMapping'
@@ -85,7 +86,7 @@ interface PhoneStore {
   // drawing actions
   setSavingDrawing: (isSaving: boolean) => void
   addDrawingArtifact: (params: {
-    fileId: string
+    saveResponse: PhoneDrawingSaveResponse
     imageDataUrl: string
     action: 'save' | 'print'
   }) => void
@@ -106,17 +107,18 @@ function toProfile(response: AnonymousUserProfileResponse): PhoneProfile {
   }
 }
 
-function createOptimisticArtifact(
-  fileId: string,
+function createSavedDrawingItem(
+  saveResponse: PhoneDrawingSaveResponse,
   imageDataUrl: string,
 ): PhoneGalleryItem {
   return {
-    id: `optimistic-${fileId}`,
+    id: saveResponse.galleryId,
     kind: 'phone',
     title: '내가 그린 메모',
     createdAtLabel: '방금 전',
     badgeLabel: 'NEW',
-    imageDataUrl,
+    // 서버 thumbnail이 있으면 그걸, 없으면 클라가 만든 dataURL을 폴백으로
+    imageDataUrl: saveResponse.thumbnailUrl || imageDataUrl,
     isNew: true,
   }
 }
@@ -344,11 +346,11 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
 
   setSavingDrawing: (isSavingDrawing) => set({ isSavingDrawing }),
 
-  addDrawingArtifact: ({ fileId, imageDataUrl, action }) => {
+  addDrawingArtifact: ({ saveResponse, imageDataUrl, action }) => {
     set((state) => ({
       activeScreen: 'gallery',
       galleryItems: [
-        createOptimisticArtifact(fileId, imageDataUrl),
+        createSavedDrawingItem(saveResponse, imageDataUrl),
         ...state.galleryItems,
       ],
       galleryTotal: state.galleryTotal + 1,
