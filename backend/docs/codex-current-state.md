@@ -316,6 +316,19 @@ Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
 ```
 
+Recent fortune result re-query work added `GET /api/v1/fortune/today`.
+
+- The API reuses `Anonymous-User-UUID`, resolves the KST current date, reads the caller's stored `fortune_artifact.description`, and returns the same result fields as fortune creation without calling GMS or card storage.
+- Fortune create/re-query responses now use `FortuneResponse`, grouping rendered content under `fortune`, saved request data under `saju`, and card render metadata under `design`.
+- Birth-time unknown flows are supported: `hourPillar` is optional/nullable in request and response, while `cardTheme`/`bgColor`/`accentColor`/`iconKey` may also be null until card asset metadata is ready.
+- Missing same-day fortune rows return 404 with `오늘 생성된 운세를 찾을 수 없습니다.`, while malformed stored result JSON returns the existing common error envelope as a bad request.
+
+```bash
+./gradlew test --tests 'com.nemonicworld.fortune.controller.FortuneControllerIntegrationTest'
+./gradlew test
+./gradlew spotlessCheck
+```
+
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.
 
