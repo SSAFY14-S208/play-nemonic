@@ -147,6 +147,19 @@ public class CommunityMemoRepository {
         )
         """;
 
+    private static final String UPDATE_MEMO_LAYOUT_SQL = """
+        UPDATE community_memo
+        SET position_x = :positionX,
+            position_y = :positionY,
+            z_index = :zIndex,
+            rotation_deg = :rotationDeg,
+            updated_at = :updatedAt
+        WHERE id = :memoId
+          AND user_id = :userId
+          AND deleted_at IS NULL
+          AND is_hidden = FALSE
+        """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public CommunityMemoRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -210,6 +223,15 @@ public class CommunityMemoRepository {
             .addValue("limit", limit);
 
         return jdbcTemplate.update(EXPIRE_OLDEST_VISIBLE_MEMOS_SQL, params);
+    }
+
+    public int updateMemoLayout(UUID memoId, UUID userId, double positionX, double positionY, int zIndex,
+        float rotationDeg, LocalDateTime updatedAt) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId).addValue("userId", userId)
+            .addValue("positionX", positionX).addValue("positionY", positionY).addValue("zIndex", zIndex)
+            .addValue("rotationDeg", rotationDeg).addValue("updatedAt", updatedAt);
+
+        return jdbcTemplate.update(UPDATE_MEMO_LAYOUT_SQL, params);
     }
 
     private CommunityMemoRow mapRow(ResultSet resultSet, int rowNumber) throws SQLException {

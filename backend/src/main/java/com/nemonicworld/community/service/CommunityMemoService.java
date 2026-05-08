@@ -1,6 +1,7 @@
 package com.nemonicworld.community.service;
 
 import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
+import com.nemonicworld.community.dto.request.CommunityMemoLayoutUpdateRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 
@@ -20,4 +21,7 @@ public interface CommunityMemoService {
     CommunityMemoDetailResponse getCommunityMemo(String memoIdValue, String viewerUserUuidValue);
 
     CommunityMemoDetailResponse createCommunityMemo(String userUuidValue, CommunityMemoCreateRequest request);
+
+    CommunityMemoDetailResponse updateCommunityMemoLayout(String memoIdValue, String userUuidValue,
+        CommunityMemoLayoutUpdateRequest request);
 }

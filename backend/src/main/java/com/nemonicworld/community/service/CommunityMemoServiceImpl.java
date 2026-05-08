@@ -9,6 +9,7 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
+import com.nemonicworld.community.dto.request.CommunityMemoLayoutUpdateRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoItemResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
@@ -56,6 +57,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final String GALLERY_ITEM_NOT_FOUND_MESSAGE = "존재하지 않는 갤러리 항목입니다.";
     private static final String FILE_UPLOAD_STATUS_CONFLICT_MESSAGE = "확인할 수 없는 파일 업로드 상태입니다.";
     private static final String INVALID_POSITION_MESSAGE = "커뮤니티 메모 위치 정보가 올바르지 않습니다.";
+    private static final String MEMO_ACCESS_DENIED_MESSAGE = "커뮤니티 메모를 수정할 권한이 없습니다.";
     private static final String INVALID_DECORATION_MESSAGE = "커뮤니티 메모 데코레이션 정보가 올바르지 않습니다.";
     private static final String MODERATION_BLOCKED_MESSAGE = "부적절한 표현이 감지되어 게시할 수 없습니다.";
     private static final String MODERATION_UNAVAILABLE_MESSAGE = "커뮤니티 메모 모더레이션을 완료할 수 없습니다.";
@@ -146,6 +148,33 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         return toDetailResponse(row, userUuid);
     }
 
+    @Override
+    @Transactional
+    public CommunityMemoDetailResponse updateCommunityMemoLayout(String memoIdValue, String userUuidValue,
+        CommunityMemoLayoutUpdateRequest request) {
+        UUID memoId = anonymousUserResolver.parseUuid(memoIdValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
+        anonymousUserResolver.resolve(userUuid);
+        validateLayout(request);
+
+        CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
+            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        if (!isOwnedByViewer(row.userId(), userUuid)) {
+            throw new ForbiddenException(MEMO_ACCESS_DENIED_MESSAGE);
+        }
+
+        LocalDateTime updatedAt = LocalDateTime.now();
+        int updatedCount = communityMemoRepository.updateMemoLayout(memoId, userUuid, request.positionX(),
+            request.positionY(), request.zIndex(), request.rotationDeg().floatValue(), updatedAt);
+        if (updatedCount == 0) {
+            throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
+        }
+
+        CommunityMemoDetailRow updatedRow = communityMemoRepository.findVisibleMemoById(memoId)
+            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        return toDetailResponse(updatedRow, userUuid);
+    }
+
     private UUID parseOptionalViewerUuid(String viewerUserUuidValue) {
         if (!StringUtils.hasText(viewerUserUuidValue)) {
             return null;
@@ -214,6 +243,15 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
     private void validatePosition(CommunityMemoCreateRequest request) {
         if (request.positionX() == null || request.positionY() == null || request.zIndex() == null
+            || request.rotationDeg() == null || !Double.isFinite(request.positionX())
+            || !Double.isFinite(request.positionY()) || !Double.isFinite(request.rotationDeg())
+            || Math.abs(request.rotationDeg()) > Float.MAX_VALUE) {
+            throw new BadRequestException(INVALID_POSITION_MESSAGE);
+        }
+    }
+
+    private void validateLayout(CommunityMemoLayoutUpdateRequest request) {
+        if (request == null || request.positionX() == null || request.positionY() == null || request.zIndex() == null
             || request.rotationDeg() == null || !Double.isFinite(request.positionX())
             || !Double.isFinite(request.positionY()) || !Double.isFinite(request.rotationDeg())
             || Math.abs(request.rotationDeg()) > Float.MAX_VALUE) {
