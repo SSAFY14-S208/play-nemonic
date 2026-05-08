@@ -14,8 +14,17 @@
   src: url("/fonts/fortune/GraceSerif-Bold.otf") format("opentype");
 }
 
+@font-face {
+  font-family: "LeeSeoyun";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/LeeSeoyun.ttf") format("truetype");
+}
+
 .fortune-page-shell {
   --font-fortune-serif: "GraceSerif", var(--font-paperlogy);
+  --font-fortune-hand: "LeeSeoyun", var(--font-paperlogy);
 }
 
 @keyframes fortune-sparkle-drift {
@@ -1773,9 +1782,9 @@
   margin: 0;
   align-self: center;
   color: rgba(255, 249, 228, 0.98);
-  font-family: var(--font-paperlogy);
+  font-family: var(--font-fortune-hand);
   font-size: clamp(1.14rem, 2.12vw, 1.72rem);
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0;
   line-height: 1.42;
   text-shadow:
@@ -2568,8 +2577,9 @@
   min-height: clamp(2rem, 3.4vw, 2.42rem);
   margin-top: 0.08rem;
   color: rgba(255, 244, 218, 0.94);
-  font-family: var(--font-fortune-serif);
+  font-family: var(--font-fortune-hand);
   font-size: clamp(0.96rem, 1.55vw, 1.06rem);
+  font-weight: 400;
   text-shadow: 0 0.1rem 0.24rem rgba(8, 1, 19, 0.72);
 }
 
@@ -2608,17 +2618,22 @@
 }
 
 .fortune-birth-unknown-toggle .fortune-birth-unknown-text {
-  display: inline-block;
-  width: auto;
+  display: inline-flex;
+  width: max-content;
   height: auto;
-  min-width: 0;
-  flex: 0 1 auto;
+  min-width: max-content;
+  flex: 0 0 auto;
+  align-items: center;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: rgba(255, 244, 218, 0.94);
   box-shadow: none;
+  line-height: 1;
+  text-wrap: nowrap;
   white-space: nowrap;
+  word-break: keep-all;
+  writing-mode: horizontal-tb;
 }
 
 .fortune-birth-unknown-toggle .fortune-birth-unknown-text::after {
@@ -2629,8 +2644,9 @@
 .fortune-birth-helper {
   margin: -0.08rem 0 0 calc(clamp(1.75rem, 3.4vw, 2.2rem) + clamp(0.48rem, 1vw, 0.64rem));
   color: rgba(255, 235, 206, 0.72);
+  font-family: var(--font-fortune-hand);
   font-size: clamp(0.82rem, 1.25vw, 0.94rem);
-  font-weight: 640;
+  font-weight: 400;
   line-height: 1.35;
   text-shadow: 0 0.1rem 0.24rem rgba(8, 1, 18, 0.72);
   word-break: keep-all;
@@ -2643,20 +2659,28 @@
 
 .fortune-birth-submit {
   position: relative;
+  display: flex;
   width: min(100%, 33.6rem);
   min-height: auto;
   aspect-ratio: 1876 / 358;
+  align-items: center;
+  justify-content: center;
   border: 0;
   background: transparent url("/images/fortune/form/birth-submit-bar.png") center / 100% 100% no-repeat;
   color: rgba(255, 249, 226, 0.98);
-  font-family: var(--font-fortune-serif);
-  font-size: clamp(1.66rem, 3.2vw, 2.34rem);
-  font-weight: 700;
+  font-family: var(--font-fortune-hand);
+  font-size: clamp(1.54rem, 2.75vw, 2.08rem);
+  font-weight: 400;
   justify-self: center;
+  line-height: 1;
+  overflow: hidden;
   padding: 0 clamp(4.45rem, 8.6vw, 5.65rem) 0.08rem clamp(2.65rem, 5.4vw, 3.8rem);
   text-shadow:
     0 0.14rem 0.4rem rgba(9, 1, 20, 0.8),
     0 0 0.78rem rgba(221, 137, 255, 0.48);
+  text-wrap: nowrap;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .fortune-birth-submit:disabled {
@@ -2674,7 +2698,15 @@
 
 .fortune-birth-submit-copy {
   position: relative;
+  display: block;
   z-index: 1;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: clip;
+  text-wrap: nowrap;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .fortune-birth-submit-orb {
@@ -3567,14 +3599,19 @@
   }
 
   .fortune-birth-unknown-toggle .fortune-birth-unknown-text {
-    width: auto;
+    width: max-content;
     height: auto;
+    min-width: max-content;
+    line-height: 1;
+    text-wrap: nowrap;
+    white-space: nowrap;
+    word-break: keep-all;
   }
 
   .fortune-birth-helper {
     margin-top: -0.16rem;
     margin-left: 2rem;
-    font-size: 0.69rem;
+    font-size: 0.74rem;
   }
 
   .fortune-birth-actions {
@@ -3582,11 +3619,11 @@
   }
 
   .fortune-birth-submit {
-    width: min(100%, 22.7rem);
+    width: min(100%, 24.6rem);
     min-height: auto;
-    padding-right: 3.3rem;
-    padding-left: 1.36rem;
-    font-size: clamp(1.06rem, 4.6vw, 1.3rem);
+    padding-right: 3.62rem;
+    padding-left: 1.18rem;
+    font-size: clamp(1rem, 3.8vw, 1.14rem);
   }
 
   .fortune-birth-submit > span {
