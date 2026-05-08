@@ -127,3 +127,11 @@ nemonic:
       scan-delay-ms: ${FLIPBOOK_TIMEOUT_SCAN_DELAY_MS:1000}
       scan-limit: ${FLIPBOOK_TIMEOUT_SCAN_LIMIT:100}
       auto-submit-grace-ms: ${FLIPBOOK_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}
+
+  fortune:
+    gms:
+      api-key: ${GMS_API_KEY:}
+      model: ${GMS_MODEL:gpt-5.2}
+      base-url: ${GMS_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions}
+      connect-timeout-ms: ${GMS_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${GMS_READ_TIMEOUT_MS:30000}

@@ -425,6 +425,24 @@ public final class OpenApiErrorExamples {
           "message": "등록된 생년월일 정보가 없습니다."
         }
         """;
+    public static final String INVALID_FORTUNE_SAJU = """
+        {
+          "success": false,
+          "message": "만세력 결과 정보가 올바르지 않습니다."
+        }
+        """;
+    public static final String FORTUNE_ALREADY_CREATED = """
+        {
+          "success": false,
+          "message": "오늘의 운세는 이미 생성했습니다. 내일 다시 이용해주세요."
+        }
+        """;
+    public static final String FORTUNE_GMS_UNAVAILABLE = """
+        {
+          "success": false,
+          "message": "운세를 가져오지 못했어요. 잠시 후 다시 시도해 주세요."
+        }
+        """;
     public static final String INVALID_GALLERY_ID = """
         {
           "success": false,
