@@ -5,6 +5,7 @@ import './fortune.css'
 import { AnimatePresence, motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { cn } from '@/shared/libs'
 
@@ -19,8 +20,14 @@ import {
   FortunePrintStatus,
   FortuneResultCard,
 } from './components'
+import { useFortuneSessionStore } from './fortuneSessionStore'
 import FortuneVisual from './FortuneVisual'
-import { useFortuneAudio, useFortuneBgm, useFortuneFlow } from './hooks'
+import {
+  useFortuneActions,
+  useFortuneAudio,
+  useFortuneBgm,
+  useFortuneSessionHydration,
+} from './hooks'
 
 const LAST_DIALOGUE_INDEX = FORTUNE_DIALOGUES.length - 1
 
@@ -29,20 +36,26 @@ export default function FortunePage() {
   const [noticeMessage, setNoticeMessage] = useState('')
   const [dialogueIndex, setDialogueIndex] = useState(0)
   const [isEntrySceneReady, setIsEntrySceneReady] = useState(false)
+
+  useFortuneSessionHydration()
   const {
     completePrinting,
     editBirthInfo,
-    hasHydrated,
-    result,
     retryAfterError,
     resetTodayFortune,
     returnToIntro,
     showTodayResult,
     startBirthInfo,
     startPrinting,
-    step,
     submitBirthInfo,
-  } = useFortuneFlow()
+  } = useFortuneActions()
+  const { step, result, hasHydrated } = useFortuneSessionStore(
+    useShallow((state) => ({
+      step: state.step,
+      result: state.result,
+      hasHydrated: state.hasHydrated,
+    })),
+  )
   const { playPrintComplete, playPrintStart } = useFortuneAudio()
   const { isBgmMuted, toggleFortuneBgmMuted } = useFortuneBgm()
 

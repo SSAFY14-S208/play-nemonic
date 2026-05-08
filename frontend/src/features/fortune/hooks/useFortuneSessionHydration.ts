@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -11,40 +13,19 @@ import {
   canUseLocalFortuneFallback,
   clearStoredFortune,
   createBirthInfoFromProfile,
-  createMockFortuneResult,
   getKoreanDateKey,
   getTodayFortuneResult,
-  isBirthInfoComplete,
-  issueNewFortune,
   readStoredFortune,
-  resolveAlreadyIssuedResult,
-  resolveBirthInfoErrorMessage,
-  resolveFortuneErrorMessage,
-  saveBirthInfo,
-  writeStoredFortune,
 } from '../utils'
 
-export function useFortuneFlow() {
+const USER_STORE_HYDRATION_FALLBACK_DELAY_MS = 1500
+
+export function useFortuneSessionHydration() {
   const userUuid = useUserStore((state) => state.userUuid)
-  const {
-    step,
-    birthInfo,
-    result,
-    hasUserStoreHydrated,
-    hasHydrated,
-    hasServerBirthInfo,
-    isSubmittingBirthInfo,
-    isDrawingFortune,
-  } = useFortuneSessionStore(
+  const { hasUserStoreHydrated, hasHydrated } = useFortuneSessionStore(
     useShallow((state) => ({
-      step: state.step,
-      birthInfo: state.birthInfo,
-      result: state.result,
       hasUserStoreHydrated: state.hasUserStoreHydrated,
       hasHydrated: state.hasHydrated,
-      hasServerBirthInfo: state.hasServerBirthInfo,
-      isSubmittingBirthInfo: state.isSubmittingBirthInfo,
-      isDrawingFortune: state.isDrawingFortune,
     })),
   )
   const {
@@ -54,9 +35,6 @@ export function useFortuneFlow() {
     setHasUserStoreHydrated,
     setHasHydrated,
     setHasServerBirthInfo,
-    setIsSubmittingBirthInfo,
-    setIsDrawingFortune,
-    setErrorMessage,
   } = useFortuneSessionStore.getState()
 
   useEffect(() => {
@@ -190,127 +168,4 @@ export function useFortuneFlow() {
       useFortuneSessionStore.getState().resetSession()
     }
   }, [])
-
-  const startBirthInfo = () => {
-    setStep('birthInfo')
-  }
-
-  const returnToIntro = () => {
-    setStep('intro')
-  }
-
-  const submitBirthInfo = async () => {
-    if (!isBirthInfoComplete(birthInfo) || isSubmittingBirthInfo) {
-      return
-    }
-
-    setIsSubmittingBirthInfo(true)
-    setErrorMessage('')
-
-    try {
-      await saveBirthInfo(birthInfo, hasServerBirthInfo)
-      setHasServerBirthInfo(true)
-      setStep('draw')
-    } catch (error) {
-      if (canUseLocalFortuneFallback(error)) {
-        setStep('draw')
-      } else {
-        setErrorMessage(resolveBirthInfoErrorMessage(error))
-        setStep('error')
-      }
-    } finally {
-      setIsSubmittingBirthInfo(false)
-    }
-  }
-
-  const editBirthInfo = () => {
-    setStep('birthInfo')
-  }
-
-  const startPrinting = async () => {
-    if (!isBirthInfoComplete(birthInfo) || isDrawingFortune) {
-      return
-    }
-
-    setIsDrawingFortune(true)
-    setErrorMessage('')
-
-    try {
-      const nextResult = await issueNewFortune(birthInfo)
-      setResult(nextResult)
-      setStep('printing')
-    } catch (error) {
-      const alreadyIssuedResult = await resolveAlreadyIssuedResult(error, birthInfo)
-
-      if (alreadyIssuedResult) {
-        setResult(alreadyIssuedResult)
-        setStep('limit')
-      } else if (canUseLocalFortuneFallback(error)) {
-        const nextResult = createMockFortuneResult(birthInfo)
-        setResult(nextResult)
-        setStep('printing')
-      } else {
-        setErrorMessage(resolveFortuneErrorMessage(error))
-        setStep('error')
-      }
-    } finally {
-      setIsDrawingFortune(false)
-    }
-  }
-
-  const completePrinting = () => {
-    if (!result) {
-      setErrorMessage('출력할 운세를 찾지 못했어요.')
-      setStep('error')
-      return
-    }
-
-    writeStoredFortune({
-      dateKey: result.issuedDateKey,
-      birthInfo,
-      result,
-      issuedAt: new Date().toISOString(),
-    })
-
-    setStep('result')
-  }
-
-  const showTodayResult = () => {
-    if (result) {
-      setStep('result')
-    }
-  }
-
-  const retryAfterError = () => {
-    setStep(isBirthInfoComplete(birthInfo) ? 'draw' : 'birthInfo')
-  }
-
-  const resetTodayFortune = () => {
-    if (!runtime.isDev) {
-      return
-    }
-
-    clearStoredFortune()
-    setBirthInfo(FORTUNE_EMPTY_BIRTH_INFO)
-    setResult(null)
-    setErrorMessage('')
-    setStep('intro')
-  }
-
-  return {
-    completePrinting,
-    editBirthInfo,
-    hasHydrated,
-    result,
-    retryAfterError,
-    resetTodayFortune,
-    returnToIntro,
-    showTodayResult,
-    startBirthInfo,
-    startPrinting,
-    step,
-    submitBirthInfo,
-  }
 }
-
-const USER_STORE_HYDRATION_FALLBACK_DELAY_MS = 1500
