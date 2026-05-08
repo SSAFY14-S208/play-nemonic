@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.fortune.service.gms.FortuneGmsClient;
 import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
@@ -40,6 +41,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.http.MediaType;
 
 @IntegrationTest
@@ -59,6 +61,9 @@ class FortuneControllerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private UserRepository userRepository;
@@ -166,6 +171,33 @@ class FortuneControllerIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(galleryCount).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(savedDescription).contains("\"title\":\"오늘은 흐름을 정리하는 날\"")
             .contains("\"yearPillar\":\"임신\"");
+        verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
+            eq("image/png"));
+    }
+
+    /**
+     * 하루 1회 제한 정책상 재조회는 다시 생성하지 않고 최초 생성 응답과 같은 data를 반환합니다.
+     */
+    @Test
+    void getTodayFortuneReturnsSameDataAsCreatedFortune() throws Exception {
+        UUID userUuid = createExistingUser();
+        insertPrompt();
+        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResult());
+
+        MvcResult createResult = mockMvc
+            .perform(post("/api/v1/fortune").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(sajuRequestBody()))
+            .andExpect(status().isOk()).andReturn();
+
+        MvcResult requeryResult = mockMvc
+            .perform(get("/api/v1/fortune/today").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andReturn();
+
+        JsonNode createData = responseData(createResult);
+        JsonNode requeryData = responseData(requeryResult);
+
+        org.assertj.core.api.Assertions.assertThat(requeryData).isEqualTo(createData);
+        verify(fortuneGmsClient).generate(anyString(), any(JsonNode.class));
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
             eq("image/png"));
     }
@@ -441,6 +473,10 @@ class FortuneControllerIntegrationTest {
         userRepository.saveAndFlush(AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt));
 
         return userUuid;
+    }
+
+    private JsonNode responseData(MvcResult result) throws Exception {
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
     }
 
     private UUID insertFortuneArtifact(UUID userUuid, LocalDate fortuneDate, LocalDateTime createdAt) {
