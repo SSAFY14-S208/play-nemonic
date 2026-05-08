@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
  * 플립북 현재 라운드 마감 시간이 지난 방을 주기적으로 자동 제출 처리합니다.
  */
 @Component
-@ConditionalOnProperty(prefix = "nemonic.flipbook.timeout", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(value = "nemonic.flipbook.timeout.enabled", havingValue = "true", matchIfMissing = true)
 public class FlipbookRoomTimeoutScheduler {
 
     private final FlipbookRoomTimeoutService flipbookRoomTimeoutService;

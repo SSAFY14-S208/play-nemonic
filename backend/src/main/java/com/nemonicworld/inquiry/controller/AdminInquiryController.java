@@ -5,9 +5,11 @@ import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
 import com.nemonicworld.inquiry.dto.request.CsInquiryReplyRequest;
+import com.nemonicworld.inquiry.dto.request.CsInquiryStatusUpdateRequest;
 import com.nemonicworld.inquiry.dto.response.CsInquiryDetailResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryListResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryReplyResponse;
+import com.nemonicworld.inquiry.dto.response.CsInquiryStatusUpdateResponse;
 import com.nemonicworld.inquiry.service.CsInquiryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -23,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,6 +42,7 @@ public class AdminInquiryController {
     private static final String DETAIL_SUCCESS_MESSAGE = "고객 문의 상세 조회 성공";
     private static final String LIST_SUCCESS_MESSAGE = "고객 문의 목록 조회 성공";
     private static final String REPLY_SUCCESS_MESSAGE = "고객 문의 이메일 회신 성공";
+    private static final String STATUS_UPDATE_SUCCESS_MESSAGE = "고객 문의 상태 변경 성공";
     private static final String INQUIRY_NOT_FOUND_EXAMPLE = """
         {
           "success": false,
@@ -111,5 +115,23 @@ public class AdminInquiryController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(REPLY_SUCCESS_MESSAGE, response));
+    }
+
+    @PatchMapping("/{inquiryId}/status")
+    @Operation(summary = "고객 문의 상태 변경", description = "관리자가 고객 문의의 처리 상태를 변경합니다.")
+    @Parameter(name = "inquiryId", in = ParameterIn.PATH, required = true, description = "상태를 변경할 문의 ID")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "고객 문의 상태 변경 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "고객 문의 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INQUIRY_NOT_FOUND_EXAMPLE)))})
+    public ResponseEntity<ApiResponse<CsInquiryStatusUpdateResponse>> updateInquiryStatus(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("inquiryId") String inquiryId,
+        @Valid @RequestBody CsInquiryStatusUpdateRequest request) {
+        CsInquiryStatusUpdateResponse response = csInquiryService.updateInquiryStatus(adminPrincipal, inquiryId,
+            request);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(STATUS_UPDATE_SUCCESS_MESSAGE, response));
     }
 }

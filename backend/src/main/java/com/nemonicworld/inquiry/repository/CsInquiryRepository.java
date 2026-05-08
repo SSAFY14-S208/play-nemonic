@@ -143,6 +143,22 @@ public class CsInquiryRepository {
         });
     }
 
+    public int updateStatus(Long id, String status, LocalDateTime updatedAt) {
+        return jdbcTemplate.update(connection -> {
+            var preparedStatement = connection.prepareStatement("""
+                UPDATE cs_inquiry
+                   SET status = ?,
+                       updated_at = ?
+                 WHERE id = ?
+                """);
+            preparedStatement.setObject(1, status, Types.OTHER);
+            preparedStatement.setTimestamp(2, Timestamp.valueOf(updatedAt));
+            preparedStatement.setLong(3, id);
+
+            return preparedStatement;
+        });
+    }
+
     private void appendSearchConditions(StringBuilder sql, List<Object> params, String status, String type,
         String keyword, UUID userUuid) {
         if (StringUtils.hasText(status)) {

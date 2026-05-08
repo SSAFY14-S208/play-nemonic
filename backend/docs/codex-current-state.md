@@ -40,6 +40,11 @@ Last updated: 2026-05-08
   before marking the inquiry `resolved`, then stores `assignedTo`,
   `responseNote`, `respondedAt`, and `updatedAt`. SMTP settings are
   environment-driven through `MAIL_*` variables.
+- Backoffice admins can now change a customer inquiry status through
+  `PATCH /api/v1/admin/inquiries/{inquiryId}/status`; the API accepts
+  `new`, `in_progress`, `resolved`, and `closed`, updates only `status` and
+  `updatedAt`, and leaves reply fields such as `assignedTo`, `responseNote`,
+  and `respondedAt` untouched.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
 - Backoffice admin authentication now exposes `POST /api/v1/auth/login`,
   `POST /api/v1/auth/logout`, and `POST /api/v1/auth/reissue`; admin account

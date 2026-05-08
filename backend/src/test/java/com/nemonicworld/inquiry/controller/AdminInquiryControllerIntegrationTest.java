@@ -3,6 +3,7 @@ package com.nemonicworld.inquiry.controller;
 import static org.hamcrest.Matchers.aMapWithSize;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -504,6 +505,131 @@ class AdminInquiryControllerIntegrationTest {
             .andExpect(jsonPath("$.data.respondedAt").isNotEmpty());
     }
 
+    @Test
+    void adminUpdatesInquiryStatus() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime respondedAt = createdAt.plusHours(1);
+        insertInquiry(100L, userUuid, "error", "오류 문의", "문의 내용", "user@example.com", "new", ADMIN_ID, "기존 답변",
+            respondedAt, null, null, createdAt);
+
+        mockMvc
+            .perform(patch("/api/v1/admin/inquiries/{inquiryId}/status", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(statusRequestBody("in_progress")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.id").value(100L)).andExpect(jsonPath("$.data.status").value("in_progress"))
+            .andExpect(jsonPath("$.data.updatedAt").isNotEmpty());
+
+        assertThat(readStringColumn(100L, "status")).isEqualTo("in_progress");
+        assertThat(readTimestampColumn(100L, "updated_at").toLocalDateTime()).isAfter(createdAt);
+        assertThat(readLongColumn(100L, "assigned_to")).isEqualTo(ADMIN_ID);
+        assertThat(readStringColumn(100L, "response_note")).isEqualTo("기존 답변");
+        assertThat(readTimestampColumn(100L, "responded_at").toLocalDateTime()).isEqualTo(respondedAt);
+        assertThat(inquiryMailSender.to).isNull();
+    }
+
+    @Test
+    void superAdminUpdatesInquiryStatus() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertInquiry(100L, userUuid, "error", "오류 문의", "문의 내용", "user@example.com", "new", createdAt);
+
+        mockMvc
+            .perform(
+                patch("/api/v1/admin/inquiries/{inquiryId}/status", 100L)
+                    .header(HttpHeaders.AUTHORIZATION,
+                        bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_EMAIL,
+                            AdminRole.SUPER_ADMIN))
+                    .contentType(MediaType.APPLICATION_JSON).content(statusRequestBody("closed")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("closed"));
+
+        assertThat(readStringColumn(100L, "status")).isEqualTo("closed");
+    }
+
+    @Test
+    void inquiryStatusUpdateRejectsUnauthenticatedRequest() throws Exception {
+        mockMvc
+            .perform(patch("/api/v1/admin/inquiries/{inquiryId}/status", 100L).contentType(MediaType.APPLICATION_JSON)
+                .content(statusRequestBody("in_progress")))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void inquiryStatusUpdateRejectsUnknownId() throws Exception {
+        mockMvc
+            .perform(patch("/api/v1/admin/inquiries/{inquiryId}/status", 999L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(statusRequestBody("in_progress")))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("고객 문의를 찾을 수 없습니다."));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0", "-1", "abc"})
+    void inquiryStatusUpdateRejectsInvalidId(String inquiryId) throws Exception {
+        mockMvc
+            .perform(patch("/api/v1/admin/inquiries/{inquiryId}/status", inquiryId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(statusRequestBody("in_progress")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("문의 ID가 올바르지 않습니다."));
+    }
+
+    @Test
+    void inquiryStatusUpdateRejectsMissingStatus() throws Exception {
+        mockMvc
+            .perform(patch("/api/v1/admin/inquiries/{inquiryId}/status", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.errors.status").value("문의 상태를 입력해 주세요."));
+    }
+
+    @Test
+    void inquiryStatusUpdateRejectsBlankStatus() throws Exception {
+        mockMvc
+            .perform(patch("/api/v1/admin/inquiries/{inquiryId}/status", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(statusRequestBody(" ")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.errors.status").value("문의 상태를 입력해 주세요."));
+    }
+
+    @Test
+    void inquiryStatusUpdateRejectsInvalidStatus() throws Exception {
+        mockMvc
+            .perform(patch("/api/v1/admin/inquiries/{inquiryId}/status", 100L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(statusRequestBody("unknown")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("문의 상태가 올바르지 않습니다."));
+    }
+
+    @Test
+    void inquiryStatusUpdateIsReflectedInListAndDetail() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertInquiry(100L, userUuid, "error", "상태 변경 문의", "문의 내용", "user@example.com", "new", createdAt);
+
+        mockMvc.perform(patch("/api/v1/admin/inquiries/{inquiryId}/status", 100L)
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+            .content(statusRequestBody("resolved"))).andExpect(status().isOk());
+
+        mockMvc
+            .perform(
+                get("/api/v1/admin/inquiries/{inquiryId}", 100L).header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("resolved"));
+
+        mockMvc
+            .perform(get("/api/v1/admin/inquiries").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("status", "resolved"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(100L))
+            .andExpect(jsonPath("$.data.items[0].status").value("resolved"));
+    }
+
     private void insertAdminUser(long id, String loginId, String email, AdminRole role) {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
@@ -595,6 +721,14 @@ class AdminInquiryControllerIntegrationTest {
               "message": "%s"
             }
             """.formatted(subject, message);
+    }
+
+    private String statusRequestBody(String status) {
+        return """
+            {
+              "status": "%s"
+            }
+            """.formatted(status);
     }
 
     private String readStringColumn(long inquiryId, String columnName) {

@@ -57,9 +57,11 @@ class FileControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String SIGNED_PRESIGNED_URL = "http://localhost:9000/nemonic-local/uploads/example.png";
-    private static final String SIGNED_VIEW_URL = "http://localhost:9000/nemonic-local/uploads/example.png?X-Amz-Signature=view";
+    private static final String SIGNED_VIEW_URL = "http://localhost:9000/nemonic-local/uploads/example.png"
+        + "?X-Amz-Signature=view";
     private static final String PRESIGNED_URL = "http://localhost:9000/minio/nemonic-local/uploads/example.png";
-    private static final String VIEW_URL = "http://localhost:9000/minio/nemonic-local/uploads/example.png?X-Amz-Signature=view";
+    private static final String VIEW_URL = "http://localhost:9000/minio/nemonic-local/uploads/example.png"
+        + "?X-Amz-Signature=view";
 
     @Autowired
     private MockMvc mockMvc;

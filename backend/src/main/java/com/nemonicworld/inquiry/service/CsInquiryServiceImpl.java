@@ -10,11 +10,13 @@ import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.inquiry.dto.request.CsInquiryCreateRequest;
 import com.nemonicworld.inquiry.dto.request.CsInquiryReplyRequest;
+import com.nemonicworld.inquiry.dto.request.CsInquiryStatusUpdateRequest;
 import com.nemonicworld.inquiry.dto.response.CsInquiryCreateResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryDetailResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryListItemResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryListResponse;
 import com.nemonicworld.inquiry.dto.response.CsInquiryReplyResponse;
+import com.nemonicworld.inquiry.dto.response.CsInquiryStatusUpdateResponse;
 import com.nemonicworld.inquiry.entity.CsInquiry;
 import com.nemonicworld.inquiry.entity.CsInquiryStatus;
 import com.nemonicworld.inquiry.entity.CsInquiryType;
@@ -147,6 +149,23 @@ public class CsInquiryServiceImpl implements CsInquiryService {
         }
 
         return CsInquiryReplyResponse.from(csInquiryRepository.findById(inquiryId).orElseThrow());
+    }
+
+    @Override
+    @Transactional
+    public CsInquiryStatusUpdateResponse updateInquiryStatus(AdminPrincipal adminPrincipal, String inquiryIdValue,
+        CsInquiryStatusUpdateRequest request) {
+        requireAdmin(adminPrincipal);
+
+        Long inquiryId = parseInquiryId(inquiryIdValue);
+        String status = CsInquiryStatus.fromValue(request.status().trim().toLowerCase(Locale.ROOT)).getValue();
+        LocalDateTime updatedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        int updatedCount = csInquiryRepository.updateStatus(inquiryId, status, updatedAt);
+        if (updatedCount == 0) {
+            throw new NotFoundException(INQUIRY_NOT_FOUND_MESSAGE);
+        }
+
+        return CsInquiryStatusUpdateResponse.from(csInquiryRepository.findById(inquiryId).orElseThrow());
     }
 
     private void requireAdmin(AdminPrincipal adminPrincipal) {

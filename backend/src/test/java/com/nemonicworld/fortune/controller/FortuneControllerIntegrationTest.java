@@ -242,7 +242,7 @@ class FortuneControllerIntegrationTest {
     void getTodayAvailabilityReturnsUnavailableWhenUserAlreadyHasFortuneToday() throws Exception {
         UUID userUuid = createExistingUser();
         LocalDate today = LocalDate.now(KST_ZONE);
-        LocalDateTime createdAt = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime createdAt = LocalDateTime.now().minusMinutes(10).withSecond(1).truncatedTo(ChronoUnit.SECONDS);
         UUID fortuneId = insertFortuneArtifact(userUuid, today, createdAt);
 
         mockMvc

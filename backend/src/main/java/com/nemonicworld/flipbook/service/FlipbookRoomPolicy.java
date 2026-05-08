@@ -38,8 +38,10 @@ public class FlipbookRoomPolicy {
     public static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
     public static final String ROOM_CONNECTION_UPDATE_CONFLICT_MESSAGE = "동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 "
         + "갱신하지 못했습니다. 다시 시도해주세요.";
-    public static final String ROOM_KICK_UPDATE_CONFLICT_MESSAGE = "동시 강퇴 요청이 많아 플립북 방 강퇴 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
-    public static final String ROOM_START_UPDATE_CONFLICT_MESSAGE = "동시 게임 시작 요청이 많아 플립북 방 시작 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
+    public static final String ROOM_KICK_UPDATE_CONFLICT_MESSAGE = "동시 강퇴 요청이 많아 플립북 방 강퇴 상태를 갱신하지 못했습니다. "
+        + "다시 시도해주세요.";
+    public static final String ROOM_START_UPDATE_CONFLICT_MESSAGE = "동시 게임 시작 요청이 많아 플립북 방 시작 상태를 갱신하지 못했습니"
+        + "다. 다시 시도해주세요.";
     public static final String ROOM_TIMEOUT_UPDATE_CONFLICT_MESSAGE = "동시 타임아웃 처리 요청이 많아 플립북 프레임 자동 제출 상태를 "
         + "갱신하지 못했습니다. 다시 시도해주세요.";
 
