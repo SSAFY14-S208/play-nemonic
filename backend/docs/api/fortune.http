@@ -1,6 +1,23 @@
 @host = http://localhost:8080
 @anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
 
+### Create today fortune
+POST {{host}}/api/v1/fortune
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "calendarType": "solar",
+  "yearPillar": "임신",
+  "monthPillar": "경술",
+  "dayPillar": "계유",
+  "hourPillar": "을묘",
+  "dayMasterElement": "수",
+  "dayBranchElement": "금",
+  "dayMasterYinYang": "음",
+  "dayBranchYinYang": "음"
+}
+
 ### Get today fortune availability
 GET {{host}}/api/v1/fortune/today/availability
 Anonymous-User-UUID: {{anonymousUserUuid}}
