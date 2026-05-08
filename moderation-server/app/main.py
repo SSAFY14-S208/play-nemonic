@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from app.moderation import classify_text, warm_up_model
 from app.ocr import OcrError, extract_text_from_image_data, extract_text_from_image_url
 from app.schemas import CheckRequest, CheckResponse
+from app.settings import get_settings
 
 # uvicorn.error 로거를 사용하면 개발 서버 콘솔에 INFO 로그까지 바로 보입니다.
 logger = logging.getLogger("uvicorn.error")
@@ -17,6 +18,13 @@ LOG_TEXT_PREVIEW_LIMIT = 300
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # 서버 시작 시 모델을 미리 로딩해서 첫 검사 요청의 지연을 줄입니다.
+    settings = get_settings()
+    logger.info(
+        "모더레이션 설정 로딩 완료 ocrEnabled=%s googleVisionConfigured=%s googleVisionFeature=%s",
+        settings.ocr_enabled,
+        bool(settings.google_vision_api_key),
+        settings.google_vision_feature_type,
+    )
     warm_up_model()
     yield
 
@@ -65,6 +73,12 @@ def check(request: CheckRequest):
     # 실제 게시 흐름에서는 Spring Boot가 만든 이미지 URL을 받아 OCR을 시도합니다.
     try:
         ocr_text = extract_text_from_image_url(request.imageUrl)
+        logger.info(
+            "OCR 추출 완료 imageUrl=%s ocrTextLength=%d ocrTextPreview=%s",
+            request.imageUrl,
+            len(ocr_text),
+            _preview_text(ocr_text),
+        )
     except OcrError as exc:
         # OCR은 보조 신호로만 사용합니다. 호출 실패나 판독 실패가 있어도 clientText 검사는 계속 진행합니다.
         logger.warning("OCR 처리를 건너뜁니다. imageUrl=%s error=%s", request.imageUrl, exc)
@@ -93,6 +107,12 @@ async def check_file(
     _ = sourceType
     try:
         ocr_text = extract_text_from_image_data(await image.read(), image.filename)
+        logger.info(
+            "OCR 추출 완료 fileName=%s ocrTextLength=%d ocrTextPreview=%s",
+            image.filename,
+            len(ocr_text),
+            _preview_text(ocr_text),
+        )
     except OcrError as exc:
         logger.warning("OCR 처리를 건너뜁니다. fileName=%s error=%s", image.filename, exc)
         ocr_text = ""

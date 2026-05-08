@@ -19,7 +19,7 @@ class OcrError(RuntimeError):
 def extract_text_from_image_url(image_url: str) -> str:
     settings = get_settings()
     if not settings.ocr_enabled:
-        return ""
+        raise OcrError("OCR 설정이 비활성화되어 있습니다.")
 
     # /check는 Spring Boot가 넘겨준 MinIO 이미지 URL을 FastAPI가 먼저 읽고, 이미지 바이트를 Google Vision에 보냅니다.
     # 이렇게 해야 Google 서버가 접근할 수 없는 localhost/private URL도 로컬 개발 환경에서 OCR 테스트가 됩니다.
@@ -32,7 +32,7 @@ def extract_text_from_image_url(image_url: str) -> str:
 def extract_text_from_image_data(image_data: bytes, _image_name: str | None) -> str:
     settings = get_settings()
     if not settings.ocr_enabled:
-        return ""
+        raise OcrError("OCR 설정이 비활성화되어 있습니다.")
 
     # /check-file은 Swagger 테스트용이므로 이미지 바이트를 base64로 변환해 Google Vision에 보냅니다.
     _ensure_google_settings()
