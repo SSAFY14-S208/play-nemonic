@@ -13,6 +13,7 @@ import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -69,7 +70,9 @@ class GalleryControllerIntegrationTest {
             CREATE TABLE IF NOT EXISTS fortune_artifact (
                 artifact_id UUID PRIMARY KEY,
                 description VARCHAR(1000) NOT NULL,
-                fortune_image_url VARCHAR(200) NULL
+                fortune_image_url VARCHAR(200) NULL,
+                user_id UUID NOT NULL,
+                fortune_date DATE NOT NULL
             )
             """);
         jdbcTemplate.execute("""
@@ -268,8 +271,8 @@ class GalleryControllerIntegrationTest {
 
         insertArtifact(artifactWithoutSubtypeId, "fortune", "no-subtype-thumb", null, now);
         insertGalleryOnly(galleryWithoutSubtypeId, userUuid, artifactWithoutSubtypeId, null);
-        GalleryTestRow rowWithNullSubtypeUrl = insertGalleryItem(userUuid, "fortune", "null-url-thumb", null, null, now,
-            null);
+        GalleryTestRow rowWithNullSubtypeUrl = insertGalleryItem(userUuid, "relay_drawing", "null-url-thumb", null,
+            null, now, null);
 
         assertDetailContentUrl(userUuid, galleryWithoutSubtypeId, publicUrl("no-subtype-thumb"));
         assertDetailContentUrl(userUuid, rowWithNullSubtypeUrl.galleryId(), publicUrl("null-url-thumb"));
@@ -596,7 +599,7 @@ class GalleryControllerIntegrationTest {
         UUID galleryId = UUID.randomUUID();
 
         insertArtifact(artifactId, kind, thumbnailUrl, sourceRoomId, createdAt);
-        insertSubtypeArtifact(kind, artifactId, contentUrl);
+        insertSubtypeArtifact(kind, artifactId, contentUrl, userUuid, createdAt.toLocalDate());
         insertGalleryOnly(galleryId, userUuid, artifactId, deletedAt);
 
         return new GalleryTestRow(galleryId, artifactId);
@@ -608,7 +611,7 @@ class GalleryControllerIntegrationTest {
         UUID galleryId = UUID.randomUUID();
 
         insertArtifact(artifactId, kind, thumbnailUrl, sourceRoomId, createdAt, meta);
-        insertSubtypeArtifact(kind, artifactId, contentUrl);
+        insertSubtypeArtifact(kind, artifactId, contentUrl, userUuid, createdAt.toLocalDate());
         insertGalleryOnly(galleryId, userUuid, artifactId, deletedAt);
 
         return new GalleryTestRow(galleryId, artifactId);
@@ -629,11 +632,19 @@ class GalleryControllerIntegrationTest {
         jdbcTemplate.update(sql, artifactId, kind, sourceRoomId, thumbnailUrl, meta, createdAt, createdAt);
     }
 
-    private void insertSubtypeArtifact(String kind, UUID artifactId, String contentUrl) {
+    private void insertSubtypeArtifact(String kind, UUID artifactId, String contentUrl, UUID userUuid,
+        LocalDate fortuneDate) {
         if ("fortune".equals(kind)) {
-            jdbcTemplate.update(
-                "INSERT INTO fortune_artifact (artifact_id, description, fortune_image_url) VALUES (?, '{}', ?)",
-                artifactId, contentUrl);
+            jdbcTemplate.update("""
+                INSERT INTO fortune_artifact (
+                    artifact_id,
+                    description,
+                    fortune_image_url,
+                    user_id,
+                    fortune_date
+                )
+                VALUES (?, '{}', ?, ?, ?)
+                """, artifactId, contentUrl, userUuid, fortuneDate);
         } else if ("relay_drawing".equals(kind)) {
             jdbcTemplate.update("INSERT INTO relay_drawing_artifact (artifact_id, combined_preview_url) VALUES (?, ?)",
                 artifactId, contentUrl);
