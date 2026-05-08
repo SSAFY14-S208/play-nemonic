@@ -1,3 +1,4 @@
+import { parseServerInstant } from '@/shared/utils'
 import type { GalleryItemResponse } from '@/shared/types'
 import type { PhoneGalleryItem, PhoneGalleryItemKind } from '../types'
 
@@ -44,7 +45,8 @@ const HOUR_MS = 60 * MINUTE_MS
 const DAY_MS = 24 * HOUR_MS
 
 export function formatRelativeTime(isoString: string, now: Date = new Date()): string {
-  const created = new Date(isoString)
+  // 백엔드가 LocalDateTime(zone suffix 없음)을 UTC로 보내므로 Z를 붙여 파싱한다.
+  const created = parseServerInstant(isoString)
   const diff = now.getTime() - created.getTime()
   if (Number.isNaN(diff)) return ''
   if (diff < MINUTE_MS) return '방금 전'
