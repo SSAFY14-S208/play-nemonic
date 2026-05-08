@@ -128,7 +128,9 @@ export function createFortuneCreateRequest(birthInfo: FortuneBirthInfo): Fortune
     yearPillar: saju.sajuYear,
     monthPillar: saju.sajuMonth,
     dayPillar: saju.sajuDay,
-    ...(birthInfo.timeUnknown ? {} : { hourPillar: saju.sajuHour }),
+    // 시간 모름이어도 parseBirthTime이 정오 fallback으로 sajuHour를 채워 둔다.
+    // 백엔드 필수 9필드 검증에 hourPillar가 포함되므로 항상 보낸다.
+    hourPillar: saju.sajuHour,
     dayMasterElement: saju.dayElemental,
     dayBranchElement: saju.dayBranchElemental,
     dayMasterYinYang: saju.dayYinYang,
@@ -205,23 +207,24 @@ export function createFortuneResultFromCreateResponse(
   birthInfo: FortuneBirthInfo,
 ): FortuneResult {
   const saju = calculateFortuneSaju(birthInfo)
-  const luckyColor = normalizeLuckyColor(createdFortune.luckyColor, createdFortune.fortuneId)
+  const fortuneSection = createdFortune.fortune
+  const luckyColor = normalizeLuckyColor(fortuneSection.luckyColor, createdFortune.fortuneId)
 
   return {
     id: createdFortune.fortuneId,
     issuedDateKey: createdFortune.date,
-    title: createdFortune.title,
-    postitLine: createdFortune.postitLine,
-    summary: createdFortune.summary,
+    title: fortuneSection.title,
+    postitLine: fortuneSection.postitLine,
+    summary: fortuneSection.summary,
     scores: {
-      overall: createdFortune.overallLuck,
-      love: createdFortune.loveLuck,
-      work: createdFortune.workLuck,
-      money: createdFortune.moneyLuck,
+      overall: fortuneSection.overallLuck,
+      love: fortuneSection.loveLuck,
+      work: fortuneSection.workLuck,
+      money: fortuneSection.moneyLuck,
     },
     luckyColor,
-    luckyKeyword: createdFortune.luckyKeyword,
-    caution: createdFortune.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
+    luckyKeyword: fortuneSection.luckyKeyword,
+    caution: fortuneSection.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
     cardTheme: pickCardTheme(createdFortune.fortuneId),
     saju,
     sajuSummary: createSajuSummary(birthInfo, saju),
