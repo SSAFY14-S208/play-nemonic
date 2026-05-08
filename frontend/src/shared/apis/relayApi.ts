@@ -6,6 +6,7 @@ import type {
   RelayRoomKickResponse,
   RelayRoomLeaveResponse,
   RelayRoomMyAssignmentResponse,
+  RelayRoomResultsResponse,
   RelayRoomStateResponse,
   RelayRoomSubmissionResponse,
 } from '@/shared/types'
@@ -94,4 +95,11 @@ export const deleteRelayRoomParticipantMe = (roomCode: string) =>
     api.delete<ApiResponse<RelayRoomLeaveResponse>>(
       `relay/rooms/${roomCode}/participants/me`,
     ),
+  )
+
+// GET /relay/rooms/{roomCode}/results — 릴레이 결과 조회
+// RESULT_CREATED 이벤트 수신 후 결과 화면에서 호출.
+export const getRelayRoomResults = (roomCode: string) =>
+  apiUnwrap(
+    api.get<ApiResponse<RelayRoomResultsResponse>>(`relay/rooms/${roomCode}/results`),
   )

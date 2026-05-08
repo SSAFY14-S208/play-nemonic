@@ -1,8 +1,9 @@
 'use client'
 
-import { Group, Line, Rect, Text } from 'react-konva'
+import { useEffect, useState } from 'react'
+import { Group, Image as KonvaImage, Line, Rect, Text } from 'react-konva'
 import { RELAY_STAGE_SIZE, type RelayRoundArea } from '../../constants'
-import type { RelayDrawLine } from '../../useRelayDrawing'
+import type { RelayDrawLine } from '../../types'
 import DashedGuide from './DashedGuide'
 import HintPill from './HintPill'
 import RasterFillImage from './RasterFillImage'
@@ -10,14 +11,42 @@ import RasterFillImage from './RasterFillImage'
 interface PreviousRoundHintProps {
   hintTargetArea: RelayRoundArea
   hintVerticalOffset: number
-  previousRoundLines: RelayDrawLine[]
+  /** 서버에서 내려준 힌트 이미지 URL — 있으면 로컬 라인 대신 서버 이미지 표시. */
+  hintImageUrl?: string | null
+  /** 로컬 미리보기 모드에서 이전 라운드 라인 데이터. */
+  previousRoundLines?: RelayDrawLine[]
 }
 
 export default function PreviousRoundHint({
   hintTargetArea,
   hintVerticalOffset,
-  previousRoundLines,
+  hintImageUrl,
+  previousRoundLines = [],
 }: PreviousRoundHintProps) {
+  const [serverHintImage, setServerHintImage] = useState<HTMLImageElement | null>(null)
+
+  useEffect(() => {
+    if (!hintImageUrl) {
+      setServerHintImage(null)
+      return
+    }
+
+    let isCancelled = false
+    const imageElement = new window.Image()
+    imageElement.crossOrigin = 'anonymous'
+    imageElement.onload = () => {
+      if (!isCancelled) setServerHintImage(imageElement)
+    }
+    imageElement.src = hintImageUrl
+
+    return () => {
+      isCancelled = true
+    }
+  }, [hintImageUrl])
+
+  const hasServerHint = hintImageUrl !== undefined && hintImageUrl !== null
+  const hasLocalLines = previousRoundLines.length > 0
+
   return (
     <Group>
       <Rect
@@ -42,7 +71,19 @@ export default function PreviousRoundHint({
         clipWidth={RELAY_STAGE_SIZE.width}
         clipHeight={hintTargetArea.height}
       >
-        {previousRoundLines.map((line) => {
+        {hasServerHint && serverHintImage && (
+          <KonvaImage
+            image={serverHintImage}
+            x={0}
+            y={hintTargetArea.y}
+            width={RELAY_STAGE_SIZE.width}
+            height={hintTargetArea.height}
+            opacity={0.62}
+            listening={false}
+          />
+        )}
+
+        {!hasServerHint && hasLocalLines && previousRoundLines.map((line) => {
           if (line.kind === 'fill') {
             if (line.imageDataUrl) {
               return (
