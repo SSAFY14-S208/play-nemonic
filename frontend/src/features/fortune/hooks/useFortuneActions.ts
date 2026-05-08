@@ -11,6 +11,7 @@ import {
   clearStoredFortune,
   createMockFortuneResult,
   isBirthInfoComplete,
+  isFortuneConflictError,
   issueNewFortune,
   resolveAlreadyIssuedResult,
   resolveBirthInfoErrorMessage,
@@ -92,6 +93,10 @@ export function useFortuneActions() {
 
       if (alreadyIssuedResult) {
         setResult(alreadyIssuedResult)
+        setStep('limit')
+      } else if (isFortuneConflictError(error)) {
+        // 이미 오늘 발급된 사실은 명확하나 본문 복원 실패(다른 기기/storage 비움 등).
+        // 에러 화면 대신 한도 안내 화면으로 보낸다.
         setStep('limit')
       } else if (canUseLocalFortuneFallback(error)) {
         const nextResult = createMockFortuneResult(birthInfo)

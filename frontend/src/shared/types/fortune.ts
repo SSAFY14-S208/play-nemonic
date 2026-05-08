@@ -1,8 +1,9 @@
 export interface FortuneAvailabilityResponse {
-  date: string
-  canDraw: boolean
-  alreadyClaimedToday: boolean
-  fortuneId: string | null
+  available: boolean
+  fortuneDate: string
+  todayFortuneId: string | null
+  createdAt: string | null
+  nextAvailableAt: string | null
 }
 
 export interface FortuneCreateRequest {
@@ -10,28 +11,49 @@ export interface FortuneCreateRequest {
   yearPillar: string
   monthPillar: string
   dayPillar: string
-  hourPillar?: string
+  hourPillar: string
   dayMasterElement: string
   dayBranchElement: string
   dayMasterYinYang: string
   dayBranchYinYang: string
 }
 
-export interface FortuneIssuedResponse {
+export interface FortuneCreateFortuneSection {
+  title: string
+  summary: string
+  overallLuck: number
+  loveLuck: number
+  workLuck: number
+  moneyLuck: number
+  luckyColor: string
+  luckyKeyword: string
+  caution: string | null
+  postitLine: string
+}
+
+export interface FortuneCreateSajuSection {
+  calendarType: string
+  yearPillar: string
+  monthPillar: string
+  dayPillar: string
+  hourPillar: string
+  dayMasterElement: string
+  dayBranchElement: string
+  dayMasterYinYang: string
+  dayBranchYinYang: string
+}
+
+export interface FortuneCreateDesignSection {
+  cardTheme: string
+  bgColor: string
+  accentColor: string
+  iconKey: string
+}
+
+export interface FortuneCreateResponse {
   fortuneId: string
   date: string
-  title?: string
-  summary: string
-  overallLuck?: number
-  loveLuck?: number
-  workLuck?: number
-  moneyLuck?: number
-  luckyColor?: string
-  luckyKeyword?: string
-  caution?: string | null
-  postitLine?: string
-  score?: number
-  sections?: Record<string, string>
-  luckyNumber?: number
-  fortuneImageUrl?: string
+  fortune: FortuneCreateFortuneSection
+  saju: FortuneCreateSajuSection
+  design: FortuneCreateDesignSection
 }

@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
-import { getAnonymousProfile } from '@/shared/apis'
+import { getAnonymousProfile, getFortuneTodayAvailability } from '@/shared/apis'
 import { runtime } from '@/shared/config'
 import { useUserStore } from '@/shared/stores'
 
@@ -123,6 +123,18 @@ export function useFortuneSessionHydration() {
             setStep('limit')
             shouldUseStoredFortune = false
           } else {
+            // 본문 복원 실패 시에도 backend가 이미 발급되었다고 응답하면 한도 안내 화면으로 보낸다.
+            const availability = await getFortuneTodayAvailability()
+
+            if (cancelled) {
+              return
+            }
+
+            if (!availability.available) {
+              setBirthInfo(profileBirthInfo ?? storedFortune?.birthInfo ?? FORTUNE_EMPTY_BIRTH_INFO)
+              setStep('limit')
+            }
+
             shouldUseStoredFortune = false
           }
         } catch (error) {
