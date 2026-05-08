@@ -1,8 +1,9 @@
 export interface FortuneAvailabilityResponse {
-  date: string
-  canDraw: boolean
-  alreadyClaimedToday: boolean
-  fortuneId: string | null
+  available: boolean
+  fortuneDate: string
+  todayFortuneId: string | null
+  createdAt: string | null
+  nextAvailableAt: string | null
 }
 
 export interface FortuneCreateRequest {
@@ -17,21 +18,17 @@ export interface FortuneCreateRequest {
   dayBranchYinYang: string
 }
 
-export interface FortuneIssuedResponse {
+export interface FortuneCreateResponse {
   fortuneId: string
   date: string
-  title?: string
+  title: string
   summary: string
-  overallLuck?: number
-  loveLuck?: number
-  workLuck?: number
-  moneyLuck?: number
-  luckyColor?: string
-  luckyKeyword?: string
-  caution?: string | null
-  postitLine?: string
-  score?: number
-  sections?: Record<string, string>
-  luckyNumber?: number
-  fortuneImageUrl?: string
+  overallLuck: number
+  loveLuck: number
+  workLuck: number
+  moneyLuck: number
+  luckyColor: string
+  luckyKeyword: string
+  caution: string | null
+  postitLine: string
 }

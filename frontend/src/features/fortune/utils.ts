@@ -9,7 +9,6 @@ import {
 
 import {
   ApiError,
-  getFortune,
   getFortuneTodayAvailability,
   patchAnonymousBirthInfo,
   postAnonymousBirthInfo,
@@ -21,7 +20,7 @@ import type {
   AnonymousUserBirthInfoRequest,
   AnonymousUserProfileResponse,
   FortuneCreateRequest,
-  FortuneIssuedResponse,
+  FortuneCreateResponse,
 } from '@/shared/types'
 
 import {
@@ -201,33 +200,29 @@ export function calculateFortuneSaju(birthInfo: FortuneBirthInfo): FortuneSaju {
   }
 }
 
-export function createFortuneResultFromIssuedResponse(
-  issuedFortune: FortuneIssuedResponse,
+export function createFortuneResultFromCreateResponse(
+  createdFortune: FortuneCreateResponse,
   birthInfo: FortuneBirthInfo,
 ): FortuneResult {
   const saju = calculateFortuneSaju(birthInfo)
-  const scoreFallback = issuedFortune.score ?? 72
-  const luckyColor = normalizeLuckyColor(issuedFortune.luckyColor, issuedFortune.fortuneId)
-  const luckyKeyword = issuedFortune.luckyKeyword ?? '흐름'
-  const postitLine = issuedFortune.postitLine ?? createPostitLineFromIssuedFortune(issuedFortune, luckyKeyword)
+  const luckyColor = normalizeLuckyColor(createdFortune.luckyColor, createdFortune.fortuneId)
 
   return {
-    id: issuedFortune.fortuneId,
-    issuedDateKey: issuedFortune.date,
-    fortuneImageUrl: issuedFortune.fortuneImageUrl,
-    title: issuedFortune.title ?? '오늘의 흐름이 도착했어요',
-    postitLine,
-    summary: issuedFortune.summary,
+    id: createdFortune.fortuneId,
+    issuedDateKey: createdFortune.date,
+    title: createdFortune.title,
+    postitLine: createdFortune.postitLine,
+    summary: createdFortune.summary,
     scores: {
-      overall: issuedFortune.overallLuck ?? scoreFallback,
-      love: issuedFortune.loveLuck ?? scoreFallback,
-      work: issuedFortune.workLuck ?? scoreFallback,
-      money: issuedFortune.moneyLuck ?? scoreFallback,
+      overall: createdFortune.overallLuck,
+      love: createdFortune.loveLuck,
+      work: createdFortune.workLuck,
+      money: createdFortune.moneyLuck,
     },
     luckyColor,
-    luckyKeyword,
-    caution: issuedFortune.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
-    cardTheme: pickCardTheme(issuedFortune.fortuneId),
+    luckyKeyword: createdFortune.luckyKeyword,
+    caution: createdFortune.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
+    cardTheme: pickCardTheme(createdFortune.fortuneId),
     saju,
     sajuSummary: createSajuSummary(birthInfo, saju),
   }
@@ -272,18 +267,6 @@ function createFortuneResultId(issuedDateKey: string, seed: number) {
 
 function createSummary(luckyKeyword: string) {
   return `${luckyKeyword}의 기운이 또렷한 하루예요. 해야 할 일을 작게 나누면 포포가 적어 준 메모처럼 길이 선명해집니다.`
-}
-
-function createPostitLineFromIssuedFortune(issuedFortune: FortuneIssuedResponse, luckyKeyword: string) {
-  if (issuedFortune.sections?.종합운) {
-    return issuedFortune.sections.종합운
-  }
-
-  if (issuedFortune.summary.length <= 28) {
-    return issuedFortune.summary
-  }
-
-  return `${luckyKeyword}을 기억하면 운이 열려요`
 }
 
 function normalizeLuckyColor(luckyColorName: string | undefined, seedSource: string) {
@@ -556,21 +539,26 @@ export async function issueNewFortune(birthInfo: FortuneBirthInfo) {
     throw new Error(FORTUNE_USER_NOT_READY_ERROR)
   }
 
-  const issuedFortune = await postFortune(createFortuneCreateRequest(birthInfo))
+  const createdFortune = await postFortune(createFortuneCreateRequest(birthInfo))
 
-  return createFortuneResultFromIssuedResponse(issuedFortune, birthInfo)
+  return createFortuneResultFromCreateResponse(createdFortune, birthInfo)
 }
 
 export async function getTodayFortuneResult(birthInfo: FortuneBirthInfo | null) {
   const availability = await getFortuneTodayAvailability()
 
-  if (availability.canDraw || !availability.fortuneId || !birthInfo) {
+  if (availability.available || !availability.todayFortuneId || !birthInfo) {
     return null
   }
 
-  const issuedFortune = await getFortune(availability.fortuneId)
+  // 백엔드는 GET /fortune/{id}를 아직 제공하지 않으므로 같은 디바이스 localStorage 매칭에 의존한다.
+  // 다른 기기에서 발급한 운세 본문 표시는 BE 추가 시점에 연결한다.
+  const stored = readStoredFortune()
+  if (stored && stored.result.id === availability.todayFortuneId) {
+    return stored.result
+  }
 
-  return createFortuneResultFromIssuedResponse(issuedFortune, birthInfo)
+  return null
 }
 
 export async function resolveAlreadyIssuedResult(error: unknown, birthInfo: FortuneBirthInfo) {
