@@ -174,6 +174,24 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
           maxParticipants: event.data.maxParticipants,
           participants: event.data.participants,
         })
+
+        // CONNECTED 이벤트의 대상 참여자는 반드시 connected: true여야 한다.
+        // 서버 스냅샷 타이밍에 따라 false로 내려올 수 있으므로 명시적으로 보정한다.
+        const connectedUuid = event.data.changedParticipant.userUuid
+        const current = useRelayDrawingStore.getState().participants
+        setParticipants(
+          current.map((participant) =>
+            participant.userUuid === connectedUuid
+              ? { ...participant, connected: true }
+              : participant,
+          ),
+        )
+
+        // 다른 사용자가 입장한 경우에만 토스트 — 본인 입장은 알림 불필요.
+        const currentUserUuid = useUserStore.getState().userUuid
+        if (connectedUuid !== currentUserUuid) {
+          toast(`${event.data.changedParticipant.nickname}님이 입장했습니다.`)
+        }
       },
       PARTICIPANT_DISCONNECTED: (event) => {
         // WS 끊김 — 참여자의 connected 플래그만 false로 갱신.
@@ -319,6 +337,26 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
       },
     },
   })
+
+  // STOMP 연결 확립 시 본인의 connected 플래그를 즉시 true로 보정.
+  // REST hydration은 WS 연결 전에 완료되므로 participants가 connected: false로
+  // 내려오고, PARTICIPANT_CONNECTED 이벤트와 store 등록 시점이 어긋나면 그 상태가
+  // 남는다. socketStatus가 'connected'로 전환되면 실제 연결이 살아있으므로 즉시 반영.
+  useEffect(() => {
+    if (socketStatus !== 'connected') return
+    const currentUserUuid = useUserStore.getState().userUuid
+    if (!currentUserUuid) return
+    const current = useRelayDrawingStore.getState().participants
+    const me = current.find((participant) => participant.userUuid === currentUserUuid)
+    if (!me || me.connected) return
+    setParticipants(
+      current.map((participant) =>
+        participant.userUuid === currentUserUuid
+          ? { ...participant, connected: true }
+          : participant,
+      ),
+    )
+  }, [socketStatus, setParticipants])
 
   // store가 같은 roomCode로 동기화되어 있으면, 백그라운드 hydrate가 진행 중이어도
   // 사용자에게는 깜빡임 없이 화면을 보여준다.

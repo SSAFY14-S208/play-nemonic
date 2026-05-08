@@ -207,6 +207,7 @@ export interface RelayWsParticipantConnectedData {
   partDeadlineAt: string | null
   gameStartedAt: string | null
   participants: RelayRoomParticipantResponse[]
+  changedParticipant: RelayRoomParticipantResponse
 }
 
 export interface RelayWsParticipantDisconnectedData {
