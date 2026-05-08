@@ -8,15 +8,10 @@ import {
 import { PHONE_COLORS } from './colors'
 import type {
   PhoneGalleryFilterKey,
-  PhoneGalleryItem,
   PhoneGalleryItemKind,
 } from '../types'
 
 export { PHONE_COLORS } from './colors'
-
-export const PHONE_PROFILE = {
-  nickname: '동그란고구마',
-}
 
 export const PHONE_OFFICIAL_STORE_URL = 'https://kr.nemonic.me/'
 
@@ -325,45 +320,3 @@ export const PHONE_GALLERY_ITEM_STYLES: Record<
   },
 }
 
-export const PHONE_INITIAL_GALLERY_ITEMS: PhoneGalleryItem[] = [
-  {
-    id: 'sample-phone-1',
-    kind: 'phone',
-    title: '내가 그린 메모',
-    createdAtLabel: '방금 전',
-    badgeLabel: 'NEW',
-    isNew: true,
-  },
-  {
-    id: 'sample-fortune-1',
-    kind: 'fortune',
-    title: '오늘의 운세',
-    createdAtLabel: '오늘',
-  },
-  {
-    id: 'sample-flipbook-1',
-    kind: 'flipbook',
-    title: '깡총 토끼',
-    createdAtLabel: '어제',
-    badgeLabel: '8 컷',
-    contributorLabel: '친구 4명과 함께',
-  },
-  {
-    id: 'sample-relay-1',
-    kind: 'relay',
-    title: '우당탕 캐릭터',
-    createdAtLabel: '3일 전',
-  },
-  {
-    id: 'sample-infinite-1',
-    kind: 'infinite',
-    title: '친구들 캔버스',
-    createdAtLabel: '1주 전',
-  },
-  {
-    id: 'sample-phone-2',
-    kind: 'phone',
-    title: '독서',
-    createdAtLabel: '1주 전',
-  },
-]

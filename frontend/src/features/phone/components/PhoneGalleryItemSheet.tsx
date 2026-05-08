@@ -1,8 +1,10 @@
 'use client'
 
 import Image from 'next/image'
-import { ArrowRight, Download, Share2, X } from 'lucide-react'
+import { useEffect } from 'react'
+import { ArrowRight, Download, Share2, Trash2, X } from 'lucide-react'
 import { PHONE_COLORS, PHONE_GALLERY_ITEM_STYLES } from '../constants'
+import { usePhoneStore } from '../phoneStore'
 import type { PhoneGalleryItem } from '../types'
 
 interface PhoneGalleryItemSheetProps {
@@ -10,13 +12,20 @@ interface PhoneGalleryItemSheetProps {
   onClose: () => void
 }
 
-function PhoneGalleryPreview({ item }: { item: PhoneGalleryItem }) {
+function PhoneGalleryPreview({
+  item,
+  detailImageUrl,
+}: {
+  item: PhoneGalleryItem
+  detailImageUrl: string | null
+}) {
   const itemStyle = PHONE_GALLERY_ITEM_STYLES[item.kind]
+  const previewUrl = detailImageUrl ?? item.imageDataUrl
 
-  if (item.imageDataUrl) {
+  if (previewUrl) {
     return (
       <Image
-        src={item.imageDataUrl}
+        src={previewUrl}
         alt={`${item.title} 미리보기`}
         fill
         unoptimized
@@ -62,6 +71,40 @@ export function PhoneGalleryItemSheet({
   onClose,
 }: PhoneGalleryItemSheetProps) {
   const itemStyle = PHONE_GALLERY_ITEM_STYLES[item.kind]
+  const galleryDetail = usePhoneStore((state) => state.galleryDetail)
+  const galleryDetailStatus = usePhoneStore(
+    (state) => state.galleryDetailStatus,
+  )
+  const loadGalleryDetail = usePhoneStore((state) => state.loadGalleryDetail)
+  const clearGalleryDetail = usePhoneStore((state) => state.clearGalleryDetail)
+  const deleteGalleryItem = usePhoneStore((state) => state.deleteGalleryItem)
+
+  const isOptimistic = item.id.startsWith('optimistic-')
+  const isLoading = galleryDetailStatus === 'loading'
+  const detailImageUrl =
+    galleryDetail && galleryDetail.galleryId === item.id
+      ? galleryDetail.contentUrl || galleryDetail.thumbnailUrl
+      : null
+
+  useEffect(() => {
+    if (isOptimistic) return
+    void loadGalleryDetail(item.id)
+    return () => {
+      clearGalleryDetail()
+    }
+  }, [clearGalleryDetail, isOptimistic, item.id, loadGalleryDetail])
+
+  const handleDelete = async () => {
+    if (isOptimistic) {
+      onClose()
+      return
+    }
+    if (typeof window !== 'undefined') {
+      const confirmed = window.confirm('이 항목을 삭제할까요?')
+      if (!confirmed) return
+    }
+    await deleteGalleryItem(item.id)
+  }
 
   return (
     <div className="absolute inset-0 z-30 flex items-end">
@@ -109,7 +152,11 @@ export function PhoneGalleryItemSheet({
           className="relative mb-4 aspect-square overflow-hidden rounded-[0.45rem] bg-white"
           style={{ boxShadow: PHONE_COLORS.gallerySheetPreviewShadow }}
         >
-          <PhoneGalleryPreview item={item} />
+          {isLoading && !detailImageUrl ? (
+            <div className="absolute inset-0 animate-pulse bg-surface-subtle" />
+          ) : (
+            <PhoneGalleryPreview item={item} detailImageUrl={detailImageUrl} />
+          )}
           {item.badgeLabel && (
             <span className="caption-b absolute left-3 top-3 rounded-[0.35rem] bg-white/90 px-2 py-1 text-fg-primary">
               {item.badgeLabel}
@@ -123,7 +170,7 @@ export function PhoneGalleryItemSheet({
           {item.contributorLabel ? ` · ${item.contributorLabel}` : ''}
         </p>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-3 gap-3">
           <button
             type="button"
             className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle"
@@ -137,6 +184,15 @@ export function PhoneGalleryItemSheet({
           >
             <Share2 className="size-4" />
             공유
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isOptimistic}
+            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-red-200 bg-white text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trash2 className="size-4" />
+            삭제
           </button>
         </div>
 
