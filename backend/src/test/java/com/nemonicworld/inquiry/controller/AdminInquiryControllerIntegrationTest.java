@@ -219,6 +219,29 @@ class AdminInquiryControllerIntegrationTest {
     }
 
     @Test
+    void inquiryKeywordSearchTreatsLikeWildcardsAsLiteralText() throws Exception {
+        UUID userUuid = insertAppUser();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertInquiry(100L, userUuid, "error", "Percent inquiry", "payment reached 100% mark", "percent@example.com",
+            "new", createdAt);
+        insertInquiry(101L, userUuid, "other", "Underscore inquiry", "under_score marker", "underscore@example.com",
+            "new", createdAt);
+        insertInquiry(102L, userUuid, "other", "Plain inquiry", "plain marker", "plain@example.com", "new", createdAt);
+
+        mockMvc
+            .perform(get("/api/v1/admin/inquiries").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "%"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(100L)).andExpect(jsonPath("$.data.totalElements").value(1));
+
+        mockMvc
+            .perform(get("/api/v1/admin/inquiries").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "_"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(101L)).andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
     void inquiryListFiltersByUserUuid() throws Exception {
         UUID targetUserUuid = insertAppUser();
         UUID otherUserUuid = insertAppUser();

@@ -167,6 +167,25 @@ class GmsPromptControllerIntegrationTest {
     }
 
     @Test
+    void promptKeywordSearchTreatsLikeWildcardsAsLiteralText() throws Exception {
+        insertPrompt(10L, "Percent prompt", "Use 100% of the provided context.", "fortune", null);
+        insertPrompt(11L, "Underscore prompt", "Use under_score marker.", "sticker", null);
+        insertPrompt(12L, "Plain prompt", "Use plain marker.", "fortune", null);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "%"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(10L)).andExpect(jsonPath("$.data.totalElements").value(1));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "_"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(11L)).andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
     void adminFiltersPromptListByFeatureType() throws Exception {
         insertPrompt(10L, "Daily fortune", "fortune", null);
         insertPrompt(11L, "Sticker prompt", "sticker", null);

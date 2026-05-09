@@ -255,14 +255,18 @@ public class AdminCommunityMemoRepository {
         if (StringUtils.hasText(keyword)) {
             builder.append("""
                  AND (
-                    LOWER(COALESCE(au.nickname, '')) LIKE :keyword
-                    OR LOWER(COALESCE(cm.ocr_text, '')) LIKE :keyword
+                    LOWER(COALESCE(au.nickname, '')) LIKE :keyword ESCAPE '!'
+                    OR LOWER(COALESCE(cm.ocr_text, '')) LIKE :keyword ESCAPE '!'
                  )
                 """);
-            params.addValue("keyword", "%%%s%%".formatted(keyword));
+            params.addValue("keyword", "%%%s%%".formatted(escapeLikeKeyword(keyword)));
         }
 
         return builder.toString();
+    }
+
+    private String escapeLikeKeyword(String keyword) {
+        return keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     private String buildReportReasonFilter(String reason, MapSqlParameterSource params) {
