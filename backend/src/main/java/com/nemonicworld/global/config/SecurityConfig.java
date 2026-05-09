@@ -37,6 +37,8 @@ public class SecurityConfig {
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/admin/inquiries", "/api/v1/admin/inquiries/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/admin/community/memos", "/api/v1/admin/community/memos/**")
+                .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/backoffice/gms/prompts", "/api/v1/backoffice/gms/prompts/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/backoffice/system-parameters", "/api/v1/backoffice/system-parameters/**")

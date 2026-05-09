@@ -5,7 +5,7 @@ package com.nemonicworld.community.entity;
  */
 public enum CommunityMemoHiddenReason {
 
-    REPORT_THRESHOLD("report_threshold"), AI_MODERATION("ai_moderation");
+    REPORT_THRESHOLD("report_threshold"), AI_MODERATION("ai_moderation"), ADMIN_HIDDEN("admin_hidden");
 
     private final String value;
 

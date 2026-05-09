@@ -475,6 +475,21 @@ FastAPI 응답 시간이 길어 동기 차단이 어렵다면 다음 대안을 �
 - 다음 새 메모 부착 시 FIFO가 초과분을 정리한다.
 - 운영자 검토 이력은 `reviewed_at`, `reviewed_by`, 복원/삭제 결정을 별도 감사 로그에 남긴다.
 
+## 숨김 사유
+
+| 값 | 의미 |
+| --- | --- |
+| `report_threshold` | 신고 5회 누적에 따른 자동 숨김 |
+| `ai_moderation` | AI/모더레이션 차단에 따른 숨김 |
+| `admin_hidden` | 운영자 수동 숨김 |
+
+- 운영자는 수동 숨김 시 별도 숨김 사유를 필수로 입력한다.
+- 운영자 수동 숨김은 서버가 도메인 상태에 `hidden_reason = admin_hidden`, `hidden_at = now`, `reviewed_by = adminId`, `reviewed_at = now`를 기록한다.
+- 운영자가 입력한 숨김 상세 사유는 `community_memo` 도메인 컬럼에 저장하지 않고 감사 로그 `metadata.reason`에 기록한다.
+- 운영자 복구도 복구 사유를 필수로 입력하고, 감사 로그 `metadata.reason`에 기록한다.
+- 운영자 복구는 `is_hidden = false`, `hidden_reason = null`, `hidden_at = null`, `reviewed_by = adminId`, `reviewed_at = now`로 되돌린다.
+- 운영자 복구 시 FIFO를 즉시 실행하지 않으며, 50개 초과분은 다음 메모 생성 시점에 정리한다.
+
 ## 삭제 사유
 
 | 값 | 의미 |

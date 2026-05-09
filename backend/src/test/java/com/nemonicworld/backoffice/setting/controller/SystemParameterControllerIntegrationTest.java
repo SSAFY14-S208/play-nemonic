@@ -175,15 +175,16 @@ class SystemParameterControllerIntegrationTest {
         LocalDateTime before11 = findSettingUpdatedAt(11L);
 
         mockMvc
-            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
-                .contentType(MediaType.APPLICATION_JSON).content("""
-                    {
-                      "items": [
-                        { "id": 10, "value": { "enabled": true, "max": 5 } },
-                        { "id": 11, "value": { "max": 200 } }
-                      ]
-                    }
-                    """))
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "items": [
+                            { "id": 10, "value": { "enabled": true, "max": 5 } },
+                            { "id": 11, "value": { "max": 200 } }
+                          ]
+                        }
+                        """))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.items.length()").value(2)).andExpect(jsonPath("$.data.totalElements").value(2))
             .andExpect(jsonPath("$.data.items[0].id").value(11L))
@@ -230,13 +231,14 @@ class SystemParameterControllerIntegrationTest {
     void systemParameterBulkUpdateRejectsUnauthenticatedRequest() throws Exception {
         insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
 
-        mockMvc.perform(patch("/api/v1/backoffice/system-parameters").contentType(MediaType.APPLICATION_JSON).content("""
-            {
-              "items": [
-                { "id": 10, "value": { "max": 5 } }
-              ]
-            }
-            """)).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
+        mockMvc
+            .perform(patch("/api/v1/backoffice/system-parameters").contentType(MediaType.APPLICATION_JSON).content("""
+                {
+                  "items": [
+                    { "id": 10, "value": { "max": 5 } }
+                  ]
+                }
+                """)).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
 
         assertThat(findSettingValue(10L)).isEqualTo("{\"max\":1}");
@@ -247,15 +249,16 @@ class SystemParameterControllerIntegrationTest {
         insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
 
         mockMvc
-            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
-                .contentType(MediaType.APPLICATION_JSON).content("""
-                    {
-                      "items": [
-                        { "id": 10, "value": { "max": 9 } },
-                        { "id": 9999, "value": { "max": 9 } }
-                      ]
-                    }
-                    """))
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "items": [
+                            { "id": 10, "value": { "max": 9 } },
+                            { "id": 9999, "value": { "max": 9 } }
+                          ]
+                        }
+                        """))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
 
@@ -277,15 +280,16 @@ class SystemParameterControllerIntegrationTest {
         insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
 
         mockMvc
-            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
-                .contentType(MediaType.APPLICATION_JSON).content("""
-                    {
-                      "items": [
-                        { "id": 10, "value": { "max": 5 } },
-                        { "id": 10, "value": { "max": 7 } }
-                      ]
-                    }
-                    """))
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "items": [
+                            { "id": 10, "value": { "max": 5 } },
+                            { "id": 10, "value": { "max": 7 } }
+                          ]
+                        }
+                        """))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").isNotEmpty());
 
