@@ -109,10 +109,14 @@ public class SystemParameterRepository {
     private void appendSearchConditions(StringBuilder sql, List<Object> params, String keyword) {
         if (StringUtils.hasText(keyword)) {
             sql.append("""
-                  AND LOWER(s.setting_key) LIKE ?
+                  AND LOWER(s.setting_key) LIKE ? ESCAPE '!'
                 """);
-            params.add("%" + keyword + "%");
+            params.add("%" + escapeLikeKeyword(keyword) + "%");
         }
+    }
+
+    private String escapeLikeKeyword(String keyword) {
+        return keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     private SystemParameter mapParameter(ResultSet resultSet, int rowNumber) throws SQLException {

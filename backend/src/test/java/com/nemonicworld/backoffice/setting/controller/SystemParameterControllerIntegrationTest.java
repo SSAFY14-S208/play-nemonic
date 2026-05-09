@@ -156,6 +156,27 @@ class SystemParameterControllerIntegrationTest {
     }
 
     @Test
+    void systemParameterKeywordSearchTreatsLikeWildcardsAsLiteralText() throws Exception {
+        insertSetting(10L, "fortune.percent%limit", "{\"max\":1}", ADMIN_ID);
+        insertSetting(11L, "community.under_score", "{\"max\":200}", ADMIN_ID);
+        insertSetting(12L, "community.plain", "{\"max\":50}", ADMIN_ID);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "%"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].key").value("fortune.percent%limit"))
+            .andExpect(jsonPath("$.data.totalElements").value(1));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "_"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].key").value("community.under_score"))
+            .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
     void blankKeywordReturnsAllSystemParameters() throws Exception {
         insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
         insertSetting(11L, "community.max_memo_count", "{\"max\":200}", ADMIN_ID);

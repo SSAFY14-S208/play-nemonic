@@ -49,7 +49,7 @@ public class CommunityMemoRepository {
             cm.attached_at AS attached_at
         """ + VISIBLE_MEMO_FROM + """
         -- 벽 렌더링 순서는 z-index가 낮은 메모부터, 같은 층에서는 먼저 붙은 메모부터입니다.
-        ORDER BY cm.z_index ASC, cm.attached_at ASC
+        ORDER BY cm.z_index ASC, cm.attached_at ASC, cm.id ASC
         """;
 
     private static final String FIND_VISIBLE_MEMO_DETAIL_SQL = """

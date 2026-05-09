@@ -371,6 +371,10 @@ Recent community admin review work added admin memo list/detail plus manual hide
 - Admin list/detail include hidden memos while still excluding soft-deleted memos by default.
 - Hide/restore updates `reviewed_by` and does not run FIFO, moderation, or MinIO/file/artifact/gallery mutation.
 - Admin community list supports `reported=true/false` filtering, admin detail embeds latest-first report history including `reasonDetail`, and admins can still inspect paged report history through `GET /api/v1/admin/community/memos/{memoId}/reports` without mutating memo/report state.
+- Community memo query performance now has Flyway V12 indexes for public visible-wall ordering, FIFO expiry scans, admin list filters, and memo report history lookups.
+- Admin community keyword search escapes SQL `LIKE` wildcard characters so `%` and `_` are treated as literal search text.
+- Common query performance now has Flyway V13 indexes for active gallery ownership lookups, artifact source-room result scans, CS inquiry admin list filters, and GMS prompt list/latest lookups.
+- Admin keyword searches for community memos, CS inquiries, GMS prompts, and system parameters now escape SQL `LIKE` wildcard characters consistently.
 
 ## Next Suggested Steps
 

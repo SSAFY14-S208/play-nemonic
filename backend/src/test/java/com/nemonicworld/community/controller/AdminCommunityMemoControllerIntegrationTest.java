@@ -162,6 +162,32 @@ class AdminCommunityMemoControllerIntegrationTest {
     }
 
     @Test
+    void adminKeywordSearchTreatsLikeWildcardsAsLiteralText() throws Exception {
+        UUID authorUuid = insertAppUser("Percent");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
+        UUID percentMemoId = insertCommunityMemo(authorUuid, null, "percent-original.png", null, false, null, null, 0,
+            "allowed", "memo text with 100% mark", null, baseTime, baseTime.plusMinutes(1));
+        UUID underscoreMemoId = insertCommunityMemo(authorUuid, null, "underscore-original.png", null, false, null,
+            null, 0, "allowed", "memo text with under_score mark", null, baseTime, baseTime.plusMinutes(2));
+        insertCommunityMemo(authorUuid, null, "plain-original.png", null, false, null, null, 0, "allowed",
+            "memo text without wildcard mark", null, baseTime, baseTime.plusMinutes(3));
+
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .param("keyword", "%"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].memoId").value(percentMemoId.toString()))
+            .andExpect(jsonPath("$.data.totalElements").value(1));
+
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .param("keyword", "_"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].memoId").value(underscoreMemoId.toString()))
+            .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
     void adminGetsHiddenMemoDetailAndRejectsDeletedOrInvalidMemoId() throws Exception {
         UUID authorUuid = insertAppUser("상세");
         UUID memoId = insertCommunityMemo(authorUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, true,
