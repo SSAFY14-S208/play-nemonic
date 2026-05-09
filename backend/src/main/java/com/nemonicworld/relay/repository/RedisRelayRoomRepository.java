@@ -16,6 +16,7 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -29,6 +30,9 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     private static final String FINALIZATION_LOCK_KEY_PREFIX = "relay:room-finalization-lock:";
     private static final String TEMP_CLEANUP_MARKER_KEY_PREFIX = "relay:room-temp-cleanup:";
     private static final String TEMP_CLEANUP_LOCK_KEY_PREFIX = "relay:room-temp-cleanup-lock:";
+    private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+        Long.class);
     private static final String ROOM_STATE_SERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 저장할 수 없습니다.";
     private static final String ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 읽을 수 없습니다.";
 
@@ -217,8 +221,8 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      * 여러 서버나 스케줄 tick이 같은 방을 동시에 최종화하지 못하도록 lock을 잡습니다.
      */
     @Override
-    public boolean acquireFinalizationLock(String roomCode, Duration ttl) {
-        Boolean locked = redisTemplate.opsForValue().setIfAbsent(createFinalizationLockKey(roomCode), "locked", ttl);
+    public boolean acquireFinalizationLock(String roomCode, String token, Duration ttl) {
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(createFinalizationLockKey(roomCode), token, ttl);
 
         return Boolean.TRUE.equals(locked);
     }
@@ -227,8 +231,8 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      * 최종화 시도 후 lock을 해제합니다.
      */
     @Override
-    public void releaseFinalizationLock(String roomCode) {
-        redisTemplate.delete(createFinalizationLockKey(roomCode));
+    public void releaseFinalizationLock(String roomCode, String token) {
+        redisTemplate.execute(RELEASE_LOCK_SCRIPT, List.of(createFinalizationLockKey(roomCode)), token);
     }
 
     /**

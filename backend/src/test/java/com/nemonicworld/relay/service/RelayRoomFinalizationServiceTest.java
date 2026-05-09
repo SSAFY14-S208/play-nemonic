@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -78,7 +79,8 @@ class RelayRoomFinalizationServiceTest {
         UUID participantB = UUID.randomUUID();
         UUID participantC = UUID.randomUUID();
         RelayRoomState roomState = finalizingRoom(participantA, participantB, participantC);
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
         given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
@@ -121,7 +123,8 @@ class RelayRoomFinalizationServiceTest {
         UUID droppedUuid = UUID.randomUUID();
         RelayRoomState roomState = finalizingRoom(participantA, droppedUuid).withParticipants(
             List.of(participant(participantA, true, 0), droppedParticipant(droppedUuid, false, 1)), NOW);
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
         given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
@@ -152,7 +155,8 @@ class RelayRoomFinalizationServiceTest {
             assignment(1, RelayDrawingPart.LEGS, participantB, RelayAssignmentStatus.SUBMITTED,
                 "relay/tmp/AB3K9Q/1/legs.png", false, false)),
             NOW);
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
         given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
@@ -177,7 +181,8 @@ class RelayRoomFinalizationServiceTest {
             assignment(0, RelayDrawingPart.LEGS, participantA, RelayAssignmentStatus.SUBMITTED,
                 "relay/tmp/AB3K9Q/0/legs.png", false, false)),
             NOW);
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
 
@@ -195,7 +200,8 @@ class RelayRoomFinalizationServiceTest {
         RelayRoomState roomState = finalizingRoom(participantA, participantB);
         List<RelayFinalizationArtifactResult> existingArtifacts = List.of(artifact(0, UUID.randomUUID()),
             artifact(1, UUID.randomUUID()));
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(existingArtifacts);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
@@ -216,7 +222,8 @@ class RelayRoomFinalizationServiceTest {
         RelayRoomState roomState = finalizingRoom(participantA, participantB);
         List<RelayFinalizationArtifactResult> existingArtifacts = List.of(artifact(0, UUID.randomUUID()),
             artifact(1, UUID.randomUUID()));
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(existingArtifacts);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
@@ -231,7 +238,8 @@ class RelayRoomFinalizationServiceTest {
 
     @Test
     void processFinalizingRoomDoesNothingWhenLockIsNotAcquired() {
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(false);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(false);
 
         RelayRoomFinalizationResult result = service.processFinalizingRoom(ROOM_CODE);
 

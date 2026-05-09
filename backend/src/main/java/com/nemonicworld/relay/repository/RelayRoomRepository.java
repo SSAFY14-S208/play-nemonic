@@ -62,12 +62,12 @@ public interface RelayRoomRepository {
     /**
      * 같은 방 최종화가 여러 서버에서 동시에 실행되지 않도록 짧은 Redis lock을 획득합니다.
      */
-    boolean acquireFinalizationLock(String roomCode, Duration ttl);
+    boolean acquireFinalizationLock(String roomCode, String token, Duration ttl);
 
     /**
      * 최종화 처리 후 Redis lock을 해제합니다.
      */
-    void releaseFinalizationLock(String roomCode);
+    void releaseFinalizationLock(String roomCode, String token);
 
     /**
      * CLOSED 방의 임시 파일 정리가 끝났는지 별도 marker key로 확인합니다.

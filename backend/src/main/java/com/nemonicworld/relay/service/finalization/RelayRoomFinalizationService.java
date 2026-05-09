@@ -94,15 +94,21 @@ public class RelayRoomFinalizationService {
      * 한 방에 대한 최종화 lock을 획득한 뒤 실제 최종화 처리를 실행합니다.
      */
     public RelayRoomFinalizationResult processFinalizingRoom(String roomCode) {
-        if (!relayRoomRepository.acquireFinalizationLock(roomCode, lockTtl)) {
+        String lockToken = createFinalizationLockToken(roomCode);
+        if (!relayRoomRepository.acquireFinalizationLock(roomCode, lockToken, lockTtl)) {
             return RelayRoomFinalizationResult.noOp(roomCode);
         }
 
         try {
             return processLockedFinalizingRoom(roomCode);
         } finally {
-            relayRoomRepository.releaseFinalizationLock(roomCode);
+            relayRoomRepository.releaseFinalizationLock(roomCode, lockToken);
         }
+    }
+
+    private String createFinalizationLockToken(String roomCode) {
+        return "token=%s,requestedAt=%s,owner=finalization,roomCode=%s".formatted(UUID.randomUUID(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), roomCode);
     }
 
     /**
