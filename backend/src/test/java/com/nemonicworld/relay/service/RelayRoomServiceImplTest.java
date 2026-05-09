@@ -114,7 +114,8 @@ class RelayRoomServiceImplTest {
             .when(
                 relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
             .thenReturn(true);
-        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
+        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository,
+            RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
         RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
         relayRoomService = new RelayRoomServiceImpl(

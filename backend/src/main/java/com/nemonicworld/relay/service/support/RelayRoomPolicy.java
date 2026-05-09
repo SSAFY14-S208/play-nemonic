@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -38,7 +39,6 @@ public class RelayRoomPolicy {
     public static final String ROOM_UPDATE_CONFLICT_MESSAGE = "릴레이 방 상태를 갱신할 수 없습니다.";
 
     private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
-    private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(DEFAULT_RECONNECT_GRACE_SECONDS);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
@@ -69,10 +69,14 @@ public class RelayRoomPolicy {
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final RelayRoomRepository relayRoomRepository;
+    private final Duration reconnectGracePeriod;
 
-    public RelayRoomPolicy(RoomCodeGenerator roomCodeGenerator, RelayRoomRepository relayRoomRepository) {
+    public RelayRoomPolicy(RoomCodeGenerator roomCodeGenerator, RelayRoomRepository relayRoomRepository,
+        @Value("${nemonic.relay.disconnect.reconnect-grace-seconds:" + DEFAULT_RECONNECT_GRACE_SECONDS
+            + "}") long reconnectGraceSeconds) {
         this.roomCodeGenerator = roomCodeGenerator;
         this.relayRoomRepository = relayRoomRepository;
+        this.reconnectGracePeriod = Duration.ofSeconds(Math.max(0L, reconnectGraceSeconds));
     }
 
     /**
@@ -389,7 +393,7 @@ public class RelayRoomPolicy {
             return false;
         }
 
-        return !disconnectedAt.plus(RECONNECT_GRACE_PERIOD).isBefore(now);
+        return !disconnectedAt.plus(reconnectGracePeriod).isBefore(now);
     }
 
     /**

@@ -59,7 +59,8 @@ class RelayRoomResultQueryUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
+        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository,
+            RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS);
         MinioPublicUrlResolver minioPublicUrlResolver = new MinioPublicUrlResolver(minioStorageProperties());
         useCase = new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
             relayRoomPolicy, new ObjectMapper().findAndRegisterModules(), minioPublicUrlResolver);
