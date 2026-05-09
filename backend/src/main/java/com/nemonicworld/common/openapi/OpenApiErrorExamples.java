@@ -708,6 +708,12 @@ public final class OpenApiErrorExamples {
           "message": "슈퍼 관리자 계정은 삭제할 수 없습니다."
         }
         """;
+    public static final String SYSTEM_PARAMETER_BULK_UPDATE_INVALID = """
+        {
+          "success": false,
+          "message": "존재하지 않는 시스템 파라미터입니다."
+        }
+        """;
 
     private OpenApiErrorExamples() {
     }

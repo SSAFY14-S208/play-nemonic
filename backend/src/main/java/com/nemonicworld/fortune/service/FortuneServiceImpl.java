@@ -194,9 +194,9 @@ public class FortuneServiceImpl implements FortuneService {
                     log.warn("business_event event_name=fortune_gms_retry user_uuid={} fortune_date={} attempt={}",
                         userUuid, fortuneDate, attempt, e);
                 } else {
-                    log.error(
-                        "business_event event_name=fortune_gms_final_fail user_uuid={} fortune_date={} attempt_count={} retry_count={}",
-                        userUuid, fortuneDate, attempt, attempt - 1, e);
+                    String finalFailEvent = "business_event event_name=fortune_gms_final_fail user_uuid={} "
+                        + "fortune_date={} attempt_count={} retry_count={}";
+                    log.error(finalFailEvent, userUuid, fortuneDate, attempt, attempt - 1, e);
                 }
             }
         }
