@@ -3,10 +3,13 @@ package com.nemonicworld.community.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.auth.service.AdminAuditLogger;
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.community.dto.request.AdminCommunityMemoReviewRequest;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoItemResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoListResponse;
@@ -37,6 +40,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     private static final String INVALID_UUID_MESSAGE = "유효하지 않은 UUID 형식입니다.";
     private static final String COMMUNITY_MEMO_NOT_FOUND_MESSAGE = "존재하지 않는 커뮤니티 메모입니다.";
     private static final String INVALID_QUERY_MESSAGE = "관리자 커뮤니티 메모 조회 조건이 올바르지 않습니다.";
+    private static final String INVALID_HIDE_REASON_MESSAGE = "커뮤니티 메모 숨김 사유가 올바르지 않습니다.";
+    private static final String INVALID_RESTORE_REASON_MESSAGE = "커뮤니티 메모 복구 사유가 올바르지 않습니다.";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
@@ -46,12 +51,14 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     private final AdminCommunityMemoRepository adminCommunityMemoRepository;
     private final MinioPublicUrlResolver minioPublicUrlResolver;
     private final ObjectMapper objectMapper;
+    private final AdminAuditLogger adminAuditLogger;
 
     public AdminCommunityMemoServiceImpl(AdminCommunityMemoRepository adminCommunityMemoRepository,
-        MinioPublicUrlResolver minioPublicUrlResolver, ObjectMapper objectMapper) {
+        MinioPublicUrlResolver minioPublicUrlResolver, ObjectMapper objectMapper, AdminAuditLogger adminAuditLogger) {
         this.adminCommunityMemoRepository = adminCommunityMemoRepository;
         this.minioPublicUrlResolver = minioPublicUrlResolver;
         this.objectMapper = objectMapper;
+        this.adminAuditLogger = adminAuditLogger;
     }
 
     /**
@@ -97,13 +104,16 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
      */
     @Override
     @Transactional
-    public AdminCommunityMemoDetailResponse hideCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue) {
+    public AdminCommunityMemoDetailResponse hideCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
+        AdminCommunityMemoReviewRequest request, AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
+        String reason = validateReviewReason(request, INVALID_HIDE_REASON_MESSAGE);
 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         if (row.hidden()) {
+            adminAuditLogger.logCommunityMemoHide(adminPrincipal, memoId.toString(), reason, clientInfo, false);
             return toDetailResponse(row);
         }
 
@@ -113,8 +123,11 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
             throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
         }
 
-        return adminCommunityMemoRepository.findMemoById(memoId).map(this::toDetailResponse)
-            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        AdminCommunityMemoDetailResponse response = adminCommunityMemoRepository.findMemoById(memoId)
+            .map(this::toDetailResponse).orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        adminAuditLogger.logCommunityMemoHide(adminPrincipal, memoId.toString(), reason, clientInfo, true);
+
+        return response;
     }
 
     /**
@@ -122,13 +135,16 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
      */
     @Override
     @Transactional
-    public AdminCommunityMemoDetailResponse restoreCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue) {
+    public AdminCommunityMemoDetailResponse restoreCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
+        AdminCommunityMemoReviewRequest request, AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
+        String reason = validateReviewReason(request, INVALID_RESTORE_REASON_MESSAGE);
 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         if (!row.hidden()) {
+            adminAuditLogger.logCommunityMemoRestore(adminPrincipal, memoId.toString(), reason, clientInfo, false);
             return toDetailResponse(row);
         }
 
@@ -138,8 +154,11 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
             throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
         }
 
-        return adminCommunityMemoRepository.findMemoById(memoId).map(this::toDetailResponse)
-            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        AdminCommunityMemoDetailResponse response = adminCommunityMemoRepository.findMemoById(memoId)
+            .map(this::toDetailResponse).orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        adminAuditLogger.logCommunityMemoRestore(adminPrincipal, memoId.toString(), reason, clientInfo, true);
+
+        return response;
     }
 
     private void requireAdmin(AdminPrincipal adminPrincipal) {
@@ -226,6 +245,15 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         return calculateOffset(page + 1, size) < totalElements;
     }
 
+    private String validateReviewReason(AdminCommunityMemoReviewRequest request, String message) {
+        String reason = request == null ? null : request.reason();
+        if (!StringUtils.hasText(reason)) {
+            throw new BadRequestException(message);
+        }
+
+        return reason.trim();
+    }
+
     private AdminCommunityMemoItemResponse toItemResponse(AdminCommunityMemoRow row) {
         ImageUrls imageUrls = resolveImageUrls(row);
 
@@ -233,8 +261,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
             row.authorNickname(), resolveSourceType(row), stringify(row.artifactId()), row.artifactKind(),
             imageUrls.representative(), imageUrls.original(), imageUrls.thumbnail(), row.positionX(), row.positionY(),
             row.zIndex(), row.rotationDeg(), row.reportCount(), row.hidden(), row.hiddenReason(), row.hiddenAt(),
-            row.moderationStatus(), row.ocrText(), row.ocrCategories(), row.reviewedBy(), row.attachedAt(),
-            row.createdAt(), row.updatedAt());
+            row.moderationStatus(), row.ocrText(), row.ocrCategories(), row.reviewedBy(), row.reviewedAt(),
+            row.attachedAt(), row.createdAt(), row.updatedAt());
     }
 
     private AdminCommunityMemoDetailResponse toDetailResponse(AdminCommunityMemoRow row) {
@@ -245,7 +273,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
             imageUrls.representative(), imageUrls.original(), imageUrls.thumbnail(), row.positionX(), row.positionY(),
             row.zIndex(), row.rotationDeg(), parseDecoration(row.decoration()), row.reportCount(), row.hidden(),
             row.hiddenReason(), row.hiddenAt(), row.moderationStatus(), row.ocrText(), row.ocrCategories(),
-            row.reviewedBy(), row.attachedAt(), row.createdAt(), row.updatedAt());
+            row.reviewedBy(), row.reviewedAt(), row.attachedAt(), row.createdAt(), row.updatedAt());
     }
 
     private ImageUrls resolveImageUrls(AdminCommunityMemoRow row) {

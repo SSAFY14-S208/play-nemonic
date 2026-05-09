@@ -2,6 +2,9 @@ package com.nemonicworld.community.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,7 +18,10 @@ import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
 import com.nemonicworld.auth.service.StoredAdminRefreshToken;
+import com.nemonicworld.auth.service.AdminAuditLogger;
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.JwtTokenProvider;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
@@ -66,6 +72,9 @@ class AdminCommunityMemoControllerIntegrationTest {
 
     @MockitoBean
     private CommunityMemoModerationClient moderationClient;
+
+    @MockitoBean
+    private AdminAuditLogger adminAuditLogger;
 
     @BeforeEach
     void prepareTables() {
@@ -166,14 +175,20 @@ class AdminCommunityMemoControllerIntegrationTest {
         LocalDateTime createdAt = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
         UUID memoId = insertCommunityMemo(authorUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, false, null,
             null, 2, "allowed", "ocr", null, createdAt, createdAt);
+        String hideReason = "신고 내용 확인 결과 부적절한 이미지로 판단했습니다.";
 
         mockMvc
-            .perform(patch("/api/v1/admin/community/memos/{memoId}/hide", memoId).header(HttpHeaders.AUTHORIZATION,
-                bearerAccessToken()))
+            .perform(patch("/api/v1/admin/community/memos/{memoId}/hide", memoId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "reason": "%s"
+                    }
+                    """.formatted(hideReason)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.message").value("커뮤니티 메모 숨김 처리 성공"))
             .andExpect(jsonPath("$.data.isHidden").value(true))
             .andExpect(jsonPath("$.data.hiddenReason").value("admin_hidden"))
-            .andExpect(jsonPath("$.data.reviewedBy").value(ADMIN_ID));
+            .andExpect(jsonPath("$.data.reviewedBy").value(ADMIN_ID)).andExpect(jsonPath("$.data.reviewedAt").exists());
 
         assertThat(
             jdbcTemplate.queryForObject("SELECT is_hidden FROM community_memo WHERE id = ?", Boolean.class, memoId))
@@ -186,6 +201,8 @@ class AdminCommunityMemoControllerIntegrationTest {
         assertThat(
             jdbcTemplate.queryForObject("SELECT reviewed_by FROM community_memo WHERE id = ?", Long.class, memoId))
             .isEqualTo(ADMIN_ID);
+        assertThat(jdbcTemplate.queryForObject("SELECT reviewed_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isNotNull();
         assertPreservedMemoSnapshot(memoId);
 
         mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
@@ -203,6 +220,12 @@ class AdminCommunityMemoControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"기타\"}"))
             .andExpect(status().isNotFound());
 
+        mockMvc.perform(patch("/api/v1/admin/community/memos/{memoId}/hide", memoId)
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+            .content("{\"reason\":\"   \"}")).andExpect(status().isBadRequest());
+
+        verify(adminAuditLogger).logCommunityMemoHide(any(AdminPrincipal.class), eq(memoId.toString()), eq(hideReason),
+            any(AdminClientInfo.class), eq(true));
         verifyNoInteractions(moderationClient);
     }
 
@@ -216,14 +239,20 @@ class AdminCommunityMemoControllerIntegrationTest {
         }
         UUID hiddenMemoId = insertCommunityMemo(authorUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, true,
             "report_threshold", baseTime.plusHours(1), 5, "allowed", "ocr", 9L, baseTime, baseTime.plusHours(1));
+        String restoreReason = "오신고로 확인되어 복구합니다.";
 
         mockMvc
             .perform(patch("/api/v1/admin/community/memos/{memoId}/restore", hiddenMemoId)
-                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "reason": "%s"
+                    }
+                    """.formatted(restoreReason)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.message").value("커뮤니티 메모 숨김 복구 성공"))
             .andExpect(jsonPath("$.data.isHidden").value(false))
             .andExpect(jsonPath("$.data.hiddenReason").value(nullValue()))
-            .andExpect(jsonPath("$.data.reviewedBy").value(ADMIN_ID));
+            .andExpect(jsonPath("$.data.reviewedBy").value(ADMIN_ID)).andExpect(jsonPath("$.data.reviewedAt").exists());
 
         assertThat(jdbcTemplate.queryForObject("SELECT is_hidden FROM community_memo WHERE id = ?", Boolean.class,
             hiddenMemoId)).isFalse();
@@ -233,6 +262,8 @@ class AdminCommunityMemoControllerIntegrationTest {
             hiddenMemoId)).isNull();
         assertThat(jdbcTemplate.queryForObject("SELECT report_count FROM community_memo WHERE id = ?", Integer.class,
             hiddenMemoId)).isEqualTo(5);
+        assertThat(jdbcTemplate.queryForObject("SELECT reviewed_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, hiddenMemoId)).isNotNull();
         assertThat(jdbcTemplate.queryForObject("SELECT moderation_status FROM community_memo WHERE id = ?",
             String.class, hiddenMemoId)).isEqualTo("allowed");
         assertThat(jdbcTemplate.queryForObject("""
@@ -246,6 +277,8 @@ class AdminCommunityMemoControllerIntegrationTest {
 
         mockMvc.perform(get("/api/v1/community/memos/{memoId}", hiddenMemoId)).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.memoUuid").value(hiddenMemoId.toString()));
+        verify(adminAuditLogger).logCommunityMemoRestore(any(AdminPrincipal.class), eq(hiddenMemoId.toString()),
+            eq(restoreReason), any(AdminClientInfo.class), eq(true));
         verifyNoInteractions(moderationClient);
     }
 
@@ -310,6 +343,7 @@ class AdminCommunityMemoControllerIntegrationTest {
                 ocr_categories VARCHAR(1000) NULL,
                 moderation_checked_at TIMESTAMP NULL,
                 reviewed_by BIGINT NULL,
+                reviewed_at TIMESTAMP NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 deleted_at TIMESTAMP NULL,

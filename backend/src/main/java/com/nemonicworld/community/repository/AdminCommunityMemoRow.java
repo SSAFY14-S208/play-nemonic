@@ -10,5 +10,6 @@ public record AdminCommunityMemoRow(UUID memoId, UUID userId, String authorNickn
     String artifactKind, String originalImageReference, String thumbnailImageReference, double positionX,
     double positionY, int zIndex, float rotationDeg, String decoration, int reportCount, boolean hidden,
     String hiddenReason, LocalDateTime hiddenAt, String moderationStatus, String ocrText, String ocrCategories,
-    Long reviewedBy, LocalDateTime attachedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    Long reviewedBy, LocalDateTime reviewedAt, LocalDateTime attachedAt, LocalDateTime createdAt,
+    LocalDateTime updatedAt) {
 }

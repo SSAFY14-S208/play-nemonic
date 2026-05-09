@@ -352,7 +352,8 @@ PostgreSQL Testcontainers database after Docker Desktop was started.
 
 Recent community admin review work added admin memo list/detail plus manual hide/restore APIs.
 
-- `hidden_reason_type` now includes `admin_hidden` for operator-initiated hides; admins do not submit a hide reason, and the server records the fixed reason.
+- `hidden_reason_type` now includes `admin_hidden` for operator-initiated hides; admins submit a review reason and the server records that reason in audit log metadata.
+- `community_memo.reviewed_at` records the latest admin review timestamp alongside `reviewed_by`.
 - Admin community APIs use the existing admin JWT flow under `/api/v1/admin/community/memos`.
 - Admin list/detail include hidden memos while still excluding soft-deleted memos by default.
 - Hide/restore updates `reviewed_by` and does not run FIFO, moderation, or MinIO/file/artifact/gallery mutation.

@@ -1,6 +1,8 @@
 package com.nemonicworld.community.service;
 
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.community.dto.request.AdminCommunityMemoReviewRequest;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoListResponse;
 
@@ -14,7 +16,9 @@ public interface AdminCommunityMemoService {
 
     AdminCommunityMemoDetailResponse getCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue);
 
-    AdminCommunityMemoDetailResponse hideCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue);
+    AdminCommunityMemoDetailResponse hideCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
+        AdminCommunityMemoReviewRequest request, AdminClientInfo clientInfo);
 
-    AdminCommunityMemoDetailResponse restoreCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue);
+    AdminCommunityMemoDetailResponse restoreCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
+        AdminCommunityMemoReviewRequest request, AdminClientInfo clientInfo);
 }

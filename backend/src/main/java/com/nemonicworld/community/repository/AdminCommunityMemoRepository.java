@@ -41,6 +41,7 @@ public class AdminCommunityMemoRepository {
             cm.ocr_text AS ocr_text,
             cm.ocr_categories AS ocr_categories,
             cm.reviewed_by AS reviewed_by,
+            cm.reviewed_at AS reviewed_at,
             cm.attached_at AS attached_at,
             cm.created_at AS created_at,
             cm.updated_at AS updated_at
@@ -67,6 +68,7 @@ public class AdminCommunityMemoRepository {
             hidden_reason = :hiddenReason,
             hidden_at = :hiddenAt,
             reviewed_by = :adminId,
+            reviewed_at = :hiddenAt,
             updated_at = :hiddenAt
         WHERE id = :memoId
           AND deleted_at IS NULL
@@ -79,6 +81,7 @@ public class AdminCommunityMemoRepository {
             hidden_reason = NULL,
             hidden_at = NULL,
             reviewed_by = :adminId,
+            reviewed_at = :updatedAt,
             updated_at = :updatedAt
         WHERE id = :memoId
           AND deleted_at IS NULL
@@ -187,7 +190,8 @@ public class AdminCommunityMemoRepository {
             resultSet.getBoolean("is_hidden"), resultSet.getString("hidden_reason"),
             timestampToLocalDateTime(resultSet, "hidden_at"), resultSet.getString("moderation_status"),
             resultSet.getString("ocr_text"), resultSet.getString("ocr_categories"),
-            resultSet.getObject("reviewed_by", Long.class), resultSet.getTimestamp("attached_at").toLocalDateTime(),
+            resultSet.getObject("reviewed_by", Long.class), timestampToLocalDateTime(resultSet, "reviewed_at"),
+            resultSet.getTimestamp("attached_at").toLocalDateTime(),
             resultSet.getTimestamp("created_at").toLocalDateTime(),
             resultSet.getTimestamp("updated_at").toLocalDateTime());
     }

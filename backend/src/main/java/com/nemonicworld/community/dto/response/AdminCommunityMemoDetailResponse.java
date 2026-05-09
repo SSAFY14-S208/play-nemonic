@@ -31,6 +31,7 @@ public record AdminCommunityMemoDetailResponse(
     @Schema(description = "OCR 텍스트", example = "인식된 텍스트") String ocrText,
     @Schema(description = "OCR 분류 결과 JSON 문자열", example = "[\"safe\"]") String ocrCategories,
     @Schema(description = "마지막 검토 관리자 ID", example = "1") Long reviewedBy,
+    @Schema(description = "마지막 검토 시각", example = "2026-05-09T14:10:00") LocalDateTime reviewedAt,
     @Schema(description = "부착 시각", example = "2026-05-07T10:20:00") LocalDateTime attachedAt,
     @Schema(description = "생성 시각", example = "2026-05-07T10:20:00") LocalDateTime createdAt,
     @Schema(description = "수정 시각", example = "2026-05-09T14:10:00") LocalDateTime updatedAt) {
