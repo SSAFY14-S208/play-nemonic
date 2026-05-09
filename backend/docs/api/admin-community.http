@@ -22,6 +22,14 @@ Authorization: Bearer {{adminAccessToken}}
 GET {{host}}/api/v1/admin/community/memos/{{memoId}}
 Authorization: Bearer {{adminAccessToken}}
 
+### Admin get community memo reports
+GET {{host}}/api/v1/admin/community/memos/{{memoId}}/reports
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin get community memo reports by reason
+GET {{host}}/api/v1/admin/community/memos/{{memoId}}/reports?reason=inappropriate&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
 ### Admin hide community memo
 PATCH {{host}}/api/v1/admin/community/memos/{{memoId}}/hide
 Content-Type: application/json
@@ -43,6 +51,21 @@ Authorization: Bearer {{adminAccessToken}}
 ### Admin community memo - invalid memo UUID
 GET {{host}}/api/v1/admin/community/memos/not-a-uuid
 Authorization: Bearer {{adminAccessToken}}
+
+### Admin community memo reports - invalid memo UUID
+GET {{host}}/api/v1/admin/community/memos/not-a-uuid/reports
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin community memo reports - invalid reason
+GET {{host}}/api/v1/admin/community/memos/{{memoId}}/reports?reason=invalid
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin community memo reports - invalid pagination
+GET {{host}}/api/v1/admin/community/memos/{{memoId}}/reports?page=-1&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin community memo reports - unauthorized
+GET {{host}}/api/v1/admin/community/memos/{{memoId}}/reports
 
 ### Admin hide community memo - missing reason
 PATCH {{host}}/api/v1/admin/community/memos/{{memoId}}/hide
