@@ -53,6 +53,8 @@ management:
         include: health,info
 
 nemonic:
+  time-zone: ${APP_TIME_ZONE:Asia/Seoul}
+
   auth:
     jwt:
       secret: ${ADMIN_JWT_SECRET:}

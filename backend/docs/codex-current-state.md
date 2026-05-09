@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-08
+Last updated: 2026-05-09
 
 ## Current Focus
 
@@ -8,6 +8,10 @@ Last updated: 2026-05-08
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
 - The first real backend feature API now includes anonymous user UUID issuance through `POST /api/v1/users/anonymous`.
+- Backend runtime now sets the JVM default timezone from `nemonic.time-zone`
+  (`APP_TIME_ZONE`, default `Asia/Seoul`) during application startup so
+  `LocalDateTime.now()` based DB writes and API responses follow the Korean
+  service timezone consistently.
 - Existing anonymous user APIs identify the caller with the `Anonymous-User-UUID` request header instead of request body or query parameters.
 - Anonymous user re-entry now includes `POST /api/v1/users/anonymous/verify` to validate the header UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
 - Anonymous user nickname setup/change now uses `PATCH /api/v1/users/anonymous/nickname` with the UUID in `Anonymous-User-UUID`, 1-10 code point validation, and no duplicate check.
