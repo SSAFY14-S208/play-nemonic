@@ -544,6 +544,30 @@ class RelayRoomServiceImplTest {
         assertThat(storedParticipant.joinOrder()).isZero();
     }
 
+    @Test
+    void disconnectRoomMarksParticipantDisconnectedEvenAfterFinished() {
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomState roomState = roomState(RelayRoomStatus.FINISHED, participant(hostUuid, "Mango", true, 0));
+        given(anonymousUserResolver.parseUuid(hostUuid.toString())).willReturn(hostUuid);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomStateResponse response = relayRoomService.disconnectRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.status()).isEqualTo(RelayRoomStatus.FINISHED);
+        assertThat(response.participants().get(0).connected()).isFalse();
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomState updatedRoomState = updatedStateCaptor.getValue();
+        RelayRoomParticipant storedParticipant = updatedRoomState.participants().get(0);
+        assertThat(updatedRoomState.status()).isEqualTo(RelayRoomStatus.FINISHED);
+        assertThat(storedParticipant.connected()).isFalse();
+        assertThat(storedParticipant.disconnectedAt()).isNotNull();
+    }
+
     /**
      * REST 입장 API로 등록되지 않은 사용자의 WebSocket 연결은 participant를 새로 만들지 않고 거부합니다.
      */
