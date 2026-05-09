@@ -4,6 +4,66 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { parseServerInstant } from '@/shared/utils'
 import type { FlipbookStep, FlipbookTimeLimitSeconds } from '../constants'
 
+const TIMER_DRIFT_GRACE_SECONDS = 10
+const MILLISECOND_LIKE_REMAINING_THRESHOLD = 1000
+const HAS_TIMEZONE_SUFFIX = /Z$|[+-]\d{2}:?\d{2}$/
+
+function normalizeRemainingSeconds(
+  remainingSeconds: number | null | undefined,
+  selectedTimeLimitSeconds: FlipbookTimeLimitSeconds,
+) {
+  if (remainingSeconds === null || remainingSeconds === undefined) {
+    return selectedTimeLimitSeconds
+  }
+
+  const seconds =
+    remainingSeconds > MILLISECOND_LIKE_REMAINING_THRESHOLD
+      ? Math.ceil(remainingSeconds / 1000)
+      : Math.ceil(remainingSeconds)
+
+  if (seconds < 0) return 0
+
+  const maximumExpectedSeconds = selectedTimeLimitSeconds + TIMER_DRIFT_GRACE_SECONDS
+  if (seconds > maximumExpectedSeconds) {
+    return selectedTimeLimitSeconds
+  }
+
+  return seconds
+}
+
+function getDeadlineRemainingSeconds({
+  deadlineAt,
+  initialRemainingSeconds,
+  selectedTimeLimitSeconds,
+}: {
+  deadlineAt: string
+  initialRemainingSeconds?: number | null
+  selectedTimeLimitSeconds: FlipbookTimeLimitSeconds
+}) {
+  const maximumExpectedSeconds = selectedTimeLimitSeconds + TIMER_DRIFT_GRACE_SECONDS
+  const utcRemainingSeconds = Math.max(
+    0,
+    Math.ceil((parseServerInstant(deadlineAt).getTime() - Date.now()) / 1000),
+  )
+
+  if (utcRemainingSeconds <= maximumExpectedSeconds) {
+    return utcRemainingSeconds
+  }
+
+  if (!HAS_TIMEZONE_SUFFIX.test(deadlineAt)) {
+    const localRemainingSeconds = Math.max(
+      0,
+      Math.ceil((new Date(deadlineAt).getTime() - Date.now()) / 1000),
+    )
+
+    if (localRemainingSeconds <= maximumExpectedSeconds) {
+      return localRemainingSeconds
+    }
+  }
+
+  return normalizeRemainingSeconds(initialRemainingSeconds, selectedTimeLimitSeconds)
+}
+
 export function useFlipbookTimer({
   activeRoundIndex,
   currentStep,
@@ -25,10 +85,14 @@ export function useFlipbookTimer({
 
   const getServerRemainingSeconds = useCallback(() => {
     if (deadlineAt) {
-      return Math.max(0, Math.ceil((parseServerInstant(deadlineAt).getTime() - Date.now()) / 1000))
+      return getDeadlineRemainingSeconds({
+        deadlineAt,
+        initialRemainingSeconds,
+        selectedTimeLimitSeconds,
+      })
     }
 
-    return initialRemainingSeconds ?? selectedTimeLimitSeconds
+    return normalizeRemainingSeconds(initialRemainingSeconds, selectedTimeLimitSeconds)
   }, [deadlineAt, initialRemainingSeconds, selectedTimeLimitSeconds])
 
   const resetRemainingSeconds = useCallback(() => {
@@ -61,10 +125,11 @@ export function useFlipbookTimer({
     const timerId = window.setInterval(() => {
       if (deadlineAt) {
         const roundExpirationKey = `${activeRoundIndex}:${deadlineAt}`
-        const nextRemainingSeconds = Math.max(
-          0,
-          Math.ceil((parseServerInstant(deadlineAt).getTime() - Date.now()) / 1000),
-        )
+        const nextRemainingSeconds = getDeadlineRemainingSeconds({
+          deadlineAt,
+          initialRemainingSeconds,
+          selectedTimeLimitSeconds,
+        })
         if (nextRemainingSeconds > 0) {
           positiveCountdownRoundKeyRef.current = roundExpirationKey
         }
@@ -82,7 +147,7 @@ export function useFlipbookTimer({
     }, 1000)
 
     return () => window.clearInterval(timerId)
-  }, [activeRoundIndex, currentStep, deadlineAt])
+  }, [activeRoundIndex, currentStep, deadlineAt, initialRemainingSeconds, selectedTimeLimitSeconds])
 
   useEffect(() => {
     let cancelled = false
