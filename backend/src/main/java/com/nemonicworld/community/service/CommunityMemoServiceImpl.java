@@ -289,7 +289,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     }
 
     /**
-     * 신고 사유가 DB enum에 존재하는 소문자 값인지 검증합니다.
+     * 신고 사유가 API에서 허용하는 한글 카테고리인지 검증하고 DB 저장 enum으로 변환합니다.
      */
     private CommunityMemoReportReason validateReportReason(CommunityMemoReportRequest request) {
         String reason = request == null ? null : request.reason();
@@ -297,7 +297,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             throw new BadRequestException(INVALID_REPORT_REASON_MESSAGE);
         }
 
-        return CommunityMemoReportReason.findByValue(reason)
+        return CommunityMemoReportReason.findByDisplayName(reason)
             .orElseThrow(() -> new BadRequestException(INVALID_REPORT_REASON_MESSAGE));
     }
 

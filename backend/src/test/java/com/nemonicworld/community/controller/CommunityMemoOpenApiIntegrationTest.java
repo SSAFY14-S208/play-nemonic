@@ -159,6 +159,8 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(
                 jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.requestBody.required").value(true))
             .andExpect(jsonPath("$.components.schemas.CommunityMemoReportRequest.properties.reason").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoReportRequest.properties.reason.enum")
+                .value(hasItems("부적절한 콘텐츠", "욕설/비방/혐오", "선정적/음란물", "폭력적/위협적 표현", "스팸/광고", "개인정보 노출", "도용/사칭", "기타")))
             .andExpect(jsonPath("$.components.schemas.CommunityMemoReportRequest.properties.reasonDetail").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoReportResponse.properties.memoId").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoReportResponse.properties.reportCount").exists())

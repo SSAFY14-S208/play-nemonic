@@ -121,7 +121,7 @@ Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "reason": "inappropriate",
+  "reason": "욕설/비방/혐오",
   "reasonDetail": "욕설이 포함되어 있어요."
 }
 
@@ -131,7 +131,7 @@ Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "reason": "inappropriate"
+  "reason": "부적절한 콘텐츠"
 }
 
 ### Report community memo - invalid anonymous user UUID
@@ -140,7 +140,7 @@ Content-Type: application/json
 Anonymous-User-UUID: not-a-uuid
 
 {
-  "reason": "inappropriate"
+  "reason": "부적절한 콘텐츠"
 }
 
 ### Report community memo - invalid reason
@@ -159,7 +159,7 @@ Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "reason": "spam"
+  "reason": "스팸/광고"
 }
 
 ### Report community memo - own memo
@@ -169,7 +169,7 @@ Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "reason": "other"
+  "reason": "기타"
 }
 
 ### Report community memo - hidden or deleted memo
@@ -179,7 +179,7 @@ Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "reason": "inappropriate"
+  "reason": "부적절한 콘텐츠"
 }
 
 ### Create community memo from final rendered direct snapshot

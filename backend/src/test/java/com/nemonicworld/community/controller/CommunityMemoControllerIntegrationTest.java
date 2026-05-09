@@ -892,7 +892,7 @@ class CommunityMemoControllerIntegrationTest {
         UUID memoId = insertDirectMemo(ownerUuid, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 1, now, null, false);
 
         clearInvocations(moderationClient);
-        mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), reportJson("inappropriate", "욕설이 포함되어 있어요.")))
+        mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), reportJson("욕설/비방/혐오", "욕설이 포함되어 있어요.")))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 성공"))
             .andExpect(jsonPath("$.data.memoId").value(memoId.toString()))
@@ -904,7 +904,7 @@ class CommunityMemoControllerIntegrationTest {
             FROM community_memo_report
             WHERE memo_id = ?
               AND user_id = ?
-              AND reason = 'inappropriate'
+              AND reason = 'abuse_hate'
             """, Integer.class, memoId, reporterUuid)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("""
             SELECT reason_detail
@@ -947,7 +947,7 @@ class CommunityMemoControllerIntegrationTest {
         }
 
         clearInvocations(moderationClient);
-        mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), validReportJson("other")))
+        mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), validReportJson("기타")))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reportCount").value(5))
             .andExpect(jsonPath("$.data.hidden").value(true));
         verifyNoInteractions(moderationClient);
@@ -1004,7 +1004,7 @@ class CommunityMemoControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/community/memos/{memoId}", memoId)).andExpect(status().isNotFound());
         mockMvc.perform(updateRequest(memoId, ownerUuid.toString())).andExpect(status().isNotFound());
         mockMvc.perform(deleteRequest(memoId, ownerUuid.toString())).andExpect(status().isNotFound());
-        mockMvc.perform(reportRequest(memoId, createExistingUser("숨김후신고").toString(), validReportJson("spam")))
+        mockMvc.perform(reportRequest(memoId, createExistingUser("숨김후신고").toString(), validReportJson("스팸/광고")))
             .andExpect(status().isNotFound());
     }
 
@@ -1021,26 +1021,26 @@ class CommunityMemoControllerIntegrationTest {
             now, null, true);
         insertMemoReport(visibleMemoId, reporterUuid, "spam", now);
 
-        mockMvc.perform(reportRequest(visibleMemoId, reporterUuid.toString(), validReportJson("spam")))
+        mockMvc.perform(reportRequest(visibleMemoId, reporterUuid.toString(), validReportJson("스팸/광고")))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.message").value("이미 신고한 커뮤니티 메모입니다."));
-        mockMvc.perform(reportRequest(visibleMemoId, ownerUuid.toString(), validReportJson("inappropriate")))
+        mockMvc.perform(reportRequest(visibleMemoId, ownerUuid.toString(), validReportJson("부적절한 콘텐츠")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("본인 메모는 신고할 수 없습니다."));
-        mockMvc.perform(reportRequest(UUID.randomUUID(), reporterUuid.toString(), validReportJson("other")))
+        mockMvc.perform(reportRequest(UUID.randomUUID(), reporterUuid.toString(), validReportJson("기타")))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
-        mockMvc.perform(reportRequest(deletedMemoId, reporterUuid.toString(), validReportJson("other")))
+        mockMvc.perform(reportRequest(deletedMemoId, reporterUuid.toString(), validReportJson("기타")))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
-        mockMvc.perform(reportRequest(hiddenMemoId, reporterUuid.toString(), validReportJson("other")))
+        mockMvc.perform(reportRequest(hiddenMemoId, reporterUuid.toString(), validReportJson("기타")))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
-        mockMvc.perform(reportRequest(visibleMemoId, UUID.randomUUID().toString(), validReportJson("other")))
+        mockMvc.perform(reportRequest(visibleMemoId, UUID.randomUUID().toString(), validReportJson("기타")))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
-        mockMvc.perform(reportRequest(visibleMemoId, null, validReportJson("other"))).andExpect(status().isBadRequest())
+        mockMvc.perform(reportRequest(visibleMemoId, null, validReportJson("기타"))).andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
-        mockMvc.perform(reportRequest(visibleMemoId, "not-a-uuid", validReportJson("other")))
+        mockMvc.perform(reportRequest(visibleMemoId, "not-a-uuid", validReportJson("기타")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
         mockMvc
             .perform(post("/api/v1/community/memos/not-a-uuid/reports")
                 .header(ANONYMOUS_USER_UUID_HEADER, reporterUuid.toString()).contentType(MediaType.APPLICATION_JSON)
-                .content(validReportJson("other")))
+                .content(validReportJson("기타")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
     }
 
@@ -1049,19 +1049,26 @@ class CommunityMemoControllerIntegrationTest {
         UUID ownerUuid = createExistingUser("사유대상");
         UUID reporterUuid = createExistingUser("사유신고자");
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        UUID spamMemoId = insertDirectMemo(ownerUuid, "spam-original.png", "spam-thumbnail.png", 1, now, null, false);
-        UUID otherMemoId = insertDirectMemo(ownerUuid, "other-original.png", "other-thumbnail.png", 1,
-            now.plusMinutes(1), null, false);
+        String[][] allowedReasons = {{"부적절한 콘텐츠", "inappropriate"}, {"욕설/비방/혐오", "abuse_hate"},
+            {"선정적/음란물", "sexual_content"}, {"폭력적/위협적 표현", "violence_threat"}, {"스팸/광고", "spam"},
+            {"개인정보 노출", "personal_info"}, {"도용/사칭", "impersonation"}, {"기타", "other"}};
         UUID invalidMemoId = insertDirectMemo(ownerUuid, "invalid-original.png", "invalid-thumbnail.png", 1,
             now.plusMinutes(2), null, false);
 
-        mockMvc.perform(reportRequest(spamMemoId, reporterUuid.toString(), validReportJson("spam")))
-            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reportCount").value(1));
-        mockMvc.perform(reportRequest(otherMemoId, reporterUuid.toString(), validReportJson("other")))
-            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reportCount").value(1));
+        for (int index = 0; index < allowedReasons.length; index++) {
+            UUID memoId = insertDirectMemo(ownerUuid, "reason-original-%02d.png".formatted(index),
+                "reason-thumbnail-%02d.png".formatted(index), 1, now.plusMinutes(index), null, false);
+
+            mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), validReportJson(allowedReasons[index][0])))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reportCount").value(1));
+            assertThat(jdbcTemplate.queryForObject("SELECT reason FROM community_memo_report WHERE memo_id = ?",
+                String.class, memoId)).isEqualTo(allowedReasons[index][1]);
+        }
         mockMvc.perform(reportRequest(invalidMemoId, reporterUuid.toString(), "{}")).andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 사유가 올바르지 않습니다."));
         mockMvc.perform(reportRequest(invalidMemoId, reporterUuid.toString(), validReportJson("INAPPROPRIATE")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 사유가 올바르지 않습니다."));
+        mockMvc.perform(reportRequest(invalidMemoId, reporterUuid.toString(), validReportJson("inappropriate")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 사유가 올바르지 않습니다."));
         mockMvc.perform(reportRequest(invalidMemoId, reporterUuid.toString(), validReportJson("unknown")))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 사유가 올바르지 않습니다."));
@@ -1085,7 +1092,7 @@ class CommunityMemoControllerIntegrationTest {
         jdbcTemplate.update("UPDATE community_memo SET deleted_reason = 'expired' WHERE id = ?", expiredMemoId);
 
         clearInvocations(moderationClient);
-        mockMvc.perform(reportRequest(reportTargetMemoId, reporterUuid.toString(), validReportJson("other")))
+        mockMvc.perform(reportRequest(reportTargetMemoId, reporterUuid.toString(), validReportJson("기타")))
             .andExpect(status().isCreated());
         verifyNoInteractions(moderationClient);
 
