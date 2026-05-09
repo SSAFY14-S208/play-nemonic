@@ -22,9 +22,26 @@
   src: url("/fonts/fortune/LeeSeoyun.ttf") format("truetype");
 }
 
+@font-face {
+  font-family: "Eulyoo1945";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/Eulyoo1945-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Eulyoo1945";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/Eulyoo1945-SemiBold.woff2") format("woff2");
+}
+
 .fortune-page-shell {
   --font-fortune-serif: "GraceSerif", var(--font-paperlogy);
   --font-fortune-hand: "LeeSeoyun", var(--font-paperlogy);
+  --font-fortune-eulyoo: "Eulyoo1945", var(--font-paperlogy);
 }
 
 @keyframes fortune-sparkle-drift {
@@ -1831,6 +1848,228 @@
   max-width: min(90vw, 600px);
 }
 
+/* === Draw step (사주 입력 정보 확인) ============================== */
+
+.fortune-stage-overlay-draw {
+  padding: 0;
+}
+
+/* motion.div의 transform이 fixed 자식의 containing block을 잡는 걸 무력화 */
+.fortune-stage-overlay-draw > div {
+  transform: none !important;
+}
+
+.fortune-draw-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.fortune-draw-stage > * {
+  pointer-events: auto;
+}
+
+@keyframes fortune-draw-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.6rem);
+    filter: blur(2.5px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fortune-draw-actions-rise {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0.6rem);
+    filter: blur(2.5px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.fortune-draw-info-panel {
+  animation: fortune-draw-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 120ms;
+}
+
+.fortune-draw-speech-bubble {
+  animation: fortune-draw-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 1620ms;
+}
+
+.fortune-draw-actions {
+  animation: fortune-draw-actions-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 3120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fortune-draw-actions,
+  .fortune-draw-info-panel,
+  .fortune-draw-speech-bubble {
+    animation: none;
+  }
+}
+
+.fortune-draw-speech-bubble {
+  position: absolute;
+  left: clamp(1vw, 3vw, 5vw);
+  bottom: clamp(56dvh, 62dvh, 68dvh);
+  width: min(56vw, 44rem);
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 0.6rem 1.2rem rgba(8, 1, 22, 0.55));
+}
+
+.fortune-draw-info-panel {
+  position: absolute;
+  top: clamp(6dvh, 12dvh, 18dvh);
+  right: clamp(0vw, 2vw, 4vw);
+  width: min(69vw, 54rem);
+  aspect-ratio: 358 / 245;
+  pointer-events: none;
+}
+
+.fortune-draw-info-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.fortune-draw-info-date {
+  position: absolute;
+  top: 32%;
+  left: calc(50% + 4vw);
+  transform: translateX(-50%);
+  width: 84%;
+  text-align: center;
+  font-family: var(--font-fortune-eulyoo);
+  font-weight: 600;
+  font-size: clamp(1.3rem, 2.4vw, 2rem);
+  letter-spacing: 0.04em;
+  color: #fff8ff;
+  text-shadow:
+    0 0 0.5rem rgba(220, 170, 255, 0.7),
+    0 0 0.18rem rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.fortune-draw-pillar-grid {
+  position: absolute;
+  top: 57%;
+  left: calc(50% + 4vw);
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 64%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fortune-draw-pillar-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fortune-draw-pillar-value {
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.05rem, 1.85vw, 1.55rem);
+  color: #fff;
+  text-shadow:
+    0 0 0.5rem rgba(220, 170, 255, 0.75),
+    0 0 0.15rem rgba(255, 255, 255, 0.55);
+}
+
+.fortune-draw-dialogue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(11dvh, 14dvh, 18dvh);
+  transform: translateX(-50%);
+  width: min(82vw, 60rem);
+}
+
+.fortune-draw-actions {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(3dvh, 5dvh, 7dvh);
+  transform: translateX(-50%);
+  display: flex;
+  gap: clamp(1rem, 2vw, 2.2rem);
+  align-items: center;
+}
+
+.fortune-draw-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-height: clamp(8.8rem, 14dvh, 11.2rem);
+  min-width: clamp(26rem, 44vw, 38rem);
+  padding: 0 clamp(3rem, 4.5vw, 5rem);
+  background: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-fortune-eulyoo);
+  font-weight: 600;
+  font-size: clamp(1.1rem, 1.7vw, 1.45rem);
+  letter-spacing: 0.06em;
+  color: #fff8ff;
+  text-shadow:
+    0 0 0.4rem rgba(180, 110, 255, 0.55),
+    0 0 0.18rem rgba(255, 255, 255, 0.5);
+  transition: transform 220ms ease, filter 220ms ease;
+}
+
+.fortune-draw-action:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08) drop-shadow(0 0 0.6rem rgba(220, 170, 255, 0.55));
+}
+
+.fortune-draw-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+  filter: none;
+}
+
+.fortune-draw-action-edit {
+  background-image: url('/images/fortune/draw/action-edit.png');
+  color: #f5e8ff;
+}
+
+.fortune-draw-action-print {
+  background-image: url('/images/fortune/draw/action-print.png');
+}
+
+.fortune-draw-action-icon {
+  width: clamp(1.1rem, 1.5vw, 1.4rem);
+  height: clamp(1.1rem, 1.5vw, 1.4rem);
+}
+
 .fortune-stage-overlay-scroll {
   align-items: center;
   height: 100dvh;
@@ -2378,6 +2617,41 @@
   scrollbar-width: none;
 }
 
+/* 폼 자체는 motion.div가 이미 진입 페이드를 담당하므로 transform 충돌을 피하고
+   내부 요소를 staggered reveal로 부드럽게 등장시킨다. */
+@keyframes fortune-birth-element-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.7rem);
+    filter: blur(3px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.fortune-birth-form > * {
+  animation: fortune-birth-element-rise 720ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.fortune-birth-form > *:nth-child(1) { animation-delay: 80ms; }
+.fortune-birth-form > *:nth-child(2) { animation-delay: 180ms; }
+.fortune-birth-form > *:nth-child(3) { animation-delay: 260ms; }
+.fortune-birth-form > *:nth-child(4) { animation-delay: 340ms; }
+.fortune-birth-form > *:nth-child(5) { animation-delay: 420ms; }
+.fortune-birth-form > *:nth-child(n + 6) { animation-delay: 480ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fortune-birth-form > * {
+    animation: none;
+  }
+}
+
 .fortune-birth-form::-webkit-scrollbar {
   display: none;
 }
@@ -2442,9 +2716,11 @@
 .fortune-birth-heading h1 {
   color: rgba(255, 249, 226, 0.98);
   font-family: var(--font-fortune-serif);
-  font-size: clamp(2.05rem, 4.15vw, 3.05rem);
+  font-size: clamp(1.05rem, 2vw, 1.62rem);
   font-weight: 700;
-  line-height: 1.18;
+  line-height: 1.2;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
   text-shadow:
     0 0.12rem 0.42rem rgba(11, 1, 25, 0.82),
     0 0 0.82rem rgba(207, 130, 255, 0.45);
@@ -2453,8 +2729,9 @@
 .fortune-birth-heading p:last-child {
   max-width: 30rem;
   color: rgba(255, 247, 225, 0.82);
+  font-family: var(--font-fortune-eulyoo);
   font-size: clamp(0.95rem, 1.55vw, 1.08rem);
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.48;
   text-shadow: 0 0.1rem 0.3rem rgba(7, 1, 18, 0.7);
 }
@@ -2470,9 +2747,9 @@
 .fortune-birth-fieldset legend {
   margin-bottom: clamp(0.28rem, 0.7vw, 0.48rem);
   color: rgba(255, 244, 207, 0.96);
-  font-family: var(--font-pretendard);
+  font-family: var(--font-fortune-eulyoo);
   font-size: clamp(0.98rem, 1.6vw, 1.16rem);
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.02em;
   line-height: 1.2;
   text-shadow:
@@ -2483,11 +2760,14 @@
 .fortune-birth-fieldset legend::before,
 .fortune-birth-fieldset legend::after {
   display: inline-block;
-  margin: 0 0.38rem;
-  color: rgba(255, 227, 137, 0.9);
-  content: "✦";
-  font-size: 0.82em;
-  transform: translateY(-0.04em);
+  width: 1.05em;
+  height: 1.25em;
+  margin: 0 0.42rem;
+  background: url("/images/fortune/form/birth-spark.png") center / contain no-repeat;
+  content: "";
+  filter: drop-shadow(0 0 0.32rem rgba(223, 136, 255, 0.42));
+  transform: translateY(0.16em);
+  vertical-align: middle;
 }
 
 .fortune-birth-fieldset legend::after {
@@ -2540,12 +2820,13 @@
   gap: clamp(0.34rem, 0.9vw, 0.54rem);
   border: 0;
   background: transparent;
-  color: rgba(255, 245, 218, 0.7);
+  color: rgba(255, 245, 218, 0.85);
   font-family: var(--font-fortune-serif);
   font-size: clamp(1.05rem, 2vw, 1.28rem);
   font-weight: 850;
   text-shadow: 0 0.1rem 0.28rem rgba(5, 1, 16, 0.72);
   box-shadow: none;
+  transition: color 200ms ease, filter 200ms ease;
 }
 
 .fortune-birth-option-button.is-active,
@@ -2555,9 +2836,18 @@
   box-shadow: none;
 }
 
+.fortune-birth-option-button.is-idle {
+  color: rgba(255, 245, 218, 0.82);
+}
+
 .fortune-birth-option-button.is-active {
   color: rgba(255, 249, 226, 0.98);
   filter: drop-shadow(0 0 0.44rem rgba(223, 136, 255, 0.46));
+}
+
+.fortune-birth-option-button.is-idle:hover {
+  color: rgba(255, 249, 226, 0.96);
+  filter: drop-shadow(0 0 0.32rem rgba(223, 136, 255, 0.32));
 }
 
 .fortune-birth-option-button:hover {
@@ -2577,7 +2867,7 @@
   inline-size: 100%;
   max-width: 100%;
   max-inline-size: 100%;
-  gap: clamp(0.58rem, 1.16vw, 0.84rem);
+  gap: clamp(1rem, 2vw, 1.6rem);
 }
 
 .fortune-birth-select-field {
@@ -2597,8 +2887,8 @@
 }
 
 .fortune-birth-select-field > span {
-  right: clamp(2.18rem, 4.2vw, 3.05rem);
-  color: rgba(255, 235, 177, 0.72);
+  right: clamp(1.4rem, 2.8vw, 2.1rem);
+  color: rgba(255, 235, 177, 0.78);
   font-family: var(--font-fortune-serif);
   font-size: clamp(0.86rem, 1.4vw, 0.98rem);
   text-shadow: 0 0.1rem 0.24rem rgba(5, 1, 16, 0.72);
@@ -2614,7 +2904,9 @@
   font-family: var(--font-fortune-serif);
   font-size: clamp(1rem, 1.72vw, 1.14rem);
   font-weight: 760;
-  padding: 0 clamp(2.9rem, 5vw, 3.9rem) 0 clamp(1.05rem, 2vw, 1.36rem);
+  padding: 0 clamp(2rem, 3.6vw, 2.7rem) 0 clamp(1.4rem, 2.6vw, 1.9rem);
+  text-align: center;
+  text-align-last: center;
   text-shadow:
     0 0.1rem 0.26rem rgba(7, 1, 18, 0.78),
     0 0 0.36rem rgba(175, 92, 255, 0.22);
@@ -2644,7 +2936,7 @@
   min-height: clamp(2rem, 3.4vw, 2.42rem);
   margin-top: 0.08rem;
   color: rgba(255, 244, 218, 0.94);
-  font-family: var(--font-fortune-hand);
+  font-family: var(--font-fortune-eulyoo);
   font-size: clamp(0.96rem, 1.55vw, 1.06rem);
   font-weight: 400;
   text-shadow: 0 0.1rem 0.24rem rgba(8, 1, 19, 0.72);
@@ -2711,7 +3003,7 @@
 .fortune-birth-helper {
   margin: -0.08rem 0 0 calc(clamp(1.75rem, 3.4vw, 2.2rem) + clamp(0.48rem, 1vw, 0.64rem));
   color: rgba(255, 235, 206, 0.72);
-  font-family: var(--font-fortune-hand);
+  font-family: var(--font-fortune-eulyoo);
   font-size: clamp(0.82rem, 1.25vw, 0.94rem);
   font-weight: 400;
   line-height: 1.35;
@@ -2735,9 +3027,10 @@
   border: 0;
   background: transparent url("/images/fortune/form/birth-submit-bar.png") center / 100% 100% no-repeat;
   color: rgba(255, 252, 232, 1);
-  font-family: var(--font-fortune-hand);
-  font-size: clamp(1.54rem, 2.75vw, 2.08rem);
-  font-weight: 400;
+  font-family: var(--font-fortune-eulyoo);
+  font-size: clamp(1.4rem, 2.45vw, 1.85rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
   justify-self: center;
   line-height: 1;
   overflow: hidden;

@@ -1,4 +1,8 @@
-import { WandSparkles } from 'lucide-react'
+'use client'
+
+/* eslint-disable @next/next/no-img-element */
+
+import { Feather, Sparkles } from 'lucide-react'
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -10,6 +14,8 @@ interface FortuneDrawPanelProps {
   onEdit: () => void
 }
 
+const PILLAR_KEYS: Array<'year' | 'month' | 'day' | 'hour'> = ['year', 'month', 'day', 'hour']
+
 export default function FortuneDrawPanel({ onDraw, onEdit }: FortuneDrawPanelProps) {
   const { birthInfo, isDrawing } = useFortuneSessionStore(
     useShallow((state) => ({
@@ -18,64 +24,75 @@ export default function FortuneDrawPanel({ onDraw, onEdit }: FortuneDrawPanelPro
     })),
   )
   const saju = useMemo(() => {
-    if (!isBirthInfoComplete(birthInfo)) {
-      return null
-    }
-
+    if (!isBirthInfoComplete(birthInfo)) return null
     try {
       return calculateFortuneSaju(birthInfo)
     } catch {
       return null
     }
   }, [birthInfo])
+
   const calendarLabel = birthInfo.calendarType === 'solar' ? '양력' : '음력'
   const timeLabel = birthInfo.timeUnknown ? '시간 모름' : birthInfo.birthTime
+  const pillarValueByKey = saju
+    ? {
+        year: saju.sajuYear,
+        month: saju.sajuMonth,
+        day: saju.sajuDay,
+        hour: saju.sajuHour,
+      }
+    : null
 
   return (
-    <section className="fortune-floating-panel grid gap-5 rounded-[var(--radius-xl)] border border-fortune-border bg-fortune-panel p-6 shadow-soft-lg">
-      <div>
-        <p className="caption-b text-fortune-muted">2 / 3</p>
-        <h1 className="h2-b mt-1 text-fortune-ink">버튼을 누르면 메모가 출력돼요</h1>
-      </div>
-      <div className="fortune-soft-inset rounded-[var(--radius-lg)] border border-fortune-border bg-fortune-paper p-4">
-        <p className="caption-b text-fortune-muted">입력값</p>
-        <p className="body-b mt-1 text-fortune-ink">
+    <div className="fortune-draw-stage" aria-label="사주 입력 정보 확인">
+      <img
+        className="fortune-draw-speech-bubble"
+        src="/images/fortune/draw/speech-bubble.png"
+        alt="포포: 좋아 이 정보 맞지? 그럼 네모닉에 마법을 걸어 오늘의 운세 메모를 뽑아보자."
+        draggable={false}
+        onDragStart={(event) => event.preventDefault()}
+      />
+      <div className="fortune-draw-info-panel" aria-hidden={false}>
+        <img
+          className="fortune-draw-info-frame"
+          src="/images/fortune/draw/info-panel.png"
+          alt=""
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
+        />
+        <p className="fortune-draw-info-date">
           {calendarLabel} {birthInfo.birthDate} {timeLabel}
         </p>
+        {pillarValueByKey && (
+          <ul className="fortune-draw-pillar-grid">
+            {PILLAR_KEYS.map((key) => (
+              <li key={key} className="fortune-draw-pillar-cell">
+                <span className="fortune-draw-pillar-value">{pillarValueByKey[key]}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      {saju && (
-        <dl className="fortune-soft-inset grid grid-cols-2 gap-3 rounded-[var(--radius-lg)] border border-fortune-border bg-fortune-paper p-4 sm:grid-cols-4">
-          {[
-            ['년주', saju.sajuYear],
-            ['월주', saju.sajuMonth],
-            ['일주', saju.sajuDay],
-            ['시주', saju.sajuHour],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-[var(--radius-md)] bg-fortune-glow px-3 py-2 text-center">
-              <dt className="caption-b text-fortune-muted">{label}</dt>
-              <dd className="body-b mt-1 text-fortune-ink">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
+
+      <div className="fortune-draw-actions">
         <button
           type="button"
-          className="body-b fortune-secondary-button min-h-12 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-4 text-fortune-ink transition hover:bg-fortune-glow"
+          className="fortune-draw-action fortune-draw-action-edit"
           onClick={onEdit}
         >
-          수정하기
+          <Feather className="fortune-draw-action-icon" aria-hidden />
+          <span>수정하기</span>
         </button>
         <button
           type="button"
-          className="body-l-b fortune-primary-button flex min-h-14 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-fortune-accent px-5 text-fortune-inverse shadow-soft-lg transition hover:-translate-y-0.5"
+          className="fortune-draw-action fortune-draw-action-print"
           disabled={isDrawing}
           onClick={onDraw}
         >
-          <WandSparkles className="size-5" aria-hidden />
-          {isDrawing ? '포포가 준비 중' : '운세 뽑기'}
+          <Sparkles className="fortune-draw-action-icon" aria-hidden />
+          <span>{isDrawing ? '포포가 준비 중' : '오늘의 운세 인쇄하기'}</span>
         </button>
       </div>
-    </section>
+    </div>
   )
 }

@@ -58,7 +58,7 @@ export default function FortunePage() {
       hasHydrated: state.hasHydrated,
     })),
   )
-  const { playPrintComplete, playPrintStart } = useFortuneAudio()
+  const { playPrintComplete, playPrintStart, playTap } = useFortuneAudio()
   const { isBgmMuted, toggleFortuneBgmMuted } = useFortuneBgm()
   const prefersReducedMotion = useFortuneReducedMotion()
 
@@ -124,7 +124,17 @@ export default function FortunePage() {
   }, [isEntrySceneReady, shouldPrepareEntrySpotlight])
 
   return (
-    <main className="fortune-page-shell relative min-h-dvh overflow-hidden bg-fortune-backdrop text-fortune-ink">
+    <main
+      className="fortune-page-shell relative min-h-dvh overflow-hidden bg-fortune-backdrop text-fortune-ink"
+      onPointerDown={(event) => {
+        const target = event.target as Element | null
+        if (!target) return
+        const interactive = target.closest('button, [role="button"], summary, label.fortune-birth-unknown-toggle')
+        if (interactive && !(interactive as HTMLButtonElement).disabled) {
+          playTap()
+        }
+      }}
+    >
       <div className="fortune-magic-backdrop" aria-hidden />
       <FortuneVisual
         playEntrySpotlight={shouldPrepareEntrySpotlight}
@@ -137,8 +147,9 @@ export default function FortunePage() {
           'fortune-stage-overlay',
           shouldPlayEntrySpotlight && 'fortune-stage-overlay-entry',
           step === 'birthInfo' && 'fortune-stage-overlay-center fortune-stage-overlay-birth',
-          step === 'intro' && 'fortune-stage-overlay-dialogue',
-          (step === 'draw' || (step === 'printing' && prefersReducedMotion) || step === 'limit' || step === 'error') && 'fortune-stage-overlay-panel',
+          (step === 'intro' || step === 'limit') && 'fortune-stage-overlay-dialogue',
+          step === 'draw' && 'fortune-stage-overlay-draw',
+          ((step === 'printing' && prefersReducedMotion) || step === 'error') && 'fortune-stage-overlay-panel',
           step === 'result' && 'fortune-stage-overlay-scroll',
         )}
       >
@@ -225,6 +236,7 @@ export default function FortunePage() {
         <FortuneLimitNotice
           onReset={resetTodayFortune}
           onShowResult={showTodayResult}
+          onBackToHub={goBackToHub}
         />
       )
     }

@@ -9,9 +9,14 @@ export function useFortuneAudio() {
     playSound(FORTUNE_SOUND_PATHS.cut, 0.42)
   }
 
+  const playTap = () => {
+    playSound(FORTUNE_SOUND_PATHS.tap, 0.32)
+  }
+
   return {
     playPrintStart,
     playPrintComplete,
+    playTap,
   }
 }
 
