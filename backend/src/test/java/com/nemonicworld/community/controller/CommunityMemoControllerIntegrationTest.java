@@ -10,6 +10,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -747,6 +748,143 @@ class CommunityMemoControllerIntegrationTest {
     }
 
     @Test
+    void deleteCommunityMemoSoftDeletesOwnedVisibleMemoAndPreservesRelatedData() throws Exception {
+        UUID userUuid = createExistingUser("삭제메모");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactId = UUID.randomUUID();
+        UUID galleryId = UUID.randomUUID();
+        UUID memoId = UUID.randomUUID();
+
+        insertArtifact(artifactId, "relay_drawing", "artifact-thumbnail.png", baseTime);
+        insertGallery(galleryId, userUuid, artifactId, null);
+        insertFileUpload(userUuid, ORIGINAL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
+        insertFileUpload(userUuid, THUMBNAIL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
+        insertCommunityMemo(memoId, userUuid, artifactId, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 3, baseTime, null,
+            false, "{\"scale\":1.0}", 2, "allowed", baseTime.minusMinutes(1), baseTime.minusMinutes(1));
+        jdbcTemplate.update("""
+            UPDATE community_memo
+            SET ocr_text = '검수 텍스트',
+                ocr_categories = '[\"safe\"]',
+                moderation_checked_at = ?
+            WHERE id = ?
+            """, baseTime.plusMinutes(1), memoId);
+
+        clearInvocations(moderationClient);
+        mockMvc.perform(deleteRequest(memoId, userUuid.toString())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.message").value("커뮤니티 메모 삭제 성공"))
+            .andExpect(jsonPath("$.data").doesNotExist());
+        verifyNoInteractions(moderationClient);
+
+        LocalDateTime deletedAt = jdbcTemplate.queryForObject("SELECT deleted_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId);
+        LocalDateTime updatedAt = jdbcTemplate.queryForObject("SELECT updated_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId);
+        assertThat(deletedAt).isNotNull();
+        assertThat(updatedAt).isEqualTo(deletedAt);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT deleted_reason FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("user_delete");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT body_image_url FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo(ORIGINAL_OBJECT_KEY);
+        assertThat(jdbcTemplate.queryForObject("SELECT thumbnail_image_url FROM community_memo WHERE id = ?",
+            String.class, memoId)).isEqualTo(THUMBNAIL_OBJECT_KEY);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT artifact_id FROM community_memo WHERE id = ?", UUID.class, memoId))
+            .isEqualTo(artifactId);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT decoration FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("{\"scale\":1.0}");
+        assertThat(jdbcTemplate.queryForObject("SELECT moderation_status FROM community_memo WHERE id = ?",
+            String.class, memoId)).isEqualTo("allowed");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT ocr_text FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("검수 텍스트");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT ocr_categories FROM community_memo WHERE id = ?", String.class, memoId))
+            .contains("safe");
+        assertThat(jdbcTemplate.queryForObject("SELECT attached_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isEqualTo(baseTime);
+        assertThat(jdbcTemplate.queryForObject("SELECT created_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isEqualTo(baseTime.minusMinutes(1));
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM file_upload WHERE object_key IN (?, ?)",
+            Integer.class, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY)).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM gallery WHERE id = ?", Integer.class, galleryId))
+            .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM artifact WHERE id = ?", Integer.class, artifactId))
+            .isEqualTo(1);
+
+        mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalElements").value(0));
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", memoId)).andExpect(status().isNotFound());
+        mockMvc.perform(updateRequest(memoId, userUuid.toString())).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteCommunityMemoRejectsUnauthorizedMissingDeletedAndHiddenMemos() throws Exception {
+        UUID ownerUuid = createExistingUser("삭제소유자");
+        UUID otherUserUuid = createExistingUser("삭제타인");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID visibleMemoId = insertDirectMemo(ownerUuid, "delete-owned-original.png", "delete-owned-thumbnail.png", 1,
+            now, null, false);
+        UUID deletedMemoId = insertDirectMemo(ownerUuid, "already-deleted-original.png",
+            "already-deleted-thumbnail.png", 1, now, now, false);
+        UUID hiddenMemoId = insertDirectMemo(ownerUuid, "hidden-delete-original.png", "hidden-delete-thumbnail.png", 1,
+            now, null, true);
+
+        mockMvc.perform(deleteRequest(visibleMemoId, otherUserUuid.toString())).andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모를 삭제할 권한이 없습니다."));
+        mockMvc.perform(deleteRequest(UUID.randomUUID(), ownerUuid.toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(deleteRequest(deletedMemoId, ownerUuid.toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(deleteRequest(hiddenMemoId, ownerUuid.toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(deleteRequest(visibleMemoId, UUID.randomUUID().toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+        mockMvc.perform(deleteRequest(visibleMemoId, null)).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc.perform(deleteRequest(visibleMemoId, "not-a-uuid")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc
+            .perform(
+                delete("/api/v1/community/memos/not-a-uuid").header(ANONYMOUS_USER_UUID_HEADER, ownerUuid.toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+    }
+
+    @Test
+    void deleteCommunityMemoDoesNotRunFifoOrRestoreExpiredMemos() throws Exception {
+        UUID userUuid = createExistingUser("삭제FIFO");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
+        UUID deleteTargetMemoId = null;
+        for (int index = 0; index < 50; index++) {
+            UUID memoId = insertDirectMemo(userUuid, "delete-fifo-original-%02d.png".formatted(index),
+                "delete-fifo-thumbnail-%02d.png".formatted(index), 1, baseTime.plusMinutes(index), null, false);
+            if (index == 49) {
+                deleteTargetMemoId = memoId;
+            }
+        }
+        UUID expiredMemoId = insertDirectMemo(userUuid, "expired-restore-original.png", "expired-restore-thumbnail.png",
+            1, baseTime.minusMinutes(1), baseTime, false);
+        jdbcTemplate.update("UPDATE community_memo SET deleted_reason = 'expired' WHERE id = ?", expiredMemoId);
+
+        clearInvocations(moderationClient);
+        mockMvc.perform(deleteRequest(deleteTargetMemoId, userUuid.toString())).andExpect(status().isOk());
+        verifyNoInteractions(moderationClient);
+
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+            """, Integer.class)).isEqualTo(49);
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_reason FROM community_memo WHERE id = ?", String.class,
+            expiredMemoId)).isEqualTo("expired");
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, expiredMemoId)).isNotNull();
+    }
+
+    @Test
     void getCommunityMemoReturnsNotFoundForMissingDeletedAndHiddenMemos() throws Exception {
         UUID userUuid = createExistingUser("상세조건");
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -785,6 +923,44 @@ class CommunityMemoControllerIntegrationTest {
                 meta VARCHAR(1000) NOT NULL DEFAULT '{}',
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS fortune_artifact (
+                artifact_id UUID PRIMARY KEY,
+                description VARCHAR(1000) NOT NULL DEFAULT '',
+                fortune_image_url VARCHAR(1000) NOT NULL DEFAULT ''
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS fortune_artifact_asset (
+                id BIGINT PRIMARY KEY,
+                artifact_id UUID NOT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS flipbook_artifact (
+                artifact_id UUID PRIMARY KEY,
+                gif_url VARCHAR(1000) NOT NULL DEFAULT '',
+                first_image VARCHAR(1000) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS infinite_canvas_artifact (
+                artifact_id UUID PRIMARY KEY,
+                canvas_image_url VARCHAR(1000) NOT NULL DEFAULT ''
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS phone_artifact (
+                artifact_id UUID PRIMARY KEY,
+                phone_image_url VARCHAR(1000) NOT NULL DEFAULT ''
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
+                artifact_id UUID PRIMARY KEY,
+                combined_preview_url VARCHAR(1000) NULL
             )
             """);
         jdbcTemplate.execute("""
@@ -866,6 +1042,12 @@ class CommunityMemoControllerIntegrationTest {
         jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM gallery");
         jdbcTemplate.update("DELETE FROM file_upload");
+        jdbcTemplate.update("DELETE FROM fortune_artifact_asset");
+        jdbcTemplate.update("DELETE FROM fortune_artifact");
+        jdbcTemplate.update("DELETE FROM flipbook_artifact");
+        jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
+        jdbcTemplate.update("DELETE FROM phone_artifact");
+        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
         jdbcTemplate.update("DELETE FROM artifact");
     }
 
@@ -959,6 +1141,15 @@ class CommunityMemoControllerIntegrationTest {
     private MockHttpServletRequestBuilder updateRequest(UUID memoId, String userUuidValue, String content) {
         MockHttpServletRequestBuilder request = patch("/api/v1/community/memos/{memoId}", memoId)
             .contentType(MediaType.APPLICATION_JSON).content(content);
+        if (userUuidValue != null) {
+            request.header(ANONYMOUS_USER_UUID_HEADER, userUuidValue);
+        }
+
+        return request;
+    }
+
+    private MockHttpServletRequestBuilder deleteRequest(UUID memoId, String userUuidValue) {
+        MockHttpServletRequestBuilder request = delete("/api/v1/community/memos/{memoId}", memoId);
         if (userUuidValue != null) {
             request.header(ANONYMOUS_USER_UUID_HEADER, userUuidValue);
         }
