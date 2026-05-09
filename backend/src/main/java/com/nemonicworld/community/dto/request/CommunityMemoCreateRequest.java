@@ -3,6 +3,13 @@ package com.nemonicworld.community.dto.request;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+/**
+ * 커뮤니티 메모 생성 요청입니다.
+ *
+ * <p>
+ * originalFileId와 thumbnailFileId는 모두 files API에서 COMMUNITY 목적으로 업로드 후 confirm된
+ * 파일이어야 합니다.
+ */
 @Schema(description = "커뮤니티 메모 생성 요청")
 public record CommunityMemoCreateRequest(@Schema(description = "메모 출처", example = "DIRECT") String sourceType,
     @Schema(description = "최종 원본 이미지 파일 ID", example = "550e8400-e29b-41d4-a716-446655440000") String originalFileId,

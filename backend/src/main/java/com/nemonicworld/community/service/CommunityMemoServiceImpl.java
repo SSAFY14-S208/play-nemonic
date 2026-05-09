@@ -9,6 +9,7 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
+import com.nemonicworld.community.dto.request.CommunityMemoLayoutUpdateRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoItemResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
@@ -56,6 +57,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final String GALLERY_ITEM_NOT_FOUND_MESSAGE = "존재하지 않는 갤러리 항목입니다.";
     private static final String FILE_UPLOAD_STATUS_CONFLICT_MESSAGE = "확인할 수 없는 파일 업로드 상태입니다.";
     private static final String INVALID_POSITION_MESSAGE = "커뮤니티 메모 위치 정보가 올바르지 않습니다.";
+    private static final String MEMO_ACCESS_DENIED_MESSAGE = "커뮤니티 메모 위치를 수정할 권한이 없습니다.";
     private static final String INVALID_DECORATION_MESSAGE = "커뮤니티 메모 데코레이션 정보가 올바르지 않습니다.";
     private static final String MODERATION_BLOCKED_MESSAGE = "부적절한 표현이 감지되어 게시할 수 없습니다.";
     private static final String MODERATION_UNAVAILABLE_MESSAGE = "커뮤니티 메모 모더레이션을 완료할 수 없습니다.";
@@ -111,8 +113,10 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         anonymousUserResolver.resolve(userUuid);
         CommunityMemoSourceType sourceType = validateSourceType(request);
+        // GALLERY 게시도 화면에 보여줄 이미지는 새 스냅샷을 쓰고, artifact는 원본 출처 추적에만 연결합니다.
         UUID sourceArtifactId = resolveSourceArtifactId(sourceType, request.sourceGalleryId(), userUuid);
 
+        // 프론트가 최종 렌더링한 원본과 썸네일을 각각 업로드/confirm한 뒤에만 커뮤니티에 게시할 수 있습니다.
         UUID originalFileId = parseFileId(request.originalFileId(), INVALID_ORIGINAL_FILE_ID_MESSAGE);
         UUID thumbnailFileId = parseFileId(request.thumbnailFileId(), INVALID_THUMBNAIL_FILE_ID_MESSAGE);
         validateDifferentFiles(originalFileId, thumbnailFileId);
@@ -128,6 +132,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         if (!StringUtils.hasText(originalImageUrl) || !StringUtils.hasText(thumbnailImageUrl)) {
             throw new BadRequestException(INVALID_MEMO_SOURCE_MESSAGE);
         }
+        // 게시 전 모더레이션은 insert 이전에 끝내서 차단된 메모 row가 생기지 않도록 합니다.
         CommunityMemoModerationResult moderationResult = checkModeration(originalImageUrl, thumbnailImageUrl,
             normalizeClientText(request.clientText()), sourceType);
 
@@ -139,11 +144,42 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             moderationResult.ocrText(), serializeModerationCategories(moderationResult.categories()), now, now, now,
             now);
         communityMemoRepository.insertMemo(command);
+        // FIFO는 생성 성공 직후에만 적용합니다. 위치 수정은 오래된 메모 정리에 영향을 주지 않습니다.
         expireOverflowVisibleMemos(memoId, now);
 
         CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         return toDetailResponse(row, userUuid);
+    }
+
+    @Override
+    @Transactional
+    public CommunityMemoDetailResponse updateCommunityMemoLayout(String memoIdValue, String userUuidValue,
+        CommunityMemoLayoutUpdateRequest request) {
+        UUID memoId = anonymousUserResolver.parseUuid(memoIdValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
+        anonymousUserResolver.resolve(userUuid);
+        validateLayout(request);
+
+        // 숨김/삭제 메모는 상세 조회와 동일하게 404로 낮추고, visible 메모에서만 소유자를 확인합니다.
+        CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
+            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        if (!isOwnedByViewer(row.userId(), userUuid)) {
+            throw new ForbiddenException(MEMO_ACCESS_DENIED_MESSAGE);
+        }
+
+        // 위치 수정은 레이아웃 필드와 updated_at만 바꿉니다. 이미지, decoration, moderation, attached_at은
+        // 유지합니다.
+        LocalDateTime updatedAt = LocalDateTime.now();
+        int updatedCount = communityMemoRepository.updateMemoLayout(memoId, userUuid, request.positionX(),
+            request.positionY(), request.zIndex(), request.rotationDeg().floatValue(), updatedAt);
+        if (updatedCount == 0) {
+            throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
+        }
+
+        CommunityMemoDetailRow updatedRow = communityMemoRepository.findVisibleMemoById(memoId)
+            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        return toDetailResponse(updatedRow, userUuid);
     }
 
     private UUID parseOptionalViewerUuid(String viewerUserUuidValue) {
@@ -213,6 +249,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     }
 
     private void validatePosition(CommunityMemoCreateRequest request) {
+        // 좌표 범위는 프론트 캔버스 정책을 신뢰하되, DB/JSON에서 깨지는 비정상 숫자만 차단합니다.
         if (request.positionX() == null || request.positionY() == null || request.zIndex() == null
             || request.rotationDeg() == null || !Double.isFinite(request.positionX())
             || !Double.isFinite(request.positionY()) || !Double.isFinite(request.rotationDeg())
@@ -221,7 +258,18 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         }
     }
 
+    private void validateLayout(CommunityMemoLayoutUpdateRequest request) {
+        // rotation_deg는 REAL 컬럼이라 Double 입력이 float로 안전하게 내려갈 수 있는지도 함께 확인합니다.
+        if (request == null || request.positionX() == null || request.positionY() == null || request.zIndex() == null
+            || request.rotationDeg() == null || !Double.isFinite(request.positionX())
+            || !Double.isFinite(request.positionY()) || !Double.isFinite(request.rotationDeg())
+            || Math.abs(request.rotationDeg()) > Float.MAX_VALUE) {
+            throw new BadRequestException(INVALID_POSITION_MESSAGE);
+        }
+    }
+
     private void validateCommunityFile(FileUpload fileUpload, UUID userUuid) {
+        // 커뮤니티 게시 이미지는 반드시 요청자 본인의 COMMUNITY 목적 업로드 완료 파일이어야 합니다.
         if (!fileUpload.isOwnedBy(userUuid)) {
             throw new ForbiddenException(FILE_ACCESS_DENIED_MESSAGE);
         }
@@ -259,6 +307,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private void expireOverflowVisibleMemos(UUID newMemoId, LocalDateTime now) {
         int overflowCount = communityMemoRepository.countVisibleMemos() - MAX_VISIBLE_MEMO_COUNT;
         if (overflowCount > 0) {
+            // 방금 붙인 메모는 제외하고, 노출 중인 오래된 메모부터 expired soft delete 처리합니다.
             communityMemoRepository.expireOldestVisibleMemos(newMemoId, now, overflowCount);
         }
     }
@@ -320,6 +369,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
     private CommunityMemoItemResponse toResponse(CommunityMemoRow row, UUID viewerUserUuid) {
         String sourceType = resolveSourceType(row.artifactId());
+        // 목록도 artifact 원본이 아니라 community_memo에 저장된 최종 게시 스냅샷 URL만 내려줍니다.
         String memoOriginalImageUrl = minioPublicUrlResolver.resolve(row.originalImageReference());
         String memoThumbnailImageUrl = minioPublicUrlResolver.resolve(row.thumbnailImageReference());
         String memoImageUrl = representativeImageUrl(memoOriginalImageUrl, memoThumbnailImageUrl);
@@ -332,6 +382,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
     private CommunityMemoDetailResponse toDetailResponse(CommunityMemoDetailRow row, UUID viewerUserUuid) {
         String sourceType = resolveSourceType(row.artifactId());
+        // 상세와 생성 응답도 목록과 같은 대표 이미지 fallback 정책을 공유합니다.
         String memoOriginalImageUrl = minioPublicUrlResolver.resolve(row.originalImageReference());
         String memoThumbnailImageUrl = minioPublicUrlResolver.resolve(row.thumbnailImageReference());
         String memoImageUrl = representativeImageUrl(memoOriginalImageUrl, memoThumbnailImageUrl);

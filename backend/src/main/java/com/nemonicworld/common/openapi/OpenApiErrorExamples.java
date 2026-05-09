@@ -479,6 +479,12 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 커뮤니티 메모입니다."
         }
         """;
+    public static final String COMMUNITY_MEMO_ACCESS_DENIED = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 위치를 수정할 권한이 없습니다."
+        }
+        """;
     public static final String UNSUPPORTED_COMMUNITY_MEMO_SOURCE_TYPE = """
         {
           "success": false,

@@ -99,4 +99,30 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(
                 jsonPath("$.paths['/api/v1/community/memos'].post.responses['409'].description").value("파일 업로드 상태 오류"));
     }
+
+    @Test
+    void communityMemoLayoutUpdateApiIsExposedInOpenApiDocs() throws Exception {
+        String parametersPath = "$.paths['/api/v1/community/memos/{memoId}'].patch.parameters";
+
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.summary").value("커뮤니티 메모 위치 수정"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.tags[0]").value("Community"))
+            .andExpect(jsonPath(parametersPath + "[*].name").value(hasItems("memoId", "Anonymous-User-UUID")))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoId')].required").value(hasItems(true)))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.requestBody.required").value(true))
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoLayoutUpdateRequest.properties.positionX").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoLayoutUpdateRequest.properties.positionY").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoLayoutUpdateRequest.properties.zIndex").exists())
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoLayoutUpdateRequest.properties.rotationDeg").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.responses['200'].description")
+                .value("커뮤니티 메모 위치 수정 성공"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.responses['400'].description")
+                .value("잘못된 요청"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.responses['403'].description")
+                .value("커뮤니티 메모 위치 수정 권한 없음"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.responses['404'].description")
+                .value("사용자 또는 커뮤니티 메모 없음"));
+    }
 }

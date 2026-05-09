@@ -33,6 +33,7 @@ public class FastApiCommunityMemoModerationClient implements CommunityMemoModera
     public CommunityMemoModerationResult check(CommunityMemoModerationRequest request) {
         if (!properties.isEnabled()) {
             // 로컬 개발이나 장애 대응 시 모더레이션을 끄면 게시 흐름을 그대로 통과시킵니다.
+            // 운영 기본값은 enabled=true라서 실제 게시 전 검수 경로를 탑니다.
             return CommunityMemoModerationResult.allowedResult();
         }
 
@@ -44,6 +45,7 @@ public class FastApiCommunityMemoModerationClient implements CommunityMemoModera
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(request))).build();
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                // FastAPI가 정상 2xx를 돌려주지 못하면 설정된 fail-open/closed 정책으로 통일 처리합니다.
                 return handleModerationFailure(MODERATION_CALL_ERROR_MESSAGE, null);
             }
 
@@ -86,6 +88,7 @@ public class FastApiCommunityMemoModerationClient implements CommunityMemoModera
             throw new CommunityMemoModerationException(MODERATION_RESPONSE_ERROR_MESSAGE);
         }
 
+        // ocrText/categories는 저장 가능한 부가 정보라서 누락되어도 검수 성공 여부 판단에는 영향을 주지 않습니다.
         JsonNode ocrTextNode = root.get("ocrText");
         JsonNode categoriesNode = root.get("categories");
         String ocrText = ocrTextNode == null || ocrTextNode.isNull() ? null : ocrTextNode.asText();

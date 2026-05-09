@@ -4,6 +4,7 @@ import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
+import com.nemonicworld.community.dto.request.CommunityMemoLayoutUpdateRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
 import com.nemonicworld.community.service.CommunityMemoService;
@@ -20,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -38,6 +40,7 @@ public class CommunityMemoController {
     private static final String COMMUNITY_MEMOS_FOUND_MESSAGE = "커뮤니티 메모 목록 조회 성공";
     private static final String COMMUNITY_MEMO_FOUND_MESSAGE = "커뮤니티 메모 상세 조회 성공";
     private static final String COMMUNITY_MEMO_CREATED_MESSAGE = "커뮤니티 메모 생성 성공";
+    private static final String COMMUNITY_MEMO_UPDATED_MESSAGE = "커뮤니티 메모 위치 수정 성공";
 
     private final CommunityMemoService communityMemoService;
 
@@ -127,5 +130,37 @@ public class CommunityMemoController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(COMMUNITY_MEMO_FOUND_MESSAGE, response));
+    }
+
+    @PatchMapping("/{memoId}")
+    @Operation(summary = "커뮤니티 메모 위치 수정", description = "본인 메모의 위치, z-index, 회전 각도만 수정합니다.")
+    @Parameter(name = "memoId", in = ParameterIn.PATH, required = true, description = "수정할 커뮤니티 메모 UUID")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @RequestBody(required = true, content = @Content(examples = @ExampleObject(value = """
+        {
+          "positionX": 120.5,
+          "positionY": -30.0,
+          "zIndex": 12,
+          "rotationDeg": 5.5
+        }
+        """)))
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "커뮤니티 메모 위치 수정 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "위치 정보 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_POSITION)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "커뮤니티 메모 위치 수정 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.COMMUNITY_MEMO_ACCESS_DENIED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 또는 커뮤니티 메모 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "메모 없음", value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)}))})
+    public ResponseEntity<ApiResponse<CommunityMemoDetailResponse>> updateCommunityMemoLayout(
+        @PathVariable("memoId") String memoId,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @Valid @org.springframework.web.bind.annotation.RequestBody CommunityMemoLayoutUpdateRequest request) {
+        CommunityMemoDetailResponse response = communityMemoService.updateCommunityMemoLayout(memoId, userUuid,
+            request);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(COMMUNITY_MEMO_UPDATED_MESSAGE, response));
     }
 }
