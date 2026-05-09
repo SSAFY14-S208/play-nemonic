@@ -48,6 +48,7 @@ public class RelayRoomEventPublisher {
     private static final CloseStatus KICKED_FROM_ROOM_CLOSE_STATUS = CloseStatus.POLICY_VIOLATION
         .withReason("KICKED_FROM_ROOM");
     private static final CloseStatus LEFT_ROOM_CLOSE_STATUS = CloseStatus.NORMAL.withReason("LEFT_ROOM");
+    private static final CloseStatus ROOM_CLOSED_CLOSE_STATUS = CloseStatus.NORMAL.withReason("ROOM_CLOSED");
     private static final String PONG_MESSAGE = "pong";
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -205,6 +206,13 @@ public class RelayRoomEventPublisher {
             new RelayRoomClosedEventResponse(roomCode, RelayRoomStatus.CLOSED, closedAt));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+        closeRoomSessions(roomCode);
+    }
+
+    private void closeRoomSessions(String roomCode) {
+        webSocketSessionRegistry.findCurrentSessions(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode)
+            .forEach(session -> webSocketSessionRegistry.closeWebSocketSession(session.sessionId(),
+                ROOM_CLOSED_CLOSE_STATUS));
     }
 
     /**

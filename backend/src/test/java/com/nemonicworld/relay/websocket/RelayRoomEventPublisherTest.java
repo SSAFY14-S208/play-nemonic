@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.web.socket.CloseStatus;
 
 /**
  * 릴레이 WebSocket 이벤트 발행 시 방 전체 topic과 개인 session queue 라우팅 헤더를 검증합니다.
@@ -231,9 +232,17 @@ class RelayRoomEventPublisherTest {
     }
 
     @Test
-    void publishRoomClosedSendsRoomClosedEventToRoomTopic() {
+    void publishRoomClosedSendsRoomClosedEventToRoomTopicAndClosesRoomSessions() {
         ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        ArgumentCaptor<CloseStatus> closeStatusCaptor = ArgumentCaptor.forClass(CloseStatus.class);
         LocalDateTime closedAt = LocalDateTime.now().minusSeconds(1);
+        String secondSessionId = "session-2";
+        given(webSocketSessionRegistry.findCurrentSessions(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE))
+            .willReturn(List.of(
+                new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE, USER_UUID,
+                    SESSION_ID),
+                new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE,
+                    "11111111-1111-1111-1111-111111111111", secondSessionId)));
 
         publisher.publishRoomClosed(ROOM_CODE, closedAt);
 
@@ -245,6 +254,12 @@ class RelayRoomEventPublisherTest {
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
         assertThat(data.roomStatus()).isEqualTo(RelayRoomStatus.CLOSED);
         assertThat(data.closedAt()).isEqualTo(closedAt);
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), closeStatusCaptor.capture());
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(secondSessionId), closeStatusCaptor.capture());
+        assertThat(closeStatusCaptor.getAllValues()).allSatisfy(status -> {
+            assertThat(status.getCode()).isEqualTo(CloseStatus.NORMAL.getCode());
+            assertThat(status.getReason()).isEqualTo("ROOM_CLOSED");
+        });
     }
 
     @Test
