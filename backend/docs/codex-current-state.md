@@ -12,6 +12,9 @@ Last updated: 2026-05-09
   (`APP_TIME_ZONE`, default `Asia/Seoul`) during application startup so
   `LocalDateTime.now()` based DB writes and API responses follow the Korean
   service timezone consistently.
+- Backend Gradle tests now start the test JVM with
+  `user.timezone=Asia/Seoul` so CI date/time assertions stay aligned with the
+  Korean service timezone even when the Jenkins host uses UTC.
 - Existing anonymous user APIs identify the caller with the `Anonymous-User-UUID` request header instead of request body or query parameters.
 - Anonymous user re-entry now includes `POST /api/v1/users/anonymous/verify` to validate the header UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
 - Anonymous user nickname setup/change now uses `PATCH /api/v1/users/anonymous/nickname` with the UUID in `Anonymous-User-UUID`, 1-10 code point validation, and no duplicate check.
