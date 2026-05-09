@@ -125,4 +125,24 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.responses['404'].description")
                 .value("사용자 또는 커뮤니티 메모 없음"));
     }
+
+    @Test
+    void communityMemoDeleteApiIsExposedInOpenApiDocs() throws Exception {
+        String parametersPath = "$.paths['/api/v1/community/memos/{memoId}'].delete.parameters";
+
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.summary").value("커뮤니티 메모 삭제"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.tags[0]").value("Community"))
+            .andExpect(jsonPath(parametersPath + "[*].name").value(hasItems("memoId", "Anonymous-User-UUID")))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoId')].required").value(hasItems(true)))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.responses['200'].description")
+                .value("커뮤니티 메모 삭제 성공"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.responses['400'].description")
+                .value("잘못된 요청"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.responses['403'].description")
+                .value("커뮤니티 메모 삭제 권한 없음"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.responses['404'].description")
+                .value("사용자 또는 커뮤니티 메모 없음"));
+    }
 }

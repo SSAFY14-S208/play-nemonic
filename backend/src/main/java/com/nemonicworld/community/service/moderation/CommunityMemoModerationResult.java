@@ -10,6 +10,9 @@ import com.fasterxml.jackson.databind.JsonNode;
  */
 public record CommunityMemoModerationResult(boolean allowed, String ocrText, JsonNode categories) {
 
+    /**
+     * 모더레이션을 비활성화하거나 fail-open할 때 사용하는 기본 통과 결과를 만듭니다.
+     */
     public static CommunityMemoModerationResult allowedResult() {
         return new CommunityMemoModerationResult(true, null, null);
     }
