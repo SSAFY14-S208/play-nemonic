@@ -5,6 +5,7 @@ import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.community.dto.request.AdminCommunityMemoReviewRequest;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoListResponse;
+import com.nemonicworld.community.dto.response.AdminCommunityMemoReportListResponse;
 
 /**
  * 관리자 커뮤니티 메모 검토 API의 공개 유스케이스입니다.
@@ -12,9 +13,12 @@ import com.nemonicworld.community.dto.response.AdminCommunityMemoListResponse;
 public interface AdminCommunityMemoService {
 
     AdminCommunityMemoListResponse getCommunityMemos(AdminPrincipal adminPrincipal, Boolean hidden,
-        String moderationStatus, String sourceType, String keyword, String page, String size);
+        String moderationStatus, String sourceType, Boolean reported, String keyword, String page, String size);
 
     AdminCommunityMemoDetailResponse getCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue);
+
+    AdminCommunityMemoReportListResponse getCommunityMemoReports(AdminPrincipal adminPrincipal, String memoIdValue,
+        String reason, String page, String size);
 
     AdminCommunityMemoDetailResponse hideCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
         AdminCommunityMemoReviewRequest request, AdminClientInfo clientInfo);

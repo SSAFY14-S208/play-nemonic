@@ -8,6 +8,7 @@ import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.community.dto.request.AdminCommunityMemoReviewRequest;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoListResponse;
+import com.nemonicworld.community.dto.response.AdminCommunityMemoReportListResponse;
 import com.nemonicworld.community.service.AdminCommunityMemoService;
 import com.nemonicworld.global.config.OpenApiConfig;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +44,7 @@ public class AdminCommunityMemoController {
 
     private static final String LIST_SUCCESS_MESSAGE = "관리자 커뮤니티 메모 목록 조회 성공";
     private static final String DETAIL_SUCCESS_MESSAGE = "관리자 커뮤니티 메모 상세 조회 성공";
+    private static final String REPORT_LIST_SUCCESS_MESSAGE = "관리자 커뮤니티 메모 신고 내역 조회 성공";
     private static final String HIDE_SUCCESS_MESSAGE = "커뮤니티 메모 숨김 처리 성공";
     private static final String RESTORE_SUCCESS_MESSAGE = "커뮤니티 메모 숨김 복구 성공";
     private static final String INVALID_HIDE_REASON_EXAMPLE = """
@@ -75,6 +77,7 @@ public class AdminCommunityMemoController {
     @Parameter(name = "hidden", in = ParameterIn.QUERY, description = "숨김 여부 필터")
     @Parameter(name = "moderationStatus", in = ParameterIn.QUERY, description = "모더레이션 상태: pending, allowed, blocked")
     @Parameter(name = "sourceType", in = ParameterIn.QUERY, description = "출처 유형: DIRECT, GALLERY")
+    @Parameter(name = "reported", in = ParameterIn.QUERY, description = "신고 여부 필터")
     @Parameter(name = "keyword", in = ParameterIn.QUERY, description = "작성자 닉네임 또는 OCR 텍스트 검색어")
     @Parameter(name = "page", in = ParameterIn.QUERY, description = "페이지 번호", example = "0")
     @Parameter(name = "size", in = ParameterIn.QUERY, description = "페이지 크기", example = "20")
@@ -87,14 +90,44 @@ public class AdminCommunityMemoController {
         @RequestParam(name = "hidden", required = false) Boolean hidden,
         @RequestParam(name = "moderationStatus", required = false) String moderationStatus,
         @RequestParam(name = "sourceType", required = false) String sourceType,
+        @RequestParam(name = "reported", required = false) Boolean reported,
         @RequestParam(name = "keyword", required = false) String keyword,
         @RequestParam(name = "page", required = false) String page,
         @RequestParam(name = "size", required = false) String size) {
         AdminCommunityMemoListResponse response = adminCommunityMemoService.getCommunityMemos(adminPrincipal, hidden,
-            moderationStatus, sourceType, keyword, page, size);
+            moderationStatus, sourceType, reported, keyword, page, size);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));
+    }
+
+    /**
+     * 특정 커뮤니티 메모에 접수된 신고 내역을 최신 신고 순으로 조회합니다.
+     */
+    @GetMapping("/{memoId}/reports")
+    @Operation(summary = "관리자 커뮤니티 메모 신고 내역 조회", description = "관리자가 특정 커뮤니티 메모에 접수된 신고 사유와 신고자 정보를 조회합니다.")
+    @Parameter(name = "memoId", in = ParameterIn.PATH, required = true, description = "커뮤니티 메모 UUID")
+    @Parameter(name = "reason", in = ParameterIn.QUERY, description = "신고 사유 enum 값")
+    @Parameter(name = "page", in = ParameterIn.QUERY, description = "페이지 번호", example = "0")
+    @Parameter(name = "size", in = ParameterIn.QUERY, description = "페이지 크기", example = "20")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 커뮤니티 메모 신고 내역 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "조회 조건 오류", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "신고 사유 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_REPORT_REASON),
+            @ExampleObject(name = "페이징 오류", value = OpenApiErrorExamples.BAD_REQUEST)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "커뮤니티 메모 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)))})
+    public ResponseEntity<ApiResponse<AdminCommunityMemoReportListResponse>> getCommunityMemoReports(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId,
+        @RequestParam(name = "reason", required = false) String reason,
+        @RequestParam(name = "page", required = false) String page,
+        @RequestParam(name = "size", required = false) String size) {
+        AdminCommunityMemoReportListResponse response = adminCommunityMemoService
+            .getCommunityMemoReports(adminPrincipal, memoId, reason, page, size);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(REPORT_LIST_SUCCESS_MESSAGE, response));
     }
 
     /**

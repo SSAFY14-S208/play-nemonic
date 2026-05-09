@@ -62,6 +62,33 @@ public class AdminCommunityMemoRepository {
           AND cm.id = :memoId
         """;
 
+    private static final String EXISTS_ADMIN_MEMO_BY_ID_SQL = """
+        SELECT COUNT(*)
+        FROM community_memo
+        WHERE id = :memoId
+          AND deleted_at IS NULL
+        """;
+
+    private static final String SELECT_ADMIN_MEMO_REPORT = """
+        SELECT
+            r.id AS report_id,
+            r.memo_id AS memo_id,
+            r.user_id AS reporter_user_id,
+            au.nickname AS reporter_nickname,
+            CAST(r.reason AS VARCHAR) AS reason,
+            r.reason_detail AS reason_detail,
+            r.created_at AS created_at
+        FROM community_memo_report r
+        LEFT JOIN app_user au ON au.id = r.user_id
+        WHERE r.memo_id = :memoId
+        """;
+
+    private static final String COUNT_ADMIN_MEMO_REPORT = """
+        SELECT COUNT(*)
+        FROM community_memo_report r
+        WHERE r.memo_id = :memoId
+        """;
+
     private static final String HIDE_MEMO_SQL = """
         UPDATE community_memo
         SET is_hidden = TRUE,
@@ -98,9 +125,9 @@ public class AdminCommunityMemoRepository {
      * 관리자 목록 조회 필터와 페이징 조건에 맞는 커뮤니티 메모를 최신 수정 순으로 조회합니다.
      */
     public List<AdminCommunityMemoRow> findMemos(Boolean hidden, String moderationStatus, String sourceType,
-        String keyword, int size, long offset) {
+        Boolean reported, String keyword, int size, long offset) {
         MapSqlParameterSource params = new MapSqlParameterSource();
-        String whereClause = buildFilterClause(hidden, moderationStatus, sourceType, keyword, params);
+        String whereClause = buildFilterClause(hidden, moderationStatus, sourceType, reported, keyword, params);
         params.addValue("size", size).addValue("offset", offset);
 
         return jdbcTemplate.query(
@@ -114,7 +141,19 @@ public class AdminCommunityMemoRepository {
      */
     public long countMemos(Boolean hidden, String moderationStatus, String sourceType, String keyword) {
         MapSqlParameterSource params = new MapSqlParameterSource();
-        String whereClause = buildFilterClause(hidden, moderationStatus, sourceType, keyword, params);
+        String whereClause = buildFilterClause(hidden, moderationStatus, sourceType, null, keyword, params);
+        Long count = jdbcTemplate.queryForObject(COUNT_ADMIN_MEMO + whereClause, params, Long.class);
+
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * 관리자 목록 조회의 전체 결과 수를 신고 여부 필터까지 반영해 계산합니다.
+     */
+    public long countMemos(Boolean hidden, String moderationStatus, String sourceType, Boolean reported,
+        String keyword) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String whereClause = buildFilterClause(hidden, moderationStatus, sourceType, reported, keyword, params);
         Long count = jdbcTemplate.queryForObject(COUNT_ADMIN_MEMO + whereClause, params, Long.class);
 
         return count == null ? 0 : count;
@@ -128,6 +167,49 @@ public class AdminCommunityMemoRepository {
         List<AdminCommunityMemoRow> rows = jdbcTemplate.query(FIND_ADMIN_MEMO_BY_ID_SQL, params, this::mapRow);
 
         return rows.stream().findFirst();
+    }
+
+    /**
+     * 관리자 상세 조회 정책과 동일하게 삭제되지 않은 메모가 존재하는지 확인합니다.
+     */
+    public boolean existsMemoById(UUID memoId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId);
+        Long count = jdbcTemplate.queryForObject(EXISTS_ADMIN_MEMO_BY_ID_SQL, params, Long.class);
+
+        return count != null && count > 0;
+    }
+
+    /**
+     * 특정 메모에 접수된 신고 내역을 최신 신고 순으로 조회합니다.
+     */
+    public List<AdminCommunityMemoReportRow> findMemoReports(UUID memoId, String reason, int size, long offset) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId).addValue("size", size)
+            .addValue("offset", offset);
+        String reasonFilter = buildReportReasonFilter(reason, params);
+
+        return jdbcTemplate.query(SELECT_ADMIN_MEMO_REPORT + reasonFilter
+            + " ORDER BY r.created_at DESC, r.id DESC LIMIT :size OFFSET :offset", params, this::mapReportRow);
+    }
+
+    /**
+     * 관리자 메모 상세에 포함할 신고 내역을 최신 신고 순으로 모두 조회합니다.
+     */
+    public List<AdminCommunityMemoReportRow> findMemoReports(UUID memoId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId);
+
+        return jdbcTemplate.query(SELECT_ADMIN_MEMO_REPORT + " ORDER BY r.created_at DESC, r.id DESC", params,
+            this::mapReportRow);
+    }
+
+    /**
+     * 특정 메모의 신고 내역 전체 수를 계산합니다.
+     */
+    public long countMemoReports(UUID memoId, String reason) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId);
+        String reasonFilter = buildReportReasonFilter(reason, params);
+        Long count = jdbcTemplate.queryForObject(COUNT_ADMIN_MEMO_REPORT + reasonFilter, params, Long.class);
+
+        return count == null ? 0 : count;
     }
 
     /**
@@ -151,8 +233,8 @@ public class AdminCommunityMemoRepository {
         return jdbcTemplate.update(RESTORE_MEMO_SQL, params);
     }
 
-    private String buildFilterClause(Boolean hidden, String moderationStatus, String sourceType, String keyword,
-        MapSqlParameterSource params) {
+    private String buildFilterClause(Boolean hidden, String moderationStatus, String sourceType, Boolean reported,
+        String keyword, MapSqlParameterSource params) {
         StringBuilder builder = new StringBuilder();
         if (hidden != null) {
             builder.append(" AND cm.is_hidden = :hidden");
@@ -167,6 +249,9 @@ public class AdminCommunityMemoRepository {
         } else if ("GALLERY".equals(sourceType)) {
             builder.append(" AND cm.artifact_id IS NOT NULL");
         }
+        if (reported != null) {
+            builder.append(reported ? " AND cm.report_count > 0" : " AND cm.report_count = 0");
+        }
         if (StringUtils.hasText(keyword)) {
             builder.append("""
                  AND (
@@ -178,6 +263,16 @@ public class AdminCommunityMemoRepository {
         }
 
         return builder.toString();
+    }
+
+    private String buildReportReasonFilter(String reason, MapSqlParameterSource params) {
+        if (!StringUtils.hasText(reason)) {
+            return "";
+        }
+
+        params.addValue("reason", reason);
+
+        return " AND CAST(r.reason AS VARCHAR) = :reason";
     }
 
     private AdminCommunityMemoRow mapRow(ResultSet resultSet, int rowNumber) throws SQLException {
@@ -194,6 +289,13 @@ public class AdminCommunityMemoRepository {
             resultSet.getTimestamp("attached_at").toLocalDateTime(),
             resultSet.getTimestamp("created_at").toLocalDateTime(),
             resultSet.getTimestamp("updated_at").toLocalDateTime());
+    }
+
+    private AdminCommunityMemoReportRow mapReportRow(ResultSet resultSet, int rowNumber) throws SQLException {
+        return new AdminCommunityMemoReportRow(resultSet.getLong("report_id"),
+            resultSet.getObject("memo_id", UUID.class), resultSet.getObject("reporter_user_id", UUID.class),
+            resultSet.getString("reporter_nickname"), resultSet.getString("reason"),
+            resultSet.getString("reason_detail"), resultSet.getTimestamp("created_at").toLocalDateTime());
     }
 
     private LocalDateTime timestampToLocalDateTime(ResultSet resultSet, String columnName) throws SQLException {

@@ -370,6 +370,7 @@ Recent community admin review work added admin memo list/detail plus manual hide
 - Admin community APIs use the existing admin JWT flow under `/api/v1/admin/community/memos`.
 - Admin list/detail include hidden memos while still excluding soft-deleted memos by default.
 - Hide/restore updates `reviewed_by` and does not run FIFO, moderation, or MinIO/file/artifact/gallery mutation.
+- Admin community list supports `reported=true/false` filtering, admin detail embeds latest-first report history including `reasonDetail`, and admins can still inspect paged report history through `GET /api/v1/admin/community/memos/{memoId}/reports` without mutating memo/report state.
 
 ## Next Suggested Steps
 
