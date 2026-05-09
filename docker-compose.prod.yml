@@ -234,6 +234,8 @@ services:
     pull_policy: always   # 매번 pull 시도 (latest 태그 갱신 감지)
     restart: unless-stopped
     environment:
+      TZ: Asia/Seoul
+      APP_TIME_ZONE: Asia/Seoul
       SPRING_PROFILES_ACTIVE: prod
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
@@ -254,7 +256,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET:-nemonic}
-      JAVA_OPTS: "-Xms512m -Xmx1024m"
+      JAVA_OPTS: "-Xms512m -Xmx1024m -Duser.timezone=Asia/Seoul"
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
       ADMIN_JWT_ACCESS_TOKEN_EXPIRATION: ${ADMIN_JWT_ACCESS_TOKEN_EXPIRATION:-30m}
       ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
