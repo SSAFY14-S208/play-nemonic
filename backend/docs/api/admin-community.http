@@ -14,6 +14,10 @@ Authorization: Bearer {{adminAccessToken}}
 GET {{host}}/api/v1/admin/community/memos?moderationStatus=allowed&sourceType=DIRECT&page=0&size=20
 Authorization: Bearer {{adminAccessToken}}
 
+### Admin get reported community memos
+GET {{host}}/api/v1/admin/community/memos?reported=true&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
 ### Admin search community memos
 GET {{host}}/api/v1/admin/community/memos?keyword=망고
 Authorization: Bearer {{adminAccessToken}}
