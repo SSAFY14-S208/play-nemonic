@@ -29,6 +29,8 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String ADMIN_API_PREFIX = "/api/v1/admins/";
     private static final String ADMIN_INQUIRY_API_PATH = "/api/v1/admin/inquiries";
     private static final String ADMIN_INQUIRY_API_PREFIX = "/api/v1/admin/inquiries/";
+    private static final String ADMIN_COMMUNITY_MEMO_API_PATH = "/api/v1/admin/community/memos";
+    private static final String ADMIN_COMMUNITY_MEMO_API_PREFIX = "/api/v1/admin/community/memos/";
     private static final String GMS_PROMPT_API_PATH = "/api/v1/backoffice/gms/prompts";
     private static final String GMS_PROMPT_API_PREFIX = "/api/v1/backoffice/gms/prompts/";
     private static final String UNAUTHORIZED_MESSAGE = "인증이 필요합니다.";
@@ -52,7 +54,8 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
 
         return !ADMIN_LOGOUT_PATH.equals(servletPath) && !ADMIN_API_PATH.equals(servletPath)
             && !servletPath.startsWith(ADMIN_API_PREFIX) && !ADMIN_INQUIRY_API_PATH.equals(servletPath)
-            && !servletPath.startsWith(ADMIN_INQUIRY_API_PREFIX) && !GMS_PROMPT_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(ADMIN_INQUIRY_API_PREFIX) && !ADMIN_COMMUNITY_MEMO_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(ADMIN_COMMUNITY_MEMO_API_PREFIX) && !GMS_PROMPT_API_PATH.equals(servletPath)
             && !servletPath.startsWith(GMS_PROMPT_API_PREFIX);
     }
 
