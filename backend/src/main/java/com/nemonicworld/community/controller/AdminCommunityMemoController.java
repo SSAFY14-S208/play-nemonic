@@ -77,6 +77,7 @@ public class AdminCommunityMemoController {
     @Parameter(name = "hidden", in = ParameterIn.QUERY, description = "숨김 여부 필터")
     @Parameter(name = "moderationStatus", in = ParameterIn.QUERY, description = "모더레이션 상태: pending, allowed, blocked")
     @Parameter(name = "sourceType", in = ParameterIn.QUERY, description = "출처 유형: DIRECT, GALLERY")
+    @Parameter(name = "reported", in = ParameterIn.QUERY, description = "신고 여부 필터")
     @Parameter(name = "keyword", in = ParameterIn.QUERY, description = "작성자 닉네임 또는 OCR 텍스트 검색어")
     @Parameter(name = "page", in = ParameterIn.QUERY, description = "페이지 번호", example = "0")
     @Parameter(name = "size", in = ParameterIn.QUERY, description = "페이지 크기", example = "20")
@@ -89,11 +90,12 @@ public class AdminCommunityMemoController {
         @RequestParam(name = "hidden", required = false) Boolean hidden,
         @RequestParam(name = "moderationStatus", required = false) String moderationStatus,
         @RequestParam(name = "sourceType", required = false) String sourceType,
+        @RequestParam(name = "reported", required = false) Boolean reported,
         @RequestParam(name = "keyword", required = false) String keyword,
         @RequestParam(name = "page", required = false) String page,
         @RequestParam(name = "size", required = false) String size) {
         AdminCommunityMemoListResponse response = adminCommunityMemoService.getCommunityMemos(adminPrincipal, hidden,
-            moderationStatus, sourceType, keyword, page, size);
+            moderationStatus, sourceType, reported, keyword, page, size);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));

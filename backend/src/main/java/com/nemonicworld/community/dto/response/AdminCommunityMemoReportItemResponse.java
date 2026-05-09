@@ -11,5 +11,6 @@ public record AdminCommunityMemoReportItemResponse(@Schema(description = "커뮤
     @Schema(description = "신고자 UUID", example = "550e8400-e29b-41d4-a716-446655440000") String reporterUserUuid,
     @Schema(description = "신고자 닉네임", example = "망고") String reporterNickname,
     @Schema(description = "신고 사유 enum 값", example = "inappropriate") String reason,
+    @Schema(description = "신고 상세 사유", nullable = true, example = "욕설이 포함되어 있어요.") String reasonDetail,
     @Schema(description = "신고 접수 시각", example = "2026-05-10T14:30:00") LocalDateTime createdAt) {
 }

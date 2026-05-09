@@ -3,6 +3,7 @@ package com.nemonicworld.community.dto.response;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +25,7 @@ public record AdminCommunityMemoDetailResponse(
     @Schema(description = "회전 각도", example = "5.5") float rotationDeg,
     @Schema(description = "데코레이션 JSON 객체") Map<String, Object> decoration,
     @Schema(description = "신고 누적 수", example = "5") int reportCount,
+    @Schema(description = "신고 내역 목록") List<AdminCommunityMemoReportItemResponse> reports,
     @JsonProperty("isHidden") @Schema(description = "숨김 여부", example = "true") boolean isHidden,
     @Schema(description = "숨김 사유", example = "admin_hidden") String hiddenReason,
     @Schema(description = "숨김 처리 시각", example = "2026-05-09T14:10:00") LocalDateTime hiddenAt,

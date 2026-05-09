@@ -72,7 +72,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     @Override
     @Transactional(readOnly = true)
     public AdminCommunityMemoListResponse getCommunityMemos(AdminPrincipal adminPrincipal, Boolean hidden,
-        String moderationStatus, String sourceType, String keyword, String pageValue, String sizeValue) {
+        String moderationStatus, String sourceType, Boolean reported, String keyword, String pageValue,
+        String sizeValue) {
         requireAdmin(adminPrincipal);
 
         int page = parsePage(pageValue);
@@ -82,9 +83,10 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         String normalizedKeyword = normalizeKeyword(keyword);
 
         long totalElements = adminCommunityMemoRepository.countMemos(hidden, normalizedModerationStatus,
-            normalizedSourceType, normalizedKeyword);
-        List<AdminCommunityMemoItemResponse> items = adminCommunityMemoRepository.findMemos(hidden,
-            normalizedModerationStatus, normalizedSourceType, normalizedKeyword, size, calculateOffset(page, size))
+            normalizedSourceType, reported, normalizedKeyword);
+        List<AdminCommunityMemoItemResponse> items = adminCommunityMemoRepository
+            .findMemos(hidden, normalizedModerationStatus, normalizedSourceType, reported, normalizedKeyword, size,
+                calculateOffset(page, size))
             .stream().map(this::toItemResponse).toList();
 
         return new AdminCommunityMemoListResponse(items, page, size, totalElements,
@@ -312,14 +314,19 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         return new AdminCommunityMemoDetailResponse(row.memoId().toString(), row.userId().toString(),
             row.authorNickname(), resolveSourceType(row), stringify(row.artifactId()), row.artifactKind(),
             imageUrls.representative(), imageUrls.original(), imageUrls.thumbnail(), row.positionX(), row.positionY(),
-            row.zIndex(), row.rotationDeg(), parseDecoration(row.decoration()), row.reportCount(), row.hidden(),
-            row.hiddenReason(), row.hiddenAt(), row.moderationStatus(), row.ocrText(), row.ocrCategories(),
-            row.reviewedBy(), row.reviewedAt(), row.attachedAt(), row.createdAt(), row.updatedAt());
+            row.zIndex(), row.rotationDeg(), parseDecoration(row.decoration()), row.reportCount(),
+            findReportItemResponses(row.memoId()), row.hidden(), row.hiddenReason(), row.hiddenAt(),
+            row.moderationStatus(), row.ocrText(), row.ocrCategories(), row.reviewedBy(), row.reviewedAt(),
+            row.attachedAt(), row.createdAt(), row.updatedAt());
     }
 
     private AdminCommunityMemoReportItemResponse toReportItemResponse(AdminCommunityMemoReportRow row) {
         return new AdminCommunityMemoReportItemResponse(row.reportId(), row.memoId().toString(),
-            row.reporterUserId().toString(), row.reporterNickname(), row.reason(), row.createdAt());
+            row.reporterUserId().toString(), row.reporterNickname(), row.reason(), row.reasonDetail(), row.createdAt());
+    }
+
+    private List<AdminCommunityMemoReportItemResponse> findReportItemResponses(UUID memoId) {
+        return adminCommunityMemoRepository.findMemoReports(memoId).stream().map(this::toReportItemResponse).toList();
     }
 
     private ImageUrls resolveImageUrls(AdminCommunityMemoRow row) {
