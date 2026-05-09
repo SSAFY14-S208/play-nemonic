@@ -24,12 +24,13 @@ import type {
   DrawingLine,
   FlipbookAssignmentResponse,
   FlipbookFrameSubmitResponse,
+  FlipbookResultFrameResponse,
   FlipbookRealtimeEvent,
   FlipbookResultItemResponse,
   FlipbookRoomParticipantResponse,
   FlipbookRoomStateResponse,
 } from '@/shared/types'
-import { renderLinesToRasterCanvas } from '@/shared/utils'
+import { getDisplayImageUrl, renderLinesToRasterCanvas } from '@/shared/utils'
 import {
   FLIPBOOK_BACKGROUND_COLOR,
   FLIPBOOK_BOARD_SIZE,
@@ -47,6 +48,7 @@ import { useFlipbookTimer } from './useFlipbookTimer'
 
 const FLIPBOOK_FILE_CONTENT_TYPE = 'image/png'
 const FLIPBOOK_FILE_PURPOSE = 'FLIPBOOK'
+const MINIMUM_FLIPBOOK_FRAME_COUNT = 8
 const RESULT_POLLING_INTERVAL_MS = 1500
 const ASSIGNMENT_RETRY_DELAYS_MS = [1000, 2000, 3000, 5000]
 
@@ -61,7 +63,7 @@ function toFlipbookTimeLimitSeconds(seconds: number): FlipbookTimeLimitSeconds {
 }
 
 function getMinimumRoundCount(participantCount: number) {
-  return Math.max(1, Math.ceil(8 / Math.max(1, participantCount)))
+  return Math.max(1, Math.ceil(MINIMUM_FLIPBOOK_FRAME_COUNT / Math.max(1, participantCount)))
 }
 
 function toParticipant(
@@ -84,7 +86,7 @@ function createImageLineFromUrl(id: string, imageUrl: string): DrawingLine {
     color: 'transparent',
     strokeWidth: 0,
     points: [],
-    imageDataUrl: imageUrl,
+    imageDataUrl: getDisplayImageUrl(imageUrl) ?? imageUrl,
   }
 }
 
@@ -104,15 +106,120 @@ function createPreviousFrameLinesFromAssignment(
 function getResultFrames(result: FlipbookResultItemResponse | null): FlipbookFrame[] {
   if (!result) return []
 
-  return result.frames.map((frame) => ({
+  const sortedFrames = [...result.frames].sort(
+    (firstFrame, secondFrame) => firstFrame.frameIndex - secondFrame.frameIndex,
+  )
+  const singleFrameFallbackImageUrl =
+    sortedFrames.length === 1
+      ? selectFirstImageUrl(result.firstImageUrl, result.thumbnailUrl)
+      : ''
+
+  return sortedFrames.map((frame) => ({
     id: `${result.flipbookIndex}-${frame.frameIndex}`,
     index: frame.frameIndex,
     drawnByUserUuid: frame.drawnByUserUuid,
     drawnBy: frame.drawnByNickname,
     participantAvatar: '🙂',
     lines: [],
-    imageUrl: frame.imageUrl,
+    imageUrl: selectFirstImageUrl(frame.imageUrl, singleFrameFallbackImageUrl),
   }))
+}
+
+function hasImageUrl(imageUrl: string | null | undefined) {
+  return Boolean(imageUrl?.trim())
+}
+
+function selectFirstImageUrl(...imageUrls: Array<string | null | undefined>) {
+  return imageUrls.find(hasImageUrl) ?? ''
+}
+
+function shouldReplaceResultFrame(
+  currentFrame: FlipbookResultFrameResponse,
+  nextFrame: FlipbookResultFrameResponse,
+) {
+  return !hasImageUrl(currentFrame.imageUrl) && hasImageUrl(nextFrame.imageUrl)
+}
+
+function mergeResultItemGroup(
+  flipbookIndex: number,
+  resultItems: FlipbookResultItemResponse[],
+): FlipbookResultItemResponse {
+  const [baseResultItem] = resultItems
+  const framesByFrameIndex = new Map<number, FlipbookResultFrameResponse>()
+
+  resultItems.forEach((resultItem) => {
+    resultItem.frames.forEach((frame) => {
+      const currentFrame = framesByFrameIndex.get(frame.frameIndex)
+
+      if (!currentFrame || shouldReplaceResultFrame(currentFrame, frame)) {
+        framesByFrameIndex.set(frame.frameIndex, frame)
+      }
+    })
+  })
+
+  const frames = Array.from(framesByFrameIndex.values()).sort(
+    (firstFrame, secondFrame) => firstFrame.frameIndex - secondFrame.frameIndex,
+  )
+  const frameImageUrls = frames.map((frame) => frame.imageUrl)
+  const firstImageUrl = selectFirstImageUrl(
+    ...resultItems.map((resultItem) => resultItem.firstImageUrl),
+    ...frameImageUrls,
+  )
+  const thumbnailUrl = selectFirstImageUrl(
+    ...resultItems.map((resultItem) => resultItem.thumbnailUrl),
+    firstImageUrl,
+    ...frameImageUrls,
+  )
+
+  return {
+    ...baseResultItem,
+    flipbookIndex,
+    thumbnailUrl,
+    firstImageUrl,
+    gifUrl: selectFirstImageUrl(...resultItems.map((resultItem) => resultItem.gifUrl)),
+    frames,
+  }
+}
+
+function getNormalizedResultItems(
+  results: FlipbookResultItemResponse[],
+  participantCount: number,
+) {
+  const resultItemsByFlipbookIndex = new Map<number, FlipbookResultItemResponse[]>()
+
+  results.forEach((result) => {
+    const resultItems = resultItemsByFlipbookIndex.get(result.flipbookIndex) ?? []
+    resultItems.push(result)
+    resultItemsByFlipbookIndex.set(result.flipbookIndex, resultItems)
+  })
+
+  const duplicateFlipbookIndexes = Array.from(resultItemsByFlipbookIndex.entries())
+    .filter(([, resultItems]) => resultItems.length > 1)
+    .map(([flipbookIndex]) => flipbookIndex)
+
+  const normalizedResultItems = Array.from(resultItemsByFlipbookIndex.entries())
+    .sort(
+      ([firstFlipbookIndex], [secondFlipbookIndex]) =>
+        firstFlipbookIndex - secondFlipbookIndex,
+    )
+    .map(([flipbookIndex, resultItems]) => mergeResultItemGroup(flipbookIndex, resultItems))
+
+  if (duplicateFlipbookIndexes.length > 0) {
+    console.warn('플립북 결과에 중복 flipbookIndex가 있어 작품별로 병합했습니다.', {
+      duplicateFlipbookIndexes,
+      rawResultLength: results.length,
+      normalizedResultLength: normalizedResultItems.length,
+    })
+  }
+
+  if (normalizedResultItems.length > 0 && normalizedResultItems.length !== participantCount) {
+    console.warn('플립북 병합 결과 수와 참여자 수가 일치하지 않습니다.', {
+      normalizedResultLength: normalizedResultItems.length,
+      participantCount,
+    })
+  }
+
+  return normalizedResultItems.slice(0, Math.max(1, participantCount))
 }
 
 function hasConfiguredNickname(nickname: string | null) {
@@ -242,6 +349,16 @@ export function useFlipbook() {
       ],
     [currentParticipant, roomState?.participants, userUuid],
   )
+  const resultOwnerNames = useMemo(
+    () =>
+      [...(roomState?.participants ?? [])]
+        .sort(
+          (firstParticipant, secondParticipant) =>
+            firstParticipant.joinOrder - secondParticipant.joinOrder,
+        )
+        .map((participant) => participant.nickname),
+    [roomState?.participants],
+  )
   const displayedParticipant =
     participants.find((participant) => participant.userUuid === userUuid) ?? currentParticipant
   const activeRoundIndex = Math.max(0, (assignment?.currentRound ?? roomState?.currentRound ?? 1) - 1)
@@ -321,15 +438,16 @@ export function useFlipbook() {
   )
 
   const fetchResult = useCallback(
-    async (targetRoomCode = roomCode) => {
+    async (targetRoomCode = roomCode, resultParticipantCount = participantCount) => {
       if (!targetRoomCode) return null
       const nextResult = await getFlipbookRoomResult(targetRoomCode)
-      setResultCount(nextResult.resultCount)
+      const visibleResultItems = getNormalizedResultItems(nextResult.results, resultParticipantCount)
+      setResultCount(nextResult.ready ? visibleResultItems.length : nextResult.resultCount)
 
       if (nextResult.ready) {
-        setResultItems(nextResult.results)
+        setResultItems(visibleResultItems)
         setActiveResultIndex((currentIndex) =>
-          Math.min(currentIndex, Math.max(0, nextResult.results.length - 1)),
+          Math.min(currentIndex, Math.max(0, visibleResultItems.length - 1)),
         )
         setIsResultReady(true)
         setCurrentStep('result')
@@ -338,7 +456,7 @@ export function useFlipbook() {
 
       return nextResult
     },
-    [resultPlayback, roomCode],
+    [participantCount, resultPlayback, roomCode],
   )
 
   const refreshPlayingRound = useCallback(
@@ -348,7 +466,7 @@ export function useFlipbook() {
       if (nextRoomState?.status === 'FINISHED') {
         clearDrawingRound()
         setCurrentStep('result')
-        await fetchResult(targetRoomCode)
+        await fetchResult(targetRoomCode, nextRoomState.participantCount)
         return
       }
 
@@ -362,12 +480,12 @@ export function useFlipbook() {
 
   const handleCompletedRounds = useCallback(
     async (targetRoomCode: string) => {
-      await refreshRoom(targetRoomCode)
+      const nextRoomState = await refreshRoom(targetRoomCode)
       clearDrawingRound()
       setCurrentStep('result')
-      await fetchResult(targetRoomCode)
+      await fetchResult(targetRoomCode, nextRoomState?.participantCount ?? participantCount)
     },
-    [clearDrawingRound, fetchResult, refreshRoom],
+    [clearDrawingRound, fetchResult, participantCount, refreshRoom],
   )
 
   const handleSubmittedFrameProgress = useCallback(
@@ -634,6 +752,12 @@ export function useFlipbook() {
 
     try {
       const startedRoom = await postFlipbookRoomStart(roomCode)
+      if (startedRoom.totalRounds && startedRoom.totalRounds !== participantCount) {
+        console.warn('플립북 시작 라운드 수와 참여자 수가 일치하지 않습니다.', {
+          totalRounds: startedRoom.totalRounds,
+          participantCount,
+        })
+      }
       setRoomState(startedRoom)
       setSelectedTimeLimitSeconds(toFlipbookTimeLimitSeconds(startedRoom.timeLimitSeconds))
       setRoundCount(startedRoom.totalRounds ?? minimumRoundCount)
@@ -644,7 +768,7 @@ export function useFlipbook() {
     } finally {
       setIsBusy(false)
     }
-  }, [canStartGame, fetchAssignment, isBusy, minimumRoundCount, roomCode])
+  }, [canStartGame, fetchAssignment, isBusy, minimumRoundCount, participantCount, roomCode])
 
   const completeRound = useCallback(async () => {
     if (!roomCode || !assignment || isCompletingRoundRef.current) return
@@ -694,14 +818,6 @@ export function useFlipbook() {
     },
     [isHost, roomCode],
   )
-
-  const increaseRoundCount = useCallback(() => {
-    setRoundCount((currentRoundCount) => currentRoundCount + 1)
-  }, [])
-
-  const decreaseRoundCount = useCallback(() => {
-    setRoundCount((currentRoundCount) => Math.max(minimumRoundCount, currentRoundCount - 1))
-  }, [minimumRoundCount])
 
   const leaveRoom = useCallback(() => {
     void (async () => {
@@ -826,6 +942,7 @@ export function useFlipbook() {
     maxParticipants: roomState?.maxParticipants ?? 12,
     previousFrameLines,
     resultItems,
+    resultOwnerNames,
     activeResultIndex,
     frames: resultFrames,
     gifUrl: activeResult?.gifUrl ?? null,
@@ -853,8 +970,6 @@ export function useFlipbook() {
     startGame,
     completeRound,
     selectTimeLimit,
-    increaseRoundCount,
-    decreaseRoundCount,
     leaveRoom,
     setIsGifPlaying: resultPlayback.setIsGifPlaying,
     showResultFrame: resultPlayback.showResultFrame,

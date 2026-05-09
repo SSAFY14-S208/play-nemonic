@@ -1,14 +1,18 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { Download, Pause, Play, Share2 } from 'lucide-react'
 import type { DrawingLine, FlipbookResultItemResponse } from '@/shared/types'
 import { cn } from '@/shared/libs'
+import { getDisplayImageUrl } from '@/shared/utils'
 import { FLIPBOOK_BACKGROUND_COLOR, FLIPBOOK_BOARD_SIZE } from '../constants'
 import type { FlipbookFrame } from '../types'
 
 interface FlipbookResultViewProps {
   frames: FlipbookFrame[]
   resultItems: FlipbookResultItemResponse[]
+  resultOwnerNames: string[]
   activeResultIndex: number
   gifUrl: string | null
   resultCount: number
@@ -28,6 +32,7 @@ interface FlipbookResultViewProps {
 export default function FlipbookResultView({
   frames,
   resultItems,
+  resultOwnerNames,
   activeResultIndex,
   gifUrl,
   resultCount,
@@ -44,6 +49,7 @@ export default function FlipbookResultView({
   onCreateAnother,
 }: FlipbookResultViewProps) {
   const activeResult = resultItems[activeResultIndex] ?? null
+  const displayGifUrl = getDisplayImageUrl(gifUrl) ?? gifUrl
 
   return (
     <section className="min-h-screen bg-flipbook-background px-6 py-10 text-flipbook-ink lg:px-12 lg:py-14">
@@ -148,7 +154,14 @@ export default function FlipbookResultView({
               </p>
               <div className="mt-4 grid gap-2">
                 {resultItems.map((resultItem, resultIndex) => {
-                  const firstDrawer = resultItem.frames[0]?.drawnByNickname ?? '알 수 없음'
+                  const sortedFrames = [...resultItem.frames].sort(
+                    (firstFrame, secondFrame) => firstFrame.frameIndex - secondFrame.frameIndex,
+                  )
+                  const firstDrawer =
+                    resultOwnerNames[resultItem.flipbookIndex] ??
+                    sortedFrames.find((frame) => frame.frameIndex === 0)?.drawnByNickname ??
+                    sortedFrames[0]?.drawnByNickname ??
+                    '알 수 없음'
                   const isActiveResult = resultIndex === activeResultIndex
 
                   return (
@@ -163,12 +176,18 @@ export default function FlipbookResultView({
                       )}
                     >
                       <span
-                        className="block size-11 rounded-[10px] border border-flipbook-light bg-white bg-cover bg-center"
+                        className="relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-[10px] border border-flipbook-light bg-white"
                         aria-hidden
-                        style={{
-                          backgroundImage: `url("${resultItem.thumbnailUrl || resultItem.firstImageUrl}")`,
-                        }}
-                      />
+                      >
+                        <ResultThumbnail
+                          imageUrl={
+                            resultItem.thumbnailUrl ||
+                            resultItem.firstImageUrl ||
+                            sortedFrames[0]?.imageUrl ||
+                            null
+                          }
+                        />
+                      </span>
                       <span className="min-w-0">
                         <span className="body-b block text-flipbook-ink">
                           작품 {resultItem.flipbookIndex + 1}
@@ -231,7 +250,7 @@ export default function FlipbookResultView({
                 type="button"
                 onClick={() => {
                   if (gifUrl) {
-                    window.open(gifUrl, '_blank', 'noopener,noreferrer')
+                    window.open(displayGifUrl ?? gifUrl, '_blank', 'noopener,noreferrer')
                   }
                 }}
                 disabled={!gifUrl}
@@ -276,16 +295,10 @@ function FrameDrawing({
   imageUrl: string | null
 }) {
   const hasLines = lines.length > 0
+  const displayImageUrl = getDisplayImageUrl(imageUrl)
 
-  if (imageUrl) {
-    return (
-      <div
-        className="h-full w-full bg-white bg-contain bg-center bg-no-repeat"
-        role="img"
-        aria-label="플립북 프레임"
-        style={{ backgroundImage: `url("${imageUrl}")` }}
-      />
-    )
+  if (displayImageUrl) {
+    return <FrameImage imageUrl={displayImageUrl} />
   }
 
   return (
@@ -364,5 +377,85 @@ function FrameDrawing({
         </text>
       )}
     </svg>
+  )
+}
+
+function FrameImage({ imageUrl }: { imageUrl: string }) {
+  const [loadFailed, setLoadFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      if (!cancelled) {
+        setLoadFailed(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [imageUrl])
+
+  return (
+    <div className="relative h-full w-full bg-white">
+      {!loadFailed && (
+        <Image
+          src={imageUrl}
+          alt="플립북 프레임"
+          fill
+          sizes="880px"
+          unoptimized
+          className="object-contain"
+          onError={() => {
+            setLoadFailed(true)
+            console.warn('플립북 결과 이미지 로딩에 실패했습니다.', imageUrl)
+          }}
+        />
+      )}
+      {loadFailed && (
+        <div className="body-b grid h-full w-full place-items-center text-flipbook-deep">
+          이미지 로딩 실패
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ResultThumbnail({ imageUrl }: { imageUrl: string | null }) {
+  const [loadFailed, setLoadFailed] = useState(false)
+  const displayImageUrl = getDisplayImageUrl(imageUrl)
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      if (!cancelled) {
+        setLoadFailed(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [displayImageUrl])
+
+  if (!displayImageUrl || loadFailed) {
+    return <span className="caption-b text-flipbook-deep">?</span>
+  }
+
+  return (
+    <Image
+      src={displayImageUrl}
+      alt=""
+      fill
+      sizes="44px"
+      unoptimized
+      className="object-cover"
+      onError={() => {
+        setLoadFailed(true)
+        console.warn('플립북 썸네일 이미지 로딩에 실패했습니다.', displayImageUrl)
+      }}
+    />
   )
 }

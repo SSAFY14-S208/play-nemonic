@@ -34,15 +34,12 @@ export default function FlipbookPage() {
           maxParticipants={flipbook.maxParticipants}
           selectedTimeLimitSeconds={flipbook.selectedTimeLimitSeconds}
           roundCount={flipbook.roundCount}
-          minimumRoundCount={flipbook.minimumRoundCount}
           connectionStatus={flipbook.connectionStatus}
           canStartGame={flipbook.canStartGame}
           isHost={flipbook.isHost}
           isBusy={flipbook.isBusy}
           errorMessage={flipbook.errorMessage}
           onSelectTimeLimit={flipbook.selectTimeLimit}
-          onDecreaseRoundCount={flipbook.decreaseRoundCount}
-          onIncreaseRoundCount={flipbook.increaseRoundCount}
           onStartGame={flipbook.startGame}
         />
       )}
@@ -80,6 +77,7 @@ export default function FlipbookPage() {
         <FlipbookResultView
           frames={flipbook.frames}
           resultItems={flipbook.resultItems}
+          resultOwnerNames={flipbook.resultOwnerNames}
           activeResultIndex={flipbook.activeResultIndex}
           gifUrl={flipbook.gifUrl}
           resultCount={flipbook.resultCount}

@@ -1,6 +1,6 @@
 'use client'
 
-import { Copy, Minus, Palette, Plus, QrCode, type LucideIcon } from 'lucide-react'
+import { Copy, Palette, QrCode, type LucideIcon } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { cn } from '@/shared/libs'
 import type { FlipbookConnectionStatus } from '@/shared/types'
@@ -19,15 +19,12 @@ interface FlipbookLobbyViewProps {
   maxParticipants: number
   selectedTimeLimitSeconds: number
   roundCount: number
-  minimumRoundCount: number
   connectionStatus: FlipbookConnectionStatus
   canStartGame: boolean
   isHost: boolean
   isBusy: boolean
   errorMessage: string | null
   onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
-  onDecreaseRoundCount: () => void
-  onIncreaseRoundCount: () => void
   onStartGame: () => void
 }
 
@@ -52,15 +49,12 @@ export default function FlipbookLobbyView({
   maxParticipants,
   selectedTimeLimitSeconds,
   roundCount,
-  minimumRoundCount,
   connectionStatus,
   canStartGame,
   isHost,
   isBusy,
   errorMessage,
   onSelectTimeLimit,
-  onDecreaseRoundCount,
-  onIncreaseRoundCount,
   onStartGame,
 }: FlipbookLobbyViewProps) {
   const sessionParticipantName = currentParticipant.name.replace(' (나)', '')
@@ -177,32 +171,12 @@ export default function FlipbookLobbyView({
                   <div>
                     <p className="caption-b text-flipbook-muted">라운드</p>
                     <p className="caption-r mt-1 text-flipbook-muted">
-                      최소 {minimumRoundCount}
+                      참여자 수 기준
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      aria-label="라운드 줄이기"
-                      onClick={onDecreaseRoundCount}
-                      disabled={!isHost}
-                      className="grid size-10 place-items-center rounded-full bg-flipbook-paper text-flipbook-ink shadow-[0_3px_6px_var(--color-flipbook-shadow)]"
-                    >
-                      <Minus className="size-4" aria-hidden />
-                    </button>
-                    <span className="h2-b min-w-8 text-center text-flipbook-ink">
-                      {roundCount}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label="라운드 늘리기"
-                      onClick={onIncreaseRoundCount}
-                      disabled={!isHost}
-                      className="grid size-10 place-items-center rounded-full bg-flipbook-primary text-flipbook-ink shadow-[0_3px_6px_var(--color-flipbook-shadow)]"
-                    >
-                      <Plus className="size-4" aria-hidden />
-                    </button>
-                  </div>
+                  <span className="h2-b min-w-8 text-center text-flipbook-ink">
+                    {roundCount}
+                  </span>
                 </div>
               </div>
 

@@ -106,7 +106,11 @@ export default function DrawingBoard({
             clipWidth={boardSize.width}
             clipHeight={clipArea.height}
           >
-            <DrawingLineGroup lines={onionSkinLines} eraserColor={backgroundColor} />
+            <DrawingLineGroup
+              lines={onionSkinLines}
+              boardSize={boardSize}
+              eraserColor={backgroundColor}
+            />
           </Group>
         </Layer>
       )}
@@ -118,7 +122,7 @@ export default function DrawingBoard({
           clipWidth={boardSize.width}
           clipHeight={clipArea.height}
         >
-          <DrawingLineGroup lines={lines} eraserColor={backgroundColor} />
+          <DrawingLineGroup lines={lines} boardSize={boardSize} eraserColor={backgroundColor} />
         </Group>
       </Layer>
 
@@ -131,9 +135,11 @@ export default function DrawingBoard({
 
 function DrawingLineGroup({
   lines,
+  boardSize,
   eraserColor,
 }: {
   lines: DrawingLine[]
+  boardSize: DrawingBoardSize
   eraserColor: string
 }) {
   return (
@@ -141,7 +147,14 @@ function DrawingLineGroup({
       {lines.map((line) => {
         if (line.kind === 'fill') {
           if (line.imageDataUrl) {
-            return <RasterFillImage key={line.id} imageDataUrl={line.imageDataUrl} />
+            return (
+              <RasterFillImage
+                key={line.id}
+                imageDataUrl={line.imageDataUrl}
+                width={boardSize.width}
+                height={boardSize.height}
+              />
+            )
           }
 
           return (

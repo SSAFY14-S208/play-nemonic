@@ -33,7 +33,10 @@ export const putFileToPresignedUrl = async ({
   })
 
   if (!response.ok) {
-    throw new Error('파일 업로드에 실패했습니다.')
+    const errorText = await response.text().catch(() => '')
+    const uploadErrorDetail = errorText ? ` ${errorText.slice(0, 200)}` : ''
+
+    throw new Error(`파일 업로드에 실패했습니다. (${response.status})${uploadErrorDetail}`)
   }
 }
 
