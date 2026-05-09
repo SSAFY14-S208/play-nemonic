@@ -1,7 +1,9 @@
 package com.nemonicworld.community.repository;
 
 import com.nemonicworld.community.entity.CommunityMemoDeletedReason;
+import com.nemonicworld.community.entity.CommunityMemoHiddenReason;
 import com.nemonicworld.community.entity.CommunityMemoModerationStatus;
+import com.nemonicworld.community.entity.CommunityMemoReportReason;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -176,6 +178,54 @@ public class CommunityMemoRepository {
           AND is_hidden = FALSE
         """;
 
+    private static final String EXISTS_MEMO_REPORT_SQL = """
+        SELECT COUNT(*)
+        FROM community_memo_report
+        WHERE memo_id = :memoId
+          AND user_id = :userId
+        """;
+
+    private static final String INSERT_MEMO_REPORT_SQL = """
+        INSERT INTO community_memo_report (
+            memo_id,
+            user_id,
+            reason,
+            created_at
+        ) VALUES (
+            :memoId,
+            :userId,
+            :reason,
+            :createdAt
+        )
+        """;
+
+    private static final String INCREMENT_REPORT_COUNT_SQL = """
+        UPDATE community_memo
+        SET report_count = report_count + 1
+        WHERE id = :memoId
+          AND deleted_at IS NULL
+          AND is_hidden = FALSE
+        """;
+
+    private static final String FIND_REPORT_COUNT_SQL = """
+        SELECT report_count
+        FROM community_memo
+        WHERE id = :memoId
+        """;
+
+    private static final String HIDE_MEMO_BY_REPORT_THRESHOLD_SQL = """
+        -- 신고 누적 자동 숨김은 soft delete와 구분하기 위해 deleted_at은 건드리지 않습니다.
+        UPDATE community_memo
+        SET is_hidden = TRUE,
+            hidden_reason = :hiddenReason,
+            hidden_at = :hiddenAt,
+            updated_at = :hiddenAt
+        WHERE id = :memoId
+          AND deleted_at IS NULL
+          AND is_hidden = FALSE
+          AND report_count >= :threshold
+        """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     /**
@@ -283,6 +333,55 @@ public class CommunityMemoRepository {
             .addValue("deletedReason", CommunityMemoDeletedReason.USER_DELETE.value(), Types.OTHER);
 
         return jdbcTemplate.update(SOFT_DELETE_MEMO_SQL, params);
+    }
+
+    /**
+     * 같은 사용자가 같은 메모를 이미 신고했는지 확인합니다.
+     */
+    public boolean existsMemoReport(UUID memoId, UUID userId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId).addValue("userId",
+            userId);
+        Integer count = jdbcTemplate.queryForObject(EXISTS_MEMO_REPORT_SQL, params, Integer.class);
+
+        return count != null && count > 0;
+    }
+
+    /**
+     * 커뮤니티 메모 신고 row를 저장합니다.
+     */
+    public void insertMemoReport(UUID memoId, UUID userId, CommunityMemoReportReason reason, LocalDateTime createdAt) {
+        // reason도 PostgreSQL enum 컬럼이므로 Types.OTHER로 전달합니다.
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId).addValue("userId", userId)
+            .addValue("reason", reason.value(), Types.OTHER).addValue("createdAt", createdAt);
+
+        jdbcTemplate.update(INSERT_MEMO_REPORT_SQL, params);
+    }
+
+    /**
+     * visible 메모의 report_count를 원자적으로 1 증가시키고 증가 후 값을 반환합니다.
+     */
+    public int incrementReportCount(UUID memoId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId);
+        int updatedCount = jdbcTemplate.update(INCREMENT_REPORT_COUNT_SQL, params);
+        if (updatedCount == 0) {
+            return 0;
+        }
+
+        Integer reportCount = jdbcTemplate.queryForObject(FIND_REPORT_COUNT_SQL, params, Integer.class);
+        return reportCount == null ? 0 : reportCount;
+    }
+
+    /**
+     * 신고 수가 임계값에 도달한 visible 메모를 자동 숨김 처리합니다.
+     */
+    public int hideMemoByReportThreshold(UUID memoId, LocalDateTime hiddenAt, int threshold) {
+        // hidden_reason은 PostgreSQL enum 컬럼이므로 Types.OTHER로 전달합니다.
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId)
+            .addValue("hiddenAt", hiddenAt)
+            .addValue("hiddenReason", CommunityMemoHiddenReason.REPORT_THRESHOLD.value(), Types.OTHER)
+            .addValue("threshold", threshold);
+
+        return jdbcTemplate.update(HIDE_MEMO_BY_REPORT_THRESHOLD_SQL, params);
     }
 
     /**

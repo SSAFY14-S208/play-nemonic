@@ -10,9 +10,12 @@ import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
 import com.nemonicworld.community.dto.request.CommunityMemoLayoutUpdateRequest;
+import com.nemonicworld.community.dto.request.CommunityMemoReportRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoItemResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
+import com.nemonicworld.community.dto.response.CommunityMemoReportResponse;
+import com.nemonicworld.community.entity.CommunityMemoReportReason;
 import com.nemonicworld.community.entity.CommunityMemoSourceType;
 import com.nemonicworld.community.repository.CommunityMemoCreateCommand;
 import com.nemonicworld.community.repository.CommunityMemoDetailRow;
@@ -34,6 +37,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -59,11 +63,15 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final String INVALID_POSITION_MESSAGE = "커뮤니티 메모 위치 정보가 올바르지 않습니다.";
     private static final String MEMO_ACCESS_DENIED_MESSAGE = "커뮤니티 메모 위치를 수정할 권한이 없습니다.";
     private static final String MEMO_DELETE_ACCESS_DENIED_MESSAGE = "커뮤니티 메모를 삭제할 권한이 없습니다.";
+    private static final String INVALID_REPORT_REASON_MESSAGE = "커뮤니티 메모 신고 사유가 올바르지 않습니다.";
+    private static final String OWN_MEMO_REPORT_MESSAGE = "본인 메모는 신고할 수 없습니다.";
+    private static final String DUPLICATE_REPORT_MESSAGE = "이미 신고한 커뮤니티 메모입니다.";
     private static final String INVALID_DECORATION_MESSAGE = "커뮤니티 메모 데코레이션 정보가 올바르지 않습니다.";
     private static final String MODERATION_BLOCKED_MESSAGE = "부적절한 표현이 감지되어 게시할 수 없습니다.";
     private static final String MODERATION_UNAVAILABLE_MESSAGE = "커뮤니티 메모 모더레이션을 완료할 수 없습니다.";
     private static final String EMPTY_DECORATION_JSON = "{}";
     private static final int MAX_VISIBLE_MEMO_COUNT = 50;
+    private static final int REPORT_HIDE_THRESHOLD = 5;
     private static final int MODERATION_LOG_TEXT_PREVIEW_LIMIT = 300;
     private static final TypeReference<Map<String, Object>> DECORATION_TYPE = new TypeReference<>() {
     };
@@ -225,6 +233,49 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     }
 
     /**
+     * visible 메모를 신고하고, 누적 신고 수가 임계값에 도달하면 자동 숨김 처리합니다.
+     */
+    @Override
+    @Transactional
+    public CommunityMemoReportResponse reportCommunityMemo(String memoIdValue, String userUuidValue,
+        CommunityMemoReportRequest request) {
+        UUID memoId = anonymousUserResolver.parseUuid(memoIdValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
+        anonymousUserResolver.resolve(userUuid);
+        CommunityMemoReportReason reason = validateReportReason(request);
+
+        // 신고는 공용 벽에 노출 중인 메모만 받습니다. 숨김/삭제 메모는 다른 조회 API와 같이 404로 감춥니다.
+        CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
+            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        if (isOwnedByViewer(row.userId(), userUuid)) {
+            throw new BadRequestException(OWN_MEMO_REPORT_MESSAGE);
+        }
+
+        if (communityMemoRepository.existsMemoReport(memoId, userUuid)) {
+            throw new ConflictException(DUPLICATE_REPORT_MESSAGE);
+        }
+
+        LocalDateTime reportedAt = LocalDateTime.now();
+        try {
+            communityMemoRepository.insertMemoReport(memoId, userUuid, reason, reportedAt);
+        } catch (DuplicateKeyException e) {
+            throw new ConflictException(DUPLICATE_REPORT_MESSAGE);
+        }
+
+        int reportCount = communityMemoRepository.incrementReportCount(memoId);
+        if (reportCount == 0) {
+            throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
+        }
+
+        boolean hidden = reportCount >= REPORT_HIDE_THRESHOLD;
+        if (hidden) {
+            communityMemoRepository.hideMemoByReportThreshold(memoId, reportedAt, REPORT_HIDE_THRESHOLD);
+        }
+
+        return new CommunityMemoReportResponse(memoId.toString(), reportCount, hidden);
+    }
+
+    /**
      * 조회용 선택 헤더 UUID를 파싱합니다. 헤더가 없으면 비로그인 감상자로 취급합니다.
      */
     private UUID parseOptionalViewerUuid(String viewerUserUuidValue) {
@@ -234,6 +285,19 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
         // 커뮤니티 감상 조회는 사용자 존재 확인 없이 UUID 형식과 ownedByMe 계산에만 헤더를 사용합니다.
         return anonymousUserResolver.parseUuid(viewerUserUuidValue);
+    }
+
+    /**
+     * 신고 사유가 DB enum에 존재하는 소문자 값인지 검증합니다.
+     */
+    private CommunityMemoReportReason validateReportReason(CommunityMemoReportRequest request) {
+        String reason = request == null ? null : request.reason();
+        if (!StringUtils.hasText(reason)) {
+            throw new BadRequestException(INVALID_REPORT_REASON_MESSAGE);
+        }
+
+        return CommunityMemoReportReason.findByValue(reason)
+            .orElseThrow(() -> new BadRequestException(INVALID_REPORT_REASON_MESSAGE));
     }
 
     /**

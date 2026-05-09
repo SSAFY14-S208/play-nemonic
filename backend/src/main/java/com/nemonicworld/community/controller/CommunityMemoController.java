@@ -5,8 +5,10 @@ import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
 import com.nemonicworld.community.dto.request.CommunityMemoLayoutUpdateRequest;
+import com.nemonicworld.community.dto.request.CommunityMemoReportRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
+import com.nemonicworld.community.dto.response.CommunityMemoReportResponse;
 import com.nemonicworld.community.service.CommunityMemoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -43,6 +45,7 @@ public class CommunityMemoController {
     private static final String COMMUNITY_MEMO_CREATED_MESSAGE = "커뮤니티 메모 생성 성공";
     private static final String COMMUNITY_MEMO_UPDATED_MESSAGE = "커뮤니티 메모 위치 수정 성공";
     private static final String COMMUNITY_MEMO_DELETED_MESSAGE = "커뮤니티 메모 삭제 성공";
+    private static final String COMMUNITY_MEMO_REPORTED_MESSAGE = "커뮤니티 메모 신고 성공";
 
     private final CommunityMemoService communityMemoService;
 
@@ -195,5 +198,37 @@ public class CommunityMemoController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(COMMUNITY_MEMO_DELETED_MESSAGE, null));
+    }
+
+    /**
+     * visible 메모를 신고하고, 누적 신고 5회 이상이면 자동 숨김 처리합니다.
+     */
+    @PostMapping("/{memoId}/reports")
+    @Operation(summary = "커뮤니티 메모 신고", description = "visible 상태의 커뮤니티 메모를 신고하고, 누적 신고 5회 이상이면 자동 숨김 처리합니다.")
+    @Parameter(name = "memoId", in = ParameterIn.PATH, required = true, description = "신고할 커뮤니티 메모 UUID")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @RequestBody(required = true, content = @Content(examples = @ExampleObject(value = """
+        {
+          "reason": "inappropriate"
+        }
+        """)))
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "커뮤니티 메모 신고 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "신고 사유 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_REPORT_REASON),
+            @ExampleObject(name = "본인 메모 신고", value = OpenApiErrorExamples.OWN_COMMUNITY_MEMO_REPORT)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 또는 커뮤니티 메모 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "메모 없음", value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "중복 신고", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.DUPLICATE_COMMUNITY_MEMO_REPORT)))})
+    public ResponseEntity<ApiResponse<CommunityMemoReportResponse>> reportCommunityMemo(
+        @PathVariable("memoId") String memoId,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @Valid @org.springframework.web.bind.annotation.RequestBody CommunityMemoReportRequest request) {
+        CommunityMemoReportResponse response = communityMemoService.reportCommunityMemo(memoId, userUuid, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(COMMUNITY_MEMO_REPORTED_MESSAGE, response));
     }
 }
