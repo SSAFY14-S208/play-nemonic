@@ -9,6 +9,7 @@ import {
   PhoneHomeScreen,
   PhoneToast,
 } from './components'
+import { usePhoneScale } from './hooks'
 import { usePhoneStore } from './phoneStore'
 
 export default function PhoneModal() {
@@ -18,6 +19,7 @@ export default function PhoneModal() {
   const openPhone = usePhoneStore((state) => state.openPhone)
 
   const statusBarVariant = activeScreen === 'home' ? 'light' : 'dark'
+  const scale = usePhoneScale()
 
   return (
     <Dialog.Root
@@ -37,7 +39,13 @@ export default function PhoneModal() {
           <Dialog.Title className="sr-only">
             네모닉 월드 핸드폰
           </Dialog.Title>
-          <div className="relative w-fit">
+          <div
+            className="relative w-fit"
+            style={{
+              transform: `scale(${scale})`,
+              transformOrigin: 'center',
+            }}
+          >
             <PhoneFrame statusBarVariant={statusBarVariant}>
               {activeScreen === 'home' && <PhoneHomeScreen />}
               {activeScreen === 'drawing' && <PhoneDrawingScreen />}

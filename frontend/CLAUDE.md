@@ -1146,4 +1146,7 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - Semantic token rules can be bypassed only when an ADR in `frontend/docs/decisions/` explicitly accepts the feature as a closed visual mock.
 - The exception is scoped to the accepted feature folder only.
 - Other features must not import closed-system colors or typography as reusable design tokens.
-- Current accepted exception: `features/phone` via `0001-phone-closed-visual-mock.md`.
+- Current accepted exceptions:
+  - `features/phone` via `0001-phone-closed-visual-mock.md`
+  - `features/hub` via `0002-hub-closed-visual-mock.md`
+  - `features/fortune` via `0003-fortune-closed-visual-mock.md`

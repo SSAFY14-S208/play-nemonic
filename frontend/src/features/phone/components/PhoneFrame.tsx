@@ -16,7 +16,7 @@ interface PhoneFrameProps {
 export function PhoneFrame({ children, statusBarVariant }: PhoneFrameProps) {
   return (
     <div
-      className="relative max-h-[calc(100dvh-2rem)] max-w-[calc((100dvh-2rem)*0.486)]"
+      className="relative"
       style={{
         aspectRatio: PHONE_FRAME_LAYOUT.aspectRatio,
         width: PHONE_FRAME_LAYOUT.deviceMaxWidth,

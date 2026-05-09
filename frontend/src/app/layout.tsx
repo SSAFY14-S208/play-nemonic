@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Toaster } from "sonner";
 
 import { UserBootstrapLoader } from "@/shared/components";
 import "@/shared/styles/index.css";
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="ko" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <UserBootstrapLoader />
+        <Toaster position="top-center" />
         {children}
       </body>
     </html>

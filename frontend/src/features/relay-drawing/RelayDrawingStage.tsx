@@ -1,40 +1,39 @@
 'use client'
 
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
-import type { KonvaEventObject } from 'konva/lib/Node'
 import {
+  RELAY_ROUND_ORDER,
   RELAY_ROUND_RULES,
   RELAY_STAGE_SIZE,
-  type RelayRoundKey,
 } from './constants'
 import {
   OutgoingHint,
   PreviousRoundHint,
   RasterFillImage,
 } from './components/drawing-stage'
-import type { RelayDrawLine } from './useRelayDrawing'
+import { useRelayDrawingStore } from './stores'
+import { useRelayCanvas } from './hooks'
 
-interface RelayDrawingStageProps {
-  activeRoundKey: RelayRoundKey
-  lines: RelayDrawLine[]
-  previousRoundLines: RelayDrawLine[]
-  onDrawStart: (event: KonvaEventObject<MouseEvent | TouchEvent>) => void
-  onDrawMove: (event: KonvaEventObject<MouseEvent | TouchEvent>) => void
-  onDrawEnd: () => void
-}
+export default function RelayDrawingStage() {
+  const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
+  const roundLines = useRelayDrawingStore((state) => state.roundLines)
+  const hintImageUrl = useRelayDrawingStore((state) => state.hintImageUrl)
 
-export default function RelayDrawingStage({
-  activeRoundKey,
-  lines,
-  previousRoundLines,
-  onDrawStart,
-  onDrawMove,
-  onDrawEnd,
-}: RelayDrawingStageProps) {
+  const { beginDrawing, continueDrawing, endDrawing } = useRelayCanvas()
+
+  const lines = roundLines[activeRoundKey]
+  const activeRoundIndex = RELAY_ROUND_ORDER.findIndex(
+    (roundKey) => roundKey === activeRoundKey,
+  )
+  const previousRoundKey = activeRoundIndex > 0 ? RELAY_ROUND_ORDER[activeRoundIndex - 1] : null
+  const previousRoundLines = previousRoundKey ? roundLines[previousRoundKey] : []
+
   const gridDots = []
   const activeRoundRule = RELAY_ROUND_RULES[activeRoundKey]
+  // BODY/LEGS 라운드에서는 힌트 콘텐츠 유무와 관계없이 힌트 영역을 표시한다.
+  // 이전 사람이 아무것도 그리지 않아 서버가 빈 제출을 처리한 경우에도
+  // 가이드 라인과 안내 텍스트가 보여야 사용자가 그릴 위치를 파악할 수 있다.
   const shouldShowPreviousHint =
-    previousRoundLines.length > 0 &&
     activeRoundRule.incomingHintSourceArea !== undefined &&
     activeRoundRule.incomingHintTargetArea !== undefined
   const incomingHintSourceArea = activeRoundRule.incomingHintSourceArea
@@ -66,13 +65,13 @@ export default function RelayDrawingStage({
       width={RELAY_STAGE_SIZE.width}
       height={RELAY_STAGE_SIZE.height}
       className="h-full w-full"
-      onMouseDown={onDrawStart}
-      onMouseMove={onDrawMove}
-      onMouseUp={onDrawEnd}
-      onMouseLeave={onDrawEnd}
-      onTouchStart={onDrawStart}
-      onTouchMove={onDrawMove}
-      onTouchEnd={onDrawEnd}
+      onMouseDown={beginDrawing}
+      onMouseMove={continueDrawing}
+      onMouseUp={endDrawing}
+      onMouseLeave={endDrawing}
+      onTouchStart={beginDrawing}
+      onTouchMove={continueDrawing}
+      onTouchEnd={endDrawing}
     >
       <Layer>
         <Rect
@@ -110,6 +109,7 @@ export default function RelayDrawingStage({
           <PreviousRoundHint
             hintTargetArea={incomingHintTargetArea}
             hintVerticalOffset={hintVerticalOffset}
+            hintImageUrl={hintImageUrl}
             previousRoundLines={previousRoundLines}
           />
         )}

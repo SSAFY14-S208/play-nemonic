@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useEffect } from 'react'
 import { ArrowLeft, ChevronDown, ImageIcon, Search } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import {
@@ -114,6 +115,16 @@ function PhoneGalleryCard({
   )
 }
 
+function PhoneGalleryCardSkeleton() {
+  return (
+    <div className="min-w-0">
+      <div className="aspect-square animate-pulse rounded-[0.55rem] bg-white/70" />
+      <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-white/70" />
+      <div className="mt-1 h-2.5 w-1/2 animate-pulse rounded bg-white/70" />
+    </div>
+  )
+}
+
 export function PhoneGalleryScreen() {
   const closeGalleryItem = usePhoneStore((state) => state.closeGalleryItem)
   const galleryItems = usePhoneStore((state) => state.galleryItems)
@@ -122,12 +133,31 @@ export function PhoneGalleryScreen() {
   const selectedGalleryItemId = usePhoneStore(
     (state) => state.selectedGalleryItemId,
   )
+  const galleryStatus = usePhoneStore((state) => state.galleryStatus)
+  const galleryError = usePhoneStore((state) => state.galleryError)
+  const galleryHasNext = usePhoneStore((state) => state.galleryHasNext)
+  const galleryTotal = usePhoneStore((state) => state.galleryTotal)
+  const galleryLoadingMore = usePhoneStore((state) => state.galleryLoadingMore)
+  const loadGallery = usePhoneStore((state) => state.loadGallery)
+  const loadMoreGallery = usePhoneStore((state) => state.loadMoreGallery)
+
+  useEffect(() => {
+    if (galleryStatus === 'idle') {
+      void loadGallery()
+    }
+  }, [galleryStatus, loadGallery])
+
   const {
     activeFilterKey,
     filteredGalleryItems,
     selectedItem,
     setActiveFilterKey,
   } = usePhoneGallery(galleryItems, selectedGalleryItemId)
+
+  const isInitialLoading = galleryStatus === 'loading' && galleryItems.length === 0
+  const isErrored = galleryStatus === 'error'
+  const isEmpty =
+    galleryStatus === 'success' && filteredGalleryItems.length === 0
 
   return (
     <div
@@ -159,9 +189,7 @@ export function PhoneGalleryScreen() {
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
             <p className="caption-m text-fg-secondary">저장된 네모닉</p>
-            <p className="h4-b mt-0.5 text-fg-primary">
-              총 {galleryItems.length}개
-            </p>
+            <p className="h4-b mt-0.5 text-fg-primary">총 {galleryTotal}개</p>
           </div>
           <button
             type="button"
@@ -209,7 +237,29 @@ export function PhoneGalleryScreen() {
       </section>
 
       <main className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-        {filteredGalleryItems.length === 0 ? (
+        {isInitialLoading ? (
+          <div className="grid grid-cols-3 gap-x-2.5 gap-y-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <PhoneGalleryCardSkeleton key={`skeleton-${index}`} />
+            ))}
+          </div>
+        ) : isErrored ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <p className="h4-b text-fg-primary">
+              갤러리를 불러올 수 없어요
+            </p>
+            {galleryError && (
+              <p className="caption-r text-fg-secondary">{galleryError}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => void loadGallery({ force: true })}
+              className="body-b mt-1 inline-flex h-9 items-center justify-center rounded-[0.45rem] bg-fg-primary px-4 text-fg-inverse"
+            >
+              다시 시도
+            </button>
+          </div>
+        ) : isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <p className="h4-b text-fg-primary">아직 저장된 카드가 없어요</p>
             <p className="body-r mt-2 text-fg-secondary">
@@ -217,15 +267,35 @@ export function PhoneGalleryScreen() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-x-2.5 gap-y-4">
-            {filteredGalleryItems.map((item) => (
-              <PhoneGalleryCard
-                key={item.id}
-                item={item}
-                onSelectItem={selectGalleryItem}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-3 gap-x-2.5 gap-y-4">
+              {filteredGalleryItems.map((item) => (
+                <PhoneGalleryCard
+                  key={item.id}
+                  item={item}
+                  onSelectItem={selectGalleryItem}
+                />
+              ))}
+            </div>
+            {activeFilterKey === 'all' && galleryHasNext && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => void loadMoreGallery()}
+                  disabled={galleryLoadingMore}
+                  className="body-b inline-flex h-9 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white px-4 text-fg-primary transition hover:bg-surface-subtle disabled:opacity-60"
+                >
+                  {galleryLoadingMore && (
+                    <span
+                      aria-hidden
+                      className="size-3 animate-spin rounded-full border-2 border-fg-secondary/40 border-t-fg-primary"
+                    />
+                  )}
+                  더 보기
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
 

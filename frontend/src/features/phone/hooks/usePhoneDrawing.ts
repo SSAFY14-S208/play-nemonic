@@ -3,15 +3,19 @@
 import { useCallback, useRef, useState } from 'react'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
+import { ApiError } from '@/shared/apis'
 import {
   PHONE_BRUSH_SIZES,
   PHONE_DRAWING_COLORS,
   PHONE_DRAWING_PAPER_COLOR,
 } from '../constants'
+import { usePhoneStore } from '../phoneStore'
 import type {
   PhoneDrawingToolKey,
   PhoneDrawLine,
 } from '../types'
+import { dataUrlToBlob } from '../utils/dataUrlToBlob'
+import { uploadDrawingArtifact } from '../utils/uploadDrawing'
 
 function createPhoneLineId() {
   if (typeof window !== 'undefined' && window.crypto?.randomUUID) {
@@ -25,9 +29,7 @@ function getStagePointerPosition(event: KonvaEventObject<MouseEvent | TouchEvent
   return event.target.getStage()?.getPointerPosition() ?? null
 }
 
-export function usePhoneDrawing(
-  onCreateArtifact: (imageDataUrl: string, action: 'save' | 'print') => void,
-) {
+export function usePhoneDrawing() {
   const stageRef = useRef<Konva.Stage>(null)
   const isDrawingRef = useRef(false)
   const [activeTool, setActiveTool] = useState<PhoneDrawingToolKey>('pen')
@@ -40,6 +42,11 @@ export function usePhoneDrawing(
   const [selectedColor, setSelectedColor] = useState(PHONE_DRAWING_COLORS[0])
   const [lines, setLines] = useState<PhoneDrawLine[]>([])
   const [redoLines, setRedoLines] = useState<PhoneDrawLine[]>([])
+
+  const isSaving = usePhoneStore((state) => state.isSavingDrawing)
+  const setSavingDrawing = usePhoneStore((state) => state.setSavingDrawing)
+  const addDrawingArtifact = usePhoneStore((state) => state.addDrawingArtifact)
+  const setToast = usePhoneStore((state) => state.setToast)
 
   const brushSize = brushSizes[activeTool]
   const hasDrawing = lines.length > 0
@@ -131,16 +138,36 @@ export function usePhoneDrawing(
   }, [])
 
   const createArtifact = useCallback(
-    (action: 'save' | 'print') => {
-      if (!hasDrawing) return
+    async (action: 'save' | 'print') => {
+      if (!hasDrawing || isSaving) return
 
       const imageDataUrl = stageRef.current?.toDataURL({ pixelRatio: 2 })
       if (!imageDataUrl) return
 
-      onCreateArtifact(imageDataUrl, action)
-      clearDrawing()
+      setSavingDrawing(true)
+      try {
+        const blob = await dataUrlToBlob(imageDataUrl)
+        const saveResponse = await uploadDrawingArtifact(blob)
+        addDrawingArtifact({ saveResponse, imageDataUrl, action })
+        clearDrawing()
+      } catch (error) {
+        const message =
+          error instanceof ApiError
+            ? error.message
+            : '저장에 실패했어요. 잠시 후 다시 시도해주세요.'
+        setToast(message)
+      } finally {
+        setSavingDrawing(false)
+      }
     },
-    [clearDrawing, hasDrawing, onCreateArtifact],
+    [
+      addDrawingArtifact,
+      clearDrawing,
+      hasDrawing,
+      isSaving,
+      setSavingDrawing,
+      setToast,
+    ],
   )
 
   return {
@@ -151,6 +178,7 @@ export function usePhoneDrawing(
     draw,
     endDrawing,
     hasDrawing,
+    isSaving,
     lines,
     redoDrawing,
     redoLines,
