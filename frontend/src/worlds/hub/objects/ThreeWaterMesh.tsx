@@ -1,7 +1,5 @@
-'use client'
-
 import { useEffect, useMemo, useRef } from 'react'
-import { useFrame, useLoader } from '@react-three/fiber'
+import { useLoader } from '@react-three/fiber'
 import { Water } from 'three/examples/jsm/objects/Water.js'
 import {
   PlaneGeometry,
@@ -11,7 +9,11 @@ import {
   type Mesh,
   type ShaderMaterial,
 } from 'three'
-import { HUB_WATER_PLANE_SIZE, HUB_WATER_SURFACE_Y } from '../../constants'
+import {
+  HUB_WATER_PLANE_SIZE,
+  HUB_WATER_SURFACE_Y,
+} from '../constants'
+import { useThreeWaterTime } from './hooks'
 
 const WATER_NORMALS_URL = '/textures/waternormals.jpg'
 
@@ -48,10 +50,7 @@ export default function ThreeWaterMesh() {
     }
   }, [water])
 
-  useFrame((_, delta) => {
-    const material = water.material as ShaderMaterial
-    material.uniforms.time.value += delta * 0.6
-  })
+  useThreeWaterTime(waterRef)
 
   return <primitive ref={waterRef} object={water} />
 }

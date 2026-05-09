@@ -12,7 +12,7 @@ import {
 import { useHubViewportControls } from './hooks'
 import HubPlatformGroup from './objects/HubPlatformGroup'
 import NightStarFieldMesh from './objects/NightStarFieldMesh'
-import ThreeWaterMesh from './objects/water/ThreeWaterMesh'
+import ThreeWaterMesh from './objects/ThreeWaterMesh'
 
 export default function HubScene() {
   const modelRootRef = useRef<Group>(null)
