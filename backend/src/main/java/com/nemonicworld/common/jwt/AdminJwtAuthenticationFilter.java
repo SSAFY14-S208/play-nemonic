@@ -33,6 +33,8 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String GMS_PROMPT_API_PREFIX = "/api/v1/backoffice/gms/prompts/";
     private static final String SYSTEM_PARAMETER_API_PATH = "/api/v1/backoffice/system-parameters";
     private static final String SYSTEM_PARAMETER_API_PREFIX = "/api/v1/backoffice/system-parameters/";
+    private static final String BACKOFFICE_RELAY_ROOM_API_PATH = "/api/v1/backoffice/relay-rooms";
+    private static final String BACKOFFICE_RELAY_ROOM_API_PREFIX = "/api/v1/backoffice/relay-rooms/";
     private static final String UNAUTHORIZED_MESSAGE = "인증이 필요합니다.";
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -56,7 +58,9 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
             && !servletPath.startsWith(ADMIN_API_PREFIX) && !ADMIN_INQUIRY_API_PATH.equals(servletPath)
             && !servletPath.startsWith(ADMIN_INQUIRY_API_PREFIX) && !GMS_PROMPT_API_PATH.equals(servletPath)
             && !servletPath.startsWith(GMS_PROMPT_API_PREFIX) && !SYSTEM_PARAMETER_API_PATH.equals(servletPath)
-            && !servletPath.startsWith(SYSTEM_PARAMETER_API_PREFIX);
+            && !servletPath.startsWith(SYSTEM_PARAMETER_API_PREFIX)
+            && !BACKOFFICE_RELAY_ROOM_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(BACKOFFICE_RELAY_ROOM_API_PREFIX);
     }
 
     private String resolveRequestPath(HttpServletRequest request) {

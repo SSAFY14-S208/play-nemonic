@@ -714,6 +714,12 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 시스템 파라미터입니다."
         }
         """;
+    public static final String BACKOFFICE_RELAY_ROOM_INVALID_STATUS = """
+        {
+          "success": false,
+          "message": "조회할 수 없는 방 상태입니다."
+        }
+        """;
 
     private OpenApiErrorExamples() {
     }
