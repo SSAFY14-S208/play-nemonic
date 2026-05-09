@@ -33,4 +33,11 @@ public enum CommunityMemoReportReason {
     public static Optional<CommunityMemoReportReason> findByDisplayName(String displayName) {
         return Arrays.stream(values()).filter(reason -> reason.displayName.equals(displayName)).findFirst();
     }
+
+    /**
+     * DB enum 값과 정확히 일치하는 신고 사유를 찾습니다.
+     */
+    public static Optional<CommunityMemoReportReason> findByValue(String value) {
+        return Arrays.stream(values()).filter(reason -> reason.value.equals(value)).findFirst();
+    }
 }
