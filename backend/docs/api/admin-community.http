@@ -1,0 +1,53 @@
+@host = http://localhost:8080
+@adminAccessToken = replace-with-admin-access-token
+@memoId = 3f22df4f-b187-42dd-81f3-d9f2fa5ce001
+
+### Admin get community memos
+GET {{host}}/api/v1/admin/community/memos
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin get hidden community memos
+GET {{host}}/api/v1/admin/community/memos?hidden=true
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin get community memos by moderation status
+GET {{host}}/api/v1/admin/community/memos?moderationStatus=allowed&sourceType=DIRECT&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin search community memos
+GET {{host}}/api/v1/admin/community/memos?keyword=망고
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin get community memo detail
+GET {{host}}/api/v1/admin/community/memos/{{memoId}}
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin hide community memo
+PATCH {{host}}/api/v1/admin/community/memos/{{memoId}}/hide
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "reason": "admin_hidden"
+}
+
+### Admin hide community memo - default reason
+PATCH {{host}}/api/v1/admin/community/memos/{{memoId}}/hide
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin restore community memo
+PATCH {{host}}/api/v1/admin/community/memos/{{memoId}}/restore
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin community memo - invalid memo UUID
+GET {{host}}/api/v1/admin/community/memos/not-a-uuid
+Authorization: Bearer {{adminAccessToken}}
+
+### Admin hide community memo - invalid reason
+PATCH {{host}}/api/v1/admin/community/memos/{{memoId}}/hide
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "reason": "report_threshold"
+}
