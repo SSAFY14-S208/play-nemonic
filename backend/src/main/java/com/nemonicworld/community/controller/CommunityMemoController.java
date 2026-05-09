@@ -46,10 +46,16 @@ public class CommunityMemoController {
 
     private final CommunityMemoService communityMemoService;
 
+    /**
+     * 커뮤니티 메모 API가 사용할 서비스 의존성을 주입합니다.
+     */
     public CommunityMemoController(CommunityMemoService communityMemoService) {
         this.communityMemoService = communityMemoService;
     }
 
+    /**
+     * 업로드/confirm 완료된 최종 원본·썸네일 스냅샷으로 커뮤니티 메모를 생성합니다.
+     */
     @PostMapping
     @Operation(summary = "커뮤니티 메모 생성", description = "files API로 업로드 및 confirm 완료한 최종 원본/썸네일 스냅샷을 커뮤니티 메모로 생성합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
@@ -98,7 +104,7 @@ public class CommunityMemoController {
     }
 
     /**
-     * 공용 벽에 노출 가능한 커뮤니티 메모를 z-index와 부착 시각 순서로 조회합니다.
+     * 공용 벽에 노출 가능한 커뮤니티 메모 목록을 z-index와 부착 시각 순서로 조회합니다.
      */
     @GetMapping
     @Operation(summary = "커뮤니티 메모 목록 조회", description = "공용 벽에 노출 가능한 커뮤니티 메모 목록을 조회합니다.")
@@ -134,6 +140,9 @@ public class CommunityMemoController {
             .body(ApiResponse.success(COMMUNITY_MEMO_FOUND_MESSAGE, response));
     }
 
+    /**
+     * 본인 visible 메모의 위치, z-index, 회전 각도만 수정합니다.
+     */
     @PatchMapping("/{memoId}")
     @Operation(summary = "커뮤니티 메모 위치 수정", description = "본인 메모의 위치, z-index, 회전 각도만 수정합니다.")
     @Parameter(name = "memoId", in = ParameterIn.PATH, required = true, description = "수정할 커뮤니티 메모 UUID")
@@ -166,6 +175,9 @@ public class CommunityMemoController {
             .body(ApiResponse.success(COMMUNITY_MEMO_UPDATED_MESSAGE, response));
     }
 
+    /**
+     * 본인 visible 메모를 사용자 삭제 사유로 soft delete 합니다.
+     */
     @DeleteMapping("/{memoId}")
     @Operation(summary = "커뮤니티 메모 삭제", description = "본인 visible 메모를 사용자 삭제 사유로 soft delete 합니다.")
     @Parameter(name = "memoId", in = ParameterIn.PATH, required = true, description = "삭제할 커뮤니티 메모 UUID")
