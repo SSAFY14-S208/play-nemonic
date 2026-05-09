@@ -89,6 +89,32 @@ Anonymous-User-UUID: 00000000-0000-0000-0000-000000000001
   "rotationDeg": 5.5
 }
 
+### Delete community memo
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - invalid memo UUID
+DELETE {{host}}/api/v1/community/memos/not-a-uuid
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - invalid anonymous user UUID
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: not-a-uuid
+
+### Delete community memo - forbidden owner
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: 00000000-0000-0000-0000-000000000001
+
+### Delete community memo - already deleted memo
+# Use a memoId whose deleted_at is already set. The API returns 404.
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - hidden memo
+# Use a hidden memoId. The API returns 404.
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Create community memo from final rendered direct snapshot
 POST {{host}}/api/v1/community/memos
 Content-Type: application/json
