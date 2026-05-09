@@ -106,6 +106,12 @@ Last updated: 2026-05-08
   `featureType`, `page`, and `size`, returns the local pagination DTO shape
   (`items`, `page`, `size`, `totalElements`, `hasNext`), and reads only
   `deleted_at IS NULL` rows from the existing `gms_prompt_template` table.
+- Backoffice admins can now list system parameters through
+  `GET /api/v1/backoffice/system-parameters`; the API requires an admin JWT,
+  reads existing `backoffice_setting` rows sorted by `setting_key ASC`,
+  supports optional `keyword` search on `setting_key`, parses
+  `setting_value` JSON text into the response `value`, and Flyway V8 seeds
+  initial backoffice setting rows without changing the schema.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.
