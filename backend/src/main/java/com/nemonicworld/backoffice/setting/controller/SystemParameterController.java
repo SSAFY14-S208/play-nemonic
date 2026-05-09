@@ -21,7 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,7 +57,7 @@ public class SystemParameterController {
             .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));
     }
 
-    @PutMapping
+    @PatchMapping
     @Operation(summary = "시스템 파라미터 일괄 수정", description = "관리자가 시스템 파라미터 여러 건을 한 트랜잭션으로 일괄 수정합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "시스템 파라미터 수정 성공"),

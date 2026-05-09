@@ -3,7 +3,7 @@ package com.nemonicworld.backoffice.setting.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -175,7 +175,7 @@ class SystemParameterControllerIntegrationTest {
         LocalDateTime before11 = findSettingUpdatedAt(11L);
 
         mockMvc
-            .perform(put("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                     {
                       "items": [
@@ -209,7 +209,7 @@ class SystemParameterControllerIntegrationTest {
         insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
 
         mockMvc
-            .perform(put("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION,
+            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION,
                 bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
                     AdminRole.SUPER_ADMIN))
                 .contentType(MediaType.APPLICATION_JSON).content("""
@@ -230,7 +230,7 @@ class SystemParameterControllerIntegrationTest {
     void systemParameterBulkUpdateRejectsUnauthenticatedRequest() throws Exception {
         insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
 
-        mockMvc.perform(put("/api/v1/backoffice/system-parameters").contentType(MediaType.APPLICATION_JSON).content("""
+        mockMvc.perform(patch("/api/v1/backoffice/system-parameters").contentType(MediaType.APPLICATION_JSON).content("""
             {
               "items": [
                 { "id": 10, "value": { "max": 5 } }
@@ -247,7 +247,7 @@ class SystemParameterControllerIntegrationTest {
         insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
 
         mockMvc
-            .perform(put("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                     {
                       "items": [
@@ -264,7 +264,7 @@ class SystemParameterControllerIntegrationTest {
 
     @Test
     void systemParameterBulkUpdateRejectsEmptyItems() throws Exception {
-        mockMvc.perform(put("/api/v1/backoffice/system-parameters")
+        mockMvc.perform(patch("/api/v1/backoffice/system-parameters")
             .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON).content("""
                 {
                   "items": []
@@ -277,7 +277,7 @@ class SystemParameterControllerIntegrationTest {
         insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
 
         mockMvc
-            .perform(put("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                     {
                       "items": [
@@ -299,7 +299,7 @@ class SystemParameterControllerIntegrationTest {
         insertSetting(12L, "key.string", "{}", ADMIN_ID);
         insertSetting(13L, "key.array", "{}", ADMIN_ID);
 
-        mockMvc.perform(put("/api/v1/backoffice/system-parameters")
+        mockMvc.perform(patch("/api/v1/backoffice/system-parameters")
             .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON).content("""
                 {
                   "items": [
