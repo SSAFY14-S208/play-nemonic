@@ -115,6 +115,72 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 DELETE {{host}}/api/v1/community/memos/{{memoId}}
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+### Report community memo
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "inappropriate"
+}
+
+### Report community memo - invalid memo UUID
+POST {{host}}/api/v1/community/memos/not-a-uuid/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "inappropriate"
+}
+
+### Report community memo - invalid anonymous user UUID
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "reason": "inappropriate"
+}
+
+### Report community memo - invalid reason
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "unknown"
+}
+
+### Report community memo - duplicate report
+# Use the same anonymous user UUID and memoId again. The API returns 409.
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "spam"
+}
+
+### Report community memo - own memo
+# Use a memoId created by the same anonymous user. The API returns 400.
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "other"
+}
+
+### Report community memo - hidden or deleted memo
+# Use a hidden or deleted memoId. The API returns 404.
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "inappropriate"
+}
+
 ### Create community memo from final rendered direct snapshot
 POST {{host}}/api/v1/community/memos
 Content-Type: application/json
