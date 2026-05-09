@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.websocket;
 
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
@@ -221,7 +222,8 @@ public class RelayRoomEventPublisher {
      * 강퇴 대상자의 현재 개인 큐에 안내를 보낸 뒤 같은 서버의 활성 WebSocket 세션을 종료합니다.
      */
     public void publishKickedFromRoom(String roomCode, String kickedUserUuid) {
-        webSocketSessionRegistry.findCurrentSession(roomCode, kickedUserUuid)
+        webSocketSessionRegistry
+            .findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode, kickedUserUuid)
             .ifPresent(session -> publishKickedFromRoom(roomCode, session));
     }
 
@@ -229,7 +231,9 @@ public class RelayRoomEventPublisher {
      * 스스로 퇴장한 사용자의 같은 서버 활성 WebSocket 세션이 있으면 정상 종료합니다.
      */
     public void closeLeftRoomSession(String roomCode, String leftUserUuid) {
-        webSocketSessionRegistry.findCurrentSession(roomCode, leftUserUuid).ifPresent(this::closeLeftRoomSession);
+        webSocketSessionRegistry
+            .findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode, leftUserUuid)
+            .ifPresent(this::closeLeftRoomSession);
     }
 
     private void publishKickedFromRoom(String roomCode, ActiveWebSocketSession session) {

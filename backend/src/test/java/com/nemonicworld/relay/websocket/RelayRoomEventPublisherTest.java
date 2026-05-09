@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomParticipantResponse;
@@ -371,8 +372,10 @@ class RelayRoomEventPublisherTest {
         ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
         ArgumentCaptor<Map<String, Object>> headersCaptor = ArgumentCaptor.forClass(Map.class);
         String kickedUserUuid = "11111111-1111-1111-1111-111111111111";
-        given(webSocketSessionRegistry.findCurrentSession(ROOM_CODE, kickedUserUuid))
-            .willReturn(Optional.of(new ActiveWebSocketSession(ROOM_CODE, kickedUserUuid, SESSION_ID)));
+        given(webSocketSessionRegistry.findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE,
+            kickedUserUuid))
+            .willReturn(Optional.of(new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY,
+                ROOM_CODE, kickedUserUuid, SESSION_ID)));
 
         publisher.publishKickedFromRoom(ROOM_CODE, kickedUserUuid);
 
@@ -387,8 +390,10 @@ class RelayRoomEventPublisherTest {
     @Test
     void closeLeftRoomSessionClosesActiveSessionWithoutPersonalEvent() {
         String leftUserUuid = "11111111-1111-1111-1111-111111111111";
-        given(webSocketSessionRegistry.findCurrentSession(ROOM_CODE, leftUserUuid))
-            .willReturn(Optional.of(new ActiveWebSocketSession(ROOM_CODE, leftUserUuid, SESSION_ID)));
+        given(webSocketSessionRegistry.findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE,
+            leftUserUuid))
+            .willReturn(Optional.of(new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY,
+                ROOM_CODE, leftUserUuid, SESSION_ID)));
 
         publisher.closeLeftRoomSession(ROOM_CODE, leftUserUuid);
 
