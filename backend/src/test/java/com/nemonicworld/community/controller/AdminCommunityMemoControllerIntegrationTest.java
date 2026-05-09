@@ -170,6 +170,125 @@ class AdminCommunityMemoControllerIntegrationTest {
     }
 
     @Test
+    void adminGetsCommunityMemoReportsWithPaginationAndHiddenMemo() throws Exception {
+        UUID authorUuid = insertAppUser("작성자");
+        UUID reporterA = insertAppUser("신고자A");
+        UUID reporterB = insertAppUser("신고자B");
+        UUID reporterC = insertAppUser("신고자C");
+        LocalDateTime baseTime = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
+        UUID memoId = insertCommunityMemo(authorUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, true,
+            "report_threshold", baseTime.plusMinutes(5), 3, "allowed", "ocr", null, baseTime, baseTime);
+        long firstReportId = insertCommunityMemoReport(memoId, reporterA, "inappropriate", baseTime.plusMinutes(1));
+        long secondReportId = insertCommunityMemoReport(memoId, reporterB, "spam", baseTime.plusMinutes(2));
+        long thirdReportId = insertCommunityMemoReport(memoId, reporterC, "other", baseTime.plusMinutes(3));
+        UUID emptyMemoId = insertCommunityMemo(authorUuid, null, "empty-original.png", null, false, null, null, 0,
+            "allowed", null, null, baseTime, baseTime);
+
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).param("page", "0").param("size", "2"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("관리자 커뮤니티 메모 신고 내역 조회 성공"))
+            .andExpect(jsonPath("$.data.items.length()").value(2))
+            .andExpect(jsonPath("$.data.items[0].reportId").value(thirdReportId))
+            .andExpect(jsonPath("$.data.items[0].memoId").value(memoId.toString()))
+            .andExpect(jsonPath("$.data.items[0].reporterUserUuid").value(reporterC.toString()))
+            .andExpect(jsonPath("$.data.items[0].reporterNickname").value("신고자C"))
+            .andExpect(jsonPath("$.data.items[0].reason").value("other"))
+            .andExpect(jsonPath("$.data.items[0].createdAt").exists())
+            .andExpect(jsonPath("$.data.items[1].reportId").value(secondReportId))
+            .andExpect(jsonPath("$.data.totalElements").value(3)).andExpect(jsonPath("$.data.hasNext").value(true));
+
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).param("page", "1").param("size", "2"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].reportId").value(firstReportId))
+            .andExpect(jsonPath("$.data.hasNext").value(false));
+
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos/{memoId}/reports", emptyMemoId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(0))
+            .andExpect(jsonPath("$.data.totalElements").value(0)).andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    @Test
+    void adminFiltersCommunityMemoReportsByReasonAndRejectsInvalidInputs() throws Exception {
+        UUID authorUuid = insertAppUser("필터");
+        LocalDateTime baseTime = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
+        UUID memoId = insertCommunityMemo(authorUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, false, null,
+            null, 2, "allowed", null, null, baseTime, baseTime);
+        insertCommunityMemoReport(memoId, insertAppUser("신고1"), "inappropriate", baseTime.plusMinutes(1));
+        insertCommunityMemoReport(memoId, insertAppUser("신고2"), "spam", baseTime.plusMinutes(2));
+        insertCommunityMemoReport(memoId, insertAppUser("신고3"), "inappropriate", baseTime.plusMinutes(3));
+        UUID deletedMemoId = insertCommunityMemo(authorUuid, null, "deleted-original.png", null, false, null, null, 0,
+            "allowed", null, null, baseTime, baseTime, baseTime.plusMinutes(4));
+
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).param("reason", "inappropriate"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(2))
+            .andExpect(jsonPath("$.data.totalElements").value(2))
+            .andExpect(jsonPath("$.data.items[0].reason").value("inappropriate"))
+            .andExpect(jsonPath("$.data.items[1].reason").value("inappropriate"));
+
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).param("reason", "invalid"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 사유가 올바르지 않습니다."));
+        mockMvc.perform(get("/api/v1/admin/community/memos/not-a-uuid/reports").header(HttpHeaders.AUTHORIZATION,
+            bearerAccessToken())).andExpect(status().isBadRequest());
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).param("page", "-1"))
+            .andExpect(status().isBadRequest());
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).param("size", "0"))
+            .andExpect(status().isBadRequest());
+        mockMvc
+            .perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).param("size", "101"))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/admin/community/memos/{memoId}/reports", UUID.randomUUID())
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/admin/community/memos/{memoId}/reports", deletedMemoId)
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void adminCommunityMemoReportLookupRequiresAdminAndDoesNotMutateMemo() throws Exception {
+        UUID authorUuid = insertAppUser("부작용");
+        UUID reporterUuid = insertAppUser("신고자");
+        LocalDateTime baseTime = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
+        UUID memoId = insertCommunityMemo(authorUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, false, null,
+            null, 7, "allowed", "ocr", null, baseTime, baseTime.plusMinutes(1));
+        insertCommunityMemoReport(memoId, reporterUuid, "spam", baseTime.plusMinutes(2));
+
+        mockMvc.perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId).header(ANONYMOUS_USER_UUID_HEADER,
+            reporterUuid.toString())).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId).header(HttpHeaders.AUTHORIZATION,
+            "Bearer invalid-token")).andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/v1/admin/community/memos/{memoId}/reports", memoId).header(HttpHeaders.AUTHORIZATION,
+            bearerAccessToken())).andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1));
+
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT report_count FROM community_memo WHERE id = ?", Integer.class, memoId))
+            .isEqualTo(7);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT is_hidden FROM community_memo WHERE id = ?", Boolean.class, memoId))
+            .isFalse();
+        assertThat(jdbcTemplate.queryForObject("SELECT updated_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isEqualTo(baseTime.plusMinutes(1));
+        assertPreservedMemoSnapshot(memoId);
+        verifyNoInteractions(adminAuditLogger, moderationClient);
+    }
+
+    @Test
     void adminHidesVisibleMemoWithAdminHiddenAndUserApisExcludeIt() throws Exception {
         UUID authorUuid = insertAppUser("숨김");
         LocalDateTime createdAt = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
@@ -350,9 +469,23 @@ class AdminCommunityMemoControllerIntegrationTest {
                 deleted_reason VARCHAR(32) NULL
             )
             """);
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_by BIGINT");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP");
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS community_memo_report (
+                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                memo_id UUID NOT NULL,
+                user_id UUID NOT NULL,
+                reason VARCHAR(32) NOT NULL,
+                reason_detail VARCHAR(1000) NULL,
+                created_at TIMESTAMP NOT NULL,
+                CONSTRAINT uq_community_memo_report_memo_user UNIQUE (memo_id, user_id)
+            )
+            """);
     }
 
     private void cleanTables() {
+        jdbcTemplate.update("DELETE FROM community_memo_report");
         jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM artifact");
         jdbcTemplate.update("DELETE FROM app_user");
@@ -378,6 +511,17 @@ class AdminCommunityMemoControllerIntegrationTest {
             """, userUuid, nickname, now, now, now);
 
         return userUuid;
+    }
+
+    private long insertCommunityMemoReport(UUID memoId, UUID reporterUuid, String reason, LocalDateTime createdAt) {
+        Long reportId = jdbcTemplate.queryForObject("SELECT COALESCE(MAX(id), 0) + 1 FROM community_memo_report",
+            Long.class);
+        jdbcTemplate.update("""
+            INSERT INTO community_memo_report (id, memo_id, user_id, reason, reason_detail, created_at)
+            VALUES (?, ?, ?, ?, NULL, ?)
+            """, reportId, memoId, reporterUuid, reason, createdAt);
+
+        return reportId == null ? 0 : reportId;
     }
 
     private void insertArtifact(UUID artifactId, String kind, LocalDateTime createdAt) {

@@ -184,6 +184,10 @@ class CommunityMemoOpenApiIntegrationTest {
                 .value(hasItems("hidden", "moderationStatus", "sourceType", "keyword", "page", "size")))
             .andExpect(
                 jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}'].get.summary").value("관리자 커뮤니티 메모 상세 조회"))
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/reports'].get.summary")
+                .value("관리자 커뮤니티 메모 신고 내역 조회"))
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/reports'].get.parameters[*].name")
+                .value(hasItems("memoId", "reason", "page", "size")))
             .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/hide'].patch.summary")
                 .value("관리자 커뮤니티 메모 숨김 처리"))
             .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/hide'].patch.requestBody.required")
@@ -196,6 +200,10 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoDetailResponse.properties.isHidden").exists())
             .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoDetailResponse.properties.reviewedBy").exists())
             .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoDetailResponse.properties.reviewedAt").exists())
+            .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoReportItemResponse.properties.reporterUserUuid")
+                .exists())
+            .andExpect(
+                jsonPath("$.components.schemas.AdminCommunityMemoReportListResponse.properties.totalElements").exists())
             .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoReviewRequest.properties.reason").exists());
     }
 }
