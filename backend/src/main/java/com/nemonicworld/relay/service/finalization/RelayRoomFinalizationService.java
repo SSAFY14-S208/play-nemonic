@@ -49,13 +49,15 @@ public class RelayRoomFinalizationService {
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final int scanLimit;
     private final Duration lockTtl;
+    private final Duration finalizationReadyDelay;
 
     public RelayRoomFinalizationService(RelayRoomRepository relayRoomRepository,
         RelayArtifactRepository relayArtifactRepository, RelayResultStorage relayResultStorage,
         RelayResultComposer relayResultComposer, RelayRoomEventPublisher relayRoomEventPublisher,
         ObjectMapper objectMapper, RelayInviteMetadataSyncService relayInviteMetadataSyncService,
         @Value("${nemonic.relay.finalization.scan-limit:50}") int scanLimit,
-        @Value("${nemonic.relay.finalization.lock-ttl-seconds:60}") long lockTtlSeconds) {
+        @Value("${nemonic.relay.finalization.lock-ttl-seconds:60}") long lockTtlSeconds,
+        @Value("${nemonic.relay.finalization.ready-delay-ms:1000}") long readyDelayMs) {
         this.relayRoomRepository = relayRoomRepository;
         this.relayArtifactRepository = relayArtifactRepository;
         this.relayResultStorage = relayResultStorage;
@@ -65,6 +67,7 @@ public class RelayRoomFinalizationService {
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.scanLimit = scanLimit;
         this.lockTtl = Duration.ofSeconds(Math.max(1L, lockTtlSeconds));
+        this.finalizationReadyDelay = Duration.ofMillis(Math.max(0L, readyDelayMs));
     }
 
     /**
@@ -72,10 +75,15 @@ public class RelayRoomFinalizationService {
      */
     public RelayFinalizationProcessResult processFinalizingRooms() {
         List<RelayRoomState> finalizingRooms = relayRoomRepository.findFinalizingRooms(scanLimit);
+        LocalDateTime readyCutoff = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).minus(finalizationReadyDelay);
         int processedRoomCount = 0;
         int resultCount = 0;
 
         for (RelayRoomState finalizingRoom : finalizingRooms) {
+            if (!isReadyForFinalization(finalizingRoom, readyCutoff)) {
+                continue;
+            }
+
             try {
                 RelayRoomFinalizationResult result = processFinalizingRoom(finalizingRoom.roomCode());
                 if (result.processed()) {
@@ -88,6 +96,10 @@ public class RelayRoomFinalizationService {
         }
 
         return new RelayFinalizationProcessResult(finalizingRooms.size(), processedRoomCount, resultCount);
+    }
+
+    private boolean isReadyForFinalization(RelayRoomState roomState, LocalDateTime readyCutoff) {
+        return roomState.updatedAt() == null || !roomState.updatedAt().isAfter(readyCutoff);
     }
 
     /**

@@ -70,7 +70,7 @@ class RelayRoomFinalizationServiceTest {
     void setUp() {
         service = new RelayRoomFinalizationService(relayRoomRepository, relayArtifactRepository, relayResultStorage,
             new RelayResultComposer(4, 3, 4), relayRoomEventPublisher, new ObjectMapper().findAndRegisterModules(),
-            relayInviteMetadataSyncService, 50, 60);
+            relayInviteMetadataSyncService, 50, 60, 1000);
     }
 
     @Test
@@ -115,6 +115,25 @@ class RelayRoomFinalizationServiceTest {
         assertThat(updatedRoomCaptor.getValue().status()).isEqualTo(RelayRoomStatus.FINISHED);
         assertThat(updatedRoomCaptor.getValue().assignments()).isEqualTo(roomState.assignments());
         verify(relayRoomEventPublisher).publishResultCreated(any(RelayRoomFinalizationResult.class));
+    }
+
+    @Test
+    void processFinalizingRoomsSkipsRecentlyFinalizingRooms() {
+        RelayRoomFinalizationService delayedService = new RelayRoomFinalizationService(relayRoomRepository,
+            relayArtifactRepository, relayResultStorage, new RelayResultComposer(4, 3, 4), relayRoomEventPublisher,
+            new ObjectMapper().findAndRegisterModules(), relayInviteMetadataSyncService, 50, 60, 60_000);
+        RelayRoomState baseRoom = finalizingRoom(UUID.randomUUID());
+        RelayRoomState recentRoom = baseRoom.withAssignments(baseRoom.assignments(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+        given(relayRoomRepository.findFinalizingRooms(50)).willReturn(List.of(recentRoom));
+
+        var result = delayedService.processFinalizingRooms();
+
+        assertThat(result.scannedRoomCount()).isEqualTo(1);
+        assertThat(result.processedRoomCount()).isZero();
+        assertThat(result.resultCount()).isZero();
+        verify(relayRoomRepository, never()).acquireFinalizationLock(anyString(), anyString(), any(Duration.class));
+        verifyNoInteractions(relayArtifactRepository, relayResultStorage, relayRoomEventPublisher);
     }
 
     @Test
