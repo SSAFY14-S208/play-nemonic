@@ -58,6 +58,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final String FILE_UPLOAD_STATUS_CONFLICT_MESSAGE = "확인할 수 없는 파일 업로드 상태입니다.";
     private static final String INVALID_POSITION_MESSAGE = "커뮤니티 메모 위치 정보가 올바르지 않습니다.";
     private static final String MEMO_ACCESS_DENIED_MESSAGE = "커뮤니티 메모 위치를 수정할 권한이 없습니다.";
+    private static final String MEMO_DELETE_ACCESS_DENIED_MESSAGE = "커뮤니티 메모를 삭제할 권한이 없습니다.";
     private static final String INVALID_DECORATION_MESSAGE = "커뮤니티 메모 데코레이션 정보가 올바르지 않습니다.";
     private static final String MODERATION_BLOCKED_MESSAGE = "부적절한 표현이 감지되어 게시할 수 없습니다.";
     private static final String MODERATION_UNAVAILABLE_MESSAGE = "커뮤니티 메모 모더레이션을 완료할 수 없습니다.";
@@ -180,6 +181,29 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         CommunityMemoDetailRow updatedRow = communityMemoRepository.findVisibleMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         return toDetailResponse(updatedRow, userUuid);
+    }
+
+    @Override
+    @Transactional
+    public void deleteCommunityMemo(String memoIdValue, String userUuidValue) {
+        UUID memoId = anonymousUserResolver.parseUuid(memoIdValue);
+        UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
+        anonymousUserResolver.resolve(userUuid);
+
+        // 삭제/숨김 메모는 상세 조회와 동일하게 404로 숨기고, visible 메모에서만 소유자를 확인합니다.
+        CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
+            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        if (!isOwnedByViewer(row.userId(), userUuid)) {
+            throw new ForbiddenException(MEMO_DELETE_ACCESS_DENIED_MESSAGE);
+        }
+
+        // 삭제는 soft delete만 수행합니다. MinIO 파일, file_upload, artifact, gallery, moderation
+        // 데이터는 보존합니다.
+        LocalDateTime deletedAt = LocalDateTime.now();
+        int deletedCount = communityMemoRepository.softDeleteMemo(memoId, userUuid, deletedAt);
+        if (deletedCount == 0) {
+            throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
+        }
     }
 
     private UUID parseOptionalViewerUuid(String viewerUserUuidValue) {

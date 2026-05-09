@@ -30,4 +30,9 @@ public interface CommunityMemoService {
      */
     CommunityMemoDetailResponse updateCommunityMemoLayout(String memoIdValue, String userUuidValue,
         CommunityMemoLayoutUpdateRequest request);
+
+    /**
+     * 본인 visible 메모를 사용자 삭제 사유로 soft delete 합니다.
+     */
+    void deleteCommunityMemo(String memoIdValue, String userUuidValue);
 }

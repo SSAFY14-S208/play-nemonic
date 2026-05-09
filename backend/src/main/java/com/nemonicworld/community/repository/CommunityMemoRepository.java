@@ -164,6 +164,18 @@ public class CommunityMemoRepository {
           AND is_hidden = FALSE
         """;
 
+    private static final String SOFT_DELETE_MEMO_SQL = """
+        -- 사용자 삭제는 본인 visible 메모만 soft delete 처리하고, 이미지/파일/갤러리 원본 데이터는 보존합니다.
+        UPDATE community_memo
+        SET deleted_at = :deletedAt,
+            deleted_reason = :deletedReason,
+            updated_at = :deletedAt
+        WHERE id = :memoId
+          AND user_id = :userId
+          AND deleted_at IS NULL
+          AND is_hidden = FALSE
+        """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public CommunityMemoRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -236,6 +248,14 @@ public class CommunityMemoRepository {
             .addValue("rotationDeg", rotationDeg).addValue("updatedAt", updatedAt);
 
         return jdbcTemplate.update(UPDATE_MEMO_LAYOUT_SQL, params);
+    }
+
+    public int softDeleteMemo(UUID memoId, UUID userId, LocalDateTime deletedAt) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId).addValue("userId", userId)
+            .addValue("deletedAt", deletedAt)
+            .addValue("deletedReason", CommunityMemoDeletedReason.USER_DELETE.value(), Types.OTHER);
+
+        return jdbcTemplate.update(SOFT_DELETE_MEMO_SQL, params);
     }
 
     private CommunityMemoRow mapRow(ResultSet resultSet, int rowNumber) throws SQLException {
