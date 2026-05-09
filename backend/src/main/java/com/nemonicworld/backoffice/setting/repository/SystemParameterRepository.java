@@ -6,7 +6,10 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -45,6 +48,50 @@ public class SystemParameterRepository {
         return jdbcTemplate.query(sql.toString(), this::mapParameter, params.toArray());
     }
 
+    public List<SystemParameter> findAllByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String placeholders = ids.stream().map(id -> "?").collect(Collectors.joining(", "));
+        String sql = SELECT_COLUMNS + """
+            FROM backoffice_setting s
+            LEFT JOIN admin_user a ON a.id = s.updated_by
+            WHERE s.id IN (""" + placeholders + """
+            )
+            ORDER BY s.setting_key ASC, s.id ASC
+            """;
+
+        return jdbcTemplate.query(sql, this::mapParameter, ids.toArray());
+    }
+
+    public int[] batchUpdateValues(List<UpdateValueCommand> commands, LocalDateTime updatedAt) {
+        String sql = """
+            UPDATE backoffice_setting
+            SET setting_value = ?,
+                updated_by = ?,
+                updated_at = ?
+            WHERE id = ?
+            """;
+
+        return jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+
+            @Override
+            public void setValues(java.sql.PreparedStatement preparedStatement, int index) throws SQLException {
+                UpdateValueCommand command = commands.get(index);
+                preparedStatement.setString(1, command.value());
+                preparedStatement.setLong(2, command.updatedBy());
+                preparedStatement.setTimestamp(3, Timestamp.valueOf(updatedAt));
+                preparedStatement.setLong(4, command.id());
+            }
+
+            @Override
+            public int getBatchSize() {
+                return commands.size();
+            }
+        });
+    }
+
     public long countAll(String keyword) {
         StringBuilder sql = new StringBuilder("""
             SELECT COUNT(*)
@@ -79,5 +126,8 @@ public class SystemParameterRepository {
         Timestamp timestamp = resultSet.getTimestamp(columnName);
 
         return timestamp == null ? null : timestamp.toLocalDateTime();
+    }
+
+    public record UpdateValueCommand(Long id, String value, Long updatedBy) {
     }
 }

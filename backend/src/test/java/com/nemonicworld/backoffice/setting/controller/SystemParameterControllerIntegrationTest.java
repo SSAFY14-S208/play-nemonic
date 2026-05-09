@@ -1,7 +1,9 @@
 package com.nemonicworld.backoffice.setting.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,6 +30,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -165,6 +168,156 @@ class SystemParameterControllerIntegrationTest {
     }
 
     @Test
+    void adminBulkUpdatesSystemParameters() throws Exception {
+        insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", SUPER_ADMIN_ID);
+        insertSetting(11L, "community.max_memo_count", "{\"max\":50}", SUPER_ADMIN_ID);
+        LocalDateTime before10 = findSettingUpdatedAt(10L);
+        LocalDateTime before11 = findSettingUpdatedAt(11L);
+
+        mockMvc
+            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "items": [
+                        { "id": 10, "value": { "enabled": true, "max": 5 } },
+                        { "id": 11, "value": { "max": 200 } }
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.items.length()").value(2)).andExpect(jsonPath("$.data.totalElements").value(2))
+            .andExpect(jsonPath("$.data.items[0].id").value(11L))
+            .andExpect(jsonPath("$.data.items[0].key").value("community.max_memo_count"))
+            .andExpect(jsonPath("$.data.items[0].value.max").value(200))
+            .andExpect(jsonPath("$.data.items[0].updatedBy.id").value(ADMIN_ID))
+            .andExpect(jsonPath("$.data.items[1].id").value(10L))
+            .andExpect(jsonPath("$.data.items[1].key").value("fortune.daily_limit"))
+            .andExpect(jsonPath("$.data.items[1].value.enabled").value(true))
+            .andExpect(jsonPath("$.data.items[1].value.max").value(5))
+            .andExpect(jsonPath("$.data.items[1].updatedBy.id").value(ADMIN_ID));
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"enabled\":true,\"max\":5}");
+        assertThat(findSettingValue(11L)).isEqualTo("{\"max\":200}");
+        assertThat(findSettingUpdatedBy(10L)).isEqualTo(ADMIN_ID);
+        assertThat(findSettingUpdatedBy(11L)).isEqualTo(ADMIN_ID);
+        assertThat(findSettingUpdatedAt(10L)).isAfter(before10);
+        assertThat(findSettingUpdatedAt(11L)).isAfter(before11);
+    }
+
+    @Test
+    void superAdminBulkUpdatesSystemParameters() throws Exception {
+        insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
+
+        mockMvc
+            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
+                    AdminRole.SUPER_ADMIN))
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "items": [
+                        { "id": 10, "value": { "max": 99 } }
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.items[0].value.max").value(99))
+            .andExpect(jsonPath("$.data.items[0].updatedBy.id").value(SUPER_ADMIN_ID));
+
+        assertThat(findSettingUpdatedBy(10L)).isEqualTo(SUPER_ADMIN_ID);
+    }
+
+    @Test
+    void systemParameterBulkUpdateRejectsUnauthenticatedRequest() throws Exception {
+        insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
+
+        mockMvc.perform(patch("/api/v1/backoffice/system-parameters").contentType(MediaType.APPLICATION_JSON).content("""
+            {
+              "items": [
+                { "id": 10, "value": { "max": 5 } }
+              ]
+            }
+            """)).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"max\":1}");
+    }
+
+    @Test
+    void systemParameterBulkUpdateRollsBackWhenIdMissing() throws Exception {
+        insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
+
+        mockMvc
+            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "items": [
+                        { "id": 10, "value": { "max": 9 } },
+                        { "id": 9999, "value": { "max": 9 } }
+                      ]
+                    }
+                    """))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"max\":1}");
+    }
+
+    @Test
+    void systemParameterBulkUpdateRejectsEmptyItems() throws Exception {
+        mockMvc.perform(patch("/api/v1/backoffice/system-parameters")
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON).content("""
+                {
+                  "items": []
+                }
+                """)).andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void systemParameterBulkUpdateRejectsDuplicateIds() throws Exception {
+        insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", ADMIN_ID);
+
+        mockMvc
+            .perform(patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "items": [
+                        { "id": 10, "value": { "max": 5 } },
+                        { "id": 10, "value": { "max": 7 } }
+                      ]
+                    }
+                    """))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"max\":1}");
+    }
+
+    @Test
+    void systemParameterBulkUpdateAcceptsVariousJsonValueTypes() throws Exception {
+        insertSetting(10L, "key.object", "{}", ADMIN_ID);
+        insertSetting(11L, "key.number", "{}", ADMIN_ID);
+        insertSetting(12L, "key.string", "{}", ADMIN_ID);
+        insertSetting(13L, "key.array", "{}", ADMIN_ID);
+
+        mockMvc.perform(patch("/api/v1/backoffice/system-parameters")
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON).content("""
+                {
+                  "items": [
+                    { "id": 10, "value": { "nested": { "ok": true } } },
+                    { "id": 11, "value": 42 },
+                    { "id": 12, "value": "hello" },
+                    { "id": 13, "value": [1, 2, 3] }
+                  ]
+                }
+                """)).andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(4));
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"nested\":{\"ok\":true}}");
+        assertThat(findSettingValue(11L)).isEqualTo("42");
+        assertThat(findSettingValue(12L)).isEqualTo("\"hello\"");
+        assertThat(findSettingValue(13L)).isEqualTo("[1,2,3]");
+    }
+
+    @Test
     void adminGetsSeededSystemParameterWithoutAdminUpdater() throws Exception {
         insertSetting(10L, "community.max_memo_count", "{\"max\":50}", 0L);
 
@@ -208,6 +361,25 @@ class SystemParameterControllerIntegrationTest {
             )
             VALUES (?, ?, ?, ?, ?, ?)
             """, id, key, value, updatedBy, Timestamp.valueOf(now), Timestamp.valueOf(now));
+    }
+
+    private String findSettingValue(long id) {
+        return jdbcTemplate.queryForObject("SELECT setting_value FROM backoffice_setting WHERE id = ?", String.class,
+            id);
+    }
+
+    private long findSettingUpdatedBy(long id) {
+        Long updatedBy = jdbcTemplate.queryForObject("SELECT updated_by FROM backoffice_setting WHERE id = ?",
+            Long.class, id);
+
+        return updatedBy == null ? 0L : updatedBy;
+    }
+
+    private LocalDateTime findSettingUpdatedAt(long id) {
+        Timestamp timestamp = jdbcTemplate.queryForObject("SELECT updated_at FROM backoffice_setting WHERE id = ?",
+            Timestamp.class, id);
+
+        return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
     private String bearerAccessToken() {
