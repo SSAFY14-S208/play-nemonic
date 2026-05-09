@@ -1870,6 +1870,72 @@
   pointer-events: auto;
 }
 
+@keyframes fortune-draw-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.6rem);
+    filter: blur(2.5px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fortune-draw-actions-rise {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0.6rem);
+    filter: blur(2.5px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.fortune-draw-info-panel {
+  animation: fortune-draw-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 120ms;
+}
+
+.fortune-draw-speech-bubble {
+  animation: fortune-draw-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 1620ms;
+}
+
+.fortune-draw-actions {
+  animation: fortune-draw-actions-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 3120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fortune-draw-actions,
+  .fortune-draw-info-panel,
+  .fortune-draw-speech-bubble {
+    animation: none;
+  }
+}
+
+.fortune-draw-speech-bubble {
+  position: absolute;
+  left: clamp(1vw, 3vw, 5vw);
+  bottom: clamp(56dvh, 62dvh, 68dvh);
+  width: min(56vw, 44rem);
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 0.6rem 1.2rem rgba(8, 1, 22, 0.55));
+}
+
 .fortune-draw-info-panel {
   position: absolute;
   top: clamp(6dvh, 12dvh, 18dvh);
@@ -2650,10 +2716,11 @@
 .fortune-birth-heading h1 {
   color: rgba(255, 249, 226, 0.98);
   font-family: var(--font-fortune-serif);
-  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-size: clamp(1.05rem, 2vw, 1.62rem);
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
+  letter-spacing: -0.01em;
   text-shadow:
     0 0.12rem 0.42rem rgba(11, 1, 25, 0.82),
     0 0 0.82rem rgba(207, 130, 255, 0.45);

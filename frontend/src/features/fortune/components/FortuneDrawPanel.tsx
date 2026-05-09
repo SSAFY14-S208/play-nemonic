@@ -45,6 +45,13 @@ export default function FortuneDrawPanel({ onDraw, onEdit }: FortuneDrawPanelPro
 
   return (
     <div className="fortune-draw-stage" aria-label="사주 입력 정보 확인">
+      <img
+        className="fortune-draw-speech-bubble"
+        src="/images/fortune/draw/speech-bubble.png"
+        alt="포포: 좋아 이 정보 맞지? 그럼 네모닉에 마법을 걸어 오늘의 운세 메모를 뽑아보자."
+        draggable={false}
+        onDragStart={(event) => event.preventDefault()}
+      />
       <div className="fortune-draw-info-panel" aria-hidden={false}>
         <img
           className="fortune-draw-info-frame"
