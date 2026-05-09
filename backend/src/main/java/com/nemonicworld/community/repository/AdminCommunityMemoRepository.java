@@ -62,6 +62,32 @@ public class AdminCommunityMemoRepository {
           AND cm.id = :memoId
         """;
 
+    private static final String EXISTS_ADMIN_MEMO_BY_ID_SQL = """
+        SELECT COUNT(*)
+        FROM community_memo
+        WHERE id = :memoId
+          AND deleted_at IS NULL
+        """;
+
+    private static final String SELECT_ADMIN_MEMO_REPORT = """
+        SELECT
+            r.id AS report_id,
+            r.memo_id AS memo_id,
+            r.user_id AS reporter_user_id,
+            au.nickname AS reporter_nickname,
+            CAST(r.reason AS VARCHAR) AS reason,
+            r.created_at AS created_at
+        FROM community_memo_report r
+        LEFT JOIN app_user au ON au.id = r.user_id
+        WHERE r.memo_id = :memoId
+        """;
+
+    private static final String COUNT_ADMIN_MEMO_REPORT = """
+        SELECT COUNT(*)
+        FROM community_memo_report r
+        WHERE r.memo_id = :memoId
+        """;
+
     private static final String HIDE_MEMO_SQL = """
         UPDATE community_memo
         SET is_hidden = TRUE,
@@ -131,6 +157,39 @@ public class AdminCommunityMemoRepository {
     }
 
     /**
+     * 관리자 상세 조회 정책과 동일하게 삭제되지 않은 메모가 존재하는지 확인합니다.
+     */
+    public boolean existsMemoById(UUID memoId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId);
+        Long count = jdbcTemplate.queryForObject(EXISTS_ADMIN_MEMO_BY_ID_SQL, params, Long.class);
+
+        return count != null && count > 0;
+    }
+
+    /**
+     * 특정 메모에 접수된 신고 내역을 최신 신고 순으로 조회합니다.
+     */
+    public List<AdminCommunityMemoReportRow> findMemoReports(UUID memoId, String reason, int size, long offset) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId).addValue("size", size)
+            .addValue("offset", offset);
+        String reasonFilter = buildReportReasonFilter(reason, params);
+
+        return jdbcTemplate.query(SELECT_ADMIN_MEMO_REPORT + reasonFilter
+            + " ORDER BY r.created_at DESC, r.id DESC LIMIT :size OFFSET :offset", params, this::mapReportRow);
+    }
+
+    /**
+     * 특정 메모의 신고 내역 전체 수를 계산합니다.
+     */
+    public long countMemoReports(UUID memoId, String reason) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId);
+        String reasonFilter = buildReportReasonFilter(reason, params);
+        Long count = jdbcTemplate.queryForObject(COUNT_ADMIN_MEMO_REPORT + reasonFilter, params, Long.class);
+
+        return count == null ? 0 : count;
+    }
+
+    /**
      * visible 메모를 관리자 수동 숨김 상태로 전환합니다.
      */
     public int hideMemo(UUID memoId, long adminId, LocalDateTime hiddenAt) {
@@ -180,6 +239,16 @@ public class AdminCommunityMemoRepository {
         return builder.toString();
     }
 
+    private String buildReportReasonFilter(String reason, MapSqlParameterSource params) {
+        if (!StringUtils.hasText(reason)) {
+            return "";
+        }
+
+        params.addValue("reason", reason);
+
+        return " AND CAST(r.reason AS VARCHAR) = :reason";
+    }
+
     private AdminCommunityMemoRow mapRow(ResultSet resultSet, int rowNumber) throws SQLException {
         return new AdminCommunityMemoRow(resultSet.getObject("memo_id", UUID.class),
             resultSet.getObject("user_id", UUID.class), resultSet.getString("author_nickname"),
@@ -194,6 +263,13 @@ public class AdminCommunityMemoRepository {
             resultSet.getTimestamp("attached_at").toLocalDateTime(),
             resultSet.getTimestamp("created_at").toLocalDateTime(),
             resultSet.getTimestamp("updated_at").toLocalDateTime());
+    }
+
+    private AdminCommunityMemoReportRow mapReportRow(ResultSet resultSet, int rowNumber) throws SQLException {
+        return new AdminCommunityMemoReportRow(resultSet.getLong("report_id"),
+            resultSet.getObject("memo_id", UUID.class), resultSet.getObject("reporter_user_id", UUID.class),
+            resultSet.getString("reporter_nickname"), resultSet.getString("reason"),
+            resultSet.getTimestamp("created_at").toLocalDateTime());
     }
 
     private LocalDateTime timestampToLocalDateTime(ResultSet resultSet, String columnName) throws SQLException {

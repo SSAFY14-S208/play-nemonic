@@ -13,9 +13,13 @@ import com.nemonicworld.community.dto.request.AdminCommunityMemoReviewRequest;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoItemResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoListResponse;
+import com.nemonicworld.community.dto.response.AdminCommunityMemoReportItemResponse;
+import com.nemonicworld.community.dto.response.AdminCommunityMemoReportListResponse;
 import com.nemonicworld.community.entity.CommunityMemoModerationStatus;
+import com.nemonicworld.community.entity.CommunityMemoReportReason;
 import com.nemonicworld.community.entity.CommunityMemoSourceType;
 import com.nemonicworld.community.repository.AdminCommunityMemoRepository;
+import com.nemonicworld.community.repository.AdminCommunityMemoReportRow;
 import com.nemonicworld.community.repository.AdminCommunityMemoRow;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import java.time.LocalDateTime;
@@ -42,6 +46,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     private static final String INVALID_QUERY_MESSAGE = "관리자 커뮤니티 메모 조회 조건이 올바르지 않습니다.";
     private static final String INVALID_HIDE_REASON_MESSAGE = "커뮤니티 메모 숨김 사유가 올바르지 않습니다.";
     private static final String INVALID_RESTORE_REASON_MESSAGE = "커뮤니티 메모 복구 사유가 올바르지 않습니다.";
+    private static final String INVALID_REPORT_REASON_MESSAGE = "커뮤니티 메모 신고 사유가 올바르지 않습니다.";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
@@ -97,6 +102,32 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
 
         return adminCommunityMemoRepository.findMemoById(memoId).map(this::toDetailResponse)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+    }
+
+    /**
+     * hidden 메모를 포함해 삭제되지 않은 커뮤니티 메모의 신고 내역을 최신순으로 조회합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public AdminCommunityMemoReportListResponse getCommunityMemoReports(AdminPrincipal adminPrincipal,
+        String memoIdValue, String reasonValue, String pageValue, String sizeValue) {
+        requireAdmin(adminPrincipal);
+        UUID memoId = parseMemoId(memoIdValue);
+        int page = parsePage(pageValue);
+        int size = parseSize(sizeValue);
+        String normalizedReason = normalizeReportReason(reasonValue);
+
+        if (!adminCommunityMemoRepository.existsMemoById(memoId)) {
+            throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
+        }
+
+        long totalElements = adminCommunityMemoRepository.countMemoReports(memoId, normalizedReason);
+        List<AdminCommunityMemoReportItemResponse> items = adminCommunityMemoRepository
+            .findMemoReports(memoId, normalizedReason, size, calculateOffset(page, size)).stream()
+            .map(this::toReportItemResponse).toList();
+
+        return new AdminCommunityMemoReportListResponse(items, page, size, totalElements,
+            calculateHasNext(page, size, totalElements));
     }
 
     /**
@@ -207,6 +238,16 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         return value.trim().toLowerCase(Locale.ROOT);
     }
 
+    private String normalizeReportReason(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+
+        String normalizedValue = value.trim().toLowerCase(Locale.ROOT);
+        return CommunityMemoReportReason.findByValue(normalizedValue)
+            .orElseThrow(() -> new BadRequestException(INVALID_REPORT_REASON_MESSAGE)).value();
+    }
+
     private int parsePage(String pageValue) {
         int page = parseIntegerOrDefault(pageValue, DEFAULT_PAGE);
         if (page < 0) {
@@ -274,6 +315,11 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
             row.zIndex(), row.rotationDeg(), parseDecoration(row.decoration()), row.reportCount(), row.hidden(),
             row.hiddenReason(), row.hiddenAt(), row.moderationStatus(), row.ocrText(), row.ocrCategories(),
             row.reviewedBy(), row.reviewedAt(), row.attachedAt(), row.createdAt(), row.updatedAt());
+    }
+
+    private AdminCommunityMemoReportItemResponse toReportItemResponse(AdminCommunityMemoReportRow row) {
+        return new AdminCommunityMemoReportItemResponse(row.reportId(), row.memoId().toString(),
+            row.reporterUserId().toString(), row.reporterNickname(), row.reason(), row.createdAt());
     }
 
     private ImageUrls resolveImageUrls(AdminCommunityMemoRow row) {
