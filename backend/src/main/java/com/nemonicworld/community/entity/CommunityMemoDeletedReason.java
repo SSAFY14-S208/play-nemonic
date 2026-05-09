@@ -13,6 +13,9 @@ public enum CommunityMemoDeletedReason {
         this.value = value;
     }
 
+    /**
+     * DB enum 컬럼에 저장할 soft delete 사유 문자열을 반환합니다.
+     */
     public String value() {
         return value;
     }

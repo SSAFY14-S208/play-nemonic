@@ -13,6 +13,9 @@ public enum CommunityMemoModerationStatus {
         this.value = value;
     }
 
+    /**
+     * DB enum 컬럼에 저장할 모더레이션 상태 문자열을 반환합니다.
+     */
     public String value() {
         return value;
     }

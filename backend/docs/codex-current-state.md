@@ -155,6 +155,8 @@ Last updated: 2026-05-08
 - Community memo listing now uses `GET /api/v1/community/memos` to return visible `community_memo` rows (`deleted_at IS NULL`, `is_hidden = false`) ordered by `z_index ASC, attached_at ASC`; optional `Anonymous-User-UUID` is parsed only for `ownedByMe` and does not require app user lookup or visit metadata updates.
 - Community memo detail now uses `GET /api/v1/community/memos/{memoId}` for visible memos only, returns list fields plus decoration/artifact/moderation metadata, parses optional `Anonymous-User-UUID` only for `ownedByMe`, and falls back to `{}` for blank or invalid decoration JSON.
 - Community memo creation now uses `POST /api/v1/community/memos` with required `Anonymous-User-UUID`, supports `sourceType=DIRECT` and `sourceType=GALLERY`, requires distinct confirmed `COMMUNITY` `originalFileId` and `thumbnailFileId`, links GALLERY posts to an owned active gallery artifact only for source attribution, runs pre-publication moderation before insert, stores the final original object key in `community_memo.body_image_url` and thumbnail object key in `community_memo.thumbnail_image_url`, and applies 50-visible-memo FIFO soft deletion with `deleted_reason=expired`.
+- Community memo layout updates now use `PATCH /api/v1/community/memos/{memoId}` with required `Anonymous-User-UUID`; only the owner of a visible memo can update `position_x`, `position_y`, `z_index`, `rotation_deg`, and `updated_at`, while image keys, artifact linkage, decoration, moderation fields, `attached_at`, and FIFO state remain untouched.
+- Community memo deletion now uses `DELETE /api/v1/community/memos/{memoId}` with required `Anonymous-User-UUID`; only the owner of a visible memo can soft delete it with `deleted_reason=user_delete`, while MinIO files, file_upload rows, artifact/gallery links, moderation data, and FIFO restoration state remain untouched.
 - Community canvas planning now treats each posted memo as a final rendered image snapshot: frontend editing can start from a blank canvas or gallery source, then uploads both original and thumbnail `COMMUNITY` files, with `thumbnail_image_url` planned as a required schema addition; `clientText` is included as OCR moderation helper input, the original gallery artifact remains source attribution only, rendering/moderation use the posted snapshot, the default moderation policy is pre-publication FastAPI blocking with a hidden `pending` fallback only if synchronous latency becomes unacceptable, first-pass updates are layout-only, and external sharing remains a follow-up scope.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
@@ -328,6 +330,26 @@ Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/
 
 ```bash
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
+```
+
+Recent relay submission concurrency work added a room-scoped Redis mutation lock.
+
+- Assignment submit locks still protect a single user/canvas/part submission from timeout auto-submit.
+- Room mutation locks now serialize `relay:room:{roomCode}` JSON updates between submission API requests and timeout auto-submit.
+- The mutation lock key uses `relay:room-mutation-lock:{roomCode}` so it is not picked up by existing `relay:room:*` room scans.
+- Submission uploads still happen before the room mutation lock; only latest room state read, validation, mutation, and save run inside the lock.
+
+Recent fortune result re-query work added `GET /api/v1/fortune/today`.
+
+- The API reuses `Anonymous-User-UUID`, resolves the KST current date, reads the caller's stored `fortune_artifact.description`, and returns the same result fields as fortune creation without calling GMS or card storage.
+- Fortune create/re-query responses now use `FortuneResponse`, grouping rendered content under `fortune`, saved request data under `saju`, and card render metadata under `design`.
+- Birth-time unknown flows are supported: `hourPillar` is optional/nullable in request and response, while `cardTheme`/`bgColor`/`accentColor`/`iconKey` may also be null until card asset metadata is ready.
+- Missing same-day fortune rows return 404 with `오늘 생성된 운세를 찾을 수 없습니다.`, while malformed stored result JSON returns the existing common error envelope as a bad request.
+
+```bash
+./gradlew test --tests 'com.nemonicworld.fortune.controller.FortuneControllerIntegrationTest'
+./gradlew test
+./gradlew spotlessCheck
 ```
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real

@@ -30,6 +30,91 @@ GET {{host}}/api/v1/community/memos/not-a-uuid
 GET {{host}}/api/v1/community/memos/{{memoId}}
 Anonymous-User-UUID: not-a-uuid
 
+### Update community memo position
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - invalid memo UUID
+PATCH {{host}}/api/v1/community/memos/not-a-uuid
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - invalid anonymous user UUID
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - invalid position
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - forbidden owner
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: 00000000-0000-0000-0000-000000000001
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Delete community memo
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - invalid memo UUID
+DELETE {{host}}/api/v1/community/memos/not-a-uuid
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - invalid anonymous user UUID
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: not-a-uuid
+
+### Delete community memo - forbidden owner
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: 00000000-0000-0000-0000-000000000001
+
+### Delete community memo - already deleted memo
+# Use a memoId whose deleted_at is already set. The API returns 404.
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - hidden memo
+# Use a hidden memoId. The API returns 404.
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Create community memo from final rendered direct snapshot
 POST {{host}}/api/v1/community/memos
 Content-Type: application/json
