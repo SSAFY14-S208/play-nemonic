@@ -491,6 +491,24 @@ public final class OpenApiErrorExamples {
           "message": "커뮤니티 메모를 삭제할 권한이 없습니다."
         }
         """;
+    public static final String INVALID_COMMUNITY_MEMO_REPORT_REASON = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 신고 사유가 올바르지 않습니다."
+        }
+        """;
+    public static final String OWN_COMMUNITY_MEMO_REPORT = """
+        {
+          "success": false,
+          "message": "본인 메모는 신고할 수 없습니다."
+        }
+        """;
+    public static final String DUPLICATE_COMMUNITY_MEMO_REPORT = """
+        {
+          "success": false,
+          "message": "이미 신고한 커뮤니티 메모입니다."
+        }
+        """;
     public static final String UNSUPPORTED_COMMUNITY_MEMO_SOURCE_TYPE = """
         {
           "success": false,
