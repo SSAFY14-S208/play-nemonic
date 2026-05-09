@@ -190,11 +190,13 @@ public class CommunityMemoRepository {
             memo_id,
             user_id,
             reason,
+            reason_detail,
             created_at
         ) VALUES (
             :memoId,
             :userId,
             :reason,
+            :reasonDetail,
             :createdAt
         )
         """;
@@ -349,10 +351,12 @@ public class CommunityMemoRepository {
     /**
      * 커뮤니티 메모 신고 row를 저장합니다.
      */
-    public void insertMemoReport(UUID memoId, UUID userId, CommunityMemoReportReason reason, LocalDateTime createdAt) {
+    public void insertMemoReport(UUID memoId, UUID userId, CommunityMemoReportReason reason, String reasonDetail,
+        LocalDateTime createdAt) {
         // reason도 PostgreSQL enum 컬럼이므로 Types.OTHER로 전달합니다.
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId).addValue("userId", userId)
-            .addValue("reason", reason.value(), Types.OTHER).addValue("createdAt", createdAt);
+            .addValue("reason", reason.value(), Types.OTHER).addValue("reasonDetail", reasonDetail)
+            .addValue("createdAt", createdAt);
 
         jdbcTemplate.update(INSERT_MEMO_REPORT_SQL, params);
     }

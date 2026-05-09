@@ -257,7 +257,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
         LocalDateTime reportedAt = LocalDateTime.now();
         try {
-            communityMemoRepository.insertMemoReport(memoId, userUuid, reason, reportedAt);
+            communityMemoRepository.insertMemoReport(memoId, userUuid, reason,
+                normalizeReasonDetail(request.reasonDetail()), reportedAt);
         } catch (DuplicateKeyException e) {
             throw new ConflictException(DUPLICATE_REPORT_MESSAGE);
         }
@@ -298,6 +299,13 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
         return CommunityMemoReportReason.findByValue(reason)
             .orElseThrow(() -> new BadRequestException(INVALID_REPORT_REASON_MESSAGE));
+    }
+
+    /**
+     * 신고 상세 사유는 선택 입력이므로 비어 있으면 DB null로 저장합니다.
+     */
+    private String normalizeReasonDetail(String reasonDetail) {
+        return StringUtils.hasText(reasonDetail) ? reasonDetail.trim() : null;
     }
 
     /**

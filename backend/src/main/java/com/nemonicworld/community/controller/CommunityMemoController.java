@@ -209,7 +209,8 @@ public class CommunityMemoController {
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @RequestBody(required = true, content = @Content(examples = @ExampleObject(value = """
         {
-          "reason": "inappropriate"
+          "reason": "inappropriate",
+          "reasonDetail": "욕설이 포함되어 있어요."
         }
         """)))
     @ApiResponses({

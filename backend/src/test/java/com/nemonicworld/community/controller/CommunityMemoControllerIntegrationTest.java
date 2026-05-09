@@ -892,7 +892,7 @@ class CommunityMemoControllerIntegrationTest {
         UUID memoId = insertDirectMemo(ownerUuid, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 1, now, null, false);
 
         clearInvocations(moderationClient);
-        mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), validReportJson("inappropriate")))
+        mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), reportJson("inappropriate", "욕설이 포함되어 있어요.")))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 성공"))
             .andExpect(jsonPath("$.data.memoId").value(memoId.toString()))
@@ -906,6 +906,12 @@ class CommunityMemoControllerIntegrationTest {
               AND user_id = ?
               AND reason = 'inappropriate'
             """, Integer.class, memoId, reporterUuid)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT reason_detail
+            FROM community_memo_report
+            WHERE memo_id = ?
+              AND user_id = ?
+            """, String.class, memoId, reporterUuid)).isEqualTo("욕설이 포함되어 있어요.");
         assertThat(
             jdbcTemplate.queryForObject("SELECT report_count FROM community_memo WHERE id = ?", Integer.class, memoId))
             .isEqualTo(1);
@@ -1257,6 +1263,7 @@ class CommunityMemoControllerIntegrationTest {
                 memo_id UUID NOT NULL,
                 user_id UUID NOT NULL,
                 reason VARCHAR(32) NOT NULL,
+                reason_detail VARCHAR(1000) NULL,
                 created_at TIMESTAMP NOT NULL,
                 CONSTRAINT uq_community_memo_report_memo_user UNIQUE (memo_id, user_id)
             )
@@ -1339,8 +1346,8 @@ class CommunityMemoControllerIntegrationTest {
 
     private void insertMemoReport(UUID memoId, UUID userUuid, String reason, LocalDateTime createdAt) {
         jdbcTemplate.update("""
-            INSERT INTO community_memo_report (memo_id, user_id, reason, created_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO community_memo_report (memo_id, user_id, reason, reason_detail, created_at)
+            VALUES (?, ?, ?, NULL, ?)
             """, memoId, userUuid, reason, createdAt);
     }
 
@@ -1406,6 +1413,15 @@ class CommunityMemoControllerIntegrationTest {
               "reason": "%s"
             }
             """.formatted(reason);
+    }
+
+    private String reportJson(String reason, String reasonDetail) {
+        return """
+            {
+              "reason": "%s",
+              "reasonDetail": "%s"
+            }
+            """.formatted(reason, reasonDetail);
     }
 
     private String validLayoutJson() {

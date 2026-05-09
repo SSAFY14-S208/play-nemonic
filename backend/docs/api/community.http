@@ -121,7 +121,8 @@ Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
 {
-  "reason": "inappropriate"
+  "reason": "inappropriate",
+  "reasonDetail": "욕설이 포함되어 있어요."
 }
 
 ### Report community memo - invalid memo UUID

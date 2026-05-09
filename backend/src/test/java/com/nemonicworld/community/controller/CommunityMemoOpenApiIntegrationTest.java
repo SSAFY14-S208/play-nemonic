@@ -159,6 +159,7 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(
                 jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.requestBody.required").value(true))
             .andExpect(jsonPath("$.components.schemas.CommunityMemoReportRequest.properties.reason").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoReportRequest.properties.reasonDetail").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoReportResponse.properties.memoId").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoReportResponse.properties.reportCount").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoReportResponse.properties.hidden").exists())
