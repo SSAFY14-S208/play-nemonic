@@ -174,6 +174,7 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.responses['409'].description")
                 .value("중복 신고"));
     }
+
     @Test
     void adminCommunityMemoReviewApisAreExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
@@ -185,6 +186,8 @@ class CommunityMemoOpenApiIntegrationTest {
                 jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}'].get.summary").value("관리자 커뮤니티 메모 상세 조회"))
             .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/hide'].patch.summary")
                 .value("관리자 커뮤니티 메모 숨김 처리"))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/hide'].patch.requestBody").doesNotExist())
             .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/restore'].patch.summary")
                 .value("관리자 커뮤니티 메모 숨김 복구"))
             .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoItemResponse.properties.isHidden").exists())

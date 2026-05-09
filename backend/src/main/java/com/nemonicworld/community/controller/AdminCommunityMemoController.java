@@ -3,7 +3,6 @@ package com.nemonicworld.community.controller;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
-import com.nemonicworld.community.dto.request.AdminCommunityMemoHideRequest;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoListResponse;
 import com.nemonicworld.community.service.AdminCommunityMemoService;
@@ -13,7 +12,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,12 +39,6 @@ public class AdminCommunityMemoController {
     private static final String DETAIL_SUCCESS_MESSAGE = "관리자 커뮤니티 메모 상세 조회 성공";
     private static final String HIDE_SUCCESS_MESSAGE = "커뮤니티 메모 숨김 처리 성공";
     private static final String RESTORE_SUCCESS_MESSAGE = "커뮤니티 메모 숨김 복구 성공";
-    private static final String INVALID_HIDE_REASON_EXAMPLE = """
-        {
-          "success": false,
-          "message": "커뮤니티 메모 숨김 사유가 올바르지 않습니다."
-        }
-        """;
 
     private final AdminCommunityMemoService adminCommunityMemoService;
 
@@ -107,25 +99,16 @@ public class AdminCommunityMemoController {
      * visible 커뮤니티 메모를 관리자 수동 숨김 처리합니다.
      */
     @PatchMapping("/{memoId}/hide")
-    @Operation(summary = "관리자 커뮤니티 메모 숨김 처리", description = "관리자가 커뮤니티 메모를 admin_hidden 사유로 숨김 처리합니다.")
+    @Operation(summary = "관리자 커뮤니티 메모 숨김 처리", description = "관리자가 커뮤니티 메모를 숨김 처리하면 서버가 admin_hidden 사유를 고정 기록합니다.")
     @Parameter(name = "memoId", in = ParameterIn.PATH, required = true, description = "숨김 처리할 커뮤니티 메모 UUID")
-    @RequestBody(required = false, content = @Content(examples = @ExampleObject(value = """
-        {
-          "reason": "admin_hidden"
-        }
-        """)))
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "커뮤니티 메모 숨김 처리 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청값 오류", content = @Content(mediaType = "application/json", examples = {
-            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
-            @ExampleObject(name = "숨김 사유 오류", value = INVALID_HIDE_REASON_EXAMPLE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "메모 UUID 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_UUID))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "커뮤니티 메모 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)))})
     public ResponseEntity<ApiResponse<AdminCommunityMemoDetailResponse>> hideCommunityMemo(
-        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId,
-        @org.springframework.web.bind.annotation.RequestBody(required = false) AdminCommunityMemoHideRequest request) {
-        AdminCommunityMemoDetailResponse response = adminCommunityMemoService.hideCommunityMemo(adminPrincipal, memoId,
-            request);
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId) {
+        AdminCommunityMemoDetailResponse response = adminCommunityMemoService.hideCommunityMemo(adminPrincipal, memoId);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(HIDE_SUCCESS_MESSAGE, response));

@@ -24,15 +24,6 @@ Authorization: Bearer {{adminAccessToken}}
 
 ### Admin hide community memo
 PATCH {{host}}/api/v1/admin/community/memos/{{memoId}}/hide
-Content-Type: application/json
-Authorization: Bearer {{adminAccessToken}}
-
-{
-  "reason": "admin_hidden"
-}
-
-### Admin hide community memo - default reason
-PATCH {{host}}/api/v1/admin/community/memos/{{memoId}}/hide
 Authorization: Bearer {{adminAccessToken}}
 
 ### Admin restore community memo
@@ -42,12 +33,3 @@ Authorization: Bearer {{adminAccessToken}}
 ### Admin community memo - invalid memo UUID
 GET {{host}}/api/v1/admin/community/memos/not-a-uuid
 Authorization: Bearer {{adminAccessToken}}
-
-### Admin hide community memo - invalid reason
-PATCH {{host}}/api/v1/admin/community/memos/{{memoId}}/hide
-Content-Type: application/json
-Authorization: Bearer {{adminAccessToken}}
-
-{
-  "reason": "report_threshold"
-}

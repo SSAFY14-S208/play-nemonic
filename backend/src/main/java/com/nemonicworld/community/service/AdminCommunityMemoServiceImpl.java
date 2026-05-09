@@ -7,11 +7,9 @@ import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
-import com.nemonicworld.community.dto.request.AdminCommunityMemoHideRequest;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoItemResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoListResponse;
-import com.nemonicworld.community.entity.CommunityMemoHiddenReason;
 import com.nemonicworld.community.entity.CommunityMemoModerationStatus;
 import com.nemonicworld.community.entity.CommunityMemoSourceType;
 import com.nemonicworld.community.repository.AdminCommunityMemoRepository;
@@ -39,7 +37,6 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     private static final String INVALID_UUID_MESSAGE = "유효하지 않은 UUID 형식입니다.";
     private static final String COMMUNITY_MEMO_NOT_FOUND_MESSAGE = "존재하지 않는 커뮤니티 메모입니다.";
     private static final String INVALID_QUERY_MESSAGE = "관리자 커뮤니티 메모 조회 조건이 올바르지 않습니다.";
-    private static final String INVALID_HIDE_REASON_MESSAGE = "커뮤니티 메모 숨김 사유가 올바르지 않습니다.";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
@@ -100,11 +97,9 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
      */
     @Override
     @Transactional
-    public AdminCommunityMemoDetailResponse hideCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
-        AdminCommunityMemoHideRequest request) {
+    public AdminCommunityMemoDetailResponse hideCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue) {
         requireAdmin(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
-        validateHideReason(request);
 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
@@ -229,16 +224,6 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
 
     private boolean calculateHasNext(int page, int size, long totalElements) {
         return calculateOffset(page + 1, size) < totalElements;
-    }
-
-    private void validateHideReason(AdminCommunityMemoHideRequest request) {
-        String reason = request == null ? null : request.reason();
-        if (!StringUtils.hasText(reason)) {
-            return;
-        }
-        if (!CommunityMemoHiddenReason.ADMIN_HIDDEN.value().equals(reason.trim())) {
-            throw new BadRequestException(INVALID_HIDE_REASON_MESSAGE);
-        }
     }
 
     private AdminCommunityMemoItemResponse toItemResponse(AdminCommunityMemoRow row) {

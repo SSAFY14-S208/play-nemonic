@@ -168,13 +168,8 @@ class AdminCommunityMemoControllerIntegrationTest {
             null, 2, "allowed", "ocr", null, createdAt, createdAt);
 
         mockMvc
-            .perform(patch("/api/v1/admin/community/memos/{memoId}/hide", memoId)
-                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "reason": "admin_hidden"
-                    }
-                    """))
+            .perform(patch("/api/v1/admin/community/memos/{memoId}/hide", memoId).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.message").value("커뮤니티 메모 숨김 처리 성공"))
             .andExpect(jsonPath("$.data.isHidden").value(true))
             .andExpect(jsonPath("$.data.hiddenReason").value("admin_hidden"))
@@ -208,12 +203,6 @@ class AdminCommunityMemoControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"기타\"}"))
             .andExpect(status().isNotFound());
 
-        mockMvc.perform(patch("/api/v1/admin/community/memos/{memoId}/hide", memoId)
-            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON).content("""
-                {
-                  "reason": "report_threshold"
-                }
-                """)).andExpect(status().isBadRequest());
         verifyNoInteractions(moderationClient);
     }
 
