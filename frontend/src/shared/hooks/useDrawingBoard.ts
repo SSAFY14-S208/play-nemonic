@@ -18,6 +18,8 @@ interface UseDrawingBoardOptions {
   defaultStrokeWidth?: number
 }
 
+const MAX_RECENT_COLOR_COUNT = 5
+
 export function useDrawingBoard({
   boardSize,
   drawArea,
@@ -30,6 +32,7 @@ export function useDrawingBoard({
   const [strokeWidth, setStrokeWidth] = useState(defaultStrokeWidth)
   const [lines, setLines] = useState<DrawingLine[]>([])
   const [redoLines, setRedoLines] = useState<DrawingLine[]>([])
+  const [recentColors, setRecentColors] = useState<string[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
 
   const isEraserSelected = selectedToolKey === 'eraser'
@@ -65,6 +68,16 @@ export function useDrawingBoard({
     setIsDrawing(false)
   }, [])
 
+  const addRecentColor = useCallback((color: string) => {
+    setRecentColors((currentRecentColors) => {
+      const uniqueRecentColors = currentRecentColors.filter(
+        (recentColor) => recentColor !== color,
+      )
+
+      return [color, ...uniqueRecentColors].slice(0, MAX_RECENT_COLOR_COUNT)
+    })
+  }, [])
+
   const beginDrawing = useCallback(
     (event: DrawingPointerEvent) => {
       const stage = event.target.getStage()
@@ -83,12 +96,16 @@ export function useDrawingBoard({
           if (!fillLine) return
           setRedoLines([])
           setLines((currentLines) => [...currentLines, fillLine])
+          addRecentColor(selectedColor)
         })
         return
       }
 
       setIsDrawing(true)
       setRedoLines([])
+      if (!isEraserSelected) {
+        addRecentColor(drawingColor)
+      }
       setLines((currentLines) => [
         ...currentLines,
         {
@@ -107,6 +124,7 @@ export function useDrawingBoard({
       boardSize,
       drawArea,
       drawingColor,
+      addRecentColor,
       isEraserSelected,
       lines,
       selectedColor,
@@ -150,6 +168,7 @@ export function useDrawingBoard({
     selectedToolKey,
     selectedColor,
     strokeWidth,
+    recentColors,
     lines,
     canRedoDrawing: redoLines.length > 0,
     replaceLines,
