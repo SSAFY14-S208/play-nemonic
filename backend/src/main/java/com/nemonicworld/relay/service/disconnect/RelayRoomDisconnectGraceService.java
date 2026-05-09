@@ -7,7 +7,9 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
+import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
@@ -23,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,23 +40,32 @@ public class RelayRoomDisconnectGraceService {
     private static final Logger log = LoggerFactory.getLogger(RelayRoomDisconnectGraceService.class);
 
     private final RelayRoomRepository relayRoomRepository;
+    private final RelaySubmissionLockRepository relaySubmissionLockRepository;
+    private final RelayRoomMutationLockRepository relayRoomMutationLockRepository;
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final Duration reconnectGrace;
+    private final Duration roomMutationLockTtl;
     private final int scanLimit;
 
     public RelayRoomDisconnectGraceService(RelayRoomRepository relayRoomRepository,
+        RelaySubmissionLockRepository relaySubmissionLockRepository,
+        RelayRoomMutationLockRepository relayRoomMutationLockRepository,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
         RelayInviteMetadataSyncService relayInviteMetadataSyncService,
         @Value("${nemonic.relay.disconnect.reconnect-grace-seconds:" + RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS
             + "}") long reconnectGraceSeconds,
+        @Value("${nemonic.relay.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs,
         @Value("${nemonic.relay.disconnect.scan-limit:100}") int scanLimit) {
         this.relayRoomRepository = relayRoomRepository;
+        this.relaySubmissionLockRepository = relaySubmissionLockRepository;
+        this.relayRoomMutationLockRepository = relayRoomMutationLockRepository;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.reconnectGrace = Duration.ofSeconds(Math.max(0L, reconnectGraceSeconds));
+        this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
         this.scanLimit = scanLimit;
     }
 
@@ -98,7 +110,26 @@ public class RelayRoomDisconnectGraceService {
      */
     public RelayDisconnectGraceRoomResult processRoom(String roomCode, LocalDateTime now) {
         LocalDateTime processedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        RelayRoomState candidateRoomState = relayRoomRepository.findByRoomCode(roomCode).orElse(null);
+        if (!needsDisconnectGraceProcessing(candidateRoomState, processedAt)) {
+            return RelayDisconnectGraceRoomResult.noOp(roomCode);
+        }
 
+        String roomMutationLockToken = createRoomMutationLockToken(roomCode);
+        boolean locked = relayRoomMutationLockRepository.acquireRoomMutationLock(roomCode, roomMutationLockToken,
+            roomMutationLockTtl);
+        if (!locked) {
+            return RelayDisconnectGraceRoomResult.noOp(roomCode);
+        }
+
+        try {
+            return processRoomWithLock(roomCode, processedAt);
+        } finally {
+            relayRoomMutationLockRepository.releaseRoomMutationLock(roomCode, roomMutationLockToken);
+        }
+    }
+
+    private RelayDisconnectGraceRoomResult processRoomWithLock(String roomCode, LocalDateTime processedAt) {
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomRepository.findByRoomCode(roomCode).orElse(null);
             if (roomState == null || roomState.status() != RelayRoomStatus.PLAYING || roomState.currentPart() == null) {
@@ -135,6 +166,48 @@ public class RelayRoomDisconnectGraceService {
         }
 
         throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    private boolean needsDisconnectGraceProcessing(RelayRoomState roomState, LocalDateTime now) {
+        if (roomState == null || roomState.status() != RelayRoomStatus.PLAYING || roomState.currentPart() == null) {
+            return false;
+        }
+
+        return hasExpiredDisconnectedParticipant(roomState, now)
+            || hasDroppedParticipantPendingCurrentAssignment(roomState)
+            || hasDroppedHostWithConnectedCandidate(roomState);
+    }
+
+    private boolean hasExpiredDisconnectedParticipant(RelayRoomState roomState, LocalDateTime now) {
+        return roomState.participants().stream().anyMatch(participant -> shouldDrop(participant, now));
+    }
+
+    private boolean hasDroppedParticipantPendingCurrentAssignment(RelayRoomState roomState) {
+        Set<String> droppedUserUuids = droppedUserUuids(roomState.participants());
+        if (droppedUserUuids.isEmpty()) {
+            return false;
+        }
+
+        return roomState.assignments().stream()
+            .anyMatch(assignment -> assignment.part() == roomState.currentPart()
+                && assignment.status() == RelayAssignmentStatus.PENDING
+                && droppedUserUuids.contains(assignment.assignedUserUuid()));
+    }
+
+    private boolean hasDroppedHostWithConnectedCandidate(RelayRoomState roomState) {
+        boolean droppedHostExists = roomState.participants().stream().anyMatch(participant -> participant.dropped()
+            && (participant.host() || participant.userUuid().equals(roomState.hostUserUuid())));
+        if (!droppedHostExists) {
+            return false;
+        }
+
+        return roomState.participants().stream()
+            .anyMatch(participant -> !participant.dropped() && participant.connected());
+    }
+
+    private String createRoomMutationLockToken(String roomCode) {
+        return "token=%s,requestedAt=%s,owner=disconnect-grace,roomCode=%s".formatted(UUID.randomUUID(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), roomCode);
     }
 
     private ParticipantDropUpdate dropExpiredParticipants(RelayRoomState roomState, LocalDateTime droppedAt) {
@@ -196,12 +269,7 @@ public class RelayRoomDisconnectGraceService {
 
     private AutoSubmitUpdate autoSubmitDroppedCurrentAssignments(RelayRoomState roomState,
         List<RelayRoomParticipant> participants, LocalDateTime submittedAt) {
-        Set<String> droppedUserUuids = new HashSet<>();
-        for (RelayRoomParticipant participant : participants) {
-            if (participant.dropped()) {
-                droppedUserUuids.add(participant.userUuid());
-            }
-        }
+        Set<String> droppedUserUuids = droppedUserUuids(participants);
 
         if (droppedUserUuids.isEmpty()) {
             return new AutoSubmitUpdate(roomState.assignments(), List.of());
@@ -213,7 +281,8 @@ public class RelayRoomDisconnectGraceService {
 
         for (RelayRoomAssignment assignment : roomState.assignments()) {
             if (assignment.part() == currentPart && assignment.status() == RelayAssignmentStatus.PENDING
-                && droppedUserUuids.contains(assignment.assignedUserUuid())) {
+                && droppedUserUuids.contains(assignment.assignedUserUuid())
+                && !isSubmissionLocked(roomState, assignment)) {
                 RelayRoomAssignment autoSubmittedAssignment = autoSubmitAssignment(assignment, submittedAt);
                 assignments.add(autoSubmittedAssignment);
                 autoSubmissions.add(new RelayRoomAutoSubmissionResult(roomState.roomCode(),
@@ -224,6 +293,22 @@ public class RelayRoomDisconnectGraceService {
         }
 
         return new AutoSubmitUpdate(assignments, autoSubmissions);
+    }
+
+    private Set<String> droppedUserUuids(List<RelayRoomParticipant> participants) {
+        Set<String> droppedUserUuids = new HashSet<>();
+        for (RelayRoomParticipant participant : participants) {
+            if (participant.dropped()) {
+                droppedUserUuids.add(participant.userUuid());
+            }
+        }
+
+        return droppedUserUuids;
+    }
+
+    private boolean isSubmissionLocked(RelayRoomState roomState, RelayRoomAssignment assignment) {
+        return relaySubmissionLockRepository.isSubmissionLocked(roomState.roomCode(), assignment.canvasIndex(),
+            assignment.part(), assignment.assignedUserUuid());
     }
 
     private RelayRoomAssignment autoSubmitAssignment(RelayRoomAssignment assignment, LocalDateTime submittedAt) {
