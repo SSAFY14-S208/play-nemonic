@@ -1,11 +1,16 @@
 package com.nemonicworld.artifact.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.nemonicworld.artifact.service.download.ArtifactDownloadFile;
+import com.nemonicworld.artifact.service.download.ArtifactDownloadService;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
@@ -17,7 +22,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -40,6 +47,9 @@ class ArtifactControllerIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @MockitoBean
+    private ArtifactDownloadService artifactDownloadService;
 
     @BeforeEach
     void prepareArtifactTables() {
@@ -223,6 +233,26 @@ class ArtifactControllerIntegrationTest {
 
         assertThat(userRepository.existsById(missingUserUuid)).isFalse();
         assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * 다운로드 API는 QR 합성본 파일 바이트와 attachment 파일명을 그대로 내려줍니다.
+     */
+    @Test
+    void downloadArtifactReturnsQrComposedFile() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+        UUID artifactId = UUID.randomUUID();
+        byte[] fileBytes = new byte[]{1, 2, 3, 4};
+
+        when(artifactDownloadService.prepareDownloadFile(userUuid.toString(), artifactId.toString()))
+            .thenReturn(new ArtifactDownloadFile(fileBytes, "nemonic-result.jpg", "image/jpeg"));
+
+        mockMvc
+            .perform(get("/api/v1/artifacts/{artifactId}/download", artifactId).header(ANONYMOUS_USER_UUID_HEADER,
+                userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(header().string(HttpHeaders.CONTENT_TYPE, "image/jpeg"))
+            .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("nemonic-result.jpg")))
+            .andExpect(result -> assertThat(result.getResponse().getContentAsByteArray()).containsExactly(fileBytes));
     }
 
     private UUID createExistingUser() {
