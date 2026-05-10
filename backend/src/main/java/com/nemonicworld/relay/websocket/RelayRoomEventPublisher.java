@@ -16,6 +16,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomHostChangedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantDroppedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
@@ -29,6 +30,7 @@ import com.nemonicworld.relay.service.disconnect.RelayDroppedParticipantResult;
 import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationResult;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -162,10 +164,10 @@ public class RelayRoomEventPublisher {
     }
 
     public void publishPartTimeUp(String roomCode, RelayDrawingPart part, LocalDateTime partDeadlineAt,
-        LocalDateTime submitGraceDeadlineAt, long autoSubmitGraceMillis) {
+        LocalDateTime submitGraceDeadlineAt, long autoSubmitGraceMillis, List<PendingSubmission> pendingSubmissions) {
         RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_TIME_UP, roomCode,
             new RelayRoomPartTimeUpEventResponse(roomCode, part, partDeadlineAt, submitGraceDeadlineAt,
-                autoSubmitGraceMillis));
+                autoSubmitGraceMillis, pendingSubmissions == null ? 0 : pendingSubmissions.size(), pendingSubmissions));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
     }
