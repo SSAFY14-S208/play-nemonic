@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -15,6 +16,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.repository.FlipbookRoomTimeUpNotificationRepository;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.flipbook.service.timeout.FlipbookRoomTimeoutResult;
 import com.nemonicworld.flipbook.service.timeout.FlipbookRoomTimeoutService;
@@ -46,6 +48,9 @@ class FlipbookRoomTimeoutServiceTest {
     private FlipbookRoomRepository flipbookRoomRepository;
 
     @Mock
+    private FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository;
+
+    @Mock
     private FlipbookRoomEventPublisher flipbookRoomEventPublisher;
 
     @Mock
@@ -56,8 +61,8 @@ class FlipbookRoomTimeoutServiceTest {
     @BeforeEach
     void setUp() {
         flipbookRoomTimeoutService = new FlipbookRoomTimeoutService(flipbookRoomRepository,
-            new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, 100,
-            AUTO_SUBMIT_GRACE_MS);
+            flipbookRoomTimeUpNotificationRepository, new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher,
+            flipbookInviteMetadataSyncService, 100, AUTO_SUBMIT_GRACE_MS);
     }
 
     @Test
@@ -209,8 +214,8 @@ class FlipbookRoomTimeoutServiceTest {
         FlipbookRoomState roomState = playingRoom(1, 4, currentNow.minusSeconds(45), currentNow.minusSeconds(5),
             List.of(pendingAssignment(0, 0, 1, hostUuid)), participant(hostUuid, "Mango", true, 0));
         FlipbookRoomTimeoutService limitedService = new FlipbookRoomTimeoutService(flipbookRoomRepository,
-            new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, 5,
-            AUTO_SUBMIT_GRACE_MS);
+            flipbookRoomTimeUpNotificationRepository, new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher,
+            flipbookInviteMetadataSyncService, 5, AUTO_SUBMIT_GRACE_MS);
         given(flipbookRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(5)))
             .willReturn(List.of(roomState));
         given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
@@ -222,6 +227,49 @@ class FlipbookRoomTimeoutServiceTest {
         assertThat(result.scannedRoomCount()).isEqualTo(1);
         assertThat(result.processedRoomCount()).isEqualTo(1);
         assertThat(result.autoSubmittedCount()).isEqualTo(1);
+    }
+
+    @Test
+    void processExpiredRoomsPublishesRoundTimeUpDuringAutoSubmitGracePeriod() {
+        UUID hostUuid = UUID.randomUUID();
+        LocalDateTime testNow = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime roundDeadlineAt = testNow.minusSeconds(1);
+        FlipbookRoomState roomState = playingRoom(1, 4, testNow.minusSeconds(45), roundDeadlineAt,
+            List.of(pendingAssignment(0, 0, 1, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        given(flipbookRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(100)))
+            .willReturn(List.of(roomState), List.of());
+        given(flipbookRoomTimeUpNotificationRepository.markRoundTimeUpNotified(any(), any(Integer.class),
+            any(LocalDateTime.class), any(Duration.class))).willReturn(true);
+
+        FlipbookTimeoutProcessResult result = flipbookRoomTimeoutService.processExpiredRooms();
+
+        assertThat(result.scannedRoomCount()).isZero();
+        assertThat(result.processedRoomCount()).isZero();
+        assertThat(result.autoSubmittedCount()).isZero();
+        verify(flipbookRoomTimeUpNotificationRepository).markRoundTimeUpNotified(eq(ROOM_CODE), eq(1),
+            eq(roundDeadlineAt), eq(FlipbookRoomRepository.ROOM_STATE_TTL));
+        verify(flipbookRoomEventPublisher).publishRoundTimeUp(eq(ROOM_CODE), eq(1), eq(roundDeadlineAt),
+            eq(roundDeadlineAt.plus(AUTO_SUBMIT_GRACE_MS, ChronoUnit.MILLIS)), eq(AUTO_SUBMIT_GRACE_MS));
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    @Test
+    void processExpiredRoomsDoesNotDuplicateRoundTimeUpWhenNotificationWasAlreadyMarked() {
+        UUID hostUuid = UUID.randomUUID();
+        LocalDateTime testNow = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomState roomState = playingRoom(1, 4, testNow.minusSeconds(45), testNow.minusSeconds(1),
+            List.of(pendingAssignment(0, 0, 1, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        given(flipbookRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(100)))
+            .willReturn(List.of(roomState), List.of());
+        given(flipbookRoomTimeUpNotificationRepository.markRoundTimeUpNotified(any(), any(Integer.class),
+            any(LocalDateTime.class), any(Duration.class))).willReturn(false);
+
+        FlipbookTimeoutProcessResult result = flipbookRoomTimeoutService.processExpiredRooms();
+
+        assertThat(result.scannedRoomCount()).isZero();
+        verify(flipbookRoomEventPublisher, never()).publishRoundTimeUp(any(), any(Integer.class), any(), any(),
+            anyLong());
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
     }
 
     private LocalDateTime expiredDeadline() {
