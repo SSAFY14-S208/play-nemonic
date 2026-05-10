@@ -17,7 +17,7 @@ public class AdminAuditLogger {
     public void logLoginSuccess(AdminUser adminUser, AdminClientInfo clientInfo) {
         Map<String, Object> metadata = baseMetadata(adminUser.getId().toString(), adminUser.getRole().getValue(),
             clientInfo, adminUser.getId().toString(), "login", "success");
-        emit("INFO", "admin_login", "admin login succeeded", clientInfo, metadata);
+        emit("INFO", "admin_login_success", "admin login succeeded", clientInfo, metadata);
     }
 
     public void logLoginFailure(String attemptedLoginId, AdminUser adminUser, AdminClientInfo clientInfo) {
