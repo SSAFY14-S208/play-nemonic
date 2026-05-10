@@ -75,6 +75,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final int MAX_VISIBLE_MEMO_COUNT = 50;
     private static final int REPORT_HIDE_THRESHOLD = 5;
     private static final int MODERATION_LOG_TEXT_PREVIEW_LIMIT = 300;
+    private static final long MODERATION_SLOW_LOG_THRESHOLD_MS = 30_000L;
     private static final TypeReference<Map<String, Object>> DECORATION_TYPE = new TypeReference<>() {
     };
 
@@ -123,8 +124,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     public CommunityMemoDetailResponse getCommunityMemo(String memoIdValue, String viewerUserUuidValue) {
         UUID memoId = anonymousUserResolver.parseUuid(memoIdValue);
         UUID viewerUserUuid = parseOptionalViewerUuid(viewerUserUuidValue);
-        CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
-            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        CommunityMemoDetailRow row = findVisibleMemoOrLogNotFound(memoId, viewerUserUuid,
+            "community_memo_detail_not_found");
 
         CommunityMemoEventLogger.business("community_memo_detail_viewed", viewerUserUuid,
             metadata("memo_id", memoId, "viewer_user_uuid_present", viewerUserUuid != null, "owned_by_me",
@@ -139,6 +140,16 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     @Override
     @Transactional
     public CommunityMemoDetailResponse createCommunityMemo(String userUuidValue, CommunityMemoCreateRequest request) {
+        try {
+            return createCommunityMemoInternal(userUuidValue, request);
+        } catch (RuntimeException e) {
+            logCreateValidationFailed(userUuidValue, request, e);
+            throw e;
+        }
+    }
+
+    private CommunityMemoDetailResponse createCommunityMemoInternal(String userUuidValue,
+        CommunityMemoCreateRequest request) {
         UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         anonymousUserResolver.resolve(userUuid);
         CommunityMemoSourceType sourceType = validateSourceType(request);
@@ -150,6 +161,10 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         UUID thumbnailFileId = parseFileId(request.thumbnailFileId(), INVALID_THUMBNAIL_FILE_ID_MESSAGE);
         validateDifferentFiles(originalFileId, thumbnailFileId);
         validatePosition(request);
+        CommunityMemoEventLogger.business("community_memo_create_requested", userUuid,
+            metadata("source_type", sourceType.value(), "original_file_id", originalFileId, "thumbnail_file_id",
+                thumbnailFileId, "source_gallery_id", request.sourceGalleryId(), "source_artifact_id",
+                sourceArtifactId));
         String decorationJson = serializeDecoration(request.decoration());
         FileUpload originalFileUpload = findFileUpload(originalFileId);
         FileUpload thumbnailFileUpload = findFileUpload(thumbnailFileId);
@@ -182,8 +197,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         // FIFO는 생성 성공 직후에만 적용합니다. 위치 수정은 오래된 메모 정리에 영향을 주지 않습니다.
         expireOverflowVisibleMemos(memoId, now);
 
-        CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
-            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        CommunityMemoDetailRow row = findVisibleMemoOrLogNotFound(memoId, userUuid,
+            "community_memo_create_validation_failed");
         CommunityMemoEventLogger.business("community_memo_created", userUuid,
             metadata("memo_id", memoId, "source_type", sourceType.value(), "artifact_id", sourceArtifactId,
                 "original_file_id", originalFileId, "thumbnail_file_id", thumbnailFileId, "report_count",
@@ -198,14 +213,27 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     @Transactional
     public CommunityMemoDetailResponse updateCommunityMemoLayout(String memoIdValue, String userUuidValue,
         CommunityMemoLayoutUpdateRequest request) {
+        try {
+            return updateCommunityMemoLayoutInternal(memoIdValue, userUuidValue, request);
+        } catch (RuntimeException e) {
+            logCommunityActionFailed("community_memo_layout_update_failed", memoIdValue, userUuidValue, e);
+            throw e;
+        }
+    }
+
+    private CommunityMemoDetailResponse updateCommunityMemoLayoutInternal(String memoIdValue, String userUuidValue,
+        CommunityMemoLayoutUpdateRequest request) {
         UUID memoId = anonymousUserResolver.parseUuid(memoIdValue);
         UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         anonymousUserResolver.resolve(userUuid);
         validateLayout(request);
+        CommunityMemoEventLogger.business("community_memo_layout_update_requested", userUuid,
+            metadata("memo_id", memoId, "position_x", request.positionX(), "position_y", request.positionY(), "z_index",
+                request.zIndex(), "rotation_deg", request.rotationDeg()));
 
         // 숨김/삭제 메모는 상세 조회와 동일하게 404로 낮추고, visible 메모에서만 소유자를 확인합니다.
-        CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
-            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        CommunityMemoDetailRow row = findVisibleMemoOrLogNotFound(memoId, userUuid,
+            "community_memo_layout_update_failed");
         if (!isOwnedByViewer(row.userId(), userUuid)) {
             CommunityMemoEventLogger.business("community_memo_layout_update_denied", userUuid,
                 metadata("memo_id", memoId, "memo_owner_uuid", row.userId(), "reason", "not_owner"));
@@ -238,13 +266,22 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     @Override
     @Transactional
     public void deleteCommunityMemo(String memoIdValue, String userUuidValue) {
+        try {
+            deleteCommunityMemoInternal(memoIdValue, userUuidValue);
+        } catch (RuntimeException e) {
+            logCommunityActionFailed("community_memo_delete_failed", memoIdValue, userUuidValue, e);
+            throw e;
+        }
+    }
+
+    private void deleteCommunityMemoInternal(String memoIdValue, String userUuidValue) {
         UUID memoId = anonymousUserResolver.parseUuid(memoIdValue);
         UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         anonymousUserResolver.resolve(userUuid);
+        CommunityMemoEventLogger.business("community_memo_delete_requested", userUuid, metadata("memo_id", memoId));
 
         // 삭제/숨김 메모는 상세 조회와 동일하게 404로 숨기고, visible 메모에서만 소유자를 확인합니다.
-        CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
-            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        CommunityMemoDetailRow row = findVisibleMemoOrLogNotFound(memoId, userUuid, "community_memo_delete_failed");
         if (!isOwnedByViewer(row.userId(), userUuid)) {
             CommunityMemoEventLogger.business("community_memo_delete_denied", userUuid,
                 metadata("memo_id", memoId, "memo_owner_uuid", row.userId(), "reason", "not_owner"));
@@ -258,7 +295,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         if (deletedCount == 0) {
             throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
         }
-        CommunityMemoEventLogger.business("community_memo_deleted", userUuid,
+        CommunityMemoEventLogger.business("community_memo_user_deleted", userUuid,
             metadata("memo_id", memoId, "source_type", CommunityMemoEventLogger.sourceType(row.artifactId()),
                 "deleted_reason", "user_delete", "deleted_at", deletedAt));
     }
@@ -270,14 +307,26 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     @Transactional
     public CommunityMemoReportResponse reportCommunityMemo(String memoIdValue, String userUuidValue,
         CommunityMemoReportRequest request) {
+        try {
+            return reportCommunityMemoInternal(memoIdValue, userUuidValue, request);
+        } catch (RuntimeException e) {
+            logCommunityActionFailed("community_memo_report_rejected", memoIdValue, userUuidValue, e);
+            throw e;
+        }
+    }
+
+    private CommunityMemoReportResponse reportCommunityMemoInternal(String memoIdValue, String userUuidValue,
+        CommunityMemoReportRequest request) {
         UUID memoId = anonymousUserResolver.parseUuid(memoIdValue);
         UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         anonymousUserResolver.resolve(userUuid);
         CommunityMemoReportReason reason = validateReportReason(request);
+        CommunityMemoEventLogger.business("community_memo_report_requested", userUuid,
+            metadata("memo_id", memoId, "reason", reason.value(), "reason_detail_present",
+                CommunityMemoEventLogger.hasText(request.reasonDetail())));
 
         // 신고는 공용 벽에 노출 중인 메모만 받습니다. 숨김/삭제 메모는 다른 조회 API와 같이 404로 감춥니다.
-        CommunityMemoDetailRow row = communityMemoRepository.findVisibleMemoById(memoId)
-            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        CommunityMemoDetailRow row = findVisibleMemoOrLogNotFound(memoId, userUuid, "community_memo_report_rejected");
         if (isOwnedByViewer(row.userId(), userUuid)) {
             CommunityMemoEventLogger.business("community_memo_report_rejected", userUuid,
                 metadata("memo_id", memoId, "reason", reason.value(), "reject_reason", "own_memo"));
@@ -291,8 +340,9 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         }
 
         LocalDateTime reportedAt = LocalDateTime.now();
+        Long reportId;
         try {
-            communityMemoRepository.insertMemoReport(memoId, userUuid, reason,
+            reportId = communityMemoRepository.insertMemoReport(memoId, userUuid, reason,
                 normalizeReasonDetail(request.reasonDetail()), reportedAt);
         } catch (DuplicateKeyException e) {
             CommunityMemoEventLogger.business("community_memo_report_rejected", userUuid,
@@ -307,16 +357,18 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
         boolean hidden = reportCount >= REPORT_HIDE_THRESHOLD;
         if (hidden) {
+            CommunityMemoEventLogger.business("community_memo_report_threshold_reached", userUuid, metadata("memo_id",
+                memoId, "report_count", reportCount, "threshold", REPORT_HIDE_THRESHOLD, "reason", reason.value()));
             communityMemoRepository.hideMemoByReportThreshold(memoId, reportedAt, REPORT_HIDE_THRESHOLD);
-            CommunityMemoEventLogger.business("community_memo_auto_hidden_by_reports", userUuid,
+            CommunityMemoEventLogger.business("community_memo_auto_hidden_by_report", userUuid,
                 metadata("memo_id", memoId, "report_count", reportCount, "threshold", REPORT_HIDE_THRESHOLD,
                     "hidden_reason", "report_threshold", "hidden_at", reportedAt));
         }
 
         CommunityMemoEventLogger.business("community_memo_report_created", userUuid,
-            metadata("memo_id", memoId, "memo_owner_uuid", row.userId(), "reason", reason.value(),
-                "reason_detail_present", CommunityMemoEventLogger.hasText(request.reasonDetail()), "report_count",
-                reportCount, "hidden", hidden));
+            metadata("report_id", reportId, "memo_id", memoId, "memo_owner_uuid", row.userId(), "reason",
+                reason.value(), "reason_detail_present", CommunityMemoEventLogger.hasText(request.reasonDetail()),
+                "report_count", reportCount, "hidden", hidden));
         return new CommunityMemoReportResponse(memoId.toString(), reportCount, hidden);
     }
 
@@ -330,6 +382,87 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
         // 커뮤니티 감상 조회는 사용자 존재 확인 없이 UUID 형식과 ownedByMe 계산에만 헤더를 사용합니다.
         return anonymousUserResolver.parseUuid(viewerUserUuidValue);
+    }
+
+    private CommunityMemoDetailRow findVisibleMemoOrLogNotFound(UUID memoId, UUID actorUuid, String eventName) {
+        return communityMemoRepository.findVisibleMemoById(memoId).orElseThrow(() -> {
+            String reasonCode = resolveNotVisibleReasonCode(memoId);
+            CommunityMemoEventLogger.business(eventName, actorUuid,
+                metadata("memo_id", memoId, "reason_code", reasonCode));
+            return new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
+        });
+    }
+
+    private String resolveNotVisibleReasonCode(UUID memoId) {
+        return communityMemoRepository.findMemoVisibilityById(memoId).map(row -> {
+            if (row.deletedAt() != null) {
+                return "deleted";
+            }
+            if (row.hidden()) {
+                return "hidden";
+            }
+
+            return "not_visible";
+        }).orElse("not_found");
+    }
+
+    private void logCreateValidationFailed(String userUuidValue, CommunityMemoCreateRequest request,
+        RuntimeException error) {
+        if (MODERATION_BLOCKED_MESSAGE.equals(error.getMessage())
+            || MODERATION_UNAVAILABLE_MESSAGE.equals(error.getMessage())) {
+            return;
+        }
+
+        UUID userUuid = parseUuidQuietly(userUuidValue);
+        CommunityMemoEventLogger.business("community_memo_create_validation_failed", userUuid,
+            metadata("source_type", request == null ? null : request.sourceType(), "original_file_id",
+                request == null ? null : request.originalFileId(), "thumbnail_file_id",
+                request == null ? null : request.thumbnailFileId(), "source_gallery_id",
+                request == null ? null : request.sourceGalleryId(), "reason_code", exceptionReasonCode(error),
+                "message", error.getMessage()));
+    }
+
+    private void logCommunityActionFailed(String eventName, String memoIdValue, String userUuidValue,
+        RuntimeException error) {
+        UUID actorUuid = parseUuidQuietly(userUuidValue);
+        Map<String, Object> eventMetadata = metadata("memo_id", memoIdValue, "reason_code", exceptionReasonCode(error),
+            "message", error.getMessage());
+        if (memoIdValue != null) {
+            UUID memoId = parseUuidQuietly(memoIdValue);
+            if (memoId != null) {
+                eventMetadata.put("visibility_reason_code", resolveNotVisibleReasonCode(memoId));
+            }
+        }
+        CommunityMemoEventLogger.business(eventName, actorUuid, eventMetadata);
+    }
+
+    private UUID parseUuidQuietly(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+
+        try {
+            return UUID.fromString(value.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private String exceptionReasonCode(RuntimeException error) {
+        if (error instanceof BadRequestException) {
+            return "bad_request";
+        }
+        if (error instanceof ForbiddenException) {
+            return "forbidden";
+        }
+        if (error instanceof NotFoundException) {
+            return "not_found";
+        }
+        if (error instanceof ConflictException) {
+            return "conflict";
+        }
+
+        return error.getClass().getSimpleName();
     }
 
     /**
@@ -501,12 +634,18 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         CommunityMemoEventLogger.business("community_memo_fifo_checked",
             metadata("new_memo_id", newMemoId, "visible_memo_count", visibleMemoCount, "max_visible_memo_count",
                 MAX_VISIBLE_MEMO_COUNT, "overflow_count", Math.max(overflowCount, 0)));
-        if (overflowCount > 0) {
-            // 방금 붙인 메모는 제외하고, 노출 중인 오래된 메모부터 expired soft delete 처리합니다.
-            int expiredCount = communityMemoRepository.expireOldestVisibleMemos(newMemoId, now, overflowCount);
-            CommunityMemoEventLogger.business("community_memo_fifo_expired", metadata("new_memo_id", newMemoId,
-                "requested_expire_count", overflowCount, "expired_count", expiredCount, "deleted_reason", "expired"));
+        if (overflowCount <= 0) {
+            CommunityMemoEventLogger.business("community_memo_fifo_skipped", metadata("new_memo_id", newMemoId,
+                "visible_memo_count", visibleMemoCount, "limit", MAX_VISIBLE_MEMO_COUNT));
+            return;
         }
+
+        // 방금 붙인 메모는 제외하고, 노출 중인 오래된 메모부터 expired soft delete 처리합니다.
+        List<UUID> expiredMemoIds = communityMemoRepository.findOldestVisibleMemoIdsForExpiry(newMemoId, overflowCount);
+        int expiredCount = communityMemoRepository.expireVisibleMemosByIds(expiredMemoIds, now);
+        CommunityMemoEventLogger.business("community_memo_fifo_expired",
+            metadata("new_memo_id", newMemoId, "requested_expire_count", overflowCount, "expired_count", expiredCount,
+                "expired_memo_ids", expiredMemoIds, "deleted_reason", "expired"));
     }
 
     /**
@@ -514,21 +653,27 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
      */
     private CommunityMemoModerationResult checkModeration(String originalImageUrl, String thumbnailImageUrl,
         String clientText, CommunityMemoSourceType sourceType, UUID userUuid) {
+        long startedAt = System.nanoTime();
         try {
             CommunityMemoModerationResult result = communityMemoModerationClient
                 .check(new CommunityMemoModerationRequest(originalImageUrl, thumbnailImageUrl, clientText,
                     sourceType.value()));
-            logModerationResult(result, clientText, sourceType, userUuid);
+            long latencyMs = calculateLatencyMs(startedAt);
+            logModerationResult(result, clientText, sourceType, userUuid, latencyMs);
+            logSlowModerationIfNeeded(sourceType, userUuid, latencyMs);
             if (!result.allowed()) {
                 throw new BadRequestException(MODERATION_BLOCKED_MESSAGE);
             }
 
             return result;
         } catch (CommunityMemoModerationException e) {
-            CommunityMemoEventLogger.warn("community_memo_moderation_failed", "community memo moderation failed",
-                userUuid, metadata("source_type", sourceType.value(), "client_text_length",
-                    CommunityMemoEventLogger.textLength(clientText)),
-                e);
+            long latencyMs = calculateLatencyMs(startedAt);
+            CommunityMemoEventLogger
+                .warn("community_memo_moderation_failed", "community memo moderation failed", userUuid,
+                    metadata("source_type", sourceType.value(), "client_text_length",
+                        CommunityMemoEventLogger.textLength(clientText), "latency_ms", latencyMs, "fail_closed", true),
+                    e);
+            logSlowModerationIfNeeded(sourceType, userUuid, latencyMs);
             throw new BadRequestException(MODERATION_UNAVAILABLE_MESSAGE);
         }
     }
@@ -544,7 +689,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
      * 모더레이션 결과를 운영 로그에 남기되, 긴 텍스트는 미리보기 길이로 제한합니다.
      */
     private void logModerationResult(CommunityMemoModerationResult result, String clientText,
-        CommunityMemoSourceType sourceType, UUID userUuid) {
+        CommunityMemoSourceType sourceType, UUID userUuid, long latencyMs) {
         String categories = result.categories() == null || result.categories().isNull()
             ? "[]"
             : result.categories().toString();
@@ -556,7 +701,24 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
                 CommunityMemoEventLogger.textLength(clientText), "client_text_preview",
                 CommunityMemoEventLogger.textPreview(clientText), "ocr_text_length",
                 CommunityMemoEventLogger.textLength(result.ocrText()), "ocr_text_preview",
-                CommunityMemoEventLogger.textPreview(result.ocrText()), "categories", categories));
+                CommunityMemoEventLogger.textPreview(result.ocrText()), "categories", categories, "latency_ms",
+                latencyMs, "checked_at", LocalDateTime.now()));
+    }
+
+    private long calculateLatencyMs(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
+    }
+
+    private void logSlowModerationIfNeeded(CommunityMemoSourceType sourceType, UUID userUuid, long latencyMs) {
+        if (latencyMs <= MODERATION_SLOW_LOG_THRESHOLD_MS) {
+            return;
+        }
+
+        CommunityMemoEventLogger
+            .warn(
+                "community_memo_moderation_slow", "community memo moderation is slow", userUuid, metadata("source_type",
+                    sourceType.value(), "latency_ms", latencyMs, "threshold_ms", MODERATION_SLOW_LOG_THRESHOLD_MS),
+                null);
     }
 
     /**
