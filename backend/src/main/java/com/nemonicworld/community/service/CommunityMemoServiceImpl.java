@@ -107,12 +107,14 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     @Override
     @Transactional(readOnly = true)
     public CommunityMemoListResponse getCommunityMemos(String viewerUserUuidValue) {
+        long startedAt = System.nanoTime();
         UUID viewerUserUuid = parseOptionalViewerUuid(viewerUserUuidValue);
         List<CommunityMemoItemResponse> items = communityMemoRepository.findVisibleMemos().stream()
             .map(row -> toResponse(row, viewerUserUuid)).toList();
 
         CommunityMemoEventLogger.business("community_memo_list_viewed", viewerUserUuid,
-            metadata("viewer_user_uuid_present", viewerUserUuid != null, "item_count", items.size()));
+            metadata("viewer_user_uuid_present", viewerUserUuid != null, "item_count", items.size(), "duration_ms",
+                calculateLatencyMs(startedAt), "status", "success"));
         return new CommunityMemoListResponse(items, items.size());
     }
 
@@ -122,15 +124,17 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     @Override
     @Transactional(readOnly = true)
     public CommunityMemoDetailResponse getCommunityMemo(String memoIdValue, String viewerUserUuidValue) {
+        long startedAt = System.nanoTime();
         UUID memoId = anonymousUserResolver.parseUuid(memoIdValue);
         UUID viewerUserUuid = parseOptionalViewerUuid(viewerUserUuidValue);
         CommunityMemoDetailRow row = findVisibleMemoOrLogNotFound(memoId, viewerUserUuid,
-            "community_memo_detail_not_found");
+            "community_memo_detail_not_found", startedAt);
 
         CommunityMemoEventLogger.business("community_memo_detail_viewed", viewerUserUuid,
             metadata("memo_id", memoId, "viewer_user_uuid_present", viewerUserUuid != null, "owned_by_me",
                 isOwnedByViewer(row.userId(), viewerUserUuid), "source_type",
-                CommunityMemoEventLogger.sourceType(row.artifactId()), "report_count", row.reportCount()));
+                CommunityMemoEventLogger.sourceType(row.artifactId()), "report_count", row.reportCount(), "duration_ms",
+                calculateLatencyMs(startedAt), "status", "success"));
         return toDetailResponse(row, viewerUserUuid);
     }
 
@@ -179,7 +183,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         String clientText = normalizeClientText(request.clientText());
         CommunityMemoEventLogger.business("community_memo_moderation_requested", userUuid,
             metadata("source_type", sourceType.value(), "source_artifact_id", sourceArtifactId, "original_file_id",
-                originalFileId, "thumbnail_file_id", thumbnailFileId, "client_text_length",
+                originalFileId, "thumbnail_file_id", thumbnailFileId, "original_image_url", originalImageUrl,
+                "thumbnail_url", thumbnailImageUrl, "client_text_length",
                 CommunityMemoEventLogger.textLength(clientText), "client_text_preview",
                 CommunityMemoEventLogger.textPreview(clientText)));
         // 게시 전 모더레이션은 insert 이전에 끝내서 차단된 메모 row가 생기지 않도록 합니다.
@@ -202,7 +207,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         CommunityMemoEventLogger.business("community_memo_created", userUuid,
             metadata("memo_id", memoId, "source_type", sourceType.value(), "artifact_id", sourceArtifactId,
                 "original_file_id", originalFileId, "thumbnail_file_id", thumbnailFileId, "report_count",
-                row.reportCount(), "moderation_status", row.moderationStatus()));
+                row.reportCount(), "moderation_status", row.moderationStatus(), "body_image_object_key",
+                originalFileUpload.getObjectKey(), "thumbnail_image_object_key", thumbnailFileUpload.getObjectKey()));
         return toDetailResponse(row, userUuid);
     }
 
@@ -367,8 +373,9 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
 
         CommunityMemoEventLogger.business("community_memo_report_created", userUuid,
             metadata("report_id", reportId, "memo_id", memoId, "memo_owner_uuid", row.userId(), "reason",
-                reason.value(), "reason_detail_present", CommunityMemoEventLogger.hasText(request.reasonDetail()),
-                "report_count", reportCount, "hidden", hidden));
+                reason.value(), "reason_detail", normalizeReasonDetail(request.reasonDetail()), "reason_detail_present",
+                CommunityMemoEventLogger.hasText(request.reasonDetail()), "report_count", reportCount, "hidden",
+                hidden));
         return new CommunityMemoReportResponse(memoId.toString(), reportCount, hidden);
     }
 
@@ -385,10 +392,20 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     }
 
     private CommunityMemoDetailRow findVisibleMemoOrLogNotFound(UUID memoId, UUID actorUuid, String eventName) {
+        return findVisibleMemoOrLogNotFound(memoId, actorUuid, eventName, -1L);
+    }
+
+    private CommunityMemoDetailRow findVisibleMemoOrLogNotFound(UUID memoId, UUID actorUuid, String eventName,
+        long startedAt) {
         return communityMemoRepository.findVisibleMemoById(memoId).orElseThrow(() -> {
             String reasonCode = resolveNotVisibleReasonCode(memoId);
-            CommunityMemoEventLogger.business(eventName, actorUuid,
-                metadata("memo_id", memoId, "reason_code", reasonCode));
+            Map<String, Object> eventMetadata = metadata("memo_id", memoId, "reason_code", reasonCode, "status",
+                "not_found");
+            if (startedAt >= 0) {
+                eventMetadata.put("duration_ms", calculateLatencyMs(startedAt));
+            }
+            CommunityMemoEventLogger.business(eventName, actorUuid, eventMetadata);
+            logHiddenOrDeletedAccessAttempt(actorUuid, eventMetadata);
             return new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
         });
     }
@@ -420,6 +437,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
                 request == null ? null : request.thumbnailFileId(), "source_gallery_id",
                 request == null ? null : request.sourceGalleryId(), "reason_code", exceptionReasonCode(error),
                 "message", error.getMessage()));
+        logCreateSecurityEvent(userUuid, request, error);
     }
 
     private void logCommunityActionFailed(String eventName, String memoIdValue, String userUuidValue,
@@ -434,6 +452,64 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             }
         }
         CommunityMemoEventLogger.business(eventName, actorUuid, eventMetadata);
+        logCommunitySecurityEvent(eventName, actorUuid, eventMetadata, error);
+    }
+
+    private void logCreateSecurityEvent(UUID actorUuid, CommunityMemoCreateRequest request, RuntimeException error) {
+        if (error instanceof ForbiddenException) {
+            CommunityMemoEventLogger
+                .warn("community_file_ownership_violation", "community file ownership violation", actorUuid,
+                    metadata("original_file_id", request == null ? null : request.originalFileId(), "thumbnail_file_id",
+                        request == null ? null : request.thumbnailFileId(), "reason_code", "file_owner_mismatch"),
+                    error);
+            return;
+        }
+
+        if (error instanceof NotFoundException && "존재하지 않는 사용자입니다.".equals(error.getMessage())) {
+            CommunityMemoEventLogger.warn("community_user_not_found", "community user not found", actorUuid,
+                metadata("reason_code", "user_not_found"), error);
+        }
+    }
+
+    private void logCommunitySecurityEvent(String eventName, UUID actorUuid, Map<String, Object> eventMetadata,
+        RuntimeException error) {
+        if (error instanceof ForbiddenException) {
+            CommunityMemoEventLogger.warn("community_ownership_violation", "community ownership violation", actorUuid,
+                eventMetadata, error);
+            return;
+        }
+
+        if (error instanceof ConflictException && "community_memo_report_rejected".equals(eventName)) {
+            CommunityMemoEventLogger.warn("community_duplicate_report_attempt", "community duplicate report attempt",
+                actorUuid, eventMetadata, error);
+            return;
+        }
+
+        if (error instanceof NotFoundException) {
+            logHiddenOrDeletedAccessAttempt(actorUuid, eventMetadata);
+            if ("존재하지 않는 사용자입니다.".equals(error.getMessage())) {
+                CommunityMemoEventLogger.warn("community_user_not_found", "community user not found", actorUuid,
+                    eventMetadata, error);
+            }
+        }
+    }
+
+    private void logHiddenOrDeletedAccessAttempt(UUID actorUuid, Map<String, Object> eventMetadata) {
+        Object reasonCode = eventMetadata.get("visibility_reason_code");
+        if (reasonCode == null) {
+            reasonCode = eventMetadata.get("reason_code");
+        }
+
+        if ("hidden".equals(reasonCode)) {
+            CommunityMemoEventLogger.warn("community_hidden_memo_access_attempt",
+                "community hidden memo access attempt", actorUuid, eventMetadata, null);
+            return;
+        }
+
+        if ("deleted".equals(reasonCode)) {
+            CommunityMemoEventLogger.warn("community_deleted_memo_access_attempt",
+                "community deleted memo access attempt", actorUuid, eventMetadata, null);
+        }
     }
 
     private UUID parseUuidQuietly(String value) {
@@ -799,7 +875,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         String imageUrl = minioPublicUrlResolver.resolve(objectKey);
         if (StringUtils.hasText(objectKey) && !StringUtils.hasText(imageUrl)) {
             CommunityMemoEventLogger.warn("community_file_url_resolve_failed",
-                "community memo image url resolve failed", null,
+                "community memo image url resolve failed",
                 metadata("memo_id", memoId, "image_role", imageRole, "object_key", objectKey), null);
         }
 
@@ -832,6 +908,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             Map<String, Object> parsedDecoration = objectMapper.readValue(decoration, DECORATION_TYPE);
             return parsedDecoration == null ? Map.of() : parsedDecoration;
         } catch (JsonProcessingException e) {
+            CommunityMemoEventLogger.warn("community_decoration_parse_failed", "community memo decoration parse failed",
+                metadata("decoration_preview", CommunityMemoEventLogger.textPreview(decoration)), e);
             // 깨진 decoration 데이터가 있어도 상세 패널 조회는 실패시키지 않고 빈 객체로 낮춥니다.
             log.warn("커뮤니티 메모 decoration JSON을 파싱할 수 없습니다. decoration={}", decoration, e);
 

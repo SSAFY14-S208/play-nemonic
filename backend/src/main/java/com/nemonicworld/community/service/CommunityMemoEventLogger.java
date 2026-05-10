@@ -1,6 +1,7 @@
 package com.nemonicworld.community.service;
 
 import com.nemonicworld.global.logging.StructuredEventLogger;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.util.StringUtils;
@@ -17,18 +18,21 @@ public final class CommunityMemoEventLogger {
     }
 
     public static void business(String eventName, UUID actorUuid, Map<String, Object> metadata) {
-        StructuredEventLogger.apiBusiness(eventName, CONTENT_TYPE, stringify(actorUuid), metadata);
+        StructuredEventLogger.apiBusiness(eventName, CONTENT_TYPE, stringify(actorUuid),
+            enrichUserMetadata(actorUuid, metadata));
     }
 
     public static void business(String eventName, Map<String, Object> metadata) {
-        StructuredEventLogger.apiBusiness(eventName, CONTENT_TYPE, null, metadata);
+        StructuredEventLogger.apiBusiness(eventName, CONTENT_TYPE, null, enrichSystemMetadata(metadata));
     }
 
     public static void warn(String eventName, String message, UUID actorUuid, Map<String, Object> metadata,
         Throwable error) {
-        Map<String, Object> enrichedMetadata = metadata("actor_user_uuid", actorUuid);
-        enrichedMetadata.putAll(metadata == null ? Map.of() : metadata);
-        StructuredEventLogger.apiWarn(eventName, message, enrichedMetadata, error);
+        StructuredEventLogger.apiWarn(eventName, message, enrichUserMetadata(actorUuid, metadata), error);
+    }
+
+    public static void warn(String eventName, String message, Map<String, Object> metadata, Throwable error) {
+        StructuredEventLogger.apiWarn(eventName, message, enrichSystemMetadata(metadata), error);
     }
 
     public static Map<String, Object> metadata(Object... keyValues) {
@@ -62,5 +66,23 @@ public final class CommunityMemoEventLogger {
 
     private static String stringify(UUID value) {
         return value == null ? null : value.toString();
+    }
+
+    private static Map<String, Object> enrichUserMetadata(UUID actorUuid, Map<String, Object> metadata) {
+        Map<String, Object> enrichedMetadata = new LinkedHashMap<>();
+        enrichedMetadata.put("actor_type", actorUuid == null ? "anonymous" : "user");
+        enrichedMetadata.put("user_uuid", stringify(actorUuid));
+        enrichedMetadata.put("actor_user_uuid", stringify(actorUuid));
+        enrichedMetadata.putAll(metadata == null ? Map.of() : metadata);
+
+        return enrichedMetadata;
+    }
+
+    private static Map<String, Object> enrichSystemMetadata(Map<String, Object> metadata) {
+        Map<String, Object> enrichedMetadata = new LinkedHashMap<>();
+        enrichedMetadata.put("actor_type", "system");
+        enrichedMetadata.putAll(metadata == null ? Map.of() : metadata);
+
+        return enrichedMetadata;
     }
 }
