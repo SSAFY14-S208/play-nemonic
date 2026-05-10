@@ -1,16 +1,23 @@
 package com.nemonicworld.backoffice.flipbook.service;
 
+import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomDeleteResponse;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomListResponse;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomResponse;
 import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
+import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
+import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -20,15 +27,24 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
     private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String INVALID_STATUS_MESSAGE = "조회할 수 없는 플립북 방 상태입니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
+    private static final String ROOM_ALREADY_CLOSED_MESSAGE = "이미 종료된 방입니다.";
 
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
 
     private final FlipbookRoomRepository flipbookRoomRepository;
+    private final FlipbookRoomPolicy flipbookRoomPolicy;
+    private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+    private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
 
-    public BackofficeFlipbookRoomServiceImpl(FlipbookRoomRepository flipbookRoomRepository) {
+    public BackofficeFlipbookRoomServiceImpl(FlipbookRoomRepository flipbookRoomRepository,
+        FlipbookRoomPolicy flipbookRoomPolicy, FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
+        FlipbookRoomEventPublisher flipbookRoomEventPublisher) {
         this.flipbookRoomRepository = flipbookRoomRepository;
+        this.flipbookRoomPolicy = flipbookRoomPolicy;
+        this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
+        this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
     }
 
     @Override
@@ -55,6 +71,30 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
             .map(BackofficeFlipbookRoomResponse::from).toList();
 
         return new BackofficeFlipbookRoomListResponse(items, totalElements, pageNumber, pageSize);
+    }
+
+    @Override
+    public BackofficeFlipbookRoomDeleteResponse deleteActiveFlipbookRoom(AdminPrincipal adminPrincipal,
+        String roomCode) {
+        requireAdmin(adminPrincipal);
+        flipbookRoomPolicy.validateRoomCode(roomCode);
+        LocalDateTime closedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
+            FlipbookRoomState roomState = flipbookRoomPolicy.findRoomState(roomCode);
+            if (roomState.status() == FlipbookRoomStatus.CLOSED) {
+                throw new ConflictException(ROOM_ALREADY_CLOSED_MESSAGE);
+            }
+
+            FlipbookRoomState closedRoomState = roomState.close(closedAt);
+            if (flipbookRoomRepository.saveIfUnchanged(roomState, closedRoomState)) {
+                flipbookInviteMetadataSyncService.syncWithRoomState(closedRoomState);
+                flipbookRoomEventPublisher.publishRoomClosed(closedRoomState.roomCode(), closedRoomState.updatedAt());
+                return new BackofficeFlipbookRoomDeleteResponse(closedRoomState.roomCode());
+            }
+        }
+
+        throw new ConflictException(FlipbookRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
     private void requireAdmin(AdminPrincipal adminPrincipal) {

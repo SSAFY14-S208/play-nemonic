@@ -89,7 +89,7 @@ public class FlipbookRoomPolicy {
     /**
      * 방코드는 Redis 조회 전에 공통 방코드 생성 규칙과 같은 형식인지 먼저 검증합니다.
      */
-    void validateRoomCode(String roomCodeValue) {
+    public void validateRoomCode(String roomCodeValue) {
         if (!roomCodeGenerator.isValid(roomCodeValue)) {
             throw new BadRequestException(INVALID_ROOM_CODE_MESSAGE);
         }
@@ -110,7 +110,7 @@ public class FlipbookRoomPolicy {
     /**
      * Redis에 저장된 플립북 방 상태를 조회하고, 없으면 공통 404 응답으로 변환합니다.
      */
-    FlipbookRoomState findRoomState(String roomCodeValue) {
+    public FlipbookRoomState findRoomState(String roomCodeValue) {
         return flipbookRoomRepository.findByRoomCode(roomCodeValue)
             .orElseThrow(() -> new NotFoundException(ROOM_NOT_FOUND_MESSAGE));
     }

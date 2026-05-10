@@ -726,6 +726,12 @@ public final class OpenApiErrorExamples {
           "message": "조회할 수 없는 플립북 방 상태입니다."
         }
         """;
+    public static final String BACKOFFICE_FLIPBOOK_ROOM_UPDATE_CONFLICT = """
+        {
+          "success": false,
+          "message": "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요."
+        }
+        """;
     public static final String BACKOFFICE_RELAY_ROOM_UPDATE_CONFLICT = """
         {
           "success": false,

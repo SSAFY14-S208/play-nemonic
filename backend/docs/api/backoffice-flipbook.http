@@ -22,3 +22,11 @@ Authorization: Bearer {{adminAccessToken}}
 ### List active flipbook rooms - invalid status
 GET {{host}}/api/v1/backoffice/flipbook-rooms?status=CLOSED
 Authorization: Bearer {{adminAccessToken}}
+
+### Delete active flipbook room
+DELETE {{host}}/api/v1/backoffice/flipbook-rooms/AB3K9Q
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete active flipbook room - invalid room code
+DELETE {{host}}/api/v1/backoffice/flipbook-rooms/not-a-room
+Authorization: Bearer {{adminAccessToken}}
