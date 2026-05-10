@@ -115,6 +115,9 @@ export const useRelaySocket = ({
         case 'PART_AUTO_SUBMITTED':
           handlersRef.current.PART_AUTO_SUBMITTED?.(event)
           break
+        case 'PART_TIME_UP':
+          handlersRef.current.PART_TIME_UP?.(event)
+          break
         case 'ALL_PARTS_COMPLETED':
           handlersRef.current.ALL_PARTS_COMPLETED?.(event)
           break

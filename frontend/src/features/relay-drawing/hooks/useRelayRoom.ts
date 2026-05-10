@@ -274,6 +274,9 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
       ALL_PARTS_COMPLETED: (event) => {
         // FINALIZING으로 전환 → RelayRoomPage가 RelayFinalizingView 표시.
         setRoomStatus(event.data.roomStatus)
+        // 마지막 라운드의 PART_TIME_UP 오버레이는 여기서 내린다.
+        // (다음 PART_STARTED가 오지 않으므로 자연 소멸 경로가 없음.)
+        useRelayDrawingStore.getState().setPartTimeUp(false)
       },
       RESULT_CREATED: (event) => {
         // FINISHED로 전환 → RelayRoomPage가 RelayResultView 표시.
@@ -350,6 +353,31 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         useRelayDrawingStore.getState().incrementPartFetchTrigger()
         // 새 파트 시작 — 이전 파트의 제출자 목록은 더 이상 의미 없음.
         useRelayDrawingStore.getState().clearSubmittedUserUuids()
+        // 이전 파트의 PART_TIME_UP 오버레이를 즉시 내린다.
+        // setAssignment에서도 false로 리셋되지만, 새 배정 fetch가 도착하기 전에
+        // 사용자가 다음 라운드 시작 신호를 받았다는 신호를 즉시 보여주기 위함.
+        useRelayDrawingStore.getState().setPartTimeUp(false)
+      },
+      PART_TIME_UP: (event) => {
+        // 데드라인 도달 — 백엔드가 미제출자에게 자동 제출을 지시한다.
+        // 본인이 pendingSubmissions에 포함되어 있고 아직 미제출이면 즉시 자동 제출 트리거.
+        // 그렇지 않으면 오버레이만 띄우고 PART_STARTED를 기다린다(가이드: 백엔드가
+        // 모든 in-flight 제출을 처리한 뒤에야 다음 PART_STARTED 발사).
+        useRelayDrawingStore.getState().setPartTimeUp(true)
+
+        const currentUserUuid = useUserStore.getState().userUuid
+        if (!currentUserUuid) return
+        const isMePending = event.data.pendingSubmissions.some(
+          (pending) => pending.userUuid === currentUserUuid,
+        )
+        if (!isMePending) return
+
+        const roundKey = PART_TO_ROUND_KEY[event.data.part]
+        // 같은 라운드에서 이미 제출 완료된 상태면 자동 제출 안 함.
+        // (PART_TIME_UP보다 본인 제출 응답이 살짝 빨리 도달한 케이스 안전망.)
+        if (useRelayDrawingStore.getState().roundSubmitted[roundKey]) return
+
+        useRelayDrawingStore.getState().triggerPendingAutoSubmit()
       },
       PART_SUBMITTED: (event) => {
         // 다른 참여자가 제출 — 진행도 + 제출자 UUID 갱신.

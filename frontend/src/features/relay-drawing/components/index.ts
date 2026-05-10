@@ -10,6 +10,7 @@ export { default as RelayFinalizingView } from "./RelayFinalizingView";
 export { default as RelayJoinRoomModal } from "./RelayJoinRoomModal";
 export { default as RelayLabelCard } from "./RelayLabelCard";
 export { default as RelayLobbyView } from "./RelayLobbyView";
+export { default as PartTimeUpOverlay } from "./PartTimeUpOverlay";
 export { default as RelayNicknameModal } from "./RelayNicknameModal";
 export { default as RelayResultView } from "./RelayResultView";
 export { default as RoundProgressBar } from "./RoundProgressBar";

@@ -45,6 +45,9 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
   const totalCount = useRelayDrawingStore((state) => state.totalCount)
   const hintImageUrl = useRelayDrawingStore((state) => state.hintImageUrl)
   const partFetchTrigger = useRelayDrawingStore((state) => state.partFetchTrigger)
+  const pendingAutoSubmitTrigger = useRelayDrawingStore(
+    (state) => state.pendingAutoSubmitTrigger,
+  )
 
   const setAssignment = useRelayDrawingStore((state) => state.setAssignment)
 
@@ -243,6 +246,17 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
       toast.error('제출에 실패했어요. 다시 시도해 주세요.')
     }
   }, [captureCanvasBlob, captureHintBlob])
+
+  // PART_TIME_UP 자동 제출 트리거.
+  // useRelayRoom의 PART_TIME_UP 핸들러가 본인이 미제출자 목록에 있으면
+  // pendingAutoSubmitTrigger를 increment한다. 이 effect가 그걸 감지해
+  // submitDrawing을 호출 — 클라이언트의 deadline 폴링을 대체하는 단일 진입점.
+  // submitDrawing 내부에 isSubmitted/isSubmitting/canvasIndex 가드가 이미 있어
+  // 여기서 추가 가드 없이 호출만 한다.
+  useEffect(() => {
+    if (pendingAutoSubmitTrigger === 0) return
+    void submitDrawing()
+  }, [pendingAutoSubmitTrigger, submitDrawing])
 
   return {
     submitDrawing,

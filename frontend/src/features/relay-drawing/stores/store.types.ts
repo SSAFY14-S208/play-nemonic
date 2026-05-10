@@ -95,10 +95,19 @@ export interface CanvasSlice {
   // 라운드 전환 애니메이션
   isTransitioning: boolean
 
+  // PART_TIME_UP 수신 ~ PART_STARTED(또는 ALL_PARTS_COMPLETED) 사이.
+  // RelayDrawingView가 검은 오버레이 + 스피너로 "다음 파트 준비 중" 표시.
+  isPartTimeUp: boolean
+
   // WS 이벤트(GAME_STARTED/PART_STARTED) 전용 카운터 — effect 트리거용.
   // partDeadlineAt을 effect 의존성으로 쓰면 setAssignment 내부 set이
   // 재트리거를 유발하므로, 트리거와 데이터 세팅을 분리한다.
   partFetchTrigger: number
+
+  // PART_TIME_UP 수신 시 본인이 미제출자 목록에 있으면 increment.
+  // useRelayDrawingGame이 effect로 감지해 submitDrawing을 호출한다.
+  // 같은 카운터 값으로 재호출되지 않는 단조 증가 트리거 — partFetchTrigger와 동일 패턴.
+  pendingAutoSubmitTrigger: number
 
   // undo로 빠져나간 라인을 라운드별로 보관하는 redo 스택. 새 라인이 commit되면
   // 비워진다(표준 redo 동작 — 새 액션 후엔 redo가 의미를 잃기 때문).
@@ -133,6 +142,8 @@ export interface CanvasSlice {
   beginTransition: () => void
   advanceToNextRound: () => void
   incrementPartFetchTrigger: () => void
+  setPartTimeUp: (value: boolean) => void
+  triggerPendingAutoSubmit: () => void
   clearAssignment: () => void
 }
 

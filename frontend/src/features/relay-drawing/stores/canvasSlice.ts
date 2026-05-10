@@ -44,8 +44,14 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
   // 라운드 전환 애니메이션
   isTransitioning: false,
 
+  // PART_TIME_UP 오버레이 플래그
+  isPartTimeUp: false,
+
   // WS 이벤트 전용 effect 트리거 카운터
   partFetchTrigger: 0,
+
+  // PART_TIME_UP → 본인이 미제출자일 때 increment (자동 제출 트리거)
+  pendingAutoSubmitTrigger: 0,
 
   setActiveRoundKey: (roundKey) => {
     set({ activeRoundKey: roundKey })
@@ -183,6 +189,9 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
       totalCount: 0,
       submittedUserUuids: [],
       isTransitioning: false,
+      // 새 배정이 들어왔다는 건 PART_STARTED 흐름이 끝난 시점이라
+      // 이전 라운드의 PART_TIME_UP 오버레이는 더 이상 의미 없음.
+      isPartTimeUp: false,
       selectedToolKey: 'pencil',
       // 라운드별 데드라인 — 새로고침 복귀 시 WS 이벤트 없이도 deadline이 복원되도록.
       // roundSubmitted는 리셋하지 않는다 — 라운드 간 누적 이력.
@@ -197,6 +206,11 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
 
   incrementPartFetchTrigger: () =>
     set((state) => ({ partFetchTrigger: state.partFetchTrigger + 1 })),
+
+  setPartTimeUp: (value) => set({ isPartTimeUp: value }),
+
+  triggerPendingAutoSubmit: () =>
+    set((state) => ({ pendingAutoSubmitTrigger: state.pendingAutoSubmitTrigger + 1 })),
 
   setIsSubmitting: (isSubmitting) => set({ isSubmitting }),
 
@@ -248,7 +262,9 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
       totalCount: 0,
       submittedUserUuids: [],
       isTransitioning: false,
+      isPartTimeUp: false,
       partFetchTrigger: 0,
+      pendingAutoSubmitTrigger: 0,
       roundDeadlines: { face: null, body: null, legs: null },
       roundSubmitted: { face: false, body: false, legs: false },
     }),

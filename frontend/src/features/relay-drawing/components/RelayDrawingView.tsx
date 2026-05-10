@@ -9,6 +9,7 @@ import { useRelayTimer } from "../hooks/useRelayTimer";
 import { useRelayDrawingStore } from "../stores";
 import CountdownTimer from "./CountdownTimer";
 import DrawingToolPanel from "./DrawingToolPanel";
+import PartTimeUpOverlay from "./PartTimeUpOverlay";
 import RoundProgressBar from "./RoundProgressBar";
 import RoundProgressPanel from "./RoundProgressPanel";
 
@@ -18,12 +19,10 @@ const RelayDrawingStage = dynamic(() => import("../RelayDrawingStage"), {
 
 export default function RelayDrawingView() {
   const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey);
-  const currentPart = useRelayDrawingStore((state) => state.currentPart);
-  const roundDeadlines = useRelayDrawingStore((state) => state.roundDeadlines);
-  const roundSubmitted = useRelayDrawingStore((state) => state.roundSubmitted);
+  const isPartTimeUp = useRelayDrawingStore((state) => state.isPartTimeUp);
   const undoLine = useRelayDrawingStore((state) => state.undoLine);
   const redoLine = useRelayDrawingStore((state) => state.redoLine);
-  const { formattedTime, isExpiring, remainingSeconds } = useRelayTimer();
+  const { formattedTime, isExpiring } = useRelayTimer();
   const {
     submitDrawing,
     isSubmitting,
@@ -63,64 +62,11 @@ export default function RelayDrawingView() {
   const activeRound = RELAY_ROUND_SEGMENTS[activeRoundKey];
   const isLastRound = activeRoundKey === "legs";
 
-  // 현재 라운드의 데드라인/제출 상태 — 라운드 전환 시 cross-round auto-submit 방지.
-  const currentRoundDeadline = roundDeadlines[activeRoundKey];
-  const isCurrentRoundSubmitted = roundSubmitted[activeRoundKey];
-
-  // submitDrawing이 보낼 데이터(canvasIndex/part)가 store에 채워졌는지.
-  const isAssignmentLoaded = currentPart !== null && currentRoundDeadline !== null;
-
-  // 자동 제출: 데드라인 도달 + 이 라운드의 데드라인 수신 완료 + 미제출이면 보낸다.
-  // roundDeadlines[activeRoundKey] === null이면 이 라운드의 PART_STARTED를 아직
-  // 수신하지 않은 것이므로 발사하지 않는다 — stale 0초 방어.
-  useEffect(() => {
-    if (
-      remainingSeconds === 0 &&
-      currentRoundDeadline !== null &&
-      !isCurrentRoundSubmitted &&
-      !isSubmitting &&
-      isAssignmentLoaded
-    ) {
-      void submitDrawing();
-    }
-  }, [
-    remainingSeconds,
-    currentRoundDeadline,
-    isCurrentRoundSubmitted,
-    isSubmitting,
-    isAssignmentLoaded,
-    submitDrawing,
-  ]);
-
-  // 게임 중 이탈 시 best-effort 자동 제출 — 가이드 §27a.
-  // - 탭 닫기/새로고침: beforeunload에서 fire-and-forget. fetch가 끝까지 갈
-  //   보장은 없지만, 가능한 만큼 시도한다(서버 fallback은 빈 제출이라 손해).
-  // - 라우트 이동(뒤로가기, 다른 페이지 push): 컴포넌트 언마운트 시 cleanup이
-  //   동일 핸들러를 호출. SPA 내 전환은 보통 fetch가 완료된다.
-  // dismissalReason이 세팅된 상태(강퇴/방종료/중복세션)에서는 모달 확인 흐름의
-  // 부산물이므로 제출 시도하지 않는다 — 어차피 서버가 이미 정리한 세션이다.
-  useEffect(() => {
-    const attemptSubmitOnLeave = () => {
-      const store = useRelayDrawingStore.getState();
-      if (
-        store.roomCode &&
-        store.roomStatus === "PLAYING" &&
-        !store.roundSubmitted[store.activeRoundKey] &&
-        !store.isSubmitting &&
-        store.canvasIndex !== null &&
-        store.currentPart !== null &&
-        !store.dismissalReason
-      ) {
-        void submitDrawing();
-      }
-    };
-
-    window.addEventListener("beforeunload", attemptSubmitOnLeave);
-    return () => {
-      window.removeEventListener("beforeunload", attemptSubmitOnLeave);
-      attemptSubmitOnLeave();
-    };
-  }, [submitDrawing]);
+  // 자동 제출은 백엔드 PART_TIME_UP WS 이벤트가 단일 진입점.
+  // useRelayRoom의 핸들러가 본인이 미제출자 목록에 있으면 store의
+  // pendingAutoSubmitTrigger를 increment하고, useRelayDrawingGame의 effect가
+  // 그걸 감지해 submitDrawing을 호출한다. 클라이언트 측 deadline 폴링과
+  // beforeunload best-effort 자동 제출은 모두 제거됐다.
 
   // 버튼은 "이 라운드에서 이미 제출했는가"만 체크한다.
   const buttonDisabled = isSubmitting || isSubmitted;
@@ -184,6 +130,8 @@ export default function RelayDrawingView() {
           </button>
         </div>
       </div>
+
+      <PartTimeUpOverlay isVisible={isPartTimeUp} isLastRound={isLastRound} />
     </section>
   );
 }
