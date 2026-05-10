@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-09
+Last updated: 2026-05-10
 
 ## Current Focus
 
@@ -148,6 +148,17 @@ Last updated: 2026-05-09
 - Flipbook game start now uses `POST /api/v1/flipbook/rooms/{roomCode}/start`, requires the caller to be the host of a WAITING room, requires at least two connected WebSocket participants, calculates the default total rounds from the minimum 8-frame policy, stores `currentRound`, `totalRounds`, round deadline, `gameStartedAt`, and generated frame assignments in Redis, syncs invite TTL metadata, and emits `GAME_STARTED`.
 - Flipbook current assignment lookup now uses `GET /api/v1/flipbook/rooms/{roomCode}/assignments/me`, requires the caller to be a non-dropped participant in a PLAYING room, returns the current round assignment, remaining seconds, and previous-frame hint metadata when a submitted/auto-submitted previous frame exists.
 - Flipbook PLAYING-room re-entry now applies a 10-second reconnect grace period to both common invite re-entry and WebSocket CONNECT; the frontend should call invite and immediately open WebSocket, and either path returns the reconnect-expired 409 once `disconnectedAt + 10s` has passed.
+- Flipbook timeout processing now emits a one-time `ROUND_TIME_UP` WebSocket
+  event during the `roundDeadlineAt` to
+  `roundDeadlineAt + auto-submit-grace-ms` window for rooms with pending
+  current-round assignments. The event includes `roundDeadlineAt`,
+  `submitGraceDeadlineAt`, and `autoSubmitGraceMillis` so the frontend can
+  export the current canvas and call the normal frame submit API before the
+  backend fallback auto-submit runs. A separate Redis marker key prevents
+  duplicate `ROUND_TIME_UP` events for the same room, round, and deadline.
+- Flipbook frame submission now accepts requests until
+  `roundDeadlineAt + auto-submit-grace-ms`, keeping the default two-second
+  grace window aligned with timeout fallback auto-submit.
 - Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
   related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
   `super_admin` row in `admin_user` only when enabled and the login ID does not

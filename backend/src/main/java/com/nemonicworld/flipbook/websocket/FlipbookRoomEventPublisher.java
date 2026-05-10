@@ -16,6 +16,7 @@ import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantDroppedEve
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantLeftEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomSimpleMessageResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDroppedParticipantResult;
@@ -99,6 +100,18 @@ public class FlipbookRoomEventPublisher {
             submitResponse.roomCode(), submitResponse);
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submitResponse.roomCode(), event);
+    }
+
+    /**
+     * 현재 라운드 제한 시간이 끝나 클라이언트가 현재 캔버스를 제출해야 함을 방 전체에 알립니다.
+     */
+    public void publishRoundTimeUp(String roomCode, int round, LocalDateTime roundDeadlineAt,
+        LocalDateTime submitGraceDeadlineAt, long autoSubmitGraceMillis) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.ROUND_TIME_UP, roomCode,
+            new FlipbookRoundTimeUpEventResponse(roomCode, round, roundDeadlineAt, submitGraceDeadlineAt,
+                autoSubmitGraceMillis));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
     }
 
     /**
