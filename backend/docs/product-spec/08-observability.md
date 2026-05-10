@@ -144,6 +144,7 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `community_memo_presign_requested`
 - `community_memo_upload_confirmed`
 - `community_memo_upload_deleted`
+- `community_repository_query_failed`
 - `community_memo_list_viewed`
 - `community_memo_detail_viewed`
 - `community_memo_detail_not_found`
@@ -172,6 +173,7 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `community_memo_report_threshold_reached`
 - `community_memo_auto_hidden_by_report`
 - `community_api_slow_request`
+- `community_admin_query_failed`
 - `admin_community_memo_list_viewed`
 - `admin_community_memo_detail_viewed`
 - `admin_community_memo_reports_viewed`
@@ -183,6 +185,7 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `admin_community_memo_restored`
 - `admin_community_memo_restore_noop`
 - `admin_access_denied`
+- `admin_forbidden`
 - `admin_token_invalid`
 - `canvas_created`
 - `canvas_joined`
@@ -254,7 +257,7 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 
 ### 기록 대상 이벤트
 
-- `admin_login`, `admin_logout`, `admin_login_failed`
+- `admin_login_success`, `admin_logout`, `admin_login_failed`
 - `memo_soft_delete`, `memo_restore`, `memo_bulk_soft_delete`, `memo_bulk_restore`
 - `report_review_decided`
 - `relay_room_force_close`, `flipbook_room_force_close`
