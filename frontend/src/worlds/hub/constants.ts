@@ -50,6 +50,12 @@ export const HUB_ASSET_MESH_STYLES: Record<
   RightGreen_1: { color: '#f5eadc', emissive: '#fff8ee', emissiveIntensity: 0.1 },
 }
 
+export const HUB_WATER_PLANE_SIZE = 1800
+export const HUB_WATER_SURFACE_Y = 0.05
+export const HUB_WATER_WAVE_AMPLITUDE = 0.18
+export const HUB_WATER_WAVE_FREQUENCY = 0.045
+export const HUB_WATER_WAVE_SPEED = 0.6
+
 export const HUB_WITCH_PLATFORM_POSITION: [number, number, number] = [-6.05, 0.68, -0.64]
 export const HUB_WITCH_PLATFORM_ROTATION_Y = -Math.PI / 2
 export const HUB_WITCH_PLATFORM_HEIGHT = 3.25

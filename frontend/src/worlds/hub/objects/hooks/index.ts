@@ -22,6 +22,7 @@ export {
 } from './useHubPlatformModel'
 export { useNightStarField } from './useNightStarField'
 export { useRelayDrawingNavigation } from './useRelayDrawingNavigation'
+export { useThreeWaterTime } from './useThreeWaterTime'
 export { useWitchHoverMotion } from './useWitchHoverMotion'
 export { useWitchInteraction } from './useWitchInteraction'
 export {
