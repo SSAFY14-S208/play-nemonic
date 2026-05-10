@@ -1,0 +1,34 @@
+@host = http://localhost:8080
+@roomCode = AB3K9Q
+
+### Admin login
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "admin",
+  "password": "password"
+}
+
+> {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
+
+### List active relay rooms
+GET {{host}}/api/v1/backoffice/relay-rooms
+Authorization: Bearer {{adminAccessToken}}
+
+### List active relay rooms - status filter
+GET {{host}}/api/v1/backoffice/relay-rooms?status=PLAYING&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete active relay room
+# ACTIVE 상태(WAITING/PLAYING/FINALIZING/FINISHED)를 CLOSED로 전환합니다.
+DELETE {{host}}/api/v1/backoffice/relay-rooms/{{roomCode}}
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete active relay room - invalid room code
+DELETE {{host}}/api/v1/backoffice/relay-rooms/not-a-room
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete active relay room - not found
+DELETE {{host}}/api/v1/backoffice/relay-rooms/ZZZZZZ
+Authorization: Bearer {{adminAccessToken}}
