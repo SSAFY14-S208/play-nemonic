@@ -15,6 +15,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomHostChangedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantDroppedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
@@ -158,6 +159,15 @@ public class RelayRoomEventPublisher {
             submissionResponse.roomCode(), RelayRoomPartSubmittedEventResponse.from(submissionResponse));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submissionResponse.roomCode(), event);
+    }
+
+    public void publishPartTimeUp(String roomCode, RelayDrawingPart part, LocalDateTime partDeadlineAt,
+        LocalDateTime submitGraceDeadlineAt, long autoSubmitGraceMillis) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_TIME_UP, roomCode,
+            new RelayRoomPartTimeUpEventResponse(roomCode, part, partDeadlineAt, submitGraceDeadlineAt,
+                autoSubmitGraceMillis));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
     }
 
     public void publishPartAutoSubmitted(String roomCode, String nickname, RelayRoomAssignment assignment) {

@@ -23,6 +23,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomHostChangedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantDroppedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantLeftEventResponse;
@@ -204,6 +205,26 @@ class RelayRoomEventPublisherTest {
         assertThat(data.assignmentStatus()).isEqualTo(RelayAssignmentStatus.AUTO_SUBMITTED);
         assertThat(data.empty()).isTrue();
         assertThat(data.submittedAt()).isEqualTo(submittedAt);
+    }
+
+    @Test
+    void publishPartTimeUpSendsPartTimeUpEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        LocalDateTime partDeadlineAt = LocalDateTime.now().minusSeconds(1);
+        LocalDateTime submitGraceDeadlineAt = partDeadlineAt.plusSeconds(2);
+
+        publisher.publishPartTimeUp(ROOM_CODE, RelayDrawingPart.BODY, partDeadlineAt, submitGraceDeadlineAt, 2000L);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.PART_TIME_UP);
+
+        RelayRoomPartTimeUpEventResponse data = (RelayRoomPartTimeUpEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.part()).isEqualTo(RelayDrawingPart.BODY);
+        assertThat(data.partDeadlineAt()).isEqualTo(partDeadlineAt);
+        assertThat(data.submitGraceDeadlineAt()).isEqualTo(submitGraceDeadlineAt);
+        assertThat(data.autoSubmitGraceMillis()).isEqualTo(2000L);
     }
 
     @Test
