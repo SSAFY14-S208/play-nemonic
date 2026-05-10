@@ -1,5 +1,6 @@
 export { apiUnwrap } from './apiUnwrap'
 export { createBucketFillLine } from './drawingBucketFill'
+export { getDisplayImageUrl } from './displayImageUrl'
 export { isPointInsideDrawingArea } from './drawingGeometry'
 export {
   createRasterizedDrawingLine,

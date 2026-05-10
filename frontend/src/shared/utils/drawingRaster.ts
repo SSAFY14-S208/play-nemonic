@@ -12,6 +12,9 @@ export function parseHexColor(hexColor: string) {
 function loadImageElement(imageDataUrl: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const imageElement = new window.Image()
+    if (imageDataUrl.startsWith('http://') || imageDataUrl.startsWith('https://')) {
+      imageElement.crossOrigin = 'anonymous'
+    }
     imageElement.onload = () => resolve(imageElement)
     imageElement.onerror = reject
     imageElement.src = imageDataUrl
@@ -82,7 +85,7 @@ async function drawLineOnContext(
   if (line.kind === 'fill') {
     if (line.imageDataUrl) {
       const imageElement = await loadImageElement(line.imageDataUrl)
-      context.drawImage(imageElement, 0, 0)
+      context.drawImage(imageElement, 0, 0, context.canvas.width, context.canvas.height)
       return
     }
 

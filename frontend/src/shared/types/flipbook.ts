@@ -7,6 +7,8 @@ export type FlipbookRoomStatus = 'WAITING' | 'PLAYING' | 'FINISHED' | 'CLOSED'
 export type FlipbookBlockedReason =
   | 'ROOM_FULL'
   | 'GAME_IN_PROGRESS'
+  | 'KICKED'
+  | 'RECONNECT_EXPIRED'
   | 'ROOM_FINISHED'
   | 'ROOM_CLOSED'
 
@@ -24,7 +26,7 @@ export interface FlipbookRoomViewerResponse {
   host: boolean
   canJoin: boolean
   canStart: boolean
-  blockedReason: FlipbookBlockedReason
+  blockedReason: FlipbookBlockedReason | null
 }
 
 export interface FlipbookRoomCreateResponse {
@@ -43,6 +45,31 @@ export interface FlipbookRoomSettingsRequest {
   timeLimitSeconds: number
 }
 
+export interface FlipbookRoomKickRequest {
+  targetUserUuid: string
+}
+
+export interface FlipbookRoomKickResponse {
+  roomCode: string
+  kickedUserUuid: string
+  kickedNickname: string
+  participantCount: number
+  kickedAt: string
+}
+
+export interface FlipbookRoomLeaveResponse {
+  roomCode: string
+  leftUserUuid: string
+  leftNickname: string
+  participantCount: number
+  hostChanged: boolean
+  newHostUserUuid: string | null
+  newHostNickname: string | null
+  roomClosed: boolean
+  roomStatus: FlipbookRoomStatus
+  leftAt: string
+}
+
 export interface FlipbookRoomStateResponse {
   roomCode: string
   status: FlipbookRoomStatus
@@ -51,11 +78,235 @@ export interface FlipbookRoomStateResponse {
   minParticipants: number
   maxParticipants: number
   participantCount: number
+  currentRound: number | null
+  totalRounds: number | null
+  roundStartedAt: string | null
+  roundDeadlineAt: string | null
+  gameStartedAt: string | null
   participants: FlipbookRoomParticipantResponse[]
   viewer: FlipbookRoomViewerResponse
   createdAt: string
   updatedAt: string
 }
+
+export type FlipbookAssignmentStatus = 'PENDING' | 'SUBMITTED' | 'AUTO_SUBMITTED'
+
+export interface FlipbookAssignmentHintResponse {
+  flipbookIndex: number
+  frameIndex: number
+  round: number
+  objectKey: string | null
+  url: string | null
+  empty: boolean
+}
+
+export interface FlipbookAssignmentResponse {
+  roomCode: string
+  currentRound: number
+  totalRounds: number
+  flipbookIndex: number
+  frameIndex: number
+  assignmentStatus: FlipbookAssignmentStatus
+  timeLimitSeconds: number
+  roundStartedAt: string
+  roundDeadlineAt: string
+  remainingSeconds: number
+  hint: FlipbookAssignmentHintResponse | null
+}
+
+export interface FlipbookFrameSubmitRequest {
+  flipbookIndex: number
+  frameIndex: number
+  fileId: string
+}
+
+export interface FlipbookFrameSubmitResponse {
+  roomCode: string
+  round: number
+  flipbookIndex: number
+  frameIndex: number
+  assignmentStatus: FlipbookAssignmentStatus
+  fileId: string
+  objectKey: string
+  frameUrl: string
+  submittedAt: string
+  alreadySubmitted: boolean
+  currentRoundCompleted: boolean
+  submittedCount: number
+  totalCount: number
+  advanced: boolean
+  nextRound: number | null
+  nextRoundStartedAt: string | null
+  nextRoundDeadlineAt: string | null
+  allRoundsCompleted: boolean
+  roomStatus: FlipbookRoomStatus
+}
+
+export interface FlipbookResultFrameResponse {
+  frameIndex: number
+  imageUrl: string
+  drawnByUserUuid: string
+  drawnByNickname: string
+}
+
+export interface FlipbookResultItemResponse {
+  flipbookIndex: number
+  galleryId: string
+  artifactId: string
+  thumbnailUrl: string
+  gifUrl: string
+  firstImageUrl: string
+  createdAt: string
+  frames: FlipbookResultFrameResponse[]
+}
+
+export interface FlipbookResultResponse {
+  roomCode: string
+  roomStatus: FlipbookRoomStatus
+  ready: boolean
+  resultCount: number
+  results: FlipbookResultItemResponse[]
+}
+
+export interface FlipbookRealtimeEvent<TData = unknown> {
+  type: string
+  roomCode: string
+  data: TData
+  occurredAt: string
+}
+
+export type FlipbookWsEventType =
+  | 'PARTICIPANT_CONNECTED'
+  | 'PARTICIPANT_DISCONNECTED'
+  | 'PARTICIPANT_DROPPED'
+  | 'SETTINGS_CHANGED'
+  | 'GAME_STARTED'
+  | 'FRAME_SUBMITTED'
+  | 'FRAME_AUTO_SUBMITTED'
+  | 'ROUND_STARTED'
+  | 'ALL_ROUNDS_COMPLETED'
+  | 'ROOM_CLOSED'
+  | 'PARTICIPANT_KICKED'
+  | 'PARTICIPANT_LEFT'
+  | 'HOST_CHANGED'
+  | 'KICKED_FROM_ROOM'
+  | 'DUPLICATE_SESSION_CLOSED'
+  | 'PONG'
+  | 'ERROR'
+
+export interface FlipbookWsEnvelope<TType extends FlipbookWsEventType, TData> {
+  type: TType
+  roomCode: string
+  data: TData
+  occurredAt: string
+}
+
+export interface FlipbookRoomSnapshotResponse {
+  roomCode: string
+  status: FlipbookRoomStatus
+  hostUserUuid: string
+  timeLimitSeconds: number
+  minParticipants: number
+  maxParticipants: number
+  participantCount: number
+  currentRound: number | null
+  totalRounds: number | null
+  roundStartedAt: string | null
+  roundDeadlineAt: string | null
+  gameStartedAt: string | null
+  participants: FlipbookRoomParticipantResponse[]
+  changedParticipant: FlipbookRoomParticipantResponse | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FlipbookWsParticipantDroppedData {
+  roomCode: string
+  userUuid: string
+  nickname: string
+  disconnectedAt: string
+  droppedAt: string
+}
+
+export interface FlipbookWsFrameAutoSubmittedData {
+  roomCode: string
+  userUuid: string
+  nickname: string
+  flipbookIndex: number
+  frameIndex: number
+  round: number
+  assignmentStatus: 'AUTO_SUBMITTED'
+  empty: boolean
+  submittedAt: string
+}
+
+export interface FlipbookWsRoundStartedData {
+  roomCode: string
+  previousRound: number
+  round: number
+  roundStartedAt: string
+  roundDeadlineAt: string
+  timeLimitSeconds: number
+}
+
+export interface FlipbookWsAllRoundsCompletedData {
+  roomCode: string
+  roomStatus: 'FINISHED'
+  completedAt: string
+}
+
+export interface FlipbookWsRoomClosedData {
+  roomCode: string
+  roomStatus: 'CLOSED'
+  closedAt: string
+}
+
+export interface FlipbookWsParticipantKickedData {
+  roomCode: string
+  kickedUserUuid: string
+  kickedNickname: string
+  participantCount: number
+  kickedAt: string
+}
+
+export interface FlipbookWsParticipantLeftData {
+  roomCode: string
+  leftUserUuid: string
+  leftNickname: string
+  participantCount: number
+  leftAt: string
+}
+
+export interface FlipbookWsHostChangedData {
+  roomCode: string
+  previousHostUserUuid: string
+  newHostUserUuid: string
+  newHostNickname: string
+  changedAt: string
+}
+
+export interface FlipbookWsMessageData {
+  message: string
+}
+
+export type FlipbookWsEvent =
+  | FlipbookWsEnvelope<'PARTICIPANT_CONNECTED', FlipbookRoomSnapshotResponse>
+  | FlipbookWsEnvelope<'PARTICIPANT_DISCONNECTED', FlipbookRoomSnapshotResponse>
+  | FlipbookWsEnvelope<'SETTINGS_CHANGED', FlipbookRoomSnapshotResponse>
+  | FlipbookWsEnvelope<'GAME_STARTED', FlipbookRoomSnapshotResponse>
+  | FlipbookWsEnvelope<'FRAME_SUBMITTED', FlipbookFrameSubmitResponse>
+  | FlipbookWsEnvelope<'FRAME_AUTO_SUBMITTED', FlipbookWsFrameAutoSubmittedData>
+  | FlipbookWsEnvelope<'ROUND_STARTED', FlipbookWsRoundStartedData>
+  | FlipbookWsEnvelope<'ALL_ROUNDS_COMPLETED', FlipbookWsAllRoundsCompletedData>
+  | FlipbookWsEnvelope<'ROOM_CLOSED', FlipbookWsRoomClosedData>
+  | FlipbookWsEnvelope<'PARTICIPANT_KICKED', FlipbookWsParticipantKickedData>
+  | FlipbookWsEnvelope<'PARTICIPANT_LEFT', FlipbookWsParticipantLeftData>
+  | FlipbookWsEnvelope<'PARTICIPANT_DROPPED', FlipbookWsParticipantDroppedData>
+  | FlipbookWsEnvelope<'HOST_CHANGED', FlipbookWsHostChangedData>
+  | FlipbookWsEnvelope<'KICKED_FROM_ROOM', FlipbookWsMessageData>
+  | FlipbookWsEnvelope<'DUPLICATE_SESSION_CLOSED', FlipbookWsMessageData>
+  | FlipbookWsEnvelope<'PONG', FlipbookWsMessageData>
+  | FlipbookWsEnvelope<'ERROR', FlipbookWsMessageData>
 
 // WebSocket 세션 도메인 (REST와 별개의 실시간 페이로드 타입)
 

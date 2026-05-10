@@ -1,36 +1,35 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import {
-  FLIPBOOK_PARTICIPANTS,
-  FLIPBOOK_TIME_LIMITS_SECONDS,
-  type FlipbookTimeLimitSeconds,
-} from '../constants'
-import { createFlipbookSettings } from '../utils'
+import { FLIPBOOK_TIME_LIMITS_SECONDS } from '../constants'
+import { createFlipbookSettings } from '../flipbookSessionMapper'
+import type { FlipbookTimeLimitSeconds } from '../types'
 import type { useFlipbookRealtimeActions } from './useFlipbookRealtimeActions'
 
 interface UseFlipbookSettingsOptions {
   minimumRoundCount: number
+  participantCount: number
   realtimeActions: ReturnType<typeof useFlipbookRealtimeActions>
 }
 
 export function useFlipbookSettings({
   minimumRoundCount,
+  participantCount,
   realtimeActions,
 }: UseFlipbookSettingsOptions) {
   const [selectedTimeLimitSeconds, setSelectedTimeLimitSeconds] = useState<
     FlipbookTimeLimitSeconds
   >(FLIPBOOK_TIME_LIMITS_SECONDS[1])
-  const [roundCount, setRoundCount] = useState(Math.max(5, minimumRoundCount))
+  const [roundCount, setRoundCount] = useState(minimumRoundCount)
   const settings = useMemo(
     () =>
       createFlipbookSettings({
         minimumRoundCount,
-        participantCount: FLIPBOOK_PARTICIPANTS.length,
+        participantCount,
         roundCount,
         selectedTimeLimitSeconds,
       }),
-    [minimumRoundCount, roundCount, selectedTimeLimitSeconds],
+    [minimumRoundCount, participantCount, roundCount, selectedTimeLimitSeconds],
   )
 
   const increaseRoundCount = useCallback(() => {
@@ -40,12 +39,12 @@ export function useFlipbookSettings({
     realtimeActions.enqueueSettingsUpdate(
       createFlipbookSettings({
         minimumRoundCount,
-        participantCount: FLIPBOOK_PARTICIPANTS.length,
+        participantCount,
         roundCount: nextRoundCount,
         selectedTimeLimitSeconds,
       }),
     )
-  }, [minimumRoundCount, realtimeActions, roundCount, selectedTimeLimitSeconds])
+  }, [minimumRoundCount, participantCount, realtimeActions, roundCount, selectedTimeLimitSeconds])
 
   const decreaseRoundCount = useCallback(() => {
     const nextRoundCount = Math.max(minimumRoundCount, roundCount - 1)
@@ -54,12 +53,12 @@ export function useFlipbookSettings({
     realtimeActions.enqueueSettingsUpdate(
       createFlipbookSettings({
         minimumRoundCount,
-        participantCount: FLIPBOOK_PARTICIPANTS.length,
+        participantCount,
         roundCount: nextRoundCount,
         selectedTimeLimitSeconds,
       }),
     )
-  }, [minimumRoundCount, realtimeActions, roundCount, selectedTimeLimitSeconds])
+  }, [minimumRoundCount, participantCount, realtimeActions, roundCount, selectedTimeLimitSeconds])
 
   const selectTimeLimit = useCallback(
     (timeLimitSeconds: FlipbookTimeLimitSeconds) => {
@@ -67,13 +66,13 @@ export function useFlipbookSettings({
       realtimeActions.enqueueSettingsUpdate(
         createFlipbookSettings({
           minimumRoundCount,
-          participantCount: FLIPBOOK_PARTICIPANTS.length,
+          participantCount,
           roundCount,
           selectedTimeLimitSeconds: timeLimitSeconds,
         }),
       )
     },
-    [minimumRoundCount, realtimeActions, roundCount],
+    [minimumRoundCount, participantCount, realtimeActions, roundCount],
   )
 
   return {

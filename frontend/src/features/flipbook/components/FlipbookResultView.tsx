@@ -1,41 +1,56 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { Download, Pause, Play, Share2 } from 'lucide-react'
-import type { DrawingLine } from '@/shared/types'
+import type { DrawingLine, FlipbookResultItemResponse } from '@/shared/types'
 import { cn } from '@/shared/libs'
-import {
-  FLIPBOOK_BACKGROUND_COLOR,
-  FLIPBOOK_BOARD_SIZE,
-  FLIPBOOK_PARTICIPANTS,
-  FLIPBOOK_TOPIC,
-} from '../constants'
+import { getDisplayImageUrl } from '@/shared/utils'
+import { FLIPBOOK_BACKGROUND_COLOR, FLIPBOOK_BOARD_SIZE } from '../constants'
 import type { FlipbookFrame } from '../types'
 
 interface FlipbookResultViewProps {
   frames: FlipbookFrame[]
+  resultItems: FlipbookResultItemResponse[]
+  resultOwnerNames: string[]
+  activeResultIndex: number
+  gifUrl: string | null
+  resultCount: number
   activeFrame: FlipbookFrame | null
   resultFrameIndex: number
   isGifPlaying: boolean
   canGoPreviousResultFrame: boolean
   canGoNextResultFrame: boolean
   onToggleGifPlaying: (isPlaying: boolean) => void
+  onShowFrame: (frameIndex: number) => void
   onShowPreviousFrame: () => void
   onShowNextFrame: () => void
+  onSelectResult: (resultIndex: number) => void
   onCreateAnother: () => void
 }
 
 export default function FlipbookResultView({
   frames,
+  resultItems,
+  resultOwnerNames,
+  activeResultIndex,
+  gifUrl,
+  resultCount,
   activeFrame,
   resultFrameIndex,
   isGifPlaying,
   canGoPreviousResultFrame,
   canGoNextResultFrame,
   onToggleGifPlaying,
+  onShowFrame,
   onShowPreviousFrame,
   onShowNextFrame,
+  onSelectResult,
   onCreateAnother,
 }: FlipbookResultViewProps) {
+  const activeResult = resultItems[activeResultIndex] ?? null
+  const displayGifUrl = getDisplayImageUrl(gifUrl) ?? gifUrl
+
   return (
     <section className="min-h-screen bg-flipbook-background px-6 py-10 text-flipbook-ink lg:px-12 lg:py-14">
       <div className="mx-auto w-full max-w-[1312px]">
@@ -43,7 +58,7 @@ export default function FlipbookResultView({
           <div className="flex flex-wrap items-center gap-2">
             <span className="caption-b text-flipbook-deep">2026.04.28 ·</span>
             <span className="caption-b rounded-full bg-flipbook-light px-3 py-1 text-flipbook-ink">
-              🐱 고양이 님의 앨범
+              내 플립북 앨범
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -69,13 +84,16 @@ export default function FlipbookResultView({
                 <p className="caption-b text-flipbook-deep">STEP {resultFrameIndex + 1}</p>
                 <h1 className="h2-b mt-1 flex flex-wrap items-center gap-2 text-flipbook-ink">
                   <span className="rounded-full bg-flipbook-light px-3 py-0.5">
-                    {activeFrame?.drawnBy ?? '친구'} 님의 작품
+                    작품 {(activeResult?.flipbookIndex ?? activeResultIndex) + 1}
+                  </span>
+                  <span className="rounded-full bg-flipbook-result-soft px-3 py-0.5">
+                    프레임 {activeFrame ? activeFrame.index + 1 : resultFrameIndex + 1}
                   </span>
                 </h1>
               </div>
               <button
                 type="button"
-                aria-label={isGifPlaying ? 'GIF 재생 멈춤' : 'GIF 재생 시작'}
+                aria-label={isGifPlaying ? '프레임 자동 재생 멈춤' : '프레임 자동 재생 시작'}
                 onClick={() => onToggleGifPlaying(!isGifPlaying)}
                 className="grid size-11 place-items-center rounded-full bg-flipbook-primary text-flipbook-ink"
               >
@@ -88,12 +106,12 @@ export default function FlipbookResultView({
             </header>
 
             <div className="relative h-[460px] overflow-hidden rounded-[14px] border-[1.5px] border-flipbook-light bg-flipbook-paper">
-              <FrameDrawing lines={activeFrame?.lines ?? []} />
+              <FrameDrawing
+                lines={activeFrame?.lines ?? []}
+                imageUrl={activeFrame?.imageUrl ?? null}
+              />
               <div className="caption-b absolute right-4 top-4 flex items-center gap-2 rounded-full border border-flipbook-light bg-flipbook-paper py-1.5 pl-2 pr-4 text-flipbook-deep shadow-[0_6px_7px_var(--color-flipbook-shadow)]">
-                <span className="grid size-8 place-items-center rounded-full bg-flipbook-light">
-                  {activeFrame?.participantAvatar ?? '📖'}
-                </span>
-                {activeFrame?.drawnBy ?? '아직 프레임 없음'}
+                {activeFrame ? `프레임 ${activeFrame.index + 1}` : '아직 프레임 없음'}
               </div>
             </div>
 
@@ -130,21 +148,88 @@ export default function FlipbookResultView({
 
           <aside className="flex min-h-[716px] flex-col gap-4">
             <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper px-5 py-4">
-              <p className="caption-b text-flipbook-deep">이번엔 {FLIPBOOK_PARTICIPANTS.length}명이 모였어요</p>
-              <h2 className="h4-b mt-2 text-flipbook-ink">{FLIPBOOK_TOPIC}</h2>
+              <p className="caption-b text-flipbook-deep">완성된 작품</p>
+              <p className="caption-b mt-2 text-flipbook-muted">
+                총 {resultCount}개의 플립북 중 {activeResultIndex + 1}번째 결과
+              </p>
+              <div className="mt-4 grid gap-2">
+                {resultItems.map((resultItem, resultIndex) => {
+                  const sortedFrames = [...resultItem.frames].sort(
+                    (firstFrame, secondFrame) => firstFrame.frameIndex - secondFrame.frameIndex,
+                  )
+                  const firstDrawer =
+                    resultOwnerNames[resultItem.flipbookIndex] ??
+                    sortedFrames.find((frame) => frame.frameIndex === 0)?.drawnByNickname ??
+                    sortedFrames[0]?.drawnByNickname ??
+                    '알 수 없음'
+                  const isActiveResult = resultIndex === activeResultIndex
+
+                  return (
+                    <button
+                      key={resultItem.artifactId}
+                      type="button"
+                      onClick={() => onSelectResult(resultIndex)}
+                      className={cn(
+                        'flex min-h-[68px] items-center gap-3 rounded-[14px] bg-flipbook-result-soft px-3.5 text-left',
+                        isActiveResult &&
+                          'border-[1.5px] border-flipbook-deep bg-flipbook-paper shadow-[0_4px_5px_var(--color-flipbook-shadow)]',
+                      )}
+                    >
+                      <span
+                        className="relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-[10px] border border-flipbook-light bg-white"
+                        aria-hidden
+                      >
+                        <ResultThumbnail
+                          imageUrl={
+                            resultItem.thumbnailUrl ||
+                            resultItem.firstImageUrl ||
+                            sortedFrames[0]?.imageUrl ||
+                            null
+                          }
+                        />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="body-b block text-flipbook-ink">
+                          작품 {resultItem.flipbookIndex + 1}
+                        </span>
+                        <span className="caption-m block truncate text-flipbook-deep">
+                          시작: {firstDrawer}
+                        </span>
+                      </span>
+                      <span className="caption-b ml-auto text-flipbook-deep">
+                        {resultItem.frames.length}장
+                      </span>
+                    </button>
+                  )
+                })}
+                {resultItems.length === 0 && (
+                  <p className="caption-m rounded-[14px] bg-flipbook-result-soft px-3.5 py-4 text-flipbook-muted">
+                    결과를 불러오는 중이에요
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper px-5 py-4">
+              <p className="caption-b text-flipbook-deep">작품 프레임</p>
+              <p className="caption-b mt-2 text-flipbook-muted">
+                선택한 작품의 프레임만 재생돼요
+              </p>
               <div className="mt-4 grid gap-2">
                 {frames.map((frame, frameIndex) => (
                   <button
                     key={frame.id}
                     type="button"
+                    onClick={() => onShowFrame(frameIndex)}
                     className={cn(
                       'flex min-h-11 items-center gap-3 rounded-[14px] bg-flipbook-result-soft px-3.5',
                       frameIndex === resultFrameIndex &&
                         'border-[1.5px] border-flipbook-deep bg-flipbook-paper shadow-[0_4px_5px_var(--color-flipbook-shadow)]',
                     )}
                   >
-                    <span className="text-[18px]">{frame.participantAvatar}</span>
-                    <span className="body-b text-flipbook-ink">{frame.drawnBy}</span>
+                    <span className="body-b text-flipbook-ink">
+                      프레임 {frame.index + 1}
+                    </span>
                     <span className="caption-b ml-auto text-flipbook-deep">
                       {frame.index + 1}장
                     </span>
@@ -156,13 +241,19 @@ export default function FlipbookResultView({
             <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper p-5">
               <p className="caption-b text-flipbook-deep">GIF 다운로드 URL</p>
               <p className="caption-r mt-2 rounded-[12px] bg-flipbook-result-soft p-3 text-flipbook-muted">
-                /api/mock/flipbook/flipbook_uuid.gif
+                {gifUrl ?? '결과 GIF 생성 중'}
               </p>
             </section>
 
             <div className="mt-auto grid min-h-[60px] gap-3 sm:grid-cols-2">
               <button
                 type="button"
+                onClick={() => {
+                  if (gifUrl) {
+                    window.open(displayGifUrl ?? gifUrl, '_blank', 'noopener,noreferrer')
+                  }
+                }}
+                disabled={!gifUrl}
                 className="body-b inline-flex items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-flipbook-light bg-flipbook-paper px-5 text-flipbook-ink"
               >
                 <Download className="size-4" aria-hidden />
@@ -170,6 +261,11 @@ export default function FlipbookResultView({
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  if (!gifUrl || !navigator.share) return
+                  void navigator.share({ title: '플립북', url: gifUrl })
+                }}
+                disabled={!gifUrl}
                 className="body-b inline-flex items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-flipbook-primary bg-flipbook-primary px-5 text-flipbook-ink shadow-[0_4px_10px_var(--color-flipbook-shadow)]"
               >
                 <Share2 className="size-4" aria-hidden />
@@ -191,8 +287,19 @@ export default function FlipbookResultView({
   )
 }
 
-function FrameDrawing({ lines }: { lines: DrawingLine[] }) {
+function FrameDrawing({
+  lines,
+  imageUrl,
+}: {
+  lines: DrawingLine[]
+  imageUrl: string | null
+}) {
   const hasLines = lines.length > 0
+  const displayImageUrl = getDisplayImageUrl(imageUrl)
+
+  if (displayImageUrl) {
+    return <FrameImage imageUrl={displayImageUrl} />
+  }
 
   return (
     <svg
@@ -270,5 +377,85 @@ function FrameDrawing({ lines }: { lines: DrawingLine[] }) {
         </text>
       )}
     </svg>
+  )
+}
+
+function FrameImage({ imageUrl }: { imageUrl: string }) {
+  const [loadFailed, setLoadFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      if (!cancelled) {
+        setLoadFailed(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [imageUrl])
+
+  return (
+    <div className="relative h-full w-full bg-white">
+      {!loadFailed && (
+        <Image
+          src={imageUrl}
+          alt="플립북 프레임"
+          fill
+          sizes="880px"
+          unoptimized
+          className="object-contain"
+          onError={() => {
+            setLoadFailed(true)
+            console.warn('플립북 결과 이미지 로딩에 실패했습니다.', imageUrl)
+          }}
+        />
+      )}
+      {loadFailed && (
+        <div className="body-b grid h-full w-full place-items-center text-flipbook-deep">
+          이미지 로딩 실패
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ResultThumbnail({ imageUrl }: { imageUrl: string | null }) {
+  const [loadFailed, setLoadFailed] = useState(false)
+  const displayImageUrl = getDisplayImageUrl(imageUrl)
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      if (!cancelled) {
+        setLoadFailed(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [displayImageUrl])
+
+  if (!displayImageUrl || loadFailed) {
+    return <span className="caption-b text-flipbook-deep">?</span>
+  }
+
+  return (
+    <Image
+      src={displayImageUrl}
+      alt=""
+      fill
+      sizes="44px"
+      unoptimized
+      className="object-cover"
+      onError={() => {
+        setLoadFailed(true)
+        console.warn('플립북 썸네일 이미지 로딩에 실패했습니다.', displayImageUrl)
+      }}
+    />
   )
 }

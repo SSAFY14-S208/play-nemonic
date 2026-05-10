@@ -2,14 +2,13 @@
 
 import { useMemo } from 'react'
 import type { DrawingLine, FlipbookSessionSettings } from '@/shared/types'
-import type { FlipbookStep } from '../constants'
-import type { FlipbookFrame } from '../types'
+import type { FlipbookFrame, FlipbookParticipant, FlipbookStep } from '../types'
 import {
   compactFlipbookFrames,
   createFlipbookAssignment,
   createFlipbookSessionSnapshot,
   toFlipbookFramePayloads,
-} from '../utils'
+} from '../flipbookSessionMapper'
 
 export function useFlipbookSessionModel({
   activeRoundIndex,
@@ -20,6 +19,7 @@ export function useFlipbookSessionModel({
   roomId,
   roundCount,
   settings,
+  participants,
 }: {
   activeRoundIndex: number
   currentFrameLines: DrawingLine[]
@@ -29,6 +29,7 @@ export function useFlipbookSessionModel({
   roomId: string | null
   roundCount: number
   settings: FlipbookSessionSettings
+  participants: FlipbookParticipant[]
 }) {
   const compactedFrames = useMemo(() => compactFlipbookFrames(frames), [frames])
   const previousFrameLines = useMemo(
@@ -60,10 +61,19 @@ export function useFlipbookSessionModel({
         completedFramePayloads,
         currentFrameLines,
         currentStep,
+        participants,
         roomId,
         settings,
       }),
-    [activeAssignment, completedFramePayloads, currentFrameLines, currentStep, roomId, settings],
+    [
+      activeAssignment,
+      completedFramePayloads,
+      currentFrameLines,
+      currentStep,
+      participants,
+      roomId,
+      settings,
+    ],
   )
 
   return {
