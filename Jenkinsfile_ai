@@ -9,8 +9,8 @@
 // 5. infra/dev가 ai 배포 타깃을 지원하면 원격 배포 실행
 //
 // 주의:
-// - 현재 infra/dev의 remote-deploy.sh는 아직 --target ai를 지원하지 않으므로
-//   RUN_DEPLOY 기본값은 false입니다.
+// - infra/dev가 --target ai 배포를 지원하므로 ai/dev 빌드 성공 시
+//   RUN_DEPLOY 기본값 true로 모더레이션 서버를 자동 배포합니다.
 // - 실제 Google Vision API key는 Jenkinsfile이나 Git에 넣지 않고
 //   운영 서버의 /opt/nemonic/shared/.env.prod에만 둡니다.
 // - Registry 주소는 호스트 Docker daemon 기준으로 localhost:5000을 사용합니다.
@@ -31,8 +31,8 @@ pipeline {
                defaultValue: '/opt/nemonic',
                description: '호스트 기준 배포 디렉토리')
         booleanParam(name: 'RUN_DEPLOY',
-                     defaultValue: false,
-                     description: 'infra/dev에 ai 배포 타깃이 추가된 뒤 true로 변경')
+                     defaultValue: true,
+                     description: 'ai/dev 빌드 성공 시 moderation-server 자동 배포')
         booleanParam(name: 'NOTIFY_MM',
                      defaultValue: true,
                      description: 'Mattermost 알림 전송 여부')
