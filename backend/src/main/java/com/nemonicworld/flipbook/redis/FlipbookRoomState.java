@@ -106,6 +106,15 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
     }
 
     /**
+     * 결과물/갤러리/임시 파일은 그대로 두고 방 상태만 닫힘 상태로 전환합니다.
+     */
+    public FlipbookRoomState close(LocalDateTime closedAt) {
+        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.CLOSED, hostUserUuid, timeLimitSeconds,
+            minParticipants, maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt,
+            assignments, participants, createdAt, closedAt, kickedUserUuids);
+    }
+
+    /**
      * 첫 라운드를 시작하고 현재 라운드 마감 시각을 계산합니다.
      */
     public FlipbookRoomState startGame(int resolvedTotalRounds, LocalDateTime startedAt) {
