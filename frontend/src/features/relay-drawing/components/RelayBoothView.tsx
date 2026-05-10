@@ -123,7 +123,7 @@ export default function RelayBoothView() {
                   type="button"
                   onClick={handleCreateClick}
                   disabled={isActionDisabled}
-                  className="body-b min-h-14 rounded-2xl bg-relay-accent px-8 text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.3)] disabled:opacity-45"
+                  className="body-b min-h-14 cursor-pointer rounded-2xl bg-relay-accent px-8 text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.3)] transition-all hover:brightness-105 disabled:opacity-45 disabled:hover:brightness-100"
                 >
                   {isPending ? "방 만드는 중…" : "방 만들기 →"}
                 </button>
@@ -131,7 +131,7 @@ export default function RelayBoothView() {
                   type="button"
                   onClick={handleJoinClick}
                   disabled={isActionDisabled}
-                  className="body-b min-h-14 rounded-2xl border-2 border-relay-line bg-relay-paper px-7 text-relay-accent-strong disabled:opacity-45"
+                  className="body-b min-h-14 cursor-pointer rounded-2xl border-2 border-relay-line bg-relay-paper px-7 text-relay-accent-strong transition-all hover:brightness-95 disabled:opacity-45 disabled:hover:brightness-100"
                 >
                   방 입장
                 </button>

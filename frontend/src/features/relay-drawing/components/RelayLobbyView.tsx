@@ -54,7 +54,7 @@ export default function RelayLobbyView() {
           <button
             type="button"
             onClick={leaveRoom}
-            className="body-b inline-flex items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm"
+            className="body-b inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm transition-all hover:brightness-95 disabled:hover:brightness-100"
           >
             <ArrowLeft className="size-5" aria-hidden />
             나가기
@@ -82,7 +82,7 @@ export default function RelayLobbyView() {
               <button
                 type="button"
                 onClick={copyInviteLink}
-                className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
+                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:brightness-95 disabled:hover:brightness-100"
               >
                 <Copy className="size-[17px]" aria-hidden />
                 {copyConfirm === "link" ? "복사됨" : "링크 복사"}
@@ -90,7 +90,7 @@ export default function RelayLobbyView() {
               <button
                 type="button"
                 onClick={copyRoomCode}
-                className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
+                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:brightness-95 disabled:hover:brightness-100"
               >
                 <Copy className="size-[17px]" aria-hidden />
                 {copyConfirm === "roomCode" ? "복사됨" : "입장 코드 복사"}
@@ -158,7 +158,7 @@ export default function RelayLobbyView() {
                     onClick={() => changeTimeLimit(seconds)}
                     disabled={!isHost}
                     className={cn(
-                      "body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent disabled:cursor-not-allowed",
+                      "body-b min-h-12 cursor-pointer rounded-[12px] border border-relay-line bg-relay-active text-relay-accent transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:hover:brightness-100",
                       isSelected &&
                         "border-relay-accent bg-relay-accent/20 text-relay-ink",
                       !isHost && !isSelected && "opacity-60",
@@ -183,7 +183,7 @@ export default function RelayLobbyView() {
                 type="button"
                 onClick={startGame}
                 disabled={!canStartGame}
-                className="body-b min-h-16 rounded-3xl bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)] disabled:opacity-45"
+                className="body-b min-h-16 cursor-pointer rounded-3xl bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)] transition-all hover:brightness-105 disabled:opacity-45 disabled:hover:brightness-100"
               >
                 {startButtonLabel}
               </button>

@@ -34,7 +34,7 @@ export default function ResultAlbumsPanel({
               type="button"
               onClick={() => onSelectResult(index)}
               className={cn(
-                'caption-b grid min-h-22 place-items-center overflow-hidden rounded-xl border-[1.5px] border-relay-line bg-relay-credit-row text-relay-accent-strong',
+                'caption-b grid min-h-22 cursor-pointer place-items-center overflow-hidden rounded-xl border-[1.5px] border-relay-line bg-relay-credit-row text-relay-accent-strong transition-all hover:brightness-95 disabled:hover:brightness-100',
                 index === activeResultIndex &&
                   'border-relay-accent-strong bg-relay-active',
               )}

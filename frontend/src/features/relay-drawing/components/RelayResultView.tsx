@@ -161,11 +161,11 @@ export default function RelayResultView() {
               key={label}
               type="button"
               className={cn(
-                "body-b inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] border-[1.5px] px-5",
+                "body-b inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-[1.5px] px-5 transition-all disabled:hover:brightness-100",
                 index === 0 &&
-                  "border-relay-line bg-relay-paper text-relay-ink",
+                  "border-relay-line bg-relay-paper text-relay-ink hover:brightness-95",
                 index !== 0 &&
-                  "border-relay-accent bg-relay-accent text-relay-ink shadow-[0_4px_10px_rgba(212,156,31,0.18)]",
+                  "border-relay-accent bg-relay-accent text-relay-ink shadow-[0_4px_10px_rgba(212,156,31,0.18)] hover:brightness-105",
               )}
             >
               <Icon className="size-4" aria-hidden />
@@ -175,7 +175,7 @@ export default function RelayResultView() {
           <button
             type="button"
             onClick={handleReturnToLobby}
-            className="body-b inline-flex min-h-12 items-center justify-center rounded-[14px] border-[1.5px] border-relay-accent bg-relay-accent px-5 text-relay-ink shadow-[0_4px_10px_rgba(212,156,31,0.18)]"
+            className="body-b inline-flex min-h-12 cursor-pointer items-center justify-center rounded-[14px] border-[1.5px] border-relay-accent bg-relay-accent px-5 text-relay-ink shadow-[0_4px_10px_rgba(212,156,31,0.18)] transition-all hover:brightness-105 disabled:hover:brightness-100"
           >
             {isHost ? "방 종료" : "로비로 돌아가기"}
           </button>

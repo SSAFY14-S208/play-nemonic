@@ -106,7 +106,7 @@ function RelayRoomPageInner() {
           <button
             type="button"
             onClick={() => router.push('/relay-drawing')}
-            className="body-b min-h-11 rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink"
+            className="body-b min-h-11 cursor-pointer rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink transition-all hover:brightness-105 disabled:hover:brightness-100"
           >
             돌아가기
           </button>
