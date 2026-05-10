@@ -2,6 +2,8 @@ package com.nemonicworld.artifact.controller;
 
 import com.nemonicworld.artifact.dto.response.ArtifactImageUrlResponse;
 import com.nemonicworld.artifact.service.ArtifactService;
+import com.nemonicworld.artifact.service.download.ArtifactDownloadFile;
+import com.nemonicworld.artifact.service.download.ArtifactDownloadService;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -12,6 +14,9 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.nio.charset.StandardCharsets;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,9 +34,11 @@ public class ArtifactController {
     private static final String ARTIFACT_IMAGE_URL_FOUND_MESSAGE = "산출물 이미지 URL 조회 성공";
 
     private final ArtifactService artifactService;
+    private final ArtifactDownloadService artifactDownloadService;
 
-    public ArtifactController(ArtifactService artifactService) {
+    public ArtifactController(ArtifactService artifactService, ArtifactDownloadService artifactDownloadService) {
         this.artifactService = artifactService;
+        this.artifactDownloadService = artifactDownloadService;
     }
 
     /**
@@ -57,5 +64,31 @@ public class ArtifactController {
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(ARTIFACT_IMAGE_URL_FOUND_MESSAGE, response));
+    }
+
+    /**
+     * artifact ID로 QR이 합성된 공유용 파일을 생성 또는 재사용해 다운로드합니다.
+     */
+    @GetMapping("/{artifactId}/download")
+    @Operation(summary = "QR 합성 산출물 다운로드", description = "사용자가 보관 중인 산출물에 공유 QR을 합성한 JPG/GIF 파일을 다운로드합니다.")
+    @Parameter(name = "artifactId", in = ParameterIn.PATH, required = true, description = "산출물 ID")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "산출물 다운로드 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "산출물 ID 형식 오류", value = OpenApiErrorExamples.INVALID_ARTIFACT_ID)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 사용자 또는 산출물", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "산출물 이미지 없음", value = OpenApiErrorExamples.ARTIFACT_IMAGE_URL_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<byte[]> downloadArtifact(@PathVariable("artifactId") String artifactId,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        ArtifactDownloadFile file = artifactDownloadService.prepareDownloadFile(userUuid, artifactId);
+        ContentDisposition contentDisposition = ContentDisposition.attachment()
+            .filename(file.fileName(), StandardCharsets.UTF_8).build();
+
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType(file.contentType()))
+            .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString()).body(file.bytes());
     }
 }
