@@ -74,6 +74,19 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     public AdminCommunityMemoListResponse getCommunityMemos(AdminPrincipal adminPrincipal, Boolean hidden,
         String moderationStatus, String sourceType, Boolean reported, String keyword, String pageValue,
         String sizeValue, AdminClientInfo clientInfo) {
+        try {
+            return getCommunityMemosInternal(adminPrincipal, hidden, moderationStatus, sourceType, reported, keyword,
+                pageValue, sizeValue, clientInfo);
+        } catch (RuntimeException e) {
+            adminAuditLogger.logCommunityMemoSearchFailed(adminPrincipal, clientInfo, "view", "community_memo_list",
+                exceptionReasonCode(e));
+            throw e;
+        }
+    }
+
+    private AdminCommunityMemoListResponse getCommunityMemosInternal(AdminPrincipal adminPrincipal, Boolean hidden,
+        String moderationStatus, String sourceType, Boolean reported, String keyword, String pageValue,
+        String sizeValue, AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
 
         int page = parsePage(pageValue);
@@ -104,6 +117,17 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     @Transactional(readOnly = true)
     public AdminCommunityMemoDetailResponse getCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
         AdminClientInfo clientInfo) {
+        try {
+            return getCommunityMemoInternal(adminPrincipal, memoIdValue, clientInfo);
+        } catch (RuntimeException e) {
+            adminAuditLogger.logCommunityMemoSearchFailed(adminPrincipal, clientInfo, "view_detail", memoIdValue,
+                exceptionReasonCode(e));
+            throw e;
+        }
+    }
+
+    private AdminCommunityMemoDetailResponse getCommunityMemoInternal(AdminPrincipal adminPrincipal, String memoIdValue,
+        AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
 
@@ -122,6 +146,18 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     @Override
     @Transactional(readOnly = true)
     public AdminCommunityMemoReportListResponse getCommunityMemoReports(AdminPrincipal adminPrincipal,
+        String memoIdValue, String reasonValue, String pageValue, String sizeValue, AdminClientInfo clientInfo) {
+        try {
+            return getCommunityMemoReportsInternal(adminPrincipal, memoIdValue, reasonValue, pageValue, sizeValue,
+                clientInfo);
+        } catch (RuntimeException e) {
+            adminAuditLogger.logCommunityMemoSearchFailed(adminPrincipal, clientInfo, "view_reports", memoIdValue,
+                exceptionReasonCode(e));
+            throw e;
+        }
+    }
+
+    private AdminCommunityMemoReportListResponse getCommunityMemoReportsInternal(AdminPrincipal adminPrincipal,
         String memoIdValue, String reasonValue, String pageValue, String sizeValue, AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
@@ -156,11 +192,12 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         requireAdmin(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
         String reason = validateReviewReason(request, INVALID_HIDE_REASON_MESSAGE);
+        adminAuditLogger.logCommunityMemoHideRequested(adminPrincipal, memoId.toString(), reason, clientInfo);
 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         if (row.hidden()) {
-            adminAuditLogger.logCommunityMemoHide(adminPrincipal, memoId.toString(), reason, clientInfo, false);
+            adminAuditLogger.logCommunityMemoHidden(adminPrincipal, memoId.toString(), reason, clientInfo, false);
             return toDetailResponse(row);
         }
 
@@ -172,7 +209,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
 
         AdminCommunityMemoDetailResponse response = adminCommunityMemoRepository.findMemoById(memoId)
             .map(this::toDetailResponse).orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
-        adminAuditLogger.logCommunityMemoHide(adminPrincipal, memoId.toString(), reason, clientInfo, true);
+        adminAuditLogger.logCommunityMemoHidden(adminPrincipal, memoId.toString(), reason, clientInfo, true);
 
         return response;
     }
@@ -187,11 +224,12 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         requireAdmin(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
         String reason = validateReviewReason(request, INVALID_RESTORE_REASON_MESSAGE);
+        adminAuditLogger.logCommunityMemoRestoreRequested(adminPrincipal, memoId.toString(), reason, clientInfo);
 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         if (!row.hidden()) {
-            adminAuditLogger.logCommunityMemoRestore(adminPrincipal, memoId.toString(), reason, clientInfo, false);
+            adminAuditLogger.logCommunityMemoRestored(adminPrincipal, memoId.toString(), reason, clientInfo, false);
             return toDetailResponse(row);
         }
 
@@ -203,7 +241,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
 
         AdminCommunityMemoDetailResponse response = adminCommunityMemoRepository.findMemoById(memoId)
             .map(this::toDetailResponse).orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
-        adminAuditLogger.logCommunityMemoRestore(adminPrincipal, memoId.toString(), reason, clientInfo, true);
+        adminAuditLogger.logCommunityMemoRestored(adminPrincipal, memoId.toString(), reason, clientInfo, true);
 
         return response;
     }
@@ -292,6 +330,20 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         } catch (NumberFormatException e) {
             throw new BadRequestException(INVALID_QUERY_MESSAGE);
         }
+    }
+
+    private String exceptionReasonCode(RuntimeException error) {
+        if (error instanceof BadRequestException) {
+            return "bad_request";
+        }
+        if (error instanceof NotFoundException) {
+            return "not_found";
+        }
+        if (error instanceof UnauthorizedException) {
+            return "unauthorized";
+        }
+
+        return error.getClass().getSimpleName();
     }
 
     private long calculateOffset(int page, int size) {

@@ -402,8 +402,8 @@ class AdminCommunityMemoControllerIntegrationTest {
             .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
             .content("{\"reason\":\"   \"}")).andExpect(status().isBadRequest());
 
-        verify(adminAuditLogger).logCommunityMemoHide(any(AdminPrincipal.class), eq(memoId.toString()), eq(hideReason),
-            any(AdminClientInfo.class), eq(true));
+        verify(adminAuditLogger).logCommunityMemoHidden(any(AdminPrincipal.class), eq(memoId.toString()),
+            eq(hideReason), any(AdminClientInfo.class), eq(true));
         verifyNoInteractions(moderationClient);
     }
 
@@ -455,7 +455,7 @@ class AdminCommunityMemoControllerIntegrationTest {
 
         mockMvc.perform(get("/api/v1/community/memos/{memoId}", hiddenMemoId)).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.memoUuid").value(hiddenMemoId.toString()));
-        verify(adminAuditLogger).logCommunityMemoRestore(any(AdminPrincipal.class), eq(hiddenMemoId.toString()),
+        verify(adminAuditLogger).logCommunityMemoRestored(any(AdminPrincipal.class), eq(hiddenMemoId.toString()),
             eq(restoreReason), any(AdminClientInfo.class), eq(true));
         verifyNoInteractions(moderationClient);
     }

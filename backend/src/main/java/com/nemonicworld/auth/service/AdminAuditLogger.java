@@ -34,23 +34,44 @@ public class AdminAuditLogger {
         emit("INFO", "admin_logout", "admin logout succeeded", clientInfo, metadata);
     }
 
-    public void logCommunityMemoHide(AdminPrincipal adminPrincipal, String memoId, String reason,
+    public void logCommunityMemoHideRequested(AdminPrincipal adminPrincipal, String memoId, String reason,
+        AdminClientInfo clientInfo) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, TARGET_TYPE_MEMO, memoId, "hide", "requested");
+        metadata.put("input_reason", reason);
+        emit("INFO", "admin_community_memo_hide_requested", "community memo hide requested by admin", clientInfo,
+            metadata);
+    }
+
+    public void logCommunityMemoHidden(AdminPrincipal adminPrincipal, String memoId, String reason,
         AdminClientInfo clientInfo, boolean stateChanged) {
         Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
             clientInfo, TARGET_TYPE_MEMO, memoId, "hide", "success");
-        metadata.put("reason", reason);
+        metadata.put("input_reason", reason);
         metadata.put("hidden_reason", "admin_hidden");
+        metadata.put("hidden_reason_detail", reason);
         metadata.put("state_changed", stateChanged);
-        emit("INFO", "community_memo_hide", "community memo hidden by admin", clientInfo, metadata);
+        emit("INFO", stateChanged ? "admin_community_memo_hidden" : "admin_community_memo_hide_noop",
+            "community memo hidden by admin", clientInfo, metadata);
     }
 
-    public void logCommunityMemoRestore(AdminPrincipal adminPrincipal, String memoId, String reason,
+    public void logCommunityMemoRestoreRequested(AdminPrincipal adminPrincipal, String memoId, String reason,
+        AdminClientInfo clientInfo) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, TARGET_TYPE_MEMO, memoId, "restore", "requested");
+        metadata.put("input_reason", reason);
+        emit("INFO", "admin_community_memo_restore_requested", "community memo restore requested by admin", clientInfo,
+            metadata);
+    }
+
+    public void logCommunityMemoRestored(AdminPrincipal adminPrincipal, String memoId, String reason,
         AdminClientInfo clientInfo, boolean stateChanged) {
         Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
             clientInfo, TARGET_TYPE_MEMO, memoId, "restore", "success");
-        metadata.put("reason", reason);
+        metadata.put("restore_reason_detail", reason);
         metadata.put("state_changed", stateChanged);
-        emit("INFO", "community_memo_restore", "community memo restored by admin", clientInfo, metadata);
+        emit("INFO", stateChanged ? "admin_community_memo_restored" : "admin_community_memo_restore_noop",
+            "community memo restored by admin", clientInfo, metadata);
     }
 
     public void logCommunityMemoListViewed(AdminPrincipal adminPrincipal, AdminClientInfo clientInfo, Boolean hidden,
@@ -66,7 +87,7 @@ public class AdminAuditLogger {
         metadata.put("page", page);
         metadata.put("size", size);
         metadata.put("total_elements", totalElements);
-        emit("INFO", "community_memo_admin_list_viewed", "community memo list viewed by admin", clientInfo, metadata);
+        emit("INFO", "admin_community_memo_list_viewed", "community memo list viewed by admin", clientInfo, metadata);
     }
 
     public void logCommunityMemoDetailViewed(AdminPrincipal adminPrincipal, AdminClientInfo clientInfo, String memoId,
@@ -75,7 +96,7 @@ public class AdminAuditLogger {
             clientInfo, TARGET_TYPE_MEMO, memoId, "view_detail", "success");
         metadata.put("hidden", hidden);
         metadata.put("report_count", reportCount);
-        emit("INFO", "community_memo_admin_detail_viewed", "community memo detail viewed by admin", clientInfo,
+        emit("INFO", "admin_community_memo_detail_viewed", "community memo detail viewed by admin", clientInfo,
             metadata);
     }
 
@@ -87,8 +108,18 @@ public class AdminAuditLogger {
         metadata.put("page", page);
         metadata.put("size", size);
         metadata.put("total_elements", totalElements);
-        emit("INFO", "community_memo_admin_reports_viewed", "community memo reports viewed by admin", clientInfo,
+        emit("INFO", "admin_community_memo_reports_viewed", "community memo reports viewed by admin", clientInfo,
             metadata);
+    }
+
+    public void logCommunityMemoSearchFailed(AdminPrincipal adminPrincipal, AdminClientInfo clientInfo,
+        String operation, String targetId, String reasonCode) {
+        String actorId = adminPrincipal == null ? UNKNOWN : adminPrincipal.id().toString();
+        String actorRole = adminPrincipal == null ? UNKNOWN : adminPrincipal.role().getValue();
+        Map<String, Object> metadata = baseMetadata(actorId, actorRole, clientInfo, TARGET_TYPE_MEMO, targetId,
+            operation, "failure");
+        metadata.put("reason_code", reasonCode);
+        emit("WARN", "admin_community_memo_search_failed", "admin community memo search failed", clientInfo, metadata);
     }
 
     private Map<String, Object> baseMetadata(String actorId, String actorRole, AdminClientInfo clientInfo,
