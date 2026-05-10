@@ -162,6 +162,8 @@ export function useRelayResult() {
       const dynamicSegments: RelayResultSegment[] = parts.map((partItem, index) => {
         const roundKey = partToRoundKey(partItem.part)
         const roundRule = RELAY_ROUND_RULES[roundKey]
+        // avatar 필드는 데이터 모델 호환을 위해 유지하지만 결과 화면에서 더 이상
+        // 시각적으로 노출되지 않는다. 표시 라벨/태그에서 emoji prefix를 제거했다.
         const avatar = DRAWER_AVATARS[index % DRAWER_AVATARS.length]
         const isMe = partItem.drawerUserUuid === currentUserUuid
         const displayName = isMe
@@ -173,7 +175,7 @@ export function useRelayResult() {
           avatar,
           participantName: displayName,
           roleLabel: roundRule.label,
-          tagLabel: `${avatar} ${partItem.drawerNickname} · ${roundRule.label}`,
+          tagLabel: `${partItem.drawerNickname} · ${roundRule.label}`,
           tagClassName: SEGMENT_TAG_CLASSNAMES[roundKey],
         }
       })

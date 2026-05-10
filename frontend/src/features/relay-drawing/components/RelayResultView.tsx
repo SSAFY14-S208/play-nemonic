@@ -47,7 +47,6 @@ export default function RelayResultView() {
     segments,
     participantCount,
     ownerNickname,
-    ownerAvatar,
     completedAtLabel,
 
     // Host action — fire-and-forget로 백엔드 close 호출만 수행
@@ -79,7 +78,6 @@ export default function RelayResultView() {
           reveals={reveals}
           completedAtLabel={completedAtLabel}
           ownerNickname={ownerNickname}
-          ownerAvatar={ownerAvatar}
         />
 
         {/* 메인 grid — 모바일은 1열 stack(order-{n}), lg+는 좌측 Canvas(2행 전체 높이)
@@ -131,7 +129,6 @@ export default function RelayResultView() {
               segments={segments}
               participantCount={participantCount}
               ownerNickname={ownerNickname}
-              ownerAvatar={ownerAvatar}
             />
           </div>
 
