@@ -101,7 +101,9 @@ public class RelayRoomDisconnectGraceService {
             } catch (RuntimeException e) {
                 RelayRoomEventLogger.apiWarn("relay_disconnect_grace_scheduler_failed",
                     "failed to process relay disconnect grace room",
-                    metadata("room_id", candidateRoom.roomCode(), "operation", "disconnect_grace"), e);
+                    metadata("room_id", candidateRoom.roomCode(), "uuid",
+                        findDisconnectGraceCandidateUuid(candidateRoom, processedAt), "operation", "disconnect_grace"),
+                    e);
                 log.warn("릴레이 방 이탈 확정 처리 중 오류가 발생했습니다. roomCode={}", candidateRoom.roomCode(), e);
             }
         }
@@ -250,6 +252,13 @@ public class RelayRoomDisconnectGraceService {
     private boolean shouldDrop(RelayRoomParticipant participant, LocalDateTime now) {
         return !participant.dropped() && !participant.connected() && participant.disconnectedAt() != null
             && !participant.disconnectedAt().plus(reconnectGrace).isAfter(now);
+    }
+
+    private String findDisconnectGraceCandidateUuid(RelayRoomState roomState, LocalDateTime now) {
+        return roomState.participants().stream()
+            .filter(participant -> shouldDrop(participant, now) || participant.dropped())
+            .min(Comparator.comparingInt(RelayRoomParticipant::joinOrder)).map(RelayRoomParticipant::userUuid)
+            .orElse(null);
     }
 
     private HostTransferUpdate transferHostIfNeeded(RelayRoomState roomState, List<RelayRoomParticipant> participants,

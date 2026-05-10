@@ -46,10 +46,15 @@ public class RelayRoomConnectionUseCase {
      */
     @Transactional(readOnly = true)
     public RelayRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue) {
+        return connectRoom(userUuidValue, roomCodeValue, null);
+    }
+
+    @Transactional(readOnly = true)
+    public RelayRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue, String sessionId) {
         AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
         relayRoomPolicy.validateRoomCode(roomCodeValue);
 
-        return updateParticipantConnectionState(viewerUser.getId().toString(), roomCodeValue, true);
+        return updateParticipantConnectionState(viewerUser.getId().toString(), roomCodeValue, true, sessionId);
     }
 
     /**
@@ -60,14 +65,14 @@ public class RelayRoomConnectionUseCase {
         String viewerUserUuid = anonymousUserResolver.parseUuid(userUuidValue).toString();
         relayRoomPolicy.validateRoomCode(roomCodeValue);
 
-        return updateParticipantConnectionState(viewerUserUuid, roomCodeValue, false);
+        return updateParticipantConnectionState(viewerUserUuid, roomCodeValue, false, null);
     }
 
     /**
      * 참여자 연결 상태를 변경합니다.
      */
     private RelayRoomStateResponse updateParticipantConnectionState(String viewerUserUuid, String roomCodeValue,
-        boolean connected) {
+        boolean connected, String sessionId) {
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
             if (connected) {
@@ -94,8 +99,8 @@ public class RelayRoomConnectionUseCase {
                 if (connected && !participant.connected() && participant.disconnectedAt() != null) {
                     RelayRoomEventLogger.websocketBusiness("relay_ws_reconnected",
                         metadata("room_id", updatedRoomState.roomCode(), "uuid", viewerUserUuid, "old_disconnected_at",
-                            participant.disconnectedAt(), "room_status", updatedRoomState.status(), "current_part",
-                            updatedRoomState.currentPart()));
+                            participant.disconnectedAt(), "session_id", sessionId, "room_status",
+                            updatedRoomState.status(), "current_part", updatedRoomState.currentPart()));
                 }
 
                 return RelayRoomStateResponse.from(updatedRoomState, viewer);

@@ -94,7 +94,9 @@ public class RelayRoomFinalizationService {
                 }
             } catch (RuntimeException e) {
                 RelayRoomEventLogger.apiWarn("relay_finalization_failed", "failed to finalize relay room",
-                    metadata("room_id", finalizingRoom.roomCode(), "stage", "process", "operation", "finalization"), e);
+                    metadata("room_id", finalizingRoom.roomCode(), "stage", "process", "artifact_id", null, "operation",
+                        "finalization"),
+                    e);
                 log.warn("릴레이 최종 결과물 생성 중 오류가 발생했습니다. roomCode={}", finalizingRoom.roomCode(), e);
             }
         }
@@ -149,7 +151,10 @@ public class RelayRoomFinalizationService {
             now);
         RelayRoomState finishedRoomState = roomState.finish(now);
         if (!relayRoomRepository.saveIfUnchanged(roomState, finishedRoomState)) {
-            throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+            ConflictException error = new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+            logFinalizationFailure(roomCode, "redis_update",
+                artifacts.stream().findFirst().map(RelayFinalizationArtifactResult::artifactId).orElse(null), error);
+            throw error;
         }
         relayInviteMetadataSyncService.syncWithRoomState(finishedRoomState);
 
@@ -170,8 +175,14 @@ public class RelayRoomFinalizationService {
         List<Integer> canvasIndexes, List<RelayFinalizationArtifactResult> existingArtifacts, LocalDateTime now) {
         if (existingArtifacts.isEmpty()) {
             List<RelayFinalizationArtifactResult> artifacts = createAndUploadResults(roomState, canvasIndexes);
-            relayArtifactRepository.saveRelayDrawingResults(roomState.roomCode(), artifacts,
-                findParticipantUuidValues(roomState), now);
+            try {
+                relayArtifactRepository.saveRelayDrawingResults(roomState.roomCode(), artifacts,
+                    findParticipantUuidValues(roomState), now);
+            } catch (RuntimeException e) {
+                logFinalizationFailure(roomState.roomCode(), "db_save",
+                    artifacts.stream().findFirst().map(RelayFinalizationArtifactResult::artifactId).orElse(null), e);
+                throw e;
+            }
 
             return artifacts;
         }
@@ -198,13 +209,35 @@ public class RelayRoomFinalizationService {
         UUID artifactId = UUID.randomUUID();
         String originalObjectKey = createResultObjectKey(artifactId, "original.png");
         String thumbnailObjectKey = createResultObjectKey(artifactId, "thumbnail.png");
-        RelayComposedImage composedImage = relayResultComposer.compose(loadPartImages(roomState, canvasIndex));
+        RelayComposedImage composedImage;
+        try {
+            composedImage = relayResultComposer.compose(loadPartImages(roomState, canvasIndex));
+        } catch (RuntimeException e) {
+            logFinalizationFailure(roomState.roomCode(), "compose", artifactId, e);
+            throw e;
+        }
 
-        relayResultStorage.upload(originalObjectKey, composedImage.originalPng(), PNG_CONTENT_TYPE);
-        relayResultStorage.upload(thumbnailObjectKey, composedImage.thumbnailPng(), PNG_CONTENT_TYPE);
+        try {
+            relayResultStorage.upload(originalObjectKey, composedImage.originalPng(), PNG_CONTENT_TYPE);
+            relayResultStorage.upload(thumbnailObjectKey, composedImage.thumbnailPng(), PNG_CONTENT_TYPE);
+        } catch (RuntimeException e) {
+            logFinalizationFailure(roomState.roomCode(), "minio_upload", artifactId, e);
+            throw e;
+        }
 
-        return new RelayFinalizationArtifactResult(artifactId, canvasIndex, originalObjectKey, thumbnailObjectKey,
-            createArtifactMeta(roomState, canvasIndex));
+        try {
+            return new RelayFinalizationArtifactResult(artifactId, canvasIndex, originalObjectKey, thumbnailObjectKey,
+                createArtifactMeta(roomState, canvasIndex));
+        } catch (RuntimeException e) {
+            logFinalizationFailure(roomState.roomCode(), "artifact_meta", artifactId, e);
+            throw e;
+        }
+    }
+
+    private void logFinalizationFailure(String roomCode, String stage, UUID artifactId, RuntimeException error) {
+        RelayRoomEventLogger.apiWarn("relay_finalization_failed", "failed to finalize relay room",
+            metadata("room_id", roomCode, "stage", stage, "artifact_id", artifactId, "operation", "finalization"),
+            error);
     }
 
     /**

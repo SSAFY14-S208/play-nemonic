@@ -1,11 +1,15 @@
 package com.nemonicworld.relay.websocket;
 
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.logging.RelayRoomEventLogger;
+import com.nemonicworld.relay.redis.RelayRoomState;
+import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.RelayRoomService;
 import java.security.Principal;
 import java.util.Map;
@@ -31,13 +35,15 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
     private static final String CONNECTION_REJECTED_MESSAGE = "릴레이 웹소켓 연결을 허용할 수 없습니다.";
 
     private final RelayRoomService relayRoomService;
+    private final RelayRoomRepository relayRoomRepository;
     private final WebSocketSessionRegistry webSocketSessionRegistry;
     private final ObjectProvider<RelayRoomEventPublisher> relayRoomEventPublisherProvider;
 
-    public RelayStompChannelInterceptor(RelayRoomService relayRoomService,
+    public RelayStompChannelInterceptor(RelayRoomService relayRoomService, RelayRoomRepository relayRoomRepository,
         WebSocketSessionRegistry webSocketSessionRegistry,
         ObjectProvider<RelayRoomEventPublisher> relayRoomEventPublisherProvider) {
         this.relayRoomService = relayRoomService;
+        this.relayRoomRepository = relayRoomRepository;
         this.webSocketSessionRegistry = webSocketSessionRegistry;
         this.relayRoomEventPublisherProvider = relayRoomEventPublisherProvider;
     }
@@ -58,7 +64,7 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
         String userUuid = accessor.getFirstNativeHeader(AnonymousUserHeaders.ANONYMOUS_USER_UUID);
 
         try {
-            RelayRoomStateResponse roomStateResponse = relayRoomService.connectRoom(userUuid, roomCode);
+            RelayRoomStateResponse roomStateResponse = relayRoomService.connectRoom(userUuid, roomCode, sessionId);
             configureSession(accessor, sessionId, roomCode, userUuid);
             Optional<ActiveWebSocketSession> replacedSession = webSocketSessionRegistry
                 .register(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode, userUuid, sessionId);
@@ -79,10 +85,24 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
             return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
         } catch (RuntimeException e) {
             webSocketSessionRegistry.removeStaleSession(sessionId);
+            RelayRoomState roomState = findRoomSnapshot(roomCode, e);
             RelayRoomEventLogger.websocketBusiness("relay_ws_connection_rejected",
                 metadata("room_id", roomCode, "uuid", userUuid, "session_id", sessionId, "reject_reason",
-                    e.getMessage(), "exception_type", e.getClass().getSimpleName()));
+                    e.getMessage(), "room_status", roomState == null ? null : roomState.status(), "exception_type",
+                    e.getClass().getSimpleName()));
             throw new MessageDeliveryException(message, CONNECTION_REJECTED_MESSAGE, e);
+        }
+    }
+
+    private RelayRoomState findRoomSnapshot(String roomCode, RuntimeException error) {
+        if (error instanceof BadRequestException || error instanceof NotFoundException) {
+            return null;
+        }
+
+        try {
+            return relayRoomRepository.findByRoomCode(roomCode).orElse(null);
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 

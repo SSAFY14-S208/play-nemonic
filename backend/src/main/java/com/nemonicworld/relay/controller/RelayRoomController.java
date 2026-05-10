@@ -1,6 +1,8 @@
 package com.nemonicworld.relay.controller;
 
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.relay.dto.request.RelayRoomKickRequest;
@@ -15,6 +17,8 @@ import com.nemonicworld.relay.dto.response.RelayRoomResultsResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
 import com.nemonicworld.relay.logging.RelayRoomEventLogger;
+import com.nemonicworld.relay.redis.RelayRoomState;
+import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.RelayRoomService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
@@ -66,11 +70,14 @@ public class RelayRoomController {
     private static final String RELAY_RESULTS_FOUND_MESSAGE = "릴레이 결과 조회 성공";
 
     private final RelayRoomService relayRoomService;
+    private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private static final String RELAY_PART_SUBMITTED_MESSAGE = "릴레이 그림 제출 성공";
 
-    public RelayRoomController(RelayRoomService relayRoomService, RelayRoomEventPublisher relayRoomEventPublisher) {
+    public RelayRoomController(RelayRoomService relayRoomService, RelayRoomRepository relayRoomRepository,
+        RelayRoomEventPublisher relayRoomEventPublisher) {
         this.relayRoomService = relayRoomService;
+        this.relayRoomRepository = relayRoomRepository;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
     }
 
@@ -208,9 +215,12 @@ public class RelayRoomController {
         try {
             response = relayRoomService.submitCurrentPart(userUuid, roomCode, request);
         } catch (RuntimeException e) {
+            RelayRoomState roomState = findRoomSnapshot(roomCode, e);
             RelayRoomEventLogger.apiBusiness("relay_submission_rejected",
                 metadata("room_id", roomCode, "uuid", userUuid, "canvas_index", canvasIndex, "part", part,
-                    "reject_reason", e.getMessage(), "exception_type", e.getClass().getSimpleName()));
+                    "reject_reason", e.getMessage(), "room_status", roomState == null ? null : roomState.status(),
+                    "current_part", roomState == null ? null : roomState.currentPart(), "exception_type",
+                    e.getClass().getSimpleName()));
             throw e;
         }
         if (!response.alreadySubmitted()) {
@@ -422,8 +432,11 @@ public class RelayRoomController {
         try {
             response = relayRoomService.startRoom(userUuid, roomCode);
         } catch (RuntimeException e) {
-            RelayRoomEventLogger.apiBusiness("relay_start_rejected", metadata("room_id", roomCode, "host_uuid",
-                userUuid, "reject_reason", e.getMessage(), "exception_type", e.getClass().getSimpleName()));
+            RelayRoomState roomState = findRoomSnapshot(roomCode, e);
+            RelayRoomEventLogger.apiBusiness("relay_start_rejected",
+                metadata("room_id", roomCode, "host_uuid", userUuid, "reject_reason", e.getMessage(),
+                    "participant_count", roomState == null ? null : roomState.participantCount(), "room_status",
+                    roomState == null ? null : roomState.status(), "exception_type", e.getClass().getSimpleName()));
             throw e;
         }
         relayRoomEventPublisher.publishGameStarted(response);
@@ -431,5 +444,17 @@ public class RelayRoomController {
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(RELAY_GAME_STARTED_MESSAGE, response));
+    }
+
+    private RelayRoomState findRoomSnapshot(String roomCode, RuntimeException error) {
+        if (error instanceof BadRequestException || error instanceof NotFoundException) {
+            return null;
+        }
+
+        try {
+            return relayRoomRepository.findByRoomCode(roomCode).orElse(null);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 }

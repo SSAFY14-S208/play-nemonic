@@ -434,6 +434,7 @@ Recent relay logging work added structured event emission for the relay drawing 
 
 - Relay business events now cover room creation/settings/join/leave/kick/host change, WebSocket connect/reconnect/disconnect/reject/duplicate-session close, start/part start/time-up/submission/rejection/auto-submit/drop/all-parts-complete/result-created/room-closed/temp-cleanup-completed.
 - Relay operational warning events cover timeout/disconnect/finalization/cleanup failures, room mutation lock contention, Redis CAS retry exhaustion, and MinIO upload followed by Redis save conflict.
+- Relay logging field coverage now includes WebSocket reconnect `session_id`, rejected WebSocket/start/submission room-state fields, disconnect-grace failure `uuid`, stage-specific finalization `artifact_id`, and non-null temp cleanup failure counts.
 - Backoffice relay force-close emits `relay_room_force_close` audit metadata and `relay_room_closed` business metadata; relay-scoped system parameter changes emit `param_change`.
 - `backend/docs/product-spec/08-observability.md` includes the relay event names in the backend business-event allow-list.
 
