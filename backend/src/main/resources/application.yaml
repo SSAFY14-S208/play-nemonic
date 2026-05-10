@@ -79,6 +79,7 @@ nemonic:
 
   share:
     site-url: ${NEMONIC_SITE_URL:http://localhost:3000}
+    token-secret: ${SHARE_TOKEN_SECRET:${ADMIN_JWT_SECRET:local-share-token-secret-change-me}}
 
   inquiry:
     mail:

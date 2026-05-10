@@ -371,6 +371,19 @@ Recent artifact image URL lookup work added `GET /api/v1/artifacts/{artifactId}/
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.artifact.*' --no-daemon
 ```
 
+Recent artifact QR download work adds `GET /api/v1/artifacts/{artifactId}/download`.
+
+- The download API verifies the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
+- Downloadable artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, and `community_memo`; `phone` and `infinite_canvas` return unsupported-kind errors for this flow.
+- QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and `QR_DOWNLOAD` channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
+- The API creates or reuses a QR-composed MinIO cache object, then returns JPG/GIF bytes as an attachment.
+- Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr.gif` with QR overlaid on every frame.
+- `POST /api/v1/share` remains token/link generation only; image share flows can later reuse the artifact download cache or add a separate response contract.
+
+```bash
+./gradlew --no-daemon spotlessApply test --tests com.nemonicworld.artifact.controller.ArtifactControllerIntegrationTest --tests com.nemonicworld.artifact.controller.ArtifactOpenApiIntegrationTest --tests com.nemonicworld.artifact.service.download.ArtifactDownloadServiceImplTest --tests com.nemonicworld.artifact.service.download.ArtifactQrComposerTest --tests com.nemonicworld.share.service.SignedShareTokenIssuerTest
+```
+
 Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/result`.
 
 - Existing artifact/gallery rows are returned first for idempotent result lookup.
