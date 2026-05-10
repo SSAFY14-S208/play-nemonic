@@ -16,6 +16,7 @@ import {
 } from './components'
 import { useRelayRoom } from './hooks'
 import { useRelayDrawingStore } from './stores'
+import './relay-drawing.css'
 
 // 라우트: /relay-drawing/[roomCode]
 //
@@ -65,7 +66,7 @@ function NicknameGate() {
   )
 
   return (
-    <section className="relative isolate min-h-screen border border-relay-border bg-relay-background">
+    <section className="font-paperlogy relative isolate min-h-screen border border-relay-border bg-relay-background">
       <RelayNicknameModal open onOpenChange={handleOpenChange} />
     </section>
   )
@@ -86,7 +87,7 @@ function RelayRoomPageInner() {
 
   if (isHydrating) {
     return (
-      <section className="grid min-h-screen place-items-center bg-relay-background text-relay-ink">
+      <section className="font-paperlogy grid min-h-screen place-items-center bg-relay-background text-relay-ink">
         <div className="flex flex-col items-center gap-4">
           <span
             aria-hidden
@@ -100,7 +101,7 @@ function RelayRoomPageInner() {
 
   if (hydrationError) {
     return (
-      <section className="grid min-h-screen place-items-center bg-relay-background text-relay-ink">
+      <section className="font-paperlogy grid min-h-screen place-items-center bg-relay-background text-relay-ink">
         <div className="flex max-w-sm flex-col items-center gap-4 text-center">
           <p className="body-l-r">{hydrationError}</p>
           <button
@@ -126,8 +127,10 @@ function RelayRoomPageInner() {
       <RelayLobbyView />
     )
 
+  // 페이지 도메인 폰트(Paperlogy) 적용 wrap. portal로 분리된 모달은 별도로
+  // Dialog.Popup className에 font-paperlogy를 직접 둔다.
   return (
-    <>
+    <div className="font-paperlogy">
       {view}
       {dismissalReason && (
         <RelayDismissalModal
@@ -135,6 +138,6 @@ function RelayRoomPageInner() {
           onConfirm={handleDismissalConfirm}
         />
       )}
-    </>
+    </div>
   )
 }

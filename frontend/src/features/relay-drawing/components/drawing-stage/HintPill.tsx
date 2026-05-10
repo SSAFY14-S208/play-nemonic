@@ -28,7 +28,7 @@ export default function HintPill({ x, y, label }: HintPillProps) {
         width={220}
         text={`👀 ${label}`}
         align="center"
-        fontFamily="Pretendard Variable"
+        fontFamily="Paperlogy"
         fontSize={14}
         fontStyle="bold"
         fill="#ffffff"

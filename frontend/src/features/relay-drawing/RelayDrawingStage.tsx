@@ -150,7 +150,7 @@ export default function RelayDrawingStage() {
             x={16}
             y={helperTextVerticalPosition}
             text={activeRoundRule.helperText}
-            fontFamily="Pretendard Variable"
+            fontFamily="Paperlogy"
             fontSize={14}
             fontStyle="bold"
             fill="#d49b1f"
