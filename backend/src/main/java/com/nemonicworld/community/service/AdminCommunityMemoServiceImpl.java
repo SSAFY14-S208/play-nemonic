@@ -73,7 +73,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     @Transactional(readOnly = true)
     public AdminCommunityMemoListResponse getCommunityMemos(AdminPrincipal adminPrincipal, Boolean hidden,
         String moderationStatus, String sourceType, Boolean reported, String keyword, String pageValue,
-        String sizeValue) {
+        String sizeValue, AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
 
         int page = parsePage(pageValue);
@@ -89,8 +89,12 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
                 calculateOffset(page, size))
             .stream().map(this::toItemResponse).toList();
 
-        return new AdminCommunityMemoListResponse(items, page, size, totalElements,
+        AdminCommunityMemoListResponse response = new AdminCommunityMemoListResponse(items, page, size, totalElements,
             calculateHasNext(page, size, totalElements));
+        adminAuditLogger.logCommunityMemoListViewed(adminPrincipal, clientInfo, hidden, normalizedModerationStatus,
+            normalizedSourceType, reported, normalizedKeyword, page, size, totalElements);
+
+        return response;
     }
 
     /**
@@ -98,12 +102,18 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
      */
     @Override
     @Transactional(readOnly = true)
-    public AdminCommunityMemoDetailResponse getCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue) {
+    public AdminCommunityMemoDetailResponse getCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
+        AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
 
-        return adminCommunityMemoRepository.findMemoById(memoId).map(this::toDetailResponse)
+        AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        AdminCommunityMemoDetailResponse response = toDetailResponse(row);
+        adminAuditLogger.logCommunityMemoDetailViewed(adminPrincipal, clientInfo, memoId.toString(), row.hidden(),
+            row.reportCount());
+
+        return response;
     }
 
     /**
@@ -112,7 +122,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     @Override
     @Transactional(readOnly = true)
     public AdminCommunityMemoReportListResponse getCommunityMemoReports(AdminPrincipal adminPrincipal,
-        String memoIdValue, String reasonValue, String pageValue, String sizeValue) {
+        String memoIdValue, String reasonValue, String pageValue, String sizeValue, AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
         int page = parsePage(pageValue);
@@ -128,8 +138,12 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
             .findMemoReports(memoId, normalizedReason, size, calculateOffset(page, size)).stream()
             .map(this::toReportItemResponse).toList();
 
-        return new AdminCommunityMemoReportListResponse(items, page, size, totalElements,
-            calculateHasNext(page, size, totalElements));
+        AdminCommunityMemoReportListResponse response = new AdminCommunityMemoReportListResponse(items, page, size,
+            totalElements, calculateHasNext(page, size, totalElements));
+        adminAuditLogger.logCommunityMemoReportsViewed(adminPrincipal, clientInfo, memoId.toString(), normalizedReason,
+            page, size, totalElements);
+
+        return response;
     }
 
     /**

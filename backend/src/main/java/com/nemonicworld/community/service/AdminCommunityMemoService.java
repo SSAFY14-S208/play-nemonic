@@ -13,12 +13,14 @@ import com.nemonicworld.community.dto.response.AdminCommunityMemoReportListRespo
 public interface AdminCommunityMemoService {
 
     AdminCommunityMemoListResponse getCommunityMemos(AdminPrincipal adminPrincipal, Boolean hidden,
-        String moderationStatus, String sourceType, Boolean reported, String keyword, String page, String size);
+        String moderationStatus, String sourceType, Boolean reported, String keyword, String page, String size,
+        AdminClientInfo clientInfo);
 
-    AdminCommunityMemoDetailResponse getCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue);
+    AdminCommunityMemoDetailResponse getCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
+        AdminClientInfo clientInfo);
 
     AdminCommunityMemoReportListResponse getCommunityMemoReports(AdminPrincipal adminPrincipal, String memoIdValue,
-        String reason, String page, String size);
+        String reason, String page, String size, AdminClientInfo clientInfo);
 
     AdminCommunityMemoDetailResponse hideCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
         AdminCommunityMemoReviewRequest request, AdminClientInfo clientInfo);

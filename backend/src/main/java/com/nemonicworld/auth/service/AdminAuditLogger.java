@@ -53,6 +53,44 @@ public class AdminAuditLogger {
         emit("INFO", "community_memo_restore", "community memo restored by admin", clientInfo, metadata);
     }
 
+    public void logCommunityMemoListViewed(AdminPrincipal adminPrincipal, AdminClientInfo clientInfo, Boolean hidden,
+        String moderationStatus, String sourceType, Boolean reported, String keyword, int page, int size,
+        long totalElements) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, TARGET_TYPE_MEMO, "community_memo_list", "view", "success");
+        metadata.put("hidden", hidden);
+        metadata.put("moderation_status", moderationStatus);
+        metadata.put("source_type", sourceType);
+        metadata.put("reported", reported);
+        metadata.put("keyword_present", keyword != null);
+        metadata.put("page", page);
+        metadata.put("size", size);
+        metadata.put("total_elements", totalElements);
+        emit("INFO", "community_memo_admin_list_viewed", "community memo list viewed by admin", clientInfo, metadata);
+    }
+
+    public void logCommunityMemoDetailViewed(AdminPrincipal adminPrincipal, AdminClientInfo clientInfo, String memoId,
+        boolean hidden, int reportCount) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, TARGET_TYPE_MEMO, memoId, "view_detail", "success");
+        metadata.put("hidden", hidden);
+        metadata.put("report_count", reportCount);
+        emit("INFO", "community_memo_admin_detail_viewed", "community memo detail viewed by admin", clientInfo,
+            metadata);
+    }
+
+    public void logCommunityMemoReportsViewed(AdminPrincipal adminPrincipal, AdminClientInfo clientInfo, String memoId,
+        String reason, int page, int size, long totalElements) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, TARGET_TYPE_MEMO, memoId, "view_reports", "success");
+        metadata.put("reason", reason);
+        metadata.put("page", page);
+        metadata.put("size", size);
+        metadata.put("total_elements", totalElements);
+        emit("INFO", "community_memo_admin_reports_viewed", "community memo reports viewed by admin", clientInfo,
+            metadata);
+    }
+
     private Map<String, Object> baseMetadata(String actorId, String actorRole, AdminClientInfo clientInfo,
         String targetId, String action, String result) {
         return baseMetadata(actorId, actorRole, clientInfo, TARGET_TYPE_ADMIN_ACCOUNT, targetId, action, result);
