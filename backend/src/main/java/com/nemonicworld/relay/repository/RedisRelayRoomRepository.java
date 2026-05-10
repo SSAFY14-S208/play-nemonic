@@ -194,6 +194,23 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     }
 
     /**
+     * 백오피스 관리 화면용 — Redis room key를 SCAN하며 CLOSED를 제외한 모든 활성 방을 모읍니다.
+     */
+    @Override
+    public List<RelayRoomState> findAllActiveRooms() {
+        // SCAN count는 Redis 내부 페이지 힌트일 뿐 결과 상한이 아닙니다.
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(200).build();
+        List<RelayRoomState> activeRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext()) {
+                findActiveRoom(roomKeys.next()).ifPresent(activeRooms::add);
+            }
+        }
+
+        return activeRooms;
+    }
+
+    /**
      * Redis room key를 SCAN해서 CLOSED 상태인 방을 cleanup 후보로 모읍니다.
      */
     @Override
@@ -342,6 +359,23 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
 
         RelayRoomState roomState = deserialize(roomStateValue);
         if (roomState.status() != RelayRoomStatus.FINALIZING) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
+    /**
+     * SCAN으로 발견한 Redis 값이 CLOSED를 제외한 활성 방인지 확인합니다.
+     */
+    private Optional<RelayRoomState> findActiveRoom(String roomKey) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() == RelayRoomStatus.CLOSED) {
             return Optional.empty();
         }
 

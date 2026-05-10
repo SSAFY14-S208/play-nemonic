@@ -60,6 +60,12 @@ public interface RelayRoomRepository {
     List<RelayRoomState> findClosedRooms(int limit);
 
     /**
+     * 백오피스 관리 화면용 — CLOSED를 제외한 모든 활성 릴레이 방(WAITING/PLAYING/FINALIZING/FINISHED)을
+     * 조회합니다.
+     */
+    List<RelayRoomState> findAllActiveRooms();
+
+    /**
      * 같은 방 최종화가 여러 서버에서 동시에 실행되지 않도록 짧은 Redis lock을 획득합니다.
      */
     boolean acquireFinalizationLock(String roomCode, Duration ttl);
