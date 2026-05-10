@@ -35,6 +35,11 @@ public interface FlipbookRoomRepository {
     Optional<FlipbookRoomState> findByRoomCode(String roomCode);
 
     /**
+     * 백오피스 관리 화면용 — CLOSED를 제외한 모든 활성 플립북 방(WAITING/PLAYING/FINISHED)을 조회합니다.
+     */
+    List<FlipbookRoomState> findAllActiveRooms();
+
+    /**
      * 게임 중 재접속 유예가 만료된 참여자가 있는 방을 조회합니다.
      */
     List<FlipbookRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit);

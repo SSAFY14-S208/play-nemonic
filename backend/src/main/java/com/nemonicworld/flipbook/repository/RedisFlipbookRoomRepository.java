@@ -107,6 +107,23 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
     }
 
     /**
+     * 백오피스 관리 화면용 — Redis room key를 SCAN하며 CLOSED를 제외한 모든 활성 방을 모읍니다.
+     */
+    @Override
+    public List<FlipbookRoomState> findAllActiveRooms() {
+        // SCAN count는 Redis 내부 페이지 힌트일 뿐 결과 상한이 아닙니다.
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(200).build();
+        List<FlipbookRoomState> activeRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext()) {
+                findActiveRoom(roomKeys.next()).ifPresent(activeRooms::add);
+            }
+        }
+
+        return activeRooms;
+    }
+
+    /**
      * Redis room key를 SCAN하며 이탈 확정 처리가 필요한 PLAYING 방만 조회합니다.
      */
     @Override
@@ -164,6 +181,23 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * SCAN으로 발견한 Redis 값이 실제 CLOSED를 제외한 활성 방인지 확인합니다.
+     */
+    private Optional<FlipbookRoomState> findActiveRoom(String roomKey) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        FlipbookRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() == FlipbookRoomStatus.CLOSED) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
     }
 
     private Optional<FlipbookRoomState> findExpiredPlayingRoom(String roomKey, LocalDateTime roundDeadlineCutoff) {
