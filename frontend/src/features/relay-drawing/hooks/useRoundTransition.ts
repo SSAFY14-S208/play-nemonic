@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   RELAY_ROUND_ORDER,
+  RELAY_ROUND_RULES,
   type RelayRoundKey,
 } from "../constants";
 import { useRelayDrawingStore } from "../stores";
@@ -92,29 +93,22 @@ export function useRoundTransition(): UseRoundTransitionReturn {
   const captureRoundImage = useCallback(
     async (roundKey: RelayRoundKey) => {
       const lines = roundLines[roundKey];
-      const canvas = await renderLinesToRasterCanvas(lines);
+      const canvas = await renderLinesToRasterCanvas(
+        lines,
+        RELAY_ROUND_RULES[roundKey].canvasHeight,
+      );
       return canvas?.toDataURL("image/png") ?? null;
     },
     [roundLines],
   );
 
   useEffect(() => {
-    let cancelled = false;
-
     if (!isTransitioning) {
-      void (async () => {
-        if (cancelled) return;
+      (async () => {
         setPhase("idle");
         setPhaseProgress(0);
       })();
-
-      return () => {
-        cancelled = true;
-        if (animationFrameRef.current !== null) {
-          cancelAnimationFrame(animationFrameRef.current);
-          animationFrameRef.current = null;
-        }
-      };
+      return;
     }
 
     const currentRoundKey = activeRoundKey;
@@ -123,10 +117,10 @@ export function useRoundTransition(): UseRoundTransitionReturn {
     );
     const nextKey = RELAY_ROUND_ORDER[currentRoundIndex + 1] ?? null;
 
+    let cancelled = false;
     (async () => {
       setCompletedRoundKey(currentRoundKey);
       setNextRoundKey(nextKey);
-
       const currentImage = await captureRoundImage(currentRoundKey);
       if (cancelled) return;
       setStickerImageUrl(currentImage);

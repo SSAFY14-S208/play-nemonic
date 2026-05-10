@@ -90,12 +90,20 @@ async function drawLineOnContext(
   drawStrokeLineOnContext(context, line)
 }
 
-// 한 라운드의 모든 라인을 RELAY_STAGE_SIZE 크기 raster Canvas에 합성한다.
+// 한 라운드의 모든 라인을 raster Canvas에 합성한다.
 // bucket fill 시드 검사 / 라운드 전환 애니메이션 / 결과 합성이 공통으로 사용한다.
-export async function renderLinesToRasterCanvas(lines: RelayDrawLine[]) {
+//
+// canvasHeight는 round별로 다르다 (face=720, body/legs=840으로 상단에 hint zone
+// 120px가 추가되어 있음). 라인 좌표는 항상 캔버스 자체 좌표계 기준이라 라운드의
+// 실제 canvas 높이로 raster를 만들어야 한다. 호출자는 보통 RELAY_ROUND_RULES
+// [roundKey].canvasHeight를 넘긴다.
+export async function renderLinesToRasterCanvas(
+  lines: RelayDrawLine[],
+  canvasHeight: number = RELAY_STAGE_SIZE.height,
+) {
   const rasterCanvas = document.createElement('canvas')
   rasterCanvas.width = RELAY_STAGE_SIZE.width
-  rasterCanvas.height = RELAY_STAGE_SIZE.height
+  rasterCanvas.height = canvasHeight
 
   const rasterContext = rasterCanvas.getContext('2d')
   if (!rasterContext) return null

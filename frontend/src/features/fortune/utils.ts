@@ -1,3 +1,4 @@
+import { HTTPError } from 'ky'
 import {
   calculateFourPillars,
   lunarToSolar,
@@ -7,11 +8,29 @@ import {
 } from 'manseryeok'
 
 import {
+  ApiError,
+  getFortuneTodayAvailability,
+  patchAnonymousBirthInfo,
+  postAnonymousBirthInfo,
+  postFortune,
+} from '@/shared/apis'
+import { runtime } from '@/shared/config'
+import { useUserStore } from '@/shared/stores'
+import type {
+  AnonymousUserBirthInfoRequest,
+  AnonymousUserProfileResponse,
+  FortuneCreateRequest,
+  FortuneCreateResponse,
+} from '@/shared/types'
+
+import {
   FORTUNE_KEYWORDS,
   FORTUNE_LUCKY_COLORS,
+  FORTUNE_NOON_FALLBACK_BIRTH_TIME,
   FORTUNE_POSTIT_LINES,
   FORTUNE_STORAGE_KEY,
   FORTUNE_TITLES,
+  FORTUNE_USER_NOT_READY_ERROR,
 } from './constants'
 import type {
   FortuneBirthInfo,
@@ -101,6 +120,24 @@ export function createFortuneGenerationPayload(birthInfo: FortuneBirthInfo): For
   }
 }
 
+export function createFortuneCreateRequest(birthInfo: FortuneBirthInfo): FortuneCreateRequest {
+  const saju = calculateFortuneSaju(birthInfo)
+
+  return {
+    calendarType: birthInfo.calendarType,
+    yearPillar: saju.sajuYear,
+    monthPillar: saju.sajuMonth,
+    dayPillar: saju.sajuDay,
+    // 시간 모름이어도 parseBirthTime이 정오 fallback으로 sajuHour를 채워 둔다.
+    // 백엔드 필수 9필드 검증에 hourPillar가 포함되므로 항상 보낸다.
+    hourPillar: saju.sajuHour,
+    dayMasterElement: saju.dayElemental,
+    dayBranchElement: saju.dayBranchElemental,
+    dayMasterYinYang: saju.dayYinYang,
+    dayBranchYinYang: saju.dayBranchYinYang,
+  }
+}
+
 export function calculateFortuneSaju(birthInfo: FortuneBirthInfo): FortuneSaju {
   const birthDate = parseBirthDate(birthInfo.birthDate)
   const birthTime = parseBirthTime(birthInfo)
@@ -165,6 +202,35 @@ export function calculateFortuneSaju(birthInfo: FortuneBirthInfo): FortuneSaju {
   }
 }
 
+export function createFortuneResultFromCreateResponse(
+  createdFortune: FortuneCreateResponse,
+  birthInfo: FortuneBirthInfo,
+): FortuneResult {
+  const saju = calculateFortuneSaju(birthInfo)
+  const fortuneSection = createdFortune.fortune
+  const luckyColor = normalizeLuckyColor(fortuneSection.luckyColor, createdFortune.fortuneId)
+
+  return {
+    id: createdFortune.fortuneId,
+    issuedDateKey: createdFortune.date,
+    title: fortuneSection.title,
+    postitLine: fortuneSection.postitLine,
+    summary: fortuneSection.summary,
+    scores: {
+      overall: fortuneSection.overallLuck,
+      love: fortuneSection.loveLuck,
+      work: fortuneSection.workLuck,
+      money: fortuneSection.moneyLuck,
+    },
+    luckyColor,
+    luckyKeyword: fortuneSection.luckyKeyword,
+    caution: fortuneSection.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
+    cardTheme: pickCardTheme(createdFortune.fortuneId),
+    saju,
+    sajuSummary: createSajuSummary(birthInfo, saju),
+  }
+}
+
 export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateKey = getKoreanDateKey()) {
   const saju = calculateFortuneSaju(birthInfo)
   const seed = createHash(
@@ -204,6 +270,29 @@ function createFortuneResultId(issuedDateKey: string, seed: number) {
 
 function createSummary(luckyKeyword: string) {
   return `${luckyKeyword}의 기운이 또렷한 하루예요. 해야 할 일을 작게 나누면 포포가 적어 준 메모처럼 길이 선명해집니다.`
+}
+
+function normalizeLuckyColor(luckyColorName: string | undefined, seedSource: string) {
+  if (!luckyColorName) {
+    return pickBySeed(FORTUNE_LUCKY_COLORS, createHash(seedSource))
+  }
+
+  const matchingColor = FORTUNE_LUCKY_COLORS.find((color) => color.name === luckyColorName)
+
+  if (matchingColor) {
+    return matchingColor
+  }
+
+  const knownColorHex = KOREAN_LUCKY_COLOR_HEX[luckyColorName]
+
+  return {
+    name: luckyColorName,
+    hex: knownColorHex ?? pickBySeed(FORTUNE_LUCKY_COLORS, createHash(`${seedSource}-${luckyColorName}`)).hex,
+  }
+}
+
+function pickCardTheme(seedSource: string) {
+  return createHash(seedSource) % 2 === 0 ? 'moon-paper' : 'soft-star'
 }
 
 function createSajuSummary(birthInfo: FortuneBirthInfo, saju: FortuneSaju) {
@@ -331,4 +420,158 @@ function createHash(value: string) {
 
 function pickBySeed<T>(items: readonly T[], seed: number) {
   return items[seed % items.length]
+}
+
+const KOREAN_LUCKY_COLOR_HEX: Record<string, string> = {
+  은회색: '#c0c0c0',
+  노랑: '#f4d35e',
+  노란색: '#f4d35e',
+  보라: '#a281d0',
+  보라색: '#a281d0',
+  초록: '#8ccf92',
+  초록색: '#8ccf92',
+  파랑: '#82b9e6',
+  파란색: '#82b9e6',
+  분홍: '#ef9aa7',
+  분홍색: '#ef9aa7',
+  흰색: '#f8f6ef',
+  검정: '#2f2a33',
+  검은색: '#2f2a33',
+}
+
+export function createBirthInfoRequest(birthInfo: FortuneBirthInfo): AnonymousUserBirthInfoRequest {
+  return {
+    birthday: birthInfo.birthDate,
+    birthtime: birthInfo.timeUnknown ? FORTUNE_NOON_FALLBACK_BIRTH_TIME : `${birthInfo.birthTime}:00`,
+    isLunar: birthInfo.calendarType === 'lunar',
+  }
+}
+
+export function createBirthInfoFromProfile(
+  profile: AnonymousUserProfileResponse,
+): FortuneBirthInfo | null {
+  if (!profile.birthday || !profile.birthtime || profile.isLunar === null) {
+    return null
+  }
+
+  return {
+    birthDate: profile.birthday,
+    birthTime: profile.birthtime.slice(0, 5),
+    calendarType: profile.isLunar ? 'lunar' : 'solar',
+    timeUnknown: false,
+  }
+}
+
+export function canUseLocalFortuneFallback(error: unknown) {
+  if (!runtime.isDev) {
+    return false
+  }
+
+  if (error instanceof Error && error.message === FORTUNE_USER_NOT_READY_ERROR) {
+    return true
+  }
+
+  if (error instanceof ApiError) {
+    return false
+  }
+
+  if (error instanceof HTTPError) {
+    return error.response.status === 404 || error.response.status === 405 || error.response.status >= 500
+  }
+
+  return true
+}
+
+export function isFortuneConflictError(error: unknown) {
+  if (error instanceof HTTPError) {
+    return error.response.status === 409
+  }
+
+  return error instanceof ApiError && error.message.includes('이미')
+}
+
+export function resolveBirthInfoErrorMessage(error: unknown) {
+  if (error instanceof ApiError || error instanceof HTTPError) {
+    return '생년월일 정보를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.'
+  }
+
+  return '사용자 정보를 준비하는 중이에요. 잠시 후 다시 시도해 주세요.'
+}
+
+export function resolveFortuneErrorMessage(error: unknown) {
+  if (error instanceof HTTPError && error.response.status === 412) {
+    return '생년월일 등록이 필요해요. 정보를 다시 확인해 주세요.'
+  }
+
+  if (error instanceof HTTPError && error.response.status === 502) {
+    return '운세 생성 서비스에 일시적 장애가 발생했어요. 잠시 후 다시 시도해 주세요.'
+  }
+
+  if (error instanceof ApiError) {
+    return error.message
+  }
+
+  return '운세를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.'
+}
+
+export async function saveBirthInfo(birthInfo: FortuneBirthInfo, hasServerBirthInfo: boolean) {
+  if (!useUserStore.getState().userUuid) {
+    throw new Error(FORTUNE_USER_NOT_READY_ERROR)
+  }
+
+  const payload = createBirthInfoRequest(birthInfo)
+
+  if (hasServerBirthInfo) {
+    await patchAnonymousBirthInfo(payload)
+    return
+  }
+
+  try {
+    await postAnonymousBirthInfo(payload)
+  } catch (error) {
+    if (!isFortuneConflictError(error)) {
+      throw error
+    }
+
+    await patchAnonymousBirthInfo(payload)
+  }
+}
+
+export async function issueNewFortune(birthInfo: FortuneBirthInfo) {
+  if (!useUserStore.getState().userUuid) {
+    throw new Error(FORTUNE_USER_NOT_READY_ERROR)
+  }
+
+  const createdFortune = await postFortune(createFortuneCreateRequest(birthInfo))
+
+  return createFortuneResultFromCreateResponse(createdFortune, birthInfo)
+}
+
+export async function getTodayFortuneResult(birthInfo: FortuneBirthInfo | null) {
+  const availability = await getFortuneTodayAvailability()
+
+  if (availability.available || !availability.todayFortuneId || !birthInfo) {
+    return null
+  }
+
+  // 백엔드는 GET /fortune/{id}를 아직 제공하지 않으므로 같은 디바이스 localStorage 매칭에 의존한다.
+  // 다른 기기에서 발급한 운세 본문 표시는 BE 추가 시점에 연결한다.
+  const stored = readStoredFortune()
+  if (stored && stored.result.id === availability.todayFortuneId) {
+    return stored.result
+  }
+
+  return null
+}
+
+export async function resolveAlreadyIssuedResult(error: unknown, birthInfo: FortuneBirthInfo) {
+  if (!isFortuneConflictError(error)) {
+    return null
+  }
+
+  try {
+    return await getTodayFortuneResult(birthInfo)
+  } catch {
+    return null
+  }
 }

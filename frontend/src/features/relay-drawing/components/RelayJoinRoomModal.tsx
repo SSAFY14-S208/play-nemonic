@@ -30,15 +30,9 @@ export default function RelayJoinRoomModal({
   // 모달이 닫힐 때 입력값을 비운다 — 다음 열림에서 이전 시도 코드가 남지 않도록.
   // open 변화를 추적하는 effect는 React 19 권장: dialog의 부수효과(외부 시스템 동기)
   useEffect(() => {
-    let cancelled = false
-
-    void (async () => {
-      if (!open && !cancelled) setRoomCode('')
+    (async () => {
+      if (!open) setRoomCode('')
     })()
-
-    return () => {
-      cancelled = true
-    }
   }, [open])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -66,7 +60,7 @@ export default function RelayJoinRoomModal({
             </Dialog.Title>
             <Dialog.Close
               aria-label="닫기"
-              className="grid size-8 place-items-center rounded-[var(--radius-md)] text-relay-muted hover:bg-relay-active hover:text-relay-ink"
+              className="grid size-8 cursor-pointer place-items-center rounded-[var(--radius-md)] text-relay-muted transition-colors hover:bg-relay-active hover:text-relay-ink"
             >
               <X className="size-4" />
             </Dialog.Close>
@@ -104,14 +98,14 @@ export default function RelayJoinRoomModal({
             <div className="flex justify-end gap-2 pt-1">
               <Dialog.Close
                 disabled={isPending}
-                className="body-b min-h-11 rounded-[var(--radius-md)] border border-relay-line bg-relay-paper px-4 text-relay-accent-strong disabled:opacity-45"
+                className="body-b min-h-11 cursor-pointer rounded-[var(--radius-md)] border border-relay-line bg-relay-paper px-4 text-relay-accent-strong transition-all hover:brightness-95 disabled:opacity-45 disabled:hover:brightness-100"
               >
                 취소
               </Dialog.Close>
               <button
                 type="submit"
                 disabled={isPending || roomCode.length === 0}
-                className="body-b min-h-11 rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink disabled:opacity-45"
+                className="body-b min-h-11 cursor-pointer rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink transition-all hover:brightness-105 disabled:opacity-45 disabled:hover:brightness-100"
               >
                 {isPending ? '입장 중…' : '입장'}
               </button>

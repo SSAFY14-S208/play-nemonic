@@ -1,4 +1,5 @@
 export { usePhoneClock } from './usePhoneClock'
 export { usePhoneDrawing } from './usePhoneDrawing'
 export { usePhoneGallery } from './usePhoneGallery'
+export { usePhoneScale } from './usePhoneScale'
 export { usePhoneToast } from './usePhoneToast'

@@ -2,18 +2,96 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { phoneIconEdit, phoneProfileAvatar } from '@/shared/assets'
 import { cn } from '@/shared/libs'
 import {
   PHONE_APP_SHORTCUTS,
   PHONE_COLORS,
-  PHONE_PROFILE,
 } from '../constants'
 import { usePhoneStore } from '../phoneStore'
+
+const FALLBACK_NICKNAME = '게스트'
+const NICKNAME_MAX_LENGTH = 10
 
 export function PhoneHomeScreen() {
   const showDrawing = usePhoneStore((state) => state.showDrawing)
   const showGallery = usePhoneStore((state) => state.showGallery)
+  const profile = usePhoneStore((state) => state.profile)
+  const profileStatus = usePhoneStore((state) => state.profileStatus)
+  const nicknameUpdateStatus = usePhoneStore(
+    (state) => state.nicknameUpdateStatus,
+  )
+  const nicknameFieldError = usePhoneStore((state) => state.nicknameFieldError)
+  const loadProfile = usePhoneStore((state) => state.loadProfile)
+  const updateNickname = usePhoneStore((state) => state.updateNickname)
+  const clearNicknameFieldError = usePhoneStore(
+    (state) => state.clearNicknameFieldError,
+  )
+
+  useEffect(() => {
+    if (profileStatus === 'idle' || profileStatus === 'error') {
+      void loadProfile()
+    }
+  }, [loadProfile, profileStatus])
+
+  const [isEditing, setIsEditing] = useState(false)
+  const [draftNickname, setDraftNickname] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+  }, [isEditing])
+
+  const displayNickname = profile?.nickname?.trim() || FALLBACK_NICKNAME
+  const isProfileLoading = profileStatus === 'loading' && !profile
+  const isSavingNickname = nicknameUpdateStatus === 'loading'
+
+  const startEditing = () => {
+    setDraftNickname(profile?.nickname ?? '')
+    clearNicknameFieldError()
+    setIsEditing(true)
+  }
+
+  const cancelEditing = () => {
+    setIsEditing(false)
+    setDraftNickname('')
+    clearNicknameFieldError()
+  }
+
+  const submitNickname = async () => {
+    const trimmed = draftNickname.trim()
+    if (!trimmed || trimmed === profile?.nickname) {
+      cancelEditing()
+      return
+    }
+    const success = await updateNickname(trimmed)
+    if (success) {
+      setIsEditing(false)
+      setDraftNickname('')
+    }
+  }
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void submitNickname()
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      cancelEditing()
+    }
+  }
 
   return (
     <div className="phone-home-body-m flex h-full flex-col bg-surface-default">
@@ -24,28 +102,67 @@ export function PhoneHomeScreen() {
         <div className="flex items-center gap-[0.85rem]">
           <Image
             src={phoneProfileAvatar}
-            alt={`${PHONE_PROFILE.nickname} 프로필 이미지`}
+            alt={`${displayNickname} 프로필 이미지`}
             className="size-[4.3rem] shrink-0 rounded-full"
             priority
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="phone-home-nickname-sb truncate text-white">
-                {PHONE_PROFILE.nickname}
-              </h2>
-              <button
-                type="button"
-                aria-label="프로필 수정"
-                className="flex size-8 shrink-0 items-center justify-center text-white transition-transform hover:scale-105 focus-visible:outline-none"
-              >
-                <Image
-                  src={phoneIconEdit}
-                  alt=""
-                  aria-hidden
-                  className="size-6 object-contain"
-                />
-              </button>
-            </div>
+            {isEditing ? (
+              <form onSubmit={handleSubmit} className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={draftNickname}
+                    onChange={(event) => setDraftNickname(event.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onBlur={() => void submitNickname()}
+                    maxLength={NICKNAME_MAX_LENGTH}
+                    disabled={isSavingNickname}
+                    aria-label="닉네임 입력"
+                    className="phone-home-nickname-sb min-w-0 flex-1 rounded-[0.35rem] border border-white/40 bg-white/15 px-2 py-0.5 text-white outline-none placeholder:text-white/60 focus:border-white"
+                  />
+                  {isSavingNickname && (
+                    <span
+                      aria-hidden
+                      className="size-3 shrink-0 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                    />
+                  )}
+                </div>
+                {nicknameFieldError && (
+                  <span className="caption-r text-red-200">
+                    {nicknameFieldError}
+                  </span>
+                )}
+              </form>
+            ) : (
+              <div className="flex items-center gap-2">
+                {isProfileLoading ? (
+                  <span
+                    aria-hidden
+                    className="block h-5 w-32 animate-pulse rounded-md bg-white/30"
+                  />
+                ) : (
+                  <h2 className="phone-home-nickname-sb truncate text-white">
+                    {displayNickname}
+                  </h2>
+                )}
+                <button
+                  type="button"
+                  aria-label="프로필 수정"
+                  onClick={startEditing}
+                  disabled={isProfileLoading}
+                  className="flex size-8 shrink-0 items-center justify-center text-white transition-transform hover:scale-105 focus-visible:outline-none disabled:opacity-50"
+                >
+                  <Image
+                    src={phoneIconEdit}
+                    alt=""
+                    aria-hidden
+                    className="size-6 object-contain"
+                  />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>

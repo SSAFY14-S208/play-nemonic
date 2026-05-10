@@ -63,7 +63,9 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
       submittedCount: 0,
       totalCount: 0,
       isTransitioning: false,
+      isPartTimeUp: false,
       partFetchTrigger: 0,
+      pendingAutoSubmitTrigger: 0,
       // 결과 슬라이스 리셋
       completedAt: null,
       resultRevealStep: 'final',

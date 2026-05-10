@@ -12,7 +12,12 @@ export function useRelayCanvas() {
   const beginDrawing = useCallback(
     (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getPointerPosition()
+      // getPointerPosition()은 Stage scaleX/scaleY를 적용하지 않은 캔버스-CSS-픽셀
+      // 좌표를 반환한다. responsive sizing으로 Stage에 scale을 걸어둔 상황에서는
+      // 그대로 쓰면 line이 저장된 좌표가 다시 scale로 곱해져 포인터와 다른 위치에
+      // 그려진다. getRelativePointerPosition()이 Stage 자체의 transform 역변환을
+      // 자동으로 해줘서 children 좌표계의 포인트를 돌려준다.
+      const pointerPosition = stage?.getRelativePointerPosition()
       if (!pointerPosition) return
 
       const {
@@ -60,7 +65,9 @@ export function useRelayCanvas() {
       if (!isDrawing.current) return
 
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getPointerPosition()
+      // getRelativePointerPosition: Stage scale이 걸린 상황에서도 children 좌표계
+      // 의 포인트를 돌려준다 (beginDrawing 주석 참조).
+      const pointerPosition = stage?.getRelativePointerPosition()
       if (!pointerPosition) return
 
       const { activeRoundKey, appendPointToLastLine } = useRelayDrawingStore.getState()

@@ -1,10 +1,13 @@
 'use client'
 
+import './fortune.css'
+
+import { ChevronLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
-import { runtime } from '@/shared/config'
 import { cn } from '@/shared/libs'
 
 import {
@@ -18,8 +21,15 @@ import {
   FortunePrintStatus,
   FortuneResultCard,
 } from './components'
+import { useFortuneSessionStore } from './fortuneSessionStore'
 import FortuneVisual from './FortuneVisual'
-import { useFortuneAudio, useFortuneFlow } from './hooks'
+import {
+  useFortuneActions,
+  useFortuneAudio,
+  useFortuneBgm,
+  useFortuneReducedMotion,
+  useFortuneSessionHydration,
+} from './hooks'
 
 const LAST_DIALOGUE_INDEX = FORTUNE_DIALOGUES.length - 1
 
@@ -28,27 +38,29 @@ export default function FortunePage() {
   const [noticeMessage, setNoticeMessage] = useState('')
   const [dialogueIndex, setDialogueIndex] = useState(0)
   const [isEntrySceneReady, setIsEntrySceneReady] = useState(false)
+
+  useFortuneSessionHydration()
   const {
-    birthInfo,
     completePrinting,
     editBirthInfo,
-    errorMessage,
-    hasHydrated,
-    isBirthInfoReady,
-    nextResetLabel,
-    result,
     retryAfterError,
     resetTodayFortune,
     returnToIntro,
-    sajuPreview,
-    setBirthInfo,
     showTodayResult,
     startBirthInfo,
     startPrinting,
-    step,
     submitBirthInfo,
-  } = useFortuneFlow()
-  const { playPrintComplete, playPrintStart } = useFortuneAudio()
+  } = useFortuneActions()
+  const { step, result, hasHydrated } = useFortuneSessionStore(
+    useShallow((state) => ({
+      step: state.step,
+      result: state.result,
+      hasHydrated: state.hasHydrated,
+    })),
+  )
+  const { playPrintComplete, playPrintStart, playTap } = useFortuneAudio()
+  const { isBgmMuted, toggleFortuneBgmMuted } = useFortuneBgm()
+  const prefersReducedMotion = useFortuneReducedMotion()
 
   const handleDialogueNext = () => {
     if (dialogueIndex < LAST_DIALOGUE_INDEX) {
@@ -68,7 +80,7 @@ export default function FortunePage() {
 
   const handleStartPrinting = () => {
     playPrintStart()
-    startPrinting()
+    void startPrinting()
   }
 
   const handlePrintComplete = () => {
@@ -112,13 +124,21 @@ export default function FortunePage() {
   }, [isEntrySceneReady, shouldPrepareEntrySpotlight])
 
   return (
-    <main className="fortune-page-shell relative min-h-dvh overflow-hidden bg-fortune-backdrop text-fortune-ink">
+    <main
+      className="fortune-page-shell relative min-h-dvh overflow-hidden bg-fortune-backdrop text-fortune-ink"
+      onPointerDown={(event) => {
+        const target = event.target as Element | null
+        if (!target) return
+        const interactive = target.closest('button, [role="button"], summary, label.fortune-birth-unknown-toggle')
+        if (interactive && !(interactive as HTMLButtonElement).disabled) {
+          playTap()
+        }
+      }}
+    >
       <div className="fortune-magic-backdrop" aria-hidden />
       <FortuneVisual
-        isPrinting={step === 'printing'}
         playEntrySpotlight={shouldPrepareEntrySpotlight}
         runEntrySpotlight={shouldPlayEntrySpotlight}
-        result={result}
         onEntrySceneReady={handleEntrySceneReady}
         onPrintComplete={handlePrintComplete}
       />
@@ -127,7 +147,9 @@ export default function FortunePage() {
           'fortune-stage-overlay',
           shouldPlayEntrySpotlight && 'fortune-stage-overlay-entry',
           step === 'birthInfo' && 'fortune-stage-overlay-center fortune-stage-overlay-birth',
-          (step === 'draw' || step === 'printing' || step === 'limit' || step === 'error') && 'fortune-stage-overlay-panel',
+          (step === 'intro' || step === 'limit') && 'fortune-stage-overlay-dialogue',
+          step === 'draw' && 'fortune-stage-overlay-draw',
+          ((step === 'printing' && prefersReducedMotion) || step === 'error') && 'fortune-stage-overlay-panel',
           step === 'result' && 'fortune-stage-overlay-scroll',
         )}
       >
@@ -151,6 +173,31 @@ export default function FortunePage() {
       {shouldPrepareEntrySpotlight && (
         <div className={cn('fortune-entry-spotlight-cover', shouldPlayEntrySpotlight && 'is-lit')} aria-hidden />
       )}
+      {step === 'birthInfo' && (
+        <button
+          type="button"
+          aria-label="이전 화면으로 돌아가기"
+          className="fortune-page-back-toggle"
+          onClick={handleReturnToDialogue}
+        >
+          <ChevronLeft className="size-5" aria-hidden />
+          <span className="fortune-page-back-toggle-label">뒤로</span>
+        </button>
+      )}
+      <button
+        type="button"
+        aria-label={isBgmMuted ? '타로 배경음악 켜기' : '타로 배경음악 음소거'}
+        aria-pressed={isBgmMuted}
+        className={cn('fortune-bgm-toggle', isBgmMuted && 'is-muted')}
+        title={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+        onClick={toggleFortuneBgmMuted}
+        onKeyDown={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <span className="fortune-bgm-toggle-label">
+          {isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+        </span>
+      </button>
     </main>
   )
 
@@ -164,42 +211,37 @@ export default function FortunePage() {
     }
 
     if (step === 'birthInfo') {
+      return <FortuneBirthForm onSubmit={submitBirthInfo} />
+    }
+
+    if (step === 'draw') {
       return (
-        <FortuneBirthForm
-          birthInfo={birthInfo}
-          isComplete={isBirthInfoReady}
-          onBack={handleReturnToDialogue}
-          onChange={setBirthInfo}
-          onSubmit={submitBirthInfo}
+        <FortuneDrawPanel
+          onDraw={handleStartPrinting}
+          onEdit={editBirthInfo}
         />
       )
     }
 
-    if (step === 'draw') {
-      return <FortuneDrawPanel birthInfo={birthInfo} saju={sajuPreview} onDraw={handleStartPrinting} onEdit={editBirthInfo} />
-    }
-
     if (step === 'printing') {
-      return <FortunePrintStatus isPrinting />
+      return prefersReducedMotion ? <FortunePrintStatus /> : null
     }
 
     if (step === 'result' && result) {
-      return <FortuneResultCard result={result} onAttach={handleAttach} onBackToHub={goBackToHub} />
+      return <FortuneResultCard onAttach={handleAttach} onBackToHub={goBackToHub} />
     }
 
     if (step === 'limit') {
       return (
         <FortuneLimitNotice
-          nextResetLabel={nextResetLabel}
-          result={result}
-          showResetAction={runtime.isDev}
           onReset={resetTodayFortune}
           onShowResult={showTodayResult}
+          onBackToHub={goBackToHub}
         />
       )
     }
 
-    return <FortuneErrorView message={errorMessage} onRetry={retryAfterError} />
+    return <FortuneErrorView onRetry={retryAfterError} />
   }
 }
 

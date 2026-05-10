@@ -35,18 +35,12 @@ export default function RelayNicknameModal({
 
   // 모달이 닫힐 때 입력값/에러 초기화 — 다음 열림에서 stale 상태 방지.
   useEffect(() => {
-    let cancelled = false
-
-    void (async () => {
-      if (!open && !cancelled) {
+    (async () => {
+      if (!open) {
         setNickname('')
         clearError()
       }
     })()
-
-    return () => {
-      cancelled = true
-    }
   }, [open, clearError])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -71,7 +65,7 @@ export default function RelayNicknameModal({
             </Dialog.Title>
             <Dialog.Close
               aria-label="닫기"
-              className="grid size-8 place-items-center rounded-[var(--radius-md)] text-relay-muted hover:bg-relay-active hover:text-relay-ink"
+              className="grid size-8 cursor-pointer place-items-center rounded-[var(--radius-md)] text-relay-muted transition-colors hover:bg-relay-active hover:text-relay-ink"
             >
               <X className="size-4" />
             </Dialog.Close>
@@ -118,14 +112,14 @@ export default function RelayNicknameModal({
             <div className="flex justify-end gap-2 pt-1">
               <Dialog.Close
                 disabled={isPending}
-                className="body-b min-h-11 rounded-[var(--radius-md)] border border-relay-line bg-relay-paper px-4 text-relay-accent-strong disabled:opacity-45"
+                className="body-b min-h-11 cursor-pointer rounded-[var(--radius-md)] border border-relay-line bg-relay-paper px-4 text-relay-accent-strong transition-all hover:brightness-95 disabled:opacity-45 disabled:hover:brightness-100"
               >
                 취소
               </Dialog.Close>
               <button
                 type="submit"
                 disabled={isPending || nickname.trim().length === 0}
-                className="body-b min-h-11 rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink disabled:opacity-45"
+                className="body-b min-h-11 cursor-pointer rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink transition-all hover:brightness-105 disabled:opacity-45 disabled:hover:brightness-100"
               >
                 {isPending ? '저장 중…' : '저장'}
               </button>

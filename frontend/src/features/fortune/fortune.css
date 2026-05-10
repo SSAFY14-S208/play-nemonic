@@ -1,0 +1,4147 @@
+@font-face {
+  font-family: "GraceSerif";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/GraceSerif-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "GraceSerif";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/GraceSerif-Bold.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "LeeSeoyun";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/LeeSeoyun.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Eulyoo1945";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/Eulyoo1945-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Eulyoo1945";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/Eulyoo1945-SemiBold.woff2") format("woff2");
+}
+
+.fortune-page-shell {
+  --font-fortune-serif: "GraceSerif", var(--font-paperlogy);
+  --font-fortune-hand: "LeeSeoyun", var(--font-paperlogy);
+  --font-fortune-eulyoo: "Eulyoo1945", var(--font-paperlogy);
+}
+
+@keyframes fortune-sparkle-drift {
+  0% {
+    opacity: 0.42;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
+  }
+
+  50% {
+    opacity: 0.92;
+    transform: translate3d(0.18rem, -0.45rem, 0) rotate(16deg) scale(1.08);
+  }
+
+  100% {
+    opacity: 0.42;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
+  }
+}
+
+@keyframes fortune-sigil-glow {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translateX(-50%) scaleX(0.94);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scaleX(1.04);
+  }
+}
+
+@keyframes fortune-entry-blackout {
+  0%,
+  14% {
+    opacity: 1;
+  }
+
+  64% {
+    opacity: 1;
+  }
+
+  82% {
+    opacity: 0.42;
+  }
+
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes fortune-dialogue-entry-reveal {
+  0%,
+  62% {
+    opacity: 0;
+    transform: translateY(1.1rem) scale(0.985);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fortune-dialogue-glyph-tap {
+  0% {
+    opacity: 0;
+    transform: translateY(0.16rem) scale(0.92);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-0.03rem) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fortune-dialogue-caret-blink {
+  0%,
+  48% {
+    opacity: 1;
+  }
+
+  49%,
+  100% {
+    opacity: 0.26;
+  }
+}
+
+@keyframes fortune-2d-stage-drift {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-50.14%, -50.16%, 0) scale(1.004);
+  }
+}
+
+@keyframes fortune-2d-moon-drift {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(20deg) scale(1);
+    filter: drop-shadow(0 0 2.4rem rgba(161, 79, 255, 0.54)) saturate(1.08);
+  }
+
+  50% {
+    transform: translate3d(-50.25%, -50.2%, 0) rotate(28deg) scale(1.006);
+    filter: drop-shadow(0 0 3.2rem rgba(186, 105, 255, 0.72)) saturate(1.16);
+  }
+}
+
+@keyframes fortune-2d-popo-breathe {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(-0.28deg) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-50%, -50.8%, 0) rotate(0.2deg) scale(1.012);
+  }
+}
+
+@keyframes fortune-2d-table-shift {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) scale(1.006);
+  }
+
+  50% {
+    transform: translate3d(-50.2%, -49.78%, 0) scale(1.016);
+  }
+}
+
+@keyframes fortune-2d-arm-breathe {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(var(--fortune-arm-rest-rotate));
+  }
+
+  38% {
+    transform:
+      translate3d(-50%, calc(-50% + var(--fortune-arm-lift-y)), 0)
+      rotate(calc(var(--fortune-arm-rest-rotate) + var(--fortune-arm-swing-rotate)));
+  }
+
+  68% {
+    transform:
+      translate3d(-50%, calc(-50% + var(--fortune-arm-settle-y)), 0)
+      rotate(calc(var(--fortune-arm-rest-rotate) + var(--fortune-arm-settle-rotate)));
+  }
+}
+
+@keyframes fortune-2d-hanging-sway {
+  0%,
+  100% {
+    transform: translate3d(-50%, 0, 0) rotate(-0.35deg);
+  }
+
+  50% {
+    transform: translate3d(-49.82%, 0.24%, 0) rotate(0.45deg);
+  }
+}
+
+@keyframes fortune-2d-curtain-tap-ripple {
+  0% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+
+  14% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-hover-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-hover-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-hover-rotate)))
+      skewX(var(--fortune-curtain-pull-skew-x))
+      scaleX(var(--fortune-curtain-pull-scale-x))
+      scaleY(var(--fortune-curtain-pull-scale-y));
+  }
+
+  32% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-sway-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-sway-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-sway-rotate)))
+      skewX(var(--fortune-curtain-recoil-skew-x))
+      scaleX(var(--fortune-curtain-recoil-scale-x))
+      scaleY(var(--fortune-curtain-recoil-scale-y));
+  }
+
+  62% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-settle-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-settle-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-settle-rotate)))
+      skewX(var(--fortune-curtain-settle-skew-x))
+      scaleX(var(--fortune-curtain-settle-scale-x))
+      scaleY(var(--fortune-curtain-settle-scale-y));
+  }
+
+  100% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+}
+
+@keyframes fortune-2d-curtain-soft-tap-ripple {
+  0% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+
+  22% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-soft-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-soft-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-soft-rotate)))
+      skewX(var(--fortune-curtain-soft-skew-x))
+      scaleX(var(--fortune-curtain-soft-scale-x))
+      scaleY(var(--fortune-curtain-soft-scale-y));
+  }
+
+  52% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) - var(--fortune-curtain-soft-x)),
+        calc(var(--fortune-curtain-rest-y) - var(--fortune-curtain-soft-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) - var(--fortune-curtain-soft-rotate)))
+      skewX(0deg)
+      scaleX(1.0004)
+      scaleY(0.9996);
+  }
+
+  100% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+}
+
+@keyframes fortune-2d-cube-pulse {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) scale(1);
+    filter: drop-shadow(0 0 1.2rem rgba(171, 86, 255, 0.8)) drop-shadow(0 0 2.9rem rgba(125, 76, 255, 0.42));
+  }
+
+  50% {
+    transform: translate3d(-50%, -50.45%, 0) scale(1.014);
+    filter: drop-shadow(0 0 1.9rem rgba(223, 182, 255, 0.96)) drop-shadow(0 0 4.4rem rgba(151, 93, 255, 0.72));
+  }
+}
+
+@keyframes fortune-2d-print-cube {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) scale(1.02) rotate(0deg);
+  }
+
+  24% {
+    transform: translate3d(-50%, -52.2%, 0) scale(1.12) rotate(-1.2deg);
+  }
+
+  54% {
+    transform: translate3d(-50%, -50.3%, 0) scale(1.04) rotate(1deg);
+  }
+
+  78% {
+    transform: translate3d(-50%, -51.1%, 0) scale(1.1) rotate(-0.5deg);
+  }
+}
+
+@keyframes fortune-2d-flare-pulse {
+  0%,
+  100% {
+    opacity: 0.14;
+    transform: translate3d(-50%, -50%, 0) scale(0.9);
+  }
+
+  50% {
+    opacity: 0.62;
+    transform: translate3d(-50%, -50%, 0) scale(1.16);
+  }
+}
+
+@keyframes fortune-2d-note-print {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, -58%, 0) rotateX(48deg) scale(0.72);
+  }
+
+  28% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.94;
+    transform: translate3d(-50%, 18%, 0) rotateX(0deg) scale(1);
+  }
+}
+
+@keyframes fortune-2d-eye-open {
+  0%,
+  91.4%,
+  95.2%,
+  100% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) rotate(-15.67deg) scaleY(1);
+  }
+
+  92.2%,
+  94.2% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) rotate(-15.67deg) scaleY(0.08);
+  }
+}
+
+@keyframes fortune-2d-eye-closed {
+  0%,
+  91.8%,
+  94.8%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) rotate(-15.67deg) scaleY(0.68);
+  }
+
+  92.4%,
+  94% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) rotate(-15.67deg) scaleY(1);
+  }
+}
+
+@keyframes fortune-2d-sparkle-twinkle {
+  0%,
+  100% {
+    opacity: 0.18;
+    transform: translate3d(0, 0, 0) scale(0.82) rotate(0deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate3d(0.12rem, -0.28rem, 0) scale(1.18) rotate(22deg);
+  }
+}
+
+@keyframes fortune-postit-land {
+  0% {
+    opacity: 0;
+    transform: translateY(1.45rem) rotate(-1.8deg) scale(0.96);
+  }
+
+  62% {
+    opacity: 1;
+    transform: translateY(-0.22rem) rotate(-0.35deg) scale(1.012);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(-0.55deg) scale(1);
+  }
+}
+
+@keyframes fortune-sticker-pop {
+  0% {
+    opacity: 0;
+    scale: 0.72;
+  }
+
+  70% {
+    opacity: 1;
+    scale: 1.08;
+  }
+
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes fortune-stamp-press {
+  0%,
+  44% {
+    opacity: 0;
+    scale: 1.35;
+  }
+
+  58% {
+    opacity: 1;
+    scale: 0.9;
+  }
+
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+.fortune-page-shell {
+  isolation: isolate;
+}
+
+.fortune-bgm-toggle {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + clamp(0.65rem, 1.6vw, 1.15rem));
+  right: calc(env(safe-area-inset-right) + clamp(0.55rem, 1.7vw, 1.15rem));
+  z-index: 20;
+  width: clamp(5.2rem, 7.4vw, 7.4rem);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 1.4rem;
+  background: transparent url("/images/fortune/stage/bgm-on-button.png") center / contain no-repeat;
+  cursor: pointer;
+  filter:
+    drop-shadow(0 0 0.76rem rgba(157, 80, 255, 0.34))
+    drop-shadow(0 0.48rem 0.92rem rgba(4, 1, 12, 0.46));
+  transition:
+    filter 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.fortune-bgm-toggle.is-muted {
+  background-image: url("/images/fortune/stage/bgm-muted-button.png");
+}
+
+.fortune-bgm-toggle:hover {
+  filter:
+    drop-shadow(0 0 1rem rgba(218, 144, 255, 0.62))
+    drop-shadow(0 0.54rem 1rem rgba(4, 1, 12, 0.5))
+    saturate(1.08)
+    brightness(1.04);
+  transform: translateY(-0.08rem) scale(1.035);
+}
+
+.fortune-bgm-toggle:active {
+  transform: translateY(0.02rem) scale(0.985);
+}
+
+.fortune-bgm-toggle:focus-visible {
+  outline: 2px solid rgba(255, 236, 183, 0.96);
+  outline-offset: -0.15rem;
+}
+
+.fortune-bgm-toggle-label {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fortune-page-back-toggle {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + clamp(1.4rem, 2.8vw, 2.2rem));
+  left: calc(env(safe-area-inset-left) + clamp(1.4rem, 2.8vw, 2.2rem));
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  min-width: clamp(5.6rem, 9.5vw, 7.4rem);
+  min-height: clamp(2.6rem, 4.2vw, 3.1rem);
+  padding: 0.4rem 1.15rem 0.45rem 0.85rem;
+  border: 0;
+  background: transparent url("/images/fortune/form/birth-label-plaque.png") center / 100% 100% no-repeat;
+  color: rgba(255, 244, 214, 0.96);
+  cursor: pointer;
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(0.92rem, 1.7vw, 1.08rem);
+  font-weight: 800;
+  text-shadow:
+    0 0.12rem 0.24rem rgba(9, 1, 20, 0.8),
+    0 0 0.45rem rgba(215, 130, 255, 0.48);
+  filter:
+    drop-shadow(0 0 0.76rem rgba(157, 80, 255, 0.34))
+    drop-shadow(0 0.48rem 0.92rem rgba(4, 1, 12, 0.46));
+  transition:
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.fortune-page-back-toggle:hover {
+  filter:
+    drop-shadow(0 0 1rem rgba(218, 144, 255, 0.62))
+    drop-shadow(0 0.54rem 1rem rgba(4, 1, 12, 0.5))
+    saturate(1.08)
+    brightness(1.04);
+  transform: translateY(-0.08rem) scale(1.025);
+}
+
+.fortune-page-back-toggle:active {
+  transform: translateY(0.02rem) scale(0.985);
+}
+
+.fortune-page-back-toggle:focus-visible {
+  outline: 2px solid rgba(255, 236, 183, 0.96);
+  outline-offset: -0.15rem;
+}
+
+.fortune-page-back-toggle-label {
+  position: relative;
+  z-index: 1;
+}
+
+.fortune-magic-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 34%),
+    radial-gradient(ellipse at 50% 18%, rgba(255, 247, 206, 0.42), rgba(255, 247, 206, 0) 36%),
+    radial-gradient(ellipse at 50% 82%, rgba(202, 174, 255, 0.44), rgba(202, 174, 255, 0) 52%),
+    linear-gradient(135deg, #f3e8ff 0%, #eadff7 38%, #fff7df 100%);
+}
+
+.fortune-magic-backdrop::before,
+.fortune-magic-backdrop::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.fortune-magic-backdrop::before {
+  opacity: 0.38;
+  background-image:
+    linear-gradient(115deg, rgba(255, 255, 255, 0) 0 45%, rgba(255, 255, 255, 0.46) 48%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(65deg, rgba(255, 255, 255, 0) 0 44%, rgba(255, 224, 149, 0.28) 49%, rgba(255, 255, 255, 0) 54%);
+  background-size: 34rem 100%, 28rem 100%;
+  mix-blend-mode: screen;
+}
+
+.fortune-magic-backdrop::after {
+  background-image:
+    radial-gradient(circle, rgba(255, 245, 184, 0.72) 0 1px, rgba(255, 245, 184, 0) 1.5px),
+    radial-gradient(circle, rgba(137, 104, 196, 0.32) 0 1px, rgba(137, 104, 196, 0) 1.5px);
+  background-position:
+    1.6rem 2.4rem,
+    4.2rem 4.8rem;
+  background-size:
+    7.4rem 7.4rem,
+    9.2rem 9.2rem;
+  opacity: 0.42;
+}
+
+.fortune-stage-visual {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  background-color: #090313;
+  background-image:
+    radial-gradient(ellipse at 50% 38%, rgba(154, 98, 255, 0.28), rgba(154, 98, 255, 0) 34%),
+    linear-gradient(180deg, rgba(6, 2, 14, 0.08), rgba(6, 2, 14, 0.3) 72%, rgba(6, 2, 14, 0.5)),
+    url("/images/fortune/fortune-room-background.png");
+  background-position:
+    50% 42%,
+    center,
+    center;
+  background-repeat: no-repeat;
+  background-size:
+    100% 100%,
+    100% 100%,
+    cover;
+}
+
+.fortune-stage-visual canvas {
+  background: transparent;
+}
+
+.fortune-stage-visual-entry {
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(154, 98, 255, 0.28), rgba(154, 98, 255, 0) 34%),
+    linear-gradient(180deg, rgba(6, 2, 14, 0.08), rgba(6, 2, 14, 0.3) 72%, rgba(6, 2, 14, 0.5)),
+    url("/images/fortune/fortune-room-background.png");
+  background-position:
+    50% 42%,
+    center,
+    center;
+  background-repeat: no-repeat;
+  background-size:
+    100% 100%,
+    100% 100%,
+    cover;
+}
+
+.fortune-2d-visual,
+.fortune-2d-visual.fortune-stage-visual-entry {
+  background: #05010d;
+}
+
+.fortune-2d-visual img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.fortune-2d-stage {
+  --fortune-stage-aspect: 1.4970684;
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: max(100vw, calc(100dvh * var(--fortune-stage-aspect)));
+  height: max(100dvh, calc(100vw / var(--fortune-stage-aspect)));
+  min-width: 100vw;
+  min-height: 100dvh;
+  overflow: hidden;
+  transform: translate3d(-50%, -50%, 0) scale(1.018);
+  animation: fortune-2d-stage-drift 16s ease-in-out infinite;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.fortune-2d-layer {
+  position: absolute;
+  display: block;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+  will-change: transform, opacity, filter;
+}
+
+.fortune-2d-background {
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.08) contrast(1.04);
+}
+
+.fortune-2d-moon {
+  top: 29.8%;
+  left: 50.35%;
+  z-index: 2;
+  width: 52.2%;
+  transform: translate3d(-50%, -50%, 0) rotate(20deg);
+  opacity: 0.92;
+  animation: fortune-2d-moon-drift 34s ease-in-out infinite;
+}
+
+.fortune-2d-nebula {
+  top: 46%;
+  left: 50%;
+  z-index: 3;
+  width: 58%;
+  aspect-ratio: 1;
+  transform: translate3d(-50%, -50%, 0);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(218, 169, 255, 0.2) 0 13%, rgba(138, 62, 255, 0.12) 24%, rgba(70, 23, 149, 0) 62%),
+    conic-gradient(from 140deg, rgba(202, 147, 255, 0), rgba(202, 147, 255, 0.26), rgba(202, 147, 255, 0));
+  filter: blur(1.2rem);
+  mix-blend-mode: screen;
+  opacity: 0.78;
+}
+
+.fortune-2d-character {
+  top: 43.75%;
+  left: 50%;
+  z-index: 4;
+  width: 73.85%;
+  aspect-ratio: 1448 / 1086;
+  transform: translate3d(-50%, -50%, 0) rotate(-0.28deg);
+  animation: fortune-2d-popo-breathe 7.6s ease-in-out infinite;
+}
+
+.fortune-2d-popo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  filter:
+    drop-shadow(0 1.8rem 3.2rem rgba(0, 0, 0, 0.42))
+    drop-shadow(0 0 1.8rem rgba(139, 64, 255, 0.34));
+}
+
+.fortune-2d-eyes {
+  position: absolute;
+  top: 40.02%;
+  left: 52.55%;
+  z-index: 2;
+  width: 10.36%;
+  max-width: none;
+  transform: translate3d(-50%, -50%, 0) rotate(-15.67deg);
+  filter:
+    drop-shadow(0 0 0.22rem rgba(182, 100, 255, 0.54))
+    drop-shadow(0 0 0.58rem rgba(91, 49, 255, 0.28));
+}
+
+.fortune-2d-eyes-open {
+  animation: fortune-2d-eye-open 5.8s linear infinite;
+}
+
+.fortune-2d-eyes-closed {
+  top: 40.18%;
+  left: 52.43%;
+  width: 10.78%;
+  opacity: 0;
+  animation: fortune-2d-eye-closed 5.8s linear infinite;
+}
+
+.fortune-2d-table {
+  top: 43.6%;
+  left: 50.16%;
+  z-index: 7;
+  width: 100.3%;
+  transform: translate3d(-50%, -50%, 0);
+  filter:
+    drop-shadow(0 -1.2rem 2.2rem rgba(108, 45, 181, 0.18))
+    drop-shadow(0 2rem 3.4rem rgba(0, 0, 0, 0.5));
+}
+
+.fortune-2d-arm {
+  --fortune-arm-rest-rotate: 0deg;
+  --fortune-arm-swing-rotate: 0.6deg;
+  --fortune-arm-settle-rotate: -0.22deg;
+  --fortune-arm-lift-y: -0.34%;
+  --fortune-arm-settle-y: -0.1%;
+
+  z-index: 8;
+  width: 18.8%;
+  filter:
+    drop-shadow(0 0.8rem 1.2rem rgba(14, 3, 29, 0.32))
+    drop-shadow(0 0 0.58rem rgba(201, 126, 255, 0.16));
+  animation: fortune-2d-arm-breathe 7.6s ease-in-out infinite;
+  transform-origin: 50% 22%;
+}
+
+.fortune-2d-arm-right {
+  --fortune-arm-rest-rotate: 4deg;
+  --fortune-arm-swing-rotate: -0.82deg;
+  --fortune-arm-settle-rotate: 0.24deg;
+  --fortune-arm-lift-y: -0.42%;
+  --fortune-arm-settle-y: -0.12%;
+
+  top: 67.2%;
+  left: 43.4%;
+  transform: translate3d(-50%, -50%, 0) rotate(4deg);
+  transform-origin: 62% 19%;
+  animation-duration: 8.2s;
+  animation-delay: -1.35s;
+}
+
+.fortune-2d-arm-left {
+  --fortune-arm-rest-rotate: -4deg;
+  --fortune-arm-swing-rotate: 0.66deg;
+  --fortune-arm-settle-rotate: -0.18deg;
+  --fortune-arm-lift-y: -0.26%;
+  --fortune-arm-settle-y: -0.08%;
+
+  top: 67%;
+  left: 61%;
+  width: 19.2%;
+  transform: translate3d(-50%, -50%, 0) rotate(-4deg);
+  transform-origin: 39% 18%;
+  animation-duration: 9.1s;
+  animation-delay: -4.2s;
+}
+
+.fortune-2d-cube {
+  top: 67.4%;
+  left: 50%;
+  z-index: 9;
+  width: 19.8%;
+  transform: translate3d(-50%, -50%, 0);
+  filter:
+    drop-shadow(0 0.65rem 1.1rem rgba(13, 3, 27, 0.3))
+    drop-shadow(0 0 0.4rem rgba(171, 86, 255, 0.14));
+  transition:
+    filter 240ms ease,
+    transform 240ms ease;
+}
+
+.fortune-2d-cube-flare {
+  top: 67.4%;
+  left: 50%;
+  z-index: 6;
+  width: 18.4%;
+  aspect-ratio: 1.35;
+  transform: translate3d(-50%, -50%, 0);
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse, rgba(255, 242, 255, 0.54), rgba(202, 130, 255, 0.22) 34%, rgba(116, 57, 255, 0) 70%),
+    radial-gradient(ellipse, rgba(124, 78, 255, 0.34), rgba(124, 78, 255, 0) 68%);
+  filter: blur(1.2rem);
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.fortune-2d-print-note {
+  top: 66.8%;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  width: min(16.4%, 14rem);
+  aspect-ratio: 1.45;
+  align-items: center;
+  justify-content: center;
+  padding: 0.82rem;
+  transform: translate3d(-50%, -58%, 0) rotateX(48deg) scale(0.72);
+  transform-origin: 50% 0;
+  border: 1px solid rgba(126, 76, 177, 0.24);
+  border-radius: 0.38rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 247, 211, 0.92)),
+    #fff6c9;
+  color: #5f3f83;
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(0.55rem, 1.1vw, 1rem);
+  line-height: 1.16;
+  text-align: center;
+  opacity: 0;
+  box-shadow:
+    0 0.8rem 1.4rem rgba(26, 6, 40, 0.26),
+    0 0 1.6rem rgba(247, 216, 132, 0.26);
+}
+
+.fortune-2d-print-note span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.fortune-2d-printing .fortune-2d-print-note {
+  animation: fortune-2d-note-print var(--fortune-print-duration, 4.2s) cubic-bezier(0.18, 0.78, 0.3, 1) both;
+}
+
+.fortune-2d-printing .fortune-2d-cube {
+  animation:
+    fortune-2d-cube-pulse 1.5s ease-in-out infinite,
+    fortune-2d-print-cube var(--fortune-print-duration, 4.2s) cubic-bezier(0.18, 0.78, 0.3, 1) both;
+}
+
+.fortune-2d-printing .fortune-2d-cube-flare {
+  animation: fortune-2d-flare-pulse 0.82s ease-in-out infinite;
+}
+
+.fortune-2d-print-video {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  background: transparent;
+  opacity: 0;
+  transform: translateZ(0);
+  will-change: opacity;
+  contain: strict;
+  animation: fortune-2d-print-video-fade 1100ms ease-out forwards;
+}
+
+@keyframes fortune-2d-print-video-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-print-note,
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-cube-flare,
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-sparkles {
+  animation: none;
+  opacity: 0;
+}
+
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-frame,
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-hit-zone,
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-cube-hit-zone {
+  pointer-events: none;
+}
+
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-piece,
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-piece.is-active,
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-piece.is-soft-active {
+  animation: none;
+  transition:
+    transform 2s cubic-bezier(0.32, 0.72, 0.24, 1),
+    opacity 1.6s ease-out;
+}
+
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-top-left,
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-top-right {
+  transform: translate3d(0, -120%, 0);
+}
+
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-middle-left {
+  transform: translate3d(-120%, 0, 0);
+}
+
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-middle-right {
+  transform: translate3d(120%, 0, 0);
+}
+
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-lower-left,
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-curtain-lower-right {
+  transform: translate3d(0, 120%, 0);
+}
+
+.fortune-2d-visual.fortune-2d-print-video-active .fortune-2d-screen-ornaments {
+  animation: none;
+  transition:
+    transform 2s cubic-bezier(0.32, 0.72, 0.24, 1),
+    opacity 1.6s ease-out;
+  transform: translate3d(-50%, -120%, 0);
+  opacity: 0;
+}
+
+.fortune-2d-cube-hovered .fortune-2d-cube {
+  animation: fortune-2d-cube-pulse 2.6s ease-in-out infinite;
+}
+
+.fortune-2d-cube-hovered .fortune-2d-cube-flare {
+  animation: fortune-2d-flare-pulse 2.4s ease-in-out infinite;
+}
+
+.fortune-2d-curtain-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.fortune-2d-cube-hit-zone {
+  position: absolute;
+  top: 58%;
+  left: 40.2%;
+  z-index: 16;
+  display: block;
+  width: 20%;
+  height: 22%;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.fortune-2d-curtain-hit-zone {
+  position: absolute;
+  z-index: 8;
+  display: block;
+  background: rgba(255, 255, 255, 0);
+  pointer-events: auto;
+}
+
+.fortune-2d-curtain-hit-zone-lower-left {
+  top: 56%;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+}
+
+.fortune-2d-curtain-hit-zone-lower-right {
+  top: 56%;
+  right: 0;
+  bottom: 0;
+  width: 38%;
+}
+
+.fortune-2d-curtain-hit-zone-middle-left {
+  top: 24%;
+  left: 0;
+  width: 38%;
+  height: 32%;
+}
+
+.fortune-2d-curtain-hit-zone-middle-right {
+  top: 24%;
+  right: 0;
+  width: 38%;
+  height: 32%;
+}
+
+.fortune-2d-curtain-hit-zone-top-left {
+  top: 0;
+  left: 0;
+  z-index: 9;
+  width: 50%;
+  height: 24%;
+}
+
+.fortune-2d-curtain-hit-zone-top-right {
+  top: 0;
+  right: 0;
+  z-index: 9;
+  width: 50%;
+  height: 24%;
+}
+
+.fortune-2d-curtain-piece {
+  --fortune-curtain-rest-x: 0px;
+  --fortune-curtain-rest-y: 0px;
+  --fortune-curtain-rest-rotate: 0deg;
+  --fortune-curtain-hover-x: 0px;
+  --fortune-curtain-hover-y: 0px;
+  --fortune-curtain-hover-rotate: 0deg;
+  --fortune-curtain-pull-skew-x: 0deg;
+  --fortune-curtain-pull-scale-x: 0.9985;
+  --fortune-curtain-pull-scale-y: 1.003;
+  --fortune-curtain-sway-x: var(--fortune-curtain-hover-x);
+  --fortune-curtain-sway-y: var(--fortune-curtain-hover-y);
+  --fortune-curtain-sway-rotate: var(--fortune-curtain-hover-rotate);
+  --fortune-curtain-recoil-skew-x: 0deg;
+  --fortune-curtain-recoil-scale-x: 1.0015;
+  --fortune-curtain-recoil-scale-y: 0.999;
+  --fortune-curtain-settle-x: var(--fortune-curtain-sway-x);
+  --fortune-curtain-settle-y: var(--fortune-curtain-sway-y);
+  --fortune-curtain-settle-rotate: var(--fortune-curtain-sway-rotate);
+  --fortune-curtain-settle-skew-x: 0deg;
+  --fortune-curtain-settle-scale-x: 1.0004;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: var(--fortune-curtain-sway-x);
+  --fortune-curtain-idle-pull-y: var(--fortune-curtain-sway-y);
+  --fortune-curtain-idle-pull-rotate: 0deg;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-idle-pull-scale-y: 1;
+  --fortune-curtain-soft-x: 0px;
+  --fortune-curtain-soft-y: 0px;
+  --fortune-curtain-soft-rotate: 0deg;
+  --fortune-curtain-soft-skew-x: 0deg;
+  --fortune-curtain-soft-scale-x: 1.0005;
+  --fortune-curtain-soft-scale-y: 1.0004;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
+  --fortune-curtain-soft-idle-scale-x: 1;
+  --fortune-curtain-soft-idle-scale-y: 1;
+
+  position: absolute;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+  transform: translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0) rotate(var(--fortune-curtain-rest-rotate));
+  transition:
+    filter 120ms ease,
+    transform 120ms cubic-bezier(0.19, 1, 0.22, 1);
+  user-select: none;
+  will-change: transform;
+}
+
+.fortune-2d-curtain-piece.is-active,
+.fortune-2d-curtain-hit-zone-lower-left:hover ~ .fortune-2d-curtain-lower-left,
+.fortune-2d-curtain-hit-zone-lower-right:hover ~ .fortune-2d-curtain-lower-right,
+.fortune-2d-curtain-hit-zone-middle-left:hover ~ .fortune-2d-curtain-middle-left,
+.fortune-2d-curtain-hit-zone-middle-right:hover ~ .fortune-2d-curtain-middle-right,
+.fortune-2d-curtain-hit-zone-top-left:hover ~ .fortune-2d-curtain-top-left,
+.fortune-2d-curtain-hit-zone-top-right:hover ~ .fortune-2d-curtain-top-right {
+  animation: fortune-2d-curtain-tap-ripple 780ms cubic-bezier(0.2, 0.86, 0.24, 1) both;
+  filter:
+    saturate(1.055)
+    brightness(1.018)
+    drop-shadow(0 0.88rem 1.42rem rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 0.3rem rgba(202, 121, 255, 0.08));
+  transform:
+    translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+    rotate(var(--fortune-curtain-rest-rotate))
+    skewX(0deg)
+    scaleX(1)
+    scaleY(1);
+  transition-duration: 220ms;
+}
+
+.fortune-2d-curtain-piece.is-soft-active,
+.fortune-2d-curtain-hit-zone-lower-left:hover ~ .fortune-2d-curtain-middle-left,
+.fortune-2d-curtain-hit-zone-lower-left:hover ~ .fortune-2d-curtain-top-left,
+.fortune-2d-curtain-hit-zone-middle-left:hover ~ .fortune-2d-curtain-lower-left,
+.fortune-2d-curtain-hit-zone-middle-left:hover ~ .fortune-2d-curtain-top-left,
+.fortune-2d-curtain-hit-zone-top-left:hover ~ .fortune-2d-curtain-lower-left,
+.fortune-2d-curtain-hit-zone-top-left:hover ~ .fortune-2d-curtain-middle-left,
+.fortune-2d-curtain-hit-zone-lower-right:hover ~ .fortune-2d-curtain-middle-right,
+.fortune-2d-curtain-hit-zone-lower-right:hover ~ .fortune-2d-curtain-top-right,
+.fortune-2d-curtain-hit-zone-middle-right:hover ~ .fortune-2d-curtain-lower-right,
+.fortune-2d-curtain-hit-zone-middle-right:hover ~ .fortune-2d-curtain-top-right,
+.fortune-2d-curtain-hit-zone-top-right:hover ~ .fortune-2d-curtain-lower-right,
+.fortune-2d-curtain-hit-zone-top-right:hover ~ .fortune-2d-curtain-middle-right {
+  animation: fortune-2d-curtain-soft-tap-ripple 980ms cubic-bezier(0.2, 0.86, 0.24, 1) both;
+  filter:
+    saturate(1.025)
+    brightness(1.008)
+    drop-shadow(0 0.86rem 1.42rem rgba(0, 0, 0, 0.38))
+    drop-shadow(0 0 0.16rem rgba(202, 121, 255, 0.04));
+  transform:
+    translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+    rotate(var(--fortune-curtain-rest-rotate))
+    skewX(0deg)
+    scaleX(1)
+    scaleY(1);
+  transition-duration: 320ms;
+}
+
+.fortune-2d-curtain-piece.is-active:active,
+.fortune-2d-curtain-hit-zone-lower-left:active ~ .fortune-2d-curtain-lower-left,
+.fortune-2d-curtain-hit-zone-lower-right:active ~ .fortune-2d-curtain-lower-right,
+.fortune-2d-curtain-hit-zone-middle-left:active ~ .fortune-2d-curtain-middle-left,
+.fortune-2d-curtain-hit-zone-middle-right:active ~ .fortune-2d-curtain-middle-right,
+.fortune-2d-curtain-hit-zone-top-left:active ~ .fortune-2d-curtain-top-left,
+.fortune-2d-curtain-hit-zone-top-right:active ~ .fortune-2d-curtain-top-right {
+  animation-duration: 560ms;
+  transform:
+    translate3d(
+      calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-hover-x)),
+      calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-hover-y)),
+      0
+    )
+    rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-hover-rotate)))
+    skewX(var(--fortune-curtain-pull-skew-x))
+    scaleX(calc(var(--fortune-curtain-pull-scale-x) + 0.001))
+    scaleY(var(--fortune-curtain-pull-scale-y));
+}
+
+.fortune-2d-curtain-lower-left {
+  --fortune-curtain-hover-x: clamp(0.016rem, 0.055vw, 0.045rem);
+  --fortune-curtain-hover-y: clamp(0.004rem, 0.025dvh, 0.014rem);
+  --fortune-curtain-hover-rotate: 0.075deg;
+  --fortune-curtain-pull-skew-x: 0.5deg;
+  --fortune-curtain-pull-scale-x: 0.9982;
+  --fortune-curtain-pull-scale-y: 1.0032;
+  --fortune-curtain-sway-x: clamp(-0.022rem, -0.045vw, -0.008rem);
+  --fortune-curtain-sway-y: clamp(-0.014rem, -0.03dvh, -0.004rem);
+  --fortune-curtain-sway-rotate: -0.055deg;
+  --fortune-curtain-recoil-skew-x: -0.22deg;
+  --fortune-curtain-recoil-scale-x: 1.0018;
+  --fortune-curtain-recoil-scale-y: 0.999;
+  --fortune-curtain-settle-x: clamp(0.004rem, 0.015vw, 0.014rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.006dvh, 0.004rem);
+  --fortune-curtain-settle-rotate: 0.018deg;
+  --fortune-curtain-settle-skew-x: 0.04deg;
+  --fortune-curtain-settle-scale-x: 1.0004;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(0.004rem, 0.018vw, 0.014rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.006dvh, 0.004rem);
+  --fortune-curtain-soft-rotate: 0.006deg;
+  --fortune-curtain-soft-skew-x: 0.01deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
+
+  bottom: -8.8dvh;
+  left: -1.2vw;
+  z-index: 1;
+  height: min(54dvh, 35rem);
+  opacity: 0.94;
+  filter:
+    saturate(1.04)
+    brightness(0.98)
+    drop-shadow(0 0.85rem 1.5rem rgba(0, 0, 0, 0.42));
+  transform-origin: 16% 4%;
+}
+
+.fortune-2d-curtain-lower-right {
+  --fortune-curtain-hover-x: clamp(-0.045rem, -0.055vw, -0.016rem);
+  --fortune-curtain-hover-y: clamp(0.004rem, 0.025dvh, 0.014rem);
+  --fortune-curtain-hover-rotate: -0.075deg;
+  --fortune-curtain-pull-skew-x: -0.5deg;
+  --fortune-curtain-pull-scale-x: 0.9982;
+  --fortune-curtain-pull-scale-y: 1.0032;
+  --fortune-curtain-sway-x: clamp(0.008rem, 0.045vw, 0.022rem);
+  --fortune-curtain-sway-y: clamp(-0.014rem, -0.03dvh, -0.004rem);
+  --fortune-curtain-sway-rotate: 0.055deg;
+  --fortune-curtain-recoil-skew-x: 0.22deg;
+  --fortune-curtain-recoil-scale-x: 1.0018;
+  --fortune-curtain-recoil-scale-y: 0.999;
+  --fortune-curtain-settle-x: clamp(-0.014rem, -0.015vw, -0.004rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.006dvh, 0.004rem);
+  --fortune-curtain-settle-rotate: -0.018deg;
+  --fortune-curtain-settle-skew-x: -0.04deg;
+  --fortune-curtain-settle-scale-x: 1.0004;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(-0.014rem, -0.018vw, -0.004rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.006dvh, 0.004rem);
+  --fortune-curtain-soft-rotate: -0.006deg;
+  --fortune-curtain-soft-skew-x: -0.01deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
+
+  right: -1.2vw;
+  bottom: -8.8dvh;
+  z-index: 1;
+  height: min(54dvh, 35rem);
+  opacity: 0.94;
+  filter:
+    saturate(1.04)
+    brightness(0.98)
+    drop-shadow(0 0.85rem 1.5rem rgba(0, 0, 0, 0.42));
+  transform-origin: 84% 4%;
+}
+
+.fortune-2d-curtain-lower-left,
+.fortune-2d-curtain-lower-right {
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.16) 8%,
+    rgba(0, 0, 0, 0.72) 18%,
+    #000 30%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.16) 8%,
+    rgba(0, 0, 0, 0.72) 18%,
+    #000 30%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+.fortune-2d-curtain-middle-left {
+  --fortune-curtain-hover-x: clamp(0.012rem, 0.045vw, 0.034rem);
+  --fortune-curtain-hover-y: clamp(0.003rem, 0.02dvh, 0.012rem);
+  --fortune-curtain-hover-rotate: 0.06deg;
+  --fortune-curtain-pull-skew-x: 0.42deg;
+  --fortune-curtain-pull-scale-x: 0.9987;
+  --fortune-curtain-pull-scale-y: 1.0026;
+  --fortune-curtain-sway-x: clamp(-0.018rem, -0.036vw, -0.006rem);
+  --fortune-curtain-sway-y: clamp(-0.012rem, -0.026dvh, -0.004rem);
+  --fortune-curtain-sway-rotate: -0.044deg;
+  --fortune-curtain-recoil-skew-x: -0.18deg;
+  --fortune-curtain-recoil-scale-x: 1.0014;
+  --fortune-curtain-recoil-scale-y: 0.9992;
+  --fortune-curtain-settle-x: clamp(0.003rem, 0.012vw, 0.011rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.005dvh, 0.003rem);
+  --fortune-curtain-settle-rotate: 0.014deg;
+  --fortune-curtain-settle-skew-x: 0.032deg;
+  --fortune-curtain-settle-scale-x: 1.0003;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(0.003rem, 0.014vw, 0.011rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.005dvh, 0.003rem);
+  --fortune-curtain-soft-rotate: 0.005deg;
+  --fortune-curtain-soft-skew-x: 0.008deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
+
+  top: 1.2dvh;
+  left: -4.6vw;
+  z-index: 2;
+  width: min(30vw, 24rem);
+  opacity: 0.96;
+  filter:
+    saturate(1.05)
+    brightness(0.98)
+    drop-shadow(0 0.72rem 1.25rem rgba(0, 0, 0, 0.38));
+  transform-origin: 86% 6%;
+}
+
+.fortune-2d-curtain-middle-right {
+  --fortune-curtain-hover-x: clamp(-0.034rem, -0.045vw, -0.012rem);
+  --fortune-curtain-hover-y: clamp(0.003rem, 0.02dvh, 0.012rem);
+  --fortune-curtain-hover-rotate: -0.06deg;
+  --fortune-curtain-pull-skew-x: -0.42deg;
+  --fortune-curtain-pull-scale-x: 0.9987;
+  --fortune-curtain-pull-scale-y: 1.0026;
+  --fortune-curtain-sway-x: clamp(0.006rem, 0.036vw, 0.018rem);
+  --fortune-curtain-sway-y: clamp(-0.012rem, -0.026dvh, -0.004rem);
+  --fortune-curtain-sway-rotate: 0.044deg;
+  --fortune-curtain-recoil-skew-x: 0.18deg;
+  --fortune-curtain-recoil-scale-x: 1.0014;
+  --fortune-curtain-recoil-scale-y: 0.9992;
+  --fortune-curtain-settle-x: clamp(-0.011rem, -0.012vw, -0.003rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.005dvh, 0.003rem);
+  --fortune-curtain-settle-rotate: -0.014deg;
+  --fortune-curtain-settle-skew-x: -0.032deg;
+  --fortune-curtain-settle-scale-x: 1.0003;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(-0.011rem, -0.014vw, -0.003rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.005dvh, 0.003rem);
+  --fortune-curtain-soft-rotate: -0.005deg;
+  --fortune-curtain-soft-skew-x: -0.008deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
+
+  top: 1.2dvh;
+  right: -4.6vw;
+  z-index: 2;
+  width: min(30vw, 24rem);
+  opacity: 0.96;
+  filter:
+    saturate(1.05)
+    brightness(0.98)
+    drop-shadow(0 0.72rem 1.25rem rgba(0, 0, 0, 0.38));
+  transform-origin: 14% 6%;
+}
+
+.fortune-2d-curtain-top-left {
+  --fortune-curtain-hover-x: clamp(0.008rem, 0.032vw, 0.022rem);
+  --fortune-curtain-hover-y: clamp(0.002rem, 0.014dvh, 0.008rem);
+  --fortune-curtain-hover-rotate: 0.045deg;
+  --fortune-curtain-pull-skew-x: 0.28deg;
+  --fortune-curtain-pull-scale-x: 0.999;
+  --fortune-curtain-pull-scale-y: 1.0018;
+  --fortune-curtain-sway-x: clamp(-0.012rem, -0.026vw, -0.004rem);
+  --fortune-curtain-sway-y: clamp(-0.008rem, -0.018dvh, -0.003rem);
+  --fortune-curtain-sway-rotate: -0.032deg;
+  --fortune-curtain-recoil-skew-x: -0.12deg;
+  --fortune-curtain-recoil-scale-x: 1.001;
+  --fortune-curtain-recoil-scale-y: 0.9994;
+  --fortune-curtain-settle-x: clamp(0.002rem, 0.008vw, 0.007rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.004dvh, 0.002rem);
+  --fortune-curtain-settle-rotate: 0.01deg;
+  --fortune-curtain-settle-skew-x: 0.024deg;
+  --fortune-curtain-settle-scale-x: 1.0002;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(0.002rem, 0.01vw, 0.007rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.003dvh, 0.002rem);
+  --fortune-curtain-soft-rotate: 0.003deg;
+  --fortune-curtain-soft-skew-x: 0.005deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
+
+  top: max(-4.35rem, -6.2dvh);
+  left: -4.8vw;
+  z-index: 3;
+  width: min(45vw, 43rem);
+  opacity: 0.98;
+  filter:
+    saturate(1.06)
+    brightness(1.01)
+    drop-shadow(0 0.5rem 1rem rgba(0, 0, 0, 0.34));
+  transform-origin: 82% 5%;
+}
+
+.fortune-2d-curtain-top-right {
+  --fortune-curtain-hover-x: clamp(-0.022rem, -0.032vw, -0.008rem);
+  --fortune-curtain-hover-y: clamp(0.002rem, 0.014dvh, 0.008rem);
+  --fortune-curtain-hover-rotate: -0.045deg;
+  --fortune-curtain-pull-skew-x: -0.28deg;
+  --fortune-curtain-pull-scale-x: 0.999;
+  --fortune-curtain-pull-scale-y: 1.0018;
+  --fortune-curtain-sway-x: clamp(0.004rem, 0.026vw, 0.012rem);
+  --fortune-curtain-sway-y: clamp(-0.008rem, -0.018dvh, -0.003rem);
+  --fortune-curtain-sway-rotate: 0.032deg;
+  --fortune-curtain-recoil-skew-x: 0.12deg;
+  --fortune-curtain-recoil-scale-x: 1.001;
+  --fortune-curtain-recoil-scale-y: 0.9994;
+  --fortune-curtain-settle-x: clamp(-0.007rem, -0.008vw, -0.002rem);
+  --fortune-curtain-settle-y: clamp(0.001rem, 0.004dvh, 0.002rem);
+  --fortune-curtain-settle-rotate: -0.01deg;
+  --fortune-curtain-settle-skew-x: -0.024deg;
+  --fortune-curtain-settle-scale-x: 1.0002;
+  --fortune-curtain-settle-scale-y: 1;
+  --fortune-curtain-idle-pull-x: 0px;
+  --fortune-curtain-idle-pull-y: 0px;
+  --fortune-curtain-idle-pull-skew-x: 0deg;
+  --fortune-curtain-idle-pull-scale-x: 1;
+  --fortune-curtain-soft-x: clamp(-0.007rem, -0.01vw, -0.002rem);
+  --fortune-curtain-soft-y: clamp(0.001rem, 0.003dvh, 0.002rem);
+  --fortune-curtain-soft-rotate: -0.003deg;
+  --fortune-curtain-soft-skew-x: -0.005deg;
+  --fortune-curtain-soft-idle-x: 0px;
+  --fortune-curtain-soft-idle-y: 0px;
+  --fortune-curtain-soft-idle-rotate: 0deg;
+  --fortune-curtain-soft-idle-skew-x: 0deg;
+
+  top: max(-4.35rem, -6.2dvh);
+  right: -4.8vw;
+  z-index: 3;
+  width: min(45vw, 43rem);
+  opacity: 0.98;
+  filter:
+    saturate(1.06)
+    brightness(1.01)
+    drop-shadow(0 0.5rem 1rem rgba(0, 0, 0, 0.34));
+  transform-origin: 18% 5%;
+}
+
+.fortune-2d-screen-ornaments {
+  position: absolute;
+  top: 0%;
+  left: 50%;
+  z-index: 5;
+  width: min(101vw, 88rem);
+  height: min(66dvh, 50rem);
+  max-width: none;
+  object-fit: fill;
+  transform: translate3d(-50%, 0, 0);
+  opacity: 0.84;
+  filter:
+    drop-shadow(0 0 0.42rem rgba(190, 99, 255, 0.28))
+    drop-shadow(0 0.9rem 1.2rem rgba(0, 0, 0, 0.34));
+  animation: fortune-2d-hanging-sway 9.4s ease-in-out infinite;
+  pointer-events: none;
+  user-select: none;
+}
+
+.fortune-2d-vignette {
+  inset: 0;
+  z-index: 12;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(4, 1, 9, 0) 0 42%, rgba(4, 1, 9, 0.2) 70%, rgba(4, 1, 9, 0.58) 100%),
+    linear-gradient(180deg, rgba(4, 1, 9, 0.2), rgba(4, 1, 9, 0) 24% 68%, rgba(4, 1, 9, 0.44));
+}
+
+.fortune-2d-sparkles {
+  inset: 0;
+  z-index: 13;
+}
+
+.fortune-2d-sparkles span {
+  position: absolute;
+  width: clamp(0.28rem, 0.6vw, 0.52rem);
+  height: clamp(0.28rem, 0.6vw, 0.52rem);
+  clip-path: polygon(50% 0, 61% 36%, 100% 50%, 61% 64%, 50% 100%, 39% 64%, 0 50%, 39% 36%);
+  background: #f4d5ff;
+  filter:
+    drop-shadow(0 0 0.34rem rgba(229, 185, 255, 0.84))
+    drop-shadow(0 0 0.78rem rgba(133, 85, 255, 0.58));
+  animation: fortune-2d-sparkle-twinkle 2.8s ease-in-out infinite;
+}
+
+.fortune-2d-sparkles span:nth-child(1) {
+  top: 13%;
+  left: 45%;
+}
+
+.fortune-2d-sparkles span:nth-child(2) {
+  top: 25%;
+  left: 62%;
+  animation-delay: -0.8s;
+}
+
+.fortune-2d-sparkles span:nth-child(3) {
+  top: 41%;
+  left: 36%;
+  animation-delay: -1.7s;
+}
+
+.fortune-2d-sparkles span:nth-child(4) {
+  top: 44%;
+  right: 36%;
+  animation-delay: -0.4s;
+}
+
+.fortune-2d-sparkles span:nth-child(5) {
+  top: 57%;
+  left: 48%;
+  width: clamp(0.46rem, 0.95vw, 0.86rem);
+  height: clamp(0.46rem, 0.95vw, 0.86rem);
+  animation-delay: -2.1s;
+}
+
+.fortune-2d-sparkles span:nth-child(6) {
+  top: 34%;
+  left: 52%;
+  background: #fff3c9;
+  animation-delay: -1.2s;
+}
+
+.fortune-2d-sparkles span:nth-child(7) {
+  top: 66%;
+  left: 38%;
+  animation-delay: -2.4s;
+}
+
+.fortune-2d-sparkles span:nth-child(8) {
+  top: 68%;
+  right: 38%;
+  background: #fff3c9;
+  animation-delay: -0.2s;
+}
+
+@media (max-width: 767px) and (orientation: portrait) {
+  .fortune-2d-stage {
+    top: 48%;
+    width: 220vw;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: var(--fortune-stage-aspect);
+  }
+
+  .fortune-2d-curtain-lower-left {
+    left: -4vw;
+    bottom: -8.4dvh;
+    height: min(54dvh, 35rem);
+  }
+
+  .fortune-2d-curtain-lower-right {
+    right: -4vw;
+    bottom: -8.4dvh;
+    height: min(54dvh, 35rem);
+  }
+
+  .fortune-2d-curtain-middle-left {
+    top: 1dvh;
+    left: -18vw;
+    width: 36vw;
+  }
+
+  .fortune-2d-curtain-middle-right {
+    top: 1dvh;
+    right: -18vw;
+    width: 36vw;
+  }
+
+  .fortune-2d-curtain-top-left {
+    top: max(-4.45rem, -6.4dvh);
+    left: -5vw;
+    width: 46vw;
+  }
+
+  .fortune-2d-curtain-top-right {
+    top: max(-4.45rem, -6.4dvh);
+    right: -5vw;
+    width: 46vw;
+  }
+
+  .fortune-2d-screen-ornaments {
+    top: 0.6%;
+    width: 110vw;
+    height: 58dvh;
+    opacity: 0.74;
+  }
+}
+
+.fortune-stage-visual::after {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(8, 2, 18, 0) 0 34%, rgba(8, 2, 18, 0.16) 60%, rgba(4, 1, 10, 0.46) 100%),
+    linear-gradient(90deg, rgba(4, 1, 10, 0.46), rgba(4, 1, 10, 0.08) 27% 73%, rgba(4, 1, 10, 0.46));
+  content: "";
+}
+
+.fortune-entry-spotlight-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: #090211;
+}
+
+.fortune-entry-spotlight-cover.is-lit {
+  animation: fortune-entry-blackout 1.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background:
+    radial-gradient(circle 14.5rem at 50% 39%, rgba(9, 2, 17, 0) 0 62%, rgba(9, 2, 17, 0.28) 74%, rgba(9, 2, 17, 0.98) 100%, #090211 100%);
+}
+
+.fortune-stage-aura {
+  position: absolute;
+  inset: -12vh -8vw;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(188, 125, 255, 0.24), rgba(188, 125, 255, 0) 36%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(126, 77, 210, 0.16), rgba(255, 255, 255, 0));
+  filter: blur(30px);
+  opacity: 0.5;
+}
+
+.fortune-stage-crown {
+  display: none;
+  position: absolute;
+  top: max(-9vh, -5rem);
+  left: 50%;
+  z-index: 3;
+  width: min(72vw, 50rem);
+  height: clamp(7rem, 16vh, 11rem);
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 235, 172, 0.34);
+  border-top: 0;
+  border-radius: 0 0 48% 48% / 0 0 70% 70%;
+  background:
+    linear-gradient(180deg, rgba(99, 48, 116, 0.44), rgba(119, 62, 135, 0.12) 55%, rgba(255, 235, 172, 0.08)),
+    repeating-linear-gradient(90deg, rgba(255, 236, 178, 0.18) 0 0.45rem, rgba(255, 236, 178, 0) 0.45rem 2.8rem);
+  box-shadow:
+    inset 0 -1.2rem 2.4rem rgba(255, 246, 218, 0.16),
+    0 1rem 2.8rem rgba(70, 29, 89, 0.22);
+  pointer-events: none;
+}
+
+.fortune-sparkle-field {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.fortune-sparkle-field span {
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  clip-path: polygon(50% 0, 61% 36%, 100% 50%, 61% 64%, 50% 100%, 39% 64%, 0 50%, 39% 36%);
+  background: #fff0a8;
+  filter: drop-shadow(0 0 0.45rem rgba(255, 226, 104, 0.52));
+  animation: fortune-sparkle-drift 3.8s ease-in-out infinite;
+}
+
+.fortune-sparkle-field span:nth-child(1) {
+  top: 22%;
+  left: 11%;
+}
+
+.fortune-sparkle-field span:nth-child(2) {
+  top: 39%;
+  left: 18%;
+  width: 0.72rem;
+  height: 0.72rem;
+  animation-delay: -1.1s;
+}
+
+.fortune-sparkle-field span:nth-child(3) {
+  top: 19%;
+  right: 15%;
+  width: 1.2rem;
+  height: 1.2rem;
+  animation-delay: -0.4s;
+}
+
+.fortune-sparkle-field span:nth-child(4) {
+  top: 48%;
+  right: 11%;
+  width: 0.84rem;
+  height: 0.84rem;
+  animation-delay: -2s;
+}
+
+.fortune-sparkle-field span:nth-child(5) {
+  top: 12%;
+  left: 29%;
+  width: 0.64rem;
+  height: 0.64rem;
+  background: #d9c4ff;
+  animation-delay: -2.8s;
+}
+
+.fortune-sparkle-field span:nth-child(6) {
+  top: 31%;
+  right: 28%;
+  width: 0.62rem;
+  height: 0.62rem;
+  background: #d9c4ff;
+  animation-delay: -1.7s;
+}
+
+.fortune-curtain {
+  display: none;
+  position: absolute;
+  top: -9vh;
+  bottom: -10vh;
+  z-index: 4;
+  width: min(28vw, 360px);
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 239, 190, 0.12), rgba(255, 239, 190, 0) 26% 74%, rgba(70, 24, 68, 0.2)),
+    repeating-linear-gradient(
+      90deg,
+      #4a1d53 0,
+      #77346f 12%,
+      #ad5e86 20%,
+      #e6b895 25%,
+      #8f4278 33%,
+      #4d1f55 44%
+    );
+  filter: saturate(0.92) drop-shadow(0 1.4rem 2rem rgba(55, 22, 74, 0.28));
+  opacity: 0.82;
+}
+
+.fortune-curtain-left {
+  left: max(-9vw, -130px);
+  border-bottom-right-radius: 78% 18%;
+  transform: skewY(-2.8deg);
+}
+
+.fortune-curtain-right {
+  right: max(-9vw, -130px);
+  border-bottom-left-radius: 78% 18%;
+  transform: scaleX(-1) skewY(-2.8deg);
+}
+
+.fortune-stage-overlay {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: clamp(1rem, 3vw, 2.2rem);
+  pointer-events: none;
+}
+
+.fortune-stage-overlay > div {
+  width: 100%;
+  pointer-events: none;
+}
+
+.fortune-stage-overlay > div > * {
+  pointer-events: auto;
+}
+
+.fortune-stage-overlay-center {
+  justify-content: center;
+}
+
+.fortune-stage-overlay-dialogue {
+  justify-content: flex-end;
+  padding: 0 clamp(0.45rem, 1.8vw, 1.25rem) clamp(0.2rem, 1vh, 0.75rem);
+}
+
+.fortune-stage-overlay-dialogue > div {
+  display: flex;
+  align-items: flex-end;
+}
+
+.fortune-stage-overlay-birth {
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(24, 8, 37, 0.1), rgba(24, 8, 37, 0) 58%),
+    linear-gradient(180deg, rgba(15, 4, 25, 0.08), rgba(15, 4, 25, 0.18));
+  backdrop-filter: blur(1.5px);
+}
+
+.fortune-stage-overlay-entry .fortune-dialogue-panel {
+  animation: fortune-dialogue-entry-reveal 1.82s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fortune-stage-overlay-panel {
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: clamp(2rem, 6.4vh, 4.1rem);
+}
+
+.fortune-stage-overlay-panel > div {
+  max-width: min(90vw, 600px);
+}
+
+/* === Draw step (사주 입력 정보 확인) ============================== */
+
+.fortune-stage-overlay-draw {
+  padding: 0;
+}
+
+/* motion.div의 transform이 fixed 자식의 containing block을 잡는 걸 무력화 */
+.fortune-stage-overlay-draw > div {
+  transform: none !important;
+}
+
+.fortune-draw-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.fortune-draw-stage > * {
+  pointer-events: auto;
+}
+
+@keyframes fortune-draw-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.6rem);
+    filter: blur(2.5px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fortune-draw-actions-rise {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0.6rem);
+    filter: blur(2.5px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.fortune-draw-info-panel {
+  animation: fortune-draw-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 120ms;
+}
+
+.fortune-draw-speech-bubble {
+  animation: fortune-draw-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 1620ms;
+}
+
+.fortune-draw-actions {
+  animation: fortune-draw-actions-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 3120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fortune-draw-actions,
+  .fortune-draw-info-panel,
+  .fortune-draw-speech-bubble {
+    animation: none;
+  }
+}
+
+.fortune-draw-speech-bubble {
+  position: absolute;
+  left: clamp(1vw, 3vw, 5vw);
+  bottom: clamp(56dvh, 62dvh, 68dvh);
+  width: min(56vw, 44rem);
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 0.6rem 1.2rem rgba(8, 1, 22, 0.55));
+}
+
+.fortune-draw-info-panel {
+  position: absolute;
+  top: clamp(6dvh, 12dvh, 18dvh);
+  right: clamp(0vw, 2vw, 4vw);
+  width: min(69vw, 54rem);
+  aspect-ratio: 358 / 245;
+  pointer-events: none;
+}
+
+.fortune-draw-info-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.fortune-draw-info-date {
+  position: absolute;
+  top: 32%;
+  left: calc(50% + 4vw);
+  transform: translateX(-50%);
+  width: 84%;
+  text-align: center;
+  font-family: var(--font-fortune-eulyoo);
+  font-weight: 600;
+  font-size: clamp(1.3rem, 2.4vw, 2rem);
+  letter-spacing: 0.04em;
+  color: #fff8ff;
+  text-shadow:
+    0 0 0.5rem rgba(220, 170, 255, 0.7),
+    0 0 0.18rem rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.fortune-draw-pillar-grid {
+  position: absolute;
+  top: 57%;
+  left: calc(50% + 4vw);
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 64%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fortune-draw-pillar-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fortune-draw-pillar-value {
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.05rem, 1.85vw, 1.55rem);
+  color: #fff;
+  text-shadow:
+    0 0 0.5rem rgba(220, 170, 255, 0.75),
+    0 0 0.15rem rgba(255, 255, 255, 0.55);
+}
+
+.fortune-draw-dialogue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(11dvh, 14dvh, 18dvh);
+  transform: translateX(-50%);
+  width: min(82vw, 60rem);
+}
+
+.fortune-draw-actions {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(3dvh, 5dvh, 7dvh);
+  transform: translateX(-50%);
+  display: flex;
+  gap: clamp(1rem, 2vw, 2.2rem);
+  align-items: center;
+}
+
+.fortune-draw-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-height: clamp(8.8rem, 14dvh, 11.2rem);
+  min-width: clamp(26rem, 44vw, 38rem);
+  padding: 0 clamp(3rem, 4.5vw, 5rem);
+  background: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-fortune-eulyoo);
+  font-weight: 600;
+  font-size: clamp(1.1rem, 1.7vw, 1.45rem);
+  letter-spacing: 0.06em;
+  color: #fff8ff;
+  text-shadow:
+    0 0 0.4rem rgba(180, 110, 255, 0.55),
+    0 0 0.18rem rgba(255, 255, 255, 0.5);
+  transition: transform 220ms ease, filter 220ms ease;
+}
+
+.fortune-draw-action:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08) drop-shadow(0 0 0.6rem rgba(220, 170, 255, 0.55));
+}
+
+.fortune-draw-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+  filter: none;
+}
+
+.fortune-draw-action-edit {
+  background-image: url('/images/fortune/draw/action-edit.png');
+  color: #f5e8ff;
+}
+
+.fortune-draw-action-print {
+  background-image: url('/images/fortune/draw/action-print.png');
+}
+
+.fortune-draw-action-icon {
+  width: clamp(1.1rem, 1.5vw, 1.4rem);
+  height: clamp(1.1rem, 1.5vw, 1.4rem);
+}
+
+.fortune-stage-overlay-scroll {
+  align-items: center;
+  height: 100dvh;
+  justify-content: flex-start;
+  min-height: 100dvh;
+  overflow-y: auto;
+  padding-block: clamp(1.2rem, 4vh, 2.8rem);
+  pointer-events: auto;
+  overscroll-behavior: contain;
+}
+
+.fortune-stage-overlay-scroll > div {
+  max-width: min(94vw, 920px);
+}
+
+.fortune-dialogue-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  width: min(94vw, 980px);
+  aspect-ratio: 1631 / 502;
+  margin: 0 auto;
+  gap: clamp(0.35rem, 1.1vw, 0.75rem);
+  padding:
+    clamp(3rem, 14%, 6.8rem)
+    clamp(1.9rem, 6.4%, 4.55rem)
+    clamp(1.05rem, 4.8%, 2.45rem)
+    clamp(3.12rem, 9.7%, 6.45rem);
+  border: 0;
+  background-image: url("/images/fortune/stage/dialogue-panel.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  filter:
+    drop-shadow(0 -0.5rem 1.3rem rgba(79, 31, 120, 0.24))
+    drop-shadow(0 0.7rem 1.35rem rgba(6, 1, 17, 0.46));
+  text-align: left;
+}
+
+.fortune-dialogue-speaker {
+  position: absolute;
+  top: 6.3%;
+  left: 11.1%;
+  display: grid;
+  width: min(29.8%, 18rem);
+  height: 21%;
+  min-width: 7rem;
+  align-items: center;
+  justify-items: start;
+  margin: 0;
+  padding:
+    0
+    clamp(0.45rem, 1.2vw, 0.8rem)
+    0
+    clamp(0.9rem, 2.1vw, 1.55rem);
+  transform: none;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 244, 216, 0.96);
+  font-family: var(--font-paperlogy);
+  font-size: clamp(1.12rem, 2.05vw, 1.58rem);
+  font-weight: 800;
+  line-height: 1;
+  text-align: left;
+  text-shadow:
+    0 0.12rem 0.32rem rgba(8, 1, 18, 0.72),
+    0 0 0.72rem rgba(193, 107, 255, 0.42);
+}
+
+.fortune-dialogue-copy {
+  margin: 0;
+  align-self: center;
+  color: rgba(255, 249, 228, 0.98);
+  font-family: var(--font-fortune-hand);
+  font-size: clamp(1.14rem, 2.12vw, 1.72rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.42;
+  text-shadow:
+    0 0.16rem 0.45rem rgba(7, 1, 16, 0.72),
+    0 0 0.86rem rgba(160, 87, 255, 0.3);
+  white-space: pre-wrap;
+  word-break: keep-all;
+}
+
+.fortune-dialogue-glyph {
+  display: inline-block;
+  animation: fortune-dialogue-glyph-tap 92ms ease-out both;
+  transform-origin: 50% 82%;
+}
+
+.fortune-dialogue-caret {
+  display: inline-block;
+  width: 0.12em;
+  height: 1em;
+  margin-left: 0.08em;
+  transform: translateY(0.16em);
+  border-radius: 999px;
+  background: rgba(255, 242, 205, 0.92);
+  box-shadow: 0 0 0.48rem rgba(206, 129, 255, 0.56);
+  animation: fortune-dialogue-caret-blink 720ms steps(1, end) infinite;
+  vertical-align: baseline;
+}
+
+.fortune-dialogue-next {
+  position: relative;
+  align-self: center;
+  width: clamp(2.55rem, 4.9vw, 4.35rem);
+  aspect-ratio: 1;
+  margin-right: clamp(0.65rem, 3.1vw, 2.45rem);
+  min-height: 0;
+  border: 0;
+  background: transparent url("/images/fortune/stage/dialogue-next-button.png") center / contain no-repeat;
+  color: transparent;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  filter:
+    drop-shadow(0 0 0.64rem rgba(188, 104, 255, 0.5))
+    drop-shadow(0 0.45rem 0.7rem rgba(9, 1, 18, 0.4));
+  transition:
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
+.fortune-dialogue-next-label {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fortune-dialogue-next:hover {
+  filter:
+    drop-shadow(0 0 0.9rem rgba(213, 144, 255, 0.76))
+    drop-shadow(0 0.48rem 0.76rem rgba(9, 1, 18, 0.44))
+    saturate(1.1)
+    brightness(1.06);
+  transform: translateX(0.12rem) scale(1.04);
+}
+
+.fortune-dialogue-next:focus-visible {
+  outline: 2px solid rgba(255, 235, 179, 0.95);
+  outline-offset: 0.2rem;
+}
+
+.fortune-dialogue-panel::after {
+  display: none;
+}
+
+.fortune-paper-panel {
+  position: relative;
+  display: grid;
+  width: min(88vw, 760px);
+  max-height: calc(100dvh - clamp(2rem, 7vh, 4rem));
+  min-height: auto;
+  margin: 0 auto;
+  gap: clamp(0.9rem, 2vw, 1.35rem);
+  overflow-y: auto;
+  align-content: start;
+  padding: clamp(2rem, 4vw, 3.1rem) clamp(1.45rem, 4.8vw, 3.2rem);
+  border: 2px solid rgba(255, 245, 215, 0.86);
+  border-radius: 2.8rem 3.2rem 3.6rem 3rem / 2.6rem 2.9rem 3rem 3.2rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 249, 229, 0.95)),
+    var(--color-fortune-panel);
+  box-shadow:
+    0 1.7rem 4.2rem rgba(37, 13, 55, 0.2),
+    0 0 0 0.48rem rgba(213, 190, 255, 0.14),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.92),
+    inset 0 -1.2rem 2.6rem rgba(255, 229, 158, 0.16);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(130, 94, 178, 0.32) transparent;
+}
+
+.fortune-paper-panel::before {
+  position: absolute;
+  top: 1.2rem;
+  left: 50%;
+  width: min(34rem, 62%);
+  height: 2rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0));
+  content: "";
+  pointer-events: none;
+}
+
+.fortune-paper-panel input:not([type="checkbox"]) {
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 248, 228, 0.92)),
+    var(--color-fortune-paper);
+  box-shadow:
+    inset 0 0.08rem 0 rgba(255, 255, 255, 0.84),
+    0 0.52rem 1.2rem rgba(81, 48, 112, 0.08);
+}
+
+.fortune-paper-panel input:not([type="checkbox"]):focus {
+  box-shadow:
+    0 0 0 0.22rem rgba(205, 181, 255, 0.42),
+    inset 0 0.08rem 0 rgba(255, 255, 255, 0.84);
+}
+
+.fortune-paper-panel input:disabled {
+  background: rgba(242, 231, 246, 0.78);
+}
+
+.fortune-paper-panel label {
+  word-break: keep-all;
+}
+
+.fortune-birth-form {
+  width: min(88vw, 792px);
+  gap: clamp(1.15rem, 2.4vw, 1.65rem);
+  padding: clamp(1.2rem, 2.8vw, 1.7rem) clamp(1.3rem, 4.6vw, 3rem) clamp(1.45rem, 3.4vw, 2.35rem);
+}
+
+.fortune-birth-heading {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.fortune-birth-heading .caption-b {
+  color: var(--color-fortune-muted);
+}
+
+.fortune-birth-heading h1 {
+  margin: 0;
+  color: var(--color-fortune-ink);
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.75rem, 3.5vw, 2.45rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.12;
+  word-break: keep-all;
+}
+
+.fortune-birth-heading p:last-child {
+  max-width: 26rem;
+  margin: 0;
+  color: var(--color-fortune-muted);
+  font-size: clamp(0.88rem, 1.5vw, 0.96rem);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.54;
+  word-break: keep-all;
+}
+
+.fortune-birth-fieldset {
+  display: grid;
+  min-width: 0;
+  gap: 0.72rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fortune-birth-fieldset legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 0.78rem;
+  color: var(--color-fortune-accent-strong);
+  font-size: clamp(1rem, 2vw, 1.14rem);
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.fortune-birth-fieldset legend::after {
+  display: block;
+  clear: both;
+  content: "";
+}
+
+.fortune-birth-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.68rem, 1.5vw, 0.92rem);
+}
+
+.fortune-birth-option-button {
+  min-height: 4rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: clamp(1rem, 2vw, 1.16rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  transition:
+    transform 180ms ease,
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.fortune-birth-option-button.is-active {
+  border-color: rgba(255, 246, 216, 0.52);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+    var(--color-fortune-accent);
+  color: var(--color-fortune-inverse);
+  box-shadow:
+    0 0.82rem 1.5rem rgba(83, 50, 125, 0.22),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.28);
+}
+
+.fortune-birth-option-button.is-idle {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(244, 238, 246, 0.88)),
+    #f4f0ec;
+  color: rgba(104, 92, 115, 0.5);
+  box-shadow:
+    0 0.5rem 1rem rgba(77, 54, 93, 0.06),
+    inset 0 0.1rem 0 rgba(255, 255, 255, 0.78);
+}
+
+.fortune-birth-option-button:hover {
+  transform: translateY(-0.08rem);
+}
+
+.fortune-birth-select-grid {
+  display: grid;
+  gap: clamp(0.52rem, 1.4vw, 0.72rem);
+}
+
+.fortune-birth-date-grid {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.fortune-birth-time-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fortune-birth-select-field {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+.fortune-birth-select-field > span {
+  position: absolute;
+  top: 50%;
+  right: 2.65rem;
+  z-index: 2;
+  transform: translateY(-50%);
+  color: rgba(101, 90, 114, 0.46);
+  font-size: 0.92rem;
+  font-weight: 850;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.fortune-birth-select-field.has-value > span {
+  opacity: 1;
+}
+
+.fortune-birth-select {
+  width: 100%;
+  min-height: 4.05rem;
+  appearance: none;
+  border: 2px solid rgba(207, 187, 232, 0.36);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(246, 241, 235, 0.94)),
+    var(--color-fortune-paper);
+  color: var(--color-fortune-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: clamp(1rem, 2vw, 1.08rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  outline: none;
+  padding: 0 3.25rem 0 1.08rem;
+  box-shadow:
+    0 0.58rem 1.2rem rgba(75, 48, 96, 0.07),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.84);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+
+.fortune-birth-select-field::after {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  width: 0.72rem;
+  height: 0.72rem;
+  transform: translateY(-68%) rotate(45deg);
+  border-right: 0.18rem solid var(--color-fortune-ink);
+  border-bottom: 0.18rem solid var(--color-fortune-ink);
+  content: "";
+  pointer-events: none;
+}
+
+.fortune-birth-select:focus {
+  border-color: rgba(139, 104, 214, 0.68);
+  box-shadow:
+    0 0 0 0.24rem rgba(205, 181, 255, 0.4),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.84);
+}
+
+.fortune-birth-select:disabled {
+  cursor: not-allowed;
+  color: rgba(104, 92, 115, 0.38);
+  filter: saturate(0.82);
+}
+
+.fortune-birth-select:disabled + span,
+.fortune-birth-select-field:has(.fortune-birth-select:disabled)::after {
+  opacity: 0.35;
+}
+
+.fortune-birth-unknown-toggle {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.62rem;
+  min-height: 2.35rem;
+  color: var(--color-fortune-ink);
+  cursor: pointer;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.fortune-birth-unknown-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fortune-birth-unknown-toggle span {
+  display: grid;
+  width: 1.55rem;
+  height: 1.55rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid rgba(207, 187, 232, 0.5);
+  border-radius: 0.4rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(246, 241, 235, 0.94)),
+    var(--color-fortune-paper);
+  box-shadow: inset 0 0.1rem 0 rgba(255, 255, 255, 0.82);
+}
+
+.fortune-birth-unknown-toggle span::after {
+  width: 0.42rem;
+  height: 0.78rem;
+  transform: translateY(-0.06rem) rotate(42deg);
+  border-right: 0.18rem solid var(--color-fortune-inverse);
+  border-bottom: 0.18rem solid var(--color-fortune-inverse);
+  content: "";
+  opacity: 0;
+}
+
+.fortune-birth-unknown-toggle input:checked + span {
+  border-color: transparent;
+  background: var(--color-fortune-accent);
+}
+
+.fortune-birth-unknown-toggle input:checked + span::after {
+  opacity: 1;
+}
+
+.fortune-birth-actions {
+  display: grid;
+  margin-top: clamp(0.2rem, 1vw, 0.55rem);
+}
+
+.fortune-birth-submit {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  min-height: clamp(4rem, 7vw, 4.85rem);
+  align-items: center;
+  border-radius: 1rem;
+  color: var(--color-fortune-inverse);
+  cursor: pointer;
+  font: inherit;
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.42rem, 3vw, 2rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  padding: 0.64rem clamp(0.75rem, 2vw, 1.3rem) 0.72rem clamp(2.8rem, 9vw, 5.4rem);
+  text-align: center;
+  transition:
+    transform 180ms ease,
+    filter 180ms ease,
+    opacity 180ms ease;
+}
+
+.fortune-birth-submit > span {
+  display: grid;
+  width: 3.1rem;
+  height: 3.1rem;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-fortune-accent-strong);
+}
+
+.fortune-birth-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+}
+
+.fortune-birth-submit:not(:disabled):hover {
+  filter: saturate(1.04) brightness(1.02);
+  transform: translateY(-0.08rem);
+}
+
+.fortune-birth-form {
+  position: relative;
+  display: grid;
+  width: min(91vw, 46rem);
+  max-height: calc(100dvh - 0.9rem);
+  margin: 0 auto;
+  gap: clamp(0.74rem, 1.28vw, 1.02rem);
+  overflow-y: auto;
+  align-content: start;
+  padding:
+    clamp(2.4rem, 5.1vw, 4.05rem)
+    clamp(2.15rem, 5.2vw, 4.3rem)
+    clamp(3.6rem, 6.6vw, 5.4rem);
+  border: 0;
+  background-image: url("/images/fortune/form/birth-panel-frame.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  color: rgba(255, 245, 216, 0.98);
+  filter:
+    drop-shadow(0 1.2rem 2.2rem rgba(5, 1, 19, 0.52))
+    drop-shadow(0 0 1.45rem rgba(179, 92, 255, 0.26));
+  font-family: var(--font-paperlogy);
+  scrollbar-width: none;
+}
+
+/* 폼 자체는 motion.div가 이미 진입 페이드를 담당하므로 transform 충돌을 피하고
+   내부 요소를 staggered reveal로 부드럽게 등장시킨다. */
+@keyframes fortune-birth-element-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.7rem);
+    filter: blur(3px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.fortune-birth-form > * {
+  animation: fortune-birth-element-rise 720ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.fortune-birth-form > *:nth-child(1) { animation-delay: 80ms; }
+.fortune-birth-form > *:nth-child(2) { animation-delay: 180ms; }
+.fortune-birth-form > *:nth-child(3) { animation-delay: 260ms; }
+.fortune-birth-form > *:nth-child(4) { animation-delay: 340ms; }
+.fortune-birth-form > *:nth-child(5) { animation-delay: 420ms; }
+.fortune-birth-form > *:nth-child(n + 6) { animation-delay: 480ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fortune-birth-form > * {
+    animation: none;
+  }
+}
+
+.fortune-birth-form::-webkit-scrollbar {
+  display: none;
+}
+
+.fortune-birth-form::before,
+.fortune-birth-form::after {
+  position: absolute;
+  z-index: 0;
+  width: clamp(5.1rem, 14vw, 9.4rem);
+  aspect-ratio: 1;
+  background: url("/images/fortune/form/birth-orb.png") center / contain no-repeat;
+  content: "";
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.fortune-birth-form::before {
+  top: 13.2%;
+  left: 4.8%;
+}
+
+.fortune-birth-form::after {
+  right: 5.2%;
+  bottom: 14%;
+  transform: rotate(28deg);
+}
+
+.fortune-birth-form > * {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fortune-birth-heading {
+  gap: clamp(0.34rem, 0.7vw, 0.5rem);
+  margin-top: clamp(0.2rem, 0.8vw, 0.5rem);
+  opacity: 1;
+  visibility: visible;
+}
+
+.fortune-birth-heading-spark {
+  display: block;
+  width: clamp(3rem, 7vw, 4.4rem);
+  aspect-ratio: 596 / 677;
+  margin-bottom: -0.42rem;
+  background: url("/images/fortune/form/birth-spark.png") center / contain no-repeat;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 0.7rem rgba(215, 96, 255, 0.48));
+}
+
+.fortune-birth-heading-spark,
+.fortune-birth-heading h1,
+.fortune-birth-heading p {
+  position: relative;
+  z-index: 2;
+  display: block;
+  opacity: 1;
+  visibility: visible;
+}
+
+.fortune-birth-heading h1 {
+  color: rgba(255, 249, 226, 0.98);
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.05rem, 2vw, 1.62rem);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  text-shadow:
+    0 0.12rem 0.42rem rgba(11, 1, 25, 0.82),
+    0 0 0.82rem rgba(207, 130, 255, 0.45);
+}
+
+.fortune-birth-heading p:last-child {
+  max-width: 30rem;
+  color: rgba(255, 247, 225, 0.82);
+  font-family: var(--font-fortune-eulyoo);
+  font-size: clamp(0.95rem, 1.55vw, 1.08rem);
+  font-weight: 400;
+  line-height: 1.48;
+  text-shadow: 0 0.1rem 0.3rem rgba(7, 1, 18, 0.7);
+}
+
+.fortune-birth-fieldset {
+  gap: clamp(0.42rem, 0.9vw, 0.64rem);
+  width: 100%;
+  max-width: 100%;
+  min-inline-size: 0;
+  box-sizing: border-box;
+}
+
+.fortune-birth-fieldset legend {
+  margin-bottom: clamp(0.28rem, 0.7vw, 0.48rem);
+  color: rgba(255, 244, 207, 0.96);
+  font-family: var(--font-fortune-eulyoo);
+  font-size: clamp(0.98rem, 1.6vw, 1.16rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-shadow:
+    0 0.06rem 0.18rem rgba(7, 1, 20, 0.78),
+    0 0 0.36rem rgba(187, 101, 255, 0.28);
+}
+
+.fortune-birth-fieldset legend::before,
+.fortune-birth-fieldset legend::after {
+  display: inline-block;
+  width: 1.05em;
+  height: 1.25em;
+  margin: 0 0.42rem;
+  background: url("/images/fortune/form/birth-spark.png") center / contain no-repeat;
+  content: "";
+  filter: drop-shadow(0 0 0.32rem rgba(223, 136, 255, 0.42));
+  transform: translateY(0.16em);
+  vertical-align: middle;
+}
+
+.fortune-birth-fieldset legend::after {
+  clear: none;
+}
+
+.fortune-birth-segmented {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  inline-size: 100%;
+  max-width: 100%;
+  max-inline-size: 100%;
+  min-height: clamp(3.7rem, 6.1vw, 4.65rem);
+  align-items: stretch;
+  gap: 0;
+  overflow: hidden;
+  padding: clamp(0.34rem, 0.72vw, 0.5rem);
+  background: url("/images/fortune/form/birth-segment-base.png") center / 100% 100% no-repeat;
+  border-radius: 999px;
+  box-sizing: border-box;
+  isolation: isolate;
+}
+
+.fortune-birth-segmented::before {
+  position: absolute;
+  top: 50%;
+  left: clamp(0.14rem, 0.55vw, 0.42rem);
+  z-index: 0;
+  width: calc(50% - clamp(0.12rem, 0.42vw, 0.3rem));
+  height: 92%;
+  transform: translate3d(0, -50%, 0);
+  background: url("/images/fortune/form/birth-segment-indicator.png") center / 100% 100% no-repeat;
+  content: "";
+  pointer-events: none;
+  transition: transform 320ms cubic-bezier(0.2, 0.92, 0.22, 1);
+}
+
+.fortune-birth-segmented[data-calendar="lunar"]::before {
+  transform: translate3d(calc(100% + clamp(0.12rem, 0.42vw, 0.3rem)), -50%, 0);
+}
+
+.fortune-birth-option-button {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-height: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.34rem, 0.9vw, 0.54rem);
+  border: 0;
+  background: transparent;
+  color: rgba(255, 245, 218, 0.85);
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.05rem, 2vw, 1.28rem);
+  font-weight: 850;
+  text-shadow: 0 0.1rem 0.28rem rgba(5, 1, 16, 0.72);
+  box-shadow: none;
+  transition: color 200ms ease, filter 200ms ease;
+}
+
+.fortune-birth-option-button.is-active,
+.fortune-birth-option-button.is-idle {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.fortune-birth-option-button.is-idle {
+  color: rgba(255, 245, 218, 0.82);
+}
+
+.fortune-birth-option-button.is-active {
+  color: rgba(255, 249, 226, 0.98);
+  filter: drop-shadow(0 0 0.44rem rgba(223, 136, 255, 0.46));
+}
+
+.fortune-birth-option-button.is-idle:hover {
+  color: rgba(255, 249, 226, 0.96);
+  filter: drop-shadow(0 0 0.32rem rgba(223, 136, 255, 0.32));
+}
+
+.fortune-birth-option-button:hover {
+  transform: translateY(-0.04rem);
+}
+
+.fortune-birth-option-icon {
+  width: 1.32em;
+  height: 1.32em;
+  color: rgba(255, 216, 117, 0.96);
+  stroke-width: 2.15;
+}
+
+.fortune-birth-select-grid {
+  width: 100%;
+  min-width: 0;
+  inline-size: 100%;
+  max-width: 100%;
+  max-inline-size: 100%;
+  gap: clamp(1rem, 2vw, 1.6rem);
+}
+
+.fortune-birth-select-field {
+  min-width: 0;
+  max-width: 100%;
+  min-height: clamp(3.45rem, 5.2vw, 4.08rem);
+  box-sizing: border-box;
+}
+
+.fortune-birth-select-field::before {
+  position: absolute;
+  inset: -0.34rem -0.48rem;
+  background: url("/images/fortune/form/birth-select-frame.png") center / 100% 100% no-repeat;
+  content: "";
+  filter: drop-shadow(0 0.22rem 0.36rem rgba(8, 1, 18, 0.28));
+  pointer-events: none;
+}
+
+.fortune-birth-select-field > span {
+  right: clamp(1.4rem, 2.8vw, 2.1rem);
+  color: rgba(255, 235, 177, 0.78);
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(0.86rem, 1.4vw, 0.98rem);
+  text-shadow: 0 0.1rem 0.24rem rgba(5, 1, 16, 0.72);
+}
+
+.fortune-birth-select {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 246, 224, 0.98);
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1rem, 1.72vw, 1.14rem);
+  font-weight: 760;
+  padding: 0 clamp(2rem, 3.6vw, 2.7rem) 0 clamp(1.4rem, 2.6vw, 1.9rem);
+  text-align: center;
+  text-align-last: center;
+  text-shadow:
+    0 0.1rem 0.26rem rgba(7, 1, 18, 0.78),
+    0 0 0.36rem rgba(175, 92, 255, 0.22);
+  box-shadow: none;
+}
+
+.fortune-birth-select option {
+  color: #241137;
+  background: #fbf4ff;
+}
+
+.fortune-birth-select-field::after {
+  display: none;
+}
+
+.fortune-birth-select:focus,
+.fortune-birth-select:focus-visible {
+  box-shadow: 0 0 0 0.18rem rgba(255, 226, 134, 0.62);
+}
+
+.fortune-birth-select:disabled {
+  color: rgba(255, 239, 213, 0.42);
+}
+
+.fortune-birth-unknown-toggle {
+  gap: clamp(0.48rem, 1vw, 0.64rem);
+  min-height: clamp(2rem, 3.4vw, 2.42rem);
+  margin-top: 0.08rem;
+  color: rgba(255, 244, 218, 0.94);
+  font-family: var(--font-fortune-eulyoo);
+  font-size: clamp(0.96rem, 1.55vw, 1.06rem);
+  font-weight: 400;
+  text-shadow: 0 0.1rem 0.24rem rgba(8, 1, 19, 0.72);
+}
+
+.fortune-birth-unknown-toggle .fortune-birth-checkbox {
+  position: relative;
+  display: grid;
+  width: clamp(1.75rem, 3.4vw, 2.2rem);
+  height: auto;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: url("/images/fortune/form/birth-checkbox-frame.png") center / contain no-repeat;
+  filter: drop-shadow(0 0 0.32rem rgba(196, 100, 255, 0.28));
+  box-shadow: none;
+}
+
+.fortune-birth-unknown-toggle .fortune-birth-checkbox::after {
+  width: 0.48rem;
+  height: 0.88rem;
+  transform: translateY(-0.08rem) rotate(42deg);
+  border-right: 0.18rem solid rgba(255, 244, 215, 0.96);
+  border-bottom: 0.18rem solid rgba(255, 244, 215, 0.96);
+  content: "";
+  opacity: 0;
+  filter: drop-shadow(0 0 0.32rem rgba(255, 126, 246, 0.72));
+}
+
+.fortune-birth-unknown-toggle input:checked + .fortune-birth-checkbox {
+  background: url("/images/fortune/form/birth-checkbox-frame.png") center / contain no-repeat;
+}
+
+.fortune-birth-unknown-toggle input:checked + .fortune-birth-checkbox::after {
+  opacity: 1;
+}
+
+.fortune-birth-unknown-toggle .fortune-birth-unknown-text {
+  display: inline-flex;
+  width: max-content;
+  height: auto;
+  min-width: max-content;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 244, 218, 0.94);
+  box-shadow: none;
+  line-height: 1;
+  text-wrap: nowrap;
+  white-space: nowrap;
+  word-break: keep-all;
+  writing-mode: horizontal-tb;
+}
+
+.fortune-birth-unknown-toggle .fortune-birth-unknown-text::after {
+  display: none;
+  content: none;
+}
+
+.fortune-birth-helper {
+  margin: -0.08rem 0 0 calc(clamp(1.75rem, 3.4vw, 2.2rem) + clamp(0.48rem, 1vw, 0.64rem));
+  color: rgba(255, 235, 206, 0.72);
+  font-family: var(--font-fortune-eulyoo);
+  font-size: clamp(0.82rem, 1.25vw, 0.94rem);
+  font-weight: 400;
+  line-height: 1.35;
+  text-shadow: 0 0.1rem 0.24rem rgba(8, 1, 18, 0.72);
+  word-break: keep-all;
+}
+
+.fortune-birth-actions {
+  justify-items: center;
+  margin-top: clamp(0.28rem, 1.1vw, 0.64rem);
+}
+
+.fortune-birth-submit {
+  position: relative;
+  display: flex;
+  width: min(100%, 33.6rem);
+  min-height: auto;
+  aspect-ratio: 1876 / 358;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent url("/images/fortune/form/birth-submit-bar.png") center / 100% 100% no-repeat;
+  color: rgba(255, 252, 232, 1);
+  font-family: var(--font-fortune-eulyoo);
+  font-size: clamp(1.4rem, 2.45vw, 1.85rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  justify-self: center;
+  line-height: 1;
+  overflow: hidden;
+  padding: 0 clamp(4.45rem, 8.6vw, 5.65rem) 0.08rem clamp(2.65rem, 5.4vw, 3.8rem);
+  text-shadow:
+    0 0.14rem 0.4rem rgba(9, 1, 20, 0.85),
+    0 0 0.6rem rgba(255, 220, 140, 0.55),
+    0 0 1.2rem rgba(221, 137, 255, 0.6);
+  text-wrap: nowrap;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.fortune-birth-submit:not(:disabled) {
+  filter:
+    saturate(1.18) brightness(1.12)
+    drop-shadow(0 0 1.4rem rgba(221, 137, 255, 0.55))
+    drop-shadow(0 0.4rem 0.9rem rgba(8, 1, 20, 0.45));
+}
+
+.fortune-birth-submit:disabled {
+  opacity: 0.55;
+  filter: saturate(0.6) brightness(0.85);
+}
+
+.fortune-birth-submit > span {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.fortune-birth-submit-copy {
+  position: relative;
+  display: block;
+  z-index: 1;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: clip;
+  text-wrap: nowrap;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.fortune-birth-submit-orb {
+  position: absolute;
+  top: 50%;
+  right: clamp(0.34rem, 0.9vw, 0.56rem);
+  width: clamp(3.72rem, 7.1vw, 5.35rem);
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+  background: url("/images/fortune/form/birth-submit-orb.png") center / contain no-repeat;
+  filter: drop-shadow(0 0 0.7rem rgba(224, 126, 255, 0.52));
+  pointer-events: none;
+  transition: transform 180ms ease;
+}
+
+.fortune-birth-submit:not(:disabled):hover {
+  filter:
+    saturate(1.3) brightness(1.18)
+    drop-shadow(0 0 1.8rem rgba(221, 137, 255, 0.7))
+    drop-shadow(0 0.5rem 1.1rem rgba(8, 1, 20, 0.5));
+}
+
+.fortune-birth-submit:not(:disabled):hover .fortune-birth-submit-orb {
+  transform: translate(0.12rem, -50%) scale(1.035);
+}
+
+.fortune-floating-panel {
+  position: relative;
+  overflow: hidden;
+  border-width: 2px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 250, 234, 0.94)),
+    var(--color-fortune-panel);
+  box-shadow:
+    0 1.1rem 2.7rem rgba(64, 26, 83, 0.2),
+    0 0 0 0.34rem rgba(214, 190, 255, 0.14),
+    inset 0 0.1rem 0 rgba(255, 255, 255, 0.88);
+}
+
+.fortune-floating-panel::before {
+  position: absolute;
+  top: -4.8rem;
+  left: 50%;
+  width: 82%;
+  height: 7rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 236, 168, 0.3), rgba(255, 236, 168, 0));
+  content: "";
+  pointer-events: none;
+}
+
+.fortune-soft-inset,
+.fortune-score-card,
+.fortune-memo-card {
+  box-shadow:
+    inset 0 0.08rem 0 rgba(255, 255, 255, 0.74),
+    0 0.75rem 1.6rem rgba(85, 50, 102, 0.08);
+}
+
+.fortune-primary-button {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
+    var(--color-fortune-accent);
+  box-shadow:
+    0 0.8rem 1.7rem rgba(88, 52, 129, 0.24),
+    0 0 0 0.2rem rgba(255, 234, 160, 0.2),
+    inset 0 0.1rem 0 rgba(255, 255, 255, 0.3);
+}
+
+.fortune-primary-button::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-120%) skewX(-18deg);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0));
+  content: "";
+  transition: transform 420ms ease;
+}
+
+.fortune-primary-button:hover::after {
+  transform: translateX(120%) skewX(-18deg);
+}
+
+.fortune-secondary-button {
+  box-shadow:
+    inset 0 0.08rem 0 rgba(255, 255, 255, 0.72),
+    0 0.65rem 1.35rem rgba(83, 50, 102, 0.08);
+}
+
+.fortune-print-sigil {
+  position: relative;
+  width: min(8.5rem, 42vw);
+  height: 1.2rem;
+  margin: 0 auto 0.8rem;
+}
+
+.fortune-print-sigil::before,
+.fortune-print-sigil::after {
+  position: absolute;
+  left: 50%;
+  content: "";
+}
+
+.fortune-print-sigil::before {
+  top: 0.35rem;
+  width: 100%;
+  height: 0.32rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 230, 144, 0), rgba(255, 219, 101, 0.88), rgba(255, 230, 144, 0));
+  box-shadow: 0 0 1rem rgba(255, 215, 89, 0.42);
+  animation: fortune-sigil-glow 1.8s ease-in-out infinite;
+}
+
+.fortune-print-sigil::after {
+  top: 0;
+  width: 1rem;
+  height: 1rem;
+  transform: translateX(-50%) rotate(45deg);
+  background: #fff0a8;
+  box-shadow: 0 0 0.8rem rgba(255, 214, 93, 0.48);
+}
+
+.fortune-result-scene {
+  width: min(92vw, 760px);
+  margin: 0 auto;
+}
+
+.fortune-postit-sheet {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: min(72dvh, 690px);
+  padding: clamp(4.9rem, 7vw, 5.9rem) clamp(1.25rem, 4.8vw, 3.6rem) clamp(1.45rem, 3.5vw, 2.4rem);
+  transform: rotate(-0.55deg);
+  transform-origin: 50% 16%;
+  border: 0.12rem solid rgba(255, 246, 212, 0.95);
+  border-radius: 1.05rem 1.2rem 0.9rem 1.1rem;
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 17rem),
+    radial-gradient(circle at 86% 14%, rgba(222, 205, 255, 0.42), rgba(222, 205, 255, 0) 13rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 248, 214, 0.98)),
+    var(--color-fortune-paper);
+  color: var(--color-fortune-ink);
+  box-shadow:
+    0 1.9rem 3.8rem rgba(42, 17, 60, 0.24),
+    0 0.45rem 0 rgba(255, 232, 139, 0.42),
+    inset 0 0.18rem 0 rgba(255, 255, 255, 0.88);
+  animation: fortune-postit-land 520ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+}
+
+.fortune-postit-sheet[data-theme="soft-star"] {
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0) 17rem),
+    radial-gradient(circle at 88% 16%, rgba(255, 214, 232, 0.44), rgba(255, 214, 232, 0) 13rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 218, 0.98)),
+    var(--color-fortune-paper);
+}
+
+.fortune-postit-sheet > * {
+  position: relative;
+  z-index: 2;
+}
+
+.fortune-postit-sheet::before {
+  position: absolute;
+  inset: 0.45rem;
+  z-index: 0;
+  border-radius: inherit;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(139, 102, 177, 0.05) 0 1px, rgba(255, 255, 255, 0) 1px 1.8rem),
+    radial-gradient(circle, rgba(138, 104, 183, 0.08) 0 1px, rgba(255, 255, 255, 0) 1.4px);
+  background-size:
+    100% 1.8rem,
+    1.9rem 1.9rem;
+  content: "";
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.fortune-postit-sheet::after {
+  position: absolute;
+  right: 0.42rem;
+  bottom: 0.42rem;
+  z-index: 1;
+  width: clamp(2.7rem, 7vw, 4.3rem);
+  height: clamp(2.7rem, 7vw, 4.3rem);
+  border-radius: 0.25rem 0 0.75rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0) 0 49%, rgba(239, 217, 147, 0.52) 50%, rgba(255, 246, 204, 0.94) 100%);
+  box-shadow: -0.35rem -0.35rem 0.75rem rgba(82, 46, 96, 0.08);
+  content: "";
+  pointer-events: none;
+}
+
+.fortune-postit-tape {
+  position: absolute;
+  top: -1.05rem;
+  left: 50%;
+  z-index: 5;
+  min-width: 10.2rem;
+  padding: 0.62rem 1.8rem 0.7rem;
+  transform: translateX(-50%) rotate(-2.4deg);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 0.55rem;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
+    rgba(196, 174, 255, 0.86);
+  color: #5d4b78;
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+  letter-spacing: 0;
+  line-height: 1;
+  text-align: center;
+  box-shadow:
+    0 0.75rem 1.35rem rgba(75, 42, 102, 0.16),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.6);
+  animation: fortune-sticker-pop 460ms 180ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+}
+
+.fortune-popo-sticker,
+.fortune-star-sticker,
+.fortune-moon-sticker,
+.fortune-postit-save-stamp {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.fortune-popo-sticker {
+  top: 1.05rem;
+  left: clamp(0.95rem, 4vw, 2.1rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.54rem 0.82rem 0.58rem;
+  transform: rotate(-9deg);
+  border: 2px solid rgba(255, 255, 255, 0.84);
+  border-radius: 999px 999px 999px 0.75rem;
+  background:
+    linear-gradient(180deg, #f4eaff, #dac5ff),
+    #e6d8ff;
+  color: #6a4e86;
+  font-family: var(--font-fortune-serif);
+  font-size: 1.1rem;
+  letter-spacing: 0;
+  box-shadow:
+    0 0.65rem 1.2rem rgba(77, 42, 104, 0.16),
+    inset 0 0.1rem 0 rgba(255, 255, 255, 0.68);
+  animation: fortune-sticker-pop 420ms 260ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+}
+
+.fortune-star-sticker {
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.86);
+  border-radius: 50%;
+  background:
+    linear-gradient(180deg, #fff7c4, #ffd968),
+    #ffe27a;
+  color: #8c6a13;
+  box-shadow:
+    0 0.65rem 1.2rem rgba(87, 54, 15, 0.14),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.68);
+  animation: fortune-sticker-pop 420ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+}
+
+.fortune-star-sticker-left {
+  top: 27%;
+  left: -1.05rem;
+  width: 3.2rem;
+  height: 3.2rem;
+  transform: rotate(10deg);
+  animation-delay: 340ms;
+}
+
+.fortune-star-sticker-right {
+  top: 41%;
+  right: -0.8rem;
+  width: 2.65rem;
+  height: 2.65rem;
+  transform: rotate(-12deg);
+  animation-delay: 410ms;
+}
+
+.fortune-moon-sticker {
+  right: clamp(1.05rem, 5vw, 3.4rem);
+  bottom: clamp(1rem, 4vw, 2.2rem);
+  width: 2.9rem;
+  height: 2.9rem;
+  transform: rotate(14deg);
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 50%;
+  background: #ffe48a;
+  box-shadow:
+    0 0.72rem 1.2rem rgba(87, 54, 15, 0.14),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.64);
+  animation: fortune-sticker-pop 420ms 480ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+}
+
+.fortune-moon-sticker::after {
+  position: absolute;
+  inset: 0.28rem 0.14rem 0.28rem 0.68rem;
+  border-radius: 50%;
+  background: #fff9df;
+  content: "";
+}
+
+.fortune-postit-save-stamp {
+  top: 1.18rem;
+  right: clamp(0.9rem, 4vw, 2.2rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.52rem 0.7rem 0.55rem;
+  transform: rotate(5deg);
+  border: 2px solid rgba(126, 91, 187, 0.62);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.38);
+  color: rgba(111, 78, 174, 0.9);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  box-shadow: inset 0 0 0 0.12rem rgba(255, 255, 255, 0.32);
+  animation: fortune-stamp-press 560ms 620ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+}
+
+.fortune-postit-header {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 28rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.fortune-postit-header .caption-b {
+  color: var(--color-fortune-muted);
+}
+
+.fortune-postit-header h1 {
+  margin: 0;
+  color: var(--color-fortune-ink);
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.95rem, 4.2vw, 3.15rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.12;
+  word-break: keep-all;
+}
+
+.fortune-postit-line-block {
+  margin: clamp(1.35rem, 3vw, 2rem) auto 0;
+  padding: clamp(1.15rem, 3vw, 1.55rem);
+  transform: rotate(0.45deg);
+  border: 2px dashed rgba(151, 116, 198, 0.36);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 244, 213, 0.82)),
+    rgba(255, 250, 226, 0.86);
+  box-shadow:
+    inset 0 0.18rem 0 rgba(255, 255, 255, 0.56),
+    0 0.8rem 1.5rem rgba(65, 32, 87, 0.08);
+  text-align: center;
+}
+
+.fortune-postit-line-block .caption-b {
+  color: var(--color-fortune-muted);
+}
+
+.fortune-postit-line-block p:last-child {
+  margin: 0.45rem 0 0;
+  color: var(--color-fortune-accent-strong);
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.72rem, 4vw, 2.75rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.16;
+  word-break: keep-all;
+}
+
+.fortune-postit-summary {
+  max-width: 36rem;
+  margin: clamp(1rem, 2.4vw, 1.35rem) auto 0;
+  color: rgba(61, 47, 73, 0.88);
+  font-size: clamp(0.98rem, 1.7vw, 1.08rem);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.68;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.fortune-sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.72rem, 1.8vw, 1rem);
+  margin-top: clamp(1.1rem, 2.5vw, 1.65rem);
+}
+
+.fortune-score-sticker {
+  position: relative;
+  min-height: 5.7rem;
+  padding: 0.86rem;
+  border: 2px solid rgba(255, 255, 255, 0.76);
+  border-radius: 0.78rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(239, 226, 255, 0.9)),
+    #efe4ff;
+  box-shadow:
+    0 0.78rem 1.4rem rgba(73, 42, 102, 0.1),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.72);
+  animation: fortune-sticker-pop 420ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+}
+
+.fortune-score-sticker:nth-child(1) {
+  transform: rotate(-1.6deg);
+  animation-delay: 220ms;
+}
+
+.fortune-score-sticker:nth-child(2) {
+  transform: rotate(1.4deg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 228, 238, 0.9)),
+    #ffe2ec;
+  animation-delay: 280ms;
+}
+
+.fortune-score-sticker:nth-child(3) {
+  transform: rotate(0.9deg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(219, 243, 236, 0.92)),
+    #dff5ee;
+  animation-delay: 340ms;
+}
+
+.fortune-score-sticker:nth-child(4) {
+  transform: rotate(-1.1deg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 237, 179, 0.92)),
+    #ffefbd;
+  animation-delay: 400ms;
+}
+
+.fortune-score-sticker::before {
+  position: absolute;
+  top: 0.42rem;
+  left: 50%;
+  width: 1.05rem;
+  height: 0.36rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  content: "";
+}
+
+.fortune-score-sticker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  color: var(--color-fortune-ink);
+}
+
+.fortune-score-sticker-head span {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.fortune-score-sticker-head strong {
+  font-family: var(--font-fortune-serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.fortune-score-meter {
+  height: 0.5rem;
+  margin-top: 0.82rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 0.08rem 0.18rem rgba(56, 37, 68, 0.08);
+}
+
+.fortune-score-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9f82df, #ffd65d);
+}
+
+.fortune-postit-sticker-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.7rem, 1.7vw, 1rem);
+  margin-top: clamp(1rem, 2.5vw, 1.4rem);
+}
+
+.fortune-label-sticker,
+.fortune-color-sticker {
+  display: flex;
+  align-items: center;
+  min-height: 4.6rem;
+  padding: 0.9rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  border-radius: 0.85rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 245, 214, 0.9)),
+    #fff1bc;
+  box-shadow:
+    0 0.72rem 1.3rem rgba(73, 42, 102, 0.1),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.74);
+}
+
+.fortune-label-sticker {
+  display: grid;
+  gap: 0.18rem;
+  transform: rotate(1.2deg);
+}
+
+.fortune-color-sticker {
+  gap: 0.72rem;
+  transform: rotate(-1.1deg);
+}
+
+.fortune-label-sticker span,
+.fortune-color-sticker span:not(.fortune-color-sticker-swatch) {
+  color: var(--color-fortune-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.fortune-label-sticker strong,
+.fortune-color-sticker strong {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--color-fortune-ink);
+  font-family: var(--font-fortune-serif);
+  font-size: clamp(1.12rem, 2.5vw, 1.42rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.05;
+}
+
+.fortune-color-sticker-swatch {
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  border: 0.18rem solid rgba(255, 255, 255, 0.88);
+  border-radius: 50%;
+  box-shadow:
+    0 0.35rem 0.75rem rgba(57, 36, 71, 0.12),
+    inset 0 0 0 0.08rem rgba(69, 47, 83, 0.12);
+}
+
+.fortune-caution-sticker {
+  margin: clamp(0.95rem, 2vw, 1.2rem) 0 0;
+  padding: 0.9rem 1rem 0.95rem;
+  transform: rotate(-0.45deg);
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  border-radius: 0.82rem;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.62), rgba(235, 221, 255, 0.74)),
+    #f1e6ff;
+  color: rgba(61, 47, 73, 0.9);
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.58;
+  word-break: keep-all;
+  box-shadow:
+    0 0.72rem 1.25rem rgba(73, 42, 102, 0.1),
+    inset 0 0.12rem 0 rgba(255, 255, 255, 0.7);
+}
+
+.fortune-caution-sticker span {
+  display: inline-block;
+  margin-right: 0.5rem;
+  color: var(--color-fortune-accent-strong);
+  font-weight: 900;
+}
+
+.fortune-saju-receipt {
+  margin-top: clamp(0.8rem, 2vw, 1rem);
+  padding-top: clamp(0.85rem, 2vw, 1.05rem);
+  border-top: 2px dashed rgba(151, 116, 198, 0.22);
+}
+
+.fortune-saju-receipt summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--color-fortune-accent-strong);
+  font-size: 0.9rem;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.fortune-saju-receipt p {
+  margin: 0.5rem 0 0;
+  color: var(--color-fortune-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.fortune-saju-pillar-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.fortune-saju-pillar-list div {
+  padding: 0.55rem 0.45rem;
+  border: 1px solid rgba(151, 116, 198, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(255, 248, 229, 0.68);
+  text-align: center;
+}
+
+.fortune-saju-pillar-list dt {
+  color: var(--color-fortune-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.fortune-saju-pillar-list dd {
+  margin: 0.16rem 0 0;
+  color: var(--color-fortune-ink);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+@media (max-width: 800px) {
+  .fortune-magic-backdrop::after {
+    background-size:
+      5.8rem 5.8rem,
+      7.2rem 7.2rem;
+    opacity: 0.34;
+  }
+
+  .fortune-stage-aura {
+    filter: blur(18px);
+    opacity: 0.58;
+  }
+
+  .fortune-stage-visual::after {
+    background:
+      radial-gradient(ellipse at 50% 37%, rgba(32, 14, 50, 0) 0 29%, rgba(32, 14, 50, 0.12) 55%, rgba(21, 8, 38, 0.24) 100%),
+      linear-gradient(90deg, rgba(24, 10, 44, 0.22), rgba(24, 10, 44, 0.03) 30% 70%, rgba(24, 10, 44, 0.22));
+  }
+
+  .fortune-entry-spotlight-cover.is-lit {
+    background:
+      radial-gradient(circle 10.2rem at 50% 40%, rgba(9, 2, 17, 0) 0 62%, rgba(9, 2, 17, 0.28) 74%, rgba(9, 2, 17, 0.98) 100%, #090211 100%);
+  }
+
+  .fortune-stage-crown {
+    width: 88vw;
+    height: 7rem;
+  }
+
+  .fortune-sparkle-field span:nth-child(n + 5) {
+    display: none;
+  }
+
+  .fortune-curtain {
+    width: 26vw;
+    opacity: 0.3;
+  }
+
+  .fortune-stage-overlay {
+    padding: 0.9rem;
+  }
+
+  .fortune-bgm-toggle {
+    top: calc(env(safe-area-inset-top) + 0.58rem);
+    right: calc(env(safe-area-inset-right) + 0.48rem);
+    width: clamp(4.35rem, 18vw, 5.7rem);
+  }
+
+  .fortune-stage-overlay-dialogue {
+    padding: 0 0 clamp(0.2rem, 1.2vh, 0.55rem);
+  }
+
+  .fortune-dialogue-panel {
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: min(94vw, 34rem);
+    max-width: none;
+    gap: 0.36rem;
+    padding:
+      clamp(2.65rem, 13.4%, 5rem)
+      clamp(1.34rem, 6.4%, 2.45rem)
+      calc(clamp(0.8rem, 4.7%, 1.6rem) + env(safe-area-inset-bottom))
+      clamp(2.24rem, 10.4%, 3.7rem);
+  }
+
+  .fortune-dialogue-speaker {
+    top: 6%;
+    left: 11.2%;
+    width: 30%;
+    min-width: 5.3rem;
+    padding-left: clamp(0.72rem, 3.4vw, 1.2rem);
+    font-size: clamp(0.96rem, 4.45vw, 1.28rem);
+  }
+
+  .fortune-dialogue-copy {
+    font-size: clamp(0.92rem, 4vw, 1.16rem);
+    line-height: 1.42;
+  }
+
+  .fortune-dialogue-next {
+    grid-column: auto;
+    justify-self: end;
+    width: clamp(2.05rem, 9.7vw, 3.15rem);
+    margin-right: clamp(0.2rem, 1.8vw, 0.55rem);
+  }
+
+  .fortune-paper-panel {
+    width: min(93vw, 560px);
+    max-height: calc(100dvh - 1.4rem);
+    min-height: auto;
+    padding: 1.75rem 1.15rem;
+    border-radius: 1.8rem 2rem 2.25rem 2rem / 1.65rem 1.85rem 2rem 2.05rem;
+  }
+
+  .fortune-paper-panel::before {
+    width: 54%;
+  }
+
+  .fortune-birth-form {
+    gap: 1rem;
+    padding: 1rem 1rem 1.15rem;
+  }
+
+  .fortune-birth-heading {
+    gap: 0.34rem;
+  }
+
+  .fortune-birth-heading h1 {
+    font-size: clamp(1.42rem, 6.5vw, 1.9rem);
+  }
+
+  .fortune-birth-heading p:last-child {
+    font-size: 0.82rem;
+    line-height: 1.48;
+  }
+
+  .fortune-birth-fieldset {
+    gap: 0.58rem;
+  }
+
+  .fortune-birth-fieldset legend {
+    margin-bottom: 0.62rem;
+    font-size: 0.98rem;
+  }
+
+  .fortune-birth-option-button,
+  .fortune-birth-select {
+    min-height: 3.42rem;
+  }
+
+  .fortune-birth-option-button {
+    font-size: 0.96rem;
+  }
+
+  .fortune-birth-select {
+    padding-right: 2.55rem;
+    padding-left: 0.82rem;
+    font-size: 0.94rem;
+  }
+
+  .fortune-birth-select-field > span {
+    right: 2.18rem;
+    font-size: 0.78rem;
+  }
+
+  .fortune-birth-select-field::after {
+    right: 0.82rem;
+    width: 0.58rem;
+    height: 0.58rem;
+  }
+
+  .fortune-birth-unknown-toggle {
+    font-size: 0.9rem;
+  }
+
+  .fortune-birth-submit {
+    min-height: 3.65rem;
+    padding-left: 2.8rem;
+    font-size: 1.34rem;
+  }
+
+  .fortune-birth-submit > span {
+    width: 2.6rem;
+    height: 2.6rem;
+  }
+
+  .fortune-birth-form {
+    width: min(94vw, 33.5rem);
+    max-height: calc(100dvh - 0.7rem);
+    gap: 0.56rem;
+    padding: 2rem 1.72rem 1.42rem;
+  }
+
+  .fortune-birth-form::before,
+  .fortune-birth-form::after {
+    width: 5.25rem;
+    opacity: 0.12;
+  }
+
+  .fortune-birth-heading-spark {
+    width: 2.5rem;
+    margin-bottom: -0.38rem;
+  }
+
+  .fortune-birth-heading h1 {
+    font-size: clamp(1.46rem, 6.4vw, 1.9rem);
+    line-height: 1.12;
+  }
+
+  .fortune-birth-heading p:last-child {
+    max-width: 20rem;
+    font-size: 0.74rem;
+    line-height: 1.38;
+  }
+
+  .fortune-birth-fieldset legend {
+    margin-bottom: 0.2rem;
+    font-size: 1rem;
+  }
+
+  .fortune-birth-segmented {
+    min-height: 2.9rem;
+    padding: 0.26rem;
+  }
+
+  .fortune-birth-option-button {
+    font-size: 0.92rem;
+  }
+
+  .fortune-birth-option-icon {
+    width: 1.12em;
+    height: 1.12em;
+  }
+
+  .fortune-birth-select-grid {
+    gap: 0.4rem;
+  }
+
+  .fortune-birth-select-field {
+    min-height: 2.76rem;
+  }
+
+  .fortune-birth-select-field::before {
+    inset: -0.27rem -0.36rem;
+  }
+
+  .fortune-birth-select {
+    min-height: 100%;
+    padding-right: 2.34rem;
+    padding-left: 0.72rem;
+    font-size: 0.86rem;
+  }
+
+  .fortune-birth-select-field > span {
+    right: 1.82rem;
+    font-size: 0.72rem;
+  }
+
+  .fortune-birth-unknown-toggle .fortune-birth-checkbox {
+    width: 1.48rem;
+    height: auto;
+  }
+
+  .fortune-birth-unknown-toggle .fortune-birth-unknown-text {
+    width: max-content;
+    height: auto;
+    min-width: max-content;
+    line-height: 1;
+    text-wrap: nowrap;
+    white-space: nowrap;
+    word-break: keep-all;
+  }
+
+  .fortune-birth-helper {
+    margin-top: -0.16rem;
+    margin-left: 2rem;
+    font-size: 0.74rem;
+  }
+
+  .fortune-birth-actions {
+    margin-top: 0.02rem;
+  }
+
+  .fortune-birth-submit {
+    width: min(100%, 24.6rem);
+    min-height: auto;
+    padding-right: 3.62rem;
+    padding-left: 1.18rem;
+    font-size: clamp(1rem, 3.8vw, 1.14rem);
+  }
+
+  .fortune-birth-submit > span {
+    width: auto;
+    height: auto;
+  }
+
+  .fortune-birth-submit-orb {
+    right: 0.24rem;
+    width: 3.08rem;
+  }
+
+  .fortune-floating-panel {
+    border-radius: var(--radius-xl);
+  }
+
+  .fortune-result-scene {
+    width: min(94vw, 560px);
+  }
+
+  .fortune-postit-sheet {
+    min-height: auto;
+    padding: 4.8rem 1rem 1.25rem;
+    transform: none;
+    border-radius: 0.95rem;
+  }
+
+  .fortune-postit-tape {
+    min-width: 8.8rem;
+    padding-inline: 1.25rem;
+  }
+
+  .fortune-popo-sticker {
+    top: 1.15rem;
+    left: 0.85rem;
+    font-size: 0.96rem;
+  }
+
+  .fortune-postit-save-stamp {
+    top: 1.22rem;
+    right: 0.82rem;
+    padding-inline: 0.56rem;
+    font-size: 0.7rem;
+  }
+
+  .fortune-star-sticker {
+    display: none;
+  }
+
+  .fortune-moon-sticker {
+    right: 0.8rem;
+    bottom: 0.85rem;
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .fortune-postit-header h1 {
+    font-size: clamp(1.62rem, 7vw, 2.1rem);
+  }
+
+  .fortune-postit-line-block {
+    padding: 1.05rem 0.85rem;
+  }
+
+  .fortune-postit-line-block p:last-child {
+    font-size: clamp(1.38rem, 6.4vw, 1.78rem);
+  }
+
+  .fortune-postit-summary {
+    font-size: 0.92rem;
+    line-height: 1.58;
+  }
+
+  .fortune-sticker-grid,
+  .fortune-postit-sticker-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fortune-score-sticker {
+    min-height: 5.1rem;
+    padding: 0.76rem;
+  }
+
+  .fortune-label-sticker,
+  .fortune-color-sticker {
+    min-height: 4.25rem;
+    padding: 0.82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fortune-sparkle-field span,
+  .fortune-2d-stage,
+  .fortune-2d-moon,
+  .fortune-2d-character,
+  .fortune-2d-table,
+  .fortune-2d-arm,
+  .fortune-2d-curtain-piece,
+  .fortune-2d-cube,
+  .fortune-2d-cube-flare,
+  .fortune-2d-screen-ornaments,
+  .fortune-2d-eyes-open,
+  .fortune-2d-eyes-closed,
+  .fortune-2d-print-note,
+  .fortune-2d-sparkles span,
+  .fortune-print-sigil::before,
+  .fortune-postit-sheet,
+  .fortune-postit-tape,
+  .fortune-popo-sticker,
+  .fortune-star-sticker,
+  .fortune-moon-sticker,
+  .fortune-postit-save-stamp,
+  .fortune-score-sticker {
+    animation: none;
+  }
+
+  .fortune-entry-spotlight-cover {
+    display: none;
+  }
+
+  .fortune-stage-overlay-entry .fortune-dialogue-panel {
+    animation: none;
+  }
+
+  .fortune-dialogue-next,
+  .fortune-dialogue-caret,
+  .fortune-dialogue-glyph,
+  .fortune-bgm-toggle,
+  .fortune-2d-curtain-piece,
+  .fortune-primary-button,
+  .fortune-primary-button::after {
+    animation: none;
+    transition: none;
+  }
+
+  .fortune-2d-curtain-piece:hover,
+  .fortune-2d-curtain-piece.is-active,
+  .fortune-2d-curtain-piece:active {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-idle-pull-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-idle-pull-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-idle-pull-rotate)))
+      skewX(var(--fortune-curtain-idle-pull-skew-x))
+      scaleX(var(--fortune-curtain-idle-pull-scale-x))
+      scaleY(var(--fortune-curtain-idle-pull-scale-y));
+  }
+
+  .fortune-2d-curtain-piece.is-soft-active {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-soft-idle-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-soft-idle-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-soft-idle-rotate)))
+      skewX(var(--fortune-curtain-soft-idle-skew-x))
+      scaleX(var(--fortune-curtain-soft-idle-scale-x))
+      scaleY(var(--fortune-curtain-soft-idle-scale-y));
+  }
+}

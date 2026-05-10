@@ -28,7 +28,7 @@ export default function PreviousRoundHint({
   useEffect(() => {
     let isCancelled = false
 
-    void (async () => {
+    ;(async () => {
       if (!hintImageUrl) {
         if (!isCancelled) setServerHintImage(null)
         return

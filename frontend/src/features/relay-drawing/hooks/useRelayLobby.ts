@@ -28,13 +28,16 @@ interface UseRelayLobbyReturn {
   kickingTargetUuid: string | null
   kickError: string | null
 
-  // "링크 복사" 클릭 직후 잠깐 true — UI에서 "복사됨" 토스트 표시용.
-  copyConfirm: boolean
+  // 어느 복사 버튼이 방금 눌렸는지 — 같은 카드의 두 버튼("링크 복사"·"입장 코드
+  // 복사")이 각각 자기 라벨만 "복사됨"으로 바꿀 수 있게 enum으로 둔다.
+  // null이면 어느 쪽도 최근에 복사되지 않은 상태.
+  copyConfirm: 'link' | 'roomCode' | null
 
   startGame: () => void
   changeTimeLimit: (seconds: number) => void
   kickParticipant: (targetUserUuid: string) => void
   copyInviteLink: () => void
+  copyRoomCode: () => void
   clearErrors: () => void
   leaveRoom: () => void
 }
@@ -70,7 +73,7 @@ export function useRelayLobby(): UseRelayLobbyReturn {
   const [kickingTargetUuid, setKickingTargetUuid] = useState<string | null>(null)
   const [kickError, setKickError] = useState<string | null>(null)
 
-  const [copyConfirm, setCopyConfirm] = useState(false)
+  const [copyConfirm, setCopyConfirm] = useState<'link' | 'roomCode' | null>(null)
 
   const isHost = userUuid !== null && userUuid === hostUserUuid
   // 가이드 §15: "최소 2명 이상, 모든 참여자가 WebSocket 연결 상태여야 한다"
@@ -145,8 +148,16 @@ export function useRelayLobby(): UseRelayLobbyReturn {
   const copyInviteLink = () => {
     if (typeof window === 'undefined') return
     void navigator.clipboard.writeText(window.location.href).then(() => {
-      setCopyConfirm(true)
-      window.setTimeout(() => setCopyConfirm(false), COPY_CONFIRM_DURATION_MS)
+      setCopyConfirm('link')
+      window.setTimeout(() => setCopyConfirm(null), COPY_CONFIRM_DURATION_MS)
+    })
+  }
+
+  const copyRoomCode = () => {
+    if (typeof window === 'undefined' || !roomCode) return
+    void navigator.clipboard.writeText(roomCode).then(() => {
+      setCopyConfirm('roomCode')
+      window.setTimeout(() => setCopyConfirm(null), COPY_CONFIRM_DURATION_MS)
     })
   }
 
@@ -178,6 +189,7 @@ export function useRelayLobby(): UseRelayLobbyReturn {
     changeTimeLimit,
     kickParticipant,
     copyInviteLink,
+    copyRoomCode,
     clearErrors,
     leaveRoom,
   }

@@ -13,8 +13,6 @@ import {
 } from '../constants'
 
 const DRAG_ROTATION_FACTOR = 0.008
-const AUTO_ROTATION_SPEED = 0.00115
-const AUTO_ROTATION_DELAY_MS = 1800
 
 function normalizeAngle(angle: number) {
   return Math.atan2(Math.sin(angle), Math.cos(angle))
@@ -129,25 +127,9 @@ export function useHubViewportControls(
 
   useFrame(() => {
     const now = typeof performance === 'undefined' ? Date.now() : performance.now()
-    const {
-      isWitchHovered,
-      viewTransitionUntil,
-      lastInteractionAt,
-      markInteraction,
-    } = useHubViewStore.getState()
+    const { viewTransitionUntil, syncActiveContentByAngle } =
+      useHubViewStore.getState()
     const isViewTransitioning = now < viewTransitionUntil
-    const isWitchRotationPaused = isWitchHovered
-
-    if (isWitchRotationPaused) {
-      targetRotationRef.current = currentRotationRef.current
-      markInteraction()
-    } else if (
-      !isDraggingRef.current
-      && !isViewTransitioning
-      && now - lastInteractionAt > AUTO_ROTATION_DELAY_MS
-    ) {
-      targetRotationRef.current += AUTO_ROTATION_SPEED
-    }
 
     const rotationEase = isViewTransitioning
       ? HUB_VIEW_TRANSITION_ROTATION_EASE
@@ -174,8 +156,11 @@ export function useHubViewportControls(
     }
 
     const modelRoot = modelRootRef.current
-    if (!modelRoot) return
-    modelRoot.rotation.set(0, currentRotationRef.current, 0)
-    modelRoot.position.y = HUB_MODEL_ROOT_VERTICAL_OFFSET
+    if (modelRoot) {
+      modelRoot.rotation.set(0, currentRotationRef.current, 0)
+      modelRoot.position.y = HUB_MODEL_ROOT_VERTICAL_OFFSET
+    }
+
+    syncActiveContentByAngle(currentRotationRef.current)
   })
 }

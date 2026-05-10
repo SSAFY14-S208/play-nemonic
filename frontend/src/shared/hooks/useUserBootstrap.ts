@@ -34,8 +34,40 @@ export function useUserBootstrap() {
 
   useEffect(() => {
     if (hydrated) return
-    if (typeof window === 'undefined' || !useUserStore.persist) return
-    return useUserStore.persist.onFinishHydration(() => setHydrated(true))
+    if (typeof window === 'undefined') return
+
+    let cancelled = false
+    const finishHydration = () => {
+      if (!cancelled) {
+        setHydrated(true)
+      }
+    }
+
+    const fallbackTimerId = window.setTimeout(finishHydration, USER_BOOTSTRAP_HYDRATION_FALLBACK_DELAY_MS)
+
+    if (!useUserStore.persist) {
+      finishHydration()
+      return () => {
+        cancelled = true
+        window.clearTimeout(fallbackTimerId)
+      }
+    }
+
+    const unsubscribe = useUserStore.persist.onFinishHydration(finishHydration)
+
+    ;(async () => {
+      await Promise.resolve()
+
+      if (!cancelled && useUserStore.persist?.hasHydrated() === true) {
+        finishHydration()
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(fallbackTimerId)
+      unsubscribe()
+    }
   }, [hydrated])
 
   useEffect(() => {
@@ -79,3 +111,5 @@ export function useUserBootstrap() {
     }
   }, [hydrated])
 }
+
+const USER_BOOTSTRAP_HYDRATION_FALLBACK_DELAY_MS = 500

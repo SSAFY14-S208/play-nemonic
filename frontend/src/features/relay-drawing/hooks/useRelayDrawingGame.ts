@@ -1,11 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
+import { HTTPError } from 'ky'
 import { toast } from 'sonner'
 
 import { getRelayRoomAssignmentMe, postRelayRoomSubmission } from '@/shared/apis'
+import { useUserStore } from '@/shared/stores'
 
-import { RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
+import { PART_TO_ROUND_KEY, RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
 import { useRelayDrawingStore } from '../stores'
 import { renderLinesToRasterCanvas } from '../utils'
 
@@ -43,6 +45,9 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
   const totalCount = useRelayDrawingStore((state) => state.totalCount)
   const hintImageUrl = useRelayDrawingStore((state) => state.hintImageUrl)
   const partFetchTrigger = useRelayDrawingStore((state) => state.partFetchTrigger)
+  const pendingAutoSubmitTrigger = useRelayDrawingStore(
+    (state) => state.pendingAutoSubmitTrigger,
+  )
 
   const setAssignment = useRelayDrawingStore((state) => state.setAssignment)
 
@@ -80,7 +85,8 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
           // 이미 제출한 배정이면(새로고침 후 복귀 등) submitted 상태로 둔다.
           if (assignment.assignmentStatus !== 'PENDING') {
             setAssignment(assignment)
-            useRelayDrawingStore.getState().markSubmitted()
+            const roundKey = PART_TO_ROUND_KEY[assignment.part]
+            useRelayDrawingStore.getState().markSubmitted(roundKey)
             return
           }
           setAssignment(assignment)
@@ -103,30 +109,60 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
   }, [roomStatus, roomCode, partFetchTrigger, setAssignment])
 
   // 캔버스를 Blob으로 캡처하는 헬퍼.
+  // body/legs는 상단 120px가 incoming hint zone(이전 파트의 결과 페이드)이고 그
+  // 아래 720이 사용자 drawing area다. 백엔드 합성에 들어가는 건 drawing area만이라
+  // raster에서 drawArea 영역을 잘라낸 848×720 blob을 만든다. face는 drawArea가 그대로
+  // 캔버스 전체(0..720)라 추출이 no-op이지만 동일한 코드 경로를 거친다.
   const captureCanvasBlob = useCallback(async (): Promise<Blob | null> => {
     const { activeRoundKey, roundLines } = useRelayDrawingStore.getState()
+    const roundRule = RELAY_ROUND_RULES[activeRoundKey]
     const lines = roundLines[activeRoundKey]
 
-    const rasterCanvas = await renderLinesToRasterCanvas(lines)
+    const rasterCanvas = await renderLinesToRasterCanvas(
+      lines,
+      roundRule.canvasHeight,
+    )
     if (!rasterCanvas) return null
 
+    const drawArea = roundRule.drawArea
+    const submissionCanvas = document.createElement('canvas')
+    submissionCanvas.width = RELAY_STAGE_SIZE.width
+    submissionCanvas.height = drawArea.height
+
+    const submissionContext = submissionCanvas.getContext('2d')
+    if (!submissionContext) return null
+
+    submissionContext.drawImage(
+      rasterCanvas,
+      0,
+      drawArea.y,
+      RELAY_STAGE_SIZE.width,
+      drawArea.height,
+      0,
+      0,
+      RELAY_STAGE_SIZE.width,
+      drawArea.height,
+    )
+
     return new Promise<Blob | null>((resolve) => {
-      rasterCanvas.toBlob(
-        (blob) => resolve(blob),
-        'image/png',
-      )
+      submissionCanvas.toBlob((blob) => resolve(blob), 'image/png')
     })
   }, [])
 
   // outgoing hint 영역을 크롭해서 Blob으로 만드는 헬퍼.
   // face/body 라운드에서만 호출 — legs는 outgoing hint가 없다.
+  // outgoingHintArea의 y좌표는 캔버스 자체 좌표계 기준 (face: 600, body: 720).
   const captureHintBlob = useCallback(async (): Promise<Blob | null> => {
     const { activeRoundKey, roundLines } = useRelayDrawingStore.getState()
-    const outgoingHintArea = RELAY_ROUND_RULES[activeRoundKey].outgoingHintArea
+    const roundRule = RELAY_ROUND_RULES[activeRoundKey]
+    const outgoingHintArea = roundRule.outgoingHintArea
     if (!outgoingHintArea) return null
 
     const lines = roundLines[activeRoundKey]
-    const fullCanvas = await renderLinesToRasterCanvas(lines)
+    const fullCanvas = await renderLinesToRasterCanvas(
+      lines,
+      roundRule.canvasHeight,
+    )
     if (!fullCanvas) return null
 
     const hintCanvas = document.createElement('canvas')
@@ -152,9 +188,12 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
 
   const submitDrawing = useCallback(async () => {
     const store = useRelayDrawingStore.getState()
-    
+
     if (store.isSubmitting || store.isSubmitted) return
     if (!store.roomCode || store.canvasIndex === null || !store.currentPart) return
+
+    // 제출 시점의 라운드를 캡처 — in-flight 도중 라운드가 전환되어도 올바른 라운드가 마킹된다.
+    const submittingRoundKey = store.activeRoundKey
 
     store.setIsSubmitting(true)
 
@@ -178,18 +217,46 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
         hintImage: hintImage ?? undefined,
       })
 
-      useRelayDrawingStore.getState().markSubmitted()
+      useRelayDrawingStore.getState().markSubmitted(submittingRoundKey)
       // REST 응답으로 즉시 진행도 반영 — WS PART_SUBMITTED를 기다리지 않고 대기 UI에 카운트 표시.
       useRelayDrawingStore.getState().updateSubmissionProgress(
         response.submittedCount,
         response.totalCount,
       )
-    } catch {
-      // 제출 실패 — submitting 플래그를 내려 재시도 가능하게 한다.
+      // 본인 UUID도 즉시 제출자 목록에 추가 — 우측 친구 패널의 "완료" 표시가
+      // WS round-trip 없이 바로 반영되도록.
+      const currentUserUuid = useUserStore.getState().userUuid
+      if (currentUserUuid) {
+        useRelayDrawingStore.getState().addSubmittedUserUuid(currentUserUuid)
+      }
+    } catch (error) {
+      // 409 Conflict = 서버가 이미 auto-submit 처리했거나 데드라인 만료.
+      // 클라이언트는 "제출 완료"로 간주하고 대기 상태로 전환한다.
+      if (error instanceof HTTPError && error.response.status === 409) {
+        useRelayDrawingStore.getState().markSubmitted(submittingRoundKey)
+        const currentUserUuid = useUserStore.getState().userUuid
+        if (currentUserUuid) {
+          useRelayDrawingStore.getState().addSubmittedUserUuid(currentUserUuid)
+        }
+        return
+      }
+
+      // 그 외 실패 — submitting 플래그를 내려 재시도 가능하게 한다.
       useRelayDrawingStore.getState().setIsSubmitting(false)
       toast.error('제출에 실패했어요. 다시 시도해 주세요.')
     }
   }, [captureCanvasBlob, captureHintBlob])
+
+  // PART_TIME_UP 자동 제출 트리거.
+  // useRelayRoom의 PART_TIME_UP 핸들러가 본인이 미제출자 목록에 있으면
+  // pendingAutoSubmitTrigger를 increment한다. 이 effect가 그걸 감지해
+  // submitDrawing을 호출 — 클라이언트의 deadline 폴링을 대체하는 단일 진입점.
+  // submitDrawing 내부에 isSubmitted/isSubmitting/canvasIndex 가드가 이미 있어
+  // 여기서 추가 가드 없이 호출만 한다.
+  useEffect(() => {
+    if (pendingAutoSubmitTrigger === 0) return
+    void submitDrawing()
+  }, [pendingAutoSubmitTrigger, submitDrawing])
 
   return {
     submitDrawing,

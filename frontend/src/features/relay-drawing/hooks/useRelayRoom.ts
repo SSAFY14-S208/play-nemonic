@@ -15,6 +15,7 @@ import {
 import type { RelaySocketStatus } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
+import { PART_TO_ROUND_KEY } from '../constants'
 import { useRelayDrawingStore } from '../stores'
 import { useRelaySocket } from './useRelaySocket'
 
@@ -41,7 +42,9 @@ interface UseRelayRoomReturn {
  */
 export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
   const router = useRouter()
+  const currentUserUuid = useUserStore((state) => state.userUuid)
   const storeRoomCode = useRelayDrawingStore((state) => state.roomCode)
+  const participants = useRelayDrawingStore((state) => state.participants)
   const hydrateRoomState = useRelayDrawingStore((state) => state.hydrateRoomState)
   const setRoomStatus = useRelayDrawingStore((state) => state.setRoomStatus)
   const setParticipants = useRelayDrawingStore((state) => state.setParticipants)
@@ -65,7 +68,6 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
     void (async () => {
       setIsFetching(true)
       setHydrationError(null)
-
       try {
         const room = await getRelayRoom(roomCode)
         if (cancelled) return
@@ -99,6 +101,9 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         // PLAYING 상태에서 새로고침 시 deadline을 즉시 반영 — 타이머가 정확한 남은 시간으로 시작한다.
         if (room.status === 'PLAYING') {
           useRelayDrawingStore.getState().setPartDeadlineAt(room.partDeadlineAt)
+          // 라운드별 데드라인 세팅 — 새로고침 복귀 시에도 auto-submit 게이트가 열리도록.
+          const roundKey = PART_TO_ROUND_KEY[room.currentPart]
+          useRelayDrawingStore.getState().setRoundDeadline(roundKey, room.partDeadlineAt)
           // WS GAME_STARTED가 먼저 도착해 trigger를 이미 올렸으면 건너뛴다.
           // 중복 increment는 진행 중인 assignment fetch의 retry를 취소시켜서
           // 서버 배정 생성 시간만큼의 retry 윈도우를 낭비한다.
@@ -157,11 +162,23 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
     }
   }, [roomCode])
 
-  // WebSocket 연결 — hydrate가 명시적으로 실패한 경우(잘못된 roomCode 등)에는
-  // 굳이 connect를 시도하지 않는다.
+  // WebSocket 연결 — REST hydrate 완료 + 본인이 백엔드 participant 목록에 등록된
+  // 시점에만 connect를 시도한다. 직접 링크 진입 시 REST chain(getRelayRoom +
+  // 자동 postRelayRoomParticipant)이 끝나기 전에 STOMP CONNECT가 먼저 발사되면
+  // 백엔드가 "허용할 수 없습니다" 에러로 거부하고, 5초 후 재연결로 복구되는
+  // race가 있어서 이 게이트를 둔다.
+  //
+  // 부스 입장 플로우는 이미 postRelayRoomParticipant 후 navigate하므로 첫 렌더에
+  // 본인이 participants에 들어있어 즉시 enabled=true가 된다. 새로고침 케이스도
+  // REST 응답이 본인을 포함한 채 오면 동일.
+  const isViewerParticipant =
+    currentUserUuid !== null &&
+    storeRoomCode === roomCode &&
+    participants.some((participant) => participant.userUuid === currentUserUuid)
+
   const { status: socketStatus } = useRelaySocket({
     roomCode,
-    enabled: !hydrationError,
+    enabled: !hydrationError && isViewerParticipant,
     handlers: {
       // ── 토픽: 방 전체 브로드캐스트 ───────────────────────────────
       PARTICIPANT_CONNECTED: (event) => {
@@ -235,8 +252,13 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         useRelayDrawingStore.getState().setIsSubmitting(false)
         // 첫 파트 deadline을 즉시 반영 — 타이머가 정확한 남은 시간으로 시작한다.
         useRelayDrawingStore.getState().setPartDeadlineAt(event.data.partDeadlineAt)
+        // 라운드별 데드라인 세팅 — auto-submit이 이 라운드의 데드라인 수신을 확인할 수 있게.
+        const roundKey = PART_TO_ROUND_KEY[event.data.currentPart]
+        useRelayDrawingStore.getState().setRoundDeadline(roundKey, event.data.partDeadlineAt)
         // effect 트리거 — fetch가 currentPart/canvasIndex/hint를 채운다.
         useRelayDrawingStore.getState().incrementPartFetchTrigger()
+        // 새 파트라 제출자 목록도 비운다.
+        useRelayDrawingStore.getState().clearSubmittedUserUuids()
       },
       HOST_CHANGED: (event) => {
         setHostUserUuid(event.data.newHostUserUuid)
@@ -252,6 +274,9 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
       ALL_PARTS_COMPLETED: (event) => {
         // FINALIZING으로 전환 → RelayRoomPage가 RelayFinalizingView 표시.
         setRoomStatus(event.data.roomStatus)
+        // 마지막 라운드의 PART_TIME_UP 오버레이는 여기서 내린다.
+        // (다음 PART_STARTED가 오지 않으므로 자연 소멸 경로가 없음.)
+        useRelayDrawingStore.getState().setPartTimeUp(false)
       },
       RESULT_CREATED: (event) => {
         // FINISHED로 전환 → RelayRoomPage가 RelayResultView 표시.
@@ -321,20 +346,52 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         // hint, currentPart)은 useRelayDrawingGame이 getRelayRoomAssignmentMe로 가져온다.
         setTimeLimitSeconds(event.data.timeLimitSeconds)
         useRelayDrawingStore.getState().setPartDeadlineAt(event.data.partDeadlineAt)
+        // 라운드별 데드라인 세팅 — 새 라운드의 auto-submit 게이트 해제.
+        const roundKey = PART_TO_ROUND_KEY[event.data.part]
+        useRelayDrawingStore.getState().setRoundDeadline(roundKey, event.data.partDeadlineAt)
         // effect 트리거 — partDeadlineAt 대신 전용 카운터 사용
         useRelayDrawingStore.getState().incrementPartFetchTrigger()
+        // 새 파트 시작 — 이전 파트의 제출자 목록은 더 이상 의미 없음.
+        useRelayDrawingStore.getState().clearSubmittedUserUuids()
+        // 이전 파트의 PART_TIME_UP 오버레이를 즉시 내린다.
+        // setAssignment에서도 false로 리셋되지만, 새 배정 fetch가 도착하기 전에
+        // 사용자가 다음 라운드 시작 신호를 받았다는 신호를 즉시 보여주기 위함.
+        useRelayDrawingStore.getState().setPartTimeUp(false)
+      },
+      PART_TIME_UP: (event) => {
+        // 데드라인 도달 — 백엔드가 미제출자에게 자동 제출을 지시한다.
+        // 본인이 pendingSubmissions에 포함되어 있고 아직 미제출이면 즉시 자동 제출 트리거.
+        // 그렇지 않으면 오버레이만 띄우고 PART_STARTED를 기다린다(가이드: 백엔드가
+        // 모든 in-flight 제출을 처리한 뒤에야 다음 PART_STARTED 발사).
+        useRelayDrawingStore.getState().setPartTimeUp(true)
+
+        const currentUserUuid = useUserStore.getState().userUuid
+        if (!currentUserUuid) return
+        const isMePending = event.data.pendingSubmissions.some(
+          (pending) => pending.userUuid === currentUserUuid,
+        )
+        if (!isMePending) return
+
+        const roundKey = PART_TO_ROUND_KEY[event.data.part]
+        // 같은 라운드에서 이미 제출 완료된 상태면 자동 제출 안 함.
+        // (PART_TIME_UP보다 본인 제출 응답이 살짝 빨리 도달한 케이스 안전망.)
+        if (useRelayDrawingStore.getState().roundSubmitted[roundKey]) return
+
+        useRelayDrawingStore.getState().triggerPendingAutoSubmit()
       },
       PART_SUBMITTED: (event) => {
-        // 다른 참여자가 제출 — 진행도 갱신 (e.g. "2/3 제출 완료").
+        // 다른 참여자가 제출 — 진행도 + 제출자 UUID 갱신.
+        // RoundProgressPanel이 submittedUserUuids로 "X님 완료" 표시를 띄운다.
         useRelayDrawingStore.getState().updateSubmissionProgress(
           event.data.submittedCount,
           event.data.totalCount,
         )
+        useRelayDrawingStore.getState().addSubmittedUserUuid(event.data.userUuid)
       },
-      PART_AUTO_SUBMITTED: () => {
-        // 서버 자동 제출 (유예기간 2초 내 미제출). 이벤트 data에 submittedCount/totalCount가
-        // 없으므로 진행도 갱신 불가. 서버가 이어서 PART_STARTED 또는 ALL_PARTS_COMPLETED를
-        // 보내므로 여기서는 추가 처리 불필요.
+      PART_AUTO_SUBMITTED: (event) => {
+        // 서버 자동 제출 (유예기간 2초 내 미제출). submittedCount/totalCount는
+        // 안 오지만 어떤 사용자가 자동 제출됐는지는 알 수 있어 친구 패널 표시에 반영.
+        useRelayDrawingStore.getState().addSubmittedUserUuid(event.data.userUuid)
       },
     },
   })

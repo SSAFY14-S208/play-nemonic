@@ -3,6 +3,9 @@ import type { FortuneBirthInfo } from './types'
 export const FORTUNE_STORAGE_KEY = 'nemonic-world:today-fortune'
 export const FORTUNE_RESET_QUERY_PARAM = 'resetFortune'
 
+export const FORTUNE_USER_NOT_READY_ERROR = 'USER_NOT_READY'
+export const FORTUNE_NOON_FALLBACK_BIRTH_TIME = '12:00:00'
+
 export const FORTUNE_EMPTY_BIRTH_INFO: FortuneBirthInfo = {
   birthDate: '',
   birthTime: '',
@@ -12,12 +15,16 @@ export const FORTUNE_EMPTY_BIRTH_INFO: FortuneBirthInfo = {
 
 export const FORTUNE_PRINT_DURATION_SECONDS = 4.2
 export const FORTUNE_REDUCED_MOTION_DURATION_SECONDS = 0.9
+export const FORTUNE_PRINT_FALLBACK_TIMEOUT_SECONDS = 14
+export const FORTUNE_PRINT_VIDEO_PATH = '/videos/fortune/printing-aura.mp4'
 export const FORTUNE_POPO_MODEL_PATH = '/models/mnemonic_witch_asset.glb'
 export const FORTUNE_POPO_MODEL_HEIGHT = 3.75
 
 export const FORTUNE_SOUND_PATHS = {
   print: '/sounds/print_label.mp3',
   cut: '/sounds/cut_label.mp3',
+  bgm: '/sounds/fortune/moonlit-tarot-shelf.mp3',
+  tap: '/sounds/fortune/tap.mp3',
 } as const
 
 export const FORTUNE_SCORE_LABELS = [

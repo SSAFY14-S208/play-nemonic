@@ -88,7 +88,10 @@ interface HubViewStore {
   setWitchHovered: (isWitchHovered: boolean) => void
   markInteraction: () => void
   cancelViewTransition: () => void
+  syncActiveContentByAngle: (currentAngle: number) => void
 }
+
+const HUB_ACTIVE_CONTENT_ANGLE_THRESHOLD = 0.6
 
 function clampZoom(zoom: number) {
   return Math.min(Math.max(zoom, HUB_MIN_ZOOM), HUB_MAX_ZOOM)
@@ -96,6 +99,29 @@ function clampZoom(zoom: number) {
 
 function nowMs() {
   return typeof performance === 'undefined' ? Date.now() : performance.now()
+}
+
+function normalizeAngle(angle: number) {
+  return Math.atan2(Math.sin(angle), Math.cos(angle))
+}
+
+function findNearestContentKey(currentAngle: number): {
+  key: HubContentKey | null
+  distance: number
+} {
+  const normalized = normalizeAngle(currentAngle)
+  let nearestKey: HubContentKey | null = null
+  let nearestDistance = Infinity
+
+  for (const key of Object.keys(HUB_CONTENT_VIEWS) as HubContentKey[]) {
+    const candidateAngle = normalizeAngle(HUB_CONTENT_VIEWS[key].angle)
+    const delta = Math.abs(normalizeAngle(normalized - candidateAngle))
+    if (delta < nearestDistance) {
+      nearestDistance = delta
+      nearestKey = key
+    }
+  }
+  return { key: nearestKey, distance: nearestDistance }
 }
 
 export const useHubViewStore = create<HubViewStore>((set) => ({
@@ -153,4 +179,21 @@ export const useHubViewStore = create<HubViewStore>((set) => ({
   setWitchHovered: (isWitchHovered) => set({ isWitchHovered }),
   markInteraction: () => set({ lastInteractionAt: nowMs() }),
   cancelViewTransition: () => set({ viewTransitionUntil: 0 }),
+  syncActiveContentByAngle: (currentAngle) => {
+    const { key, distance } = findNearestContentKey(currentAngle)
+    set((state) => {
+      if (key && distance <= HUB_ACTIVE_CONTENT_ANGLE_THRESHOLD) {
+        if (state.selectedContentKey === key) return state
+        return {
+          selectedContentKey: key,
+          currentCopy: HUB_CONTENT_VIEWS[key],
+        }
+      }
+      if (state.selectedContentKey === null) return state
+      return {
+        selectedContentKey: null,
+        currentCopy: HUB_OVERVIEW_VIEW,
+      }
+    })
+  },
 }))
