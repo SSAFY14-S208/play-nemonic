@@ -2,8 +2,9 @@ package com.nemonicworld.relay.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -13,6 +14,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
@@ -360,7 +362,8 @@ class RelayRoomTimeoutServiceTest {
         verify(relayRoomTimeUpNotificationRepository).markPartTimeUpNotified(eq(ROOM_CODE), eq(RelayDrawingPart.FACE),
             eq(partDeadlineAt), eq(RelayRoomRepository.ROOM_STATE_TTL));
         verify(relayRoomEventPublisher).publishPartTimeUp(ROOM_CODE, RelayDrawingPart.FACE, partDeadlineAt,
-            partDeadlineAt.plus(AUTO_SUBMIT_GRACE_MS, ChronoUnit.MILLIS), AUTO_SUBMIT_GRACE_MS);
+            partDeadlineAt.plus(AUTO_SUBMIT_GRACE_MS, ChronoUnit.MILLIS), AUTO_SUBMIT_GRACE_MS,
+            List.of(new PendingSubmission(0, hostUuid.toString(), "Mango", true)));
         verify(relayRoomEventPublisher, never()).publishPartAutoSubmitted(any(), any(), any());
     }
 
@@ -379,7 +382,7 @@ class RelayRoomTimeoutServiceTest {
         relayRoomTimeoutService.processExpiredRooms();
 
         verify(relayRoomEventPublisher, never()).publishPartTimeUp(anyString(), any(RelayDrawingPart.class), any(),
-            any(), anyLong());
+            any(), anyLong(), anyList());
         verify(relayRoomEventPublisher, never()).publishPartAutoSubmitted(any(), any(), any());
     }
 

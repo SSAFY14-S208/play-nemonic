@@ -24,6 +24,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomHostChangedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantDroppedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantLeftEventResponse;
@@ -212,8 +213,10 @@ class RelayRoomEventPublisherTest {
         ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
         LocalDateTime partDeadlineAt = LocalDateTime.now().minusSeconds(1);
         LocalDateTime submitGraceDeadlineAt = partDeadlineAt.plusSeconds(2);
+        List<PendingSubmission> pendingSubmissions = List.of(new PendingSubmission(1, USER_UUID, "Mango", true));
 
-        publisher.publishPartTimeUp(ROOM_CODE, RelayDrawingPart.BODY, partDeadlineAt, submitGraceDeadlineAt, 2000L);
+        publisher.publishPartTimeUp(ROOM_CODE, RelayDrawingPart.BODY, partDeadlineAt, submitGraceDeadlineAt, 2000L,
+            pendingSubmissions);
 
         verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
         RelayRoomEventResponse event = eventCaptor.getValue();
@@ -225,6 +228,8 @@ class RelayRoomEventPublisherTest {
         assertThat(data.partDeadlineAt()).isEqualTo(partDeadlineAt);
         assertThat(data.submitGraceDeadlineAt()).isEqualTo(submitGraceDeadlineAt);
         assertThat(data.autoSubmitGraceMillis()).isEqualTo(2000L);
+        assertThat(data.pendingCount()).isEqualTo(1);
+        assertThat(data.pendingSubmissions()).containsExactly(new PendingSubmission(1, USER_UUID, "Mango", true));
     }
 
     @Test

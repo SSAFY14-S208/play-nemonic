@@ -149,8 +149,9 @@ Last updated: 2026-05-10
   event during the `partDeadlineAt` to
   `partDeadlineAt + auto-submit-grace-ms` window for rooms with pending
   current-part assignments. The event includes `partDeadlineAt`,
-  `submitGraceDeadlineAt`, and `autoSubmitGraceMillis`, while the backend
-  remains responsible for fallback auto-submit after the grace window.
+  `submitGraceDeadlineAt`, `autoSubmitGraceMillis`, and the current part's
+  pending submission list, while the backend remains responsible for fallback
+  auto-submit after the grace window.
 - Relay drawing submissions now acquire assignment-scoped Redis submit-in-progress locks before file upload; the timeout scheduler skips locked pending assignments until the lock TTL expires, preventing deadline-time user submissions from racing against `AUTO_SUBMITTED` fallback processing.
 - Relay disconnect grace processing now scans candidate `PLAYING` Redis rooms after the configured reconnect grace, takes the room mutation lock before mutating room state, marks expired disconnected participants as `dropped` with `droppedAt`, blocks dropped UUIDs from REST rejoin and WebSocket reconnect, auto-submits only their current-part unlocked `PENDING` assignments as empty `AUTO_SUBMITTED`, leaves future part assignments pending until that part becomes current, transfers a dropped host to the lowest `joinOrder` connected non-dropped participant when available, and emits `PARTICIPANT_DROPPED`, `HOST_CHANGED`, `PART_AUTO_SUBMITTED`, and existing part transition events only after successful CAS saves.
 - Relay finalization now scans `FINALIZING` Redis rooms after a short ready delay, composes one vertical FACE/BODY/LEGS PNG per `canvasIndex`, stores final original and thumbnail objects under `relay/results/{artifactId}/`, writes matching `artifact`, `relay_drawing_artifact`, and participant gallery rows, marks the Redis room `FINISHED`, emits `RESULT_CREATED`, and uses token-scoped Redis finalization locks so an expired worker cannot release another worker's lock; presigned result URLs remain follow-up work.
