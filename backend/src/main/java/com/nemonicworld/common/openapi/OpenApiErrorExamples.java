@@ -720,6 +720,12 @@ public final class OpenApiErrorExamples {
           "message": "조회할 수 없는 방 상태입니다."
         }
         """;
+    public static final String BACKOFFICE_RELAY_ROOM_UPDATE_CONFLICT = """
+        {
+          "success": false,
+          "message": "릴레이 방 상태를 갱신할 수 없습니다."
+        }
+        """;
 
     private OpenApiErrorExamples() {
     }

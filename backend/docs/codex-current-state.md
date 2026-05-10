@@ -119,6 +119,12 @@ Last updated: 2026-05-10
   supports optional `keyword` search on `setting_key`, parses
   `setting_value` JSON text into the response `value`, and Flyway V8 seeds
   initial backoffice setting rows without changing the schema.
+- Backoffice admins can now manage active relay drawing rooms through
+  `GET /api/v1/backoffice/relay-rooms` and
+  `DELETE /api/v1/backoffice/relay-rooms/{roomCode}`; delete requires an admin
+  JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`, rejects
+  already CLOSED rooms with 409, emits `ROOM_CLOSED`, and leaves MinIO,
+  artifact, and gallery cleanup out of scope.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.

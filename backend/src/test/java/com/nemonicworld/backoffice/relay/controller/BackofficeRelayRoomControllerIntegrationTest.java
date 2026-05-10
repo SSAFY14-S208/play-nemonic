@@ -1,6 +1,13 @@
 package com.nemonicworld.backoffice.relay.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -17,6 +24,8 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
+import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -26,6 +35,9 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +76,12 @@ class BackofficeRelayRoomControllerIntegrationTest {
 
     @MockitoBean
     private RelayRoomRepository relayRoomRepository;
+
+    @MockitoBean
+    private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+
+    @MockitoBean
+    private RelayRoomEventPublisher relayRoomEventPublisher;
 
     @BeforeEach
     void prepareTables() {
@@ -241,6 +259,127 @@ class BackofficeRelayRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.totalElements").value(0));
     }
 
+    @ParameterizedTest
+    @EnumSource(value = RelayRoomStatus.class, names = {"WAITING", "PLAYING", "FINALIZING", "FINISHED"})
+    void adminDeletesActiveRelayRoom(RelayRoomStatus status) throws Exception {
+        String roomCode = roomCodeFor(status);
+        RelayRoomState roomState = roomState(roomCode, status, 3, LocalDateTime.of(2026, 5, 9, 12, 0),
+            LocalDateTime.of(2026, 5, 9, 11, 50));
+        given(relayRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(eq(roomState), any(RelayRoomState.class))).willReturn(true);
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("릴레이 드로잉 방 삭제 성공"))
+            .andExpect(jsonPath("$.data.roomCode").value(roomCode));
+
+        ArgumentCaptor<RelayRoomState> closedRoomCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        then(relayRoomRepository).should().saveIfUnchanged(eq(roomState), closedRoomCaptor.capture());
+        RelayRoomState closedRoomState = closedRoomCaptor.getValue();
+        assertThat(closedRoomState.roomCode()).isEqualTo(roomCode);
+        assertThat(closedRoomState.status()).isEqualTo(RelayRoomStatus.CLOSED);
+        assertThat(closedRoomState.updatedAt()).isNotNull();
+        then(relayInviteMetadataSyncService).should().syncWithRoomState(closedRoomState);
+        then(relayRoomEventPublisher).should().publishRoomClosed(eq(roomCode), eq(closedRoomState.updatedAt()));
+    }
+
+    @Test
+    void superAdminDeletesActiveRelayRoom() throws Exception {
+        String roomCode = "JK7U9V";
+        RelayRoomState roomState = roomState(roomCode, RelayRoomStatus.WAITING, 2, null,
+            LocalDateTime.of(2026, 5, 9, 12, 0));
+        given(relayRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(eq(roomState), any(RelayRoomState.class))).willReturn(true);
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
+                    AdminRole.SUPER_ADMIN)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.roomCode").value(roomCode));
+    }
+
+    @Test
+    void deletedRoomIsNotReturnedFromActiveRelayRoomList() throws Exception {
+        String roomCode = "MN8W2X";
+        RelayRoomState roomState = roomState(roomCode, RelayRoomStatus.PLAYING, 2, LocalDateTime.of(2026, 5, 9, 12, 0),
+            LocalDateTime.of(2026, 5, 9, 11, 50));
+        given(relayRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(eq(roomState), any(RelayRoomState.class))).willReturn(true);
+        given(relayRoomRepository.findAllActiveRooms()).willReturn(List.of());
+
+        mockMvc.perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
+            bearerAccessToken())).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(0))
+            .andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    @Test
+    void deleteRejectsInvalidRoomCode() throws Exception {
+        mockMvc
+            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", "not-a-room").header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("유효하지 않은 방코드입니다."));
+
+        then(relayRoomRepository).should(never()).findByRoomCode(any());
+    }
+
+    @Test
+    void deleteRejectsUnauthenticatedRequest() throws Exception {
+        mockMvc.perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", "AB3K9Q"))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void deleteReturnsNotFoundWhenRoomDoesNotExist() throws Exception {
+        String roomCode = "ZZZZZZ";
+        given(relayRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.empty());
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 방입니다."));
+    }
+
+    @Test
+    void deleteReturnsConflictWhenRoomAlreadyClosed() throws Exception {
+        String roomCode = "PQ4R5S";
+        RelayRoomState roomState = roomState(roomCode, RelayRoomStatus.CLOSED, 0, LocalDateTime.of(2026, 5, 9, 12, 0),
+            LocalDateTime.of(2026, 5, 9, 12, 10));
+        given(relayRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("이미 종료된 방입니다."));
+
+        then(relayRoomRepository).should(never()).saveIfUnchanged(any(), any());
+    }
+
+    @Test
+    void deleteReturnsConflictWhenCasUpdateKeepsFailing() throws Exception {
+        String roomCode = "ST6V7W";
+        RelayRoomState roomState = roomState(roomCode, RelayRoomStatus.WAITING, 2, null,
+            LocalDateTime.of(2026, 5, 9, 12, 0));
+        given(relayRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(eq(roomState), any(RelayRoomState.class))).willReturn(false);
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("릴레이 방 상태를 갱신할 수 없습니다."));
+
+        then(relayRoomRepository).should(times(3)).findByRoomCode(roomCode);
+        then(relayRoomRepository).should(times(3)).saveIfUnchanged(eq(roomState), any(RelayRoomState.class));
+    }
+
     private RelayRoomState roomState(String roomCode, RelayRoomStatus status, int participantCount,
         LocalDateTime gameStartedAt, LocalDateTime createdAt) {
         List<RelayRoomParticipant> participants = participants(participantCount, createdAt);
@@ -289,6 +428,16 @@ class BackofficeRelayRoomControllerIntegrationTest {
         AdminUser adminUser = new AdminUser(id, loginId, "encoded", nickname, email, role, null, now, now, null);
 
         return "Bearer %s".formatted(jwtTokenProvider.createAccessToken(adminUser).accessToken());
+    }
+
+    private String roomCodeFor(RelayRoomStatus status) {
+        return switch (status) {
+            case WAITING -> "AB3K9Q";
+            case PLAYING -> "CD4M8N";
+            case FINALIZING -> "EF5P7R";
+            case FINISHED -> "GH6S8T";
+            case CLOSED -> "ZZZZZZ";
+        };
     }
 
     @TestConfiguration
