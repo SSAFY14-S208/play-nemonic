@@ -1,6 +1,13 @@
 package com.nemonicworld.backoffice.flipbook.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,6 +23,8 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
+import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -25,6 +34,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -65,6 +75,12 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
 
     @MockitoBean
     private FlipbookRoomRepository flipbookRoomRepository;
+
+    @MockitoBean
+    private FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+
+    @MockitoBean
+    private FlipbookRoomEventPublisher flipbookRoomEventPublisher;
 
     @BeforeEach
     void prepareTables() {
@@ -244,6 +260,131 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.totalElements").value(0));
     }
 
+    @ParameterizedTest
+    @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "PLAYING", "FINISHED"})
+    void adminDeletesActiveFlipbookRoom(FlipbookRoomStatus roomStatus) throws Exception {
+        String roomCode = roomCodeFor(roomStatus);
+        LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
+        FlipbookRoomState roomState = roomState(roomCode, roomStatus, 3, currentRoundFor(roomStatus),
+            totalRoundsFor(roomStatus), gameStartedAtFor(roomStatus, base), base);
+        given(flipbookRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(eq(roomState), any(FlipbookRoomState.class))).willReturn(true);
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("플립북 방 삭제 성공"))
+            .andExpect(jsonPath("$.data.roomCode").value(roomCode));
+
+        ArgumentCaptor<FlipbookRoomState> closedRoomCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        then(flipbookRoomRepository).should().saveIfUnchanged(eq(roomState), closedRoomCaptor.capture());
+        FlipbookRoomState closedRoomState = closedRoomCaptor.getValue();
+        assertThat(closedRoomState.roomCode()).isEqualTo(roomCode);
+        assertThat(closedRoomState.status()).isEqualTo(FlipbookRoomStatus.CLOSED);
+        assertThat(closedRoomState.updatedAt()).isNotNull();
+        assertThat(closedRoomState.participants()).isEqualTo(roomState.participants());
+        assertThat(closedRoomState.assignments()).isEqualTo(roomState.assignments());
+        then(flipbookInviteMetadataSyncService).should().syncWithRoomState(closedRoomState);
+        then(flipbookRoomEventPublisher).should().publishRoomClosed(eq(roomCode), eq(closedRoomState.updatedAt()));
+    }
+
+    @Test
+    void superAdminDeletesActiveFlipbookRoom() throws Exception {
+        String roomCode = "FB3K9Q";
+        FlipbookRoomState roomState = roomState(roomCode, FlipbookRoomStatus.WAITING, 2, null, null, null,
+            LocalDateTime.of(2026, 5, 9, 12, 0, 0));
+        given(flipbookRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(eq(roomState), any(FlipbookRoomState.class))).willReturn(true);
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
+                    AdminRole.SUPER_ADMIN)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.roomCode").value(roomCode));
+    }
+
+    @Test
+    void deletedRoomIsNotReturnedFromActiveList() throws Exception {
+        String roomCode = "FB3K9Q";
+        FlipbookRoomState roomState = roomState(roomCode, FlipbookRoomStatus.WAITING, 2, null, null, null,
+            LocalDateTime.of(2026, 5, 9, 12, 0, 0));
+        given(flipbookRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(eq(roomState), any(FlipbookRoomState.class))).willReturn(true);
+        given(flipbookRoomRepository.findAllActiveRooms()).willReturn(List.of());
+
+        mockMvc.perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", roomCode)
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(0))
+            .andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    @Test
+    void rejectsInvalidRoomCodeOnDelete() throws Exception {
+        mockMvc
+            .perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", "not-a-room")
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false));
+
+        then(flipbookRoomRepository).should(never()).findByRoomCode(any());
+        then(flipbookRoomRepository).should(never()).saveIfUnchanged(any(), any());
+    }
+
+    @Test
+    void rejectsUnauthenticatedDeleteRequest() throws Exception {
+        mockMvc.perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", "AB3K9Q"))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void deleteReturnsNotFoundWhenRoomDoesNotExist() throws Exception {
+        String roomCode = "FB3K9Q";
+        given(flipbookRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.empty());
+
+        mockMvc.perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", roomCode)
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false));
+
+        then(flipbookRoomRepository).should(never()).saveIfUnchanged(any(), any());
+    }
+
+    @Test
+    void deleteClosedRoomReturnsConflict() throws Exception {
+        String roomCode = "FZ9Y8X";
+        FlipbookRoomState roomState = roomState(roomCode, FlipbookRoomStatus.CLOSED, 0, 8, 8,
+            LocalDateTime.of(2026, 5, 9, 12, 0, 0), LocalDateTime.of(2026, 5, 9, 12, 0, 0));
+        given(flipbookRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken()))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("이미 종료된 방입니다."));
+
+        then(flipbookRoomRepository).should(never()).saveIfUnchanged(any(), any());
+        then(flipbookInviteMetadataSyncService).should(never()).syncWithRoomState(any());
+        then(flipbookRoomEventPublisher).should(never()).publishRoomClosed(any(), any());
+    }
+
+    @Test
+    void deleteReturnsConflictWhenCasRetryFails() throws Exception {
+        String roomCode = "FB3K9Q";
+        FlipbookRoomState roomState = roomState(roomCode, FlipbookRoomStatus.PLAYING, 4, 2, 8,
+            LocalDateTime.of(2026, 5, 9, 12, 0, 0), LocalDateTime.of(2026, 5, 9, 12, 0, 0));
+        given(flipbookRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(eq(roomState), any(FlipbookRoomState.class))).willReturn(false);
+
+        mockMvc.perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", roomCode)
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())).andExpect(status().isConflict())
+            .andExpect(jsonPath("$.success").value(false));
+
+        then(flipbookRoomRepository).should(times(3)).saveIfUnchanged(eq(roomState), any(FlipbookRoomState.class));
+        then(flipbookInviteMetadataSyncService).should(never()).syncWithRoomState(any());
+        then(flipbookRoomEventPublisher).should(never()).publishRoomClosed(any(), any());
+    }
+
     private FlipbookRoomState roomState(String roomCode, FlipbookRoomStatus status, int participantCount,
         Integer currentRound, Integer totalRounds, LocalDateTime gameStartedAt, LocalDateTime createdAt) {
         List<FlipbookRoomParticipant> participants = participants(participantCount, createdAt);
@@ -302,6 +443,22 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
             case FINISHED -> "FC4M8N";
             case CLOSED -> "FZ9Y8X";
         };
+    }
+
+    private Integer currentRoundFor(FlipbookRoomStatus status) {
+        return switch (status) {
+            case WAITING -> null;
+            case PLAYING -> 2;
+            case FINISHED, CLOSED -> 8;
+        };
+    }
+
+    private Integer totalRoundsFor(FlipbookRoomStatus status) {
+        return status == FlipbookRoomStatus.WAITING ? null : 8;
+    }
+
+    private LocalDateTime gameStartedAtFor(FlipbookRoomStatus status, LocalDateTime base) {
+        return status == FlipbookRoomStatus.WAITING ? null : base.plusMinutes(1);
     }
 
     @TestConfiguration
