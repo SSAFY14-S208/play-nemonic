@@ -243,9 +243,27 @@ public class FlipbookRoomController {
         @RequestBody(required = false) FlipbookFrameSubmitRequest request) {
         FlipbookFrameSubmitResponse response = flipbookRoomService.submitFrame(userUuid, roomCode, round, request);
         flipbookRoomEventPublisher.publishFrameSubmitted(response);
+        publishRoundAdvanceEvent(response);
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(FLIPBOOK_FRAME_SUBMITTED_MESSAGE, response));
+    }
+
+    private void publishRoundAdvanceEvent(FlipbookFrameSubmitResponse response) {
+        if (!response.advanced()) {
+            return;
+        }
+
+        if (response.allRoundsCompleted()) {
+            flipbookRoomEventPublisher.publishAllRoundsCompleted(response.roomCode(), response.roomStatus(),
+                response.submittedAt());
+            return;
+        }
+
+        if (response.nextRound() != null) {
+            flipbookRoomEventPublisher.publishRoundStarted(response.roomCode(), response.round(), response.nextRound(),
+                response.nextRoundStartedAt(), response.nextRoundDeadlineAt());
+        }
     }
 
     /**

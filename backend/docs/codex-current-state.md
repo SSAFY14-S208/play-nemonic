@@ -159,6 +159,12 @@ Last updated: 2026-05-10
 - Flipbook frame submission now accepts requests until
   `roundDeadlineAt + auto-submit-grace-ms`, keeping the default two-second
   grace window aligned with timeout fallback auto-submit.
+- Flipbook frame submission now also emits `ROUND_STARTED` whenever a normal
+  submit advances to the next round, and emits `ALL_ROUNDS_COMPLETED` when the
+  last round completes. Frontend screen transitions can therefore use
+  `ROUND_STARTED` for every next-round start and `ALL_ROUNDS_COMPLETED` for game
+  completion, regardless of whether the round ended by manual submission or
+  timeout auto-submit.
 - Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
   related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
   `super_admin` row in `admin_user` only when enabled and the login ID does not
