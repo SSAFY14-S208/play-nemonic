@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Copy, Crown, QrCode, X } from "lucide-react";
+import { ArrowLeft, Copy, Crown, X } from "lucide-react";
 
 import { useUserStore } from "@/shared/stores";
 import type { RelayRoomParticipantResponse } from "@/shared/types";

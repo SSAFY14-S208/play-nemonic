@@ -42,7 +42,9 @@ interface UseRelayRoomReturn {
  */
 export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
   const router = useRouter()
+  const currentUserUuid = useUserStore((state) => state.userUuid)
   const storeRoomCode = useRelayDrawingStore((state) => state.roomCode)
+  const participants = useRelayDrawingStore((state) => state.participants)
   const hydrateRoomState = useRelayDrawingStore((state) => state.hydrateRoomState)
   const setRoomStatus = useRelayDrawingStore((state) => state.setRoomStatus)
   const setParticipants = useRelayDrawingStore((state) => state.setParticipants)
@@ -160,11 +162,23 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
     }
   }, [roomCode])
 
-  // WebSocket 연결 — hydrate가 명시적으로 실패한 경우(잘못된 roomCode 등)에는
-  // 굳이 connect를 시도하지 않는다.
+  // WebSocket 연결 — REST hydrate 완료 + 본인이 백엔드 participant 목록에 등록된
+  // 시점에만 connect를 시도한다. 직접 링크 진입 시 REST chain(getRelayRoom +
+  // 자동 postRelayRoomParticipant)이 끝나기 전에 STOMP CONNECT가 먼저 발사되면
+  // 백엔드가 "허용할 수 없습니다" 에러로 거부하고, 5초 후 재연결로 복구되는
+  // race가 있어서 이 게이트를 둔다.
+  //
+  // 부스 입장 플로우는 이미 postRelayRoomParticipant 후 navigate하므로 첫 렌더에
+  // 본인이 participants에 들어있어 즉시 enabled=true가 된다. 새로고침 케이스도
+  // REST 응답이 본인을 포함한 채 오면 동일.
+  const isViewerParticipant =
+    currentUserUuid !== null &&
+    storeRoomCode === roomCode &&
+    participants.some((participant) => participant.userUuid === currentUserUuid)
+
   const { status: socketStatus } = useRelaySocket({
     roomCode,
-    enabled: !hydrationError,
+    enabled: !hydrationError && isViewerParticipant,
     handlers: {
       // ── 토픽: 방 전체 브로드캐스트 ───────────────────────────────
       PARTICIPANT_CONNECTED: (event) => {
