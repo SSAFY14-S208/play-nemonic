@@ -70,7 +70,7 @@ class FlipbookFrameSubmitUseCaseTest {
                 10, 10_485_760));
         flipbookFrameSubmitUseCase = new FlipbookFrameSubmitUseCase(anonymousUserResolver, flipbookRoomRepository,
             flipbookRoomPolicy, flipbookFrameImageUrlResolver, flipbookInviteMetadataSyncService,
-            new FlipbookRoomRoundAdvanceService(), fileUploadRepository);
+            new FlipbookRoomRoundAdvanceService(), fileUploadRepository, 2000L);
     }
 
     /**
@@ -183,6 +183,60 @@ class FlipbookFrameSubmitUseCaseTest {
     }
 
     /**
+     * 라운드 마감 직후 자동 제출 유예 시간 안에서는 프론트가 현재 캔버스를 제출할 수 있습니다.
+     */
+    @Test
+    void submitFrameAllowsSubmissionDuringAutoSubmitGracePeriod() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        UUID fileId = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FileUpload fileUpload = uploadedFile(fileId, hostUuid, FileUploadPurpose.FLIPBOOK);
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomState roomState = playingRoomState(hostUuid, participantUuid, 1, 2, now.minusSeconds(45),
+            now.minusSeconds(1),
+            List.of(assignment(0, 0, 1, hostUuid, FlipbookFrameAssignmentStatus.PENDING, null, null, null)));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(fileUploadRepository.findById(fileId)).willReturn(Optional.of(fileUpload));
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookFrameSubmitResponse response = flipbookFrameSubmitUseCase.submitFrame(hostUuid.toString(), ROOM_CODE, 1,
+            new FlipbookFrameSubmitRequest(0, 0, fileId.toString()));
+
+        assertThat(response.assignmentStatus()).isEqualTo(FlipbookFrameAssignmentStatus.SUBMITTED);
+        verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class));
+    }
+
+    /**
+     * 자동 제출 유예 시간까지 지난 뒤에는 수동 제출을 거부합니다.
+     */
+    @Test
+    void submitFrameRejectsSubmissionAfterAutoSubmitGraceExpired() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        UUID fileId = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FileUpload fileUpload = uploadedFile(fileId, hostUuid, FileUploadPurpose.FLIPBOOK);
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomState roomState = playingRoomState(hostUuid, participantUuid, 1, 2, now.minusSeconds(45),
+            now.minusSeconds(3),
+            List.of(assignment(0, 0, 1, hostUuid, FlipbookFrameAssignmentStatus.PENDING, null, null, null)));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(fileUploadRepository.findById(fileId)).willReturn(Optional.of(fileUpload));
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> flipbookFrameSubmitUseCase.submitFrame(hostUuid.toString(), ROOM_CODE, 1,
+            new FlipbookFrameSubmitRequest(0, 0, fileId.toString()))).isInstanceOf(ConflictException.class)
+            .hasMessage("제출 시간이 만료되었습니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    /**
      * 자동 제출 처리된 프레임은 사용자가 다시 수동 제출할 수 없습니다.
      */
     @Test
@@ -253,8 +307,16 @@ class FlipbookFrameSubmitUseCaseTest {
         List<FlipbookFrameAssignment> assignments) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
+        return playingRoomState(hostUuid, participantUuid, currentRound, totalRounds, now.minusSeconds(10),
+            now.plusSeconds(35), assignments);
+    }
+
+    private FlipbookRoomState playingRoomState(UUID hostUuid, UUID participantUuid, int currentRound, int totalRounds,
+        LocalDateTime roundStartedAt, LocalDateTime roundDeadlineAt, List<FlipbookFrameAssignment> assignments) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
         return new FlipbookRoomState(ROOM_CODE, FlipbookRoomStatus.PLAYING, hostUuid.toString(), 45, 2, 6, currentRound,
-            totalRounds, now.minusSeconds(10), now.plusSeconds(35), now.minusSeconds(10), assignments,
+            totalRounds, roundStartedAt, roundDeadlineAt, roundStartedAt, assignments,
             List.of(participant(hostUuid, "망고", true, 0), participant(participantUuid, "다현", false, 1)),
             now.minusMinutes(1), now.minusSeconds(10), List.of());
     }
