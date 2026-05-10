@@ -5,7 +5,6 @@ import { useMemo, useState } from 'react'
 import { ApiError, postRelayRoomClose } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 import type { RelayPart } from '@/shared/types'
-import { parseServerInstant } from '@/shared/utils'
 
 import {
   DRAWER_AVATARS,
@@ -39,9 +38,8 @@ function moveLineToFinalPosition(line: RelayDrawLine, roundKey: RelayRoundKey): 
 }
 
 function formatDateLabel(isoString: string): string {
-  // 서버 LocalDateTime을 UTC로 강제 해석한 뒤, 사용자 로컬 timezone으로 자정
-  // 경계 오차 없이 표시한다.
-  const date = parseServerInstant(isoString)
+  // 백엔드가 timezone-aware ISO-8601 문자열을 보내므로 그대로 파싱.
+  const date = new Date(isoString)
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')

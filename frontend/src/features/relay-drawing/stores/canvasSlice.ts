@@ -18,9 +18,11 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
 ) => ({
   activeRoundKey: 'face',
   selectedToolKey: 'pencil',
-  selectedColor: RELAY_COLORS[1],
+  // 검은색(팔레트 첫 색)을 기본으로 — 가장 무난하고 라인이 또렷하게 보인다.
+  selectedColor: RELAY_COLORS[0],
   strokeWidth: DEFAULT_STROKE_WIDTH,
   roundLines: DEFAULT_ROUND_LINES,
+  roundRedoStack: DEFAULT_ROUND_LINES,
 
   // 서버 배정 필드 — 초기값. 모두 fetch 응답으로 setAssignment가 채운다.
   canvasIndex: null,
@@ -73,11 +75,16 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
   setStrokeWidth: (strokeWidth) => set({ strokeWidth }),
 
   commitLine: (line) => {
-    const { activeRoundKey, roundLines } = get()
+    const { activeRoundKey, roundLines, roundRedoStack } = get()
     set({
       roundLines: {
         ...roundLines,
         [activeRoundKey]: [...roundLines[activeRoundKey], line],
+      },
+      // 새 라인이 그려지면 redo 스택은 무의미 — 비워둔다.
+      roundRedoStack: {
+        ...roundRedoStack,
+        [activeRoundKey]: [],
       },
     })
   },
@@ -102,20 +109,49 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
   },
 
   undoLine: () => {
-    const { activeRoundKey, roundLines } = get()
+    const { activeRoundKey, roundLines, roundRedoStack } = get()
+    const currentLines = roundLines[activeRoundKey]
+    if (currentLines.length === 0) return
+    const poppedLine = currentLines[currentLines.length - 1]
     set({
       roundLines: {
         ...roundLines,
-        [activeRoundKey]: roundLines[activeRoundKey].slice(0, -1),
+        [activeRoundKey]: currentLines.slice(0, -1),
+      },
+      roundRedoStack: {
+        ...roundRedoStack,
+        [activeRoundKey]: [...roundRedoStack[activeRoundKey], poppedLine],
+      },
+    })
+  },
+
+  redoLine: () => {
+    const { activeRoundKey, roundLines, roundRedoStack } = get()
+    const currentRedoStack = roundRedoStack[activeRoundKey]
+    if (currentRedoStack.length === 0) return
+    const restoredLine = currentRedoStack[currentRedoStack.length - 1]
+    set({
+      roundLines: {
+        ...roundLines,
+        [activeRoundKey]: [...roundLines[activeRoundKey], restoredLine],
+      },
+      roundRedoStack: {
+        ...roundRedoStack,
+        [activeRoundKey]: currentRedoStack.slice(0, -1),
       },
     })
   },
 
   clearRoundLines: () => {
-    const { activeRoundKey, roundLines } = get()
+    const { activeRoundKey, roundLines, roundRedoStack } = get()
     set({
       roundLines: {
         ...roundLines,
+        [activeRoundKey]: [],
+      },
+      // 전체 비우기는 되돌릴 수 없는 액션 — redo 스택도 같이 초기화.
+      roundRedoStack: {
+        ...roundRedoStack,
         [activeRoundKey]: [],
       },
     })
@@ -138,6 +174,7 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
       activeRoundKey: roundKey,
       // 새 배정이 들어오면 캔버스를 초기화한다 — 이전 라운드 라인은 다른 캔버스의 것이라 무의미.
       roundLines: { face: [], body: [], legs: [] },
+      roundRedoStack: { face: [], body: [], legs: [] },
       // 제출 상태 리셋
       isSubmitting: false,
       isSubmitted: false,

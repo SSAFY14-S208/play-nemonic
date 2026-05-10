@@ -96,6 +96,10 @@ export interface CanvasSlice {
   // 재트리거를 유발하므로, 트리거와 데이터 세팅을 분리한다.
   partFetchTrigger: number
 
+  // undo로 빠져나간 라인을 라운드별로 보관하는 redo 스택. 새 라인이 commit되면
+  // 비워진다(표준 redo 동작 — 새 액션 후엔 redo가 의미를 잃기 때문).
+  roundRedoStack: RelayRoundLines
+
   setActiveRoundKey: (roundKey: RelayRoundKey) => void
   // completeRound: 로컬 미리보기 용도(서버 연결 없이 라운드 전환).
   // 실제 게임 흐름에서는 submitDrawing → PART_STARTED → setAssignment 순서.
@@ -106,6 +110,7 @@ export interface CanvasSlice {
   commitLine: (line: RelayDrawLine) => void
   appendPointToLastLine: (point: RelayDrawPoint) => void
   undoLine: () => void
+  redoLine: () => void
   clearRoundLines: () => void
 
   // 서버 배정 적용 — getRelayRoomAssignmentMe 응답으로 캔버스/파트/힌트를 세팅하고

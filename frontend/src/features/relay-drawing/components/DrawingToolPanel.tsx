@@ -8,8 +8,8 @@ const DRAWING_TOOL_BUTTONS = [
   { key: "pencil", label: "연필", icon: "✏️", action: "select" },
   { key: "eraser", label: "지우개", icon: "🧽", action: "select" },
   { key: "bucket", label: "채우기", icon: "🪣", action: "select" },
-  { key: "undo", label: "되돌리기", icon: "↩️", action: "undo" },
-  { key: "redo", label: "다시 실행", icon: "↪️", action: "noop" },
+  { key: "undo", label: "되돌리기 (Ctrl+Z)", icon: "↩️", action: "undo" },
+  { key: "redo", label: "다시 실행 (Ctrl+Shift+Z)", icon: "↪️", action: "redo" },
   { key: "clear", label: "비우기", icon: "🗑️", action: "clear" },
 ] as const;
 
@@ -29,6 +29,7 @@ export default function DrawingToolPanel() {
   );
   const setStrokeWidth = useRelayDrawingStore((state) => state.setStrokeWidth);
   const undoLine = useRelayDrawingStore((state) => state.undoLine);
+  const redoLine = useRelayDrawingStore((state) => state.redoLine);
   const clearRoundLines = useRelayDrawingStore(
     (state) => state.clearRoundLines,
   );
@@ -52,11 +53,12 @@ export default function DrawingToolPanel() {
                     undoLine();
                     return;
                   }
-                  if (tool.action === "clear") {
-                    clearRoundLines();
+                  if (tool.action === "redo") {
+                    redoLine();
                     return;
                   }
-                  if (tool.action === "noop") {
+                  if (tool.action === "clear") {
+                    clearRoundLines();
                     return;
                   }
                   setSelectedToolKey(tool.key);
