@@ -117,7 +117,7 @@ pipeline {
                       -t "${IMAGE_LATEST}" \
                       frontend/
 
-                    docker images | grep "${IMAGE_REPO}" | head -5
+                    docker images | grep "${IMAGE_REPO}" | head -5 || true
                 '''
             }
         }
