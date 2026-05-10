@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 import { cn } from "@/shared/libs";
 
