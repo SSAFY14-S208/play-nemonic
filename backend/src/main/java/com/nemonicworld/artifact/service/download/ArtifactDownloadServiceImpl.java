@@ -64,13 +64,15 @@ public class ArtifactDownloadServiceImpl implements ArtifactDownloadService {
 
         String contentType = resultContentType(row.kind());
         String extension = extension(row.kind());
+        String shareToken = signedShareTokenIssuer.issueArtifactToken(row.artifactId(), row.kind(),
+            CHANNEL_QR_DOWNLOAD);
         String cacheObjectKey = "artifact-downloads/%s/result-qr.%s".formatted(artifactId, extension);
         String fileName = "nemonic-%s.%s".formatted(artifactId, extension);
 
         if (!artifactDownloadStorage.exists(cacheObjectKey)) {
             byte[] sourceBytes = artifactDownloadStorage.download(objectKey.trim());
             byte[] composedBytes = artifactQrComposer.compose(sourceContentType(row.kind()), sourceBytes,
-                qrUrl(userUuid, row));
+                qrUrl(shareToken));
             artifactDownloadStorage.upload(cacheObjectKey, composedBytes, contentType);
         }
 
@@ -106,10 +108,7 @@ public class ArtifactDownloadServiceImpl implements ArtifactDownloadService {
         }
     }
 
-    private String qrUrl(UUID userUuid, ArtifactImageUrlRow row) {
-        String shareToken = signedShareTokenIssuer.issueArtifactToken(userUuid, row.artifactId(), row.kind(),
-            CHANNEL_QR_DOWNLOAD);
-
+    private String qrUrl(String shareToken) {
         return UriComponentsBuilder.fromUriString(normalizeSiteUrl(shareProperties.siteUrl()))
             .path("/share/{shareToken}").build(shareToken).toString();
     }

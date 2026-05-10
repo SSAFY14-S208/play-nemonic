@@ -70,7 +70,7 @@ class ArtifactDownloadServiceImplTest {
         givenValidUser();
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
             .willReturn(Optional.of(relayRow("relay/results/a/original.png")));
-        given(signedShareTokenIssuer.issueArtifactToken(USER_UUID, ARTIFACT_ID, "relay_drawing", "QR_DOWNLOAD"))
+        given(signedShareTokenIssuer.issueArtifactToken(ARTIFACT_ID, "relay_drawing", "QR_DOWNLOAD"))
             .willReturn("signed-share-token");
         given(artifactDownloadStorage.exists(cacheKey)).willReturn(false);
         given(artifactDownloadStorage.download("relay/results/a/original.png")).willReturn(sourceBytes);
@@ -98,6 +98,8 @@ class ArtifactDownloadServiceImplTest {
         givenValidUser();
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
             .willReturn(Optional.of(flipbookRow("flipbook/results/a/result.gif")));
+        given(signedShareTokenIssuer.issueArtifactToken(ARTIFACT_ID, "flipbook", "QR_DOWNLOAD"))
+            .willReturn("signed-flipbook-token");
         given(artifactDownloadStorage.exists(cacheKey)).willReturn(true);
         given(artifactDownloadStorage.download(cacheKey)).willReturn(cachedBytes);
 

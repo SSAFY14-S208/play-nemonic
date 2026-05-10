@@ -31,12 +31,11 @@ public class SignedShareTokenIssuer {
         this.shareProperties = shareProperties;
     }
 
-    public String issueArtifactToken(UUID ownerUserUuid, UUID artifactId, String artifactKind, String channel) {
+    public String issueArtifactToken(UUID artifactId, String artifactKind, String channel) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("version", TOKEN_VERSION);
         payload.put("purpose", PURPOSE_ARTIFACT_SHARE);
         payload.put("artifactId", artifactId.toString());
-        payload.put("ownerUserId", ownerUserUuid.toString());
         payload.put("artifactKind", artifactKind);
         payload.put("channel", channel);
 
