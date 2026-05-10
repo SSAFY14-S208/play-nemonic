@@ -21,6 +21,15 @@ set -a
 source "$ENV_FILE"
 set +a
 
+case "$DEPLOY_TARGET" in
+  backend|frontend|ai|all)
+    ;;
+  *)
+    echo "[ERROR] DEPLOY_TARGET must be one of backend|frontend|ai|all (current: $DEPLOY_TARGET)" >&2
+    exit 1
+    ;;
+esac
+
 PROFILE_ARGS=""
 if [[ "$DEPLOY_TARGET" == "frontend" || "$DEPLOY_TARGET" == "all" ]]; then
   PROFILE_ARGS="--profile frontend"
@@ -42,6 +51,52 @@ echo "=========================================="
 echo ""
 echo "[공통] 컨테이너 상태"
 compose ps
+
+# ============================================================
+# AI moderation server check
+# ============================================================
+if [[ "$DEPLOY_TARGET" == "ai" || "$DEPLOY_TARGET" == "all" ]]; then
+  echo ""
+  echo "[ai 1/2] Moderation server healthy wait (max 7 minutes)"
+  MAX_WAIT=420
+  WAITED=0
+  AI_CONTAINER=""
+  while [[ $WAITED -lt $MAX_WAIT ]]; do
+    AI_CONTAINER=$(compose ps -q moderation-server 2>/dev/null | head -1)
+    if [[ -z "$AI_CONTAINER" ]]; then
+      echo "  moderation-server container not found yet..."
+      sleep 5; WAITED=$((WAITED + 5)); continue
+    fi
+    HEALTH=$(docker inspect --format='{{.State.Health.Status}}' "$AI_CONTAINER" 2>/dev/null || echo "unknown")
+    case "$HEALTH" in
+      healthy)
+        echo "  moderation-server healthy (waited: ${WAITED}s)"
+        break
+        ;;
+      unhealthy)
+        echo "  [ERROR] moderation-server unhealthy" >&2
+        docker logs --tail=80 "$AI_CONTAINER" >&2 || true
+        exit 1
+        ;;
+      *)
+        printf "  waiting... (${WAITED}s/${MAX_WAIT}s) status=${HEALTH}\r"
+        sleep 5; WAITED=$((WAITED + 5))
+        ;;
+    esac
+  done
+  if [[ $WAITED -ge $MAX_WAIT ]]; then
+    echo ""
+    echo "  [ERROR] moderation-server healthcheck timeout" >&2
+    if [[ -n "$AI_CONTAINER" ]]; then
+      docker logs --tail=80 "$AI_CONTAINER" >&2 || true
+    fi
+    exit 1
+  fi
+
+  echo ""
+  echo "[ai 2/2] Health endpoint check"
+  compose exec -T moderation-server python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=5).read().decode())'
+fi
 
 # ============================================================
 # Backend 검증

@@ -280,12 +280,20 @@ services:
       GMS_BASE_URL: ${GMS_BASE_URL:-}
       GMS_CONNECT_TIMEOUT_MS: ${GMS_CONNECT_TIMEOUT_MS:-}
       GMS_READ_TIMEOUT_MS: ${GMS_READ_TIMEOUT_MS:-}
+      COMMUNITY_MODERATION_ENABLED: ${COMMUNITY_MODERATION_ENABLED:-true}
+      COMMUNITY_MODERATION_BASE_URL: ${COMMUNITY_MODERATION_BASE_URL:-http://moderation-server:8000}
+      COMMUNITY_MODERATION_CHECK_PATH: ${COMMUNITY_MODERATION_CHECK_PATH:-/check}
+      COMMUNITY_MODERATION_CONNECT_TIMEOUT_MS: ${COMMUNITY_MODERATION_CONNECT_TIMEOUT_MS:-1000}
+      COMMUNITY_MODERATION_READ_TIMEOUT_MS: ${COMMUNITY_MODERATION_READ_TIMEOUT_MS:-10000}
+      COMMUNITY_MODERATION_FAIL_CLOSED: ${COMMUNITY_MODERATION_FAIL_CLOSED:-false}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      moderation-server:
         condition: service_healthy
     expose:
       - "8080"
@@ -297,6 +305,40 @@ services:
       timeout: 5s
       retries: 10
       start_period: 60s
+    networks:
+      - cicd-net
+
+  # ============================================================
+  # AI Moderation Server (FastAPI)
+  # Registry에서 pull
+  # 이미지: localhost:5000/nemonic/moderation-server:latest
+  # ============================================================
+  moderation-server:
+    image: localhost:5000/nemonic/moderation-server:latest
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+      HF_HOME: /root/.cache/huggingface
+      MODERATION_MODEL_NAME: ${MODERATION_MODEL_NAME:-smilegate-ai/kor_unsmile}
+      MODERATION_THRESHOLD: ${MODERATION_THRESHOLD:-0.5}
+      MODERATION_MODEL_MAX_LENGTH: ${MODERATION_MODEL_MAX_LENGTH:-512}
+      MODERATION_OCR_ENABLED: ${MODERATION_OCR_ENABLED:-false}
+      MODERATION_GOOGLE_VISION_API_KEY: ${MODERATION_GOOGLE_VISION_API_KEY:-}
+      MODERATION_GOOGLE_VISION_ENDPOINT: ${MODERATION_GOOGLE_VISION_ENDPOINT:-https://vision.googleapis.com/v1/images:annotate}
+      MODERATION_GOOGLE_VISION_FEATURE_TYPE: ${MODERATION_GOOGLE_VISION_FEATURE_TYPE:-DOCUMENT_TEXT_DETECTION}
+      MODERATION_GOOGLE_VISION_LANGUAGE_HINT: ${MODERATION_GOOGLE_VISION_LANGUAGE_HINT:-ko}
+      MODERATION_GOOGLE_VISION_TIMEOUT_SECONDS: ${MODERATION_GOOGLE_VISION_TIMEOUT_SECONDS:-5.0}
+    expose:
+      - "8000"
+    volumes:
+      - moderation_hf_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 180s
     networks:
       - cicd-net
 
@@ -332,6 +374,7 @@ volumes:
   minio_data:
   jenkins_home:
   registry_data:
+  moderation_hf_cache:
 
 networks:
   cicd-net:

@@ -3,7 +3,7 @@
 # 배포 실행 스크립트 (Registry 기반)
 #
 # 동작:
-# - DEPLOY_TARGET: backend / frontend / all
+# - DEPLOY_TARGET: backend / frontend / ai / all
 # - 이미지는 이미 Jenkins가 Registry에 push 완료된 상태
 # - 여기서는 pull + 컨테이너 재시작만
 # - Jenkins, nginx, registry는 절대 건드리지 않음
@@ -19,6 +19,7 @@ DEPLOY_TARGET="${DEPLOY_TARGET:-backend}"
 # 배포 대상 서비스 그룹
 BACKEND_SERVICES=(app)
 FRONTEND_SERVICES=(frontend)
+AI_SERVICES=(moderation-server)
 
 case "$DEPLOY_TARGET" in
   backend)
@@ -27,11 +28,14 @@ case "$DEPLOY_TARGET" in
   frontend)
     DEPLOY_SERVICES=("${FRONTEND_SERVICES[@]}")
     ;;
+  ai)
+    DEPLOY_SERVICES=("${AI_SERVICES[@]}")
+    ;;
   all)
-    DEPLOY_SERVICES=("${BACKEND_SERVICES[@]}" "${FRONTEND_SERVICES[@]}")
+    DEPLOY_SERVICES=("${AI_SERVICES[@]}" "${BACKEND_SERVICES[@]}" "${FRONTEND_SERVICES[@]}")
     ;;
   *)
-    echo "[ERROR] DEPLOY_TARGET은 backend|frontend|all 중 하나여야 합니다." >&2
+    echo "[ERROR] DEPLOY_TARGET must be one of backend|frontend|ai|all" >&2
     exit 1
     ;;
 esac
