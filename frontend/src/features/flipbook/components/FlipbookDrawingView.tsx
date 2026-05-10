@@ -53,7 +53,7 @@ const TOOL_ITEMS: {
 
 interface FlipbookDrawingViewProps {
   activeRoundIndex: number
-  roundCount: number
+  roundCount: number | null
   remainingSeconds: number
   currentParticipant: FlipbookParticipant
   isSubmitting: boolean
@@ -113,6 +113,7 @@ export default function FlipbookDrawingView({
   const [isOnionSkinVisible, setIsOnionSkinVisible] = useState(true)
   const isConnectionUnstable =
     connectionStatus === 'reconnecting' || connectionStatus === 'disconnected'
+  const displayRoundCount = Math.max(roundCount ?? activeRoundIndex + 1, activeRoundIndex + 1, 1)
   const isWaitingForNextRound =
     (isRoundSubmitted || submittedRoundIndex === activeRoundIndex) && !isSubmitting
   const drawingSubmissionState: FlipbookDrawingSubmissionState = isSubmitting
@@ -199,7 +200,7 @@ export default function FlipbookDrawingView({
         <div className="absolute left-0 top-0 h-[1024px] w-[1536px] origin-top-left scale-[0.8]">
           <TopStatusBar
             activeRoundIndex={activeRoundIndex}
-            roundCount={roundCount}
+            roundCount={displayRoundCount}
             remainingSeconds={remainingSeconds}
             instructionText={instructionText}
           />
@@ -254,7 +255,7 @@ export default function FlipbookDrawingView({
             onClearDrawing={onClearDrawing}
           />
 
-          <ProgressRail activeRoundIndex={activeRoundIndex} roundCount={roundCount} />
+          <ProgressRail activeRoundIndex={activeRoundIndex} roundCount={displayRoundCount} />
 
           <button
             type="button"

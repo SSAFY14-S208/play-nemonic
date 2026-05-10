@@ -40,6 +40,7 @@ export default function FlipbookPage() {
           isBusy={flipbook.isBusy}
           errorMessage={flipbook.errorMessage}
           onSelectTimeLimit={flipbook.selectTimeLimit}
+          onSelectRoundCount={flipbook.selectRoundCount}
           onStartGame={flipbook.startGame}
         />
       )}
@@ -47,7 +48,7 @@ export default function FlipbookPage() {
       {flipbook.currentStep === 'drawing' && (
         <FlipbookDrawingView
           activeRoundIndex={flipbook.activeRoundIndex}
-          roundCount={flipbook.roundCount}
+          roundCount={flipbook.drawingRoundCount}
           remainingSeconds={flipbook.remainingSeconds}
           currentParticipant={flipbook.currentParticipant}
           isSubmitting={flipbook.isSubmitting}

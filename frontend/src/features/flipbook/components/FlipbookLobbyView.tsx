@@ -25,13 +25,14 @@ interface FlipbookLobbyViewProps {
   participantCount: number
   maxParticipants: number
   selectedTimeLimitSeconds: number
-  roundCount: number
+  roundCount: number | null
   connectionStatus: FlipbookConnectionStatus
   canStartGame: boolean
   isHost: boolean
   isBusy: boolean
   errorMessage: string | null
   onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
+  onSelectRoundCount: (roundCount: number) => void
   onStartGame: () => void
 }
 
@@ -47,13 +48,15 @@ const SHARE_ACTIONS: { key: ShareActionKey; label: string; Icon: LucideIcon }[] 
   { key: 'qrCode', label: 'QR 코드', Icon: QrCode },
 ]
 type ShareActionKey = 'copyLink' | 'qrCode'
-const VISIBLE_PARTICIPANT_CAPACITY = 6
+const VISIBLE_PARTICIPANT_SLOT_LIMIT = 6
+const MINIMUM_FRAME_COUNT_PER_FLIPBOOK = 8
 
 export default function FlipbookLobbyView({
   currentParticipant,
   participants,
   roomCode,
   participantCount,
+  maxParticipants,
   selectedTimeLimitSeconds,
   roundCount,
   connectionStatus,
@@ -62,18 +65,30 @@ export default function FlipbookLobbyView({
   isBusy,
   errorMessage,
   onSelectTimeLimit,
+  onSelectRoundCount,
   onStartGame,
 }: FlipbookLobbyViewProps) {
   const sessionParticipantName = currentParticipant.name.replace(' (나)', '')
-  const displayedParticipants = participants.slice(0, VISIBLE_PARTICIPANT_CAPACITY)
-  const visibleParticipantCount = Math.min(participantCount, VISIBLE_PARTICIPANT_CAPACITY)
+  const displayedParticipants = participants.slice(0, VISIBLE_PARTICIPANT_SLOT_LIMIT)
+  const visibleParticipantCount = Math.min(participantCount, maxParticipants)
   const waitingSlots = Array.from(
-    { length: Math.max(0, VISIBLE_PARTICIPANT_CAPACITY - displayedParticipants.length) },
+    {
+      length: Math.max(
+        0,
+        Math.min(maxParticipants, VISIBLE_PARTICIPANT_SLOT_LIMIT) - displayedParticipants.length,
+      ),
+    },
     (_, waitingSlotIndex) => `waiting-${waitingSlotIndex}`,
   )
   const isConnectionReady = connectionStatus === 'connected'
   const startGameButtonDisabled = !isHost || !canStartGame || !isConnectionReady || isBusy
   const startGameButtonLabel = !isHost ? '게임 대기중' : isBusy ? '시작 중' : '게임 시작!'
+  const roundControlDisabled = !isHost || roundCount === null || isBusy
+  const minimumRoundCount = Math.max(
+    1,
+    Math.ceil(MINIMUM_FRAME_COUNT_PER_FLIPBOOK / Math.max(2, participantCount)),
+  )
+  const canDecreaseRoundCount = !roundControlDisabled && roundCount > minimumRoundCount
 
   return (
     <section className="relative grid h-screen place-items-center overflow-hidden bg-[#fff5ed] text-[#684834]">
@@ -138,7 +153,7 @@ export default function FlipbookLobbyView({
                 참여자
               </h2>
               <span className="h1-b text-[#ff7182]">
-                {visibleParticipantCount} / {VISIBLE_PARTICIPANT_CAPACITY}
+                {visibleParticipantCount} / {maxParticipants}
               </span>
             </div>
 
@@ -191,23 +206,29 @@ export default function FlipbookLobbyView({
                   라운드
                 </h3>
                 <div className="mt-7 flex items-center justify-between gap-5">
-                  <span className="h3-b text-[#9a7f6d]">최소 {roundCount}</span>
+                  <span className="h3-b text-[#9a7f6d]">설정값</span>
                   <div className="flex items-center gap-6">
                     <button
                       type="button"
-                      disabled
-                      className="grid size-16 place-items-center rounded-full bg-[#fff2e9] text-[#80543b] shadow-[0_7px_14px_rgb(155_93_58_/_12%)]"
+                      disabled={!canDecreaseRoundCount}
+                      onClick={() => {
+                        if (roundCount !== null) onSelectRoundCount(roundCount - 1)
+                      }}
+                      className="grid size-16 place-items-center rounded-full bg-[#fff2e9] text-[#80543b] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] disabled:cursor-not-allowed disabled:opacity-50"
                       aria-label="라운드 감소"
                     >
                       <Minus className="size-7" strokeWidth={3} aria-hidden />
                     </button>
                     <span className="text-[48px] font-black leading-none text-[#684834]">
-                      {roundCount}
+                      {roundCount ?? '-'}
                     </span>
                     <button
                       type="button"
-                      disabled
-                      className="grid size-16 place-items-center rounded-full bg-[#fff0ed] text-[#ff7182] shadow-[0_7px_14px_rgb(155_93_58_/_12%)]"
+                      disabled={roundControlDisabled}
+                      onClick={() => {
+                        if (roundCount !== null) onSelectRoundCount(roundCount + 1)
+                      }}
+                      className="grid size-16 place-items-center rounded-full bg-[#fff0ed] text-[#ff7182] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] disabled:cursor-not-allowed disabled:opacity-50"
                       aria-label="라운드 증가"
                     >
                       <Plus className="size-8" strokeWidth={3} aria-hidden />

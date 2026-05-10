@@ -50,7 +50,6 @@ import { useFlipbookTimer } from './useFlipbookTimer'
 
 const FLIPBOOK_FILE_CONTENT_TYPE = 'image/png'
 const FLIPBOOK_FILE_PURPOSE = 'FLIPBOOK'
-const MINIMUM_FLIPBOOK_FRAME_COUNT = 8
 const RESULT_POLLING_INTERVAL_MS = 1500
 const ASSIGNMENT_RETRY_DELAYS_MS = [1000, 2000, 3000, 5000]
 
@@ -62,10 +61,6 @@ function isFlipbookTimeLimitSeconds(seconds: number): seconds is FlipbookTimeLim
 
 function toFlipbookTimeLimitSeconds(seconds: number): FlipbookTimeLimitSeconds {
   return isFlipbookTimeLimitSeconds(seconds) ? seconds : FLIPBOOK_TIME_LIMITS_SECONDS[1]
-}
-
-function getMinimumRoundCount(participantCount: number) {
-  return Math.max(1, Math.ceil(MINIMUM_FLIPBOOK_FRAME_COUNT / Math.max(1, participantCount)))
 }
 
 function toParticipant(
@@ -95,14 +90,42 @@ function createImageLineFromUrl(id: string, imageUrl: string): DrawingLine {
 function createPreviousFrameLinesFromAssignment(
   assignment: FlipbookAssignmentResponse,
 ): DrawingLine[] {
-  if (!assignment.hint?.url || assignment.hint.empty) return []
+  const hint = assignment.hint
+  const hintImageUrl = hint?.imageUrl ?? hint?.url
+  if (!hint || !hintImageUrl || hint.empty) return []
 
   return [
     createImageLineFromUrl(
-      `flipbook-hint-${assignment.hint.flipbookIndex}-${assignment.hint.frameIndex}-${assignment.hint.round}`,
-      assignment.hint.url,
+      `flipbook-hint-${hint.flipbookIndex}-${hint.frameIndex}-${hint.round}`,
+      hintImageUrl,
     ),
   ]
+}
+
+function getServerRoundCount({
+  roomState,
+  fallback,
+}: {
+  roomState?: FlipbookRoomStateResponse | null
+  fallback?: number | null
+}) {
+  return roomState?.totalRounds ?? fallback ?? null
+}
+
+function getRoomParticipantCount(roomState: FlipbookRoomStateResponse | null) {
+  if (!roomState) return 1
+
+  return Math.max(1, roomState.participantCount, roomState.participants.length)
+}
+
+function getDrawingTurnCount(cycleRoundCount: number | null, participantCount: number) {
+  if (cycleRoundCount === null) return null
+
+  return cycleRoundCount * Math.max(1, participantCount)
+}
+
+function getAssignmentKey(assignment: FlipbookAssignmentResponse) {
+  return `${assignment.currentRound}:${assignment.flipbookIndex}:${assignment.frameIndex}`
 }
 
 function getResultFrames(result: FlipbookResultItemResponse | null): FlipbookFrame[] {
@@ -328,7 +351,11 @@ export function useFlipbook() {
   const [previousFrameLines, setPreviousFrameLines] = useState<DrawingLine[]>([])
   const [selectedTimeLimitSeconds, setSelectedTimeLimitSeconds] =
     useState<FlipbookTimeLimitSeconds>(FLIPBOOK_TIME_LIMITS_SECONDS[1])
-  const [roundCount, setRoundCount] = useState(1)
+  const [roundCount, setRoundCount] = useState<number | null>(null)
+  const [startedParticipantCount, setStartedParticipantCount] = useState<number | null>(null)
+  const [submittedAssignmentKeys, setSubmittedAssignmentKeys] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [resultItems, setResultItems] = useState<FlipbookResultItemResponse[]>([])
   const [activeResultIndex, setActiveResultIndex] = useState(0)
   const [isResultReady, setIsResultReady] = useState(false)
@@ -337,13 +364,18 @@ export function useFlipbook() {
   const [isBusy, setIsBusy] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
+  const [timeUpSubmitRequest, setTimeUpSubmitRequest] = useState<{
+    roomCode: string
+    round: number | null
+    occurredAt: string
+  } | null>(null)
   const isCompletingRoundRef = useRef(false)
   const linkRoomCodeHandledRef = useRef(false)
   const assignmentRequestSequenceRef = useRef(0)
+  const roundTransitionFallbackTimerRef = useRef<number | null>(null)
   const pendingNicknameActionRef = useRef<FlipbookNicknamePendingAction | null>(null)
 
-  const participantCount = roomState?.participantCount ?? 1
-  const minimumRoundCount = getMinimumRoundCount(participantCount)
+  const participantCount = getRoomParticipantCount(roomState)
   const participants = useMemo(
     () =>
       roomState?.participants.map((participant) => toParticipant(participant, userUuid)) ?? [
@@ -363,10 +395,18 @@ export function useFlipbook() {
   )
   const displayedParticipant =
     participants.find((participant) => participant.userUuid === userUuid) ?? currentParticipant
+  const cycleRoundCount = getServerRoundCount({
+    roomState,
+    fallback: roundCount ?? assignment?.totalRounds ?? null,
+  })
+  const drawingParticipantCount = startedParticipantCount ?? participantCount
+  const drawingRoundCount = getDrawingTurnCount(cycleRoundCount, drawingParticipantCount)
   const activeRoundIndex = Math.max(0, (assignment?.currentRound ?? roomState?.currentRound ?? 1) - 1)
   const canStartGame = roomState?.viewer.canStart === true
   const isHost = roomState?.viewer.host === true
-  const isRoundSubmitted = assignment?.assignmentStatus !== undefined && assignment.assignmentStatus !== 'PENDING'
+  const activeAssignmentKey = assignment ? getAssignmentKey(assignment) : null
+  const isRoundSubmitted =
+    activeAssignmentKey !== null && submittedAssignmentKeys.has(activeAssignmentKey)
   const activeResult = resultItems[activeResultIndex] ?? resultItems[0] ?? null
   const resultFrames = useMemo(() => getResultFrames(activeResult), [activeResult])
   const resultPlayback = useFlipbookResultPlayback({
@@ -385,19 +425,37 @@ export function useFlipbook() {
     drawingBoard.replaceLines([])
   }, [drawingBoard])
 
+  const clearRoundTransitionFallbackTimer = useCallback(() => {
+    if (roundTransitionFallbackTimerRef.current === null) return
+    window.clearTimeout(roundTransitionFallbackTimerRef.current)
+    roundTransitionFallbackTimerRef.current = null
+  }, [])
+
   const refreshRoom = useCallback(
-    async (targetRoomCode = roomCode) => {
+    async (
+      targetRoomCode = roomCode,
+      options: {
+        syncStep?: boolean
+      } = {},
+    ) => {
       if (!targetRoomCode) return null
       const nextRoomState = await getFlipbookRoom(targetRoomCode)
       setRoomState(nextRoomState)
       setSelectedTimeLimitSeconds(toFlipbookTimeLimitSeconds(nextRoomState.timeLimitSeconds))
-      setRoundCount(nextRoomState.totalRounds ?? getMinimumRoundCount(nextRoomState.participantCount))
+      setRoundCount(nextRoomState.totalRounds)
+      setStartedParticipantCount((currentParticipantCount) => {
+        if (nextRoomState.status === 'WAITING') return null
+        if (nextRoomState.status !== 'PLAYING') return currentParticipantCount
 
-      if (nextRoomState.status === 'WAITING') {
+        return currentParticipantCount ?? getRoomParticipantCount(nextRoomState)
+      })
+      const shouldSyncStep = options.syncStep ?? true
+
+      if (shouldSyncStep && nextRoomState.status === 'WAITING') {
         setCurrentStep('lobby')
-      } else if (nextRoomState.status === 'PLAYING') {
+      } else if (shouldSyncStep && nextRoomState.status === 'PLAYING') {
         setCurrentStep('drawing')
-      } else if (nextRoomState.status === 'FINISHED') {
+      } else if (shouldSyncStep && nextRoomState.status === 'FINISHED') {
         setCurrentStep('result')
       }
 
@@ -422,7 +480,9 @@ export function useFlipbook() {
 
           setAssignment(nextAssignment)
           setSelectedTimeLimitSeconds(toFlipbookTimeLimitSeconds(nextAssignment.timeLimitSeconds))
-          setRoundCount(nextAssignment.totalRounds)
+          setRoundCount((currentRoundCount) =>
+            roomState?.totalRounds ?? currentRoundCount ?? nextAssignment.totalRounds,
+          )
           resetDrawingRound()
           setPreviousFrameLines(createPreviousFrameLinesFromAssignment(nextAssignment))
 
@@ -436,7 +496,7 @@ export function useFlipbook() {
 
       return null
     },
-    [resetDrawingRound, roomCode],
+    [resetDrawingRound, roomCode, roomState?.totalRounds],
   )
 
   const fetchResult = useCallback(
@@ -491,53 +551,110 @@ export function useFlipbook() {
   )
 
   const handleSubmittedFrameProgress = useCallback(
-    async (targetRoomCode: string, submittedFrame: Partial<FlipbookFrameSubmitResponse>) => {
-      const nextRoomState = await refreshRoom(targetRoomCode)
-
-      if (
-        submittedFrame.allRoundsCompleted ||
-        submittedFrame.roomStatus === 'FINISHED' ||
-        nextRoomState?.status === 'FINISHED'
-      ) {
-        await handleCompletedRounds(targetRoomCode)
-        return
-      }
-
-      if (submittedFrame.advanced || submittedFrame.nextRound) {
-        await fetchAssignment(targetRoomCode, submittedFrame.nextRound ?? undefined)
-        setCurrentStep('drawing')
-      }
+    async (targetRoomCode: string) => {
+      return refreshRoom(targetRoomCode, { syncStep: false })
     },
-    [fetchAssignment, handleCompletedRounds, refreshRoom],
+    [refreshRoom],
+  )
+
+  const scheduleRoundTransitionFallback = useCallback(
+    (targetRoomCode: string, submittedFrame: Partial<FlipbookFrameSubmitResponse>) => {
+      const shouldAdvanceRound =
+        submittedFrame.advanced ||
+        submittedFrame.currentRoundCompleted ||
+        submittedFrame.allRoundsCompleted
+      if (!shouldAdvanceRound) return
+
+      clearRoundTransitionFallbackTimer()
+      roundTransitionFallbackTimerRef.current = window.setTimeout(() => {
+        roundTransitionFallbackTimerRef.current = null
+
+        if (submittedFrame.allRoundsCompleted || submittedFrame.roomStatus === 'FINISHED') {
+          void handleCompletedRounds(targetRoomCode)
+          return
+        }
+
+        void refreshPlayingRound(targetRoomCode, submittedFrame.nextRound ?? undefined)
+      }, 500)
+    },
+    [clearRoundTransitionFallbackTimer, handleCompletedRounds, refreshPlayingRound],
   )
 
   const handleRealtimeEvent = useCallback(
     (event: FlipbookRealtimeEvent) => {
       void (async () => {
         if (event.type === 'PARTICIPANT_CONNECTED' || event.type === 'PARTICIPANT_DISCONNECTED') {
-          await refreshRoom(event.roomCode)
+          await refreshRoom(event.roomCode, { syncStep: false })
           return
         }
 
         if (event.type === 'SETTINGS_CHANGED') {
-          await refreshRoom(event.roomCode)
+          await refreshRoom(event.roomCode, { syncStep: false })
           return
         }
 
         if (event.type === 'GAME_STARTED') {
+          clearRoundTransitionFallbackTimer()
           await refreshPlayingRound(event.roomCode)
           return
         }
 
         if (event.type === 'ROUND_STARTED') {
           const roundStartedData = event.data as { round?: number }
+          clearRoundTransitionFallbackTimer()
+          setTimeUpSubmitRequest(null)
+          setIsSubmitting(false)
           await refreshPlayingRound(event.roomCode, roundStartedData.round)
+          return
+        }
+
+        if (event.type === 'ROUND_TIME_UP') {
+          const roundTimeUpData = event.data as { round?: number }
+          const currentAssignmentSubmitted =
+            assignment !== null && submittedAssignmentKeys.has(getAssignmentKey(assignment))
+
+          if (currentAssignmentSubmitted) {
+            setTimeUpSubmitRequest(null)
+            setIsSubmitting(false)
+            return
+          }
+
+          if (
+            assignment &&
+            roundTimeUpData.round !== undefined &&
+            assignment.currentRound !== roundTimeUpData.round
+          ) {
+            return
+          }
+
+          setIsSubmitting(true)
+          setTimeUpSubmitRequest({
+            roomCode: event.roomCode,
+            round: roundTimeUpData.round ?? null,
+            occurredAt: event.occurredAt,
+          })
           return
         }
 
         if (event.type === 'FRAME_SUBMITTED') {
           const submittedFrame = event.data as Partial<FlipbookFrameSubmitResponse>
-          await handleSubmittedFrameProgress(event.roomCode, submittedFrame)
+          const nextRoomState = await handleSubmittedFrameProgress(event.roomCode)
+          if (nextRoomState?.status === 'FINISHED') {
+            await handleCompletedRounds(event.roomCode)
+            return
+          }
+
+          if (
+            assignment &&
+            nextRoomState?.status === 'PLAYING' &&
+            nextRoomState.currentRound !== null &&
+            nextRoomState.currentRound > assignment.currentRound
+          ) {
+            await refreshPlayingRound(event.roomCode, nextRoomState.currentRound)
+            return
+          }
+
+          scheduleRoundTransitionFallback(event.roomCode, submittedFrame)
           return
         }
 
@@ -548,6 +665,15 @@ export function useFlipbook() {
             assignmentStatus?: FlipbookAssignmentResponse['assignmentStatus']
           }
           if (autoSubmittedFrame.userUuid === userUuid) {
+            setSubmittedAssignmentKeys((currentKeys) => {
+              if (!assignment || assignment.currentRound !== autoSubmittedFrame.round) {
+                return currentKeys
+              }
+
+              const nextKeys = new Set(currentKeys)
+              nextKeys.add(getAssignmentKey(assignment))
+              return nextKeys
+            })
             setAssignment((currentAssignment) => {
               if (!currentAssignment || currentAssignment.currentRound !== autoSubmittedFrame.round) {
                 return currentAssignment
@@ -559,11 +685,14 @@ export function useFlipbook() {
               }
             })
           }
-          await refreshRoom(event.roomCode)
+          await refreshRoom(event.roomCode, { syncStep: false })
           return
         }
 
         if (event.type === 'ALL_ROUNDS_COMPLETED') {
+          clearRoundTransitionFallbackTimer()
+          setTimeUpSubmitRequest(null)
+          setIsSubmitting(false)
           await handleCompletedRounds(event.roomCode)
           return
         }
@@ -577,12 +706,22 @@ export function useFlipbook() {
           setCurrentStep('booth')
           setRoomState(null)
           setRoomCode(null)
+          setRoundCount(null)
+          setStartedParticipantCount(null)
+          setSubmittedAssignmentKeys(new Set())
+          clearRoundTransitionFallbackTimer()
           setErrorMessage('방이 종료되었습니다.')
           return
         }
 
         if (event.type === 'KICKED_FROM_ROOM') {
           setCurrentStep('booth')
+          setRoomState(null)
+          setRoomCode(null)
+          setRoundCount(null)
+          setStartedParticipantCount(null)
+          setSubmittedAssignmentKeys(new Set())
+          clearRoundTransitionFallbackTimer()
           setErrorMessage('방에서 내보내졌습니다.')
           return
         }
@@ -598,7 +737,17 @@ export function useFlipbook() {
         }
       })()
     },
-    [handleCompletedRounds, handleSubmittedFrameProgress, refreshPlayingRound, refreshRoom, userUuid],
+    [
+      assignment,
+      clearRoundTransitionFallbackTimer,
+      handleCompletedRounds,
+      handleSubmittedFrameProgress,
+      refreshPlayingRound,
+      refreshRoom,
+      scheduleRoundTransitionFallback,
+      submittedAssignmentKeys,
+      userUuid,
+    ],
   )
 
   const realtime = useFlipbookRealtimeConnection({
@@ -607,15 +756,15 @@ export function useFlipbook() {
     onEvent: handleRealtimeEvent,
   })
 
+  const handleLocalTimerExpired = useCallback(() => {}, [])
+
   const timer = useFlipbookTimer({
     activeRoundIndex,
     currentStep,
     deadlineAt: assignment?.roundDeadlineAt ?? roomState?.roundDeadlineAt ?? null,
     initialRemainingSeconds: assignment?.remainingSeconds ?? null,
     selectedTimeLimitSeconds,
-    onTimeExpired: () => {
-      void completeRound()
-    },
+    onTimeExpired: handleLocalTimerExpired,
   })
 
   const uploadFrame = useCallback(
@@ -754,27 +903,31 @@ export function useFlipbook() {
 
     try {
       const startedRoom = await postFlipbookRoomStart(roomCode)
-      if (startedRoom.totalRounds && startedRoom.totalRounds !== participantCount) {
-        console.warn('플립북 시작 라운드 수와 참여자 수가 일치하지 않습니다.', {
-          totalRounds: startedRoom.totalRounds,
-          participantCount,
-        })
-      }
       setRoomState(startedRoom)
       setSelectedTimeLimitSeconds(toFlipbookTimeLimitSeconds(startedRoom.timeLimitSeconds))
-      setRoundCount(startedRoom.totalRounds ?? minimumRoundCount)
-      await fetchAssignment(roomCode, startedRoom.currentRound ?? undefined)
-      setCurrentStep('drawing')
+      setRoundCount(startedRoom.totalRounds)
+      setStartedParticipantCount(getRoomParticipantCount(startedRoom))
+      setSubmittedAssignmentKeys(new Set())
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '게임 시작에 실패했습니다.')
     } finally {
       setIsBusy(false)
     }
-  }, [canStartGame, fetchAssignment, isBusy, minimumRoundCount, participantCount, roomCode])
+  }, [canStartGame, isBusy, roomCode])
 
-  const completeRound = useCallback(async () => {
+  const completeRound = useCallback(async ({
+    keepSubmittingUntilServerAdvance = false,
+  }: {
+    keepSubmittingUntilServerAdvance?: boolean
+  } = {}) => {
     if (!roomCode || !assignment || isCompletingRoundRef.current) return
-    if (assignment.assignmentStatus !== 'PENDING') return
+    const assignmentKey = getAssignmentKey(assignment)
+    if (submittedAssignmentKeys.has(assignmentKey)) {
+      if (!keepSubmittingUntilServerAdvance) {
+        setIsSubmitting(false)
+      }
+      return
+    }
 
     isCompletingRoundRef.current = true
     setIsSubmitting(true)
@@ -794,15 +947,72 @@ export function useFlipbook() {
           ? { ...currentAssignment, assignmentStatus: submittedFrame.assignmentStatus }
           : currentAssignment,
       )
-      await handleSubmittedFrameProgress(roomCode, submittedFrame)
+      setSubmittedAssignmentKeys((currentKeys) => {
+        const nextKeys = new Set(currentKeys)
+        nextKeys.add(assignmentKey)
+        return nextKeys
+      })
+      const nextRoomState = await handleSubmittedFrameProgress(roomCode)
+      if (nextRoomState?.status === 'FINISHED') {
+        await handleCompletedRounds(roomCode)
+        return
+      }
+
+      if (
+        nextRoomState?.status === 'PLAYING' &&
+        nextRoomState.currentRound !== null &&
+        nextRoomState.currentRound > submittedFrame.round
+      ) {
+        await refreshPlayingRound(roomCode, nextRoomState.currentRound)
+        return
+      }
+
+      scheduleRoundTransitionFallback(roomCode, submittedFrame)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '프레임 제출에 실패했습니다.')
-      await refreshRoom(roomCode)
+      if (!keepSubmittingUntilServerAdvance) {
+        await refreshRoom(roomCode)
+      }
     } finally {
       isCompletingRoundRef.current = false
-      setIsSubmitting(false)
+      if (!keepSubmittingUntilServerAdvance) {
+        setIsSubmitting(false)
+        setTimeUpSubmitRequest(null)
+      }
     }
-  }, [assignment, drawingBoard.lines, handleSubmittedFrameProgress, refreshRoom, roomCode, uploadFrame])
+  }, [
+    assignment,
+    drawingBoard.lines,
+    handleCompletedRounds,
+    handleSubmittedFrameProgress,
+    refreshPlayingRound,
+    refreshRoom,
+    roomCode,
+    scheduleRoundTransitionFallback,
+    submittedAssignmentKeys,
+    uploadFrame,
+  ])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      if (!timeUpSubmitRequest || !assignment) return
+      if (timeUpSubmitRequest.roomCode !== roomCode) return
+      if (timeUpSubmitRequest.round !== null && timeUpSubmitRequest.round !== assignment.currentRound) {
+        return
+      }
+
+      await completeRound({ keepSubmittingUntilServerAdvance: true })
+      if (!cancelled) {
+        setTimeUpSubmitRequest(null)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [assignment, completeRound, roomCode, timeUpSubmitRequest])
 
   const selectTimeLimit = useCallback(
     (timeLimitSeconds: FlipbookTimeLimitSeconds) => {
@@ -811,10 +1021,30 @@ export function useFlipbook() {
       setSelectedTimeLimitSeconds(timeLimitSeconds)
       void (async () => {
         try {
-          const updatedRoom = await patchFlipbookRoomSettings(roomCode, timeLimitSeconds)
+          const updatedRoom = await patchFlipbookRoomSettings(roomCode, { timeLimitSeconds })
           setRoomState(updatedRoom)
+          setRoundCount(updatedRoom.totalRounds)
         } catch (error) {
           setErrorMessage(error instanceof Error ? error.message : '제한 시간 변경에 실패했습니다.')
+        }
+      })()
+    },
+    [isHost, roomCode],
+  )
+
+  const selectRoundCount = useCallback(
+    (nextRoundCount: number) => {
+      if (!roomCode || !isHost || nextRoundCount < 1) return
+
+      void (async () => {
+        try {
+          const updatedRoom = await patchFlipbookRoomSettings(roomCode, {
+            roundCount: nextRoundCount,
+          })
+          setRoomState(updatedRoom)
+          setRoundCount(updatedRoom.totalRounds)
+        } catch (error) {
+          setErrorMessage(error instanceof Error ? error.message : '라운드 수 변경에 실패했습니다.')
         }
       })()
     },
@@ -838,16 +1068,24 @@ export function useFlipbook() {
 
       setRoomCode(null)
       setRoomState(null)
+      setRoundCount(null)
+      setStartedParticipantCount(null)
+      setSubmittedAssignmentKeys(new Set())
+      clearRoundTransitionFallbackTimer()
       clearDrawingRound()
       setCurrentStep('booth')
     })()
-  }, [clearDrawingRound, roomCode, roomState?.status])
+  }, [clearDrawingRound, clearRoundTransitionFallbackTimer, roomCode, roomState?.status])
 
   const selectStep = useCallback(
     (step: FlipbookStep) => {
       if (step === 'booth') {
         setRoomCode(null)
         setRoomState(null)
+        setRoundCount(null)
+        setStartedParticipantCount(null)
+        setSubmittedAssignmentKeys(new Set())
+        clearRoundTransitionFallbackTimer()
         clearDrawingRound()
         setResultItems([])
         setActiveResultIndex(0)
@@ -864,7 +1102,7 @@ export function useFlipbook() {
 
       setCurrentStep(step)
     },
-    [clearDrawingRound, resetDrawingRound, resultPlayback],
+    [clearDrawingRound, clearRoundTransitionFallbackTimer, resetDrawingRound, resultPlayback],
   )
 
   useEffect(() => {
@@ -934,8 +1172,8 @@ export function useFlipbook() {
     roomCode,
     roomCodeDraft,
     selectedTimeLimitSeconds,
-    roundCount,
-    minimumRoundCount,
+    roundCount: cycleRoundCount,
+    drawingRoundCount,
     activeRoundIndex,
     remainingSeconds: timer.remainingSeconds,
     currentParticipant: displayedParticipant,
@@ -972,6 +1210,7 @@ export function useFlipbook() {
     startGame,
     completeRound,
     selectTimeLimit,
+    selectRoundCount,
     leaveRoom,
     setIsGifPlaying: resultPlayback.setIsGifPlaying,
     showResultFrame: resultPlayback.showResultFrame,
