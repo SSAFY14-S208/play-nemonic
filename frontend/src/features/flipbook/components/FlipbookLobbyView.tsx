@@ -41,8 +41,8 @@ interface FlipbookLobbyViewProps {
 const FLIPBOOK_LOBBY_IMAGES = {
   background: '/images/flipbook-lobby/background.png',
   startButton: '/images/flipbook-lobby/start-button.png',
-  copyLinkButton: '/images/flipbook-lobby/copy-link-button.png',
-  qrCodeButton: '/images/flipbook-lobby/qr-code-button.png',
+  copyLinkButton: '/images/flipbook-lobby/copy-link-button.png?v=2',
+  qrCodeButton: '/images/flipbook-lobby/qr-code-button.png?v=2',
   plus: '/images/flipbook-lobby/plus.svg',
 }
 const SHARE_ACTIONS: { key: ShareActionKey; label: string; Icon: LucideIcon }[] = [
@@ -384,7 +384,10 @@ function ShareButton({
         onClick={copyShareText}
         disabled={!roomCode}
         aria-label={copyLabel}
-        className="relative aspect-[154/80] min-h-[64px] overflow-hidden rounded-[18px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
+        className={cn(
+          'relative min-h-[64px] overflow-hidden rounded-[18px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55',
+          actionKey === 'copyLink' ? 'aspect-[300/120]' : 'aspect-[149/60]',
+        )}
       >
         <Image
           src={
@@ -394,7 +397,8 @@ function ShareButton({
           }
           alt=""
           fill
-          sizes="160px"
+          sizes="220px"
+          unoptimized
           className="object-fill"
         />
         {copyLabel !== label && (
