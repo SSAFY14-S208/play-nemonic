@@ -1,6 +1,6 @@
 // File 도메인 (OpenAPI: tag "File")
 
-export type FilePurpose = 'FLIPBOOK'
+export type FilePurpose = 'FLIPBOOK' | 'PHONE'
 
 export type FileUploadStatus = 'UPLOADED'
 

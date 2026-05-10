@@ -2,14 +2,13 @@
 
 import { useMemo } from 'react'
 import type { DrawingLine, FlipbookSessionSettings } from '@/shared/types'
-import type { FlipbookParticipant, FlipbookStep } from '../constants'
-import type { FlipbookFrame } from '../types'
+import type { FlipbookFrame, FlipbookParticipant, FlipbookStep } from '../types'
 import {
   compactFlipbookFrames,
   createFlipbookAssignment,
   createFlipbookSessionSnapshot,
   toFlipbookFramePayloads,
-} from '../utils'
+} from '../flipbookSessionMapper'
 
 export function useFlipbookSessionModel({
   activeRoundIndex,

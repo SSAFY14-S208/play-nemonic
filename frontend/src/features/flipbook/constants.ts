@@ -1,14 +1,5 @@
 import type { DrawingBoardSize } from '@/shared/types'
-
-export type FlipbookStep = 'booth' | 'lobby' | 'drawing' | 'result'
-
-export interface FlipbookParticipant {
-  id: string
-  userUuid: string
-  name: string
-  avatar: string
-  isHost?: boolean
-}
+import type { FlipbookStep, FlipbookTimeLimitSeconds } from './types'
 
 export const FLIPBOOK_STEPS: { key: FlipbookStep; label: string }[] = [
   { key: 'booth', label: '부스' },
@@ -38,8 +29,7 @@ export const FLIPBOOK_COLORS = [
   '#fcd0c5',
 ]
 
-export const FLIPBOOK_TIME_LIMITS_SECONDS = [30, 45, 60] as const
-export type FlipbookTimeLimitSeconds = (typeof FLIPBOOK_TIME_LIMITS_SECONDS)[number]
+export const FLIPBOOK_TIME_LIMITS_SECONDS = [30, 45, 60] as const satisfies readonly FlipbookTimeLimitSeconds[]
 export const FLIPBOOK_ROOM_CODE = 'ABC123'
 export const FLIPBOOK_TOPIC = '동물원에 간 우주비행사'
 export const FLIPBOOK_BACKGROUND_COLOR = '#ffffff'

@@ -11,7 +11,7 @@ import type {
 } from '@/shared/types'
 import { FLIPBOOK_ROOM_CODE } from '../constants'
 import { useFlipbookRealtimeStore } from '../flipbookRealtimeStore'
-import { createFlipbookRequestId } from '../utils'
+import { createFlipbookRequestId } from '../flipbookSessionMapper'
 
 export function useFlipbookRealtimeActions() {
   const userUuid = useUserStore((state) => state.userUuid)

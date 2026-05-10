@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { FLIPBOOK_TIME_LIMITS_SECONDS, type FlipbookTimeLimitSeconds } from '../constants'
-import { createFlipbookSettings } from '../utils'
+import { FLIPBOOK_TIME_LIMITS_SECONDS } from '../constants'
+import { createFlipbookSettings } from '../flipbookSessionMapper'
+import type { FlipbookTimeLimitSeconds } from '../types'
 import type { useFlipbookRealtimeActions } from './useFlipbookRealtimeActions'
 
 interface UseFlipbookSettingsOptions {

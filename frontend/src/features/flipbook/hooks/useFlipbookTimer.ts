@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { parseServerInstant } from '@/shared/utils'
-import type { FlipbookStep, FlipbookTimeLimitSeconds } from '../constants'
+import type { FlipbookStep, FlipbookTimeLimitSeconds } from '../types'
 
 const TIMER_DRIFT_GRACE_SECONDS = 10
 const MILLISECOND_LIKE_REMAINING_THRESHOLD = 1000

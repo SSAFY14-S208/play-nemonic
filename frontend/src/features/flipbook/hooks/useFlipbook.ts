@@ -36,12 +36,14 @@ import {
   FLIPBOOK_BOARD_SIZE,
   FLIPBOOK_COLORS,
   FLIPBOOK_TIME_LIMITS_SECONDS,
-  type FlipbookParticipant,
-  type FlipbookStep,
-  type FlipbookTimeLimitSeconds,
 } from '../constants'
-import type { FlipbookFrame } from '../types'
-import { createLocalFlipbookParticipant } from '../utils'
+import type {
+  FlipbookFrame,
+  FlipbookParticipant,
+  FlipbookStep,
+  FlipbookTimeLimitSeconds,
+} from '../types'
+import { createLocalFlipbookParticipant } from '../flipbookSessionMapper'
 import { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
 import { useFlipbookResultPlayback } from './useFlipbookResultPlayback'
 import { useFlipbookTimer } from './useFlipbookTimer'

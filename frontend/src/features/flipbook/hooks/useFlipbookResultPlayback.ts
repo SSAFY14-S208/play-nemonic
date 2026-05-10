@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import type { FlipbookStep } from '../constants'
-import type { FlipbookFrame } from '../types'
+import type { FlipbookFrame, FlipbookStep } from '../types'
 
 export function useFlipbookResultPlayback({
   currentStep,

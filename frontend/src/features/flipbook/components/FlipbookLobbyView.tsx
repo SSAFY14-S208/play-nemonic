@@ -15,11 +15,8 @@ import {
 import { useRef, useState } from 'react'
 import { cn } from '@/shared/libs'
 import type { FlipbookConnectionStatus } from '@/shared/types'
-import {
-  FLIPBOOK_TIME_LIMITS_SECONDS,
-  type FlipbookParticipant,
-  type FlipbookTimeLimitSeconds,
-} from '../constants'
+import { FLIPBOOK_TIME_LIMITS_SECONDS } from '../constants'
+import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../types'
 
 interface FlipbookLobbyViewProps {
   currentParticipant: FlipbookParticipant

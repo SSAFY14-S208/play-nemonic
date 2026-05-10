@@ -16,8 +16,8 @@ import type {
   DrawingToolKey,
   FlipbookConnectionStatus,
 } from '@/shared/types'
-import { FLIPBOOK_COLORS, type FlipbookParticipant } from '../constants'
-import type { FlipbookDrawingSubmissionState } from '../types'
+import { FLIPBOOK_COLORS } from '../constants'
+import type { FlipbookDrawingSubmissionState, FlipbookParticipant } from '../types'
 
 const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
   ssr: false,
