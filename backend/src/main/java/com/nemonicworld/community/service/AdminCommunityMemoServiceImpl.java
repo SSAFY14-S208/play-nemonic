@@ -23,6 +23,7 @@ import com.nemonicworld.community.repository.AdminCommunityMemoReportRow;
 import com.nemonicworld.community.repository.AdminCommunityMemoRow;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -197,7 +198,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         if (row.hidden()) {
-            adminAuditLogger.logCommunityMemoHidden(adminPrincipal, memoId.toString(), reason, clientInfo, false);
+            adminAuditLogger.logCommunityMemoHidden(adminPrincipal, memoId.toString(), reason, clientInfo, false,
+                hiddenStateMetadata(row, row));
             return toDetailResponse(row);
         }
 
@@ -207,9 +209,11 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
             throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
         }
 
-        AdminCommunityMemoDetailResponse response = adminCommunityMemoRepository.findMemoById(memoId)
-            .map(this::toDetailResponse).orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
-        adminAuditLogger.logCommunityMemoHidden(adminPrincipal, memoId.toString(), reason, clientInfo, true);
+        AdminCommunityMemoRow updatedRow = adminCommunityMemoRepository.findMemoById(memoId)
+            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        AdminCommunityMemoDetailResponse response = toDetailResponse(updatedRow);
+        adminAuditLogger.logCommunityMemoHidden(adminPrincipal, memoId.toString(), reason, clientInfo, true,
+            hiddenStateMetadata(row, updatedRow));
 
         return response;
     }
@@ -229,7 +233,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         if (!row.hidden()) {
-            adminAuditLogger.logCommunityMemoRestored(adminPrincipal, memoId.toString(), reason, clientInfo, false);
+            adminAuditLogger.logCommunityMemoRestored(adminPrincipal, memoId.toString(), reason, clientInfo, false,
+                hiddenStateMetadata(row, row));
             return toDetailResponse(row);
         }
 
@@ -239,11 +244,28 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
             throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
         }
 
-        AdminCommunityMemoDetailResponse response = adminCommunityMemoRepository.findMemoById(memoId)
-            .map(this::toDetailResponse).orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
-        adminAuditLogger.logCommunityMemoRestored(adminPrincipal, memoId.toString(), reason, clientInfo, true);
+        AdminCommunityMemoRow updatedRow = adminCommunityMemoRepository.findMemoById(memoId)
+            .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
+        AdminCommunityMemoDetailResponse response = toDetailResponse(updatedRow);
+        adminAuditLogger.logCommunityMemoRestored(adminPrincipal, memoId.toString(), reason, clientInfo, true,
+            hiddenStateMetadata(row, updatedRow));
 
         return response;
+    }
+
+    private Map<String, Object> hiddenStateMetadata(AdminCommunityMemoRow before, AdminCommunityMemoRow after) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("before_is_hidden", before.hidden());
+        metadata.put("after_is_hidden", after.hidden());
+        metadata.put("before_hidden_reason", before.hiddenReason());
+        metadata.put("after_hidden_reason", after.hiddenReason());
+        metadata.put("before_hidden_at", before.hiddenAt());
+        metadata.put("after_hidden_at", after.hiddenAt());
+        metadata.put("before_reviewed_by", before.reviewedBy());
+        metadata.put("after_reviewed_by", after.reviewedBy());
+        metadata.put("before_reviewed_at", before.reviewedAt());
+        metadata.put("after_reviewed_at", after.reviewedAt());
+        return metadata;
     }
 
     private void requireAdmin(AdminPrincipal adminPrincipal) {

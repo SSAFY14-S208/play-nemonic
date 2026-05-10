@@ -45,12 +45,18 @@ public class AdminAuditLogger {
 
     public void logCommunityMemoHidden(AdminPrincipal adminPrincipal, String memoId, String reason,
         AdminClientInfo clientInfo, boolean stateChanged) {
+        logCommunityMemoHidden(adminPrincipal, memoId, reason, clientInfo, stateChanged, Map.of());
+    }
+
+    public void logCommunityMemoHidden(AdminPrincipal adminPrincipal, String memoId, String reason,
+        AdminClientInfo clientInfo, boolean stateChanged, Map<String, Object> stateMetadata) {
         Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
             clientInfo, TARGET_TYPE_MEMO, memoId, "hide", "success");
         metadata.put("input_reason", reason);
         metadata.put("hidden_reason", "admin_hidden");
         metadata.put("hidden_reason_detail", reason);
         metadata.put("state_changed", stateChanged);
+        metadata.putAll(stateMetadata == null ? Map.of() : stateMetadata);
         emit("INFO", stateChanged ? "admin_community_memo_hidden" : "admin_community_memo_hide_noop",
             "community memo hidden by admin", clientInfo, metadata);
     }
@@ -66,10 +72,16 @@ public class AdminAuditLogger {
 
     public void logCommunityMemoRestored(AdminPrincipal adminPrincipal, String memoId, String reason,
         AdminClientInfo clientInfo, boolean stateChanged) {
+        logCommunityMemoRestored(adminPrincipal, memoId, reason, clientInfo, stateChanged, Map.of());
+    }
+
+    public void logCommunityMemoRestored(AdminPrincipal adminPrincipal, String memoId, String reason,
+        AdminClientInfo clientInfo, boolean stateChanged, Map<String, Object> stateMetadata) {
         Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
             clientInfo, TARGET_TYPE_MEMO, memoId, "restore", "success");
         metadata.put("restore_reason_detail", reason);
         metadata.put("state_changed", stateChanged);
+        metadata.putAll(stateMetadata == null ? Map.of() : stateMetadata);
         emit("INFO", stateChanged ? "admin_community_memo_restored" : "admin_community_memo_restore_noop",
             "community memo restored by admin", clientInfo, metadata);
     }
@@ -130,9 +142,13 @@ public class AdminAuditLogger {
     private Map<String, Object> baseMetadata(String actorId, String actorRole, AdminClientInfo clientInfo,
         String targetType, String targetId, String action, String result) {
         Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("actor_type", "admin");
+        metadata.put("admin_id", actorId);
+        metadata.put("admin_role", actorRole);
         metadata.put("actor_id", actorId);
         metadata.put("actor_role", actorRole);
         metadata.put("actor_ip", clientInfo.ipAddress());
+        metadata.put("trace_id", clientInfo.traceId());
         metadata.put("target_type", targetType);
         metadata.put("target_id", targetId);
         metadata.put("action", action);
