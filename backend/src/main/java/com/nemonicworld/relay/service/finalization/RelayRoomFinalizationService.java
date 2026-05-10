@@ -9,6 +9,7 @@ import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.repository.RelayArtifactRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
@@ -27,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * FINALIZING 방의 canvasIndex별 최종 이미지를 만들고 artifact/gallery 저장 후 방을 FINISHED로
@@ -91,6 +93,8 @@ public class RelayRoomFinalizationService {
                     resultCount += result.resultCount();
                 }
             } catch (RuntimeException e) {
+                RelayRoomEventLogger.apiWarn("relay_finalization_failed", "failed to finalize relay room",
+                    metadata("room_id", finalizingRoom.roomCode(), "stage", "process", "operation", "finalization"), e);
                 log.warn("릴레이 최종 결과물 생성 중 오류가 발생했습니다. roomCode={}", finalizingRoom.roomCode(), e);
             }
         }
@@ -133,6 +137,7 @@ public class RelayRoomFinalizationService {
         }
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        long startedNanos = System.nanoTime();
         List<Integer> canvasIndexes = findCanvasIndexes(roomState);
         if (canvasIndexes.isEmpty()) {
             throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
@@ -150,6 +155,10 @@ public class RelayRoomFinalizationService {
 
         RelayRoomFinalizationResult result = RelayRoomFinalizationResult.finished(roomCode, artifacts, now);
         relayRoomEventPublisher.publishResultCreated(result);
+        RelayRoomEventLogger.websocketBusiness("relay_result_created",
+            metadata("room_id", roomCode, "result_count", result.resultCount(), "artifact_ids",
+                artifacts.stream().map(artifact -> artifact.artifactId().toString()).toList(), "duration_ms",
+                Duration.ofNanos(System.nanoTime() - startedNanos).toMillis()));
 
         return result;
     }

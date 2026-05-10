@@ -14,6 +14,7 @@ import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomResultsResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.service.RelayRoomService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 @RestController
 @RequestMapping("/relay/rooms")
@@ -202,7 +204,15 @@ public class RelayRoomController {
         @RequestPart(value = "drawingImage", required = false) MultipartFile drawingImage,
         @RequestPart(value = "hintImage", required = false) MultipartFile hintImage) {
         RelayRoomSubmissionRequest request = new RelayRoomSubmissionRequest(canvasIndex, part, drawingImage, hintImage);
-        RelayRoomSubmissionResponse response = relayRoomService.submitCurrentPart(userUuid, roomCode, request);
+        RelayRoomSubmissionResponse response;
+        try {
+            response = relayRoomService.submitCurrentPart(userUuid, roomCode, request);
+        } catch (RuntimeException e) {
+            RelayRoomEventLogger.apiBusiness("relay_submission_rejected",
+                metadata("room_id", roomCode, "uuid", userUuid, "canvas_index", canvasIndex, "part", part,
+                    "reject_reason", e.getMessage(), "exception_type", e.getClass().getSimpleName()));
+            throw e;
+        }
         if (!response.alreadySubmitted()) {
             relayRoomEventPublisher.publishPartSubmitted(response);
             if (response.advanced() && response.allPartsCompleted()) {
@@ -408,7 +418,14 @@ public class RelayRoomController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
     public ResponseEntity<ApiResponse<RelayRoomStateResponse>> startRoom(@PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
-        RelayRoomStateResponse response = relayRoomService.startRoom(userUuid, roomCode);
+        RelayRoomStateResponse response;
+        try {
+            response = relayRoomService.startRoom(userUuid, roomCode);
+        } catch (RuntimeException e) {
+            RelayRoomEventLogger.apiBusiness("relay_start_rejected", metadata("room_id", roomCode, "host_uuid",
+                userUuid, "reject_reason", e.getMessage(), "exception_type", e.getClass().getSimpleName()));
+            throw e;
+        }
         relayRoomEventPublisher.publishGameStarted(response);
         relayRoomEventPublisher.publishPartStarted(response);
 

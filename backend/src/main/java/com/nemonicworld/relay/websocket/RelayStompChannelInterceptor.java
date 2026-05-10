@@ -5,6 +5,7 @@ import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.service.RelayRoomService;
 import java.security.Principal;
 import java.util.Map;
@@ -18,6 +19,7 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 릴레이 STOMP CONNECT frame을 검증하고 활성 세션을 등록합니다.
@@ -63,12 +65,23 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
             RelayRoomEventPublisher relayRoomEventPublisher = relayRoomEventPublisherProvider.getObject();
 
             replacedSession.ifPresent(session -> closeDuplicateSession(relayRoomEventPublisher, session.sessionId(),
-                session.connectionKey()));
+                session.connectionKey(), session.userUuid(), sessionId));
             relayRoomEventPublisher.publishParticipantConnected(roomStateResponse, userUuid);
+            RelayRoomEventLogger.websocketBusiness("relay_ws_connected",
+                metadata("room_id", roomCode, "uuid", userUuid, "session_id", sessionId, "participant_count",
+                    roomStateResponse.participantCount(), "is_host",
+                    userUuid.equals(roomStateResponse.hostUserUuid())));
+            RelayRoomEventLogger.websocketBusiness("relay_room_state_snapshot_sent",
+                metadata("room_id", roomCode, "uuid", userUuid, "room_status", roomStateResponse.status(),
+                    "current_part", roomStateResponse.currentPart(), "participant_count",
+                    roomStateResponse.participantCount()));
 
             return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
         } catch (RuntimeException e) {
             webSocketSessionRegistry.removeStaleSession(sessionId);
+            RelayRoomEventLogger.websocketBusiness("relay_ws_connection_rejected",
+                metadata("room_id", roomCode, "uuid", userUuid, "session_id", sessionId, "reject_reason",
+                    e.getMessage(), "exception_type", e.getClass().getSimpleName()));
             throw new MessageDeliveryException(message, CONNECTION_REJECTED_MESSAGE, e);
         }
     }
@@ -94,7 +107,9 @@ public class RelayStompChannelInterceptor implements ChannelInterceptor {
     }
 
     private void closeDuplicateSession(RelayRoomEventPublisher relayRoomEventPublisher, String sessionId,
-        String roomCode) {
+        String roomCode, String userUuid, String newSessionId) {
+        RelayRoomEventLogger.websocketBusiness("relay_duplicate_session_closed", metadata("room_id", roomCode, "uuid",
+            userUuid, "old_session_id", sessionId, "new_session_id", newSessionId));
         relayRoomEventPublisher.publishDuplicateSessionClosed(sessionId, roomCode);
         webSocketSessionRegistry.closeWebSocketSession(sessionId);
         webSocketSessionRegistry.removeStaleSession(sessionId);

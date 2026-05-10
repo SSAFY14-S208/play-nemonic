@@ -3,6 +3,7 @@ package com.nemonicworld.relay.service.room;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
@@ -16,6 +17,7 @@ import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 릴레이 대기실 자발적 퇴장 유스케이스입니다.
@@ -55,6 +57,19 @@ public class RelayRoomLeaveUseCase {
 
             if (relayRoomRepository.saveIfUnchanged(roomState, leaveResult.roomState())) {
                 relayInviteMetadataSyncService.syncWithRoomState(leaveResult.roomState());
+                logParticipantLeft(leaveResult.roomState(), leavingParticipant, now);
+                if (leaveResult.hostChanged()) {
+                    RelayRoomEventLogger.apiBusiness("relay_host_changed",
+                        metadata("room_id", leaveResult.roomState().roomCode(), "previous_host_uuid",
+                            leavingParticipant.userUuid(), "new_host_uuid", leaveResult.newHostUserUuid(), "reason",
+                            "host_left"));
+                }
+                if (leaveResult.roomState().status() == RelayRoomStatus.CLOSED) {
+                    RelayRoomEventLogger.apiBusiness("relay_room_closed",
+                        metadata("room_id", leaveResult.roomState().roomCode(), "close_reason", "last_participant_left",
+                            "room_status_before", roomState.status(), "participant_count",
+                            leaveResult.roomState().participantCount()));
+                }
                 return new RelayRoomLeaveResponse(leaveResult.roomState().roomCode(), leavingParticipant.userUuid(),
                     leavingParticipant.nickname(), leaveResult.roomState().participantCount(),
                     leaveResult.hostChanged(), leaveResult.newHostUserUuid(), leaveResult.newHostNickname(),
@@ -63,6 +78,12 @@ public class RelayRoomLeaveUseCase {
         }
 
         throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    private void logParticipantLeft(RelayRoomState roomState, RelayRoomParticipant participant, LocalDateTime leftAt) {
+        RelayRoomEventLogger.apiBusiness("relay_participant_left",
+            metadata("room_id", roomState.roomCode(), "uuid", participant.userUuid(), "room_status", roomState.status(),
+                "participant_count", roomState.participantCount(), "left_at", leftAt));
     }
 
     private LeaveResult leaveParticipant(RelayRoomState roomState, RelayRoomParticipant leavingParticipant,

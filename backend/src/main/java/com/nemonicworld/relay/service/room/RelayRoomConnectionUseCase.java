@@ -3,6 +3,7 @@ package com.nemonicworld.relay.service.room;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
@@ -16,6 +17,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 릴레이 WebSocket 연결 상태 변경 유스케이스입니다.
@@ -89,6 +91,12 @@ public class RelayRoomConnectionUseCase {
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now);
+                if (connected && !participant.connected() && participant.disconnectedAt() != null) {
+                    RelayRoomEventLogger.websocketBusiness("relay_ws_reconnected",
+                        metadata("room_id", updatedRoomState.roomCode(), "uuid", viewerUserUuid, "old_disconnected_at",
+                            participant.disconnectedAt(), "room_status", updatedRoomState.status(), "current_part",
+                            updatedRoomState.currentPart()));
+                }
 
                 return RelayRoomStateResponse.from(updatedRoomState, viewer);
             }
