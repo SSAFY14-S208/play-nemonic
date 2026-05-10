@@ -1,6 +1,7 @@
 package com.nemonicworld.relay.service.timeout;
 
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
@@ -20,6 +21,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -105,7 +107,8 @@ public class RelayRoomTimeoutService {
                 if (marked) {
                     LocalDateTime submitGraceDeadlineAt = roomState.partDeadlineAt().plus(autoSubmitGrace);
                     relayRoomEventPublisher.publishPartTimeUp(roomState.roomCode(), roomState.currentPart(),
-                        roomState.partDeadlineAt(), submitGraceDeadlineAt, autoSubmitGrace.toMillis());
+                        roomState.partDeadlineAt(), submitGraceDeadlineAt, autoSubmitGrace.toMillis(),
+                        pendingCurrentSubmissions(roomState));
                 }
             } catch (RuntimeException e) {
                 log.warn("릴레이 파트 제한 시간 종료 이벤트 발행 중 오류가 발생했습니다. roomCode={}, part={}", roomState.roomCode(),
@@ -189,6 +192,23 @@ public class RelayRoomTimeoutService {
     private boolean hasPendingCurrentAssignment(RelayRoomState roomState) {
         return roomState.assignments().stream().anyMatch(assignment -> assignment.part() == roomState.currentPart()
             && assignment.status() == RelayAssignmentStatus.PENDING);
+    }
+
+    private List<PendingSubmission> pendingCurrentSubmissions(RelayRoomState roomState) {
+        return roomState.assignments().stream()
+            .filter(assignment -> assignment.part() == roomState.currentPart()
+                && assignment.status() == RelayAssignmentStatus.PENDING)
+            .sorted(Comparator.comparingInt(RelayRoomAssignment::canvasIndex)).map(assignment -> {
+                RelayRoomParticipant participant = findParticipant(roomState, assignment.assignedUserUuid());
+                return new PendingSubmission(assignment.canvasIndex(), assignment.assignedUserUuid(),
+                    participant == null ? null : participant.nickname(),
+                    participant != null && participant.connected());
+            }).toList();
+    }
+
+    private RelayRoomParticipant findParticipant(RelayRoomState roomState, String userUuid) {
+        return roomState.participants().stream().filter(participant -> participant.userUuid().equals(userUuid))
+            .findFirst().orElse(null);
     }
 
     private AutoSubmitUpdate autoSubmitPendingAssignments(RelayRoomState roomState, RelayDrawingPart currentPart,
