@@ -3,7 +3,7 @@
 // dataURL로 변환해 line으로 반환한다. 이렇게 dataURL 기반의 line으로 두면
 // 일반 stroke line과 같은 배열에 섞여 들어가도 스토어 모델이 단일하게 유지된다.
 
-import { RELAY_STAGE_SIZE, type RelayRoundKey } from '../../constants'
+import { RELAY_ROUND_RULES, RELAY_STAGE_SIZE, type RelayRoundKey } from '../../constants'
 import type { RelayDrawLine, RelayDrawPoint } from '../../types'
 
 import {
@@ -27,14 +27,17 @@ export async function createBucketFillLine({
   lines,
   pointerPosition,
 }: CreateBucketFillLineArgs) {
-  const rasterCanvas = await renderLinesToRasterCanvas(lines)
+  // 라운드별로 canvas 높이가 다르다 (face=720, body/legs=840). raster를 정확한
+  // 크기로 만들어야 BFS가 hint zone까지 포함한 영역을 올바르게 다룬다.
+  const roundCanvasHeight = RELAY_ROUND_RULES[activeRoundKey].canvasHeight
+  const rasterCanvas = await renderLinesToRasterCanvas(lines, roundCanvasHeight)
   if (!rasterCanvas) return null
 
   const rasterContext = rasterCanvas.getContext('2d')
   if (!rasterContext) return null
 
   const canvasWidth = RELAY_STAGE_SIZE.width
-  const canvasHeight = RELAY_STAGE_SIZE.height
+  const canvasHeight = roundCanvasHeight
   const seedX = Math.floor(pointerPosition.x)
   const seedY = Math.floor(pointerPosition.y)
 

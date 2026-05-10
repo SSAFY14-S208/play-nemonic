@@ -106,30 +106,60 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
   }, [roomStatus, roomCode, partFetchTrigger, setAssignment])
 
   // 캔버스를 Blob으로 캡처하는 헬퍼.
+  // body/legs는 상단 120px가 incoming hint zone(이전 파트의 결과 페이드)이고 그
+  // 아래 720이 사용자 drawing area다. 백엔드 합성에 들어가는 건 drawing area만이라
+  // raster에서 drawArea 영역을 잘라낸 848×720 blob을 만든다. face는 drawArea가 그대로
+  // 캔버스 전체(0..720)라 추출이 no-op이지만 동일한 코드 경로를 거친다.
   const captureCanvasBlob = useCallback(async (): Promise<Blob | null> => {
     const { activeRoundKey, roundLines } = useRelayDrawingStore.getState()
+    const roundRule = RELAY_ROUND_RULES[activeRoundKey]
     const lines = roundLines[activeRoundKey]
 
-    const rasterCanvas = await renderLinesToRasterCanvas(lines)
+    const rasterCanvas = await renderLinesToRasterCanvas(
+      lines,
+      roundRule.canvasHeight,
+    )
     if (!rasterCanvas) return null
 
+    const drawArea = roundRule.drawArea
+    const submissionCanvas = document.createElement('canvas')
+    submissionCanvas.width = RELAY_STAGE_SIZE.width
+    submissionCanvas.height = drawArea.height
+
+    const submissionContext = submissionCanvas.getContext('2d')
+    if (!submissionContext) return null
+
+    submissionContext.drawImage(
+      rasterCanvas,
+      0,
+      drawArea.y,
+      RELAY_STAGE_SIZE.width,
+      drawArea.height,
+      0,
+      0,
+      RELAY_STAGE_SIZE.width,
+      drawArea.height,
+    )
+
     return new Promise<Blob | null>((resolve) => {
-      rasterCanvas.toBlob(
-        (blob) => resolve(blob),
-        'image/png',
-      )
+      submissionCanvas.toBlob((blob) => resolve(blob), 'image/png')
     })
   }, [])
 
   // outgoing hint 영역을 크롭해서 Blob으로 만드는 헬퍼.
   // face/body 라운드에서만 호출 — legs는 outgoing hint가 없다.
+  // outgoingHintArea의 y좌표는 캔버스 자체 좌표계 기준 (face: 600, body: 720).
   const captureHintBlob = useCallback(async (): Promise<Blob | null> => {
     const { activeRoundKey, roundLines } = useRelayDrawingStore.getState()
-    const outgoingHintArea = RELAY_ROUND_RULES[activeRoundKey].outgoingHintArea
+    const roundRule = RELAY_ROUND_RULES[activeRoundKey]
+    const outgoingHintArea = roundRule.outgoingHintArea
     if (!outgoingHintArea) return null
 
     const lines = roundLines[activeRoundKey]
-    const fullCanvas = await renderLinesToRasterCanvas(lines)
+    const fullCanvas = await renderLinesToRasterCanvas(
+      lines,
+      roundRule.canvasHeight,
+    )
     if (!fullCanvas) return null
 
     const hintCanvas = document.createElement('canvas')

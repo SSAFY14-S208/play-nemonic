@@ -15,11 +15,6 @@ import {
 import { useRelayDrawingStore } from './stores'
 import { useRelayCanvas } from './hooks'
 
-// 컨테이너 크기에 맞춰 Stage를 비례 스케일하기 위한 설정. 내부 좌표계는 항상
-// 848×720 (RELAY_STAGE_SIZE)로 유지하되, scaleX/scaleY와 컨테이너 width/height를
-// 함께 조정해 작은 viewport에서도 잘리지 않게 만든다.
-const STAGE_ASPECT_RATIO = RELAY_STAGE_SIZE.width / RELAY_STAGE_SIZE.height
-
 export default function RelayDrawingStage() {
   const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
   const roundLines = useRelayDrawingStore((state) => state.roundLines)
@@ -27,16 +22,23 @@ export default function RelayDrawingStage() {
 
   const { beginDrawing, continueDrawing, endDrawing } = useRelayCanvas()
 
+  // 라운드별 canvas 높이가 다르다. body/legs는 상단에 incoming hint zone이 있어
+  // 720+120=840, face는 720. aspect ratio도 라운드에 따라 달라진다.
+  const activeRoundRule = RELAY_ROUND_RULES[activeRoundKey]
+  const roundCanvasHeight = activeRoundRule.canvasHeight
+  const stageAspectRatio = RELAY_STAGE_SIZE.width / roundCanvasHeight
+
   const containerRef = useRef<HTMLDivElement>(null)
   const [stageDimensions, setStageDimensions] = useState({
     width: RELAY_STAGE_SIZE.width,
-    height: RELAY_STAGE_SIZE.height,
+    height: roundCanvasHeight,
     scale: 1,
   })
 
   // 컨테이너 크기에 맞춰 Stage 사이즈를 비례 조정. ResizeObserver 콜백은 effect
   // 본문 동기 setState가 아니라 별도 callback으로 fire되므로 React Compiler 룰을
   // 위반하지 않는다. raf로 첫 측정도 똑같이 비동기화.
+  // 라운드 전환 시(canvasHeight 변경) effect가 재실행돼서 새 비율로 재측정한다.
   useEffect(() => {
     const containerElement = containerRef.current
     if (!containerElement) return
@@ -48,11 +50,11 @@ export default function RelayDrawingStage() {
       if (containerWidth === 0 || containerHeight === 0) return
       // 가로/세로 중 작은 비율로 uniform scale — aspect-ratio를 보존한다.
       const widthRatio = containerWidth / RELAY_STAGE_SIZE.width
-      const heightRatio = containerHeight / RELAY_STAGE_SIZE.height
+      const heightRatio = containerHeight / roundCanvasHeight
       const scale = Math.min(widthRatio, heightRatio, 1)
       setStageDimensions({
         width: RELAY_STAGE_SIZE.width * scale,
-        height: RELAY_STAGE_SIZE.height * scale,
+        height: roundCanvasHeight * scale,
         scale,
       })
     }
@@ -64,7 +66,7 @@ export default function RelayDrawingStage() {
       cancelAnimationFrame(raf)
       observer.disconnect()
     }
-  }, [])
+  }, [roundCanvasHeight])
 
   const lines = roundLines[activeRoundKey]
   const activeRoundIndex = RELAY_ROUND_ORDER.findIndex(
@@ -73,7 +75,6 @@ export default function RelayDrawingStage() {
   const previousRoundKey = activeRoundIndex > 0 ? RELAY_ROUND_ORDER[activeRoundIndex - 1] : null
   const previousRoundLines = previousRoundKey ? roundLines[previousRoundKey] : []
 
-  const activeRoundRule = RELAY_ROUND_RULES[activeRoundKey]
   // BODY/LEGS 라운드에서는 힌트 콘텐츠 유무와 관계없이 힌트 영역을 표시한다.
   // 이전 사람이 아무것도 그리지 않아 서버가 빈 제출을 처리한 경우에도
   // 가이드 라인과 안내 텍스트가 보여야 사용자가 그릴 위치를 파악할 수 있다.
@@ -82,6 +83,8 @@ export default function RelayDrawingStage() {
     activeRoundRule.incomingHintTargetArea !== undefined
   const incomingHintSourceArea = activeRoundRule.incomingHintSourceArea
   const incomingHintTargetArea = activeRoundRule.incomingHintTargetArea
+  // hint zone 안에서 이전 사람의 outgoing 영역이 그대로 라인 좌표를 갖고 있어서
+  // 그 좌표 그대로 hint target에 보여주려면 source.y → target.y 변환이 필요하다.
   const hintVerticalOffset =
     incomingHintSourceArea && incomingHintTargetArea
       ? incomingHintTargetArea.y - incomingHintSourceArea.y
@@ -94,7 +97,7 @@ export default function RelayDrawingStage() {
     <div
       ref={containerRef}
       className="grid h-full w-full place-items-center"
-      style={{ aspectRatio: STAGE_ASPECT_RATIO }}
+      style={{ aspectRatio: stageAspectRatio }}
     >
       <Stage
         width={stageDimensions.width}
@@ -114,7 +117,7 @@ export default function RelayDrawingStage() {
             x={0}
             y={0}
             width={RELAY_STAGE_SIZE.width}
-            height={RELAY_STAGE_SIZE.height}
+            height={roundCanvasHeight}
             fill="#fffdf7"
             cornerRadius={16}
           />

@@ -27,12 +27,16 @@ function partToRoundKey(part: RelayPart): RelayRoundKey {
 
 function moveLineToFinalPosition(line: RelayDrawLine, roundKey: RelayRoundKey): RelayDrawLine {
   const roundRule = RELAY_ROUND_RULES[roundKey]
+  // 라인은 캔버스 좌표계 기준이라 drawArea가 y=120에서 시작하면 y=120이 라운드의
+  // "내 영역 시작점"이다. 최종 1920 합성에서 그 시작점이 finalOffsetY 위치로 가도록
+  // (point.y - drawArea.y) + finalOffsetY 변환을 한다.
+  const adjustedOffsetY = roundRule.finalOffsetY - roundRule.drawArea.y
   return {
     ...line,
     id: `${roundKey}-${line.id}`,
     points: line.points.map((point) => ({
       x: point.x,
-      y: point.y + roundRule.finalOffsetY,
+      y: point.y + adjustedOffsetY,
     })),
   }
 }
