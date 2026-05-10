@@ -1,5 +1,7 @@
 package com.nemonicworld.backoffice.setting.controller;
 
+import com.nemonicworld.auth.service.AdminClientInfo;
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.backoffice.setting.dto.request.SystemParameterBulkUpdateRequest;
 import com.nemonicworld.backoffice.setting.dto.response.SystemParameterListResponse;
 import com.nemonicworld.backoffice.setting.service.SystemParameterService;
@@ -15,6 +17,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -37,9 +40,12 @@ public class SystemParameterController {
     private static final String BULK_UPDATE_SUCCESS_MESSAGE = "시스템 파라미터 수정 성공";
 
     private final SystemParameterService systemParameterService;
+    private final AdminClientInfoResolver adminClientInfoResolver;
 
-    public SystemParameterController(SystemParameterService systemParameterService) {
+    public SystemParameterController(SystemParameterService systemParameterService,
+        AdminClientInfoResolver adminClientInfoResolver) {
         this.systemParameterService = systemParameterService;
+        this.adminClientInfoResolver = adminClientInfoResolver;
     }
 
     @GetMapping
@@ -65,8 +71,9 @@ public class SystemParameterController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
     public ResponseEntity<ApiResponse<SystemParameterListResponse>> bulkUpdateSystemParameters(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
-        @Valid @RequestBody SystemParameterBulkUpdateRequest request) {
-        SystemParameterListResponse response = systemParameterService.bulkUpdate(adminPrincipal, request);
+        @Valid @RequestBody SystemParameterBulkUpdateRequest request, HttpServletRequest servletRequest) {
+        AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
+        SystemParameterListResponse response = systemParameterService.bulkUpdate(adminPrincipal, request, clientInfo);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(BULK_UPDATE_SUCCESS_MESSAGE, response));
