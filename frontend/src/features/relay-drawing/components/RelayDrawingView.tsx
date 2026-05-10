@@ -10,6 +10,7 @@ import { useRelayDrawingStore } from "../stores";
 import CountdownTimer from "./CountdownTimer";
 import DrawingToolPanel from "./DrawingToolPanel";
 import PartTimeUpOverlay from "./PartTimeUpOverlay";
+import RelayButton from "./RelayButton";
 import RoundProgressBar from "./RoundProgressBar";
 import RoundProgressPanel from "./RoundProgressPanel";
 
@@ -120,14 +121,15 @@ export default function RelayDrawingView() {
             <RoundProgressPanel />
           </aside>
 
-          <button
-            type="button"
+          <RelayButton
             onClick={handleSubmitClick}
             disabled={buttonDisabled}
-            className="body-b min-h-14 cursor-pointer rounded-2xl bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.35)] transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100 disabled:active:scale-100"
+            size="lg"
+            shape="roundedLg"
+            className="shadow-[0_6px_16px_rgba(184,121,22,0.35)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
           >
             {buttonLabel}
-          </button>
+          </RelayButton>
         </div>
       </div>
 

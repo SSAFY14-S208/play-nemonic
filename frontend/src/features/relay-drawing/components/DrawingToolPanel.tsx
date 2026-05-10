@@ -64,7 +64,7 @@ export default function DrawingToolPanel() {
                   setSelectedToolKey(tool.key);
                 }}
                 className={cn(
-                  "grid size-[50px] cursor-pointer place-items-center rounded-[14px] border border-relay-line bg-relay-active text-[22px] transition-all hover:brightness-95 disabled:hover:brightness-100",
+                  "grid size-[50px] cursor-pointer place-items-center rounded-[14px] border border-relay-line bg-relay-active text-[22px] transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100",
                   isActive &&
                     "border-relay-accent-strong bg-relay-accent shadow-sm",
                 )}
@@ -86,7 +86,7 @@ export default function DrawingToolPanel() {
               aria-label={`${strokeWidthOption}px 굵기`}
               onClick={() => setStrokeWidth(strokeWidthOption)}
               className={cn(
-                "grid min-h-8 cursor-pointer place-items-center rounded-[12px] border border-relay-line bg-relay-active transition-all hover:brightness-95 disabled:hover:brightness-100",
+                "grid min-h-8 cursor-pointer place-items-center rounded-[12px] border border-relay-line bg-relay-active transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100",
                 strokeWidth === strokeWidthOption &&
                   "border-2 border-relay-line bg-relay-accent",
               )}

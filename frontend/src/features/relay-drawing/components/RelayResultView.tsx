@@ -7,6 +7,7 @@ import { useRelayResult } from "../hooks";
 import { useRelayDrawingStore } from "../stores";
 import { cn } from "@/shared/libs";
 
+import RelayButton from "./RelayButton";
 import {
   ResultAlbumsPanel,
   ResultCanvas,
@@ -157,28 +158,28 @@ export default function RelayResultView() {
           )}
         >
           {RELAY_RESULT_ACTIONS.map(({ label, Icon }, index) => (
-            <button
+            <RelayButton
               key={label}
-              type="button"
+              variant={index === 0 ? "secondary" : "primary"}
+              size="md"
               className={cn(
-                "body-b inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-[1.5px] px-5 transition-all disabled:hover:brightness-100",
-                index === 0 &&
-                  "border-relay-line bg-relay-paper text-relay-ink hover:brightness-95",
-                index !== 0 &&
-                  "border-relay-accent bg-relay-accent text-relay-ink shadow-[0_4px_10px_rgba(212,156,31,0.18)] hover:brightness-105",
+                "gap-2 rounded-[14px] border-[1.5px]",
+                index === 0
+                  ? "border-relay-line"
+                  : "border-relay-accent shadow-[0_4px_10px_rgba(212,156,31,0.18)]",
               )}
             >
               <Icon className="size-4" aria-hidden />
               {label}
-            </button>
+            </RelayButton>
           ))}
-          <button
-            type="button"
+          <RelayButton
             onClick={handleReturnToLobby}
-            className="body-b inline-flex min-h-12 cursor-pointer items-center justify-center rounded-[14px] border-[1.5px] border-relay-accent bg-relay-accent px-5 text-relay-ink shadow-[0_4px_10px_rgba(212,156,31,0.18)] transition-all hover:brightness-105 disabled:hover:brightness-100"
+            size="md"
+            className="rounded-[14px] border-[1.5px] border-relay-accent shadow-[0_4px_10px_rgba(212,156,31,0.18)]"
           >
             {isHost ? "방 종료" : "로비로 돌아가기"}
-          </button>
+          </RelayButton>
         </div>
       </div>
     </section>

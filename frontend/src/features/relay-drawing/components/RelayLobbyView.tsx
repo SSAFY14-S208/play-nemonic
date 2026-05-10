@@ -10,6 +10,8 @@ import { useRelayLobby } from "../hooks";
 import { useRelayDrawingStore } from "../stores";
 import { cn } from "@/shared/libs";
 
+import RelayButton from "./RelayButton";
+
 const PANEL_CARD_CLASS =
   "rounded-3xl bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)] sm:px-8";
 
@@ -51,10 +53,11 @@ export default function RelayLobbyView() {
       <div className="mx-auto flex min-h-screen w-full max-w-360 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 lg:h-screen lg:min-h-0 lg:gap-8 lg:px-[5%] lg:py-8">
         {/* 헤더 — 나가기 버튼 */}
         <header className="flex items-center">
+          {/* nav 스타일 — RelayButton 흡수 대신 호버 피드백(translateY)만 통일. */}
           <button
             type="button"
             onClick={leaveRoom}
-            className="body-b inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm transition-all hover:brightness-95 disabled:hover:brightness-100"
+            className="body-b inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
           >
             <ArrowLeft className="size-5" aria-hidden />
             나가기
@@ -82,7 +85,7 @@ export default function RelayLobbyView() {
               <button
                 type="button"
                 onClick={copyInviteLink}
-                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:brightness-95 disabled:hover:brightness-100"
+                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
               >
                 <Copy className="size-[17px]" aria-hidden />
                 {copyConfirm === "link" ? "복사됨" : "링크 복사"}
@@ -90,7 +93,7 @@ export default function RelayLobbyView() {
               <button
                 type="button"
                 onClick={copyRoomCode}
-                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:brightness-95 disabled:hover:brightness-100"
+                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
               >
                 <Copy className="size-[17px]" aria-hidden />
                 {copyConfirm === "roomCode" ? "복사됨" : "입장 코드 복사"}
@@ -158,7 +161,7 @@ export default function RelayLobbyView() {
                     onClick={() => changeTimeLimit(seconds)}
                     disabled={!isHost}
                     className={cn(
-                      "body-b min-h-12 cursor-pointer rounded-[12px] border border-relay-line bg-relay-active text-relay-accent transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:hover:brightness-100",
+                      "body-b min-h-12 cursor-pointer rounded-[12px] border border-relay-line bg-relay-active text-relay-accent transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:brightness-100",
                       isSelected &&
                         "border-relay-accent bg-relay-accent/20 text-relay-ink",
                       !isHost && !isSelected && "opacity-60",
@@ -179,14 +182,14 @@ export default function RelayLobbyView() {
           {/* ⑤ 시작 버튼 / 대기 메시지 — 모바일 마지막(엄지 영역), 데스크탑 우측 3행 */}
           <div className="order-4 flex flex-col gap-2 lg:col-start-2 lg:row-start-3 lg:self-end">
             {isHost ? (
-              <button
-                type="button"
+              <RelayButton
                 onClick={startGame}
                 disabled={!canStartGame}
-                className="body-b min-h-16 cursor-pointer rounded-3xl bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)] transition-all hover:brightness-105 disabled:opacity-45 disabled:hover:brightness-100"
+                size="xl"
+                className="rounded-3xl shadow-[0_6px_16px_rgba(184,121,22,0.4)]"
               >
                 {startButtonLabel}
-              </button>
+              </RelayButton>
             ) : (
               <div className="body-r grid min-h-16 place-items-center rounded-3xl border border-dashed border-relay-accent px-6 text-relay-muted">
                 방장이 게임을 시작할 때까지 기다려주세요
