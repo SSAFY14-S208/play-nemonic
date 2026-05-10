@@ -16,6 +16,7 @@ import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventStateResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventType;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
@@ -147,6 +148,30 @@ class FlipbookRoomEventPublisherTest {
         assertThat(data.assignmentStatus()).isEqualTo(FlipbookFrameAssignmentStatus.AUTO_SUBMITTED);
         assertThat(data.empty()).isTrue();
         assertThat(data.submittedAt()).isEqualTo(submittedAt);
+    }
+
+    /**
+     * 제한 시간 종료 이벤트는 라운드와 유예 제출 마감 시각을 방 전체 topic에 보냅니다.
+     */
+    @Test
+    void publishRoundTimeUpSendsRoundTimeUpEventToRoomTopic() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        LocalDateTime roundDeadlineAt = LocalDateTime.now().minusSeconds(1);
+        LocalDateTime submitGraceDeadlineAt = roundDeadlineAt.plusSeconds(2);
+
+        publisher.publishRoundTimeUp(ROOM_CODE, 2, roundDeadlineAt, submitGraceDeadlineAt, 2000L);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.ROUND_TIME_UP);
+
+        FlipbookRoundTimeUpEventResponse data = (FlipbookRoundTimeUpEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.round()).isEqualTo(2);
+        assertThat(data.roundDeadlineAt()).isEqualTo(roundDeadlineAt);
+        assertThat(data.submitGraceDeadlineAt()).isEqualTo(submitGraceDeadlineAt);
+        assertThat(data.autoSubmitGraceMillis()).isEqualTo(2000L);
     }
 
     /**

@@ -22,6 +22,9 @@ public enum FlipbookRoomEventType {
     // 참여자가 현재 라운드 프레임을 제출했음을 알립니다.
     FRAME_SUBMITTED,
 
+    // 현재 라운드 제한 시간이 끝나 클라이언트 자동 제출이 필요함을 알립니다.
+    ROUND_TIME_UP,
+
     // 마감 시간으로 현재 라운드 프레임이 자동 제출되었음을 알립니다.
     FRAME_AUTO_SUBMITTED,
 

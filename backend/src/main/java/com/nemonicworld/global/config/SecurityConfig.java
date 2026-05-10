@@ -42,6 +42,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/backoffice/gms/prompts", "/api/v1/backoffice/gms/prompts/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/backoffice/system-parameters", "/api/v1/backoffice/system-parameters/**")
+                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/backoffice/relay-rooms", "/api/v1/backoffice/relay-rooms/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN").anyRequest().permitAll())
             .addFilterBefore(adminJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

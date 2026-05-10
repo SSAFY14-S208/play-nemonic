@@ -7,6 +7,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.repository.FlipbookRoomTimeUpNotificationRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
@@ -31,6 +32,7 @@ public class FlipbookRoomTimeoutService {
     private static final Logger log = LoggerFactory.getLogger(FlipbookRoomTimeoutService.class);
 
     private final FlipbookRoomRepository flipbookRoomRepository;
+    private final FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository;
     private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
@@ -38,12 +40,14 @@ public class FlipbookRoomTimeoutService {
     private final Duration autoSubmitGrace;
 
     public FlipbookRoomTimeoutService(FlipbookRoomRepository flipbookRoomRepository,
+        FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository,
         FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService,
         FlipbookRoomEventPublisher flipbookRoomEventPublisher,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
         @Value("${nemonic.flipbook.timeout.scan-limit:100}") int scanLimit,
         @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs) {
         this.flipbookRoomRepository = flipbookRoomRepository;
+        this.flipbookRoomTimeUpNotificationRepository = flipbookRoomTimeUpNotificationRepository;
         this.flipbookRoomRoundAdvanceService = flipbookRoomRoundAdvanceService;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
@@ -56,6 +60,7 @@ public class FlipbookRoomTimeoutService {
      */
     public FlipbookTimeoutProcessResult processExpiredRooms() {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        publishRoundTimeUpEvents(flipbookRoomRepository.findExpiredPlayingRooms(now, scanLimit), now);
         LocalDateTime autoSubmitCutoff = now.minus(autoSubmitGrace);
         List<FlipbookRoomState> expiredRooms = flipbookRoomRepository.findExpiredPlayingRooms(autoSubmitCutoff,
             scanLimit);
@@ -75,6 +80,27 @@ public class FlipbookRoomTimeoutService {
         }
 
         return new FlipbookTimeoutProcessResult(expiredRooms.size(), processedRoomCount, autoSubmittedCount);
+    }
+
+    private void publishRoundTimeUpEvents(List<FlipbookRoomState> timeUpRooms, LocalDateTime now) {
+        for (FlipbookRoomState roomState : timeUpRooms) {
+            if (!shouldPublishRoundTimeUpEvent(roomState, now)) {
+                continue;
+            }
+
+            try {
+                boolean marked = flipbookRoomTimeUpNotificationRepository.markRoundTimeUpNotified(roomState.roomCode(),
+                    roomState.currentRound(), roomState.roundDeadlineAt(), FlipbookRoomRepository.ROOM_STATE_TTL);
+                if (marked) {
+                    LocalDateTime submitGraceDeadlineAt = roomState.roundDeadlineAt().plus(autoSubmitGrace);
+                    flipbookRoomEventPublisher.publishRoundTimeUp(roomState.roomCode(), roomState.currentRound(),
+                        roomState.roundDeadlineAt(), submitGraceDeadlineAt, autoSubmitGrace.toMillis());
+                }
+            } catch (RuntimeException e) {
+                log.warn("플립북 라운드 제한 시간 종료 이벤트 발행 중 오류가 발생했습니다. roomCode={}, round={}", roomState.roomCode(),
+                    roomState.currentRound(), e);
+            }
+        }
     }
 
     /**
@@ -117,6 +143,17 @@ public class FlipbookRoomTimeoutService {
     private boolean isExpiredPlayingRoom(FlipbookRoomState roomState, LocalDateTime now) {
         return roomState != null && roomState.status() == FlipbookRoomStatus.PLAYING && roomState.currentRound() != null
             && roomState.roundDeadlineAt() != null && !roomState.roundDeadlineAt().plus(autoSubmitGrace).isAfter(now);
+    }
+
+    private boolean shouldPublishRoundTimeUpEvent(FlipbookRoomState roomState, LocalDateTime now) {
+        return roomState != null && roomState.status() == FlipbookRoomStatus.PLAYING && roomState.currentRound() != null
+            && roomState.roundDeadlineAt() != null && !roomState.roundDeadlineAt().isAfter(now)
+            && roomState.roundDeadlineAt().plus(autoSubmitGrace).isAfter(now) && hasPendingCurrentAssignment(roomState);
+    }
+
+    private boolean hasPendingCurrentAssignment(FlipbookRoomState roomState) {
+        return roomState.assignments().stream().anyMatch(assignment -> assignment.round() == roomState.currentRound()
+            && assignment.status() == FlipbookFrameAssignmentStatus.PENDING);
     }
 
     private AutoSubmitUpdate autoSubmitPendingAssignments(FlipbookRoomState roomState, int currentRound,

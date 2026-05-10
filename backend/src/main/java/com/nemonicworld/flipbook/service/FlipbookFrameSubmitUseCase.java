@@ -20,13 +20,14 @@ import com.nemonicworld.flipbook.service.game.FlipbookRoundProgress;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,7 +36,6 @@ import org.springframework.util.StringUtils;
  * 플립북 게임 중 현재 라운드 프레임 제출 유스케이스입니다.
  */
 @Service
-@RequiredArgsConstructor
 public class FlipbookFrameSubmitUseCase {
 
     private static final String INVALID_ROUND_MESSAGE = "유효하지 않은 라운드입니다.";
@@ -57,6 +57,23 @@ public class FlipbookFrameSubmitUseCase {
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
     private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
     private final FileUploadRepository fileUploadRepository;
+    private final Duration autoSubmitGrace;
+
+    public FlipbookFrameSubmitUseCase(AnonymousUserResolver anonymousUserResolver,
+        FlipbookRoomRepository flipbookRoomRepository, FlipbookRoomPolicy flipbookRoomPolicy,
+        FlipbookFrameImageUrlResolver flipbookFrameImageUrlResolver,
+        FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
+        FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService, FileUploadRepository fileUploadRepository,
+        @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs) {
+        this.anonymousUserResolver = anonymousUserResolver;
+        this.flipbookRoomRepository = flipbookRoomRepository;
+        this.flipbookRoomPolicy = flipbookRoomPolicy;
+        this.flipbookFrameImageUrlResolver = flipbookFrameImageUrlResolver;
+        this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
+        this.flipbookRoomRoundAdvanceService = flipbookRoomRoundAdvanceService;
+        this.fileUploadRepository = fileUploadRepository;
+        this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
+    }
 
     /**
      * 현재 사용자가 배정받은 프레임에 업로드 완료된 파일을 연결하고, 라운드 완료 시 다음 단계로 진행합니다.
@@ -184,7 +201,12 @@ public class FlipbookFrameSubmitUseCase {
     }
 
     private void validateDeadline(LocalDateTime roundDeadlineAt) {
-        if (roundDeadlineAt != null && roundDeadlineAt.isBefore(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS))) {
+        if (roundDeadlineAt == null) {
+            return;
+        }
+
+        LocalDateTime expiresAt = roundDeadlineAt.plus(autoSubmitGrace);
+        if (!expiresAt.isAfter(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS))) {
             throw new ConflictException(SUBMISSION_EXPIRED_MESSAGE);
         }
     }
