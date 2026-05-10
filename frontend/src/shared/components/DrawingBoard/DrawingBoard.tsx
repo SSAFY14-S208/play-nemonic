@@ -16,6 +16,7 @@ interface DrawingBoardProps {
   onionSkinLines?: DrawingLine[]
   drawArea?: DrawingArea
   backgroundColor?: string
+  backgroundCornerRadius?: number
   gridColor?: string
   gridGap?: number
   onionSkinOpacity?: number
@@ -33,6 +34,7 @@ export default function DrawingBoard({
   onionSkinLines = [],
   drawArea,
   backgroundColor = '#fffdf7',
+  backgroundCornerRadius = 16,
   gridColor = '#ffa8b8',
   gridGap = 20,
   onionSkinOpacity = 0.22,
@@ -80,7 +82,7 @@ export default function DrawingBoard({
           width={boardSize.width}
           height={boardSize.height}
           fill={backgroundColor}
-          cornerRadius={16}
+          cornerRadius={backgroundCornerRadius}
         />
 
         {gridDots.map((dot) => (

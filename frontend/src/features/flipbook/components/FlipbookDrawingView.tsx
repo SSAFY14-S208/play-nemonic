@@ -2,19 +2,12 @@
 
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Brush,
   Check,
-  Eraser,
-  Lightbulb,
-  PaintBucket,
   Palette,
-  Pencil,
-  Redo2,
   Timer,
-  Trash2,
-  Undo2,
 } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type {
@@ -33,19 +26,29 @@ const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
 const FLIPBOOK_STROKE_WIDTH_OPTIONS = [3, 6, 9, 12, 16]
 const FLIPBOOK_RECENT_COLOR_SLOT_COUNT = 5
 const FLIPBOOK_DRAWING_IMAGES = {
-  background: '/images/flipbook-drawing/drawing-background.png',
-  bunny: '/images/flipbook-drawing/drawing-bunny.png',
+  background: '/images/flipbook-lobby/background.png',
+}
+const FLIPBOOK_TOOL_ICONS: Record<ToolItemKey, string> = {
+  pencil: '/images/flipbook-drawing/figma-tools/tool-brush.svg',
+  eraser: '/images/flipbook-drawing/figma-tools/tool-eraser.svg',
+  bucket: '/images/flipbook-drawing/figma-tools/tool-bucket.svg',
+  clear: '/images/flipbook-drawing/figma-tools/tool-trash.svg',
+  undo: '/images/flipbook-drawing/figma-tools/tool-undo.svg',
+  redo: '/images/flipbook-drawing/figma-tools/tool-redo.svg',
 }
 
+type FigmaDrawingToolKey = Extract<DrawingToolKey, 'pencil' | 'eraser' | 'bucket'>
+type ToolItemKey = FigmaDrawingToolKey | 'clear' | 'undo' | 'redo'
 const TOOL_ITEMS: {
-  key: DrawingToolKey | 'clear'
+  key: ToolItemKey
   label: string
-  icon: ReactNode
 }[] = [
-  { key: 'pencil', label: '브러시', icon: <Pencil className="size-6" aria-hidden /> },
-  { key: 'eraser', label: '지우개', icon: <Eraser className="size-6" aria-hidden /> },
-  { key: 'bucket', label: '채우기', icon: <PaintBucket className="size-6" aria-hidden /> },
-  { key: 'clear', label: '전체 지우기', icon: <Trash2 className="size-6" aria-hidden /> },
+  { key: 'pencil', label: '브러시' },
+  { key: 'eraser', label: '지우개' },
+  { key: 'bucket', label: '채우기' },
+  { key: 'clear', label: '전체 지우기' },
+  { key: 'undo', label: '실행 취소' },
+  { key: 'redo', label: '다시 실행' },
 ]
 
 interface FlipbookDrawingViewProps {
@@ -63,6 +66,8 @@ interface FlipbookDrawingViewProps {
   selectedColor: string
   strokeWidth: number
   recentColors: string[]
+  canUndoDrawing: boolean
+  canRedoDrawing: boolean
   onSelectTool: (toolKey: DrawingToolKey) => void
   onSelectColor: (color: string) => void
   onStrokeWidthChange: (strokeWidth: number) => void
@@ -91,6 +96,8 @@ export default function FlipbookDrawingView({
   selectedColor,
   strokeWidth,
   recentColors,
+  canUndoDrawing,
+  canRedoDrawing,
   onSelectTool,
   onSelectColor,
   onStrokeWidthChange,
@@ -175,7 +182,7 @@ export default function FlipbookDrawingView({
 
   return (
     <section
-      className="relative min-h-screen overflow-hidden bg-[#fdf1e6] text-[#30343b]"
+      className="relative grid h-screen place-items-center overflow-hidden bg-[#fdf1e6] text-[#30343b]"
       aria-label={`${currentParticipant.name} 플립북 드로잉`}
     >
       <Image
@@ -188,115 +195,87 @@ export default function FlipbookDrawingView({
         aria-hidden
       />
 
-      <div className="relative mx-auto h-[1024px] w-full max-w-[1536px] overflow-hidden">
-        <TopStatusBar
-          activeRoundIndex={activeRoundIndex}
-          roundCount={roundCount}
-          remainingSeconds={remainingSeconds}
-          instructionText={instructionText}
-        />
+      <div className="relative h-[819.2px] w-[1228.8px] shrink-0">
+        <div className="absolute left-0 top-0 h-[1024px] w-[1536px] origin-top-left scale-[0.8]">
+          <TopStatusBar
+            activeRoundIndex={activeRoundIndex}
+            roundCount={roundCount}
+            remainingSeconds={remainingSeconds}
+            instructionText={instructionText}
+          />
 
-        <ColorPanel
-          className={cn(isDrawingLocked && 'pointer-events-none opacity-60')}
-          colors={FLIPBOOK_COLORS}
-          selectedColor={selectedColor}
-          strokeWidth={strokeWidth}
-          recentColors={recentColors}
-          onSelectColor={onSelectColor}
-          onStrokeWidthChange={onStrokeWidthChange}
-        />
+          <ColorPanel
+            className={cn(isDrawingLocked && 'pointer-events-none opacity-60')}
+            colors={FLIPBOOK_COLORS}
+            selectedColor={selectedColor}
+            strokeWidth={strokeWidth}
+            recentColors={recentColors}
+            onSelectColor={onSelectColor}
+            onStrokeWidthChange={onStrokeWidthChange}
+          />
 
-        <main className="absolute left-[418px] top-[178px] h-[656px] w-[735px]">
-          <div className="absolute left-3 top-5 h-[638px] w-[724px] rounded-[8px] bg-[#f6a8c4] shadow-[0_18px_30px_rgb(123_56_72_/_24%)]" />
-          <div className="absolute inset-0 rotate-[-1.1deg] rounded-[8px] bg-[#fff4a7] shadow-[0_12px_34px_rgb(170_107_34_/_20%)]" />
-          <div className="absolute right-[58px] top-[-42px] z-30 h-[104px] w-[46px] rotate-[13deg] rounded-full border-[7px] border-[#f47299] shadow-[0_5px_10px_rgb(117_53_71_/_23%)]">
-            <div className="absolute left-1/2 top-[18px] h-[58px] w-[18px] -translate-x-1/2 rounded-full border-[4px] border-[#ffd9dc]" />
-          </div>
-          <div className="absolute left-[27px] top-[54px] z-10 h-[520px] w-[680px] overflow-hidden bg-transparent">
-            <FlipbookStage
-              lines={lines}
-              previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
-              disabled={isDrawingLocked}
-              onDrawStart={onDrawStart}
-              onDrawMove={onDrawMove}
-              onDrawEnd={onDrawEnd}
-            />
-            {overlayMessage && (
-              <div className="absolute inset-0 grid place-items-center bg-[#fff4a7]/70 text-flipbook-deep">
-                <div className="rounded-[14px] bg-flipbook-paper/92 px-6 py-4 text-center shadow-[0_4px_12px_var(--color-flipbook-shadow)]">
-                  <p className="body-l-b">{overlayMessage}</p>
-                  <p className="caption-m mt-2 text-flipbook-deep/75">
-                    캔버스는 잠시 잠겨 있어요
-                  </p>
+          <main className="absolute left-[432px] top-[195px] h-[566px] w-[738px]">
+            <div className="absolute inset-0 rounded-[8px] bg-white shadow-[0_8px_42px_-10px_rgb(0_0_0_/_25%)]" />
+            <div className="absolute left-[29px] top-[23px] z-10 h-[520px] w-[680px] overflow-hidden rounded-[4px] bg-white">
+              <FlipbookStage
+                lines={lines}
+                previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
+                disabled={isDrawingLocked}
+                onDrawStart={onDrawStart}
+                onDrawMove={onDrawMove}
+                onDrawEnd={onDrawEnd}
+              />
+              {overlayMessage && (
+                <div className="absolute inset-0 grid place-items-center bg-[#fff4a7]/70 text-flipbook-deep">
+                  <div className="rounded-[14px] bg-flipbook-paper/92 px-6 py-4 text-center shadow-[0_4px_12px_var(--color-flipbook-shadow)]">
+                    <p className="body-l-b">{overlayMessage}</p>
+                    <p className="caption-m mt-2 text-flipbook-deep/75">
+                      캔버스는 잠시 잠겨 있어요
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
+              {isConnectionUnstable && (
+                <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-flipbook-deep">
+                  연결 끊김 — 재연결 중...
+                </div>
+              )}
+            </div>
+          </main>
+
+          <ToolPanel
+            className={cn(isDrawingLocked && 'pointer-events-none opacity-60')}
+            selectedToolKey={selectedToolKey}
+            canUndoDrawing={canUndoDrawing}
+            canRedoDrawing={canRedoDrawing}
+            onSelectTool={onSelectTool}
+            onUndoDrawing={onUndoDrawing}
+            onRedoDrawing={onRedoDrawing}
+            onClearDrawing={onClearDrawing}
+          />
+
+          <ProgressRail activeRoundIndex={activeRoundIndex} roundCount={roundCount} />
+
+          <button
+            type="button"
+            onClick={handleCompleteRound}
+            disabled={isDrawingLocked}
+            className={cn(
+              'body-l-b absolute left-[1228px] top-[700px] inline-flex h-[62px] w-[198px] items-center justify-center gap-3 rounded-[14px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
+              isDrawingLocked && 'cursor-not-allowed opacity-70',
             )}
-            {isConnectionUnstable && (
-              <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-flipbook-deep">
-                연결 끊김 — 재연결 중...
-              </div>
-            )}
-          </div>
-        </main>
-
-        <ToolPanel
-          className={cn(isDrawingLocked && 'pointer-events-none opacity-60')}
-          selectedToolKey={selectedToolKey}
-          onSelectTool={onSelectTool}
-          onUndoDrawing={onUndoDrawing}
-          onRedoDrawing={onRedoDrawing}
-          onClearDrawing={onClearDrawing}
-        />
-
-        <button
-          type="button"
-          onClick={() => {
-            if (hasOnionSkinHint) {
-              setIsOnionSkinVisible((currentIsOnionSkinVisible) => !currentIsOnionSkinVisible)
-            }
-          }}
-          disabled={!hasOnionSkinHint}
-          aria-pressed={isOnionSkinVisible}
-          className={cn(
-            'body-l-b absolute left-[160px] top-[828px] inline-flex h-[64px] w-[216px] items-center justify-center gap-3 rounded-full border border-[#f1d9c7] bg-white/90 text-[#f45d8d] shadow-[0_10px_22px_rgb(125_84_50_/_13%)]',
-            isOnionSkinVisible && 'bg-[#fdebf0]',
-            !hasOnionSkinHint && 'cursor-not-allowed opacity-55',
+          >
+            <span className="grid size-8 place-items-center rounded-full bg-white">
+              <Check className="size-5 text-[#ff4f93]" aria-hidden />
+            </span>
+            {submitButtonText === '완료!' ? '완료하기' : submitButtonText}
+          </button>
+          {errorMessage && (
+            <p className="caption-b absolute left-[432px] top-[782px] w-[738px] text-center text-flipbook-deep">
+              {errorMessage}
+            </p>
           )}
-        >
-          <Lightbulb className="size-7" aria-hidden />
-          힌트 보기
-        </button>
-
-        <ProgressRail activeRoundIndex={activeRoundIndex} roundCount={roundCount} />
-
-        <button
-          type="button"
-          onClick={handleCompleteRound}
-          disabled={isDrawingLocked}
-          className={cn(
-            'h3-b absolute left-[1159px] top-[816px] inline-flex h-[82px] w-[265px] items-center justify-center gap-5 rounded-[24px] bg-[#f45d8d] text-white shadow-[0_14px_26px_rgb(173_68_96_/_28%)]',
-            isDrawingLocked && 'cursor-not-allowed opacity-70',
-          )}
-        >
-          <span className="grid size-12 place-items-center rounded-full bg-white">
-            <Check className="size-7 text-[#f45d8d]" aria-hidden />
-          </span>
-          {submitButtonText === '완료!' ? '완료하기' : submitButtonText}
-        </button>
-        {errorMessage && (
-          <p className="caption-b absolute left-[418px] top-[842px] w-[735px] text-center text-flipbook-deep">
-            {errorMessage}
-          </p>
-        )}
-
-        <Image
-          src={FLIPBOOK_DRAWING_IMAGES.bunny}
-          alt=""
-          width={230}
-          height={250}
-          className="pointer-events-none absolute bottom-[38px] left-[18px] h-auto w-[150px] object-contain"
-          aria-hidden
-        />
+        </div>
       </div>
     </section>
   )
@@ -314,16 +293,16 @@ function TopStatusBar({
   instructionText: string
 }) {
   return (
-    <header className="absolute left-[62px] top-11 h-[110px] w-[1412px] rounded-full border border-[#ead7c9] bg-white/90 shadow-[0_12px_34px_rgb(129_89_54_/_14%)] backdrop-blur-sm">
-      <div className="flex h-full items-center px-11">
-        <p className="text-[64px] font-bold leading-none text-[#f45d8d]">
+    <header className="absolute left-[96px] top-6 h-[108px] w-[1344px] rounded-full border border-[#ead7c9] bg-white shadow-[0_12px_34px_rgb(129_89_54_/_14%)]">
+      <div className="flex h-full items-center px-[86px]">
+        <p className="text-[74px] font-bold leading-none text-[#f45d8d]">
           {activeRoundIndex + 1}/{roundCount}
         </p>
-        <div className="mx-7 h-12 w-px bg-[#ead7c9]" />
+        <div className="mx-10 h-14 w-px bg-[#ead7c9]" />
         <div>
-          <p className="body-l-b text-[24px] text-[#30343b]">{instructionText}</p>
+          <p className="body-l-b text-[26px] text-[#30343b]">{instructionText}</p>
         </div>
-        <div className="ml-auto inline-flex h-16 min-w-[184px] items-center justify-center gap-3 rounded-full border border-[#ead7c9] bg-white/85 px-6 text-[#f45d8d] shadow-[0_7px_16px_rgb(129_89_54_/_13%)]">
+        <div className="ml-auto inline-flex h-16 min-w-[184px] items-center justify-center gap-3 rounded-full border border-[#ead7c9] bg-white px-6 text-[#f45d8d] shadow-[0_7px_16px_rgb(129_89_54_/_13%)]">
           <Timer className="size-10" aria-hidden />
           <span className="text-[34px] font-bold leading-none">{remainingSeconds}</span>
           <span className="body-l-b">초</span>
@@ -358,7 +337,7 @@ function ColorPanel({
   return (
     <aside
       className={cn(
-        'absolute left-[82px] top-[206px] h-[604px] w-[272px] rounded-[24px] border border-[#ead7c9] bg-white/88 px-7 py-8 shadow-[0_14px_32px_rgb(129_89_54_/_15%)] backdrop-blur-sm',
+        'absolute left-[117px] top-[185px] h-[604px] w-[272px] rounded-[24px] border border-[#ead7c9] bg-white/88 px-7 py-8 shadow-[0_14px_32px_rgb(129_89_54_/_15%)] backdrop-blur-sm',
         className,
       )}
     >
@@ -446,6 +425,8 @@ function ColorPanel({
 function ToolPanel({
   className,
   selectedToolKey,
+  canUndoDrawing,
+  canRedoDrawing,
   onSelectTool,
   onUndoDrawing,
   onRedoDrawing,
@@ -453,6 +434,8 @@ function ToolPanel({
 }: {
   className?: string
   selectedToolKey: DrawingToolKey
+  canUndoDrawing: boolean
+  canRedoDrawing: boolean
   onSelectTool: (toolKey: DrawingToolKey) => void
   onUndoDrawing: () => void
   onRedoDrawing: () => void
@@ -461,53 +444,96 @@ function ToolPanel({
   return (
     <aside
       className={cn(
-        'absolute left-[1218px] top-[216px] w-[206px] rounded-[24px] border border-[#ead7c9] bg-white/88 p-5 shadow-[0_14px_32px_rgb(129_89_54_/_15%)] backdrop-blur-sm',
+        'absolute left-[1222px] top-[206px] w-[204px] rounded-[31px] bg-white px-[18px] py-[26px] shadow-[0_8px_12px_rgb(0_0_0_/_18%)]',
         className,
       )}
     >
       <div className="grid gap-2">
         {TOOL_ITEMS.map((tool) => (
-          <button
+          <ToolPanelButton
             key={tool.key}
-            type="button"
-            onClick={() => {
-              if (tool.key === 'clear') {
-                onClearDrawing()
-                return
-              }
-
-              onSelectTool(tool.key)
-            }}
-            className={cn(
-              'body-b flex h-[58px] items-center gap-5 rounded-[10px] px-4 text-left text-[#30343b]',
-              selectedToolKey === tool.key && 'bg-[#fdebf0] text-[#f45d8d]',
-            )}
-          >
-            {tool.icon}
-            {tool.label}
-          </button>
+            tool={tool}
+            selectedToolKey={selectedToolKey}
+            canUndoDrawing={canUndoDrawing}
+            canRedoDrawing={canRedoDrawing}
+            onSelectTool={onSelectTool}
+            onUndoDrawing={onUndoDrawing}
+            onRedoDrawing={onRedoDrawing}
+            onClearDrawing={onClearDrawing}
+          />
         ))}
       </div>
-      <div className="my-4 h-px bg-[#ead7c9]" />
-      <div className="grid gap-3">
-        <button
-          type="button"
-          onClick={onUndoDrawing}
-          className="body-b flex h-[56px] items-center gap-4 rounded-[10px] bg-white px-4 text-[#30343b] shadow-[0_4px_12px_rgb(129_89_54_/_10%)]"
-        >
-          <Undo2 className="size-6" aria-hidden />
-          실행 취소
-        </button>
-        <button
-          type="button"
-          onClick={onRedoDrawing}
-          className="body-b flex h-[56px] items-center gap-4 rounded-[10px] bg-white px-4 text-[#bdb6b0] shadow-[0_4px_12px_rgb(129_89_54_/_8%)]"
-        >
-          <Redo2 className="size-6" aria-hidden />
-          다시 실행
-        </button>
-      </div>
     </aside>
+  )
+}
+
+function ToolPanelButton({
+  tool,
+  selectedToolKey,
+  canUndoDrawing,
+  canRedoDrawing,
+  onSelectTool,
+  onUndoDrawing,
+  onRedoDrawing,
+  onClearDrawing,
+}: {
+  tool: { key: ToolItemKey; label: string }
+  selectedToolKey: DrawingToolKey
+  canUndoDrawing: boolean
+  canRedoDrawing: boolean
+  onSelectTool: (toolKey: DrawingToolKey) => void
+  onUndoDrawing: () => void
+  onRedoDrawing: () => void
+  onClearDrawing: () => void
+}) {
+  const isSelectedDrawingTool = selectedToolKey === tool.key
+  const isHistoryCommandDisabled =
+    (tool.key === 'undo' && !canUndoDrawing) || (tool.key === 'redo' && !canRedoDrawing)
+
+  const handleClick = () => {
+    if (tool.key === 'clear') {
+      onClearDrawing()
+      return
+    }
+    if (tool.key === 'undo') {
+      if (canUndoDrawing) onUndoDrawing()
+      return
+    }
+    if (tool.key === 'redo') {
+      if (canRedoDrawing) onRedoDrawing()
+      return
+    }
+
+    onSelectTool(tool.key)
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={isHistoryCommandDisabled}
+      onClick={handleClick}
+      className={cn(
+        'flex h-[56px] w-full items-center gap-4 rounded-[16px] px-6 text-left text-[#1f1f1f] shadow-[0_4px_2px_rgb(0_0_0_/_5%)] transition',
+        isSelectedDrawingTool && 'bg-[#feebef] text-[#dc6c92]',
+        isHistoryCommandDisabled && 'cursor-not-allowed text-[#c5c5c5]',
+      )}
+    >
+      <span
+        className="size-6 bg-current"
+        style={{
+          maskImage: `url(${FLIPBOOK_TOOL_ICONS[tool.key]})`,
+          maskPosition: 'center',
+          maskRepeat: 'no-repeat',
+          maskSize: 'contain',
+          WebkitMaskImage: `url(${FLIPBOOK_TOOL_ICONS[tool.key]})`,
+          WebkitMaskPosition: 'center',
+          WebkitMaskRepeat: 'no-repeat',
+          WebkitMaskSize: 'contain',
+        }}
+        aria-hidden
+      />
+      <span className="text-[16px] font-medium leading-none">{tool.label}</span>
+    </button>
   )
 }
 
@@ -518,10 +544,10 @@ function ProgressRail({
   activeRoundIndex: number
   roundCount: number
 }) {
-  const progressDotCount = Math.max(roundCount, 5)
+  const progressDotCount = Math.max(roundCount, 1)
 
   return (
-    <div className="absolute left-[552px] top-[870px] h-[72px] w-[444px] rounded-full border border-[#ead7c9] bg-white/88 shadow-[0_10px_22px_rgb(125_84_50_/_13%)]">
+    <div className="absolute left-[570px] top-[826px] h-[72px] w-[444px] rounded-full border border-[#ead7c9] bg-white shadow-[0_10px_22px_rgb(125_84_50_/_13%)]">
       <div className="absolute left-[64px] right-[64px] top-1/2 h-[3px] -translate-y-1/2 bg-[#ded3ca]" />
       {Array.from({ length: progressDotCount }).map((unusedValue, progressIndex) => (
         <span

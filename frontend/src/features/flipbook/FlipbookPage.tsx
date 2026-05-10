@@ -60,6 +60,8 @@ export default function FlipbookPage() {
           selectedColor={flipbook.drawingBoard.selectedColor}
           strokeWidth={flipbook.drawingBoard.strokeWidth}
           recentColors={flipbook.drawingBoard.recentColors}
+          canUndoDrawing={flipbook.drawingBoard.canUndoDrawing}
+          canRedoDrawing={flipbook.drawingBoard.canRedoDrawing}
           onSelectTool={flipbook.drawingBoard.setSelectedToolKey}
           onSelectColor={flipbook.drawingBoard.setSelectedColor}
           onStrokeWidthChange={flipbook.drawingBoard.setStrokeWidth}

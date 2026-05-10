@@ -170,6 +170,7 @@ export function useDrawingBoard({
     strokeWidth,
     recentColors,
     lines,
+    canUndoDrawing: lines.length > 0,
     canRedoDrawing: redoLines.length > 0,
     replaceLines,
     setLines,

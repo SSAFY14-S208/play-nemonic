@@ -38,6 +38,7 @@ export default function FlipbookStage({
       gridColor={FLIPBOOK_BACKGROUND_COLOR}
       gridGap={20}
       onionSkinOpacity={0.34}
+      backgroundCornerRadius={4}
       className={cn('h-full w-full', disabled && 'pointer-events-none')}
       onDrawStart={handleDrawStart}
       onDrawMove={handleDrawMove}
