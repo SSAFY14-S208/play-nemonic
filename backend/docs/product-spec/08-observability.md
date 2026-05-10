@@ -92,13 +92,30 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 
 ### WebSocket/방 처리 이벤트
 
-- `ws_room_connected`
-- `ws_room_disconnected`
-- `ws_room_connection_rejected`
-- `relay_round_started`
+- `relay_room_created`
+- `relay_room_settings_changed`
+- `relay_participant_joined`
+- `relay_participant_left`
+- `relay_participant_kicked`
+- `relay_host_changed`
+- `relay_ws_connected`
+- `relay_ws_reconnected`
+- `relay_ws_disconnected`
+- `relay_ws_connection_rejected`
+- `relay_duplicate_session_closed`
+- `relay_room_state_snapshot_sent`
+- `relay_start_rejected`
+- `relay_game_started`
+- `relay_part_started`
+- `relay_part_time_up`
 - `relay_drawing_submitted`
-- `relay_room_finished`
+- `relay_submission_rejected`
+- `relay_part_auto_submitted`
+- `relay_participant_dropped`
+- `relay_all_parts_completed`
+- `relay_result_created`
 - `relay_room_closed`
+- `relay_temp_cleanup_completed`
 - `flipbook_round_started`
 - `flipbook_frame_submitted`
 - `flipbook_room_finished`
