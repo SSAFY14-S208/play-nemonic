@@ -759,8 +759,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private CommunityMemoItemResponse toResponse(CommunityMemoRow row, UUID viewerUserUuid) {
         String sourceType = resolveSourceType(row.artifactId());
         // 목록도 artifact 원본이 아니라 community_memo에 저장된 최종 게시 스냅샷 URL만 내려줍니다.
-        String memoOriginalImageUrl = minioPublicUrlResolver.resolve(row.originalImageReference());
-        String memoThumbnailImageUrl = minioPublicUrlResolver.resolve(row.thumbnailImageReference());
+        String memoOriginalImageUrl = resolveMemoImageUrl(row.originalImageReference(), row.memoId(), "original");
+        String memoThumbnailImageUrl = resolveMemoImageUrl(row.thumbnailImageReference(), row.memoId(), "thumbnail");
         String memoImageUrl = representativeImageUrl(memoOriginalImageUrl, memoThumbnailImageUrl);
         boolean ownedByMe = isOwnedByViewer(row.userId(), viewerUserUuid);
 
@@ -775,8 +775,8 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private CommunityMemoDetailResponse toDetailResponse(CommunityMemoDetailRow row, UUID viewerUserUuid) {
         String sourceType = resolveSourceType(row.artifactId());
         // 상세와 생성 응답도 목록과 같은 대표 이미지 fallback 정책을 공유합니다.
-        String memoOriginalImageUrl = minioPublicUrlResolver.resolve(row.originalImageReference());
-        String memoThumbnailImageUrl = minioPublicUrlResolver.resolve(row.thumbnailImageReference());
+        String memoOriginalImageUrl = resolveMemoImageUrl(row.originalImageReference(), row.memoId(), "original");
+        String memoThumbnailImageUrl = resolveMemoImageUrl(row.thumbnailImageReference(), row.memoId(), "thumbnail");
         String memoImageUrl = representativeImageUrl(memoOriginalImageUrl, memoThumbnailImageUrl);
         boolean ownedByMe = isOwnedByViewer(row.userId(), viewerUserUuid);
         String artifactId = row.artifactId() == null ? null : row.artifactId().toString();
@@ -793,6 +793,17 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
      */
     private String representativeImageUrl(String memoOriginalImageUrl, String memoThumbnailImageUrl) {
         return memoThumbnailImageUrl == null ? memoOriginalImageUrl : memoThumbnailImageUrl;
+    }
+
+    private String resolveMemoImageUrl(String objectKey, UUID memoId, String imageRole) {
+        String imageUrl = minioPublicUrlResolver.resolve(objectKey);
+        if (StringUtils.hasText(objectKey) && !StringUtils.hasText(imageUrl)) {
+            CommunityMemoEventLogger.warn("community_file_url_resolve_failed",
+                "community memo image url resolve failed", null,
+                metadata("memo_id", memoId, "image_role", imageRole, "object_key", objectKey), null);
+        }
+
+        return imageUrl;
     }
 
     /**

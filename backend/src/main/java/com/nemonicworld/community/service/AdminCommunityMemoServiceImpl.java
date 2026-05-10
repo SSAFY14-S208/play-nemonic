@@ -396,11 +396,23 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     }
 
     private ImageUrls resolveImageUrls(AdminCommunityMemoRow row) {
-        String originalUrl = minioPublicUrlResolver.resolve(row.originalImageReference());
-        String thumbnailUrl = minioPublicUrlResolver.resolve(row.thumbnailImageReference());
+        String originalUrl = resolveMemoImageUrl(row.originalImageReference(), row.memoId(), "original");
+        String thumbnailUrl = resolveMemoImageUrl(row.thumbnailImageReference(), row.memoId(), "thumbnail");
         String representativeUrl = thumbnailUrl == null ? originalUrl : thumbnailUrl;
 
         return new ImageUrls(originalUrl, thumbnailUrl, representativeUrl);
+    }
+
+    private String resolveMemoImageUrl(String objectKey, UUID memoId, String imageRole) {
+        String imageUrl = minioPublicUrlResolver.resolve(objectKey);
+        if (StringUtils.hasText(objectKey) && !StringUtils.hasText(imageUrl)) {
+            CommunityMemoEventLogger.warn("community_file_url_resolve_failed",
+                "admin community memo image url resolve failed", null,
+                CommunityMemoEventLogger.metadata("memo_id", memoId, "image_role", imageRole, "object_key", objectKey),
+                null);
+        }
+
+        return imageUrl;
     }
 
     private String resolveSourceType(AdminCommunityMemoRow row) {
