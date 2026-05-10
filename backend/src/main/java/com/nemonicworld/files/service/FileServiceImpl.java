@@ -16,6 +16,7 @@ import com.nemonicworld.files.entity.FileUpload;
 import com.nemonicworld.files.entity.FileUploadPurpose;
 import com.nemonicworld.files.entity.FileUploadStatus;
 import com.nemonicworld.files.repository.FileUploadRepository;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
@@ -103,6 +104,8 @@ public class FileServiceImpl implements FileService {
         FileUpload fileUpload = FileUpload.createPending(fileId, userUuid, purpose, safeFileName, request.contentType(),
             byteSize, objectKey, expiresAt, now);
         fileUploadRepository.save(fileUpload);
+        logCommunityFileEvent("community_file_presign_created", userUuid, fileUpload,
+            StructuredEventLogger.metadata("expires_at", expiresAt, "expires_in", expiresIn));
 
         return new FilePresignResponse(fileId.toString(), presignedUrl, expiresIn);
     }
@@ -166,6 +169,8 @@ public class FileServiceImpl implements FileService {
         }
 
         fileUpload.markUploaded(LocalDateTime.now());
+        logCommunityFileEvent("community_file_upload_confirmed", userUuid, fileUpload,
+            StructuredEventLogger.metadata("stat_object_size", statObjectResponse.size()));
 
         return new FileConfirmResponse(fileUpload.getId().toString(), FileUploadStatus.UPLOADED.name());
     }
@@ -195,8 +200,23 @@ public class FileServiceImpl implements FileService {
         removeObject(fileUpload.getObjectKey());
 
         fileUpload.markDeleted(LocalDateTime.now());
+        logCommunityFileEvent("community_file_upload_deleted", userUuid, fileUpload,
+            StructuredEventLogger.metadata("delete_scope", "pending_upload"));
 
         return new FileDeleteResponse(fileUpload.getId().toString(), FileUploadStatus.DELETED.name());
+    }
+
+    private void logCommunityFileEvent(String eventName, UUID userUuid, FileUpload fileUpload,
+        Map<String, Object> extraMetadata) {
+        if (!fileUpload.hasPurpose(FileUploadPurpose.COMMUNITY)) {
+            return;
+        }
+
+        Map<String, Object> metadata = StructuredEventLogger.metadata("file_id", fileUpload.getId(), "purpose",
+            fileUpload.getPurpose(), "status", fileUpload.getStatus(), "object_key", fileUpload.getObjectKey(),
+            "content_type", fileUpload.getContentType(), "byte_size", fileUpload.getByteSize());
+        metadata.putAll(extraMetadata == null ? Map.of() : extraMetadata);
+        StructuredEventLogger.apiBusiness(eventName, "community_file", userUuid.toString(), metadata);
     }
 
     private UUID parseFileId(String value) {
