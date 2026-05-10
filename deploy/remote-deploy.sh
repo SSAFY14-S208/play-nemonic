@@ -35,14 +35,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$RELEASE_NAME" ]]; then
-  echo "Usage: remote-deploy.sh --release <name> --target backend|frontend [--base-dir <dir>] [--env-file <path>]" >&2
+  echo "Usage: remote-deploy.sh --release <name> --target backend|frontend|ai [--base-dir <dir>] [--env-file <path>]" >&2
   exit 1
 fi
 
-if [[ "$DEPLOY_TARGET" != "backend" && "$DEPLOY_TARGET" != "frontend" ]]; then
-  echo "[ERROR] --target은 backend 또는 frontend만 가능 (현재: $DEPLOY_TARGET)" >&2
-  exit 1
-fi
+case "$DEPLOY_TARGET" in
+  backend|frontend|ai)
+    ;;
+  *)
+    echo "[ERROR] --target must be one of backend|frontend|ai (current: $DEPLOY_TARGET)" >&2
+    exit 1
+    ;;
+esac
 
 ENV_FILE="${ENV_FILE:-$BASE_DIR/shared/.env.prod}"
 INFRA_DIR="$BASE_DIR/infra"
@@ -56,10 +60,20 @@ INFRA_DIR="$BASE_DIR/infra"
 # 예전 버전은 nemonic/backend로 tag/push해서 롤백이 무효했음.
 SERVICE_NAME="${DEPLOY_TARGET}"
 IMAGE_REPO="${DEPLOY_TARGET}"
-if [[ "$DEPLOY_TARGET" == "backend" ]]; then
-  SERVICE_NAME="app"
-  IMAGE_REPO="app"
-fi
+case "$DEPLOY_TARGET" in
+  backend)
+    SERVICE_NAME="app"
+    IMAGE_REPO="app"
+    ;;
+  frontend)
+    SERVICE_NAME="frontend"
+    IMAGE_REPO="frontend"
+    ;;
+  ai)
+    SERVICE_NAME="moderation-server"
+    IMAGE_REPO="moderation-server"
+    ;;
+esac
 IMAGE_NAME="localhost:5000/nemonic/${IMAGE_REPO}"
 
 echo "=========================================="
