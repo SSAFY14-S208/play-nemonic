@@ -3,8 +3,11 @@ package com.nemonicworld.relay.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -17,7 +20,9 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
+import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.disconnect.RelayDisconnectGraceProcessResult;
 import com.nemonicworld.relay.service.disconnect.RelayDisconnectGraceRoomResult;
 import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
@@ -25,6 +30,7 @@ import com.nemonicworld.relay.service.disconnect.RelayRoomDisconnectGraceService
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -51,6 +57,12 @@ class RelayRoomDisconnectGraceServiceTest {
     private RelayRoomRepository relayRoomRepository;
 
     @Mock
+    private RelaySubmissionLockRepository relaySubmissionLockRepository;
+
+    @Mock
+    private RelayRoomMutationLockRepository relayRoomMutationLockRepository;
+
+    @Mock
     private RelayRoomEventPublisher relayRoomEventPublisher;
 
     @Mock
@@ -60,9 +72,15 @@ class RelayRoomDisconnectGraceServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient()
+            .when(
+                relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
+            .thenReturn(true);
+        lenient().when(relaySubmissionLockRepository.isSubmissionLocked(anyString(), anyInt(),
+            any(RelayDrawingPart.class), anyString())).thenReturn(false);
         relayRoomDisconnectGraceService = new RelayRoomDisconnectGraceService(relayRoomRepository,
-            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, relayInviteMetadataSyncService,
-            RECONNECT_GRACE_SECONDS, 100);
+            relaySubmissionLockRepository, relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
+            relayRoomEventPublisher, relayInviteMetadataSyncService, RECONNECT_GRACE_SECONDS, 5000, 100);
     }
 
     @Test
@@ -172,6 +190,34 @@ class RelayRoomDisconnectGraceServiceTest {
         verify(relayRoomEventPublisher, never()).publishParticipantDropped(any());
         verify(relayRoomEventPublisher).publishPartAutoSubmitted(eq(ROOM_CODE), eq("Peach"),
             any(RelayRoomAssignment.class));
+    }
+
+    @Test
+    void processRoomSkipsAutoSubmitWhenDroppedAssignmentSubmissionIsLocked() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE,
+            List.of(submittedAssignment(0, RelayDrawingPart.FACE, hostUuid),
+                pendingAssignment(1, RelayDrawingPart.FACE, participantUuid)),
+            participant(hostUuid, "Mango", true, 0),
+            participant(participantUuid, "Peach", false, 1, false, NOW.minusSeconds(10)));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relaySubmissionLockRepository.isSubmissionLocked(ROOM_CODE, 1, RelayDrawingPart.FACE,
+            participantUuid.toString())).willReturn(true);
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayDisconnectGraceRoomResult result = relayRoomDisconnectGraceService.processRoom(ROOM_CODE, NOW);
+
+        assertThat(result.processed()).isTrue();
+        assertThat(result.droppedParticipants()).hasSize(1);
+        assertThat(result.autoSubmissions()).isEmpty();
+        RelayRoomState updatedRoomState = captureUpdatedRoomState();
+        assertThat(updatedRoomState.participants().get(1).dropped()).isTrue();
+        assertThat(updatedRoomState.assignments().get(1).status()).isEqualTo(RelayAssignmentStatus.PENDING);
+        verify(relayRoomEventPublisher).publishParticipantDropped(result.droppedParticipants().get(0));
+        verify(relayRoomEventPublisher, never()).publishPartAutoSubmitted(any(), any(), any());
+        verify(relayRoomEventPublisher, never()).publishPartStarted(any(), any(), any(), any(), any());
     }
 
     @Test

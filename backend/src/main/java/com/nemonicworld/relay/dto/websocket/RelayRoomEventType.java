@@ -18,6 +18,8 @@ public enum RelayRoomEventType {
 
     PART_SUBMITTED,
 
+    PART_TIME_UP,
+
     PART_AUTO_SUBMITTED,
 
     ALL_PARTS_COMPLETED,

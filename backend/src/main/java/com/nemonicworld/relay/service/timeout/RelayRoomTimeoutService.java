@@ -9,6 +9,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.repository.RelayRoomTimeUpNotificationRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
@@ -36,6 +37,7 @@ public class RelayRoomTimeoutService {
 
     private final RelayRoomRepository relayRoomRepository;
     private final RelaySubmissionLockRepository relaySubmissionLockRepository;
+    private final RelayRoomTimeUpNotificationRepository relayRoomTimeUpNotificationRepository;
     private final RelayRoomMutationLockRepository relayRoomMutationLockRepository;
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
@@ -46,6 +48,7 @@ public class RelayRoomTimeoutService {
 
     public RelayRoomTimeoutService(RelayRoomRepository relayRoomRepository,
         RelaySubmissionLockRepository relaySubmissionLockRepository,
+        RelayRoomTimeUpNotificationRepository relayRoomTimeUpNotificationRepository,
         RelayRoomMutationLockRepository relayRoomMutationLockRepository,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
         RelayInviteMetadataSyncService relayInviteMetadataSyncService,
@@ -54,6 +57,7 @@ public class RelayRoomTimeoutService {
         @Value("${nemonic.relay.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.relayRoomRepository = relayRoomRepository;
         this.relaySubmissionLockRepository = relaySubmissionLockRepository;
+        this.relayRoomTimeUpNotificationRepository = relayRoomTimeUpNotificationRepository;
         this.relayRoomMutationLockRepository = relayRoomMutationLockRepository;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
@@ -68,6 +72,7 @@ public class RelayRoomTimeoutService {
      */
     public RelayTimeoutProcessResult processExpiredRooms() {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        publishPartTimeUpEvents(relayRoomRepository.findExpiredPlayingRooms(now, scanLimit), now);
         LocalDateTime autoSubmitCutoff = now.minus(autoSubmitGrace);
         List<RelayRoomState> expiredRooms = relayRoomRepository.findExpiredPlayingRooms(autoSubmitCutoff, scanLimit);
         int processedRoomCount = 0;
@@ -86,6 +91,27 @@ public class RelayRoomTimeoutService {
         }
 
         return new RelayTimeoutProcessResult(expiredRooms.size(), processedRoomCount, autoSubmittedCount);
+    }
+
+    private void publishPartTimeUpEvents(List<RelayRoomState> timeUpRooms, LocalDateTime now) {
+        for (RelayRoomState roomState : timeUpRooms) {
+            if (!shouldPublishPartTimeUpEvent(roomState, now)) {
+                continue;
+            }
+
+            try {
+                boolean marked = relayRoomTimeUpNotificationRepository.markPartTimeUpNotified(roomState.roomCode(),
+                    roomState.currentPart(), roomState.partDeadlineAt(), RelayRoomRepository.ROOM_STATE_TTL);
+                if (marked) {
+                    LocalDateTime submitGraceDeadlineAt = roomState.partDeadlineAt().plus(autoSubmitGrace);
+                    relayRoomEventPublisher.publishPartTimeUp(roomState.roomCode(), roomState.currentPart(),
+                        roomState.partDeadlineAt(), submitGraceDeadlineAt, autoSubmitGrace.toMillis());
+                }
+            } catch (RuntimeException e) {
+                log.warn("릴레이 파트 제한 시간 종료 이벤트 발행 중 오류가 발생했습니다. roomCode={}, part={}", roomState.roomCode(),
+                    roomState.currentPart(), e);
+            }
+        }
     }
 
     /**
@@ -152,6 +178,17 @@ public class RelayRoomTimeoutService {
     private boolean isExpiredPlayingRoom(RelayRoomState roomState, LocalDateTime now) {
         return roomState != null && roomState.status() == RelayRoomStatus.PLAYING && roomState.currentPart() != null
             && roomState.partDeadlineAt() != null && !roomState.partDeadlineAt().plus(autoSubmitGrace).isAfter(now);
+    }
+
+    private boolean shouldPublishPartTimeUpEvent(RelayRoomState roomState, LocalDateTime now) {
+        return roomState != null && roomState.status() == RelayRoomStatus.PLAYING && roomState.currentPart() != null
+            && roomState.partDeadlineAt() != null && !roomState.partDeadlineAt().isAfter(now)
+            && roomState.partDeadlineAt().plus(autoSubmitGrace).isAfter(now) && hasPendingCurrentAssignment(roomState);
+    }
+
+    private boolean hasPendingCurrentAssignment(RelayRoomState roomState) {
+        return roomState.assignments().stream().anyMatch(assignment -> assignment.part() == roomState.currentPart()
+            && assignment.status() == RelayAssignmentStatus.PENDING);
     }
 
     private AutoSubmitUpdate autoSubmitPendingAssignments(RelayRoomState roomState, RelayDrawingPart currentPart,

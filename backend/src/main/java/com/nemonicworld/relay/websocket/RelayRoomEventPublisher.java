@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.websocket;
 
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
@@ -14,6 +15,7 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomHostChangedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantDroppedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
@@ -47,6 +49,7 @@ public class RelayRoomEventPublisher {
     private static final CloseStatus KICKED_FROM_ROOM_CLOSE_STATUS = CloseStatus.POLICY_VIOLATION
         .withReason("KICKED_FROM_ROOM");
     private static final CloseStatus LEFT_ROOM_CLOSE_STATUS = CloseStatus.NORMAL.withReason("LEFT_ROOM");
+    private static final CloseStatus ROOM_CLOSED_CLOSE_STATUS = CloseStatus.NORMAL.withReason("ROOM_CLOSED");
     private static final String PONG_MESSAGE = "pong";
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -158,6 +161,15 @@ public class RelayRoomEventPublisher {
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + submissionResponse.roomCode(), event);
     }
 
+    public void publishPartTimeUp(String roomCode, RelayDrawingPart part, LocalDateTime partDeadlineAt,
+        LocalDateTime submitGraceDeadlineAt, long autoSubmitGraceMillis) {
+        RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_TIME_UP, roomCode,
+            new RelayRoomPartTimeUpEventResponse(roomCode, part, partDeadlineAt, submitGraceDeadlineAt,
+                autoSubmitGraceMillis));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+    }
+
     public void publishPartAutoSubmitted(String roomCode, String nickname, RelayRoomAssignment assignment) {
         RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.PART_AUTO_SUBMITTED, roomCode,
             RelayRoomPartAutoSubmittedEventResponse.from(roomCode, nickname, assignment));
@@ -204,6 +216,13 @@ public class RelayRoomEventPublisher {
             new RelayRoomClosedEventResponse(roomCode, RelayRoomStatus.CLOSED, closedAt));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+        closeRoomSessions(roomCode);
+    }
+
+    private void closeRoomSessions(String roomCode) {
+        webSocketSessionRegistry.findCurrentSessions(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode)
+            .forEach(session -> webSocketSessionRegistry.closeWebSocketSession(session.sessionId(),
+                ROOM_CLOSED_CLOSE_STATUS));
     }
 
     /**
@@ -221,7 +240,8 @@ public class RelayRoomEventPublisher {
      * 강퇴 대상자의 현재 개인 큐에 안내를 보낸 뒤 같은 서버의 활성 WebSocket 세션을 종료합니다.
      */
     public void publishKickedFromRoom(String roomCode, String kickedUserUuid) {
-        webSocketSessionRegistry.findCurrentSession(roomCode, kickedUserUuid)
+        webSocketSessionRegistry
+            .findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode, kickedUserUuid)
             .ifPresent(session -> publishKickedFromRoom(roomCode, session));
     }
 
@@ -229,7 +249,9 @@ public class RelayRoomEventPublisher {
      * 스스로 퇴장한 사용자의 같은 서버 활성 WebSocket 세션이 있으면 정상 종료합니다.
      */
     public void closeLeftRoomSession(String roomCode, String leftUserUuid) {
-        webSocketSessionRegistry.findCurrentSession(roomCode, leftUserUuid).ifPresent(this::closeLeftRoomSession);
+        webSocketSessionRegistry
+            .findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, roomCode, leftUserUuid)
+            .ifPresent(this::closeLeftRoomSession);
     }
 
     private void publishKickedFromRoom(String roomCode, ActiveWebSocketSession session) {

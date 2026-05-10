@@ -262,15 +262,16 @@ class RedisRelayRoomRepositoryTest {
     @Test
     void acquireAndReleaseFinalizationLockUsesSeparateLockKey() {
         Duration lockTtl = Duration.ofSeconds(60);
-        given(valueOperations.setIfAbsent("relay:room-finalization-lock:" + ROOM_CODE, "locked", lockTtl))
+        String lockToken = "token-1";
+        given(valueOperations.setIfAbsent("relay:room-finalization-lock:" + ROOM_CODE, lockToken, lockTtl))
             .willReturn(true);
 
-        boolean acquired = repository.acquireFinalizationLock(ROOM_CODE, lockTtl);
-        repository.releaseFinalizationLock(ROOM_CODE);
+        boolean acquired = repository.acquireFinalizationLock(ROOM_CODE, lockToken, lockTtl);
+        repository.releaseFinalizationLock(ROOM_CODE, lockToken);
 
         assertThat(acquired).isTrue();
-        verify(valueOperations).setIfAbsent("relay:room-finalization-lock:" + ROOM_CODE, "locked", lockTtl);
-        verify(redisTemplate).delete("relay:room-finalization-lock:" + ROOM_CODE);
+        verify(valueOperations).setIfAbsent("relay:room-finalization-lock:" + ROOM_CODE, lockToken, lockTtl);
+        verify(redisTemplate).execute(any(), eq(List.of("relay:room-finalization-lock:" + ROOM_CODE)), eq(lockToken));
     }
 
     @Test

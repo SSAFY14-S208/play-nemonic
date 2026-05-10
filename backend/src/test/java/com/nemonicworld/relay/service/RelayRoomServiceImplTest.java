@@ -114,7 +114,8 @@ class RelayRoomServiceImplTest {
             .when(
                 relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
             .thenReturn(true);
-        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
+        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository,
+            RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
         RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
         relayRoomService = new RelayRoomServiceImpl(
@@ -542,6 +543,30 @@ class RelayRoomServiceImplTest {
         assertThat(storedParticipant.nickname()).isEqualTo("망고");
         assertThat(storedParticipant.host()).isTrue();
         assertThat(storedParticipant.joinOrder()).isZero();
+    }
+
+    @Test
+    void disconnectRoomMarksParticipantDisconnectedEvenAfterFinished() {
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomState roomState = roomState(RelayRoomStatus.FINISHED, participant(hostUuid, "Mango", true, 0));
+        given(anonymousUserResolver.parseUuid(hostUuid.toString())).willReturn(hostUuid);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomStateResponse response = relayRoomService.disconnectRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.status()).isEqualTo(RelayRoomStatus.FINISHED);
+        assertThat(response.participants().get(0).connected()).isFalse();
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomState updatedRoomState = updatedStateCaptor.getValue();
+        RelayRoomParticipant storedParticipant = updatedRoomState.participants().get(0);
+        assertThat(updatedRoomState.status()).isEqualTo(RelayRoomStatus.FINISHED);
+        assertThat(storedParticipant.connected()).isFalse();
+        assertThat(storedParticipant.disconnectedAt()).isNotNull();
     }
 
     /**
