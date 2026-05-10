@@ -125,6 +125,12 @@ Last updated: 2026-05-10
   JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`, rejects
   already CLOSED rooms with 409, emits `ROOM_CLOSED`, and leaves MinIO,
   artifact, and gallery cleanup out of scope.
+- Backoffice admins can now list active flipbook rooms through
+  `GET /api/v1/backoffice/flipbook-rooms`; the API requires an admin JWT,
+  scans Redis `flipbook:room:{roomCode}` state, returns CLOSED-excluded
+  WAITING/PLAYING/FINISHED rooms with `roomCode`, `status`, participant count,
+  current/total round, and `gameStartedAt`, supports `status`, `page`, and
+  `size`, and keeps database/artifact/gallery lookup out of scope.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.

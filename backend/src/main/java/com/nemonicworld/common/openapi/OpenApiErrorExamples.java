@@ -720,6 +720,12 @@ public final class OpenApiErrorExamples {
           "message": "조회할 수 없는 방 상태입니다."
         }
         """;
+    public static final String BACKOFFICE_FLIPBOOK_ROOM_INVALID_STATUS = """
+        {
+          "success": false,
+          "message": "조회할 수 없는 플립북 방 상태입니다."
+        }
+        """;
     public static final String BACKOFFICE_RELAY_ROOM_UPDATE_CONFLICT = """
         {
           "success": false,
