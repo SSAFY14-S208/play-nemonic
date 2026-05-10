@@ -145,6 +145,8 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `community_memo_upload_confirmed`
 - `community_memo_upload_deleted`
 - `community_repository_query_failed`
+- `community_file_url_resolve_failed`
+- `community_decoration_parse_failed`
 - `community_memo_list_viewed`
 - `community_memo_detail_viewed`
 - `community_memo_detail_not_found`
@@ -174,6 +176,14 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `community_memo_auto_hidden_by_report`
 - `community_api_slow_request`
 - `community_admin_query_failed`
+- `community_missing_user_header`
+- `community_invalid_uuid_repeated`
+- `community_user_not_found`
+- `community_ownership_violation`
+- `community_duplicate_report_attempt`
+- `community_hidden_memo_access_attempt`
+- `community_deleted_memo_access_attempt`
+- `community_file_ownership_violation`
 - `admin_community_memo_list_viewed`
 - `admin_community_memo_detail_viewed`
 - `admin_community_memo_reports_viewed`
@@ -187,6 +197,9 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `admin_access_denied`
 - `admin_forbidden`
 - `admin_token_invalid`
+- `admin_login_success`
+- `admin_login_failed`
+- `admin_logout`
 - `canvas_created`
 - `canvas_joined`
 - `canvas_join_rejected`
@@ -196,6 +209,10 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 포함 데이터:
 
 - `memo_id`
+- `actor_type`
+- `user_uuid`
+- `admin_id`
+- `trace_id`
 - `canvas_id`
 - `uuid`
 - `source_type`
@@ -205,6 +222,10 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `moderation_status`
 - `hidden_reason`
 - `deleted_reason`
+- `report_reason`
+- `reason_code`
+- `result`
+- `duration_ms`
 - `report_count`
 - `fifo_rank`
 - `reject_reason`
