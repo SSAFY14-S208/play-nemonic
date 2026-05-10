@@ -438,6 +438,14 @@ Recent relay logging work added structured event emission for the relay drawing 
 - Backoffice relay force-close emits `relay_room_force_close` audit metadata and `relay_room_closed` business metadata; relay-scoped system parameter changes emit `param_change`.
 - `backend/docs/product-spec/08-observability.md` includes the relay event names in the backend business-event allow-list.
 
+Recent community logging work reused the shared structured event logger for community canvas and backoffice review flows.
+
+- `StructuredEventLogger` centralizes JSON emission to `logs.api`, `logs.websocket`, and `logs.audit`; the existing relay logger and admin audit logger now delegate to it.
+- Community API logs now cover memo list/detail views, create, moderation request/allowed/blocked/failure, FIFO check/expiry, layout update/denial, user delete/denial, report create/rejection, and report-threshold auto hide.
+- COMMUNITY-purpose file uploads now emit presign, confirm, and pending-delete events without affecting other file purposes.
+- Admin community list/detail/report-history views emit audit events, while existing hide/restore audit logs keep the operator-provided review reason in metadata.
+- `backend/docs/product-spec/08-observability.md` includes the community event names in the backend event allow-list.
+
 ## Next Suggested Steps
 
 - Use `backend/docs/codex-prompt-templates.md` for the first feature request.

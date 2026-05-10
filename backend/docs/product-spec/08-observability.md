@@ -141,11 +141,30 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 
 ### 커뮤니티/캔버스 서버 처리 이벤트
 
-- `memo_created`
-- `memo_deleted`
-- `memo_reported`
-- `memo_expired_fifo`
-- `memo_auto_hidden`
+- `community_file_presign_created`
+- `community_file_upload_confirmed`
+- `community_file_upload_deleted`
+- `community_memo_list_viewed`
+- `community_memo_detail_viewed`
+- `community_memo_moderation_requested`
+- `community_memo_moderation_allowed`
+- `community_memo_moderation_blocked`
+- `community_memo_moderation_failed`
+- `community_memo_created`
+- `community_memo_fifo_checked`
+- `community_memo_fifo_expired`
+- `community_memo_layout_update_denied`
+- `community_memo_layout_updated`
+- `community_memo_delete_denied`
+- `community_memo_deleted`
+- `community_memo_report_rejected`
+- `community_memo_report_created`
+- `community_memo_auto_hidden_by_reports`
+- `community_memo_admin_list_viewed`
+- `community_memo_admin_detail_viewed`
+- `community_memo_admin_reports_viewed`
+- `community_memo_hide`
+- `community_memo_restore`
 - `canvas_created`
 - `canvas_joined`
 - `canvas_join_rejected`
@@ -157,6 +176,13 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `memo_id`
 - `canvas_id`
 - `uuid`
+- `source_type`
+- `artifact_id`
+- `original_file_id`
+- `thumbnail_file_id`
+- `moderation_status`
+- `hidden_reason`
+- `deleted_reason`
 - `report_count`
 - `fifo_rank`
 - `reject_reason`
