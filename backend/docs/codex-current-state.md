@@ -131,6 +131,11 @@ Last updated: 2026-05-10
   WAITING/PLAYING/FINISHED rooms with `roomCode`, `status`, participant count,
   current/total round, and `gameStartedAt`, supports `status`, `page`, and
   `size`, and keeps database/artifact/gallery lookup out of scope.
+- Backoffice admins can now delete active flipbook rooms through
+  `DELETE /api/v1/backoffice/flipbook-rooms/{roomCode}`; delete requires an
+  admin JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`,
+  rejects already CLOSED rooms with 409, syncs invite metadata, emits
+  `ROOM_CLOSED`, and leaves MinIO, artifact, gallery, and DB rows untouched.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.
