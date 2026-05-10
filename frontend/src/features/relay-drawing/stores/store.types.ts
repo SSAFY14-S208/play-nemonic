@@ -81,6 +81,10 @@ export interface CanvasSlice {
   isSubmitted: boolean
   submittedCount: number
   totalCount: number
+  // 현재 파트에서 이미 제출한 참여자의 userUuid 목록 — 우측 친구 패널이
+  // "X님 완료" 표시를 띄우는 데 쓴다. PART_STARTED / GAME_STARTED / setAssignment
+  // 시점에 비워지고, PART_SUBMITTED / PART_AUTO_SUBMITTED 수신 시 추가된다.
+  submittedUserUuids: string[]
 
   // 라운드별 데드라인/제출 상태 — 라운드 전환 시 cross-round auto-submit 방지.
   // roundDeadlines[round] === null이면 해당 라운드 데드라인 미수신 → 자동 제출 금지.
@@ -121,6 +125,10 @@ export interface CanvasSlice {
   markSubmitted: (roundKey?: RelayRoundKey) => void
   setRoundDeadline: (roundKey: RelayRoundKey, deadline: string) => void
   updateSubmissionProgress: (submittedCount: number, totalCount: number) => void
+  // 한 파트에서 같은 사용자가 두 번 들어오는 경우는 백엔드가 막지만, 클라이언트
+  // 입장에서도 dedup으로 안전망. 같은 userUuid면 무시된다.
+  addSubmittedUserUuid: (userUuid: string) => void
+  clearSubmittedUserUuids: () => void
   // beginTransition / advanceToNextRound: 라운드 전환 애니메이션 제어.
   beginTransition: () => void
   advanceToNextRound: () => void

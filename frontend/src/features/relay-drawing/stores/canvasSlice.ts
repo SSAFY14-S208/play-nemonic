@@ -35,6 +35,7 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
   isSubmitted: false,
   submittedCount: 0,
   totalCount: 0,
+  submittedUserUuids: [],
 
   // 라운드별 데드라인/제출 상태
   roundDeadlines: { face: null, body: null, legs: null },
@@ -180,6 +181,7 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
       isSubmitted: false,
       submittedCount: 0,
       totalCount: 0,
+      submittedUserUuids: [],
       isTransitioning: false,
       selectedToolKey: 'pencil',
       // 라운드별 데드라인 — 새로고침 복귀 시 WS 이벤트 없이도 deadline이 복원되도록.
@@ -218,6 +220,14 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
   updateSubmissionProgress: (submittedCount, totalCount) =>
     set({ submittedCount, totalCount }),
 
+  addSubmittedUserUuid: (userUuid) => {
+    const current = get().submittedUserUuids
+    if (current.includes(userUuid)) return
+    set({ submittedUserUuids: [...current, userUuid] })
+  },
+
+  clearSubmittedUserUuids: () => set({ submittedUserUuids: [] }),
+
   beginTransition: () => set({ isTransitioning: true }),
 
   advanceToNextRound: () => {
@@ -236,6 +246,7 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
       isSubmitted: false,
       submittedCount: 0,
       totalCount: 0,
+      submittedUserUuids: [],
       isTransitioning: false,
       partFetchTrigger: 0,
       roundDeadlines: { face: null, body: null, legs: null },

@@ -5,6 +5,7 @@ import { HTTPError } from 'ky'
 import { toast } from 'sonner'
 
 import { getRelayRoomAssignmentMe, postRelayRoomSubmission } from '@/shared/apis'
+import { useUserStore } from '@/shared/stores'
 
 import { PART_TO_ROUND_KEY, RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
 import { useRelayDrawingStore } from '../stores'
@@ -189,11 +190,21 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
         response.submittedCount,
         response.totalCount,
       )
+      // 본인 UUID도 즉시 제출자 목록에 추가 — 우측 친구 패널의 "완료" 표시가
+      // WS round-trip 없이 바로 반영되도록.
+      const currentUserUuid = useUserStore.getState().userUuid
+      if (currentUserUuid) {
+        useRelayDrawingStore.getState().addSubmittedUserUuid(currentUserUuid)
+      }
     } catch (error) {
       // 409 Conflict = 서버가 이미 auto-submit 처리했거나 데드라인 만료.
       // 클라이언트는 "제출 완료"로 간주하고 대기 상태로 전환한다.
       if (error instanceof HTTPError && error.response.status === 409) {
         useRelayDrawingStore.getState().markSubmitted(submittingRoundKey)
+        const currentUserUuid = useUserStore.getState().userUuid
+        if (currentUserUuid) {
+          useRelayDrawingStore.getState().addSubmittedUserUuid(currentUserUuid)
+        }
         return
       }
 

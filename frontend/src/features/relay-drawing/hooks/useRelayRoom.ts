@@ -257,6 +257,8 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         useRelayDrawingStore.getState().setRoundDeadline(roundKey, event.data.partDeadlineAt)
         // effect 트리거 — fetch가 currentPart/canvasIndex/hint를 채운다.
         useRelayDrawingStore.getState().incrementPartFetchTrigger()
+        // 새 파트라 제출자 목록도 비운다.
+        useRelayDrawingStore.getState().clearSubmittedUserUuids()
       },
       HOST_CHANGED: (event) => {
         setHostUserUuid(event.data.newHostUserUuid)
@@ -346,18 +348,22 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         useRelayDrawingStore.getState().setRoundDeadline(roundKey, event.data.partDeadlineAt)
         // effect 트리거 — partDeadlineAt 대신 전용 카운터 사용
         useRelayDrawingStore.getState().incrementPartFetchTrigger()
+        // 새 파트 시작 — 이전 파트의 제출자 목록은 더 이상 의미 없음.
+        useRelayDrawingStore.getState().clearSubmittedUserUuids()
       },
       PART_SUBMITTED: (event) => {
-        // 다른 참여자가 제출 — 진행도 갱신 (e.g. "2/3 제출 완료").
+        // 다른 참여자가 제출 — 진행도 + 제출자 UUID 갱신.
+        // RoundProgressPanel이 submittedUserUuids로 "X님 완료" 표시를 띄운다.
         useRelayDrawingStore.getState().updateSubmissionProgress(
           event.data.submittedCount,
           event.data.totalCount,
         )
+        useRelayDrawingStore.getState().addSubmittedUserUuid(event.data.userUuid)
       },
-      PART_AUTO_SUBMITTED: () => {
-        // 서버 자동 제출 (유예기간 2초 내 미제출). 이벤트 data에 submittedCount/totalCount가
-        // 없으므로 진행도 갱신 불가. 서버가 이어서 PART_STARTED 또는 ALL_PARTS_COMPLETED를
-        // 보내므로 여기서는 추가 처리 불필요.
+      PART_AUTO_SUBMITTED: (event) => {
+        // 서버 자동 제출 (유예기간 2초 내 미제출). submittedCount/totalCount는
+        // 안 오지만 어떤 사용자가 자동 제출됐는지는 알 수 있어 친구 패널 표시에 반영.
+        useRelayDrawingStore.getState().addSubmittedUserUuid(event.data.userUuid)
       },
     },
   })
