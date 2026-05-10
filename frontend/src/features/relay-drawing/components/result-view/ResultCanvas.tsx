@@ -35,8 +35,11 @@ export default function ResultCanvas({
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-[14px] border-[1.5px] border-relay-line bg-relay-background',
-        isFinalReveal ? 'h-[495px]' : 'h-[460px]',
+        'relative min-h-0 flex-1 overflow-hidden rounded-[14px] border-[1.5px] border-relay-line bg-relay-background',
+        // 모바일에선 부모 높이가 정해지지 않아 flex-1만으론 사이즈가 안 잡히므로
+        // 명시적 min-height로 보장. 데스크탑(lg+)에선 viewport가 짧을 때 min-h가
+        // 거꾸로 부모를 밀어내 StepNav가 카드 밖으로 빠지므로 lg:min-h-0으로 풀어둔다.
+        isFinalReveal ? 'min-h-110 lg:min-h-0' : 'min-h-100 lg:min-h-0',
       )}
     >
       <CompositeDrawingCanvas

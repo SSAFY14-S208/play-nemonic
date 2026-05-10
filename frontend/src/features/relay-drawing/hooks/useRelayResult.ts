@@ -5,7 +5,6 @@ import { useMemo, useState } from 'react'
 import { ApiError, postRelayRoomClose } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 import type { RelayPart } from '@/shared/types'
-import { parseServerInstant } from '@/shared/utils'
 
 import {
   DRAWER_AVATARS,
@@ -28,20 +27,23 @@ function partToRoundKey(part: RelayPart): RelayRoundKey {
 
 function moveLineToFinalPosition(line: RelayDrawLine, roundKey: RelayRoundKey): RelayDrawLine {
   const roundRule = RELAY_ROUND_RULES[roundKey]
+  // 라인은 캔버스 좌표계 기준이라 drawArea가 y=120에서 시작하면 y=120이 라운드의
+  // "내 영역 시작점"이다. 최종 1920 합성에서 그 시작점이 finalOffsetY 위치로 가도록
+  // (point.y - drawArea.y) + finalOffsetY 변환을 한다.
+  const adjustedOffsetY = roundRule.finalOffsetY - roundRule.drawArea.y
   return {
     ...line,
     id: `${roundKey}-${line.id}`,
     points: line.points.map((point) => ({
       x: point.x,
-      y: point.y + roundRule.finalOffsetY,
+      y: point.y + adjustedOffsetY,
     })),
   }
 }
 
 function formatDateLabel(isoString: string): string {
-  // 서버 LocalDateTime을 UTC로 강제 해석한 뒤, 사용자 로컬 timezone으로 자정
-  // 경계 오차 없이 표시한다.
-  const date = parseServerInstant(isoString)
+  // 백엔드가 timezone-aware ISO-8601 문자열을 보내므로 그대로 파싱.
+  const date = new Date(isoString)
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
@@ -164,6 +166,8 @@ export function useRelayResult() {
       const dynamicSegments: RelayResultSegment[] = parts.map((partItem, index) => {
         const roundKey = partToRoundKey(partItem.part)
         const roundRule = RELAY_ROUND_RULES[roundKey]
+        // avatar 필드는 데이터 모델 호환을 위해 유지하지만 결과 화면에서 더 이상
+        // 시각적으로 노출되지 않는다. 표시 라벨/태그에서 emoji prefix를 제거했다.
         const avatar = DRAWER_AVATARS[index % DRAWER_AVATARS.length]
         const isMe = partItem.drawerUserUuid === currentUserUuid
         const displayName = isMe
@@ -175,7 +179,7 @@ export function useRelayResult() {
           avatar,
           participantName: displayName,
           roleLabel: roundRule.label,
-          tagLabel: `${avatar} ${partItem.drawerNickname} · ${roundRule.label}`,
+          tagLabel: `${partItem.drawerNickname} · ${roundRule.label}`,
           tagClassName: SEGMENT_TAG_CLASSNAMES[roundKey],
         }
       })

@@ -177,6 +177,7 @@ export type RelayWsEventType =
   | 'PART_STARTED'
   | 'PART_SUBMITTED'
   | 'PART_AUTO_SUBMITTED'
+  | 'PART_TIME_UP'
   | 'ALL_PARTS_COMPLETED'
   | 'RESULT_CREATED'
   | 'HOST_CHANGED'
@@ -285,6 +286,28 @@ export interface RelayWsPartAutoSubmittedData {
   submittedAt: string
 }
 
+// 라운드 데드라인 도달 — 백엔드가 미제출자에게 직접 보내는 자동 제출 지시.
+// 클라이언트는 본인이 pendingSubmissions에 포함되어 있으면 즉시 제출 API를
+// 발사하고, 그렇지 않으면 오버레이만 띄운 채 PART_STARTED를 기다린다.
+// 백엔드는 모든 in-flight 제출이 완료될 때까지 다음 PART_STARTED를 보내지
+// 않으므로 deadline-based 클라이언트 폴링이 필요 없다.
+export interface RelayWsPartTimeUpPendingSubmission {
+  canvasIndex: number
+  userUuid: string
+  nickname: string
+  connected: boolean
+}
+
+export interface RelayWsPartTimeUpData {
+  roomCode: string
+  part: RelayPart
+  partDeadlineAt: string
+  submitGraceDeadlineAt: string
+  autoSubmitGraceMillis: number
+  pendingCount: number
+  pendingSubmissions: RelayWsPartTimeUpPendingSubmission[]
+}
+
 export interface RelayWsAllPartsCompletedData {
   roomCode: string
   roomStatus: RelayRoomStatus
@@ -351,6 +374,7 @@ export type RelayWsEvent =
   | RelayWsEnvelope<'PART_STARTED', RelayWsPartStartedData>
   | RelayWsEnvelope<'PART_SUBMITTED', RelayWsPartSubmittedData>
   | RelayWsEnvelope<'PART_AUTO_SUBMITTED', RelayWsPartAutoSubmittedData>
+  | RelayWsEnvelope<'PART_TIME_UP', RelayWsPartTimeUpData>
   | RelayWsEnvelope<'ALL_PARTS_COMPLETED', RelayWsAllPartsCompletedData>
   | RelayWsEnvelope<'RESULT_CREATED', RelayWsResultCreatedData>
   | RelayWsEnvelope<'HOST_CHANGED', RelayWsHostChangedData>

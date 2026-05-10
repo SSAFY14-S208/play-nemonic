@@ -28,7 +28,7 @@ export default function ResultStepNav({
         type="button"
         onClick={onShowPreviousResultReveal}
         disabled={!canShowPreviousResultReveal}
-        className="body-b min-h-11 rounded-xl border-[1.5px] border-relay-line bg-relay-paper px-4 text-relay-accent-strong disabled:opacity-45"
+        className="body-b min-h-11 cursor-pointer rounded-xl border-[1.5px] border-relay-line bg-relay-paper px-4 text-relay-accent-strong transition-all hover:brightness-95 disabled:opacity-45 disabled:hover:brightness-100"
       >
         ◀ 이전
       </button>
@@ -44,7 +44,7 @@ export default function ResultStepNav({
         type="button"
         onClick={onShowNextResultReveal}
         disabled={!canShowNextResultReveal}
-        className="body-b min-h-11 rounded-xl bg-relay-accent px-4 text-relay-ink disabled:opacity-45"
+        className="body-b min-h-11 cursor-pointer rounded-xl bg-relay-accent px-4 text-relay-ink transition-all hover:brightness-105 disabled:opacity-45 disabled:hover:brightness-100"
       >
         {activeReveal.nextLabel}
       </button>

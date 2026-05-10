@@ -58,7 +58,7 @@ export default function RelayDismissalModal({
             <button
               type="button"
               onClick={onConfirm}
-              className="body-b mt-2 min-h-11 w-full rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink"
+              className="body-b mt-2 min-h-11 w-full cursor-pointer rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink transition-all hover:brightness-105 disabled:hover:brightness-100"
             >
               확인
             </button>
