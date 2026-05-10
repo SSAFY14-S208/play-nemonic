@@ -37,6 +37,7 @@ export default function RelayLobbyView() {
     changeTimeLimit,
     kickParticipant,
     copyInviteLink,
+    copyRoomCode,
     leaveRoom,
   } = useRelayLobby();
 
@@ -84,7 +85,15 @@ export default function RelayLobbyView() {
                 className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
               >
                 <Copy className="size-[17px]" aria-hidden />
-                {copyConfirm ? "복사됨" : "링크 복사"}
+                {copyConfirm === "link" ? "복사됨" : "링크 복사"}
+              </button>
+              <button
+                type="button"
+                onClick={copyRoomCode}
+                className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
+              >
+                <Copy className="size-[17px]" aria-hidden />
+                {copyConfirm === "roomCode" ? "복사됨" : "입장 코드 복사"}
               </button>
             </div>
           </div>

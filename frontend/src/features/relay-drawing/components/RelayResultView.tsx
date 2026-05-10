@@ -70,8 +70,8 @@ export default function RelayResultView() {
   };
 
   return (
-    <section className="relative isolate min-h-full overflow-hidden border border-relay-border bg-relay-background">
-      <div className="mx-auto flex min-h-screen w-full max-w-360 flex-col gap-4 px-4 py-6 sm:gap-6 sm:px-6 lg:h-screen lg:min-h-0 lg:gap-4 lg:overflow-hidden lg:px-[5%] lg:py-6">
+    <section className="relative isolate min-h-full border border-relay-border bg-relay-background">
+      <div className="mx-auto flex min-h-screen w-full max-w-360 flex-col gap-4 px-4 py-6 sm:gap-6 sm:px-6 lg:gap-4 lg:px-[5%] lg:py-6">
         <ResultProgressStrip
           activeReveal={activeReveal}
           activeRevealIndex={activeRevealIndex}
@@ -81,14 +81,14 @@ export default function RelayResultView() {
         />
 
         {/* 메인 grid — 모바일은 1열 stack(order-{n}), lg+는 좌측 Canvas(2행 전체 높이)
-            + 우측 Credits/Albums 상하 stack. lg에선 viewport 잠금이라 min-h-0로
-            자식이 줄어들 수 있게 풀어준다. */}
-        <main className="grid flex-1 grid-cols-1 gap-4 lg:min-h-0 lg:grid-cols-[7fr_5fr] lg:grid-rows-[1fr_auto] lg:gap-4">
+            + 우측 Credits/Albums 상하 stack. viewport 잠금을 두지 않아 콘텐츠가
+            늘어나면 자연스럽게 페이지 스크롤로 밀려난다. */}
+        <main className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[7fr_5fr] lg:grid-rows-[1fr_auto] lg:gap-4">
           {/* ② Canvas — 좌측 메인 영역 */}
           <div
             className={cn(
               PANEL_CARD_CLASS,
-              "order-1 flex flex-col gap-3 lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:min-h-0 lg:overflow-hidden",
+              "order-1 flex flex-col gap-3 lg:col-start-1 lg:row-start-1 lg:row-span-2",
             )}
           >
             {!isFinalReveal && (
