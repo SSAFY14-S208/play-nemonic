@@ -5,13 +5,16 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.nemonicworld.artifact.service.download.ArtifactDownloadFile;
 import com.nemonicworld.artifact.service.download.ArtifactDownloadService;
+import com.nemonicworld.artifact.service.share.ArtifactShareService;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.share.dto.response.ShareCreateResponse;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
@@ -50,6 +53,9 @@ class ArtifactControllerIntegrationTest {
 
     @MockitoBean
     private ArtifactDownloadService artifactDownloadService;
+
+    @MockitoBean
+    private ArtifactShareService artifactShareService;
 
     @BeforeEach
     void prepareArtifactTables() {
@@ -253,6 +259,32 @@ class ArtifactControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(header().string(HttpHeaders.CONTENT_TYPE, "image/jpeg"))
             .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("nemonic-result.jpg")))
             .andExpect(result -> assertThat(result.getResponse().getContentAsByteArray()).containsExactly(fileBytes));
+    }
+
+    /**
+     * artifact 공유 API는 QR 합성 이미지 URL과 플랫폼별 공유 URL을 JSON으로 반환합니다.
+     */
+    @Test
+    void createArtifactShareReturnsQrImageUrlAndShareUrls() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+        UUID artifactId = UUID.randomUUID();
+        ShareCreateResponse response = new ShareCreateResponse("signed-share-token",
+            "https://minio.example.com/nemonic/artifact-downloads/result-qr.jpg", "https://nemonic.example.com",
+            "https://nemonic.example.com?utm_source=kakao", "https://nemonic.example.com?utm_source=instagram");
+
+        when(artifactShareService.createArtifactShare(userUuid.toString(), artifactId.toString())).thenReturn(response);
+
+        mockMvc
+            .perform(post("/api/v1/artifacts/{artifactId}/share", artifactId).header(ANONYMOUS_USER_UUID_HEADER,
+                userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("산출물 공유 정보 생성 성공"))
+            .andExpect(jsonPath("$.data.shareToken").value("signed-share-token"))
+            .andExpect(
+                jsonPath("$.data.imageUrl").value("https://minio.example.com/nemonic/artifact-downloads/result-qr.jpg"))
+            .andExpect(jsonPath("$.data.siteUrl").value("https://nemonic.example.com"))
+            .andExpect(jsonPath("$.data.kakaoUrl").value("https://nemonic.example.com?utm_source=kakao"))
+            .andExpect(jsonPath("$.data.instagramUrl").value("https://nemonic.example.com?utm_source=instagram"));
     }
 
     private UUID createExistingUser() {
