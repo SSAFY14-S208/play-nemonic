@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import QRCode from 'qrcode'
 import {
+  ArrowLeft,
   Clock3,
   Copy,
   Flag,
@@ -31,6 +32,7 @@ interface FlipbookLobbyViewProps {
   isHost: boolean
   isBusy: boolean
   errorMessage: string | null
+  onBack: () => void
   onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
   onSelectRoundCount: (roundCount: number) => void
   onStartGame: () => void
@@ -64,6 +66,7 @@ export default function FlipbookLobbyView({
   isHost,
   isBusy,
   errorMessage,
+  onBack,
   onSelectTimeLimit,
   onSelectRoundCount,
   onStartGame,
@@ -91,7 +94,7 @@ export default function FlipbookLobbyView({
   const canDecreaseRoundCount = !roundControlDisabled && roundCount > minimumRoundCount
 
   return (
-    <section className="relative grid h-screen place-items-center overflow-hidden bg-[#fff5ed] text-[#684834]">
+    <section className="relative min-h-screen overflow-y-auto bg-[#fff5ed] text-[#684834] lg:grid lg:h-screen lg:place-items-center lg:overflow-hidden">
       <Image
         src={FLIPBOOK_LOBBY_IMAGES.background}
         alt=""
@@ -102,7 +105,39 @@ export default function FlipbookLobbyView({
       />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_40%,rgb(255_255_255_/_36%),transparent_42%)]" />
 
-      <div className="relative z-10 h-[720px] w-[1170px] shrink-0">
+      <button
+        type="button"
+        onClick={onBack}
+        className="body-b fixed left-4 top-4 z-30 inline-flex min-h-11 items-center gap-2 rounded-full border border-[#efd8c7] bg-white/88 px-4 text-[#684834] shadow-[0_8px_18px_rgb(126_74_42_/_14%)] backdrop-blur-sm transition hover:-translate-y-0.5 lg:left-8 lg:top-8"
+        aria-label="부스로 돌아가기"
+      >
+        <ArrowLeft className="size-4" aria-hidden />
+        뒤로
+      </button>
+
+      <MobileLobbyLayout
+        currentParticipant={currentParticipant}
+        displayedParticipants={displayedParticipants}
+        sessionParticipantName={sessionParticipantName}
+        waitingSlots={waitingSlots}
+        roomCode={roomCode}
+        visibleParticipantCount={visibleParticipantCount}
+        maxParticipants={maxParticipants}
+        selectedTimeLimitSeconds={selectedTimeLimitSeconds}
+        roundCount={roundCount}
+        minimumRoundCount={minimumRoundCount}
+        isHost={isHost}
+        canDecreaseRoundCount={canDecreaseRoundCount}
+        roundControlDisabled={roundControlDisabled}
+        startGameButtonDisabled={startGameButtonDisabled}
+        startGameButtonLabel={startGameButtonLabel}
+        errorMessage={errorMessage}
+        onSelectTimeLimit={onSelectTimeLimit}
+        onSelectRoundCount={onSelectRoundCount}
+        onStartGame={onStartGame}
+      />
+
+      <div className="relative z-10 hidden h-[720px] w-[1170px] shrink-0 lg:block">
         <div className="absolute left-0 top-0 grid h-[1050px] w-[1720px] origin-top-left scale-[0.68] px-[80px] py-[44px]">
           <main className="grid items-center gap-[70px] lg:grid-cols-[minmax(390px,0.82fr)_minmax(650px,1.18fr)]">
             <aside className="relative mx-auto flex w-full max-w-[620px] flex-col items-center lg:mx-0">
@@ -272,6 +307,178 @@ export default function FlipbookLobbyView({
   )
 }
 
+function MobileLobbyLayout({
+  currentParticipant,
+  displayedParticipants,
+  sessionParticipantName,
+  waitingSlots,
+  roomCode,
+  visibleParticipantCount,
+  maxParticipants,
+  selectedTimeLimitSeconds,
+  roundCount,
+  minimumRoundCount,
+  isHost,
+  canDecreaseRoundCount,
+  roundControlDisabled,
+  startGameButtonDisabled,
+  startGameButtonLabel,
+  errorMessage,
+  onSelectTimeLimit,
+  onSelectRoundCount,
+  onStartGame,
+}: {
+  currentParticipant: FlipbookParticipant
+  displayedParticipants: FlipbookParticipant[]
+  sessionParticipantName: string
+  waitingSlots: string[]
+  roomCode: string | null
+  visibleParticipantCount: number
+  maxParticipants: number
+  selectedTimeLimitSeconds: number
+  roundCount: number | null
+  minimumRoundCount: number
+  isHost: boolean
+  canDecreaseRoundCount: boolean
+  roundControlDisabled: boolean
+  startGameButtonDisabled: boolean
+  startGameButtonLabel: string
+  errorMessage: string | null
+  onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
+  onSelectRoundCount: (roundCount: number) => void
+  onStartGame: () => void
+}) {
+  return (
+    <div className="relative z-10 grid w-full gap-4 px-4 pb-8 pt-20 lg:hidden">
+      <section className="rounded-[28px] border border-[#efd8c7] bg-white/78 p-5 text-center shadow-[0_14px_32px_rgb(126_74_42_/_14%)] backdrop-blur-sm">
+        <p className="h2-b text-[#684834]">플립북</p>
+        <p className="body-b mt-2 text-[#b19686]">친구들이 모이면 바로 시작해요!</p>
+        <div className="mt-5 rounded-[22px] border border-[#e9cdb8] bg-[#fffaf3]/90 px-4 py-6">
+          <p className="body-b text-[#684834]">입장 코드</p>
+          <p className="mt-3 break-all text-[44px] font-black leading-none tracking-[0.04em] text-[#684834]">
+            {roomCode ?? '------'}
+          </p>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            {SHARE_ACTIONS.map((action) => (
+              <ShareButton
+                key={action.key}
+                actionKey={action.key}
+                label={action.label}
+                Icon={action.Icon}
+                roomCode={roomCode}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[24px] border border-[#efd8c7] bg-white/82 p-4 shadow-[0_12px_28px_rgb(126_74_42_/_12%)] backdrop-blur-sm">
+        <div className="flex items-center justify-between border-b border-[#edd9c9] pb-4">
+          <h2 className="h3-b inline-flex items-center gap-2 text-[#684834]">
+            <UsersRound className="size-5" aria-hidden />
+            참여자
+          </h2>
+          <span className="h2-b text-[#ff7182]">
+            {visibleParticipantCount} / {maxParticipants}
+          </span>
+        </div>
+        <div className="mt-4 grid gap-3">
+          {displayedParticipants.map((participant) => (
+            <ParticipantNameTag
+              key={participant.userUuid}
+              name={
+                participant.userUuid === currentParticipant.userUuid
+                  ? sessionParticipantName
+                  : participant.name
+              }
+              avatar={participant.avatar}
+              isHost={participant.isHost === true}
+            />
+          ))}
+          {waitingSlots.map((waitingSlot) => (
+            <WaitingParticipantSlot key={waitingSlot} />
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-[24px] border border-[#efd8c7] bg-white/82 p-4 shadow-[0_12px_28px_rgb(126_74_42_/_12%)] backdrop-blur-sm">
+        <h3 className="h3-b inline-flex items-center gap-2 text-[#684834]">
+          <Clock3 className="size-5 text-[#ff7182]" aria-hidden />
+          제한 시간
+        </h3>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {FLIPBOOK_TIME_LIMITS_SECONDS.map((seconds) => (
+            <button
+              key={seconds}
+              type="button"
+              onClick={() => onSelectTimeLimit(seconds)}
+              disabled={!isHost}
+              className={cn(
+                'body-b min-h-12 rounded-[14px] border border-[#f2dece] bg-[#fff2e9] text-[#b79a88] disabled:cursor-not-allowed disabled:opacity-60',
+                selectedTimeLimitSeconds === seconds &&
+                  'border-[#ff7a8c] bg-[#ff7182] text-white',
+              )}
+            >
+              {seconds}초
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-[24px] border border-[#efd8c7] bg-white/82 p-4 shadow-[0_12px_28px_rgb(126_74_42_/_12%)] backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="h3-b inline-flex items-center gap-2 text-[#684834]">
+              <Flag className="size-5 text-[#ff7182]" aria-hidden />
+              라운드
+            </h3>
+            <p className="caption-m mt-1 text-[#9a7f6d]">최소 {minimumRoundCount}라운드</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              disabled={!canDecreaseRoundCount}
+              onClick={() => {
+                if (roundCount !== null) onSelectRoundCount(roundCount - 1)
+              }}
+              className="grid size-11 place-items-center rounded-full bg-[#fff2e9] text-[#80543b] disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="라운드 감소"
+            >
+              <Minus className="size-5" strokeWidth={3} aria-hidden />
+            </button>
+            <span className="h1-b min-w-8 text-center text-[#684834]">{roundCount ?? '-'}</span>
+            <button
+              type="button"
+              disabled={roundControlDisabled}
+              onClick={() => {
+                if (roundCount !== null) onSelectRoundCount(roundCount + 1)
+              }}
+              className="grid size-11 place-items-center rounded-full bg-[#fff0ed] text-[#ff7182] disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="라운드 증가"
+            >
+              <Plus className="size-6" strokeWidth={3} aria-hidden />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <button
+        type="button"
+        onClick={onStartGame}
+        disabled={startGameButtonDisabled}
+        className="body-l-b min-h-14 rounded-[18px] bg-[#ff7182] text-white shadow-[0_12px_24px_rgb(255_113_130_/_24%)] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {startGameButtonLabel}
+      </button>
+      {errorMessage && (
+        <p className="body-b rounded-[18px] bg-white/82 px-4 py-3 text-center text-[#cf5d68]">
+          {errorMessage}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function ParticipantNameTag({
   name,
   avatar,
@@ -282,13 +489,13 @@ function ParticipantNameTag({
   isHost: boolean
 }) {
   return (
-    <div className="flex min-h-[100px] items-center gap-5 rounded-[18px] border border-[#ffabb5] bg-[#fff1f1] px-7 shadow-[0_8px_16px_rgb(255_113_130_/_14%)]">
-      <span className="grid size-16 shrink-0 place-items-center rounded-full bg-[#ffe5ad] text-[34px] shadow-[inset_0_0_0_3px_rgb(255_255_255_/_68%)]">
+    <div className="flex min-h-16 items-center gap-3 rounded-[16px] border border-[#ffabb5] bg-[#fff1f1] px-4 shadow-[0_8px_16px_rgb(255_113_130_/_14%)] lg:min-h-[100px] lg:gap-5 lg:rounded-[18px] lg:px-7">
+      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#ffe5ad] text-[24px] shadow-[inset_0_0_0_3px_rgb(255_255_255_/_68%)] lg:size-16 lg:text-[34px]">
         {avatar}
       </span>
       <span className="h3-b min-w-0 flex-1 truncate text-[#684834]">{name}</span>
       {isHost && (
-        <span className="body-b rounded-full bg-[#ff7182] px-5 py-2 text-white">방장</span>
+        <span className="caption-b rounded-full bg-[#ff7182] px-3 py-1.5 text-white lg:body-b lg:px-5 lg:py-2">방장</span>
       )}
     </div>
   )
@@ -296,15 +503,15 @@ function ParticipantNameTag({
 
 function WaitingParticipantSlot() {
   return (
-    <div className="flex min-h-[100px] items-center justify-center gap-8 rounded-[18px] border-2 border-dashed border-[#e7c6b6] bg-white/24 px-7 text-[#b49d91]">
+    <div className="flex min-h-16 items-center justify-center gap-3 rounded-[16px] border-2 border-dashed border-[#e7c6b6] bg-white/24 px-4 text-[#b49d91] lg:min-h-[100px] lg:gap-8 lg:rounded-[18px] lg:px-7">
       <Image
         src={FLIPBOOK_LOBBY_IMAGES.plus}
         alt=""
         width={39}
         height={39}
-        className="size-10"
+        className="size-7 lg:size-10"
       />
-      <span className="body-l-b">참가 기다리는 중...</span>
+      <span className="body-b lg:body-l-b">참가 기다리는 중...</span>
     </div>
   )
 }

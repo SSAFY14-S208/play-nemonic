@@ -8,6 +8,34 @@ export const FLIPBOOK_STEPS: { key: FlipbookStep; label: string }[] = [
   { key: 'result', label: '결과' },
 ]
 
+export const FLIPBOOK_STEP_PATHS = {
+  booth: '/flipbook',
+  lobby: '/flipbook/lobby',
+  drawing: '/flipbook/drawing',
+  result: '/flipbook/result',
+} as const satisfies Record<FlipbookStep, string>
+
+export function getFlipbookStepPath(step: FlipbookStep) {
+  return FLIPBOOK_STEP_PATHS[step]
+}
+
+export function getFlipbookStepFromPathname(pathname: string): FlipbookStep {
+  const matchedStep = Object.entries(FLIPBOOK_STEP_PATHS).find(
+    ([, stepPath]) => pathname === stepPath,
+  )?.[0]
+
+  if (
+    matchedStep === 'booth' ||
+    matchedStep === 'lobby' ||
+    matchedStep === 'drawing' ||
+    matchedStep === 'result'
+  ) {
+    return matchedStep
+  }
+
+  return 'booth'
+}
+
 export const FLIPBOOK_COLORS = [
   '#1a1a1a',
   '#5a5a5a',

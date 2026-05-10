@@ -183,7 +183,7 @@ export default function FlipbookDrawingView({
 
   return (
     <section
-      className="relative grid h-screen place-items-center overflow-hidden bg-[#fdf1e6] text-[#30343b]"
+      className="relative min-h-screen overflow-y-auto bg-[#fdf1e6] text-[#30343b] lg:grid lg:h-screen lg:place-items-center lg:overflow-hidden"
       aria-label={`${currentParticipant.name} 플립북 드로잉`}
     >
       <Image
@@ -196,7 +196,80 @@ export default function FlipbookDrawingView({
         aria-hidden
       />
 
-      <div className="relative h-[819.2px] w-[1228.8px] shrink-0">
+      <div className="relative z-10 grid w-full gap-4 px-3 py-4 lg:hidden">
+        <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div className="flex items-center justify-between gap-3">
+            <p className="h2-b text-[#f45d8d]">
+              {activeRoundIndex + 1}/{displayRoundCount}
+            </p>
+            <div className="body-b inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ead7c9] bg-white px-4 text-[#f45d8d]">
+              <Timer className="size-5" aria-hidden />
+              {remainingSeconds}초
+            </div>
+          </div>
+          <p className="body-b mt-3 text-[#30343b]">{instructionText}</p>
+        </div>
+
+        <MobileToolGrid
+          selectedToolKey={selectedToolKey}
+          canUndoDrawing={canUndoDrawing}
+          canRedoDrawing={canRedoDrawing}
+          isDrawingLocked={isDrawingLocked}
+          onSelectTool={onSelectTool}
+          onUndoDrawing={onUndoDrawing}
+          onRedoDrawing={onRedoDrawing}
+          onClearDrawing={onClearDrawing}
+        />
+
+        <MobileColorGrid
+          colors={FLIPBOOK_COLORS}
+          selectedColor={selectedColor}
+          strokeWidth={strokeWidth}
+          isDrawingLocked={isDrawingLocked}
+          onSelectColor={onSelectColor}
+          onStrokeWidthChange={onStrokeWidthChange}
+        />
+
+        <div className="overflow-x-auto rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div className="relative h-[520px] w-[680px] overflow-hidden rounded-[8px] bg-white">
+            <FlipbookStage
+              lines={lines}
+              previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
+              disabled={isDrawingLocked}
+              onDrawStart={onDrawStart}
+              onDrawMove={onDrawMove}
+              onDrawEnd={onDrawEnd}
+            />
+            {(overlayMessage || isConnectionUnstable) && (
+              <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-flipbook-deep">
+                {isConnectionUnstable ? '연결 끊김 — 재연결 중...' : overlayMessage}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleCompleteRound}
+          disabled={isDrawingLocked}
+          className={cn(
+            'body-l-b inline-flex min-h-14 items-center justify-center gap-3 rounded-[16px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
+            isDrawingLocked && 'cursor-not-allowed opacity-70',
+          )}
+        >
+          <span className="grid size-8 place-items-center rounded-full bg-white">
+            <Check className="size-5 text-[#ff4f93]" aria-hidden />
+          </span>
+          {submitButtonText === '완료!' ? '완료하기' : submitButtonText}
+        </button>
+        {errorMessage && (
+          <p className="caption-b rounded-[14px] bg-white/90 px-4 py-3 text-center text-flipbook-deep">
+            {errorMessage}
+          </p>
+        )}
+      </div>
+
+      <div className="relative hidden h-[819.2px] w-[1228.8px] shrink-0 lg:block">
         <div className="absolute left-0 top-0 h-[1024px] w-[1536px] origin-top-left scale-[0.8]">
           <TopStatusBar
             activeRoundIndex={activeRoundIndex}
@@ -277,6 +350,114 @@ export default function FlipbookDrawingView({
             </p>
           )}
         </div>
+      </div>
+    </section>
+  )
+}
+
+function MobileToolGrid({
+  selectedToolKey,
+  canUndoDrawing,
+  canRedoDrawing,
+  isDrawingLocked,
+  onSelectTool,
+  onUndoDrawing,
+  onRedoDrawing,
+  onClearDrawing,
+}: {
+  selectedToolKey: DrawingToolKey
+  canUndoDrawing: boolean
+  canRedoDrawing: boolean
+  isDrawingLocked: boolean
+  onSelectTool: (toolKey: DrawingToolKey) => void
+  onUndoDrawing: () => void
+  onRedoDrawing: () => void
+  onClearDrawing: () => void
+}) {
+  return (
+    <section
+      className={cn(
+        'rounded-[18px] border border-[#ead7c9] bg-white/90 p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]',
+        isDrawingLocked && 'pointer-events-none opacity-60',
+      )}
+    >
+      <p className="body-b mb-3 text-[#30343b]">도구</p>
+      <div className="grid grid-cols-3 gap-2">
+        {TOOL_ITEMS.map((tool) => (
+          <ToolPanelButton
+            key={tool.key}
+            tool={tool}
+            selectedToolKey={selectedToolKey}
+            canUndoDrawing={canUndoDrawing}
+            canRedoDrawing={canRedoDrawing}
+            onSelectTool={onSelectTool}
+            onUndoDrawing={onUndoDrawing}
+            onRedoDrawing={onRedoDrawing}
+            onClearDrawing={onClearDrawing}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function MobileColorGrid({
+  colors,
+  selectedColor,
+  strokeWidth,
+  isDrawingLocked,
+  onSelectColor,
+  onStrokeWidthChange,
+}: {
+  colors: string[]
+  selectedColor: string
+  strokeWidth: number
+  isDrawingLocked: boolean
+  onSelectColor: (color: string) => void
+  onStrokeWidthChange: (strokeWidth: number) => void
+}) {
+  return (
+    <section
+      className={cn(
+        'rounded-[18px] border border-[#ead7c9] bg-white/90 p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]',
+        isDrawingLocked && 'pointer-events-none opacity-60',
+      )}
+    >
+      <p className="body-b mb-3 text-[#30343b]">색상</p>
+      <div className="grid grid-cols-6 gap-2">
+        {colors.slice(0, 18).map((color) => (
+          <button
+            key={color}
+            type="button"
+            aria-label={`${color} 색상`}
+            onClick={() => onSelectColor(color)}
+            className={cn(
+              'size-9 rounded-[8px] border border-[#ead7c9]',
+              selectedColor === color && 'ring-[3px] ring-[#f45d8d] ring-offset-2 ring-offset-white',
+            )}
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </div>
+      <div className="mt-4 flex items-center gap-2">
+        <span className="caption-b min-w-12 text-[#30343b]">굵기</span>
+        {FLIPBOOK_STROKE_WIDTH_OPTIONS.map((strokeWidthOption) => (
+          <button
+            key={strokeWidthOption}
+            type="button"
+            aria-label={`${strokeWidthOption}px 굵기`}
+            onClick={() => onStrokeWidthChange(strokeWidthOption)}
+            className={cn(
+              'grid size-8 place-items-center rounded-full bg-[#f7efe7]',
+              strokeWidth === strokeWidthOption && 'bg-[#ffd4df]',
+            )}
+          >
+            <span
+              className="rounded-full bg-[#30343b]"
+              style={{ width: strokeWidthOption, height: strokeWidthOption }}
+            />
+          </button>
+        ))}
       </div>
     </section>
   )
