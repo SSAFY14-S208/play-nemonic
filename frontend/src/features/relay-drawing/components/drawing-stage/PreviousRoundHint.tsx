@@ -138,7 +138,7 @@ export default function PreviousRoundHint({
         width={RELAY_STAGE_SIZE.width}
         text="↓ 여기부터 이어 그리세요"
         align="center"
-        fontFamily="Pretendard Variable"
+        fontFamily="Paperlogy"
         fontSize={16}
         fontStyle="bold"
         fill="#efc759"

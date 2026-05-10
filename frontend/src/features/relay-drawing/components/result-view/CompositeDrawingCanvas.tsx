@@ -121,7 +121,7 @@ export default function CompositeDrawingCanvas({
           textAnchor="middle"
           dominantBaseline="middle"
           fill="#947c40"
-          fontFamily="Pretendard Variable"
+          fontFamily="Paperlogy"
           fontSize={18}
           fontWeight={700}
         >

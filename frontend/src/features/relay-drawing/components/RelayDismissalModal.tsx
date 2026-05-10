@@ -43,7 +43,7 @@ export default function RelayDismissalModal({
     <Dialog.Root open onOpenChange={() => {}}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-black/30" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-[var(--z-modal)] w-[min(380px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[var(--radius-xl)] bg-relay-paper shadow-lg">
+        <Dialog.Popup className="font-paperlogy fixed left-1/2 top-1/2 z-[var(--z-modal)] w-[min(380px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[var(--radius-xl)] bg-relay-paper shadow-lg">
           <div className="flex flex-col items-center gap-4 px-6 py-8 text-center">
             <div className="grid size-14 place-items-center rounded-full bg-relay-active">
               <Icon className="size-6 text-relay-accent-strong" aria-hidden />
