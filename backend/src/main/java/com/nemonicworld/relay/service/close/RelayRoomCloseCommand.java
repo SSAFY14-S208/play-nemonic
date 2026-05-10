@@ -40,4 +40,22 @@ public class RelayRoomCloseCommand {
 
         return RelayRoomCloseResult.closed(closedRoomState, closedAt);
     }
+
+    /**
+     * 백오피스 강제 삭제처럼 FINISHED 여부와 무관하게 활성 방을 CLOSED 상태로 저장합니다.
+     */
+    public RelayRoomCloseResult closeActiveRoomIfUnchanged(RelayRoomState roomState, LocalDateTime now) {
+        LocalDateTime closedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        if (roomState == null || roomState.status() == RelayRoomStatus.CLOSED) {
+            return RelayRoomCloseResult.noOp(roomState == null ? null : roomState.roomCode());
+        }
+
+        RelayRoomState closedRoomState = roomState.close(closedAt);
+        if (!relayRoomRepository.saveIfUnchanged(roomState, closedRoomState)) {
+            return RelayRoomCloseResult.noOp(roomState.roomCode());
+        }
+        relayInviteMetadataSyncService.syncWithRoomState(closedRoomState);
+
+        return RelayRoomCloseResult.closed(closedRoomState, closedAt);
+    }
 }

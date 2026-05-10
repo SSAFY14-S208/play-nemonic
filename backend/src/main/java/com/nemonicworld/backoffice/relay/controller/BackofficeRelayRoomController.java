@@ -1,5 +1,6 @@
 package com.nemonicworld.backoffice.relay.controller;
 
+import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomDeleteResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomListResponse;
 import com.nemonicworld.backoffice.relay.service.BackofficeRelayRoomService;
 import com.nemonicworld.common.jwt.AdminPrincipal;
@@ -18,7 +19,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,10 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/backoffice/relay-rooms")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "Backoffice Relay Rooms", description = "백오피스 활성 릴레이 드로잉 방 조회 API")
+@Tag(name = "Backoffice Relay Rooms", description = "백오피스 활성 릴레이 드로잉 방 관리 API")
 public class BackofficeRelayRoomController {
 
     private static final String LIST_SUCCESS_MESSAGE = "활성 릴레이 드로잉 방 목록 조회 성공";
+    private static final String DELETE_SUCCESS_MESSAGE = "릴레이 드로잉 방 삭제 성공";
 
     private final BackofficeRelayRoomService backofficeRelayRoomService;
 
@@ -56,5 +60,25 @@ public class BackofficeRelayRoomController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));
+    }
+
+    @DeleteMapping("/{roomCode}")
+    @Operation(summary = "활성 릴레이 드로잉 방 삭제", description = "관리자가 활성 릴레이 드로잉 방을 CLOSED 상태로 강제 전환합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = "삭제할 공유 방코드", example = "AB3K9Q")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "릴레이 드로잉 방 삭제 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "방코드 형식 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_ROOM_CODE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 방", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.RELAY_ROOM_NOT_FOUND))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "방 삭제 충돌", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "이미 종료된 방", value = OpenApiErrorExamples.RELAY_ROOM_CLOSED),
+            @ExampleObject(name = "상태 갱신 충돌", value = OpenApiErrorExamples.BACKOFFICE_RELAY_ROOM_UPDATE_CONFLICT)}))})
+    public ResponseEntity<ApiResponse<BackofficeRelayRoomDeleteResponse>> deleteActiveRelayRoom(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("roomCode") String roomCode) {
+        BackofficeRelayRoomDeleteResponse response = backofficeRelayRoomService.deleteActiveRelayRoom(adminPrincipal,
+            roomCode);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(DELETE_SUCCESS_MESSAGE, response));
     }
 }
