@@ -1,15 +1,14 @@
 'use client'
 
 import Image from 'next/image'
+import QRCode from 'qrcode'
 import {
   Clock3,
   Copy,
   Flag,
-  HelpCircle,
   Minus,
   Plus,
   QrCode,
-  Settings,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react'
@@ -52,10 +51,6 @@ const SHARE_ACTIONS: { key: ShareActionKey; label: string; Icon: LucideIcon }[] 
 ]
 type ShareActionKey = 'copyLink' | 'qrCode'
 const VISIBLE_PARTICIPANT_CAPACITY = 6
-const SETTINGS_ACTIONS = [
-  { key: 'guide', label: '사용 방법', Icon: HelpCircle },
-  { key: 'settings', label: '설정', Icon: Settings },
-] as const
 
 export default function FlipbookLobbyView({
   currentParticipant,
@@ -84,7 +79,7 @@ export default function FlipbookLobbyView({
   const startGameButtonLabel = !isHost ? '게임 대기중' : isBusy ? '시작 중' : '게임 시작!'
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#fff5ed] text-[#684834]">
+    <section className="relative grid h-screen place-items-center overflow-hidden bg-[#fff5ed] text-[#684834]">
       <Image
         src={FLIPBOOK_LOBBY_IMAGES.background}
         alt=""
@@ -95,50 +90,24 @@ export default function FlipbookLobbyView({
       />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_40%,rgb(255_255_255_/_36%),transparent_42%)]" />
 
-      <div className="relative z-10 mx-auto grid min-h-screen w-full max-w-[1720px] grid-rows-[auto_1fr] px-[clamp(20px,4.2vw,80px)] py-[clamp(22px,3.8vw,58px)]">
-        <header className="flex flex-wrap justify-end gap-3 sm:gap-6">
-          {SETTINGS_ACTIONS.map((action) => (
-            <button
-              key={action.key}
-              type="button"
-              className="body-l-b inline-flex h-[56px] items-center gap-3 rounded-full border border-[#ebccb9] bg-white/62 px-5 text-[#684834] shadow-[0_7px_14px_rgb(140_85_58_/_14%),inset_0_1px_0_rgb(255_255_255_/_74%)] backdrop-blur-sm transition hover:-translate-y-0.5 sm:h-[68px] sm:gap-4 sm:px-8"
-              aria-label={action.label}
-            >
-              <action.Icon className="size-6 sm:size-7" strokeWidth={2.4} aria-hidden />
-              <span>{action.label}</span>
-            </button>
-          ))}
-        </header>
-
-        <main className="grid items-center gap-[clamp(28px,4vw,70px)] pb-[clamp(18px,2.5vw,42px)] pt-[clamp(10px,1.8vw,28px)] lg:grid-cols-[minmax(390px,0.82fr)_minmax(650px,1.18fr)]">
-          <aside className="relative mx-auto flex w-full max-w-[620px] flex-col items-center lg:mx-0">
-            <div className="relative w-full max-w-[480px] pb-8 text-center">
-              <p
-                className="text-[clamp(64px,7vw,112px)] leading-[0.95] text-[#5b3e2b]"
-                style={{ fontFamily: 'var(--font-paperlogy)' }}
-              >
-                플립북
-              </p>
-              <div className="mx-auto mt-8 inline-flex min-h-[52px] items-center rounded-[10px] bg-[#f8b5ba]/62 px-10 text-[#684834] shadow-[inset_0_-8px_0_rgb(255_255_255_/_24%)]">
-                <span className="body-l-b">친구들이 모이면 바로 시작해요!</span>
+      <div className="relative z-10 h-[720px] w-[1170px] shrink-0">
+        <div className="absolute left-0 top-0 grid h-[1050px] w-[1720px] origin-top-left scale-[0.68] px-[80px] py-[44px]">
+          <main className="grid items-center gap-[70px] lg:grid-cols-[minmax(390px,0.82fr)_minmax(650px,1.18fr)]">
+            <aside className="relative mx-auto flex w-full max-w-[620px] flex-col items-center lg:mx-0">
+              <div className="relative w-full max-w-[480px] pb-8 text-center">
+                <p
+                  className="text-[112px] leading-[0.95] text-[#5b3e2b]"
+                  style={{ fontFamily: 'var(--font-paperlogy)' }}
+                >
+                  플립북
+                </p>
+                <div className="mx-auto mt-8 inline-flex min-h-[52px] items-center rounded-[10px] bg-[#f8b5ba]/62 px-10 text-[#684834] shadow-[inset_0_-8px_0_rgb(255_255_255_/_24%)]">
+                  <span className="body-l-b">친구들이 모이면 바로 시작해요!</span>
+                </div>
               </div>
-            </div>
 
-            <section className="relative mt-[clamp(14px,3vw,42px)] w-full max-w-[560px] rounded-[34px] border border-[#e9cdb8] bg-[#fffaf3]/82 px-[clamp(26px,3vw,52px)] pb-[clamp(30px,3.4vw,56px)] pt-[clamp(58px,5.4vw,96px)] text-center shadow-[0_16px_34px_rgb(122_72_38_/_14%),inset_0_0_34px_rgb(255_244_226_/_70%)] backdrop-blur-[1px]">
-              <span
-                aria-hidden
-                className="absolute left-1/2 top-0 h-20 w-36 -translate-x-1/2 -translate-y-[52%] rounded-[14px] bg-[#9b73df]/76 shadow-[0_8px_18px_rgb(76_45_128_/_18%),inset_0_0_0_1px_rgb(255_255_255_/_38%)]"
-              />
-              <span
-                aria-hidden
-                className="absolute left-1/2 top-0 h-36 w-16 -translate-x-1/2 -translate-y-[72%] rounded-full border-[9px] border-[#b9b4ba] shadow-[inset_0_0_0_2px_rgb(255_255_255_/_48%)]"
-              />
-              <span
-                aria-hidden
-                className="absolute left-1/2 top-0 h-28 w-24 -translate-x-1/2 -translate-y-[70%] rounded-b-[30px] border-x-[8px] border-b-[8px] border-[#c9c3c8]"
-              />
-
-              <p className="h3-b text-[#684834]">입장 코드</p>
+              <section className="relative mt-[42px] w-full max-w-[560px] rounded-[34px] border border-[#e9cdb8] bg-[#fffaf3]/82 px-[52px] pb-[56px] pt-[96px] text-center shadow-[0_16px_34px_rgb(122_72_38_/_14%),inset_0_0_34px_rgb(255_244_226_/_70%)] backdrop-blur-[1px]">
+                <p className="h3-b text-[#684834]">입장 코드</p>
               <p
                 className="mt-5 break-all text-[clamp(52px,5.5vw,84px)] font-black leading-none text-[#684834]"
                 style={{ letterSpacing: '0.04em' }}
@@ -162,10 +131,10 @@ export default function FlipbookLobbyView({
                   />
                 ))}
               </div>
-            </section>
-          </aside>
+              </section>
+            </aside>
 
-          <section className="relative rounded-[46px] border border-[#efd8c7] bg-white/68 p-[clamp(26px,3vw,48px)] shadow-[0_18px_44px_rgb(126_74_42_/_14%),inset_0_1px_0_rgb(255_255_255_/_86%)] backdrop-blur-sm">
+            <section className="relative rounded-[46px] border border-[#efd8c7] bg-white/68 p-[48px] shadow-[0_18px_44px_rgb(126_74_42_/_14%),inset_0_1px_0_rgb(255_255_255_/_86%)] backdrop-blur-sm">
             <div className="flex items-center justify-between border-b border-[#edd9c9] pb-7">
               <h2 className="h2-b inline-flex items-center gap-4 text-[#684834]">
                 <UsersRound className="size-8" strokeWidth={2.2} aria-hidden />
@@ -277,8 +246,9 @@ export default function FlipbookLobbyView({
                 {errorMessage}
               </p>
             )}
-          </section>
-        </main>
+            </section>
+          </main>
+        </div>
       </div>
     </section>
   )
@@ -333,6 +303,7 @@ function ShareButton({
   roomCode: string | null
 }) {
   const [copyLabel, setCopyLabel] = useState(label)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
   const resetLabelTimerRef = useRef<number | null>(null)
 
   const copyTextWithFallback = async (text: string) => {
@@ -372,10 +343,23 @@ function ShareButton({
 
   const copyShareText = () => {
     if (!roomCode || typeof window === 'undefined') return
-    const copyText = actionKey === 'copyLink' ? createShareUrl() : roomCode
+    const copyText = createShareUrl()
 
     void (async () => {
       try {
+        if (actionKey === 'qrCode') {
+          const nextQrCodeDataUrl = await QRCode.toDataURL(copyText, {
+            margin: 2,
+            scale: 8,
+            color: {
+              dark: '#684834',
+              light: '#fffaf3',
+            },
+          })
+          setQrCodeDataUrl(nextQrCodeDataUrl)
+          return
+        }
+
         await copyTextWithFallback(copyText)
         setCopyLabel('복사됨')
 
@@ -394,33 +378,67 @@ function ShareButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={copyShareText}
-      disabled={!roomCode}
-      aria-label={copyLabel}
-      className="relative aspect-[154/80] min-h-[64px] overflow-hidden rounded-[18px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
-    >
-      <Image
-        src={
-          actionKey === 'copyLink'
-            ? FLIPBOOK_LOBBY_IMAGES.copyLinkButton
-            : FLIPBOOK_LOBBY_IMAGES.qrCodeButton
-        }
-        alt=""
-        fill
-        sizes="160px"
-        className="object-fill"
-      />
-      {copyLabel !== label && (
-        <span className="caption-b absolute inset-0 grid place-items-center rounded-[18px] bg-white/72 text-[#684834]">
+    <>
+      <button
+        type="button"
+        onClick={copyShareText}
+        disabled={!roomCode}
+        aria-label={copyLabel}
+        className="relative aspect-[154/80] min-h-[64px] overflow-hidden rounded-[18px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
+      >
+        <Image
+          src={
+            actionKey === 'copyLink'
+              ? FLIPBOOK_LOBBY_IMAGES.copyLinkButton
+              : FLIPBOOK_LOBBY_IMAGES.qrCodeButton
+          }
+          alt=""
+          fill
+          sizes="160px"
+          className="object-fill"
+        />
+        {copyLabel !== label && (
+          <span className="caption-b absolute inset-0 grid place-items-center rounded-[18px] bg-white/72 text-[#684834]">
+            {copyLabel}
+          </span>
+        )}
+        <span className="sr-only">
+          <Icon className="size-[17px]" aria-hidden />
           {copyLabel}
         </span>
+      </button>
+
+      {qrCodeDataUrl && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-[#4b3426]/30 px-5 backdrop-blur-[3px]"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setQrCodeDataUrl(null)
+            }
+          }}
+        >
+          <div className="w-full max-w-[360px] rounded-[28px] border border-[#efd8c7] bg-[#fffaf3] p-7 text-center text-[#684834] shadow-[0_24px_60px_rgb(75_52_38_/_24%)]">
+            <p className="h3-b">QR 코드</p>
+            <Image
+              src={qrCodeDataUrl}
+              alt="플립북 방 초대 QR 코드"
+              width={256}
+              height={256}
+              unoptimized
+              className="mx-auto mt-5 rounded-[18px] border border-[#efd8c7] bg-white p-3"
+            />
+            <p className="caption-m mt-4 text-[#9a7f6d]">친구가 스캔하면 바로 입장할 수 있어요.</p>
+            <button
+              type="button"
+              onClick={() => setQrCodeDataUrl(null)}
+              className="body-b mt-6 h-12 w-full rounded-full bg-[#ff7182] text-white shadow-[0_8px_18px_rgb(255_113_130_/_24%)]"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
       )}
-      <span className="sr-only">
-        <Icon className="size-[17px]" aria-hidden />
-        {copyLabel}
-      </span>
-    </button>
+    </>
   )
 }
