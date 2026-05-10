@@ -104,7 +104,7 @@ public class FileServiceImpl implements FileService {
         FileUpload fileUpload = FileUpload.createPending(fileId, userUuid, purpose, safeFileName, request.contentType(),
             byteSize, objectKey, expiresAt, now);
         fileUploadRepository.save(fileUpload);
-        logCommunityFileEvent("community_file_presign_created", userUuid, fileUpload,
+        logCommunityFileEvent("community_memo_presign_requested", userUuid, fileUpload,
             StructuredEventLogger.metadata("expires_at", expiresAt, "expires_in", expiresIn));
 
         return new FilePresignResponse(fileId.toString(), presignedUrl, expiresIn);
@@ -169,7 +169,7 @@ public class FileServiceImpl implements FileService {
         }
 
         fileUpload.markUploaded(LocalDateTime.now());
-        logCommunityFileEvent("community_file_upload_confirmed", userUuid, fileUpload,
+        logCommunityFileEvent("community_memo_upload_confirmed", userUuid, fileUpload,
             StructuredEventLogger.metadata("stat_object_size", statObjectResponse.size()));
 
         return new FileConfirmResponse(fileUpload.getId().toString(), FileUploadStatus.UPLOADED.name());
@@ -200,7 +200,7 @@ public class FileServiceImpl implements FileService {
         removeObject(fileUpload.getObjectKey());
 
         fileUpload.markDeleted(LocalDateTime.now());
-        logCommunityFileEvent("community_file_upload_deleted", userUuid, fileUpload,
+        logCommunityFileEvent("community_memo_upload_deleted", userUuid, fileUpload,
             StructuredEventLogger.metadata("delete_scope", "pending_upload"));
 
         return new FileDeleteResponse(fileUpload.getId().toString(), FileUploadStatus.DELETED.name());
