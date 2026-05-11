@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -63,6 +64,20 @@ public class SystemParameterRepository {
             """;
 
         return jdbcTemplate.query(sql, this::mapParameter, ids.toArray());
+    }
+
+    public Optional<SystemParameter> findByKey(String key) {
+        if (!StringUtils.hasText(key)) {
+            return Optional.empty();
+        }
+
+        String sql = SELECT_COLUMNS + """
+            FROM backoffice_setting s
+            LEFT JOIN admin_user a ON a.id = s.updated_by
+            WHERE s.setting_key = ?
+            """;
+
+        return jdbcTemplate.query(sql, this::mapParameter, key).stream().findFirst();
     }
 
     public int[] batchUpdateValues(List<UpdateValueCommand> commands, LocalDateTime updatedAt) {

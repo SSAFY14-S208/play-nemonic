@@ -15,6 +15,8 @@ import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository.
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -40,6 +42,7 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private static final String DUPLICATE_ID_MESSAGE = "동일한 시스템 파라미터 ID가 중복되었습니다.";
     private static final String NOT_FOUND_MESSAGE_FORMAT = "존재하지 않는 시스템 파라미터입니다. id=%s";
     private static final String INVALID_VALUE_MESSAGE = "시스템 파라미터 값을 직렬화하지 못했습니다.";
+    private static final String INVALID_RELAY_PARTICIPANT_LIMIT_MESSAGE = "릴레이 방 참여 인원 설정이 올바르지 않습니다.";
     private static final String REDACTED_VALUE = "[redacted]";
     private static final List<String> SENSITIVE_KEY_TOKENS = List.of("password", "secret", "token", "jwt",
         "authorization", "webhook", "smtp", "api_key", "apikey", "access_key", "refresh");
@@ -91,6 +94,11 @@ public class SystemParameterServiceImpl implements SystemParameterService {
         missingIds.removeAll(existingById.keySet());
         if (!missingIds.isEmpty()) {
             throw new BadRequestException(NOT_FOUND_MESSAGE_FORMAT.formatted(missingIds));
+        }
+
+        for (SystemParameterBulkUpdateItem item : items) {
+            SystemParameter previous = existingById.get(item.id());
+            validateSystemParameterValue(previous.key(), item.value());
         }
 
         List<UpdateValueCommand> commands = items.stream()
@@ -152,6 +160,18 @@ public class SystemParameterServiceImpl implements SystemParameterService {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
             throw new BadRequestException(INVALID_VALUE_MESSAGE);
+        }
+    }
+
+    private void validateSystemParameterValue(String key, JsonNode value) {
+        if (!RelayRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY.equals(key)) {
+            return;
+        }
+
+        try {
+            RelayRoomParticipantLimit.fromJson(value);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(INVALID_RELAY_PARTICIPANT_LIMIT_MESSAGE);
         }
     }
 

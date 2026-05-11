@@ -50,8 +50,10 @@ import com.nemonicworld.relay.service.result.RelayRoomResultQueryUseCase;
 import com.nemonicworld.relay.service.submission.RelayRoomSubmissionUseCase;
 import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
+import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.nio.charset.StandardCharsets;
@@ -104,6 +106,9 @@ class RelayRoomServiceImplTest {
     @Mock
     private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
+    @Mock
+    private RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
+
     private RelayRoomService relayRoomService;
 
     @BeforeEach
@@ -114,13 +119,15 @@ class RelayRoomServiceImplTest {
             .when(
                 relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
             .thenReturn(true);
+        lenient().when(relayRuntimeSettingsProvider.currentParticipantLimit())
+            .thenReturn(RelayRoomParticipantLimit.defaultLimit());
         RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository,
             RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
         RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
         relayRoomService = new RelayRoomServiceImpl(
             new RelayRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator, relayRoomRepository, inviteRepository,
-                relayRoomPolicy, relayInviteMetadataSyncService),
+                relayRoomPolicy, relayInviteMetadataSyncService, relayRuntimeSettingsProvider),
             new RelayRoomQueryUseCase(anonymousUserResolver, relayRoomPolicy, relayRoomViewerFactory),
             new RelayRoomJoinUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomViewerFactory, relayInviteMetadataSyncService),
