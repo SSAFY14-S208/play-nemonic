@@ -407,6 +407,13 @@ Recent flipbook result work aligns room completion with the relay finalization m
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
 ```
 
+Recent flipbook room mutation work aligned Redis state-change contention handling with relay.
+
+- `FlipbookRoomMutationLockRepository` uses `flipbook:room-mutation-lock:{roomCode}` with token-checked Lua release.
+- Frame submission acquires the room mutation lock before latest-state mutation/CAS save, while keeping duplicate submitted-frame lookup idempotent.
+- Timeout auto-submit and disconnect-grace scans precheck candidates, skip when the room lock is busy, and release the lock after event publication.
+- The lock protects shared `flipbook:room:{roomCode}` updates; existing Redis CAS retries remain as a final guard.
+
 Recent relay submission concurrency work added a room-scoped Redis mutation lock.
 
 - Assignment submit locks still protect a single user/canvas/part submission from timeout auto-submit.
