@@ -34,6 +34,9 @@ public enum FlipbookRoomEventType {
     // 모든 라운드가 완료되었음을 알립니다.
     ALL_ROUNDS_COMPLETED,
 
+    // 최종 GIF 결과 생성이 완료되었음을 알립니다.
+    RESULT_CREATED,
+
     // 마지막 참여자 퇴장으로 방이 종료되었음을 알립니다.
     ROOM_CLOSED,
 
