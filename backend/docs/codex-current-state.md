@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-10
+Last updated: 2026-05-11
 
 ## Current Focus
 
@@ -15,6 +15,12 @@ Last updated: 2026-05-10
 - Backend Gradle tests now start the test JVM with
   `user.timezone=Asia/Seoul` so CI date/time assertions stay aligned with the
   Korean service timezone even when the Jenkins host uses UTC.
+- Backend now exposes Micrometer/Prometheus metrics for Grafana overview
+  panels: `nemonic_ws_active_sessions`, `nemonic_ws_connect_total`,
+  `nemonic_ws_disconnect_total`, and `nemonic_content_active_rooms` tagged by
+  `content_type=relay|flipbook`. WebSocket active sessions are tracked by STOMP
+  session id, and content active rooms count Redis `WAITING`, `PLAYING`, and
+  `FINALIZING` rooms while excluding `FINISHED`/`CLOSED`.
 - Existing anonymous user APIs identify the caller with the `Anonymous-User-UUID` request header instead of request body or query parameters.
 - Anonymous user re-entry now includes `POST /api/v1/users/anonymous/verify` to validate the header UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
 - Anonymous user nickname setup/change now uses `PATCH /api/v1/users/anonymous/nickname` with the UUID in `Anonymous-User-UUID`, 1-10 code point validation, and no duplicate check.
