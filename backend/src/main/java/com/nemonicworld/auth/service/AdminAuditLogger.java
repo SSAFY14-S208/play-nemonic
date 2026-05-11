@@ -90,6 +90,24 @@ public class AdminAuditLogger {
         emit("INFO", "memo_restore", "community memo restored by admin", clientInfo, metadata);
     }
 
+    public void logInquiryStatusChange(AdminPrincipal adminPrincipal, String inquiryId, String beforeStatus,
+        String afterStatus, AdminClientInfo clientInfo) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, "inquiry", inquiryId, "update", "success");
+        metadata.put("before", inquiryStatusSnapshot(beforeStatus));
+        metadata.put("after", inquiryStatusSnapshot(afterStatus));
+        emit("INFO", "inquiry_status_change", "inquiry status changed by admin", clientInfo, metadata);
+    }
+
+    public void logInquiryReplySend(AdminPrincipal adminPrincipal, String inquiryId, String beforeStatus,
+        String afterStatus, AdminClientInfo clientInfo) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, "inquiry", inquiryId, "send", "success");
+        metadata.put("before", inquiryStatusSnapshot(beforeStatus));
+        metadata.put("after", inquiryReplySnapshot(afterStatus, adminPrincipal.id().toString()));
+        emit("INFO", "inquiry_reply_send", "inquiry reply sent by admin", clientInfo, metadata);
+    }
+
     private Map<String, Object> baseMetadata(String actorId, String actorRole, AdminClientInfo clientInfo,
         String targetId, String action, String result) {
         return baseMetadata(actorId, actorRole, clientInfo, TARGET_TYPE_ADMIN_ACCOUNT, targetId, action, result);
@@ -125,6 +143,20 @@ public class AdminAuditLogger {
         state.put("hidden_reason", hiddenReason);
 
         return state;
+    }
+
+    private Map<String, Object> inquiryStatusSnapshot(String status) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("status", status);
+
+        return snapshot;
+    }
+
+    private Map<String, Object> inquiryReplySnapshot(String status, String assignedTo) {
+        Map<String, Object> snapshot = inquiryStatusSnapshot(status);
+        snapshot.put("assigned_to", assignedTo);
+
+        return snapshot;
     }
 
     private void emit(String level, String eventName, String message, AdminClientInfo clientInfo,

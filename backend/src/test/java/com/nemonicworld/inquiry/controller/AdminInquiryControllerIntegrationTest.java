@@ -1,13 +1,15 @@
 package com.nemonicworld.inquiry.controller;
 
-import static org.hamcrest.Matchers.aMapWithSize;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.aMapWithSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
@@ -28,11 +30,14 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
@@ -44,6 +49,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
+@ExtendWith(OutputCaptureExtension.class)
 class AdminInquiryControllerIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
@@ -59,6 +65,9 @@ class AdminInquiryControllerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -370,7 +379,7 @@ class AdminInquiryControllerIntegrationTest {
     }
 
     @Test
-    void adminRepliesInquiryEmail() throws Exception {
+    void adminRepliesInquiryEmail(CapturedOutput output) throws Exception {
         UUID userUuid = insertAppUser();
         LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         insertInquiry(100L, userUuid, "error", "결제 오류 문의", "문의 내용", "user@example.com", "new", null, null, null, null,
@@ -378,7 +387,8 @@ class AdminInquiryControllerIntegrationTest {
 
         mockMvc
             .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
-                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).header("X-Trace-Id", "inquiry-reply-audit-test")
+                .header("X-Real-IP", "10.10.40.11").contentType(MediaType.APPLICATION_JSON)
                 .content(replyRequestBody("답변드립니다", "문의하신 결제 내역을 확인했습니다.")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.id").value(100L)).andExpect(jsonPath("$.data.status").value("resolved"))
@@ -391,6 +401,24 @@ class AdminInquiryControllerIntegrationTest {
         assertThat(readLongColumn(100L, "assigned_to")).isEqualTo(ADMIN_ID);
         assertThat(readStringColumn(100L, "response_note")).isEqualTo("문의하신 결제 내역을 확인했습니다.");
         assertThat(readTimestampColumn(100L, "responded_at")).isNotNull();
+
+        JsonNode auditLog = findAuditLog(output, "inquiry_reply_send");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("level").asText()).isEqualTo("INFO");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("inquiry-reply-audit-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.40.11");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("inquiry");
+        assertThat(metadata.path("target_id").asText()).isEqualTo("100");
+        assertThat(metadata.path("action").asText()).isEqualTo("send");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("before").path("status").asText()).isEqualTo("new");
+        assertThat(metadata.path("after").path("status").asText()).isEqualTo("resolved");
+        assertThat(metadata.path("after").path("assigned_to").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(auditLog.toString()).doesNotContain(inquiryMailSender.subject, inquiryMailSender.message,
+            "user@example.com", "문의 내용");
     }
 
     @Test
@@ -529,7 +557,7 @@ class AdminInquiryControllerIntegrationTest {
     }
 
     @Test
-    void adminUpdatesInquiryStatus() throws Exception {
+    void adminUpdatesInquiryStatus(CapturedOutput output) throws Exception {
         UUID userUuid = insertAppUser();
         LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         LocalDateTime respondedAt = createdAt.plusHours(1);
@@ -538,8 +566,9 @@ class AdminInquiryControllerIntegrationTest {
 
         mockMvc
             .perform(patch("/api/v1/admin/inquiries/{inquiryId}/status", 100L)
-                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
-                .content(statusRequestBody("in_progress")))
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .header("X-Trace-Id", "inquiry-status-audit-test").header("X-Forwarded-For", "10.10.40.21, 10.10.40.22")
+                .contentType(MediaType.APPLICATION_JSON).content(statusRequestBody("in_progress")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.id").value(100L)).andExpect(jsonPath("$.data.status").value("in_progress"))
             .andExpect(jsonPath("$.data.updatedAt").isNotEmpty());
@@ -550,6 +579,22 @@ class AdminInquiryControllerIntegrationTest {
         assertThat(readStringColumn(100L, "response_note")).isEqualTo("기존 답변");
         assertThat(readTimestampColumn(100L, "responded_at").toLocalDateTime()).isEqualTo(respondedAt);
         assertThat(inquiryMailSender.to).isNull();
+
+        JsonNode auditLog = findAuditLog(output, "inquiry_status_change");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("level").asText()).isEqualTo("INFO");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("inquiry-status-audit-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.40.21");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("inquiry");
+        assertThat(metadata.path("target_id").asText()).isEqualTo("100");
+        assertThat(metadata.path("action").asText()).isEqualTo("update");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("before").path("status").asText()).isEqualTo("new");
+        assertThat(metadata.path("after").path("status").asText()).isEqualTo("in_progress");
+        assertThat(auditLog.toString()).doesNotContain("user@example.com", "문의 내용", "기존 답변");
     }
 
     @Test
@@ -767,6 +812,16 @@ class AdminInquiryControllerIntegrationTest {
     private Timestamp readTimestampColumn(long inquiryId, String columnName) {
         return jdbcTemplate.queryForObject("SELECT %s FROM cs_inquiry WHERE id = ?".formatted(columnName),
             Timestamp.class, inquiryId);
+    }
+
+    private JsonNode findAuditLog(CapturedOutput output, String eventName) throws Exception {
+        for (String line : output.getOut().split("\\R")) {
+            if (line.contains("\"event_name\":\"%s\"".formatted(eventName))) {
+                return objectMapper.readTree(line);
+            }
+        }
+
+        throw new AssertionError("Audit log not found. eventName=" + eventName);
     }
 
     @TestConfiguration
