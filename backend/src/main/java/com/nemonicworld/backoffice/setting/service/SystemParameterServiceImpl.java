@@ -15,8 +15,12 @@ import com.nemonicworld.backoffice.setting.service.SystemParameterTypedUpdateMap
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.relay.service.support.InvalidRelayReconnectGraceSettingsException;
 import com.nemonicworld.relay.service.support.InvalidRelayRoomParticipantLimitException;
+import com.nemonicworld.relay.service.support.InvalidRelayRoomTimeLimitSettingsException;
+import com.nemonicworld.relay.service.support.RelayReconnectGraceSettings;
 import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
+import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -44,6 +48,8 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private static final String NOT_FOUND_MESSAGE_FORMAT = "존재하지 않는 시스템 파라미터입니다. key=%s";
     private static final String INVALID_VALUE_MESSAGE = "시스템 파라미터 값을 직렬화하지 못했습니다.";
     private static final String INVALID_RELAY_PARTICIPANT_LIMIT_MESSAGE = "릴레이 방 참여 인원 설정이 올바르지 않습니다.";
+    private static final String INVALID_RELAY_TIME_LIMIT_MESSAGE = "릴레이 방 그리기 제한 시간 설정이 올바르지 않습니다.";
+    private static final String INVALID_RELAY_RECONNECT_GRACE_MESSAGE = "릴레이 재연결 유예 시간 설정이 올바르지 않습니다.";
     private static final String INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE = "시스템 파라미터 값이 올바르지 않습니다.";
     private static final String FLIPBOOK_PARTICIPANT_LIMIT_SETTING_KEY = "flipbook.room_participant_limit";
     private static final Set<String> TIME_LIMIT_SETTING_KEYS = Set.of("relay.room_time_limit_seconds",
@@ -179,8 +185,18 @@ public class SystemParameterServiceImpl implements SystemParameterService {
             return;
         }
 
+        if (RelayRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY.equals(key)) {
+            validateRelayRoomTimeLimit(value);
+            return;
+        }
+
         if (TIME_LIMIT_SETTING_KEYS.contains(key)) {
             validateTimeLimit(value);
+            return;
+        }
+
+        if (RelayRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY.equals(key)) {
+            validateRelayReconnectGrace(value);
             return;
         }
 
@@ -194,6 +210,22 @@ public class SystemParameterServiceImpl implements SystemParameterService {
             RelayRoomParticipantLimit.fromJson(value);
         } catch (InvalidRelayRoomParticipantLimitException e) {
             throw new BadRequestException(INVALID_RELAY_PARTICIPANT_LIMIT_MESSAGE);
+        }
+    }
+
+    private void validateRelayRoomTimeLimit(JsonNode value) {
+        try {
+            RelayRoomTimeLimitSettings.fromJson(value);
+        } catch (InvalidRelayRoomTimeLimitSettingsException e) {
+            throw new BadRequestException(INVALID_RELAY_TIME_LIMIT_MESSAGE);
+        }
+    }
+
+    private void validateRelayReconnectGrace(JsonNode value) {
+        try {
+            RelayReconnectGraceSettings.fromJson(value);
+        } catch (InvalidRelayReconnectGraceSettingsException e) {
+            throw new BadRequestException(INVALID_RELAY_RECONNECT_GRACE_MESSAGE);
         }
     }
 

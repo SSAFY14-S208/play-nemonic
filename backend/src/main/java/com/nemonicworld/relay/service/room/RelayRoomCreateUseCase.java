@@ -11,6 +11,7 @@ import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -61,9 +62,10 @@ public class RelayRoomCreateUseCase {
         RelayRoomParticipant hostParticipant = new RelayRoomParticipant(hostUser.getId().toString(),
             hostUser.getNickname(), true, RelayRoomPolicy.HOST_JOIN_ORDER, false, null, now);
         RelayRoomParticipantLimit participantLimit = relayRuntimeSettingsProvider.currentParticipantLimit();
+        RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
         RelayRoomState roomState = new RelayRoomState(roomCode, RelayRoomStatus.WAITING, hostUser.getId().toString(),
-            RelayRoomPolicy.DEFAULT_TIME_LIMIT_SECONDS, participantLimit.minParticipants(),
-            participantLimit.maxParticipants(), null, List.of(hostParticipant), List.of(), null, null, null, now, now);
+            timeLimitSettings.defaultSeconds(), participantLimit.minParticipants(), participantLimit.maxParticipants(),
+            null, List.of(hostParticipant), List.of(), null, null, null, now, now);
 
         relayRoomRepository.save(roomState);
         relayInviteMetadataSyncService.syncWithRoomState(roomState);

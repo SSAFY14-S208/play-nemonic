@@ -19,8 +19,6 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -30,7 +28,7 @@ import org.springframework.util.StringUtils;
 @Component
 public class RelayRoomPolicy {
 
-    public static final int DEFAULT_TIME_LIMIT_SECONDS = 45;
+    public static final int DEFAULT_TIME_LIMIT_SECONDS = RelayRoomTimeLimitSettings.DEFAULT_TIME_LIMIT_SECONDS;
     public static final int MIN_PARTICIPANTS = RelayRoomParticipantLimit.DEFAULT_MIN_PARTICIPANTS;
     public static final int MAX_PARTICIPANTS = RelayRoomParticipantLimit.DEFAULT_MAX_PARTICIPANTS;
     public static final int HOST_JOIN_ORDER = 0;
@@ -38,7 +36,6 @@ public class RelayRoomPolicy {
     public static final long DEFAULT_RECONNECT_GRACE_SECONDS = 10L;
     public static final String ROOM_UPDATE_CONFLICT_MESSAGE = "릴레이 방 상태를 갱신할 수 없습니다.";
 
-    private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
@@ -48,7 +45,7 @@ public class RelayRoomPolicy {
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "릴레이 방에 참여하지 않은 사용자입니다.";
     private static final String KICK_TARGET_NOT_FOUND_MESSAGE = "강퇴할 참여자를 찾을 수 없습니다.";
-    private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "제한 시간은 30초, 45초, 60초 중 하나여야 합니다.";
+    private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "허용되지 않는 릴레이 제한 시간입니다.";
     private static final String ONLY_HOST_ALLOWED_MESSAGE = "방장만 사용할 수 있습니다.";
     private static final String ONLY_HOST_KICK_ALLOWED_MESSAGE = "방장만 사용할 수 있는 기능입니다.";
     private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
@@ -69,14 +66,13 @@ public class RelayRoomPolicy {
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final RelayRoomRepository relayRoomRepository;
-    private final Duration reconnectGracePeriod;
+    private final RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
 
     public RelayRoomPolicy(RoomCodeGenerator roomCodeGenerator, RelayRoomRepository relayRoomRepository,
-        @Value("${nemonic.relay.disconnect.reconnect-grace-seconds:" + DEFAULT_RECONNECT_GRACE_SECONDS
-            + "}") long reconnectGraceSeconds) {
+        RelayRuntimeSettingsProvider relayRuntimeSettingsProvider) {
         this.roomCodeGenerator = roomCodeGenerator;
         this.relayRoomRepository = relayRoomRepository;
-        this.reconnectGracePeriod = Duration.ofSeconds(Math.max(0L, reconnectGraceSeconds));
+        this.relayRuntimeSettingsProvider = relayRuntimeSettingsProvider;
     }
 
     /**
@@ -109,8 +105,8 @@ public class RelayRoomPolicy {
      * 제한 시간 요청값을 검증합니다.
      */
     public int resolveTimeLimitSeconds(RelayRoomSettingsRequest request) {
-        if (request == null || request.timeLimitSeconds() == null
-            || !ALLOWED_TIME_LIMIT_SECONDS.contains(request.timeLimitSeconds())) {
+        RelayRoomTimeLimitSettings settings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
+        if (request == null || request.timeLimitSeconds() == null || !settings.allows(request.timeLimitSeconds())) {
             throw new BadRequestException(INVALID_TIME_LIMIT_SECONDS_MESSAGE);
         }
 
@@ -392,6 +388,8 @@ public class RelayRoomPolicy {
         if (disconnectedAt == null) {
             return false;
         }
+
+        Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
 
         return !disconnectedAt.plus(reconnectGracePeriod).isBefore(now);
     }
