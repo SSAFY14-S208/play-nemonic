@@ -72,8 +72,10 @@
 | 이벤트 | 발생 시점 | metadata 필드 | 설명 |
 | --- | --- | --- | --- |
 | `relay_result_created` | 최종 이미지 합성, MinIO 업로드, DB 저장, Redis `FINISHED` 전환이 성공한 직후 | `room_id`, `result_count`, `artifact_ids`, `duration_ms` | 결과물 생성 성공 수와 생성 소요 시간을 집계한다. `artifact_ids`로 DB 결과물과 연결할 수 있다. |
-| `relay_room_closed` | 방이 `CLOSED` 상태로 전환된 직후 | `room_id`, `close_reason`, `room_status_before`, `participant_count` | 방 종료 사유를 집계한다. 현재 `close_reason`은 `last_participant_left`, `host_manual`, `auto_delay`, `admin_force`, `waiting_idle_timeout`, `playing_abandoned`, `finalization_failed`가 사용된다. 자동 방치 종료는 `closed_at`과 `idle_seconds` 또는 `abandoned_seconds`를 추가하고, 최종화 실패 종료는 `retry_count`를 추가한다. |
+| `relay_room_closed` | 방이 `CLOSED` 상태로 전환된 직후 | `room_id`, `close_reason`, `room_status_before`, `participant_count` | 방 종료 사유를 집계한다. 현재 `close_reason`은 `last_participant_left`, `host_manual`, `auto_delay`, `admin_force`, `waiting_idle_timeout`, `playing_abandoned`, `waiting_empty`, `finalization_failed`가 사용된다. 자동 방치 종료는 `closed_at`과 `idle_seconds` 또는 `abandoned_seconds`를 추가하고, 비정상 empty WAITING 종료는 `participant_count=0`, 최종화 실패 종료는 `retry_count`를 추가한다. |
 | `relay_temp_cleanup_completed` | 닫힌 방의 `relay/tmp/{roomCode}/` 임시 파일 삭제와 cleanup marker 저장이 성공한 직후 | `room_id`, `deleted_object_count`, `result` | 임시 파일 정리 성공 여부와 삭제 개수를 본다. 현재 성공 시 `result=success`다. |
+| `relay_room_recovered_or_reconciled` | Redis에는 `connected=true`지만 같은 서버 relay WebSocket session registry에 실제 세션이 없어 Redis 상태를 보정한 직후 | `room_id`, `reason`, `before`, `after`, `reconciled_user_uuids`, `room_status`, `current_part` | 서버 재시작이나 비정상 종료 후 stale connection 상태를 찾는다. 현재 `reason=missing_ws_session`이다. 이 로그는 상태 보정 기록이며 `PARTICIPANT_DISCONNECTED` WebSocket 이벤트는 발행하지 않는다. |
+| `relay_result_orphan_cleanup_completed` | 최종화 시도 중 결과 이미지 업로드 후 DB 저장이 실패해 이번 시도에서 만든 결과 object를 best-effort 삭제한 직후 | `room_id`, `artifact_ids`, `object_keys`, `deleted_object_count`, `failed_object_count`, `result` | DB에 저장되지 않은 `relay/results/**` object 정리 결과를 추적한다. `result`는 `success` 또는 `partial_failure`다. |
 
 ## 운영자 감사 로그
 
@@ -98,6 +100,7 @@
 | `relay_minio_upload_redis_save_failed` | 제출 이미지 MinIO 업로드 후 Redis 저장이 끝내 실패한 때 | `room_id`, `uuid`, `canvas_index`, `part`, `object_key` | 없음 | 파일은 올라갔지만 방 상태 반영은 실패한 위험 상황이다. 임시 파일 정리나 재처리 판단에 중요하다. |
 | `relay_disconnect_grace_scheduler_failed` | disconnect grace scheduler가 이탈 확정 후보 방 처리 중 실패한 때 | `room_id`, `uuid`, `operation` | 있음 | 재연결 유예 만료자를 확정하는 작업이 실패한 방과 후보 사용자를 찾는다. `operation=disconnect_grace`다. |
 | `relay_finalization_failed` | 최종 결과물 생성 과정에서 실패한 때 | `room_id`, `stage`, `artifact_id`, `operation`, `retry_count`, `max_retry_count` | 있음 | 최종화 실패 단계별 추적 로그다. `stage`는 `process`, `compose`, `minio_upload`, `artifact_meta`, `db_save`, `redis_update` 등이 들어간다. 기본 정책은 30초 간격으로 최대 20회 재시도하고, 20회째 실패하면 방을 `CLOSED`로 전환한다. |
+| `relay_result_orphan_cleanup_failed` | DB 저장 실패 후 현재 finalization attempt에서 생성한 결과 object 삭제에 실패한 때 | `room_id`, `object_keys`, `failed_object_count` | 있음 | 결과 object orphan cleanup의 부분 실패를 추적한다. 삭제 실패는 원래 finalization 예외를 대체하지 않는다. |
 | `relay_temp_cleanup_failed` | CLOSED 방의 임시 파일 정리 중 실패한 때 | `room_id`, `object_key_prefix`, `failed_object_count` | 있음 | 특정 방의 임시 파일 정리가 실패한 상황이다. `failed_object_count`는 정리 대상 후보 개수다. |
 | `relay_old_temp_lookup_failed` | Redis 방 상태가 사라진 오래된 임시 파일 fallback 조회가 실패한 때 | `room_id`, `object_key_prefix`, `failed_object_count` | 있음 | `relay/tmp/` 전체 fallback cleanup 대상 조회 자체가 실패한 상황이다. 현재 `room_id=null`, `failed_object_count=0`으로 기록된다. |
 | `relay_old_temp_cleanup_failed` | 오래된 임시 파일 fallback 삭제가 실패한 때 | `room_id`, `object_key_prefix`, `failed_object_count` | 있음 | Redis room state가 없어도 남아 있는 오래된 임시 파일 삭제 실패를 추적한다. |
@@ -109,7 +112,6 @@
 
 | 이벤트 또는 항목 | 현재 상태 | 이유 |
 | --- | --- | --- |
-| `relay_room_recovered_or_reconciled` | 미구현 | Redis, WebSocket 세션, 스케줄러 상태를 별도 보정하는 reconciliation 로직이 아직 없다. 해당 로직이 생기면 `room_id`, `reason`, `before`, `after`를 남기면 된다. |
 | `audit_export` | 미구현 | 감사 로그 CSV 다운로드 API가 아직 없다. export API가 생기면 `actor_id`, `filter`, `result`를 `logs.audit`로 남기면 된다. |
 | WebSocket close 실패 구조화 로그 | 미구현 | 현재 `WebSocketSessionRegistry`는 close 실패 시 일반 `log.warn`만 남긴다. `room_id`, `uuid`, `session_id`, `close_reason`을 가진 `RelayRoomEventLogger.websocketWarn` 형태로는 아직 남기지 않는다. |
 

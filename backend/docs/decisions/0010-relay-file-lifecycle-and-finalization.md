@@ -56,6 +56,12 @@ Then persist matching PostgreSQL rows:
 Only non-dropped participants receive gallery rows. Finalization reuses existing
 result rows when they already match the expected canvas indexes.
 
+If a finalization attempt uploads new `relay/results/{artifactId}/...` objects
+but fails before the matching PostgreSQL rows are saved, the backend
+best-effort deletes only those objects created by the current attempt. Cleanup
+failure is logged and does not replace the original finalization error. Existing
+artifact rows or reused result objects are never deleted by this rollback path.
+
 Use a token-scoped Redis finalization lock before composing a room. Store the
 token as the lock value and release the lock only when the stored token still
 matches, so an expired worker cannot release another worker's active lock.
@@ -77,6 +83,9 @@ After a room becomes `CLOSED`, cleanup deletes only temporary objects under
   transition and result generation.
 - Positive: Token-scoped finalization locks make expired-worker cleanup safe in
   repeated scheduler scans.
+- Positive: DB-save failures after result upload now try to remove current
+  attempt result objects, reducing orphan `relay/results/**` files without
+  deleting persisted artifacts.
 - Negative: Hint image rendering depends on `public-url` and bucket read access
   being configured correctly for the client environment.
 - Negative: Temporary hint object URLs expose relay temporary object paths while

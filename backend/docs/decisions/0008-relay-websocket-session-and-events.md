@@ -56,6 +56,15 @@ game enters `PLAYING`; in `WAITING`, disconnected registered participants may
 REST re-enter and WebSocket reconnect without a grace-time cutoff unless they
 were kicked.
 
+Because the session registry is same-server and in-memory, a process restart can
+leave Redis with `connected=true` participants whose actual WebSocket sessions no
+longer exist. A reconciliation scheduler checks only relay sessions for
+`WAITING` and `PLAYING` rooms. If the relay session is missing, it changes that
+participant to `connected=false` with `disconnectedAt` set to the reconciliation
+time. This correction logs `relay_room_recovered_or_reconciled` but does not
+publish `PARTICIPANT_DISCONNECTED`, because no real disconnect event was
+observed at that moment.
+
 The game start command requires every participant to have `connected=true`.
 Publish relay room events only after the corresponding Redis CAS save succeeds.
 Personal kick messages and same-server session closes are best-effort.
@@ -64,6 +73,10 @@ When a relay room becomes closed, publish `ROOM_CLOSED` and best-effort close
 all same-server active relay WebSocket sessions for that room. This applies to
 host-triggered close, automatic close, last-user waiting-room leave, abandoned
 `WAITING`/`PLAYING` cleanup, and finalization-failure cleanup.
+`ROOM_CLOSED` keeps its existing fields and additively includes `closeReason`
+when the backend knows why the room closed, such as `host_manual`,
+`auto_delay`, `last_participant_left`, `admin_force`, `waiting_idle_timeout`,
+`playing_abandoned`, `waiting_empty`, or `finalization_failed`.
 
 When the current part deadline expires, publish a one-time `PART_TIME_UP` room
 event during the submission grace window. The event payload includes the timed
@@ -82,6 +95,11 @@ the source of truth for fallback auto-submit after the grace window.
 - Positive: Clients can listen to one room topic and optional personal queue.
 - Positive: Relay-specific session lookup prevents relay close, kick, and leave
   flows from closing another content type's active session.
+- Positive: Redis/WebSocket reconciliation prevents stale `connected=true`
+  values from blocking abandoned-room cleanup after a process restart.
+- Positive: `ROOM_CLOSED.closeReason` lets clients distinguish normal close,
+  abandoned cleanup, admin force-close, and failure cleanup without breaking old
+  payload consumers.
 - Positive: `PART_TIME_UP` gives clients a server-timed deadline signal and the
   current pending submission list without requiring polling.
 - Positive: Event emission does not announce state transitions that failed CAS.

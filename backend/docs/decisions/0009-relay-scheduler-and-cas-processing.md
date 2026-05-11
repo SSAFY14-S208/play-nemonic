@@ -60,6 +60,8 @@ state safely and do not implement all-dropped room finalization in this step.
 
 Close abandoned relay rooms through a separate scheduler:
 
+- `WAITING`: if the room has no participants because of abnormal Redis/runtime
+  divergence, close it immediately with `close_reason=waiting_empty`.
 - `WAITING`: if the room has at least one participant and every participant has
   `connected=false` for 5 minutes, close it with
   `close_reason=waiting_idle_timeout`.
@@ -71,6 +73,14 @@ Both flows scan Redis with `SCAN`, close through the shared active-room CAS
 command, sync invite metadata, and publish `ROOM_CLOSED` only after the CAS save
 succeeds. They do not auto-submit missing parts or attempt final result
 generation.
+
+Run connection reconciliation before abandoned cleanup on an independent
+30-second scheduler cadence. It scans only `WAITING` and `PLAYING` rooms whose
+participants contain `connected=true`, compares each participant to the
+same-server relay `WebSocketSessionRegistry`, and CAS-updates missing sessions to
+`connected=false`. CAS conflicts are no-op for that tick. The scheduler logs
+`relay_room_recovered_or_reconciled` and lets disconnect-grace or abandoned-close
+jobs perform the follow-up state transition in later ticks.
 
 Finalization retries use a separate Redis counter key,
 `relay:room-finalization-retry:{roomCode}`, with the same 24-hour TTL as the
@@ -94,6 +104,8 @@ metadata is synced, and `ROOM_CLOSED` is published.
 - Positive: WAITING, PLAYING, and FINALIZING rooms no longer remain in
   backoffice active-room lists indefinitely when all users leave or finalization
   keeps failing.
+- Positive: A server restart no longer leaves stale relay `connected=true`
+  values that can permanently block abandoned-room cleanup.
 - Negative: Uploaded files may briefly remain if MinIO upload succeeds but the
   Redis CAS update later fails.
 - Follow-up: Full multi-node scheduler coordination may need stronger locks or
