@@ -16,6 +16,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundProgress;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
@@ -50,6 +51,7 @@ public class FlipbookFrameSubmitUseCase {
     private static final String FILE_UPLOAD_PURPOSE_CONFLICT_MESSAGE = "플립북 프레임 파일만 제출할 수 있습니다.";
     private static final String ROOM_FRAME_SUBMIT_UPDATE_CONFLICT_MESSAGE = "동시 프레임 제출 요청이 많아 플립북 프레임을 "
         + "저장하지 못했습니다. 다시 시도해주세요.";
+    private static final String SUBMISSION_IN_PROGRESS_MESSAGE = "이미 제출 처리 중입니다.";
     private static final int ROOM_MUTATION_LOCK_ACQUIRE_ATTEMPTS = 5;
     private static final Duration ROOM_MUTATION_LOCK_RETRY_DELAY = Duration.ofMillis(50);
 
@@ -61,7 +63,9 @@ public class FlipbookFrameSubmitUseCase {
     private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
     private final FileUploadRepository fileUploadRepository;
     private final Duration autoSubmitGrace;
+    private final FlipbookSubmissionLockRepository flipbookSubmissionLockRepository;
     private final FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository;
+    private final Duration submitLockTtl;
     private final Duration roomMutationLockTtl;
 
     public FlipbookFrameSubmitUseCase(AnonymousUserResolver anonymousUserResolver,
@@ -69,8 +73,10 @@ public class FlipbookFrameSubmitUseCase {
         FlipbookFrameImageUrlResolver flipbookFrameImageUrlResolver,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
         FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService, FileUploadRepository fileUploadRepository,
+        FlipbookSubmissionLockRepository flipbookSubmissionLockRepository,
         FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository,
-        @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs,
+        @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:5000}") long autoSubmitGraceMs,
+        @Value("${nemonic.flipbook.timeout.submit-lock-ttl-ms:10000}") long submitLockTtlMs,
         @Value("${nemonic.flipbook.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.flipbookRoomRepository = flipbookRoomRepository;
@@ -80,7 +86,9 @@ public class FlipbookFrameSubmitUseCase {
         this.flipbookRoomRoundAdvanceService = flipbookRoomRoundAdvanceService;
         this.fileUploadRepository = fileUploadRepository;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
+        this.flipbookSubmissionLockRepository = flipbookSubmissionLockRepository;
         this.flipbookRoomMutationLockRepository = flipbookRoomMutationLockRepository;
+        this.submitLockTtl = Duration.ofMillis(Math.max(1L, submitLockTtlMs));
         this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
     }
 
@@ -96,7 +104,9 @@ public class FlipbookFrameSubmitUseCase {
         validateRequest(request);
         String viewerUserUuid = viewerUser.getId().toString();
         FileUpload frameFile = resolveFrameFile(viewerUser.getId(), request.fileId());
+        String submissionLockToken = createSubmissionLockToken(viewerUserUuid);
         String roomMutationLockToken = createRoomMutationLockToken("submission", viewerUserUuid);
+        boolean submissionLocked = false;
         boolean roomMutationLocked = false;
 
         try {
@@ -128,6 +138,7 @@ public class FlipbookFrameSubmitUseCase {
             }
 
             validateDeadline(roomState.roundDeadlineAt());
+            submissionLocked = acquireSubmissionLock(roomState, currentAssignment, submissionLockToken);
 
             roomMutationLocked = acquireRoomMutationLock(roomCodeValue, roomMutationLockToken);
 
@@ -183,6 +194,10 @@ public class FlipbookFrameSubmitUseCase {
         } finally {
             if (roomMutationLocked) {
                 flipbookRoomMutationLockRepository.releaseRoomMutationLock(roomCodeValue, roomMutationLockToken);
+            }
+            if (submissionLocked) {
+                flipbookSubmissionLockRepository.releaseSubmissionLock(roomCodeValue, request.flipbookIndex(),
+                    request.frameIndex(), round, viewerUserUuid, submissionLockToken);
             }
         }
     }
@@ -283,6 +298,23 @@ public class FlipbookFrameSubmitUseCase {
         }
 
         return updatedAssignments;
+    }
+
+    private boolean acquireSubmissionLock(FlipbookRoomState roomState, FlipbookFrameAssignment assignment,
+        String submissionLockToken) {
+        boolean locked = flipbookSubmissionLockRepository.acquireSubmissionLock(roomState.roomCode(),
+            assignment.flipbookIndex(), assignment.frameIndex(), assignment.round(), assignment.assignedUserUuid(),
+            submissionLockToken, submitLockTtl);
+        if (!locked) {
+            throw new ConflictException(SUBMISSION_IN_PROGRESS_MESSAGE);
+        }
+
+        return true;
+    }
+
+    private String createSubmissionLockToken(String viewerUserUuid) {
+        return "token=%s,requestedAt=%s,userUuid=%s".formatted(UUID.randomUUID(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), viewerUserUuid);
     }
 
     private boolean acquireRoomMutationLock(String roomCode, String roomMutationLockToken) {

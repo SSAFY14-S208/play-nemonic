@@ -9,6 +9,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomTimeUpNotificationRepository;
+import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
@@ -35,6 +36,7 @@ public class FlipbookRoomTimeoutService {
 
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository;
+    private final FlipbookSubmissionLockRepository flipbookSubmissionLockRepository;
     private final FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository;
     private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
@@ -45,15 +47,17 @@ public class FlipbookRoomTimeoutService {
 
     public FlipbookRoomTimeoutService(FlipbookRoomRepository flipbookRoomRepository,
         FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository,
+        FlipbookSubmissionLockRepository flipbookSubmissionLockRepository,
         FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository,
         FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService,
         FlipbookRoomEventPublisher flipbookRoomEventPublisher,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
         @Value("${nemonic.flipbook.timeout.scan-limit:100}") int scanLimit,
-        @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs,
+        @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:5000}") long autoSubmitGraceMs,
         @Value("${nemonic.flipbook.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.flipbookRoomTimeUpNotificationRepository = flipbookRoomTimeUpNotificationRepository;
+        this.flipbookSubmissionLockRepository = flipbookSubmissionLockRepository;
         this.flipbookRoomMutationLockRepository = flipbookRoomMutationLockRepository;
         this.flipbookRoomRoundAdvanceService = flipbookRoomRoundAdvanceService;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
@@ -195,7 +199,8 @@ public class FlipbookRoomTimeoutService {
         List<FlipbookFrameAutoSubmissionResult> autoSubmissions = new ArrayList<>();
 
         for (FlipbookFrameAssignment assignment : roomState.assignments()) {
-            if (assignment.round() == currentRound && assignment.status() == FlipbookFrameAssignmentStatus.PENDING) {
+            if (assignment.round() == currentRound && assignment.status() == FlipbookFrameAssignmentStatus.PENDING
+                && !isSubmissionLocked(roomState, assignment)) {
                 FlipbookFrameAssignment autoSubmittedAssignment = autoSubmitAssignment(assignment, submittedAt);
                 updatedAssignments.add(autoSubmittedAssignment);
                 autoSubmissions.add(new FlipbookFrameAutoSubmissionResult(roomState.roomCode(),
@@ -213,6 +218,11 @@ public class FlipbookRoomTimeoutService {
         return new FlipbookFrameAssignment(assignment.flipbookIndex(), assignment.frameIndex(), assignment.round(),
             assignment.assignedUserUuid(), FlipbookFrameAssignmentStatus.AUTO_SUBMITTED, null, null, true, true,
             submittedAt);
+    }
+
+    private boolean isSubmissionLocked(FlipbookRoomState roomState, FlipbookFrameAssignment assignment) {
+        return flipbookSubmissionLockRepository.isSubmissionLocked(roomState.roomCode(), assignment.flipbookIndex(),
+            assignment.frameIndex(), assignment.round(), assignment.assignedUserUuid());
     }
 
     private String findNickname(FlipbookRoomState roomState, String userUuid) {
