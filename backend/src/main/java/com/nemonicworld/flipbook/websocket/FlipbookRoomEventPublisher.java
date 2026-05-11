@@ -18,6 +18,7 @@ import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomResultCreatedEventRes
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomSimpleMessageResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDroppedParticipantResult;
@@ -27,6 +28,7 @@ import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -108,10 +110,10 @@ public class FlipbookRoomEventPublisher {
      * 현재 라운드 제한 시간이 끝나 클라이언트가 현재 캔버스를 제출해야 함을 방 전체에 알립니다.
      */
     public void publishRoundTimeUp(String roomCode, int round, LocalDateTime roundDeadlineAt,
-        LocalDateTime submitGraceDeadlineAt, long autoSubmitGraceMillis) {
+        LocalDateTime submitGraceDeadlineAt, long autoSubmitGraceMillis, List<PendingSubmission> pendingSubmissions) {
         FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.ROUND_TIME_UP, roomCode,
             new FlipbookRoundTimeUpEventResponse(roomCode, round, roundDeadlineAt, submitGraceDeadlineAt,
-                autoSubmitGraceMillis));
+                autoSubmitGraceMillis, pendingSubmissions == null ? 0 : pendingSubmissions.size(), pendingSubmissions));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
     }

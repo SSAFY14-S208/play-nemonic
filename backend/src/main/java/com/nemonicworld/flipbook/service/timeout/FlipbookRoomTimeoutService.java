@@ -1,7 +1,9 @@
 package com.nemonicworld.flipbook.service.timeout;
 
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
@@ -19,12 +21,14 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 마감 시간이 지난 플립북 현재 라운드의 미제출 프레임을 빈 프레임으로 자동 제출합니다.
@@ -88,6 +92,8 @@ public class FlipbookRoomTimeoutService {
                 }
             } catch (RuntimeException e) {
                 log.warn("플립북 타임아웃 자동 제출 처리 중 오류가 발생했습니다. roomCode={}", expiredRoom.roomCode(), e);
+                FlipbookRoomEventLogger.apiWarn("flipbook_timeout_scheduler_failed",
+                    "failed to process flipbook timeout room", metadata("room_id", expiredRoom.roomCode()), e);
             }
         }
 
@@ -105,12 +111,21 @@ public class FlipbookRoomTimeoutService {
                     roomState.currentRound(), roomState.roundDeadlineAt(), FlipbookRoomRepository.ROOM_STATE_TTL);
                 if (marked) {
                     LocalDateTime submitGraceDeadlineAt = roomState.roundDeadlineAt().plus(autoSubmitGrace);
+                    List<PendingSubmission> pendingSubmissions = pendingCurrentSubmissions(roomState);
                     flipbookRoomEventPublisher.publishRoundTimeUp(roomState.roomCode(), roomState.currentRound(),
-                        roomState.roundDeadlineAt(), submitGraceDeadlineAt, autoSubmitGrace.toMillis());
+                        roomState.roundDeadlineAt(), submitGraceDeadlineAt, autoSubmitGrace.toMillis(),
+                        pendingSubmissions);
+                    FlipbookRoomEventLogger.websocketBusiness("flipbook_round_time_up",
+                        metadata("room_id", roomState.roomCode(), "round", roomState.currentRound(),
+                            "round_deadline_at", roomState.roundDeadlineAt(), "pending_count",
+                            pendingSubmissions.size(), "auto_submit_grace_ms", autoSubmitGrace.toMillis()));
                 }
             } catch (RuntimeException e) {
                 log.warn("플립북 라운드 제한 시간 종료 이벤트 발행 중 오류가 발생했습니다. roomCode={}, round={}", roomState.roomCode(),
                     roomState.currentRound(), e);
+                FlipbookRoomEventLogger.websocketWarn("flipbook_round_time_up_publish_failed",
+                    "failed to publish flipbook round time-up event",
+                    metadata("room_id", roomState.roomCode(), "round", roomState.currentRound()), e);
             }
         }
     }
@@ -130,6 +145,9 @@ public class FlipbookRoomTimeoutService {
             roomMutationLockTtl);
         if (!locked) {
             log.warn("플립북 타임아웃 자동 제출을 건너뜁니다. 방 상태 변경 잠금이 사용 중입니다. roomCode={}", roomCode);
+            FlipbookRoomEventLogger.apiWarn("flipbook_room_mutation_lock_busy",
+                "flipbook timeout skipped because room mutation lock is busy",
+                metadata("room_id", roomCode, "lock_owner", "timeout"), null);
             return FlipbookRoomTimeoutResult.noOp(roomCode);
         }
 
@@ -193,6 +211,25 @@ public class FlipbookRoomTimeoutService {
             && assignment.status() == FlipbookFrameAssignmentStatus.PENDING);
     }
 
+    private List<PendingSubmission> pendingCurrentSubmissions(FlipbookRoomState roomState) {
+        return roomState.assignments().stream()
+            .filter(assignment -> assignment.round() == roomState.currentRound()
+                && assignment.status() == FlipbookFrameAssignmentStatus.PENDING)
+            .sorted(Comparator.comparingInt(FlipbookFrameAssignment::flipbookIndex)
+                .thenComparingInt(FlipbookFrameAssignment::frameIndex))
+            .map(assignment -> {
+                FlipbookRoomParticipant participant = findParticipant(roomState, assignment.assignedUserUuid());
+                return new PendingSubmission(assignment.flipbookIndex(), assignment.frameIndex(),
+                    assignment.assignedUserUuid(), participant == null ? null : participant.nickname(),
+                    participant != null && participant.connected());
+            }).toList();
+    }
+
+    private FlipbookRoomParticipant findParticipant(FlipbookRoomState roomState, String userUuid) {
+        return roomState.participants().stream().filter(participant -> participant.userUuid().equals(userUuid))
+            .findFirst().orElse(null);
+    }
+
     private AutoSubmitUpdate autoSubmitPendingAssignments(FlipbookRoomState roomState, int currentRound,
         LocalDateTime submittedAt) {
         List<FlipbookFrameAssignment> updatedAssignments = new ArrayList<>(roomState.assignments().size());
@@ -234,6 +271,11 @@ public class FlipbookRoomTimeoutService {
         for (FlipbookFrameAutoSubmissionResult autoSubmission : result.autoSubmissions()) {
             flipbookRoomEventPublisher.publishFrameAutoSubmitted(autoSubmission.roomCode(), autoSubmission.nickname(),
                 autoSubmission.assignment());
+            FlipbookRoomEventLogger.websocketBusiness("flipbook_frame_auto_submitted",
+                metadata("room_id", autoSubmission.roomCode(), "round", autoSubmission.assignment().round(),
+                    "flipbook_index", autoSubmission.assignment().flipbookIndex(), "frame_index",
+                    autoSubmission.assignment().frameIndex(), "uuid", autoSubmission.assignment().assignedUserUuid(),
+                    "reason", "timeout"));
         }
 
         FlipbookRoundAdvanceResult advanceResult = result.advanceResult();
@@ -244,9 +286,15 @@ public class FlipbookRoomTimeoutService {
         if (advanceResult.allRoundsCompleted()) {
             flipbookRoomEventPublisher.publishAllRoundsCompleted(result.roomCode(), advanceResult.roomState().status(),
                 advanceResult.roomState().updatedAt());
+            FlipbookRoomEventLogger.websocketBusiness("flipbook_all_rounds_completed",
+                metadata("room_id", result.roomCode(), "room_status", advanceResult.roomState().status(),
+                    "total_rounds", advanceResult.roomState().totalRounds()));
         } else {
             flipbookRoomEventPublisher.publishRoundStarted(result.roomCode(), result.previousRound(),
                 advanceResult.nextRound(), advanceResult.nextRoundStartedAt(), advanceResult.nextRoundDeadlineAt());
+            FlipbookRoomEventLogger.websocketBusiness("flipbook_round_started",
+                metadata("room_id", result.roomCode(), "previous_round", result.previousRound(), "round",
+                    advanceResult.nextRound(), "round_deadline_at", advanceResult.nextRoundDeadlineAt()));
         }
     }
 
