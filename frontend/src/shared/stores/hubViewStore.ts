@@ -24,7 +24,7 @@ export const HUB_OVERVIEW_VIEW: HubContentView = {
   zoom: 13.9,
   eyebrow: '망고슬래브 월드 입구',
   title: '네모닉 월드',
-  description: '원하는 놀이를 골라 색의 판 위로 톡 뛰어들어 보세요.',
+  description: '네모닉 월드에 도착했어요. 오늘은 어떤 상상이 출력될까요?',
 }
 
 export const HUB_CONTENT_VIEWS: Record<HubContentKey, HubContentView> = {
@@ -34,7 +34,7 @@ export const HUB_CONTENT_VIEWS: Record<HubContentKey, HubContentView> = {
     zoom: 11.7,
     eyebrow: '초록 티켓 · 모두의 갤러리',
     title: '커뮤니티 캔버스',
-    description: '메모와 결과물이 벽에 톡톡 붙어 모두의 갤러리가 되는 초록 광장입니다.',
+    description: '모두의 메모가 모여서 만드는 오늘의 보드.',
   },
   fortune: {
     platform: 'purple',
@@ -42,7 +42,7 @@ export const HUB_CONTENT_VIEWS: Record<HubContentKey, HubContentView> = {
     zoom: 11.5,
     eyebrow: '보라 티켓 · 오늘의 운세 부스',
     title: '오늘의 운세',
-    description: '생년월일시를 넣고 오늘의 흐름을 살짝 뽑아보는 작은 운세 부스입니다.',
+    description: '네모닉에 마법을 걸어, 오늘의 행운을 한 장 뽑아볼까요?',
   },
   relay: {
     platform: 'coral',
@@ -50,7 +50,7 @@ export const HUB_CONTENT_VIEWS: Record<HubContentKey, HubContentView> = {
     zoom: 11.6,
     eyebrow: '코랄 티켓 · 이어 그리는 놀이',
     title: '우당탕 릴레이 드로잉',
-    description: '얼굴, 몸통, 다리를 이어 그려 예상 밖 캐릭터를 완성하는 우당탕 놀이입니다.',
+    description: '머리는 몰랐답니다. 이런 몸통과 다리를 만나게 될 줄은.',
   },
   infinite: {
     platform: 'blue',
@@ -58,7 +58,7 @@ export const HUB_CONTENT_VIEWS: Record<HubContentKey, HubContentView> = {
     zoom: 11.7,
     eyebrow: '파랑 티켓 · 끝없이 펼쳐지는 판',
     title: '무한 캔버스',
-    description: '같은 캔버스 위에서 커서와 드로잉이 함께 뛰노는 실시간 창작 공간입니다.',
+    description: '끝없이 펼쳐지는 캔버스 위에, 지금 떠오른 걸 그리고 뽑아봐요.',
   },
   flipbook: {
     platform: 'yellow',
@@ -66,7 +66,7 @@ export const HUB_CONTENT_VIEWS: Record<HubContentKey, HubContentView> = {
     zoom: 11.7,
     eyebrow: '노랑 티켓 · 움직임 만드는 책',
     title: '플립북',
-    description: '한 장씩 이어 그린 프레임이 짧고 귀여운 움직임으로 팔랑이는 애니메이션 놀이입니다.',
+    description: '친구들과 메모지를 모아 플립북을 만들어봐요.',
   },
 }
 
