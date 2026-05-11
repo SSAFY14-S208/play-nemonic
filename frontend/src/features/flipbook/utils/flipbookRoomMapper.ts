@@ -66,12 +66,6 @@ export function getRoomParticipantCount(roomState: FlipbookRoomStateResponse | n
   return Math.max(1, roomState.participantCount, roomState.participants.length)
 }
 
-export function getDrawingTurnCount(cycleRoundCount: number | null, participantCount: number) {
-  if (cycleRoundCount === null) return null
-
-  return cycleRoundCount * Math.max(1, participantCount)
-}
-
 export function getAssignmentKey(assignment: FlipbookAssignmentResponse) {
   return `${assignment.currentRound}:${assignment.flipbookIndex}:${assignment.frameIndex}`
 }
