@@ -1,16 +1,18 @@
 package com.nemonicworld.common.exception;
 
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.global.logging.StructuredEventLogger;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -95,7 +97,39 @@ public class GlobalExceptionHandler {
 
     // 500 Internal Server Error - 서버 오류
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
+    public ResponseEntity<ApiResponse<Void>> handleException(Exception e, HttpServletRequest request) {
+        logCommunityInfrastructureFailure(e, request);
+
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.fail("서버 오류가 발생했습니다.", null));
+    }
+
+    private void logCommunityInfrastructureFailure(Exception e, HttpServletRequest request) {
+        if (!containsDataAccessException(e) || request == null) {
+            return;
+        }
+
+        String path = request.getRequestURI();
+        if (path.startsWith("/api/v1/admin/community/")) {
+            StructuredEventLogger.apiWarn("community_admin_query_failed", "community admin query failed",
+                StructuredEventLogger.metadata("path", path, "method", request.getMethod()), e);
+            return;
+        }
+
+        if (path.startsWith("/api/v1/community/")) {
+            StructuredEventLogger.apiWarn("community_repository_query_failed", "community repository query failed",
+                StructuredEventLogger.metadata("path", path, "method", request.getMethod()), e);
+        }
+    }
+
+    private boolean containsDataAccessException(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof DataAccessException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+
+        return false;
     }
 }

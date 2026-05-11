@@ -1,5 +1,6 @@
 package com.nemonicworld.backoffice.relay.service;
 
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomDeleteResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomListResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomResponse;
@@ -8,6 +9,7 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
@@ -21,6 +23,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 @Service
 public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomService {
@@ -73,7 +76,8 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
     }
 
     @Override
-    public BackofficeRelayRoomDeleteResponse deleteActiveRelayRoom(AdminPrincipal adminPrincipal, String roomCode) {
+    public BackofficeRelayRoomDeleteResponse deleteActiveRelayRoom(AdminPrincipal adminPrincipal, String roomCode,
+        AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
         relayRoomPolicy.validateRoomCode(roomCode);
         LocalDateTime closedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -86,6 +90,16 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
 
             RelayRoomCloseResult closeResult = relayRoomCloseCommand.closeActiveRoomIfUnchanged(roomState, closedAt);
             if (closeResult.closed()) {
+                RelayRoomEventLogger.audit("relay_room_force_close",
+                    metadata("actor_id", adminPrincipal.id(), "actor_role", adminPrincipal.role().getValue(),
+                        "actor_ip", clientInfo.ipAddress(), "target_type", "room", "target_id", roomCode, "action",
+                        "force_close", "reason", "backoffice_force_close", "before",
+                        metadata("status", roomState.status(), "participant_count", roomState.participantCount()),
+                        "after", metadata("status", RelayRoomStatus.CLOSED, "closed_at", closeResult.closedAt()),
+                        "result", "success"));
+                RelayRoomEventLogger.apiBusiness("relay_room_closed",
+                    metadata("room_id", closeResult.roomCode(), "close_reason", "admin_force", "room_status_before",
+                        roomState.status(), "participant_count", roomState.participantCount()));
                 relayRoomEventPublisher.publishRoomClosed(closeResult.roomCode(), closeResult.closedAt());
                 return new BackofficeRelayRoomDeleteResponse(closeResult.roomCode());
             }

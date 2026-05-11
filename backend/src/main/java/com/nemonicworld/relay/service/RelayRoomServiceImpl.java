@@ -129,6 +129,11 @@ public class RelayRoomServiceImpl implements RelayRoomService {
     }
 
     @Override
+    public RelayRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue, String sessionId) {
+        return relayRoomConnectionUseCase.connectRoom(userUuidValue, roomCodeValue, sessionId);
+    }
+
+    @Override
     public RelayRoomStateResponse disconnectRoom(String userUuidValue, String roomCodeValue) {
         return relayRoomConnectionUseCase.disconnectRoom(userUuidValue, roomCodeValue);
     }

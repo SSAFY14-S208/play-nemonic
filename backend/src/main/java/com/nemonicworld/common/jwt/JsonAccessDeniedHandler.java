@@ -8,35 +8,36 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
 @Component
-public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
+public class JsonAccessDeniedHandler implements AccessDeniedHandler {
 
-    private static final String UNAUTHORIZED_MESSAGE = "인증이 필요합니다.";
+    private static final String FORBIDDEN_MESSAGE = "접근 권한이 없습니다.";
     private static final String ADMIN_PATH_PREFIX = "/api/v1/admin";
     private static final String BACKOFFICE_PATH_PREFIX = "/api/v1/backoffice";
 
     private final ObjectMapper objectMapper;
 
-    public JsonAuthenticationEntryPoint(ObjectMapper objectMapper) {
+    public JsonAccessDeniedHandler(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
     @Override
-    public void commence(HttpServletRequest request, HttpServletResponse response,
-        AuthenticationException authenticationException) throws IOException {
+    public void handle(HttpServletRequest request, HttpServletResponse response,
+        AccessDeniedException accessDeniedException) throws IOException {
         if (isAdminOrBackofficePath(request)) {
-            StructuredEventLogger.auditWarn("admin_access_denied", "admin access denied", resolveTraceId(request),
+            StructuredEventLogger.auditWarn("admin_forbidden", "admin forbidden", resolveTraceId(request),
                 StructuredEventLogger.metadata("path", request.getRequestURI(), "method", request.getMethod(),
-                    "reason_code", authenticationException.getClass().getSimpleName()));
+                    "reason_code", accessDeniedException.getClass().getSimpleName()));
         }
-        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+
+        response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), ApiResponse.fail(UNAUTHORIZED_MESSAGE, null));
+        objectMapper.writeValue(response.getWriter(), ApiResponse.fail(FORBIDDEN_MESSAGE, null));
     }
 
     private boolean isAdminOrBackofficePath(HttpServletRequest request) {

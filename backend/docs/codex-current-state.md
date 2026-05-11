@@ -430,6 +430,22 @@ Recent community admin review work added admin memo list/detail plus manual hide
 - Common query performance now has Flyway V13 indexes for active gallery ownership lookups, artifact source-room result scans, CS inquiry admin list filters, and GMS prompt list/latest lookups.
 - Admin keyword searches for community memos, CS inquiries, GMS prompts, and system parameters now escape SQL `LIKE` wildcard characters consistently.
 
+Recent relay logging work added structured event emission for the relay drawing lifecycle.
+
+- Relay business events now cover room creation/settings/join/leave/kick/host change, WebSocket connect/reconnect/disconnect/reject/duplicate-session close, start/part start/time-up/submission/rejection/auto-submit/drop/all-parts-complete/result-created/room-closed/temp-cleanup-completed.
+- Relay operational warning events cover timeout/disconnect/finalization/cleanup failures, room mutation lock contention, Redis CAS retry exhaustion, and MinIO upload followed by Redis save conflict.
+- Relay logging field coverage now includes WebSocket reconnect `session_id`, rejected WebSocket/start/submission room-state fields, disconnect-grace failure `uuid`, stage-specific finalization `artifact_id`, and non-null temp cleanup failure counts.
+- Backoffice relay force-close emits `relay_room_force_close` audit metadata and `relay_room_closed` business metadata; relay-scoped system parameter changes emit `param_change`.
+- `backend/docs/product-spec/08-observability.md` includes the relay event names in the backend business-event allow-list.
+
+Recent community logging work reused the shared structured event logger for community canvas and backoffice review flows.
+
+- `StructuredEventLogger` centralizes JSON emission to `logs.api`, `logs.websocket`, and `logs.audit`; the existing relay logger and admin audit logger now delegate to it.
+- Community API logs now cover memo list/detail views, create, moderation request/allowed/blocked/failure, FIFO check/expiry, layout update/denial, user delete/denial, report create/rejection, and report-threshold auto hide.
+- COMMUNITY-purpose file uploads now emit presign, confirm, and pending-delete events without affecting other file purposes.
+- Admin community list/detail/report-history views emit audit events, while existing hide/restore audit logs keep the operator-provided review reason in metadata.
+- `backend/docs/product-spec/08-observability.md` includes the community event names in the backend event allow-list.
+
 ## Next Suggested Steps
 
 - Use `backend/docs/codex-prompt-templates.md` for the first feature request.

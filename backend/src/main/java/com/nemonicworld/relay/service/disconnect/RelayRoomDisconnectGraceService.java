@@ -4,6 +4,7 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 게임 중 재접속 유예가 끝난 참여자를 이탈 확정하고, 해당 참여자의 현재 파트 배정을 흰 캔버스로 자동 제출합니다.
@@ -97,6 +99,11 @@ public class RelayRoomDisconnectGraceService {
                     autoSubmittedCount += result.autoSubmissions().size();
                 }
             } catch (RuntimeException e) {
+                RelayRoomEventLogger.apiWarn("relay_disconnect_grace_scheduler_failed",
+                    "failed to process relay disconnect grace room",
+                    metadata("room_id", candidateRoom.roomCode(), "uuid",
+                        findDisconnectGraceCandidateUuid(candidateRoom, processedAt), "operation", "disconnect_grace"),
+                    e);
                 log.warn("릴레이 방 이탈 확정 처리 중 오류가 발생했습니다. roomCode={}", candidateRoom.roomCode(), e);
             }
         }
@@ -119,6 +126,10 @@ public class RelayRoomDisconnectGraceService {
         boolean locked = relayRoomMutationLockRepository.acquireRoomMutationLock(roomCode, roomMutationLockToken,
             roomMutationLockTtl);
         if (!locked) {
+            RelayRoomEventLogger.apiWarn("relay_room_mutation_lock_busy",
+                "relay disconnect grace skipped because room mutation lock was busy", metadata("room_id", roomCode,
+                    "operation", "disconnect_grace", "lock_ttl_ms", roomMutationLockTtl.toMillis()),
+                null);
             return RelayDisconnectGraceRoomResult.noOp(roomCode);
         }
 
@@ -165,6 +176,10 @@ public class RelayRoomDisconnectGraceService {
             }
         }
 
+        RelayRoomEventLogger.apiWarn("relay_redis_cas_retry_exceeded",
+            "relay disconnect grace exceeded Redis CAS retry count", metadata("room_id", roomCode, "operation",
+                "disconnect_grace", "attempt_count", RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES),
+            null);
         throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
@@ -237,6 +252,13 @@ public class RelayRoomDisconnectGraceService {
     private boolean shouldDrop(RelayRoomParticipant participant, LocalDateTime now) {
         return !participant.dropped() && !participant.connected() && participant.disconnectedAt() != null
             && !participant.disconnectedAt().plus(reconnectGrace).isAfter(now);
+    }
+
+    private String findDisconnectGraceCandidateUuid(RelayRoomState roomState, LocalDateTime now) {
+        return roomState.participants().stream()
+            .filter(participant -> shouldDrop(participant, now) || participant.dropped())
+            .min(Comparator.comparingInt(RelayRoomParticipant::joinOrder)).map(RelayRoomParticipant::userUuid)
+            .orElse(null);
     }
 
     private HostTransferUpdate transferHostIfNeeded(RelayRoomState roomState, List<RelayRoomParticipant> participants,
@@ -324,15 +346,31 @@ public class RelayRoomDisconnectGraceService {
     private void publishDisconnectGraceEvents(RelayDisconnectGraceRoomResult result) {
         for (RelayDroppedParticipantResult droppedParticipant : result.droppedParticipants()) {
             relayRoomEventPublisher.publishParticipantDropped(droppedParticipant);
+            RelayRoomEventLogger.websocketBusiness("relay_participant_dropped",
+                metadata("room_id", droppedParticipant.roomCode(), "uuid", droppedParticipant.userUuid(),
+                    "disconnected_at", droppedParticipant.disconnectedAt(), "dropped_at",
+                    droppedParticipant.droppedAt(), "current_part",
+                    result.autoSubmissions().stream().findFirst()
+                        .map(autoSubmission -> autoSubmission.assignment().part()).orElse(null),
+                    "auto_submitted_count", countAutoSubmissions(result, droppedParticipant.userUuid())));
         }
 
         if (result.hostChange() != null) {
             relayRoomEventPublisher.publishHostChanged(result.hostChange());
+            RelayRoomEventLogger.websocketBusiness("relay_host_changed",
+                metadata("room_id", result.hostChange().roomCode(), "previous_host_uuid",
+                    result.hostChange().previousHostUserUuid(), "new_host_uuid", result.hostChange().newHostUserUuid(),
+                    "reason", "host_dropped"));
         }
 
         for (RelayRoomAutoSubmissionResult autoSubmission : result.autoSubmissions()) {
             relayRoomEventPublisher.publishPartAutoSubmitted(autoSubmission.roomCode(), autoSubmission.nickname(),
                 autoSubmission.assignment());
+            RelayRoomEventLogger.websocketBusiness("relay_part_auto_submitted",
+                metadata("room_id", autoSubmission.roomCode(), "uuid", autoSubmission.assignment().assignedUserUuid(),
+                    "canvas_index", autoSubmission.assignment().canvasIndex(), "part",
+                    autoSubmission.assignment().part(), "reason", "participant_dropped", "empty",
+                    autoSubmission.assignment().empty()));
         }
 
         RelayPartAdvanceResult advanceResult = result.advanceResult();
@@ -343,11 +381,23 @@ public class RelayRoomDisconnectGraceService {
         if (advanceResult.allPartsCompleted()) {
             relayRoomEventPublisher.publishAllPartsCompleted(result.roomCode(), advanceResult.roomState().status(),
                 advanceResult.roomState().updatedAt());
+            RelayRoomEventLogger.websocketBusiness("relay_all_parts_completed", metadata("room_id", result.roomCode(),
+                "participant_count", advanceResult.roomState().participantCount(), "assignment_count",
+                advanceResult.roomState().assignments().size(), "completed_at", advanceResult.roomState().updatedAt()));
         } else {
             RelayDrawingPart previousPart = result.autoSubmissions().get(0).assignment().part();
             relayRoomEventPublisher.publishPartStarted(result.roomCode(), previousPart, advanceResult.nextPart(),
                 advanceResult.nextPartStartedAt(), advanceResult.nextPartDeadlineAt());
+            RelayRoomEventLogger.websocketBusiness("relay_part_started",
+                metadata("room_id", result.roomCode(), "part", advanceResult.nextPart(), "previous_part", previousPart,
+                    "participant_count", advanceResult.roomState().participantCount(), "part_deadline_at",
+                    advanceResult.nextPartDeadlineAt()));
         }
+    }
+
+    private long countAutoSubmissions(RelayDisconnectGraceRoomResult result, String userUuid) {
+        return result.autoSubmissions().stream()
+            .filter(autoSubmission -> autoSubmission.assignment().assignedUserUuid().equals(userUuid)).count();
     }
 
     private record ParticipantDropUpdate(List<RelayRoomParticipant> participants, boolean changed, String hostUserUuid,

@@ -38,8 +38,9 @@ response-time projection for the current game screen. Empty hints and missing
 hint object keys return `url=null`.
 
 When all parts are completed, move the room to `FINALIZING`. The finalization
-scheduler composes one vertical `FACE`/`BODY`/`LEGS` PNG per `canvasIndex`,
-uploads final original and thumbnail files under:
+scheduler waits a short ready delay after the `FINALIZING` update before
+processing the room, then composes one vertical `FACE`/`BODY`/`LEGS` PNG per
+`canvasIndex`, uploads final original and thumbnail files under:
 
 ```text
 relay/results/{artifactId}/original.png
@@ -55,6 +56,10 @@ Then persist matching PostgreSQL rows:
 Only non-dropped participants receive gallery rows. Finalization reuses existing
 result rows when they already match the expected canvas indexes.
 
+Use a token-scoped Redis finalization lock before composing a room. Store the
+token as the lock value and release the lock only when the stored token still
+matches, so an expired worker cannot release another worker's active lock.
+
 After a room becomes `CLOSED`, cleanup deletes only temporary objects under
 `relay/tmp/{roomCode}/`. A fallback cleanup may delete old objects under
 `relay/tmp/`, but must not delete `relay/results/**` or database rows.
@@ -68,6 +73,10 @@ After a room becomes `CLOSED`, cleanup deletes only temporary objects under
   MinIO calls to assignment lookup.
 - Positive: Empty auto-submitted parts compose as blank areas without requiring
   placeholder uploads.
+- Positive: The ready delay reduces races between the Redis `FINALIZING`
+  transition and result generation.
+- Positive: Token-scoped finalization locks make expired-worker cleanup safe in
+  repeated scheduler scans.
 - Negative: Hint image rendering depends on `public-url` and bucket read access
   being configured correctly for the client environment.
 - Negative: Temporary hint object URLs expose relay temporary object paths while

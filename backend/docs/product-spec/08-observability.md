@@ -92,13 +92,30 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 
 ### WebSocket/방 처리 이벤트
 
-- `ws_room_connected`
-- `ws_room_disconnected`
-- `ws_room_connection_rejected`
-- `relay_round_started`
+- `relay_room_created`
+- `relay_room_settings_changed`
+- `relay_participant_joined`
+- `relay_participant_left`
+- `relay_participant_kicked`
+- `relay_host_changed`
+- `relay_ws_connected`
+- `relay_ws_reconnected`
+- `relay_ws_disconnected`
+- `relay_ws_connection_rejected`
+- `relay_duplicate_session_closed`
+- `relay_room_state_snapshot_sent`
+- `relay_start_rejected`
+- `relay_game_started`
+- `relay_part_started`
+- `relay_part_time_up`
 - `relay_drawing_submitted`
-- `relay_room_finished`
+- `relay_submission_rejected`
+- `relay_part_auto_submitted`
+- `relay_participant_dropped`
+- `relay_all_parts_completed`
+- `relay_result_created`
 - `relay_room_closed`
+- `relay_temp_cleanup_completed`
 - `flipbook_round_started`
 - `flipbook_frame_submitted`
 - `flipbook_room_finished`
@@ -124,11 +141,65 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 
 ### 커뮤니티/캔버스 서버 처리 이벤트
 
-- `memo_created`
-- `memo_deleted`
-- `memo_reported`
-- `memo_expired_fifo`
-- `memo_auto_hidden`
+- `community_memo_presign_requested`
+- `community_memo_upload_confirmed`
+- `community_memo_upload_deleted`
+- `community_repository_query_failed`
+- `community_file_url_resolve_failed`
+- `community_decoration_parse_failed`
+- `community_memo_list_viewed`
+- `community_memo_detail_viewed`
+- `community_memo_detail_not_found`
+- `community_memo_create_requested`
+- `community_memo_create_validation_failed`
+- `community_memo_moderation_requested`
+- `community_memo_moderation_allowed`
+- `community_memo_moderation_blocked`
+- `community_memo_moderation_failed`
+- `community_memo_moderation_slow`
+- `community_memo_created`
+- `community_memo_fifo_checked`
+- `community_memo_fifo_skipped`
+- `community_memo_fifo_expired`
+- `community_memo_layout_update_requested`
+- `community_memo_layout_update_denied`
+- `community_memo_layout_update_failed`
+- `community_memo_layout_updated`
+- `community_memo_delete_requested`
+- `community_memo_delete_denied`
+- `community_memo_delete_failed`
+- `community_memo_user_deleted`
+- `community_memo_report_requested`
+- `community_memo_report_rejected`
+- `community_memo_report_created`
+- `community_memo_report_threshold_reached`
+- `community_memo_auto_hidden_by_report`
+- `community_api_slow_request`
+- `community_admin_query_failed`
+- `community_missing_user_header`
+- `community_invalid_uuid_repeated`
+- `community_user_not_found`
+- `community_ownership_violation`
+- `community_duplicate_report_attempt`
+- `community_hidden_memo_access_attempt`
+- `community_deleted_memo_access_attempt`
+- `community_file_ownership_violation`
+- `admin_community_memo_list_viewed`
+- `admin_community_memo_detail_viewed`
+- `admin_community_memo_reports_viewed`
+- `admin_community_memo_search_failed`
+- `admin_community_memo_hide_requested`
+- `admin_community_memo_hidden`
+- `admin_community_memo_hide_noop`
+- `admin_community_memo_restore_requested`
+- `admin_community_memo_restored`
+- `admin_community_memo_restore_noop`
+- `admin_access_denied`
+- `admin_forbidden`
+- `admin_token_invalid`
+- `admin_login_success`
+- `admin_login_failed`
+- `admin_logout`
 - `canvas_created`
 - `canvas_joined`
 - `canvas_join_rejected`
@@ -138,8 +209,23 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 포함 데이터:
 
 - `memo_id`
+- `actor_type`
+- `user_uuid`
+- `admin_id`
+- `trace_id`
 - `canvas_id`
 - `uuid`
+- `source_type`
+- `artifact_id`
+- `original_file_id`
+- `thumbnail_file_id`
+- `moderation_status`
+- `hidden_reason`
+- `deleted_reason`
+- `report_reason`
+- `reason_code`
+- `result`
+- `duration_ms`
 - `report_count`
 - `fifo_rank`
 - `reject_reason`
@@ -192,7 +278,7 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 
 ### 기록 대상 이벤트
 
-- `admin_login`, `admin_logout`, `admin_login_failed`
+- `admin_login_success`, `admin_logout`, `admin_login_failed`
 - `memo_soft_delete`, `memo_restore`, `memo_bulk_soft_delete`, `memo_bulk_restore`
 - `report_review_decided`
 - `relay_room_force_close`, `flipbook_room_force_close`

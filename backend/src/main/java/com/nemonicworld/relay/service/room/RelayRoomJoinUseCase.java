@@ -3,6 +3,7 @@ package com.nemonicworld.relay.service.room;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 릴레이 방 입장과 재입장 유스케이스입니다.
@@ -85,6 +87,7 @@ public class RelayRoomJoinUseCase {
         RelayRoomParticipant participant, LocalDateTime now) {
         if (participant.connected()) {
             RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, roomState, now);
+            logParticipantJoined(roomState, participant, false);
 
             return Optional.of(RelayRoomStateResponse.from(roomState, viewer));
         }
@@ -94,6 +97,7 @@ public class RelayRoomJoinUseCase {
         }
 
         RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, roomState, now);
+        logParticipantJoined(roomState, participant, participant.disconnectedAt() != null);
 
         return Optional.of(RelayRoomStateResponse.from(roomState, viewer));
     }
@@ -119,8 +123,17 @@ public class RelayRoomJoinUseCase {
         relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
         RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUser.getId().toString(), updatedRoomState,
             now);
+        logParticipantJoined(updatedRoomState, newParticipant, false);
 
         return Optional.of(RelayRoomStateResponse.from(updatedRoomState, viewer));
+    }
+
+    private void logParticipantJoined(RelayRoomState roomState, RelayRoomParticipant participant,
+        boolean reconnectAttempt) {
+        RelayRoomEventLogger.apiBusiness("relay_participant_joined",
+            metadata("room_id", roomState.roomCode(), "uuid", participant.userUuid(), "participant_count",
+                roomState.participantCount(), "join_order", participant.joinOrder(), "reconnect_attempt",
+                reconnectAttempt));
     }
 
 }

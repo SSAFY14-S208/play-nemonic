@@ -12,6 +12,7 @@ import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
@@ -38,6 +39,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 @Service
 public class RelayRoomSubmissionUseCase {
@@ -192,14 +194,25 @@ public class RelayRoomSubmissionUseCase {
 
                 if (relayRoomRepository.saveIfUnchanged(latestRoomState, advanceResult.roomState())) {
                     relayInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
+                    logSubmitted(advanceResult.roomState(), submittedAssignment, viewerUserUuid, advanceResult);
+                    logAdvanceEvents(advanceResult, latestCurrentAssignment.part());
                     return createResponse(advanceResult.roomState(), submittedAssignment, false, viewerUserUuid,
                         latestParticipant.nickname(), advanceResult);
                 }
 
+                RelayRoomEventLogger.apiWarn("relay_minio_upload_redis_save_failed", cleanupMessage,
+                    metadata("room_id", latestRoomState.roomCode(), "uuid", viewerUserUuid, "canvas_index",
+                        latestCurrentAssignment.canvasIndex(), "part", latestCurrentAssignment.part(), "object_key",
+                        drawingObjectKey),
+                    null);
                 log.warn("{} roomCode={}, canvasIndex={}, part={}", cleanupMessage, latestRoomState.roomCode(),
                     latestCurrentAssignment.canvasIndex(), latestCurrentAssignment.part());
             }
 
+            RelayRoomEventLogger.apiWarn(
+                "relay_redis_cas_retry_exceeded", "relay submission exceeded Redis CAS retry count", metadata("room_id",
+                    roomCodeValue, "operation", "submission", "attempt_count", RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES),
+                null);
             throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
         } finally {
             if (roomMutationLocked) {
@@ -286,7 +299,39 @@ public class RelayRoomSubmissionUseCase {
             }
         }
 
+        RelayRoomEventLogger.apiWarn("relay_room_mutation_lock_busy",
+            "relay submission failed because room mutation lock was busy",
+            metadata("room_id", roomCode, "operation", "submission", "lock_ttl_ms", roomMutationLockTtl.toMillis()),
+            null);
         throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    private void logSubmitted(RelayRoomState roomState, RelayRoomAssignment assignment, String userUuid,
+        RelayPartAdvanceResult advanceResult) {
+        RelayPartProgress progress = advanceResult.progress();
+        RelayRoomEventLogger.apiBusiness("relay_drawing_submitted",
+            metadata("room_id", roomState.roomCode(), "uuid", userUuid, "canvas_index", assignment.canvasIndex(),
+                "part", assignment.part(), "submitted_at", assignment.submittedAt(), "current_part_completed",
+                progress.currentPartCompleted()));
+    }
+
+    private void logAdvanceEvents(RelayPartAdvanceResult advanceResult, RelayDrawingPart previousPart) {
+        if (!advanceResult.advanced()) {
+            return;
+        }
+
+        RelayRoomState roomState = advanceResult.roomState();
+        if (advanceResult.allPartsCompleted()) {
+            RelayRoomEventLogger.apiBusiness("relay_all_parts_completed",
+                metadata("room_id", roomState.roomCode(), "participant_count", roomState.participantCount(),
+                    "assignment_count", roomState.assignments().size(), "completed_at", roomState.updatedAt()));
+            return;
+        }
+
+        RelayRoomEventLogger.apiBusiness("relay_part_started",
+            metadata("room_id", roomState.roomCode(), "part", advanceResult.nextPart(), "previous_part", previousPart,
+                "participant_count", roomState.participantCount(), "part_deadline_at",
+                advanceResult.nextPartDeadlineAt()));
     }
 
     private void sleepBeforeRoomMutationLockRetry() {

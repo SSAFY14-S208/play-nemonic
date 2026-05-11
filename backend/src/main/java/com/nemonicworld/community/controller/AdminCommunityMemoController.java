@@ -93,9 +93,10 @@ public class AdminCommunityMemoController {
         @RequestParam(name = "reported", required = false) Boolean reported,
         @RequestParam(name = "keyword", required = false) String keyword,
         @RequestParam(name = "page", required = false) String page,
-        @RequestParam(name = "size", required = false) String size) {
+        @RequestParam(name = "size", required = false) String size, HttpServletRequest servletRequest) {
+        AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
         AdminCommunityMemoListResponse response = adminCommunityMemoService.getCommunityMemos(adminPrincipal, hidden,
-            moderationStatus, sourceType, reported, keyword, page, size);
+            moderationStatus, sourceType, reported, keyword, page, size, clientInfo);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));
@@ -122,9 +123,10 @@ public class AdminCommunityMemoController {
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId,
         @RequestParam(name = "reason", required = false) String reason,
         @RequestParam(name = "page", required = false) String page,
-        @RequestParam(name = "size", required = false) String size) {
+        @RequestParam(name = "size", required = false) String size, HttpServletRequest servletRequest) {
+        AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
         AdminCommunityMemoReportListResponse response = adminCommunityMemoService
-            .getCommunityMemoReports(adminPrincipal, memoId, reason, page, size);
+            .getCommunityMemoReports(adminPrincipal, memoId, reason, page, size, clientInfo);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(REPORT_LIST_SUCCESS_MESSAGE, response));
@@ -142,8 +144,11 @@ public class AdminCommunityMemoController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "커뮤니티 메모 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)))})
     public ResponseEntity<ApiResponse<AdminCommunityMemoDetailResponse>> getCommunityMemo(
-        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId) {
-        AdminCommunityMemoDetailResponse response = adminCommunityMemoService.getCommunityMemo(adminPrincipal, memoId);
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId,
+        HttpServletRequest servletRequest) {
+        AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
+        AdminCommunityMemoDetailResponse response = adminCommunityMemoService.getCommunityMemo(adminPrincipal, memoId,
+            clientInfo);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(DETAIL_SUCCESS_MESSAGE, response));

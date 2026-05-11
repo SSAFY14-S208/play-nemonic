@@ -3,6 +3,7 @@ package com.nemonicworld.backoffice.setting.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.backoffice.setting.dto.request.SystemParameterBulkUpdateItem;
 import com.nemonicworld.backoffice.setting.dto.request.SystemParameterBulkUpdateRequest;
 import com.nemonicworld.backoffice.setting.dto.response.SystemParameterListResponse;
@@ -13,6 +14,7 @@ import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository.
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -25,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 @Service
 public class SystemParameterServiceImpl implements SystemParameterService {
@@ -60,7 +63,7 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     @Override
     @Transactional
     public SystemParameterListResponse bulkUpdate(AdminPrincipal adminPrincipal,
-        SystemParameterBulkUpdateRequest request) {
+        SystemParameterBulkUpdateRequest request, AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
 
         List<SystemParameterBulkUpdateItem> items = request.items();
@@ -97,12 +100,23 @@ public class SystemParameterServiceImpl implements SystemParameterService {
             // 트랜잭션 내 INFO 로그. 롤백 시에도 동일 트랜잭션의 로그 1건은 출력될 수 있음.
             log.info("system-parameter updated id={} key={} updatedBy={} previousValue={} newValue={}", previous.id(),
                 previous.key(), adminPrincipal.id(), previous.value(), serializedById.get(item.id()));
+            if (isRelayParameter(previous.key())) {
+                RelayRoomEventLogger.audit("param_change",
+                    metadata("actor_id", adminPrincipal.id(), "actor_role", adminPrincipal.role().getValue(),
+                        "actor_ip", clientInfo.ipAddress(), "target_type", "param", "target_id", previous.key(),
+                        "action", "update", "before", previous.value(), "after", serializedById.get(item.id()),
+                        "reason", "backoffice_system_parameter_update", "result", "success"));
+            }
         }
 
         List<SystemParameterResponse> updatedItems = systemParameterRepository.findAllByIds(requestedIds).stream()
             .map(parameter -> SystemParameterResponse.from(parameter, parseValue(parameter.value()))).toList();
 
         return new SystemParameterListResponse(updatedItems, updatedItems.size());
+    }
+
+    private boolean isRelayParameter(String key) {
+        return key != null && key.startsWith("relay.");
     }
 
     private void requireAdmin(AdminPrincipal adminPrincipal) {
