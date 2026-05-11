@@ -3,12 +3,14 @@ package com.nemonicworld.flipbook.service;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.request.FlipbookFrameSubmitRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomCloseResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomMyAssignmentResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomResultsResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
+import com.nemonicworld.flipbook.service.close.FlipbookRoomManualCloseUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +28,7 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     private final FlipbookRoomAssignmentQueryUseCase flipbookRoomAssignmentQueryUseCase;
     private final FlipbookFrameSubmitUseCase flipbookFrameSubmitUseCase;
     private final FlipbookRoomResultQueryUseCase flipbookRoomResultQueryUseCase;
+    private final FlipbookRoomManualCloseUseCase flipbookRoomManualCloseUseCase;
     private final FlipbookRoomKickUseCase flipbookRoomKickUseCase;
     private final FlipbookRoomLeaveUseCase flipbookRoomLeaveUseCase;
     private final FlipbookRoomConnectionUseCase flipbookRoomConnectionUseCase;
@@ -65,6 +68,11 @@ public class FlipbookRoomServiceImpl implements FlipbookRoomService {
     @Override
     public FlipbookRoomResultsResponse getResults(String userUuidValue, String roomCodeValue) {
         return flipbookRoomResultQueryUseCase.getResults(userUuidValue, roomCodeValue);
+    }
+
+    @Override
+    public FlipbookRoomCloseResponse closeRoom(String userUuidValue, String roomCodeValue) {
+        return flipbookRoomManualCloseUseCase.closeRoom(userUuidValue, roomCodeValue);
     }
 
     @Override

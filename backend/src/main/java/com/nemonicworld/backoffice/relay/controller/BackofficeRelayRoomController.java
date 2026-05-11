@@ -37,8 +37,8 @@ public class BackofficeRelayRoomController {
 
     private static final String LIST_SUCCESS_MESSAGE = "활성 릴레이 드로잉 방 목록 조회 성공";
     private static final String DELETE_SUCCESS_MESSAGE = "릴레이 드로잉 방 삭제 성공";
-    private static final String STATUS_PARAMETER_DESCRIPTION = "방 상태 필터: WAITING, PLAYING, FINALIZING, FINISHED. "
-        + "CLOSED는 허용되지 않습니다.";
+    private static final String STATUS_PARAMETER_DESCRIPTION = "방 상태 필터: WAITING, PLAYING, FINALIZING, "
+        + "FINISHED, IN_PROGRESS(PLAYING+FINALIZING). 생략 시 WAITING/PLAYING/FINALIZING. CLOSED는 허용되지 않습니다.";
     private static final String ROOM_DESC = "삭제할 공유 방코드";
 
     private final BackofficeRelayRoomService backofficeRelayRoomService;
@@ -51,7 +51,7 @@ public class BackofficeRelayRoomController {
     }
 
     @GetMapping
-    @Operation(summary = "활성 릴레이 드로잉 방 목록 조회", description = "관리자가 백오피스에서 종료되지 않은(WAITING/PLAYING/FINALIZING/FINISHED) 릴레이 드로잉 방을 조회합니다.")
+    @Operation(summary = "활성 릴레이 드로잉 방 목록 조회", description = "관리자가 백오피스에서 활성 릴레이 드로잉 방(WAITING/PLAYING/FINALIZING)을 조회합니다.")
     @Parameter(name = "status", in = ParameterIn.QUERY, description = STATUS_PARAMETER_DESCRIPTION, example = "PLAYING")
     @Parameter(name = "page", in = ParameterIn.QUERY, description = "페이지 번호 (0-based)", example = "0")
     @Parameter(name = "size", in = ParameterIn.QUERY, description = "페이지 크기. 기본 20, 최대 100으로 클램프", example = "20")

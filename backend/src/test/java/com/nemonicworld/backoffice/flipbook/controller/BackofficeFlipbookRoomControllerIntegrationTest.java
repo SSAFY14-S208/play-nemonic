@@ -120,7 +120,8 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
         given(flipbookRoomRepository.findAllActiveRooms())
             .willReturn(List.of(roomState("FB3K9Q", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
                 roomState("FC4M8N", FlipbookRoomStatus.PLAYING, 4, 3, 8, base.plusMinutes(1), base.plusMinutes(1)),
-                roomState("FD5P7R", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2))));
+                roomState("FD5P7R", FlipbookRoomStatus.FINALIZING, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2)),
+                roomState("FE6S8T", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(3), base.plusMinutes(3))));
 
         mockMvc.perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
@@ -128,12 +129,13 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items.length()").value(3)).andExpect(jsonPath("$.data.totalElements").value(3))
             .andExpect(jsonPath("$.data.page").value(0)).andExpect(jsonPath("$.data.size").value(20))
             .andExpect(jsonPath("$.data.items[0].roomCode").value("FD5P7R"))
-            .andExpect(jsonPath("$.data.items[0].status").value("FINISHED"))
+            .andExpect(jsonPath("$.data.items[0].status").value("FINALIZING"))
             .andExpect(jsonPath("$.data.items[0].participantCount").value(3))
             .andExpect(jsonPath("$.data.items[0].currentRound").value(8))
             .andExpect(jsonPath("$.data.items[0].totalRounds").value(8))
             .andExpect(jsonPath("$.data.items[0].gameStartedAt").value("2026-05-09T12:02:00"))
             .andExpect(jsonPath("$.data.items[1].roomCode").value("FC4M8N"))
+            .andExpect(jsonPath("$.data.items[1].status").value("PLAYING"))
             .andExpect(jsonPath("$.data.items[2].roomCode").value("FB3K9Q"))
             .andExpect(jsonPath("$.data.items[2].currentRound").value(org.hamcrest.Matchers.nullValue()))
             .andExpect(jsonPath("$.data.items[2].gameStartedAt").value(org.hamcrest.Matchers.nullValue()));
@@ -152,14 +154,15 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "PLAYING", "FINISHED"})
+    @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "PLAYING", "FINALIZING", "FINISHED"})
     void filtersByStatus(FlipbookRoomStatus roomStatus) throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
         String expectedRoomCode = roomCodeFor(roomStatus);
         given(flipbookRoomRepository.findAllActiveRooms())
             .willReturn(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
                 roomState("FB3K9Q", FlipbookRoomStatus.PLAYING, 4, 2, 8, base.plusMinutes(1), base.plusMinutes(1)),
-                roomState("FC4M8N", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2))));
+                roomState("FD5P7R", FlipbookRoomStatus.FINALIZING, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2)),
+                roomState("FC4M8N", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(3), base.plusMinutes(3))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
@@ -168,6 +171,26 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.totalElements").value(1))
             .andExpect(jsonPath("$.data.items[0].roomCode").value(expectedRoomCode))
             .andExpect(jsonPath("$.data.items[0].status").value(roomStatus.name()));
+    }
+
+    @Test
+    void filtersInProgressRoomsByPlayingAndFinalizing() throws Exception {
+        LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
+        given(flipbookRoomRepository.findAllActiveRooms())
+            .willReturn(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
+                roomState("FB3K9Q", FlipbookRoomStatus.PLAYING, 4, 2, 8, base.plusMinutes(1), base.plusMinutes(1)),
+                roomState("FD5P7R", FlipbookRoomStatus.FINALIZING, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2)),
+                roomState("FC4M8N", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(3), base.plusMinutes(3))));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("status", "IN_PROGRESS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(2))
+            .andExpect(jsonPath("$.data.totalElements").value(2))
+            .andExpect(jsonPath("$.data.items[0].roomCode").value("FD5P7R"))
+            .andExpect(jsonPath("$.data.items[0].status").value("FINALIZING"))
+            .andExpect(jsonPath("$.data.items[1].roomCode").value("FB3K9Q"))
+            .andExpect(jsonPath("$.data.items[1].status").value("PLAYING"));
     }
 
     @Test
@@ -270,7 +293,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "PLAYING", "FINISHED"})
+    @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "PLAYING", "FINALIZING", "FINISHED"})
     void adminDeletesActiveFlipbookRoom(FlipbookRoomStatus roomStatus, CapturedOutput output) throws Exception {
         String roomCode = roomCodeFor(roomStatus);
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
