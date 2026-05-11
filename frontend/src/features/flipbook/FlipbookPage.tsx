@@ -1,5 +1,7 @@
 'use client'
 
+import { useCallback } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   FlipbookDrawingView,
   FlipbookEntranceView,
@@ -8,9 +10,46 @@ import {
   FlipbookResultView,
 } from './components'
 import { useFlipbook } from './hooks'
+import {
+  getFlipbookStepFromPathname,
+  getFlipbookStepPath,
+} from './constants'
+import type { FlipbookStep } from './types'
 
 export default function FlipbookPage() {
-  const flipbook = useFlipbook()
+  const pathname = usePathname()
+  const router = useRouter()
+  const routeStep = getFlipbookStepFromPathname(pathname)
+  const navigateToStep = useCallback(
+    (
+      step: FlipbookStep,
+      options: {
+        roomCode?: string | null
+        replace?: boolean
+      } = {},
+    ) => {
+      const nextPath = getFlipbookStepPath(step)
+      const roomCodeQuery = options.roomCode ? `?roomCode=${options.roomCode}` : ''
+      const nextHref = `${nextPath}${roomCodeQuery}`
+      const currentQuery =
+        typeof window === 'undefined' ? '' : window.location.search.replace(/^\?/, '')
+      const currentHref = currentQuery ? `${pathname}?${currentQuery}` : pathname
+
+      if (currentHref !== nextHref) {
+        if (options.replace) {
+          router.replace(nextHref)
+          return
+        }
+
+        router.push(nextHref)
+      }
+    },
+    [pathname, router],
+  )
+  const flipbook = useFlipbook({
+    routeStep,
+    onStepChange: navigateToStep,
+  })
 
   return (
     <main className="min-h-screen bg-flipbook-background text-flipbook-ink">
@@ -39,7 +78,9 @@ export default function FlipbookPage() {
           isHost={flipbook.isHost}
           isBusy={flipbook.isBusy}
           errorMessage={flipbook.errorMessage}
+          onBack={flipbook.leaveRoom}
           onSelectTimeLimit={flipbook.selectTimeLimit}
+          onSelectRoundCount={flipbook.selectRoundCount}
           onStartGame={flipbook.startGame}
         />
       )}
@@ -47,7 +88,7 @@ export default function FlipbookPage() {
       {flipbook.currentStep === 'drawing' && (
         <FlipbookDrawingView
           activeRoundIndex={flipbook.activeRoundIndex}
-          roundCount={flipbook.roundCount}
+          roundCount={flipbook.drawingRoundCount}
           remainingSeconds={flipbook.remainingSeconds}
           currentParticipant={flipbook.currentParticipant}
           isSubmitting={flipbook.isSubmitting}

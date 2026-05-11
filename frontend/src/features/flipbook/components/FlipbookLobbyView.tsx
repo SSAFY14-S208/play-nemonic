@@ -1,8 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import QRCode from 'qrcode'
 import {
+  ArrowLeft,
   Clock3,
   Copy,
   Flag,
@@ -10,13 +10,18 @@ import {
   Plus,
   QrCode,
   UsersRound,
-  type LucideIcon,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
 import { cn } from '@/shared/libs'
 import type { FlipbookConnectionStatus } from '@/shared/types'
 import { FLIPBOOK_TIME_LIMITS_SECONDS } from '../constants'
 import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../types'
+import FlipbookLobbyShareButton from './FlipbookLobbyShareButton'
+import {
+  FlipbookMobileLobbyLayout,
+  ParticipantNameTag,
+  WaitingParticipantSlot,
+  type FlipbookLobbyShareAction,
+} from './lobby-view'
 
 interface FlipbookLobbyViewProps {
   currentParticipant: FlipbookParticipant
@@ -25,13 +30,15 @@ interface FlipbookLobbyViewProps {
   participantCount: number
   maxParticipants: number
   selectedTimeLimitSeconds: number
-  roundCount: number
+  roundCount: number | null
   connectionStatus: FlipbookConnectionStatus
   canStartGame: boolean
   isHost: boolean
   isBusy: boolean
   errorMessage: string | null
+  onBack: () => void
   onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
+  onSelectRoundCount: (roundCount: number) => void
   onStartGame: () => void
 }
 
@@ -42,18 +49,19 @@ const FLIPBOOK_LOBBY_IMAGES = {
   qrCodeButton: '/images/flipbook-lobby/qr-code-button.png?v=2',
   plus: '/images/flipbook-lobby/plus.svg',
 }
-const SHARE_ACTIONS: { key: ShareActionKey; label: string; Icon: LucideIcon }[] = [
+const SHARE_ACTIONS: FlipbookLobbyShareAction[] = [
   { key: 'copyLink', label: '링크 복사', Icon: Copy },
   { key: 'qrCode', label: 'QR 코드', Icon: QrCode },
 ]
-type ShareActionKey = 'copyLink' | 'qrCode'
-const VISIBLE_PARTICIPANT_CAPACITY = 6
+const VISIBLE_PARTICIPANT_SLOT_LIMIT = 6
+const MINIMUM_FRAME_COUNT_PER_FLIPBOOK = 8
 
 export default function FlipbookLobbyView({
   currentParticipant,
   participants,
   roomCode,
   participantCount,
+  maxParticipants,
   selectedTimeLimitSeconds,
   roundCount,
   connectionStatus,
@@ -61,22 +69,35 @@ export default function FlipbookLobbyView({
   isHost,
   isBusy,
   errorMessage,
+  onBack,
   onSelectTimeLimit,
+  onSelectRoundCount,
   onStartGame,
 }: FlipbookLobbyViewProps) {
   const sessionParticipantName = currentParticipant.name.replace(' (나)', '')
-  const displayedParticipants = participants.slice(0, VISIBLE_PARTICIPANT_CAPACITY)
-  const visibleParticipantCount = Math.min(participantCount, VISIBLE_PARTICIPANT_CAPACITY)
+  const displayedParticipants = participants.slice(0, VISIBLE_PARTICIPANT_SLOT_LIMIT)
+  const visibleParticipantCount = Math.min(participantCount, maxParticipants)
   const waitingSlots = Array.from(
-    { length: Math.max(0, VISIBLE_PARTICIPANT_CAPACITY - displayedParticipants.length) },
+    {
+      length: Math.max(
+        0,
+        Math.min(maxParticipants, VISIBLE_PARTICIPANT_SLOT_LIMIT) - displayedParticipants.length,
+      ),
+    },
     (_, waitingSlotIndex) => `waiting-${waitingSlotIndex}`,
   )
   const isConnectionReady = connectionStatus === 'connected'
   const startGameButtonDisabled = !isHost || !canStartGame || !isConnectionReady || isBusy
   const startGameButtonLabel = !isHost ? '게임 대기중' : isBusy ? '시작 중' : '게임 시작!'
+  const roundControlDisabled = !isHost || roundCount === null || isBusy
+  const minimumRoundCount = Math.max(
+    1,
+    Math.ceil(MINIMUM_FRAME_COUNT_PER_FLIPBOOK / Math.max(2, participantCount)),
+  )
+  const canDecreaseRoundCount = !roundControlDisabled && roundCount > minimumRoundCount
 
   return (
-    <section className="relative grid h-screen place-items-center overflow-hidden bg-[#fff5ed] text-[#684834]">
+    <section className="relative min-h-screen overflow-y-auto bg-[#fff5ed] text-[#684834] lg:grid lg:h-screen lg:place-items-center lg:overflow-hidden">
       <Image
         src={FLIPBOOK_LOBBY_IMAGES.background}
         alt=""
@@ -87,7 +108,41 @@ export default function FlipbookLobbyView({
       />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_40%,rgb(255_255_255_/_36%),transparent_42%)]" />
 
-      <div className="relative z-10 h-[720px] w-[1170px] shrink-0">
+      <button
+        type="button"
+        onClick={onBack}
+        className="body-b fixed left-4 top-4 z-30 inline-flex min-h-11 items-center gap-2 rounded-full border border-[#efd8c7] bg-white/88 px-4 text-[#684834] shadow-[0_8px_18px_rgb(126_74_42_/_14%)] backdrop-blur-sm transition hover:-translate-y-0.5 lg:left-8 lg:top-8"
+        aria-label="부스로 돌아가기"
+      >
+        <ArrowLeft className="size-4" aria-hidden />
+        뒤로
+      </button>
+
+      <FlipbookMobileLobbyLayout
+        currentParticipant={currentParticipant}
+        displayedParticipants={displayedParticipants}
+        sessionParticipantName={sessionParticipantName}
+        waitingSlots={waitingSlots}
+        roomCode={roomCode}
+        visibleParticipantCount={visibleParticipantCount}
+        maxParticipants={maxParticipants}
+        selectedTimeLimitSeconds={selectedTimeLimitSeconds}
+        roundCount={roundCount}
+        minimumRoundCount={minimumRoundCount}
+        isHost={isHost}
+        canDecreaseRoundCount={canDecreaseRoundCount}
+        roundControlDisabled={roundControlDisabled}
+        startGameButtonDisabled={startGameButtonDisabled}
+        startGameButtonLabel={startGameButtonLabel}
+        errorMessage={errorMessage}
+        shareActions={SHARE_ACTIONS}
+        images={FLIPBOOK_LOBBY_IMAGES}
+        onSelectTimeLimit={onSelectTimeLimit}
+        onSelectRoundCount={onSelectRoundCount}
+        onStartGame={onStartGame}
+      />
+
+      <div className="relative z-10 hidden h-[720px] w-[1170px] shrink-0 lg:block">
         <div className="absolute left-0 top-0 grid h-[1050px] w-[1720px] origin-top-left scale-[0.68] px-[80px] py-[44px]">
           <main className="grid items-center gap-[70px] lg:grid-cols-[minmax(390px,0.82fr)_minmax(650px,1.18fr)]">
             <aside className="relative mx-auto flex w-full max-w-[620px] flex-col items-center lg:mx-0">
@@ -119,12 +174,13 @@ export default function FlipbookLobbyView({
 
               <div className="mt-9 grid grid-cols-2 gap-5">
                 {SHARE_ACTIONS.map((action) => (
-                  <ShareButton
+                  <FlipbookLobbyShareButton
                     key={action.key}
                     actionKey={action.key}
                     label={action.label}
                     Icon={action.Icon}
                     roomCode={roomCode}
+                    images={FLIPBOOK_LOBBY_IMAGES}
                   />
                 ))}
               </div>
@@ -138,7 +194,7 @@ export default function FlipbookLobbyView({
                 참여자
               </h2>
               <span className="h1-b text-[#ff7182]">
-                {visibleParticipantCount} / {VISIBLE_PARTICIPANT_CAPACITY}
+                {visibleParticipantCount} / {maxParticipants}
               </span>
             </div>
 
@@ -156,7 +212,7 @@ export default function FlipbookLobbyView({
                 />
               ))}
               {waitingSlots.map((waitingSlot) => (
-                <WaitingParticipantSlot key={waitingSlot} />
+                <WaitingParticipantSlot key={waitingSlot} plusImageSrc={FLIPBOOK_LOBBY_IMAGES.plus} />
               ))}
             </div>
 
@@ -191,23 +247,29 @@ export default function FlipbookLobbyView({
                   라운드
                 </h3>
                 <div className="mt-7 flex items-center justify-between gap-5">
-                  <span className="h3-b text-[#9a7f6d]">최소 {roundCount}</span>
+                  <span className="h3-b text-[#9a7f6d]">설정값</span>
                   <div className="flex items-center gap-6">
                     <button
                       type="button"
-                      disabled
-                      className="grid size-16 place-items-center rounded-full bg-[#fff2e9] text-[#80543b] shadow-[0_7px_14px_rgb(155_93_58_/_12%)]"
+                      disabled={!canDecreaseRoundCount}
+                      onClick={() => {
+                        if (roundCount !== null) onSelectRoundCount(roundCount - 1)
+                      }}
+                      className="grid size-16 place-items-center rounded-full bg-[#fff2e9] text-[#80543b] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] disabled:cursor-not-allowed disabled:opacity-50"
                       aria-label="라운드 감소"
                     >
                       <Minus className="size-7" strokeWidth={3} aria-hidden />
                     </button>
                     <span className="text-[48px] font-black leading-none text-[#684834]">
-                      {roundCount}
+                      {roundCount ?? '-'}
                     </span>
                     <button
                       type="button"
-                      disabled
-                      className="grid size-16 place-items-center rounded-full bg-[#fff0ed] text-[#ff7182] shadow-[0_7px_14px_rgb(155_93_58_/_12%)]"
+                      disabled={roundControlDisabled}
+                      onClick={() => {
+                        if (roundCount !== null) onSelectRoundCount(roundCount + 1)
+                      }}
+                      className="grid size-16 place-items-center rounded-full bg-[#fff0ed] text-[#ff7182] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] disabled:cursor-not-allowed disabled:opacity-50"
                       aria-label="라운드 증가"
                     >
                       <Plus className="size-8" strokeWidth={3} aria-hidden />
@@ -248,198 +310,5 @@ export default function FlipbookLobbyView({
         </div>
       </div>
     </section>
-  )
-}
-
-function ParticipantNameTag({
-  name,
-  avatar,
-  isHost,
-}: {
-  name: string
-  avatar: string
-  isHost: boolean
-}) {
-  return (
-    <div className="flex min-h-[100px] items-center gap-5 rounded-[18px] border border-[#ffabb5] bg-[#fff1f1] px-7 shadow-[0_8px_16px_rgb(255_113_130_/_14%)]">
-      <span className="grid size-16 shrink-0 place-items-center rounded-full bg-[#ffe5ad] text-[34px] shadow-[inset_0_0_0_3px_rgb(255_255_255_/_68%)]">
-        {avatar}
-      </span>
-      <span className="h3-b min-w-0 flex-1 truncate text-[#684834]">{name}</span>
-      {isHost && (
-        <span className="body-b rounded-full bg-[#ff7182] px-5 py-2 text-white">방장</span>
-      )}
-    </div>
-  )
-}
-
-function WaitingParticipantSlot() {
-  return (
-    <div className="flex min-h-[100px] items-center justify-center gap-8 rounded-[18px] border-2 border-dashed border-[#e7c6b6] bg-white/24 px-7 text-[#b49d91]">
-      <Image
-        src={FLIPBOOK_LOBBY_IMAGES.plus}
-        alt=""
-        width={39}
-        height={39}
-        className="size-10"
-      />
-      <span className="body-l-b">참가 기다리는 중...</span>
-    </div>
-  )
-}
-
-function ShareButton({
-  actionKey,
-  label,
-  Icon,
-  roomCode,
-}: {
-  actionKey: ShareActionKey
-  label: string
-  Icon: LucideIcon
-  roomCode: string | null
-}) {
-  const [copyLabel, setCopyLabel] = useState(label)
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
-  const resetLabelTimerRef = useRef<number | null>(null)
-
-  const copyTextWithFallback = async (text: string) => {
-    if (window.navigator.clipboard?.writeText) {
-      try {
-        await window.navigator.clipboard.writeText(text)
-        return
-      } catch {
-        // 브라우저 권한 정책으로 Clipboard API가 거부되면 DOM 기반 복사로 한 번 더 시도한다.
-      }
-    }
-
-    const textarea = document.createElement('textarea')
-    textarea.value = text
-    textarea.setAttribute('readonly', '')
-    textarea.style.position = 'fixed'
-    textarea.style.top = '-9999px'
-    textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
-    textarea.focus()
-    textarea.select()
-    textarea.setSelectionRange(0, text.length)
-    const copied = document.execCommand('copy')
-    document.body.removeChild(textarea)
-
-    if (!copied) {
-      throw new Error('클립보드 복사에 실패했습니다.')
-    }
-  }
-
-  const createShareUrl = () => {
-    const shareUrl = new URL(window.location.href)
-    shareUrl.searchParams.set('roomCode', roomCode ?? '')
-    shareUrl.hash = ''
-    return shareUrl.toString()
-  }
-
-  const copyShareText = () => {
-    if (!roomCode || typeof window === 'undefined') return
-    const copyText = createShareUrl()
-
-    void (async () => {
-      try {
-        if (actionKey === 'qrCode') {
-          const nextQrCodeDataUrl = await QRCode.toDataURL(copyText, {
-            margin: 2,
-            scale: 8,
-            color: {
-              dark: '#684834',
-              light: '#fffaf3',
-            },
-          })
-          setQrCodeDataUrl(nextQrCodeDataUrl)
-          return
-        }
-
-        await copyTextWithFallback(copyText)
-        setCopyLabel('복사됨')
-
-        if (resetLabelTimerRef.current) {
-          window.clearTimeout(resetLabelTimerRef.current)
-        }
-
-        resetLabelTimerRef.current = window.setTimeout(() => {
-          setCopyLabel(label)
-          resetLabelTimerRef.current = null
-        }, 1400)
-      } catch {
-        setCopyLabel('복사 실패')
-      }
-    })()
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={copyShareText}
-        disabled={!roomCode}
-        aria-label={copyLabel}
-        className={cn(
-          'relative min-h-[64px] overflow-hidden rounded-[18px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55',
-          actionKey === 'copyLink' ? 'aspect-[300/120]' : 'aspect-[149/60]',
-        )}
-      >
-        <Image
-          src={
-            actionKey === 'copyLink'
-              ? FLIPBOOK_LOBBY_IMAGES.copyLinkButton
-              : FLIPBOOK_LOBBY_IMAGES.qrCodeButton
-          }
-          alt=""
-          fill
-          sizes="220px"
-          unoptimized
-          className="object-fill"
-        />
-        {copyLabel !== label && (
-          <span className="caption-b absolute inset-0 grid place-items-center rounded-[18px] bg-white/72 text-[#684834]">
-            {copyLabel}
-          </span>
-        )}
-        <span className="sr-only">
-          <Icon className="size-[17px]" aria-hidden />
-          {copyLabel}
-        </span>
-      </button>
-
-      {qrCodeDataUrl && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-[#4b3426]/30 px-5 backdrop-blur-[3px]"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setQrCodeDataUrl(null)
-            }
-          }}
-        >
-          <div className="w-full max-w-[360px] rounded-[28px] border border-[#efd8c7] bg-[#fffaf3] p-7 text-center text-[#684834] shadow-[0_24px_60px_rgb(75_52_38_/_24%)]">
-            <p className="h3-b">QR 코드</p>
-            <Image
-              src={qrCodeDataUrl}
-              alt="플립북 방 초대 QR 코드"
-              width={256}
-              height={256}
-              unoptimized
-              className="mx-auto mt-5 rounded-[18px] border border-[#efd8c7] bg-white p-3"
-            />
-            <p className="caption-m mt-4 text-[#9a7f6d]">친구가 스캔하면 바로 입장할 수 있어요.</p>
-            <button
-              type="button"
-              onClick={() => setQrCodeDataUrl(null)}
-              className="body-b mt-6 h-12 w-full rounded-full bg-[#ff7182] text-white shadow-[0_8px_18px_rgb(255_113_130_/_24%)]"
-            >
-              닫기
-            </button>
-          </div>
-        </div>
-      )}
-    </>
   )
 }

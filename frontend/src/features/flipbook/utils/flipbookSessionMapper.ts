@@ -8,13 +8,12 @@ import type {
 import {
   FLIPBOOK_ROOM_CODE,
   FLIPBOOK_TOPIC,
-} from './constants'
+} from '../constants'
 import type {
   FlipbookFrame,
   FlipbookParticipant,
   FlipbookStep,
-  FlipbookTimeLimitSeconds,
-} from './types'
+} from '../types'
 
 const DEMO_FLIPBOOK_ID = 'demo-flipbook'
 const LOCAL_PARTICIPANT_FALLBACK: FlipbookParticipant = {
@@ -47,25 +46,6 @@ export function createLocalFlipbookParticipant({
     userUuid: userUuid ?? LOCAL_PARTICIPANT_FALLBACK.userUuid,
     name: nickname ? `${nickname} (나)` : LOCAL_PARTICIPANT_FALLBACK.name,
     isHost: true,
-  }
-}
-
-export function createFlipbookSettings({
-  minimumRoundCount,
-  participantCount,
-  roundCount,
-  selectedTimeLimitSeconds,
-}: {
-  minimumRoundCount: number
-  participantCount: number
-  roundCount: number
-  selectedTimeLimitSeconds: FlipbookTimeLimitSeconds
-}): FlipbookSessionSettings {
-  return {
-    timeLimitSeconds: selectedTimeLimitSeconds,
-    roundCount,
-    minimumRoundCount,
-    frameCountPerFlipbook: participantCount * roundCount,
   }
 }
 

@@ -8,6 +8,7 @@ import type {
   FlipbookRoomCreateResponse,
   FlipbookRoomKickResponse,
   FlipbookRoomLeaveResponse,
+  FlipbookRoomSettingsRequest,
   FlipbookRoomStateResponse,
 } from '@/shared/types'
 
@@ -22,11 +23,12 @@ export const postFlipbookRoomStart = (roomCode: string) =>
   apiUnwrap(api.post<ApiResponse<FlipbookRoomStateResponse>>(`flipbook/rooms/${roomCode}/start`))
 
 // PATCH /flipbook/rooms/{roomCode}/settings — 플립북 방 설정 변경
-export const patchFlipbookRoomSettings = (roomCode: string, timeLimitSeconds: number) =>
+export const patchFlipbookRoomSettings = (
+  roomCode: string,
+  payload: FlipbookRoomSettingsRequest,
+) =>
   apiUnwrap(
-    api.patch<ApiResponse<FlipbookRoomStateResponse>>(`flipbook/rooms/${roomCode}/settings`, {
-      timeLimitSeconds,
-    }),
+    api.patch<ApiResponse<FlipbookRoomStateResponse>>(`flipbook/rooms/${roomCode}/settings`, payload),
   )
 
 // GET /flipbook/rooms/{roomCode} — 플립북 대기실 정보 조회
