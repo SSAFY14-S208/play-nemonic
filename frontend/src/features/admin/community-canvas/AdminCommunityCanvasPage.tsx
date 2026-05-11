@@ -2,16 +2,19 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import { EyeOff, RotateCcw, Search, X } from 'lucide-react'
+import { EyeOff, FileSearch, RotateCcw, Search, X } from 'lucide-react'
+
+import type { AdminCommunityMemoDetailResponse } from '@/shared/types'
 
 import {
+  MemoDetailModal,
   MemoFilterBar,
   MemoPagination,
   MemoReasonModal,
   type MemoReasonAction,
   MemoStatusBadge,
 } from './components'
-import { useAdminCommunityMemos } from './useAdminCommunityMemos'
+import { useAdminCommunityMemos, useMemoDetail } from './hooks'
 
 const SOURCE_LABEL: Record<string, string> = {
   DIRECT: '직접 작성',
@@ -63,18 +66,37 @@ export default function AdminCommunityCanvasPage() {
   } = useAdminCommunityMemos()
 
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [detailMemoId, setDetailMemoId] = useState<string | null>(null)
+  const {
+    detail,
+    isLoading: isDetailLoading,
+    error: detailError,
+    setDetail,
+  } = useMemoDetail(detailMemoId)
 
-  const closeModal = () => {
+  const closeReasonModal = () => {
     if (isMutating) return
     setPendingAction(null)
+  }
+
+  const closeDetailModal = () => {
+    if (isMutating) return
+    setDetailMemoId(null)
+  }
+
+  const handleMutationSuccess = (updated: AdminCommunityMemoDetailResponse) => {
+    setPendingAction(null)
+    // 상세 모달이 열려 있고 같은 메모면 같이 갱신.
+    if (detailMemoId === updated.memoId) {
+      setDetail(updated)
+    }
   }
 
   const submitReason = (reason: string) => {
     if (!pendingAction) return
     const { memoId, action } = pendingAction
-    const onDone = () => setPendingAction(null)
-    if (action === 'hide') hide(memoId, reason, onDone)
-    else restore(memoId, reason, onDone)
+    if (action === 'hide') hide(memoId, reason, handleMutationSuccess)
+    else restore(memoId, reason, handleMutationSuccess)
   }
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -212,7 +234,9 @@ export default function AdminCommunityCanvasPage() {
                   </td>
                   <td className="body-r px-4 py-3 text-fg-secondary">
                     <div className="flex flex-col gap-0.5">
-                      <span>{SOURCE_LABEL[memo.sourceType] ?? memo.sourceType}</span>
+                      <span>
+                        {SOURCE_LABEL[memo.sourceType] ?? memo.sourceType}
+                      </span>
                       <span className="caption-r text-fg-disabled">
                         {memo.artifactKind}
                       </span>
@@ -234,38 +258,49 @@ export default function AdminCommunityCanvasPage() {
                   <td className="caption-r px-4 py-3 text-fg-secondary">
                     {formatDate(memo.attachedAt)}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {memo.isHidden ? (
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
-                        onClick={() =>
-                          setPendingAction({
-                            memoId: memo.memoId,
-                            action: 'restore',
-                          })
-                        }
+                        onClick={() => setDetailMemoId(memo.memoId)}
                         disabled={isMutating}
                         className="caption-b inline-flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-1.5 text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
                       >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        복원
+                        <FileSearch className="h-3.5 w-3.5" />
+                        상세
                       </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPendingAction({
-                            memoId: memo.memoId,
-                            action: 'hide',
-                          })
-                        }
-                        disabled={isMutating}
-                        className="caption-b inline-flex items-center gap-1 rounded-[var(--radius-md)] bg-red-500 px-3 py-1.5 text-fg-inverse transition-opacity hover:bg-red-600 disabled:opacity-50"
-                      >
-                        <EyeOff className="h-3.5 w-3.5" />
-                        숨김
-                      </button>
-                    )}
+                      {memo.isHidden ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingAction({
+                              memoId: memo.memoId,
+                              action: 'restore',
+                            })
+                          }
+                          disabled={isMutating}
+                          className="caption-b inline-flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-1.5 text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          복원
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingAction({
+                              memoId: memo.memoId,
+                              action: 'hide',
+                            })
+                          }
+                          disabled={isMutating}
+                          className="caption-b inline-flex items-center gap-1 rounded-[var(--radius-md)] bg-red-500 px-3 py-1.5 text-fg-inverse transition-opacity hover:bg-red-600 disabled:opacity-50"
+                        >
+                          <EyeOff className="h-3.5 w-3.5" />
+                          숨김
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -289,12 +324,23 @@ export default function AdminCommunityCanvasPage() {
         />
       </div>
 
+      <MemoDetailModal
+        open={detailMemoId !== null}
+        detail={detail}
+        isLoading={isDetailLoading}
+        error={detailError}
+        isMutating={isMutating}
+        onClose={closeDetailModal}
+        onHide={(memoId) => setPendingAction({ memoId, action: 'hide' })}
+        onRestore={(memoId) => setPendingAction({ memoId, action: 'restore' })}
+      />
+
       <MemoReasonModal
         open={pendingAction !== null}
         action={pendingAction?.action ?? 'hide'}
         isSubmitting={isMutating}
         onSubmit={submitReason}
-        onCancel={closeModal}
+        onCancel={closeReasonModal}
       />
     </div>
   )

@@ -10,6 +10,7 @@ import {
   patchAdminCommunityMemoRestore,
 } from '@/shared/apis'
 import type {
+  AdminCommunityMemoDetailResponse,
   AdminCommunityMemoListParams,
   AdminCommunityMemoResponse,
 } from '@/shared/types'
@@ -23,6 +24,9 @@ import type {
 //   - 'REPORTED' → reported=true (숨김 여부 무관)
 
 export type MemoListFilter = 'ALL' | 'VISIBLE' | 'HIDDEN' | 'REPORTED'
+
+/** hide/restore 성공 후 호출 — PATCH 응답(상세 형태)을 전달해 상세 모달도 동기화 가능. */
+export type MemoMutationSuccess = (updated: AdminCommunityMemoDetailResponse) => void
 
 const PAGE_SIZE = 20
 
@@ -99,7 +103,7 @@ export function useAdminCommunityMemos() {
     setPage(0)
   }
 
-  const hide = (memoId: string, reason: string, onSuccess?: () => void) => {
+  const hide = (memoId: string, reason: string, onSuccess?: MemoMutationSuccess) => {
     if (isMutating || !reason.trim()) return
     startMutationTransition(async () => {
       try {
@@ -109,7 +113,7 @@ export function useAdminCommunityMemos() {
           prev.map((memo) => (memo.memoId === memoId ? updated : memo)),
         )
         toast.success('메모를 숨김 처리했어요')
-        onSuccess?.()
+        onSuccess?.(updated)
       } catch (caughtError) {
         const message =
           caughtError instanceof ApiError
@@ -120,7 +124,7 @@ export function useAdminCommunityMemos() {
     })
   }
 
-  const restore = (memoId: string, reason: string, onSuccess?: () => void) => {
+  const restore = (memoId: string, reason: string, onSuccess?: MemoMutationSuccess) => {
     if (isMutating || !reason.trim()) return
     startMutationTransition(async () => {
       try {
@@ -129,7 +133,7 @@ export function useAdminCommunityMemos() {
           prev.map((memo) => (memo.memoId === memoId ? updated : memo)),
         )
         toast.success('메모를 복원했어요')
-        onSuccess?.()
+        onSuccess?.(updated)
       } catch (caughtError) {
         const message =
           caughtError instanceof ApiError

@@ -1,3 +1,4 @@
+export { MemoDetailModal } from './MemoDetailModal'
 export { MemoFilterBar } from './MemoFilterBar'
 export { MemoPagination } from './MemoPagination'
 export { MemoReasonModal, type MemoReasonAction } from './MemoReasonModal'

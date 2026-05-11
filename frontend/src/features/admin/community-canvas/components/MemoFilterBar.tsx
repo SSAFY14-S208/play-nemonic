@@ -1,6 +1,6 @@
 import { cn } from '@/shared/libs'
 
-import type { MemoListFilter } from '../useAdminCommunityMemos'
+import type { MemoListFilter } from '../hooks'
 
 interface MemoFilterBarProps {
   value: MemoListFilter
