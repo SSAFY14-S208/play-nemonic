@@ -24,7 +24,7 @@
   top: clamp(1.1rem, 4vh, 2.6rem);
   left: 50%;
   z-index: 30;
-  width: min(46rem, calc(100% - 2rem));
+  width: min(58rem, calc(100% - 2rem));
   transform: translateX(-50%);
   display: grid;
   text-align: center;
@@ -76,10 +76,11 @@
   margin: 0;
   color: #fff6ed;
   font-family: "Jua", var(--font-pretendard);
-  font-size: clamp(3.05rem, 6vw, 5.9rem);
+  font-size: clamp(2.8rem, 5.4vw, 5.4rem);
   line-height: 0.96;
   letter-spacing: 0;
   font-weight: 400;
+  white-space: nowrap;
   text-shadow:
     0 2px 0 rgba(90, 65, 112, 0.44),
     0 14px 28px rgba(2, 2, 18, 0.34);
@@ -267,7 +268,9 @@
   }
 
   .viewerTitle {
-    font-size: clamp(2.6rem, 14vw, 4.2rem);
+    /* 모바일은 폭이 좁아 한 줄 강제하면 overflow되므로 wrap 다시 허용 */
+    white-space: normal;
+    font-size: clamp(2.4rem, 12vw, 3.8rem);
   }
 
   .viewerDescription {
