@@ -30,6 +30,7 @@ import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
 import com.nemonicworld.relay.service.disconnect.RelayRoomDisconnectGraceService;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -69,6 +70,9 @@ class RelayRoomDisconnectGraceServiceTest {
     @Mock
     private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
+    @Mock
+    private RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
+
     private RelayRoomDisconnectGraceService relayRoomDisconnectGraceService;
 
     @BeforeEach
@@ -79,9 +83,11 @@ class RelayRoomDisconnectGraceServiceTest {
             .thenReturn(true);
         lenient().when(relaySubmissionLockRepository.isSubmissionLocked(anyString(), anyInt(),
             any(RelayDrawingPart.class), anyString())).thenReturn(false);
+        lenient().when(relayRuntimeSettingsProvider.currentReconnectGracePeriod())
+            .thenReturn(Duration.ofSeconds(RECONNECT_GRACE_SECONDS));
         relayRoomDisconnectGraceService = new RelayRoomDisconnectGraceService(relayRoomRepository,
             relaySubmissionLockRepository, relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
-            relayRoomEventPublisher, relayInviteMetadataSyncService, RECONNECT_GRACE_SECONDS, 5000, 100);
+            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRuntimeSettingsProvider, 5000, 100);
     }
 
     @Test
@@ -90,6 +96,22 @@ class RelayRoomDisconnectGraceServiceTest {
         RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE,
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)),
             participant(hostUuid, "Mango", true, 0, false, NOW.minusSeconds(9)));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        RelayDisconnectGraceRoomResult result = relayRoomDisconnectGraceService.processRoom(ROOM_CODE, NOW);
+
+        assertThat(result.processed()).isFalse();
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verifyNoInteractions(relayRoomEventPublisher);
+    }
+
+    @Test
+    void processRoomUsesRuntimeReconnectGrace() {
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE,
+            List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)),
+            participant(hostUuid, "Mango", true, 0, false, NOW.minusSeconds(20)));
+        given(relayRuntimeSettingsProvider.currentReconnectGracePeriod()).willReturn(Duration.ofSeconds(30));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
 
         RelayDisconnectGraceRoomResult result = relayRoomDisconnectGraceService.processRoom(ROOM_CODE, NOW);
@@ -341,6 +363,18 @@ class RelayRoomDisconnectGraceServiceTest {
         assertThat(result.processedRoomCount()).isEqualTo(1);
         assertThat(result.droppedParticipantCount()).isEqualTo(1);
         assertThat(result.autoSubmittedCount()).isEqualTo(1);
+    }
+
+    @Test
+    void processDroppedParticipantsUsesRuntimeReconnectGraceForScanCutoff() {
+        given(relayRuntimeSettingsProvider.currentReconnectGracePeriod()).willReturn(Duration.ofSeconds(30));
+        given(relayRoomRepository.findPlayingRoomsForDisconnectGrace(eq(NOW.minusSeconds(30)), eq(100)))
+            .willReturn(List.of());
+
+        RelayDisconnectGraceProcessResult result = relayRoomDisconnectGraceService.processDroppedParticipants(NOW);
+
+        assertThat(result.scannedRoomCount()).isZero();
+        verify(relayRoomRepository).findPlayingRoomsForDisconnectGrace(eq(NOW.minusSeconds(30)), eq(100));
     }
 
     private RelayRoomState captureUpdatedRoomState() {
