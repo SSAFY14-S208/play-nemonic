@@ -438,6 +438,15 @@ Recent community admin review work added admin memo list/detail plus manual hide
 - Common query performance now has Flyway V13 indexes for active gallery ownership lookups, artifact source-room result scans, CS inquiry admin list filters, and GMS prompt list/latest lookups.
 - Admin keyword searches for community memos, CS inquiries, GMS prompts, and system parameters now escape SQL `LIKE` wildcard characters consistently.
 
+Recent backoffice audit log emit work aligned remaining operator mutation APIs with the observability spec and the stdout -> Fluent Bit -> Kafka `logs.audit` -> OpenSearch `audit-logs-*` pipeline.
+
+- CS inquiry mutations emit `inquiry_status_change` and `inquiry_reply_send` after successful transaction commit. Audit snapshots include only status/assignee metadata, not inquiry body, reply body, email address, or attachments.
+- GMS prompt create/update/delete emit the documented `prompt_update` event with `metadata.action` set to `create`, `update`, or `delete`. Prompt body text is excluded; updates only flag `content_changed`.
+- System parameter bulk update emits `param_change` with `target_id=bulk:<count>`. Safe `before`/`after` values are keyed by parameter name, and sensitive parameter keys such as password/secret/token/webhook/SMTP/API-key values are redacted.
+- Relay and flipbook backoffice forced closes emit `relay_room_force_close` and `flipbook_room_force_close` with `target_type=room`, `action=force_close`, and before/after status snapshots.
+- Still deferred because current APIs are missing or read-only: `prompt_rollback`, `inquiry_internal_memo`, `infinite_canvas_force_close`, `notification_send`, `electron_channel_change`, `electron_release_publish`, `memo_bulk_soft_delete`, `memo_bulk_restore`, and `report_review_decided`.
+- No Kafka producer, OpenSearch client, Fluent Bit config, audit RDB table, or audit migration was added; backend remains responsible only for one-line JSON emit to stdout.
+
 ## Next Suggested Steps
 
 - Use `backend/docs/codex-prompt-templates.md` for the first feature request.
