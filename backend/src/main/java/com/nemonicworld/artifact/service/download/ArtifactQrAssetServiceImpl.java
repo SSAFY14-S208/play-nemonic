@@ -90,7 +90,8 @@ public class ArtifactQrAssetServiceImpl implements ArtifactQrAssetService {
             return row.flipbookGifUrl();
         }
         if (KIND_COMMUNITY_MEMO.equals(row.kind())) {
-            return row.thumbnailUrl();
+            return firstText(row.communityMemoOriginalImageUrl(),
+                firstText(row.communityMemoThumbnailImageUrl(), row.thumbnailUrl()));
         }
 
         return row.thumbnailUrl();

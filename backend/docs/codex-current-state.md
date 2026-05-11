@@ -380,6 +380,7 @@ Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/
 - The API creates or reuses a QR-composed MinIO cache object, then returns JPG/GIF bytes as an attachment.
 - Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr.gif` with QR overlaid on every frame.
 - `POST /api/v1/artifacts/{artifactId}/share` reuses the same QR cache and returns the public QR image URL plus Kakao/Instagram UTM URLs in the existing `ShareCreateResponse` shape.
+- Community memo QR assets read `community_memo.body_image_url` first, then `community_memo.thumbnail_image_url`, and only fall back to `artifact.thumbnail_url`.
 - `POST /api/v1/share` remains the older galleryId-based token/link generation endpoint.
 
 ```bash

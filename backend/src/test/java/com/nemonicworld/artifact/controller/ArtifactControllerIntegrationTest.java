@@ -114,7 +114,37 @@ class ArtifactControllerIntegrationTest {
                 phone_image_url VARCHAR(200) NULL
             )
             """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS community_memo (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NULL,
+                position_x DOUBLE PRECISION NOT NULL DEFAULT 0,
+                position_y DOUBLE PRECISION NOT NULL DEFAULT 0,
+                z_index INT NOT NULL DEFAULT 0,
+                rotation_deg REAL NOT NULL DEFAULT 0,
+                decoration VARCHAR(1000) NULL DEFAULT '{}',
+                body_image_url VARCHAR(1000) NULL,
+                thumbnail_image_url VARCHAR(1000) NULL,
+                attached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                report_count INT NOT NULL DEFAULT 0,
+                is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
+                hidden_reason VARCHAR(32) NULL,
+                hidden_at TIMESTAMP NULL,
+                moderation_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                ocr_text VARCHAR(1000) NULL,
+                ocr_categories VARCHAR(1000) NULL,
+                moderation_checked_at TIMESTAMP NULL,
+                reviewed_by BIGINT NULL,
+                reviewed_at TIMESTAMP NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                deleted_at TIMESTAMP NULL,
+                deleted_reason VARCHAR(32) NULL
+            )
+            """);
 
+        jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM fortune_artifact");
         jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
         jdbcTemplate.update("DELETE FROM flipbook_artifact");

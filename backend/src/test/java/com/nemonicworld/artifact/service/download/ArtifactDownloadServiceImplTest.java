@@ -129,7 +129,7 @@ class ArtifactDownloadServiceImplTest {
     void prepareDownloadFileRejectsUnsupportedKind() {
         givenValidUser();
         ArtifactImageUrlRow phoneRow = new ArtifactImageUrlRow(ARTIFACT_ID, "phone", "phone/results/a/result.png", null,
-            null, null, null, null, "phone/results/a/result.png");
+            null, null, null, null, "phone/results/a/result.png", null, null);
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
             .willReturn(Optional.of(phoneRow));
 
@@ -150,17 +150,48 @@ class ArtifactDownloadServiceImplTest {
             .isInstanceOf(BadRequestException.class).hasMessage("QR 합성 다운로드는 MinIO 산출물만 지원합니다.");
     }
 
+    /**
+     * 커뮤니티 메모는 썸네일보다 최종 원본 스냅샷을 우선해 QR 합성 자산을 생성합니다.
+     */
+    @Test
+    void prepareDownloadFileUsesCommunityMemoOriginalImageBeforeThumbnail() {
+        byte[] sourceBytes = new byte[]{1, 2, 3};
+        byte[] composedBytes = new byte[]{4, 5, 6};
+        String cacheKey = "artifact-downloads/%s/result-qr.jpg".formatted(ARTIFACT_ID);
+
+        givenValidUser();
+        given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
+            .willReturn(Optional.of(communityMemoRow("community/memos/a/original.png", "community/memos/a/thumb.png")));
+        given(signedShareTokenIssuer.issueArtifactToken(ARTIFACT_ID, "community_memo", "QR_DOWNLOAD"))
+            .willReturn("signed-community-token");
+        given(artifactDownloadStorage.exists(cacheKey)).willReturn(false);
+        given(artifactDownloadStorage.download("community/memos/a/original.png")).willReturn(sourceBytes);
+        given(artifactQrComposer.compose("image/png", sourceBytes,
+            "https://nemonic.example.com/share/signed-community-token")).willReturn(composedBytes);
+
+        ArtifactQrAsset asset = artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString());
+
+        assertThat(asset.kind()).isEqualTo("community_memo");
+        verify(artifactDownloadStorage).download("community/memos/a/original.png");
+        verify(artifactDownloadStorage).upload(cacheKey, composedBytes, "image/jpeg");
+    }
+
     private void givenValidUser() {
         given(anonymousUserResolver.parseUuid(USER_UUID_VALUE)).willReturn(USER_UUID);
     }
 
     private ArtifactImageUrlRow relayRow(String combinedPreviewUrl) {
         return new ArtifactImageUrlRow(ARTIFACT_ID, "relay_drawing", "relay/results/a/thumb.png", null,
-            combinedPreviewUrl, null, null, null, null);
+            combinedPreviewUrl, null, null, null, null, null, null);
     }
 
     private ArtifactImageUrlRow flipbookRow(String gifUrl) {
         return new ArtifactImageUrlRow(ARTIFACT_ID, "flipbook", "flipbook/results/a/thumb.png", null, null, gifUrl,
-            "flipbook/results/a/first.png", null, null);
+            "flipbook/results/a/first.png", null, null, null, null);
+    }
+
+    private ArtifactImageUrlRow communityMemoRow(String originalImageUrl, String thumbnailImageUrl) {
+        return new ArtifactImageUrlRow(ARTIFACT_ID, "community_memo", "community/memos/a/artifact-thumb.png", null,
+            null, null, null, null, null, originalImageUrl, thumbnailImageUrl);
     }
 }
