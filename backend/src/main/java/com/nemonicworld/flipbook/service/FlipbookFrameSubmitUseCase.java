@@ -10,6 +10,7 @@ import com.nemonicworld.files.repository.FileUploadRepository;
 import com.nemonicworld.flipbook.dto.request.FlipbookFrameSubmitRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
@@ -33,6 +34,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 플립북 게임 중 현재 라운드 프레임 제출 유스케이스입니다.
@@ -184,6 +186,7 @@ public class FlipbookFrameSubmitUseCase {
 
                 if (flipbookRoomRepository.saveIfUnchanged(latestRoomState, advanceResult.roomState())) {
                     flipbookInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
+                    logFrameSubmitted(advanceResult, submittedAssignment, latestParticipant, frameFile);
 
                     return createResponse(advanceResult.roomState(), submittedAssignment, false, latestParticipant,
                         advanceResult);
@@ -199,6 +202,25 @@ public class FlipbookFrameSubmitUseCase {
                 flipbookSubmissionLockRepository.releaseSubmissionLock(roomCodeValue, request.flipbookIndex(),
                     request.frameIndex(), round, viewerUserUuid, submissionLockToken);
             }
+        }
+    }
+
+    private void logFrameSubmitted(FlipbookRoundAdvanceResult advanceResult, FlipbookFrameAssignment assignment,
+        FlipbookRoomParticipant participant, FileUpload frameFile) {
+        FlipbookRoomEventLogger.apiBusiness("flipbook_frame_submitted",
+            metadata("room_id", advanceResult.roomState().roomCode(), "uuid", participant.userUuid(), "round",
+                assignment.round(), "flipbook_index", assignment.flipbookIndex(), "frame_index",
+                assignment.frameIndex(), "file_id", frameFile.getId(), "object_key", frameFile.getObjectKey(),
+                "submitted_count", advanceResult.progress().submittedCount(), "total_count",
+                advanceResult.progress().totalCount(), "room_status", advanceResult.roomState().status()));
+        if (advanceResult.allRoundsCompleted()) {
+            FlipbookRoomEventLogger.apiBusiness("flipbook_all_rounds_completed",
+                metadata("room_id", advanceResult.roomState().roomCode(), "room_status",
+                    advanceResult.roomState().status(), "total_rounds", advanceResult.roomState().totalRounds()));
+        } else if (advanceResult.advanced()) {
+            FlipbookRoomEventLogger.apiBusiness("flipbook_round_started",
+                metadata("room_id", advanceResult.roomState().roomCode(), "round", advanceResult.nextRound(),
+                    "round_deadline_at", advanceResult.nextRoundDeadlineAt()));
         }
     }
 
