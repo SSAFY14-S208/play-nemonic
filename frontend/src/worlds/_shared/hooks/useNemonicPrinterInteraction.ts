@@ -6,11 +6,30 @@ import type { AnimationAction } from "three";
 const PRINT_BUTTON_ANIMATIONS = ["print_button_click", "label_up"] as const;
 const LID_ANIMATIONS = ["print_head_up", "toggle_side_button"] as const;
 
+// Vibration API 패턴 (ms)
+const HAPTIC = {
+  BUTTON_CLICK: 80,
+  LID_OPEN: [80, 40, 200],
+  LID_CLOSE: [200, 40, 80],
+  PRINT_START: [
+    80, 30, 80, 30, 80, 30, 80, 30, 80, 30, 80, 30, 80, 30, 80, 30, 80, 30,
+    80, 30, 80, 30, 80, 30, 80, 30, 80, 30, 80, 30, 50,
+  ],
+} as const;
+
+function vibrate(pattern: number | readonly number[]) {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate(pattern as number | number[]);
+  }
+}
+
 export function useNemonicPrinterInteraction() {
   const actionsRef = useRef<Record<string, AnimationAction | null>>({});
   const isLidOpenRef = useRef(false);
 
   const handlePrintButtonClick = () => {
+    // 버튼 클릭 햅틱 + 프린트 모터 진동을 하나의 패턴으로 연결
+    vibrate([HAPTIC.BUTTON_CLICK, 50, ...HAPTIC.PRINT_START]);
     void new Audio("/sounds/print_label.mp3").play();
 
     for (const name of PRINT_BUTTON_ANIMATIONS) {
@@ -25,7 +44,8 @@ export function useNemonicPrinterInteraction() {
 
   const handleOpenButtonClick = () => {
     if (isLidOpenRef.current) {
-      // 닫기: 역재생 + close 사운드
+      // 닫기: 역재생 + close 사운드 + 햅틱
+      vibrate(HAPTIC.LID_CLOSE);
       void new Audio("/sounds/close_printer_lid.mp3").play();
       for (const name of LID_ANIMATIONS) {
         const action = actionsRef.current[name];
@@ -40,7 +60,8 @@ export function useNemonicPrinterInteraction() {
       }
       isLidOpenRef.current = false;
     } else {
-      // 열기: 정재생 + open 사운드
+      // 열기: 정재생 + open 사운드 + 햅틱
+      vibrate(HAPTIC.LID_OPEN);
       void new Audio("/sounds/open_printer_lid.mp3").play();
       for (const name of LID_ANIMATIONS) {
         const action = actionsRef.current[name];
