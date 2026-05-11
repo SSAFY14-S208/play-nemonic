@@ -50,7 +50,16 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: backend
+    distribution:
+      # Grafana 대시보드의 p50/p95/p99 latency 패널은 histogram_quantile를
+      # 호출하므로 *_bucket 시계열이 필요. 이 옵션을 켜야 Micrometer가
+      # http.server.requests 메트릭을 bucket 형태로 노출한다.
+      percentiles-histogram:
+        http.server.requests: true
 
 nemonic:
   time-zone: ${APP_TIME_ZONE:Asia/Seoul}
