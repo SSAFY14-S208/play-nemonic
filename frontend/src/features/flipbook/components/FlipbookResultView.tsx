@@ -6,6 +6,7 @@ import { Download, Share2 } from 'lucide-react'
 import type { FlipbookResultItemResponse } from '@/shared/types'
 import { cn } from '@/shared/libs'
 import { getDisplayImageUrl } from '@/shared/utils'
+import { useFlipbookGifDownload } from '../hooks'
 
 interface FlipbookResultViewProps {
   resultItems: FlipbookResultItemResponse[]
@@ -28,6 +29,7 @@ export default function FlipbookResultView({
 }: FlipbookResultViewProps) {
   const activeResult = resultItems[activeResultIndex] ?? null
   const displayGifUrl = getDisplayImageUrl(gifUrl) ?? gifUrl
+  const gifDownload = useFlipbookGifDownload()
   const activeOwnerName =
     activeResult !== null
       ? (resultOwnerNames[activeResult.flipbookIndex] ?? `작품 ${activeResult.flipbookIndex + 1}`)
@@ -141,26 +143,20 @@ export default function FlipbookResultView({
               </div>
             </section>
 
-            <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper p-5">
-              <p className="caption-b text-flipbook-deep">GIF 다운로드 URL</p>
-              <p className="caption-r mt-2 rounded-[12px] bg-flipbook-result-soft p-3 text-flipbook-muted">
-                {gifUrl ?? '결과 GIF 생성 중'}
-              </p>
-            </section>
-
             <div className="mt-auto grid min-h-[60px] gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => {
-                  if (displayGifUrl) {
-                    window.open(displayGifUrl, '_blank', 'noopener,noreferrer')
-                  }
+                  void gifDownload.downloadGif({
+                    gifUrl: displayGifUrl,
+                    fileName: `flipbook-${activeResult?.artifactId ?? activeResultIndex + 1}`,
+                  })
                 }}
-                disabled={!displayGifUrl}
+                disabled={!displayGifUrl || gifDownload.isDownloadingGif}
                 className="body-b inline-flex items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-flipbook-light bg-flipbook-paper px-5 text-flipbook-ink disabled:opacity-45"
               >
                 <Download className="size-4" aria-hidden />
-                GIF 저장
+                {gifDownload.isDownloadingGif ? '저장 중' : 'GIF 저장'}
               </button>
               <button
                 type="button"
@@ -175,6 +171,11 @@ export default function FlipbookResultView({
                 공유하기
               </button>
             </div>
+            {gifDownload.gifDownloadError && (
+              <p className="caption-b rounded-[12px] bg-flipbook-result-soft px-4 py-3 text-center text-flipbook-deep">
+                {gifDownload.gifDownloadError}
+              </p>
+            )}
 
             <button
               type="button"
