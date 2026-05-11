@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 /**
@@ -146,7 +148,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         if (row.hidden()) {
-            adminAuditLogger.logCommunityMemoHide(adminPrincipal, memoId.toString(), reason, clientInfo, false);
+            emitAfterCommit(
+                () -> adminAuditLogger.logMemoSoftDelete(adminPrincipal, memoId.toString(), reason, clientInfo, false));
             return toDetailResponse(row);
         }
 
@@ -158,7 +161,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
 
         AdminCommunityMemoDetailResponse response = adminCommunityMemoRepository.findMemoById(memoId)
             .map(this::toDetailResponse).orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
-        adminAuditLogger.logCommunityMemoHide(adminPrincipal, memoId.toString(), reason, clientInfo, true);
+        emitAfterCommit(
+            () -> adminAuditLogger.logMemoSoftDelete(adminPrincipal, memoId.toString(), reason, clientInfo, true));
 
         return response;
     }
@@ -177,7 +181,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
             .orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
         if (!row.hidden()) {
-            adminAuditLogger.logCommunityMemoRestore(adminPrincipal, memoId.toString(), reason, clientInfo, false);
+            emitAfterCommit(() -> adminAuditLogger.logMemoRestore(adminPrincipal, memoId.toString(), reason, clientInfo,
+                false, null));
             return toDetailResponse(row);
         }
 
@@ -189,7 +194,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
 
         AdminCommunityMemoDetailResponse response = adminCommunityMemoRepository.findMemoById(memoId)
             .map(this::toDetailResponse).orElseThrow(() -> new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE));
-        adminAuditLogger.logCommunityMemoRestore(adminPrincipal, memoId.toString(), reason, clientInfo, true);
+        emitAfterCommit(() -> adminAuditLogger.logMemoRestore(adminPrincipal, memoId.toString(), reason, clientInfo,
+            true, row.hiddenReason()));
 
         return response;
     }
@@ -198,6 +204,20 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         if (adminPrincipal == null) {
             throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
         }
+    }
+
+    private void emitAfterCommit(Runnable auditLog) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            auditLog.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                auditLog.run();
+            }
+        });
     }
 
     private UUID parseMemoId(String memoIdValue) {

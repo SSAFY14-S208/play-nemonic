@@ -2,9 +2,6 @@ package com.nemonicworld.community.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -13,15 +10,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
 import com.nemonicworld.auth.service.StoredAdminRefreshToken;
-import com.nemonicworld.auth.service.AdminAuditLogger;
-import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
-import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.JwtTokenProvider;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
@@ -35,9 +31,12 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
@@ -50,6 +49,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
+@ExtendWith(OutputCaptureExtension.class)
 class AdminCommunityMemoControllerIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
@@ -68,13 +68,13 @@ class AdminCommunityMemoControllerIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
     @MockitoBean
     private CommunityMemoModerationClient moderationClient;
-
-    @MockitoBean
-    private AdminAuditLogger adminAuditLogger;
 
     @BeforeEach
     void prepareTables() {
@@ -344,11 +344,11 @@ class AdminCommunityMemoControllerIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT updated_at FROM community_memo WHERE id = ?",
             LocalDateTime.class, memoId)).isEqualTo(baseTime.plusMinutes(1));
         assertPreservedMemoSnapshot(memoId);
-        verifyNoInteractions(adminAuditLogger, moderationClient);
+        verifyNoInteractions(moderationClient);
     }
 
     @Test
-    void adminHidesVisibleMemoWithAdminHiddenAndUserApisExcludeIt() throws Exception {
+    void adminHidesVisibleMemoWithAdminHiddenAndUserApisExcludeIt(CapturedOutput output) throws Exception {
         UUID authorUuid = insertAppUser("숨김");
         LocalDateTime createdAt = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
         UUID memoId = insertCommunityMemo(authorUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, false, null,
@@ -357,8 +357,9 @@ class AdminCommunityMemoControllerIntegrationTest {
 
         mockMvc
             .perform(patch("/api/v1/admin/community/memos/{memoId}/hide", memoId)
-                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
-                .content("""
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .header("X-Trace-Id", "community-hide-audit-test").header("X-Forwarded-For", "10.10.30.11, 10.10.30.12")
+                .contentType(MediaType.APPLICATION_JSON).content("""
                     {
                       "reason": "%s"
                     }
@@ -398,17 +399,35 @@ class AdminCommunityMemoControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"기타\"}"))
             .andExpect(status().isNotFound());
 
+        JsonNode auditLog = findAuditLog(output, "memo_soft_delete");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("level").asText()).isEqualTo("INFO");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("community-hide-audit-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.30.11");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("memo");
+        assertThat(metadata.path("target_id").asText()).isEqualTo(memoId.toString());
+        assertThat(metadata.path("action").asText()).isEqualTo("delete");
+        assertThat(metadata.path("reason").asText()).isEqualTo(hideReason);
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("state_changed").asBoolean()).isTrue();
+        assertThat(metadata.path("before").path("is_hidden").asBoolean()).isFalse();
+        assertThat(metadata.path("after").path("is_hidden").asBoolean()).isTrue();
+        assertThat(metadata.path("after").path("hidden_reason").asText()).isEqualTo("admin_hidden");
+        assertThat(auditLog.toString()).doesNotContain(ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, ORIGINAL_PUBLIC_URL,
+            THUMBNAIL_PUBLIC_URL, "ocr");
+
         mockMvc.perform(patch("/api/v1/admin/community/memos/{memoId}/hide", memoId)
             .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
             .content("{\"reason\":\"   \"}")).andExpect(status().isBadRequest());
 
-        verify(adminAuditLogger).logCommunityMemoHide(any(AdminPrincipal.class), eq(memoId.toString()), eq(hideReason),
-            any(AdminClientInfo.class), eq(true));
         verifyNoInteractions(moderationClient);
     }
 
     @Test
-    void adminRestoresHiddenMemoWithoutImmediateFifoOrDataMutation() throws Exception {
+    void adminRestoresHiddenMemoWithoutImmediateFifoOrDataMutation(CapturedOutput output) throws Exception {
         UUID authorUuid = insertAppUser("복구");
         LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
         for (int index = 0; index < 51; index++) {
@@ -421,8 +440,9 @@ class AdminCommunityMemoControllerIntegrationTest {
 
         mockMvc
             .perform(patch("/api/v1/admin/community/memos/{memoId}/restore", hiddenMemoId)
-                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
-                .content("""
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .header("X-Trace-Id", "community-restore-audit-test").header("X-Real-IP", "10.10.30.21")
+                .contentType(MediaType.APPLICATION_JSON).content("""
                     {
                       "reason": "%s"
                     }
@@ -455,8 +475,28 @@ class AdminCommunityMemoControllerIntegrationTest {
 
         mockMvc.perform(get("/api/v1/community/memos/{memoId}", hiddenMemoId)).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.memoUuid").value(hiddenMemoId.toString()));
-        verify(adminAuditLogger).logCommunityMemoRestore(any(AdminPrincipal.class), eq(hiddenMemoId.toString()),
-            eq(restoreReason), any(AdminClientInfo.class), eq(true));
+
+        JsonNode auditLog = findAuditLog(output, "memo_restore");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("level").asText()).isEqualTo("INFO");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("community-restore-audit-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.30.21");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("memo");
+        assertThat(metadata.path("target_id").asText()).isEqualTo(hiddenMemoId.toString());
+        assertThat(metadata.path("action").asText()).isEqualTo("restore");
+        assertThat(metadata.path("reason").asText()).isEqualTo(restoreReason);
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("state_changed").asBoolean()).isTrue();
+        assertThat(metadata.path("before").path("is_hidden").asBoolean()).isTrue();
+        assertThat(metadata.path("before").path("hidden_reason").asText()).isEqualTo("report_threshold");
+        assertThat(metadata.path("after").path("is_hidden").asBoolean()).isFalse();
+        assertThat(metadata.path("after").path("hidden_reason").isNull()).isTrue();
+        assertThat(auditLog.toString()).doesNotContain(ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, ORIGINAL_PUBLIC_URL,
+            THUMBNAIL_PUBLIC_URL, "ocr");
+
         verifyNoInteractions(moderationClient);
     }
 
@@ -621,6 +661,16 @@ class AdminCommunityMemoControllerIntegrationTest {
             hiddenReason, hiddenAt, moderationStatus, ocrText, createdAt, reviewedBy, createdAt, updatedAt, deletedAt);
 
         return memoId;
+    }
+
+    private JsonNode findAuditLog(CapturedOutput output, String eventName) throws Exception {
+        for (String line : output.getOut().split("\\R")) {
+            if (line.contains("\"event_name\":\"%s\"".formatted(eventName))) {
+                return objectMapper.readTree(line);
+            }
+        }
+
+        throw new AssertionError("Audit log not found. eventName=" + eventName);
     }
 
     private String bearerAccessToken() {

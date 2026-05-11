@@ -146,6 +146,10 @@ Last updated: 2026-05-10
   `admin_account_delete` stdout JSON audit logs after successful service
   transactions; the application still does not write directly to Kafka or
   OpenSearch.
+- Admin community memo hide/restore now emit `memo_soft_delete` and
+  `memo_restore` stdout JSON audit logs after successful service transactions;
+  bulk memo review and `report_review_decided` remain pending because no
+  current admin API exists for those operations.
 - `admin_user.login_id` is made unique through Flyway V5.
 - Room code generation is available through `RoomCodeGenerator`, producing 6-character uppercase human-readable codes and supporting repository-backed collision checks with `generateUnique(...)`.
 - Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `relay:room:{roomCode}` with a 24-hour TTL, creates the host participant with `connected=false` until WebSocket CONNECT succeeds, and creates no PostgreSQL artifact/gallery rows.
