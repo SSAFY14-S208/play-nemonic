@@ -212,6 +212,64 @@ class RedisRelayRoomRepositoryTest {
     }
 
     @Test
+    void findAbandonedWaitingRoomsScansAllDisconnectedOldWaitingRooms() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime cutoff = now.minusMinutes(5);
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomParticipant oldDisconnectedHost = disconnectedParticipant(hostUuid, "Mango", true, 0,
+            now.minusMinutes(6));
+        RelayRoomState abandonedRoom = roomState("WAITID", RelayRoomStatus.WAITING, null, null, null,
+            now.minusMinutes(6), oldDisconnectedHost);
+        RelayRoomState recentRoom = roomState("RECENT", RelayRoomStatus.WAITING, null, null, null, now.minusMinutes(4),
+            disconnectedParticipant(UUID.randomUUID(), "Recent", true, 0, now.minusMinutes(4)));
+        RelayRoomState connectedRoom = roomState("ACTIVE", RelayRoomStatus.WAITING, null, null, null,
+            now.minusMinutes(10), participant(UUID.randomUUID(), "Active", true, 0));
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, true, false);
+        given(cursor.next()).willReturn("relay:room:WAITID", "relay:room:RECENT", "relay:room:ACTIVE");
+        given(valueOperations.get("relay:room:WAITID")).willReturn(serialize(abandonedRoom));
+        given(valueOperations.get("relay:room:RECENT")).willReturn(serialize(recentRoom));
+        given(valueOperations.get("relay:room:ACTIVE")).willReturn(serialize(connectedRoom));
+
+        List<RelayRoomState> abandonedRooms = repository.findAbandonedWaitingRooms(cutoff, 10);
+
+        assertThat(abandonedRooms).containsExactly(abandonedRoom);
+        verify(cursor).close();
+    }
+
+    @Test
+    void findAbandonedPlayingRoomsScansAllDisconnectedOrDroppedOldPlayingRooms() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime cutoff = now.minusMinutes(5);
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomParticipant disconnectedHost = disconnectedParticipant(hostUuid, "Mango", true, 0,
+            now.minusMinutes(6));
+        RelayRoomParticipant droppedParticipant = droppedParticipant(UUID.randomUUID(), "Dropped", false, 1,
+            now.minusMinutes(7), now.minusMinutes(6));
+        RelayRoomState abandonedRoom = roomState("PLAYID", RelayRoomStatus.PLAYING, RelayDrawingPart.FACE,
+            now.minusMinutes(7), now.minusMinutes(6), now.minusMinutes(6), disconnectedHost, droppedParticipant);
+        RelayRoomState activeRoom = roomState("ACTIVE", RelayRoomStatus.PLAYING, RelayDrawingPart.FACE,
+            now.minusMinutes(7), now.minusMinutes(6), now.minusMinutes(6),
+            participant(UUID.randomUUID(), "Active", true, 0));
+        RelayRoomState recentRoom = roomState("RECENT", RelayRoomStatus.PLAYING, RelayDrawingPart.FACE,
+            now.minusMinutes(7), now.minusMinutes(6), now.minusMinutes(4),
+            disconnectedParticipant(UUID.randomUUID(), "Recent", true, 0, now.minusMinutes(4)));
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, true, false);
+        given(cursor.next()).willReturn("relay:room:PLAYID", "relay:room:ACTIVE", "relay:room:RECENT");
+        given(valueOperations.get("relay:room:PLAYID")).willReturn(serialize(abandonedRoom));
+        given(valueOperations.get("relay:room:ACTIVE")).willReturn(serialize(activeRoom));
+        given(valueOperations.get("relay:room:RECENT")).willReturn(serialize(recentRoom));
+
+        List<RelayRoomState> abandonedRooms = repository.findAbandonedPlayingRooms(cutoff, 10);
+
+        assertThat(abandonedRooms).containsExactly(abandonedRoom);
+        verify(cursor).close();
+    }
+
+    @Test
     void findClosableFinishedRoomsScansRoomKeysAndFiltersOldFinishedRooms() throws Exception {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         LocalDateTime closeCutoff = now.minusMinutes(5);
@@ -318,9 +376,30 @@ class RedisRelayRoomRepositoryTest {
             createdAt.plusSeconds(1));
     }
 
+    private RelayRoomState roomState(String roomCode, RelayRoomStatus status, RelayDrawingPart currentPart,
+        LocalDateTime partStartedAt, LocalDateTime partDeadlineAt, LocalDateTime updatedAt,
+        RelayRoomParticipant... participants) {
+        LocalDateTime createdAt = updatedAt.minusMinutes(1);
+
+        return new RelayRoomState(roomCode, status, participants[0].userUuid(), 60, 2, 6, currentPart,
+            List.of(participants), List.of(), partStartedAt, partDeadlineAt, partStartedAt, createdAt, updatedAt);
+    }
+
     private RelayRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder) {
         return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, true, null,
             LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private RelayRoomParticipant disconnectedParticipant(UUID userUuid, String nickname, boolean host, int joinOrder,
+        LocalDateTime disconnectedAt) {
+        return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, false, disconnectedAt,
+            disconnectedAt.minusMinutes(1));
+    }
+
+    private RelayRoomParticipant droppedParticipant(UUID userUuid, String nickname, boolean host, int joinOrder,
+        LocalDateTime disconnectedAt, LocalDateTime droppedAt) {
+        return new RelayRoomParticipant(userUuid.toString(), nickname, host, joinOrder, false, disconnectedAt,
+            disconnectedAt.minusMinutes(1), true, droppedAt);
     }
 
     private String serialize(RelayRoomState roomState) throws Exception {
