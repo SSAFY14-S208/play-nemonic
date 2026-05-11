@@ -1,8 +1,6 @@
 'use client'
 
 import { useCallback } from 'react'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   FlipbookDrawingView,
@@ -55,14 +53,6 @@ export default function FlipbookPage() {
 
   return (
     <main className="relative min-h-screen bg-flipbook-background text-flipbook-ink">
-      <Link
-        href="/hub"
-        className="body-b absolute left-4 top-4 z-50 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95 sm:left-6 sm:top-6 lg:left-[5%]"
-      >
-        <ArrowLeft className="size-5" aria-hidden />
-        네모닉 월드로 돌아가기
-      </Link>
-
       {flipbook.currentStep === 'booth' && (
         <FlipbookEntranceView
           roomCodeDraft={flipbook.roomCodeDraft}
@@ -88,7 +78,6 @@ export default function FlipbookPage() {
           isHost={flipbook.isHost}
           isBusy={flipbook.isBusy}
           errorMessage={flipbook.errorMessage}
-          onBack={flipbook.leaveRoom}
           onSelectTimeLimit={flipbook.selectTimeLimit}
           onSelectRoundCount={flipbook.selectRoundCount}
           onStartGame={flipbook.startGame}
@@ -124,7 +113,6 @@ export default function FlipbookPage() {
           onDrawStart={flipbook.drawingBoard.beginDrawing}
           onDrawMove={flipbook.drawingBoard.continueDrawing}
           onDrawEnd={flipbook.drawingBoard.endDrawing}
-          onExit={flipbook.leaveRoom}
           onCompleteRound={flipbook.completeRound}
         />
       )}

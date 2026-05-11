@@ -63,7 +63,6 @@ interface FlipbookDrawingViewProps {
   onDrawStart: (event: DrawingPointerEvent) => void
   onDrawMove: (event: DrawingPointerEvent) => void
   onDrawEnd: () => void
-  onExit: () => void
   onCompleteRound: () => void | Promise<void>
 }
 
