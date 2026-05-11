@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -8,55 +8,45 @@ const IDLE_MAX_INTENSITY = 0.2;
 const HOVER_INTENSITY = 0.5;
 const PULSE_SPEED = 2.5;
 
-interface OriginalMaterial {
-  mesh: THREE.Mesh;
-  sharedMaterial: THREE.Material;
-}
-
 export function useButtonMeshHighlight(
   scene: THREE.Group,
   buttonNames: Set<string>,
 ) {
-  const buttonMeshesRef = useRef<THREE.Mesh[]>([]);
   const hoveredMeshRef = useRef<THREE.Mesh | null>(null);
-
-  useEffect(() => {
-    const meshes: THREE.Mesh[] = [];
-    const originals: OriginalMaterial[] = [];
-
-    scene.traverse((child) => {
-      if (!(child instanceof THREE.Mesh) || !buttonNames.has(child.name)) {
-        return;
-      }
-
-      meshes.push(child);
-
-      // Clone the material so emissive changes don't leak to
-      // other meshes that share the same GLB material instance.
-      const sharedMaterial = child.material as THREE.MeshStandardMaterial;
-      originals.push({ mesh: child, sharedMaterial });
-      child.material = sharedMaterial.clone();
-    });
-
-    buttonMeshesRef.current = meshes;
-
-    return () => {
-      for (const { mesh, sharedMaterial } of originals) {
-        mesh.material = sharedMaterial;
-      }
-    };
-  }, [scene, buttonNames]);
+  const materialsRef = useRef(
+    new Map<THREE.Mesh, THREE.MeshStandardMaterial>(),
+  );
+  const activeSceneRef = useRef<THREE.Group | null>(null);
 
   useFrame(({ clock }) => {
+    // Lazy init: clone button materials on first frame or when scene changes.
+    // All initialization lives inside useFrame to avoid the React Compiler
+    // immutability rule (useEffect ref assignment → useFrame mutation).
+    if (activeSceneRef.current !== scene) {
+      materialsRef.current.clear();
+
+      scene.traverse((child) => {
+        if (!(child instanceof THREE.Mesh) || !buttonNames.has(child.name)) {
+          return;
+        }
+        // Clone the material so emissive changes don't leak to
+        // other meshes that share the same GLB material instance.
+        const current = child.material as THREE.MeshStandardMaterial;
+        const cloned = current.clone();
+        child.material = cloned;
+        materialsRef.current.set(child, cloned);
+      });
+
+      activeSceneRef.current = scene;
+    }
+
     const elapsed = clock.elapsedTime;
     const idlePulse =
       IDLE_MIN_INTENSITY +
       (IDLE_MAX_INTENSITY - IDLE_MIN_INTENSITY) *
         (0.5 + 0.5 * Math.sin(elapsed * PULSE_SPEED));
 
-    for (const mesh of buttonMeshesRef.current) {
-      const material = mesh.material as THREE.MeshStandardMaterial;
-
+    for (const [mesh, material] of materialsRef.current) {
       if (mesh === hoveredMeshRef.current) {
         material.emissive.copy(GLOW_COLOR);
         material.emissiveIntensity = HOVER_INTENSITY;
