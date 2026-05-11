@@ -3,7 +3,7 @@
 import { useMemo, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'motion/react'
-import { ArrowRight, BookOpen, Film, Sparkles } from 'lucide-react'
+import { ArrowRight, BookOpen, Film, Sparkles, Users } from 'lucide-react'
 import {
   HUB_CONTENT_VIEWS,
   type HubContentKey,
@@ -23,6 +23,7 @@ const HUB_BUTTONS: Array<{ key: HubContentKey; label: string }> = [
 const HUB_FORTUNE_PATH = '/fortune'
 const HUB_COMMUNITY_CANVAS_PATH = '/community-canvas'
 const HUB_FLIPBOOK_PATH = '/flipbook'
+const HUB_RELAY_DRAWING_PATH = '/relay-drawing'
 
 const PLATFORM_BUTTON_STYLES: Record<HubContentKey, CSSProperties> = {
   community: {
@@ -85,12 +86,20 @@ const ENTRY_CONFIGS: Partial<Record<HubContentKey, EntryConfig>> = {
     text: '#7a5a1f',
     glow: 'rgba(238, 188, 84, 0.55)',
   },
+  relay: {
+    label: '릴레이 드로잉 입장',
+    Icon: Users,
+    gradient: 'linear-gradient(135deg, #ffe1e4 0%, #ff9da8 100%)',
+    text: '#8a3a44',
+    glow: 'rgba(228, 116, 130, 0.55)',
+  },
 }
 
 const ENTRY_ROUTES: Partial<Record<HubContentKey, string>> = {
   community: HUB_COMMUNITY_CANVAS_PATH,
   fortune: HUB_FORTUNE_PATH,
   flipbook: HUB_FLIPBOOK_PATH,
+  relay: HUB_RELAY_DRAWING_PATH,
 }
 
 export default function HubOverlay() {
