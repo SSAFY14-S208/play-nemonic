@@ -72,56 +72,56 @@ public class SystemParameterController {
           "communityMaxMemoCount": {
             "value": 50,
             "unit": "count",
-            "description": "Community canvas visible memo limit"
+            "description": "커뮤니티 캔버스 표시 메모 수 제한"
           },
           "relayRoomParticipantLimit": {
             "min": 3,
             "max": 8,
             "unit": "people",
-            "description": "Relay room participant limit"
+            "description": "릴레이 방 참여 인원 제한"
           },
           "relayRoomTimeLimitSeconds": {
             "default": 45,
             "allowed": [30, 45, 60],
             "unit": "seconds",
-            "description": "Relay room drawing time limit"
+            "description": "릴레이 방 그리기 제한 시간"
           },
           "relayReconnectGraceSeconds": {
             "value": 10,
             "unit": "seconds",
-            "description": "Relay playing-room reconnect grace period"
+            "description": "릴레이 진행 중 재연결 유예 시간"
           },
           "flipbookRoomParticipantLimit": {
             "min": 2,
             "max": 6,
             "unit": "people",
-            "description": "Flipbook room participant limit"
+            "description": "플립북 방 참여 인원 제한"
           },
           "flipbookRoomTimeLimitSeconds": {
             "default": 45,
             "allowed": [30, 45, 60],
             "unit": "seconds",
-            "description": "Flipbook room drawing time limit"
+            "description": "플립북 방 그리기 제한 시간"
           },
           "flipbookMinFramesPerFlipbook": {
             "value": 8,
             "unit": "frames",
-            "description": "Minimum frames per completed flipbook"
+            "description": "완성 플립북 최소 프레임 수"
           },
           "flipbookReconnectGraceSeconds": {
             "value": 10,
             "unit": "seconds",
-            "description": "Flipbook playing-room reconnect grace period"
+            "description": "플립북 진행 중 재연결 유예 시간"
           },
           "fortuneDailyLimit": {
             "value": 1,
             "unit": "count",
-            "description": "Daily fortune generation limit per anonymous user"
+            "description": "익명 사용자별 일일 운세 생성 제한"
           },
           "csInquiryUnresolvedAlertThresholdHours": {
             "value": 24,
             "unit": "hours",
-            "description": "Unresolved customer inquiry alert threshold"
+            "description": "미해결 고객 문의 알림 기준 시간"
           }
         }
         """)))

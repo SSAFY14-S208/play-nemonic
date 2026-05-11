@@ -3,7 +3,7 @@ package com.nemonicworld.backoffice.setting.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 
-@Schema(description = "Typed system parameter update request. Only included fields are updated.")
+@Schema(description = "명시적 필드 기반 시스템 파라미터 수정 요청. 요청에 포함된 필드만 수정됩니다.")
 public record SystemParameterTypedUpdateRequest(@Valid SystemParameterPositiveValueRequest communityMaxMemoCount,
 
     @Valid SystemParameterParticipantLimitRequest relayRoomParticipantLimit,

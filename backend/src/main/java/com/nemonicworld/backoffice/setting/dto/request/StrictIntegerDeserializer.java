@@ -16,7 +16,7 @@ public class StrictIntegerDeserializer extends StdDeserializer<Integer> {
     @Override
     public Integer deserialize(JsonParser parser, DeserializationContext context) throws IOException {
         if (parser.currentToken() != JsonToken.VALUE_NUMBER_INT) {
-            throw JsonMappingException.from(parser, "Expected integer number.");
+            throw JsonMappingException.from(parser, "정수 값을 입력해주세요.");
         }
 
         return parser.getIntValue();

@@ -7,13 +7,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Schema(description = "Drawing time limit setting value")
+@Schema(description = "그리기 제한 시간 설정값")
 public record SystemParameterTimeLimitRequest(
     @JsonProperty("default") @JsonDeserialize(using = StrictIntegerDeserializer.class) Integer defaultSeconds,
 
     @JsonDeserialize(contentUsing = StrictIntegerDeserializer.class) List<Integer> allowed,
 
-    @Schema(description = "Unit label", example = "seconds") String unit,
+    @Schema(description = "단위", example = "seconds") String unit,
 
-    @Schema(description = "Setting description", example = "Relay room drawing time limit") String description) {
+    @Schema(description = "설정 설명", example = "릴레이 방 그리기 제한 시간") String description) {
 }
