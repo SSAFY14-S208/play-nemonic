@@ -19,6 +19,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomTimeUpNotificationRepository;
+import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.flipbook.service.timeout.FlipbookRoomTimeoutResult;
 import com.nemonicworld.flipbook.service.timeout.FlipbookRoomTimeoutService;
@@ -44,13 +45,16 @@ class FlipbookRoomTimeoutServiceTest {
 
     private static final String ROOM_CODE = "FB3K9Q";
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 8, 14, 1, 16);
-    private static final long AUTO_SUBMIT_GRACE_MS = 2_000L;
+    private static final long AUTO_SUBMIT_GRACE_MS = 5_000L;
 
     @Mock
     private FlipbookRoomRepository flipbookRoomRepository;
 
     @Mock
     private FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository;
+
+    @Mock
+    private FlipbookSubmissionLockRepository flipbookSubmissionLockRepository;
 
     @Mock
     private FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository;
@@ -66,9 +70,9 @@ class FlipbookRoomTimeoutServiceTest {
     @BeforeEach
     void setUp() {
         flipbookRoomTimeoutService = new FlipbookRoomTimeoutService(flipbookRoomRepository,
-            flipbookRoomTimeUpNotificationRepository, flipbookRoomMutationLockRepository,
-            new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, 100,
-            AUTO_SUBMIT_GRACE_MS, 5000L);
+            flipbookRoomTimeUpNotificationRepository, flipbookSubmissionLockRepository,
+            flipbookRoomMutationLockRepository, new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher,
+            flipbookInviteMetadataSyncService, 100, AUTO_SUBMIT_GRACE_MS, 5000L);
         lenient().when(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))
             .thenReturn(true);
     }
@@ -170,6 +174,22 @@ class FlipbookRoomTimeoutServiceTest {
     }
 
     @Test
+    void processExpiredRoomSkipsAssignmentWhenSubmissionLockExists() {
+        UUID hostUuid = UUID.randomUUID();
+        FlipbookRoomState roomState = playingRoom(1, 4, NOW.minusSeconds(45), expiredDeadline(),
+            List.of(pendingAssignment(0, 0, 1, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookSubmissionLockRepository.isSubmissionLocked(ROOM_CODE, 0, 0, 1, hostUuid.toString()))
+            .willReturn(true);
+
+        FlipbookRoomTimeoutResult result = flipbookRoomTimeoutService.processExpiredRoom(ROOM_CODE, NOW);
+
+        assertThat(result.processed()).isFalse();
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(flipbookRoomEventPublisher, never()).publishFrameAutoSubmitted(any(), any(), any());
+    }
+
+    @Test
     void processExpiredRoomAutoSubmitsAllPendingAssignments() {
         UUID hostUuid = UUID.randomUUID();
         UUID participantUuid = UUID.randomUUID();
@@ -239,9 +259,9 @@ class FlipbookRoomTimeoutServiceTest {
         FlipbookRoomState roomState = playingRoom(1, 4, currentNow.minusSeconds(45), currentNow.minusSeconds(5),
             List.of(pendingAssignment(0, 0, 1, hostUuid)), participant(hostUuid, "Mango", true, 0));
         FlipbookRoomTimeoutService limitedService = new FlipbookRoomTimeoutService(flipbookRoomRepository,
-            flipbookRoomTimeUpNotificationRepository, flipbookRoomMutationLockRepository,
-            new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, 5,
-            AUTO_SUBMIT_GRACE_MS, 5000L);
+            flipbookRoomTimeUpNotificationRepository, flipbookSubmissionLockRepository,
+            flipbookRoomMutationLockRepository, new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher,
+            flipbookInviteMetadataSyncService, 5, AUTO_SUBMIT_GRACE_MS, 5000L);
         given(flipbookRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(5)))
             .willReturn(List.of(roomState));
         given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));

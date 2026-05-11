@@ -413,6 +413,8 @@ Recent flipbook room mutation work aligned Redis state-change contention handlin
 - Frame submission acquires the room mutation lock before latest-state mutation/CAS save, while keeping duplicate submitted-frame lookup idempotent.
 - Timeout auto-submit and disconnect-grace scans precheck candidates, skip when the room lock is busy, and release the lock after event publication.
 - The lock protects shared `flipbook:room:{roomCode}` updates; existing Redis CAS retries remain as a final guard.
+- Flipbook auto-submit grace defaults to 5 seconds, and submit API processing now also uses an assignment-scoped submission lock.
+- Timeout auto-submit skips PENDING assignments that are currently protected by a flipbook submission lock.
 
 Recent relay submission concurrency work added a room-scoped Redis mutation lock.
 

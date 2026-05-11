@@ -3,6 +3,7 @@ package com.nemonicworld.flipbook.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -23,6 +24,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.user.entity.AppUser;
@@ -58,6 +60,9 @@ class FlipbookFrameSubmitUseCaseTest {
     private FlipbookRoomRepository flipbookRoomRepository;
 
     @Mock
+    private FlipbookSubmissionLockRepository flipbookSubmissionLockRepository;
+
+    @Mock
     private FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository;
 
     @Mock
@@ -76,8 +81,10 @@ class FlipbookFrameSubmitUseCaseTest {
                 10, 10_485_760));
         flipbookFrameSubmitUseCase = new FlipbookFrameSubmitUseCase(anonymousUserResolver, flipbookRoomRepository,
             flipbookRoomPolicy, flipbookFrameImageUrlResolver, flipbookInviteMetadataSyncService,
-            new FlipbookRoomRoundAdvanceService(), fileUploadRepository, flipbookRoomMutationLockRepository, 2000L,
-            5000L);
+            new FlipbookRoomRoundAdvanceService(), fileUploadRepository, flipbookSubmissionLockRepository,
+            flipbookRoomMutationLockRepository, 5000L, 10000L, 5000L);
+        lenient().when(flipbookSubmissionLockRepository.acquireSubmissionLock(any(), anyInt(), anyInt(), anyInt(),
+            any(), any(), any(Duration.class))).thenReturn(true);
         lenient().when(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))
             .thenReturn(true);
     }
@@ -247,6 +254,33 @@ class FlipbookFrameSubmitUseCaseTest {
     }
 
     /**
+     * 같은 배정에 대한 제출 처리가 이미 진행 중이면 Redis 방 상태 갱신 전에 거부합니다.
+     */
+    @Test
+    void submitFrameRejectsWhenSubmissionLockIsBusy() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        UUID fileId = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        FileUpload fileUpload = uploadedFile(fileId, hostUuid, FileUploadPurpose.FLIPBOOK);
+        FlipbookRoomState roomState = playingRoomState(hostUuid, participantUuid, 1, 2,
+            List.of(assignment(0, 0, 1, hostUuid, FlipbookFrameAssignmentStatus.PENDING, null, null, null)));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(fileUploadRepository.findById(fileId)).willReturn(Optional.of(fileUpload));
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookSubmissionLockRepository.acquireSubmissionLock(any(), anyInt(), anyInt(), anyInt(), any(), any(),
+            any(Duration.class))).willReturn(false);
+
+        assertThatThrownBy(() -> flipbookFrameSubmitUseCase.submitFrame(hostUuid.toString(), ROOM_CODE, 1,
+            new FlipbookFrameSubmitRequest(0, 0, fileId.toString()))).isInstanceOf(ConflictException.class)
+            .hasMessage("이미 제출 처리 중입니다.");
+
+        verify(flipbookRoomMutationLockRepository, never()).acquireRoomMutationLock(any(), any(), any(Duration.class));
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    /**
      * 자동 제출 유예 시간까지 지난 뒤에는 수동 제출을 거부합니다.
      */
     @Test
@@ -258,7 +292,7 @@ class FlipbookFrameSubmitUseCaseTest {
         FileUpload fileUpload = uploadedFile(fileId, hostUuid, FileUploadPurpose.FLIPBOOK);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         FlipbookRoomState roomState = playingRoomState(hostUuid, participantUuid, 1, 2, now.minusSeconds(45),
-            now.minusSeconds(3),
+            now.minusSeconds(6),
             List.of(assignment(0, 0, 1, hostUuid, FlipbookFrameAssignmentStatus.PENDING, null, null, null)));
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
