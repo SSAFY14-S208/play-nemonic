@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -14,12 +15,14 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceProcessResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceRoomResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookRoomDisconnectGraceService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -46,6 +49,9 @@ class FlipbookRoomDisconnectGraceServiceTest {
     private FlipbookRoomRepository flipbookRoomRepository;
 
     @Mock
+    private FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository;
+
+    @Mock
     private FlipbookRoomEventPublisher flipbookRoomEventPublisher;
 
     @Mock
@@ -56,7 +62,10 @@ class FlipbookRoomDisconnectGraceServiceTest {
     @BeforeEach
     void setUp() {
         flipbookRoomDisconnectGraceService = new FlipbookRoomDisconnectGraceService(flipbookRoomRepository,
-            flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, RECONNECT_GRACE_SECONDS, 100);
+            flipbookRoomMutationLockRepository, flipbookRoomEventPublisher, flipbookInviteMetadataSyncService,
+            RECONNECT_GRACE_SECONDS, 100, 5000L);
+        lenient().when(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))
+            .thenReturn(true);
     }
 
     @Test
@@ -101,6 +110,22 @@ class FlipbookRoomDisconnectGraceServiceTest {
         verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
         verify(flipbookRoomEventPublisher).publishParticipantDropped(result.droppedParticipants().get(0));
         verify(flipbookRoomEventPublisher).publishHostChanged(result.hostChange());
+        verify(flipbookRoomMutationLockRepository).releaseRoomMutationLock(eq(ROOM_CODE), any());
+    }
+
+    @Test
+    void processRoomDoesNothingWhenRoomMutationLockIsBusy() {
+        UUID hostUuid = UUID.randomUUID();
+        FlipbookRoomState roomState = playingRoom(participant(hostUuid, "Mango", true, 0, false, NOW.minusSeconds(10)));
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))
+            .willReturn(false);
+
+        FlipbookDisconnectGraceRoomResult result = flipbookRoomDisconnectGraceService.processRoom(ROOM_CODE, NOW);
+
+        assertThat(result.processed()).isFalse();
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(flipbookRoomMutationLockRepository, never()).releaseRoomMutationLock(any(), any());
     }
 
     @Test

@@ -6,8 +6,10 @@ import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomTimeUpNotificationRepository;
+import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,26 +36,35 @@ public class FlipbookRoomTimeoutService {
 
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository;
+    private final FlipbookSubmissionLockRepository flipbookSubmissionLockRepository;
+    private final FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository;
     private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
     private final int scanLimit;
     private final Duration autoSubmitGrace;
+    private final Duration roomMutationLockTtl;
 
     public FlipbookRoomTimeoutService(FlipbookRoomRepository flipbookRoomRepository,
         FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository,
+        FlipbookSubmissionLockRepository flipbookSubmissionLockRepository,
+        FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository,
         FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService,
         FlipbookRoomEventPublisher flipbookRoomEventPublisher,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
         @Value("${nemonic.flipbook.timeout.scan-limit:100}") int scanLimit,
-        @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs) {
+        @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:5000}") long autoSubmitGraceMs,
+        @Value("${nemonic.flipbook.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.flipbookRoomTimeUpNotificationRepository = flipbookRoomTimeUpNotificationRepository;
+        this.flipbookSubmissionLockRepository = flipbookSubmissionLockRepository;
+        this.flipbookRoomMutationLockRepository = flipbookRoomMutationLockRepository;
         this.flipbookRoomRoundAdvanceService = flipbookRoomRoundAdvanceService;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
         this.scanLimit = scanLimit;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
+        this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
     }
 
     /**
@@ -108,7 +120,30 @@ public class FlipbookRoomTimeoutService {
      */
     public FlipbookRoomTimeoutResult processExpiredRoom(String roomCode, LocalDateTime now) {
         LocalDateTime processedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomState candidateRoomState = flipbookRoomRepository.findByRoomCode(roomCode).orElse(null);
+        if (!isExpiredPlayingRoom(candidateRoomState, processedAt)) {
+            return FlipbookRoomTimeoutResult.noOp(roomCode);
+        }
 
+        String roomMutationLockToken = createRoomMutationLockToken("timeout", roomCode);
+        boolean locked = flipbookRoomMutationLockRepository.acquireRoomMutationLock(roomCode, roomMutationLockToken,
+            roomMutationLockTtl);
+        if (!locked) {
+            log.warn("플립북 타임아웃 자동 제출을 건너뜁니다. 방 상태 변경 잠금이 사용 중입니다. roomCode={}", roomCode);
+            return FlipbookRoomTimeoutResult.noOp(roomCode);
+        }
+
+        try {
+            FlipbookRoomTimeoutResult result = processExpiredRoomWithLock(roomCode, processedAt);
+            publishTimeoutEvents(result);
+
+            return result;
+        } finally {
+            flipbookRoomMutationLockRepository.releaseRoomMutationLock(roomCode, roomMutationLockToken);
+        }
+    }
+
+    private FlipbookRoomTimeoutResult processExpiredRoomWithLock(String roomCode, LocalDateTime processedAt) {
         for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             FlipbookRoomState roomState = flipbookRoomRepository.findByRoomCode(roomCode).orElse(null);
             if (!isExpiredPlayingRoom(roomState, processedAt)) {
@@ -129,15 +164,17 @@ public class FlipbookRoomTimeoutService {
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
-                FlipbookRoomTimeoutResult result = new FlipbookRoomTimeoutResult(roomCode, true, currentRound,
-                    autoSubmitUpdate.autoSubmissions(), advanceResult);
-                publishTimeoutEvents(result);
-
-                return result;
+                return new FlipbookRoomTimeoutResult(roomCode, true, currentRound, autoSubmitUpdate.autoSubmissions(),
+                    advanceResult);
             }
         }
 
         throw new ConflictException(FlipbookRoomPolicy.ROOM_TIMEOUT_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    private String createRoomMutationLockToken(String owner, String roomCode) {
+        return "token=%s,requestedAt=%s,owner=%s,roomCode=%s".formatted(UUID.randomUUID(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), owner, roomCode);
     }
 
     private boolean isExpiredPlayingRoom(FlipbookRoomState roomState, LocalDateTime now) {
@@ -162,7 +199,8 @@ public class FlipbookRoomTimeoutService {
         List<FlipbookFrameAutoSubmissionResult> autoSubmissions = new ArrayList<>();
 
         for (FlipbookFrameAssignment assignment : roomState.assignments()) {
-            if (assignment.round() == currentRound && assignment.status() == FlipbookFrameAssignmentStatus.PENDING) {
+            if (assignment.round() == currentRound && assignment.status() == FlipbookFrameAssignmentStatus.PENDING
+                && !isSubmissionLocked(roomState, assignment)) {
                 FlipbookFrameAssignment autoSubmittedAssignment = autoSubmitAssignment(assignment, submittedAt);
                 updatedAssignments.add(autoSubmittedAssignment);
                 autoSubmissions.add(new FlipbookFrameAutoSubmissionResult(roomState.roomCode(),
@@ -180,6 +218,11 @@ public class FlipbookRoomTimeoutService {
         return new FlipbookFrameAssignment(assignment.flipbookIndex(), assignment.frameIndex(), assignment.round(),
             assignment.assignedUserUuid(), FlipbookFrameAssignmentStatus.AUTO_SUBMITTED, null, null, true, true,
             submittedAt);
+    }
+
+    private boolean isSubmissionLocked(FlipbookRoomState roomState, FlipbookFrameAssignment assignment) {
+        return flipbookSubmissionLockRepository.isSubmissionLocked(roomState.roomCode(), assignment.flipbookIndex(),
+            assignment.frameIndex(), assignment.round(), assignment.assignedUserUuid());
     }
 
     private String findNickname(FlipbookRoomState roomState, String userUuid) {
