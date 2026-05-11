@@ -18,8 +18,10 @@ import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -30,6 +32,10 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
     private static final String INVALID_STATUS_MESSAGE = "조회할 수 없는 플립북 방 상태입니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final String ROOM_ALREADY_CLOSED_MESSAGE = "이미 종료된 방입니다.";
+
+    private static final String IN_PROGRESS_STATUS_FILTER = "IN_PROGRESS";
+    private static final Set<FlipbookRoomStatus> DEFAULT_ACTIVE_STATUS_FILTER = Set.of(FlipbookRoomStatus.WAITING,
+        FlipbookRoomStatus.PLAYING, FlipbookRoomStatus.FINALIZING);
 
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
@@ -56,14 +62,14 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
         String page, String size) {
         requireAdmin(adminPrincipal);
 
-        FlipbookRoomStatus statusFilter = parseStatusFilter(status);
+        Set<FlipbookRoomStatus> statusFilter = parseStatusFilter(status);
         int pageNumber = parsePage(page);
         int pageSize = parseSize(size);
 
         List<FlipbookRoomState> activeRooms = flipbookRoomRepository.findAllActiveRooms();
         List<FlipbookRoomState> filtered = activeRooms.stream()
             .filter(room -> room.status() != FlipbookRoomStatus.CLOSED)
-            .filter(room -> statusFilter == null || room.status() == statusFilter)
+            .filter(room -> statusFilter.contains(room.status()))
             .sorted(Comparator.comparing(FlipbookRoomState::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
                 .thenComparing(FlipbookRoomState::roomCode, Comparator.nullsLast(Comparator.naturalOrder())))
             .toList();
@@ -109,14 +115,19 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
         }
     }
 
-    private FlipbookRoomStatus parseStatusFilter(String value) {
+    private Set<FlipbookRoomStatus> parseStatusFilter(String value) {
         if (!StringUtils.hasText(value)) {
-            return null;
+            return DEFAULT_ACTIVE_STATUS_FILTER;
+        }
+
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if (IN_PROGRESS_STATUS_FILTER.equals(normalized)) {
+            return EnumSet.of(FlipbookRoomStatus.PLAYING, FlipbookRoomStatus.FINALIZING);
         }
 
         FlipbookRoomStatus parsed;
         try {
-            parsed = FlipbookRoomStatus.valueOf(value.trim().toUpperCase(Locale.ROOT));
+            parsed = FlipbookRoomStatus.valueOf(normalized);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(INVALID_STATUS_MESSAGE);
         }
@@ -125,7 +136,7 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
             throw new BadRequestException(INVALID_STATUS_MESSAGE);
         }
 
-        return parsed;
+        return EnumSet.of(parsed);
     }
 
     private int parsePage(String value) {
