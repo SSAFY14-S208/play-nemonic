@@ -22,6 +22,7 @@ import com.nemonicworld.community.repository.CommunityMemoDetailRow;
 import com.nemonicworld.community.repository.CommunityMemoRepository;
 import com.nemonicworld.community.repository.CommunityMemoRow;
 import com.nemonicworld.community.repository.CommunityMemoSourceGalleryRow;
+import com.nemonicworld.community.service.support.CommunityRuntimeSettingsProvider;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationException;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationRequest;
@@ -72,7 +73,6 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final String MODERATION_BLOCKED_MESSAGE = "부적절한 표현이 감지되어 게시할 수 없습니다.";
     private static final String MODERATION_UNAVAILABLE_MESSAGE = "커뮤니티 메모 모더레이션을 완료할 수 없습니다.";
     private static final String EMPTY_DECORATION_JSON = "{}";
-    private static final int MAX_VISIBLE_MEMO_COUNT = 50;
     private static final int REPORT_HIDE_THRESHOLD = 5;
     private static final int MODERATION_LOG_TEXT_PREVIEW_LIMIT = 300;
     private static final long MODERATION_SLOW_LOG_THRESHOLD_MS = 30_000L;
@@ -84,6 +84,7 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private final AnonymousUserResolver anonymousUserResolver;
     private final FileUploadRepository fileUploadRepository;
     private final CommunityMemoModerationClient communityMemoModerationClient;
+    private final CommunityRuntimeSettingsProvider communityRuntimeSettingsProvider;
     private final ObjectMapper objectMapper;
 
     /**
@@ -92,12 +93,13 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     public CommunityMemoServiceImpl(CommunityMemoRepository communityMemoRepository,
         MinioPublicUrlResolver minioPublicUrlResolver, AnonymousUserResolver anonymousUserResolver,
         FileUploadRepository fileUploadRepository, CommunityMemoModerationClient communityMemoModerationClient,
-        ObjectMapper objectMapper) {
+        CommunityRuntimeSettingsProvider communityRuntimeSettingsProvider, ObjectMapper objectMapper) {
         this.communityMemoRepository = communityMemoRepository;
         this.minioPublicUrlResolver = minioPublicUrlResolver;
         this.anonymousUserResolver = anonymousUserResolver;
         this.fileUploadRepository = fileUploadRepository;
         this.communityMemoModerationClient = communityMemoModerationClient;
+        this.communityRuntimeSettingsProvider = communityRuntimeSettingsProvider;
         this.objectMapper = objectMapper;
     }
 
@@ -702,17 +704,18 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     }
 
     /**
-     * 생성 직후 visible 메모가 50개를 초과하면 새 메모를 제외한 오래된 메모를 만료 처리합니다.
+     * 생성 직후 visible 메모가 설정된 한도를 초과하면 새 메모를 제외한 오래된 메모를 만료 처리합니다.
      */
     private void expireOverflowVisibleMemos(UUID newMemoId, LocalDateTime now) {
         int visibleMemoCount = communityMemoRepository.countVisibleMemos();
-        int overflowCount = visibleMemoCount - MAX_VISIBLE_MEMO_COUNT;
+        int maxVisibleMemoCount = communityRuntimeSettingsProvider.currentMaxVisibleMemoCount();
+        int overflowCount = visibleMemoCount - maxVisibleMemoCount;
         CommunityMemoEventLogger.business("community_memo_fifo_checked",
             metadata("new_memo_id", newMemoId, "visible_memo_count", visibleMemoCount, "max_visible_memo_count",
-                MAX_VISIBLE_MEMO_COUNT, "overflow_count", Math.max(overflowCount, 0)));
+                maxVisibleMemoCount, "overflow_count", Math.max(overflowCount, 0)));
         if (overflowCount <= 0) {
             CommunityMemoEventLogger.business("community_memo_fifo_skipped", metadata("new_memo_id", newMemoId,
-                "visible_memo_count", visibleMemoCount, "limit", MAX_VISIBLE_MEMO_COUNT));
+                "visible_memo_count", visibleMemoCount, "limit", maxVisibleMemoCount));
             return;
         }
 
