@@ -1,10 +1,10 @@
 import { adminApi } from '@/shared/libs'
 import type {
+  AdminCommunityMemoDetailResponse,
   AdminCommunityMemoListParams,
   AdminCommunityMemoListResponse,
   AdminCommunityMemoReportListParams,
   AdminCommunityMemoReportListResponse,
-  AdminCommunityMemoResponse,
   AdminCommunityMemoReviewRequest,
   ApiResponse,
 } from '@/shared/types'
@@ -21,9 +21,12 @@ export const getAdminCommunityMemoList = (params?: AdminCommunityMemoListParams)
   )
 
 // GET /admin/community/memos/{memoId} — 관리자 커뮤니티 메모 상세 조회
+// 응답에 decoration 객체와 신고 내역(reports[])이 포함된다.
 export const getAdminCommunityMemo = (memoId: string) =>
   apiUnwrap(
-    adminApi.get<ApiResponse<AdminCommunityMemoResponse>>(`admin/community/memos/${memoId}`),
+    adminApi.get<ApiResponse<AdminCommunityMemoDetailResponse>>(
+      `admin/community/memos/${memoId}`,
+    ),
   )
 
 // GET /admin/community/memos/{memoId}/reports — 메모 신고 내역 조회
@@ -44,7 +47,7 @@ export const patchAdminCommunityMemoHide = (
   payload: AdminCommunityMemoReviewRequest,
 ) =>
   apiUnwrap(
-    adminApi.patch<ApiResponse<AdminCommunityMemoResponse>>(
+    adminApi.patch<ApiResponse<AdminCommunityMemoDetailResponse>>(
       `admin/community/memos/${memoId}/hide`,
       payload,
     ),
@@ -56,7 +59,7 @@ export const patchAdminCommunityMemoRestore = (
   payload: AdminCommunityMemoReviewRequest,
 ) =>
   apiUnwrap(
-    adminApi.patch<ApiResponse<AdminCommunityMemoResponse>>(
+    adminApi.patch<ApiResponse<AdminCommunityMemoDetailResponse>>(
       `admin/community/memos/${memoId}/restore`,
       payload,
     ),
