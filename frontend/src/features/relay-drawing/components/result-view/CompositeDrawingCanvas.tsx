@@ -62,10 +62,11 @@ export default function CompositeDrawingCanvas({
     (roundKey) => roundLines[roundKey].length > 0,
   )
   const dotRowCount = Math.ceil(viewBoxHeight / 20)
+  // separator는 final 합성에서 각 라운드 drawArea가 시작하는 y 위치에 그린다.
+  // drawArea가 캔버스 안에서 어디에 있든(face: 0, body/legs: 120) 최종 좌표계에선
+  // finalOffsetY가 그 라운드 drawArea의 시작점이다.
   const separatorPositions = RELAY_ROUND_ORDER.slice(1).map(
-    (roundKey) =>
-      RELAY_ROUND_RULES[roundKey].finalOffsetY +
-      RELAY_ROUND_RULES[roundKey].drawArea.y,
+    (roundKey) => RELAY_ROUND_RULES[roundKey].finalOffsetY,
   )
 
   return (
@@ -120,7 +121,7 @@ export default function CompositeDrawingCanvas({
           textAnchor="middle"
           dominantBaseline="middle"
           fill="#947c40"
-          fontFamily="Pretendard Variable"
+          fontFamily="Paperlogy"
           fontSize={18}
           fontWeight={700}
         >

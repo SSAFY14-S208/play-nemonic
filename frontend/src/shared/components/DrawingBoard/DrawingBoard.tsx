@@ -16,6 +16,7 @@ interface DrawingBoardProps {
   onionSkinLines?: DrawingLine[]
   drawArea?: DrawingArea
   backgroundColor?: string
+  backgroundCornerRadius?: number
   gridColor?: string
   gridGap?: number
   onionSkinOpacity?: number
@@ -33,6 +34,7 @@ export default function DrawingBoard({
   onionSkinLines = [],
   drawArea,
   backgroundColor = '#fffdf7',
+  backgroundCornerRadius = 16,
   gridColor = '#ffa8b8',
   gridGap = 20,
   onionSkinOpacity = 0.22,
@@ -80,7 +82,7 @@ export default function DrawingBoard({
           width={boardSize.width}
           height={boardSize.height}
           fill={backgroundColor}
-          cornerRadius={16}
+          cornerRadius={backgroundCornerRadius}
         />
 
         {gridDots.map((dot) => (
@@ -106,7 +108,11 @@ export default function DrawingBoard({
             clipWidth={boardSize.width}
             clipHeight={clipArea.height}
           >
-            <DrawingLineGroup lines={onionSkinLines} eraserColor={backgroundColor} />
+            <DrawingLineGroup
+              lines={onionSkinLines}
+              boardSize={boardSize}
+              eraserColor={backgroundColor}
+            />
           </Group>
         </Layer>
       )}
@@ -118,7 +124,7 @@ export default function DrawingBoard({
           clipWidth={boardSize.width}
           clipHeight={clipArea.height}
         >
-          <DrawingLineGroup lines={lines} eraserColor={backgroundColor} />
+          <DrawingLineGroup lines={lines} boardSize={boardSize} eraserColor={backgroundColor} />
         </Group>
       </Layer>
 
@@ -131,9 +137,11 @@ export default function DrawingBoard({
 
 function DrawingLineGroup({
   lines,
+  boardSize,
   eraserColor,
 }: {
   lines: DrawingLine[]
+  boardSize: DrawingBoardSize
   eraserColor: string
 }) {
   return (
@@ -141,7 +149,14 @@ function DrawingLineGroup({
       {lines.map((line) => {
         if (line.kind === 'fill') {
           if (line.imageDataUrl) {
-            return <RasterFillImage key={line.id} imageDataUrl={line.imageDataUrl} />
+            return (
+              <RasterFillImage
+                key={line.id}
+                imageDataUrl={line.imageDataUrl}
+                width={boardSize.width}
+                height={boardSize.height}
+              />
+            )
           }
 
           return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Copy, Crown, QrCode, X } from "lucide-react";
+import { ArrowLeft, Copy, Crown, X } from "lucide-react";
 
 import { useUserStore } from "@/shared/stores";
 import type { RelayRoomParticipantResponse } from "@/shared/types";
@@ -9,13 +9,21 @@ import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from "../constants";
 import { useRelayLobby } from "../hooks";
 import { useRelayDrawingStore } from "../stores";
 import { cn } from "@/shared/libs";
-import { PostItNote } from "@/shared/components";
+
+import RelayButton from "./RelayButton";
+
+const PANEL_CARD_CLASS =
+  "rounded-3xl bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)] sm:px-8";
 
 export default function RelayLobbyView() {
   const roomCode = useRelayDrawingStore((state) => state.roomCode);
   const participants = useRelayDrawingStore((state) => state.participants);
-  const maxParticipants = useRelayDrawingStore((state) => state.maxParticipants);
-  const timeLimitSeconds = useRelayDrawingStore((state) => state.timeLimitSeconds);
+  const maxParticipants = useRelayDrawingStore(
+    (state) => state.maxParticipants,
+  );
+  const timeLimitSeconds = useRelayDrawingStore(
+    (state) => state.timeLimitSeconds,
+  );
   const currentUserUuid = useUserStore((state) => state.userUuid);
 
   const {
@@ -31,6 +39,7 @@ export default function RelayLobbyView() {
     changeTimeLimit,
     kickParticipant,
     copyInviteLink,
+    copyRoomCode,
     leaveRoom,
   } = useRelayLobby();
 
@@ -40,60 +49,72 @@ export default function RelayLobbyView() {
     : `🎨 게임 시작 (${participants.length}명)`;
 
   return (
-    <section className="relative h-full overflow-hidden border border-relay-border bg-relay-background">
-      <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <button
-          type="button"
-          onClick={leaveRoom}
-          className="body-b absolute left-[3%] top-[4%] z-10 inline-flex items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm"
-        >
-          <ArrowLeft className="size-5" aria-hidden />
-          나가기
-        </button>
-
-        <PostItNote
-          title="입장 코드를 담은 노란 포스트잇 배경 이미지"
-          className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-[#FFE787]"
-        />
-
-        <div className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
-          <p className="h2-b text-relay-ink/80">입장 코드</p>
-          <p
-            className="font-bold tracking-[8px] text-relay-ink"
-            style={{ fontSize: "clamp(4.5rem, 7vw, 6rem)", lineHeight: 1 }}
+    <section className="relative isolate min-h-full overflow-hidden border border-relay-border bg-relay-background">
+      <div className="mx-auto flex min-h-screen w-full max-w-360 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 lg:h-screen lg:min-h-0 lg:gap-8 lg:px-[5%] lg:py-8">
+        {/* 헤더 — 나가기 버튼 */}
+        <header className="flex items-center">
+          {/* nav 스타일 — RelayButton 흡수 대신 호버 피드백(translateY)만 통일. */}
+          <button
+            type="button"
+            onClick={leaveRoom}
+            className="body-b inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
           >
-            {roomCode ?? RELAY_ROOM_CODE}
-          </p>
-          <div className="mt-2 flex gap-10">
-            <button
-              type="button"
-              onClick={copyInviteLink}
-              className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
-            >
-              <Copy className="size-[17px]" aria-hidden />
-              {copyConfirm ? "복사됨" : "링크 복사"}
-            </button>
-            {/* TODO(차기): QR 코드 모달. 현재는 시각 요소만 유지 */}
-            <button
-              type="button"
-              className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
-            >
-              <QrCode className="size-[17px]" aria-hidden />
-              QR 코드
-            </button>
-          </div>
-        </div>
+            <ArrowLeft className="size-5" aria-hidden />
+            나가기
+          </button>
+        </header>
 
-        <div className="absolute left-[49.9%] top-[19.2%] flex h-[65.4%] w-[43.3%] flex-col gap-5">
-          <section className="rounded-[24px] bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
+        {/* 메인 grid — 모바일은 1열 stack(order-{n}), lg+는 좌측 참여자(전체 높이) +
+            우측 입장코드/시간/시작 stack. */}
+        <main className="grid flex-1 grid-cols-1 content-start gap-4 lg:grid-cols-[5fr_7fr] lg:grid-rows-[auto_auto_1fr] lg:gap-6">
+          {/* ② 입장 코드 — 모바일 최상단(공유 글랜스 가치), 데스크탑 우측 1행 */}
+          <div
+            className={cn(
+              PANEL_CARD_CLASS,
+              "order-1 flex flex-col items-center gap-4",
+            )}
+          >
+            <p className="h3-b text-relay-ink/80">입장 코드</p>
+            <p
+              className="font-bold tracking-[0.4em] text-relay-ink"
+              style={{ fontSize: "clamp(2.5rem, 5vw, 4.5rem)", lineHeight: 1 }}
+            >
+              {roomCode ?? RELAY_ROOM_CODE}
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={copyInviteLink}
+                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
+              >
+                <Copy className="size-[17px]" aria-hidden />
+                {copyConfirm === "link" ? "복사됨" : "링크 복사"}
+              </button>
+              <button
+                type="button"
+                onClick={copyRoomCode}
+                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
+              >
+                <Copy className="size-[17px]" aria-hidden />
+                {copyConfirm === "roomCode" ? "복사됨" : "입장 코드 복사"}
+              </button>
+            </div>
+          </div>
+
+          {/* ③ 참여자 — 모바일 두번째, 데스크탑 좌측 (3행 전체 높이) */}
+          <div
+            className={cn(
+              PANEL_CARD_CLASS,
+              "order-2 lg:col-start-1 lg:row-start-1 lg:row-span-3",
+            )}
+          >
             <div className="flex items-center gap-1">
               <h2 className="h3-b text-relay-ink">참여자</h2>
               <span className="h3-b text-relay-accent">
                 {participants.length}/{maxParticipants}
               </span>
             </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-1 gap-3">
               {participants.map((participant) => (
                 <ParticipantTile
                   key={participant.userUuid}
@@ -104,28 +125,35 @@ export default function RelayLobbyView() {
                   onKick={() => kickParticipant(participant.userUuid)}
                 />
               ))}
-              {Array.from({ length: waitingSlotCount }).map((_, waitingSlotIndex) => (
-                <div
-                  key={`waiting-${waitingSlotIndex}`}
-                  className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
-                >
-                  초대를 기다리는 중...
-                </div>
-              ))}
+              {Array.from({ length: waitingSlotCount }).map(
+                (_, waitingSlotIndex) => (
+                  <div
+                    key={`waiting-${waitingSlotIndex}`}
+                    className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
+                  >
+                    초대를 기다리는 중...
+                  </div>
+                ),
+              )}
             </div>
             {kickError && (
               <p role="alert" className="caption-r mt-3 text-error">
                 {kickError}
               </p>
             )}
-          </section>
+          </div>
 
-          <section className="rounded-[24px] bg-relay-paper px-8 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
+          {/* ④ 제한 시간 — 모바일 세번째, 데스크탑 우측 2행 */}
+          <div
+            className={cn(
+              PANEL_CARD_CLASS,
+              "order-3 lg:col-start-2 lg:row-start-2",
+            )}
+          >
             <h2 className="h3-b text-relay-muted">⏱ 제한 시간</h2>
             <div className="mt-5 grid grid-cols-3 gap-3">
               {RELAY_TIME_LIMITS_SECONDS.map((seconds) => {
                 const isSelected = seconds === timeLimitSeconds;
-
                 return (
                   <button
                     key={seconds}
@@ -133,7 +161,7 @@ export default function RelayLobbyView() {
                     onClick={() => changeTimeLimit(seconds)}
                     disabled={!isHost}
                     className={cn(
-                      "body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent disabled:cursor-not-allowed",
+                      "body-b min-h-12 cursor-pointer rounded-[12px] border border-relay-line bg-relay-active text-relay-accent transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:brightness-100",
                       isSelected &&
                         "border-relay-accent bg-relay-accent/20 text-relay-ink",
                       !isHost && !isSelected && "opacity-60",
@@ -149,28 +177,31 @@ export default function RelayLobbyView() {
                 {settingsError}
               </p>
             )}
-          </section>
+          </div>
 
-          {isHost ? (
-            <button
-              type="button"
-              onClick={startGame}
-              disabled={!canStartGame}
-              className="body-b min-h-16 rounded-[16px] bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)] disabled:opacity-45"
-            >
-              {startButtonLabel}
-            </button>
-          ) : (
-            <p className="body-r min-h-16 grid place-items-center text-relay-muted">
-              방장이 게임을 시작할 때까지 기다려주세요
-            </p>
-          )}
-          {startError && (
-            <p role="alert" className="caption-r text-error">
-              {startError}
-            </p>
-          )}
-        </div>
+          {/* ⑤ 시작 버튼 / 대기 메시지 — 모바일 마지막(엄지 영역), 데스크탑 우측 3행 */}
+          <div className="order-4 flex flex-col gap-2 lg:col-start-2 lg:row-start-3 lg:self-end">
+            {isHost ? (
+              <RelayButton
+                onClick={startGame}
+                disabled={!canStartGame}
+                size="xl"
+                className="rounded-3xl shadow-[0_6px_16px_rgba(184,121,22,0.4)]"
+              >
+                {startButtonLabel}
+              </RelayButton>
+            ) : (
+              <div className="body-r grid min-h-16 place-items-center rounded-3xl border border-dashed border-relay-accent px-6 text-relay-muted">
+                방장이 게임을 시작할 때까지 기다려주세요
+              </div>
+            )}
+            {startError && (
+              <p role="alert" className="caption-r text-error">
+                {startError}
+              </p>
+            )}
+          </div>
+        </main>
       </div>
     </section>
   );
@@ -199,7 +230,7 @@ function ParticipantTile({
   return (
     <div
       className={cn(
-        "flex min-h-14 items-center gap-3 rounded-[16px] border border-relay-line bg-relay-active px-3.5",
+        "flex min-h-14 items-center gap-3 rounded-2xl border border-relay-line bg-relay-active px-3.5",
         !participant.connected && "opacity-60",
       )}
     >

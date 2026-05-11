@@ -81,6 +81,10 @@ export interface CanvasSlice {
   isSubmitted: boolean
   submittedCount: number
   totalCount: number
+  // 현재 파트에서 이미 제출한 참여자의 userUuid 목록 — 우측 친구 패널이
+  // "X님 완료" 표시를 띄우는 데 쓴다. PART_STARTED / GAME_STARTED / setAssignment
+  // 시점에 비워지고, PART_SUBMITTED / PART_AUTO_SUBMITTED 수신 시 추가된다.
+  submittedUserUuids: string[]
 
   // 라운드별 데드라인/제출 상태 — 라운드 전환 시 cross-round auto-submit 방지.
   // roundDeadlines[round] === null이면 해당 라운드 데드라인 미수신 → 자동 제출 금지.
@@ -91,10 +95,23 @@ export interface CanvasSlice {
   // 라운드 전환 애니메이션
   isTransitioning: boolean
 
+  // PART_TIME_UP 수신 ~ PART_STARTED(또는 ALL_PARTS_COMPLETED) 사이.
+  // RelayDrawingView가 검은 오버레이 + 스피너로 "다음 파트 준비 중" 표시.
+  isPartTimeUp: boolean
+
   // WS 이벤트(GAME_STARTED/PART_STARTED) 전용 카운터 — effect 트리거용.
   // partDeadlineAt을 effect 의존성으로 쓰면 setAssignment 내부 set이
   // 재트리거를 유발하므로, 트리거와 데이터 세팅을 분리한다.
   partFetchTrigger: number
+
+  // PART_TIME_UP 수신 시 본인이 미제출자 목록에 있으면 increment.
+  // useRelayDrawingGame이 effect로 감지해 submitDrawing을 호출한다.
+  // 같은 카운터 값으로 재호출되지 않는 단조 증가 트리거 — partFetchTrigger와 동일 패턴.
+  pendingAutoSubmitTrigger: number
+
+  // undo로 빠져나간 라인을 라운드별로 보관하는 redo 스택. 새 라인이 commit되면
+  // 비워진다(표준 redo 동작 — 새 액션 후엔 redo가 의미를 잃기 때문).
+  roundRedoStack: RelayRoundLines
 
   setActiveRoundKey: (roundKey: RelayRoundKey) => void
   // completeRound: 로컬 미리보기 용도(서버 연결 없이 라운드 전환).
@@ -106,6 +123,7 @@ export interface CanvasSlice {
   commitLine: (line: RelayDrawLine) => void
   appendPointToLastLine: (point: RelayDrawPoint) => void
   undoLine: () => void
+  redoLine: () => void
   clearRoundLines: () => void
 
   // 서버 배정 적용 — getRelayRoomAssignmentMe 응답으로 캔버스/파트/힌트를 세팅하고
@@ -116,10 +134,16 @@ export interface CanvasSlice {
   markSubmitted: (roundKey?: RelayRoundKey) => void
   setRoundDeadline: (roundKey: RelayRoundKey, deadline: string) => void
   updateSubmissionProgress: (submittedCount: number, totalCount: number) => void
+  // 한 파트에서 같은 사용자가 두 번 들어오는 경우는 백엔드가 막지만, 클라이언트
+  // 입장에서도 dedup으로 안전망. 같은 userUuid면 무시된다.
+  addSubmittedUserUuid: (userUuid: string) => void
+  clearSubmittedUserUuids: () => void
   // beginTransition / advanceToNextRound: 라운드 전환 애니메이션 제어.
   beginTransition: () => void
   advanceToNextRound: () => void
   incrementPartFetchTrigger: () => void
+  setPartTimeUp: (value: boolean) => void
+  triggerPendingAutoSubmit: () => void
   clearAssignment: () => void
 }
 

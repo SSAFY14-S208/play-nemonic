@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { parseServerInstant } from '@/shared/utils'
 import { useRelayDrawingStore } from '../stores'
 
 const EXPIRING_THRESHOLD_SECONDS = 10
@@ -33,10 +32,8 @@ export function useRelayTimer(): UseRelayTimerReturn {
 
   const computeRemaining = useCallback(() => {
     if (!partDeadlineAt) return timeLimitSeconds
-    // 서버가 timezone suffix 없이 LocalDateTime으로 직렬화하므로 parseServerInstant
-    // 로 UTC 강제 해석. 그렇지 않으면 브라우저 로컬 timezone에 따라 deadline이
-    // 9시간(KST 기준) 어긋나 timer가 즉시 0으로 떨어진다.
-    const deadlineMs = parseServerInstant(partDeadlineAt).getTime()
+    // 백엔드가 timezone-aware ISO-8601 문자열로 deadline을 보내므로 그대로 파싱.
+    const deadlineMs = new Date(partDeadlineAt).getTime()
     const nowMs = Date.now()
     return Math.max(0, Math.ceil((deadlineMs - nowMs) / 1000))
   }, [partDeadlineAt, timeLimitSeconds])

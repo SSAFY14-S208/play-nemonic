@@ -6,15 +6,23 @@ import type {
   FlipbookSessionSnapshot,
 } from '@/shared/types'
 import {
-  FLIPBOOK_PARTICIPANTS,
   FLIPBOOK_ROOM_CODE,
   FLIPBOOK_TOPIC,
-  type FlipbookStep,
-  type FlipbookTimeLimitSeconds,
 } from '../constants'
-import type { FlipbookFrame } from '../types'
+import type {
+  FlipbookFrame,
+  FlipbookParticipant,
+  FlipbookStep,
+} from '../types'
 
 const DEMO_FLIPBOOK_ID = 'demo-flipbook'
+const LOCAL_PARTICIPANT_FALLBACK: FlipbookParticipant = {
+  id: 'local-flipbook-user',
+  userUuid: 'local-flipbook-user',
+  name: '나',
+  avatar: '🙂',
+  isHost: true,
+}
 
 export function compactFlipbookFrames(frames: FlipbookFrame[]) {
   return frames
@@ -26,22 +34,18 @@ export function createFlipbookRequestId(actionName: string) {
   return `${actionName}-${Date.now()}-${crypto.randomUUID()}`
 }
 
-export function createFlipbookSettings({
-  minimumRoundCount,
-  participantCount,
-  roundCount,
-  selectedTimeLimitSeconds,
+export function createLocalFlipbookParticipant({
+  nickname,
+  userUuid,
 }: {
-  minimumRoundCount: number
-  participantCount: number
-  roundCount: number
-  selectedTimeLimitSeconds: FlipbookTimeLimitSeconds
-}): FlipbookSessionSettings {
+  nickname: string | null
+  userUuid: string | null
+}): FlipbookParticipant {
   return {
-    timeLimitSeconds: selectedTimeLimitSeconds,
-    roundCount,
-    minimumRoundCount,
-    frameCountPerFlipbook: participantCount * roundCount,
+    ...LOCAL_PARTICIPANT_FALLBACK,
+    userUuid: userUuid ?? LOCAL_PARTICIPANT_FALLBACK.userUuid,
+    name: nickname ? `${nickname} (나)` : LOCAL_PARTICIPANT_FALLBACK.name,
+    isHost: true,
   }
 }
 
@@ -86,6 +90,7 @@ export function createFlipbookSessionSnapshot({
   completedFramePayloads,
   currentFrameLines,
   currentStep,
+  participants,
   roomId,
   settings,
 }: {
@@ -93,6 +98,7 @@ export function createFlipbookSessionSnapshot({
   completedFramePayloads: FlipbookFramePayload[]
   currentFrameLines: DrawingLine[]
   currentStep: FlipbookStep
+  participants: FlipbookParticipant[]
   roomId: string | null
   settings: FlipbookSessionSettings
 }): FlipbookSessionSnapshot {
@@ -101,7 +107,7 @@ export function createFlipbookSessionSnapshot({
     roomCode: FLIPBOOK_ROOM_CODE,
     topic: FLIPBOOK_TOPIC,
     phase: currentStep,
-    participants: FLIPBOOK_PARTICIPANTS.map((participant, participantIndex) => ({
+    participants: participants.map((participant, participantIndex) => ({
       userUuid: participant.userUuid,
       nickname: participant.name,
       avatar: participant.avatar,

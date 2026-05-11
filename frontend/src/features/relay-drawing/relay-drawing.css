@@ -1,0 +1,34 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   relay-drawing.css — feature 도메인 폰트 override
+   릴레이 드로잉 화면 전체에 Paperlogy 폰트를 적용한다.
+   shared typography utility(h1-b, body-r, ...)는 명시적으로
+   `font-family: var(--font-pretendard)`를 가지므로 부모 element의 font-family
+   를 자연 상속하지 못한다. 따라서 `.font-paperlogy` 마커가 붙은 element와
+   그 자손의 typography utility를 명시적으로 override한다.
+
+   - 부모/자식 컴파운드 셀렉터 (specificity 0,2,0)로 utility (0,1,0)를 이긴다.
+   - 마커가 붙은 element 자체에도 family 적용 — utility 없이 텍스트만 두는
+     element를 위해.
+   - 모달은 base-ui Dialog.Portal로 body 직하에 렌더되어 부모 트리 상속을
+     받지 못하므로, 각 Dialog.Popup className에 직접 `font-paperlogy`를 둔다.
+───────────────────────────────────────────────────────────────────────────── */
+
+.font-paperlogy,
+.font-paperlogy
+  :is(
+    .h1-b,
+    .h2-b,
+    .h3-b,
+    .h4-b,
+    .body-l-b,
+    .body-l-m,
+    .body-l-r,
+    .body-b,
+    .body-m,
+    .body-r,
+    .caption-b,
+    .caption-m,
+    .caption-r
+  ) {
+  font-family: var(--font-paperlogy);
+}

@@ -1,12 +1,13 @@
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 
-import { RELAY_RESULT_ACTIONS } from '../constants'
-import { useRelayResult } from '../hooks'
-import { useRelayDrawingStore } from '../stores'
-import { cn } from '@/shared/libs'
+import { RELAY_RESULT_ACTIONS } from "../constants";
+import { useRelayResult } from "../hooks";
+import { useRelayDrawingStore } from "../stores";
+import { cn } from "@/shared/libs";
 
+import RelayButton from "./RelayButton";
 import {
   ResultAlbumsPanel,
   ResultCanvas,
@@ -14,7 +15,10 @@ import {
   ResultProgressStrip,
   ResultStageHeader,
   ResultStepNav,
-} from './result-view'
+} from "./result-view";
+
+const PANEL_CARD_CLASS =
+  "rounded-3xl bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)] sm:px-8";
 
 // roomStatus === 'FINISHED' 일 때 RelayRoomPage가 렌더한다.
 // 결과 단계는 useRelayResult 훅이 들고 있는 reveal 인덱스로 분기:
@@ -23,8 +27,8 @@ import {
 // sub-components는 ./result-view/ 폴더에 분리. 이 파일은 데이터 플로우와
 // 레이아웃 조립만 담당한다.
 export default function RelayResultView() {
-  const router = useRouter()
-  const clearRoom = useRelayDrawingStore((state) => state.clearRoom)
+  const router = useRouter();
+  const clearRoom = useRelayDrawingStore((state) => state.clearRoom);
   const {
     // Reveal navigation
     reveals,
@@ -44,46 +48,53 @@ export default function RelayResultView() {
     segments,
     participantCount,
     ownerNickname,
-    ownerAvatar,
     completedAtLabel,
 
-    // Host actions
+    // Host action — fire-and-forget로 백엔드 close 호출만 수행
     isHost,
-    isClosingRoom,
-    closeRoomError,
     closeRoom,
 
     // Fallback
     roundLines,
-  } = useRelayResult()
+  } = useRelayResult();
 
-  // "새 릴레이 만들기" — 현재 룸 정리 후 부스로 이동.
-  // 호스트면 백엔드 close까지 하는 게 맞지만 wiring 단계에서 분기 처리.
-  const handleStartNew = () => {
-    clearRoom()
-    router.push('/relay-drawing')
-  }
+  // "로비로 돌아가기" — 호스트면 방 종료까지 같이 처리한 뒤 부스로 이동.
+  // roomStatus가 단방향(FINISHED→WAITING 전환 API 없음)이라 같은 방의
+  // 대기 로비로는 못 돌아가므로, 새 방을 만들거나 다른 방에 입장할 수 있는
+  // 부스(/relay-drawing)가 의미상 가장 가까운 "로비".
+  // closeRoom은 fire-and-forget — API/WS 결과를 기다리지 않고 즉시 화면 정리 후
+  // 부스로 이동한다. 다른 참가자에게 ROOM_CLOSED는 백엔드/WS가 책임진다.
+  const handleReturnToLobby = () => {
+    if (isHost) closeRoom();
+    clearRoom();
+    router.push("/relay-drawing");
+  };
 
   return (
-    <section className="min-h-screen bg-relay-background px-6 py-10 text-relay-ink lg:px-12 lg:py-14">
-      <div className="mx-auto w-full max-w-[1312px]">
+    <section className="relative isolate min-h-full border border-relay-border bg-relay-background">
+      <div className="mx-auto flex min-h-screen w-full max-w-360 flex-col gap-4 px-4 py-6 sm:gap-6 sm:px-6 lg:gap-4 lg:px-[5%] lg:py-6">
         <ResultProgressStrip
           activeReveal={activeReveal}
           activeRevealIndex={activeRevealIndex}
           reveals={reveals}
           completedAtLabel={completedAtLabel}
           ownerNickname={ownerNickname}
-          ownerAvatar={ownerAvatar}
         />
 
-        <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,880px)_400px] lg:items-start">
-          <section
+        {/* 메인 grid — 모바일은 1열 stack(order-{n}), lg+는 좌측 Canvas(2행 전체 높이)
+            + 우측 Credits/Albums 상하 stack. viewport 잠금을 두지 않아 콘텐츠가
+            늘어나면 자연스럽게 페이지 스크롤로 밀려난다. */}
+        <main className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[7fr_5fr] lg:grid-rows-[1fr_auto] lg:gap-4">
+          {/* ② Canvas — 좌측 메인 영역 */}
+          <div
             className={cn(
-              'overflow-hidden rounded-[18px] bg-relay-paper px-5 py-6 shadow-[0_14px_28px_rgba(212,156,31,0.12)] md:px-7',
-              isFinalReveal ? 'min-h-[687px]' : 'min-h-[716px]',
+              PANEL_CARD_CLASS,
+              "order-1 flex flex-col gap-3 lg:col-start-1 lg:row-start-1 lg:row-span-2",
             )}
           >
-            {!isFinalReveal && <ResultStageHeader activeReveal={activeReveal} />}
+            {!isFinalReveal && (
+              <ResultStageHeader activeReveal={activeReveal} />
+            )}
 
             <ResultCanvas
               activeReveal={activeReveal}
@@ -103,9 +114,15 @@ export default function RelayResultView() {
                 onShowNextResultReveal={goToNextResultReveal}
               />
             )}
-          </section>
+          </div>
 
-          <aside className="flex min-h-[716px] flex-col gap-4">
+          {/* ③ Credits — 우측 상단 */}
+          <div
+            className={cn(
+              PANEL_CARD_CLASS,
+              "order-2 lg:col-start-2 lg:row-start-1",
+            )}
+          >
             <ResultCreditsPanel
               activeReveal={activeReveal}
               activeRevealIndex={activeRevealIndex}
@@ -113,66 +130,58 @@ export default function RelayResultView() {
               segments={segments}
               participantCount={participantCount}
               ownerNickname={ownerNickname}
-              ownerAvatar={ownerAvatar}
             />
+          </div>
+
+          {/* ④ Albums — 우측 하단 */}
+          <div
+            className={cn(
+              PANEL_CARD_CLASS,
+              "order-3 lg:col-start-2 lg:row-start-2",
+            )}
+          >
             <ResultAlbumsPanel
               resultItems={resultItems}
               activeResultIndex={activeResultIndex}
               onSelectResult={setActiveResultIndex}
             />
-            <div className="hidden flex-1 lg:block" />
+          </div>
+        </main>
 
-            {isFinalReveal && (
-              <>
-                <div className="grid min-h-[60px] gap-3 sm:grid-cols-2">
-                  {RELAY_RESULT_ACTIONS.map(({ label, Icon }, index) => (
-                    <button
-                      key={label}
-                      type="button"
-                      className={cn(
-                        'body-b inline-flex items-center justify-center gap-2 rounded-[14px] border-[1.5px] px-5',
-                        index === 0 &&
-                          'border-relay-line bg-relay-paper text-relay-ink',
-                        index !== 0 &&
-                          'border-relay-accent bg-relay-accent text-relay-ink shadow-[0_4px_10px_rgba(212,156,31,0.18)]',
-                      )}
-                    >
-                      <Icon className="size-4" aria-hidden />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleStartNew}
-                  className="caption-b self-center text-relay-muted"
-                >
-                  새 릴레이 만들기
-                </button>
-
-                {isHost && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={closeRoom}
-                      disabled={isClosingRoom}
-                      className="caption-b self-center text-relay-muted underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isClosingRoom ? '방 종료 중…' : '방 종료하기'}
-                    </button>
-                    {closeRoomError && (
-                      <p role="alert" className="caption-r self-center text-error">
-                        {closeRoomError}
-                      </p>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </aside>
+        {/* ⑤ 액션 카드 — 단계와 무관하게 항상 노출. 호스트/게스트 동일하게 3개 버튼
+            (보관함에 / 광장에 전시하기 / 로비로 돌아가기). 호스트의 방 종료는
+            "로비로 돌아가기" 핸들러 안에서 함께 처리된다. */}
+        <div
+          className={cn(
+            PANEL_CARD_CLASS,
+            "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3",
+          )}
+        >
+          {RELAY_RESULT_ACTIONS.map(({ label, Icon }, index) => (
+            <RelayButton
+              key={label}
+              variant={index === 0 ? "secondary" : "primary"}
+              size="md"
+              className={cn(
+                "gap-2 rounded-[14px] border-[1.5px]",
+                index === 0
+                  ? "border-relay-line"
+                  : "border-relay-accent shadow-[0_4px_10px_rgba(212,156,31,0.18)]",
+              )}
+            >
+              <Icon className="size-4" aria-hidden />
+              {label}
+            </RelayButton>
+          ))}
+          <RelayButton
+            onClick={handleReturnToLobby}
+            size="md"
+            className="rounded-[14px] border-[1.5px] border-relay-accent shadow-[0_4px_10px_rgba(212,156,31,0.18)]"
+          >
+            {isHost ? "방 종료" : "로비로 돌아가기"}
+          </RelayButton>
         </div>
       </div>
     </section>
-  )
+  );
 }

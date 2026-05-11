@@ -1,28 +1,57 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { DrawingSessionControls, DrawingToolPanel } from '@/shared/components'
-import type { DrawingLine, DrawingPointerEvent, DrawingToolKey } from '@/shared/types'
+import Image from 'next/image'
+import { useEffect, useState } from 'react'
 import {
-  FLIPBOOK_COLORS,
-  FLIPBOOK_PARTICIPANTS,
-  type FlipbookParticipant,
-} from '../constants'
+  Check,
+  Eye,
+  EyeOff,
+  Timer,
+} from 'lucide-react'
+import { cn } from '@/shared/libs'
+import type {
+  DrawingLine,
+  DrawingPointerEvent,
+  DrawingToolKey,
+  FlipbookConnectionStatus,
+} from '@/shared/types'
+import { FLIPBOOK_COLORS } from '../constants'
+import type { FlipbookDrawingSubmissionState, FlipbookParticipant } from '../types'
+import {
+  ColorPanel,
+  MobileColorGrid,
+  MobileToolGrid,
+  ProgressRail,
+  ToolPanel,
+  TopStatusBar,
+} from './drawing-view'
 
 const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
   ssr: false,
 })
 
+const FLIPBOOK_DRAWING_IMAGES = {
+  background: '/images/flipbook-lobby/background.png',
+}
+
 interface FlipbookDrawingViewProps {
   activeRoundIndex: number
-  roundCount: number
+  roundCount: number | null
   remainingSeconds: number
   currentParticipant: FlipbookParticipant
+  isSubmitting: boolean
+  isRoundSubmitted: boolean
+  connectionStatus: FlipbookConnectionStatus
+  errorMessage: string | null
   lines: DrawingLine[]
   previousFrameLines: DrawingLine[]
   selectedToolKey: DrawingToolKey
   selectedColor: string
   strokeWidth: number
+  recentColors: string[]
+  canUndoDrawing: boolean
+  canRedoDrawing: boolean
   onSelectTool: (toolKey: DrawingToolKey) => void
   onSelectColor: (color: string) => void
   onStrokeWidthChange: (strokeWidth: number) => void
@@ -33,7 +62,7 @@ interface FlipbookDrawingViewProps {
   onDrawMove: (event: DrawingPointerEvent) => void
   onDrawEnd: () => void
   onExit: () => void
-  onCompleteRound: () => void
+  onCompleteRound: () => void | Promise<void>
 }
 
 export default function FlipbookDrawingView({
@@ -41,11 +70,18 @@ export default function FlipbookDrawingView({
   roundCount,
   remainingSeconds,
   currentParticipant,
+  isSubmitting,
+  isRoundSubmitted,
+  connectionStatus,
+  errorMessage,
   lines,
   previousFrameLines,
   selectedToolKey,
   selectedColor,
   strokeWidth,
+  recentColors,
+  canUndoDrawing,
+  canRedoDrawing,
   onSelectTool,
   onSelectColor,
   onStrokeWidthChange,
@@ -55,85 +91,330 @@ export default function FlipbookDrawingView({
   onDrawStart,
   onDrawMove,
   onDrawEnd,
-  onExit,
   onCompleteRound,
 }: FlipbookDrawingViewProps) {
+  const [submittedRoundIndex, setSubmittedRoundIndex] = useState<number | null>(null)
+  const [isOnionSkinVisible, setIsOnionSkinVisible] = useState(true)
+  const isConnectionUnstable =
+    connectionStatus === 'reconnecting' || connectionStatus === 'disconnected'
+  const displayRoundCount = Math.max(roundCount ?? activeRoundIndex + 1, activeRoundIndex + 1, 1)
+  const isWaitingForNextRound =
+    (isRoundSubmitted || submittedRoundIndex === activeRoundIndex) && !isSubmitting
+  const drawingSubmissionState: FlipbookDrawingSubmissionState = isSubmitting
+    ? 'submitting'
+    : isWaitingForNextRound
+      ? 'waiting'
+      : 'drawing'
+  const isDrawingLocked = isConnectionUnstable || drawingSubmissionState !== 'drawing'
+  const hasOnionSkinHint = previousFrameLines.length > 0
+  const instructionText =
+    activeRoundIndex === 0
+      ? '첫 장면을 그려주세요'
+      : hasOnionSkinHint && isOnionSkinVisible
+        ? '연하게 보이는 이전 그림을 이어 그려주세요'
+        : '다음 장면을 이어 그려주세요'
+  const submitButtonText =
+    drawingSubmissionState === 'submitting'
+      ? '제출 중'
+      : drawingSubmissionState === 'waiting'
+        ? '대기 중'
+        : '완료!'
+  const overlayMessage =
+    drawingSubmissionState === 'submitting'
+      ? '그림을 제출하고 있어요'
+      : drawingSubmissionState === 'waiting'
+        ? '제출 완료! 다음 라운드를 기다리는 중이에요'
+        : null
+  const hintToggleLabel = hasOnionSkinHint
+    ? isOnionSkinVisible
+      ? '힌트 끄기'
+      : '힌트 보기'
+    : '힌트 없음'
+
+  const toggleOnionSkinVisibility = () => {
+    if (!hasOnionSkinHint) return
+
+    setIsOnionSkinVisible((currentVisibility) => !currentVisibility)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      if (submittedRoundIndex === null) return
+
+      const shouldUnlockDrawing =
+        (submittedRoundIndex !== activeRoundIndex && !isRoundSubmitted) || errorMessage !== null
+      if (!cancelled && shouldUnlockDrawing) {
+        setSubmittedRoundIndex(null)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeRoundIndex, errorMessage, isRoundSubmitted, submittedRoundIndex])
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      if (!cancelled) {
+        setIsOnionSkinVisible(true)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeRoundIndex, previousFrameLines.length])
+
+  const handleCompleteRound = () => {
+    if (isDrawingLocked) return
+
+    setSubmittedRoundIndex(activeRoundIndex)
+    void onCompleteRound()
+  }
+
   return (
-    <section className="relative min-h-[900px] overflow-hidden border border-flipbook-light bg-flipbook-background text-flipbook-ink">
-      <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <DrawingSessionControls
-          tone="flipbook"
-          remainingSeconds={remainingSeconds}
-          onExit={onExit}
+    <section
+      className="relative min-h-screen overflow-y-auto bg-[#fdf1e6] text-[#30343b] lg:grid lg:h-screen lg:place-items-center lg:overflow-hidden"
+      aria-label={`${currentParticipant.name} 플립북 드로잉`}
+    >
+      <Image
+        src={FLIPBOOK_DRAWING_IMAGES.background}
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="pointer-events-none object-cover"
+        aria-hidden
+      />
+
+      <div className="relative z-10 grid w-full gap-4 px-3 py-4 lg:hidden">
+        <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div className="flex items-center justify-between gap-3">
+            <p className="h2-b text-[#f45d8d]">
+              {activeRoundIndex + 1}/{displayRoundCount}
+            </p>
+            <div className="body-b inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ead7c9] bg-white px-4 text-[#f45d8d]">
+              <Timer className="size-5" aria-hidden />
+              {remainingSeconds}초
+            </div>
+          </div>
+          <p className="body-b mt-3 text-[#30343b]">{instructionText}</p>
+          <button
+            type="button"
+            onClick={toggleOnionSkinVisibility}
+            disabled={!hasOnionSkinHint}
+            aria-pressed={hasOnionSkinHint ? isOnionSkinVisible : undefined}
+            className={cn(
+              'body-b mt-4 inline-flex min-h-10 items-center gap-2 rounded-full border px-4 transition',
+              hasOnionSkinHint
+                ? isOnionSkinVisible
+                  ? 'border-[#ff8bab] bg-[#ffecf3] text-[#db4d82]'
+                  : 'border-[#ead7c9] bg-white text-[#7d6251]'
+                : 'cursor-not-allowed border-[#ead7c9] bg-[#f7efe7] text-[#b9a799]',
+            )}
+          >
+            {isOnionSkinVisible && hasOnionSkinHint ? (
+              <Eye className="size-5" aria-hidden />
+            ) : (
+              <EyeOff className="size-5" aria-hidden />
+            )}
+            {hintToggleLabel}
+          </button>
+        </div>
+
+        <MobileToolGrid
+          selectedToolKey={selectedToolKey}
+          canUndoDrawing={canUndoDrawing}
+          canRedoDrawing={canRedoDrawing}
+          isDrawingLocked={isDrawingLocked}
+          onSelectTool={onSelectTool}
+          onUndoDrawing={onUndoDrawing}
+          onRedoDrawing={onRedoDrawing}
+          onClearDrawing={onClearDrawing}
         />
 
-        <aside className="absolute left-[27px] top-[247px] flex h-[481px] w-[225px] flex-col justify-center gap-4 rounded-[18px] bg-flipbook-paper p-5 shadow-[0_4px_16px_10px_var(--color-flipbook-shadow)]">
-          <DrawingToolPanel
-            tone="flipbook"
-            selectedToolKey={selectedToolKey}
+        <MobileColorGrid
+          colors={FLIPBOOK_COLORS}
+          selectedColor={selectedColor}
+          strokeWidth={strokeWidth}
+          isDrawingLocked={isDrawingLocked}
+          onSelectColor={onSelectColor}
+          onStrokeWidthChange={onStrokeWidthChange}
+        />
+
+        <div className="overflow-x-auto rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div className="relative h-[520px] w-[680px] overflow-hidden rounded-[8px] bg-white">
+            <FlipbookStage
+              lines={lines}
+              previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
+              disabled={isDrawingLocked}
+              onDrawStart={onDrawStart}
+              onDrawMove={onDrawMove}
+              onDrawEnd={onDrawEnd}
+            />
+            {(overlayMessage || isConnectionUnstable) && (
+              <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-flipbook-deep">
+                {isConnectionUnstable ? '연결 끊김 — 재연결 중...' : overlayMessage}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleCompleteRound}
+          disabled={isDrawingLocked}
+          className={cn(
+            'body-l-b inline-flex min-h-14 items-center justify-center gap-3 rounded-[16px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
+            isDrawingLocked && 'cursor-not-allowed opacity-70',
+          )}
+        >
+          <span className="grid size-8 place-items-center rounded-full bg-white">
+            <Check className="size-5 text-[#ff4f93]" aria-hidden />
+          </span>
+          {submitButtonText === '완료!' ? '완료하기' : submitButtonText}
+        </button>
+        {errorMessage && (
+          <p className="caption-b rounded-[14px] bg-white/90 px-4 py-3 text-center text-flipbook-deep">
+            {errorMessage}
+          </p>
+        )}
+      </div>
+
+      <div className="relative hidden h-[819.2px] w-[1228.8px] shrink-0 lg:block">
+        <div className="absolute left-0 top-0 h-[1024px] w-[1536px] origin-top-left scale-[0.8]">
+          <TopStatusBar
+            activeRoundIndex={activeRoundIndex}
+            roundCount={displayRoundCount}
+            remainingSeconds={remainingSeconds}
+            instructionText={instructionText}
+          />
+
+          <ColorPanel
+            className={cn(isDrawingLocked && 'pointer-events-none opacity-60')}
+            colors={FLIPBOOK_COLORS}
             selectedColor={selectedColor}
             strokeWidth={strokeWidth}
-            colors={FLIPBOOK_COLORS}
-            onSelectTool={onSelectTool}
+            recentColors={recentColors}
             onSelectColor={onSelectColor}
             onStrokeWidthChange={onStrokeWidthChange}
+          />
+
+          <main className="absolute left-[432px] top-[195px] h-[566px] w-[738px]">
+            <div className="absolute inset-0 rounded-[8px] bg-white shadow-[0_8px_42px_-10px_rgb(0_0_0_/_25%)]" />
+            <div className="absolute left-[29px] top-[23px] z-10 h-[520px] w-[680px] overflow-hidden rounded-[4px] bg-white">
+              <FlipbookStage
+                lines={lines}
+                previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
+                disabled={isDrawingLocked}
+                onDrawStart={onDrawStart}
+                onDrawMove={onDrawMove}
+                onDrawEnd={onDrawEnd}
+              />
+              {overlayMessage && (
+                <div className="absolute inset-0 grid place-items-center bg-[#fff4a7]/70 text-flipbook-deep">
+                  <div className="rounded-[14px] bg-flipbook-paper/92 px-6 py-4 text-center shadow-[0_4px_12px_var(--color-flipbook-shadow)]">
+                    <p className="body-l-b">{overlayMessage}</p>
+                    <p className="caption-m mt-2 text-flipbook-deep/75">
+                      캔버스는 잠시 잠겨 있어요
+                    </p>
+                  </div>
+                </div>
+              )}
+              {isConnectionUnstable && (
+                <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-flipbook-deep">
+                  연결 끊김 — 재연결 중...
+                </div>
+              )}
+            </div>
+          </main>
+
+          <ToolPanel
+            className={cn(isDrawingLocked && 'pointer-events-none opacity-60')}
+            selectedToolKey={selectedToolKey}
+            canUndoDrawing={canUndoDrawing}
+            canRedoDrawing={canRedoDrawing}
+            onSelectTool={onSelectTool}
             onUndoDrawing={onUndoDrawing}
             onRedoDrawing={onRedoDrawing}
             onClearDrawing={onClearDrawing}
           />
-        </aside>
 
-        <main className="absolute left-[269px] top-[128px] h-[720px] w-[850px] overflow-hidden rounded-[16px] border-2 border-flipbook-grid bg-flipbook-paper">
-          <FlipbookStage
-            lines={lines}
-            previousFrameLines={previousFrameLines}
-            onDrawStart={onDrawStart}
-            onDrawMove={onDrawMove}
-            onDrawEnd={onDrawEnd}
+          <HintToggleButton
+            className="absolute left-[151px] top-[831px]"
+            hasOnionSkinHint={hasOnionSkinHint}
+            isOnionSkinVisible={isOnionSkinVisible}
+            onToggle={toggleOnionSkinVisibility}
           />
-          {previousFrameLines.length > 0 && (
-            <div className="caption-b pointer-events-none absolute left-5 top-5 rounded-full bg-flipbook-paper/90 px-4 py-2 text-flipbook-deep shadow-[0_4px_12px_var(--color-flipbook-shadow)]">
-              {currentParticipant.name} 차례 · 이전 그림을 희미하게 보고 이어 그려요
-            </div>
-          )}
-        </main>
 
-        <aside className="absolute left-[1136px] top-[143px] h-[550px] w-[270px] overflow-hidden rounded-[18px] bg-flipbook-paper p-6 shadow-[0_4px_16px_10px_var(--color-flipbook-shadow)]">
-          <div className="flex items-center justify-between">
-            <p className="h4-b text-flipbook-ink">라운드 진행</p>
-            <p className="h2-b text-flipbook-ink">
-              {activeRoundIndex + 1}/{roundCount}
+          <ProgressRail activeRoundIndex={activeRoundIndex} roundCount={displayRoundCount} />
+
+          <button
+            type="button"
+            onClick={handleCompleteRound}
+            disabled={isDrawingLocked}
+            className={cn(
+              'body-l-b absolute left-[1225px] top-[831px] inline-flex h-[62px] w-[204px] items-center justify-center gap-3 rounded-[14px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
+              isDrawingLocked && 'cursor-not-allowed opacity-70',
+            )}
+          >
+            <span className="grid size-8 place-items-center rounded-full bg-white">
+              <Check className="size-5 text-[#ff4f93]" aria-hidden />
+            </span>
+            {submitButtonText === '완료!' ? '완료하기' : submitButtonText}
+          </button>
+          {errorMessage && (
+            <p className="caption-b absolute left-[432px] top-[782px] w-[738px] text-center text-flipbook-deep">
+              {errorMessage}
             </p>
-          </div>
-          <div className="mt-4 h-px bg-flipbook-primary" />
-          <p className="h4-b mt-4 text-flipbook-ink">함께하는 친구들</p>
-          <div className="mt-4 grid gap-4">
-            {FLIPBOOK_PARTICIPANTS.map((participant) => (
-              <div
-                key={participant.id}
-                className="flex min-h-12 items-center gap-3 rounded-[12px] bg-flipbook-light px-3 text-flipbook-deep"
-              >
-                <span className="grid size-7 place-items-center rounded-full border border-flipbook-paper bg-flipbook-light">
-                  {participant.avatar}
-                </span>
-                <span className="body-b">{participant.name}</span>
-              </div>
-            ))}
-          </div>
-          <div className="caption-r mt-4 rounded-[14px] bg-flipbook-primary px-4 py-3 text-flipbook-ink">
-            <p className="caption-b">팁</p>
-            <p className="mt-1">이전 그림 위에 덧붙이거나 옆에 새로 그려 이야기를 이어가요.</p>
-          </div>
-        </aside>
-
-        <button
-          type="button"
-          onClick={onCompleteRound}
-          className="body-b absolute left-[1136px] top-[762px] min-h-16 w-[270px] rounded-[16px] bg-flipbook-primary text-flipbook-ink shadow-[0_6px_16px_var(--color-flipbook-shadow)]"
-        >
-          입력 완료
-        </button>
+          )}
+        </div>
       </div>
     </section>
+  )
+}
+
+function HintToggleButton({
+  className,
+  hasOnionSkinHint,
+  isOnionSkinVisible,
+  onToggle,
+}: {
+  className?: string
+  hasOnionSkinHint: boolean
+  isOnionSkinVisible: boolean
+  onToggle: () => void
+}) {
+  const label = hasOnionSkinHint ? (isOnionSkinVisible ? '힌트 끄기' : '힌트 보기') : '힌트 없음'
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={!hasOnionSkinHint}
+      aria-label={label}
+      aria-pressed={hasOnionSkinHint ? isOnionSkinVisible : undefined}
+      title={label}
+      className={cn(
+        'body-b inline-flex h-[62px] w-[204px] items-center justify-center gap-3 rounded-[14px] border shadow-[0_8px_18px_rgb(129_89_54_/_13%)] transition',
+        hasOnionSkinHint
+          ? isOnionSkinVisible
+            ? 'border-[#ff8bab] bg-[#ffecf3] text-[#db4d82]'
+            : 'border-[#ead7c9] bg-white text-[#7d6251]'
+          : 'cursor-not-allowed border-[#ead7c9] bg-[#f7efe7] text-[#b9a799]',
+        className,
+      )}
+    >
+      {isOnionSkinVisible && hasOnionSkinHint ? (
+        <Eye className="size-5" aria-hidden />
+      ) : (
+        <EyeOff className="size-5" aria-hidden />
+      )}
+      {label}
+    </button>
   )
 }

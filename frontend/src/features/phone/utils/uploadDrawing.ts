@@ -1,10 +1,10 @@
 import { postFileConfirm, postFilePresign, postPhoneDrawing } from '@/shared/apis'
-import type { PhoneDrawingSaveResponse } from '@/shared/types'
+import type { FilePurpose, PhoneDrawingSaveResponse } from '@/shared/types'
 
 interface UploadDrawingArtifactOptions {
   fileName?: string
   contentType?: string
-  purpose?: string
+  purpose?: FilePurpose
   meta?: Record<string, unknown> | null
 }
 

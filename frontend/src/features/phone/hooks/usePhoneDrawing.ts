@@ -14,8 +14,7 @@ import type {
   PhoneDrawingToolKey,
   PhoneDrawLine,
 } from '../types'
-import { dataUrlToBlob } from '../utils/dataUrlToBlob'
-import { uploadDrawingArtifact } from '../utils/uploadDrawing'
+import { dataUrlToBlob, uploadDrawingArtifact } from '../utils'
 
 function createPhoneLineId() {
   if (typeof window !== 'undefined' && window.crypto?.randomUUID) {

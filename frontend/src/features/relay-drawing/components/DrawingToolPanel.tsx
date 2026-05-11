@@ -8,8 +8,8 @@ const DRAWING_TOOL_BUTTONS = [
   { key: "pencil", label: "연필", icon: "✏️", action: "select" },
   { key: "eraser", label: "지우개", icon: "🧽", action: "select" },
   { key: "bucket", label: "채우기", icon: "🪣", action: "select" },
-  { key: "undo", label: "되돌리기", icon: "↩️", action: "undo" },
-  { key: "redo", label: "다시 실행", icon: "↪️", action: "noop" },
+  { key: "undo", label: "되돌리기 (Ctrl+Z)", icon: "↩️", action: "undo" },
+  { key: "redo", label: "다시 실행 (Ctrl+Shift+Z)", icon: "↪️", action: "redo" },
   { key: "clear", label: "비우기", icon: "🗑️", action: "clear" },
 ] as const;
 
@@ -29,6 +29,7 @@ export default function DrawingToolPanel() {
   );
   const setStrokeWidth = useRelayDrawingStore((state) => state.setStrokeWidth);
   const undoLine = useRelayDrawingStore((state) => state.undoLine);
+  const redoLine = useRelayDrawingStore((state) => state.redoLine);
   const clearRoundLines = useRelayDrawingStore(
     (state) => state.clearRoundLines,
   );
@@ -52,17 +53,18 @@ export default function DrawingToolPanel() {
                     undoLine();
                     return;
                   }
-                  if (tool.action === "clear") {
-                    clearRoundLines();
+                  if (tool.action === "redo") {
+                    redoLine();
                     return;
                   }
-                  if (tool.action === "noop") {
+                  if (tool.action === "clear") {
+                    clearRoundLines();
                     return;
                   }
                   setSelectedToolKey(tool.key);
                 }}
                 className={cn(
-                  "grid size-[50px] place-items-center rounded-[14px] border border-relay-line bg-relay-active text-[22px]",
+                  "grid size-[50px] cursor-pointer place-items-center rounded-[14px] border border-relay-line bg-relay-active text-[22px] transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100",
                   isActive &&
                     "border-relay-accent-strong bg-relay-accent shadow-sm",
                 )}
@@ -84,7 +86,7 @@ export default function DrawingToolPanel() {
               aria-label={`${strokeWidthOption}px 굵기`}
               onClick={() => setStrokeWidth(strokeWidthOption)}
               className={cn(
-                "grid min-h-8 place-items-center rounded-[12px] border border-relay-line bg-relay-active",
+                "grid min-h-8 cursor-pointer place-items-center rounded-[12px] border border-relay-line bg-relay-active transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100",
                 strokeWidth === strokeWidthOption &&
                   "border-2 border-relay-line bg-relay-accent",
               )}
@@ -111,7 +113,7 @@ export default function DrawingToolPanel() {
               aria-label={`${color} 색상`}
               onClick={() => setSelectedColor(color)}
               className={cn(
-                "size-9 rounded-full border border-transparent",
+                "size-9 cursor-pointer rounded-full border border-transparent transition-transform hover:scale-110",
                 selectedColor === color &&
                   "border-[3px] border-relay-accent-strong",
                 color === "#ffffff" && "border-relay-dash",

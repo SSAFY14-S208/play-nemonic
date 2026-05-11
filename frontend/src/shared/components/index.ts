@@ -2,6 +2,7 @@
 export { DrawingBoard } from './DrawingBoard'
 export { DrawingSessionControls } from './DrawingSessionControls'
 export { DrawingToolPanel } from './DrawingToolPanel'
+export { BrowserExtensionErrorGuard } from './BrowserExtensionErrorGuard'
 export { PostItNote } from './PostItNote'
 export { UserBootstrap, UserBootstrapLoader } from './UserBootstrap'
 export { WorldHomeLink } from './WorldHomeLink'
