@@ -77,10 +77,6 @@ public class FlipbookRoomResultQueryUseCase {
         FlipbookRoomState existingRoomState = roomState
             .orElseThrow(() -> new NotFoundException(RESULT_NOT_FOUND_MESSAGE));
         validateResultPollingAllowed(existingRoomState, viewerUserUuid.toString());
-        if (existingRoomState.status() == FlipbookRoomStatus.FINISHED) {
-            return new FlipbookRoomResultsResponse(roomCodeValue, existingRoomState.status(), true, 0, List.of());
-        }
-
         return new FlipbookRoomResultsResponse(roomCodeValue, existingRoomState.status(), false, 0, List.of());
     }
 

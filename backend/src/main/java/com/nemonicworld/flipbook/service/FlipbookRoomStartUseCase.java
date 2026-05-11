@@ -3,6 +3,7 @@ package com.nemonicworld.flipbook.service;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
@@ -15,6 +16,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 플립북 게임 시작 유스케이스입니다.
@@ -53,6 +55,14 @@ public class FlipbookRoomStartUseCase {
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
+                FlipbookRoomEventLogger.apiBusiness("flipbook_game_started",
+                    metadata("room_id", updatedRoomState.roomCode(), "host_uuid", viewerUserUuid, "participant_count",
+                        updatedRoomState.participantCount(), "total_rounds", updatedRoomState.totalRounds(),
+                        "time_limit_seconds", updatedRoomState.timeLimitSeconds(), "round",
+                        updatedRoomState.currentRound()));
+                FlipbookRoomEventLogger.apiBusiness("flipbook_round_started",
+                    metadata("room_id", updatedRoomState.roomCode(), "round", updatedRoomState.currentRound(),
+                        "round_deadline_at", updatedRoomState.roundDeadlineAt()));
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 
                 return FlipbookRoomStateResponse.from(updatedRoomState, viewer);

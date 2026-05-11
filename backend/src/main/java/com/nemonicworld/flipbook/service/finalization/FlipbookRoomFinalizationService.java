@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * FINALIZING 방의 flipbookIndex별 최종 GIF를 만들고 artifact/gallery 저장 후 방을 FINISHED로
@@ -100,6 +102,8 @@ public class FlipbookRoomFinalizationService {
                 }
             } catch (RuntimeException e) {
                 log.warn("플립북 최종 GIF 결과물 생성 중 오류가 발생했습니다. roomCode={}", finalizingRoom.roomCode(), e);
+                FlipbookRoomEventLogger.apiWarn("flipbook_finalization_failed", "failed to finalize flipbook room",
+                    metadata("room_id", finalizingRoom.roomCode()), e);
             }
         }
 
@@ -116,6 +120,8 @@ public class FlipbookRoomFinalizationService {
     public FlipbookRoomFinalizationResult processFinalizingRoom(String roomCode) {
         String lockToken = createFinalizationLockToken(roomCode);
         if (!flipbookRoomRepository.acquireFinalizationLock(roomCode, lockToken, lockTtl)) {
+            FlipbookRoomEventLogger.apiWarn("flipbook_finalization_lock_busy",
+                "flipbook finalization skipped because finalization lock is busy", metadata("room_id", roomCode), null);
             return FlipbookRoomFinalizationResult.noOp(roomCode);
         }
 
@@ -154,6 +160,9 @@ public class FlipbookRoomFinalizationService {
 
         FlipbookRoomFinalizationResult result = FlipbookRoomFinalizationResult.finished(roomCode, artifacts, now);
         flipbookRoomEventPublisher.publishResultCreated(result);
+        FlipbookRoomEventLogger.websocketBusiness("flipbook_result_created",
+            metadata("room_id", roomCode, "room_status", result.roomStatus(), "result_count", result.resultCount(),
+                "artifact_ids", artifacts.stream().map(artifact -> artifact.artifactId().toString()).toList()));
 
         return result;
     }

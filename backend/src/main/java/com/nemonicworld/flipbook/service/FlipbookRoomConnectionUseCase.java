@@ -3,6 +3,7 @@ package com.nemonicworld.flipbook.service;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
@@ -14,6 +15,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 플립북 WebSocket 연결 상태 변경 유스케이스입니다.
@@ -82,6 +84,10 @@ public class FlipbookRoomConnectionUseCase {
             // 저장
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
+                if (connected && participant.disconnectedAt() != null) {
+                    FlipbookRoomEventLogger.websocketBusiness("flipbook_ws_reconnected", metadata("room_id",
+                        updatedRoomState.roomCode(), "uuid", viewerUserUuid, "room_status", updatedRoomState.status()));
+                }
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 
                 return FlipbookRoomStateResponse.from(updatedRoomState, viewer);

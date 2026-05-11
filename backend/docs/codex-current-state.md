@@ -415,6 +415,11 @@ Recent flipbook room mutation work aligned Redis state-change contention handlin
 - The lock protects shared `flipbook:room:{roomCode}` updates; existing Redis CAS retries remain as a final guard.
 - Flipbook auto-submit grace defaults to 5 seconds, and submit API processing now also uses an assignment-scoped submission lock.
 - Timeout auto-submit skips PENDING assignments that are currently protected by a flipbook submission lock.
+- Disconnect-grace now mirrors relay more closely: dropped participants' current PENDING frame assignments are auto-submitted immediately unless a submission lock is active, and round advancement/result finalizing events are published from that update.
+- `ROUND_TIME_UP` WebSocket payload now includes `pendingCount` and current-round `pendingSubmissions` with `flipbookIndex`, `frameIndex`, user UUID/nickname, and connected status.
+- FINISHED flipbook rooms now mirror relay's runtime lifecycle: `FlipbookRoomCloseScheduler` scans rooms past `nemonic.flipbook.close.delay-seconds`, transitions them to CLOSED through Redis CAS, syncs invite metadata, and publishes `ROOM_CLOSED`.
+- `FlipbookRoomEventLogger` now mirrors relay's structured logging wrapper and emits flipbook business/warn events for room lifecycle, WebSocket connect/disconnect, submission, timeout, disconnect-grace, finalization, and close flows.
+- Invite-code new joins now distinguish PLAYING rooms from closed rooms: relay and flipbook return `게임이 진행 중입니다.` for in-progress games and keep `이미 종료된 방입니다.` for non-waiting terminal states.
 
 Recent relay submission concurrency work added a room-scoped Redis mutation lock.
 

@@ -56,6 +56,11 @@ public interface FlipbookRoomRepository {
     List<FlipbookRoomState> findFinalizingRooms(int limit);
 
     /**
+     * 결과 생성이 끝난 뒤 close 기준 시각을 지난 FINISHED 방을 최대 limit개 조회합니다.
+     */
+    List<FlipbookRoomState> findClosableFinishedRooms(LocalDateTime closeCutoff, int limit);
+
+    /**
      * 특정 방의 최종 결과물 생성 lock을 획득합니다.
      */
     boolean acquireFinalizationLock(String roomCode, String token, Duration ttl);

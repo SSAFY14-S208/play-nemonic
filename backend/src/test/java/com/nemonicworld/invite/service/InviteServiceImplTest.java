@@ -194,6 +194,25 @@ class InviteServiceImplTest {
     }
 
     /**
+     * 이미 게임이 시작된 릴레이 방에는 신규 사용자가 초대코드로 입장할 수 없습니다.
+     */
+    @Test
+    void joinByInviteCodeRejectsNewRelayParticipantWhenGameIsPlaying() {
+        AppUser joiner = user(JOINER_UUID, "다현");
+        RelayRoomState roomState = room(RelayRoomStatus.PLAYING, hostParticipant());
+
+        given(anonymousUserResolver.resolve(JOINER_UUID)).willReturn(joiner);
+        given(inviteRepository.findByInviteCode(INVITE_CODE)).willReturn(Optional.of(activeInvite()));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> inviteService.joinByInviteCode(INVITE_CODE, JOINER_UUID))
+            .isInstanceOf(ConflictException.class).hasMessage("게임이 진행 중입니다.");
+
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
+    /**
      * 릴레이 방에서 강퇴된 UUID는 초대코드 입장 경로로도 재입장할 수 없습니다.
      */
     @Test
@@ -215,9 +234,13 @@ class InviteServiceImplTest {
     }
 
     private RelayRoomState waitingRoom(RelayRoomParticipant... participants) {
+        return room(RelayRoomStatus.WAITING, participants);
+    }
+
+    private RelayRoomState room(RelayRoomStatus status, RelayRoomParticipant... participants) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
-        return new RelayRoomState(ROOM_CODE, RelayRoomStatus.WAITING, HOST_UUID, 45, 2, 6, null, List.of(participants),
+        return new RelayRoomState(ROOM_CODE, status, HOST_UUID, 45, 2, 6, null, List.of(participants),
             now.minusMinutes(5), now);
     }
 

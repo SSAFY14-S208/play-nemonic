@@ -116,9 +116,25 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `relay_result_created`
 - `relay_room_closed`
 - `relay_temp_cleanup_completed`
+- `flipbook_room_created`
+- `flipbook_room_settings_changed`
+- `flipbook_participant_left`
+- `flipbook_participant_kicked`
+- `flipbook_host_changed`
+- `flipbook_ws_connected`
+- `flipbook_ws_reconnected`
+- `flipbook_ws_disconnected`
+- `flipbook_ws_connection_rejected`
+- `flipbook_duplicate_session_closed`
+- `flipbook_room_state_snapshot_sent`
+- `flipbook_game_started`
 - `flipbook_round_started`
+- `flipbook_round_time_up`
 - `flipbook_frame_submitted`
-- `flipbook_room_finished`
+- `flipbook_frame_auto_submitted`
+- `flipbook_participant_dropped`
+- `flipbook_all_rounds_completed`
+- `flipbook_result_created`
 - `flipbook_room_closed`
 
 포함 데이터:

@@ -35,6 +35,7 @@ public class RelayInviteJoinHandler implements InviteJoinHandler {
     private static final int ROOM_UPDATE_MAX_RETRIES = 3;
 
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
+    private static final String GAME_IN_PROGRESS_MESSAGE = "게임이 진행 중입니다.";
     private static final String ROOM_FULL_MESSAGE = "정원이 가득 찬 방입니다.";
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 입장 요청이 많아 방 입장 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
@@ -82,6 +83,10 @@ public class RelayInviteJoinHandler implements InviteJoinHandler {
      * 초대 링크 신규 입장은 아직 시작 전인 릴레이 대기방에서만 허용합니다.
      */
     private void validateJoinableRoom(RelayRoomState roomState) {
+        if (roomState.status() == RelayRoomStatus.PLAYING) {
+            throw new ConflictException(GAME_IN_PROGRESS_MESSAGE);
+        }
+
         if (roomState.status() != RelayRoomStatus.WAITING) {
             throw new ConflictException(ROOM_CLOSED_MESSAGE);
         }

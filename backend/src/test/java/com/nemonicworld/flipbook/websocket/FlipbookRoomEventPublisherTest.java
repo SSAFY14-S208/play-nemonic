@@ -18,6 +18,7 @@ import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEven
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomResultCreatedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
@@ -163,8 +164,10 @@ class FlipbookRoomEventPublisherTest {
             .forClass(FlipbookRoomEventResponse.class);
         LocalDateTime roundDeadlineAt = LocalDateTime.now().minusSeconds(1);
         LocalDateTime submitGraceDeadlineAt = roundDeadlineAt.plusSeconds(2);
+        PendingSubmission pendingSubmission = new PendingSubmission(1, 2, USER_UUID, "망고", true);
 
-        publisher.publishRoundTimeUp(ROOM_CODE, 2, roundDeadlineAt, submitGraceDeadlineAt, 2000L);
+        publisher.publishRoundTimeUp(ROOM_CODE, 2, roundDeadlineAt, submitGraceDeadlineAt, 2000L,
+            List.of(pendingSubmission));
 
         verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
         FlipbookRoomEventResponse event = eventCaptor.getValue();
@@ -176,6 +179,8 @@ class FlipbookRoomEventPublisherTest {
         assertThat(data.roundDeadlineAt()).isEqualTo(roundDeadlineAt);
         assertThat(data.submitGraceDeadlineAt()).isEqualTo(submitGraceDeadlineAt);
         assertThat(data.autoSubmitGraceMillis()).isEqualTo(2000L);
+        assertThat(data.pendingCount()).isEqualTo(1);
+        assertThat(data.pendingSubmissions()).containsExactly(pendingSubmission);
     }
 
     /**

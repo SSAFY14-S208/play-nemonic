@@ -295,7 +295,11 @@ class FlipbookRoomTimeoutServiceTest {
         verify(flipbookRoomTimeUpNotificationRepository).markRoundTimeUpNotified(eq(ROOM_CODE), eq(1),
             eq(roundDeadlineAt), eq(FlipbookRoomRepository.ROOM_STATE_TTL));
         verify(flipbookRoomEventPublisher).publishRoundTimeUp(eq(ROOM_CODE), eq(1), eq(roundDeadlineAt),
-            eq(roundDeadlineAt.plus(AUTO_SUBMIT_GRACE_MS, ChronoUnit.MILLIS)), eq(AUTO_SUBMIT_GRACE_MS));
+            eq(roundDeadlineAt.plus(AUTO_SUBMIT_GRACE_MS, ChronoUnit.MILLIS)), eq(AUTO_SUBMIT_GRACE_MS),
+            org.mockito.ArgumentMatchers.argThat(pendingSubmissions -> pendingSubmissions.size() == 1
+                && pendingSubmissions.get(0).flipbookIndex() == 0 && pendingSubmissions.get(0).frameIndex() == 0
+                && pendingSubmissions.get(0).userUuid().equals(hostUuid.toString())
+                && pendingSubmissions.get(0).nickname().equals("Mango") && pendingSubmissions.get(0).connected()));
         verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
     }
 
@@ -314,7 +318,7 @@ class FlipbookRoomTimeoutServiceTest {
 
         assertThat(result.scannedRoomCount()).isZero();
         verify(flipbookRoomEventPublisher, never()).publishRoundTimeUp(any(), any(Integer.class), any(), any(),
-            anyLong());
+            anyLong(), any());
         verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
     }
 

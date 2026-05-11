@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.service;
 
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
@@ -15,6 +16,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 플립북 대기실 참여자 강퇴 유스케이스입니다.
@@ -60,6 +62,9 @@ public class FlipbookRoomKickUseCase {
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
+                FlipbookRoomEventLogger.apiBusiness("flipbook_participant_kicked",
+                    metadata("room_id", updatedRoomState.roomCode(), "host_uuid", viewerUserUuid, "target_uuid",
+                        targetParticipant.userUuid(), "participant_count", updatedRoomState.participantCount()));
                 return new FlipbookRoomKickResponse(updatedRoomState.roomCode(), targetParticipant.userUuid(),
                     targetParticipant.nickname(), updatedRoomState.participantCount(), now);
             }
