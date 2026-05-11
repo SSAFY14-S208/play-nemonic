@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -345,7 +346,9 @@ class AdminCommunityMemoControllerIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT updated_at FROM community_memo WHERE id = ?",
             LocalDateTime.class, memoId)).isEqualTo(baseTime.plusMinutes(1));
         assertPreservedMemoSnapshot(memoId);
-        verifyNoInteractions(adminAuditLogger, moderationClient);
+        verify(adminAuditLogger).logCommunityMemoReportsViewed(any(AdminPrincipal.class), any(AdminClientInfo.class),
+            eq(memoId.toString()), isNull(), eq(0), eq(20), eq(1L));
+        verifyNoInteractions(moderationClient);
     }
 
     @Test
