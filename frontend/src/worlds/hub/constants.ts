@@ -64,7 +64,7 @@ export const HUB_CENTER_NEMONIC_MAX_SIZE = 2.36
 export const HUB_COMMUNITY_CANVAS_BOOK_POSITION: [number, number, number] = [0.55, 0.76, -4.8]
 export const HUB_COMMUNITY_CANVAS_BOOK_ROTATION_Y = Math.PI - 0.22
 export const HUB_COMMUNITY_CANVAS_BOOK_MAX_SIZE = 5.625
-export const HUB_FLIPBOOK_BUNNY_POSITION: [number, number, number] = [-4.45, 0.82, 4.35]
+export const HUB_FLIPBOOK_BUNNY_POSITION: [number, number, number] = [-2.6, 0.82, 4.35]
 export const HUB_FLIPBOOK_BUNNY_ROTATION_Y = -Math.PI / 2
 export const HUB_FLIPBOOK_BUNNY_MAX_SIZE = 4.2
 export const HUB_FLIPBOOK_RUNNING_RABBIT_HEIGHT = 2.2
@@ -87,19 +87,19 @@ export const HUB_RELAY_DRAWING_PLACEHOLDER_CUBES: Array<{
     name: 'relay-drawing-cube-primary',
     position: [-0.72, 0.36, 0],
     scale: [0.82, 0.82, 0.82],
-    color: '#ffe0db',
+    color: '#fff4cc',
   },
   {
     name: 'relay-drawing-cube-secondary',
     position: [0.04, 0.55, -0.18],
     scale: [0.92, 0.92, 0.92],
-    color: '#ffc6cc',
+    color: '#ffe49c',
   },
   {
     name: 'relay-drawing-cube-tertiary',
     position: [0.84, 0.42, 0.12],
     scale: [0.76, 0.76, 0.76],
-    color: '#ffafb9',
+    color: '#ffd870',
   },
 ]
 
