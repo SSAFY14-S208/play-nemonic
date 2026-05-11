@@ -3,6 +3,7 @@ package com.nemonicworld.flipbook.service;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.request.FlipbookFrameSubmitRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomCloseResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
@@ -51,6 +52,11 @@ public interface FlipbookRoomService {
      * 기존 익명 사용자인 참여자의 플립북 최종 결과를 조회합니다.
      */
     FlipbookRoomResultsResponse getResults(String userUuidValue, String roomCodeValue);
+
+    /**
+     * 기존 익명 사용자인 방장이 결과 생성이 완료된 플립북 방을 즉시 종료합니다.
+     */
+    FlipbookRoomCloseResponse closeRoom(String userUuidValue, String roomCodeValue);
 
     /**
      * 기존 익명 사용자인 방장이 대기 중 플립북 방의 일반 참여자를 강퇴합니다.
