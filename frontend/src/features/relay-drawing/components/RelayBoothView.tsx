@@ -1,8 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
-import Link from "next/link";
 import { useState } from "react";
 
 import { useRelayBooth } from "../hooks";
@@ -85,17 +83,6 @@ export default function RelayBoothView() {
         {/* 데코 배경 — sparkle/squiggle/post-it 등 (lg+에서만 표시).
             인트로 시퀀스가 끝난 시점(좌측 페이드 인 트리거)에 함께 등장. */}
         <RelayBoothBackground isVisible={isLeftRevealed} />
-
-        {/* 우측 상단 — 허브로 돌아가기. 인트로 애니메이션 중에도 사용자가 빠져나갈
-            수 있도록 isLeftRevealed와 무관하게 항상 노출. next/link로 prefetch.
-            nav 패턴이라 RelayButton 대신 동일 호버 피드백(translateY)만 적용. */}
-        <Link
-          href="/hub"
-          className="body-b absolute left-4 top-4 z-10 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95 sm:left-6 sm:top-6 lg:left-[5%]"
-        >
-          <ArrowLeft className="size-5" aria-hidden />
-          네모닉 월드로 돌아가기
-        </Link>
 
         {/* 컨테이너 — 모바일/태블릿: 세로 stack, lg+: 가로 row.
             높이도 lg+에서만 고정(900px), 그 이하는 viewport 높이 기준으로 자연스럽게. */}
