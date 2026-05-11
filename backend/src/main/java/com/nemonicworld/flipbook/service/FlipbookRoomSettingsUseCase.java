@@ -4,6 +4,7 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
@@ -14,6 +15,7 @@ import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 플립북 방 설정 변경 유스케이스입니다.
@@ -50,6 +52,10 @@ public class FlipbookRoomSettingsUseCase {
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
+                FlipbookRoomEventLogger.apiBusiness("flipbook_room_settings_changed",
+                    metadata("room_id", updatedRoomState.roomCode(), "uuid", viewerUserUuid,
+                        "time_limit_seconds_before", roomState.timeLimitSeconds(), "time_limit_seconds_after",
+                        updatedRoomState.timeLimitSeconds(), "room_status", updatedRoomState.status()));
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 
                 return FlipbookRoomStateResponse.from(updatedRoomState, viewer);

@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.service;
 
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
@@ -14,6 +15,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 플립북 방 생성 유스케이스입니다.
@@ -58,6 +60,10 @@ public class FlipbookRoomCreateUseCase {
 
         flipbookRoomRepository.save(roomState);
         flipbookInviteMetadataSyncService.syncWithRoomState(roomState);
+        FlipbookRoomEventLogger.apiBusiness("flipbook_room_created",
+            metadata("room_id", roomCode, "host_uuid", hostUser.getId(), "min_participants",
+                roomState.minParticipants(), "max_participants", roomState.maxParticipants(), "time_limit_seconds",
+                roomState.timeLimitSeconds()));
 
         return FlipbookRoomCreateResponse.from(roomState);
     }

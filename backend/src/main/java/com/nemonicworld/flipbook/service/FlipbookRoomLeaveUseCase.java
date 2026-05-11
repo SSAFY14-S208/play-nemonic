@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.service;
 
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
@@ -15,6 +16,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 플립북 대기실 자발적 퇴장 유스케이스입니다.
@@ -48,6 +50,21 @@ public class FlipbookRoomLeaveUseCase {
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, leaveResult.roomState())) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(leaveResult.roomState());
+                FlipbookRoomEventLogger.apiBusiness("flipbook_participant_left",
+                    metadata("room_id", leaveResult.roomState().roomCode(), "uuid", leavingParticipant.userUuid(),
+                        "participant_count", leaveResult.roomState().participantCount(), "room_status",
+                        leaveResult.roomState().status()));
+                if (leaveResult.hostChanged()) {
+                    FlipbookRoomEventLogger.apiBusiness("flipbook_host_changed",
+                        metadata("room_id", leaveResult.roomState().roomCode(), "previous_host_uuid",
+                            leavingParticipant.userUuid(), "new_host_uuid", leaveResult.newHostUserUuid()));
+                }
+                if (leaveResult.roomState().status() == FlipbookRoomStatus.CLOSED) {
+                    FlipbookRoomEventLogger.apiBusiness("flipbook_room_closed",
+                        metadata("room_id", leaveResult.roomState().roomCode(), "close_reason", "last_participant_left",
+                            "room_status_before", roomState.status(), "participant_count",
+                            roomState.participantCount()));
+                }
                 return new FlipbookRoomLeaveResponse(leaveResult.roomState().roomCode(), leavingParticipant.userUuid(),
                     leavingParticipant.nickname(), leaveResult.roomState().participantCount(),
                     leaveResult.hostChanged(), leaveResult.newHostUserUuid(), leaveResult.newHostNickname(),
