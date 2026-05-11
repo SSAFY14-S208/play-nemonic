@@ -35,7 +35,8 @@ public class BackofficeFlipbookRoomController {
     private static final String LIST_SUCCESS_MESSAGE = "활성 플립북 방 목록 조회 성공";
     private static final String DELETE_SUCCESS_MESSAGE = "플립북 방 삭제 성공";
     private static final String LIST_OPERATION_DESCRIPTION = "관리자가 백오피스에서 활성 플립북 방(WAITING/PLAYING/FINISHED)을 조회합니다.";
-    private static final String STATUS_PARAMETER_DESCRIPTION = "방 상태 필터: WAITING, PLAYING, FINISHED. CLOSED 제외.";
+    private static final String STATUS_PARAMETER_DESCRIPTION = "방 상태 필터: WAITING, PLAYING, FINISHED. "
+        + "CLOSED는 허용되지 않습니다.";
     private static final String ROOM_DESC = "삭제할 공유 방코드";
     private static final String INVALID_STATUS_EXAMPLE = OpenApiErrorExamples.BACKOFFICE_FLIPBOOK_ROOM_INVALID_STATUS;
     private static final String UPDATE_CONFLICT_EXAMPLE = OpenApiErrorExamples.BACKOFFICE_FLIPBOOK_ROOM_UPDATE_CONFLICT;

@@ -371,17 +371,20 @@ Recent artifact image URL lookup work added `GET /api/v1/artifacts/{artifactId}/
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.artifact.*' --no-daemon
 ```
 
-Recent artifact QR download work adds `GET /api/v1/artifacts/{artifactId}/download`.
+Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/download` and
+`POST /api/v1/artifacts/{artifactId}/share`.
 
-- The download API verifies the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
-- Downloadable artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, and `community_memo`; `phone` and `infinite_canvas` return unsupported-kind errors for this flow.
+- Both APIs verify the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
+- Download/share artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, and `community_memo`; `phone` and `infinite_canvas` return unsupported-kind errors for this flow.
 - QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and `QR_DOWNLOAD` channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
 - The API creates or reuses a QR-composed MinIO cache object, then returns JPG/GIF bytes as an attachment.
 - Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr.gif` with QR overlaid on every frame.
-- `POST /api/v1/share` remains token/link generation only; image share flows can later reuse the artifact download cache or add a separate response contract.
+- `POST /api/v1/artifacts/{artifactId}/share` reuses the same QR cache and returns the public QR image URL plus Kakao/Instagram UTM URLs in the existing `ShareCreateResponse` shape.
+- Community memo QR assets read `community_memo.body_image_url` first, then `community_memo.thumbnail_image_url`, and only fall back to `artifact.thumbnail_url`.
+- `POST /api/v1/share` remains the older galleryId-based token/link generation endpoint.
 
 ```bash
-./gradlew --no-daemon spotlessApply test --tests com.nemonicworld.artifact.controller.ArtifactControllerIntegrationTest --tests com.nemonicworld.artifact.controller.ArtifactOpenApiIntegrationTest --tests com.nemonicworld.artifact.service.download.ArtifactDownloadServiceImplTest --tests com.nemonicworld.artifact.service.download.ArtifactQrComposerTest --tests com.nemonicworld.share.service.SignedShareTokenIssuerTest
+./gradlew --no-daemon test --tests com.nemonicworld.artifact.service.download.ArtifactDownloadServiceImplTest --tests com.nemonicworld.artifact.service.share.ArtifactShareServiceImplTest --tests com.nemonicworld.artifact.controller.ArtifactControllerIntegrationTest --tests com.nemonicworld.artifact.controller.ArtifactOpenApiIntegrationTest
 ```
 
 Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/result`.

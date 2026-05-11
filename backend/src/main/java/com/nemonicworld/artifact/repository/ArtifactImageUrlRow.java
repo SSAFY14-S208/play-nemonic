@@ -7,5 +7,5 @@ import java.util.UUID;
  */
 public record ArtifactImageUrlRow(UUID artifactId, String kind, String thumbnailUrl, String fortuneImageUrl,
     String relayCombinedPreviewUrl, String flipbookGifUrl, String flipbookFirstImageUrl, String infiniteCanvasImageUrl,
-    String phoneImageUrl) {
+    String phoneImageUrl, String communityMemoOriginalImageUrl, String communityMemoThumbnailImageUrl) {
 }

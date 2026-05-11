@@ -39,6 +39,20 @@ public class ShareEventLogger {
         emit(userUuid, galleryItem.kind(), SHARE_LINK_CREATED_EVENT, "sns share info created", metadata);
     }
 
+    /**
+     * artifact ID 기반 공유 정보 생성 이벤트를 비즈니스 이벤트 로그로 남깁니다.
+     */
+    public void logArtifactShareCreated(String userUuid, String shareToken, UUID artifactId, String artifactKind,
+        String campaign) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("share_token", shareToken);
+        metadata.put("artifact_id", artifactId);
+        metadata.put("artifact_kind", artifactKind);
+        metadata.put("utm_campaign", campaign);
+
+        emit(userUuid, artifactKind, SHARE_LINK_CREATED_EVENT, "artifact sns share info created", metadata);
+    }
+
     private void emit(String userUuid, String contentType, String eventName, String message,
         Map<String, Object> metadata) {
         Map<String, Object> eventLog = new LinkedHashMap<>();

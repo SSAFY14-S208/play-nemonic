@@ -1,6 +1,7 @@
 @host = http://localhost:8080
 @userUuid = 653f31da-6179-45e9-93bc-93ceabef1e89
 @galleryId = 8d25f3a5-3c5a-4f21-9f54-68fa4a402011
+@artifactId = 8d25f3a5-3c5a-4f21-9f54-68fa4a402011
 
 ### SNS share info
 POST {{host}}/api/v1/share
@@ -10,3 +11,7 @@ Content-Type: application/json
 {
   "galleryId": "{{galleryId}}"
 }
+
+### Artifact SNS share info
+POST {{host}}/api/v1/artifacts/{{artifactId}}/share
+Anonymous-User-UUID: {{userUuid}}

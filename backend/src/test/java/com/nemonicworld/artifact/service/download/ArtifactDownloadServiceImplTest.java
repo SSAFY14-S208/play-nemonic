@@ -24,7 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * artifact 기반 QR 합성 다운로드 파일 생성/캐시 재사용 흐름을 검증합니다.
+ * artifact 기반 QR 합성 공유 자산 생성/캐시 재사용 흐름을 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 class ArtifactDownloadServiceImplTest {
@@ -48,11 +48,11 @@ class ArtifactDownloadServiceImplTest {
     @Mock
     private SignedShareTokenIssuer signedShareTokenIssuer;
 
-    private ArtifactDownloadServiceImpl artifactDownloadService;
+    private ArtifactQrAssetServiceImpl artifactQrAssetService;
 
     @BeforeEach
     void setUp() {
-        artifactDownloadService = new ArtifactDownloadServiceImpl(artifactImageUrlRepository, anonymousUserResolver,
+        artifactQrAssetService = new ArtifactQrAssetServiceImpl(artifactImageUrlRepository, anonymousUserResolver,
             artifactDownloadStorage, artifactQrComposer, signedShareTokenIssuer,
             new ShareProperties("https://nemonic.example.com", "test-share-token-secret"));
     }
@@ -64,7 +64,6 @@ class ArtifactDownloadServiceImplTest {
     void prepareDownloadFileCreatesQrComposedCacheWhenMissing() {
         byte[] sourceBytes = new byte[]{1, 2, 3};
         byte[] composedBytes = new byte[]{4, 5, 6};
-        byte[] cachedBytes = new byte[]{7, 8, 9};
         String cacheKey = "artifact-downloads/%s/result-qr.jpg".formatted(ARTIFACT_ID);
 
         givenValidUser();
@@ -76,14 +75,13 @@ class ArtifactDownloadServiceImplTest {
         given(artifactDownloadStorage.download("relay/results/a/original.png")).willReturn(sourceBytes);
         given(artifactQrComposer.compose("image/png", sourceBytes,
             "https://nemonic.example.com/share/signed-share-token")).willReturn(composedBytes);
-        given(artifactDownloadStorage.download(cacheKey)).willReturn(cachedBytes);
 
-        ArtifactDownloadFile file = artifactDownloadService.prepareDownloadFile(USER_UUID_VALUE,
-            ARTIFACT_ID.toString());
+        ArtifactQrAsset asset = artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString());
 
-        assertThat(file.bytes()).containsExactly(cachedBytes);
-        assertThat(file.fileName()).isEqualTo("nemonic-%s.jpg".formatted(ARTIFACT_ID));
-        assertThat(file.contentType()).isEqualTo("image/jpeg");
+        assertThat(asset.cacheObjectKey()).isEqualTo(cacheKey);
+        assertThat(asset.fileName()).isEqualTo("nemonic-%s.jpg".formatted(ARTIFACT_ID));
+        assertThat(asset.contentType()).isEqualTo("image/jpeg");
+        assertThat(asset.shareToken()).isEqualTo("signed-share-token");
         verify(artifactDownloadStorage).upload(cacheKey, composedBytes, "image/jpeg");
     }
 
@@ -92,7 +90,6 @@ class ArtifactDownloadServiceImplTest {
      */
     @Test
     void prepareDownloadFileReusesQrComposedCacheWhenExists() {
-        byte[] cachedBytes = new byte[]{9, 8, 7};
         String cacheKey = "artifact-downloads/%s/result-qr.gif".formatted(ARTIFACT_ID);
 
         givenValidUser();
@@ -101,15 +98,14 @@ class ArtifactDownloadServiceImplTest {
         given(signedShareTokenIssuer.issueArtifactToken(ARTIFACT_ID, "flipbook", "QR_DOWNLOAD"))
             .willReturn("signed-flipbook-token");
         given(artifactDownloadStorage.exists(cacheKey)).willReturn(true);
-        given(artifactDownloadStorage.download(cacheKey)).willReturn(cachedBytes);
 
-        ArtifactDownloadFile file = artifactDownloadService.prepareDownloadFile(USER_UUID_VALUE,
-            ARTIFACT_ID.toString());
+        ArtifactQrAsset asset = artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString());
 
-        assertThat(file.bytes()).containsExactly(cachedBytes);
-        assertThat(file.fileName()).isEqualTo("nemonic-%s.gif".formatted(ARTIFACT_ID));
-        assertThat(file.contentType()).isEqualTo("image/gif");
+        assertThat(asset.cacheObjectKey()).isEqualTo(cacheKey);
+        assertThat(asset.fileName()).isEqualTo("nemonic-%s.gif".formatted(ARTIFACT_ID));
+        assertThat(asset.contentType()).isEqualTo("image/gif");
         verify(artifactDownloadStorage, never()).upload(anyString(), any(), anyString());
+        verify(artifactDownloadStorage, never()).download(anyString());
         verify(artifactQrComposer, never()).compose(anyString(), any(), anyString());
     }
 
@@ -122,7 +118,7 @@ class ArtifactDownloadServiceImplTest {
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
             .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> artifactDownloadService.prepareDownloadFile(USER_UUID_VALUE, ARTIFACT_ID.toString()))
+        assertThatThrownBy(() -> artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString()))
             .isInstanceOf(NotFoundException.class).hasMessage("다운로드 가능한 산출물을 찾을 수 없습니다.");
     }
 
@@ -133,11 +129,11 @@ class ArtifactDownloadServiceImplTest {
     void prepareDownloadFileRejectsUnsupportedKind() {
         givenValidUser();
         ArtifactImageUrlRow phoneRow = new ArtifactImageUrlRow(ARTIFACT_ID, "phone", "phone/results/a/result.png", null,
-            null, null, null, null, "phone/results/a/result.png");
+            null, null, null, null, "phone/results/a/result.png", null, null);
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
             .willReturn(Optional.of(phoneRow));
 
-        assertThatThrownBy(() -> artifactDownloadService.prepareDownloadFile(USER_UUID_VALUE, ARTIFACT_ID.toString()))
+        assertThatThrownBy(() -> artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString()))
             .isInstanceOf(BadRequestException.class).hasMessage("다운로드할 수 없는 산출물 종류입니다.");
     }
 
@@ -150,8 +146,34 @@ class ArtifactDownloadServiceImplTest {
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
             .willReturn(Optional.of(relayRow("https://cdn.example.com/original.png")));
 
-        assertThatThrownBy(() -> artifactDownloadService.prepareDownloadFile(USER_UUID_VALUE, ARTIFACT_ID.toString()))
+        assertThatThrownBy(() -> artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString()))
             .isInstanceOf(BadRequestException.class).hasMessage("QR 합성 다운로드는 MinIO 산출물만 지원합니다.");
+    }
+
+    /**
+     * 커뮤니티 메모는 썸네일보다 최종 원본 스냅샷을 우선해 QR 합성 자산을 생성합니다.
+     */
+    @Test
+    void prepareDownloadFileUsesCommunityMemoOriginalImageBeforeThumbnail() {
+        byte[] sourceBytes = new byte[]{1, 2, 3};
+        byte[] composedBytes = new byte[]{4, 5, 6};
+        String cacheKey = "artifact-downloads/%s/result-qr.jpg".formatted(ARTIFACT_ID);
+
+        givenValidUser();
+        given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
+            .willReturn(Optional.of(communityMemoRow("community/memos/a/original.png", "community/memos/a/thumb.png")));
+        given(signedShareTokenIssuer.issueArtifactToken(ARTIFACT_ID, "community_memo", "QR_DOWNLOAD"))
+            .willReturn("signed-community-token");
+        given(artifactDownloadStorage.exists(cacheKey)).willReturn(false);
+        given(artifactDownloadStorage.download("community/memos/a/original.png")).willReturn(sourceBytes);
+        given(artifactQrComposer.compose("image/png", sourceBytes,
+            "https://nemonic.example.com/share/signed-community-token")).willReturn(composedBytes);
+
+        ArtifactQrAsset asset = artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString());
+
+        assertThat(asset.kind()).isEqualTo("community_memo");
+        verify(artifactDownloadStorage).download("community/memos/a/original.png");
+        verify(artifactDownloadStorage).upload(cacheKey, composedBytes, "image/jpeg");
     }
 
     private void givenValidUser() {
@@ -160,11 +182,16 @@ class ArtifactDownloadServiceImplTest {
 
     private ArtifactImageUrlRow relayRow(String combinedPreviewUrl) {
         return new ArtifactImageUrlRow(ARTIFACT_ID, "relay_drawing", "relay/results/a/thumb.png", null,
-            combinedPreviewUrl, null, null, null, null);
+            combinedPreviewUrl, null, null, null, null, null, null);
     }
 
     private ArtifactImageUrlRow flipbookRow(String gifUrl) {
         return new ArtifactImageUrlRow(ARTIFACT_ID, "flipbook", "flipbook/results/a/thumb.png", null, null, gifUrl,
-            "flipbook/results/a/first.png", null, null);
+            "flipbook/results/a/first.png", null, null, null, null);
+    }
+
+    private ArtifactImageUrlRow communityMemoRow(String originalImageUrl, String thumbnailImageUrl) {
+        return new ArtifactImageUrlRow(ARTIFACT_ID, "community_memo", "community/memos/a/artifact-thumb.png", null,
+            null, null, null, null, null, originalImageUrl, thumbnailImageUrl);
     }
 }
