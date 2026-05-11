@@ -82,13 +82,36 @@ same-server relay `WebSocketSessionRegistry`, and CAS-updates missing sessions t
 `relay_room_recovered_or_reconciled` and lets disconnect-grace or abandoned-close
 jobs perform the follow-up state transition in later ticks.
 
+Finalization processing uses a room-scoped Redis lock,
+`relay:room-finalization-lock:{roomCode}`, with a 120-second default TTL. Lock
+acquisition failure is a no-op for that scheduler tick and logs
+`relay_finalization_lock_skipped`. After the lock is acquired, the worker creates
+a finalization attempt id and stores a 24-hour attempt marker under
+`relay:room-finalization-attempt:{roomCode}:{attemptId}` so uploaded result
+object keys can be tied to the current attempt.
+
 Finalization retries use a separate Redis counter key,
 `relay:room-finalization-retry:{roomCode}`, with the same 24-hour TTL as the
 room state. The finalization scheduler runs every 30 seconds by default. Each
-failed finalization tick increments the counter and logs `retry_count` and
-`max_retry_count`. A successful finalization clears the counter. On the 20th
-failure, the room is closed with `close_reason=finalization_failed`, invite
-metadata is synced, and `ROOM_CLOSED` is published.
+failed finalization tick increments the counter and logs `retry_count`,
+`max_retry_count`, and `attempt_id`. A successful finalization clears the retry
+counter. On the 20th failure, the room is closed with
+`close_reason=finalization_failed`, invite metadata is synced, and `ROOM_CLOSED`
+is published.
+
+If a finalization attempt saved PostgreSQL result rows but failed to update the
+Redis room to `FINISHED`, a later retry first checks existing
+`artifact.source_room_id = roomCode` rows. When the stored result count and
+canvas indexes match the room assignments, the worker skips new uploads and DB
+inserts, retries only the Redis `FINISHED` transition, and logs
+`relay_finalization_recovered`.
+
+Run old relay object cleanup through a separate hourly scheduler. It scans
+`relay/tmp/` and `relay/results/` with a 24-hour default retention and a bounded
+scan limit. Temp objects are deleted only when their room state is missing or is
+already `FINISHED`/`CLOSED`. Result objects are deleted only when they are not
+referenced by DB result columns and are not listed in an active finalization
+attempt marker. Ambiguous result objects are skipped.
 
 ## Consequences
 
@@ -106,7 +129,13 @@ metadata is synced, and `ROOM_CLOSED` is published.
   keeps failing.
 - Positive: A server restart no longer leaves stale relay `connected=true`
   values that can permanently block abandoned-room cleanup.
-- Negative: Uploaded files may briefly remain if MinIO upload succeeds but the
-  Redis CAS update later fails.
+- Positive: Finalization attempt ids make retry, recovery, and result object
+  cleanup logs traceable for a single scheduler run.
+- Positive: A Redis `FINISHED` transition conflict after DB save can be
+  recovered without duplicate MinIO uploads or duplicate DB result rows.
+- Positive: Old orphan cleanup reduces long-lived storage drift while protecting
+  active-room temp files and persisted result files.
+- Negative: Orphan cleanup is intentionally conservative; result objects with
+  uncertain references are skipped and may need manual investigation.
 - Follow-up: Full multi-node scheduler coordination may need stronger locks or
   leader election beyond the existing targeted locks.
