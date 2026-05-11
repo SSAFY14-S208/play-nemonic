@@ -58,8 +58,8 @@ export default function WorldHomeLink() {
         <Image
           src="/images/nemonic-world-logo.png"
           alt="네모닉 월드"
-          width={140}
-          height={88}
+          width={845}
+          height={511}
           priority
           draggable={false}
           className="h-auto w-[7.5rem] drop-shadow-[0_8px_18px_rgba(0,0,0,0.18)] sm:w-[8.75rem]"
