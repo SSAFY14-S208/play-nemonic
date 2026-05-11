@@ -104,6 +104,10 @@ nemonic:
       fail-closed: ${COMMUNITY_MODERATION_FAIL_CLOSED:false}
 
   relay:
+    reconciliation:
+      enabled: ${RELAY_RECONCILIATION_ENABLED:true}
+      scan-delay-ms: ${RELAY_RECONCILIATION_SCAN_DELAY_MS:30000}
+      scan-limit: ${RELAY_RECONCILIATION_SCAN_LIMIT:100}
     disconnect:
       enabled: ${RELAY_DISCONNECT_ENABLED:true}
       reconnect-grace-seconds: ${RELAY_DISCONNECT_RECONNECT_GRACE_SECONDS:10}

@@ -22,11 +22,13 @@ import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -152,7 +154,7 @@ public class RelayRoomFinalizationService {
             metadata("room_id", closeResult.roomCode(), "close_reason", "finalization_failed", "room_status_before",
                 roomState.status(), "participant_count", roomState.participantCount(), "retry_count", retryCount,
                 "closed_at", closeResult.closedAt()));
-        relayRoomEventPublisher.publishRoomClosed(roomCode, closeResult.closedAt());
+        relayRoomEventPublisher.publishRoomClosed(roomCode, closeResult.closedAt(), "finalization_failed");
     }
 
     /**
@@ -233,6 +235,7 @@ public class RelayRoomFinalizationService {
             } catch (RuntimeException e) {
                 logFinalizationFailure(roomState.roomCode(), "db_save",
                     artifacts.stream().findFirst().map(RelayFinalizationArtifactResult::artifactId).orElse(null), e);
+                cleanupCreatedResultObjects(roomState.roomCode(), artifacts);
                 throw e;
             }
 
@@ -290,6 +293,35 @@ public class RelayRoomFinalizationService {
 
     private void logFinalizationFailure(String roomCode, String stage, UUID artifactId, RuntimeException error) {
         failureContext.set(new RelayFinalizationFailureContext(stage, artifactId));
+    }
+
+    private void cleanupCreatedResultObjects(String roomCode, List<RelayFinalizationArtifactResult> artifacts) {
+        List<String> objectKeys = artifacts.stream()
+            .flatMap(artifact -> Stream.of(artifact.originalObjectKey(), artifact.thumbnailObjectKey()))
+            .filter(StringUtils::hasText).toList();
+        if (objectKeys.isEmpty()) {
+            return;
+        }
+
+        List<String> failedObjectKeys = new ArrayList<>();
+        int deletedObjectCount = 0;
+        for (String objectKey : objectKeys) {
+            try {
+                relayResultStorage.delete(objectKey);
+                deletedObjectCount++;
+            } catch (RuntimeException e) {
+                failedObjectKeys.add(objectKey);
+                RelayRoomEventLogger.apiWarn("relay_result_orphan_cleanup_failed",
+                    "failed to clean orphan relay result object",
+                    metadata("room_id", roomCode, "object_keys", List.of(objectKey), "failed_object_count", 1), e);
+            }
+        }
+
+        RelayRoomEventLogger.apiBusiness("relay_result_orphan_cleanup_completed",
+            metadata("room_id", roomCode, "artifact_ids",
+                artifacts.stream().map(artifact -> artifact.artifactId().toString()).toList(), "object_keys",
+                objectKeys, "deleted_object_count", deletedObjectCount, "failed_object_count", failedObjectKeys.size(),
+                "result", failedObjectKeys.isEmpty() ? "success" : "partial_failure"));
     }
 
     /**

@@ -260,7 +260,7 @@ public class RelayRoomController {
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
         RelayRoomCloseResponse response = relayRoomService.closeRoom(userUuid, roomCode);
         if (!response.alreadyClosed()) {
-            relayRoomEventPublisher.publishRoomClosed(response.roomCode(), response.closedAt());
+            relayRoomEventPublisher.publishRoomClosed(response.roomCode(), response.closedAt(), "host_manual");
         }
         String message = response.alreadyClosed() ? RELAY_ROOM_ALREADY_CLOSED_MESSAGE : RELAY_ROOM_CLOSED_MESSAGE;
 
@@ -362,7 +362,7 @@ public class RelayRoomController {
             relayRoomEventPublisher.publishHostChanged(response);
         }
         if (response.roomClosed()) {
-            relayRoomEventPublisher.publishRoomClosed(response.roomCode(), response.leftAt());
+            relayRoomEventPublisher.publishRoomClosed(response.roomCode(), response.leftAt(), "last_participant_left");
         }
         relayRoomEventPublisher.closeLeftRoomSession(response.roomCode(), response.leftUserUuid());
 

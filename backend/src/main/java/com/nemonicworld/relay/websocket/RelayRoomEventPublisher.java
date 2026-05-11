@@ -214,8 +214,12 @@ public class RelayRoomEventPublisher {
     }
 
     public void publishRoomClosed(String roomCode, LocalDateTime closedAt) {
+        publishRoomClosed(roomCode, closedAt, null);
+    }
+
+    public void publishRoomClosed(String roomCode, LocalDateTime closedAt, String closeReason) {
         RelayRoomEventResponse event = RelayRoomEventResponse.of(RelayRoomEventType.ROOM_CLOSED, roomCode,
-            new RelayRoomClosedEventResponse(roomCode, RelayRoomStatus.CLOSED, closedAt));
+            new RelayRoomClosedEventResponse(roomCode, RelayRoomStatus.CLOSED, closedAt, closeReason));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
         closeRoomSessions(roomCode);

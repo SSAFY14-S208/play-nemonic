@@ -45,22 +45,24 @@ public class RelayRoomAbandonedCloseService {
 
     public RelayRoomAbandonedCloseProcessResult closeAbandonedRooms(LocalDateTime now) {
         LocalDateTime closedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        List<RelayRoomState> emptyWaitingRooms = relayRoomRepository.findEmptyWaitingRooms(scanLimit);
         List<RelayRoomState> waitingRooms = relayRoomRepository
             .findAbandonedWaitingRooms(closedAt.minus(waitingIdleDuration), scanLimit);
         List<RelayRoomState> playingRooms = relayRoomRepository
             .findAbandonedPlayingRooms(closedAt.minus(playingAbandonedDuration), scanLimit);
 
+        int closedEmptyWaitingRoomCount = closeRooms(emptyWaitingRooms, closedAt, "waiting_empty", null, null);
         int closedWaitingRoomCount = closeRooms(waitingRooms, closedAt, "waiting_idle_timeout", "idle_seconds",
             waitingIdleDuration.getSeconds());
         int closedPlayingRoomCount = closeRooms(playingRooms, closedAt, "playing_abandoned", "abandoned_seconds",
             playingAbandonedDuration.getSeconds());
 
-        return new RelayRoomAbandonedCloseProcessResult(waitingRooms.size(), closedWaitingRoomCount,
-            playingRooms.size(), closedPlayingRoomCount);
+        return new RelayRoomAbandonedCloseProcessResult(emptyWaitingRooms.size() + waitingRooms.size(),
+            closedEmptyWaitingRoomCount + closedWaitingRoomCount, playingRooms.size(), closedPlayingRoomCount);
     }
 
     private int closeRooms(List<RelayRoomState> rooms, LocalDateTime closedAt, String closeReason,
-        String durationFieldName, long durationSeconds) {
+        String durationFieldName, Long durationSeconds) {
         int closedRoomCount = 0;
         for (RelayRoomState roomState : rooms) {
             try {
@@ -68,7 +70,7 @@ public class RelayRoomAbandonedCloseService {
                 if (result.closed()) {
                     closedRoomCount++;
                     logRoomClosed(roomState, result, closeReason, durationFieldName, durationSeconds);
-                    relayRoomEventPublisher.publishRoomClosed(roomState.roomCode(), result.closedAt());
+                    relayRoomEventPublisher.publishRoomClosed(roomState.roomCode(), result.closedAt(), closeReason);
                 }
             } catch (RuntimeException e) {
                 log.warn("Failed to close abandoned relay room. roomCode={}, closeReason={}", roomState.roomCode(),
@@ -80,7 +82,15 @@ public class RelayRoomAbandonedCloseService {
     }
 
     private void logRoomClosed(RelayRoomState previousRoomState, RelayRoomCloseResult closeResult, String closeReason,
-        String durationFieldName, long durationSeconds) {
+        String durationFieldName, Long durationSeconds) {
+        if (durationFieldName == null) {
+            RelayRoomEventLogger.apiBusiness("relay_room_closed",
+                metadata("room_id", closeResult.roomCode(), "close_reason", closeReason, "room_status_before",
+                    previousRoomState.status(), "participant_count", previousRoomState.participantCount(), "closed_at",
+                    closeResult.closedAt()));
+            return;
+        }
+
         RelayRoomEventLogger.apiBusiness("relay_room_closed",
             metadata("room_id", closeResult.roomCode(), "close_reason", closeReason, "room_status_before",
                 previousRoomState.status(), "participant_count", previousRoomState.participantCount(),
