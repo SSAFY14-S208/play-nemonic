@@ -494,6 +494,13 @@ Recent backoffice system parameter update work changed the PATCH request contrac
 - The typed request covers the V9 seeded editable settings and validates participant limits, time-limit objects, and positive integer value objects before updating any row.
 - The legacy `SystemParameterBulkUpdateRequest` DTO remains in source, but the default controller/OpenAPI PATCH contract is the typed request body.
 
+Recent community runtime settings work connects the seeded backoffice max memo count to FIFO.
+
+- Community memo creation now reads `backoffice_setting` key `community.max_memo_count` before the post-create FIFO check.
+- Missing, blank, malformed, or invalid `community.max_memo_count` settings fall back to the default visible memo limit of 50 and emit a warning log.
+- Backoffice changes to `communityMaxMemoCount` do not immediately expire existing visible memos; the changed value is applied on the next community memo create/FIFO check.
+- The community FIFO business log now records the resolved dynamic `max_visible_memo_count` instead of a hard-coded value.
+
 Recent community logging work reused the shared structured event logger for community canvas and backoffice review flows.
 
 - `StructuredEventLogger` centralizes JSON emission to `logs.api`, `logs.websocket`, and `logs.audit`; the existing relay logger and admin audit logger now delegate to it.
