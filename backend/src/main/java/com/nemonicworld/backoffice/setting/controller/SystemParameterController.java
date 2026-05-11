@@ -67,13 +67,61 @@ public class SystemParameterController {
     @PatchMapping
     @Operation(summary = "시스템 파라미터 일괄 수정", description = "관리자가 요청 본문에 포함한 시스템 파라미터 필드만 한 트랜잭션으로 수정합니다. "
         + "여러 필드 중 하나라도 유효하지 않으면 전체 수정은 실패합니다.")
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = SystemParameterTypedUpdateRequest.class), examples = @ExampleObject(name = "Update relay participant limit", value = """
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = SystemParameterTypedUpdateRequest.class), examples = @ExampleObject(name = "Update editable system parameters", value = """
         {
+          "communityMaxMemoCount": {
+            "value": 50,
+            "unit": "count",
+            "description": "Community canvas visible memo limit"
+          },
           "relayRoomParticipantLimit": {
             "min": 3,
             "max": 8,
             "unit": "people",
             "description": "Relay room participant limit"
+          },
+          "relayRoomTimeLimitSeconds": {
+            "default": 45,
+            "allowed": [30, 45, 60],
+            "unit": "seconds",
+            "description": "Relay room drawing time limit"
+          },
+          "relayReconnectGraceSeconds": {
+            "value": 10,
+            "unit": "seconds",
+            "description": "Relay playing-room reconnect grace period"
+          },
+          "flipbookRoomParticipantLimit": {
+            "min": 2,
+            "max": 6,
+            "unit": "people",
+            "description": "Flipbook room participant limit"
+          },
+          "flipbookRoomTimeLimitSeconds": {
+            "default": 45,
+            "allowed": [30, 45, 60],
+            "unit": "seconds",
+            "description": "Flipbook room drawing time limit"
+          },
+          "flipbookMinFramesPerFlipbook": {
+            "value": 8,
+            "unit": "frames",
+            "description": "Minimum frames per completed flipbook"
+          },
+          "flipbookReconnectGraceSeconds": {
+            "value": 10,
+            "unit": "seconds",
+            "description": "Flipbook playing-room reconnect grace period"
+          },
+          "fortuneDailyLimit": {
+            "value": 1,
+            "unit": "count",
+            "description": "Daily fortune generation limit per anonymous user"
+          },
+          "csInquiryUnresolvedAlertThresholdHours": {
+            "value": 24,
+            "unit": "hours",
+            "description": "Unresolved customer inquiry alert threshold"
           }
         }
         """)))
