@@ -1,5 +1,5 @@
 {
-  "index_patterns": ["error-logs-*"],
+  "index_patterns": ["audit-logs-*"],
   "priority": 100,
   "template": {
     "settings": {
@@ -7,15 +7,14 @@
       "number_of_replicas": 0,
       "refresh_interval": "10s",
       "codec": "best_compression",
-      "translog.durability": "async",
-      "plugins.index_state_management.policy_id": "error-logs-policy"
+      "translog.durability": "request",
+      "plugins.index_state_management.policy_id": "audit-logs-policy"
     },
     "mappings": {
-      "dynamic": "true",
+      "dynamic": "false",
       "properties": {
         "@timestamp":   { "type": "date" },
         "level":        { "type": "keyword" },
-        "log_level":    { "type": "keyword" },
         "service":      { "type": "keyword" },
         "trace_id":     { "type": "keyword" },
         "flow_id":      { "type": "keyword" },
@@ -24,23 +23,22 @@
         "event_name":   { "type": "keyword" },
         "content_type": { "type": "keyword" },
         "room_id":      { "type": "keyword" },
-        "prev_zone":    { "type": "keyword" },
-        "prev_path":    { "type": "keyword", "ignore_above": 512 },
-        "path":         { "type": "keyword", "ignore_above": 512 },
-        "pid":          { "type": "long" },
-        "application":  { "type": "keyword" },
-        "thread":       { "type": "keyword" },
-        "logger":       { "type": "keyword" },
-        "log_message":  {
-          "type": "text",
-          "fields": { "keyword": { "type": "keyword", "ignore_above": 1024 } }
-        },
         "message":      { "type": "text" },
-        "error": {
+        "metadata": {
           "properties": {
-            "type":    { "type": "keyword" },
-            "message": { "type": "text" },
-            "stack":   { "type": "text", "index": false }
+            "actor_id":    { "type": "keyword" },
+            "actor_role":  { "type": "keyword" },
+            "actor_ip":    { "type": "ip" },
+            "target_type": { "type": "keyword" },
+            "target_id":   { "type": "keyword" },
+            "action":      { "type": "keyword" },
+            "reason":      {
+              "type": "text",
+              "fields": { "keyword": { "type": "keyword", "ignore_above": 1024 } }
+            },
+            "result":      { "type": "keyword" },
+            "before":      { "type": "object", "enabled": false },
+            "after":       { "type": "object", "enabled": false }
           }
         },
         "container_id": { "type": "keyword" },
@@ -53,6 +51,6 @@
     }
   },
   "_meta": {
-    "description": "에러/예외 로그 인덱스. log_level ERROR/FATAL 또는 메시지에 Exception/stack trace 키워드 매칭."
+    "description": "운영자 감사 로그. 영구 보존, dynamic mapping 차단(스키마 폭발 방지). before/after 객체는 인덱싱하지 않고 원문 보관(fields:enabled=false)."
   }
 }
