@@ -142,6 +142,10 @@ Last updated: 2026-05-10
 - Admin login, failed login, and logout events emit structured JSON audit logs
   to stdout using the `08-observability.md` audit schema, with no RDB audit log
   table.
+- Admin account creation and deletion also emit `admin_account_create` and
+  `admin_account_delete` stdout JSON audit logs after successful service
+  transactions; the application still does not write directly to Kafka or
+  OpenSearch.
 - `admin_user.login_id` is made unique through Flyway V5.
 - Room code generation is available through `RoomCodeGenerator`, producing 6-character uppercase human-readable codes and supporting repository-backed collision checks with `generateUnique(...)`.
 - Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `relay:room:{roomCode}` with a 24-hour TTL, creates the host participant with `connected=false` until WebSocket CONNECT succeeds, and creates no PostgreSQL artifact/gallery rows.
