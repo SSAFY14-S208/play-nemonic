@@ -71,6 +71,12 @@ public final class OpenApiErrorExamples {
           "message": "이미 종료된 방입니다."
         }
         """;
+    public static final String INVITE_GAME_IN_PROGRESS = """
+        {
+          "success": false,
+          "message": "게임이 진행 중입니다."
+        }
+        """;
     public static final String INVITE_ROOM_FULL = """
         {
           "success": false,

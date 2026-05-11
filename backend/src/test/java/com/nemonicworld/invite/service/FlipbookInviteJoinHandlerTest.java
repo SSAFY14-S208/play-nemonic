@@ -86,6 +86,25 @@ class FlipbookInviteJoinHandlerTest {
     }
 
     /**
+     * 이미 게임이 시작된 플립북 방에는 신규 사용자가 초대코드로 입장할 수 없습니다.
+     */
+    @Test
+    void joinRejectsNewParticipantWhenGameIsPlaying() {
+        UUID hostUuid = UUID.randomUUID();
+        UUID joinerUuid = UUID.randomUUID();
+        FlipbookRoomState roomState = room(FlipbookRoomStatus.PLAYING, participant(hostUuid, "망고", true, 0));
+        FlipbookInviteJoinHandler handler = handler();
+
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> handler.join(activeInvite(), user(joinerUuid, "포도")))
+            .isInstanceOf(ConflictException.class).hasMessage("게임이 진행 중입니다.");
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(flipbookInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
+    /**
      * 이미 이탈 확정된 참여자는 초대코드 복귀도 거부됩니다.
      */
     @Test
