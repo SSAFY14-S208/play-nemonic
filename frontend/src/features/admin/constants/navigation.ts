@@ -1,6 +1,7 @@
 import {
   BarChart3,
   BookOpen,
+  FileText,
   Flag,
   Image as ImageIcon,
   Infinity as InfinityIcon,
@@ -10,7 +11,6 @@ import {
   Pencil,
   ScrollText,
   Sliders,
-  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -96,13 +96,12 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         ],
       },
       {
-        key: "fortune",
-        label: "오늘의 운세 뽑기",
-        href: "/admin/fortune",
-        icon: Sparkles,
-        pageTitle: "오늘의 운세 뽑기 관리",
-        pageDescription:
-          "GMS API 기반 일일 운세 발급 이력·프롬프트·발급 통계를 관리합니다.",
+        key: "gms-prompts",
+        label: "GMS 프롬프트 관리",
+        href: "/admin/gms-prompts",
+        icon: FileText,
+        pageTitle: "GMS 프롬프트 관리",
+        pageDescription: "운세 생성에 사용하는 프롬프트를 수정·관리합니다.",
       },
       {
         key: "content-parameters",
