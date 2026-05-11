@@ -389,6 +389,7 @@ Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/
 - Existing artifact/gallery rows are returned first for idempotent result lookup.
 - If Redis room state is `FINISHED` and no DB result exists yet, submitted non-empty frames are grouped by `flipbookIndex`, converted into GIF files under `flipbook/results/{artifactId}/result.gif`, and stored as `artifact` + `flipbook_artifact` + gallery rows for non-dropped participants.
 - The response mirrors relay result shape with `ready`, `resultCount`, per-result `galleryId`/`artifactId`, `thumbnailUrl`, `gifUrl`, `firstImageUrl`, and ordered frame metadata.
+- Flipbook game start now uses `totalRounds=8` so every generated flipbook has the minimum 8 frames; assignment count is `participantCount * 8`.
 
 ```bash
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
