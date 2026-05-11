@@ -11,6 +11,7 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomParticipantResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookAllRoundsCompletedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookFrameAutoSubmittedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomClosedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventStateResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventType;
@@ -257,6 +258,40 @@ class FlipbookRoomEventPublisherTest {
         assertThat(data.artifactIds()).containsExactly(artifactId);
         assertThat(data.resultCount()).isEqualTo(1);
         assertThat(data.results().get(0).gifUrl()).endsWith("/result.gif");
+    }
+
+    @Test
+    void publishRoomClosedSendsRoomClosedEventToRoomTopicAndClosesRoomSessions() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        ArgumentCaptor<CloseStatus> closeStatusCaptor = ArgumentCaptor.forClass(CloseStatus.class);
+        LocalDateTime closedAt = LocalDateTime.now().minusSeconds(1);
+        String secondSessionId = "session-2";
+        org.mockito.BDDMockito
+            .given(webSocketSessionRegistry.findCurrentSessions(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK,
+                ROOM_CODE))
+            .willReturn(List.of(
+                new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE, USER_UUID,
+                    SESSION_ID),
+                new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE,
+                    "11111111-1111-1111-1111-111111111111", secondSessionId)));
+
+        publisher.publishRoomClosed(ROOM_CODE, closedAt);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.ROOM_CLOSED);
+
+        FlipbookRoomClosedEventResponse data = (FlipbookRoomClosedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.CLOSED);
+        assertThat(data.closedAt()).isEqualTo(closedAt);
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), closeStatusCaptor.capture());
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(secondSessionId), closeStatusCaptor.capture());
+        assertThat(closeStatusCaptor.getAllValues()).allSatisfy(status -> {
+            assertThat(status.getCode()).isEqualTo(CloseStatus.NORMAL.getCode());
+            assertThat(status.getReason()).isEqualTo("ROOM_CLOSED");
+        });
     }
 
     /**

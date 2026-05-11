@@ -126,11 +126,20 @@ Content-Type: application/json
 }
 
 ### List active relay rooms
+# status 생략 시 WAITING/PLAYING/FINALIZING만 조회합니다.
 GET {{host}}/api/v1/backoffice/relay-rooms
 Authorization: Bearer {{adminAccessToken}}
 
 ### List active relay rooms - status filter
 GET {{host}}/api/v1/backoffice/relay-rooms?status=PLAYING&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### List active relay rooms - in progress filter
+GET {{host}}/api/v1/backoffice/relay-rooms?status=IN_PROGRESS&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### List relay rooms - finished filter
+GET {{host}}/api/v1/backoffice/relay-rooms?status=FINISHED&page=0&size=20
 Authorization: Bearer {{adminAccessToken}}
 
 ### Delete active relay room

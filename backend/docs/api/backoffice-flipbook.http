@@ -12,11 +12,20 @@ Content-Type: application/json
 > {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
 
 ### List active flipbook rooms
+# status 생략 시 WAITING/PLAYING/FINALIZING만 조회합니다.
 GET {{host}}/api/v1/backoffice/flipbook-rooms
 Authorization: Bearer {{adminAccessToken}}
 
 ### List active flipbook rooms - status filter
 GET {{host}}/api/v1/backoffice/flipbook-rooms?status=PLAYING&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### List active flipbook rooms - in progress filter
+GET {{host}}/api/v1/backoffice/flipbook-rooms?status=IN_PROGRESS&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### List flipbook rooms - finished filter
+GET {{host}}/api/v1/backoffice/flipbook-rooms?status=FINISHED&page=0&size=20
 Authorization: Bearer {{adminAccessToken}}
 
 ### List active flipbook rooms - invalid status

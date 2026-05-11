@@ -20,8 +20,10 @@ import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
@@ -33,6 +35,10 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
     private static final String INVALID_STATUS_MESSAGE = "조회할 수 없는 방 상태입니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final String ROOM_ALREADY_CLOSED_MESSAGE = "이미 종료된 방입니다.";
+
+    private static final String IN_PROGRESS_STATUS_FILTER = "IN_PROGRESS";
+    private static final Set<RelayRoomStatus> DEFAULT_ACTIVE_STATUS_FILTER = Set.of(RelayRoomStatus.WAITING,
+        RelayRoomStatus.PLAYING, RelayRoomStatus.FINALIZING);
 
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
@@ -59,13 +65,12 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
         String page, String size) {
         requireAdmin(adminPrincipal);
 
-        RelayRoomStatus statusFilter = parseStatusFilter(status);
+        Set<RelayRoomStatus> statusFilter = parseStatusFilter(status);
         int pageNumber = parsePage(page);
         int pageSize = parseSize(size);
 
         List<RelayRoomState> activeRooms = relayRoomRepository.findAllActiveRooms();
-        List<RelayRoomState> filtered = activeRooms.stream()
-            .filter(room -> statusFilter == null || room.status() == statusFilter)
+        List<RelayRoomState> filtered = activeRooms.stream().filter(room -> statusFilter.contains(room.status()))
             .sorted(Comparator.comparing(RelayRoomState::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
                 .thenComparing(RelayRoomState::roomCode, Comparator.nullsLast(Comparator.naturalOrder())))
             .toList();
@@ -113,14 +118,19 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
         }
     }
 
-    private RelayRoomStatus parseStatusFilter(String value) {
+    private Set<RelayRoomStatus> parseStatusFilter(String value) {
         if (!StringUtils.hasText(value)) {
-            return null;
+            return DEFAULT_ACTIVE_STATUS_FILTER;
+        }
+
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if (IN_PROGRESS_STATUS_FILTER.equals(normalized)) {
+            return EnumSet.of(RelayRoomStatus.PLAYING, RelayRoomStatus.FINALIZING);
         }
 
         RelayRoomStatus parsed;
         try {
-            parsed = RelayRoomStatus.valueOf(value.trim().toUpperCase(Locale.ROOT));
+            parsed = RelayRoomStatus.valueOf(normalized);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(INVALID_STATUS_MESSAGE);
         }
@@ -129,7 +139,7 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
             throw new BadRequestException(INVALID_STATUS_MESSAGE);
         }
 
-        return parsed;
+        return EnumSet.of(parsed);
     }
 
     private int parsePage(String value) {

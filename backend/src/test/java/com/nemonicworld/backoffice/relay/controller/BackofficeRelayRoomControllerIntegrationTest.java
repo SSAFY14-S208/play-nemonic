@@ -127,16 +127,15 @@ class BackofficeRelayRoomControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("활성 릴레이 드로잉 방 목록 조회 성공"))
-            .andExpect(jsonPath("$.data.items.length()").value(4)).andExpect(jsonPath("$.data.totalElements").value(4))
+            .andExpect(jsonPath("$.data.items.length()").value(3)).andExpect(jsonPath("$.data.totalElements").value(3))
             .andExpect(jsonPath("$.data.page").value(0)).andExpect(jsonPath("$.data.size").value(20))
-            .andExpect(jsonPath("$.data.items[0].roomCode").value("ROOM04"))
-            .andExpect(jsonPath("$.data.items[0].status").value("FINISHED"))
-            .andExpect(jsonPath("$.data.items[0].participantCount").value(3))
-            .andExpect(jsonPath("$.data.items[0].gameStartedAt").value("2026-05-09T12:03:00"))
-            .andExpect(jsonPath("$.data.items[1].roomCode").value("ROOM03"))
-            .andExpect(jsonPath("$.data.items[2].roomCode").value("ROOM02"))
-            .andExpect(jsonPath("$.data.items[3].roomCode").value("ROOM01"))
-            .andExpect(jsonPath("$.data.items[3].gameStartedAt").value(org.hamcrest.Matchers.nullValue()));
+            .andExpect(jsonPath("$.data.items[0].roomCode").value("ROOM03"))
+            .andExpect(jsonPath("$.data.items[0].status").value("FINALIZING"))
+            .andExpect(jsonPath("$.data.items[0].participantCount").value(5))
+            .andExpect(jsonPath("$.data.items[0].gameStartedAt").value("2026-05-09T12:02:00"))
+            .andExpect(jsonPath("$.data.items[1].roomCode").value("ROOM02"))
+            .andExpect(jsonPath("$.data.items[2].roomCode").value("ROOM01"))
+            .andExpect(jsonPath("$.data.items[2].gameStartedAt").value(org.hamcrest.Matchers.nullValue()));
     }
 
     @Test
@@ -168,6 +167,42 @@ class BackofficeRelayRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.totalElements").value(1))
             .andExpect(jsonPath("$.data.items[0].roomCode").value("ROOM_P"))
             .andExpect(jsonPath("$.data.items[0].status").value("PLAYING"));
+    }
+
+    @Test
+    void filtersFinishedRoomsByExplicitStatus() throws Exception {
+        LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
+        given(relayRoomRepository.findAllActiveRooms())
+            .willReturn(List.of(roomState("ROOM_W", RelayRoomStatus.WAITING, 1, null, base),
+                roomState("ROOM_F", RelayRoomStatus.FINISHED, 4, base.plusMinutes(1), base.plusMinutes(1))));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("status", "FINISHED"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.totalElements").value(1))
+            .andExpect(jsonPath("$.data.items[0].roomCode").value("ROOM_F"))
+            .andExpect(jsonPath("$.data.items[0].status").value("FINISHED"));
+    }
+
+    @Test
+    void filtersInProgressRoomsByPlayingAndFinalizing() throws Exception {
+        LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
+        given(relayRoomRepository.findAllActiveRooms())
+            .willReturn(List.of(roomState("ROOM_W", RelayRoomStatus.WAITING, 1, null, base),
+                roomState("ROOM_P", RelayRoomStatus.PLAYING, 4, base.plusMinutes(1), base.plusMinutes(1)),
+                roomState("ROOM_Z", RelayRoomStatus.FINALIZING, 4, base.plusMinutes(2), base.plusMinutes(2)),
+                roomState("ROOM_F", RelayRoomStatus.FINISHED, 4, base.plusMinutes(3), base.plusMinutes(3))));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("status", "IN_PROGRESS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(2))
+            .andExpect(jsonPath("$.data.totalElements").value(2))
+            .andExpect(jsonPath("$.data.items[0].roomCode").value("ROOM_Z"))
+            .andExpect(jsonPath("$.data.items[0].status").value("FINALIZING"))
+            .andExpect(jsonPath("$.data.items[1].roomCode").value("ROOM_P"))
+            .andExpect(jsonPath("$.data.items[1].status").value("PLAYING"));
     }
 
     @Test

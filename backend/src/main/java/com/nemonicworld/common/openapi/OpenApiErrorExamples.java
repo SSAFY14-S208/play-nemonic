@@ -227,6 +227,12 @@ public final class OpenApiErrorExamples {
           "message": "방장만 사용할 수 있습니다."
         }
         """;
+    public static final String FLIPBOOK_ROOM_CLOSE_HOST_REQUIRED = """
+        {
+          "success": false,
+          "message": "방장만 사용할 수 있는 기능입니다."
+        }
+        """;
     public static final String FLIPBOOK_ROOM_KICK_HOST_REQUIRED = """
         {
           "success": false,
@@ -237,6 +243,24 @@ public final class OpenApiErrorExamples {
         {
           "success": false,
           "message": "강퇴할 참여자를 찾을 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_CLOSE_BEFORE_RESULT = """
+        {
+          "success": false,
+          "message": "결과 생성 전에는 방을 종료할 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_CLOSE_WHILE_PLAYING = """
+        {
+          "success": false,
+          "message": "게임 진행 중에는 방을 종료할 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_CLOSE_WHILE_FINALIZING = """
+        {
+          "success": false,
+          "message": "결과 생성 중에는 방을 종료할 수 없습니다."
         }
         """;
     public static final String FLIPBOOK_WAITING_ROOM_SETTINGS_ONLY = """

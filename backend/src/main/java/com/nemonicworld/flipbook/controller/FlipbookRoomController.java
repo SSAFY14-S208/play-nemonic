@@ -7,6 +7,7 @@ import com.nemonicworld.flipbook.dto.request.FlipbookFrameSubmitRequest;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomKickRequest;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomCloseResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
@@ -48,6 +49,8 @@ public class FlipbookRoomController {
     private static final String FLIPBOOK_MY_ASSIGNMENT_FOUND_MESSAGE = "내 플립북 프레임 배정 조회 성공";
     private static final String FLIPBOOK_FRAME_SUBMITTED_MESSAGE = "플립북 프레임 제출 성공";
     private static final String FLIPBOOK_RESULTS_FOUND_MESSAGE = "플립북 결과 조회 성공";
+    private static final String FLIPBOOK_ROOM_CLOSED_MESSAGE = "플립북 방 종료 성공";
+    private static final String FLIPBOOK_ROOM_ALREADY_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String FLIPBOOK_ROOM_PARTICIPANT_KICKED_MESSAGE = "참여자 강퇴 성공";
     private static final String FLIPBOOK_ROOM_LEFT_MESSAGE = "플립북 방 퇴장 성공";
 
@@ -264,6 +267,41 @@ public class FlipbookRoomController {
             flipbookRoomEventPublisher.publishRoundStarted(response.roomCode(), response.round(), response.nextRound(),
                 response.nextRoundStartedAt(), response.nextRoundDeadlineAt());
         }
+    }
+
+    /**
+     * 방장이 결과 생성이 완료된 플립북 방을 즉시 닫습니다.
+     */
+    @PostMapping("/{roomCode}/close")
+    @Operation(summary = "플립북 방 수동 종료", description = "방장이 결과 생성이 완료된 플립북 방을 즉시 CLOSED 상태로 전환합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "플립북 방 종료 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "종료 권한 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "비참여자", value = OpenApiErrorExamples.FLIPBOOK_ROOM_PARTICIPANT_REQUIRED),
+            @ExampleObject(name = "방장 아님", value = OpenApiErrorExamples.FLIPBOOK_ROOM_CLOSE_HOST_REQUIRED)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.FLIPBOOK_ROOM_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "종료 불가 상태", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "결과 생성 전", value = OpenApiErrorExamples.FLIPBOOK_CLOSE_BEFORE_RESULT),
+            @ExampleObject(name = "게임 진행 중", value = OpenApiErrorExamples.FLIPBOOK_CLOSE_WHILE_PLAYING),
+            @ExampleObject(name = "결과 생성 중", value = OpenApiErrorExamples.FLIPBOOK_CLOSE_WHILE_FINALIZING),
+            @ExampleObject(name = "동시 변경 충돌", value = OpenApiErrorExamples.FLIPBOOK_ROOM_UPDATE_CONFLICT)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<FlipbookRoomCloseResponse>> closeRoom(@PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        FlipbookRoomCloseResponse response = flipbookRoomService.closeRoom(userUuid, roomCode);
+        if (!response.alreadyClosed()) {
+            flipbookRoomEventPublisher.publishRoomClosed(response.roomCode(), response.closedAt());
+        }
+        String message = response.alreadyClosed() ? FLIPBOOK_ROOM_ALREADY_CLOSED_MESSAGE : FLIPBOOK_ROOM_CLOSED_MESSAGE;
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(ApiResponse.success(message, response));
     }
 
     /**

@@ -54,7 +54,11 @@ public class FlipbookRoomPolicy {
     private static final String ROOM_PARTICIPANT_NOT_FOUND_MESSAGE = "플립북 방에 참여하지 않은 사용자입니다.";
     private static final String KICK_TARGET_NOT_FOUND_MESSAGE = "강퇴할 참여자를 찾을 수 없습니다.";
     private static final String ONLY_HOST_ALLOWED_MESSAGE = "방장만 사용할 수 있습니다.";
+    private static final String ONLY_HOST_CLOSE_ALLOWED_MESSAGE = "방장만 사용할 수 있는 기능입니다.";
     private static final String ONLY_HOST_KICK_ALLOWED_MESSAGE = "방장만 사용할 수 있는 기능입니다.";
+    private static final String CLOSE_BEFORE_RESULT_MESSAGE = "결과 생성 전에는 방을 종료할 수 없습니다.";
+    private static final String CLOSE_WHILE_PLAYING_MESSAGE = "게임 진행 중에는 방을 종료할 수 없습니다.";
+    private static final String CLOSE_WHILE_FINALIZING_MESSAGE = "결과 생성 중에는 방을 종료할 수 없습니다.";
     private static final String WAITING_ROOM_SETTINGS_ONLY_MESSAGE = "대기 중인 방에서만 설정을 변경할 수 있습니다.";
     private static final String WAITING_ROOM_KICK_ONLY_MESSAGE = "대기실에서만 강퇴할 수 있습니다.";
     private static final String WAITING_ROOM_LEAVE_ONLY_MESSAGE = "대기실에서만 퇴장할 수 있습니다.";
@@ -126,7 +130,7 @@ public class FlipbookRoomPolicy {
     /**
      * 설정 변경처럼 참여자 권한이 필요한 동작에서 현재 사용자의 참여자 정보를 요구합니다.
      */
-    FlipbookRoomParticipant requireParticipant(FlipbookRoomState roomState, String userUuid) {
+    public FlipbookRoomParticipant requireParticipant(FlipbookRoomState roomState, String userUuid) {
         return findParticipant(roomState, userUuid)
             .orElseThrow(() -> new ForbiddenException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
     }
@@ -156,6 +160,18 @@ public class FlipbookRoomPolicy {
         }
 
         throw new ForbiddenException(ONLY_HOST_ALLOWED_MESSAGE);
+    }
+
+    /**
+     * 수동 종료 요청자가 방장인지 검증합니다.
+     */
+    public void validateRoomCloseHost(String viewerUserUuid, FlipbookRoomState roomState,
+        FlipbookRoomParticipant participant) {
+        if (participant.host() || roomState.hostUserUuid().equals(viewerUserUuid)) {
+            return;
+        }
+
+        throw new ForbiddenException(ONLY_HOST_CLOSE_ALLOWED_MESSAGE);
     }
 
     /**
@@ -194,6 +210,29 @@ public class FlipbookRoomPolicy {
         if (roomState.status() != FlipbookRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_LEAVE_ONLY_MESSAGE);
         }
+    }
+
+    /**
+     * 수동 종료가 가능한 방 상태인지 검증합니다.
+     */
+    public void validateManualClosableRoom(FlipbookRoomState roomState) {
+        if (roomState.status() == FlipbookRoomStatus.FINISHED) {
+            return;
+        }
+
+        if (roomState.status() == FlipbookRoomStatus.WAITING) {
+            throw new ConflictException(CLOSE_BEFORE_RESULT_MESSAGE);
+        }
+
+        if (roomState.status() == FlipbookRoomStatus.PLAYING) {
+            throw new ConflictException(CLOSE_WHILE_PLAYING_MESSAGE);
+        }
+
+        if (roomState.status() == FlipbookRoomStatus.FINALIZING) {
+            throw new ConflictException(CLOSE_WHILE_FINALIZING_MESSAGE);
+        }
+
+        throw new ConflictException(ROOM_CLOSED_MESSAGE);
     }
 
     /**
