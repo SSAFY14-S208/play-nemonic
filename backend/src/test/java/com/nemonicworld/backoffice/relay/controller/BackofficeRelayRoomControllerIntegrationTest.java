@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
@@ -40,9 +42,12 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
@@ -54,6 +59,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
+@ExtendWith(OutputCaptureExtension.class)
 class BackofficeRelayRoomControllerIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
@@ -70,6 +76,9 @@ class BackofficeRelayRoomControllerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -261,7 +270,7 @@ class BackofficeRelayRoomControllerIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(value = RelayRoomStatus.class, names = {"WAITING", "PLAYING", "FINALIZING", "FINISHED"})
-    void adminDeletesActiveRelayRoom(RelayRoomStatus status) throws Exception {
+    void adminDeletesActiveRelayRoom(RelayRoomStatus status, CapturedOutput output) throws Exception {
         String roomCode = roomCodeFor(status);
         RelayRoomState roomState = roomState(roomCode, status, 3, LocalDateTime.of(2026, 5, 9, 12, 0),
             LocalDateTime.of(2026, 5, 9, 11, 50));
@@ -269,8 +278,10 @@ class BackofficeRelayRoomControllerIntegrationTest {
         given(relayRoomRepository.saveIfUnchanged(eq(roomState), any(RelayRoomState.class))).willReturn(true);
 
         mockMvc
-            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
-                bearerAccessToken()))
+            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", roomCode)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .header("X-Trace-Id", "relay-force-close-" + status.name().toLowerCase())
+                .header("X-Forwarded-For", "10.10.70.11, 10.10.70.12"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("릴레이 드로잉 방 삭제 성공"))
             .andExpect(jsonPath("$.data.roomCode").value(roomCode));
@@ -283,6 +294,20 @@ class BackofficeRelayRoomControllerIntegrationTest {
         assertThat(closedRoomState.updatedAt()).isNotNull();
         then(relayInviteMetadataSyncService).should().syncWithRoomState(closedRoomState);
         then(relayRoomEventPublisher).should().publishRoomClosed(eq(roomCode), eq(closedRoomState.updatedAt()));
+
+        JsonNode auditLog = findAuditLog(output, "relay_room_force_close");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("relay-force-close-" + status.name().toLowerCase());
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.70.11");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("room");
+        assertThat(metadata.path("target_id").asText()).isEqualTo(roomCode);
+        assertThat(metadata.path("action").asText()).isEqualTo("force_close");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("before").path("status").asText()).isEqualTo(status.name());
+        assertThat(metadata.path("after").path("status").asText()).isEqualTo("CLOSED");
     }
 
     @Test
@@ -438,6 +463,16 @@ class BackofficeRelayRoomControllerIntegrationTest {
             case FINISHED -> "GH6S8T";
             case CLOSED -> "ZZZZZZ";
         };
+    }
+
+    private JsonNode findAuditLog(CapturedOutput output, String eventName) throws Exception {
+        for (String line : output.getOut().split("\\R")) {
+            if (line.contains("\"event_name\":\"%s\"".formatted(eventName))) {
+                return objectMapper.readTree(line);
+            }
+        }
+
+        throw new AssertionError("Audit log not found. eventName=" + eventName);
     }
 
     @TestConfiguration

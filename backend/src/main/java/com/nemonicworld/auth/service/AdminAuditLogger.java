@@ -134,6 +134,18 @@ public class AdminAuditLogger {
         emit("INFO", "param_change", "system parameter changed by admin", clientInfo, metadata);
     }
 
+    public void logRelayRoomForceClose(AdminPrincipal adminPrincipal, String roomCode, String beforeStatus,
+        AdminClientInfo clientInfo) {
+        logRoomForceClose(adminPrincipal, roomCode, beforeStatus, clientInfo, "relay_room_force_close",
+            "relay room force closed by admin");
+    }
+
+    public void logFlipbookRoomForceClose(AdminPrincipal adminPrincipal, String roomCode, String beforeStatus,
+        AdminClientInfo clientInfo) {
+        logRoomForceClose(adminPrincipal, roomCode, beforeStatus, clientInfo, "flipbook_room_force_close",
+            "flipbook room force closed by admin");
+    }
+
     private Map<String, Object> baseMetadata(String actorId, String actorRole, AdminClientInfo clientInfo,
         String targetId, String action, String result) {
         return baseMetadata(actorId, actorRole, clientInfo, TARGET_TYPE_ADMIN_ACCOUNT, targetId, action, result);
@@ -181,6 +193,22 @@ public class AdminAuditLogger {
     private Map<String, Object> inquiryReplySnapshot(String status, String assignedTo) {
         Map<String, Object> snapshot = inquiryStatusSnapshot(status);
         snapshot.put("assigned_to", assignedTo);
+
+        return snapshot;
+    }
+
+    private void logRoomForceClose(AdminPrincipal adminPrincipal, String roomCode, String beforeStatus,
+        AdminClientInfo clientInfo, String eventName, String message) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, "room", roomCode, "force_close", "success");
+        metadata.put("before", roomStatusSnapshot(beforeStatus));
+        metadata.put("after", roomStatusSnapshot("CLOSED"));
+        emit("INFO", eventName, message, clientInfo, metadata);
+    }
+
+    private Map<String, Object> roomStatusSnapshot(String status) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("status", status);
 
         return snapshot;
     }

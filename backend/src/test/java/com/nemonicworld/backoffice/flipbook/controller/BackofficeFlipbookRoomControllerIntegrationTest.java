@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
@@ -37,11 +39,14 @@ import java.util.Optional;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
@@ -53,6 +58,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
+@ExtendWith(OutputCaptureExtension.class)
 class BackofficeFlipbookRoomControllerIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
@@ -69,6 +75,9 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -262,7 +271,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "PLAYING", "FINISHED"})
-    void adminDeletesActiveFlipbookRoom(FlipbookRoomStatus roomStatus) throws Exception {
+    void adminDeletesActiveFlipbookRoom(FlipbookRoomStatus roomStatus, CapturedOutput output) throws Exception {
         String roomCode = roomCodeFor(roomStatus);
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
         FlipbookRoomState roomState = roomState(roomCode, roomStatus, 3, currentRoundFor(roomStatus),
@@ -271,8 +280,10 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
         given(flipbookRoomRepository.saveIfUnchanged(eq(roomState), any(FlipbookRoomState.class))).willReturn(true);
 
         mockMvc
-            .perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
-                bearerAccessToken()))
+            .perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", roomCode)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .header("X-Trace-Id", "flipbook-force-close-" + roomStatus.name().toLowerCase())
+                .header("X-Real-IP", "10.10.80.11"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("플립북 방 삭제 성공"))
             .andExpect(jsonPath("$.data.roomCode").value(roomCode));
@@ -287,6 +298,21 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
         assertThat(closedRoomState.assignments()).isEqualTo(roomState.assignments());
         then(flipbookInviteMetadataSyncService).should().syncWithRoomState(closedRoomState);
         then(flipbookRoomEventPublisher).should().publishRoomClosed(eq(roomCode), eq(closedRoomState.updatedAt()));
+
+        JsonNode auditLog = findAuditLog(output, "flipbook_room_force_close");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText())
+            .isEqualTo("flipbook-force-close-" + roomStatus.name().toLowerCase());
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.80.11");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("room");
+        assertThat(metadata.path("target_id").asText()).isEqualTo(roomCode);
+        assertThat(metadata.path("action").asText()).isEqualTo("force_close");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("before").path("status").asText()).isEqualTo(roomStatus.name());
+        assertThat(metadata.path("after").path("status").asText()).isEqualTo("CLOSED");
     }
 
     @Test
@@ -459,6 +485,16 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
 
     private LocalDateTime gameStartedAtFor(FlipbookRoomStatus status, LocalDateTime base) {
         return status == FlipbookRoomStatus.WAITING ? null : base.plusMinutes(1);
+    }
+
+    private JsonNode findAuditLog(CapturedOutput output, String eventName) throws Exception {
+        for (String line : output.getOut().split("\\R")) {
+            if (line.contains("\"event_name\":\"%s\"".formatted(eventName))) {
+                return objectMapper.readTree(line);
+            }
+        }
+
+        throw new AssertionError("Audit log not found. eventName=" + eventName);
     }
 
     @TestConfiguration

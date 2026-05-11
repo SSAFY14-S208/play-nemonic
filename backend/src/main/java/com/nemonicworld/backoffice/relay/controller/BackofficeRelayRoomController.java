@@ -3,6 +3,7 @@ package com.nemonicworld.backoffice.relay.controller;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomDeleteResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomListResponse;
 import com.nemonicworld.backoffice.relay.service.BackofficeRelayRoomService;
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -39,9 +41,12 @@ public class BackofficeRelayRoomController {
     private static final String ROOM_DESC = "삭제할 공유 방코드";
 
     private final BackofficeRelayRoomService backofficeRelayRoomService;
+    private final AdminClientInfoResolver adminClientInfoResolver;
 
-    public BackofficeRelayRoomController(BackofficeRelayRoomService backofficeRelayRoomService) {
+    public BackofficeRelayRoomController(BackofficeRelayRoomService backofficeRelayRoomService,
+        AdminClientInfoResolver adminClientInfoResolver) {
         this.backofficeRelayRoomService = backofficeRelayRoomService;
+        this.adminClientInfoResolver = adminClientInfoResolver;
     }
 
     @GetMapping
@@ -77,9 +82,10 @@ public class BackofficeRelayRoomController {
             @ExampleObject(name = "이미 종료된 방", value = OpenApiErrorExamples.RELAY_ROOM_CLOSED),
             @ExampleObject(name = "상태 갱신 충돌", value = OpenApiErrorExamples.BACKOFFICE_RELAY_ROOM_UPDATE_CONFLICT)}))})
     public ResponseEntity<ApiResponse<BackofficeRelayRoomDeleteResponse>> deleteActiveRelayRoom(
-        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("roomCode") String roomCode) {
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("roomCode") String roomCode,
+        HttpServletRequest servletRequest) {
         BackofficeRelayRoomDeleteResponse response = backofficeRelayRoomService.deleteActiveRelayRoom(adminPrincipal,
-            roomCode);
+            roomCode, adminClientInfoResolver.resolve(servletRequest));
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(DELETE_SUCCESS_MESSAGE, response));
