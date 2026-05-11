@@ -14,6 +14,7 @@ import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundProgress;
@@ -49,6 +50,8 @@ public class FlipbookFrameSubmitUseCase {
     private static final String FILE_UPLOAD_PURPOSE_CONFLICT_MESSAGE = "플립북 프레임 파일만 제출할 수 있습니다.";
     private static final String ROOM_FRAME_SUBMIT_UPDATE_CONFLICT_MESSAGE = "동시 프레임 제출 요청이 많아 플립북 프레임을 "
         + "저장하지 못했습니다. 다시 시도해주세요.";
+    private static final int ROOM_MUTATION_LOCK_ACQUIRE_ATTEMPTS = 5;
+    private static final Duration ROOM_MUTATION_LOCK_RETRY_DELAY = Duration.ofMillis(50);
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final FlipbookRoomRepository flipbookRoomRepository;
@@ -58,13 +61,17 @@ public class FlipbookFrameSubmitUseCase {
     private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
     private final FileUploadRepository fileUploadRepository;
     private final Duration autoSubmitGrace;
+    private final FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository;
+    private final Duration roomMutationLockTtl;
 
     public FlipbookFrameSubmitUseCase(AnonymousUserResolver anonymousUserResolver,
         FlipbookRoomRepository flipbookRoomRepository, FlipbookRoomPolicy flipbookRoomPolicy,
         FlipbookFrameImageUrlResolver flipbookFrameImageUrlResolver,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
         FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService, FileUploadRepository fileUploadRepository,
-        @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs) {
+        FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository,
+        @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs,
+        @Value("${nemonic.flipbook.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.flipbookRoomPolicy = flipbookRoomPolicy;
@@ -73,6 +80,8 @@ public class FlipbookFrameSubmitUseCase {
         this.flipbookRoomRoundAdvanceService = flipbookRoomRoundAdvanceService;
         this.fileUploadRepository = fileUploadRepository;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
+        this.flipbookRoomMutationLockRepository = flipbookRoomMutationLockRepository;
+        this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
     }
 
     /**
@@ -87,8 +96,10 @@ public class FlipbookFrameSubmitUseCase {
         validateRequest(request);
         String viewerUserUuid = viewerUser.getId().toString();
         FileUpload frameFile = resolveFrameFile(viewerUser.getId(), request.fileId());
+        String roomMutationLockToken = createRoomMutationLockToken("submission", viewerUserUuid);
+        boolean roomMutationLocked = false;
 
-        for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
+        try {
             FlipbookRoomState roomState = flipbookRoomPolicy.findRoomState(roomCodeValue);
             FlipbookRoomParticipant participant = flipbookRoomPolicy.requireParticipant(roomState, viewerUserUuid);
             flipbookRoomPolicy.validateNotDropped(roomState, participant.userUuid());
@@ -118,23 +129,62 @@ public class FlipbookFrameSubmitUseCase {
 
             validateDeadline(roomState.roundDeadlineAt());
 
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            FlipbookFrameAssignment submittedAssignment = submitAssignment(currentAssignment, frameFile, now);
-            List<FlipbookFrameAssignment> updatedAssignments = replaceAssignment(roomState.assignments(),
-                currentAssignment, submittedAssignment);
-            FlipbookRoomState submittedRoomState = roomState.withAssignments(updatedAssignments, now);
-            FlipbookRoundAdvanceResult advanceResult = flipbookRoomRoundAdvanceService
-                .advanceRoundIfCompleted(submittedRoomState, round, now);
+            roomMutationLocked = acquireRoomMutationLock(roomCodeValue, roomMutationLockToken);
 
-            if (flipbookRoomRepository.saveIfUnchanged(roomState, advanceResult.roomState())) {
-                flipbookInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
+            for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
+                FlipbookRoomState latestRoomState = flipbookRoomPolicy.findRoomState(roomCodeValue);
+                FlipbookRoomParticipant latestParticipant = flipbookRoomPolicy.requireParticipant(latestRoomState,
+                    viewerUserUuid);
+                flipbookRoomPolicy.validateNotDropped(latestRoomState, latestParticipant.userUuid());
+                flipbookRoomPolicy.validateAssignmentQueryableRoom(latestRoomState);
 
-                return createResponse(advanceResult.roomState(), submittedAssignment, false, participant,
-                    advanceResult);
+                Optional<FlipbookFrameAssignment> latestRequestedAssignment = findRequestedAssignment(latestRoomState,
+                    viewerUserUuid, round, request.flipbookIndex(), request.frameIndex());
+                if (latestRequestedAssignment.isPresent()) {
+                    FlipbookFrameAssignment assignment = latestRequestedAssignment.get();
+                    if (assignment.status() == FlipbookFrameAssignmentStatus.SUBMITTED) {
+                        return createResponse(latestRoomState, assignment, true, latestParticipant);
+                    }
+                    if (assignment.status() == FlipbookFrameAssignmentStatus.AUTO_SUBMITTED
+                        || assignment.autoSubmitted()) {
+                        throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
+                    }
+                }
+
+                FlipbookFrameAssignment latestCurrentAssignment = flipbookRoomPolicy
+                    .requireCurrentAssignment(latestRoomState, viewerUserUuid);
+                validateAssignmentMatches(latestRoomState, latestCurrentAssignment, round, request.flipbookIndex(),
+                    request.frameIndex());
+
+                if (latestCurrentAssignment.status() == FlipbookFrameAssignmentStatus.AUTO_SUBMITTED
+                    || latestCurrentAssignment.autoSubmitted()) {
+                    throw new ConflictException(AUTO_SUBMITTED_MESSAGE);
+                }
+
+                validateDeadline(latestRoomState.roundDeadlineAt());
+
+                LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+                FlipbookFrameAssignment submittedAssignment = submitAssignment(latestCurrentAssignment, frameFile, now);
+                List<FlipbookFrameAssignment> updatedAssignments = replaceAssignment(latestRoomState.assignments(),
+                    latestCurrentAssignment, submittedAssignment);
+                FlipbookRoomState submittedRoomState = latestRoomState.withAssignments(updatedAssignments, now);
+                FlipbookRoundAdvanceResult advanceResult = flipbookRoomRoundAdvanceService
+                    .advanceRoundIfCompleted(submittedRoomState, round, now);
+
+                if (flipbookRoomRepository.saveIfUnchanged(latestRoomState, advanceResult.roomState())) {
+                    flipbookInviteMetadataSyncService.syncWithRoomState(advanceResult.roomState());
+
+                    return createResponse(advanceResult.roomState(), submittedAssignment, false, latestParticipant,
+                        advanceResult);
+                }
+            }
+
+            throw new ConflictException(ROOM_FRAME_SUBMIT_UPDATE_CONFLICT_MESSAGE);
+        } finally {
+            if (roomMutationLocked) {
+                flipbookRoomMutationLockRepository.releaseRoomMutationLock(roomCodeValue, roomMutationLockToken);
             }
         }
-
-        throw new ConflictException(ROOM_FRAME_SUBMIT_UPDATE_CONFLICT_MESSAGE);
     }
 
     private void validateRound(int round) {
@@ -233,6 +283,36 @@ public class FlipbookFrameSubmitUseCase {
         }
 
         return updatedAssignments;
+    }
+
+    private boolean acquireRoomMutationLock(String roomCode, String roomMutationLockToken) {
+        for (int attempt = 0; attempt < ROOM_MUTATION_LOCK_ACQUIRE_ATTEMPTS; attempt++) {
+            boolean locked = flipbookRoomMutationLockRepository.acquireRoomMutationLock(roomCode, roomMutationLockToken,
+                roomMutationLockTtl);
+            if (locked) {
+                return true;
+            }
+
+            if (attempt < ROOM_MUTATION_LOCK_ACQUIRE_ATTEMPTS - 1) {
+                sleepBeforeRoomMutationLockRetry();
+            }
+        }
+
+        throw new ConflictException(ROOM_FRAME_SUBMIT_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    private void sleepBeforeRoomMutationLockRetry() {
+        try {
+            Thread.sleep(ROOM_MUTATION_LOCK_RETRY_DELAY.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ConflictException(ROOM_FRAME_SUBMIT_UPDATE_CONFLICT_MESSAGE);
+        }
+    }
+
+    private String createRoomMutationLockToken(String owner, String viewerUserUuid) {
+        return "token=%s,requestedAt=%s,owner=%s,uuid=%s".formatted(UUID.randomUUID(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), owner, viewerUserUuid);
     }
 
     private FlipbookFrameSubmitResponse createResponse(FlipbookRoomState roomState, FlipbookFrameAssignment assignment,

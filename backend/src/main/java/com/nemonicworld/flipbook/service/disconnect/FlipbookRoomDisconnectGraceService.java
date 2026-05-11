@@ -4,6 +4,7 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,21 +31,27 @@ public class FlipbookRoomDisconnectGraceService {
     private static final Logger log = LoggerFactory.getLogger(FlipbookRoomDisconnectGraceService.class);
 
     private final FlipbookRoomRepository flipbookRoomRepository;
+    private final FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
     private final Duration reconnectGrace;
+    private final Duration roomMutationLockTtl;
     private final int scanLimit;
 
     public FlipbookRoomDisconnectGraceService(FlipbookRoomRepository flipbookRoomRepository,
+        FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository,
         FlipbookRoomEventPublisher flipbookRoomEventPublisher,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
         @Value("${nemonic.flipbook.disconnect.reconnect-grace-seconds:"
             + FlipbookRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS + "}") long reconnectGraceSeconds,
-        @Value("${nemonic.flipbook.disconnect.scan-limit:100}") int scanLimit) {
+        @Value("${nemonic.flipbook.disconnect.scan-limit:100}") int scanLimit,
+        @Value("${nemonic.flipbook.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.flipbookRoomRepository = flipbookRoomRepository;
+        this.flipbookRoomMutationLockRepository = flipbookRoomMutationLockRepository;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
         this.reconnectGrace = Duration.ofSeconds(Math.max(0L, reconnectGraceSeconds));
+        this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
         this.scanLimit = scanLimit;
     }
 
@@ -86,7 +94,31 @@ public class FlipbookRoomDisconnectGraceService {
      */
     public FlipbookDisconnectGraceRoomResult processRoom(String roomCode, LocalDateTime now) {
         LocalDateTime processedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomState candidateRoomState = flipbookRoomRepository.findByRoomCode(roomCode).orElse(null);
+        if (candidateRoomState == null || candidateRoomState.status() != FlipbookRoomStatus.PLAYING
+            || candidateRoomState.currentRound() == null) {
+            return FlipbookDisconnectGraceRoomResult.noOp(roomCode);
+        }
 
+        String roomMutationLockToken = createRoomMutationLockToken("disconnect-grace", roomCode);
+        boolean locked = flipbookRoomMutationLockRepository.acquireRoomMutationLock(roomCode, roomMutationLockToken,
+            roomMutationLockTtl);
+        if (!locked) {
+            log.warn("플립북 이탈 확정 처리를 건너뜁니다. 방 상태 변경 잠금이 사용 중입니다. roomCode={}", roomCode);
+            return FlipbookDisconnectGraceRoomResult.noOp(roomCode);
+        }
+
+        try {
+            FlipbookDisconnectGraceRoomResult result = processRoomWithLock(roomCode, processedAt);
+            publishDisconnectGraceEvents(result);
+
+            return result;
+        } finally {
+            flipbookRoomMutationLockRepository.releaseRoomMutationLock(roomCode, roomMutationLockToken);
+        }
+    }
+
+    private FlipbookDisconnectGraceRoomResult processRoomWithLock(String roomCode, LocalDateTime processedAt) {
         for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             FlipbookRoomState roomState = flipbookRoomRepository.findByRoomCode(roomCode).orElse(null);
             if (roomState == null || roomState.status() != FlipbookRoomStatus.PLAYING
@@ -105,15 +137,17 @@ public class FlipbookRoomDisconnectGraceService {
 
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
-                FlipbookDisconnectGraceRoomResult result = new FlipbookDisconnectGraceRoomResult(roomCode, true,
+                return new FlipbookDisconnectGraceRoomResult(roomCode, true,
                     participantDropUpdate.droppedParticipants(), participantDropUpdate.hostChange());
-                publishDisconnectGraceEvents(result);
-
-                return result;
             }
         }
 
         throw new ConflictException(FlipbookRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+    }
+
+    private String createRoomMutationLockToken(String owner, String roomCode) {
+        return "token=%s,requestedAt=%s,owner=%s,roomCode=%s".formatted(UUID.randomUUID(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), owner, roomCode);
     }
 
     private ParticipantDropUpdate dropExpiredParticipants(FlipbookRoomState roomState, LocalDateTime droppedAt) {
