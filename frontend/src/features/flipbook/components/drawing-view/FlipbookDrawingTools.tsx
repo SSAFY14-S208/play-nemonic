@@ -91,7 +91,7 @@ export function ToolPanel({
   return (
     <aside
       className={cn(
-        'absolute left-[1222px] top-[206px] w-[204px] rounded-[31px] bg-white px-[18px] py-[26px] shadow-[0_8px_12px_rgb(0_0_0_/_18%)]',
+        'absolute left-[1213px] top-[264px] w-[204px] rounded-[31px] bg-white px-[18px] py-[26px] shadow-[0_8px_12px_rgb(0_0_0_/_18%)]',
         className,
       )}
     >

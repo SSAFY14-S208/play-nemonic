@@ -41,7 +41,6 @@ import {
   FLIPBOOK_FILE_CONTENT_TYPE,
   FLIPBOOK_FILE_PURPOSE,
   getAssignmentKey,
-  getDrawingTurnCount,
   getFlipbookActionError,
   getNormalizedResultItems,
   getResultFrames,
@@ -116,7 +115,7 @@ export function useFlipbook({
   const [selectedTimeLimitSeconds, setSelectedTimeLimitSeconds] =
     useState<FlipbookTimeLimitSeconds>(FLIPBOOK_TIME_LIMITS_SECONDS[1])
   const [roundCount, setRoundCount] = useState<number | null>(null)
-  const [startedParticipantCount, setStartedParticipantCount] = useState<number | null>(null)
+  const [, setStartedParticipantCount] = useState<number | null>(null)
   const [submittedAssignmentKeys, setSubmittedAssignmentKeys] = useState<Set<string>>(
     () => new Set(),
   )
@@ -182,12 +181,11 @@ export function useFlipbook({
   )
   const displayedParticipant =
     participants.find((participant) => participant.userUuid === userUuid) ?? currentParticipant
-  const cycleRoundCount = getServerRoundCount({
+  const perParticipantRoundCount = getServerRoundCount({
     roomState,
     fallback: roundCount ?? assignment?.totalRounds ?? null,
   })
-  const drawingParticipantCount = startedParticipantCount ?? participantCount
-  const drawingRoundCount = getDrawingTurnCount(cycleRoundCount, drawingParticipantCount)
+  const drawingRoundCount = perParticipantRoundCount
   const activeRoundIndex = Math.max(0, (assignment?.currentRound ?? roomState?.currentRound ?? 1) - 1)
   const canStartGame = roomState?.viewer.canStart === true
   const isHost = roomState?.viewer.host === true
@@ -831,7 +829,7 @@ export function useFlipbook({
     roomCode,
     roomCodeDraft,
     selectedTimeLimitSeconds,
-    roundCount: cycleRoundCount,
+    roundCount: perParticipantRoundCount,
     drawingRoundCount,
     activeRoundIndex,
     remainingSeconds: timer.remainingSeconds,

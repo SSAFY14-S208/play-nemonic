@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import {
   Check,
+  Eye,
+  EyeOff,
   Timer,
 } from 'lucide-react'
 import { cn } from '@/shared/libs'
@@ -123,6 +125,17 @@ export default function FlipbookDrawingView({
       : drawingSubmissionState === 'waiting'
         ? '제출 완료! 다음 라운드를 기다리는 중이에요'
         : null
+  const hintToggleLabel = hasOnionSkinHint
+    ? isOnionSkinVisible
+      ? '힌트 끄기'
+      : '힌트 보기'
+    : '힌트 없음'
+
+  const toggleOnionSkinVisibility = () => {
+    if (!hasOnionSkinHint) return
+
+    setIsOnionSkinVisible((currentVisibility) => !currentVisibility)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -190,6 +203,27 @@ export default function FlipbookDrawingView({
             </div>
           </div>
           <p className="body-b mt-3 text-[#30343b]">{instructionText}</p>
+          <button
+            type="button"
+            onClick={toggleOnionSkinVisibility}
+            disabled={!hasOnionSkinHint}
+            aria-pressed={hasOnionSkinHint ? isOnionSkinVisible : undefined}
+            className={cn(
+              'body-b mt-4 inline-flex min-h-10 items-center gap-2 rounded-full border px-4 transition',
+              hasOnionSkinHint
+                ? isOnionSkinVisible
+                  ? 'border-[#ff8bab] bg-[#ffecf3] text-[#db4d82]'
+                  : 'border-[#ead7c9] bg-white text-[#7d6251]'
+                : 'cursor-not-allowed border-[#ead7c9] bg-[#f7efe7] text-[#b9a799]',
+            )}
+          >
+            {isOnionSkinVisible && hasOnionSkinHint ? (
+              <Eye className="size-5" aria-hidden />
+            ) : (
+              <EyeOff className="size-5" aria-hidden />
+            )}
+            {hintToggleLabel}
+          </button>
         </div>
 
         <MobileToolGrid
@@ -310,6 +344,13 @@ export default function FlipbookDrawingView({
             onClearDrawing={onClearDrawing}
           />
 
+          <HintToggleButton
+            className="absolute left-[151px] top-[831px]"
+            hasOnionSkinHint={hasOnionSkinHint}
+            isOnionSkinVisible={isOnionSkinVisible}
+            onToggle={toggleOnionSkinVisibility}
+          />
+
           <ProgressRail activeRoundIndex={activeRoundIndex} roundCount={displayRoundCount} />
 
           <button
@@ -317,7 +358,7 @@ export default function FlipbookDrawingView({
             onClick={handleCompleteRound}
             disabled={isDrawingLocked}
             className={cn(
-              'body-l-b absolute left-[1228px] top-[700px] inline-flex h-[62px] w-[198px] items-center justify-center gap-3 rounded-[14px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
+              'body-l-b absolute left-[1225px] top-[831px] inline-flex h-[62px] w-[204px] items-center justify-center gap-3 rounded-[14px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
               isDrawingLocked && 'cursor-not-allowed opacity-70',
             )}
           >
@@ -334,5 +375,46 @@ export default function FlipbookDrawingView({
         </div>
       </div>
     </section>
+  )
+}
+
+function HintToggleButton({
+  className,
+  hasOnionSkinHint,
+  isOnionSkinVisible,
+  onToggle,
+}: {
+  className?: string
+  hasOnionSkinHint: boolean
+  isOnionSkinVisible: boolean
+  onToggle: () => void
+}) {
+  const label = hasOnionSkinHint ? (isOnionSkinVisible ? '힌트 끄기' : '힌트 보기') : '힌트 없음'
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={!hasOnionSkinHint}
+      aria-label={label}
+      aria-pressed={hasOnionSkinHint ? isOnionSkinVisible : undefined}
+      title={label}
+      className={cn(
+        'body-b inline-flex h-[62px] w-[204px] items-center justify-center gap-3 rounded-[14px] border shadow-[0_8px_18px_rgb(129_89_54_/_13%)] transition',
+        hasOnionSkinHint
+          ? isOnionSkinVisible
+            ? 'border-[#ff8bab] bg-[#ffecf3] text-[#db4d82]'
+            : 'border-[#ead7c9] bg-white text-[#7d6251]'
+          : 'cursor-not-allowed border-[#ead7c9] bg-[#f7efe7] text-[#b9a799]',
+        className,
+      )}
+    >
+      {isOnionSkinVisible && hasOnionSkinHint ? (
+        <Eye className="size-5" aria-hidden />
+      ) : (
+        <EyeOff className="size-5" aria-hidden />
+      )}
+      {label}
+    </button>
   )
 }
