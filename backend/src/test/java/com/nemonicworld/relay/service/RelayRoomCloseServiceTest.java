@@ -88,7 +88,7 @@ class RelayRoomCloseServiceTest {
         assertThat(result.closed()).isTrue();
         assertThat(result.roomState().status()).isEqualTo(RelayRoomStatus.CLOSED);
         verify(relayRoomRepository).saveIfUnchanged(eq(roomState), any(RelayRoomState.class));
-        verify(relayRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW);
+        verify(relayRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW, "auto_delay");
     }
 
     @Test
@@ -121,7 +121,7 @@ class RelayRoomCloseServiceTest {
         ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
         verify(relayRoomRepository).saveIfUnchanged(eq(roomState), updatedStateCaptor.capture());
         assertThat(updatedStateCaptor.getValue().status()).isEqualTo(RelayRoomStatus.CLOSED);
-        verify(relayRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW);
+        verify(relayRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW, "auto_delay");
     }
 
     @ParameterizedTest
@@ -161,7 +161,7 @@ class RelayRoomCloseServiceTest {
 
         assertThat(result.closed()).isTrue();
         verify(relayRoomRepository, times(2)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
-        verify(relayRoomEventPublisher, times(1)).publishRoomClosed(ROOM_CODE, NOW);
+        verify(relayRoomEventPublisher, times(1)).publishRoomClosed(ROOM_CODE, NOW, "auto_delay");
     }
 
     @Test
@@ -196,8 +196,8 @@ class RelayRoomCloseServiceTest {
 
         assertThat(result.scannedRoomCount()).isEqualTo(2);
         assertThat(result.closedRoomCount()).isEqualTo(1);
-        verify(relayRoomEventPublisher).publishRoomClosed(SECOND_ROOM_CODE, NOW);
-        verify(relayRoomEventPublisher, never()).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher).publishRoomClosed(SECOND_ROOM_CODE, NOW, "auto_delay");
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class), any());
     }
 
     private RelayRoomState finishedRoom(String roomCode, LocalDateTime updatedAt) {

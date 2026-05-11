@@ -2,6 +2,7 @@ package com.nemonicworld.relay.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -62,6 +63,7 @@ class RelayRoomAbandonedCloseServiceTest {
             droppedParticipant(UUID.randomUUID(), false, 1, NOW.minusMinutes(6), NOW.minusMinutes(6)));
         given(relayRoomRepository.findAbandonedWaitingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of(waitingRoom));
         given(relayRoomRepository.findAbandonedPlayingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of(playingRoom));
+        given(relayRoomRepository.findEmptyWaitingRooms(10)).willReturn(List.of());
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(true);
 
@@ -71,8 +73,8 @@ class RelayRoomAbandonedCloseServiceTest {
         assertThat(result.closedWaitingRoomCount()).isEqualTo(1);
         assertThat(result.scannedPlayingRoomCount()).isEqualTo(1);
         assertThat(result.closedPlayingRoomCount()).isEqualTo(1);
-        verify(relayRoomEventPublisher).publishRoomClosed(WAITING_ROOM_CODE, NOW);
-        verify(relayRoomEventPublisher).publishRoomClosed(PLAYING_ROOM_CODE, NOW);
+        verify(relayRoomEventPublisher).publishRoomClosed(WAITING_ROOM_CODE, NOW, "waiting_idle_timeout");
+        verify(relayRoomEventPublisher).publishRoomClosed(PLAYING_ROOM_CODE, NOW, "playing_abandoned");
         ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
         verify(relayRoomRepository, times(2)).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
         assertThat(updatedStateCaptor.getAllValues()).extracting(RelayRoomState::status)
@@ -86,22 +88,49 @@ class RelayRoomAbandonedCloseServiceTest {
             disconnectedParticipant(UUID.randomUUID(), true, 0, NOW.minusMinutes(6)));
         given(relayRoomRepository.findAbandonedWaitingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of(waitingRoom));
         given(relayRoomRepository.findAbandonedPlayingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
+        given(relayRoomRepository.findEmptyWaitingRooms(10)).willReturn(List.of());
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(false);
 
         RelayRoomAbandonedCloseProcessResult result = service.closeAbandonedRooms(NOW);
 
         assertThat(result.closedWaitingRoomCount()).isZero();
-        verify(relayRoomEventPublisher, never()).publishRoomClosed(any(), any());
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(any(), any(), any());
         verify(relayInviteMetadataSyncService, never()).syncWithRoomState(any());
     }
 
     @Test
     void closeAbandonedRoomsUsesConfiguredCutoffs() {
+        given(relayRoomRepository.findEmptyWaitingRooms(10)).willReturn(List.of());
+        given(relayRoomRepository.findAbandonedWaitingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
+        given(relayRoomRepository.findAbandonedPlayingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
+
         service.closeAbandonedRooms(NOW);
 
+        verify(relayRoomRepository).findEmptyWaitingRooms(10);
         verify(relayRoomRepository).findAbandonedWaitingRooms(NOW.minusMinutes(5), 10);
         verify(relayRoomRepository).findAbandonedPlayingRooms(NOW.minusMinutes(5), 10);
+    }
+
+    @Test
+    void closeAbandonedRoomsClosesEmptyWaitingRooms() {
+        RelayRoomState emptyWaitingRoom = emptyWaitingRoom();
+        given(relayRoomRepository.findEmptyWaitingRooms(10)).willReturn(List.of(emptyWaitingRoom));
+        given(relayRoomRepository.findAbandonedWaitingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
+        given(relayRoomRepository.findAbandonedPlayingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomAbandonedCloseProcessResult result = service.closeAbandonedRooms(NOW);
+
+        assertThat(result.scannedWaitingRoomCount()).isEqualTo(1);
+        assertThat(result.closedWaitingRoomCount()).isEqualTo(1);
+        verify(relayRoomEventPublisher).publishRoomClosed(WAITING_ROOM_CODE, NOW, "waiting_empty");
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(eq(emptyWaitingRoom), updatedStateCaptor.capture());
+        assertThat(updatedStateCaptor.getValue().status()).isEqualTo(RelayRoomStatus.CLOSED);
+        assertThat(updatedStateCaptor.getValue().participants()).isEmpty();
+        verify(relayInviteMetadataSyncService).syncWithRoomState(updatedStateCaptor.getValue());
     }
 
     private RelayRoomState room(String roomCode, RelayRoomStatus status, LocalDateTime updatedAt,
@@ -111,6 +140,11 @@ class RelayRoomAbandonedCloseServiceTest {
         return new RelayRoomState(roomCode, status, participants[0].userUuid(), 45, 2, 6, RelayDrawingPart.FACE,
             List.of(participants), List.of(), NOW.minusMinutes(7), NOW.minusMinutes(6), NOW.minusMinutes(10), createdAt,
             updatedAt);
+    }
+
+    private RelayRoomState emptyWaitingRoom() {
+        return new RelayRoomState(WAITING_ROOM_CODE, RelayRoomStatus.WAITING, null, 45, 2, 6, null, List.of(),
+            List.of(), null, null, null, NOW.minusMinutes(10), NOW.minusMinutes(6));
     }
 
     private RelayRoomParticipant disconnectedParticipant(UUID userUuid, boolean host, int joinOrder,

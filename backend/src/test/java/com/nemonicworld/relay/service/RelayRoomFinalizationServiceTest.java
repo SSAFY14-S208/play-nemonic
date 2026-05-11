@@ -6,7 +6,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -126,6 +128,50 @@ class RelayRoomFinalizationServiceTest {
     }
 
     @Test
+    void processFinalizingRoomDeletesUploadedResultObjectsWhenDbSaveFails() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
+        willThrow(new InternalServerException("db")).given(relayArtifactRepository).saveRelayDrawingResults(anyString(),
+            any(), any(), any(LocalDateTime.class));
+
+        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isInstanceOf(InternalServerException.class);
+
+        ArgumentCaptor<String> uploadedObjectKeyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(relayResultStorage, times(2)).upload(uploadedObjectKeyCaptor.capture(), any(), eq("image/png"));
+        ArgumentCaptor<String> deletedObjectKeyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(relayResultStorage, times(2)).delete(deletedObjectKeyCaptor.capture());
+        assertThat(deletedObjectKeyCaptor.getAllValues())
+            .containsExactlyInAnyOrderElementsOf(uploadedObjectKeyCaptor.getAllValues());
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayRoomEventPublisher, never()).publishResultCreated(any(RelayRoomFinalizationResult.class));
+    }
+
+    @Test
+    void processFinalizingRoomKeepsOriginalExceptionWhenOrphanCleanupFails() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        InternalServerException dbError = new InternalServerException("db");
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
+        willThrow(dbError).given(relayArtifactRepository).saveRelayDrawingResults(anyString(), any(), any(),
+            any(LocalDateTime.class));
+        willThrow(new InternalServerException("delete")).given(relayResultStorage).delete(anyString());
+
+        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isSameAs(dbError);
+
+        verify(relayResultStorage, times(2)).delete(anyString());
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    @Test
     void processFinalizingRoomsSkipsRecentlyFinalizingRooms() {
         RelayRoomFinalizationService delayedService = new RelayRoomFinalizationService(relayRoomRepository,
             relayArtifactRepository, relayResultStorage, new RelayResultComposer(4, 3, 4), relayRoomEventPublisher,
@@ -165,7 +211,7 @@ class RelayRoomFinalizationServiceTest {
         assertThat(result.processedRoomCount()).isZero();
         assertThat(result.resultCount()).isZero();
         verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
-        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class), any());
     }
 
     @Test
@@ -189,7 +235,8 @@ class RelayRoomFinalizationServiceTest {
         ArgumentCaptor<RelayRoomState> updatedRoomCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
         verify(relayRoomRepository).saveIfUnchanged(eq(roomState), updatedRoomCaptor.capture());
         assertThat(updatedRoomCaptor.getValue().status()).isEqualTo(RelayRoomStatus.CLOSED);
-        verify(relayRoomEventPublisher).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class),
+            eq("finalization_failed"));
         verify(relayInviteMetadataSyncService).syncWithRoomState(updatedRoomCaptor.getValue());
     }
 

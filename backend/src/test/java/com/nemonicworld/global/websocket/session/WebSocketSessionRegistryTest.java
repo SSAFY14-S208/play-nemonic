@@ -47,6 +47,17 @@ class WebSocketSessionRegistryTest {
         assertThat(registry.findCurrentSession(ROOM_CODE, USER_UUID)).isEmpty();
     }
 
+    @Test
+    void hasCurrentSessionUsesConnectionType() {
+        registry.register(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE, USER_UUID, "session-1");
+
+        assertThat(registry.hasCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE, USER_UUID))
+            .isFalse();
+        assertThat(
+            registry.hasCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE, USER_UUID))
+            .isTrue();
+    }
+
     /**
      * 연결 종류와 roomCode가 같은 최신 세션만 조회합니다.
      */

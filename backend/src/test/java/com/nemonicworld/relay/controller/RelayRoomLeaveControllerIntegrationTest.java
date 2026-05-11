@@ -142,7 +142,7 @@ class RelayRoomLeaveControllerIntegrationTest {
         verify(relayRoomEventPublisher).publishParticipantLeft(eventCaptor.capture());
         assertThat(eventCaptor.getValue().leftUserUuid()).isEqualTo(leaverUuid.toString());
         verify(relayRoomEventPublisher, never()).publishHostChanged(any(RelayRoomLeaveResponse.class));
-        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class), any());
         verify(relayRoomEventPublisher).closeLeftRoomSession(DEFAULT_ROOM_CODE, leaverUuid.toString());
     }
 
@@ -178,7 +178,7 @@ class RelayRoomLeaveControllerIntegrationTest {
 
         verify(relayRoomEventPublisher).publishParticipantLeft(any(RelayRoomLeaveResponse.class));
         verify(relayRoomEventPublisher).publishHostChanged(any(RelayRoomLeaveResponse.class));
-        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class), any());
         verify(relayRoomEventPublisher).closeLeftRoomSession(DEFAULT_ROOM_CODE, hostUuid.toString());
     }
 
@@ -205,7 +205,8 @@ class RelayRoomLeaveControllerIntegrationTest {
 
         verify(relayRoomEventPublisher).publishParticipantLeft(any(RelayRoomLeaveResponse.class));
         verify(relayRoomEventPublisher, never()).publishHostChanged(any(RelayRoomLeaveResponse.class));
-        verify(relayRoomEventPublisher).publishRoomClosed(eq(DEFAULT_ROOM_CODE), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher).publishRoomClosed(eq(DEFAULT_ROOM_CODE), any(LocalDateTime.class),
+            eq("last_participant_left"));
         verify(relayRoomEventPublisher).closeLeftRoomSession(DEFAULT_ROOM_CODE, hostUuid.toString());
     }
 
