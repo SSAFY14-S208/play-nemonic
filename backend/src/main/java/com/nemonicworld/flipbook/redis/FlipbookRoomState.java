@@ -97,12 +97,21 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
     }
 
     /**
-     * 모든 라운드 제출이 끝난 방을 결과 조회 가능한 종료 상태로 전환합니다.
+     * 모든 라운드 제출이 끝난 방을 결과 생성 대기 상태로 전환합니다.
      */
     public FlipbookRoomState finishGame(List<FlipbookFrameAssignment> updatedAssignments, LocalDateTime finishedAt) {
-        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.FINISHED, hostUserUuid, timeLimitSeconds,
+        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.FINALIZING, hostUserUuid, timeLimitSeconds,
             minParticipants, maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt,
             updatedAssignments, participants, createdAt, finishedAt, kickedUserUuids);
+    }
+
+    /**
+     * 최종 결과물 생성과 갤러리 저장이 끝난 방을 결과 조회 가능한 종료 상태로 전환합니다.
+     */
+    public FlipbookRoomState finish(LocalDateTime finishedAt) {
+        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.FINISHED, hostUserUuid, timeLimitSeconds,
+            minParticipants, maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt,
+            assignments, participants, createdAt, finishedAt, kickedUserUuids);
     }
 
     /**

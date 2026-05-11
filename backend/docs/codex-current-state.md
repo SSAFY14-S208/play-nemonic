@@ -387,12 +387,13 @@ Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/
 ./gradlew --no-daemon test --tests com.nemonicworld.artifact.service.download.ArtifactDownloadServiceImplTest --tests com.nemonicworld.artifact.service.share.ArtifactShareServiceImplTest --tests com.nemonicworld.artifact.controller.ArtifactControllerIntegrationTest --tests com.nemonicworld.artifact.controller.ArtifactOpenApiIntegrationTest
 ```
 
-Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/result`.
+Recent flipbook result work aligns room completion with the relay finalization model.
 
-- Existing artifact/gallery rows are returned first for idempotent result lookup.
-- If Redis room state is `FINISHED` and no DB result exists yet, submitted non-empty frames are grouped by `flipbookIndex`, converted into GIF files under `flipbook/results/{artifactId}/result.gif`, and stored as `artifact` + `flipbook_artifact` + gallery rows for non-dropped participants.
-- The response mirrors relay result shape with `ready`, `resultCount`, per-result `galleryId`/`artifactId`, `thumbnailUrl`, `gifUrl`, `firstImageUrl`, and ordered frame metadata.
-- Flipbook game start now uses `totalRounds=8` so every generated flipbook has the minimum 8 frames; assignment count is `participantCount * 8`.
+- Last-round completion now changes Redis room status to `FINALIZING`, and `ALL_ROUNDS_COMPLETED` WebSocket events carry `roomStatus=FINALIZING`.
+- `FlipbookRoomFinalizationScheduler` scans `FINALIZING` rooms, acquires a room-scoped Redis finalization lock, creates GIF/thumbnail results under `flipbook/results/{artifactId}/`, stores `artifact` + `flipbook_artifact` + gallery rows for non-dropped participants, then changes the room to `FINISHED`.
+- After finalization completes, the backend emits a `RESULT_CREATED` WebSocket event with artifact IDs and per-`flipbookIndex` object keys.
+- `GET /api/v1/flipbook/rooms/{roomCode}/result` is now a read-side API: existing artifact/gallery rows return `ready=true`; while result generation is pending or inconsistent, the API returns `ready=false` instead of lazily creating GIFs.
+- Flipbook game start uses `totalRounds=8` so every generated flipbook has the minimum 8 frames; assignment count is `participantCount * 8`.
 
 ```bash
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon

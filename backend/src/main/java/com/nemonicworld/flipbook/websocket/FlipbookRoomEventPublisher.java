@@ -14,6 +14,7 @@ import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomHostChangedEventRespo
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantDroppedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantLeftEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomResultCreatedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomSimpleMessageResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse;
@@ -21,6 +22,7 @@ import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDroppedParticipantResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationResult;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
@@ -143,6 +145,16 @@ public class FlipbookRoomEventPublisher {
             roomCode, new FlipbookAllRoundsCompletedEventResponse(roomCode, roomStatus, completedAt));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+    }
+
+    /**
+     * 최종 GIF 결과 생성과 갤러리 저장이 완료되었음을 방 전체에 알립니다.
+     */
+    public void publishResultCreated(FlipbookRoomFinalizationResult finalizationResult) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.RESULT_CREATED,
+            finalizationResult.roomCode(), FlipbookRoomResultCreatedEventResponse.from(finalizationResult));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + finalizationResult.roomCode(), event);
     }
 
     /**

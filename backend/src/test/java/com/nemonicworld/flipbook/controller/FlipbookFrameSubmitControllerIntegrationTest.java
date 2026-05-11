@@ -100,7 +100,7 @@ class FlipbookFrameSubmitControllerIntegrationTest {
             FlipbookFrameAssignmentStatus.SUBMITTED, fileId.toString(),
             "uploads/flipbook/2026/05/08/%s/frame.png".formatted(fileId),
             "https://example.com/minio/nemonic/uploads/flipbook/2026/05/08/%s/frame.png".formatted(fileId), now, false,
-            true, 2, 2, true, null, null, null, true, FlipbookRoomStatus.FINISHED, participantUuid.toString(), "망고");
+            true, 2, 2, true, null, null, null, true, FlipbookRoomStatus.FINALIZING, participantUuid.toString(), "망고");
         given(flipbookRoomService.submitFrame(eq(participantUuid.toString()), eq(ROOM_CODE), eq(3), eq(request)))
             .willReturn(response);
 
@@ -117,10 +117,10 @@ class FlipbookFrameSubmitControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.advanced").value(true))
             .andExpect(jsonPath("$.data.allRoundsCompleted").value(true))
-            .andExpect(jsonPath("$.data.roomStatus").value("FINISHED"));
+            .andExpect(jsonPath("$.data.roomStatus").value("FINALIZING"));
 
         verify(flipbookRoomService).submitFrame(eq(participantUuid.toString()), eq(ROOM_CODE), eq(3), eq(request));
         verify(flipbookRoomEventPublisher).publishFrameSubmitted(response);
-        verify(flipbookRoomEventPublisher).publishAllRoundsCompleted(ROOM_CODE, FlipbookRoomStatus.FINISHED, now);
+        verify(flipbookRoomEventPublisher).publishAllRoundsCompleted(ROOM_CODE, FlipbookRoomStatus.FINALIZING, now);
     }
 }

@@ -39,3 +39,5 @@ nemonic:
       enabled: false
     timeout:
       enabled: false
+    finalization:
+      enabled: false

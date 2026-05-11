@@ -440,6 +440,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
         return switch (status) {
             case WAITING -> "FA2B3C";
             case PLAYING -> "FB3K9Q";
+            case FINALIZING -> "FD5P7R";
             case FINISHED -> "FC4M8N";
             case CLOSED -> "FZ9Y8X";
         };
@@ -449,6 +450,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
         return switch (status) {
             case WAITING -> null;
             case PLAYING -> 2;
+            case FINALIZING -> 8;
             case FINISHED, CLOSED -> 8;
         };
     }
