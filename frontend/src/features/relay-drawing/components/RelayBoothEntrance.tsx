@@ -13,6 +13,12 @@ type ChoreographyPhase = "assembling" | "fanning" | "translating";
 // gap/rounded/shadow 등 inner CSS가 일치해 swap 시 깜빡임/사이즈 점프가 없다.
 const CARD_SIZE = 150;
 
+// 데스크탑(lg+) 뷰포트에서 인트로(assembling·fanning) 동안 카드를 1.5배로 키워
+// 시각적 임팩트를 강화한다. translating 단계에서 우측 슬롯으로 이동할 때 1.0으로
+// 줄어들어 최종 자리에 자연스럽게 안착한다. 모바일/태블릿은 항상 1.0 유지.
+const DESKTOP_INTRO_SCALE = 1.5;
+const DESKTOP_BREAKPOINT_PX = 1024;
+
 interface RelayBoothEntranceProps {
   onLeftReveal: () => void;
   className?: string;
@@ -77,6 +83,7 @@ function ChoreographyTree({
     x: number;
     y: number;
   } | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     const measure = () => {
@@ -86,6 +93,7 @@ function ChoreographyTree({
         x: window.innerWidth / 2 - (rect.left + rect.width / 2),
         y: window.innerHeight / 2 - (rect.top + rect.height / 2),
       });
+      setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT_PX);
     };
     // 첫 측정도 raf로 비동기화 — useEffect 본문에서 직접 setState 호출 시 React Compiler
     // 컴파일 에러가 나기 때문.
@@ -99,17 +107,27 @@ function ChoreographyTree({
 
   const isFannedOrLater = phase === "fanning" || phase === "translating";
   const isTranslating = phase === "translating";
+  // 인트로 단계에서만 데스크탑 한정으로 카드를 1.5배. translating 단계에선 1.0으로 안착.
+  const introScale = isDesktop ? DESKTOP_INTRO_SCALE : 1;
 
   return (
     <div ref={slotRef} className={cn("relative", className)}>
       {centerOffset !== null && (
         <motion.div
           className="relative"
-          initial={{ x: centerOffset.x, y: centerOffset.y }}
+          initial={{
+            x: centerOffset.x,
+            y: centerOffset.y,
+            scale: introScale,
+          }}
           animate={
             isTranslating
-              ? { x: 0, y: 0 }
-              : { x: centerOffset.x, y: centerOffset.y }
+              ? { x: 0, y: 0, scale: 1 }
+              : {
+                  x: centerOffset.x,
+                  y: centerOffset.y,
+                  scale: introScale,
+                }
           }
           transition={{
             type: "spring",
