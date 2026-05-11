@@ -1,4 +1,5 @@
 import type { RelayResultReveal } from '../../constants'
+import RelayButton from '../RelayButton'
 
 interface ResultStepNavProps {
   activeReveal: RelayResultReveal
@@ -24,14 +25,14 @@ export default function ResultStepNav({
 
   return (
     <div className="mt-4 flex min-h-11 items-center gap-3">
-      <button
-        type="button"
+      <RelayButton
+        variant="secondary"
         onClick={onShowPreviousResultReveal}
         disabled={!canShowPreviousResultReveal}
-        className="body-b min-h-11 cursor-pointer rounded-xl border-[1.5px] border-relay-line bg-relay-paper px-4 text-relay-accent-strong transition-all hover:brightness-95 disabled:opacity-45 disabled:hover:brightness-100"
+        className="rounded-xl border-[1.5px]"
       >
         ◀ 이전
-      </button>
+      </RelayButton>
 
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-relay-credit-row">
         <div
@@ -40,14 +41,13 @@ export default function ResultStepNav({
         />
       </div>
 
-      <button
-        type="button"
+      <RelayButton
         onClick={onShowNextResultReveal}
         disabled={!canShowNextResultReveal}
-        className="body-b min-h-11 cursor-pointer rounded-xl bg-relay-accent px-4 text-relay-ink transition-all hover:brightness-105 disabled:opacity-45 disabled:hover:brightness-100"
+        className="rounded-xl"
       >
         {activeReveal.nextLabel}
-      </button>
+      </RelayButton>
     </div>
   )
 }

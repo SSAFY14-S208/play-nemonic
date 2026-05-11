@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useRelayBooth } from "../hooks";
 import RelayBoothBackground from "./RelayBoothBackground";
 import RelayBoothEntrance from "./RelayBoothEntrance";
+import RelayButton from "./RelayButton";
 import RelayJoinRoomModal from "./RelayJoinRoomModal";
 import RelayNicknameModal from "./RelayNicknameModal";
 
@@ -86,10 +87,11 @@ export default function RelayBoothView() {
         <RelayBoothBackground isVisible={isLeftRevealed} />
 
         {/* 우측 상단 — 허브로 돌아가기. 인트로 애니메이션 중에도 사용자가 빠져나갈
-            수 있도록 isLeftRevealed와 무관하게 항상 노출. next/link로 prefetch. */}
+            수 있도록 isLeftRevealed와 무관하게 항상 노출. next/link로 prefetch.
+            nav 패턴이라 RelayButton 대신 동일 호버 피드백(translateY)만 적용. */}
         <Link
           href="/hub"
-          className="body-b absolute left-4 top-4 z-10 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm transition-all hover:brightness-95 sm:left-6 sm:top-6 lg:left-[5%]"
+          className="body-b absolute left-4 top-4 z-10 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95 sm:left-6 sm:top-6 lg:left-[5%]"
         >
           <ArrowLeft className="size-5" aria-hidden />
           네모닉 월드로 돌아가기
@@ -131,22 +133,25 @@ export default function RelayBoothView() {
               </div>
               {/* 좁은 화면에선 버튼이 column으로 stack, sm+ 부터 row로 나란히. */}
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
+                <RelayButton
                   onClick={handleCreateClick}
                   disabled={isActionDisabled}
-                  className="body-b min-h-14 cursor-pointer rounded-2xl bg-relay-accent px-8 text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.3)] transition-all hover:brightness-105 disabled:opacity-45 disabled:hover:brightness-100"
+                  size="lg"
+                  shape="roundedLg"
+                  className="px-8 shadow-[0_6px_16px_rgba(184,121,22,0.3)]"
                 >
                   {isPending ? "방 만드는 중…" : "방 만들기 →"}
-                </button>
-                <button
-                  type="button"
+                </RelayButton>
+                <RelayButton
                   onClick={handleJoinClick}
                   disabled={isActionDisabled}
-                  className="body-b min-h-14 cursor-pointer rounded-2xl border-2 border-relay-line bg-relay-paper px-7 text-relay-accent-strong transition-all hover:brightness-95 disabled:opacity-45 disabled:hover:brightness-100"
+                  variant="secondary"
+                  size="lg"
+                  shape="roundedLg"
+                  className="border-2"
                 >
                   방 입장
-                </button>
+                </RelayButton>
               </div>
               {error && !isJoinModalOpen && (
                 <p role="alert" className="caption-r text-error">
