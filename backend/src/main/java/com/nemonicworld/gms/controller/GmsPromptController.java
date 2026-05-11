@@ -1,5 +1,6 @@
 package com.nemonicworld.gms.controller;
 
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -18,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -52,9 +54,11 @@ public class GmsPromptController {
     private static final String UPDATE_SUCCESS_MESSAGE = "GMS 프롬프트 수정 성공";
 
     private final GmsPromptService gmsPromptService;
+    private final AdminClientInfoResolver adminClientInfoResolver;
 
-    public GmsPromptController(GmsPromptService gmsPromptService) {
+    public GmsPromptController(GmsPromptService gmsPromptService, AdminClientInfoResolver adminClientInfoResolver) {
         this.gmsPromptService = gmsPromptService;
+        this.adminClientInfoResolver = adminClientInfoResolver;
     }
 
     @PostMapping
@@ -65,8 +69,10 @@ public class GmsPromptController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "중복 프롬프트 코드", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST)))})
     public ResponseEntity<ApiResponse<GmsPromptResponse>> createPrompt(
-        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @Valid @RequestBody GmsPromptCreateRequest request) {
-        GmsPromptResponse response = gmsPromptService.createPrompt(adminPrincipal, request);
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @Valid @RequestBody GmsPromptCreateRequest request,
+        HttpServletRequest servletRequest) {
+        GmsPromptResponse response = gmsPromptService.createPrompt(adminPrincipal, request,
+            adminClientInfoResolver.resolve(servletRequest));
 
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(CREATE_SUCCESS_MESSAGE, response));
@@ -117,8 +123,8 @@ public class GmsPromptController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS 프롬프트 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
     public ResponseEntity<ApiResponse<Void>> deletePrompt(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
-        @PathVariable("promptId") Long promptId) {
-        gmsPromptService.deletePrompt(adminPrincipal, promptId);
+        @PathVariable("promptId") Long promptId, HttpServletRequest servletRequest) {
+        gmsPromptService.deletePrompt(adminPrincipal, promptId, adminClientInfoResolver.resolve(servletRequest));
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(DELETE_SUCCESS_MESSAGE, null));
@@ -135,8 +141,9 @@ public class GmsPromptController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "중복 프롬프트 이름", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST)))})
     public ResponseEntity<ApiResponse<GmsPromptResponse>> updatePrompt(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("promptId") Long promptId,
-        @Valid @RequestBody GmsPromptUpdateRequest request) {
-        GmsPromptResponse response = gmsPromptService.updatePrompt(adminPrincipal, promptId, request);
+        @Valid @RequestBody GmsPromptUpdateRequest request, HttpServletRequest servletRequest) {
+        GmsPromptResponse response = gmsPromptService.updatePrompt(adminPrincipal, promptId, request,
+            adminClientInfoResolver.resolve(servletRequest));
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(UPDATE_SUCCESS_MESSAGE, response));
