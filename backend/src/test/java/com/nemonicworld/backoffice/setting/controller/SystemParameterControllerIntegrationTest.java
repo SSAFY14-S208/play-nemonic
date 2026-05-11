@@ -27,6 +27,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -36,6 +38,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -95,8 +98,6 @@ class SystemParameterControllerIntegrationTest {
             """);
         jdbcTemplate.update("DELETE FROM backoffice_setting");
         jdbcTemplate.update("DELETE FROM admin_user");
-        jdbcTemplate.execute("ALTER TABLE admin_user ALTER COLUMN id RESTART WITH 100");
-        jdbcTemplate.execute("ALTER TABLE backoffice_setting ALTER COLUMN id RESTART WITH 100");
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_NICKNAME, ADMIN_EMAIL, AdminRole.ADMIN);
         insertAdminUser(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
             AdminRole.SUPER_ADMIN);
@@ -275,6 +276,59 @@ class SystemParameterControllerIntegrationTest {
     }
 
     @Test
+    void systemParameterBulkUpdateAcceptsRelayParticipantLimit() throws Exception {
+        insertSetting(10L, "relay.room_participant_limit",
+            "{\"min\":2,\"max\":6,\"unit\":\"people\",\"description\":\"Relay room participant limit\"}", ADMIN_ID);
+
+        mockMvc
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "items": [
+                            {
+                              "id": 10,
+                              "value": {
+                                "min": 3,
+                                "max": 8,
+                                "unit": "people",
+                                "description": "Relay room participant limit"
+                              }
+                            }
+                          ]
+                        }
+                        """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.items[0].value.min").value(3))
+            .andExpect(jsonPath("$.data.items[0].value.max").value(8));
+
+        assertThat(findSettingValue(10L))
+            .isEqualTo("{\"min\":3,\"max\":8,\"unit\":\"people\",\"description\":\"Relay room participant limit\"}");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"min\":1,\"max\":6}", "{\"min\":5,\"max\":4}", "{\"min\":\"2\",\"max\":6}",
+        "{\"min\":2}", "{\"min\":2,\"max\":\"6\"}", "{\"min\":2,\"max\":21}", "[2,6]"})
+    void systemParameterBulkUpdateRejectsInvalidRelayParticipantLimit(String value) throws Exception {
+        insertSetting(10L, "relay.room_participant_limit", "{\"min\":2,\"max\":6}", ADMIN_ID);
+
+        mockMvc
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "items": [
+                            { "id": 10, "value": %s }
+                          ]
+                        }
+                        """.formatted(value)))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("릴레이 방 참여 인원 설정이 올바르지 않습니다."));
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"min\":2,\"max\":6}");
+    }
+
+    @Test
     void systemParameterAuditLogRedactsSensitiveValues(CapturedOutput output) throws Exception {
         insertSetting(10L, "smtp.password", "{\"value\":\"old-secret\"}", SUPER_ADMIN_ID);
 
@@ -404,6 +458,7 @@ class SystemParameterControllerIntegrationTest {
 
     private void insertAdminUser(long id, String loginId, String nickname, String email, AdminRole role) {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        String roleExpression = isPostgreSql() ? "?::admin_role_type" : "?";
         jdbcTemplate.update("""
             INSERT INTO admin_user (
                 id,
@@ -417,9 +472,14 @@ class SystemParameterControllerIntegrationTest {
                 updated_at,
                 deleted_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL)
-            """, id, loginId, "encoded", nickname, email, role.getValue(), Timestamp.valueOf(now),
-            Timestamp.valueOf(now));
+            VALUES (?, ?, ?, ?, ?, %s, NULL, ?, ?, NULL)
+            """.formatted(roleExpression), id, loginId, "encoded", nickname, email, role.getValue(),
+            Timestamp.valueOf(now), Timestamp.valueOf(now));
+    }
+
+    private boolean isPostgreSql() {
+        return Boolean.TRUE.equals(jdbcTemplate.execute((ConnectionCallback<Boolean>) connection -> "PostgreSQL"
+            .equals(connection.getMetaData().getDatabaseProductName())));
     }
 
     private void insertSetting(long id, String key, String value, long updatedBy) {
