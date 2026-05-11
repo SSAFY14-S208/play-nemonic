@@ -1,8 +1,6 @@
 import { useCallback } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
-import { useRouter } from 'next/navigation'
 import { useHubViewStore } from '@/shared/stores'
-import { HUB_COMMUNITY_CANVAS_PATH } from '../../constants'
 
 const COMMUNITY_CONTENT_KEY = 'community'
 
@@ -13,26 +11,19 @@ function setBodyCursor(cursor: string) {
 
 /**
  * 커뮤니티 캔버스 mesh의 클릭/포인터 핸들러.
- * - 헤더가 이 콘텐츠로 떠있을 때(selectedContentKey === 'community')만 라우팅
- * - 그 외에는 광장이 회전해서 헤더가 community로 매칭될 때까지 selectContent만 호출
- *   (mesh가 정면에 오면 syncActiveContentByAngle이 자동으로 selectedContentKey를 설정)
+ * fortune 패턴과 동일 — mesh 클릭은 selectContent만 호출해 광장을 그쪽으로 회전시키고
+ * 헤더만 띄운다. 실제 페이지 진입은 HubOverlay의 입장 버튼이 담당한다.
  */
 export function useCommunityCanvasNavigation() {
-  const router = useRouter()
-  const selectedContentKey = useHubViewStore((state) => state.selectedContentKey)
   const selectContent = useHubViewStore((state) => state.selectContent)
 
   const handleCommunityCanvasClick = useCallback(
     (event: ThreeEvent<MouseEvent>) => {
       event.stopPropagation()
       setBodyCursor('')
-      if (selectedContentKey === COMMUNITY_CONTENT_KEY) {
-        router.push(HUB_COMMUNITY_CANVAS_PATH)
-        return
-      }
       selectContent(COMMUNITY_CONTENT_KEY)
     },
-    [router, selectContent, selectedContentKey],
+    [selectContent],
   )
 
   const handleCommunityCanvasPointerEnter = useCallback(
