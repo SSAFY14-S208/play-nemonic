@@ -1,11 +1,12 @@
 'use client'
 
-import { Dialog } from '@base-ui/react/dialog'
-import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useRelayNickname } from '../hooks'
 import { cn } from '@/shared/libs'
+
+import RelayButton from './RelayButton'
+import RelayModal from './RelayModal'
 
 interface RelayNicknameModalProps {
   open: boolean
@@ -55,78 +56,67 @@ export default function RelayNicknameModal({
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-black/30" />
-        <Dialog.Popup className="font-paperlogy fixed left-1/2 top-1/2 z-[var(--z-modal)] w-[min(420px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[var(--radius-xl)] bg-relay-paper shadow-lg">
-          <header className="flex items-center justify-between border-b border-relay-line px-5 py-4">
-            <Dialog.Title className="h4-b text-relay-ink">
-              닉네임 설정
-            </Dialog.Title>
-            <Dialog.Close
-              aria-label="닫기"
-              className="grid size-8 cursor-pointer place-items-center rounded-[var(--radius-md)] text-relay-muted transition-colors hover:bg-relay-active hover:text-relay-ink"
-            >
-              <X className="size-4" />
-            </Dialog.Close>
-          </header>
+    <RelayModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="닉네임 설정"
+      width="md"
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-5 py-5">
+        <p className="caption-r text-relay-muted">
+          릴레이 방을 만들거나 입장하려면 닉네임이 필요해요.
+        </p>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-5 py-5">
-            <p className="caption-r text-relay-muted">
-              릴레이 방을 만들거나 입장하려면 닉네임이 필요해요.
-            </p>
-
-            <label className="flex flex-col gap-2">
-              <span className="caption-b text-relay-accent-strong">
-                새 닉네임 (최대 {NICKNAME_MAX_LENGTH}자)
-              </span>
-              <input
-                type="text"
-                inputMode="text"
-                autoComplete="off"
-                spellCheck={false}
-                value={nickname}
-                onChange={handleChange}
-                placeholder="예: 망고"
-                aria-invalid={fieldError ? true : undefined}
-                disabled={isPending}
-                maxLength={NICKNAME_MAX_LENGTH}
-                className={cn(
-                  'rounded-[var(--radius-md)] border border-relay-line bg-relay-active px-4 py-3 body-l-r text-relay-ink placeholder:text-relay-muted focus:border-relay-accent focus:outline-none',
-                  fieldError && 'border-error',
-                )}
-              />
-              {fieldError && (
-                <span role="alert" className="caption-r text-error">
-                  {fieldError}
-                </span>
-              )}
-            </label>
-
-            {generalError && (
-              <p role="alert" className="caption-r text-error">
-                {generalError}
-              </p>
+        <label className="flex flex-col gap-2">
+          <span className="caption-b text-relay-accent-strong">
+            새 닉네임 (최대 {NICKNAME_MAX_LENGTH}자)
+          </span>
+          <input
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            spellCheck={false}
+            value={nickname}
+            onChange={handleChange}
+            placeholder="예: 망고"
+            aria-invalid={fieldError ? true : undefined}
+            disabled={isPending}
+            maxLength={NICKNAME_MAX_LENGTH}
+            className={cn(
+              'rounded-[var(--radius-md)] border border-relay-line bg-relay-active px-4 py-3 body-l-r text-relay-ink placeholder:text-relay-muted focus:border-relay-accent focus:outline-none',
+              fieldError && 'border-error',
             )}
+          />
+          {fieldError && (
+            <span role="alert" className="caption-r text-error">
+              {fieldError}
+            </span>
+          )}
+        </label>
 
-            <div className="flex justify-end gap-2 pt-1">
-              <Dialog.Close
-                disabled={isPending}
-                className="body-b min-h-11 cursor-pointer rounded-[var(--radius-md)] border border-relay-line bg-relay-paper px-4 text-relay-accent-strong transition-all hover:brightness-95 disabled:opacity-45 disabled:hover:brightness-100"
-              >
-                취소
-              </Dialog.Close>
-              <button
-                type="submit"
-                disabled={isPending || nickname.trim().length === 0}
-                className="body-b min-h-11 cursor-pointer rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink transition-all hover:brightness-105 disabled:opacity-45 disabled:hover:brightness-100"
-              >
-                {isPending ? '저장 중…' : '저장'}
-              </button>
-            </div>
-          </form>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+        {generalError && (
+          <p role="alert" className="caption-r text-error">
+            {generalError}
+          </p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <RelayButton
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            취소
+          </RelayButton>
+          <RelayButton
+            type="submit"
+            variant="primary"
+            disabled={isPending || nickname.trim().length === 0}
+          >
+            {isPending ? '저장 중…' : '저장'}
+          </RelayButton>
+        </div>
+      </form>
+    </RelayModal>
   )
 }

@@ -42,7 +42,8 @@ export interface FlipbookRoomCreateResponse {
 }
 
 export interface FlipbookRoomSettingsRequest {
-  timeLimitSeconds: number
+  timeLimitSeconds?: number
+  roundCount?: number
 }
 
 export interface FlipbookRoomKickRequest {
@@ -95,8 +96,9 @@ export interface FlipbookAssignmentHintResponse {
   flipbookIndex: number
   frameIndex: number
   round: number
-  objectKey: string | null
-  url: string | null
+  imageUrl: string | null
+  objectKey?: string | null
+  url?: string | null
   empty: boolean
 }
 
@@ -181,6 +183,7 @@ export type FlipbookWsEventType =
   | 'PARTICIPANT_DROPPED'
   | 'SETTINGS_CHANGED'
   | 'GAME_STARTED'
+  | 'ROUND_TIME_UP'
   | 'FRAME_SUBMITTED'
   | 'FRAME_AUTO_SUBMITTED'
   | 'ROUND_STARTED'
@@ -249,6 +252,14 @@ export interface FlipbookWsRoundStartedData {
   timeLimitSeconds: number
 }
 
+export interface FlipbookWsRoundTimeUpData {
+  roomCode: string
+  round: number
+  roundDeadlineAt: string
+  submitGraceDeadlineAt: string
+  autoSubmitGraceMillis: number
+}
+
 export interface FlipbookWsAllRoundsCompletedData {
   roomCode: string
   roomStatus: 'FINISHED'
@@ -294,6 +305,7 @@ export type FlipbookWsEvent =
   | FlipbookWsEnvelope<'PARTICIPANT_DISCONNECTED', FlipbookRoomSnapshotResponse>
   | FlipbookWsEnvelope<'SETTINGS_CHANGED', FlipbookRoomSnapshotResponse>
   | FlipbookWsEnvelope<'GAME_STARTED', FlipbookRoomSnapshotResponse>
+  | FlipbookWsEnvelope<'ROUND_TIME_UP', FlipbookWsRoundTimeUpData>
   | FlipbookWsEnvelope<'FRAME_SUBMITTED', FlipbookFrameSubmitResponse>
   | FlipbookWsEnvelope<'FRAME_AUTO_SUBMITTED', FlipbookWsFrameAutoSubmittedData>
   | FlipbookWsEnvelope<'ROUND_STARTED', FlipbookWsRoundStartedData>
@@ -332,7 +344,6 @@ export interface FlipbookRoomParticipant {
 export interface FlipbookSessionSettings {
   timeLimitSeconds: 30 | 45 | 60
   roundCount: number
-  minimumRoundCount: number
   frameCountPerFlipbook: number
 }
 

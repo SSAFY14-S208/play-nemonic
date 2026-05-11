@@ -8,7 +8,7 @@ import {
   createFlipbookAssignment,
   createFlipbookSessionSnapshot,
   toFlipbookFramePayloads,
-} from '../flipbookSessionMapper'
+} from '../utils'
 
 export function useFlipbookSessionModel({
   activeRoundIndex,
