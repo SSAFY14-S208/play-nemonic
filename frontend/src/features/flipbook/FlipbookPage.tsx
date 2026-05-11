@@ -119,21 +119,11 @@ export default function FlipbookPage() {
 
       {flipbook.currentStep === 'result' && (
         <FlipbookResultView
-          frames={flipbook.frames}
           resultItems={flipbook.resultItems}
           resultOwnerNames={flipbook.resultOwnerNames}
           activeResultIndex={flipbook.activeResultIndex}
           gifUrl={flipbook.gifUrl}
           resultCount={flipbook.resultCount}
-          activeFrame={flipbook.activeResultFrame}
-          resultFrameIndex={flipbook.resultFrameIndex}
-          isGifPlaying={flipbook.isGifPlaying}
-          canGoPreviousResultFrame={flipbook.canGoPreviousResultFrame}
-          canGoNextResultFrame={flipbook.canGoNextResultFrame}
-          onToggleGifPlaying={flipbook.setIsGifPlaying}
-          onShowFrame={flipbook.showResultFrame}
-          onShowPreviousFrame={flipbook.showPreviousResultFrame}
-          onShowNextFrame={flipbook.showNextResultFrame}
           onSelectResult={flipbook.selectResult}
           onCreateAnother={() => flipbook.selectStep('booth')}
         />

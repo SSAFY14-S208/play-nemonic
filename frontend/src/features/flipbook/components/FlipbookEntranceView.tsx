@@ -16,14 +16,19 @@ interface FlipbookEntranceViewProps {
   onEnterRoom: () => void
 }
 
-const FLIPBOOK_ENTRANCE_FRAMES = Array.from({ length: 12 }, (unusedValue, frameIndex) => {
-  const frameNumber = String(frameIndex + 1).padStart(2, '0')
+const FLIPBOOK_ENTRANCE_FRAME_COUNT = 12
 
-  return {
-    src: `/images/flipbook-entrance/${frameNumber}.png`,
-    alt: `플립북 입장 애니메이션 ${frameIndex + 1}번째 장면`,
-  }
-})
+const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
+  { length: FLIPBOOK_ENTRANCE_FRAME_COUNT },
+  (unusedValue, frameIndex) => {
+    const frameNumber = String(frameIndex + 1).padStart(2, '0')
+
+    return {
+      src: `/images/flipbook-entrance/${frameNumber}.webp`,
+      alt: `플립북 입장 애니메이션 ${frameIndex + 1}번째 장면`,
+    }
+  },
+)
 const FLIPBOOK_BUTTON_IMAGES = {
   createRoom: '/images/flipbook-buttons/create-room.png',
   enterRoom: '/images/flipbook-buttons/enter-room.png',
