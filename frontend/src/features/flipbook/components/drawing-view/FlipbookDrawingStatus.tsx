@@ -15,7 +15,7 @@ export function TopStatusBar({
   instructionText: string
 }) {
   return (
-    <header className="absolute left-[96px] top-6 h-[108px] w-[1344px] rounded-full border border-[#ead7c9] bg-white shadow-[0_12px_34px_rgb(129_89_54_/_14%)]">
+    <header className="absolute left-[96px] top-[56px] h-[108px] w-[1344px] rounded-full border border-[#ead7c9] bg-white shadow-[0_12px_34px_rgb(129_89_54_/_14%)]">
       <div className="flex h-full items-center px-[86px]">
         <p className="text-[74px] font-bold leading-none text-[#f45d8d]">
           {activeRoundIndex + 1}/{roundCount}
@@ -44,7 +44,7 @@ export function ProgressRail({
   const progressDotCount = Math.max(roundCount, 1)
 
   return (
-    <div className="absolute left-[570px] top-[826px] h-[72px] w-[444px] rounded-full border border-[#ead7c9] bg-white shadow-[0_10px_22px_rgb(125_84_50_/_13%)]">
+    <div className="absolute left-[546px] top-[928px] h-[72px] w-[444px] rounded-full border border-[#ead7c9] bg-white shadow-[0_10px_22px_rgb(125_84_50_/_13%)]">
       <div className="absolute left-[64px] right-[64px] top-1/2 h-[3px] -translate-y-1/2 bg-[#ded3ca]" />
       {Array.from({ length: progressDotCount }).map((unusedValue, progressIndex) => (
         <span

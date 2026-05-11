@@ -83,7 +83,7 @@ export function ColorPanel({
   return (
     <aside
       className={cn(
-        'absolute left-[117px] top-[155px] h-[646px] w-[272px] rounded-[28px] border border-white bg-white px-[25px] py-8 shadow-[2px_4px_10px_2px_#ede0d4]',
+        'absolute left-[36px] top-[230px] h-[646px] w-[272px] rounded-[28px] border border-white bg-white px-[25px] py-8 shadow-[2px_4px_10px_2px_#ede0d4]',
         className,
       )}
     >
