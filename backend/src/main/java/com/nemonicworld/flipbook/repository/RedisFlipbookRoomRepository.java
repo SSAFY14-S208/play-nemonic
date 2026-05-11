@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
@@ -367,7 +368,7 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         try {
             return objectMapper.writeValueAsString(roomState);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(ROOM_STATE_SERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(ROOM_STATE_SERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 
@@ -378,7 +379,7 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         try {
             return objectMapper.readValue(roomStateValue, FlipbookRoomState.class);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 }

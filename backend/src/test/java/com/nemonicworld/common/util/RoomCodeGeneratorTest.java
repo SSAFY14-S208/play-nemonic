@@ -3,6 +3,7 @@ package com.nemonicworld.common.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.nemonicworld.common.exception.RoomCodeGenerationException;
 import java.util.Arrays;
 import java.util.random.RandomGenerator;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ class RoomCodeGeneratorTest {
         RoomCodeGenerator roomCodeGenerator = new RoomCodeGenerator(new SequenceRandomGenerator(alwaysZeroIndexes));
 
         assertThatThrownBy(() -> roomCodeGenerator.generateUnique(existingCode -> true))
-            .isInstanceOf(IllegalStateException.class).hasMessage("방코드 생성에 실패했습니다.");
+            .isInstanceOf(RoomCodeGenerationException.class).hasMessage("방코드 생성에 실패했습니다.");
     }
 
     @Test

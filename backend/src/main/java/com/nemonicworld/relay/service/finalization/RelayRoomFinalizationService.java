@@ -3,6 +3,7 @@ package com.nemonicworld.relay.service.finalization;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
@@ -142,7 +143,7 @@ public class RelayRoomFinalizationService {
         long startedNanos = System.nanoTime();
         List<Integer> canvasIndexes = findCanvasIndexes(roomState);
         if (canvasIndexes.isEmpty()) {
-            throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
+            throw new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
         }
 
         List<RelayFinalizationArtifactResult> existingArtifacts = relayArtifactRepository
@@ -191,7 +192,7 @@ public class RelayRoomFinalizationService {
             return existingArtifacts;
         }
 
-        throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
+        throw new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
     }
 
     /**
@@ -252,11 +253,11 @@ public class RelayRoomFinalizationService {
             }
 
             if (assignment.status() != RelayAssignmentStatus.SUBMITTED) {
-                throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
+                throw new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
             }
 
             if (!StringUtils.hasText(assignment.objectKey())) {
-                throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
+                throw new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
             }
 
             partImages.put(part, relayResultStorage.download(assignment.objectKey()));
@@ -271,7 +272,7 @@ public class RelayRoomFinalizationService {
     private RelayRoomAssignment findAssignment(RelayRoomState roomState, int canvasIndex, RelayDrawingPart part) {
         return roomState.assignments().stream().filter(assignment -> assignment.canvasIndex() == canvasIndex)
             .filter(assignment -> assignment.part() == part).findFirst()
-            .orElseThrow(() -> new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE));
+            .orElseThrow(() -> new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE));
     }
 
     /**
@@ -330,7 +331,7 @@ public class RelayRoomFinalizationService {
         try {
             return objectMapper.writeValueAsString(meta);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(FINALIZATION_META_ERROR_MESSAGE, e);
+            throw new InternalServerException(FINALIZATION_META_ERROR_MESSAGE, e);
         }
     }
 

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -96,7 +97,7 @@ public class JwtTokenProvider {
         try {
             return base64UrlEncoder.encodeToString(objectMapper.writeValueAsBytes(value));
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("JWT payload serialization failed.", e);
+            throw new InternalServerException("JWT payload serialization failed.", e);
         }
     }
 
@@ -114,7 +115,7 @@ public class JwtTokenProvider {
             mac.init(new SecretKeySpec(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
             return base64UrlEncoder.encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new IllegalStateException("JWT signing failed.", e);
+            throw new InternalServerException("JWT signing failed.", e);
         }
     }
 }

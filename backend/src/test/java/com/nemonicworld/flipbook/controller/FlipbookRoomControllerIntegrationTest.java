@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.RoomCodeGenerationException;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.support.IntegrationTest;
@@ -258,7 +259,7 @@ class FlipbookRoomControllerIntegrationTest {
     @Test
     void createFlipbookRoomReturnsServerErrorWhenRoomCodeGenerationFails() throws Exception {
         UUID userUuid = createExistingUserWithNickname("망고");
-        given(roomCodeGenerator.generateUnique(any())).willThrow(new IllegalStateException("방코드 생성에 실패했습니다."));
+        given(roomCodeGenerator.generateUnique(any())).willThrow(new RoomCodeGenerationException("방코드 생성에 실패했습니다."));
 
         mockMvc.perform(post("/api/v1/flipbook/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))

@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
@@ -329,7 +330,7 @@ class RelayRoomDisconnectGraceServiceTest {
             participant(secondHostUuid, "Peach", true, 0, false, NOW.minusSeconds(11)));
         given(relayRoomRepository.findPlayingRoomsForDisconnectGrace(eq(NOW.minusSeconds(10)), eq(100)))
             .willReturn(List.of(firstRoom, secondRoom));
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new IllegalStateException("boom"));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new InternalServerException("boom"));
         given(relayRoomRepository.findByRoomCode(SECOND_ROOM_CODE)).willReturn(Optional.of(secondRoom));
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(true);

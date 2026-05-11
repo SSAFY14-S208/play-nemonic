@@ -6,6 +6,7 @@ import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
 import com.nemonicworld.auth.service.StoredAdminRefreshToken;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.JwtProperties;
 import java.nio.charset.StandardCharsets;
@@ -164,7 +165,7 @@ public class RedisAdminTokenStore implements AdminTokenStore {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return base64UrlEncoder.encodeToString(digest.digest(refreshToken.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new IllegalStateException("Refresh token hashing failed.", e);
+            throw new InternalServerException("Refresh token hashing failed.", e);
         }
     }
 
@@ -188,7 +189,7 @@ public class RedisAdminTokenStore implements AdminTokenStore {
         try {
             return objectMapper.writeValueAsString(storedToken);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Refresh token serialization failed.", e);
+            throw new InternalServerException("Refresh token serialization failed.", e);
         }
     }
 
@@ -196,7 +197,7 @@ public class RedisAdminTokenStore implements AdminTokenStore {
         try {
             return objectMapper.readValue(refreshTokenValue, StoredAdminRefreshToken.class);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Refresh token deserialization failed.", e);
+            throw new InternalServerException("Refresh token deserialization failed.", e);
         }
     }
 }

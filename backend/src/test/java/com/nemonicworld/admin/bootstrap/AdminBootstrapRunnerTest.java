@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.nemonicworld.common.exception.InternalServerException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -44,7 +45,7 @@ class AdminBootstrapRunnerTest {
         properties.setLoginId(" ");
         AdminBootstrapRunner runner = new AdminBootstrapRunner(properties, adminBootstrapService);
 
-        assertThatThrownBy(() -> runner.run(null)).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> runner.run(null)).isInstanceOf(InternalServerException.class)
             .hasMessageContaining("ADMIN_BOOTSTRAP_LOGIN_ID");
         verifyNoInteractions(adminBootstrapService);
     }

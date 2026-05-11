@@ -2,6 +2,7 @@ package com.nemonicworld.relay.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
@@ -450,7 +451,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         try {
             return objectMapper.writeValueAsString(roomState);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(ROOM_STATE_SERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(ROOM_STATE_SERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 
@@ -461,7 +462,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         try {
             return objectMapper.readValue(roomStateValue, RelayRoomState.class);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 }

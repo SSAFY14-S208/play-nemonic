@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.ServiceUnavailableException;
 import com.nemonicworld.fortune.dto.request.FortuneCreateRequest;
@@ -209,7 +210,7 @@ public class FortuneServiceImpl implements FortuneService {
             JsonNode description = objectMapper.readTree(row.description());
             return new FortuneResponse(row.fortuneId().toString(), row.fortuneDate(), toFortuneResult(description),
                 toSajuInfo(description), toFortuneDesign(description));
-        } catch (JsonProcessingException | IllegalArgumentException e) {
+        } catch (JsonProcessingException e) {
             throw new BadRequestException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
         }
     }
@@ -249,7 +250,7 @@ public class FortuneServiceImpl implements FortuneService {
     private String requiredText(JsonNode node, String fieldName) {
         String value = text(node, fieldName);
         if (!StringUtils.hasText(value)) {
-            throw new IllegalArgumentException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
+            throw new BadRequestException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
         }
         return value;
     }
@@ -266,7 +267,7 @@ public class FortuneServiceImpl implements FortuneService {
     private int requiredScore(JsonNode node, String fieldName) {
         JsonNode value = node.path(fieldName);
         if (value == null || !value.canConvertToInt() || !isScore(value.asInt())) {
-            throw new IllegalArgumentException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
+            throw new BadRequestException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
         }
 
         return value.asInt();
@@ -333,7 +334,7 @@ public class FortuneServiceImpl implements FortuneService {
         try {
             return objectMapper.writeValueAsString(description);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 
@@ -344,7 +345,7 @@ public class FortuneServiceImpl implements FortuneService {
         try {
             return objectMapper.writeValueAsString(meta);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 

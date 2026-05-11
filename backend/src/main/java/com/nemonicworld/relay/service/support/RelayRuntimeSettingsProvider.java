@@ -39,7 +39,7 @@ public class RelayRuntimeSettingsProvider {
     private RelayRoomParticipantLimit parseParticipantLimit(String settingValue) {
         try {
             return RelayRoomParticipantLimit.fromJson(objectMapper.readTree(settingValue));
-        } catch (JsonProcessingException | IllegalArgumentException e) {
+        } catch (JsonProcessingException | InvalidRelayRoomParticipantLimitException e) {
             RelayRoomParticipantLimit fallback = RelayRoomParticipantLimit.defaultLimit();
             log.warn("relay participant limit setting is invalid. key={} fallbackMin={} fallbackMax={}",
                 PARTICIPANT_LIMIT_SETTING_KEY, fallback.minParticipants(), fallback.maxParticipants(), e);

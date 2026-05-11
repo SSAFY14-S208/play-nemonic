@@ -2,6 +2,7 @@ package com.nemonicworld.share.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.share.config.ShareProperties;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -49,7 +50,7 @@ public class SignedShareTokenIssuer {
         try {
             return base64UrlEncoder.encodeToString(objectMapper.writeValueAsBytes(payload));
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Share token payload serialization failed.", e);
+            throw new InternalServerException("Share token payload serialization failed.", e);
         }
     }
 
@@ -60,7 +61,7 @@ public class SignedShareTokenIssuer {
 
             return base64UrlEncoder.encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new IllegalStateException("Share token signing failed.", e);
+            throw new InternalServerException("Share token signing failed.", e);
         }
     }
 }

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
@@ -186,7 +187,7 @@ class RelayRoomCloseServiceTest {
         RelayRoomState secondRoom = finishedRoom(SECOND_ROOM_CODE, NOW.minusMinutes(10));
         given(relayRoomRepository.findClosableFinishedRooms(NOW.minusSeconds(CLOSE_DELAY_SECONDS), SCAN_LIMIT))
             .willReturn(List.of(firstRoom, secondRoom));
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new IllegalStateException("boom"));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new InternalServerException("boom"));
         given(relayRoomRepository.findByRoomCode(SECOND_ROOM_CODE)).willReturn(Optional.of(secondRoom));
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(true);

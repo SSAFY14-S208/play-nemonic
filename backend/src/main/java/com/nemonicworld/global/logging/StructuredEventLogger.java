@@ -2,6 +2,7 @@ package com.nemonicworld.global.logging;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.InternalServerException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -69,7 +70,7 @@ public final class StructuredEventLogger {
 
     public static Map<String, Object> metadata(Object... keyValues) {
         if (keyValues.length % 2 != 0) {
-            throw new IllegalArgumentException("metadata requires key-value pairs");
+            throw new InternalServerException("metadata requires key-value pairs");
         }
 
         Map<String, Object> metadata = new LinkedHashMap<>();

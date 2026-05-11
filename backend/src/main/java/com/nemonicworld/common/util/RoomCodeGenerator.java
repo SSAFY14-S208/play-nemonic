@@ -1,5 +1,6 @@
 package com.nemonicworld.common.util;
 
+import com.nemonicworld.common.exception.RoomCodeGenerationException;
 import java.security.SecureRandom;
 import java.util.Objects;
 import java.util.function.Predicate;
@@ -46,7 +47,7 @@ public class RoomCodeGenerator {
             }
         }
 
-        throw new IllegalStateException(GENERATION_FAILURE_MESSAGE);
+        throw new RoomCodeGenerationException(GENERATION_FAILURE_MESSAGE);
     }
 
     public boolean isValid(String roomCode) {

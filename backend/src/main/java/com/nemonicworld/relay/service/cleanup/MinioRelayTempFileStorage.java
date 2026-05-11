@@ -1,6 +1,7 @@
 package com.nemonicworld.relay.service.cleanup;
 
 import com.nemonicworld.common.exception.FileStorageException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
@@ -70,7 +71,7 @@ public class MinioRelayTempFileStorage implements RelayTempFileStorage {
     private void removeObject(String objectKey) {
         if (!objectKey.startsWith(RELAY_TEMP_OBJECT_KEY_PREFIX)) {
             throw new FileStorageException(FILE_STORAGE_ERROR_MESSAGE,
-                new IllegalArgumentException("릴레이 임시 파일 경로가 아닙니다."));
+                new InternalServerException("릴레이 임시 파일 경로가 아닙니다."));
         }
 
         try {

@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.service.finalization;
 
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -80,11 +81,11 @@ public class RelayResultComposer {
             try {
                 BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
                 if (image == null) {
-                    throw new IllegalStateException(IMAGE_READ_ERROR_MESSAGE);
+                    throw new InternalServerException(IMAGE_READ_ERROR_MESSAGE);
                 }
                 images.put(entry.getKey(), image);
             } catch (IOException e) {
-                throw new IllegalStateException(IMAGE_READ_ERROR_MESSAGE, e);
+                throw new InternalServerException(IMAGE_READ_ERROR_MESSAGE, e);
             }
         }
 
@@ -186,7 +187,7 @@ public class RelayResultComposer {
             ImageIO.write(image, "png", outputStream);
             return outputStream.toByteArray();
         } catch (IOException e) {
-            throw new IllegalStateException(IMAGE_WRITE_ERROR_MESSAGE, e);
+            throw new InternalServerException(IMAGE_WRITE_ERROR_MESSAGE, e);
         }
     }
 }
