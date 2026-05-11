@@ -14,6 +14,7 @@ Several relay transitions are not direct user commands:
 - Disconnect grace expiration.
 - Final result generation.
 - Automatic room close after result viewing time.
+- Automatic abandoned-room close for stuck lobby/game states.
 - Temporary file cleanup.
 
 These jobs can overlap with user submissions, reconnects, manual close, and
@@ -57,6 +58,28 @@ If a dropped host has a connected non-dropped candidate, transfer host ownership
 to the lowest `joinOrder` candidate. If there is no candidate, keep the current
 state safely and do not implement all-dropped room finalization in this step.
 
+Close abandoned relay rooms through a separate scheduler:
+
+- `WAITING`: if the room has at least one participant and every participant has
+  `connected=false` for 5 minutes, close it with
+  `close_reason=waiting_idle_timeout`.
+- `PLAYING`: if the room has at least one participant and every participant is
+  either disconnected or dropped for 5 minutes, close it with
+  `close_reason=playing_abandoned`.
+
+Both flows scan Redis with `SCAN`, close through the shared active-room CAS
+command, sync invite metadata, and publish `ROOM_CLOSED` only after the CAS save
+succeeds. They do not auto-submit missing parts or attempt final result
+generation.
+
+Finalization retries use a separate Redis counter key,
+`relay:room-finalization-retry:{roomCode}`, with the same 24-hour TTL as the
+room state. The finalization scheduler runs every 30 seconds by default. Each
+failed finalization tick increments the counter and logs `retry_count` and
+`max_retry_count`. A successful finalization clears the counter. On the 20th
+failure, the room is closed with `close_reason=finalization_failed`, invite
+metadata is synced, and `ROOM_CLOSED` is published.
+
 ## Consequences
 
 - Positive: Scheduler side effects are idempotent enough for repeated scans.
@@ -68,6 +91,9 @@ state safely and do not implement all-dropped room finalization in this step.
   progress at the deadline.
 - Positive: Future dropped assignments are revealed at the natural part time,
   matching the frontend timeline.
+- Positive: WAITING, PLAYING, and FINALIZING rooms no longer remain in
+  backoffice active-room lists indefinitely when all users leave or finalization
+  keeps failing.
 - Negative: Uploaded files may briefly remain if MinIO upload succeeds but the
   Redis CAS update later fails.
 - Follow-up: Full multi-node scheduler coordination may need stronger locks or

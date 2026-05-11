@@ -62,7 +62,8 @@ Personal kick messages and same-server session closes are best-effort.
 
 When a relay room becomes closed, publish `ROOM_CLOSED` and best-effort close
 all same-server active relay WebSocket sessions for that room. This applies to
-host-triggered close, automatic close, and last-user waiting-room leave.
+host-triggered close, automatic close, last-user waiting-room leave, abandoned
+`WAITING`/`PLAYING` cleanup, and finalization-failure cleanup.
 
 When the current part deadline expires, publish a one-time `PART_TIME_UP` room
 event during the submission grace window. The event payload includes the timed

@@ -72,7 +72,7 @@
 | 이벤트 | 발생 시점 | metadata 필드 | 설명 |
 | --- | --- | --- | --- |
 | `relay_result_created` | 최종 이미지 합성, MinIO 업로드, DB 저장, Redis `FINISHED` 전환이 성공한 직후 | `room_id`, `result_count`, `artifact_ids`, `duration_ms` | 결과물 생성 성공 수와 생성 소요 시간을 집계한다. `artifact_ids`로 DB 결과물과 연결할 수 있다. |
-| `relay_room_closed` | 방이 `CLOSED` 상태로 전환된 직후 | `room_id`, `close_reason`, `room_status_before`, `participant_count` | 방 종료 사유를 집계한다. 현재 `close_reason`은 `last_participant_left`, `host_manual`, `auto_delay`, `admin_force`가 사용된다. |
+| `relay_room_closed` | 방이 `CLOSED` 상태로 전환된 직후 | `room_id`, `close_reason`, `room_status_before`, `participant_count` | 방 종료 사유를 집계한다. 현재 `close_reason`은 `last_participant_left`, `host_manual`, `auto_delay`, `admin_force`, `waiting_idle_timeout`, `playing_abandoned`, `finalization_failed`가 사용된다. 자동 방치 종료는 `closed_at`과 `idle_seconds` 또는 `abandoned_seconds`를 추가하고, 최종화 실패 종료는 `retry_count`를 추가한다. |
 | `relay_temp_cleanup_completed` | 닫힌 방의 `relay/tmp/{roomCode}/` 임시 파일 삭제와 cleanup marker 저장이 성공한 직후 | `room_id`, `deleted_object_count`, `result` | 임시 파일 정리 성공 여부와 삭제 개수를 본다. 현재 성공 시 `result=success`다. |
 
 ## 운영자 감사 로그
@@ -97,7 +97,7 @@
 | `relay_redis_cas_retry_exceeded` | Redis `saveIfUnchanged` CAS 재시도가 최대 횟수를 초과한 때 | `room_id`, `operation`, `attempt_count` | 없음 | Redis 방 상태 갱신 충돌이 반복되어 처리를 포기한 상황이다. `operation`은 `timeout`, `disconnect_grace`, `submission` 등이 들어간다. |
 | `relay_minio_upload_redis_save_failed` | 제출 이미지 MinIO 업로드 후 Redis 저장이 끝내 실패한 때 | `room_id`, `uuid`, `canvas_index`, `part`, `object_key` | 없음 | 파일은 올라갔지만 방 상태 반영은 실패한 위험 상황이다. 임시 파일 정리나 재처리 판단에 중요하다. |
 | `relay_disconnect_grace_scheduler_failed` | disconnect grace scheduler가 이탈 확정 후보 방 처리 중 실패한 때 | `room_id`, `uuid`, `operation` | 있음 | 재연결 유예 만료자를 확정하는 작업이 실패한 방과 후보 사용자를 찾는다. `operation=disconnect_grace`다. |
-| `relay_finalization_failed` | 최종 결과물 생성 과정에서 실패한 때 | `room_id`, `stage`, `artifact_id`, `operation` | 있음 | 최종화 실패 단계별 추적 로그다. `stage`는 `process`, `compose`, `minio_upload`, `artifact_meta`, `db_save`, `redis_update` 등이 들어간다. |
+| `relay_finalization_failed` | 최종 결과물 생성 과정에서 실패한 때 | `room_id`, `stage`, `artifact_id`, `operation`, `retry_count`, `max_retry_count` | 있음 | 최종화 실패 단계별 추적 로그다. `stage`는 `process`, `compose`, `minio_upload`, `artifact_meta`, `db_save`, `redis_update` 등이 들어간다. 기본 정책은 30초 간격으로 최대 20회 재시도하고, 20회째 실패하면 방을 `CLOSED`로 전환한다. |
 | `relay_temp_cleanup_failed` | CLOSED 방의 임시 파일 정리 중 실패한 때 | `room_id`, `object_key_prefix`, `failed_object_count` | 있음 | 특정 방의 임시 파일 정리가 실패한 상황이다. `failed_object_count`는 정리 대상 후보 개수다. |
 | `relay_old_temp_lookup_failed` | Redis 방 상태가 사라진 오래된 임시 파일 fallback 조회가 실패한 때 | `room_id`, `object_key_prefix`, `failed_object_count` | 있음 | `relay/tmp/` 전체 fallback cleanup 대상 조회 자체가 실패한 상황이다. 현재 `room_id=null`, `failed_object_count=0`으로 기록된다. |
 | `relay_old_temp_cleanup_failed` | 오래된 임시 파일 fallback 삭제가 실패한 때 | `room_id`, `object_key_prefix`, `failed_object_count` | 있음 | Redis room state가 없어도 남아 있는 오래된 임시 파일 삭제 실패를 추적한다. |
