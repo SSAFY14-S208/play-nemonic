@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "nemonic 운영 상황실: 실시간 서비스 상태(① up) + 요청·응답(② RPS / latency / error rate). 통계성 추세는 OpenSearch Dashboards에서 본다.",
+  "description": "nemonic 운영 상황실: ① 서비스 up · ② 요청·응답 · ③ 실시간 활동(heartbeat/WS) · ④ 콘텐츠 활성 · ⑤ 서버 리소스. 통계성 추세는 OpenSearch Dashboards에서.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -281,6 +281,370 @@
           "refId": "B",
           "expr": "sum(rate(http_server_requests_seconds_count{job=\"spring-app\",status=~\"4..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"spring-app\"}[5m])), 1e-9)",
           "legendFormat": "4xx ratio"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "③ 실시간 활동 (frontend heartbeat / WebSocket)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "id": 300,
+      "panels": []
+    },
+
+    {
+      "type": "stat",
+      "title": "동시 사용자 (uuid, 5m)",
+      "description": "최근 5분 이내 client_alive heartbeat을 보낸 unique uuid 수. observability-frontend.md §6.1 의 active_users 정의와 동일.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 23 },
+      "id": 30,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:client_alive",
+          "metrics": [ { "type": "cardinality", "field": "uuid", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "동시 세션 (session_id, 5m)",
+      "description": "탭 단위 동시 접속. 한 사용자가 여러 탭을 열면 여러 세션으로 카운트.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 23 },
+      "id": 31,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "purple", "value": null } ] }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:client_alive",
+          "metrics": [ { "type": "cardinality", "field": "session_id", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "콘텐츠 타입별 활성 사용자",
+      "description": "client_alive 의 content_type 별 unique uuid cardinality. 어느 콘텐츠에 사람이 몰리는지 즉시 확인.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 23 },
+      "id": 32,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 30, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:client_alive AND _exists_:content_type",
+          "metrics": [ { "type": "cardinality", "field": "uuid", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "3", "field": "content_type.keyword", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "WebSocket 동시 연결 (STOMP)",
+      "description": "백엔드 Micrometer Gauge nemonic_ws_active_sessions. SessionConnectEvent/SessionDisconnectEvent 기반 — 백엔드 인스트루멘테이션 필요 (아래 명세 참조).",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 28 },
+      "id": 33,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] }
+        }
+      },
+      "targets": [
+        { "refId": "A", "expr": "sum(nemonic_ws_active_sessions)", "legendFormat": "active" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "WebSocket connect / disconnect rate",
+      "description": "초당 신규 연결 / 해제. 연결 폭주나 비정상 해제 감지.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 28 },
+      "id": 34,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "ops"
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "rate(nemonic_ws_connect_total[1m])",    "legendFormat": "connect" },
+        { "refId": "B", "expr": "rate(nemonic_ws_disconnect_total[1m])", "legendFormat": "disconnect" }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "④ 콘텐츠 활성 현황 (백엔드 Gauge)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "id": 400,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "진행 중 콘텐츠 (room / canvas)",
+      "description": "백엔드 Micrometer Gauge nemonic_content_active_rooms{content_type=\"...\"}. 진행 중 상태(릴레이/플립북/캔버스 등)의 카운트.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "id": 40,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "stepBefore", "fillOpacity": 20, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (content_type) (nemonic_content_active_rooms)",
+          "legendFormat": "{{content_type}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "비즈니스 이벤트 rate (room_join / memo_create / element_place)",
+      "description": "백엔드 Micrometer Counter nemonic_business_events_total{event=\"...\"} — observability-frontend.md §5.2 이벤트들의 분당 발생률.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+      "id": 41,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "ops"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (event) (rate(nemonic_business_events_total[1m]))",
+          "legendFormat": "{{event}}"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "⑤ 서버 리소스 (host + container)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "id": 500,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Host CPU 사용률",
+      "description": "node_exporter — idle 외 모든 모드 합산을 1에서 뺌.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 43 },
+      "id": 50,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 20, "showPoints": "never" },
+          "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[1m]))",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Host 메모리 사용률",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 4, "x": 8, "y": 43 },
+      "id": 51,
+      "options": {
+        "orientation": "auto", "showThresholdLabels": false, "showThresholdMarkers": true,
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.75 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+          "legendFormat": "used"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "디스크 사용률 (/)",
+      "description": "디스크 풀은 가장 흔한 장애 원인. 80% 넘어가면 경고.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 4, "x": 12, "y": 43 },
+      "id": 52,
+      "options": {
+        "orientation": "auto", "showThresholdMarkers": true,
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.8 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - (node_filesystem_avail_bytes{mountpoint=\"/host\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/host\",fstype!~\"tmpfs|overlay\"})",
+          "legendFormat": "used"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "네트워크 I/O (bytes/s)",
+      "description": "주요 인터페이스의 RX/TX. 트래픽 스파이크 / 라이브 이벤트와의 상관관계.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 43 },
+      "id": 53,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "Bps"
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[1m]))",
+          "legendFormat": "rx"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[1m]))",
+          "legendFormat": "tx"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "컨테이너 CPU Top 5",
+      "description": "cAdvisor 기반 — 누가 튀는지 즉시 추적.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 50 },
+      "id": 54,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "percentunit"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(5, sum by (name) (rate(container_cpu_usage_seconds_total{name!=\"\"}[1m])))",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "컨테이너 메모리 Top 5",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 50 },
+      "id": 55,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "bytes"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(5, sum by (name) (container_memory_working_set_bytes{name!=\"\"}))",
+          "legendFormat": "{{name}}"
         }
       ]
     }

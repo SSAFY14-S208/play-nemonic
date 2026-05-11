@@ -13,3 +13,24 @@ datasources:
     url: http://prometheus:9090
     isDefault: true
     editable: false
+
+  # OpenSearch — frontend heartbeat (client_alive 이벤트) 집계로 실시간 동시
+  # 접속자/콘텐츠별 활성 사용자 패널에서 query. plugin은 grafana 컨테이너의
+  # GF_INSTALL_PLUGINS 로 자동 설치됨.
+  #
+  # database = 인덱스 패턴. observability-frontend.md §6.1 의 query는 biz-events-*
+  # 를 대상으로 함. timeField 는 표준 스키마의 @timestamp.
+  - name: OpenSearch
+    uid: opensearch
+    type: grafana-opensearch-datasource
+    access: proxy
+    url: http://opensearch:9200
+    editable: false
+    jsonData:
+      database: "biz-events-*"
+      timeField: "@timestamp"
+      version: "2.15.0"
+      flavor: "opensearch"
+      # security plugin이 꺼져 있어서 basic auth 없음.
+      # 운영 OpenSearch에 보안 켜지면 secureJsonData.basicAuthPassword 추가.
+      maxConcurrentShardRequests: 5

@@ -60,6 +60,11 @@ services:
       # 일부 비활성 (외부 노출 환경 보안)
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+
+      # OpenSearch datasource plugin — biz-events-* 인덱스에서 frontend heartbeat
+      # 집계 (동시 접속자, 콘텐츠별 활성 사용자) 를 실시간 패널에서 직접 query.
+      # 첫 기동 시 다운로드 + 설치 → /opt/nemonic/data/grafana/plugins 에 영속화.
+      GF_INSTALL_PLUGINS: "grafana-opensearch-datasource"
     volumes:
       - /opt/nemonic/data/grafana:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
