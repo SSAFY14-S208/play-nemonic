@@ -75,6 +75,8 @@ public interface RelayRoomService {
      */
     RelayRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue);
 
+    RelayRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue, String sessionId);
+
     /**
      * WebSocket 연결 해제 시 기존 릴레이 참여자를 연결 해제 상태로 갱신합니다.
      */

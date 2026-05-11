@@ -10,6 +10,7 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 @Service
 public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomService {
@@ -92,6 +94,9 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
 
             RelayRoomCloseResult closeResult = relayRoomCloseCommand.closeActiveRoomIfUnchanged(roomState, closedAt);
             if (closeResult.closed()) {
+                RelayRoomEventLogger.apiBusiness("relay_room_closed",
+                    metadata("room_id", closeResult.roomCode(), "close_reason", "admin_force", "room_status_before",
+                        roomState.status(), "participant_count", roomState.participantCount()));
                 relayRoomEventPublisher.publishRoomClosed(closeResult.roomCode(), closeResult.closedAt());
                 adminAuditLogger.logRelayRoomForceClose(adminPrincipal, closeResult.roomCode(),
                     roomState.status().name(), clientInfo);

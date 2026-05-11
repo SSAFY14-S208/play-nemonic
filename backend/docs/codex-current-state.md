@@ -379,17 +379,20 @@ Recent artifact image URL lookup work added `GET /api/v1/artifacts/{artifactId}/
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.artifact.*' --no-daemon
 ```
 
-Recent artifact QR download work adds `GET /api/v1/artifacts/{artifactId}/download`.
+Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/download` and
+`POST /api/v1/artifacts/{artifactId}/share`.
 
-- The download API verifies the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
-- Downloadable artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, and `community_memo`; `phone` and `infinite_canvas` return unsupported-kind errors for this flow.
+- Both APIs verify the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
+- Download/share artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, and `community_memo`; `phone` and `infinite_canvas` return unsupported-kind errors for this flow.
 - QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and `QR_DOWNLOAD` channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
 - The API creates or reuses a QR-composed MinIO cache object, then returns JPG/GIF bytes as an attachment.
 - Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr.gif` with QR overlaid on every frame.
-- `POST /api/v1/share` remains token/link generation only; image share flows can later reuse the artifact download cache or add a separate response contract.
+- `POST /api/v1/artifacts/{artifactId}/share` reuses the same QR cache and returns the public QR image URL plus Kakao/Instagram UTM URLs in the existing `ShareCreateResponse` shape.
+- Community memo QR assets read `community_memo.body_image_url` first, then `community_memo.thumbnail_image_url`, and only fall back to `artifact.thumbnail_url`.
+- `POST /api/v1/share` remains the older galleryId-based token/link generation endpoint.
 
 ```bash
-./gradlew --no-daemon spotlessApply test --tests com.nemonicworld.artifact.controller.ArtifactControllerIntegrationTest --tests com.nemonicworld.artifact.controller.ArtifactOpenApiIntegrationTest --tests com.nemonicworld.artifact.service.download.ArtifactDownloadServiceImplTest --tests com.nemonicworld.artifact.service.download.ArtifactQrComposerTest --tests com.nemonicworld.share.service.SignedShareTokenIssuerTest
+./gradlew --no-daemon test --tests com.nemonicworld.artifact.service.download.ArtifactDownloadServiceImplTest --tests com.nemonicworld.artifact.service.share.ArtifactShareServiceImplTest --tests com.nemonicworld.artifact.controller.ArtifactControllerIntegrationTest --tests com.nemonicworld.artifact.controller.ArtifactOpenApiIntegrationTest
 ```
 
 Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/result`.
@@ -397,6 +400,7 @@ Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/
 - Existing artifact/gallery rows are returned first for idempotent result lookup.
 - If Redis room state is `FINISHED` and no DB result exists yet, submitted non-empty frames are grouped by `flipbookIndex`, converted into GIF files under `flipbook/results/{artifactId}/result.gif`, and stored as `artifact` + `flipbook_artifact` + gallery rows for non-dropped participants.
 - The response mirrors relay result shape with `ready`, `resultCount`, per-result `galleryId`/`artifactId`, `thumbnailUrl`, `gifUrl`, `firstImageUrl`, and ordered frame metadata.
+- Flipbook game start now uses `totalRounds=8` so every generated flipbook has the minimum 8 frames; assignment count is `participantCount * 8`.
 
 ```bash
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
@@ -446,6 +450,22 @@ Recent backoffice audit log emit work aligned remaining operator mutation APIs w
 - Relay and flipbook backoffice forced closes emit `relay_room_force_close` and `flipbook_room_force_close` with `target_type=room`, `action=force_close`, and before/after status snapshots.
 - Still deferred because current APIs are missing or read-only: `prompt_rollback`, `inquiry_internal_memo`, `infinite_canvas_force_close`, `notification_send`, `electron_channel_change`, `electron_release_publish`, `memo_bulk_soft_delete`, `memo_bulk_restore`, and `report_review_decided`.
 - No Kafka producer, OpenSearch client, Fluent Bit config, audit RDB table, or audit migration was added; backend remains responsible only for one-line JSON emit to stdout.
+
+Recent relay logging work added structured event emission for the relay drawing lifecycle.
+
+- Relay business events now cover room creation/settings/join/leave/kick/host change, WebSocket connect/reconnect/disconnect/reject/duplicate-session close, start/part start/time-up/submission/rejection/auto-submit/drop/all-parts-complete/result-created/room-closed/temp-cleanup-completed.
+- Relay operational warning events cover timeout/disconnect/finalization/cleanup failures, room mutation lock contention, Redis CAS retry exhaustion, and MinIO upload followed by Redis save conflict.
+- Relay logging field coverage now includes WebSocket reconnect `session_id`, rejected WebSocket/start/submission room-state fields, disconnect-grace failure `uuid`, stage-specific finalization `artifact_id`, and non-null temp cleanup failure counts.
+- Backoffice relay force-close emits `relay_room_force_close` audit metadata and `relay_room_closed` business metadata; relay-scoped system parameter changes emit `param_change`.
+- `backend/docs/product-spec/08-observability.md` includes the relay event names in the backend business-event allow-list.
+
+Recent community logging work reused the shared structured event logger for community canvas and backoffice review flows.
+
+- `StructuredEventLogger` centralizes JSON emission to `logs.api`, `logs.websocket`, and `logs.audit`; the existing relay logger and admin audit logger now delegate to it.
+- Community API logs now cover memo list/detail views, create, moderation request/allowed/blocked/failure, FIFO check/expiry, layout update/denial, user delete/denial, report create/rejection, and report-threshold auto hide.
+- COMMUNITY-purpose file uploads now emit presign, confirm, and pending-delete events without affecting other file purposes.
+- Admin community list/detail/report-history views emit audit events, while existing hide/restore audit logs keep the operator-provided review reason in metadata.
+- `backend/docs/product-spec/08-observability.md` includes the community event names in the backend event allow-list.
 
 ## Next Suggested Steps
 

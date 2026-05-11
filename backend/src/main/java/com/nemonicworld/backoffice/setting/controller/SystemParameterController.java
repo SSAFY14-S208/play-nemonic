@@ -1,9 +1,10 @@
 package com.nemonicworld.backoffice.setting.controller;
 
+import com.nemonicworld.auth.service.AdminClientInfo;
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.backoffice.setting.dto.request.SystemParameterBulkUpdateRequest;
 import com.nemonicworld.backoffice.setting.dto.response.SystemParameterListResponse;
 import com.nemonicworld.backoffice.setting.service.SystemParameterService;
-import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -71,8 +72,8 @@ public class SystemParameterController {
     public ResponseEntity<ApiResponse<SystemParameterListResponse>> bulkUpdateSystemParameters(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @Valid @RequestBody SystemParameterBulkUpdateRequest request, HttpServletRequest servletRequest) {
-        SystemParameterListResponse response = systemParameterService.bulkUpdate(adminPrincipal, request,
-            adminClientInfoResolver.resolve(servletRequest));
+        AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
+        SystemParameterListResponse response = systemParameterService.bulkUpdate(adminPrincipal, request, clientInfo);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(BULK_UPDATE_SUCCESS_MESSAGE, response));

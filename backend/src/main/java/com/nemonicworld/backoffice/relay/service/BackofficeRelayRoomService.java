@@ -1,5 +1,6 @@
 package com.nemonicworld.backoffice.relay.service;
 
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomDeleteResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomListResponse;
 import com.nemonicworld.auth.service.AdminClientInfo;

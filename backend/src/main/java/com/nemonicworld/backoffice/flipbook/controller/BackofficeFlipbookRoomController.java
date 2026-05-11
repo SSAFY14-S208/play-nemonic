@@ -1,9 +1,9 @@
 package com.nemonicworld.backoffice.flipbook.controller;
 
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomDeleteResponse;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomListResponse;
 import com.nemonicworld.backoffice.flipbook.service.BackofficeFlipbookRoomService;
-import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -36,10 +36,12 @@ public class BackofficeFlipbookRoomController {
 
     private static final String LIST_SUCCESS_MESSAGE = "활성 플립북 방 목록 조회 성공";
     private static final String DELETE_SUCCESS_MESSAGE = "플립북 방 삭제 성공";
-    private static final String LIST_DESCRIPTION = "관리자가 백오피스에서 종료되지 않은(WAITING/PLAYING/FINISHED) 플립북 방을 조회합니다.";
-    private static final String STATUS_DESC = "방 상태 필터: WAITING, PLAYING, FINISHED. CLOSED는 허용되지 않습니다.";
-    private static final String RC_DESC = "삭제할 공유 방코드";
-    private static final String UPDATE_CONFLICT = OpenApiErrorExamples.BACKOFFICE_FLIPBOOK_ROOM_UPDATE_CONFLICT;
+    private static final String LIST_OPERATION_DESCRIPTION = "관리자가 백오피스에서 활성 플립북 방(WAITING/PLAYING/FINISHED)을 조회합니다.";
+    private static final String STATUS_PARAMETER_DESCRIPTION = "방 상태 필터: WAITING, PLAYING, FINISHED. "
+        + "CLOSED는 허용되지 않습니다.";
+    private static final String ROOM_DESC = "삭제할 공유 방코드";
+    private static final String INVALID_STATUS_EXAMPLE = OpenApiErrorExamples.BACKOFFICE_FLIPBOOK_ROOM_INVALID_STATUS;
+    private static final String UPDATE_CONFLICT_EXAMPLE = OpenApiErrorExamples.BACKOFFICE_FLIPBOOK_ROOM_UPDATE_CONFLICT;
 
     private final BackofficeFlipbookRoomService backofficeFlipbookRoomService;
     private final AdminClientInfoResolver adminClientInfoResolver;
@@ -51,13 +53,13 @@ public class BackofficeFlipbookRoomController {
     }
 
     @GetMapping
-    @Operation(summary = "활성 플립북 방 목록 조회", description = LIST_DESCRIPTION)
-    @Parameter(name = "status", in = ParameterIn.QUERY, description = STATUS_DESC, example = "PLAYING")
+    @Operation(summary = "활성 플립북 방 목록 조회", description = LIST_OPERATION_DESCRIPTION)
+    @Parameter(name = "status", in = ParameterIn.QUERY, description = STATUS_PARAMETER_DESCRIPTION, example = "PLAYING")
     @Parameter(name = "page", in = ParameterIn.QUERY, description = "페이지 번호 (0-based)", example = "0")
     @Parameter(name = "size", in = ParameterIn.QUERY, description = "페이지 크기. 기본 20, 최대 100으로 클램프", example = "20")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "활성 플립북 방 목록 조회 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 파라미터 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BACKOFFICE_FLIPBOOK_ROOM_INVALID_STATUS))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 파라미터 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INVALID_STATUS_EXAMPLE))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
     public ResponseEntity<ApiResponse<BackofficeFlipbookRoomListResponse>> getActiveFlipbookRooms(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
@@ -73,7 +75,7 @@ public class BackofficeFlipbookRoomController {
 
     @DeleteMapping("/{roomCode}")
     @Operation(summary = "활성 플립북 방 삭제", description = "관리자가 활성 플립북 방을 CLOSED 상태로 강제 전환합니다.")
-    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = RC_DESC, example = "AB3K9Q")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = ROOM_DESC, example = "AB3K9Q")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "플립북 방 삭제 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "방코드 형식 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_ROOM_CODE))),
@@ -81,7 +83,7 @@ public class BackofficeFlipbookRoomController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 방", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FLIPBOOK_ROOM_NOT_FOUND))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "방 삭제 충돌", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "이미 종료된 방", value = OpenApiErrorExamples.FLIPBOOK_ROOM_CLOSED),
-            @ExampleObject(name = "상태 갱신 충돌", value = UPDATE_CONFLICT)}))})
+            @ExampleObject(name = "상태 갱신 충돌", value = UPDATE_CONFLICT_EXAMPLE)}))})
     public ResponseEntity<ApiResponse<BackofficeFlipbookRoomDeleteResponse>> deleteActiveFlipbookRoom(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("roomCode") String roomCode,
         HttpServletRequest servletRequest) {

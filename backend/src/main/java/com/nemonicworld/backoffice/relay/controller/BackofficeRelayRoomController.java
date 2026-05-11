@@ -1,9 +1,10 @@
 package com.nemonicworld.backoffice.relay.controller;
 
+import com.nemonicworld.auth.service.AdminClientInfo;
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomDeleteResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomListResponse;
 import com.nemonicworld.backoffice.relay.service.BackofficeRelayRoomService;
-import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -84,8 +85,9 @@ public class BackofficeRelayRoomController {
     public ResponseEntity<ApiResponse<BackofficeRelayRoomDeleteResponse>> deleteActiveRelayRoom(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("roomCode") String roomCode,
         HttpServletRequest servletRequest) {
+        AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
         BackofficeRelayRoomDeleteResponse response = backofficeRelayRoomService.deleteActiveRelayRoom(adminPrincipal,
-            roomCode, adminClientInfoResolver.resolve(servletRequest));
+            roomCode, clientInfo);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(DELETE_SUCCESS_MESSAGE, response));

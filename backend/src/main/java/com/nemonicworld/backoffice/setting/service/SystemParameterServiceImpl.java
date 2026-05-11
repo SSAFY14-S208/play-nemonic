@@ -40,7 +40,6 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private static final String DUPLICATE_ID_MESSAGE = "동일한 시스템 파라미터 ID가 중복되었습니다.";
     private static final String NOT_FOUND_MESSAGE_FORMAT = "존재하지 않는 시스템 파라미터입니다. id=%s";
     private static final String INVALID_VALUE_MESSAGE = "시스템 파라미터 값을 직렬화하지 못했습니다.";
-
     private static final String REDACTED_VALUE = "[redacted]";
     private static final List<String> SENSITIVE_KEY_TOKENS = List.of("password", "secret", "token", "jwt",
         "authorization", "webhook", "smtp", "api_key", "apikey", "access_key", "refresh");
@@ -110,7 +109,6 @@ public class SystemParameterServiceImpl implements SystemParameterService {
             SystemParameter previous = existingById.get(item.id());
             before.put(previous.key(), safeParameterValue(previous.key(), previous.value()));
             after.put(previous.key(), safeParameterValue(previous.key(), serializedById.get(item.id())));
-            // 트랜잭션 내 INFO 로그. 롤백 시에도 동일 트랜잭션의 로그 1건은 출력될 수 있음.
             log.info("system-parameter updated id={} key={} updatedBy={}", previous.id(), previous.key(),
                 adminPrincipal.id());
         }

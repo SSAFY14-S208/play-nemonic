@@ -3,6 +3,7 @@ package com.nemonicworld.relay.service.close;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
@@ -14,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 결과 확인 시간이 지난 FINISHED 릴레이 방을 CLOSED로 전환합니다.
@@ -104,6 +106,9 @@ public class RelayRoomCloseService {
 
         RelayRoomCloseResult closeResult = relayRoomCloseCommand.closeFinishedRoomIfUnchanged(roomState, closedAt);
         if (closeResult.closed()) {
+            RelayRoomEventLogger.apiBusiness("relay_room_closed",
+                metadata("room_id", closeResult.roomCode(), "close_reason", "auto_delay", "room_status_before",
+                    roomState.status(), "participant_count", roomState.participantCount()));
             relayRoomEventPublisher.publishRoomClosed(roomState.roomCode(), closedAt);
         }
 

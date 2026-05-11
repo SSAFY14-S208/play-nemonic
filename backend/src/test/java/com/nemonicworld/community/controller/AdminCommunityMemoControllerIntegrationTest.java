@@ -475,7 +475,6 @@ class AdminCommunityMemoControllerIntegrationTest {
 
         mockMvc.perform(get("/api/v1/community/memos/{memoId}", hiddenMemoId)).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.memoUuid").value(hiddenMemoId.toString()));
-
         JsonNode auditLog = findAuditLog(output, "memo_restore");
         JsonNode metadata = auditLog.path("metadata");
         assertThat(auditLog.path("level").asText()).isEqualTo("INFO");

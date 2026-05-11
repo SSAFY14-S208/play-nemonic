@@ -8,6 +8,7 @@ import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelayRoomTimeUpNotificationRepository;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 마감 시간이 지난 릴레이 현재 파트의 미제출 배정을 빈 그림으로 자동 제출합니다.
@@ -88,6 +90,10 @@ public class RelayRoomTimeoutService {
                     autoSubmittedCount += result.autoSubmissions().size();
                 }
             } catch (RuntimeException e) {
+                RelayRoomEventLogger.apiWarn("relay_timeout_scheduler_failed", "failed to process relay timeout room",
+                    metadata("room_id", expiredRoom.roomCode(), "part", expiredRoom.currentPart(), "operation",
+                        "timeout"),
+                    e);
                 log.warn("릴레이 타임아웃 자동 제출 처리 중 오류가 발생했습니다. roomCode={}", expiredRoom.roomCode(), e);
             }
         }
@@ -106,11 +112,20 @@ public class RelayRoomTimeoutService {
                     roomState.currentPart(), roomState.partDeadlineAt(), RelayRoomRepository.ROOM_STATE_TTL);
                 if (marked) {
                     LocalDateTime submitGraceDeadlineAt = roomState.partDeadlineAt().plus(autoSubmitGrace);
+                    List<PendingSubmission> pendingSubmissions = pendingCurrentSubmissions(roomState);
                     relayRoomEventPublisher.publishPartTimeUp(roomState.roomCode(), roomState.currentPart(),
                         roomState.partDeadlineAt(), submitGraceDeadlineAt, autoSubmitGrace.toMillis(),
-                        pendingCurrentSubmissions(roomState));
+                        pendingSubmissions);
+                    RelayRoomEventLogger.websocketBusiness("relay_part_time_up",
+                        metadata("room_id", roomState.roomCode(), "part", roomState.currentPart(), "pending_count",
+                            pendingSubmissions.size(), "pending_user_uuids",
+                            pendingSubmissions.stream().map(PendingSubmission::userUuid).toList(), "part_deadline_at",
+                            roomState.partDeadlineAt(), "submit_grace_deadline_at", submitGraceDeadlineAt));
                 }
             } catch (RuntimeException e) {
+                RelayRoomEventLogger.websocketWarn("relay_part_time_up_publish_failed",
+                    "failed to publish relay part time-up event",
+                    metadata("room_id", roomState.roomCode(), "part", roomState.currentPart()), e);
                 log.warn("릴레이 파트 제한 시간 종료 이벤트 발행 중 오류가 발생했습니다. roomCode={}, part={}", roomState.roomCode(),
                     roomState.currentPart(), e);
             }
@@ -131,6 +146,10 @@ public class RelayRoomTimeoutService {
         boolean locked = relayRoomMutationLockRepository.acquireRoomMutationLock(roomCode, roomMutationLockToken,
             roomMutationLockTtl);
         if (!locked) {
+            RelayRoomEventLogger.apiWarn("relay_room_mutation_lock_busy",
+                "relay timeout skipped because room mutation lock was busy",
+                metadata("room_id", roomCode, "operation", "timeout", "lock_ttl_ms", roomMutationLockTtl.toMillis()),
+                null);
             return RelayRoomTimeoutResult.noOp(roomCode);
         }
 
@@ -170,6 +189,10 @@ public class RelayRoomTimeoutService {
             }
         }
 
+        RelayRoomEventLogger.apiWarn("relay_redis_cas_retry_exceeded", "relay timeout exceeded Redis CAS retry count",
+            metadata("room_id", roomCode, "operation", "timeout", "attempt_count",
+                RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES),
+            null);
         throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
     }
 
@@ -250,6 +273,11 @@ public class RelayRoomTimeoutService {
         for (RelayRoomAutoSubmissionResult autoSubmission : result.autoSubmissions()) {
             relayRoomEventPublisher.publishPartAutoSubmitted(autoSubmission.roomCode(), autoSubmission.nickname(),
                 autoSubmission.assignment());
+            RelayRoomEventLogger.websocketBusiness("relay_part_auto_submitted",
+                metadata("room_id", autoSubmission.roomCode(), "uuid", autoSubmission.assignment().assignedUserUuid(),
+                    "canvas_index", autoSubmission.assignment().canvasIndex(), "part",
+                    autoSubmission.assignment().part(), "reason", "timeout", "empty",
+                    autoSubmission.assignment().empty()));
         }
 
         RelayPartAdvanceResult advanceResult = result.advanceResult();
@@ -260,9 +288,16 @@ public class RelayRoomTimeoutService {
         if (advanceResult.allPartsCompleted()) {
             relayRoomEventPublisher.publishAllPartsCompleted(result.roomCode(), advanceResult.roomState().status(),
                 advanceResult.roomState().updatedAt());
+            RelayRoomEventLogger.websocketBusiness("relay_all_parts_completed", metadata("room_id", result.roomCode(),
+                "participant_count", advanceResult.roomState().participantCount(), "assignment_count",
+                advanceResult.roomState().assignments().size(), "completed_at", advanceResult.roomState().updatedAt()));
         } else {
             relayRoomEventPublisher.publishPartStarted(result.roomCode(), result.previousPart(),
                 advanceResult.nextPart(), advanceResult.nextPartStartedAt(), advanceResult.nextPartDeadlineAt());
+            RelayRoomEventLogger.websocketBusiness("relay_part_started",
+                metadata("room_id", result.roomCode(), "part", advanceResult.nextPart(), "previous_part",
+                    result.previousPart(), "participant_count", advanceResult.roomState().participantCount(),
+                    "part_deadline_at", advanceResult.nextPartDeadlineAt()));
         }
     }
 

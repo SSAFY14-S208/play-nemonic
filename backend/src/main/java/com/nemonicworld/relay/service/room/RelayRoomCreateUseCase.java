@@ -6,6 +6,7 @@ import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
@@ -16,6 +17,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 릴레이 방 생성 유스케이스입니다.
@@ -59,6 +61,9 @@ public class RelayRoomCreateUseCase {
 
         relayRoomRepository.save(roomState);
         relayInviteMetadataSyncService.syncWithRoomState(roomState);
+        RelayRoomEventLogger.apiBusiness("relay_room_created",
+            metadata("room_id", roomState.roomCode(), "host_uuid", roomState.hostUserUuid(), "time_limit_seconds",
+                roomState.timeLimitSeconds(), "max_participants", roomState.maxParticipants()));
 
         return RelayRoomCreateResponse.from(roomState);
     }
