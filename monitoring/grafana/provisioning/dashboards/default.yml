@@ -14,7 +14,11 @@
 #
 # 현재 등록된 dashboard:
 #   - 1860 (Node Exporter Full) → node-exporter-full.json
-#   -  3662 (Prometheus 2.0 Stats) → prometheus-stats.json
+#   - 3662 (Prometheus 2.0 Stats) → prometheus-stats.json
+#   - Nemonic Overview (자체 작성) → nemonic-overview.json
+#     · ① 서비스 up 상태 (prometheus/node/cadvisor/spring-app/moderation/nginx)
+#     · ② 요청·응답 (Nginx RPS, Spring HTTP RPS by status, latency p50/95/99, 에러율)
+#     · datasource uid="prometheus" 참조 — datasources/prometheus.yml 의 uid와 매칭.
 
 apiVersion: 1
 

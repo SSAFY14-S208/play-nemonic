@@ -98,6 +98,22 @@ services:
     networks:
       - cicd-net
 
+  # Nginx stub_status → Prometheus 포맷 변환 사이드카.
+  # 메인 nginx (nemonic-prod_nginx) 의 /stub_status 엔드포인트를 스크랩.
+  # cicd-net에 같이 붙어 있어서 도커 DNS의 'nginx' 이름으로 접근 가능.
+  # stub_status는 default.conf에서 nginx-net 내부에만 노출 (외부 차단).
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.3.0
+    container_name: nemonic-monitoring-nginx-exporter
+    restart: unless-stopped
+    mem_limit: 64m
+    command:
+      - --nginx.scrape-uri=http://nginx:8081/stub_status
+    expose:
+      - "9113"
+    networks:
+      - cicd-net
+
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: nemonic-monitoring-cadvisor

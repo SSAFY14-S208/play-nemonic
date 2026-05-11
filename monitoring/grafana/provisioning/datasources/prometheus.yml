@@ -5,6 +5,9 @@ apiVersion: 1
 
 datasources:
   - name: Prometheus
+    # uid를 명시 — provisioned dashboard JSON에서 "uid": "prometheus" 로 참조한다.
+    # 명시 안 하면 Grafana가 자동 생성하는데 매 환경마다 달라져서 import 시 panel이 깨짐.
+    uid: prometheus
     type: prometheus
     access: proxy
     url: http://prometheus:9090
