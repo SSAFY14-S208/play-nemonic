@@ -64,7 +64,7 @@ export const HUB_CENTER_NEMONIC_MAX_SIZE = 2.36
 export const HUB_COMMUNITY_CANVAS_BOOK_POSITION: [number, number, number] = [0.55, 0.76, -4.8]
 export const HUB_COMMUNITY_CANVAS_BOOK_ROTATION_Y = Math.PI - 0.22
 export const HUB_COMMUNITY_CANVAS_BOOK_MAX_SIZE = 5.625
-export const HUB_FLIPBOOK_BUNNY_POSITION: [number, number, number] = [5.15, 0.82, -0.35]
+export const HUB_FLIPBOOK_BUNNY_POSITION: [number, number, number] = [-4.45, 0.82, 4.35]
 export const HUB_FLIPBOOK_BUNNY_ROTATION_Y = -Math.PI / 2
 export const HUB_FLIPBOOK_BUNNY_MAX_SIZE = 4.2
 export const HUB_FLIPBOOK_RUNNING_RABBIT_HEIGHT = 2.2
@@ -75,7 +75,7 @@ export const HUB_FLIPBOOK_RUNNING_RABBIT_ROTATION_Y = Math.PI / 2
 export const HUB_RELAY_DRAWING_PATH = '/relay-drawing'
 export const HUB_COMMUNITY_CANVAS_PATH = '/community-canvas'
 export const HUB_FLIPBOOK_PATH = '/flipbook'
-export const HUB_RELAY_DRAWING_PLACEHOLDER_POSITION: [number, number, number] = [-4.45, 0.96, 4.35]
+export const HUB_RELAY_DRAWING_PLACEHOLDER_POSITION: [number, number, number] = [5.15, 0.96, -0.35]
 export const HUB_RELAY_DRAWING_PLACEHOLDER_ROTATION_Y = -0.34
 export const HUB_RELAY_DRAWING_PLACEHOLDER_CUBES: Array<{
   name: string

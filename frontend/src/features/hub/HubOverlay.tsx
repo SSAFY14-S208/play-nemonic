@@ -37,9 +37,9 @@ const PLATFORM_BUTTON_STYLES: Record<HubContentKey, CSSProperties> = {
     '--hub-chip-text': '#6c5596',
   } as CSSProperties,
   relay: {
-    '--hub-chip-bg': 'rgba(255, 225, 143, 0.76)',
-    '--hub-chip-border': 'rgba(204, 154, 53, 0.34)',
-    '--hub-chip-text': '#8a6b31',
+    '--hub-chip-bg': 'rgba(255, 157, 168, 0.74)',
+    '--hub-chip-border': 'rgba(204, 96, 108, 0.34)',
+    '--hub-chip-text': '#98525b',
   } as CSSProperties,
   infinite: {
     '--hub-chip-bg': 'rgba(185, 224, 246, 0.78)',
@@ -47,9 +47,9 @@ const PLATFORM_BUTTON_STYLES: Record<HubContentKey, CSSProperties> = {
     '--hub-chip-text': '#527c94',
   } as CSSProperties,
   flipbook: {
-    '--hub-chip-bg': 'rgba(255, 157, 168, 0.74)',
-    '--hub-chip-border': 'rgba(204, 96, 108, 0.34)',
-    '--hub-chip-text': '#98525b',
+    '--hub-chip-bg': 'rgba(255, 225, 143, 0.76)',
+    '--hub-chip-border': 'rgba(204, 154, 53, 0.34)',
+    '--hub-chip-text': '#8a6b31',
   } as CSSProperties,
 }
 
@@ -82,16 +82,16 @@ const ENTRY_CONFIGS: Partial<Record<HubContentKey, EntryConfig>> = {
   flipbook: {
     label: '플립북 입장',
     Icon: Film,
-    gradient: 'linear-gradient(135deg, #ffe1e4 0%, #ff9da8 100%)',
-    text: '#8a3a44',
-    glow: 'rgba(228, 116, 130, 0.55)',
+    gradient: 'linear-gradient(135deg, #fff4cc 0%, #ffd87a 100%)',
+    text: '#7a5a1f',
+    glow: 'rgba(238, 188, 84, 0.55)',
   },
   relay: {
     label: '릴레이 드로잉 입장',
     Icon: Users,
-    gradient: 'linear-gradient(135deg, #fff4cc 0%, #ffd87a 100%)',
-    text: '#7a5a1f',
-    glow: 'rgba(238, 188, 84, 0.55)',
+    gradient: 'linear-gradient(135deg, #ffe1e4 0%, #ff9da8 100%)',
+    text: '#8a3a44',
+    glow: 'rgba(228, 116, 130, 0.55)',
   },
 }
 
