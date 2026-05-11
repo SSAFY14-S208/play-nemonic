@@ -1,3 +1,5 @@
-export default function CsInquiriesPage() {
-  return null;
+import { AdminCsInquiriesPage } from "@/features/admin/cs-inquiries";
+
+export default function Page() {
+  return <AdminCsInquiriesPage />;
 }
