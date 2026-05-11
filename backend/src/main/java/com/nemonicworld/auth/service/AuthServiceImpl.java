@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -53,7 +55,7 @@ public class AuthServiceImpl implements AuthService {
         LocalDateTime loginTime = LocalDateTime.now();
         adminUserRepository.updateLastLoginAt(adminUser.getId(), loginTime);
         AdminUser updatedAdminUser = adminUserRepository.findActiveById(adminUser.getId()).orElse(adminUser);
-        adminAuditLogger.logLoginSuccess(updatedAdminUser, clientInfo);
+        emitAfterCommit(() -> adminAuditLogger.logLoginSuccess(updatedAdminUser, clientInfo));
 
         return issueLoginResponse(updatedAdminUser);
     }
@@ -86,5 +88,19 @@ public class AuthServiceImpl implements AuthService {
 
         return new LoginResponse(issuedAccessToken.accessToken(), TOKEN_TYPE, issuedAccessToken.expiresAt(),
             issuedRefreshToken.refreshToken(), issuedRefreshToken.expiresAt(), AdminResponse.from(adminUser));
+    }
+
+    private void emitAfterCommit(Runnable auditLog) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            auditLog.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                auditLog.run();
+            }
+        });
     }
 }

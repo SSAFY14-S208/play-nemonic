@@ -47,6 +47,22 @@ public class AdminAuditLogger {
         emit("INFO", "admin_logout", "admin logout succeeded", clientInfo, metadata);
     }
 
+    public void logAdminAccountCreate(AdminPrincipal adminPrincipal, AdminUser createdAdmin,
+        AdminClientInfo clientInfo) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, createdAdmin.getId().toString(), "create", "success");
+        metadata.put("after", adminAccountSnapshot(createdAdmin));
+        emit("INFO", "admin_account_create", "admin account created", clientInfo, metadata);
+    }
+
+    public void logAdminAccountDelete(AdminPrincipal adminPrincipal, AdminUser deletedAdmin,
+        AdminClientInfo clientInfo) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, deletedAdmin.getId().toString(), "delete", "success");
+        metadata.put("before", adminAccountSnapshot(deletedAdmin));
+        emit("INFO", "admin_account_delete", "admin account deleted", clientInfo, metadata);
+    }
+
     public void logCommunityMemoHide(AdminPrincipal adminPrincipal, String memoId, String reason,
         AdminClientInfo clientInfo, boolean stateChanged) {
         Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
@@ -83,6 +99,16 @@ public class AdminAuditLogger {
         metadata.put("result", result);
 
         return metadata;
+    }
+
+    private Map<String, Object> adminAccountSnapshot(AdminUser adminUser) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("id", adminUser.getId().toString());
+        snapshot.put("login_id", adminUser.getLoginId());
+        snapshot.put("nickname", adminUser.getNickname());
+        snapshot.put("role", adminUser.getRole().getValue());
+
+        return snapshot;
     }
 
     private void emit(String level, String eventName, String message, AdminClientInfo clientInfo,

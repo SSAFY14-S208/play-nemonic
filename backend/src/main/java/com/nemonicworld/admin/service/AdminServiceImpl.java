@@ -6,6 +6,8 @@ import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.admin.repository.AdminUserRepository;
+import com.nemonicworld.auth.service.AdminAuditLogger;
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
@@ -19,6 +21,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class AdminServiceImpl implements AdminService {
@@ -33,17 +37,20 @@ public class AdminServiceImpl implements AdminService {
     private final AdminUserRepository adminUserRepository;
     private final AdminTokenStore adminTokenStore;
     private final PasswordEncoder passwordEncoder;
+    private final AdminAuditLogger adminAuditLogger;
 
     public AdminServiceImpl(AdminUserRepository adminUserRepository, AdminTokenStore adminTokenStore,
-        PasswordEncoder passwordEncoder) {
+        PasswordEncoder passwordEncoder, AdminAuditLogger adminAuditLogger) {
         this.adminUserRepository = adminUserRepository;
         this.adminTokenStore = adminTokenStore;
         this.passwordEncoder = passwordEncoder;
+        this.adminAuditLogger = adminAuditLogger;
     }
 
     @Override
     @Transactional
-    public AdminResponse createAdmin(AdminPrincipal adminPrincipal, AdminCreateRequest request) {
+    public AdminResponse createAdmin(AdminPrincipal adminPrincipal, AdminCreateRequest request,
+        AdminClientInfo clientInfo) {
         if (adminPrincipal == null) {
             throw new UnauthorizedException("인증이 필요합니다.");
         }
@@ -59,6 +66,7 @@ public class AdminServiceImpl implements AdminService {
         try {
             AdminUser adminUser = adminUserRepository.insertAdmin(request.loginId(),
                 passwordEncoder.encode(request.password()), request.nickname(), request.email(), LocalDateTime.now());
+            emitAfterCommit(() -> adminAuditLogger.logAdminAccountCreate(adminPrincipal, adminUser, clientInfo));
 
             return AdminResponse.from(adminUser);
         } catch (DuplicateKeyException e) {
@@ -107,7 +115,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public void deleteAdmin(AdminPrincipal adminPrincipal, Long adminId) {
+    public void deleteAdmin(AdminPrincipal adminPrincipal, Long adminId, AdminClientInfo clientInfo) {
         requireSuperAdmin(adminPrincipal);
 
         if (adminPrincipal.id().equals(adminId)) {
@@ -128,6 +136,7 @@ public class AdminServiceImpl implements AdminService {
 
         adminTokenStore.revokeAllRefreshTokens(adminId);
         adminTokenStore.revokeAccessTokensIssuedBefore(adminId, revokedAt);
+        emitAfterCommit(() -> adminAuditLogger.logAdminAccountDelete(adminPrincipal, targetAdmin, clientInfo));
     }
 
     private void requireSuperAdmin(AdminPrincipal adminPrincipal) {
@@ -138,5 +147,19 @@ public class AdminServiceImpl implements AdminService {
         if (adminPrincipal.role() != AdminRole.SUPER_ADMIN) {
             throw new ForbiddenException(SUPER_ADMIN_REQUIRED_MESSAGE);
         }
+    }
+
+    private void emitAfterCommit(Runnable auditLog) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            auditLog.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                auditLog.run();
+            }
+        });
     }
 }
