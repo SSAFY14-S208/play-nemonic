@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import java.time.Duration;
@@ -193,6 +194,26 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
     }
 
     /**
+     * Redis room key를 SCAN하며 close 기준 시각을 지난 FINISHED 방만 조회합니다.
+     */
+    @Override
+    public List<FlipbookRoomState> findClosableFinishedRooms(LocalDateTime closeCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<FlipbookRoomState> closableRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && closableRooms.size() < limit) {
+                findClosableFinishedRoom(roomKeys.next(), closeCutoff).ifPresent(closableRooms::add);
+            }
+        }
+
+        return closableRooms;
+    }
+
+    /**
      * 같은 방 결과 생성을 여러 서버가 동시에 처리하지 않도록 짧은 TTL lock을 획득합니다.
      */
     @Override
@@ -222,6 +243,7 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         }
 
         if (hasExpiredDisconnectedParticipant(roomState, disconnectCutoff)
+            || hasDroppedParticipantPendingCurrentAssignment(roomState)
             || hasDroppedHostWithConnectedCandidate(roomState)) {
             return Optional.of(roomState);
         }
@@ -279,10 +301,39 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         return Optional.of(roomState);
     }
 
+    private Optional<FlipbookRoomState> findClosableFinishedRoom(String roomKey, LocalDateTime closeCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        FlipbookRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != FlipbookRoomStatus.FINISHED || roomState.updatedAt() == null
+            || roomState.updatedAt().isAfter(closeCutoff)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
     private boolean hasExpiredDisconnectedParticipant(FlipbookRoomState roomState, LocalDateTime disconnectCutoff) {
         return roomState.participants().stream()
             .anyMatch(participant -> !participant.dropped() && !participant.connected()
                 && participant.disconnectedAt() != null && !participant.disconnectedAt().isAfter(disconnectCutoff));
+    }
+
+    private boolean hasDroppedParticipantPendingCurrentAssignment(FlipbookRoomState roomState) {
+        List<String> droppedUserUuids = roomState.participants().stream().filter(participant -> participant.dropped())
+            .map(participant -> participant.userUuid()).toList();
+
+        if (droppedUserUuids.isEmpty()) {
+            return false;
+        }
+
+        return roomState.assignments().stream()
+            .anyMatch(assignment -> assignment.round() == roomState.currentRound()
+                && assignment.status() == FlipbookFrameAssignmentStatus.PENDING
+                && droppedUserUuids.contains(assignment.assignedUserUuid()));
     }
 
     private boolean hasDroppedHostWithConnectedCandidate(FlipbookRoomState roomState) {

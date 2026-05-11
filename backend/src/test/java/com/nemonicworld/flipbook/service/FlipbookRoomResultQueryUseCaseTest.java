@@ -103,7 +103,7 @@ class FlipbookRoomResultQueryUseCaseTest {
     }
 
     @Test
-    void getResultsReturnsReadyTrueWithEmptyResultsWhenFinishedRoomHasNoFrames() {
+    void getResultsReturnsReadyFalseWhenFinishedRoomHasNoArtifacts() {
         FlipbookRoomState finishedRoomState = finishedRoomState();
         given(anonymousUserResolver.resolve(VIEWER_UUID.toString())).willReturn(appUser(VIEWER_UUID));
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
@@ -114,7 +114,7 @@ class FlipbookRoomResultQueryUseCaseTest {
 
         FlipbookRoomResultsResponse response = useCase.getResults(VIEWER_UUID.toString(), ROOM_CODE);
 
-        assertThat(response.ready()).isTrue();
+        assertThat(response.ready()).isFalse();
         assertThat(response.roomStatus()).isEqualTo(FlipbookRoomStatus.FINISHED);
         assertThat(response.resultCount()).isZero();
         assertThat(response.results()).isEmpty();

@@ -51,6 +51,7 @@ public class InviteController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "410", description = "만료된 초대코드", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVITE_EXPIRED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "입장 불가 상태", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "종료된 방", value = OpenApiErrorExamples.INVITE_ROOM_CLOSED),
+            @ExampleObject(name = "게임 진행 중", value = OpenApiErrorExamples.INVITE_GAME_IN_PROGRESS),
             @ExampleObject(name = "정원 초과", value = OpenApiErrorExamples.INVITE_ROOM_FULL)})),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
     public ResponseEntity<ApiResponse<InviteJoinResponse>> joinByInviteCode(@PathVariable String inviteCode,
