@@ -13,7 +13,7 @@ import { cn } from "@/shared/libs";
 import RelayButton from "./RelayButton";
 
 const PANEL_CARD_CLASS =
-  "rounded-3xl bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)] sm:px-8";
+  "rounded-2xl bg-relay-paper px-5 py-4 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)] sm:px-6";
 
 export default function RelayLobbyView() {
   const roomCode = useRelayDrawingStore((state) => state.roomCode);
@@ -50,14 +50,14 @@ export default function RelayLobbyView() {
 
   return (
     <section className="relative isolate min-h-full overflow-hidden border border-relay-border bg-relay-background">
-      <div className="mx-auto flex min-h-screen w-full max-w-360 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 lg:h-screen lg:min-h-0 lg:gap-8 lg:px-[5%] lg:py-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-5 px-3 py-5 sm:gap-6 sm:px-5 lg:h-screen lg:min-h-0 lg:gap-5 lg:px-[4%] lg:py-6">
         {/* 헤더 — 나가기 버튼 */}
         <header className="flex items-center">
           {/* nav 스타일 — RelayButton 흡수 대신 호버 피드백(translateY)만 통일. */}
           <button
             type="button"
             onClick={leaveRoom}
-            className="body-b inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-4 py-2 text-relay-ink shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
+            className="body-b inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-paper px-3.5 py-1.5 text-relay-ink shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
           >
             <ArrowLeft className="size-5" aria-hidden />
             나가기
@@ -66,7 +66,7 @@ export default function RelayLobbyView() {
 
         {/* 메인 grid — 모바일은 1열 stack(order-{n}), lg+는 좌측 참여자(전체 높이) +
             우측 입장코드/시간/시작 stack. */}
-        <main className="grid flex-1 grid-cols-1 content-start gap-4 lg:grid-cols-[5fr_7fr] lg:grid-rows-[auto_auto_1fr] lg:gap-6">
+        <main className="grid flex-1 grid-cols-1 content-start gap-3 lg:grid-cols-[5fr_7fr] lg:grid-rows-[auto_auto_1fr] lg:gap-4">
           {/* ② 입장 코드 — 모바일 최상단(공유 글랜스 가치), 데스크탑 우측 1행 */}
           <div
             className={cn(
@@ -77,7 +77,7 @@ export default function RelayLobbyView() {
             <p className="h3-b text-relay-ink/80">입장 코드</p>
             <p
               className="font-bold tracking-[0.4em] text-relay-ink"
-              style={{ fontSize: "clamp(2.5rem, 5vw, 4.5rem)", lineHeight: 1 }}
+              style={{ fontSize: "clamp(2rem, 4vw, 3.5rem)", lineHeight: 1 }}
             >
               {roomCode ?? RELAY_ROOM_CODE}
             </p>
@@ -85,7 +85,7 @@ export default function RelayLobbyView() {
               <button
                 type="button"
                 onClick={copyInviteLink}
-                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
+                className="body-b inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-3.5 text-relay-accent-strong transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
               >
                 <Copy className="size-[17px]" aria-hidden />
                 {copyConfirm === "link" ? "복사됨" : "링크 복사"}
@@ -93,7 +93,7 @@ export default function RelayLobbyView() {
               <button
                 type="button"
                 onClick={copyRoomCode}
-                className="body-b inline-flex min-h-[45px] cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
+                className="body-b inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-3.5 text-relay-accent-strong transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:hover:translate-y-0 disabled:hover:brightness-100"
               >
                 <Copy className="size-[17px]" aria-hidden />
                 {copyConfirm === "roomCode" ? "복사됨" : "입장 코드 복사"}
@@ -114,7 +114,7 @@ export default function RelayLobbyView() {
                 {participants.length}/{maxParticipants}
               </span>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-3">
+            <div className="mt-3 grid grid-cols-1 gap-2.5">
               {participants.map((participant) => (
                 <ParticipantTile
                   key={participant.userUuid}
@@ -129,7 +129,7 @@ export default function RelayLobbyView() {
                 (_, waitingSlotIndex) => (
                   <div
                     key={`waiting-${waitingSlotIndex}`}
-                    className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
+                    className="caption-b grid min-h-11 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
                   >
                     초대를 기다리는 중...
                   </div>
