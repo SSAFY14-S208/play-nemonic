@@ -18,10 +18,12 @@
 #   - Nemonic Overview (자체 작성) → nemonic-overview.json
 #     · ① 서비스 up 상태 (prometheus/node/cadvisor/spring-app/moderation/nginx)
 #     · ② 요청·응답 (Nginx RPS, Spring HTTP RPS by status, latency p50/95/99, 에러율)
-#     · ③ 실시간 활동 — OpenSearch biz-events-* 의 client_alive heartbeat 집계
-#         (동시 사용자 uuid, 동시 세션 session_id, 콘텐츠 타입별 활성)
-#         + Prometheus WebSocket Gauge (nemonic_ws_active_sessions / connect rate)
-#     · ④ 콘텐츠 활성 (nemonic_content_active_rooms, nemonic_business_events_total)
+#     · ③ 실시간 활동 — OpenSearch biz-events-* 집계 + Prometheus WebSocket Gauge
+#         (동시 사용자 uuid, 동시 세션, 콘텐츠 타입별 활성, WS 세션,
+#          신규 세션 entry_type별, funnel started/goal/abandoned, 클라이언트 오류율)
+#     · ④ 콘텐츠 활성 + 사용자 액션
+#         (nemonic_content_active_rooms = backend Gauge,
+#          주요 사용자 액션 rate = OpenSearch terms — backend Counter 불필요)
 #     · ⑤ 서버 리소스 (host CPU/Mem/Disk/Net, 컨테이너 Top 5)
 #     · datasource uid: "prometheus" + "opensearch" 두 개 참조.
 

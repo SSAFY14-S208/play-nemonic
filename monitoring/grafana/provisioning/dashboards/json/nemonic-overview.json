@@ -425,19 +425,139 @@
     },
 
     {
+      "type": "timeseries",
+      "title": "신규 세션 (entry_type별, 분당)",
+      "description": "08B-frontend-logging.md §11 유입 — session_start 의 entry_type 분포로 실시간 유입 소스 확인. utm/share/qr/direct/search/social/campaign.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 33 },
+      "id": 35,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 20, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:session_start",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "3", "field": "entry_type.keyword", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Funnel 활동 (started / goal / abandoned)",
+      "description": "08B §11 전환·이탈 — 세 시리즈를 한 화면에 표시해 funnel 통과 vs 이탈 비교. 정확한 funnel 인구 추적은 OpenSearch Dashboards에서 flow_id로 세션 단위 분석.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 33 },
+      "id": 36,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "started" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } } ] },
+          { "matcher": { "id": "byName", "options": "goal_reached" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
+          { "matcher": { "id": "byName", "options": "abandoned" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_started",
+          "alias": "started",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_goal_reached",
+          "alias": "goal_reached",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_abandoned",
+          "alias": "abandoned",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "클라이언트 오류율 (분당, event별)",
+      "description": "08B §11 품질 — js_error / unhandled_rejection / client_network_failed (모두 100% sampling). 분당 발생 건수로 실시간 장애 감지.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 40 },
+      "id": 37,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 30, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:(js_error OR unhandled_rejection OR client_network_failed)",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "3", "field": "event_name.keyword", "settings": { "size": "5", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
       "type": "row",
-      "title": "④ 콘텐츠 활성 현황 (백엔드 Gauge)",
+      "title": "④ 콘텐츠 활성 + 사용자 액션",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 },
       "id": 400,
       "panels": []
     },
     {
       "type": "timeseries",
       "title": "진행 중 콘텐츠 (room / canvas)",
-      "description": "백엔드 Micrometer Gauge nemonic_content_active_rooms{content_type=\"...\"}. 진행 중 상태(릴레이/플립북/캔버스 등)의 카운트.",
+      "description": "백엔드 Micrometer Gauge nemonic_content_active_rooms{content_type=\"...\"}. 진행 중 상태(릴레이/플립북/캔버스 등)의 카운트. DB가 진실의 원천이라 서버에서 노출.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
       "id": 40,
       "fieldConfig": {
         "defaults": {
@@ -456,23 +576,29 @@
     },
     {
       "type": "timeseries",
-      "title": "비즈니스 이벤트 rate (room_join / memo_create / element_place)",
-      "description": "백엔드 Micrometer Counter nemonic_business_events_total{event=\"...\"} — observability-frontend.md §5.2 이벤트들의 분당 발생률.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+      "title": "주요 사용자 액션 rate (top 10, 분당)",
+      "description": "frontend 의도 이벤트 + backend 도메인 결과 이벤트(같은 biz-events-* 인덱스) — heartbeat/페이지뷰/visibility 같은 노이즈를 빼고 의미있는 액션만 terms aggregation. 08B-frontend-logging.md §1 책임 경계를 따라 backend 별도 Counter 박지 않고 OpenSearch 단일 출처로 본다.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
       "id": 41,
       "fieldConfig": {
         "defaults": {
           "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
-          "unit": "ops"
+          "unit": "short"
         }
       },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi" } },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (event) (rate(nemonic_business_events_total[1m]))",
-          "legendFormat": "{{event}}"
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "NOT event_name:(client_alive OR page_view OR page_leave OR visibility_change OR session_start OR session_end OR web_vitals OR scroll_depth_reached OR resource_load_slow OR js_error OR unhandled_rejection OR client_network_failed OR landing_source_detected OR campaign_attributed)",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "3", "field": "event_name.keyword", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
         }
       ]
     },
@@ -481,7 +607,7 @@
       "type": "row",
       "title": "⑤ 서버 리소스 (host + container)",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 },
       "id": 500,
       "panels": []
     },
@@ -490,7 +616,7 @@
       "title": "Host CPU 사용률",
       "description": "node_exporter — idle 외 모든 모드 합산을 1에서 뺌.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 43 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 57 },
       "id": 50,
       "fieldConfig": {
         "defaults": {
@@ -519,7 +645,7 @@
       "type": "gauge",
       "title": "Host 메모리 사용률",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 7, "w": 4, "x": 8, "y": 43 },
+      "gridPos": { "h": 7, "w": 4, "x": 8, "y": 57 },
       "id": 51,
       "options": {
         "orientation": "auto", "showThresholdLabels": false, "showThresholdMarkers": true,
@@ -551,7 +677,7 @@
       "title": "디스크 사용률 (/)",
       "description": "디스크 풀은 가장 흔한 장애 원인. 80% 넘어가면 경고.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 7, "w": 4, "x": 12, "y": 43 },
+      "gridPos": { "h": 7, "w": 4, "x": 12, "y": 57 },
       "id": 52,
       "options": {
         "orientation": "auto", "showThresholdMarkers": true,
@@ -583,7 +709,7 @@
       "title": "네트워크 I/O (bytes/s)",
       "description": "주요 인터페이스의 RX/TX. 트래픽 스파이크 / 라이브 이벤트와의 상관관계.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 43 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 57 },
       "id": 53,
       "fieldConfig": {
         "defaults": {
@@ -610,7 +736,7 @@
       "title": "컨테이너 CPU Top 5",
       "description": "cAdvisor 기반 — 누가 튀는지 즉시 추적.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 50 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 64 },
       "id": 54,
       "fieldConfig": {
         "defaults": {
@@ -631,7 +757,7 @@
       "type": "timeseries",
       "title": "컨테이너 메모리 Top 5",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 50 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 64 },
       "id": 55,
       "fieldConfig": {
         "defaults": {
