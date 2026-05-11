@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
@@ -24,9 +26,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
@@ -38,6 +43,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
+@ExtendWith(OutputCaptureExtension.class)
 class SystemParameterControllerIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
@@ -54,6 +60,9 @@ class SystemParameterControllerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -189,23 +198,23 @@ class SystemParameterControllerIntegrationTest {
     }
 
     @Test
-    void adminBulkUpdatesSystemParameters() throws Exception {
+    void adminBulkUpdatesSystemParameters(CapturedOutput output) throws Exception {
         insertSetting(10L, "fortune.daily_limit", "{\"max\":1}", SUPER_ADMIN_ID);
         insertSetting(11L, "community.max_memo_count", "{\"max\":50}", SUPER_ADMIN_ID);
         LocalDateTime before10 = findSettingUpdatedAt(10L);
         LocalDateTime before11 = findSettingUpdatedAt(11L);
 
         mockMvc
-            .perform(
-                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
-                    .contentType(MediaType.APPLICATION_JSON).content("""
-                        {
-                          "items": [
-                            { "id": 10, "value": { "enabled": true, "max": 5 } },
-                            { "id": 11, "value": { "max": 200 } }
-                          ]
-                        }
-                        """))
+            .perform(patch("/api/v1/backoffice/system-parameters")
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).header("X-Trace-Id", "param-change-audit-test")
+                .header("X-Real-IP", "10.10.60.11").contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "items": [
+                        { "id": 10, "value": { "enabled": true, "max": 5 } },
+                        { "id": 11, "value": { "max": 200 } }
+                      ]
+                    }
+                    """))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.items.length()").value(2)).andExpect(jsonPath("$.data.totalElements").value(2))
             .andExpect(jsonPath("$.data.items[0].id").value(11L))
@@ -224,6 +233,23 @@ class SystemParameterControllerIntegrationTest {
         assertThat(findSettingUpdatedBy(11L)).isEqualTo(ADMIN_ID);
         assertThat(findSettingUpdatedAt(10L)).isAfter(before10);
         assertThat(findSettingUpdatedAt(11L)).isAfter(before11);
+
+        JsonNode auditLog = findAuditLog(output, "param_change");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("param-change-audit-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.60.11");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("param");
+        assertThat(metadata.path("target_id").asText()).isEqualTo("bulk:2");
+        assertThat(metadata.path("action").asText()).isEqualTo("update");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("before").path("fortune.daily_limit").path("max").asInt()).isEqualTo(1);
+        assertThat(metadata.path("after").path("fortune.daily_limit").path("enabled").asBoolean()).isTrue();
+        assertThat(metadata.path("after").path("fortune.daily_limit").path("max").asInt()).isEqualTo(5);
+        assertThat(metadata.path("before").path("community.max_memo_count").path("max").asInt()).isEqualTo(50);
+        assertThat(metadata.path("after").path("community.max_memo_count").path("max").asInt()).isEqualTo(200);
     }
 
     @Test
@@ -246,6 +272,29 @@ class SystemParameterControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[0].updatedBy.id").value(SUPER_ADMIN_ID));
 
         assertThat(findSettingUpdatedBy(10L)).isEqualTo(SUPER_ADMIN_ID);
+    }
+
+    @Test
+    void systemParameterAuditLogRedactsSensitiveValues(CapturedOutput output) throws Exception {
+        insertSetting(10L, "smtp.password", "{\"value\":\"old-secret\"}", SUPER_ADMIN_ID);
+
+        mockMvc.perform(
+            patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .header("X-Trace-Id", "param-redaction-audit-test").contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "items": [
+                        { "id": 10, "value": { "value": "new-secret" } }
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
+
+        JsonNode auditLog = findAuditLog(output, "param_change");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("param-redaction-audit-test");
+        assertThat(metadata.path("before").path("smtp.password").asText()).isEqualTo("[redacted]");
+        assertThat(metadata.path("after").path("smtp.password").asText()).isEqualTo("[redacted]");
+        assertThat(auditLog.toString()).doesNotContain("old-secret", "new-secret");
     }
 
     @Test
@@ -416,6 +465,16 @@ class SystemParameterControllerIntegrationTest {
         AdminUser adminUser = new AdminUser(id, loginId, "encoded", nickname, email, role, null, now, now, null);
 
         return "Bearer %s".formatted(jwtTokenProvider.createAccessToken(adminUser).accessToken());
+    }
+
+    private JsonNode findAuditLog(CapturedOutput output, String eventName) throws Exception {
+        for (String line : output.getOut().split("\\R")) {
+            if (line.contains("\"event_name\":\"%s\"".formatted(eventName))) {
+                return objectMapper.readTree(line);
+            }
+        }
+
+        throw new AssertionError("Audit log not found. eventName=" + eventName);
     }
 
     @TestConfiguration

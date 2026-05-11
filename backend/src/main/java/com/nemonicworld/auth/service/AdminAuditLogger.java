@@ -121,6 +121,19 @@ public class AdminAuditLogger {
         emit("INFO", "prompt_update", "GMS prompt changed by admin", clientInfo, metadata);
     }
 
+    public void logParamChange(AdminPrincipal adminPrincipal, String targetId, AdminClientInfo clientInfo,
+        Map<String, Object> before, Map<String, Object> after) {
+        Map<String, Object> metadata = baseMetadata(adminPrincipal.id().toString(), adminPrincipal.role().getValue(),
+            clientInfo, "param", targetId, "update", "success");
+        if (before != null && !before.isEmpty()) {
+            metadata.put("before", before);
+        }
+        if (after != null && !after.isEmpty()) {
+            metadata.put("after", after);
+        }
+        emit("INFO", "param_change", "system parameter changed by admin", clientInfo, metadata);
+    }
+
     private Map<String, Object> baseMetadata(String actorId, String actorRole, AdminClientInfo clientInfo,
         String targetId, String action, String result) {
         return baseMetadata(actorId, actorRole, clientInfo, TARGET_TYPE_ADMIN_ACCOUNT, targetId, action, result);
