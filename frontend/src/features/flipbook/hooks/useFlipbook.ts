@@ -1,9 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { HTTPError } from 'ky'
 import {
-  ApiError,
   deleteFlipbookRoomParticipantMe,
   getFlipbookRoom,
   getFlipbookRoomAssignmentMe,
@@ -20,17 +18,12 @@ import {
 import { useDrawingBoard } from '@/shared/hooks'
 import { useUserStore } from '@/shared/stores'
 import type {
-  ApiResponse,
   DrawingLine,
   FlipbookAssignmentResponse,
   FlipbookFrameSubmitResponse,
-  FlipbookResultFrameResponse,
-  FlipbookRealtimeEvent,
   FlipbookResultItemResponse,
-  FlipbookRoomParticipantResponse,
   FlipbookRoomStateResponse,
 } from '@/shared/types'
-import { getDisplayImageUrl, renderLinesToRasterCanvas } from '@/shared/utils'
 import {
   FLIPBOOK_BACKGROUND_COLOR,
   FLIPBOOK_BOARD_SIZE,
@@ -38,18 +31,31 @@ import {
   FLIPBOOK_TIME_LIMITS_SECONDS,
 } from '../constants'
 import type {
-  FlipbookFrame,
-  FlipbookParticipant,
   FlipbookStep,
   FlipbookTimeLimitSeconds,
 } from '../types'
-import { createLocalFlipbookParticipant } from '../flipbookSessionMapper'
+import {
+  createCanvasBlobFromLines,
+  createLocalFlipbookParticipant,
+  createPreviousFrameLinesFromAssignment,
+  FLIPBOOK_FILE_CONTENT_TYPE,
+  FLIPBOOK_FILE_PURPOSE,
+  getAssignmentKey,
+  getDrawingTurnCount,
+  getFlipbookActionError,
+  getNormalizedResultItems,
+  getResultFrames,
+  getRoomParticipantCount,
+  getServerRoundCount,
+  hasConfiguredNickname,
+  toFlipbookParticipant,
+  toFlipbookTimeLimitSeconds,
+} from '../utils'
 import { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
+import { useFlipbookRealtimeEventHandler } from './useFlipbookRealtimeEventHandler'
 import { useFlipbookResultPlayback } from './useFlipbookResultPlayback'
 import { useFlipbookTimer } from './useFlipbookTimer'
 
-const FLIPBOOK_FILE_CONTENT_TYPE = 'image/png'
-const FLIPBOOK_FILE_PURPOSE = 'FLIPBOOK'
 const RESULT_POLLING_INTERVAL_MS = 1500
 const ASSIGNMENT_RETRY_DELAYS_MS = [1000, 2000, 3000, 5000]
 
@@ -64,275 +70,6 @@ interface UseFlipbookOptions {
       replace?: boolean
     },
   ) => void
-}
-
-function isFlipbookTimeLimitSeconds(seconds: number): seconds is FlipbookTimeLimitSeconds {
-  return FLIPBOOK_TIME_LIMITS_SECONDS.includes(seconds as FlipbookTimeLimitSeconds)
-}
-
-function toFlipbookTimeLimitSeconds(seconds: number): FlipbookTimeLimitSeconds {
-  return isFlipbookTimeLimitSeconds(seconds) ? seconds : FLIPBOOK_TIME_LIMITS_SECONDS[1]
-}
-
-function toParticipant(
-  participant: FlipbookRoomParticipantResponse,
-  currentUserUuid: string | null,
-): FlipbookParticipant {
-  return {
-    id: participant.userUuid,
-    userUuid: participant.userUuid,
-    name: `${participant.nickname}${participant.userUuid === currentUserUuid ? ' (나)' : ''}`,
-    avatar: participant.host ? '👑' : '🙂',
-    isHost: participant.host,
-  }
-}
-
-function createImageLineFromUrl(id: string, imageUrl: string): DrawingLine {
-  return {
-    id,
-    kind: 'fill',
-    color: 'transparent',
-    strokeWidth: 0,
-    points: [],
-    imageDataUrl: getDisplayImageUrl(imageUrl) ?? imageUrl,
-  }
-}
-
-function createPreviousFrameLinesFromAssignment(
-  assignment: FlipbookAssignmentResponse,
-): DrawingLine[] {
-  const hint = assignment.hint
-  const hintImageUrl = hint?.imageUrl ?? hint?.url
-  if (!hint || !hintImageUrl || hint.empty) return []
-
-  return [
-    createImageLineFromUrl(
-      `flipbook-hint-${hint.flipbookIndex}-${hint.frameIndex}-${hint.round}`,
-      hintImageUrl,
-    ),
-  ]
-}
-
-function getServerRoundCount({
-  roomState,
-  fallback,
-}: {
-  roomState?: FlipbookRoomStateResponse | null
-  fallback?: number | null
-}) {
-  return roomState?.totalRounds ?? fallback ?? null
-}
-
-function getRoomParticipantCount(roomState: FlipbookRoomStateResponse | null) {
-  if (!roomState) return 1
-
-  return Math.max(1, roomState.participantCount, roomState.participants.length)
-}
-
-function getDrawingTurnCount(cycleRoundCount: number | null, participantCount: number) {
-  if (cycleRoundCount === null) return null
-
-  return cycleRoundCount * Math.max(1, participantCount)
-}
-
-function getAssignmentKey(assignment: FlipbookAssignmentResponse) {
-  return `${assignment.currentRound}:${assignment.flipbookIndex}:${assignment.frameIndex}`
-}
-
-function getResultFrames(result: FlipbookResultItemResponse | null): FlipbookFrame[] {
-  if (!result) return []
-
-  const sortedFrames = [...result.frames].sort(
-    (firstFrame, secondFrame) => firstFrame.frameIndex - secondFrame.frameIndex,
-  )
-  const singleFrameFallbackImageUrl =
-    sortedFrames.length === 1
-      ? selectFirstImageUrl(result.firstImageUrl, result.thumbnailUrl)
-      : ''
-
-  return sortedFrames.map((frame) => ({
-    id: `${result.flipbookIndex}-${frame.frameIndex}`,
-    index: frame.frameIndex,
-    drawnByUserUuid: frame.drawnByUserUuid,
-    drawnBy: frame.drawnByNickname,
-    participantAvatar: '🙂',
-    lines: [],
-    imageUrl: selectFirstImageUrl(frame.imageUrl, singleFrameFallbackImageUrl),
-  }))
-}
-
-function hasImageUrl(imageUrl: string | null | undefined) {
-  return Boolean(imageUrl?.trim())
-}
-
-function selectFirstImageUrl(...imageUrls: Array<string | null | undefined>) {
-  return imageUrls.find(hasImageUrl) ?? ''
-}
-
-function shouldReplaceResultFrame(
-  currentFrame: FlipbookResultFrameResponse,
-  nextFrame: FlipbookResultFrameResponse,
-) {
-  return !hasImageUrl(currentFrame.imageUrl) && hasImageUrl(nextFrame.imageUrl)
-}
-
-function mergeResultItemGroup(
-  flipbookIndex: number,
-  resultItems: FlipbookResultItemResponse[],
-): FlipbookResultItemResponse {
-  const [baseResultItem] = resultItems
-  const framesByFrameIndex = new Map<number, FlipbookResultFrameResponse>()
-
-  resultItems.forEach((resultItem) => {
-    resultItem.frames.forEach((frame) => {
-      const currentFrame = framesByFrameIndex.get(frame.frameIndex)
-
-      if (!currentFrame || shouldReplaceResultFrame(currentFrame, frame)) {
-        framesByFrameIndex.set(frame.frameIndex, frame)
-      }
-    })
-  })
-
-  const frames = Array.from(framesByFrameIndex.values()).sort(
-    (firstFrame, secondFrame) => firstFrame.frameIndex - secondFrame.frameIndex,
-  )
-  const frameImageUrls = frames.map((frame) => frame.imageUrl)
-  const firstImageUrl = selectFirstImageUrl(
-    ...resultItems.map((resultItem) => resultItem.firstImageUrl),
-    ...frameImageUrls,
-  )
-  const thumbnailUrl = selectFirstImageUrl(
-    ...resultItems.map((resultItem) => resultItem.thumbnailUrl),
-    firstImageUrl,
-    ...frameImageUrls,
-  )
-
-  return {
-    ...baseResultItem,
-    flipbookIndex,
-    thumbnailUrl,
-    firstImageUrl,
-    gifUrl: selectFirstImageUrl(...resultItems.map((resultItem) => resultItem.gifUrl)),
-    frames,
-  }
-}
-
-function getNormalizedResultItems(
-  results: FlipbookResultItemResponse[],
-  participantCount: number,
-) {
-  const resultItemsByFlipbookIndex = new Map<number, FlipbookResultItemResponse[]>()
-
-  results.forEach((result) => {
-    const resultItems = resultItemsByFlipbookIndex.get(result.flipbookIndex) ?? []
-    resultItems.push(result)
-    resultItemsByFlipbookIndex.set(result.flipbookIndex, resultItems)
-  })
-
-  const duplicateFlipbookIndexes = Array.from(resultItemsByFlipbookIndex.entries())
-    .filter(([, resultItems]) => resultItems.length > 1)
-    .map(([flipbookIndex]) => flipbookIndex)
-
-  const normalizedResultItems = Array.from(resultItemsByFlipbookIndex.entries())
-    .sort(
-      ([firstFlipbookIndex], [secondFlipbookIndex]) =>
-        firstFlipbookIndex - secondFlipbookIndex,
-    )
-    .map(([flipbookIndex, resultItems]) => mergeResultItemGroup(flipbookIndex, resultItems))
-
-  if (duplicateFlipbookIndexes.length > 0) {
-    console.warn('플립북 결과에 중복 flipbookIndex가 있어 작품별로 병합했습니다.', {
-      duplicateFlipbookIndexes,
-      rawResultLength: results.length,
-      normalizedResultLength: normalizedResultItems.length,
-    })
-  }
-
-  if (normalizedResultItems.length > 0 && normalizedResultItems.length !== participantCount) {
-    console.warn('플립북 병합 결과 수와 참여자 수가 일치하지 않습니다.', {
-      normalizedResultLength: normalizedResultItems.length,
-      participantCount,
-    })
-  }
-
-  return normalizedResultItems.slice(0, Math.max(1, participantCount))
-}
-
-function hasConfiguredNickname(nickname: string | null) {
-  return Boolean(nickname?.trim())
-}
-
-function isNicknameRequiredMessage(message: string | undefined) {
-  if (!message) return false
-  return message.includes('닉네임') && message.includes('설정')
-}
-
-async function getFlipbookActionError(error: unknown, fallbackRequiresNickname = false) {
-  if (error instanceof ApiError) {
-    return {
-      message: error.message,
-      requiresNickname: isNicknameRequiredMessage(error.message),
-    }
-  }
-
-  if (error instanceof HTTPError) {
-    try {
-      const responseText = await error.response.clone().text()
-      const responseBody = JSON.parse(responseText) as Partial<ApiResponse<unknown>>
-      const message = responseBody.message ?? error.message
-
-      return {
-        message,
-        requiresNickname:
-          isNicknameRequiredMessage(message) || (fallbackRequiresNickname && error.response.status === 400),
-      }
-    } catch {
-      return {
-        message: error.message,
-        requiresNickname:
-          isNicknameRequiredMessage(error.message) || (fallbackRequiresNickname && error.response.status === 400),
-      }
-    }
-  }
-
-  return {
-    message: error instanceof Error ? error.message : '플립북 요청에 실패했습니다.',
-    requiresNickname: false,
-  }
-}
-
-async function createCanvasBlobFromLines(lines: DrawingLine[]) {
-  const renderedCanvas = await renderLinesToRasterCanvas({
-    backgroundColor: FLIPBOOK_BACKGROUND_COLOR,
-    boardSize: FLIPBOOK_BOARD_SIZE,
-    lines,
-  })
-  const rasterCanvas = renderedCanvas ?? document.createElement('canvas')
-
-  if (!renderedCanvas) {
-    rasterCanvas.width = FLIPBOOK_BOARD_SIZE.width
-    rasterCanvas.height = FLIPBOOK_BOARD_SIZE.height
-  }
-  const context = rasterCanvas.getContext('2d')
-
-  if (context) {
-    context.save()
-    context.globalCompositeOperation = 'destination-over'
-    context.fillStyle = FLIPBOOK_BACKGROUND_COLOR
-    context.fillRect(0, 0, rasterCanvas.width, rasterCanvas.height)
-    context.restore()
-  }
-
-  return new Promise<Blob>((resolve, reject) => {
-    rasterCanvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob)
-        return
-      }
-
-      reject(new Error('플립북 프레임 이미지를 만들 수 없습니다.'))
-    }, FLIPBOOK_FILE_CONTENT_TYPE)
-  })
 }
 
 function wait(milliseconds: number) {
@@ -428,7 +165,7 @@ export function useFlipbook({
   const participantCount = getRoomParticipantCount(roomState)
   const participants = useMemo(
     () =>
-      roomState?.participants.map((participant) => toParticipant(participant, userUuid)) ?? [
+      roomState?.participants.map((participant) => toFlipbookParticipant(participant, userUuid)) ?? [
         currentParticipant,
       ],
     [currentParticipant, roomState?.participants, userUuid],
@@ -630,176 +367,29 @@ export function useFlipbook({
     [clearRoundTransitionFallbackTimer, handleCompletedRounds, refreshPlayingRound],
   )
 
-  const handleRealtimeEvent = useCallback(
-    (event: FlipbookRealtimeEvent) => {
-      void (async () => {
-        if (event.type === 'PARTICIPANT_CONNECTED' || event.type === 'PARTICIPANT_DISCONNECTED') {
-          await refreshRoom(event.roomCode, { syncStep: false })
-          return
-        }
-
-        if (event.type === 'SETTINGS_CHANGED') {
-          await refreshRoom(event.roomCode, { syncStep: false })
-          return
-        }
-
-        if (event.type === 'GAME_STARTED') {
-          clearRoundTransitionFallbackTimer()
-          await refreshPlayingRound(event.roomCode)
-          return
-        }
-
-        if (event.type === 'ROUND_STARTED') {
-          const roundStartedData = event.data as { round?: number }
-          clearRoundTransitionFallbackTimer()
-          setTimeUpSubmitRequest(null)
-          setIsSubmitting(false)
-          await refreshPlayingRound(event.roomCode, roundStartedData.round)
-          return
-        }
-
-        if (event.type === 'ROUND_TIME_UP') {
-          const roundTimeUpData = event.data as { round?: number }
-          const currentAssignmentSubmitted =
-            assignment !== null && submittedAssignmentKeys.has(getAssignmentKey(assignment))
-
-          if (currentAssignmentSubmitted) {
-            setTimeUpSubmitRequest(null)
-            setIsSubmitting(false)
-            return
-          }
-
-          if (
-            assignment &&
-            roundTimeUpData.round !== undefined &&
-            assignment.currentRound !== roundTimeUpData.round
-          ) {
-            return
-          }
-
-          setIsSubmitting(true)
-          setTimeUpSubmitRequest({
-            roomCode: event.roomCode,
-            round: roundTimeUpData.round ?? null,
-            occurredAt: event.occurredAt,
-          })
-          return
-        }
-
-        if (event.type === 'FRAME_SUBMITTED') {
-          const submittedFrame = event.data as Partial<FlipbookFrameSubmitResponse>
-          const nextRoomState = await handleSubmittedFrameProgress(event.roomCode)
-          if (nextRoomState?.status === 'FINISHED') {
-            await handleCompletedRounds(event.roomCode)
-            return
-          }
-
-          if (
-            assignment &&
-            nextRoomState?.status === 'PLAYING' &&
-            nextRoomState.currentRound !== null &&
-            nextRoomState.currentRound > assignment.currentRound
-          ) {
-            await refreshPlayingRound(event.roomCode, nextRoomState.currentRound)
-            return
-          }
-
-          scheduleRoundTransitionFallback(event.roomCode, submittedFrame)
-          return
-        }
-
-        if (event.type === 'FRAME_AUTO_SUBMITTED') {
-          const autoSubmittedFrame = event.data as {
-            userUuid?: string
-            round?: number
-            assignmentStatus?: FlipbookAssignmentResponse['assignmentStatus']
-          }
-          if (autoSubmittedFrame.userUuid === userUuid) {
-            setSubmittedAssignmentKeys((currentKeys) => {
-              if (!assignment || assignment.currentRound !== autoSubmittedFrame.round) {
-                return currentKeys
-              }
-
-              const nextKeys = new Set(currentKeys)
-              nextKeys.add(getAssignmentKey(assignment))
-              return nextKeys
-            })
-            setAssignment((currentAssignment) => {
-              if (!currentAssignment || currentAssignment.currentRound !== autoSubmittedFrame.round) {
-                return currentAssignment
-              }
-
-              return {
-                ...currentAssignment,
-                assignmentStatus: autoSubmittedFrame.assignmentStatus ?? 'AUTO_SUBMITTED',
-              }
-            })
-          }
-          await refreshRoom(event.roomCode, { syncStep: false })
-          return
-        }
-
-        if (event.type === 'ALL_ROUNDS_COMPLETED') {
-          clearRoundTransitionFallbackTimer()
-          setTimeUpSubmitRequest(null)
-          setIsSubmitting(false)
-          await handleCompletedRounds(event.roomCode)
-          return
-        }
-
-        if (event.type === 'PARTICIPANT_LEFT' || event.type === 'HOST_CHANGED' || event.type === 'PARTICIPANT_KICKED') {
-          await refreshRoom(event.roomCode)
-          return
-        }
-
-        if (event.type === 'ROOM_CLOSED') {
-          setCurrentStep('booth')
-          setRoomState(null)
-          setRoomCode(null)
-          setRoundCount(null)
-          setStartedParticipantCount(null)
-          setSubmittedAssignmentKeys(new Set())
-          clearRoundTransitionFallbackTimer()
-          setErrorMessage('방이 종료되었습니다.')
-          return
-        }
-
-        if (event.type === 'KICKED_FROM_ROOM') {
-          setCurrentStep('booth')
-          setRoomState(null)
-          setRoomCode(null)
-          setRoundCount(null)
-          setStartedParticipantCount(null)
-          setSubmittedAssignmentKeys(new Set())
-          clearRoundTransitionFallbackTimer()
-          setErrorMessage('방에서 내보내졌습니다.')
-          return
-        }
-
-        if (event.type === 'DUPLICATE_SESSION_CLOSED') {
-          setErrorMessage('다른 탭에서 같은 계정으로 접속해 현재 연결이 종료되었습니다.')
-          return
-        }
-
-        if (event.type === 'ERROR') {
-          const errorData = event.data as { message?: string }
-          setErrorMessage(errorData.message ?? '플립북 연결 중 오류가 발생했습니다.')
-        }
-      })()
-    },
-    [
-      assignment,
-      clearRoundTransitionFallbackTimer,
-      handleCompletedRounds,
-      handleSubmittedFrameProgress,
-      refreshPlayingRound,
-      refreshRoom,
-      scheduleRoundTransitionFallback,
-      setCurrentStep,
-      submittedAssignmentKeys,
-      userUuid,
-    ],
-  )
+  const handleRealtimeEvent = useFlipbookRealtimeEventHandler({
+    assignment,
+    submittedAssignmentKeys,
+    userUuid,
+    clearRoundTransitionFallbackTimer,
+    clearDrawingRound,
+    handleCompletedRounds,
+    handleSubmittedFrameProgress,
+    refreshPlayingRound,
+    refreshRoom,
+    scheduleRoundTransitionFallback,
+    setAssignment,
+    setCurrentStep,
+    setErrorMessage,
+    setIsSubmitting,
+    setPreviousFrameLines,
+    setRoomCode,
+    setRoomState,
+    setRoundCount,
+    setStartedParticipantCount,
+    setSubmittedAssignmentKeys,
+    setTimeUpSubmitRequest,
+  })
 
   const realtime = useFlipbookRealtimeConnection({
     enabled: currentStep !== 'booth' && Boolean(roomCode),

@@ -8,12 +8,12 @@ import type {
 import {
   FLIPBOOK_ROOM_CODE,
   FLIPBOOK_TOPIC,
-} from './constants'
+} from '../constants'
 import type {
   FlipbookFrame,
   FlipbookParticipant,
   FlipbookStep,
-} from './types'
+} from '../types'
 
 const DEMO_FLIPBOOK_ID = 'demo-flipbook'
 const LOCAL_PARTICIPANT_FALLBACK: FlipbookParticipant = {
