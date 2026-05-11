@@ -13,3 +13,7 @@ export const getFortuneTodayAvailability = () =>
 
 export const postFortune = (payload: FortuneCreateRequest) =>
   apiUnwrap(api.post<ApiResponse<FortuneCreateResponse>>('fortune', payload))
+
+// GET /fortune/today — 오늘의 운세 조회
+export const getFortuneToday = () =>
+  apiUnwrap(api.get<ApiResponse<FortuneCreateResponse>>('fortune/today'))

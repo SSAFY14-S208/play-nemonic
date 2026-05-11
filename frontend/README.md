@@ -92,7 +92,7 @@ src/
 │   │   ├── apiError.ts              # ApiError 클래스 (백엔드 봉투에 묶인 도메인 타입)
 │   │   ├── userApi.ts               # User 도메인 (postAnonymous, patchAnonymousNickname, ...)
 │   │   ├── galleryApi.ts            # Gallery 도메인 (getGalleryList, getGallery, deleteGallery)
-│   │   └── communityApi.ts          # community-controller 도메인 (getCommunity)
+│   │   └── communityApi.ts          # Community 도메인 (getCommunityMemoList, postCommunityMemo, ...)
 │   ├── assets/                      # 컴포넌트 import용 정적 자산 (svg, glb, mp3)
 │   │   └── {name}.{ext}
 │   ├── components/                  # 자체 구현 공용 UI 컴포넌트 (컴포넌트마다 폴더)
@@ -658,7 +658,12 @@ try {
 | GET | `/gallery` (목록) | `getGalleryList` |
 | GET | `/gallery/{galleryId}` (단건) | `getGallery` |
 | DELETE | `/gallery/{galleryId}` | `deleteGallery` |
-| GET | `/community/{communityId}` | `getCommunity` |
+| GET | `/community/memos` | `getCommunityMemoList` |
+| POST | `/community/memos` | `postCommunityMemo` |
+| GET | `/community/memos/{memoId}` | `getCommunityMemo` |
+| PATCH | `/community/memos/{memoId}` | `patchCommunityMemo` |
+| DELETE | `/community/memos/{memoId}` | `deleteCommunityMemo` |
+| POST | `/community/memos/{memoId}/reports` | `postCommunityMemoReport` |
 
 - 단건/리스트가 같은 GET에서 갈리면 단건은 단수형(`getGallery`), 리스트는 `List` 접미사(`getGalleryList`).
 - path parameter를 받는 함수는 첫 인자로 그 id를, 그다음 `userUuid` 등 부가 인자를 받습니다.

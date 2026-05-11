@@ -505,7 +505,12 @@ try {
 | GET | `/gallery` (list) | `getGalleryList` |
 | GET | `/gallery/{galleryId}` (single) | `getGallery` |
 | DELETE | `/gallery/{galleryId}` | `deleteGallery` |
-| GET | `/community/{communityId}` | `getCommunity` |
+| GET | `/community/memos` | `getCommunityMemoList` |
+| POST | `/community/memos` | `postCommunityMemo` |
+| GET | `/community/memos/{memoId}` | `getCommunityMemo` |
+| PATCH | `/community/memos/{memoId}` | `patchCommunityMemo` |
+| DELETE | `/community/memos/{memoId}` | `deleteCommunityMemo` |
+| POST | `/community/memos/{memoId}/reports` | `postCommunityMemoReport` |
 
 Signatures take only path params and domain data — never the caller's identifier. Examples: `getGallery(galleryId)`, `patchRelayRoomSettings(roomCode, timeLimitSeconds)`, `postRelayRoomKick(roomCode, targetUserUuid)`. The caller's `userUuid` / `accessToken` is auto-injected by the client interceptor.
 
