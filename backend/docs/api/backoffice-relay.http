@@ -1,5 +1,6 @@
 @host = http://localhost:8080
 @roomCode = AB3K9Q
+@relayRoomParticipantLimitSettingId = 100
 
 ### Admin login
 POST {{host}}/api/v1/auth/login
@@ -11,6 +12,46 @@ Content-Type: application/json
 }
 
 > {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
+
+### Update relay room participant limit
+# backoffice_setting relay.room_participant_limit id를 조회한 뒤 사용합니다.
+# 변경된 min/max는 새로 생성되는 릴레이 방부터 적용됩니다.
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "id": {{relayRoomParticipantLimitSettingId}},
+      "value": {
+        "min": 3,
+        "max": 8,
+        "unit": "people",
+        "description": "Relay room participant limit"
+      }
+    }
+  ]
+}
+
+### Update relay room participant limit - invalid min/max
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "id": {{relayRoomParticipantLimitSettingId}},
+      "value": {
+        "min": 1,
+        "max": 0,
+        "unit": "people",
+        "description": "Relay room participant limit"
+      }
+    }
+  ]
+}
 
 ### List active relay rooms
 GET {{host}}/api/v1/backoffice/relay-rooms
