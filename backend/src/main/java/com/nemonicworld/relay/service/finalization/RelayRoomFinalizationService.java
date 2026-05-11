@@ -12,7 +12,10 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.repository.RelayArtifactRepository;
+import com.nemonicworld.relay.repository.RelayFinalizationRetryRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
+import com.nemonicworld.relay.service.close.RelayRoomCloseResult;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
@@ -50,17 +53,23 @@ public class RelayRoomFinalizationService {
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final ObjectMapper objectMapper;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+    private final RelayFinalizationRetryRepository relayFinalizationRetryRepository;
+    private final RelayRoomCloseCommand relayRoomCloseCommand;
+    private final ThreadLocal<RelayFinalizationFailureContext> failureContext = new ThreadLocal<>();
     private final int scanLimit;
     private final Duration lockTtl;
     private final Duration finalizationReadyDelay;
+    private final int maxRetryCount;
 
     public RelayRoomFinalizationService(RelayRoomRepository relayRoomRepository,
         RelayArtifactRepository relayArtifactRepository, RelayResultStorage relayResultStorage,
         RelayResultComposer relayResultComposer, RelayRoomEventPublisher relayRoomEventPublisher,
         ObjectMapper objectMapper, RelayInviteMetadataSyncService relayInviteMetadataSyncService,
+        RelayFinalizationRetryRepository relayFinalizationRetryRepository, RelayRoomCloseCommand relayRoomCloseCommand,
         @Value("${nemonic.relay.finalization.scan-limit:50}") int scanLimit,
         @Value("${nemonic.relay.finalization.lock-ttl-seconds:60}") long lockTtlSeconds,
-        @Value("${nemonic.relay.finalization.ready-delay-ms:1000}") long readyDelayMs) {
+        @Value("${nemonic.relay.finalization.ready-delay-ms:1000}") long readyDelayMs,
+        @Value("${nemonic.relay.finalization.max-retry-count:20}") int maxRetryCount) {
         this.relayRoomRepository = relayRoomRepository;
         this.relayArtifactRepository = relayArtifactRepository;
         this.relayResultStorage = relayResultStorage;
@@ -68,9 +77,12 @@ public class RelayRoomFinalizationService {
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.objectMapper = objectMapper;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
+        this.relayFinalizationRetryRepository = relayFinalizationRetryRepository;
+        this.relayRoomCloseCommand = relayRoomCloseCommand;
         this.scanLimit = scanLimit;
         this.lockTtl = Duration.ofSeconds(Math.max(1L, lockTtlSeconds));
         this.finalizationReadyDelay = Duration.ofMillis(Math.max(0L, readyDelayMs));
+        this.maxRetryCount = Math.max(1, maxRetryCount);
     }
 
     /**
@@ -94,10 +106,7 @@ public class RelayRoomFinalizationService {
                     resultCount += result.resultCount();
                 }
             } catch (RuntimeException e) {
-                RelayRoomEventLogger.apiWarn("relay_finalization_failed", "failed to finalize relay room",
-                    metadata("room_id", finalizingRoom.roomCode(), "stage", "process", "artifact_id", null, "operation",
-                        "finalization"),
-                    e);
+                handleFinalizationFailure(finalizingRoom.roomCode(), e);
                 log.warn("릴레이 최종 결과물 생성 중 오류가 발생했습니다. roomCode={}", finalizingRoom.roomCode(), e);
             }
         }
@@ -109,10 +118,48 @@ public class RelayRoomFinalizationService {
         return roomState.updatedAt() == null || !roomState.updatedAt().isAfter(readyCutoff);
     }
 
+    private void handleFinalizationFailure(String roomCode, RuntimeException error) {
+        RelayFinalizationFailureContext context = failureContext.get();
+        failureContext.remove();
+
+        int retryCount = relayFinalizationRetryRepository.incrementFailureCount(roomCode,
+            RelayRoomRepository.ROOM_STATE_TTL);
+        String stage = context == null ? "process" : context.stage();
+        UUID artifactId = context == null ? null : context.artifactId();
+        RelayRoomEventLogger.apiWarn("relay_finalization_failed", "failed to finalize relay room",
+            metadata("room_id", roomCode, "stage", stage, "artifact_id", artifactId, "operation", "finalization",
+                "retry_count", retryCount, "max_retry_count", maxRetryCount),
+            error);
+
+        if (retryCount >= maxRetryCount) {
+            closeFinalizationFailedRoom(roomCode, retryCount);
+        }
+    }
+
+    private void closeFinalizationFailedRoom(String roomCode, int retryCount) {
+        LocalDateTime closedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        RelayRoomState roomState = relayRoomRepository.findByRoomCode(roomCode).orElse(null);
+        if (roomState == null || roomState.status() != RelayRoomStatus.FINALIZING) {
+            return;
+        }
+
+        RelayRoomCloseResult closeResult = relayRoomCloseCommand.closeActiveRoomIfUnchanged(roomState, closedAt);
+        if (!closeResult.closed()) {
+            return;
+        }
+
+        RelayRoomEventLogger.apiBusiness("relay_room_closed",
+            metadata("room_id", closeResult.roomCode(), "close_reason", "finalization_failed", "room_status_before",
+                roomState.status(), "participant_count", roomState.participantCount(), "retry_count", retryCount,
+                "closed_at", closeResult.closedAt()));
+        relayRoomEventPublisher.publishRoomClosed(roomCode, closeResult.closedAt());
+    }
+
     /**
      * 한 방에 대한 최종화 lock을 획득한 뒤 실제 최종화 처리를 실행합니다.
      */
     public RelayRoomFinalizationResult processFinalizingRoom(String roomCode) {
+        failureContext.remove();
         String lockToken = createFinalizationLockToken(roomCode);
         if (!relayRoomRepository.acquireFinalizationLock(roomCode, lockToken, lockTtl)) {
             return RelayRoomFinalizationResult.noOp(roomCode);
@@ -136,6 +183,7 @@ public class RelayRoomFinalizationService {
     private RelayRoomFinalizationResult processLockedFinalizingRoom(String roomCode) {
         RelayRoomState roomState = relayRoomRepository.findByRoomCode(roomCode).orElse(null);
         if (roomState == null || roomState.status() != RelayRoomStatus.FINALIZING) {
+            relayFinalizationRetryRepository.clearFailureCount(roomCode);
             return RelayRoomFinalizationResult.noOp(roomCode);
         }
 
@@ -143,7 +191,9 @@ public class RelayRoomFinalizationService {
         long startedNanos = System.nanoTime();
         List<Integer> canvasIndexes = findCanvasIndexes(roomState);
         if (canvasIndexes.isEmpty()) {
-            throw new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
+            InternalServerException error = new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
+            logFinalizationFailure(roomCode, "process", null, error);
+            throw error;
         }
 
         List<RelayFinalizationArtifactResult> existingArtifacts = relayArtifactRepository
@@ -160,6 +210,7 @@ public class RelayRoomFinalizationService {
         relayInviteMetadataSyncService.syncWithRoomState(finishedRoomState);
 
         RelayRoomFinalizationResult result = RelayRoomFinalizationResult.finished(roomCode, artifacts, now);
+        relayFinalizationRetryRepository.clearFailureCount(roomCode);
         relayRoomEventPublisher.publishResultCreated(result);
         RelayRoomEventLogger.websocketBusiness("relay_result_created",
             metadata("room_id", roomCode, "result_count", result.resultCount(), "artifact_ids",
@@ -192,7 +243,9 @@ public class RelayRoomFinalizationService {
             return existingArtifacts;
         }
 
-        throw new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
+        InternalServerException error = new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
+        logFinalizationFailure(roomState.roomCode(), "process", null, error);
+        throw error;
     }
 
     /**
@@ -236,9 +289,7 @@ public class RelayRoomFinalizationService {
     }
 
     private void logFinalizationFailure(String roomCode, String stage, UUID artifactId, RuntimeException error) {
-        RelayRoomEventLogger.apiWarn("relay_finalization_failed", "failed to finalize relay room",
-            metadata("room_id", roomCode, "stage", stage, "artifact_id", artifactId, "operation", "finalization"),
-            error);
+        failureContext.set(new RelayFinalizationFailureContext(stage, artifactId));
     }
 
     /**
@@ -348,5 +399,8 @@ public class RelayRoomFinalizationService {
     private String findParticipantNickname(RelayRoomState roomState, String userUuid) {
         return roomState.participants().stream().filter(participant -> participant.userUuid().equals(userUuid))
             .map(RelayRoomParticipant::nickname).findFirst().orElse(null);
+    }
+
+    private record RelayFinalizationFailureContext(String stage, UUID artifactId) {
     }
 }

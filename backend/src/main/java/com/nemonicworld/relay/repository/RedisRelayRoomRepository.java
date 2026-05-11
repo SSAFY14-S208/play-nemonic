@@ -4,8 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
-import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.redis.RelayRoomParticipant;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -156,6 +157,40 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         }
 
         return candidateRooms;
+    }
+
+    @Override
+    public List<RelayRoomState> findAbandonedWaitingRooms(LocalDateTime idleCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<RelayRoomState> abandonedRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && abandonedRooms.size() < limit) {
+                findAbandonedWaitingRoom(roomKeys.next(), idleCutoff).ifPresent(abandonedRooms::add);
+            }
+        }
+
+        return abandonedRooms;
+    }
+
+    @Override
+    public List<RelayRoomState> findAbandonedPlayingRooms(LocalDateTime abandonedCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<RelayRoomState> abandonedRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && abandonedRooms.size() < limit) {
+                findAbandonedPlayingRoom(roomKeys.next(), abandonedCutoff).ifPresent(abandonedRooms::add);
+            }
+        }
+
+        return abandonedRooms;
     }
 
     /**
@@ -351,6 +386,91 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
 
         return roomState.participants().stream()
             .anyMatch(participant -> !participant.dropped() && participant.connected());
+    }
+
+    private Optional<RelayRoomState> findAbandonedWaitingRoom(String roomKey, LocalDateTime idleCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.WAITING || roomState.participants().isEmpty()) {
+            return Optional.empty();
+        }
+
+        if (!allParticipantsDisconnected(roomState)) {
+            return Optional.empty();
+        }
+
+        LocalDateTime idleSince = latestWaitingInactiveAt(roomState);
+        if (idleSince == null || idleSince.isAfter(idleCutoff)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
+    private Optional<RelayRoomState> findAbandonedPlayingRoom(String roomKey, LocalDateTime abandonedCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.PLAYING || roomState.participants().isEmpty()) {
+            return Optional.empty();
+        }
+
+        if (!allParticipantsInactiveInPlaying(roomState)) {
+            return Optional.empty();
+        }
+
+        LocalDateTime inactiveSince = latestPlayingInactiveAt(roomState);
+        if (inactiveSince == null || inactiveSince.isAfter(abandonedCutoff)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
+    private boolean allParticipantsDisconnected(RelayRoomState roomState) {
+        return roomState.participants().stream().allMatch(participant -> !participant.connected());
+    }
+
+    private boolean allParticipantsInactiveInPlaying(RelayRoomState roomState) {
+        return roomState.participants().stream()
+            .allMatch(participant -> participant.dropped() || !participant.connected());
+    }
+
+    private LocalDateTime latestWaitingInactiveAt(RelayRoomState roomState) {
+        LocalDateTime latest = roomState.updatedAt();
+        for (RelayRoomParticipant participant : roomState.participants()) {
+            latest = maxTime(latest, participant.disconnectedAt());
+        }
+
+        return latest;
+    }
+
+    private LocalDateTime latestPlayingInactiveAt(RelayRoomState roomState) {
+        LocalDateTime latest = roomState.updatedAt();
+        for (RelayRoomParticipant participant : roomState.participants()) {
+            latest = maxTime(latest, participant.disconnectedAt());
+            latest = maxTime(latest, participant.droppedAt());
+        }
+
+        return latest;
+    }
+
+    private LocalDateTime maxTime(LocalDateTime left, LocalDateTime right) {
+        if (left == null) {
+            return right;
+        }
+        if (right == null) {
+            return left;
+        }
+
+        return left.isAfter(right) ? left : right;
     }
 
     /**
