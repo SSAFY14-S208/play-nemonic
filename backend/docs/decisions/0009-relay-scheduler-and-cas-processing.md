@@ -43,11 +43,14 @@ Assignment-scoped submit locks protect in-progress uploads; timeout and
 disconnect-grace processing skip locked assignments and can process them in a
 later scan after the lock expires.
 
-Disconnect grace processing applies only to `PLAYING` rooms. A participant is
-marked dropped when disconnected beyond the reconnect grace window. Dropped
-participants cannot rejoin or reconnect. Only their current-part pending
-assignments are auto-submitted immediately; future assignments stay pending
-until that future part becomes current.
+Disconnect grace processing applies only to `PLAYING` rooms. The reconnect
+grace window is read from backoffice setting
+`relay.reconnect_grace_seconds` on each REST rejoin, WebSocket reconnect, and
+scheduler tick, with a 10-second fallback if the setting is missing or invalid.
+A participant is marked dropped when disconnected beyond the resolved reconnect
+grace window. Dropped participants cannot rejoin or reconnect. Only their
+current-part pending assignments are auto-submitted immediately; future
+assignments stay pending until that future part becomes current.
 
 Use room mutation locks around scheduler flows that can overlap with user
 submissions or other scheduler ticks. The lock guards the latest room-state

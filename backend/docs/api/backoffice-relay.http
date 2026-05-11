@@ -43,6 +43,38 @@ Content-Type: application/json
   }
 }
 
+### Update relay room time limit options
+# Included typed fields are updated in one transaction.
+# Changed default is applied to newly created relay rooms.
+# Changed allowed values are applied to subsequent waiting-room setting changes.
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "relayRoomTimeLimitSeconds": {
+    "default": 60,
+    "allowed": [45, 60, 90],
+    "unit": "seconds",
+    "description": "릴레이 방 그리기 제한 시간"
+  }
+}
+
+### Update relay reconnect grace seconds
+# Included typed fields are updated in one transaction.
+# Changed value is applied to subsequent REST rejoin, WebSocket reconnect, and disconnect-grace scheduler checks.
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "relayReconnectGraceSeconds": {
+    "value": 30,
+    "unit": "seconds",
+    "description": "릴레이 진행 중 재연결 유예 시간"
+  }
+}
+
 ### Update all editable system parameters by typed fields
 PATCH {{host}}/api/v1/backoffice/system-parameters
 Authorization: Bearer {{adminAccessToken}}

@@ -487,12 +487,16 @@ Recent relay logging work added structured event emission for the relay drawing 
 - Backoffice relay force-close emits `relay_room_force_close` audit metadata and `relay_room_closed` business metadata; relay-scoped system parameter changes emit `param_change`.
 - `backend/docs/product-spec/08-observability.md` includes the relay event names in the backend business-event allow-list.
 
-Recent relay runtime settings work connects the seeded backoffice participant limit to new relay rooms.
+Recent relay runtime settings work connects the seeded backoffice relay parameters to runtime behavior.
 
 - New relay rooms read `backoffice_setting` key `relay.room_participant_limit` and store the resolved min/max values in the Redis room snapshot.
 - Missing, blank, malformed, or invalid participant-limit settings fall back to the default `2..6` range and emit a warning log.
 - Existing Redis room snapshots keep their stored min/max values after backoffice setting changes; the setting is applied only to newly created rooms.
 - Backoffice system parameter bulk updates validate `relay.room_participant_limit` as a JSON object with integer `min`/`max`, `min >= 2`, `max >= min`, and an operational upper bound of 20.
+- New relay rooms read `relay.room_time_limit_seconds` and store its `default` value as `timeLimitSeconds`; existing Redis room snapshots keep their current time limit after backoffice setting changes.
+- Relay waiting-room setting changes validate requested `timeLimitSeconds` against the latest `relay.room_time_limit_seconds.allowed` list, falling back to `30/45/60` when the setting is missing or invalid.
+- Relay REST rejoin, WebSocket reconnect, and disconnect-grace scheduler processing read `relay.reconnect_grace_seconds` on each request or scheduler tick, falling back to 10 seconds when the setting is missing or invalid.
+- Backoffice validation now rejects invalid relay time-limit objects (`default`, non-empty integer `allowed`, `default` included in `allowed`, 5-600 seconds) and invalid relay reconnect grace objects (`value` 0-300 seconds) before any system parameter row is updated.
 
 Recent backoffice system parameter update work changed the PATCH request contract to typed fields.
 

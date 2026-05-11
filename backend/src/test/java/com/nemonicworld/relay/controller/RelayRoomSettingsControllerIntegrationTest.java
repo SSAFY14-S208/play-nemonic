@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.atLeastOnce;
@@ -20,6 +21,8 @@ import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
@@ -59,7 +62,7 @@ class RelayRoomSettingsControllerIntegrationTest {
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String DEFAULT_ROOM_CODE = "AB3K9Q";
     private static final Duration ROOM_STATE_TTL = Duration.ofHours(24);
-    private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "제한 시간은 30초, 45초, 60초 중 하나여야 합니다.";
+    private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "허용되지 않는 릴레이 제한 시간입니다.";
 
     @Autowired
     private MockMvc mockMvc;
@@ -78,6 +81,9 @@ class RelayRoomSettingsControllerIntegrationTest {
 
     @MockitoBean
     private RelayRoomEventPublisher relayRoomEventPublisher;
+
+    @MockitoBean
+    private RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
 
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
@@ -100,6 +106,8 @@ class RelayRoomSettingsControllerIntegrationTest {
 
             return callback.execute(redisOperations);
         });
+        lenient().when(relayRuntimeSettingsProvider.currentRoomTimeLimitSettings())
+            .thenReturn(RelayRoomTimeLimitSettings.defaultSettings());
     }
 
     /**

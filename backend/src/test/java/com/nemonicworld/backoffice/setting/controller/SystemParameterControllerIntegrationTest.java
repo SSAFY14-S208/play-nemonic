@@ -312,6 +312,37 @@ class SystemParameterControllerIntegrationTest {
             .isEqualTo("{\"min\":3,\"max\":8,\"unit\":\"people\",\"description\":\"Relay room participant limit\"}");
     }
 
+    @Test
+    void systemParameterTypedUpdateAcceptsRelayRuntimeSettings() throws Exception {
+        insertSetting(10L, "relay.room_time_limit_seconds",
+            "{\"default\":45,\"allowed\":[30,45,60],\"unit\":\"seconds\"}", ADMIN_ID);
+        insertSetting(11L, "relay.reconnect_grace_seconds", "{\"value\":10,\"unit\":\"seconds\"}", ADMIN_ID);
+
+        mockMvc
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "relayRoomTimeLimitSeconds": {
+                            "default": 60,
+                            "allowed": [45, 60, 90],
+                            "unit": "seconds",
+                            "description": "Relay room drawing time limit"
+                          },
+                          "relayReconnectGraceSeconds": {
+                            "value": 0,
+                            "unit": "seconds",
+                            "description": "Relay reconnect grace seconds"
+                          }
+                        }
+                        """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.items.length()").value(2));
+
+        assertThat(objectMapper.readTree(findSettingValue(10L)).path("default").asInt()).isEqualTo(60);
+        assertThat(objectMapper.readTree(findSettingValue(11L)).path("value").asInt()).isZero();
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"{\"min\":1,\"max\":6}", "{\"min\":5,\"max\":4}", "{\"min\":\"2\",\"max\":6}",
         "{\"min\":2}", "{\"min\":2,\"max\":\"6\"}", "{\"min\":2,\"max\":21}", "[2,6]"})
@@ -387,24 +418,73 @@ class SystemParameterControllerIntegrationTest {
         assertThat(findSettingValue(10L)).isEqualTo("{\"value\":1}");
     }
 
-    @Test
-    void systemParameterTypedUpdateRejectsInvalidTimeLimit() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"default\":45,\"allowed\":[30,60],\"unit\":\"seconds\"}",
+        "{\"default\":45,\"allowed\":[],\"unit\":\"seconds\"}", "{\"default\":45,\"unit\":\"seconds\"}",
+        "{\"allowed\":[30,45,60],\"unit\":\"seconds\"}",
+        "{\"default\":\"45\",\"allowed\":[30,45,60],\"unit\":\"seconds\"}",
+        "{\"default\":45,\"allowed\":[30,\"45\",60],\"unit\":\"seconds\"}",
+        "{\"default\":4,\"allowed\":[4,45,60],\"unit\":\"seconds\"}",
+        "{\"default\":601,\"allowed\":[45,601],\"unit\":\"seconds\"}", "[]"})
+    void systemParameterTypedUpdateRejectsInvalidRelayTimeLimit(String value) throws Exception {
         insertSetting(10L, "relay.room_time_limit_seconds",
             "{\"default\":45,\"allowed\":[30,45,60],\"unit\":\"seconds\"}", ADMIN_ID);
+
+        mockMvc
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "relayRoomTimeLimitSeconds": %s
+                        }
+                        """.formatted(value)))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false));
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"default\":45,\"allowed\":[30,45,60],\"unit\":\"seconds\"}");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"value\":-1,\"unit\":\"seconds\"}", "{\"value\":\"10\",\"unit\":\"seconds\"}",
+        "{\"value\":301,\"unit\":\"seconds\"}", "[]"})
+    void systemParameterTypedUpdateRejectsInvalidRelayReconnectGrace(String value) throws Exception {
+        insertSetting(10L, "relay.reconnect_grace_seconds", "{\"value\":10,\"unit\":\"seconds\"}", ADMIN_ID);
+
+        mockMvc
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "relayReconnectGraceSeconds": %s
+                        }
+                        """.formatted(value)))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false));
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"value\":10,\"unit\":\"seconds\"}");
+    }
+
+    @Test
+    void systemParameterTypedUpdateRollsBackWhenRelayRuntimeSettingIsInvalid() throws Exception {
+        insertSetting(10L, "relay.room_time_limit_seconds",
+            "{\"default\":45,\"allowed\":[30,45,60],\"unit\":\"seconds\"}", ADMIN_ID);
+        insertSetting(11L, "relay.reconnect_grace_seconds", "{\"value\":10,\"unit\":\"seconds\"}", ADMIN_ID);
 
         mockMvc.perform(patch("/api/v1/backoffice/system-parameters")
             .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON).content("""
                 {
                   "relayRoomTimeLimitSeconds": {
-                    "default": 45,
-                    "allowed": [30, 60],
-                    "unit": "seconds",
-                    "description": "Relay room drawing time limit"
+                    "default": 60,
+                    "allowed": [45, 60, 90],
+                    "unit": "seconds"
+                  },
+                  "relayReconnectGraceSeconds": {
+                    "value": 301,
+                    "unit": "seconds"
                   }
                 }
                 """)).andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false));
 
         assertThat(findSettingValue(10L)).isEqualTo("{\"default\":45,\"allowed\":[30,45,60],\"unit\":\"seconds\"}");
+        assertThat(findSettingValue(11L)).isEqualTo("{\"value\":10,\"unit\":\"seconds\"}");
     }
 
     @Test
