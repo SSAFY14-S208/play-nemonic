@@ -94,7 +94,7 @@ class FlipbookRoomTimeoutServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "FINISHED", "CLOSED"})
+    @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "FINALIZING", "FINISHED", "CLOSED"})
     void processExpiredRoomIgnoresNonPlayingRooms(FlipbookRoomStatus roomStatus) {
         UUID hostUuid = UUID.randomUUID();
         FlipbookRoomState roomState = room(roomStatus, null, null, null, List.of(),
@@ -183,8 +183,8 @@ class FlipbookRoomTimeoutServiceTest {
         FlipbookRoomTimeoutResult result = flipbookRoomTimeoutService.processExpiredRoom(ROOM_CODE, NOW);
 
         assertThat(result.advanceResult().allRoundsCompleted()).isTrue();
-        assertThat(captureUpdatedRoomState().status()).isEqualTo(FlipbookRoomStatus.FINISHED);
-        verify(flipbookRoomEventPublisher).publishAllRoundsCompleted(eq(ROOM_CODE), eq(FlipbookRoomStatus.FINISHED),
+        assertThat(captureUpdatedRoomState().status()).isEqualTo(FlipbookRoomStatus.FINALIZING);
+        verify(flipbookRoomEventPublisher).publishAllRoundsCompleted(eq(ROOM_CODE), eq(FlipbookRoomStatus.FINALIZING),
             eq(NOW));
         verify(flipbookRoomEventPublisher, never()).publishRoundStarted(eq(ROOM_CODE), any(), any(), any(), any());
     }

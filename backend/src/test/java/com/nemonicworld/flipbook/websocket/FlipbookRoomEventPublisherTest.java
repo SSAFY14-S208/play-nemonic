@@ -15,11 +15,14 @@ import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventStateResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventType;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomResultCreatedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationResult;
+import com.nemonicworld.flipbook.service.result.FlipbookResultArtifactResult;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
@@ -27,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -208,7 +212,7 @@ class FlipbookRoomEventPublisherTest {
             .forClass(FlipbookRoomEventResponse.class);
         LocalDateTime completedAt = LocalDateTime.now().minusSeconds(1);
 
-        publisher.publishAllRoundsCompleted(ROOM_CODE, FlipbookRoomStatus.FINISHED, completedAt);
+        publisher.publishAllRoundsCompleted(ROOM_CODE, FlipbookRoomStatus.FINALIZING, completedAt);
 
         verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
         FlipbookRoomEventResponse event = eventCaptor.getValue();
@@ -216,8 +220,38 @@ class FlipbookRoomEventPublisherTest {
 
         FlipbookAllRoundsCompletedEventResponse data = (FlipbookAllRoundsCompletedEventResponse) event.data();
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
-        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.FINISHED);
+        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.FINALIZING);
         assertThat(data.completedAt()).isEqualTo(completedAt);
+    }
+
+    /**
+     * 최종 GIF 생성 완료 이벤트는 artifact 목록과 방 상태를 방 전체 topic에 보냅니다.
+     */
+    @Test
+    void publishResultCreatedSendsResultCreatedEventToRoomTopic() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        UUID artifactId = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusSeconds(1);
+        FlipbookRoomFinalizationResult result = FlipbookRoomFinalizationResult
+            .finished(ROOM_CODE,
+                List.of(new FlipbookResultArtifactResult(artifactId, 0,
+                    "flipbook/results/%s/result.gif".formatted(artifactId), "uploads/flipbook/frame-0.png",
+                    "flipbook/results/%s/thumbnail.png".formatted(artifactId), "{}")),
+                createdAt);
+
+        publisher.publishResultCreated(result);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.RESULT_CREATED);
+        assertThat(event.roomCode()).isEqualTo(ROOM_CODE);
+
+        FlipbookRoomResultCreatedEventResponse data = (FlipbookRoomResultCreatedEventResponse) event.data();
+        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.FINISHED);
+        assertThat(data.artifactIds()).containsExactly(artifactId);
+        assertThat(data.resultCount()).isEqualTo(1);
+        assertThat(data.results().get(0).gifUrl()).endsWith("/result.gif");
     }
 
     /**

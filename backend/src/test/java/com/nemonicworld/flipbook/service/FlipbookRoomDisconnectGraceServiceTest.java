@@ -146,7 +146,7 @@ class FlipbookRoomDisconnectGraceServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "FINISHED", "CLOSED"})
+    @EnumSource(value = FlipbookRoomStatus.class, names = {"WAITING", "FINALIZING", "FINISHED", "CLOSED"})
     void processRoomIgnoresNonPlayingRooms(FlipbookRoomStatus status) {
         UUID hostUuid = UUID.randomUUID();
         FlipbookRoomState roomState = room(status,

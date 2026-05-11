@@ -122,7 +122,7 @@ class FlipbookFrameSubmitUseCaseTest {
     }
 
     /**
-     * 마지막 라운드가 모두 제출되면 방 상태를 FINISHED로 전환합니다.
+     * 마지막 라운드가 모두 제출되면 방 상태를 FINALIZING으로 전환합니다.
      */
     @Test
     void submitFrameFinishesRoomWhenLastRoundCompleted() {
@@ -149,11 +149,11 @@ class FlipbookFrameSubmitUseCaseTest {
         assertThat(response.advanced()).isTrue();
         assertThat(response.nextRound()).isNull();
         assertThat(response.allRoundsCompleted()).isTrue();
-        assertThat(response.roomStatus()).isEqualTo(FlipbookRoomStatus.FINISHED);
+        assertThat(response.roomStatus()).isEqualTo(FlipbookRoomStatus.FINALIZING);
 
         ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
         verify(flipbookRoomRepository).saveIfUnchanged(any(FlipbookRoomState.class), updatedStateCaptor.capture());
-        assertThat(updatedStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.FINISHED);
+        assertThat(updatedStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.FINALIZING);
     }
 
     /**
