@@ -328,7 +328,8 @@ class BackofficeRelayRoomControllerIntegrationTest {
         assertThat(closedRoomState.status()).isEqualTo(RelayRoomStatus.CLOSED);
         assertThat(closedRoomState.updatedAt()).isNotNull();
         then(relayInviteMetadataSyncService).should().syncWithRoomState(closedRoomState);
-        then(relayRoomEventPublisher).should().publishRoomClosed(eq(roomCode), eq(closedRoomState.updatedAt()));
+        then(relayRoomEventPublisher).should().publishRoomClosed(eq(roomCode), eq(closedRoomState.updatedAt()),
+            eq("admin_force"));
 
         JsonNode auditLog = findAuditLog(output, "relay_room_force_close");
         JsonNode metadata = auditLog.path("metadata");

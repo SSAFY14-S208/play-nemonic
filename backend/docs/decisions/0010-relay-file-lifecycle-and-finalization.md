@@ -56,13 +56,48 @@ Then persist matching PostgreSQL rows:
 Only non-dropped participants receive gallery rows. Finalization reuses existing
 result rows when they already match the expected canvas indexes.
 
-Use a token-scoped Redis finalization lock before composing a room. Store the
-token as the lock value and release the lock only when the stored token still
-matches, so an expired worker cannot release another worker's active lock.
+Each finalization run first acquires a room-scoped Redis lock:
+
+```text
+relay:room-finalization-lock:{roomCode}
+```
+
+The lock is token-scoped and has a 120-second default TTL. After the lock is
+acquired, the backend creates a finalization attempt id and stores the attempt
+marker for 24 hours by default:
+
+```text
+relay:room-finalization-attempt:{roomCode}:{attemptId}
+```
+
+The attempt marker records result object keys uploaded by that attempt. This
+lets failure logs and orphan cleanup distinguish objects created by the current
+attempt from already persisted artifacts.
+
+If a finalization attempt uploads new `relay/results/{artifactId}/...` objects
+but fails before the matching PostgreSQL rows are saved, the backend
+best-effort deletes only those objects created by the current attempt. Cleanup
+failure is logged and does not replace the original finalization error. Existing
+artifact rows or reused result objects are never deleted by this rollback path.
+
+If PostgreSQL rows were saved but Redis failed to transition the room from
+`FINALIZING` to `FINISHED`, the next retry reads the existing
+`artifact.source_room_id = roomCode` results, skips new MinIO uploads and DB
+inserts, and only retries the Redis `FINISHED` transition. This recovery emits a
+`relay_finalization_recovered` log instead of another `relay_result_created`
+business log.
 
 After a room becomes `CLOSED`, cleanup deletes only temporary objects under
 `relay/tmp/{roomCode}/`. A fallback cleanup may delete old objects under
-`relay/tmp/`, but must not delete `relay/results/**` or database rows.
+`relay/tmp/`, but must not delete active-room temporary files.
+
+A separate orphan object cleanup job may scan old objects under `relay/tmp/` and
+`relay/results/`. Temp objects are deleted only when their room state is missing
+or already `FINISHED`/`CLOSED`. Result objects are deleted only when they are not
+referenced by `artifact.thumbnail_url` or
+`relay_drawing_artifact.combined_preview_url` and are not listed in an active
+finalization attempt marker. If reference status cannot be determined, the
+object is skipped.
 
 ## Consequences
 
@@ -77,6 +112,15 @@ After a room becomes `CLOSED`, cleanup deletes only temporary objects under
   transition and result generation.
 - Positive: Token-scoped finalization locks make expired-worker cleanup safe in
   repeated scheduler scans.
+- Positive: Attempt ids make finalization retry, cleanup, and warning logs
+  traceable across one scheduler run.
+- Positive: Existing DB results can recover a partially finalized Redis room
+  without creating duplicate artifacts.
+- Positive: DB-save failures after result upload now try to remove current
+  attempt result objects, reducing orphan `relay/results/**` files without
+  deleting persisted artifacts.
+- Positive: Old temp/result orphan cleanup can reduce storage drift while
+  protecting active room temp files and DB-referenced result files.
 - Negative: Hint image rendering depends on `public-url` and bucket read access
   being configured correctly for the client environment.
 - Negative: Temporary hint object URLs expose relay temporary object paths while
@@ -84,5 +128,7 @@ After a room becomes `CLOSED`, cleanup deletes only temporary objects under
   treated as private.
 - Negative: Finalization must coordinate MinIO upload, DB writes, and Redis
   state transition carefully.
+- Negative: Orphan cleanup is conservative and best-effort; ambiguous result
+  objects are skipped instead of deleted.
 - Follow-up: Presigned result URL issuance or CDN URL rewriting can be added
   later without changing the artifact ownership model.

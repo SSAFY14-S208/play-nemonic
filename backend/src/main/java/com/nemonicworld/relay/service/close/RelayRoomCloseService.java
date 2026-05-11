@@ -109,7 +109,7 @@ public class RelayRoomCloseService {
             RelayRoomEventLogger.apiBusiness("relay_room_closed",
                 metadata("room_id", closeResult.roomCode(), "close_reason", "auto_delay", "room_status_before",
                     roomState.status(), "participant_count", roomState.participantCount()));
-            relayRoomEventPublisher.publishRoomClosed(roomState.roomCode(), closedAt);
+            relayRoomEventPublisher.publishRoomClosed(roomState.roomCode(), closedAt, "auto_delay");
         }
 
         return closeResult;

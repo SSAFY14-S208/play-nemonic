@@ -270,7 +270,7 @@ class RelayRoomEventPublisherTest {
                 new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE,
                     "11111111-1111-1111-1111-111111111111", secondSessionId)));
 
-        publisher.publishRoomClosed(ROOM_CODE, closedAt);
+        publisher.publishRoomClosed(ROOM_CODE, closedAt, "waiting_idle_timeout");
 
         verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
         RelayRoomEventResponse event = eventCaptor.getValue();
@@ -280,6 +280,7 @@ class RelayRoomEventPublisherTest {
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
         assertThat(data.roomStatus()).isEqualTo(RelayRoomStatus.CLOSED);
         assertThat(data.closedAt()).isEqualTo(closedAt);
+        assertThat(data.closeReason()).isEqualTo("waiting_idle_timeout");
         verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), closeStatusCaptor.capture());
         verify(webSocketSessionRegistry).closeWebSocketSession(eq(secondSessionId), closeStatusCaptor.capture());
         assertThat(closeStatusCaptor.getAllValues()).allSatisfy(status -> {

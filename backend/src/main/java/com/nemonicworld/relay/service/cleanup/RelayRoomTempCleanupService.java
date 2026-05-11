@@ -153,18 +153,24 @@ public class RelayRoomTempCleanupService {
             return new RelayOldTempCleanupResult(0, 0);
         }
 
+        List<String> safeOldTempObjectKeys = oldTempObjectKeys.stream().filter(this::isOldTempObjectSafeToDelete)
+            .toList();
+        if (safeOldTempObjectKeys.isEmpty()) {
+            return new RelayOldTempCleanupResult(oldTempObjectKeys.size(), 0);
+        }
+
         try {
-            relayTempFileStorage.deleteObjects(oldTempObjectKeys);
+            relayTempFileStorage.deleteObjects(safeOldTempObjectKeys);
         } catch (RuntimeException e) {
             RelayRoomEventLogger.apiWarn("relay_old_temp_cleanup_failed", "failed to cleanup old relay temp files",
                 metadata("room_id", null, "object_key_prefix", "relay/tmp/", "failed_object_count",
-                    oldTempObjectKeys.size()),
+                    safeOldTempObjectKeys.size()),
                 e);
             log.warn("오래된 릴레이 임시 파일 삭제에 실패했습니다.", e);
             return new RelayOldTempCleanupResult(oldTempObjectKeys.size(), 0);
         }
 
-        return new RelayOldTempCleanupResult(oldTempObjectKeys.size(), oldTempObjectKeys.size());
+        return new RelayOldTempCleanupResult(oldTempObjectKeys.size(), safeOldTempObjectKeys.size());
     }
 
     private List<String> collectTempObjectKeys(RelayRoomState roomState) {
@@ -192,6 +198,33 @@ public class RelayRoomTempCleanupService {
         if (trimmedObjectKey.startsWith(allowedPrefix)) {
             objectKeys.add(trimmedObjectKey);
         }
+    }
+
+    private boolean isOldTempObjectSafeToDelete(String objectKey) {
+        String roomCode = extractRoomCodeFromTempObjectKey(objectKey);
+        if (!StringUtils.hasText(roomCode)) {
+            return false;
+        }
+
+        RelayRoomState roomState = relayRoomRepository.findByRoomCode(roomCode).orElse(null);
+        if (roomState == null) {
+            return true;
+        }
+
+        return roomState.status() == RelayRoomStatus.CLOSED || roomState.status() == RelayRoomStatus.FINISHED;
+    }
+
+    private String extractRoomCodeFromTempObjectKey(String objectKey) {
+        if (!StringUtils.hasText(objectKey) || !objectKey.startsWith("relay/tmp/")) {
+            return null;
+        }
+
+        String[] segments = objectKey.split("/");
+        if (segments.length < 3) {
+            return null;
+        }
+
+        return segments[2];
     }
 
     private void releaseCleanupLock(String roomCode) {

@@ -104,6 +104,10 @@ nemonic:
       fail-closed: ${COMMUNITY_MODERATION_FAIL_CLOSED:false}
 
   relay:
+    reconciliation:
+      enabled: ${RELAY_RECONCILIATION_ENABLED:true}
+      scan-delay-ms: ${RELAY_RECONCILIATION_SCAN_DELAY_MS:30000}
+      scan-limit: ${RELAY_RECONCILIATION_SCAN_LIMIT:100}
     disconnect:
       enabled: ${RELAY_DISCONNECT_ENABLED:true}
       reconnect-grace-seconds: ${RELAY_DISCONNECT_RECONNECT_GRACE_SECONDS:10}
@@ -116,12 +120,27 @@ nemonic:
       auto-submit-grace-ms: ${RELAY_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}
     finalization:
       enabled: ${RELAY_FINALIZATION_ENABLED:true}
-      scan-delay-ms: ${RELAY_FINALIZATION_SCAN_DELAY_MS:2000}
+      scan-delay-ms: ${RELAY_FINALIZATION_SCAN_DELAY_MS:30000}
       scan-limit: ${RELAY_FINALIZATION_SCAN_LIMIT:50}
-      lock-ttl-seconds: ${RELAY_FINALIZATION_LOCK_TTL_SECONDS:60}
+      lock-ttl-seconds: ${RELAY_FINALIZATION_LOCK_TTL_SECONDS:120}
+      attempt-ttl-hours: ${RELAY_FINALIZATION_ATTEMPT_TTL_HOURS:24}
+      max-retry-count: ${RELAY_FINALIZATION_MAX_RETRY_COUNT:20}
       default-part-width: ${RELAY_FINALIZATION_DEFAULT_PART_WIDTH:512}
       default-part-height: ${RELAY_FINALIZATION_DEFAULT_PART_HEIGHT:512}
       thumbnail-max-size: ${RELAY_FINALIZATION_THUMBNAIL_MAX_SIZE:512}
+    orphan-cleanup:
+      enabled: ${RELAY_ORPHAN_CLEANUP_ENABLED:true}
+      scan-delay-ms: ${RELAY_ORPHAN_CLEANUP_SCAN_DELAY_MS:3600000}
+      initial-delay-ms: ${RELAY_ORPHAN_CLEANUP_INITIAL_DELAY_MS:3600000}
+      scan-limit: ${RELAY_ORPHAN_CLEANUP_SCAN_LIMIT:500}
+      temp-retention-hours: ${RELAY_ORPHAN_CLEANUP_TEMP_RETENTION_HOURS:24}
+      result-retention-hours: ${RELAY_ORPHAN_CLEANUP_RESULT_RETENTION_HOURS:24}
+    abandoned-close:
+      enabled: ${RELAY_ABANDONED_CLOSE_ENABLED:true}
+      scan-delay-ms: ${RELAY_ABANDONED_CLOSE_SCAN_DELAY_MS:30000}
+      scan-limit: ${RELAY_ABANDONED_CLOSE_SCAN_LIMIT:100}
+      waiting-idle-seconds: ${RELAY_WAITING_IDLE_CLOSE_SECONDS:300}
+      playing-abandoned-seconds: ${RELAY_PLAYING_ABANDONED_CLOSE_SECONDS:300}
     close:
       enabled: ${RELAY_CLOSE_ENABLED:true}
       delay-seconds: ${RELAY_CLOSE_DELAY_SECONDS:300}

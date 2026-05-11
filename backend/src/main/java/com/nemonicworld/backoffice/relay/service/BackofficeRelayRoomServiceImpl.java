@@ -102,7 +102,8 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
                 RelayRoomEventLogger.apiBusiness("relay_room_closed",
                     metadata("room_id", closeResult.roomCode(), "close_reason", "admin_force", "room_status_before",
                         roomState.status(), "participant_count", roomState.participantCount()));
-                relayRoomEventPublisher.publishRoomClosed(closeResult.roomCode(), closeResult.closedAt());
+                relayRoomEventPublisher.publishRoomClosed(closeResult.roomCode(), closeResult.closedAt(),
+                    "admin_force");
                 adminAuditLogger.logRelayRoomForceClose(adminPrincipal, closeResult.roomCode(),
                     roomState.status().name(), clientInfo);
                 return new BackofficeRelayRoomDeleteResponse(closeResult.roomCode());

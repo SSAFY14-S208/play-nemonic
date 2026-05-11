@@ -45,6 +45,26 @@ public interface RelayRoomRepository {
     List<RelayRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit);
 
     /**
+     * WAITING 상태에서 모든 참여자가 끊긴 채 idleCutoff 이전부터 방치된 방을 조회합니다.
+     */
+    List<RelayRoomState> findAbandonedWaitingRooms(LocalDateTime idleCutoff, int limit);
+
+    /**
+     * PLAYING 상태에서 모든 참여자가 끊겼거나 dropped 처리된 채 abandonedCutoff 이전부터 방치된 방을 조회합니다.
+     */
+    List<RelayRoomState> findAbandonedPlayingRooms(LocalDateTime abandonedCutoff, int limit);
+
+    /**
+     * Redis에는 연결 중으로 남았지만 실제 WebSocket 세션 여부를 재확인해야 하는 WAITING/PLAYING 방을 조회합니다.
+     */
+    List<RelayRoomState> findRoomsForConnectionReconciliation(int limit);
+
+    /**
+     * 비정상 상태 보정을 위해 참여자가 비어 있는 WAITING 방을 조회합니다.
+     */
+    List<RelayRoomState> findEmptyWaitingRooms(int limit);
+
+    /**
      * 최종 결과물 생성이 필요한 FINALIZING 방을 최대 limit개 조회합니다.
      */
     List<RelayRoomState> findFinalizingRooms(int limit);

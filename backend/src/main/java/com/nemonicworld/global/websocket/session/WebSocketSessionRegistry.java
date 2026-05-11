@@ -95,6 +95,13 @@ public class WebSocketSessionRegistry {
     }
 
     /**
+     * 콘텐츠 종류 + 연결키 + UUID 조합에 대해 현재 서버가 알고 있는 최신 세션이 있는지 확인합니다.
+     */
+    public boolean hasCurrentSession(String connectionType, String connectionKey, String userUuid) {
+        return findCurrentSession(connectionType, connectionKey, userUuid).isPresent();
+    }
+
+    /**
      * 콘텐츠 종류와 연결키에 해당하는 현재 활성 세션들을 조회합니다.
      */
     public List<ActiveWebSocketSession> findCurrentSessions(String connectionType, String connectionKey) {
