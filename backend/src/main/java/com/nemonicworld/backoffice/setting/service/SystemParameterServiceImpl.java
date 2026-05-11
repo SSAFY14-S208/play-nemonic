@@ -15,6 +15,7 @@ import com.nemonicworld.backoffice.setting.service.SystemParameterTypedUpdateMap
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.relay.service.support.InvalidRelayRoomParticipantLimitException;
 import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import java.time.LocalDateTime;
@@ -191,7 +192,7 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private void validateParticipantLimit(JsonNode value) {
         try {
             RelayRoomParticipantLimit.fromJson(value);
-        } catch (IllegalArgumentException e) {
+        } catch (InvalidRelayRoomParticipantLimitException e) {
             throw new BadRequestException(INVALID_RELAY_PARTICIPANT_LIMIT_MESSAGE);
         }
     }

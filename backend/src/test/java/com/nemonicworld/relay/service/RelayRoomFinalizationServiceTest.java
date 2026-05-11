@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
@@ -205,7 +206,7 @@ class RelayRoomFinalizationServiceTest {
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
 
-        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isInstanceOf(InternalServerException.class);
 
         verify(relayArtifactRepository, never()).saveRelayDrawingResults(anyString(), any(), any(), any());
         verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());

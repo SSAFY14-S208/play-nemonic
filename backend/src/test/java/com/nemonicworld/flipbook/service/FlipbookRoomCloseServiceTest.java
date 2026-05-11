@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
@@ -188,7 +189,7 @@ class FlipbookRoomCloseServiceTest {
         FlipbookRoomState secondRoom = finishedRoom(SECOND_ROOM_CODE, NOW.minusMinutes(10));
         given(flipbookRoomRepository.findClosableFinishedRooms(NOW.minusSeconds(CLOSE_DELAY_SECONDS), SCAN_LIMIT))
             .willReturn(List.of(firstRoom, secondRoom));
-        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new IllegalStateException("boom"));
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new InternalServerException("boom"));
         given(flipbookRoomRepository.findByRoomCode(SECOND_ROOM_CODE)).willReturn(Optional.of(secondRoom));
         given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
             .willReturn(true);

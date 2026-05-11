@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,8 @@ class UserControllerErrorHandlingTest {
      */
     @Test
     void createAnonymousUserDoesNotExposeInternalError() throws Exception {
-        given(userService.createAnonymousUser(any())).willThrow(new IllegalStateException("database password=secret"));
+        given(userService.createAnonymousUser(any()))
+            .willThrow(new InternalServerException("database password=secret"));
 
         mockMvc.perform(post("/api/v1/users/anonymous")).andExpect(status().isInternalServerError())
             .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").value("서버 오류가 발생했습니다."))

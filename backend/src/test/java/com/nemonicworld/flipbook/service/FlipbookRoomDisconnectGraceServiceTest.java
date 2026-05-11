@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
@@ -292,7 +293,7 @@ class FlipbookRoomDisconnectGraceServiceTest {
             participant(secondHostUuid, "Peach", true, 0, false, NOW.minusSeconds(11)));
         given(flipbookRoomRepository.findPlayingRoomsForDisconnectGrace(eq(NOW.minusSeconds(10)), eq(100)))
             .willReturn(List.of(firstRoom, secondRoom));
-        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new IllegalStateException("boom"));
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new InternalServerException("boom"));
         given(flipbookRoomRepository.findByRoomCode(SECOND_ROOM_CODE)).willReturn(Optional.of(secondRoom));
         given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
             .willReturn(true);

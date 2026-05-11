@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.admin.repository.AdminUserRepository;
 import com.nemonicworld.auth.service.AdminTokenStore;
+import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.logging.StructuredEventLogger;
 import jakarta.servlet.FilterChain;
@@ -95,10 +96,10 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
             String token = authorizationHeader.substring(BEARER_PREFIX.length());
             AdminTokenClaims claims = jwtTokenProvider.parseAccessToken(token);
             if (adminTokenStore.isAccessTokenRevoked(claims)) {
-                throw new IllegalArgumentException("Admin access token is revoked.");
+                throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
             }
             AdminUser adminUser = adminUserRepository.findActiveById(claims.adminId())
-                .orElseThrow(() -> new IllegalArgumentException("Admin account is not active."));
+                .orElseThrow(() -> new UnauthorizedException(UNAUTHORIZED_MESSAGE));
             AdminPrincipal principal = AdminPrincipal.from(adminUser);
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(principal,
                 null, List.of(new SimpleGrantedAuthority("ROLE_%s".formatted(principal.role().name()))));

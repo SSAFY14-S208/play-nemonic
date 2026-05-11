@@ -15,7 +15,8 @@ public record RelayRoomParticipantLimit(int minParticipants, int maxParticipants
 
     public static RelayRoomParticipantLimit fromJson(JsonNode value) {
         if (value == null || !value.isObject()) {
-            throw new IllegalArgumentException("Relay participant limit setting must be a JSON object.");
+            throw new InvalidRelayRoomParticipantLimitException(
+                "Relay participant limit setting must be a JSON object.");
         }
 
         int minParticipants = requireInteger(value.get("min"), "min");
@@ -27,7 +28,7 @@ public record RelayRoomParticipantLimit(int minParticipants, int maxParticipants
 
     private static int requireInteger(JsonNode value, String fieldName) {
         if (value == null || !value.isIntegralNumber() || !value.canConvertToInt()) {
-            throw new IllegalArgumentException(
+            throw new InvalidRelayRoomParticipantLimitException(
                 "Relay participant limit setting field must be an integer: " + fieldName);
         }
 
@@ -36,15 +37,17 @@ public record RelayRoomParticipantLimit(int minParticipants, int maxParticipants
 
     private static void validate(int minParticipants, int maxParticipants) {
         if (minParticipants < MIN_CONFIGURABLE_PARTICIPANTS) {
-            throw new IllegalArgumentException("Relay minimum participants must be at least 2.");
+            throw new InvalidRelayRoomParticipantLimitException("Relay minimum participants must be at least 2.");
         }
 
         if (maxParticipants < minParticipants) {
-            throw new IllegalArgumentException("Relay maximum participants must be greater than or equal to minimum.");
+            throw new InvalidRelayRoomParticipantLimitException(
+                "Relay maximum participants must be greater than or equal to minimum.");
         }
 
         if (maxParticipants > MAX_CONFIGURABLE_PARTICIPANTS) {
-            throw new IllegalArgumentException("Relay maximum participants exceeds the configurable upper bound.");
+            throw new InvalidRelayRoomParticipantLimitException(
+                "Relay maximum participants exceeds the configurable upper bound.");
         }
     }
 }

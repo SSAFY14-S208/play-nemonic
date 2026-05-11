@@ -3,6 +3,7 @@ package com.nemonicworld.flipbook.service.finalization;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
@@ -184,7 +185,7 @@ public class FlipbookRoomFinalizationService {
             return existingArtifacts;
         }
 
-        throw new IllegalStateException(FINALIZATION_STATE_ERROR_MESSAGE);
+        throw new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
     }
 
     /**
@@ -251,7 +252,7 @@ public class FlipbookRoomFinalizationService {
         try {
             return objectMapper.writeValueAsString(meta);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(FINALIZATION_META_ERROR_MESSAGE, e);
+            throw new InternalServerException(FINALIZATION_META_ERROR_MESSAGE, e);
         }
     }
 
