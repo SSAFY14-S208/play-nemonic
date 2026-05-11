@@ -130,6 +130,12 @@ nemonic:
       scan-delay-ms: ${FLIPBOOK_TIMEOUT_SCAN_DELAY_MS:1000}
       scan-limit: ${FLIPBOOK_TIMEOUT_SCAN_LIMIT:100}
       auto-submit-grace-ms: ${FLIPBOOK_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}
+    finalization:
+      enabled: ${FLIPBOOK_FINALIZATION_ENABLED:true}
+      scan-delay-ms: ${FLIPBOOK_FINALIZATION_SCAN_DELAY_MS:2000}
+      scan-limit: ${FLIPBOOK_FINALIZATION_SCAN_LIMIT:50}
+      lock-ttl-seconds: ${FLIPBOOK_FINALIZATION_LOCK_TTL_SECONDS:60}
+      ready-delay-ms: ${FLIPBOOK_FINALIZATION_READY_DELAY_MS:1000}
 
   fortune:
     gms:

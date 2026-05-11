@@ -407,7 +407,7 @@ public class FlipbookRoomPolicy {
             return FlipbookRoomViewerBlockedReason.GAME_IN_PROGRESS;
         }
 
-        if (roomState.status() == FlipbookRoomStatus.FINISHED) {
+        if (roomState.status() == FlipbookRoomStatus.FINALIZING || roomState.status() == FlipbookRoomStatus.FINISHED) {
             return FlipbookRoomViewerBlockedReason.ROOM_FINISHED;
         }
 

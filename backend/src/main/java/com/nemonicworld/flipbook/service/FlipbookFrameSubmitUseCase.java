@@ -239,7 +239,8 @@ public class FlipbookFrameSubmitUseCase {
         boolean alreadySubmitted, FlipbookRoomParticipant participant) {
         FlipbookRoundProgress progress = flipbookRoomRoundAdvanceService.calculateProgress(roomState,
             assignment.round());
-        boolean allRoundsCompleted = roomState.status() == FlipbookRoomStatus.FINISHED;
+        boolean allRoundsCompleted = roomState.status() == FlipbookRoomStatus.FINALIZING
+            || roomState.status() == FlipbookRoomStatus.FINISHED;
         boolean advanced = allRoundsCompleted
             || roomState.currentRound() != null && roomState.currentRound() > assignment.round();
         Integer nextRound = advanced && roomState.status() == FlipbookRoomStatus.PLAYING

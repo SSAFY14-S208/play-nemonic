@@ -35,7 +35,8 @@ public interface FlipbookRoomRepository {
     Optional<FlipbookRoomState> findByRoomCode(String roomCode);
 
     /**
-     * 백오피스 관리 화면용 — CLOSED를 제외한 모든 활성 플립북 방(WAITING/PLAYING/FINISHED)을 조회합니다.
+     * 백오피스 관리 화면용 — CLOSED를 제외한 모든 활성 플립북 방(WAITING/PLAYING/FINALIZING/FINISHED)을
+     * 조회합니다.
      */
     List<FlipbookRoomState> findAllActiveRooms();
 
@@ -48,4 +49,19 @@ public interface FlipbookRoomRepository {
      * 현재 라운드 마감 시각이 지난 PLAYING 방을 최대 limit개 조회합니다.
      */
     List<FlipbookRoomState> findExpiredPlayingRooms(LocalDateTime roundDeadlineCutoff, int limit);
+
+    /**
+     * 최종 결과물 생성을 기다리는 FINALIZING 방을 최대 limit개 조회합니다.
+     */
+    List<FlipbookRoomState> findFinalizingRooms(int limit);
+
+    /**
+     * 특정 방의 최종 결과물 생성 lock을 획득합니다.
+     */
+    boolean acquireFinalizationLock(String roomCode, String token, Duration ttl);
+
+    /**
+     * 토큰이 일치할 때만 특정 방의 최종 결과물 생성 lock을 해제합니다.
+     */
+    void releaseFinalizationLock(String roomCode, String token);
 }
