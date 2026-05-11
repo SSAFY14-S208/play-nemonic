@@ -12,6 +12,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.repository.RelayArtifactRepository;
+import com.nemonicworld.relay.repository.RelayFinalizationAttemptRepository;
 import com.nemonicworld.relay.repository.RelayFinalizationRetryRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
@@ -28,7 +29,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,10 +56,13 @@ public class RelayRoomFinalizationService {
     private final ObjectMapper objectMapper;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final RelayFinalizationRetryRepository relayFinalizationRetryRepository;
+    private final RelayFinalizationAttemptRepository relayFinalizationAttemptRepository;
     private final RelayRoomCloseCommand relayRoomCloseCommand;
     private final ThreadLocal<RelayFinalizationFailureContext> failureContext = new ThreadLocal<>();
+    private final ThreadLocal<RelayFinalizationAttempt> activeAttempt = new ThreadLocal<>();
     private final int scanLimit;
     private final Duration lockTtl;
+    private final Duration attemptTtl;
     private final Duration finalizationReadyDelay;
     private final int maxRetryCount;
 
@@ -67,9 +70,12 @@ public class RelayRoomFinalizationService {
         RelayArtifactRepository relayArtifactRepository, RelayResultStorage relayResultStorage,
         RelayResultComposer relayResultComposer, RelayRoomEventPublisher relayRoomEventPublisher,
         ObjectMapper objectMapper, RelayInviteMetadataSyncService relayInviteMetadataSyncService,
-        RelayFinalizationRetryRepository relayFinalizationRetryRepository, RelayRoomCloseCommand relayRoomCloseCommand,
+        RelayFinalizationRetryRepository relayFinalizationRetryRepository,
+        RelayFinalizationAttemptRepository relayFinalizationAttemptRepository,
+        RelayRoomCloseCommand relayRoomCloseCommand,
         @Value("${nemonic.relay.finalization.scan-limit:50}") int scanLimit,
-        @Value("${nemonic.relay.finalization.lock-ttl-seconds:60}") long lockTtlSeconds,
+        @Value("${nemonic.relay.finalization.lock-ttl-seconds:120}") long lockTtlSeconds,
+        @Value("${nemonic.relay.finalization.attempt-ttl-hours:24}") long attemptTtlHours,
         @Value("${nemonic.relay.finalization.ready-delay-ms:1000}") long readyDelayMs,
         @Value("${nemonic.relay.finalization.max-retry-count:20}") int maxRetryCount) {
         this.relayRoomRepository = relayRoomRepository;
@@ -80,9 +86,11 @@ public class RelayRoomFinalizationService {
         this.objectMapper = objectMapper;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.relayFinalizationRetryRepository = relayFinalizationRetryRepository;
+        this.relayFinalizationAttemptRepository = relayFinalizationAttemptRepository;
         this.relayRoomCloseCommand = relayRoomCloseCommand;
         this.scanLimit = scanLimit;
         this.lockTtl = Duration.ofSeconds(Math.max(1L, lockTtlSeconds));
+        this.attemptTtl = Duration.ofHours(Math.max(1L, attemptTtlHours));
         this.finalizationReadyDelay = Duration.ofMillis(Math.max(0L, readyDelayMs));
         this.maxRetryCount = Math.max(1, maxRetryCount);
     }
@@ -128,9 +136,14 @@ public class RelayRoomFinalizationService {
             RelayRoomRepository.ROOM_STATE_TTL);
         String stage = context == null ? "process" : context.stage();
         UUID artifactId = context == null ? null : context.artifactId();
+        String attemptId = context == null ? null : context.attemptId();
+        RelayRoomEventLogger.apiWarn("relay_finalization_attempt_failed", "failed relay finalization attempt",
+            metadata("room_id", roomCode, "attempt_id", attemptId, "retry_count", retryCount, "stage", stage, "error",
+                error.getClass().getSimpleName()),
+            error);
         RelayRoomEventLogger.apiWarn("relay_finalization_failed", "failed to finalize relay room",
-            metadata("room_id", roomCode, "stage", stage, "artifact_id", artifactId, "operation", "finalization",
-                "retry_count", retryCount, "max_retry_count", maxRetryCount),
+            metadata("room_id", roomCode, "stage", stage, "artifact_id", artifactId, "attempt_id", attemptId,
+                "operation", "finalization", "retry_count", retryCount, "max_retry_count", maxRetryCount),
             error);
 
         if (retryCount >= maxRetryCount) {
@@ -162,14 +175,26 @@ public class RelayRoomFinalizationService {
      */
     public RelayRoomFinalizationResult processFinalizingRoom(String roomCode) {
         failureContext.remove();
+        activeAttempt.remove();
         String lockToken = createFinalizationLockToken(roomCode);
         if (!relayRoomRepository.acquireFinalizationLock(roomCode, lockToken, lockTtl)) {
+            RelayRoomEventLogger.apiBusiness("relay_finalization_lock_skipped",
+                metadata("room_id", roomCode, "reason", "lock_not_acquired"));
             return RelayRoomFinalizationResult.noOp(roomCode);
         }
 
+        String attemptId = UUID.randomUUID().toString();
+        LocalDateTime startedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        RelayFinalizationAttempt attempt = RelayFinalizationAttempt.start(roomCode, attemptId, startedAt);
+
         try {
+            saveActiveAttempt(attempt);
+            RelayRoomEventLogger.apiBusiness("relay_finalization_attempt_started",
+                metadata("room_id", roomCode, "attempt_id", attemptId, "retry_count",
+                    relayFinalizationRetryRepository.getFailureCount(roomCode), "max_retry_count", maxRetryCount));
             return processLockedFinalizingRoom(roomCode);
         } finally {
+            clearActiveAttempt(roomCode, attemptId);
             relayRoomRepository.releaseFinalizationLock(roomCode, lockToken);
         }
     }
@@ -177,6 +202,22 @@ public class RelayRoomFinalizationService {
     private String createFinalizationLockToken(String roomCode) {
         return "token=%s,requestedAt=%s,owner=finalization,roomCode=%s".formatted(UUID.randomUUID(),
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), roomCode);
+    }
+
+    private void saveActiveAttempt(RelayFinalizationAttempt attempt) {
+        activeAttempt.set(attempt);
+        relayFinalizationAttemptRepository.save(attempt, attemptTtl);
+    }
+
+    private void clearActiveAttempt(String roomCode, String attemptId) {
+        activeAttempt.remove();
+        try {
+            relayFinalizationAttemptRepository.clear(roomCode, attemptId);
+        } catch (RuntimeException e) {
+            RelayRoomEventLogger.apiWarn("relay_finalization_attempt_clear_failed",
+                "failed to clear relay finalization attempt marker",
+                metadata("room_id", roomCode, "attempt_id", attemptId), e);
+        }
     }
 
     /**
@@ -200,8 +241,9 @@ public class RelayRoomFinalizationService {
 
         List<RelayFinalizationArtifactResult> existingArtifacts = relayArtifactRepository
             .findRelayArtifactsBySourceRoomId(roomCode);
-        List<RelayFinalizationArtifactResult> artifacts = resolveArtifacts(roomState, canvasIndexes, existingArtifacts,
-            now);
+        ResolvedRelayFinalizationArtifacts resolvedArtifacts = resolveArtifacts(roomState, canvasIndexes,
+            existingArtifacts, now);
+        List<RelayFinalizationArtifactResult> artifacts = resolvedArtifacts.artifacts();
         RelayRoomState finishedRoomState = roomState.finish(now);
         if (!relayRoomRepository.saveIfUnchanged(roomState, finishedRoomState)) {
             ConflictException error = new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
@@ -214,10 +256,16 @@ public class RelayRoomFinalizationService {
         RelayRoomFinalizationResult result = RelayRoomFinalizationResult.finished(roomCode, artifacts, now);
         relayFinalizationRetryRepository.clearFailureCount(roomCode);
         relayRoomEventPublisher.publishResultCreated(result);
-        RelayRoomEventLogger.websocketBusiness("relay_result_created",
-            metadata("room_id", roomCode, "result_count", result.resultCount(), "artifact_ids",
-                artifacts.stream().map(artifact -> artifact.artifactId().toString()).toList(), "duration_ms",
-                Duration.ofNanos(System.nanoTime() - startedNanos).toMillis()));
+        if (resolvedArtifacts.recovered()) {
+            RelayRoomEventLogger.websocketBusiness("relay_finalization_recovered",
+                metadata("room_id", roomCode, "attempt_id", currentAttemptId(), "recovery_reason",
+                    "existing_result_found", "result_count", result.resultCount()));
+        } else {
+            RelayRoomEventLogger.websocketBusiness("relay_result_created",
+                metadata("room_id", roomCode, "attempt_id", currentAttemptId(), "result_count", result.resultCount(),
+                    "artifact_ids", artifacts.stream().map(artifact -> artifact.artifactId().toString()).toList(),
+                    "duration_ms", Duration.ofNanos(System.nanoTime() - startedNanos).toMillis()));
+        }
 
         return result;
     }
@@ -225,25 +273,30 @@ public class RelayRoomFinalizationService {
     /**
      * 이미 생성된 결과물이 있으면 재사용하고, 없으면 새로 합성해 DB에 저장합니다.
      */
-    private List<RelayFinalizationArtifactResult> resolveArtifacts(RelayRoomState roomState,
-        List<Integer> canvasIndexes, List<RelayFinalizationArtifactResult> existingArtifacts, LocalDateTime now) {
+    private ResolvedRelayFinalizationArtifacts resolveArtifacts(RelayRoomState roomState, List<Integer> canvasIndexes,
+        List<RelayFinalizationArtifactResult> existingArtifacts, LocalDateTime now) {
         if (existingArtifacts.isEmpty()) {
-            List<RelayFinalizationArtifactResult> artifacts = createAndUploadResults(roomState, canvasIndexes);
+            List<RelayFinalizationArtifactResult> artifacts;
+            try {
+                artifacts = createAndUploadResults(roomState, canvasIndexes);
+            } catch (RuntimeException e) {
+                cleanupCurrentAttemptResultObjects(roomState.roomCode());
+                throw e;
+            }
             try {
                 relayArtifactRepository.saveRelayDrawingResults(roomState.roomCode(), artifacts,
                     findParticipantUuidValues(roomState), now);
+                return new ResolvedRelayFinalizationArtifacts(artifacts, false);
             } catch (RuntimeException e) {
                 logFinalizationFailure(roomState.roomCode(), "db_save",
                     artifacts.stream().findFirst().map(RelayFinalizationArtifactResult::artifactId).orElse(null), e);
-                cleanupCreatedResultObjects(roomState.roomCode(), artifacts);
+                cleanupCurrentAttemptResultObjects(roomState.roomCode());
                 throw e;
             }
-
-            return artifacts;
         }
 
         if (matchesExpectedCanvasIndexes(existingArtifacts, canvasIndexes)) {
-            return existingArtifacts;
+            return new ResolvedRelayFinalizationArtifacts(existingArtifacts, true);
         }
 
         InternalServerException error = new InternalServerException(FINALIZATION_STATE_ERROR_MESSAGE);
@@ -276,7 +329,9 @@ public class RelayRoomFinalizationService {
 
         try {
             relayResultStorage.upload(originalObjectKey, composedImage.originalPng(), PNG_CONTENT_TYPE);
+            registerAttemptObjectKey(originalObjectKey);
             relayResultStorage.upload(thumbnailObjectKey, composedImage.thumbnailPng(), PNG_CONTENT_TYPE);
+            registerAttemptObjectKey(thumbnailObjectKey);
         } catch (RuntimeException e) {
             logFinalizationFailure(roomState.roomCode(), "minio_upload", artifactId, e);
             throw e;
@@ -292,13 +347,29 @@ public class RelayRoomFinalizationService {
     }
 
     private void logFinalizationFailure(String roomCode, String stage, UUID artifactId, RuntimeException error) {
-        failureContext.set(new RelayFinalizationFailureContext(stage, artifactId));
+        failureContext.set(new RelayFinalizationFailureContext(stage, artifactId, currentAttemptId()));
     }
 
-    private void cleanupCreatedResultObjects(String roomCode, List<RelayFinalizationArtifactResult> artifacts) {
-        List<String> objectKeys = artifacts.stream()
-            .flatMap(artifact -> Stream.of(artifact.originalObjectKey(), artifact.thumbnailObjectKey()))
-            .filter(StringUtils::hasText).toList();
+    private void registerAttemptObjectKey(String objectKey) {
+        RelayFinalizationAttempt attempt = activeAttempt.get();
+        if (attempt == null || !StringUtils.hasText(objectKey)) {
+            return;
+        }
+
+        saveActiveAttempt(attempt.addObjectKey(objectKey));
+    }
+
+    private String currentAttemptId() {
+        RelayFinalizationAttempt attempt = activeAttempt.get();
+
+        return attempt == null ? null : attempt.attemptId();
+    }
+
+    private void cleanupCurrentAttemptResultObjects(String roomCode) {
+        RelayFinalizationAttempt attempt = activeAttempt.get();
+        List<String> objectKeys = attempt == null
+            ? List.of()
+            : attempt.objectKeys().stream().filter(StringUtils::hasText).distinct().toList();
         if (objectKeys.isEmpty()) {
             return;
         }
@@ -313,15 +384,16 @@ public class RelayRoomFinalizationService {
                 failedObjectKeys.add(objectKey);
                 RelayRoomEventLogger.apiWarn("relay_result_orphan_cleanup_failed",
                     "failed to clean orphan relay result object",
-                    metadata("room_id", roomCode, "object_keys", List.of(objectKey), "failed_object_count", 1), e);
+                    metadata("room_id", roomCode, "attempt_id", attempt.attemptId(), "object_keys", List.of(objectKey),
+                        "failed_object_count", 1, "error", e.getClass().getSimpleName()),
+                    e);
             }
         }
 
         RelayRoomEventLogger.apiBusiness("relay_result_orphan_cleanup_completed",
-            metadata("room_id", roomCode, "artifact_ids",
-                artifacts.stream().map(artifact -> artifact.artifactId().toString()).toList(), "object_keys",
-                objectKeys, "deleted_object_count", deletedObjectCount, "failed_object_count", failedObjectKeys.size(),
-                "result", failedObjectKeys.isEmpty() ? "success" : "partial_failure"));
+            metadata("room_id", roomCode, "attempt_id", attempt.attemptId(), "object_keys", objectKeys,
+                "deleted_object_count", deletedObjectCount, "failed_object_count", failedObjectKeys.size(), "result",
+                failedObjectKeys.isEmpty() ? "success" : "partial_failure"));
     }
 
     /**
@@ -433,6 +505,10 @@ public class RelayRoomFinalizationService {
             .map(RelayRoomParticipant::nickname).findFirst().orElse(null);
     }
 
-    private record RelayFinalizationFailureContext(String stage, UUID artifactId) {
+    private record ResolvedRelayFinalizationArtifacts(List<RelayFinalizationArtifactResult> artifacts,
+        boolean recovered) {
+    }
+
+    private record RelayFinalizationFailureContext(String stage, UUID artifactId, String attemptId) {
     }
 }

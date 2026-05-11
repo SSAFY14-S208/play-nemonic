@@ -16,6 +16,20 @@ public class RedisRelayFinalizationRetryRepository implements RelayFinalizationR
     }
 
     @Override
+    public int getFailureCount(String roomCode) {
+        String failureCount = redisTemplate.opsForValue().get(createFinalizationRetryKey(roomCode));
+        if (failureCount == null) {
+            return 0;
+        }
+
+        try {
+            return Integer.parseInt(failureCount);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    @Override
     public int incrementFailureCount(String roomCode, Duration ttl) {
         Long failureCount = redisTemplate.opsForValue().increment(createFinalizationRetryKey(roomCode));
         redisTemplate.expire(createFinalizationRetryKey(roomCode), ttl);

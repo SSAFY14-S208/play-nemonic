@@ -59,6 +59,15 @@ public class RelayArtifactRepository {
         WHERE CAST(a.kind AS VARCHAR) = :kind
           AND a.source_room_id = :roomCode
         """;
+    private static final String EXISTS_RELAY_RESULT_OBJECT_REFERENCE_SQL = """
+        SELECT EXISTS (
+            SELECT 1
+            FROM artifact a
+            JOIN relay_drawing_artifact rda ON rda.artifact_id = a.id
+            WHERE CAST(a.kind AS VARCHAR) = :kind
+              AND (a.thumbnail_url = :objectKey OR rda.combined_preview_url = :objectKey)
+        )
+        """;
     private static final String INSERT_ARTIFACT_SQL = """
         INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
         VALUES (:id, :kind, :sourceRoomId, :thumbnailUrl, :meta, :createdAt, :updatedAt)
@@ -114,6 +123,14 @@ public class RelayArtifactRepository {
         Long count = jdbcTemplate.queryForObject(COUNT_RELAY_RESULTS_BY_SOURCE_ROOM_ID_SQL, params, Long.class);
 
         return count == null ? 0L : count;
+    }
+
+    public boolean existsRelayResultObjectReference(String objectKey) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("kind", RELAY_DRAWING_KIND)
+            .addValue("objectKey", objectKey);
+        Boolean exists = jdbcTemplate.queryForObject(EXISTS_RELAY_RESULT_OBJECT_REFERENCE_SQL, params, Boolean.class);
+
+        return Boolean.TRUE.equals(exists);
     }
 
     @Transactional
