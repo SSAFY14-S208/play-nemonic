@@ -31,8 +31,8 @@ import org.springframework.util.StringUtils;
 public class RelayRoomPolicy {
 
     public static final int DEFAULT_TIME_LIMIT_SECONDS = 45;
-    public static final int MIN_PARTICIPANTS = 2;
-    public static final int MAX_PARTICIPANTS = 6;
+    public static final int MIN_PARTICIPANTS = RelayRoomParticipantLimit.DEFAULT_MIN_PARTICIPANTS;
+    public static final int MAX_PARTICIPANTS = RelayRoomParticipantLimit.DEFAULT_MAX_PARTICIPANTS;
     public static final int HOST_JOIN_ORDER = 0;
     public static final int ROOM_UPDATE_MAX_RETRIES = 3;
     public static final long DEFAULT_RECONNECT_GRACE_SECONDS = 10L;

@@ -474,6 +474,20 @@ Recent relay logging work added structured event emission for the relay drawing 
 - Backoffice relay force-close emits `relay_room_force_close` audit metadata and `relay_room_closed` business metadata; relay-scoped system parameter changes emit `param_change`.
 - `backend/docs/product-spec/08-observability.md` includes the relay event names in the backend business-event allow-list.
 
+Recent relay runtime settings work connects the seeded backoffice participant limit to new relay rooms.
+
+- New relay rooms read `backoffice_setting` key `relay.room_participant_limit` and store the resolved min/max values in the Redis room snapshot.
+- Missing, blank, malformed, or invalid participant-limit settings fall back to the default `2..6` range and emit a warning log.
+- Existing Redis room snapshots keep their stored min/max values after backoffice setting changes; the setting is applied only to newly created rooms.
+- Backoffice system parameter bulk updates validate `relay.room_participant_limit` as a JSON object with integer `min`/`max`, `min >= 2`, `max >= min`, and an operational upper bound of 20.
+
+Recent backoffice system parameter update work changed the PATCH request contract to typed fields.
+
+- `PATCH /api/v1/backoffice/system-parameters` now accepts named optional fields such as `relayRoomParticipantLimit`, `relayRoomTimeLimitSeconds`, `communityMaxMemoCount`, `flipbookRoomParticipantLimit`, and `fortuneDailyLimit` instead of client-supplied `items[].id`.
+- The service maps each included request field to the existing `backoffice_setting.setting_key`, updates only included fields in one transaction, and keeps the existing list-style response and `param_change` audit log.
+- The typed request covers the V9 seeded editable settings and validates participant limits, time-limit objects, and positive integer value objects before updating any row.
+- The legacy `SystemParameterBulkUpdateRequest` DTO remains in source, but the default controller/OpenAPI PATCH contract is the typed request body.
+
 Recent community logging work reused the shared structured event logger for community canvas and backoffice review flows.
 
 - `StructuredEventLogger` centralizes JSON emission to `logs.api`, `logs.websocket`, and `logs.audit`; the existing relay logger and admin audit logger now delegate to it.

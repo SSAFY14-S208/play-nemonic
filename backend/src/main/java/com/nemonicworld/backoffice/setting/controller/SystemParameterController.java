@@ -2,7 +2,7 @@ package com.nemonicworld.backoffice.setting.controller;
 
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
-import com.nemonicworld.backoffice.setting.dto.request.SystemParameterBulkUpdateRequest;
+import com.nemonicworld.backoffice.setting.dto.request.SystemParameterTypedUpdateRequest;
 import com.nemonicworld.backoffice.setting.dto.response.SystemParameterListResponse;
 import com.nemonicworld.backoffice.setting.service.SystemParameterService;
 import com.nemonicworld.common.jwt.AdminPrincipal;
@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -64,14 +65,73 @@ public class SystemParameterController {
     }
 
     @PatchMapping
-    @Operation(summary = "시스템 파라미터 일괄 수정", description = "관리자가 시스템 파라미터 여러 건을 한 트랜잭션으로 일괄 수정합니다.")
+    @Operation(summary = "시스템 파라미터 일괄 수정", description = "관리자가 요청 본문에 포함한 시스템 파라미터 필드만 한 트랜잭션으로 수정합니다. "
+        + "여러 필드 중 하나라도 유효하지 않으면 전체 수정은 실패합니다.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = SystemParameterTypedUpdateRequest.class), examples = @ExampleObject(name = "Update editable system parameters", value = """
+        {
+          "communityMaxMemoCount": {
+            "value": 50,
+            "unit": "count",
+            "description": "커뮤니티 캔버스 표시 메모 수 제한"
+          },
+          "relayRoomParticipantLimit": {
+            "min": 3,
+            "max": 8,
+            "unit": "people",
+            "description": "릴레이 방 참여 인원 제한"
+          },
+          "relayRoomTimeLimitSeconds": {
+            "default": 45,
+            "allowed": [30, 45, 60],
+            "unit": "seconds",
+            "description": "릴레이 방 그리기 제한 시간"
+          },
+          "relayReconnectGraceSeconds": {
+            "value": 10,
+            "unit": "seconds",
+            "description": "릴레이 진행 중 재연결 유예 시간"
+          },
+          "flipbookRoomParticipantLimit": {
+            "min": 2,
+            "max": 6,
+            "unit": "people",
+            "description": "플립북 방 참여 인원 제한"
+          },
+          "flipbookRoomTimeLimitSeconds": {
+            "default": 45,
+            "allowed": [30, 45, 60],
+            "unit": "seconds",
+            "description": "플립북 방 그리기 제한 시간"
+          },
+          "flipbookMinFramesPerFlipbook": {
+            "value": 8,
+            "unit": "frames",
+            "description": "완성 플립북 최소 프레임 수"
+          },
+          "flipbookReconnectGraceSeconds": {
+            "value": 10,
+            "unit": "seconds",
+            "description": "플립북 진행 중 재연결 유예 시간"
+          },
+          "fortuneDailyLimit": {
+            "value": 1,
+            "unit": "count",
+            "description": "익명 사용자별 일일 운세 생성 제한"
+          },
+          "csInquiryUnresolvedAlertThresholdHours": {
+            "value": 24,
+            "unit": "hours",
+            "description": "미해결 고객 문의 알림 기준 시간"
+          }
+        }
+        """)))
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "시스템 파라미터 수정 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값이 올바르지 않음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SYSTEM_PARAMETER_BULK_UPDATE_INVALID))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
     public ResponseEntity<ApiResponse<SystemParameterListResponse>> bulkUpdateSystemParameters(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
-        @Valid @RequestBody SystemParameterBulkUpdateRequest request, HttpServletRequest servletRequest) {
+        @Valid @RequestBody SystemParameterTypedUpdateRequest request, HttpServletRequest servletRequest) {
         AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
         SystemParameterListResponse response = systemParameterService.bulkUpdate(adminPrincipal, request, clientInfo);
 
