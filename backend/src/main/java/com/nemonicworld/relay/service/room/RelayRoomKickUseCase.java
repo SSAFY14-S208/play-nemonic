@@ -2,6 +2,7 @@ package com.nemonicworld.relay.service.room;
 
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 릴레이 대기실 참여자 강퇴 유스케이스입니다.
@@ -62,6 +64,10 @@ public class RelayRoomKickUseCase {
 
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
+                RelayRoomEventLogger.apiBusiness("relay_participant_kicked",
+                    metadata("room_id", updatedRoomState.roomCode(), "host_uuid", viewerUserUuid, "kicked_uuid",
+                        targetParticipant.userUuid(), "room_status", updatedRoomState.status(), "participant_count",
+                        updatedRoomState.participantCount()));
                 return new RelayRoomKickResponse(updatedRoomState.roomCode(), targetParticipant.userUuid(),
                     targetParticipant.nickname(), updatedRoomState.participantCount(), now);
             }

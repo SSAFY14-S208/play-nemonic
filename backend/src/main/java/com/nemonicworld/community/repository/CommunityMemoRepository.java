@@ -13,6 +13,8 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -73,6 +75,16 @@ public class CommunityMemoRepository {
             cm.updated_at AS updated_at
         """ + VISIBLE_MEMO_FROM + """
           AND cm.id = :memoId
+        """;
+
+    private static final String FIND_MEMO_VISIBILITY_SQL = """
+        SELECT
+            id AS memo_id,
+            user_id AS user_id,
+            is_hidden AS is_hidden,
+            deleted_at AS deleted_at
+        FROM community_memo
+        WHERE id = :memoId
         """;
 
     private static final String FIND_ACTIVE_SOURCE_GALLERY_SQL = """
@@ -150,6 +162,26 @@ public class CommunityMemoRepository {
             ORDER BY attached_at ASC, id ASC
             LIMIT :limit
         )
+        """;
+
+    private static final String FIND_OLDEST_VISIBLE_MEMO_IDS_FOR_EXPIRY_SQL = """
+        SELECT id
+        FROM community_memo
+        WHERE deleted_at IS NULL
+          AND is_hidden = FALSE
+          AND id <> :newMemoId
+        ORDER BY attached_at ASC, id ASC
+        LIMIT :limit
+        """;
+
+    private static final String EXPIRE_VISIBLE_MEMOS_BY_IDS_SQL = """
+        UPDATE community_memo
+        SET deleted_at = :deletedAt,
+            deleted_reason = :deletedReason,
+            updated_at = :deletedAt
+        WHERE id IN (:memoIds)
+          AND deleted_at IS NULL
+          AND is_hidden = FALSE
         """;
 
     private static final String UPDATE_MEMO_LAYOUT_SQL = """
@@ -256,6 +288,19 @@ public class CommunityMemoRepository {
     }
 
     /**
+     * visible 조건에서 제외된 접근이 실제 없음/숨김/삭제 중 무엇인지 운영 로그용으로 확인합니다.
+     */
+    public Optional<CommunityMemoVisibilityRow> findMemoVisibilityById(UUID memoId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId);
+        List<CommunityMemoVisibilityRow> rows = jdbcTemplate.query(FIND_MEMO_VISIBILITY_SQL, params,
+            (resultSet, rowNumber) -> new CommunityMemoVisibilityRow(resultSet.getObject("memo_id", UUID.class),
+                resultSet.getObject("user_id", UUID.class), resultSet.getBoolean("is_hidden"),
+                timestampToLocalDateTime(resultSet, "deleted_at")));
+
+        return rows.stream().findFirst();
+    }
+
+    /**
      * GALLERY 게시 출처로 사용할 수 있는 요청자 소유의 활성 갤러리 항목을 조회합니다.
      */
     public Optional<CommunityMemoSourceGalleryRow> findActiveSourceGallery(UUID galleryId, UUID userId) {
@@ -315,6 +360,36 @@ public class CommunityMemoRepository {
     }
 
     /**
+     * FIFO에서 만료 대상이 될 visible 메모 id를 먼저 조회해 로그와 실제 update 대상을 맞춥니다.
+     */
+    public List<UUID> findOldestVisibleMemoIdsForExpiry(UUID newMemoId, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("newMemoId", newMemoId).addValue("limit",
+            limit);
+
+        return jdbcTemplate.query(FIND_OLDEST_VISIBLE_MEMO_IDS_FOR_EXPIRY_SQL, params,
+            (resultSet, rowNumber) -> resultSet.getObject("id", UUID.class));
+    }
+
+    /**
+     * 사전에 조회한 FIFO 대상 메모들을 expired 사유로 soft delete 처리합니다.
+     */
+    public int expireVisibleMemosByIds(List<UUID> memoIds, LocalDateTime deletedAt) {
+        if (memoIds == null || memoIds.isEmpty()) {
+            return 0;
+        }
+
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoIds", memoIds)
+            .addValue("deletedAt", deletedAt)
+            .addValue("deletedReason", CommunityMemoDeletedReason.EXPIRED.value(), Types.OTHER);
+
+        return jdbcTemplate.update(EXPIRE_VISIBLE_MEMOS_BY_IDS_SQL, params);
+    }
+
+    /**
      * 본인 visible 메모의 배치 필드와 updated_at만 수정합니다.
      */
     public int updateMemoLayout(UUID memoId, UUID userId, double positionX, double positionY, int zIndex,
@@ -351,14 +426,18 @@ public class CommunityMemoRepository {
     /**
      * 커뮤니티 메모 신고 row를 저장합니다.
      */
-    public void insertMemoReport(UUID memoId, UUID userId, CommunityMemoReportReason reason, String reasonDetail,
+    public Long insertMemoReport(UUID memoId, UUID userId, CommunityMemoReportReason reason, String reasonDetail,
         LocalDateTime createdAt) {
         // reason도 PostgreSQL enum 컬럼이므로 Types.OTHER로 전달합니다.
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("memoId", memoId).addValue("userId", userId)
             .addValue("reason", reason.value(), Types.OTHER).addValue("reasonDetail", reasonDetail)
             .addValue("createdAt", createdAt);
 
-        jdbcTemplate.update(INSERT_MEMO_REPORT_SQL, params);
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(INSERT_MEMO_REPORT_SQL, params, keyHolder, new String[]{"id"});
+
+        Number key = keyHolder.getKey();
+        return key == null ? null : key.longValue();
     }
 
     /**
@@ -413,5 +492,11 @@ public class CommunityMemoRepository {
             resultSet.getString("moderation_status"), resultSet.getTimestamp("attached_at").toLocalDateTime(),
             resultSet.getTimestamp("created_at").toLocalDateTime(),
             resultSet.getTimestamp("updated_at").toLocalDateTime());
+    }
+
+    private LocalDateTime timestampToLocalDateTime(ResultSet resultSet, String columnName) throws SQLException {
+        var timestamp = resultSet.getTimestamp(columnName);
+
+        return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 }

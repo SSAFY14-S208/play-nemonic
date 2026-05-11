@@ -1,6 +1,8 @@
 package com.nemonicworld.relay.controller;
 
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.relay.dto.request.RelayRoomKickRequest;
@@ -14,6 +16,9 @@ import com.nemonicworld.relay.dto.response.RelayRoomMyAssignmentResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomResultsResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomSubmissionResponse;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
+import com.nemonicworld.relay.redis.RelayRoomState;
+import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.RelayRoomService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +43,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 @RestController
 @RequestMapping("/relay/rooms")
@@ -64,11 +70,14 @@ public class RelayRoomController {
     private static final String RELAY_RESULTS_FOUND_MESSAGE = "릴레이 결과 조회 성공";
 
     private final RelayRoomService relayRoomService;
+    private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private static final String RELAY_PART_SUBMITTED_MESSAGE = "릴레이 그림 제출 성공";
 
-    public RelayRoomController(RelayRoomService relayRoomService, RelayRoomEventPublisher relayRoomEventPublisher) {
+    public RelayRoomController(RelayRoomService relayRoomService, RelayRoomRepository relayRoomRepository,
+        RelayRoomEventPublisher relayRoomEventPublisher) {
         this.relayRoomService = relayRoomService;
+        this.relayRoomRepository = relayRoomRepository;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
     }
 
@@ -202,7 +211,18 @@ public class RelayRoomController {
         @RequestPart(value = "drawingImage", required = false) MultipartFile drawingImage,
         @RequestPart(value = "hintImage", required = false) MultipartFile hintImage) {
         RelayRoomSubmissionRequest request = new RelayRoomSubmissionRequest(canvasIndex, part, drawingImage, hintImage);
-        RelayRoomSubmissionResponse response = relayRoomService.submitCurrentPart(userUuid, roomCode, request);
+        RelayRoomSubmissionResponse response;
+        try {
+            response = relayRoomService.submitCurrentPart(userUuid, roomCode, request);
+        } catch (RuntimeException e) {
+            RelayRoomState roomState = findRoomSnapshot(roomCode, e);
+            RelayRoomEventLogger.apiBusiness("relay_submission_rejected",
+                metadata("room_id", roomCode, "uuid", userUuid, "canvas_index", canvasIndex, "part", part,
+                    "reject_reason", e.getMessage(), "room_status", roomState == null ? null : roomState.status(),
+                    "current_part", roomState == null ? null : roomState.currentPart(), "exception_type",
+                    e.getClass().getSimpleName()));
+            throw e;
+        }
         if (!response.alreadySubmitted()) {
             relayRoomEventPublisher.publishPartSubmitted(response);
             if (response.advanced() && response.allPartsCompleted()) {
@@ -408,11 +428,33 @@ public class RelayRoomController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
     public ResponseEntity<ApiResponse<RelayRoomStateResponse>> startRoom(@PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
-        RelayRoomStateResponse response = relayRoomService.startRoom(userUuid, roomCode);
+        RelayRoomStateResponse response;
+        try {
+            response = relayRoomService.startRoom(userUuid, roomCode);
+        } catch (RuntimeException e) {
+            RelayRoomState roomState = findRoomSnapshot(roomCode, e);
+            RelayRoomEventLogger.apiBusiness("relay_start_rejected",
+                metadata("room_id", roomCode, "host_uuid", userUuid, "reject_reason", e.getMessage(),
+                    "participant_count", roomState == null ? null : roomState.participantCount(), "room_status",
+                    roomState == null ? null : roomState.status(), "exception_type", e.getClass().getSimpleName()));
+            throw e;
+        }
         relayRoomEventPublisher.publishGameStarted(response);
         relayRoomEventPublisher.publishPartStarted(response);
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(RELAY_GAME_STARTED_MESSAGE, response));
+    }
+
+    private RelayRoomState findRoomSnapshot(String roomCode, RuntimeException error) {
+        if (error instanceof BadRequestException || error instanceof NotFoundException) {
+            return null;
+        }
+
+        try {
+            return relayRoomRepository.findByRoomCode(roomCode).orElse(null);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 }

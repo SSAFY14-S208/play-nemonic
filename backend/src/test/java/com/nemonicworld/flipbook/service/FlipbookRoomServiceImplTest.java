@@ -273,7 +273,7 @@ class FlipbookRoomServiceImplTest {
 
         assertThat(response.status()).isEqualTo(FlipbookRoomStatus.PLAYING);
         assertThat(response.currentRound()).isEqualTo(1);
-        assertThat(response.totalRounds()).isEqualTo(3);
+        assertThat(response.totalRounds()).isEqualTo(8);
         assertThat(response.viewer().host()).isTrue();
         assertThat(response.viewer().canStart()).isFalse();
 
@@ -282,25 +282,28 @@ class FlipbookRoomServiceImplTest {
         FlipbookRoomState updatedRoomState = updatedStateCaptor.getValue();
         assertThat(updatedRoomState.status()).isEqualTo(FlipbookRoomStatus.PLAYING);
         assertThat(updatedRoomState.currentRound()).isEqualTo(1);
-        assertThat(updatedRoomState.totalRounds()).isEqualTo(3);
+        assertThat(updatedRoomState.totalRounds()).isEqualTo(8);
         assertThat(Duration.between(updatedRoomState.roundStartedAt(), updatedRoomState.roundDeadlineAt()))
             .isEqualTo(Duration.ofSeconds(updatedRoomState.timeLimitSeconds()));
         assertThat(updatedRoomState.gameStartedAt()).isEqualTo(updatedRoomState.roundStartedAt());
         assertThat(updatedRoomState.participants()).isEqualTo(roomState.participants());
-        assertThat(updatedRoomState.assignments()).hasSize(9);
+        assertThat(updatedRoomState.assignments()).hasSize(24);
         assertThat(updatedRoomState.assignments())
             .extracting(FlipbookFrameAssignment::flipbookIndex, FlipbookFrameAssignment::frameIndex,
                 FlipbookFrameAssignment::round, FlipbookFrameAssignment::assignedUserUuid,
                 FlipbookFrameAssignment::status)
-            .containsExactly(tuple(0, 0, 1, hostUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
+            .contains(tuple(0, 0, 1, hostUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
                 tuple(0, 1, 2, secondUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
                 tuple(0, 2, 3, thirdUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
+                tuple(0, 7, 8, secondUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
                 tuple(1, 0, 1, secondUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
                 tuple(1, 1, 2, thirdUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
                 tuple(1, 2, 3, hostUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
+                tuple(1, 7, 8, thirdUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
                 tuple(2, 0, 1, thirdUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
                 tuple(2, 1, 2, hostUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
-                tuple(2, 2, 3, secondUuid.toString(), FlipbookFrameAssignmentStatus.PENDING));
+                tuple(2, 2, 3, secondUuid.toString(), FlipbookFrameAssignmentStatus.PENDING),
+                tuple(2, 7, 8, hostUuid.toString(), FlipbookFrameAssignmentStatus.PENDING));
         assertThat(updatedRoomState.createdAt()).isEqualTo(roomState.createdAt());
         verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomState);
     }
@@ -318,8 +321,8 @@ class FlipbookRoomServiceImplTest {
             participant(hostUuid, "망고", true, 0), participant(participantUuid, "다현", false, 1),
             participant(thirdUuid, "포도", false, 2));
         LocalDateTime startedAt = LocalDateTime.now().minusSeconds(10).truncatedTo(ChronoUnit.SECONDS);
-        FlipbookRoomState playingRoomState = waitingRoomState.startGame(3,
-            FlipbookFrameAssignmentGenerator.generate(waitingRoomState.participants(), 3), startedAt);
+        FlipbookRoomState playingRoomState = waitingRoomState.startGame(8,
+            FlipbookFrameAssignmentGenerator.generate(waitingRoomState.participants(), 8), startedAt);
         given(anonymousUserResolver.resolve(participantUuid.toString())).willReturn(participantUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
         given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(playingRoomState));
@@ -329,7 +332,7 @@ class FlipbookRoomServiceImplTest {
 
         assertThat(response.roomCode()).isEqualTo(ROOM_CODE);
         assertThat(response.currentRound()).isEqualTo(1);
-        assertThat(response.totalRounds()).isEqualTo(3);
+        assertThat(response.totalRounds()).isEqualTo(8);
         assertThat(response.flipbookIndex()).isEqualTo(1);
         assertThat(response.frameIndex()).isZero();
         assertThat(response.assignmentStatus()).isEqualTo(FlipbookFrameAssignmentStatus.PENDING);
@@ -439,7 +442,7 @@ class FlipbookRoomServiceImplTest {
 
         assertThat(response.status()).isEqualTo(FlipbookRoomStatus.PLAYING);
         assertThat(response.participantCount()).isEqualTo(3);
-        assertThat(response.totalRounds()).isEqualTo(3);
+        assertThat(response.totalRounds()).isEqualTo(8);
 
         ArgumentCaptor<FlipbookRoomState> expectedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
         ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
@@ -448,7 +451,7 @@ class FlipbookRoomServiceImplTest {
         assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
         assertThat(updatedStateCaptor.getAllValues().get(1).participants())
             .isEqualTo(secondReadRoomState.participants());
-        assertThat(updatedStateCaptor.getAllValues().get(1).totalRounds()).isEqualTo(3);
+        assertThat(updatedStateCaptor.getAllValues().get(1).totalRounds()).isEqualTo(8);
         verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedStateCaptor.getAllValues().get(1));
     }
 

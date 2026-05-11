@@ -5,6 +5,7 @@ import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.admin.repository.AdminUserRepository;
 import com.nemonicworld.auth.service.AdminTokenStore;
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -106,8 +107,20 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } catch (RuntimeException e) {
             SecurityContextHolder.clearContext();
+            StructuredEventLogger.auditWarn("admin_token_invalid", "admin token invalid", resolveTraceId(request),
+                StructuredEventLogger.metadata("path", resolveRequestPath(request), "method", request.getMethod(),
+                    "reason_code", e.getClass().getSimpleName()));
             writeUnauthorizedResponse(response);
         }
+    }
+
+    private String resolveTraceId(HttpServletRequest request) {
+        String traceId = request.getHeader("X-Trace-Id");
+        if (traceId == null || traceId.isBlank()) {
+            traceId = request.getHeader("X-Request-Id");
+        }
+
+        return traceId;
     }
 
     private void writeUnauthorizedResponse(HttpServletResponse response) throws IOException {

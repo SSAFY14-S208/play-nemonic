@@ -268,10 +268,10 @@ public class FlipbookRoomPolicy {
     }
 
     /**
-     * 참여자 수에 맞춰 플립북당 최소 8프레임이 보장되는 기본 라운드 수를 계산합니다.
+     * 플립북당 최소 8프레임이 보장되는 기본 라운드 수를 반환합니다.
      */
-    int resolveDefaultTotalRounds(int participantCount) {
-        return (int) Math.ceil((double) MIN_FRAMES_PER_FLIPBOOK / participantCount);
+    int resolveDefaultTotalRounds() {
+        return MIN_FRAMES_PER_FLIPBOOK;
     }
 
     /**

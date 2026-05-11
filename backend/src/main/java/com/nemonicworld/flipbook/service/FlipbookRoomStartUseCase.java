@@ -45,7 +45,7 @@ public class FlipbookRoomStartUseCase {
             flipbookRoomPolicy.validateStartableRoomStatus(roomState);
 
             List<FlipbookRoomParticipant> startParticipants = flipbookRoomPolicy.findStartParticipants(roomState);
-            int totalRounds = flipbookRoomPolicy.resolveDefaultTotalRounds(startParticipants.size());
+            int totalRounds = flipbookRoomPolicy.resolveDefaultTotalRounds();
             List<FlipbookFrameAssignment> assignments = FlipbookFrameAssignmentGenerator.generate(startParticipants,
                 totalRounds);
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
