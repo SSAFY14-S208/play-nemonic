@@ -35,6 +35,7 @@ function drawStrokeLineOnContext(
   context.lineJoin = 'round'
   context.lineWidth = line.strokeWidth
   context.strokeStyle = line.color
+  context.globalAlpha = line.opacity ?? 1
 
   if (
     line.compositeOperation === 'destination-out' ||
@@ -65,6 +66,7 @@ function drawFallbackFillOnContext(context: CanvasRenderingContext2D, line: Draw
 
   context.save()
   context.fillStyle = line.color
+  context.globalAlpha = line.opacity ?? 1
   context.beginPath()
   context.moveTo(firstPoint.x, firstPoint.y)
 

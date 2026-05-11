@@ -27,12 +27,14 @@ export async function createBucketFillLine({
   backgroundColor,
   boardSize,
   fillColor,
+  fillOpacity = 1,
   lines,
   pointerPosition,
 }: {
   backgroundColor: string
   boardSize: DrawingBoardSize
   fillColor: string
+  fillOpacity?: number
   lines: DrawingLine[]
   pointerPosition: DrawingPoint
 }) {
@@ -62,6 +64,7 @@ export async function createBucketFillLine({
     alpha: sourcePixels[seedPixelOffset + 3],
   }
   const selectedFillColor = parseHexColor(fillColor)
+  const selectedFillAlpha = Math.round(Math.min(Math.max(fillOpacity, 0), 1) * 255)
 
   if (
     targetColor.alpha > TRANSPARENT_ALPHA_TOLERANCE &&
@@ -101,7 +104,7 @@ export async function createBucketFillLine({
     fillPixels[currentPixelOffset] = selectedFillColor.red
     fillPixels[currentPixelOffset + 1] = selectedFillColor.green
     fillPixels[currentPixelOffset + 2] = selectedFillColor.blue
-    fillPixels[currentPixelOffset + 3] = 255
+    fillPixels[currentPixelOffset + 3] = selectedFillAlpha
     filledPixelCount += 1
 
     const currentX = currentPixelIndex % canvasWidth
@@ -122,6 +125,7 @@ export async function createBucketFillLine({
     kind: 'fill' as const,
     color: fillColor,
     strokeWidth: 0,
+    opacity: 1,
     points: [],
     imageDataUrl: fillCanvas.toDataURL('image/png'),
   }

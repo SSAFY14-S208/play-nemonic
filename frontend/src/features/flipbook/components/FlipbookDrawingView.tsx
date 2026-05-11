@@ -48,12 +48,14 @@ interface FlipbookDrawingViewProps {
   previousFrameLines: DrawingLine[]
   selectedToolKey: DrawingToolKey
   selectedColor: string
+  selectedOpacity: number
   strokeWidth: number
   recentColors: string[]
   canUndoDrawing: boolean
   canRedoDrawing: boolean
   onSelectTool: (toolKey: DrawingToolKey) => void
   onSelectColor: (color: string) => void
+  onOpacityChange: (opacity: number) => void
   onStrokeWidthChange: (strokeWidth: number) => void
   onUndoDrawing: () => void
   onRedoDrawing: () => void
@@ -78,12 +80,14 @@ export default function FlipbookDrawingView({
   previousFrameLines,
   selectedToolKey,
   selectedColor,
+  selectedOpacity,
   strokeWidth,
   recentColors,
   canUndoDrawing,
   canRedoDrawing,
   onSelectTool,
   onSelectColor,
+  onOpacityChange,
   onStrokeWidthChange,
   onUndoDrawing,
   onRedoDrawing,
@@ -240,9 +244,11 @@ export default function FlipbookDrawingView({
         <MobileColorGrid
           colors={FLIPBOOK_COLORS}
           selectedColor={selectedColor}
+          selectedOpacity={selectedOpacity}
           strokeWidth={strokeWidth}
           isDrawingLocked={isDrawingLocked}
           onSelectColor={onSelectColor}
+          onOpacityChange={onOpacityChange}
           onStrokeWidthChange={onStrokeWidthChange}
         />
 
@@ -298,9 +304,11 @@ export default function FlipbookDrawingView({
             className={cn(isDrawingLocked && 'pointer-events-none opacity-60')}
             colors={FLIPBOOK_COLORS}
             selectedColor={selectedColor}
+            selectedOpacity={selectedOpacity}
             strokeWidth={strokeWidth}
             recentColors={recentColors}
             onSelectColor={onSelectColor}
+            onOpacityChange={onOpacityChange}
             onStrokeWidthChange={onStrokeWidthChange}
           />
 

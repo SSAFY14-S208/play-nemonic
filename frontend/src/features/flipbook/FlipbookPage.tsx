@@ -99,12 +99,14 @@ export default function FlipbookPage() {
           previousFrameLines={flipbook.previousFrameLines}
           selectedToolKey={flipbook.drawingBoard.selectedToolKey}
           selectedColor={flipbook.drawingBoard.selectedColor}
+          selectedOpacity={flipbook.drawingBoard.selectedOpacity}
           strokeWidth={flipbook.drawingBoard.strokeWidth}
           recentColors={flipbook.drawingBoard.recentColors}
           canUndoDrawing={flipbook.drawingBoard.canUndoDrawing}
           canRedoDrawing={flipbook.drawingBoard.canRedoDrawing}
           onSelectTool={flipbook.drawingBoard.setSelectedToolKey}
           onSelectColor={flipbook.drawingBoard.setSelectedColor}
+          onOpacityChange={flipbook.drawingBoard.setSelectedOpacity}
           onStrokeWidthChange={flipbook.drawingBoard.setStrokeWidth}
           onUndoDrawing={flipbook.drawingBoard.undoDrawing}
           onRedoDrawing={flipbook.drawingBoard.redoDrawing}

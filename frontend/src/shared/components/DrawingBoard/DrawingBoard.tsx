@@ -164,6 +164,7 @@ function DrawingLineGroup({
               key={line.id}
               points={line.points.flatMap((point) => [point.x, point.y])}
               fill={line.color}
+              opacity={line.opacity ?? 1}
               closed
               listening={false}
             />
@@ -176,6 +177,7 @@ function DrawingLineGroup({
             points={line.points.flatMap((point) => [point.x, point.y])}
             stroke={line.color}
             strokeWidth={line.strokeWidth}
+            opacity={line.opacity ?? 1}
             tension={0.45}
             lineCap="round"
             lineJoin="round"
