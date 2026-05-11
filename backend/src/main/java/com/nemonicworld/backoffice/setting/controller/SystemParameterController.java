@@ -2,7 +2,7 @@ package com.nemonicworld.backoffice.setting.controller;
 
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
-import com.nemonicworld.backoffice.setting.dto.request.SystemParameterBulkUpdateRequest;
+import com.nemonicworld.backoffice.setting.dto.request.SystemParameterTypedUpdateRequest;
 import com.nemonicworld.backoffice.setting.dto.response.SystemParameterListResponse;
 import com.nemonicworld.backoffice.setting.service.SystemParameterService;
 import com.nemonicworld.common.jwt.AdminPrincipal;
@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -64,14 +65,25 @@ public class SystemParameterController {
     }
 
     @PatchMapping
-    @Operation(summary = "시스템 파라미터 일괄 수정", description = "관리자가 시스템 파라미터 여러 건을 한 트랜잭션으로 일괄 수정합니다.")
+    @Operation(summary = "시스템 파라미터 일괄 수정", description = "관리자가 요청 본문에 포함한 시스템 파라미터 필드만 한 트랜잭션으로 수정합니다. "
+        + "여러 필드 중 하나라도 유효하지 않으면 전체 수정은 실패합니다.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = SystemParameterTypedUpdateRequest.class), examples = @ExampleObject(name = "Update relay participant limit", value = """
+        {
+          "relayRoomParticipantLimit": {
+            "min": 3,
+            "max": 8,
+            "unit": "people",
+            "description": "Relay room participant limit"
+          }
+        }
+        """)))
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "시스템 파라미터 수정 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값이 올바르지 않음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SYSTEM_PARAMETER_BULK_UPDATE_INVALID))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
     public ResponseEntity<ApiResponse<SystemParameterListResponse>> bulkUpdateSystemParameters(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
-        @Valid @RequestBody SystemParameterBulkUpdateRequest request, HttpServletRequest servletRequest) {
+        @Valid @RequestBody SystemParameterTypedUpdateRequest request, HttpServletRequest servletRequest) {
         AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
         SystemParameterListResponse response = systemParameterService.bulkUpdate(adminPrincipal, request, clientInfo);
 

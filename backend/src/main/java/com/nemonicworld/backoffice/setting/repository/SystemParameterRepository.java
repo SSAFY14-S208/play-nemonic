@@ -66,6 +66,23 @@ public class SystemParameterRepository {
         return jdbcTemplate.query(sql, this::mapParameter, ids.toArray());
     }
 
+    public List<SystemParameter> findAllByKeys(List<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String placeholders = keys.stream().map(key -> "?").collect(Collectors.joining(", "));
+        String sql = SELECT_COLUMNS + """
+            FROM backoffice_setting s
+            LEFT JOIN admin_user a ON a.id = s.updated_by
+            WHERE s.setting_key IN (""" + placeholders + """
+            )
+            ORDER BY s.setting_key ASC, s.id ASC
+            """;
+
+        return jdbcTemplate.query(sql, this::mapParameter, keys.toArray());
+    }
+
     public Optional<SystemParameter> findByKey(String key) {
         if (!StringUtils.hasText(key)) {
             return Optional.empty();

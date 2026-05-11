@@ -5,13 +5,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.auth.service.AdminAuditLogger;
 import com.nemonicworld.auth.service.AdminClientInfo;
-import com.nemonicworld.backoffice.setting.dto.request.SystemParameterBulkUpdateItem;
-import com.nemonicworld.backoffice.setting.dto.request.SystemParameterBulkUpdateRequest;
+import com.nemonicworld.backoffice.setting.dto.request.SystemParameterTypedUpdateRequest;
 import com.nemonicworld.backoffice.setting.dto.response.SystemParameterListResponse;
 import com.nemonicworld.backoffice.setting.dto.response.SystemParameterResponse;
 import com.nemonicworld.backoffice.setting.entity.SystemParameter;
 import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository;
 import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository.UpdateValueCommand;
+import com.nemonicworld.backoffice.setting.service.SystemParameterTypedUpdateMapper.TypedUpdateValue;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
@@ -39,10 +39,17 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private static final Logger log = LoggerFactory.getLogger(SystemParameterServiceImpl.class);
 
     private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
-    private static final String DUPLICATE_ID_MESSAGE = "동일한 시스템 파라미터 ID가 중복되었습니다.";
-    private static final String NOT_FOUND_MESSAGE_FORMAT = "존재하지 않는 시스템 파라미터입니다. id=%s";
+    private static final String EMPTY_UPDATE_MESSAGE = "수정할 시스템 파라미터를 지정해주세요.";
+    private static final String NOT_FOUND_MESSAGE_FORMAT = "존재하지 않는 시스템 파라미터입니다. key=%s";
     private static final String INVALID_VALUE_MESSAGE = "시스템 파라미터 값을 직렬화하지 못했습니다.";
     private static final String INVALID_RELAY_PARTICIPANT_LIMIT_MESSAGE = "릴레이 방 참여 인원 설정이 올바르지 않습니다.";
+    private static final String INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE = "시스템 파라미터 값이 올바르지 않습니다.";
+    private static final String FLIPBOOK_PARTICIPANT_LIMIT_SETTING_KEY = "flipbook.room_participant_limit";
+    private static final Set<String> TIME_LIMIT_SETTING_KEYS = Set.of("relay.room_time_limit_seconds",
+        "flipbook.room_time_limit_seconds");
+    private static final Set<String> POSITIVE_VALUE_SETTING_KEYS = Set.of("community.max_memo_count",
+        "relay.reconnect_grace_seconds", "flipbook.min_frames_per_flipbook", "flipbook.reconnect_grace_seconds",
+        "fortune.daily_limit", "cs_inquiry.unresolved_alert_threshold_hours");
     private static final String REDACTED_VALUE = "[redacted]";
     private static final List<String> SENSITIVE_KEY_TOKENS = List.of("password", "secret", "token", "jwt",
         "authorization", "webhook", "smtp", "api_key", "apikey", "access_key", "refresh");
@@ -74,35 +81,35 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     @Override
     @Transactional
     public SystemParameterListResponse bulkUpdate(AdminPrincipal adminPrincipal,
-        SystemParameterBulkUpdateRequest request, AdminClientInfo clientInfo) {
+        SystemParameterTypedUpdateRequest request, AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
 
-        List<SystemParameterBulkUpdateItem> items = request.items();
-        List<Long> requestedIds = items.stream().map(SystemParameterBulkUpdateItem::id).toList();
-        Set<Long> uniqueIds = new LinkedHashSet<>(requestedIds);
-        if (uniqueIds.size() != requestedIds.size()) {
-            throw new BadRequestException(DUPLICATE_ID_MESSAGE);
+        List<TypedUpdateValue> updates = SystemParameterTypedUpdateMapper.extractUpdates(request, objectMapper);
+        if (updates.isEmpty()) {
+            throw new BadRequestException(EMPTY_UPDATE_MESSAGE);
         }
 
-        List<SystemParameter> existing = systemParameterRepository.findAllByIds(requestedIds);
-        Map<Long, SystemParameter> existingById = new HashMap<>();
+        List<String> requestedKeys = updates.stream().map(TypedUpdateValue::key).toList();
+        List<SystemParameter> existing = systemParameterRepository.findAllByKeys(requestedKeys);
+        Map<String, SystemParameter> existingByKey = new HashMap<>();
         for (SystemParameter parameter : existing) {
-            existingById.put(parameter.id(), parameter);
+            existingByKey.put(parameter.key(), parameter);
         }
 
-        Set<Long> missingIds = new LinkedHashSet<>(requestedIds);
-        missingIds.removeAll(existingById.keySet());
-        if (!missingIds.isEmpty()) {
-            throw new BadRequestException(NOT_FOUND_MESSAGE_FORMAT.formatted(missingIds));
+        Set<String> missingKeys = new LinkedHashSet<>(requestedKeys);
+        missingKeys.removeAll(existingByKey.keySet());
+        if (!missingKeys.isEmpty()) {
+            throw new BadRequestException(NOT_FOUND_MESSAGE_FORMAT.formatted(missingKeys));
         }
 
-        for (SystemParameterBulkUpdateItem item : items) {
-            SystemParameter previous = existingById.get(item.id());
-            validateSystemParameterValue(previous.key(), item.value());
+        for (TypedUpdateValue update : updates) {
+            validateSystemParameterValue(update.key(), update.value());
         }
 
-        List<UpdateValueCommand> commands = items.stream()
-            .map(item -> new UpdateValueCommand(item.id(), serializeValue(item.value()), adminPrincipal.id())).toList();
+        List<UpdateValueCommand> commands = updates.stream().map(update -> {
+            SystemParameter previous = existingByKey.get(update.key());
+            return new UpdateValueCommand(previous.id(), serializeValue(update.value()), adminPrincipal.id());
+        }).toList();
 
         LocalDateTime now = LocalDateTime.now();
         systemParameterRepository.batchUpdateValues(commands, now);
@@ -113,16 +120,17 @@ public class SystemParameterServiceImpl implements SystemParameterService {
         }
         Map<String, Object> before = new LinkedHashMap<>();
         Map<String, Object> after = new LinkedHashMap<>();
-        for (SystemParameterBulkUpdateItem item : items) {
-            SystemParameter previous = existingById.get(item.id());
+        for (TypedUpdateValue update : updates) {
+            SystemParameter previous = existingByKey.get(update.key());
             before.put(previous.key(), safeParameterValue(previous.key(), previous.value()));
-            after.put(previous.key(), safeParameterValue(previous.key(), serializedById.get(item.id())));
+            after.put(previous.key(), safeParameterValue(previous.key(), serializedById.get(previous.id())));
             log.info("system-parameter updated id={} key={} updatedBy={}", previous.id(), previous.key(),
                 adminPrincipal.id());
         }
-        emitAfterCommit(() -> adminAuditLogger.logParamChange(adminPrincipal, "bulk:%d".formatted(items.size()),
+        emitAfterCommit(() -> adminAuditLogger.logParamChange(adminPrincipal, "bulk:%d".formatted(updates.size()),
             clientInfo, before, after));
 
+        List<Long> requestedIds = updates.stream().map(update -> existingByKey.get(update.key()).id()).toList();
         List<SystemParameterResponse> updatedItems = systemParameterRepository.findAllByIds(requestedIds).stream()
             .map(parameter -> SystemParameterResponse.from(parameter, parseValue(parameter.value()))).toList();
 
@@ -164,15 +172,74 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     }
 
     private void validateSystemParameterValue(String key, JsonNode value) {
-        if (!RelayRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY.equals(key)) {
+        if (RelayRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY.equals(key)
+            || FLIPBOOK_PARTICIPANT_LIMIT_SETTING_KEY.equals(key)) {
+            validateParticipantLimit(value);
             return;
         }
 
+        if (TIME_LIMIT_SETTING_KEYS.contains(key)) {
+            validateTimeLimit(value);
+            return;
+        }
+
+        if (POSITIVE_VALUE_SETTING_KEYS.contains(key)) {
+            validatePositiveValue(value);
+        }
+    }
+
+    private void validateParticipantLimit(JsonNode value) {
         try {
             RelayRoomParticipantLimit.fromJson(value);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(INVALID_RELAY_PARTICIPANT_LIMIT_MESSAGE);
         }
+    }
+
+    private void validateTimeLimit(JsonNode value) {
+        ensureObject(value);
+        int defaultSeconds = requirePositiveIntegerField(value, "default");
+        JsonNode allowed = value.get("allowed");
+        if (allowed == null) {
+            return;
+        }
+        if (!allowed.isArray() || allowed.isEmpty()) {
+            throw new BadRequestException(INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE);
+        }
+
+        boolean containsDefault = false;
+        for (JsonNode option : allowed) {
+            int optionSeconds = requirePositiveIntegerValue(option);
+            if (optionSeconds == defaultSeconds) {
+                containsDefault = true;
+            }
+        }
+        if (!containsDefault) {
+            throw new BadRequestException(INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE);
+        }
+    }
+
+    private void validatePositiveValue(JsonNode value) {
+        ensureObject(value);
+        requirePositiveIntegerField(value, "value");
+    }
+
+    private void ensureObject(JsonNode value) {
+        if (value == null || !value.isObject()) {
+            throw new BadRequestException(INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE);
+        }
+    }
+
+    private int requirePositiveIntegerField(JsonNode value, String fieldName) {
+        return requirePositiveIntegerValue(value.get(fieldName));
+    }
+
+    private int requirePositiveIntegerValue(JsonNode value) {
+        if (value == null || !value.isIntegralNumber() || !value.canConvertToInt() || value.asInt() <= 0) {
+            throw new BadRequestException(INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE);
+        }
+
+        return value.asInt();
     }
 
     private Object safeParameterValue(String key, String value) {
