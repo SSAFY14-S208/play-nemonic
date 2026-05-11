@@ -62,7 +62,7 @@ class InviteServiceImplTest {
     @BeforeEach
     void setUp() {
         inviteService = new InviteServiceImpl(inviteRepository, anonymousUserResolver,
-            List.of(new RelayInviteJoinHandler(relayRoomRepository, relayInviteMetadataSyncService)));
+            List.of(new RelayInviteJoinHandler(relayRoomRepository, relayInviteMetadataSyncService, 10L)));
     }
 
     /**
@@ -213,6 +213,46 @@ class InviteServiceImplTest {
     }
 
     /**
+     * 게임 중 끊긴 기존 참여자는 재접속 유예 시간이 지나면 초대코드 복귀도 거부됩니다.
+     */
+    @Test
+    void joinByInviteCodeRejectsExistingRelayParticipantAfterReconnectGracePeriod() {
+        AppUser joiner = user(JOINER_UUID, "다현");
+        RelayRoomState roomState = room(RelayRoomStatus.PLAYING, hostParticipant(),
+            disconnectedParticipant(JOINER_UUID, "다현", false, 1, 11));
+
+        given(anonymousUserResolver.resolve(JOINER_UUID)).willReturn(joiner);
+        given(inviteRepository.findByInviteCode(INVITE_CODE)).willReturn(Optional.of(activeInvite()));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> inviteService.joinByInviteCode(INVITE_CODE, JOINER_UUID))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
+
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
+    /**
+     * 이미 이탈 확정된 릴레이 참여자는 초대코드 복귀도 거부됩니다.
+     */
+    @Test
+    void joinByInviteCodeRejectsDroppedRelayParticipant() {
+        AppUser joiner = user(JOINER_UUID, "다현");
+        RelayRoomState roomState = room(RelayRoomStatus.PLAYING, hostParticipant(),
+            droppedParticipant(JOINER_UUID, "다현", false, 1));
+
+        given(anonymousUserResolver.resolve(JOINER_UUID)).willReturn(joiner);
+        given(inviteRepository.findByInviteCode(INVITE_CODE)).willReturn(Optional.of(activeInvite()));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> inviteService.joinByInviteCode(INVITE_CODE, JOINER_UUID))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
+
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
+    /**
      * 릴레이 방에서 강퇴된 UUID는 초대코드 입장 경로로도 재입장할 수 없습니다.
      */
     @Test
@@ -252,6 +292,21 @@ class InviteServiceImplTest {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         return new RelayRoomParticipant(userUuid, nickname, host, joinOrder, true, null, now);
+    }
+
+    private RelayRoomParticipant disconnectedParticipant(String userUuid, String nickname, boolean host, int joinOrder,
+        int disconnectedSecondsAgo) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomParticipant(userUuid, nickname, host, joinOrder, false,
+            now.minusSeconds(disconnectedSecondsAgo), now.minusMinutes(5));
+    }
+
+    private RelayRoomParticipant droppedParticipant(String userUuid, String nickname, boolean host, int joinOrder) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomParticipant(userUuid, nickname, host, joinOrder, false, now.minusSeconds(20),
+            now.minusMinutes(5), true, now.minusSeconds(10));
     }
 
     private AppUser user(String userUuid, String nickname) {
