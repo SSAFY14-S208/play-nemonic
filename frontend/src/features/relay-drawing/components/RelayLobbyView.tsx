@@ -46,7 +46,7 @@ export default function RelayLobbyView() {
   const waitingSlotCount = Math.max(0, maxParticipants - participants.length);
   const startButtonLabel = isStarting
     ? "시작 중…"
-    : `🎨 게임 시작 (${participants.length}명)`;
+    : `게임 시작 (${participants.length}명)`;
 
   return (
     <section className="relative isolate min-h-full overflow-hidden border border-relay-border bg-relay-background">
@@ -71,7 +71,7 @@ export default function RelayLobbyView() {
           <div
             className={cn(
               PANEL_CARD_CLASS,
-              "order-1 flex flex-col items-center gap-4",
+              "order-1 flex flex-col items-center gap-3",
             )}
           >
             <p className="h3-b text-relay-ink/80">입장 코드</p>
@@ -151,7 +151,7 @@ export default function RelayLobbyView() {
             )}
           >
             <h2 className="h3-b text-relay-muted">⏱ 제한 시간</h2>
-            <div className="mt-5 grid grid-cols-3 gap-3">
+            <div className="mt-4 grid grid-cols-3 gap-2.5">
               {RELAY_TIME_LIMITS_SECONDS.map((seconds) => {
                 const isSelected = seconds === timeLimitSeconds;
                 return (
@@ -161,7 +161,7 @@ export default function RelayLobbyView() {
                     onClick={() => changeTimeLimit(seconds)}
                     disabled={!isHost}
                     className={cn(
-                      "body-b min-h-12 cursor-pointer rounded-[12px] border border-relay-line bg-relay-active text-relay-accent transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:brightness-100",
+                      "body-b min-h-10 cursor-pointer rounded-[12px] border border-relay-line bg-relay-active text-relay-accent transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:brightness-100",
                       isSelected &&
                         "border-relay-accent bg-relay-accent/20 text-relay-ink",
                       !isHost && !isSelected && "opacity-60",
@@ -185,13 +185,13 @@ export default function RelayLobbyView() {
               <RelayButton
                 onClick={startGame}
                 disabled={!canStartGame}
-                size="xl"
-                className="rounded-3xl shadow-[0_6px_16px_rgba(184,121,22,0.4)]"
+                size="lg"
+                className="rounded-2xl shadow-[0_6px_16px_rgba(184,121,22,0.4)]"
               >
                 {startButtonLabel}
               </RelayButton>
             ) : (
-              <div className="body-r grid min-h-16 place-items-center rounded-3xl border border-dashed border-relay-accent px-6 text-relay-muted">
+              <div className="body-r grid min-h-13 place-items-center rounded-2xl border border-dashed border-relay-accent px-5 text-relay-muted">
                 방장이 게임을 시작할 때까지 기다려주세요
               </div>
             )}
@@ -230,11 +230,11 @@ function ParticipantTile({
   return (
     <div
       className={cn(
-        "flex min-h-14 items-center gap-3 rounded-2xl border border-relay-line bg-relay-active px-3.5",
+        "flex min-h-11 items-center gap-2.5 rounded-2xl border border-relay-line bg-relay-active px-3",
         !participant.connected && "opacity-60",
       )}
     >
-      <span className="grid size-9 place-items-center rounded-full bg-relay-paper text-[14px] font-bold text-relay-ink">
+      <span className="grid size-7 place-items-center rounded-full bg-relay-paper text-[12px] font-bold text-relay-ink">
         {avatarChar}
       </span>
       <span className="body-b flex-1 truncate text-relay-ink">
