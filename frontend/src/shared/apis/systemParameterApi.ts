@@ -8,7 +8,7 @@ import type {
 
 import { apiUnwrap } from '@/shared/utils'
 
-// GET /backoffice/system-parameters — 시스템 파라미터 조회
+// GET /backoffice/system-parameters — 시스템 파라미터 조회 ({ items, totalElements })
 export const getSystemParameters = (params?: SystemParameterListParams) =>
   apiUnwrap(
     adminApi.get<ApiResponse<SystemParameterListResponse>>(
