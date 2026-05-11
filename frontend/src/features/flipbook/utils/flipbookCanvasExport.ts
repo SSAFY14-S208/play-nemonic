@@ -6,7 +6,7 @@ import {
 } from '../constants'
 
 export const FLIPBOOK_FILE_CONTENT_TYPE = 'image/png'
-export const FLIPBOOK_FILE_PURPOSE = 'FLIPBOOK'
+export const FLIPBOOK_FILE_PURPOSE = 'FLIPBOOK_FRAME'
 
 export async function createCanvasBlobFromLines(lines: DrawingLine[]) {
   const renderedCanvas = await renderLinesToRasterCanvas({
