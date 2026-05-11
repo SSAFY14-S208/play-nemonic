@@ -73,6 +73,8 @@ export const HUB_FLIPBOOK_RUNNING_RABBIT_CENTER_X = 0
 export const HUB_FLIPBOOK_RUNNING_RABBIT_CENTER_Z = 0
 export const HUB_FLIPBOOK_RUNNING_RABBIT_ROTATION_Y = Math.PI / 2
 export const HUB_RELAY_DRAWING_PATH = '/relay-drawing'
+export const HUB_COMMUNITY_CANVAS_PATH = '/community-canvas'
+export const HUB_FLIPBOOK_PATH = '/flipbook'
 export const HUB_RELAY_DRAWING_PLACEHOLDER_POSITION: [number, number, number] = [-4.45, 0.96, 4.35]
 export const HUB_RELAY_DRAWING_PLACEHOLDER_ROTATION_Y = -0.34
 export const HUB_RELAY_DRAWING_PLACEHOLDER_CUBES: Array<{
