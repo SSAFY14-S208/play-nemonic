@@ -142,6 +142,14 @@ Last updated: 2026-05-10
 - Admin login, failed login, and logout events emit structured JSON audit logs
   to stdout using the `08-observability.md` audit schema, with no RDB audit log
   table.
+- Admin account creation and deletion also emit `admin_account_create` and
+  `admin_account_delete` stdout JSON audit logs after successful service
+  transactions; the application still does not write directly to Kafka or
+  OpenSearch.
+- Admin community memo hide/restore now emit `memo_soft_delete` and
+  `memo_restore` stdout JSON audit logs after successful service transactions;
+  bulk memo review and `report_review_decided` remain pending because no
+  current admin API exists for those operations.
 - `admin_user.login_id` is made unique through Flyway V5.
 - Room code generation is available through `RoomCodeGenerator`, producing 6-character uppercase human-readable codes and supporting repository-backed collision checks with `generateUnique(...)`.
 - Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `relay:room:{roomCode}` with a 24-hour TTL, creates the host participant with `connected=false` until WebSocket CONNECT succeeds, and creates no PostgreSQL artifact/gallery rows.
@@ -434,6 +442,15 @@ Recent community admin review work added admin memo list/detail plus manual hide
 - Admin community keyword search escapes SQL `LIKE` wildcard characters so `%` and `_` are treated as literal search text.
 - Common query performance now has Flyway V13 indexes for active gallery ownership lookups, artifact source-room result scans, CS inquiry admin list filters, and GMS prompt list/latest lookups.
 - Admin keyword searches for community memos, CS inquiries, GMS prompts, and system parameters now escape SQL `LIKE` wildcard characters consistently.
+
+Recent backoffice audit log emit work aligned remaining operator mutation APIs with the observability spec and the stdout -> Fluent Bit -> Kafka `logs.audit` -> OpenSearch `audit-logs-*` pipeline.
+
+- CS inquiry mutations emit `inquiry_status_change` and `inquiry_reply_send` after successful transaction commit. Audit snapshots include only status/assignee metadata, not inquiry body, reply body, email address, or attachments.
+- GMS prompt create/update/delete emit the documented `prompt_update` event with `metadata.action` set to `create`, `update`, or `delete`. Prompt body text is excluded; updates only flag `content_changed`.
+- System parameter bulk update emits `param_change` with `target_id=bulk:<count>`. Safe `before`/`after` values are keyed by parameter name, and sensitive parameter keys such as password/secret/token/webhook/SMTP/API-key values are redacted.
+- Relay and flipbook backoffice forced closes emit `relay_room_force_close` and `flipbook_room_force_close` with `target_type=room`, `action=force_close`, and before/after status snapshots.
+- Still deferred because current APIs are missing or read-only: `prompt_rollback`, `inquiry_internal_memo`, `infinite_canvas_force_close`, `notification_send`, `electron_channel_change`, `electron_release_publish`, `memo_bulk_soft_delete`, `memo_bulk_restore`, and `report_review_decided`.
+- No Kafka producer, OpenSearch client, Fluent Bit config, audit RDB table, or audit migration was added; backend remains responsible only for one-line JSON emit to stdout.
 
 Recent relay logging work added structured event emission for the relay drawing lifecycle.
 

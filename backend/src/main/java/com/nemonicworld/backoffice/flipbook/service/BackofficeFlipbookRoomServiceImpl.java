@@ -3,6 +3,8 @@ package com.nemonicworld.backoffice.flipbook.service;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomDeleteResponse;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomListResponse;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomResponse;
+import com.nemonicworld.auth.service.AdminAuditLogger;
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.UnauthorizedException;
@@ -13,11 +15,11 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -37,14 +39,16 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
+    private final AdminAuditLogger adminAuditLogger;
 
     public BackofficeFlipbookRoomServiceImpl(FlipbookRoomRepository flipbookRoomRepository,
         FlipbookRoomPolicy flipbookRoomPolicy, FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
-        FlipbookRoomEventPublisher flipbookRoomEventPublisher) {
+        FlipbookRoomEventPublisher flipbookRoomEventPublisher, AdminAuditLogger adminAuditLogger) {
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.flipbookRoomPolicy = flipbookRoomPolicy;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
+        this.adminAuditLogger = adminAuditLogger;
     }
 
     @Override
@@ -74,8 +78,8 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
     }
 
     @Override
-    public BackofficeFlipbookRoomDeleteResponse deleteActiveFlipbookRoom(AdminPrincipal adminPrincipal,
-        String roomCode) {
+    public BackofficeFlipbookRoomDeleteResponse deleteActiveFlipbookRoom(AdminPrincipal adminPrincipal, String roomCode,
+        AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
         flipbookRoomPolicy.validateRoomCode(roomCode);
         LocalDateTime closedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -90,6 +94,8 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
             if (flipbookRoomRepository.saveIfUnchanged(roomState, closedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(closedRoomState);
                 flipbookRoomEventPublisher.publishRoomClosed(closedRoomState.roomCode(), closedRoomState.updatedAt());
+                adminAuditLogger.logFlipbookRoomForceClose(adminPrincipal, closedRoomState.roomCode(),
+                    roomState.status().name(), clientInfo);
                 return new BackofficeFlipbookRoomDeleteResponse(closedRoomState.roomCode());
             }
         }

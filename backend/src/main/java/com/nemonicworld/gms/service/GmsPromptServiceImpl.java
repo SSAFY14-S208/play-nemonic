@@ -1,5 +1,7 @@
 package com.nemonicworld.gms.service;
 
+import com.nemonicworld.auth.service.AdminAuditLogger;
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
@@ -15,11 +17,15 @@ import com.nemonicworld.gms.repository.GmsPromptRepository;
 import com.nemonicworld.gms.repository.GmsPromptUpdateCommand;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -41,14 +47,17 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     private static final int MAX_SIZE = 50;
 
     private final GmsPromptRepository gmsPromptRepository;
+    private final AdminAuditLogger adminAuditLogger;
 
-    public GmsPromptServiceImpl(GmsPromptRepository gmsPromptRepository) {
+    public GmsPromptServiceImpl(GmsPromptRepository gmsPromptRepository, AdminAuditLogger adminAuditLogger) {
         this.gmsPromptRepository = gmsPromptRepository;
+        this.adminAuditLogger = adminAuditLogger;
     }
 
     @Override
     @Transactional
-    public GmsPromptResponse createPrompt(AdminPrincipal adminPrincipal, GmsPromptCreateRequest request) {
+    public GmsPromptResponse createPrompt(AdminPrincipal adminPrincipal, GmsPromptCreateRequest request,
+        AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
 
         String name = normalizeRequiredTrimmed(request.name(), REQUIRED_NAME_MESSAGE);
@@ -63,7 +72,11 @@ public class GmsPromptServiceImpl implements GmsPromptService {
             adminPrincipal.id(), now, now);
 
         try {
-            return GmsPromptResponse.from(gmsPromptRepository.insertPrompt(command));
+            GmsPrompt createdPrompt = gmsPromptRepository.insertPrompt(command);
+            emitAfterCommit(() -> adminAuditLogger.logPromptUpdate(adminPrincipal, createdPrompt.getId().toString(),
+                "create", clientInfo, null, promptSnapshot(createdPrompt)));
+
+            return GmsPromptResponse.from(createdPrompt);
         } catch (DuplicateKeyException e) {
             throw new ConflictException(DUPLICATE_NAME_MESSAGE);
         }
@@ -99,22 +112,26 @@ public class GmsPromptServiceImpl implements GmsPromptService {
 
     @Override
     @Transactional
-    public void deletePrompt(AdminPrincipal adminPrincipal, Long promptId) {
+    public void deletePrompt(AdminPrincipal adminPrincipal, Long promptId, AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
 
-        gmsPromptRepository.findActiveById(promptId).orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
+        GmsPrompt existingPrompt = gmsPromptRepository.findActiveById(promptId)
+            .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
 
         LocalDateTime deletedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         int deletedCount = gmsPromptRepository.softDeleteById(promptId, deletedAt);
         if (deletedCount == 0) {
             throw new NotFoundException(PROMPT_NOT_FOUND_MESSAGE);
         }
+
+        emitAfterCommit(() -> adminAuditLogger.logPromptUpdate(adminPrincipal, promptId.toString(), "delete",
+            clientInfo, promptSnapshot(existingPrompt), promptDeletedSnapshot()));
     }
 
     @Override
     @Transactional
-    public GmsPromptResponse updatePrompt(AdminPrincipal adminPrincipal, Long promptId,
-        GmsPromptUpdateRequest request) {
+    public GmsPromptResponse updatePrompt(AdminPrincipal adminPrincipal, Long promptId, GmsPromptUpdateRequest request,
+        AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
         if (request == null || request.name() == null && request.content() == null && request.featureType() == null) {
             throw new BadRequestException(REQUIRED_UPDATE_FIELD_MESSAGE);
@@ -151,7 +168,11 @@ public class GmsPromptServiceImpl implements GmsPromptService {
                 throw new NotFoundException(PROMPT_NOT_FOUND_MESSAGE);
             }
 
-            return GmsPromptResponse.from(gmsPromptRepository.findActiveById(promptId).orElseThrow());
+            GmsPrompt updatedPrompt = gmsPromptRepository.findActiveById(promptId).orElseThrow();
+            emitAfterCommit(() -> adminAuditLogger.logPromptUpdate(adminPrincipal, promptId.toString(), "update",
+                clientInfo, promptSnapshot(existingPrompt), promptSnapshot(updatedPrompt, request.content() != null)));
+
+            return GmsPromptResponse.from(updatedPrompt);
         } catch (DuplicateKeyException e) {
             throw new ConflictException(DUPLICATE_NAME_MESSAGE);
         }
@@ -161,6 +182,43 @@ public class GmsPromptServiceImpl implements GmsPromptService {
         if (adminPrincipal == null) {
             throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
         }
+    }
+
+    private void emitAfterCommit(Runnable auditLog) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            auditLog.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                auditLog.run();
+            }
+        });
+    }
+
+    private Map<String, Object> promptSnapshot(GmsPrompt prompt) {
+        return promptSnapshot(prompt, false);
+    }
+
+    private Map<String, Object> promptSnapshot(GmsPrompt prompt, boolean contentChanged) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("id", prompt.getId().toString());
+        snapshot.put("name", prompt.getName());
+        snapshot.put("feature_type", prompt.getFeatureType());
+        if (contentChanged) {
+            snapshot.put("content_changed", true);
+        }
+
+        return snapshot;
+    }
+
+    private Map<String, Object> promptDeletedSnapshot() {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("deleted", true);
+
+        return snapshot;
     }
 
     private String normalizeRequired(String value, String message) {

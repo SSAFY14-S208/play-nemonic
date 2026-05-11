@@ -1,5 +1,6 @@
 package com.nemonicworld.backoffice.flipbook.controller;
 
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomDeleteResponse;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomListResponse;
 import com.nemonicworld.backoffice.flipbook.service.BackofficeFlipbookRoomService;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -42,9 +44,12 @@ public class BackofficeFlipbookRoomController {
     private static final String UPDATE_CONFLICT_EXAMPLE = OpenApiErrorExamples.BACKOFFICE_FLIPBOOK_ROOM_UPDATE_CONFLICT;
 
     private final BackofficeFlipbookRoomService backofficeFlipbookRoomService;
+    private final AdminClientInfoResolver adminClientInfoResolver;
 
-    public BackofficeFlipbookRoomController(BackofficeFlipbookRoomService backofficeFlipbookRoomService) {
+    public BackofficeFlipbookRoomController(BackofficeFlipbookRoomService backofficeFlipbookRoomService,
+        AdminClientInfoResolver adminClientInfoResolver) {
         this.backofficeFlipbookRoomService = backofficeFlipbookRoomService;
+        this.adminClientInfoResolver = adminClientInfoResolver;
     }
 
     @GetMapping
@@ -80,9 +85,10 @@ public class BackofficeFlipbookRoomController {
             @ExampleObject(name = "이미 종료된 방", value = OpenApiErrorExamples.FLIPBOOK_ROOM_CLOSED),
             @ExampleObject(name = "상태 갱신 충돌", value = UPDATE_CONFLICT_EXAMPLE)}))})
     public ResponseEntity<ApiResponse<BackofficeFlipbookRoomDeleteResponse>> deleteActiveFlipbookRoom(
-        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("roomCode") String roomCode) {
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("roomCode") String roomCode,
+        HttpServletRequest servletRequest) {
         BackofficeFlipbookRoomDeleteResponse response = backofficeFlipbookRoomService
-            .deleteActiveFlipbookRoom(adminPrincipal, roomCode);
+            .deleteActiveFlipbookRoom(adminPrincipal, roomCode, adminClientInfoResolver.resolve(servletRequest));
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(DELETE_SUCCESS_MESSAGE, response));

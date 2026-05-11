@@ -4,6 +4,8 @@ import com.nemonicworld.admin.dto.request.AdminCreateRequest;
 import com.nemonicworld.admin.dto.request.AdminPasswordChangeRequest;
 import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.admin.service.AdminService;
+import com.nemonicworld.auth.service.AdminClientInfo;
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -14,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -46,9 +49,11 @@ public class AdminController {
     private static final String PASSWORD_CHANGE_SUCCESS_MESSAGE = "관리자 비밀번호 변경 성공";
 
     private final AdminService adminService;
+    private final AdminClientInfoResolver adminClientInfoResolver;
 
-    public AdminController(AdminService adminService) {
+    public AdminController(AdminService adminService, AdminClientInfoResolver adminClientInfoResolver) {
         this.adminService = adminService;
+        this.adminClientInfoResolver = adminClientInfoResolver;
     }
 
     @PostMapping
@@ -60,8 +65,10 @@ public class AdminController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "슈퍼 관리자 권한 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_SUPER_ADMIN_REQUIRED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "중복 관리자 아이디", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_LOGIN_ID_DUPLICATED)))})
     public ResponseEntity<ApiResponse<AdminResponse>> createAdmin(
-        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @Valid @RequestBody AdminCreateRequest request) {
-        AdminResponse response = adminService.createAdmin(adminPrincipal, request);
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @Valid @RequestBody AdminCreateRequest request,
+        HttpServletRequest servletRequest) {
+        AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
+        AdminResponse response = adminService.createAdmin(adminPrincipal, request, clientInfo);
 
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(CREATE_SUCCESS_MESSAGE, response));
@@ -125,8 +132,9 @@ public class AdminController {
             @ExampleObject(name = "super", value = OpenApiErrorExamples.ADMIN_SUPER_DELETE)})),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "관리자 계정 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_ACCOUNT_NOT_FOUND)))})
     public ResponseEntity<ApiResponse<Void>> deleteAdmin(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
-        @PathVariable("adminId") Long adminId) {
-        adminService.deleteAdmin(adminPrincipal, adminId);
+        @PathVariable("adminId") Long adminId, HttpServletRequest servletRequest) {
+        AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
+        adminService.deleteAdmin(adminPrincipal, adminId, clientInfo);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(DELETE_SUCCESS_MESSAGE, null));

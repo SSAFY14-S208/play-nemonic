@@ -1,5 +1,6 @@
 package com.nemonicworld.inquiry.controller;
 
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -20,6 +21,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -51,9 +53,11 @@ public class AdminInquiryController {
         """;
 
     private final CsInquiryService csInquiryService;
+    private final AdminClientInfoResolver adminClientInfoResolver;
 
-    public AdminInquiryController(CsInquiryService csInquiryService) {
+    public AdminInquiryController(CsInquiryService csInquiryService, AdminClientInfoResolver adminClientInfoResolver) {
         this.csInquiryService = csInquiryService;
+        this.adminClientInfoResolver = adminClientInfoResolver;
     }
 
     @GetMapping
@@ -110,8 +114,9 @@ public class AdminInquiryController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "이메일 발송 실패", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
     public ResponseEntity<ApiResponse<CsInquiryReplyResponse>> replyInquiry(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("inquiryId") String inquiryId,
-        @Valid @RequestBody CsInquiryReplyRequest request) {
-        CsInquiryReplyResponse response = csInquiryService.replyInquiry(adminPrincipal, inquiryId, request);
+        @Valid @RequestBody CsInquiryReplyRequest request, HttpServletRequest servletRequest) {
+        CsInquiryReplyResponse response = csInquiryService.replyInquiry(adminPrincipal, inquiryId, request,
+            adminClientInfoResolver.resolve(servletRequest));
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(REPLY_SUCCESS_MESSAGE, response));
@@ -127,9 +132,9 @@ public class AdminInquiryController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "고객 문의 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INQUIRY_NOT_FOUND_EXAMPLE)))})
     public ResponseEntity<ApiResponse<CsInquiryStatusUpdateResponse>> updateInquiryStatus(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("inquiryId") String inquiryId,
-        @Valid @RequestBody CsInquiryStatusUpdateRequest request) {
+        @Valid @RequestBody CsInquiryStatusUpdateRequest request, HttpServletRequest servletRequest) {
         CsInquiryStatusUpdateResponse response = csInquiryService.updateInquiryStatus(adminPrincipal, inquiryId,
-            request);
+            request, adminClientInfoResolver.resolve(servletRequest));
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(STATUS_UPDATE_SUCCESS_MESSAGE, response));

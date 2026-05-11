@@ -1,9 +1,10 @@
 package com.nemonicworld.backoffice.relay.service;
 
-import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomDeleteResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomListResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomResponse;
+import com.nemonicworld.auth.service.AdminAuditLogger;
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.UnauthorizedException;
@@ -16,11 +17,11 @@ import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
 import com.nemonicworld.relay.service.close.RelayRoomCloseResult;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
@@ -41,13 +42,16 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
     private final RelayRoomPolicy relayRoomPolicy;
     private final RelayRoomCloseCommand relayRoomCloseCommand;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
+    private final AdminAuditLogger adminAuditLogger;
 
     public BackofficeRelayRoomServiceImpl(RelayRoomRepository relayRoomRepository, RelayRoomPolicy relayRoomPolicy,
-        RelayRoomCloseCommand relayRoomCloseCommand, RelayRoomEventPublisher relayRoomEventPublisher) {
+        RelayRoomCloseCommand relayRoomCloseCommand, RelayRoomEventPublisher relayRoomEventPublisher,
+        AdminAuditLogger adminAuditLogger) {
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
         this.relayRoomCloseCommand = relayRoomCloseCommand;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
+        this.adminAuditLogger = adminAuditLogger;
     }
 
     @Override
@@ -90,17 +94,12 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
 
             RelayRoomCloseResult closeResult = relayRoomCloseCommand.closeActiveRoomIfUnchanged(roomState, closedAt);
             if (closeResult.closed()) {
-                RelayRoomEventLogger.audit("relay_room_force_close",
-                    metadata("actor_id", adminPrincipal.id(), "actor_role", adminPrincipal.role().getValue(),
-                        "actor_ip", clientInfo.ipAddress(), "target_type", "room", "target_id", roomCode, "action",
-                        "force_close", "reason", "backoffice_force_close", "before",
-                        metadata("status", roomState.status(), "participant_count", roomState.participantCount()),
-                        "after", metadata("status", RelayRoomStatus.CLOSED, "closed_at", closeResult.closedAt()),
-                        "result", "success"));
                 RelayRoomEventLogger.apiBusiness("relay_room_closed",
                     metadata("room_id", closeResult.roomCode(), "close_reason", "admin_force", "room_status_before",
                         roomState.status(), "participant_count", roomState.participantCount()));
                 relayRoomEventPublisher.publishRoomClosed(closeResult.roomCode(), closeResult.closedAt());
+                adminAuditLogger.logRelayRoomForceClose(adminPrincipal, closeResult.roomCode(),
+                    roomState.status().name(), clientInfo);
                 return new BackofficeRelayRoomDeleteResponse(closeResult.roomCode());
             }
         }
