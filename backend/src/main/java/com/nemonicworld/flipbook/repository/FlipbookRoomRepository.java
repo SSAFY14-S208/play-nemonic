@@ -46,6 +46,16 @@ public interface FlipbookRoomRepository {
     List<FlipbookRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit);
 
     /**
+     * WAITING 상태에서 모든 참여자가 끊긴 채 idleCutoff 이전부터 방치된 방을 조회합니다.
+     */
+    List<FlipbookRoomState> findAbandonedWaitingRooms(LocalDateTime idleCutoff, int limit);
+
+    /**
+     * 비정상 상태 보정을 위해 참여자가 비어 있는 WAITING 방을 조회합니다.
+     */
+    List<FlipbookRoomState> findEmptyWaitingRooms(int limit);
+
+    /**
      * 현재 라운드 마감 시각이 지난 PLAYING 방을 최대 limit개 조회합니다.
      */
     List<FlipbookRoomState> findExpiredPlayingRooms(LocalDateTime roundDeadlineCutoff, int limit);
