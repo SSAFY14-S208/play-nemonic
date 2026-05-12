@@ -30,7 +30,6 @@ import {
   FLIPBOOK_BACKGROUND_COLOR,
   FLIPBOOK_BOARD_SIZE,
   FLIPBOOK_COLORS,
-  FLIPBOOK_TIME_LIMITS_SECONDS,
 } from '../constants'
 import type {
   FlipbookStep,
@@ -43,6 +42,7 @@ import {
   FLIPBOOK_FILE_CONTENT_TYPE,
   FLIPBOOK_FILE_PURPOSE,
   getAssignmentKey,
+  getFlipbookTimeLimitOptions,
   getFlipbookActionError,
   getNormalizedResultItems,
   getResultFrames,
@@ -115,7 +115,8 @@ export function useFlipbook({
   const [assignment, setAssignment] = useState<FlipbookAssignmentResponse | null>(null)
   const [previousFrameLines, setPreviousFrameLines] = useState<DrawingLine[]>([])
   const [selectedTimeLimitSeconds, setSelectedTimeLimitSeconds] =
-    useState<FlipbookTimeLimitSeconds>(FLIPBOOK_TIME_LIMITS_SECONDS[1])
+    useState<FlipbookTimeLimitSeconds>(45)
+  const [timeLimitOptions, setTimeLimitOptions] = useState<FlipbookTimeLimitSeconds[]>([])
   const [roundCount, setRoundCount] = useState<number | null>(null)
   const [, setStartedParticipantCount] = useState<number | null>(null)
   const [submittedAssignmentKeys, setSubmittedAssignmentKeys] = useState<Set<string>>(
@@ -230,6 +231,7 @@ export function useFlipbook({
       const nextRoomState = await getFlipbookRoom(targetRoomCode)
       setRoomState(nextRoomState)
       setSelectedTimeLimitSeconds(toFlipbookTimeLimitSeconds(nextRoomState.timeLimitSeconds))
+      setTimeLimitOptions(getFlipbookTimeLimitOptions(nextRoomState))
       setRoundCount(nextRoomState.totalRounds)
       setStartedParticipantCount((currentParticipantCount) => {
         if (nextRoomState.status === 'WAITING') return null
@@ -567,6 +569,7 @@ export function useFlipbook({
       const startedRoom = await postFlipbookRoomStart(roomCode)
       setRoomState(startedRoom)
       setSelectedTimeLimitSeconds(toFlipbookTimeLimitSeconds(startedRoom.timeLimitSeconds))
+      setTimeLimitOptions(getFlipbookTimeLimitOptions(startedRoom))
       setRoundCount(startedRoom.totalRounds)
       setStartedParticipantCount(getRoomParticipantCount(startedRoom))
       setSubmittedAssignmentKeys(new Set())
@@ -681,19 +684,22 @@ export function useFlipbook({
   const selectTimeLimit = useCallback(
     (timeLimitSeconds: FlipbookTimeLimitSeconds) => {
       if (!roomCode || !isHost || !isWaitingRoom) return
+      if (timeLimitOptions.length > 0 && !timeLimitOptions.includes(timeLimitSeconds)) return
+      if (timeLimitSeconds === selectedTimeLimitSeconds) return
 
       setSelectedTimeLimitSeconds(timeLimitSeconds)
       void (async () => {
         try {
           const updatedRoom = await patchFlipbookRoomSettings(roomCode, { timeLimitSeconds })
           setRoomState(updatedRoom)
+          setTimeLimitOptions(getFlipbookTimeLimitOptions(updatedRoom))
           setRoundCount(updatedRoom.totalRounds)
         } catch (error) {
           setErrorMessage(error instanceof Error ? error.message : '제한 시간 변경에 실패했습니다.')
         }
       })()
     },
-    [isHost, isWaitingRoom, roomCode],
+    [isHost, isWaitingRoom, roomCode, selectedTimeLimitSeconds, timeLimitOptions],
   )
 
   const kickParticipant = useCallback(
@@ -735,6 +741,7 @@ export function useFlipbook({
       setRoomCode(null)
       setRoomState(null)
       setRoundCount(null)
+      setTimeLimitOptions([])
       setStartedParticipantCount(null)
       setSubmittedAssignmentKeys(new Set())
       clearRoundTransitionFallbackTimer()
@@ -761,6 +768,7 @@ export function useFlipbook({
         setRoomCode(null)
         setRoomState(null)
         setRoundCount(null)
+        setTimeLimitOptions([])
         setStartedParticipantCount(null)
         setSubmittedAssignmentKeys(new Set())
         clearRoundTransitionFallbackTimer()
@@ -791,6 +799,7 @@ export function useFlipbook({
         setRoomCode(null)
         setRoomState(null)
         setRoundCount(null)
+        setTimeLimitOptions([])
         setStartedParticipantCount(null)
         setSubmittedAssignmentKeys(new Set())
         clearRoundTransitionFallbackTimer()
@@ -906,6 +915,7 @@ export function useFlipbook({
     roomCode,
     roomCodeDraft,
     selectedTimeLimitSeconds,
+    timeLimitOptions,
     roundCount: perParticipantRoundCount,
     drawingRoundCount,
     activeRoundIndex,

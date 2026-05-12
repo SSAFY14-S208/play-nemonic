@@ -34,6 +34,9 @@ export interface FlipbookRoomCreateResponse {
   status: FlipbookRoomStatus
   hostUserUuid: string
   timeLimitSeconds: number
+  allowedTimeLimitSeconds?: number[]
+  timeLimitOptions?: number[]
+  timeLimitSecondsOptions?: number[]
   minParticipants: number
   maxParticipants: number
   participantCount: number
@@ -82,6 +85,9 @@ export interface FlipbookRoomStateResponse {
   status: FlipbookRoomStatus
   hostUserUuid: string
   timeLimitSeconds: number
+  allowedTimeLimitSeconds?: number[]
+  timeLimitOptions?: number[]
+  timeLimitSecondsOptions?: number[]
   minParticipants: number
   maxParticipants: number
   participantCount: number
@@ -357,7 +363,7 @@ export interface FlipbookRoomParticipant {
 }
 
 export interface FlipbookSessionSettings {
-  timeLimitSeconds: 30 | 45 | 60
+  timeLimitSeconds: number
   roundCount: number
   frameCountPerFlipbook: number
 }

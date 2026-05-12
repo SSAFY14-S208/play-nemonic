@@ -2,7 +2,6 @@
 
 import { Clock3, UsersRound, type LucideIcon } from 'lucide-react'
 import { cn } from '@/shared/libs'
-import { FLIPBOOK_TIME_LIMITS_SECONDS } from '../../constants'
 import type { FlipbookShareActionKey } from '../../hooks'
 import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../../types'
 import FlipbookLobbyShareButton from '../FlipbookLobbyShareButton'
@@ -30,6 +29,7 @@ export default function FlipbookMobileLobbyLayout({
   minParticipants,
   maxParticipants,
   selectedTimeLimitSeconds,
+  timeLimitOptions,
   isHost,
   isBusy,
   canLeaveRoom,
@@ -52,6 +52,7 @@ export default function FlipbookMobileLobbyLayout({
   minParticipants: number
   maxParticipants: number
   selectedTimeLimitSeconds: number
+  timeLimitOptions: FlipbookTimeLimitSeconds[]
   isHost: boolean
   isBusy: boolean
   canLeaveRoom: boolean
@@ -134,7 +135,7 @@ export default function FlipbookMobileLobbyLayout({
           제한 시간
         </h3>
         <div className="mt-4 grid grid-cols-3 gap-2">
-          {FLIPBOOK_TIME_LIMITS_SECONDS.map((seconds) => (
+          {timeLimitOptions.map((seconds) => (
             <button
               key={seconds}
               type="button"

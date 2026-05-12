@@ -9,7 +9,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type { FlipbookConnectionStatus } from '@/shared/types'
-import { FLIPBOOK_TIME_LIMITS_SECONDS } from '../constants'
 import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../types'
 import FlipbookLobbyShareButton from './FlipbookLobbyShareButton'
 import {
@@ -27,6 +26,7 @@ interface FlipbookLobbyViewProps {
   minParticipants: number
   maxParticipants: number
   selectedTimeLimitSeconds: number
+  timeLimitOptions: FlipbookTimeLimitSeconds[]
   connectionStatus: FlipbookConnectionStatus
   canStartGame: boolean
   isHost: boolean
@@ -60,6 +60,7 @@ export default function FlipbookLobbyView({
   minParticipants,
   maxParticipants,
   selectedTimeLimitSeconds,
+  timeLimitOptions,
   connectionStatus,
   canStartGame,
   isHost,
@@ -110,6 +111,7 @@ export default function FlipbookLobbyView({
         minParticipants={minParticipants}
         maxParticipants={maxParticipants}
         selectedTimeLimitSeconds={selectedTimeLimitSeconds}
+        timeLimitOptions={timeLimitOptions}
         isHost={isHost}
         isBusy={isBusy}
         canLeaveRoom={canLeaveRoom}
@@ -216,7 +218,7 @@ export default function FlipbookLobbyView({
                   제한 시간
                 </h3>
                 <div className="mt-6 grid grid-cols-3 gap-4">
-                  {FLIPBOOK_TIME_LIMITS_SECONDS.map((seconds) => (
+                  {timeLimitOptions.map((seconds) => (
                     <button
                       key={seconds}
                       type="button"
@@ -273,11 +275,6 @@ export default function FlipbookLobbyView({
               )}
               <span className="sr-only">{startGameButtonLabel}</span>
             </button>
-            {errorMessage && (
-              <p className="body-b mt-5 rounded-full bg-white/76 px-5 py-3 text-center text-[#cf5d68] shadow-[0_8px_18px_rgb(126_74_42_/_10%)]">
-                {errorMessage}
-              </p>
-            )}
             </section>
           </main>
         </div>

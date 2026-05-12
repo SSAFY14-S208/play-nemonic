@@ -11,7 +11,7 @@ export interface FlipbookParticipant {
   isConnected?: boolean
 }
 
-export type FlipbookTimeLimitSeconds = 30 | 45 | 60
+export type FlipbookTimeLimitSeconds = number
 
 export interface FlipbookFrame {
   id: string

@@ -73,6 +73,7 @@ export default function FlipbookPage() {
           minParticipants={flipbook.minParticipants}
           maxParticipants={flipbook.maxParticipants}
           selectedTimeLimitSeconds={flipbook.selectedTimeLimitSeconds}
+          timeLimitOptions={flipbook.timeLimitOptions}
           connectionStatus={flipbook.connectionStatus}
           canStartGame={flipbook.canStartGame}
           isHost={flipbook.isHost}

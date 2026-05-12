@@ -1,5 +1,5 @@
 import type { DrawingBoardSize } from '@/shared/types'
-import type { FlipbookStep, FlipbookTimeLimitSeconds } from './types'
+import type { FlipbookStep } from './types'
 
 export const FLIPBOOK_STEPS: { key: FlipbookStep; label: string }[] = [
   { key: 'booth', label: '부스' },
@@ -59,7 +59,6 @@ export const FLIPBOOK_COLORS = [
   '#ffc7a6',
 ]
 
-export const FLIPBOOK_TIME_LIMITS_SECONDS = [30, 45, 60] as const satisfies readonly FlipbookTimeLimitSeconds[]
 export const FLIPBOOK_ROOM_CODE = 'ABC123'
 export const FLIPBOOK_TOPIC = '동물원에 간 우주비행사'
 export const FLIPBOOK_BACKGROUND_COLOR = '#ffffff'

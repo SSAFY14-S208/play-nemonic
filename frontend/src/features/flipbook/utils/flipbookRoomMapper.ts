@@ -1,21 +1,50 @@
 import type {
   DrawingLine,
   FlipbookAssignmentResponse,
+  FlipbookRoomCreateResponse,
   FlipbookRoomParticipantResponse,
   FlipbookRoomStateResponse,
 } from '@/shared/types'
 import { getDisplayImageUrl } from '@/shared/utils'
-import { FLIPBOOK_TIME_LIMITS_SECONDS } from '../constants'
 import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../types'
 
 export function isFlipbookTimeLimitSeconds(
   seconds: number,
 ): seconds is FlipbookTimeLimitSeconds {
-  return FLIPBOOK_TIME_LIMITS_SECONDS.includes(seconds as FlipbookTimeLimitSeconds)
+  return Number.isInteger(seconds) && seconds > 0
 }
 
-export function toFlipbookTimeLimitSeconds(seconds: number): FlipbookTimeLimitSeconds {
-  return isFlipbookTimeLimitSeconds(seconds) ? seconds : FLIPBOOK_TIME_LIMITS_SECONDS[1]
+export function toFlipbookTimeLimitSeconds(
+  seconds: number,
+  fallback: FlipbookTimeLimitSeconds = 45,
+): FlipbookTimeLimitSeconds {
+  return isFlipbookTimeLimitSeconds(seconds) ? seconds : fallback
+}
+
+export function getFlipbookTimeLimitOptions(
+  roomState: FlipbookRoomCreateResponse | FlipbookRoomStateResponse | null,
+) {
+  if (!roomState) return []
+
+  const roomStateRecord = roomState as unknown as Record<string, unknown>
+  const serverOptions =
+    roomState.allowedTimeLimitSeconds ??
+    roomState.timeLimitOptions ??
+    roomState.timeLimitSecondsOptions ??
+    roomStateRecord.allowedTimeLimitSecondsList ??
+    roomStateRecord.allowedTimeLimits ??
+    roomStateRecord.allowedTimeLimitsSeconds ??
+    roomStateRecord.timeLimitSecondsAllowed ??
+    roomStateRecord.availableTimeLimitSeconds ??
+    roomStateRecord.availableTimeLimitSecondsList ??
+    roomStateRecord.availableTimeLimits ??
+    []
+  const normalizedServerOptions = Array.isArray(serverOptions) ? serverOptions : []
+  const options = [roomState.timeLimitSeconds, ...normalizedServerOptions].filter(
+    isFlipbookTimeLimitSeconds,
+  )
+
+  return Array.from(new Set(options))
 }
 
 export function toFlipbookParticipant(
