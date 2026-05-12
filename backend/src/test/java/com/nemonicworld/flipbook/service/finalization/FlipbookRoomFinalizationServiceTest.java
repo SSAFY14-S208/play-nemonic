@@ -113,6 +113,19 @@ class FlipbookRoomFinalizationServiceTest {
         verify(flipbookResultStorage).upload(anyString(), any(byte[].class), eq("image/png"));
     }
 
+    @Test
+    void triggerFinalizationReturnsNoOpWhenImmediateFinalizationFails() {
+        RuntimeException error = new RuntimeException("boom");
+        given(flipbookRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(error);
+
+        FlipbookRoomFinalizationResult result = service.triggerFinalization(ROOM_CODE);
+
+        assertThat(result.processed()).isFalse();
+        verify(flipbookRoomRepository).releaseFinalizationLock(eq(ROOM_CODE), anyString());
+    }
+
     private FlipbookRoomState finalizingRoomState() {
         return new FlipbookRoomState(ROOM_CODE, FlipbookRoomStatus.FINALIZING, HOST_UUID.toString(), 45, 2, 6, 8, 8,
             NOW.minusSeconds(45), NOW, NOW.minusMinutes(6),
