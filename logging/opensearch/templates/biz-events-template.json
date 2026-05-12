@@ -71,6 +71,9 @@
             "goal_name":         { "type": "keyword" },
             "last_step_name":    { "type": "keyword" },
             "reason":            { "type": "keyword" },
+            "reject_reason":     { "type": "keyword" },
+            "room_status":       { "type": "keyword" },
+            "exception_type":    { "type": "keyword" },
             "share_type":        { "type": "keyword" },
             "metric_name":       { "type": "keyword" },
             "value":             { "type": "double" }
