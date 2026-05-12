@@ -54,6 +54,70 @@ class ClientLogControllerIntegrationTest {
     }
 
     @Test
+    void ingestAcceptsClientLifecycleEventsWithoutTraceId(CapturedOutput output) throws Exception {
+        String events = """
+            {
+              "@timestamp": "2026-05-12T16:01:29.104+09:00",
+              "level": "INFO",
+              "service": "client-web",
+              "event_name": "client_alive",
+              "uuid": "fe091d62-90a5-4b77-aa43-9fc79bc4230d",
+              "session_id": "a7f98bb0-d18e-46e1-b62a-067df0872a98",
+              "path": "/relay-drawing/QFFGAA",
+              "metadata": {
+                "viewport": {
+                  "width": 616,
+                  "height": 956
+                },
+                "platform": "desktop",
+                "locale": "ko-KR",
+                "network": "4g",
+                "time_in_session_ms": 30176
+              }
+            },
+            {
+              "@timestamp": "2026-05-12T16:01:53.280+09:00",
+              "level": "INFO",
+              "service": "client-web",
+              "event_name": "session_end",
+              "uuid": "fe091d62-90a5-4b77-aa43-9fc79bc4230d",
+              "session_id": "a7f98bb0-d18e-46e1-b62a-067df0872a98",
+              "path": "/relay-drawing/QFFGAA",
+              "metadata": {
+                "viewport": {
+                  "width": 616,
+                  "height": 956
+                },
+                "platform": "desktop",
+                "locale": "ko-KR",
+                "network": "4g",
+                "last_path": "/relay-drawing/QFFGAA"
+              }
+            }
+            """;
+
+        mockMvc
+            .perform(post(CLIENT_LOG_ENDPOINT).header(HttpHeaders.ORIGIN, ALLOWED_ORIGIN)
+                .header("X-Forwarded-For", "203.0.113.19").contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody(events)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.acceptedCount").value(2)).andExpect(jsonPath("$.data.droppedCount").value(0))
+            .andExpect(jsonPath("$.data.systemRoutedCount").value(0));
+
+        JsonNode aliveLog = findLog(output, "client_alive");
+        assertThat(aliveLog.path("trace_id").asText()).isNotBlank();
+        assertThat(aliveLog.path("path").asText()).isEqualTo("/relay-drawing/QFFGAA");
+        assertThat(aliveLog.path("session_id").asText()).isEqualTo("a7f98bb0-d18e-46e1-b62a-067df0872a98");
+        assertThat(aliveLog.path("metadata").path("client_timestamp").asText())
+            .isEqualTo("2026-05-12T16:01:29.104+09:00");
+        assertThat(aliveLog.path("metadata").path("viewport").path("width").asInt()).isEqualTo(616);
+        assertThat(aliveLog.path("metadata").path("time_in_session_ms").asInt()).isEqualTo(30176);
+
+        JsonNode sessionEndLog = findLog(output, "session_end");
+        assertThat(sessionEndLog.path("metadata").path("last_path").asText()).isEqualTo("/relay-drawing/QFFGAA");
+    }
+
+    @Test
     void ingestRejectsMoreThanMaxEventsPerRequest() throws Exception {
         String events = IntStream.range(0, 201).mapToObj(index -> validEvent("client_alive"))
             .collect(Collectors.joining(","));
@@ -110,7 +174,7 @@ class ClientLogControllerIntegrationTest {
         String event = """
             {
               "@timestamp": "2026-05-12T10:00:00+09:00",
-              "service": "client-web",
+              "trace_id": "trace-page-view",
               "event_name": "page_view"
             }
             """;
@@ -123,7 +187,7 @@ class ClientLogControllerIntegrationTest {
             .andExpect(jsonPath("$.data.droppedCount").value(1));
 
         JsonNode log = findLog(output, "client_log_events_dropped");
-        assertThat(log.path("metadata").path("reason").asText()).isEqualTo("missing_trace_id");
+        assertThat(log.path("metadata").path("reason").asText()).isEqualTo("missing_service");
     }
 
     @Test
