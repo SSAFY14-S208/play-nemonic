@@ -13,7 +13,7 @@ import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
-import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationService;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
 import java.time.LocalDateTime;
@@ -46,7 +46,7 @@ class FlipbookFrameSubmitControllerIntegrationTest {
     private FlipbookRoomEventPublisher flipbookRoomEventPublisher;
 
     @MockitoBean
-    private FlipbookRoomFinalizationService flipbookRoomFinalizationService;
+    private FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService;
 
     /**
      * POST 요청을 프레임 제출 유스케이스로 위임하고 제출 이벤트를 발행합니다.
@@ -126,6 +126,6 @@ class FlipbookFrameSubmitControllerIntegrationTest {
         verify(flipbookRoomService).submitFrame(eq(participantUuid.toString()), eq(ROOM_CODE), eq(3), eq(request));
         verify(flipbookRoomEventPublisher).publishFrameSubmitted(response);
         verify(flipbookRoomEventPublisher).publishAllRoundsCompleted(ROOM_CODE, FlipbookRoomStatus.FINALIZING, now);
-        verify(flipbookRoomFinalizationService).triggerFinalization(ROOM_CODE);
+        verify(flipbookRoomFinalizationTriggerService).triggerFinalizationAsync(ROOM_CODE);
     }
 }

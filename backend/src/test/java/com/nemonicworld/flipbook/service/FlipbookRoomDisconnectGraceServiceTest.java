@@ -26,7 +26,7 @@ import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceProce
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceRoomResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookRoomDisconnectGraceService;
-import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationService;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import java.time.Duration;
@@ -71,7 +71,7 @@ class FlipbookRoomDisconnectGraceServiceTest {
     private FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
 
     @Mock
-    private FlipbookRoomFinalizationService flipbookRoomFinalizationService;
+    private FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService;
 
     private FlipbookRoomDisconnectGraceService flipbookRoomDisconnectGraceService;
 
@@ -80,7 +80,7 @@ class FlipbookRoomDisconnectGraceServiceTest {
         flipbookRoomDisconnectGraceService = new FlipbookRoomDisconnectGraceService(flipbookRoomRepository,
             flipbookSubmissionLockRepository, flipbookRoomMutationLockRepository, new FlipbookRoomRoundAdvanceService(),
             flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, flipbookRuntimeSettingsProvider,
-            flipbookRoomFinalizationService, 100, 5000L);
+            flipbookRoomFinalizationTriggerService, 100, 5000L);
         lenient().when(flipbookRuntimeSettingsProvider.currentReconnectGracePeriod())
             .thenReturn(Duration.ofSeconds(RECONNECT_GRACE_SECONDS));
         lenient().when(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))
@@ -192,7 +192,7 @@ class FlipbookRoomDisconnectGraceServiceTest {
         assertThat(captureUpdatedRoomState().status()).isEqualTo(FlipbookRoomStatus.FINALIZING);
         verify(flipbookRoomEventPublisher).publishAllRoundsCompleted(eq(ROOM_CODE), eq(FlipbookRoomStatus.FINALIZING),
             eq(NOW));
-        verify(flipbookRoomFinalizationService).triggerFinalization(ROOM_CODE);
+        verify(flipbookRoomFinalizationTriggerService).triggerFinalizationAsync(ROOM_CODE);
     }
 
     @Test
