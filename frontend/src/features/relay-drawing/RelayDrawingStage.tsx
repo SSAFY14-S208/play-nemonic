@@ -35,14 +35,20 @@ export default function RelayDrawingStage() {
   // 컨테이너 크기에 맞춰 Stage 사이즈를 비례 조정. ResizeObserver 콜백은 effect
   // 본문 동기 setState가 아니라 별도 callback으로 fire되므로 React Compiler 룰을
   // 위반하지 않는다. raf로 첫 측정도 똑같이 비동기화.
+  //
+  // 데스크탑 RelayDrawingView가 부모 div에 CSS transform: scale(...) 을 적용해
+  // 1536×1024 디자인 전체를 viewport에 맞춰 줄인다. getBoundingClientRect()는
+  // 그 transform이 반영된 viewport 좌표라 Konva Stage가 이미 줄어든 사이즈를
+  // 또 한 번 줄여 결과적으로 이중 스케일이 된다. offsetWidth/offsetHeight는
+  // layout 좌표(transform 무시)를 반환하므로, 데스크탑처럼 부모가 transform 되어
+  // 있어도 Stage는 디자인 좌표 그대로 측정되어 한 번만 스케일된다.
   useEffect(() => {
     const containerElement = containerRef.current
     if (!containerElement) return
 
     const updateStageDimensions = () => {
-      const rect = containerElement.getBoundingClientRect()
-      const containerWidth = rect.width
-      const containerHeight = rect.height
+      const containerWidth = containerElement.offsetWidth
+      const containerHeight = containerElement.offsetHeight
       if (containerWidth === 0 || containerHeight === 0) return
       const widthRatio = containerWidth / RELAY_STAGE_SIZE.width
       const heightRatio = containerHeight / RELAY_STAGE_SIZE.height

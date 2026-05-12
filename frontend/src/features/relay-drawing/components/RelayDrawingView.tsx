@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
+import { useEffect, useRef, useState } from 'react'
 import {
   ColorPanel,
   DrawingCompleteButton,
@@ -18,6 +19,7 @@ import type { DrawingToolKey } from '@/shared/types'
 import {
   RELAY_ROUND_ORDER,
   RELAY_ROUND_SEGMENTS,
+  RELAY_STAGE_SIZE,
 } from '../constants'
 import { useRelayDrawingGame } from '../hooks/useRelayDrawingGame'
 import { useRelayTimer } from '../hooks/useRelayTimer'
@@ -31,6 +33,13 @@ const RelayDrawingStage = dynamic(() => import('../RelayDrawingStage'), {
 const RELAY_DRAWING_IMAGES = {
   background: '/images/flipbook-lobby/background.png',
 }
+
+// 데스크탑(lg+) 그리기 화면은 1536×1024 디자인을 기준으로 절대 좌표로 배치되어
+// 있다. 작은 viewport에선 디자인 그대로 두면 클리핑되므로, 부모 크기를 측정해
+// 가로/세로 중 더 작은 비율로 scale을 동적으로 잡는다. 측정 전에는 0으로 두어
+// 첫 프레임의 클리핑 노출을 막는다.
+const DESKTOP_DESIGN_WIDTH = 1536
+const DESKTOP_DESIGN_HEIGHT = 1024
 
 export default function RelayDrawingView() {
   const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
@@ -95,9 +104,35 @@ export default function RelayDrawingView() {
     onRedo: redoLine,
   })
 
+  // 데스크탑 레이아웃 동적 스케일 — 부모 크기를 측정해 1536×1024 디자인이
+  // 정확히 들어맞는 scale을 계산. 측정 전 0이면 인너가 사라져 클리핑/플래시를
+  // 방지한다. ResizeObserver가 콜백에서 setState하므로 React Compiler effect-body
+  // 동기 setState 규칙을 위반하지 않는다.
+  const desktopWrapperRef = useRef<HTMLDivElement>(null)
+  const [desktopScale, setDesktopScale] = useState(0)
+
+  useEffect(() => {
+    const wrapper = desktopWrapperRef.current
+    if (!wrapper) return
+    const updateScale = () => {
+      const rect = wrapper.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return
+      const widthRatio = rect.width / DESKTOP_DESIGN_WIDTH
+      const heightRatio = rect.height / DESKTOP_DESIGN_HEIGHT
+      setDesktopScale(Math.min(widthRatio, heightRatio, 1))
+    }
+    const raf = requestAnimationFrame(updateScale)
+    const observer = new ResizeObserver(updateScale)
+    observer.observe(wrapper)
+    return () => {
+      cancelAnimationFrame(raf)
+      observer.disconnect()
+    }
+  }, [])
+
   return (
     <section
-      className="relative min-h-screen overflow-y-auto bg-[#fdf1e6] text-[#30343b] lg:grid lg:h-screen lg:place-items-center lg:overflow-hidden"
+      className="relative min-h-screen overflow-y-auto bg-[#fdf1e6] text-[#30343b] lg:grid lg:h-screen lg:overflow-hidden"
       aria-label="릴레이 드로잉"
     >
       <Image
@@ -146,8 +181,11 @@ export default function RelayDrawingView() {
           onStrokeWidthChange={setStrokeWidth}
         />
 
-        <div className="overflow-x-auto rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
-          <div className="relative h-[720px] w-[848px] overflow-hidden rounded-[8px] bg-white">
+        <div className="rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div
+            className="relative w-full overflow-hidden rounded-[8px] bg-white"
+            style={{ aspectRatio: `${RELAY_STAGE_SIZE.width} / ${RELAY_STAGE_SIZE.height}` }}
+          >
             <RelayDrawingStage />
             {overlayMessage && (
               <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-[#30343b]">
@@ -165,8 +203,18 @@ export default function RelayDrawingView() {
         />
       </div>
 
-      <div className="relative hidden h-[819.2px] w-[1228.8px] shrink-0 lg:block">
-        <div className="absolute left-0 top-0 h-[1024px] w-[1536px] origin-top-left scale-[0.8]">
+      <div
+        ref={desktopWrapperRef}
+        className="relative hidden lg:block lg:h-full lg:w-full"
+      >
+        <div
+          className="absolute left-1/2 top-1/2 origin-center"
+          style={{
+            width: DESKTOP_DESIGN_WIDTH,
+            height: DESKTOP_DESIGN_HEIGHT,
+            transform: `translate(-50%, -50%) scale(${desktopScale})`,
+          }}
+        >
           <TopStatusBar
             activeRoundIndex={activeRoundIndex}
             roundCount={RELAY_ROUND_ORDER.length}

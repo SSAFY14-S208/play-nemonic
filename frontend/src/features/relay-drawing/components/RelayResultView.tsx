@@ -85,11 +85,14 @@ export default function RelayResultView() {
             + 우측 Credits/Albums 상하 stack. viewport 잠금을 두지 않아 콘텐츠가
             늘어나면 자연스럽게 페이지 스크롤로 밀려난다. */}
         <main className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[7fr_5fr] lg:grid-rows-[1fr_auto] lg:gap-4">
-          {/* ② Canvas — 좌측 메인 영역 */}
+          {/* ② Canvas — 좌측 메인 영역. 캔버스가 RELAY_STAGE_SIZE(848:720) 비율로
+              고정돼 reveal 전환에도 같은 dimensions을 유지하므로, row-span으로 우측
+              컬럼 전체 높이를 끌어다 채울 필요가 없다. self-start로 위쪽 정렬만 잡고
+              컨텐츠 높이 그대로 둔다. */}
           <div
             className={cn(
               PANEL_CARD_CLASS,
-              "order-1 flex flex-col gap-3 lg:col-start-1 lg:row-start-1 lg:row-span-2",
+              "order-1 flex flex-col gap-3 lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:self-start",
             )}
           >
             {!isFinalReveal && (
