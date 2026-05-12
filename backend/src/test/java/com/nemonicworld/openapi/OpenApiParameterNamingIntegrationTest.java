@@ -53,6 +53,28 @@ class OpenApiParameterNamingIntegrationTest {
     }
 
     /**
+     * Swagger UI 탭별 문서가 업무 영역에 맞는 API만 포함하는지 확인합니다.
+     */
+    @Test
+    void openApiGroupsExposeRelatedApiPaths() throws Exception {
+        assertGroupContainsPaths("all", List.of("/api/v1/relay/rooms", "/api/v1/gallery", "/api/logs/client"),
+            List.of());
+        assertGroupContainsPaths("common",
+            List.of("/api/v1/users/anonymous", "/api/v1/auth/login", "/api/v1/files/presign"),
+            List.of("/api/v1/relay/rooms", "/api/v1/backoffice/system-parameters"));
+        assertGroupContainsPaths("contents",
+            List.of("/api/v1/gallery", "/api/v1/community/memos", "/api/v1/fortune/today"),
+            List.of("/api/v1/relay/rooms", "/api/v1/admins"));
+        assertGroupContainsPaths("games", List.of("/api/v1/relay/rooms", "/api/v1/flipbook/rooms"),
+            List.of("/api/v1/files/presign", "/api/v1/gallery"));
+        assertGroupContainsPaths("support-logs", List.of("/api/v1/inquiries", "/api/logs/client"),
+            List.of("/api/v1/admin/inquiries", "/api/v1/relay/rooms"));
+        assertGroupContainsPaths("backoffice",
+            List.of("/api/v1/admins", "/api/v1/admin/community/memos", "/api/v1/backoffice/system-parameters"),
+            List.of("/api/v1/inquiries", "/api/v1/relay/rooms"));
+    }
+
+    /**
      * 컨트롤러 파라미터 이름이 명시되지 않으면 Swagger에 arg0, arg1 같은 이름이 노출될 수 있습니다.
      */
     @Test
@@ -157,11 +179,27 @@ class OpenApiParameterNamingIntegrationTest {
     }
 
     private JsonNode getOpenApiRoot() throws Exception {
-        byte[] responseBody = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn().getResponse()
+        return getOpenApiRoot("/v3/api-docs");
+    }
+
+    private JsonNode getOpenApiRoot(String docsPath) throws Exception {
+        byte[] responseBody = mockMvc.perform(get(docsPath)).andExpect(status().isOk()).andReturn().getResponse()
             .getContentAsByteArray();
         String body = new String(responseBody, StandardCharsets.UTF_8);
 
         return objectMapper.readTree(body);
+    }
+
+    private void assertGroupContainsPaths(String group, List<String> expectedPaths, List<String> unexpectedPaths)
+        throws Exception {
+        JsonNode paths = getOpenApiRoot("/v3/api-docs/" + group).path("paths");
+
+        for (String expectedPath : expectedPaths) {
+            assertTrue(paths.has(expectedPath), () -> group + " OpenAPI group must include " + expectedPath);
+        }
+        for (String unexpectedPath : unexpectedPaths) {
+            assertTrue(!paths.has(unexpectedPath), () -> group + " OpenAPI group must not include " + unexpectedPath);
+        }
     }
 
     private boolean hasSecurityRequirement(JsonNode root, String path, String method) {

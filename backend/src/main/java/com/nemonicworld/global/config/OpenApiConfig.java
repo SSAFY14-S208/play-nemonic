@@ -8,6 +8,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springdoc.core.customizers.OpenApiCustomizer;
+import org.springdoc.core.models.GroupedOpenApi;
 
 @Configuration
 /**
@@ -35,5 +36,47 @@ public class OpenApiConfig {
     @Bean
     public OpenApiCustomizer openApiTagOrderCustomizer() {
         return openApi -> openApi.setTags(OpenApiTags.orderedTags());
+    }
+
+    @Bean
+    public GroupedOpenApi allApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
+        return groupedOpenApi("all", "전체 API", openApiTagOrderCustomizer, "/api/v1/**", "/api/logs/**");
+    }
+
+    @Bean
+    public GroupedOpenApi commonApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
+        return groupedOpenApi("common", "공통", openApiTagOrderCustomizer, "/api/v1/users/**", "/api/v1/auth/**",
+            "/api/v1/invites/**", "/api/v1/files/**");
+    }
+
+    @Bean
+    public GroupedOpenApi contentsApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
+        return groupedOpenApi("contents", "콘텐츠", openApiTagOrderCustomizer, "/api/v1/gallery", "/api/v1/gallery/**",
+            "/api/v1/artifacts/**", "/api/v1/share", "/api/v1/share/**", "/api/v1/community/memos",
+            "/api/v1/community/memos/**", "/api/v1/fortune", "/api/v1/fortune/**");
+    }
+
+    @Bean
+    public GroupedOpenApi gamesApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
+        return groupedOpenApi("games", "게임", openApiTagOrderCustomizer, "/api/v1/relay/rooms", "/api/v1/relay/rooms/**",
+            "/api/v1/flipbook/rooms", "/api/v1/flipbook/rooms/**");
+    }
+
+    @Bean
+    public GroupedOpenApi supportLogsApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
+        return groupedOpenApi("support-logs", "문의·로그", openApiTagOrderCustomizer, "/api/v1/inquiries",
+            "/api/v1/inquiries/**", "/api/logs/**");
+    }
+
+    @Bean
+    public GroupedOpenApi backofficeApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
+        return groupedOpenApi("backoffice", "백오피스", openApiTagOrderCustomizer, "/api/v1/admins", "/api/v1/admins/**",
+            "/api/v1/admin/**", "/api/v1/backoffice/**");
+    }
+
+    private GroupedOpenApi groupedOpenApi(String group, String displayName, OpenApiCustomizer openApiTagOrderCustomizer,
+        String... pathsToMatch) {
+        return GroupedOpenApi.builder().group(group).displayName(displayName).pathsToMatch(pathsToMatch)
+            .addOpenApiCustomizer(openApiTagOrderCustomizer).build();
     }
 }
