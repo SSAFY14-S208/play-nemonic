@@ -21,7 +21,7 @@ import org.springframework.util.StringUtils;
 public class ClientLogServiceImpl implements ClientLogService {
 
     private static final String RATE_LIMIT_EXCEEDED_MESSAGE = "클라이언트 로그 전송 한도를 초과했습니다.";
-    private static final Set<String> REQUIRED_FIELDS = Set.of("@timestamp", "event_name", "service", "trace_id");
+    private static final Set<String> REQUIRED_FIELDS = Set.of("@timestamp", "event_name", "service");
     private static final Set<String> ALLOWED_EVENT_NAMES = Set.of("page_view", "page_leave", "session_start",
         "session_end", "cta_clicked", "funnel_step_viewed", "funnel_step_completed", "funnel_abandoned",
         "landing_source_detected", "campaign_attributed", "share_link_opened", "scroll_depth_reached",
