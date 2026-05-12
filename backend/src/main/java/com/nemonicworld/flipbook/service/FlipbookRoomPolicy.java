@@ -38,7 +38,7 @@ public class FlipbookRoomPolicy {
     static final int MIN_FRAMES_PER_FLIPBOOK = FlipbookMinFramesPerFlipbookSettings.DEFAULT_MIN_FRAMES_PER_FLIPBOOK;
     static final int HOST_JOIN_ORDER = 0;
     public static final int ROOM_UPDATE_MAX_RETRIES = 3;
-    public static final long DEFAULT_RECONNECT_GRACE_SECONDS = FlipbookReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS;
+    public static final long DEFAULT_RECONNECT_GRACE_SECONDS = defaultReconnectGraceSeconds();
     public static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
     public static final String ROOM_CONNECTION_UPDATE_CONFLICT_MESSAGE = "동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 "
         + "갱신하지 못했습니다. 다시 시도해주세요.";
@@ -84,6 +84,10 @@ public class FlipbookRoomPolicy {
         this.roomCodeGenerator = roomCodeGenerator;
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.flipbookRuntimeSettingsProvider = flipbookRuntimeSettingsProvider;
+    }
+
+    private static long defaultReconnectGraceSeconds() {
+        return FlipbookReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS;
     }
 
     /**
