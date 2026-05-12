@@ -1,8 +1,10 @@
 "use client";
 
 import { motion } from "motion/react";
+import Image from "next/image";
 import { useState } from "react";
 
+import relayDrawingTitle from "../assets/relay-drawing-title.png";
 import { useRelayBooth } from "../hooks";
 import RelayBoothBackground from "./RelayBoothBackground";
 import RelayBoothEntrance from "./RelayBoothEntrance";
@@ -101,16 +103,14 @@ export default function RelayBoothView() {
               <span className="body-b inline-flex min-h-[43px] w-fit items-center rounded-full bg-relay-active px-5 text-relay-accent-strong">
                 2~6명
               </span>
-              <h1
-                className="text-relay-ink"
-                style={{
-                  // viewport 폭에 따라 30 ~ 49px로 fluid하게 스케일.
-                  fontSize: "clamp(1.875rem, 4vw, 49px)",
-                  fontWeight: 700,
-                  lineHeight: 1.25,
-                }}
-              >
-                우당탕 릴레이 드로잉
+              {/* 두 줄 로고 PNG. viewport 폭에 따라 280→340→420px로 fluid 스케일. */}
+              <h1 className="contents">
+                <Image
+                  src={relayDrawingTitle}
+                  alt="우당탕 릴레이 드로잉"
+                  priority
+                  className="h-auto w-full max-w-70 sm:max-w-85 lg:max-w-105"
+                />
               </h1>
               <div className="body-l-r flex flex-col text-relay-ink">
                 <p>얼굴 → 몸통 → 다리, 3라운드.</p>

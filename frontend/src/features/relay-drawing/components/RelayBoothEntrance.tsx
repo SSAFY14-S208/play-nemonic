@@ -13,9 +13,17 @@ const PART_SIZE = 150;
 const PART_GAP = 4;
 // part 1칸 step. 카메라가 한 part씩 panning할 때 이동량의 base.
 const PART_STEP = PART_SIZE + PART_GAP;
+// 아트워크 카드 1장의 총 높이 (3 parts + 2 gaps). 슬롯 ref의 명시 height에 사용해,
+// 첫 렌더에서 motion 트리가 마운트되지 않아도 slot이 0×0이 아닌 정확한 사이즈를 갖게 한다.
+// — measurement 가드로 인해 slot ref가 빈 div가 되면 getBoundingClientRect의 height=0이
+// 되고, centerOffset이 slot 중심이 아닌 slot 상단을 viewport 중심으로 끌어와 ARTWORK_HEIGHT/2
+// 만큼 아래로 어긋난다 (col-reverse 레이아웃에서만 증상이 보임).
+const ARTWORK_HEIGHT = 3 * PART_SIZE + 2 * PART_GAP;
 
-// 인트로 단계에서 한 part가 viewport 높이의 몇 %를 차지하도록 카메라를 줌인할지.
-// 0.85 → 한 part가 viewport 세로 ~85% 점유 (reference 이미지의 시점과 일치).
+// 인트로 단계에서 한 part가 viewport의 min(width, height) 기준 몇 %를 차지하도록 카메라를 줌인할지.
+// 0.85 → 한 part가 viewport 짧은 변 기준 ~85% 점유.
+// width와 height 둘 다 고려해 min을 잡지 않으면, 모바일 portrait에서 height 기준 scale이
+// width를 초과해 카드가 화면 좌우로 오버플로된다 (예: 375×800에서 scale 4.5 → part 폭 675px).
 const VIEWPORT_FILL_RATIO = 0.85;
 
 // 각 part가 spring으로 안착한 후 다음 카메라 pan을 시작하기 전 잠깐 머무는 시간(ms).
@@ -103,6 +111,23 @@ export default function RelayBoothEntrance({
     return () => window.removeEventListener("pointerdown", handleSkip);
   }, [isFinalState]);
 
+  // 인트로 진행 동안 페이지 스크롤을 일시 잠금. 모바일/태블릿(flex-col-reverse 레이아웃)에선
+  // 슬롯+텍스트 합산 높이가 viewport를 넘어 스크롤이 생기고, 사용자가 인트로 도중 스크롤하면
+  // 카메라가 mount 시 measure된 viewport center 좌표에 묶여 있어 화면 밖으로 어긋난다.
+  // 데스크탑은 lg:h-screen으로 스크롤이 없어 lock해도 시각적 변화 없음 (분기 불필요).
+  // 이전 overflow 값을 캡쳐 후 복원해, 외부 모달이 별도로 lock 중인 경우에도 망가지지 않게 한다.
+  useEffect(() => {
+    if (isFinalState) return;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isFinalState]);
+
   if (isFinalState) {
     return (
       <RelayBoothEntranceFinalState
@@ -153,12 +178,18 @@ function ChoreographyTree({
     const measure = () => {
       if (!slotRef.current) return;
       const rect = slotRef.current.getBoundingClientRect();
+      // 한 part가 viewport 짧은 변의 ~85%를 차지하도록 scale 계산.
+      // height 기준과 width 기준 둘 중 작은 값을 택해 화면 밖으로 넘치지 않게 보장.
+      const scaleByHeight =
+        (window.innerHeight * VIEWPORT_FILL_RATIO) / PART_SIZE;
+      const scaleByWidth =
+        (window.innerWidth * VIEWPORT_FILL_RATIO) / PART_SIZE;
       setMeasurement({
         centerOffset: {
           x: window.innerWidth / 2 - (rect.left + rect.width / 2),
           y: window.innerHeight / 2 - (rect.top + rect.height / 2),
         },
-        introScale: (window.innerHeight * VIEWPORT_FILL_RATIO) / PART_SIZE,
+        introScale: Math.min(scaleByHeight, scaleByWidth),
       });
     };
     // 첫 측정도 raf로 비동기화 — React Compiler가 useEffect 본문 동기 setState를 금지.
@@ -208,7 +239,16 @@ function ChoreographyTree({
   const revealCount = REVEAL_COUNT_BY_PHASE[phase];
 
   return (
-    <div ref={slotRef} className={cn("relative", className)}>
+    <div
+      ref={slotRef}
+      className={cn("relative", className)}
+      // motion 트리가 마운트되기 전에도 slot ref가 실제 아트워크 카드와 동일한 dimension을
+      // 갖도록 명시 사이즈를 부여. 빈 div(0×0) 상태에서 measurement가 일어나면 centerOffset이
+      // slot 중심이 아닌 상단을 기준으로 계산되어 카메라가 ARTWORK_HEIGHT/2(229px)만큼
+      // 아래로 어긋난다 (col-reverse 레이아웃에서만 발생: 데스크탑은 슬롯이 viewport 세로
+      // 중앙에 위치해 height=0이든 정확하든 centerOffset.y가 0으로 동일하게 떨어지기 때문).
+      style={{ width: PART_SIZE, height: ARTWORK_HEIGHT }}
+    >
       {measurement !== null && (
         <motion.div
           // Layer 1 — slot-positioner: viewport center ↔ slot center translate.
