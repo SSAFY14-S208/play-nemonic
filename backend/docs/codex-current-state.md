@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-11
+Last updated: 2026-05-12
 
 ## Current Focus
 
@@ -59,7 +59,9 @@ Last updated: 2026-05-11
   `POST /api/v1/admin/inquiries/{inquiryId}/reply`; the API sends SMTP mail
   before marking the inquiry `resolved`, then stores `assignedTo`,
   `responseNote`, `respondedAt`, and `updatedAt`. SMTP settings are
-  environment-driven through `MAIL_*` variables.
+  environment-driven through `MAIL_*` variables. `MAIL_FROM` falls back to
+  `MAIL_USERNAME`, and SMTP configuration/delivery failures now return 503
+  without resolving the inquiry.
 - Backoffice admins can now change a customer inquiry status through
   `PATCH /api/v1/admin/inquiries/{inquiryId}/status`; the API accepts
   `new`, `in_progress`, `resolved`, and `closed`, updates only `status` and

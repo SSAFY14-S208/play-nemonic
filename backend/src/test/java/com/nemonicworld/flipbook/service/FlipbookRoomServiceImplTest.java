@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -14,8 +15,8 @@ import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
-import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomMyAssignmentResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
@@ -26,6 +27,11 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
+import com.nemonicworld.invite.repository.InviteRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.Duration;
@@ -33,6 +39,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,8 +66,15 @@ class FlipbookRoomServiceImplTest {
     private FlipbookRoomRepository flipbookRoomRepository;
 
     @Mock
+    private InviteRepository inviteRepository;
+
+    @Mock
     private FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
+    @Mock
+    private FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
+
+    private FlipbookRoomCreateUseCase flipbookRoomCreateUseCase;
     private FlipbookRoomSettingsUseCase flipbookRoomSettingsUseCase;
     private FlipbookRoomStartUseCase flipbookRoomStartUseCase;
     private FlipbookRoomAssignmentQueryUseCase flipbookRoomAssignmentQueryUseCase;
@@ -69,8 +83,20 @@ class FlipbookRoomServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
+        lenient().when(flipbookRuntimeSettingsProvider.currentParticipantLimit())
+            .thenReturn(FlipbookRoomParticipantLimit.defaultLimit());
+        lenient().when(flipbookRuntimeSettingsProvider.currentRoomTimeLimitSettings())
+            .thenReturn(FlipbookRoomTimeLimitSettings.defaultSettings());
+        lenient().when(flipbookRuntimeSettingsProvider.currentMinFramesPerFlipbook())
+            .thenReturn(FlipbookRoomPolicy.MIN_FRAMES_PER_FLIPBOOK);
+        lenient().when(flipbookRuntimeSettingsProvider.currentReconnectGracePeriod())
+            .thenReturn(Duration.ofSeconds(FlipbookRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
+        FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository,
+            flipbookRuntimeSettingsProvider);
         FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
+        flipbookRoomCreateUseCase = new FlipbookRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator,
+            flipbookRoomRepository, inviteRepository, flipbookRoomPolicy, flipbookInviteMetadataSyncService,
+            flipbookRuntimeSettingsProvider);
         flipbookRoomSettingsUseCase = new FlipbookRoomSettingsUseCase(anonymousUserResolver, flipbookRoomRepository,
             flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);
         flipbookRoomStartUseCase = new FlipbookRoomStartUseCase(anonymousUserResolver, flipbookRoomRepository,
@@ -84,6 +110,32 @@ class FlipbookRoomServiceImplTest {
             flipbookRoomPolicy, flipbookInviteMetadataSyncService);
         flipbookRoomLeaveUseCase = new FlipbookRoomLeaveUseCase(anonymousUserResolver, flipbookRoomRepository,
             flipbookRoomPolicy, flipbookInviteMetadataSyncService);
+    }
+
+    @Test
+    void createRoomUsesRuntimeSettings() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.generateUnique(any())).willReturn(ROOM_CODE);
+        given(flipbookRuntimeSettingsProvider.currentParticipantLimit())
+            .willReturn(new FlipbookRoomParticipantLimit(3, 8));
+        given(flipbookRuntimeSettingsProvider.currentRoomTimeLimitSettings())
+            .willReturn(new FlipbookRoomTimeLimitSettings(60, Set.of(45, 60, 90)));
+
+        FlipbookRoomCreateResponse response = flipbookRoomCreateUseCase.createRoom(hostUuid.toString());
+
+        assertThat(response.timeLimitSeconds()).isEqualTo(60);
+        assertThat(response.minParticipants()).isEqualTo(3);
+        assertThat(response.maxParticipants()).isEqualTo(8);
+
+        ArgumentCaptor<FlipbookRoomState> savedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).save(savedStateCaptor.capture());
+        FlipbookRoomState savedRoomState = savedStateCaptor.getValue();
+        assertThat(savedRoomState.timeLimitSeconds()).isEqualTo(60);
+        assertThat(savedRoomState.minParticipants()).isEqualTo(3);
+        assertThat(savedRoomState.maxParticipants()).isEqualTo(8);
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(savedRoomState);
     }
 
     /**

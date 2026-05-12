@@ -527,7 +527,7 @@ class AdminInquiryControllerIntegrationTest {
             .perform(post("/api/v1/admin/inquiries/{inquiryId}/reply", 100L)
                 .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
                 .content(replyRequestBody("답변", "문의 답변입니다.")))
-            .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("이메일 발송에 실패했습니다."));
 
         assertThat(readStringColumn(100L, "status")).isEqualTo("new");

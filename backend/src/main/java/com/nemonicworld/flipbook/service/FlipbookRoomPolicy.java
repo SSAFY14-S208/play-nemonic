@@ -12,13 +12,17 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.support.FlipbookMinFramesPerFlipbookSettings;
+import com.nemonicworld.flipbook.service.support.FlipbookReconnectGraceSettings;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -28,13 +32,13 @@ import org.springframework.util.StringUtils;
 @Component
 public class FlipbookRoomPolicy {
 
-    static final int DEFAULT_TIME_LIMIT_SECONDS = 45;
-    static final int MIN_PARTICIPANTS = 2;
-    static final int MAX_PARTICIPANTS = 6;
-    static final int MIN_FRAMES_PER_FLIPBOOK = 8;
+    static final int DEFAULT_TIME_LIMIT_SECONDS = FlipbookRoomTimeLimitSettings.DEFAULT_TIME_LIMIT_SECONDS;
+    static final int MIN_PARTICIPANTS = FlipbookRoomParticipantLimit.DEFAULT_MIN_PARTICIPANTS;
+    static final int MAX_PARTICIPANTS = FlipbookRoomParticipantLimit.DEFAULT_MAX_PARTICIPANTS;
+    static final int MIN_FRAMES_PER_FLIPBOOK = FlipbookMinFramesPerFlipbookSettings.DEFAULT_MIN_FRAMES_PER_FLIPBOOK;
     static final int HOST_JOIN_ORDER = 0;
     public static final int ROOM_UPDATE_MAX_RETRIES = 3;
-    public static final long DEFAULT_RECONNECT_GRACE_SECONDS = 10L;
+    public static final long DEFAULT_RECONNECT_GRACE_SECONDS = FlipbookReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS;
     public static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
     public static final String ROOM_CONNECTION_UPDATE_CONFLICT_MESSAGE = "동시 접속 상태 변경 요청이 많아 플립북 방 연결 상태를 "
         + "갱신하지 못했습니다. 다시 시도해주세요.";
@@ -45,8 +49,6 @@ public class FlipbookRoomPolicy {
     public static final String ROOM_TIMEOUT_UPDATE_CONFLICT_MESSAGE = "동시 타임아웃 처리 요청이 많아 플립북 프레임 자동 제출 상태를 "
         + "갱신하지 못했습니다. 다시 시도해주세요.";
 
-    private static final Set<Integer> ALLOWED_TIME_LIMIT_SECONDS = Set.of(30, 45, 60);
-    private static final Duration RECONNECT_GRACE_PERIOD = Duration.ofSeconds(DEFAULT_RECONNECT_GRACE_SECONDS);
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String ROOM_NOT_FOUND_MESSAGE = "존재하지 않는 방입니다.";
@@ -75,10 +77,13 @@ public class FlipbookRoomPolicy {
 
     private final RoomCodeGenerator roomCodeGenerator;
     private final FlipbookRoomRepository flipbookRoomRepository;
+    private final FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
 
-    public FlipbookRoomPolicy(RoomCodeGenerator roomCodeGenerator, FlipbookRoomRepository flipbookRoomRepository) {
+    public FlipbookRoomPolicy(RoomCodeGenerator roomCodeGenerator, FlipbookRoomRepository flipbookRoomRepository,
+        FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider) {
         this.roomCodeGenerator = roomCodeGenerator;
         this.flipbookRoomRepository = flipbookRoomRepository;
+        this.flipbookRuntimeSettingsProvider = flipbookRuntimeSettingsProvider;
     }
 
     /**
@@ -103,8 +108,8 @@ public class FlipbookRoomPolicy {
      * 제한 시간 요청값을 검증합니다.
      */
     int resolveTimeLimitSeconds(FlipbookRoomSettingsRequest request) {
-        if (request == null || request.timeLimitSeconds() == null
-            || !ALLOWED_TIME_LIMIT_SECONDS.contains(request.timeLimitSeconds())) {
+        FlipbookRoomTimeLimitSettings settings = flipbookRuntimeSettingsProvider.currentRoomTimeLimitSettings();
+        if (request == null || request.timeLimitSeconds() == null || !settings.allows(request.timeLimitSeconds())) {
             throw new BadRequestException(INVALID_TIME_LIMIT_SECONDS_MESSAGE);
         }
 
@@ -310,7 +315,7 @@ public class FlipbookRoomPolicy {
      * 플립북당 최소 8프레임이 보장되는 기본 라운드 수를 반환합니다.
      */
     int resolveDefaultTotalRounds() {
-        return MIN_FRAMES_PER_FLIPBOOK;
+        return flipbookRuntimeSettingsProvider.currentMinFramesPerFlipbook();
     }
 
     /**
@@ -392,7 +397,9 @@ public class FlipbookRoomPolicy {
             return false;
         }
 
-        return !disconnectedAt.plus(RECONNECT_GRACE_PERIOD).isBefore(now);
+        Duration reconnectGracePeriod = flipbookRuntimeSettingsProvider.currentReconnectGracePeriod();
+
+        return !disconnectedAt.plus(reconnectGracePeriod).isBefore(now);
     }
 
     /**

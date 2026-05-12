@@ -92,7 +92,7 @@ nemonic:
 
   inquiry:
     mail:
-      from: ${MAIL_FROM:}
+      from: ${MAIL_FROM:${MAIL_USERNAME:}}
 
   community:
     moderation:

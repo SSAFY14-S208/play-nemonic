@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.nemonicworld.support.FlipbookRuntimeSettingsTestSupport.defaultFlipbookRoomPolicy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -54,7 +55,7 @@ class FlipbookRoomConnectionUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
+        FlipbookRoomPolicy flipbookRoomPolicy = defaultFlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
         FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
         flipbookRoomConnectionUseCase = new FlipbookRoomConnectionUseCase(anonymousUserResolver, flipbookRoomRepository,
             flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);

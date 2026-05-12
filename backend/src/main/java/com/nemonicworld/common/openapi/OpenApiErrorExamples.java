@@ -689,6 +689,12 @@ public final class OpenApiErrorExamples {
           "message": "서버 오류가 발생했습니다."
         }
         """;
+    public static final String EMAIL_DELIVERY_UNAVAILABLE = """
+        {
+          "success": false,
+          "message": "이메일 발송에 실패했습니다."
+        }
+        """;
     public static final String BAD_REQUEST = """
         {
           "success": false,

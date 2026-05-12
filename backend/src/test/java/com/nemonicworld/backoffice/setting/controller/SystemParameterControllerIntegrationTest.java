@@ -341,6 +341,48 @@ class SystemParameterControllerIntegrationTest {
         assertThat(objectMapper.readTree(findSettingValue(11L)).path("value").asInt()).isZero();
     }
 
+    @Test
+    void systemParameterTypedUpdateAcceptsFlipbookRuntimeSettings() throws Exception {
+        insertSetting(10L, "flipbook.room_participant_limit", "{\"min\":2,\"max\":6,\"unit\":\"people\"}", ADMIN_ID);
+        insertSetting(11L, "flipbook.room_time_limit_seconds",
+            "{\"default\":45,\"allowed\":[30,45,60],\"unit\":\"seconds\"}", ADMIN_ID);
+        insertSetting(12L, "flipbook.min_frames_per_flipbook", "{\"value\":8,\"unit\":\"frames\"}", ADMIN_ID);
+        insertSetting(13L, "flipbook.reconnect_grace_seconds", "{\"value\":10,\"unit\":\"seconds\"}", ADMIN_ID);
+
+        mockMvc
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "flipbookRoomParticipantLimit": {
+                            "min": 3,
+                            "max": 8,
+                            "unit": "people"
+                          },
+                          "flipbookRoomTimeLimitSeconds": {
+                            "default": 60,
+                            "allowed": [45, 60, 90],
+                            "unit": "seconds"
+                          },
+                          "flipbookMinFramesPerFlipbook": {
+                            "value": 10,
+                            "unit": "frames"
+                          },
+                          "flipbookReconnectGraceSeconds": {
+                            "value": 30,
+                            "unit": "seconds"
+                          }
+                        }
+                        """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.items.length()").value(4));
+
+        assertThat(objectMapper.readTree(findSettingValue(10L)).path("min").asInt()).isEqualTo(3);
+        assertThat(objectMapper.readTree(findSettingValue(11L)).path("default").asInt()).isEqualTo(60);
+        assertThat(objectMapper.readTree(findSettingValue(12L)).path("value").asInt()).isEqualTo(10);
+        assertThat(objectMapper.readTree(findSettingValue(13L)).path("value").asInt()).isEqualTo(30);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"{\"min\":1,\"max\":6}", "{\"min\":5,\"max\":4}", "{\"min\":\"2\",\"max\":6}",
         "{\"min\":2}", "{\"min\":2,\"max\":\"6\"}", "{\"min\":2,\"max\":21}", "[2,6]"})
@@ -358,6 +400,29 @@ class SystemParameterControllerIntegrationTest {
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false));
 
         assertThat(findSettingValue(10L)).isEqualTo("{\"min\":2,\"max\":6}");
+    }
+
+    @Test
+    void systemParameterTypedUpdateRejectsInvalidFlipbookTimeLimitWithKoreanMessage() throws Exception {
+        insertSetting(10L, "flipbook.room_time_limit_seconds",
+            "{\"default\":45,\"allowed\":[30,45,60],\"unit\":\"seconds\"}", ADMIN_ID);
+
+        mockMvc
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "flipbookRoomTimeLimitSeconds": {
+                            "default": 60,
+                            "allowed": [45, 90],
+                            "unit": "seconds"
+                          }
+                        }
+                        """))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("플립북 방 제한 시간 설정이 올바르지 않습니다."));
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"default\":45,\"allowed\":[30,45,60],\"unit\":\"seconds\"}");
     }
 
     @Test
