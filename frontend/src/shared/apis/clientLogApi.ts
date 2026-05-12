@@ -7,7 +7,7 @@ import type {
 
 import { apiUnwrap } from "@/shared/utils";
 
-// POST /logs/client/ingest — 클라이언트 로그 이벤트 수집
+// POST /logs/client — 클라이언트 로그 이벤트 수집
 export const postClientLogIngest = (payload: ClientLogIngestRequest) =>
   apiUnwrap(
     api.post<ApiResponse<ClientLogIngestResponse>>("logs/client", payload),
