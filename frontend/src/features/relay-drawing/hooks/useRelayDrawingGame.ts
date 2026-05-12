@@ -109,10 +109,8 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
   }, [roomStatus, roomCode, partFetchTrigger, setAssignment])
 
   // 캔버스를 Blob으로 캡처하는 헬퍼.
-  // body/legs는 상단 120px가 incoming hint zone(이전 파트의 결과 페이드)이고 그
-  // 아래 720이 사용자 drawing area다. 백엔드 합성에 들어가는 건 drawing area만이라
-  // raster에서 drawArea 영역을 잘라낸 848×720 blob을 만든다. face는 drawArea가 그대로
-  // 캔버스 전체(0..720)라 추출이 no-op이지만 동일한 코드 경로를 거친다.
+  // 모든 파트의 canvasHeight=720, drawArea={y:0, h:720}으로 동일하다.
+  // raster에서 drawArea 영역을 잘라낸 848×720 blob을 만든다.
   const captureCanvasBlob = useCallback(async (): Promise<Blob | null> => {
     const { activeRoundKey, roundLines } = useRelayDrawingStore.getState()
     const roundRule = RELAY_ROUND_RULES[activeRoundKey]
@@ -151,7 +149,7 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
 
   // outgoing hint 영역을 크롭해서 Blob으로 만드는 헬퍼.
   // face/body 라운드에서만 호출 — legs는 outgoing hint가 없다.
-  // outgoingHintArea의 y좌표는 캔버스 자체 좌표계 기준 (face: 600, body: 720).
+  // outgoingHintArea는 캔버스 하단 OVERLAP_HEIGHT 영역 (face/body 모두 y:600, h:120).
   const captureHintBlob = useCallback(async (): Promise<Blob | null> => {
     const { activeRoundKey, roundLines } = useRelayDrawingStore.getState()
     const roundRule = RELAY_ROUND_RULES[activeRoundKey]

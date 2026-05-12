@@ -27,8 +27,7 @@ export async function createBucketFillLine({
   lines,
   pointerPosition,
 }: CreateBucketFillLineArgs) {
-  // 라운드별로 canvas 높이가 다르다 (face=720, body/legs=840). raster를 정확한
-  // 크기로 만들어야 BFS가 hint zone까지 포함한 영역을 올바르게 다룬다.
+  // 모든 라운드에서 canvas 높이는 720으로 동일하다.
   const roundCanvasHeight = RELAY_ROUND_RULES[activeRoundKey].canvasHeight
   const rasterCanvas = await renderLinesToRasterCanvas(lines, roundCanvasHeight)
   if (!rasterCanvas) return null
