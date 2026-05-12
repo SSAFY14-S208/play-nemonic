@@ -90,14 +90,15 @@ same-server relay `WebSocketSessionRegistry`, and CAS-updates missing sessions t
 `relay_room_recovered_or_reconciled` and lets disconnect-grace or abandoned-close
 jobs perform the follow-up state transition in later ticks.
 
-When the last `LEGS` assignment completes through a user submission or timeout
-auto-submit, the successful `FINALIZING` CAS write emits `ALL_PARTS_COMPLETED`
-and then schedules one asynchronous immediate finalization attempt. This
-improves the normal user path without making the submission or timeout
-processing wait for composition, upload, and database writes. The immediate
-attempt does not loop on failure; failed attempts are recorded and the
-10-second scheduler remains responsible for later retries, server-restart
-recovery, lock-busy recovery, and partial-success recovery.
+When the last `LEGS` assignment completes through a user submission, timeout
+auto-submit, or disconnect-grace auto-submit, the successful `FINALIZING` CAS
+write emits `ALL_PARTS_COMPLETED` and then schedules one asynchronous immediate
+finalization attempt. This improves the normal user path without making the
+submission, timeout, or disconnect-grace processing wait for composition,
+upload, and database writes. The immediate attempt does not loop on failure;
+failed attempts are recorded and the 10-second scheduler remains responsible
+for later retries, server-restart recovery, lock-busy recovery, and
+partial-success recovery.
 
 Finalization processing uses a room-scoped Redis lock,
 `relay:room-finalization-lock:{roomCode}`, with a 120-second default TTL. Lock

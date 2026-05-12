@@ -39,11 +39,11 @@ hint object keys return `url=null`.
 
 When all parts are completed, move the room to `FINALIZING`, emit
 `ALL_PARTS_COMPLETED`, and schedule one asynchronous immediate finalization
-attempt. The submission or timeout processing that completed the room does not
-wait for finalization to finish. The finalization scheduler still scans
-`FINALIZING` rooms every 10 seconds after a short ready delay so failed
-immediate attempts, lock-busy rooms, server restarts, and partial-success states
-are retried and recovered. Both paths compose one
+attempt. The submission, timeout, or disconnect-grace processing that completed
+the room does not wait for finalization to finish. The finalization scheduler
+still scans `FINALIZING` rooms every 10 seconds after a short ready delay so
+failed immediate attempts, lock-busy rooms, server restarts, and
+partial-success states are retried and recovered. Both paths compose one
 `FACE`/`BODY`/`LEGS` PNG per `canvasIndex`.
 
 `nemonic.relay.finalization.overlap-height` defaults to `120` px to match the
