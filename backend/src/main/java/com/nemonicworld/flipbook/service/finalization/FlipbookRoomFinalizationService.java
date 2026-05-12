@@ -111,6 +111,19 @@ public class FlipbookRoomFinalizationService {
         return new FlipbookFinalizationProcessResult(finalizingRooms.size(), processedRoomCount, resultCount);
     }
 
+    public FlipbookRoomFinalizationResult triggerFinalization(String roomCode) {
+        FlipbookRoomEventLogger.apiBusiness("flipbook_finalization_immediate_triggered",
+            metadata("room_id", roomCode, "trigger_reason", "all_rounds_completed"));
+        try {
+            return processFinalizingRoom(roomCode);
+        } catch (RuntimeException e) {
+            log.warn("플립북 최종 GIF 결과물 즉시 생성 중 오류가 발생했습니다. roomCode={}", roomCode, e);
+            FlipbookRoomEventLogger.apiWarn("flipbook_finalization_failed", "failed to finalize flipbook room",
+                metadata("room_id", roomCode, "trigger", "immediate"), e);
+            return FlipbookRoomFinalizationResult.noOp(roomCode);
+        }
+    }
+
     private boolean isReadyForFinalization(FlipbookRoomState roomState, LocalDateTime readyCutoff) {
         return roomState.updatedAt() == null || !roomState.updatedAt().isAfter(readyCutoff);
     }

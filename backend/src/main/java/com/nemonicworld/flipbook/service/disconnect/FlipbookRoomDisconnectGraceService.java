@@ -12,6 +12,7 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationService;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
@@ -48,6 +49,7 @@ public class FlipbookRoomDisconnectGraceService {
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
     private final FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
+    private final FlipbookRoomFinalizationService flipbookRoomFinalizationService;
     private final Duration roomMutationLockTtl;
     private final int scanLimit;
 
@@ -58,6 +60,7 @@ public class FlipbookRoomDisconnectGraceService {
         FlipbookRoomEventPublisher flipbookRoomEventPublisher,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
         FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider,
+        FlipbookRoomFinalizationService flipbookRoomFinalizationService,
         @Value("${nemonic.flipbook.disconnect.scan-limit:100}") int scanLimit,
         @Value("${nemonic.flipbook.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.flipbookRoomRepository = flipbookRoomRepository;
@@ -67,6 +70,7 @@ public class FlipbookRoomDisconnectGraceService {
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
         this.flipbookRuntimeSettingsProvider = flipbookRuntimeSettingsProvider;
+        this.flipbookRoomFinalizationService = flipbookRoomFinalizationService;
         this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
         this.scanLimit = scanLimit;
     }
@@ -346,6 +350,7 @@ public class FlipbookRoomDisconnectGraceService {
             FlipbookRoomEventLogger.websocketBusiness("flipbook_all_rounds_completed",
                 metadata("room_id", result.roomCode(), "room_status", advanceResult.roomState().status(),
                     "total_rounds", advanceResult.roomState().totalRounds()));
+            flipbookRoomFinalizationService.triggerFinalization(result.roomCode());
         } else {
             int previousRound = result.autoSubmissions().get(0).assignment().round();
             flipbookRoomEventPublisher.publishRoundStarted(result.roomCode(), previousRound, advanceResult.nextRound(),

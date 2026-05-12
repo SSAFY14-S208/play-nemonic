@@ -15,6 +15,7 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomMyAssignmentResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomResultsResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -56,11 +57,14 @@ public class FlipbookRoomController {
 
     private final FlipbookRoomService flipbookRoomService;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
+    private final FlipbookRoomFinalizationService flipbookRoomFinalizationService;
 
     public FlipbookRoomController(FlipbookRoomService flipbookRoomService,
-        FlipbookRoomEventPublisher flipbookRoomEventPublisher) {
+        FlipbookRoomEventPublisher flipbookRoomEventPublisher,
+        FlipbookRoomFinalizationService flipbookRoomFinalizationService) {
         this.flipbookRoomService = flipbookRoomService;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
+        this.flipbookRoomFinalizationService = flipbookRoomFinalizationService;
     }
 
     /**
@@ -260,6 +264,7 @@ public class FlipbookRoomController {
         if (response.allRoundsCompleted()) {
             flipbookRoomEventPublisher.publishAllRoundsCompleted(response.roomCode(), response.roomStatus(),
                 response.submittedAt());
+            flipbookRoomFinalizationService.triggerFinalization(response.roomCode());
             return;
         }
 
