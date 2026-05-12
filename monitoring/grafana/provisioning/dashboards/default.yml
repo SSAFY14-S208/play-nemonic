@@ -24,7 +24,7 @@
 #     · ④ 콘텐츠 활성 + 사용자 액션
 #         (nemonic_content_active_rooms = backend Gauge,
 #          주요 사용자 액션 rate = OpenSearch terms — backend Counter 불필요)
-#     · ⑤ 서버 리소스 (host CPU/Mem/Disk/Net, 컨테이너 Top 5)
+#     · ⑤ 서버 리소스 (host CPU/Mem/Disk/Net)
 #     · datasource uid: "prometheus" + "opensearch" 두 개 참조.
 
 apiVersion: 1

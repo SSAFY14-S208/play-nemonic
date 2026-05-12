@@ -699,7 +699,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "1 - (node_filesystem_avail_bytes{mountpoint=\"/host\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/host\",fstype!~\"tmpfs|overlay\"})",
+          "expr": "1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})",
           "legendFormat": "used"
         }
       ]
@@ -728,49 +728,6 @@
           "refId": "B",
           "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[1m]))",
           "legendFormat": "tx"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "컨테이너 CPU Top 5",
-      "description": "cAdvisor 기반 — 누가 튀는지 즉시 추적.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 64 },
-      "id": 54,
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
-          "unit": "percentunit"
-        }
-      },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "topk(5, sum by (name) (rate(container_cpu_usage_seconds_total{name!=\"\"}[1m])))",
-          "legendFormat": "{{name}}"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "컨테이너 메모리 Top 5",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 64 },
-      "id": 55,
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
-          "unit": "bytes"
-        }
-      },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "topk(5, sum by (name) (container_memory_working_set_bytes{name!=\"\"}))",
-          "legendFormat": "{{name}}"
         }
       ]
     }
