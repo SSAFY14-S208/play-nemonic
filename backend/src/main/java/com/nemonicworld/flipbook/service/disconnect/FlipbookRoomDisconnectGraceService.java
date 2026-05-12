@@ -14,6 +14,7 @@ import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.flipbook.service.timeout.FlipbookFrameAutoSubmissionResult;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import java.time.Duration;
@@ -46,7 +47,7 @@ public class FlipbookRoomDisconnectGraceService {
     private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
-    private final Duration reconnectGrace;
+    private final FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
     private final Duration roomMutationLockTtl;
     private final int scanLimit;
 
@@ -56,8 +57,7 @@ public class FlipbookRoomDisconnectGraceService {
         FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService,
         FlipbookRoomEventPublisher flipbookRoomEventPublisher,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
-        @Value("${nemonic.flipbook.disconnect.reconnect-grace-seconds:"
-            + FlipbookRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS + "}") long reconnectGraceSeconds,
+        FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider,
         @Value("${nemonic.flipbook.disconnect.scan-limit:100}") int scanLimit,
         @Value("${nemonic.flipbook.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.flipbookRoomRepository = flipbookRoomRepository;
@@ -66,7 +66,7 @@ public class FlipbookRoomDisconnectGraceService {
         this.flipbookRoomRoundAdvanceService = flipbookRoomRoundAdvanceService;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
-        this.reconnectGrace = Duration.ofSeconds(Math.max(0L, reconnectGraceSeconds));
+        this.flipbookRuntimeSettingsProvider = flipbookRuntimeSettingsProvider;
         this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
         this.scanLimit = scanLimit;
     }
@@ -83,6 +83,7 @@ public class FlipbookRoomDisconnectGraceService {
      */
     public FlipbookDisconnectGraceProcessResult processDroppedParticipants(LocalDateTime now) {
         LocalDateTime processedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        Duration reconnectGrace = flipbookRuntimeSettingsProvider.currentReconnectGracePeriod();
         LocalDateTime disconnectCutoff = processedAt.minus(reconnectGrace);
         List<FlipbookRoomState> candidateRooms = flipbookRoomRepository
             .findPlayingRoomsForDisconnectGrace(disconnectCutoff, scanLimit);
@@ -92,7 +93,8 @@ public class FlipbookRoomDisconnectGraceService {
 
         for (FlipbookRoomState candidateRoom : candidateRooms) {
             try {
-                FlipbookDisconnectGraceRoomResult result = processRoom(candidateRoom.roomCode(), processedAt);
+                FlipbookDisconnectGraceRoomResult result = processRoom(candidateRoom.roomCode(), processedAt,
+                    reconnectGrace);
                 if (result.processed()) {
                     processedRoomCount++;
                     droppedParticipantCount += result.droppedParticipants().size();
@@ -115,6 +117,12 @@ public class FlipbookRoomDisconnectGraceService {
      */
     public FlipbookDisconnectGraceRoomResult processRoom(String roomCode, LocalDateTime now) {
         LocalDateTime processedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        Duration reconnectGrace = flipbookRuntimeSettingsProvider.currentReconnectGracePeriod();
+        return processRoom(roomCode, processedAt, reconnectGrace);
+    }
+
+    private FlipbookDisconnectGraceRoomResult processRoom(String roomCode, LocalDateTime processedAt,
+        Duration reconnectGrace) {
         FlipbookRoomState candidateRoomState = flipbookRoomRepository.findByRoomCode(roomCode).orElse(null);
         if (candidateRoomState == null || candidateRoomState.status() != FlipbookRoomStatus.PLAYING
             || candidateRoomState.currentRound() == null) {
@@ -133,7 +141,7 @@ public class FlipbookRoomDisconnectGraceService {
         }
 
         try {
-            FlipbookDisconnectGraceRoomResult result = processRoomWithLock(roomCode, processedAt);
+            FlipbookDisconnectGraceRoomResult result = processRoomWithLock(roomCode, processedAt, reconnectGrace);
             publishDisconnectGraceEvents(result);
 
             return result;
@@ -142,7 +150,8 @@ public class FlipbookRoomDisconnectGraceService {
         }
     }
 
-    private FlipbookDisconnectGraceRoomResult processRoomWithLock(String roomCode, LocalDateTime processedAt) {
+    private FlipbookDisconnectGraceRoomResult processRoomWithLock(String roomCode, LocalDateTime processedAt,
+        Duration reconnectGrace) {
         for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             FlipbookRoomState roomState = flipbookRoomRepository.findByRoomCode(roomCode).orElse(null);
             if (roomState == null || roomState.status() != FlipbookRoomStatus.PLAYING
@@ -150,7 +159,8 @@ public class FlipbookRoomDisconnectGraceService {
                 return FlipbookDisconnectGraceRoomResult.noOp(roomCode);
             }
 
-            ParticipantDropUpdate participantDropUpdate = dropExpiredParticipants(roomState, processedAt);
+            ParticipantDropUpdate participantDropUpdate = dropExpiredParticipants(roomState, processedAt,
+                reconnectGrace);
             AutoSubmitUpdate autoSubmitUpdate = autoSubmitDroppedCurrentAssignments(roomState,
                 participantDropUpdate.participants(), processedAt);
 
@@ -184,13 +194,14 @@ public class FlipbookRoomDisconnectGraceService {
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), owner, roomCode);
     }
 
-    private ParticipantDropUpdate dropExpiredParticipants(FlipbookRoomState roomState, LocalDateTime droppedAt) {
+    private ParticipantDropUpdate dropExpiredParticipants(FlipbookRoomState roomState, LocalDateTime droppedAt,
+        Duration reconnectGrace) {
         List<FlipbookRoomParticipant> participants = new ArrayList<>(roomState.participants().size());
         List<FlipbookDroppedParticipantResult> droppedParticipants = new ArrayList<>();
         boolean changed = false;
 
         for (FlipbookRoomParticipant participant : roomState.participants()) {
-            if (shouldDrop(participant, droppedAt)) {
+            if (shouldDrop(participant, droppedAt, reconnectGrace)) {
                 FlipbookRoomParticipant droppedParticipant = participant.drop(droppedAt);
                 participants.add(droppedParticipant);
                 droppedParticipants.add(new FlipbookDroppedParticipantResult(roomState.roomCode(),
@@ -208,7 +219,7 @@ public class FlipbookRoomDisconnectGraceService {
             droppedParticipants, hostTransferUpdate.hostChange());
     }
 
-    private boolean shouldDrop(FlipbookRoomParticipant participant, LocalDateTime now) {
+    private boolean shouldDrop(FlipbookRoomParticipant participant, LocalDateTime now, Duration reconnectGrace) {
         return !participant.dropped() && !participant.connected() && participant.disconnectedAt() != null
             && !participant.disconnectedAt().plus(reconnectGrace).isAfter(now);
     }

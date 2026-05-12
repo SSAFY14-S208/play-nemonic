@@ -7,6 +7,9 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.invite.repository.InviteRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -29,16 +32,19 @@ public class FlipbookRoomCreateUseCase {
     private final InviteRepository inviteRepository;
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+    private final FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
 
     public FlipbookRoomCreateUseCase(AnonymousUserResolver anonymousUserResolver, RoomCodeGenerator roomCodeGenerator,
         FlipbookRoomRepository flipbookRoomRepository, InviteRepository inviteRepository,
-        FlipbookRoomPolicy flipbookRoomPolicy, FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService) {
+        FlipbookRoomPolicy flipbookRoomPolicy, FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
+        FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.roomCodeGenerator = roomCodeGenerator;
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.inviteRepository = inviteRepository;
         this.flipbookRoomPolicy = flipbookRoomPolicy;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
+        this.flipbookRuntimeSettingsProvider = flipbookRuntimeSettingsProvider;
     }
 
     /**
@@ -51,12 +57,14 @@ public class FlipbookRoomCreateUseCase {
 
         String roomCode = roomCodeGenerator.generateUnique(inviteRepository::existsByInviteCode);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomParticipantLimit participantLimit = flipbookRuntimeSettingsProvider.currentParticipantLimit();
+        FlipbookRoomTimeLimitSettings timeLimitSettings = flipbookRuntimeSettingsProvider
+            .currentRoomTimeLimitSettings();
         FlipbookRoomParticipant hostParticipant = new FlipbookRoomParticipant(hostUser.getId().toString(),
             hostUser.getNickname(), true, FlipbookRoomPolicy.HOST_JOIN_ORDER, false, null, now);
         FlipbookRoomState roomState = new FlipbookRoomState(roomCode, FlipbookRoomStatus.WAITING,
-            hostUser.getId().toString(), FlipbookRoomPolicy.DEFAULT_TIME_LIMIT_SECONDS,
-            FlipbookRoomPolicy.MIN_PARTICIPANTS, FlipbookRoomPolicy.MAX_PARTICIPANTS, List.of(hostParticipant), now,
-            now);
+            hostUser.getId().toString(), timeLimitSettings.defaultSeconds(), participantLimit.minParticipants(),
+            participantLimit.maxParticipants(), List.of(hostParticipant), now, now);
 
         flipbookRoomRepository.save(roomState);
         flipbookInviteMetadataSyncService.syncWithRoomState(roomState);
