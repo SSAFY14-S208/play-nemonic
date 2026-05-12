@@ -1,4 +1,4 @@
-package com.nemonicworld.phone.controller;
+package com.nemonicworld.gallery.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
@@ -31,7 +31,7 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {"spring.jpa.hibernate.ddl-auto=create-drop",
     "nemonic.storage.minio.public-url=http://localhost:9000", "nemonic.storage.minio.bucket=nemonic-local"})
-class PhoneDrawingControllerIntegrationTest {
+class GalleryPhoneDrawingControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
 
@@ -71,9 +71,16 @@ class PhoneDrawingControllerIntegrationTest {
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS fortune_artifact (
                 artifact_id UUID PRIMARY KEY,
-                fortune_image_url VARCHAR(200) NULL
+                description VARCHAR(1000) NOT NULL DEFAULT '{}',
+                fortune_image_url VARCHAR(200) NULL,
+                user_id UUID NULL,
+                fortune_date DATE NULL
             )
             """);
+        jdbcTemplate.execute(
+            "ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS description VARCHAR(1000) NOT NULL DEFAULT '{}'");
+        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS user_id UUID");
+        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS fortune_date DATE");
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
                 artifact_id UUID PRIMARY KEY,
@@ -100,6 +107,18 @@ class PhoneDrawingControllerIntegrationTest {
             )
             """);
         jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS community_memo (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NULL,
+                body_image_url VARCHAR(1000) NULL,
+                thumbnail_image_url VARCHAR(1000) NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS body_image_url VARCHAR(1000)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS thumbnail_image_url VARCHAR(1000)");
+        jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS file_upload (
                 id UUID PRIMARY KEY,
                 user_id UUID NOT NULL,
@@ -121,6 +140,7 @@ class PhoneDrawingControllerIntegrationTest {
         jdbcTemplate.update("DELETE FROM flipbook_artifact");
         jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
         jdbcTemplate.update("DELETE FROM phone_artifact");
+        jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM gallery");
         jdbcTemplate.update("DELETE FROM artifact");
         jdbcTemplate.update("DELETE FROM file_upload");
