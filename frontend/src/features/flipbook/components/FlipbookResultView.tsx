@@ -14,7 +14,11 @@ interface FlipbookResultViewProps {
   activeResultIndex: number
   gifUrl: string | null
   resultCount: number
+  canCloseRoom: boolean
+  isBusy: boolean
+  errorMessage: string | null
   onSelectResult: (resultIndex: number) => void
+  onCloseRoom: () => void
   onCreateAnother: () => void
 }
 
@@ -24,7 +28,11 @@ export default function FlipbookResultView({
   activeResultIndex,
   gifUrl,
   resultCount,
+  canCloseRoom,
+  isBusy,
+  errorMessage,
   onSelectResult,
+  onCloseRoom,
   onCreateAnother,
 }: FlipbookResultViewProps) {
   const activeResult = resultItems[activeResultIndex] ?? null
@@ -32,7 +40,8 @@ export default function FlipbookResultView({
   const gifDownload = useFlipbookGifDownload()
   const activeOwnerName =
     activeResult !== null
-      ? (resultOwnerNames[activeResult.flipbookIndex] ?? `작품 ${activeResult.flipbookIndex + 1}`)
+      ? (resultOwnerNames[activeResult.flipbookIndex ?? activeResultIndex] ??
+        `작품 ${(activeResult.flipbookIndex ?? activeResultIndex) + 1}`)
       : '플립북'
 
   return (
@@ -90,8 +99,9 @@ export default function FlipbookResultView({
                   const sortedFrames = [...resultItem.frames].sort(
                     (firstFrame, secondFrame) => firstFrame.frameIndex - secondFrame.frameIndex,
                   )
+                  const normalizedFlipbookIndex = resultItem.flipbookIndex ?? resultIndex
                   const firstDrawer =
-                    resultOwnerNames[resultItem.flipbookIndex] ??
+                    resultOwnerNames[normalizedFlipbookIndex] ??
                     sortedFrames.find((frame) => frame.frameIndex === 0)?.drawnByNickname ??
                     sortedFrames[0]?.drawnByNickname ??
                     '알 수 없음'
@@ -123,7 +133,7 @@ export default function FlipbookResultView({
                       </span>
                       <span className="min-w-0">
                         <span className="body-b block text-flipbook-ink">
-                          작품 {resultItem.flipbookIndex + 1}
+                          작품 {(resultItem.flipbookIndex ?? resultIndex) + 1}
                         </span>
                         <span className="caption-m block truncate text-flipbook-deep">
                           시작: {firstDrawer}
@@ -175,6 +185,22 @@ export default function FlipbookResultView({
               <p className="caption-b rounded-[12px] bg-flipbook-result-soft px-4 py-3 text-center text-flipbook-deep">
                 {gifDownload.gifDownloadError}
               </p>
+            )}
+            {errorMessage && (
+              <p className="caption-b rounded-[12px] bg-flipbook-result-soft px-4 py-3 text-center text-flipbook-deep">
+                {errorMessage}
+              </p>
+            )}
+
+            {canCloseRoom && (
+              <button
+                type="button"
+                onClick={onCloseRoom}
+                disabled={isBusy}
+                className="body-b min-h-12 rounded-[14px] border-[1.5px] border-flipbook-deep bg-flipbook-paper px-5 text-flipbook-ink disabled:opacity-45"
+              >
+                {isBusy ? '종료 중' : '방 종료'}
+              </button>
             )}
 
             <button

@@ -28,6 +28,7 @@ export function toFlipbookParticipant(
     name: `${participant.nickname}${participant.userUuid === currentUserUuid ? ' (나)' : ''}`,
     avatar: participant.host ? '👑' : '🙂',
     isHost: participant.host,
+    isConnected: participant.connected,
   }
 }
 

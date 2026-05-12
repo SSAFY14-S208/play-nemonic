@@ -5,6 +5,7 @@ import type {
   FlipbookFrameSubmitRequest,
   FlipbookFrameSubmitResponse,
   FlipbookResultResponse,
+  FlipbookRoomCloseResponse,
   FlipbookRoomCreateResponse,
   FlipbookRoomKickResponse,
   FlipbookRoomLeaveResponse,
@@ -60,6 +61,12 @@ export const postFlipbookRoomRoundFrame = (
 export const getFlipbookRoomResult = (roomCode: string) =>
   apiUnwrap(
     api.get<ApiResponse<FlipbookResultResponse>>(`flipbook/rooms/${roomCode}/result`),
+  )
+
+// POST /flipbook/rooms/{roomCode}/close — 완료된 플립북 방 수동 종료
+export const postFlipbookRoomClose = (roomCode: string) =>
+  apiUnwrap(
+    api.post<ApiResponse<FlipbookRoomCloseResponse>>(`flipbook/rooms/${roomCode}/close`),
   )
 
 // POST /flipbook/rooms/{roomCode}/kick — 플립북 방 참여자 강퇴

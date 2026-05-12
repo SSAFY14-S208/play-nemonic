@@ -8,6 +8,7 @@ export interface FlipbookParticipant {
   name: string
   avatar: string
   isHost?: boolean
+  isConnected?: boolean
 }
 
 export type FlipbookTimeLimitSeconds = 30 | 45 | 60
@@ -15,8 +16,8 @@ export type FlipbookTimeLimitSeconds = 30 | 45 | 60
 export interface FlipbookFrame {
   id: string
   index: number
-  drawnByUserUuid: string
-  drawnBy: string
+  drawnByUserUuid: string | null
+  drawnBy: string | null
   participantAvatar: string
   lines: DrawingLine[]
   imageUrl?: string

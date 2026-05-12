@@ -1,6 +1,6 @@
 'use client'
 
-import { Clock3, Flag, Minus, Plus, UsersRound, type LucideIcon } from 'lucide-react'
+import { Clock3, UsersRound, type LucideIcon } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import { FLIPBOOK_TIME_LIMITS_SECONDS } from '../../constants'
 import type { FlipbookShareActionKey } from '../../hooks'
@@ -27,21 +27,21 @@ export default function FlipbookMobileLobbyLayout({
   waitingSlots,
   roomCode,
   visibleParticipantCount,
+  minParticipants,
   maxParticipants,
   selectedTimeLimitSeconds,
-  roundCount,
-  minimumRoundCount,
   isHost,
-  canDecreaseRoundCount,
-  roundControlDisabled,
+  isBusy,
+  canLeaveRoom,
   startGameButtonDisabled,
   startGameButtonLabel,
   errorMessage,
   shareActions,
   images,
   onSelectTimeLimit,
-  onSelectRoundCount,
   onStartGame,
+  onLeaveRoom,
+  onKickParticipant,
 }: {
   currentParticipant: FlipbookParticipant
   displayedParticipants: FlipbookParticipant[]
@@ -49,21 +49,21 @@ export default function FlipbookMobileLobbyLayout({
   waitingSlots: string[]
   roomCode: string | null
   visibleParticipantCount: number
+  minParticipants: number
   maxParticipants: number
   selectedTimeLimitSeconds: number
-  roundCount: number | null
-  minimumRoundCount: number
   isHost: boolean
-  canDecreaseRoundCount: boolean
-  roundControlDisabled: boolean
+  isBusy: boolean
+  canLeaveRoom: boolean
   startGameButtonDisabled: boolean
   startGameButtonLabel: string
   errorMessage: string | null
   shareActions: FlipbookLobbyShareAction[]
   images: FlipbookLobbyImageSet
   onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
-  onSelectRoundCount: (roundCount: number) => void
   onStartGame: () => void
+  onLeaveRoom: () => void
+  onKickParticipant: (targetUserUuid: string) => void
 }) {
   return (
     <div className="relative z-10 grid w-full gap-4 px-4 pb-8 pt-20 lg:hidden">
@@ -100,6 +100,7 @@ export default function FlipbookMobileLobbyLayout({
             {visibleParticipantCount} / {maxParticipants}
           </span>
         </div>
+        <p className="caption-b mt-3 text-[#9a7f6d]">최소 {minParticipants}명 필요</p>
         <div className="mt-4 grid gap-3">
           {displayedParticipants.map((participant) => (
             <ParticipantNameTag
@@ -111,6 +112,14 @@ export default function FlipbookMobileLobbyLayout({
               }
               avatar={participant.avatar}
               isHost={participant.isHost === true}
+              isConnected={participant.isConnected === true}
+              canKick={
+                isHost &&
+                !isBusy &&
+                participant.userUuid !== currentParticipant.userUuid &&
+                participant.isHost !== true
+              }
+              onKick={() => onKickParticipant(participant.userUuid)}
             />
           ))}
           {waitingSlots.map((waitingSlot) => (
@@ -130,7 +139,7 @@ export default function FlipbookMobileLobbyLayout({
               key={seconds}
               type="button"
               onClick={() => onSelectTimeLimit(seconds)}
-              disabled={!isHost}
+              disabled={!isHost || isBusy}
               className={cn(
                 'body-b min-h-12 rounded-[14px] border border-[#f2dece] bg-[#fff2e9] text-[#b79a88] disabled:cursor-not-allowed disabled:opacity-60',
                 selectedTimeLimitSeconds === seconds &&
@@ -143,42 +152,16 @@ export default function FlipbookMobileLobbyLayout({
         </div>
       </section>
 
-      <section className="rounded-[24px] border border-[#efd8c7] bg-white/82 p-4 shadow-[0_12px_28px_rgb(126_74_42_/_12%)] backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h3 className="h3-b inline-flex items-center gap-2 text-[#684834]">
-              <Flag className="size-5 text-[#ff7182]" aria-hidden />
-              라운드
-            </h3>
-            <p className="caption-m mt-1 text-[#9a7f6d]">최소 {minimumRoundCount}라운드</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              disabled={!canDecreaseRoundCount}
-              onClick={() => {
-                if (roundCount !== null) onSelectRoundCount(roundCount - 1)
-              }}
-              className="grid size-11 place-items-center rounded-full bg-[#fff2e9] text-[#80543b] disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="라운드 감소"
-            >
-              <Minus className="size-5" strokeWidth={3} aria-hidden />
-            </button>
-            <span className="h1-b min-w-8 text-center text-[#684834]">{roundCount ?? '-'}</span>
-            <button
-              type="button"
-              disabled={roundControlDisabled}
-              onClick={() => {
-                if (roundCount !== null) onSelectRoundCount(roundCount + 1)
-              }}
-              className="grid size-11 place-items-center rounded-full bg-[#fff0ed] text-[#ff7182] disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="라운드 증가"
-            >
-              <Plus className="size-6" strokeWidth={3} aria-hidden />
-            </button>
-          </div>
-        </div>
-      </section>
+      {canLeaveRoom && (
+        <button
+          type="button"
+          onClick={onLeaveRoom}
+          disabled={isBusy}
+          className="body-b min-h-12 rounded-[16px] border border-[#f2dece] bg-[#fff2e9] text-[#80543b] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          방 나가기
+        </button>
+      )}
 
       <button
         type="button"

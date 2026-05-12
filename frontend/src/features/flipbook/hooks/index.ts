@@ -1,4 +1,5 @@
 export { useFlipbook } from './useFlipbook'
+export { useFlipbookEntrancePreload } from './useFlipbookEntrancePreload'
 export { useFlipbookEntranceTimeline } from './useFlipbookEntranceTimeline'
 export { useFlipbookGifDownload } from './useFlipbookGifDownload'
 export { useFlipbookNickname } from './useFlipbookNickname'

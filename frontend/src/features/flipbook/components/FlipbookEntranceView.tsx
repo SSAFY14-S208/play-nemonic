@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 import Image from 'next/image'
 import { KeyRound, Sparkles, X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useFlipbookEntranceTimeline } from '../hooks'
+import { useFlipbookEntrancePreload, useFlipbookEntranceTimeline } from '../hooks'
 import FlipbookPaperBackground from './FlipbookPaperBackground'
 
 interface FlipbookEntranceViewProps {
@@ -28,6 +28,9 @@ const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
       alt: `플립북 입장 애니메이션 ${frameIndex + 1}번째 장면`,
     }
   },
+)
+const FLIPBOOK_ENTRANCE_FRAME_SOURCES = FLIPBOOK_ENTRANCE_FRAMES.map(
+  (entranceFrame) => entranceFrame.src,
 )
 const FLIPBOOK_BUTTON_IMAGES = {
   createRoom: '/images/flipbook-buttons/create-room.png',
@@ -59,9 +62,8 @@ export default function FlipbookEntranceView({
   const sectionRef = useRef<HTMLElement>(null)
   const roomCodeInputRef = useRef<HTMLInputElement>(null)
   const [isRoomCodeModalOpen, setIsRoomCodeModalOpen] = useState(false)
+  useFlipbookEntrancePreload(FLIPBOOK_ENTRANCE_FRAME_SOURCES)
   const timeline = useFlipbookEntranceTimeline(sectionRef, FLIPBOOK_ENTRANCE_FRAMES.length)
-  const activeEntranceFrame =
-    FLIPBOOK_ENTRANCE_FRAMES[timeline.activeFrameIndex] ?? FLIPBOOK_ENTRANCE_FRAMES.at(-1)
   const actionHandlers = {
     'create-room': onCreateRoom,
     'enter-room': () => setIsRoomCodeModalOpen(true),
@@ -123,17 +125,27 @@ export default function FlipbookEntranceView({
             }}
           >
             <div className="absolute inset-0 overflow-hidden rounded-[8px] border border-flipbook-light bg-flipbook-paper shadow-[0_16px_26px_var(--color-flipbook-shadow)]">
-              {activeEntranceFrame && (
-                <Image
-                  src={activeEntranceFrame.src}
-                  alt={activeEntranceFrame.alt}
-                  fill
-                  priority={timeline.activeFrameIndex === 0}
-                  unoptimized
-                  sizes="(max-width: 768px) 82vw, 626px"
-                  className="object-cover"
-                />
-              )}
+              {FLIPBOOK_ENTRANCE_FRAMES.map((entranceFrame, entranceFrameIndex) => {
+                const isActiveEntranceFrame = entranceFrameIndex === timeline.activeFrameIndex
+
+                return (
+                  <Image
+                    key={entranceFrame.src}
+                    src={entranceFrame.src}
+                    alt={isActiveEntranceFrame ? entranceFrame.alt : ''}
+                    fill
+                    priority={entranceFrameIndex === 0}
+                    loading={entranceFrameIndex === 0 ? undefined : 'eager'}
+                    unoptimized
+                    aria-hidden={!isActiveEntranceFrame}
+                    sizes="(max-width: 768px) 82vw, 626px"
+                    className="object-cover transition-opacity duration-75"
+                    style={{
+                      opacity: isActiveEntranceFrame ? 1 : 0,
+                    }}
+                  />
+                )
+              })}
             </div>
             <motion.div
               key={`blank-paper-flight-${timeline.activeFrameIndex}`}

@@ -2,7 +2,7 @@
 
 export type FilePurpose =
   | 'RELAY_DRAWING'
-  | 'FLIPBOOK_FRAME'
+  | 'FLIPBOOK'
   | 'PHONE_DRAWING'
   | 'COMMUNITY_MEMO_ORIGINAL'
   | 'COMMUNITY_MEMO_THUMBNAIL'

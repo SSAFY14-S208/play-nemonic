@@ -70,17 +70,19 @@ export default function FlipbookPage() {
           participants={flipbook.participants}
           roomCode={flipbook.roomCode}
           participantCount={flipbook.participantCount}
+          minParticipants={flipbook.minParticipants}
           maxParticipants={flipbook.maxParticipants}
           selectedTimeLimitSeconds={flipbook.selectedTimeLimitSeconds}
-          roundCount={flipbook.roundCount}
           connectionStatus={flipbook.connectionStatus}
           canStartGame={flipbook.canStartGame}
           isHost={flipbook.isHost}
           isBusy={flipbook.isBusy}
+          canLeaveRoom={flipbook.canLeaveRoom}
           errorMessage={flipbook.errorMessage}
           onSelectTimeLimit={flipbook.selectTimeLimit}
-          onSelectRoundCount={flipbook.selectRoundCount}
           onStartGame={flipbook.startGame}
+          onLeaveRoom={flipbook.leaveRoom}
+          onKickParticipant={flipbook.kickParticipant}
         />
       )}
 
@@ -92,6 +94,7 @@ export default function FlipbookPage() {
           currentParticipant={flipbook.currentParticipant}
           isSubmitting={flipbook.isSubmitting}
           isRoundSubmitted={flipbook.isRoundSubmitted}
+          isAssignmentReady={flipbook.isAssignmentReady}
           connectionStatus={flipbook.connectionStatus}
           errorMessage={flipbook.errorMessage}
           lines={flipbook.drawingBoard.lines}
@@ -124,7 +127,11 @@ export default function FlipbookPage() {
           activeResultIndex={flipbook.activeResultIndex}
           gifUrl={flipbook.gifUrl}
           resultCount={flipbook.resultCount}
+          canCloseRoom={flipbook.canCloseRoom}
+          isBusy={flipbook.isBusy}
+          errorMessage={flipbook.errorMessage}
           onSelectResult={flipbook.selectResult}
+          onCloseRoom={flipbook.closeRoom}
           onCreateAnother={() => flipbook.selectStep('booth')}
         />
       )}
