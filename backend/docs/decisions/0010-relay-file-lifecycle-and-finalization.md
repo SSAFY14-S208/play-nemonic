@@ -39,8 +39,21 @@ hint object keys return `url=null`.
 
 When all parts are completed, move the room to `FINALIZING`. The finalization
 scheduler waits a short ready delay after the `FINALIZING` update before
-processing the room, then composes one vertical `FACE`/`BODY`/`LEGS` PNG per
-`canvasIndex`, uploads final original and thumbnail files under:
+processing the room, then composes one `FACE`/`BODY`/`LEGS` PNG per
+`canvasIndex`. `nemonic.relay.finalization.overlap-height` defaults to `120` px
+to match the frontend hint area. If this setting is `0`, the backend keeps the
+previous vertical composition. If the setting is positive, the backend overlaps
+`FACE`/`BODY` and `BODY`/`LEGS` by the configured pixel height, clamps excessive
+overlap so the result remains valid, and renders the overlap with layer
+priority `FACE > BODY > LEGS`. This changes only final result rendering; the
+game still progresses in `FACE -> BODY -> LEGS` order.
+
+Hint images are not directly composed into the final result. The frontend must
+submit drawing images that include the same overlap hint area as the backend
+`overlap-height`; if the frontend and backend values diverge, the final image
+may look misaligned.
+
+Finalization uploads final original and thumbnail files under:
 
 ```text
 relay/results/{artifactId}/original.png

@@ -63,7 +63,7 @@ public class AuthController {
     }
 
     @PostMapping("/reissue")
-    @Operation(summary = "관리자 토큰 재발급", description = "Redis에 저장된 리프레시 토큰을 검증하고 새 access/refresh 토큰을 발급합니다.")
+    @Operation(summary = "관리자 토큰 재발급", description = "Redis에 저장된 리프레시 토큰을 검증하고 새 액세스/리프레시 토큰을 발급합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 토큰 재발급 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),

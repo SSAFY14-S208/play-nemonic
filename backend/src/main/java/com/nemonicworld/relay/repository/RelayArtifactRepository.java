@@ -160,7 +160,7 @@ public class RelayArtifactRepository {
     }
 
     /**
-     * 릴레이 결과물 원본 objectKey를 relay_drawing_artifact에 저장합니다.
+     * 릴레이 결과물 원본 객체 키를 relay_drawing_artifact에 저장합니다.
      */
     private void insertRelayDrawingArtifacts(List<RelayFinalizationArtifactResult> artifacts) {
         MapSqlParameterSource[] params = artifacts.stream().map(artifact -> new MapSqlParameterSource()

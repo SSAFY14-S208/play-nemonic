@@ -165,7 +165,7 @@ public class RedisAdminTokenStore implements AdminTokenStore {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return base64UrlEncoder.encodeToString(digest.digest(refreshToken.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new InternalServerException("Refresh token hashing failed.", e);
+            throw new InternalServerException("리프레시 토큰 해싱에 실패했습니다.", e);
         }
     }
 
@@ -189,7 +189,7 @@ public class RedisAdminTokenStore implements AdminTokenStore {
         try {
             return objectMapper.writeValueAsString(storedToken);
         } catch (JsonProcessingException e) {
-            throw new InternalServerException("Refresh token serialization failed.", e);
+            throw new InternalServerException("리프레시 토큰 직렬화에 실패했습니다.", e);
         }
     }
 
@@ -197,7 +197,7 @@ public class RedisAdminTokenStore implements AdminTokenStore {
         try {
             return objectMapper.readValue(refreshTokenValue, StoredAdminRefreshToken.class);
         } catch (JsonProcessingException e) {
-            throw new InternalServerException("Refresh token deserialization failed.", e);
+            throw new InternalServerException("리프레시 토큰 역직렬화에 실패했습니다.", e);
         }
     }
 }

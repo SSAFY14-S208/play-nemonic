@@ -50,7 +50,7 @@ public class SignedShareTokenIssuer {
         try {
             return base64UrlEncoder.encodeToString(objectMapper.writeValueAsBytes(payload));
         } catch (JsonProcessingException e) {
-            throw new InternalServerException("Share token payload serialization failed.", e);
+            throw new InternalServerException("공유 토큰 페이로드 직렬화에 실패했습니다.", e);
         }
     }
 
@@ -61,7 +61,7 @@ public class SignedShareTokenIssuer {
 
             return base64UrlEncoder.encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new InternalServerException("Share token signing failed.", e);
+            throw new InternalServerException("공유 토큰 서명에 실패했습니다.", e);
         }
     }
 }

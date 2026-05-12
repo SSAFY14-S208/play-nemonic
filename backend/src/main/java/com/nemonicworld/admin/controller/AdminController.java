@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/admins")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "Admins", description = "Backoffice admin API")
+@Tag(name = "Admins", description = "백오피스 관리자 API")
 public class AdminController {
 
     private static final String CREATE_SUCCESS_MESSAGE = "관리자 계정 생성 성공";

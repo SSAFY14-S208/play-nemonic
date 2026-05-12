@@ -27,12 +27,12 @@ class FileOpenApiIntegrationTest {
     @Test
     void filePresignApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
-            .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.summary").value("이미지 업로드 Presigned URL 발급"))
+            .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.summary").value("이미지 업로드 사전 서명 URL 발급"))
             .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.tags[0]").value("File"))
             .andExpect(
                 jsonPath("$.paths['/api/v1/files/presign'].post.parameters[0].name").value("Anonymous-User-UUID"))
             .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.responses['200'].description")
-                .value("Presigned URL 발급 성공"));
+                .value("사전 서명 URL 발급 성공"));
     }
 
     /**

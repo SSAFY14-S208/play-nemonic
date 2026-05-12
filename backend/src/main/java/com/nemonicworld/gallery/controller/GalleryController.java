@@ -48,7 +48,7 @@ public class GalleryController {
      * 익명 사용자의 보관 결과물 목록을 최신순으로 조회합니다.
      */
     @GetMapping
-    @Operation(summary = "내 갤러리 목록 조회", description = "UUID에 저장된 내 결과물 목록을 artifact 생성 시각 기준 최신순으로 조회합니다.")
+    @Operation(summary = "내 갤러리 목록 조회", description = "UUID에 저장된 내 결과물 목록을 산출물 생성 시각 기준 최신순으로 조회합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @Parameter(name = "page", in = ParameterIn.QUERY, description = "페이지 번호, 기본값 0")
     @Parameter(name = "size", in = ParameterIn.QUERY, description = "페이지 크기, 기본값 20, 최대 50")

@@ -47,8 +47,7 @@ public class AdminBootstrapRunner implements ApplicationRunner {
 
     private void requireText(String value, String propertyName) {
         if (!StringUtils.hasText(value)) {
-            throw new InternalServerException(
-                "%s is required when ADMIN_BOOTSTRAP_ENABLED is true.".formatted(propertyName));
+            throw new InternalServerException("ADMIN_BOOTSTRAP_ENABLED가 true이면 %s 값이 필요합니다.".formatted(propertyName));
         }
     }
 }

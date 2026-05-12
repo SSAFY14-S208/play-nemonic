@@ -132,7 +132,7 @@ public class RelayRoomController {
      * 진행 중인 릴레이 방에서 요청 사용자가 현재 그릴 캔버스와 파트, 힌트를 조회합니다.
      */
     @GetMapping("/{roomCode}/results")
-    @Operation(summary = "릴레이 결과 조회", description = "최종 합성 이미지 URL과 canvasIndex별 FACE/BODY/LEGS 작성자 정보를 조회합니다. 파트별 임시 이미지 URL은 응답하지 않습니다.")
+    @Operation(summary = "릴레이 결과 조회", description = "최종 합성 이미지 URL과 캔버스 번호별 FACE/BODY/LEGS 작성자 정보를 조회합니다. 파트별 임시 이미지 URL은 응답하지 않습니다.")
     @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @ApiResponses({

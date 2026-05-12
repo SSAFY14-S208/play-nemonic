@@ -52,7 +52,7 @@ public class ArtifactController {
      * artifact ID로 공통 썸네일과 산출물 종류별 콘텐츠 URL을 조회합니다.
      */
     @GetMapping("/{artifactId}/image-urls")
-    @Operation(summary = "산출물 이미지 URL 조회", description = "artifact 테이블 기반 산출물의 썸네일과 원본/GIF 등 콘텐츠 URL 목록을 조회합니다.")
+    @Operation(summary = "산출물 이미지 URL 조회", description = "산출물 테이블 기반으로 썸네일과 원본/GIF 등 콘텐츠 URL 목록을 조회합니다.")
     @Parameter(name = "artifactId", in = ParameterIn.PATH, required = true, description = "산출물 ID")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @ApiResponses({

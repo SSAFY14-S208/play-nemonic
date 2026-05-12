@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * 릴레이 힌트 이미지 object key를 브라우저에서 접근 가능한 public URL로 변환합니다.
+ * 릴레이 힌트 이미지 객체 키를 브라우저에서 접근 가능한 공개 URL로 변환합니다.
  */
 @Component
 public class RelayHintImageUrlResolver {
@@ -24,7 +24,7 @@ public class RelayHintImageUrlResolver {
     }
 
     /**
-     * MinIO 파일 존재 확인이나 presigned URL 발급 없이 설정값과 object key만 조합합니다.
+     * MinIO 파일 존재 확인이나 사전 서명 URL 발급 없이 설정값과 객체 키만 조합합니다.
      */
     public String resolve(String objectKey) {
         if (!StringUtils.hasText(objectKey)) {

@@ -111,7 +111,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * 업로드 완료된 private 파일을 브라우저에서 잠깐 조회할 수 있는 GET URL을 반환합니다.
+     * 업로드 완료된 비공개 파일을 브라우저에서 잠깐 조회할 수 있는 GET URL을 반환합니다.
      */
     @Override
     @Transactional(readOnly = true)
@@ -176,7 +176,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * pending 업로드를 취소하고 MinIO object와 DB 메타데이터를 삭제 상태로 정리합니다.
+     * 대기 상태 업로드를 취소하고 MinIO 객체와 DB 메타데이터를 삭제 상태로 정리합니다.
      */
     @Override
     @Transactional
@@ -247,7 +247,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * object key에 그대로 포함해도 되는 파일명인지 확인합니다.
+     * 객체 키에 그대로 포함해도 되는 파일명인지 확인합니다.
      */
     private String validateAndGetSafeFileName(String fileName) {
         if (!StringUtils.hasText(fileName)) {
@@ -299,7 +299,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * 운영자가 추적하기 쉽고 충돌이 나지 않도록 날짜와 fileId를 포함한 MinIO object key를 만듭니다.
+     * 운영자가 추적하기 쉽고 충돌이 나지 않도록 날짜와 fileId를 포함한 MinIO 객체 키를 만듭니다.
      */
     private String createObjectKey(FileUploadPurpose purpose, UUID fileId, String safeFileName) {
         if (purpose == FileUploadPurpose.PHONE) {
@@ -328,7 +328,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * private 파일을 직접 조회할 수 있는 만료 시간 제한 URL을 생성합니다.
+     * 비공개 파일을 직접 조회할 수 있는 만료 시간 제한 URL을 생성합니다.
      */
     private String createGetPresignedUrl(String objectKey, int expiresIn) {
         try {
@@ -342,7 +342,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * 공개 MinIO 주소가 /minio 같은 path prefix를 포함하면 presigned URL 반환값에만 prefix를 붙입니다.
+     * 공개 MinIO 주소가 /minio 같은 경로 접두사를 포함하면 사전 서명 URL 반환값에만 접두사를 붙입니다.
      */
     private String applyPublicPathPrefix(String presignedUrl) {
         URI publicUri = URI.create(properties.publicUrl());

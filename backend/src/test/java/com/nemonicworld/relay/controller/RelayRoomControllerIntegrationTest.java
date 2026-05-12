@@ -147,7 +147,7 @@ class RelayRoomControllerIntegrationTest {
     @Test
     void createRelayRoomUsesRelayParticipantLimitSettingForNewRoom() throws Exception {
         insertRelayParticipantLimitSetting("""
-            {"min":3,"max":8,"unit":"people","description":"Relay room participant limit"}
+            {"min":3,"max":8,"unit":"people","description":"릴레이 방 참여 인원 제한"}
             """);
         UUID userUuid = createExistingUserWithNickname("Mango");
 

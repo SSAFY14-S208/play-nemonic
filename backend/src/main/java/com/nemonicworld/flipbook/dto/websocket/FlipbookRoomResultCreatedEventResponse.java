@@ -11,10 +11,10 @@ import java.util.UUID;
 @Schema(description = "플립북 최종 GIF 결과 생성 완료 WebSocket 이벤트")
 public record FlipbookRoomResultCreatedEventResponse(@Schema(description = "방 코드", example = "AB3K9Q") String roomCode,
     @Schema(description = "방 상태", example = "FINISHED") FlipbookRoomStatus roomStatus,
-    @Schema(description = "생성된 artifact ID 목록") List<UUID> artifactIds,
+    @Schema(description = "생성된 산출물 ID 목록") List<UUID> artifactIds,
     @Schema(description = "생성 결과물 수", example = "4") int resultCount,
     @Schema(description = "생성 완료 시각", example = "2026-05-08T14:03:00") LocalDateTime createdAt,
-    @Schema(description = "flipbookIndex별 결과 목록") List<Result> results) {
+    @Schema(description = "플립북 번호별 결과 목록") List<Result> results) {
 
     public FlipbookRoomResultCreatedEventResponse {
         artifactIds = artifactIds == null ? List.of() : List.copyOf(artifactIds);
@@ -30,10 +30,8 @@ public record FlipbookRoomResultCreatedEventResponse(@Schema(description = "방 
     }
 
     public record Result(@Schema(description = "플립북 번호", example = "0") int flipbookIndex,
-        @Schema(description = "artifact ID") UUID artifactId,
-        @Schema(description = "최종 썸네일 objectKey") String thumbnailUrl,
-        @Schema(description = "최종 GIF objectKey") String gifUrl,
-        @Schema(description = "첫 프레임 objectKey") String firstImageUrl) {
+        @Schema(description = "산출물 ID") UUID artifactId, @Schema(description = "최종 썸네일 객체 키") String thumbnailUrl,
+        @Schema(description = "최종 GIF 객체 키") String gifUrl, @Schema(description = "첫 프레임 객체 키") String firstImageUrl) {
 
         private static Result from(FlipbookResultArtifactResult artifact) {
             return new Result(artifact.flipbookIndex(), artifact.artifactId(), artifact.thumbnailObjectKey(),

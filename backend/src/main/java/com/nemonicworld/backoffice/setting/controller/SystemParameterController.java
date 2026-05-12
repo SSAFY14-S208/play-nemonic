@@ -67,7 +67,7 @@ public class SystemParameterController {
     @PatchMapping
     @Operation(summary = "시스템 파라미터 일괄 수정", description = "관리자가 요청 본문에 포함한 시스템 파라미터 필드만 한 트랜잭션으로 수정합니다. "
         + "여러 필드 중 하나라도 유효하지 않으면 전체 수정은 실패합니다.")
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = SystemParameterTypedUpdateRequest.class), examples = @ExampleObject(name = "Update editable system parameters", value = """
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = SystemParameterTypedUpdateRequest.class), examples = @ExampleObject(name = "수정 가능한 시스템 파라미터 변경", value = """
         {
           "communityMaxMemoCount": {
             "value": 50,

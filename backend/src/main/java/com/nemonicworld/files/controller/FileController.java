@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class FileController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
-    private static final String PRESIGN_SUCCESS_MESSAGE = "Presigned URL 발급 성공";
+    private static final String PRESIGN_SUCCESS_MESSAGE = "사전 서명 URL 발급 성공";
     private static final String VIEW_URL_SUCCESS_MESSAGE = "파일 조회 URL 발급 성공";
     private static final String CONFIRM_SUCCESS_MESSAGE = "파일 업로드 확인 성공";
     private static final String DELETE_SUCCESS_MESSAGE = "파일 삭제 성공";
@@ -45,10 +45,10 @@ public class FileController {
     private final FileService fileService;
 
     @PostMapping("/presign")
-    @Operation(summary = "이미지 업로드 Presigned URL 발급", description = "file_upload 테이블 기반 private 업로드 메타데이터를 만들고 MinIO 직접 PUT 업로드 URL을 발급합니다.")
+    @Operation(summary = "이미지 업로드 사전 서명 URL 발급", description = "파일 업로드 테이블 기반의 비공개 업로드 메타데이터를 만들고 MinIO 직접 PUT 업로드 URL을 발급합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Presigned URL 발급 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "사전 서명 URL 발급 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
             @ExampleObject(name = "파일명 오류", value = OpenApiErrorExamples.INVALID_FILE_NAME),
@@ -68,7 +68,7 @@ public class FileController {
     }
 
     @GetMapping("/{fileId}/view-url")
-    @Operation(summary = "파일 조회 Presigned URL 발급", description = "file_upload 테이블에 업로드 완료로 기록된 private MinIO 객체를 조회하기 위한 GET URL을 발급합니다.")
+    @Operation(summary = "파일 조회 사전 서명 URL 발급", description = "파일 업로드 테이블에 업로드 완료로 기록된 비공개 MinIO 객체를 조회하기 위한 GET URL을 발급합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @Parameter(name = "fileId", in = ParameterIn.PATH, required = true, description = "파일 업로드 ID")
     @ApiResponses({
@@ -92,7 +92,7 @@ public class FileController {
     }
 
     @PostMapping("/{fileId}/confirm")
-    @Operation(summary = "파일 업로드 완료 확인", description = "file_upload 테이블의 pending 파일에 대해 MinIO 업로드 객체를 확인하고 파일 상태를 UPLOADED로 변경합니다.")
+    @Operation(summary = "파일 업로드 완료 확인", description = "파일 업로드 테이블의 대기 중인 파일에 대해 MinIO 업로드 객체를 확인하고 파일 상태를 업로드 완료로 변경합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @Parameter(name = "fileId", in = ParameterIn.PATH, required = true, description = "파일 업로드 ID")
     @ApiResponses({
@@ -117,7 +117,7 @@ public class FileController {
     }
 
     @DeleteMapping("/{fileId}")
-    @Operation(summary = "파일 삭제", description = "pending 파일 업로드를 취소하고 MinIO object를 삭제합니다.")
+    @Operation(summary = "파일 삭제", description = "대기 중인 파일 업로드를 취소하고 MinIO 객체를 삭제합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @Parameter(name = "fileId", in = ParameterIn.PATH, required = true, description = "파일 업로드 ID")
     @ApiResponses({@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "파일 삭제 성공"),
