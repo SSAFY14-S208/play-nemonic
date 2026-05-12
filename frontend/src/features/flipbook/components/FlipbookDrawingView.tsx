@@ -48,12 +48,14 @@ interface FlipbookDrawingViewProps {
   previousFrameLines: DrawingLine[]
   selectedToolKey: DrawingToolKey
   selectedColor: string
+  selectedOpacity: number
   strokeWidth: number
   recentColors: string[]
   canUndoDrawing: boolean
   canRedoDrawing: boolean
   onSelectTool: (toolKey: DrawingToolKey) => void
   onSelectColor: (color: string) => void
+  onOpacityChange: (opacity: number) => void
   onStrokeWidthChange: (strokeWidth: number) => void
   onUndoDrawing: () => void
   onRedoDrawing: () => void
@@ -61,7 +63,6 @@ interface FlipbookDrawingViewProps {
   onDrawStart: (event: DrawingPointerEvent) => void
   onDrawMove: (event: DrawingPointerEvent) => void
   onDrawEnd: () => void
-  onExit: () => void
   onCompleteRound: () => void | Promise<void>
 }
 
@@ -78,12 +79,14 @@ export default function FlipbookDrawingView({
   previousFrameLines,
   selectedToolKey,
   selectedColor,
+  selectedOpacity,
   strokeWidth,
   recentColors,
   canUndoDrawing,
   canRedoDrawing,
   onSelectTool,
   onSelectColor,
+  onOpacityChange,
   onStrokeWidthChange,
   onUndoDrawing,
   onRedoDrawing,
@@ -240,9 +243,11 @@ export default function FlipbookDrawingView({
         <MobileColorGrid
           colors={FLIPBOOK_COLORS}
           selectedColor={selectedColor}
+          selectedOpacity={selectedOpacity}
           strokeWidth={strokeWidth}
           isDrawingLocked={isDrawingLocked}
           onSelectColor={onSelectColor}
+          onOpacityChange={onOpacityChange}
           onStrokeWidthChange={onStrokeWidthChange}
         />
 
@@ -298,23 +303,27 @@ export default function FlipbookDrawingView({
             className={cn(isDrawingLocked && 'pointer-events-none opacity-60')}
             colors={FLIPBOOK_COLORS}
             selectedColor={selectedColor}
+            selectedOpacity={selectedOpacity}
             strokeWidth={strokeWidth}
             recentColors={recentColors}
             onSelectColor={onSelectColor}
+            onOpacityChange={onOpacityChange}
             onStrokeWidthChange={onStrokeWidthChange}
           />
 
-          <main className="absolute left-[432px] top-[195px] h-[566px] w-[738px]">
+          <main className="absolute left-[345px] top-[218px] h-[689px] w-[900px]">
             <div className="absolute inset-0 rounded-[8px] bg-white shadow-[0_8px_42px_-10px_rgb(0_0_0_/_25%)]" />
-            <div className="absolute left-[29px] top-[23px] z-10 h-[520px] w-[680px] overflow-hidden rounded-[4px] bg-white">
-              <FlipbookStage
-                lines={lines}
-                previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
-                disabled={isDrawingLocked}
-                onDrawStart={onDrawStart}
-                onDrawMove={onDrawMove}
-                onDrawEnd={onDrawEnd}
-              />
+            <div className="absolute inset-0 z-10 overflow-hidden rounded-[4px] bg-white">
+              <div className="h-[520px] w-[680px] origin-top-left scale-[1.323529]">
+                <FlipbookStage
+                  lines={lines}
+                  previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
+                  disabled={isDrawingLocked}
+                  onDrawStart={onDrawStart}
+                  onDrawMove={onDrawMove}
+                  onDrawEnd={onDrawEnd}
+                />
+              </div>
               {overlayMessage && (
                 <div className="absolute inset-0 grid place-items-center bg-[#fff4a7]/70 text-flipbook-deep">
                   <div className="rounded-[14px] bg-flipbook-paper/92 px-6 py-4 text-center shadow-[0_4px_12px_var(--color-flipbook-shadow)]">
@@ -345,7 +354,7 @@ export default function FlipbookDrawingView({
           />
 
           <HintToggleButton
-            className="absolute left-[151px] top-[831px]"
+            className="absolute left-[70px] top-[928px]"
             hasOnionSkinHint={hasOnionSkinHint}
             isOnionSkinVisible={isOnionSkinVisible}
             onToggle={toggleOnionSkinVisibility}
@@ -358,7 +367,7 @@ export default function FlipbookDrawingView({
             onClick={handleCompleteRound}
             disabled={isDrawingLocked}
             className={cn(
-              'body-l-b absolute left-[1225px] top-[831px] inline-flex h-[62px] w-[204px] items-center justify-center gap-3 rounded-[14px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
+              'body-l-b absolute left-[1254px] top-[928px] inline-flex h-[62px] w-[222px] items-center justify-center gap-3 rounded-[14px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
               isDrawingLocked && 'cursor-not-allowed opacity-70',
             )}
           >
@@ -368,7 +377,7 @@ export default function FlipbookDrawingView({
             {submitButtonText === '완료!' ? '완료하기' : submitButtonText}
           </button>
           {errorMessage && (
-            <p className="caption-b absolute left-[432px] top-[782px] w-[738px] text-center text-flipbook-deep">
+            <p className="caption-b absolute left-[345px] top-[908px] w-[900px] text-center text-flipbook-deep">
               {errorMessage}
             </p>
           )}

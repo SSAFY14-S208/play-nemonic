@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import {
-  ArrowLeft,
   Clock3,
   Copy,
   Flag,
@@ -36,7 +35,6 @@ interface FlipbookLobbyViewProps {
   isHost: boolean
   isBusy: boolean
   errorMessage: string | null
-  onBack: () => void
   onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
   onSelectRoundCount: (roundCount: number) => void
   onStartGame: () => void
@@ -69,7 +67,6 @@ export default function FlipbookLobbyView({
   isHost,
   isBusy,
   errorMessage,
-  onBack,
   onSelectTimeLimit,
   onSelectRoundCount,
   onStartGame,
@@ -107,16 +104,6 @@ export default function FlipbookLobbyView({
         className="object-cover"
       />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_40%,rgb(255_255_255_/_36%),transparent_42%)]" />
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="body-b fixed left-4 top-4 z-30 inline-flex min-h-11 items-center gap-2 rounded-full border border-[#efd8c7] bg-white/88 px-4 text-[#684834] shadow-[0_8px_18px_rgb(126_74_42_/_14%)] backdrop-blur-sm transition hover:-translate-y-0.5 lg:left-8 lg:top-8"
-        aria-label="부스로 돌아가기"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        뒤로
-      </button>
 
       <FlipbookMobileLobbyLayout
         currentParticipant={currentParticipant}
