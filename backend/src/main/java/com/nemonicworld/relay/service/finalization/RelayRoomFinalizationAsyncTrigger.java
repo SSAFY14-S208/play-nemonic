@@ -2,6 +2,7 @@ package com.nemonicworld.relay.service.finalization;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
@@ -17,7 +18,7 @@ public class RelayRoomFinalizationAsyncTrigger {
     private final TaskExecutor taskExecutor;
 
     public RelayRoomFinalizationAsyncTrigger(RelayRoomFinalizationService relayRoomFinalizationService,
-        TaskExecutor taskExecutor) {
+        @Qualifier(RelayRoomFinalizationAsyncConfig.RELAY_FINALIZATION_TASK_EXECUTOR) TaskExecutor taskExecutor) {
         this.relayRoomFinalizationService = relayRoomFinalizationService;
         this.taskExecutor = taskExecutor;
     }
