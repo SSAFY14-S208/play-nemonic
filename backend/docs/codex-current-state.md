@@ -504,6 +504,7 @@ Recent relay runtime settings work connects the seeded backoffice relay paramete
 - Backoffice system parameter bulk updates validate `relay.room_participant_limit` as a JSON object with integer `min`/`max`, `min >= 2`, `max >= min`, and an operational upper bound of 20.
 - New relay rooms read `relay.room_time_limit_seconds` and store its `default` value as `timeLimitSeconds`; existing Redis room snapshots keep their current time limit after backoffice setting changes.
 - Relay waiting-room setting changes validate requested `timeLimitSeconds` against the latest `relay.room_time_limit_seconds.allowed` list, falling back to `30/45/60` when the setting is missing or invalid.
+- Relay room create and state lookup responses now expose `timeLimitDefaultSeconds` and `timeLimitAllowedSeconds` alongside the room's stored `timeLimitSeconds`. Frontend screens should display the stored room value and use the allowed list for future waiting-room setting changes; the current room value is not forced to match a later backoffice allowed-list change.
 - Relay REST rejoin, WebSocket reconnect, and disconnect-grace scheduler processing read `relay.reconnect_grace_seconds` on each request or scheduler tick, falling back to 10 seconds when the setting is missing or invalid.
 - Backoffice validation now rejects invalid relay time-limit objects (`default`, non-empty integer `allowed`, `default` included in `allowed`, 5-600 seconds) and invalid relay reconnect grace objects (`value` 0-300 seconds) before any system parameter row is updated.
 
