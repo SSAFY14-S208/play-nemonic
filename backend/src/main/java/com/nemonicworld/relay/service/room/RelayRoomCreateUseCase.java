@@ -15,6 +15,7 @@ import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -63,6 +64,7 @@ public class RelayRoomCreateUseCase {
             hostUser.getNickname(), true, RelayRoomPolicy.HOST_JOIN_ORDER, false, null, now);
         RelayRoomParticipantLimit participantLimit = relayRuntimeSettingsProvider.currentParticipantLimit();
         RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
+        Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
         RelayRoomState roomState = new RelayRoomState(roomCode, RelayRoomStatus.WAITING, hostUser.getId().toString(),
             timeLimitSettings.defaultSeconds(), participantLimit.minParticipants(), participantLimit.maxParticipants(),
             null, List.of(hostParticipant), List.of(), null, null, null, now, now);
@@ -74,6 +76,6 @@ public class RelayRoomCreateUseCase {
                 roomState.timeLimitSeconds(), "min_participants", roomState.minParticipants(), "max_participants",
                 roomState.maxParticipants()));
 
-        return RelayRoomCreateResponse.from(roomState, timeLimitSettings);
+        return RelayRoomCreateResponse.from(roomState, timeLimitSettings, reconnectGracePeriod);
     }
 }

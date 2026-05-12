@@ -9,6 +9,7 @@ import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
@@ -45,7 +46,8 @@ public class RelayRoomQueryUseCase {
         RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUser.getId().toString(), roomState,
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
         RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
+        Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
 
-        return RelayRoomStateResponse.from(roomState, viewer, timeLimitSettings);
+        return RelayRoomStateResponse.from(roomState, viewer, timeLimitSettings, reconnectGracePeriod);
     }
 }

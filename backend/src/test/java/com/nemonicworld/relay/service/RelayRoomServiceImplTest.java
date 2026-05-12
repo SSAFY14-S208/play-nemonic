@@ -178,6 +178,7 @@ class RelayRoomServiceImplTest {
         assertThat(response.timeLimitSeconds()).isEqualTo(60);
         assertThat(response.timeLimitDefaultSeconds()).isEqualTo(60);
         assertThat(response.timeLimitAllowedSeconds()).containsExactly(45, 60, 90);
+        assertThat(response.reconnectGraceSeconds()).isEqualTo(10);
         assertThat(response.minParticipants()).isEqualTo(3);
         assertThat(response.maxParticipants()).isEqualTo(8);
 

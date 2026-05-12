@@ -82,6 +82,7 @@ class RelayRoomEventPublisherTest {
         assertThat(data.timeLimitSeconds()).isEqualTo(45);
         assertThat(data.timeLimitDefaultSeconds()).isEqualTo(45);
         assertThat(data.timeLimitAllowedSeconds()).containsExactly(30, 45, 60);
+        assertThat(data.reconnectGraceSeconds()).isEqualTo(10);
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
         assertThat(data.changedParticipant()).isNull();
     }
@@ -104,6 +105,7 @@ class RelayRoomEventPublisherTest {
         assertThat(data.changedParticipant()).isNotNull();
         assertThat(data.timeLimitDefaultSeconds()).isEqualTo(45);
         assertThat(data.timeLimitAllowedSeconds()).containsExactly(30, 45, 60);
+        assertThat(data.reconnectGraceSeconds()).isEqualTo(10);
         assertThat(data.changedParticipant().userUuid()).isEqualTo(USER_UUID);
         assertThat(data.changedParticipant().nickname()).isEqualTo("망고");
         assertThat(data.changedParticipant().host()).isTrue();

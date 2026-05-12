@@ -14,6 +14,7 @@ import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -71,6 +72,7 @@ public class RelayRoomStartUseCase {
                 RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now);
                 RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider
                     .currentRoomTimeLimitSettings();
+                Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
                 RelayRoomEventLogger.apiBusiness("relay_game_started",
                     metadata("room_id", updatedRoomState.roomCode(), "host_uuid", viewerUserUuid, "participant_count",
                         updatedRoomState.participantCount(), "assignment_count", updatedRoomState.assignments().size(),
@@ -80,7 +82,7 @@ public class RelayRoomStartUseCase {
                         "previous_part", null, "participant_count", updatedRoomState.participantCount(),
                         "part_deadline_at", updatedRoomState.partDeadlineAt()));
 
-                return RelayRoomStateResponse.from(updatedRoomState, viewer, timeLimitSettings);
+                return RelayRoomStateResponse.from(updatedRoomState, viewer, timeLimitSettings, reconnectGracePeriod);
             }
         }
 
