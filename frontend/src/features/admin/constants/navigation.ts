@@ -120,15 +120,6 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
     label: "MODERATION",
     items: [
       {
-        key: "reports",
-        label: "신고 관리",
-        href: "/admin/reports",
-        icon: Flag,
-        pageTitle: "신고 관리",
-        pageDescription:
-          "UUID 기반 사용자 활동 추적 및 신고 접수 내역을 관리합니다.",
-      },
-      {
         key: "cs-inquiries",
         label: "CS 문의",
         href: "/admin/cs-inquiries",
@@ -180,9 +171,7 @@ const ADMIN_LEAF_ITEMS: AdminNavItem[] = ADMIN_NAVIGATION.flatMap((group) =>
   flattenLeafItems(group.items),
 );
 
-export function findActiveAdminNavItem(
-  pathname: string,
-): AdminNavItem | null {
+export function findActiveAdminNavItem(pathname: string): AdminNavItem | null {
   const matches = ADMIN_LEAF_ITEMS.filter(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
