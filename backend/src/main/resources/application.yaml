@@ -148,6 +148,11 @@ nemonic:
       scan-limit: ${RELAY_CLOSE_SCAN_LIMIT:100}
 
   flipbook:
+    abandoned-close:
+      enabled: ${FLIPBOOK_ABANDONED_CLOSE_ENABLED:true}
+      scan-delay-ms: ${FLIPBOOK_ABANDONED_CLOSE_SCAN_DELAY_MS:30000}
+      scan-limit: ${FLIPBOOK_ABANDONED_CLOSE_SCAN_LIMIT:100}
+      waiting-idle-seconds: ${FLIPBOOK_WAITING_IDLE_CLOSE_SECONDS:300}
     disconnect:
       enabled: ${FLIPBOOK_DISCONNECT_ENABLED:true}
       reconnect-grace-seconds: ${FLIPBOOK_DISCONNECT_RECONNECT_GRACE_SECONDS:10}
