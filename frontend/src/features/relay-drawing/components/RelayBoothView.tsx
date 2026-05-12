@@ -98,9 +98,6 @@ export default function RelayBoothView() {
               transition={{ duration: 0.5, ease: "easeOut" }}
               style={{ pointerEvents: isLeftRevealed ? "auto" : "none" }}
             >
-              <span className="body-b inline-flex min-h-[43px] w-fit items-center rounded-full bg-relay-active px-5 text-relay-accent-strong">
-                2~6명
-              </span>
               {/* 두 줄 로고 PNG. viewport 폭에 따라 280→340→420px로 fluid 스케일. */}
               <h1 className="contents">
                 <Image

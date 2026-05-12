@@ -1,10 +1,17 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/shared/libs";
 
+import greenNemoConfused from "../assets/green-nemo-confused.png";
+import greenNemoMoved from "../assets/green-nemo-moved.png";
+import greenNemoSatisfied from "../assets/green-nemo-satisfied.png";
+import redNemoConfused from "../assets/red-nemo-confused.png";
+import redNemoMoved from "../assets/red-nemo-moved.png";
+import redNemoSatisfied from "../assets/red-nemo-satisfied.png";
 import RelayArtworkCard from "./RelayArtworkCard";
 
 // 한 part(label card)의 px 크기. RelayLabelCard와 동일 단위. 슬롯의 폭/높이는 3*PART_SIZE + 2*PART_GAP.
@@ -27,14 +34,15 @@ const ARTWORK_HEIGHT = 3 * PART_SIZE + 2 * PART_GAP;
 const VIEWPORT_FILL_RATIO = 0.85;
 
 // 각 part가 spring으로 안착한 후 다음 카메라 pan을 시작하기 전 잠깐 머무는 시간(ms).
-// 짧게 50ms 정도면 deliberate camera feel을 유지하면서 시퀀스 전체를 2초 내로 압축.
-const PART_HOLD_MS = 50;
+// 150ms로 두어 각 part가 화면에 안착한 후 잠깐의 여운을 주고, 하단 nemo 캐릭터가
+// 화면 안에 머무는 시간도 충분히 확보. 전체 시퀀스는 ~2.4초.
+const PART_HOLD_MS = 150;
 
 // 카메라 pan 트윈 transition. critically-damped cinematic 이동. spring을 쓰면
 // mid-flight 속도 carry-over로 두 번째·세 번째 pan이 점점 빨라지고 overshoot이 발생.
 const CAMERA_PAN_TRANSITION = {
   type: "tween" as const,
-  duration: 0.3,
+  duration: 0.4,
   ease: [0.32, 0.72, 0, 1] as [number, number, number, number],
 };
 
@@ -47,12 +55,40 @@ const SLOT_TRANSITION = {
   mass: 0.7,
 };
 
-// 사이드 카드 fan-out transition. settling 완료 후 fanning phase에서 rotate(0°→±45°)와
+// 사이드 카드 fan-out transition. settling 완료 후 fanning phase에서 rotate(0°→±fanAngle)와
 // opacity(0→1)를 동시에 애니메이트. 0.34, 1.2 overshoot easing으로 살짝 튕기듯 펼쳐진다.
 const SIDE_ROTATION_TRANSITION = {
-  duration: 0.4,
+  duration: 0.5,
   ease: [0.34, 1.2, 0.5, 1] as [number, number, number, number],
 };
+
+// 사이드 카드 fan 각도. 좁은 viewport에선 ±45°일 때 회전된 카드(458px 세로)가 좌우로
+// ~302px씩 뻗어 화면 밖으로 크게 잘리므로 모바일/태블릿(< lg = 1024px)에선 30°로 좁힌다.
+// FinalState도 동일 breakpoint(Tailwind lg: 기본 1024px)로 분기되어 ChoreographyTree → FinalState
+// 전환 시 시각 점프 없음.
+const FAN_ANGLE_LG = 45;
+const FAN_ANGLE_SM = 30;
+const FAN_BREAKPOINT_PX = 1024;
+
+// 좌하단(빨강)/우하단(초록) 네모 캐릭터 fixed pop-up transition. AnimatePresence + key={phase}로
+// 각 intro phase마다 enter(y:100%→0%)/exit(y:0%→100%)가 트리거되어 메타포 시퀀스마다
+// 화면 하단에서 한 번씩 솟아올랐다 내려간다. ease-in-out으로 부드러운 가속/감속.
+const NEMO_TRANSITION = {
+  duration: 0.3,
+  ease: "easeInOut" as const,
+};
+
+// 각 intro phase별 네모 캐릭터 표정 매핑. face(1)는 moved(감동), body(2)는 satisfied(흡족),
+// leg(3)는 confused(어리둥절). 6개 motion.div(빨강 3 + 초록 3)이 모두 미리 마운트되어 viewport
+// 밑(y=100%)에 대기하다, 자신의 phase일 때만 y=15%로 올라온다. 모든 캐릭터가 항상 DOM에 존재해
+// AnimatePresence 기반 src swap에서 발생할 수 있는 렌더링 지연/race condition 없음.
+const NEMO_ASSETS_BY_INTRO_PHASE = {
+  "intro-1": { red: redNemoMoved, green: greenNemoMoved },
+  "intro-2": { red: redNemoSatisfied, green: greenNemoSatisfied },
+  "intro-3": { red: redNemoConfused, green: greenNemoConfused },
+} as const;
+
+const INTRO_PHASES = ["intro-1", "intro-2", "intro-3"] as const;
 
 type ChoreographyPhase =
   | "intro-1"
@@ -168,6 +204,7 @@ interface ChoreographyTreeProps {
 interface Measurement {
   centerOffset: { x: number; y: number };
   introScale: number;
+  fanAngle: number;
 }
 
 function ChoreographyTree({
@@ -202,6 +239,10 @@ function ChoreographyTree({
           y: window.innerHeight / 2 - (rect.top + rect.height / 2),
         },
         introScale: Math.min(scaleByHeight, scaleByWidth),
+        fanAngle:
+          window.innerWidth >= FAN_BREAKPOINT_PX
+            ? FAN_ANGLE_LG
+            : FAN_ANGLE_SM,
       });
     };
     // 첫 측정도 raf로 비동기화 — React Compiler가 useEffect 본문 동기 setState를 금지.
@@ -255,9 +296,58 @@ function ChoreographyTree({
   const revealCount = REVEAL_COUNT_BY_PHASE[phase];
 
   return (
-    <div
-      ref={slotRef}
-      className={cn("relative", className)}
+    <>
+      {/* 좌하단(빨강)/우하단(초록) 네모 캐릭터. 6개 motion.div(빨강 3 + 초록 3)이 모두 미리
+          마운트되어 viewport 밑(y=100%)에서 대기. 자신의 phase가 활성일 때만 y=15%로 올라오고
+          다른 phase일 땐 y=100%로 내려간다. AnimatePresence + key swap 대신 항상 마운트된 상태로
+          y만 토글해 React reconciliation/motion 상태 재설정으로 인한 1~2 프레임 지연(특히
+          intro-2 satisfied 캐릭터 누락 증상)을 방지. slot ref와 sibling으로 두어 slot-positioner의
+          transform이 fixed 좌표계에 영향을 주지 않도록 분리. */}
+      {INTRO_PHASES.map((introPhase) => {
+        const assets = NEMO_ASSETS_BY_INTRO_PHASE[introPhase];
+        const isActive = phase === introPhase;
+        return (
+          <motion.div
+            key={`nemo-red-${introPhase}`}
+            aria-hidden
+            className="pointer-events-none fixed bottom-0 left-4 z-50 sm:left-8"
+            initial={{ y: "100%" }}
+            animate={{ y: isActive ? "15%" : "100%" }}
+            transition={NEMO_TRANSITION}
+          >
+            <Image
+              src={assets.red}
+              alt=""
+              className="h-40 w-40 sm:h-56 sm:w-56 lg:h-75 lg:w-75"
+            />
+          </motion.div>
+        );
+      })}
+
+      {INTRO_PHASES.map((introPhase) => {
+        const assets = NEMO_ASSETS_BY_INTRO_PHASE[introPhase];
+        const isActive = phase === introPhase;
+        return (
+          <motion.div
+            key={`nemo-green-${introPhase}`}
+            aria-hidden
+            className="pointer-events-none fixed bottom-0 right-4 z-50 sm:right-8"
+            initial={{ y: "100%" }}
+            animate={{ y: isActive ? "15%" : "100%" }}
+            transition={NEMO_TRANSITION}
+          >
+            <Image
+              src={assets.green}
+              alt=""
+              className="h-40 w-40 sm:h-56 sm:w-56 lg:h-75 lg:w-75"
+            />
+          </motion.div>
+        );
+      })}
+
+      <div
+        ref={slotRef}
+        className={cn("relative", className)}
       // motion 트리가 마운트되기 전에도 slot ref가 실제 아트워크 카드와 동일한 dimension을
       // 갖도록 명시 사이즈를 부여. 빈 div(0×0) 상태에서 measurement가 일어나면 centerOffset이
       // slot 중심이 아닌 상단을 기준으로 계산되어 카메라가 ARTWORK_HEIGHT/2(229px)만큼
@@ -302,7 +392,7 @@ function ChoreographyTree({
             className="absolute inset-0 z-10 origin-bottom"
             initial={{ rotate: 0, opacity: 0 }}
             animate={{
-              rotate: isFanning ? 45 : 0,
+              rotate: isFanning ? measurement.fanAngle : 0,
               opacity: isFanning ? 1 : 0,
             }}
             transition={SIDE_ROTATION_TRANSITION}
@@ -313,12 +403,12 @@ function ChoreographyTree({
             <RelayArtworkCard size={PART_SIZE} />
           </motion.div>
 
-          {/* z-20 MID — 동일 패턴, fanning에서 0° → -45°. onComplete는 z-10에서 처리하므로 여기엔 없음. */}
+          {/* z-20 MID — 동일 패턴, fanning에서 0° → -fanAngle. onComplete는 z-10에서 처리하므로 여기엔 없음. */}
           <motion.div
             className="absolute inset-0 z-20 origin-bottom"
             initial={{ rotate: 0, opacity: 0 }}
             animate={{
-              rotate: isFanning ? -45 : 0,
+              rotate: isFanning ? -measurement.fanAngle : 0,
               opacity: isFanning ? 1 : 0,
             }}
             transition={SIDE_ROTATION_TRANSITION}
@@ -354,7 +444,8 @@ function ChoreographyTree({
           </motion.div>
         </motion.div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -378,10 +469,11 @@ function RelayBoothEntranceFinalState({
 
   return (
     <div className={cn("relative", className)}>
-      <div className="absolute inset-0 z-10 origin-bottom rotate-45">
+      {/* 모바일/태블릿(< lg)은 30°, 데스크탑은 45°. ChoreographyTree의 fanAngle 분기와 동일 1024px. */}
+      <div className="absolute inset-0 z-10 origin-bottom rotate-30 lg:rotate-45">
         <RelayArtworkCard size={PART_SIZE} />
       </div>
-      <div className="absolute inset-0 z-20 origin-bottom -rotate-45">
+      <div className="absolute inset-0 z-20 origin-bottom rotate-[-30deg] lg:-rotate-45">
         <RelayArtworkCard size={PART_SIZE} />
       </div>
       <div className="relative z-30">
