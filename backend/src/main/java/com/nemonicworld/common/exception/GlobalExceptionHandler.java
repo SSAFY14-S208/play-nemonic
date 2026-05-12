@@ -73,10 +73,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.fail(e.getMessage(), null));
     }
 
-    // 500 Internal Server Error - 이메일 발송 실패
+    // 503 Service Unavailable - 이메일 발송 실패
     @ExceptionHandler(EmailDeliveryException.class)
     public ResponseEntity<ApiResponse<Void>> handleEmailDelivery(EmailDeliveryException e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.fail(e.getMessage(), null));
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.fail(e.getMessage(), null));
     }
 
     // 500 Internal Server Error - 내부 처리 실패
