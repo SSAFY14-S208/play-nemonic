@@ -1,11 +1,15 @@
 import type { StateCreator } from 'zustand'
 
-import { PART_TO_ROUND_KEY, RELAY_COLORS, RELAY_ROUND_ORDER } from '../constants'
+import {
+  DEFAULT_DRAWING_STROKE_WIDTH,
+  DRAWING_COLORS,
+  MAX_RECENT_DRAWING_COLOR_COUNT,
+} from '@/shared/constants'
+import { PART_TO_ROUND_KEY, RELAY_ROUND_ORDER } from '../constants'
 import type { RelayDrawLine, RelayRoundLines } from '../types'
 
 import type { CanvasSlice, RelayDrawingStore } from './store.types'
 
-const DEFAULT_STROKE_WIDTH = 4
 const DEFAULT_ROUND_LINES: RelayRoundLines = {
   face: [],
   body: [],
@@ -19,8 +23,10 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
   activeRoundKey: 'face',
   selectedToolKey: 'pencil',
   // 검은색(팔레트 첫 색)을 기본으로 — 가장 무난하고 라인이 또렷하게 보인다.
-  selectedColor: RELAY_COLORS[0],
-  strokeWidth: DEFAULT_STROKE_WIDTH,
+  selectedColor: DRAWING_COLORS[0],
+  selectedOpacity: 1,
+  strokeWidth: DEFAULT_DRAWING_STROKE_WIDTH,
+  recentColors: [],
   roundLines: DEFAULT_ROUND_LINES,
   roundRedoStack: DEFAULT_ROUND_LINES,
 
@@ -79,7 +85,19 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
 
   setSelectedToolKey: (toolKey) => set({ selectedToolKey: toolKey }),
   setSelectedColor: (color) => set({ selectedColor: color }),
+  setSelectedOpacity: (opacity) => set({ selectedOpacity: opacity }),
   setStrokeWidth: (strokeWidth) => set({ strokeWidth }),
+  addRecentColor: (color) => {
+    set((state) => {
+      const uniqueRecentColors = state.recentColors.filter(
+        (recentColor) => recentColor !== color,
+      )
+
+      return {
+        recentColors: [color, ...uniqueRecentColors].slice(0, MAX_RECENT_DRAWING_COLOR_COUNT),
+      }
+    })
+  },
 
   commitLine: (line) => {
     const { activeRoundKey, roundLines, roundRedoStack } = get()
@@ -193,6 +211,8 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
       // 이전 라운드의 PART_TIME_UP 오버레이는 더 이상 의미 없음.
       isPartTimeUp: false,
       selectedToolKey: 'pencil',
+      selectedOpacity: 1,
+      strokeWidth: DEFAULT_DRAWING_STROKE_WIDTH,
       // 라운드별 데드라인 — 새로고침 복귀 시 WS 이벤트 없이도 deadline이 복원되도록.
       // roundSubmitted는 리셋하지 않는다 — 라운드 간 누적 이력.
       roundDeadlines: {

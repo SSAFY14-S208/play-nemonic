@@ -1,5 +1,9 @@
 import type { StateCreator } from 'zustand'
 
+import {
+  DEFAULT_DRAWING_STROKE_WIDTH,
+  DRAWING_COLORS,
+} from '@/shared/constants'
 import { DEFAULT_TIME_LIMIT_SECONDS } from '../constants'
 
 import type { RelayDrawingStore, RoomSlice } from './store.types'
@@ -53,7 +57,13 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
       dismissalReason: null,
       // 캔버스 슬라이스 리셋
       activeRoundKey: 'face',
+      selectedToolKey: 'pencil',
+      selectedColor: DRAWING_COLORS[0],
+      selectedOpacity: 1,
+      strokeWidth: DEFAULT_DRAWING_STROKE_WIDTH,
+      recentColors: [],
       roundLines: { face: [], body: [], legs: [] },
+      roundRedoStack: { face: [], body: [], legs: [] },
       canvasIndex: null,
       currentPart: null,
       partDeadlineAt: null,

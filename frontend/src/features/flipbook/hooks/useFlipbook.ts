@@ -17,6 +17,7 @@ import {
   patchFlipbookRoomSettings,
   putFileToPresignedUrl,
 } from '@/shared/apis'
+import { DRAWING_COLORS, DEFAULT_DRAWING_STROKE_WIDTH } from '@/shared/constants'
 import { useDrawingBoard } from '@/shared/hooks'
 import { useUserStore } from '@/shared/stores'
 import type {
@@ -29,7 +30,6 @@ import type {
 import {
   FLIPBOOK_BACKGROUND_COLOR,
   FLIPBOOK_BOARD_SIZE,
-  FLIPBOOK_COLORS,
 } from '../constants'
 import type {
   FlipbookStep,
@@ -92,8 +92,8 @@ export function useFlipbook({
   const drawingBoard = useDrawingBoard({
     boardSize: FLIPBOOK_BOARD_SIZE,
     backgroundColor: FLIPBOOK_BACKGROUND_COLOR,
-    defaultColor: FLIPBOOK_COLORS[0],
-    defaultStrokeWidth: 9,
+    defaultColor: DRAWING_COLORS[0],
+    defaultStrokeWidth: DEFAULT_DRAWING_STROKE_WIDTH,
   })
   const [currentStep, setCurrentStepState] = useState<FlipbookStep>(routeStep)
   const setCurrentStep = useCallback(
