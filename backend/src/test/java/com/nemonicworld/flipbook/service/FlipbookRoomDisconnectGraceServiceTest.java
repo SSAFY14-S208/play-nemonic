@@ -26,6 +26,7 @@ import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceProce
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceRoomResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookRoomDisconnectGraceService;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import java.time.Duration;
@@ -69,13 +70,17 @@ class FlipbookRoomDisconnectGraceServiceTest {
     @Mock
     private FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
 
+    @Mock
+    private FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService;
+
     private FlipbookRoomDisconnectGraceService flipbookRoomDisconnectGraceService;
 
     @BeforeEach
     void setUp() {
         flipbookRoomDisconnectGraceService = new FlipbookRoomDisconnectGraceService(flipbookRoomRepository,
             flipbookSubmissionLockRepository, flipbookRoomMutationLockRepository, new FlipbookRoomRoundAdvanceService(),
-            flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, flipbookRuntimeSettingsProvider, 100, 5000L);
+            flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, flipbookRuntimeSettingsProvider,
+            flipbookRoomFinalizationTriggerService, 100, 5000L);
         lenient().when(flipbookRuntimeSettingsProvider.currentReconnectGracePeriod())
             .thenReturn(Duration.ofSeconds(RECONNECT_GRACE_SECONDS));
         lenient().when(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))
@@ -163,6 +168,31 @@ class FlipbookRoomDisconnectGraceServiceTest {
             any(FlipbookFrameAssignment.class));
         verify(flipbookRoomEventPublisher).publishRoundStarted(eq(ROOM_CODE), eq(1), eq(2), eq(NOW),
             eq(NOW.plusSeconds(45)));
+    }
+
+    @Test
+    void processRoomAutoSubmitsDroppedLastRoundAssignmentAndTriggersFinalization() {
+        UUID droppedUuid = UUID.randomUUID();
+        UUID connectedUuid = UUID.randomUUID();
+        LocalDateTime startedAt = NOW.minusSeconds(45);
+        FlipbookRoomState roomState = new FlipbookRoomState(ROOM_CODE, FlipbookRoomStatus.PLAYING,
+            droppedUuid.toString(), 45, 2, 6, 4, 4, startedAt, startedAt.plusSeconds(45), startedAt,
+            List.of(pendingAssignment(0, 3, 4, droppedUuid), submittedAssignment(1, 3, 4, connectedUuid)),
+            List.of(participant(droppedUuid, "Mango", true, 0, false, NOW.minusSeconds(10)),
+                participant(connectedUuid, "Peach", false, 1)),
+            NOW.minusMinutes(10), NOW.minusSeconds(1), List.of());
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookDisconnectGraceRoomResult result = flipbookRoomDisconnectGraceService.processRoom(ROOM_CODE, NOW);
+
+        assertThat(result.advanceResult()).isNotNull();
+        assertThat(result.advanceResult().allRoundsCompleted()).isTrue();
+        assertThat(captureUpdatedRoomState().status()).isEqualTo(FlipbookRoomStatus.FINALIZING);
+        verify(flipbookRoomEventPublisher).publishAllRoundsCompleted(eq(ROOM_CODE), eq(FlipbookRoomStatus.FINALIZING),
+            eq(NOW));
+        verify(flipbookRoomFinalizationTriggerService).triggerFinalizationAsync(ROOM_CODE);
     }
 
     @Test

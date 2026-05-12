@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.service;
 
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomTimeLimitOptionsResponse;
 import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
@@ -73,6 +74,6 @@ public class FlipbookRoomCreateUseCase {
                 roomState.minParticipants(), "max_participants", roomState.maxParticipants(), "time_limit_seconds",
                 roomState.timeLimitSeconds()));
 
-        return FlipbookRoomCreateResponse.from(roomState);
+        return FlipbookRoomCreateResponse.from(roomState, FlipbookRoomTimeLimitOptionsResponse.from(timeLimitSettings));
     }
 }

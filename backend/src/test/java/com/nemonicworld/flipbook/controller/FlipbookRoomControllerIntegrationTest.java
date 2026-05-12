@@ -101,6 +101,10 @@ class FlipbookRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.status").value("WAITING"))
             .andExpect(jsonPath("$.data.hostUserUuid").value(userUuid.toString()))
             .andExpect(jsonPath("$.data.timeLimitSeconds").value(45))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.default").value(45))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[0]").value(30))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[1]").value(45))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[2]").value(60))
             .andExpect(jsonPath("$.data.minParticipants").value(2))
             .andExpect(jsonPath("$.data.maxParticipants").value(6))
             .andExpect(jsonPath("$.data.participantCount").value(1))
@@ -150,6 +154,10 @@ class FlipbookRoomControllerIntegrationTest {
 
         mockMvc.perform(post("/api/v1/flipbook/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.data.timeLimitSeconds").value(60))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.default").value(60))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[0]").value(45))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[1]").value(60))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[2]").value(90))
             .andExpect(jsonPath("$.data.minParticipants").value(3))
             .andExpect(jsonPath("$.data.maxParticipants").value(8));
 
