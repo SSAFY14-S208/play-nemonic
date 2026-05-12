@@ -46,7 +46,7 @@ public record RelayRoomStateResponse(@Schema(description = "공유 방코드", e
             .sorted(Comparator.comparingInt(participant -> participant.joinOrder()))
             .map(RelayRoomParticipantResponse::from).toList();
 
-        // 이미지 object key나 fileId 같은 내부 진행 참조값은 상태 조회 응답에 노출하지 않습니다.
+        // 이미지 객체 키나 fileId 같은 내부 진행 참조값은 상태 조회 응답에 노출하지 않습니다.
         return new RelayRoomStateResponse(roomState.roomCode(), roomState.status(), roomState.hostUserUuid(),
             roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
             roomState.participantCount(), roomState.currentPart(), roomState.assignments().size(),

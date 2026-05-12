@@ -12,7 +12,7 @@ public record FlipbookRoomResultsResponse(@Schema(description = "공유 방코�
     @Schema(description = "Redis에 남아 있는 방 상태. Redis가 만료되었으면 null입니다.") FlipbookRoomStatus roomStatus,
     @Schema(description = "최종 결과 조회 가능 여부", example = "true") boolean ready,
     @Schema(description = "반환된 결과 개수", example = "2") int resultCount,
-    @Schema(description = "flipbookIndex별 최종 결과 목록") List<FlipbookRoomResultItemResponse> results) {
+    @Schema(description = "플립북 번호별 최종 결과 목록") List<FlipbookRoomResultItemResponse> results) {
 
     public FlipbookRoomResultsResponse {
         results = results == null ? List.of() : List.copyOf(results);

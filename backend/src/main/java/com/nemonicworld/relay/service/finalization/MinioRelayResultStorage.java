@@ -11,7 +11,7 @@ import java.io.InputStream;
 import org.springframework.stereotype.Component;
 
 /**
- * 릴레이 최종화에 필요한 MinIO object 읽기/쓰기만 담당합니다.
+ * 릴레이 최종화에 필요한 MinIO 객체 읽기/쓰기만 담당합니다.
  */
 @Component
 public class MinioRelayResultStorage implements RelayResultStorage {

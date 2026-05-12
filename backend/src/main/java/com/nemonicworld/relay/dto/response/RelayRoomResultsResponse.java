@@ -12,5 +12,5 @@ public record RelayRoomResultsResponse(@Schema(description = "공유 방 코드"
     @Schema(description = "Redis에 남아 있는 방 상태. Redis가 만료되었으면 null입니다.", example = "FINISHED") RelayRoomStatus roomStatus,
     @Schema(description = "최종 결과 조회 가능 여부", example = "true") boolean ready,
     @Schema(description = "반환된 결과 개수", example = "3") int resultCount,
-    @Schema(description = "canvasIndex별 최종 결과 목록") List<RelayRoomResultItemResponse> results) {
+    @Schema(description = "캔버스 번호별 최종 결과 목록") List<RelayRoomResultItemResponse> results) {
 }

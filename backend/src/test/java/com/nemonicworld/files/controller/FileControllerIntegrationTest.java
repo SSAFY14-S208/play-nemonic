@@ -95,7 +95,7 @@ class FileControllerIntegrationTest {
                 .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
                 .content(presignRequestBody("drawing.png", "image/png", "FLIPBOOK")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("Presigned URL 발급 성공")).andExpect(jsonPath("$.data.fileId").exists())
+            .andExpect(jsonPath("$.message").value("사전 서명 URL 발급 성공")).andExpect(jsonPath("$.data.fileId").exists())
             .andExpect(jsonPath("$.data.presignedUrl").value(PRESIGNED_URL))
             .andExpect(jsonPath("$.data.expiresIn").value(600)).andReturn();
 

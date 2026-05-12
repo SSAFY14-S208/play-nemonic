@@ -7,8 +7,7 @@ import java.time.LocalDateTime;
 /**
  * 내 갤러리 목록 화면에서 한 결과물 카드를 구성하는 응답 DTO입니다.
  *
- * DB에 저장된 object key를 public URL로 변환해 반환하며 MinIO 파일 존재 여부나 presigned URL 발급은
- * 수행하지 않습니다.
+ * DB에 저장된 객체 키를 공개 URL로 변환해 반환하며 MinIO 파일 존재 여부나 사전 서명 URL 발급은 수행하지 않습니다.
  */
 public record GalleryItemResponse(
     @Schema(description = "갤러리 보관 항목 UUID", example = "8d25f3a5-3c5a-4f21-9f54-68fa4a402011") String galleryId,

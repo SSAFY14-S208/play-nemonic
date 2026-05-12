@@ -10,7 +10,7 @@ import java.io.InputStream;
 import org.springframework.stereotype.Component;
 
 /**
- * 플립북 결과 생성에 필요한 MinIO object 읽기/쓰기만 담당합니다.
+ * 플립북 결과 생성에 필요한 MinIO 객체 읽기/쓰기만 담당합니다.
  */
 @Component
 public class MinioFlipbookResultStorage implements FlipbookResultStorage {

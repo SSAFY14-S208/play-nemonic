@@ -60,7 +60,7 @@ public class CommunityMemoController {
      * 업로드/confirm 완료된 최종 원본·썸네일 스냅샷으로 커뮤니티 메모를 생성합니다.
      */
     @PostMapping
-    @Operation(summary = "커뮤니티 메모 생성", description = "files API로 업로드 및 confirm 완료한 최종 원본/썸네일 스냅샷을 커뮤니티 메모로 생성합니다.")
+    @Operation(summary = "커뮤니티 메모 생성", description = "파일 API로 업로드와 완료 확인을 끝낸 최종 원본/썸네일 스냅샷을 커뮤니티 메모로 생성합니다.")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @RequestBody(required = true, content = @Content(examples = @ExampleObject(value = """
         {
@@ -204,7 +204,7 @@ public class CommunityMemoController {
      * visible 메모를 신고하고, 누적 신고 5회 이상이면 자동 숨김 처리합니다.
      */
     @PostMapping("/{memoId}/reports")
-    @Operation(summary = "커뮤니티 메모 신고", description = "visible 상태의 커뮤니티 메모를 신고하고, 누적 신고 5회 이상이면 자동 숨김 처리합니다.")
+    @Operation(summary = "커뮤니티 메모 신고", description = "표시 중인 커뮤니티 메모를 신고하고, 누적 신고 5회 이상이면 자동 숨김 처리합니다.")
     @Parameter(name = "memoId", in = ParameterIn.PATH, required = true, description = "신고할 커뮤니티 메모 UUID")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @RequestBody(required = true, content = @Content(examples = @ExampleObject(value = """

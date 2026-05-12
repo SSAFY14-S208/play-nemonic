@@ -97,7 +97,7 @@ public class JwtTokenProvider {
         try {
             return base64UrlEncoder.encodeToString(objectMapper.writeValueAsBytes(value));
         } catch (JsonProcessingException e) {
-            throw new InternalServerException("JWT payload serialization failed.", e);
+            throw new InternalServerException("JWT 페이로드 직렬화에 실패했습니다.", e);
         }
     }
 
@@ -115,7 +115,7 @@ public class JwtTokenProvider {
             mac.init(new SecretKeySpec(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
             return base64UrlEncoder.encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new InternalServerException("JWT signing failed.", e);
+            throw new InternalServerException("JWT 서명에 실패했습니다.", e);
         }
     }
 }

@@ -200,11 +200,9 @@ class SystemParameterControllerIntegrationTest {
     @Test
     void adminUpdatesTypedSystemParameters(CapturedOutput output) throws Exception {
         insertSetting(10L, "community.max_memo_count",
-            "{\"value\":50,\"unit\":\"count\",\"description\":\"Community canvas visible memo limit\"}",
-            SUPER_ADMIN_ID);
+            "{\"value\":50,\"unit\":\"count\",\"description\":\"커뮤니티 캔버스 표시 메모 수 제한\"}", SUPER_ADMIN_ID);
         insertSetting(11L, "fortune.daily_limit",
-            "{\"value\":1,\"unit\":\"count\",\"description\":\"Daily fortune generation limit per anonymous user\"}",
-            SUPER_ADMIN_ID);
+            "{\"value\":1,\"unit\":\"count\",\"description\":\"익명 사용자별 일일 운세 생성 제한\"}", SUPER_ADMIN_ID);
         LocalDateTime before10 = findSettingUpdatedAt(10L);
         LocalDateTime before11 = findSettingUpdatedAt(11L);
 
@@ -216,12 +214,12 @@ class SystemParameterControllerIntegrationTest {
                       "communityMaxMemoCount": {
                         "value": 200,
                         "unit": "count",
-                        "description": "Community canvas visible memo limit"
+                        "description": "커뮤니티 캔버스 표시 메모 수 제한"
                       },
                       "fortuneDailyLimit": {
                         "value": 5,
                         "unit": "count",
-                        "description": "Daily fortune generation limit per anonymous user"
+                        "description": "익명 사용자별 일일 운세 생성 제한"
                       }
                     }
                     """))
@@ -237,9 +235,9 @@ class SystemParameterControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[1].updatedBy.id").value(ADMIN_ID));
 
         assertThat(findSettingValue(10L))
-            .isEqualTo("{\"value\":200,\"unit\":\"count\",\"description\":\"Community canvas visible memo limit\"}");
-        assertThat(findSettingValue(11L)).isEqualTo(
-            "{\"value\":5,\"unit\":\"count\",\"description\":\"Daily fortune generation limit per anonymous user\"}");
+            .isEqualTo("{\"value\":200,\"unit\":\"count\",\"description\":\"커뮤니티 캔버스 표시 메모 수 제한\"}");
+        assertThat(findSettingValue(11L))
+            .isEqualTo("{\"value\":5,\"unit\":\"count\",\"description\":\"익명 사용자별 일일 운세 생성 제한\"}");
         assertThat(findSettingUpdatedBy(10L)).isEqualTo(ADMIN_ID);
         assertThat(findSettingUpdatedBy(11L)).isEqualTo(ADMIN_ID);
         assertThat(findSettingUpdatedAt(10L)).isAfter(before10);
@@ -275,7 +273,7 @@ class SystemParameterControllerIntegrationTest {
                       "fortuneDailyLimit": {
                         "value": 99,
                         "unit": "count",
-                        "description": "Daily fortune generation limit per anonymous user"
+                        "description": "익명 사용자별 일일 운세 생성 제한"
                       }
                     }
                     """))
@@ -289,7 +287,7 @@ class SystemParameterControllerIntegrationTest {
     @Test
     void systemParameterTypedUpdateAcceptsRelayParticipantLimit() throws Exception {
         insertSetting(10L, "relay.room_participant_limit",
-            "{\"min\":2,\"max\":6,\"unit\":\"people\",\"description\":\"Relay room participant limit\"}", ADMIN_ID);
+            "{\"min\":2,\"max\":6,\"unit\":\"people\",\"description\":\"릴레이 방 참여 인원 제한\"}", ADMIN_ID);
 
         mockMvc
             .perform(
@@ -300,7 +298,7 @@ class SystemParameterControllerIntegrationTest {
                             "min": 3,
                             "max": 8,
                             "unit": "people",
-                            "description": "Relay room participant limit"
+                            "description": "릴레이 방 참여 인원 제한"
                           }
                         }
                         """))
@@ -309,7 +307,7 @@ class SystemParameterControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[0].value.max").value(8));
 
         assertThat(findSettingValue(10L))
-            .isEqualTo("{\"min\":3,\"max\":8,\"unit\":\"people\",\"description\":\"Relay room participant limit\"}");
+            .isEqualTo("{\"min\":3,\"max\":8,\"unit\":\"people\",\"description\":\"릴레이 방 참여 인원 제한\"}");
     }
 
     @Test
@@ -327,12 +325,12 @@ class SystemParameterControllerIntegrationTest {
                             "default": 60,
                             "allowed": [45, 60, 90],
                             "unit": "seconds",
-                            "description": "Relay room drawing time limit"
+                            "description": "릴레이 방 그리기 제한 시간"
                           },
                           "relayReconnectGraceSeconds": {
                             "value": 0,
                             "unit": "seconds",
-                            "description": "Relay reconnect grace seconds"
+                            "description": "릴레이 재연결 유예 시간"
                           }
                         }
                         """))
@@ -375,7 +373,7 @@ class SystemParameterControllerIntegrationTest {
                           "communityMaxMemoCount": {
                             "value": 70,
                             "unit": "count",
-                            "description": "Community canvas visible memo limit"
+                            "description": "커뮤니티 캔버스 표시 메모 수 제한"
                           }
                         }
                         """))
@@ -383,7 +381,7 @@ class SystemParameterControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[0].key").value("community.max_memo_count"));
 
         assertThat(findSettingValue(10L))
-            .isEqualTo("{\"value\":70,\"unit\":\"count\",\"description\":\"Community canvas visible memo limit\"}");
+            .isEqualTo("{\"value\":70,\"unit\":\"count\",\"description\":\"커뮤니티 캔버스 표시 메모 수 제한\"}");
         assertThat(findSettingValue(11L)).isEqualTo("{\"value\":1}");
     }
 
@@ -409,7 +407,7 @@ class SystemParameterControllerIntegrationTest {
                           "fortuneDailyLimit": {
                             "value": %s,
                             "unit": "count",
-                            "description": "Daily fortune generation limit per anonymous user"
+                            "description": "익명 사용자별 일일 운세 생성 제한"
                           }
                         }
                         """.formatted(value)))
@@ -499,12 +497,12 @@ class SystemParameterControllerIntegrationTest {
                           "communityMaxMemoCount": {
                             "value": 70,
                             "unit": "count",
-                            "description": "Community canvas visible memo limit"
+                            "description": "커뮤니티 캔버스 표시 메모 수 제한"
                           },
                           "fortuneDailyLimit": {
                             "value": 5,
                             "unit": "count",
-                            "description": "Daily fortune generation limit per anonymous user"
+                            "description": "익명 사용자별 일일 운세 생성 제한"
                           }
                         }
                         """))
@@ -524,7 +522,7 @@ class SystemParameterControllerIntegrationTest {
                   "fortuneDailyLimit": {
                     "value": 5,
                     "unit": "count",
-                    "description": "Daily fortune generation limit per anonymous user"
+                    "description": "익명 사용자별 일일 운세 생성 제한"
                   }
                 }
                 """)).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
@@ -544,7 +542,7 @@ class SystemParameterControllerIntegrationTest {
                       "fortuneDailyLimit": {
                         "value": 5,
                         "unit": "count",
-                        "description": "Daily fortune generation limit per anonymous user"
+                        "description": "익명 사용자별 일일 운세 생성 제한"
                       }
                     }
                     """))

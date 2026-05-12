@@ -1422,20 +1422,17 @@ class CommunityMemoControllerIntegrationTest {
             )
             VALUES (?, ?, ?, ?, ?, ?)
             """, 10L, "community.max_memo_count",
-            "{\"value\":%d,\"unit\":\"count\",\"description\":\"Community canvas visible memo limit\"}"
-                .formatted(maxMemoCount),
-            0L, now, now);
+            "{\"value\":%d,\"unit\":\"count\",\"description\":\"커뮤니티 캔버스 표시 메모 수 제한\"}".formatted(maxMemoCount), 0L,
+            now, now);
     }
 
     private void updateCommunityMaxMemoCountSetting(int maxMemoCount) {
-        jdbcTemplate.update(
-            """
-                UPDATE backoffice_setting
-                SET setting_value = ?,
-                    updated_at = ?
-                WHERE setting_key = ?
-                """, "{\"value\":%d,\"unit\":\"count\",\"description\":\"Community canvas visible memo limit\"}"
-                .formatted(maxMemoCount),
+        jdbcTemplate.update("""
+            UPDATE backoffice_setting
+            SET setting_value = ?,
+                updated_at = ?
+            WHERE setting_key = ?
+            """, "{\"value\":%d,\"unit\":\"count\",\"description\":\"커뮤니티 캔버스 표시 메모 수 제한\"}".formatted(maxMemoCount),
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), "community.max_memo_count");
     }
 

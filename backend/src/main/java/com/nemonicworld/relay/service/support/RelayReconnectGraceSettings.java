@@ -15,8 +15,7 @@ public record RelayReconnectGraceSettings(long seconds) {
 
     public static RelayReconnectGraceSettings fromJson(JsonNode value) {
         if (value == null || !value.isObject()) {
-            throw new InvalidRelayReconnectGraceSettingsException(
-                "Relay reconnect grace setting must be a JSON object.");
+            throw new InvalidRelayReconnectGraceSettingsException("릴레이 재연결 유예 시간 설정은 JSON 객체여야 합니다.");
         }
 
         long seconds = requireLong(value.get("value"), "value");
@@ -31,8 +30,7 @@ public record RelayReconnectGraceSettings(long seconds) {
 
     private static long requireLong(JsonNode value, String fieldName) {
         if (value == null || !value.isIntegralNumber() || !value.canConvertToLong()) {
-            throw new InvalidRelayReconnectGraceSettingsException(
-                "Relay reconnect grace setting field must be an integer: " + fieldName);
+            throw new InvalidRelayReconnectGraceSettingsException("릴레이 재연결 유예 시간 설정 필드는 정수여야 합니다: " + fieldName);
         }
 
         return value.asLong();
@@ -40,13 +38,11 @@ public record RelayReconnectGraceSettings(long seconds) {
 
     private static void validate(long seconds) {
         if (seconds < MIN_CONFIGURABLE_RECONNECT_GRACE_SECONDS) {
-            throw new InvalidRelayReconnectGraceSettingsException(
-                "Relay reconnect grace seconds must be greater than or equal to zero.");
+            throw new InvalidRelayReconnectGraceSettingsException("릴레이 재연결 유예 시간은 0초 이상이어야 합니다.");
         }
 
         if (seconds > MAX_CONFIGURABLE_RECONNECT_GRACE_SECONDS) {
-            throw new InvalidRelayReconnectGraceSettingsException(
-                "Relay reconnect grace seconds exceeds the configurable upper bound.");
+            throw new InvalidRelayReconnectGraceSettingsException("릴레이 재연결 유예 시간이 설정 가능한 상한을 초과했습니다.");
         }
     }
 }

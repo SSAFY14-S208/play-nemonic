@@ -465,7 +465,7 @@ public class RelayRoomFinalizationService {
     }
 
     /**
-     * 최종 결과물 원본/썸네일의 MinIO objectKey를 생성합니다.
+     * 최종 결과물 원본/썸네일의 MinIO 객체 키를 생성합니다.
      */
     private String createResultObjectKey(UUID artifactId, String fileName) {
         return "relay/results/%s/%s".formatted(artifactId, fileName);

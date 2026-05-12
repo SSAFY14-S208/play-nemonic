@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * gallery 소유권 기준으로 조회 가능한 산출물 이미지 object key를 읽습니다.
+ * 갤러리 소유권 기준으로 조회 가능한 산출물 이미지 객체 키를 읽습니다.
  */
 @Repository
 public class ArtifactImageUrlRepository {
