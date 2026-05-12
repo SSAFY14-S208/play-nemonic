@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Pencil,
-  ScrollText,
+  Shield,
   Sliders,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -22,6 +22,7 @@ export type AdminNavItem = {
   pageTitle: string;
   pageDescription: string;
   children?: AdminNavItem[];
+  requiredRole?: string;
 };
 
 export type AdminNavGroup = {
@@ -157,13 +158,14 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
     label: "SYSTEM",
     items: [
       {
-        key: "audit-log",
-        label: "감사 로그",
-        href: "/admin/audit-log",
-        icon: ScrollText,
-        pageTitle: "감사 로그",
+        key: "backoffice-management",
+        label: "백오피스 관리",
+        href: "/admin/backoffice-management",
+        icon: Shield,
+        pageTitle: "백오피스 관리",
         pageDescription:
-          "모든 운영자 조작 내역을 영구 기록합니다. 변경 내역 추적과 책임 소재 확인에 활용됩니다.",
+          "관리자 계정을 생성·조회·삭제합니다. 슈퍼 관리자만 접근할 수 있습니다.",
+        requiredRole: "super_admin",
       },
     ],
   },
