@@ -94,6 +94,13 @@ nemonic:
     mail:
       from: ${MAIL_FROM:${MAIL_USERNAME:}}
 
+  client-log:
+    allowed-origins: ${CLIENT_LOG_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://127.0.0.1:8080}
+    max-events-per-request: ${CLIENT_LOG_MAX_EVENTS_PER_REQUEST:200}
+    max-payload-bytes: ${CLIENT_LOG_MAX_PAYLOAD_BYTES:1048576}
+    rate-limit-events-per-second: ${CLIENT_LOG_RATE_LIMIT_EVENTS_PER_SECOND:100}
+    rate-limit-events-per-minute: ${CLIENT_LOG_RATE_LIMIT_EVENTS_PER_MINUTE:1000}
+
   community:
     moderation:
       enabled: ${COMMUNITY_MODERATION_ENABLED:true}

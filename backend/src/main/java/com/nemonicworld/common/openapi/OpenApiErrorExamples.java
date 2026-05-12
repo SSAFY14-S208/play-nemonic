@@ -695,6 +695,18 @@ public final class OpenApiErrorExamples {
           "message": "이메일 발송에 실패했습니다."
         }
         """;
+    public static final String CLIENT_LOG_PAYLOAD_TOO_LARGE = """
+        {
+          "success": false,
+          "message": "로그 요청 본문은 1MB 이하로 전송해 주세요."
+        }
+        """;
+    public static final String CLIENT_LOG_RATE_LIMITED = """
+        {
+          "success": false,
+          "message": "클라이언트 로그 전송 한도를 초과했습니다."
+        }
+        """;
     public static final String BAD_REQUEST = """
         {
           "success": false,

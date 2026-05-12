@@ -67,6 +67,11 @@ Last updated: 2026-05-12
   `new`, `in_progress`, `resolved`, and `closed`, updates only `status` and
   `updatedAt`, and leaves reply fields such as `assignedTo`, `responseNote`,
   and `respondedAt` untouched.
+- The client log ingest endpoint `POST /api/logs/client` accepts standard
+  frontend log events and emits valid entries to stdout through `logs.client`.
+  It applies per-IP in-memory rate limits, payload/event-count limits,
+  Origin/Referer allow-list checks, bot drops, event allow-list routing, schema
+  drops, and server-side PII sanitization before logging.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
 - Backoffice admin authentication now exposes `POST /api/v1/auth/login`,
   `POST /api/v1/auth/logout`, and `POST /api/v1/auth/reissue`; admin account

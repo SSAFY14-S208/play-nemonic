@@ -45,7 +45,8 @@ public class FlipbookRuntimeSettingsProvider {
             .filter(StringUtils::hasText).map(this::parseRoomTimeLimitSettings).orElseGet(() -> {
                 FlipbookRoomTimeLimitSettings fallback = FlipbookRoomTimeLimitSettings.defaultSettings();
                 log.warn(
-                    "flipbook room time limit setting is missing or blank. key={} fallbackDefault={} fallbackAllowed={}",
+                    "flipbook room time limit setting is missing or blank. key={} fallbackDefault={} "
+                        + "fallbackAllowed={}",
                     ROOM_TIME_LIMIT_SECONDS_SETTING_KEY, fallback.defaultSeconds(), fallback.allowedSeconds());
 
                 return fallback;
