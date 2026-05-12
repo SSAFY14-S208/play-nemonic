@@ -142,7 +142,7 @@ export default function FlipbookMobileLobbyLayout({
               onClick={() => onSelectTimeLimit(seconds)}
               disabled={!isHost || isBusy}
               className={cn(
-                'body-b min-h-12 rounded-[14px] border border-[#f2dece] bg-[#fff2e9] text-[#b79a88] disabled:cursor-not-allowed disabled:opacity-60',
+                'body-b min-h-12 rounded-[14px] border border-[#f2dece] bg-[#fff2e9] text-[#b79a88] transition-colors duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-60',
                 selectedTimeLimitSeconds === seconds &&
                   'border-[#ff7a8c] bg-[#ff7182] text-white',
               )}

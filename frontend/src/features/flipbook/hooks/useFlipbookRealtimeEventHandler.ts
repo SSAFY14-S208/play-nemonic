@@ -8,8 +8,8 @@ import type {
   FlipbookRealtimeEvent,
   FlipbookRoomStateResponse,
 } from '@/shared/types'
-import type { FlipbookStep } from '../types'
-import { getAssignmentKey } from '../utils'
+import type { FlipbookStep, FlipbookTimeLimitSeconds } from '../types'
+import { getAssignmentKey, toFlipbookTimeLimitSeconds } from '../utils'
 
 interface UseFlipbookRealtimeEventHandlerOptions {
   assignment: FlipbookAssignmentResponse | null
@@ -39,6 +39,7 @@ interface UseFlipbookRealtimeEventHandlerOptions {
   setRoomCode: Dispatch<SetStateAction<string | null>>
   setRoomState: Dispatch<SetStateAction<FlipbookRoomStateResponse | null>>
   setRoundCount: Dispatch<SetStateAction<number | null>>
+  setSelectedTimeLimitSeconds: Dispatch<SetStateAction<FlipbookTimeLimitSeconds>>
   setStartedParticipantCount: Dispatch<SetStateAction<number | null>>
   setSubmittedAssignmentKeys: Dispatch<SetStateAction<Set<string>>>
   setTimeUpSubmitRequest: Dispatch<
@@ -70,6 +71,7 @@ export function useFlipbookRealtimeEventHandler({
   setRoomCode,
   setRoomState,
   setRoundCount,
+  setSelectedTimeLimitSeconds,
   setStartedParticipantCount,
   setSubmittedAssignmentKeys,
   setTimeUpSubmitRequest,
@@ -110,7 +112,27 @@ export function useFlipbookRealtimeEventHandler({
         }
 
         if (event.type === 'SETTINGS_CHANGED') {
-          await refreshRoom(event.roomCode, { syncStep: false })
+          const settingsChangedData = event.data as Partial<FlipbookRoomStateResponse>
+          if (settingsChangedData.timeLimitSeconds !== undefined) {
+            const nextTimeLimitSeconds = toFlipbookTimeLimitSeconds(
+              settingsChangedData.timeLimitSeconds,
+            )
+            setSelectedTimeLimitSeconds(nextTimeLimitSeconds)
+            setRoomState((currentRoomState) => {
+              if (!currentRoomState) return currentRoomState
+
+              return {
+                ...currentRoomState,
+                timeLimitSeconds: nextTimeLimitSeconds,
+                participants: settingsChangedData.participants ?? currentRoomState.participants,
+                participantCount:
+                  settingsChangedData.participantCount ??
+                  settingsChangedData.participants?.length ??
+                  currentRoomState.participantCount,
+                updatedAt: settingsChangedData.updatedAt ?? currentRoomState.updatedAt,
+              }
+            })
+          }
           return
         }
 
@@ -274,6 +296,8 @@ export function useFlipbookRealtimeEventHandler({
       setAssignment,
       setErrorMessage,
       setIsSubmitting,
+      setSelectedTimeLimitSeconds,
+      setRoomState,
       setSubmittedAssignmentKeys,
       setTimeUpSubmitRequest,
       submittedAssignmentKeys,

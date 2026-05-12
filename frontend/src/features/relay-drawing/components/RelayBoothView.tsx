@@ -1,8 +1,10 @@
 "use client";
 
 import { motion } from "motion/react";
+import Image from "next/image";
 import { useState } from "react";
 
+import relayDrawingTitle from "../assets/relay-drawing-title.png";
 import { useRelayBooth } from "../hooks";
 import RelayBoothBackground from "./RelayBoothBackground";
 import RelayBoothEntrance from "./RelayBoothEntrance";
@@ -79,16 +81,14 @@ export default function RelayBoothView() {
 
   return (
     <>
-      <section className="relative isolate min-h-full overflow-hidden border border-relay-border bg-relay-background">
+      <section className="relative isolate min-h-full overflow-auto bg-relay-background lg:overflow-hidden">
         {/* 데코 배경 — sparkle/squiggle/post-it 등 (lg+에서만 표시).
             인트로 시퀀스가 끝난 시점(좌측 페이드 인 트리거)에 함께 등장. */}
         <RelayBoothBackground isVisible={isLeftRevealed} />
 
         {/* 컨테이너 — 모바일/태블릿: 세로 stack, lg+: 가로 row.
             높이도 lg+에서만 고정(900px), 그 이하는 viewport 높이 기준으로 자연스럽게. */}
-        <div
-          className="mx-auto flex min-h-screen w-full max-w-2xl flex-col-reverse items-center justify-center gap-8 px-4 py-8 sm:px-6 lg:h-screen lg:min-h-0 lg:max-w-360 lg:flex-row lg:justify-between lg:gap-12 lg:px-[5%] lg:py-0"
-        >
+        <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col-reverse items-center justify-center gap-8 px-4 py-8 sm:px-6 lg:h-screen lg:min-h-0 lg:max-w-360 lg:flex-row lg:justify-between lg:gap-12 lg:px-[5%] lg:py-0">
           {/* 좌측 컬럼 — 안내 콘텐츠 */}
           <div className="flex w-full flex-1 py-8 lg:max-w-150 lg:py-12">
             <motion.div
@@ -98,19 +98,14 @@ export default function RelayBoothView() {
               transition={{ duration: 0.5, ease: "easeOut" }}
               style={{ pointerEvents: isLeftRevealed ? "auto" : "none" }}
             >
-              <span className="body-b inline-flex min-h-[43px] w-fit items-center rounded-full bg-relay-active px-5 text-relay-accent-strong">
-                2~6명
-              </span>
-              <h1
-                className="text-relay-ink"
-                style={{
-                  // viewport 폭에 따라 30 ~ 49px로 fluid하게 스케일.
-                  fontSize: "clamp(1.875rem, 4vw, 49px)",
-                  fontWeight: 700,
-                  lineHeight: 1.25,
-                }}
-              >
-                우당탕 릴레이 드로잉
+              {/* 두 줄 로고 PNG. viewport 폭에 따라 280→340→420px로 fluid 스케일. */}
+              <h1 className="contents">
+                <Image
+                  src={relayDrawingTitle}
+                  alt="우당탕 릴레이 드로잉"
+                  priority
+                  className="h-auto w-full max-w-70 sm:max-w-85 lg:max-w-105"
+                />
               </h1>
               <div className="body-l-r flex flex-col text-relay-ink">
                 <p>얼굴 → 몸통 → 다리, 3라운드.</p>
@@ -150,9 +145,7 @@ export default function RelayBoothView() {
 
           {/* 우측 컬럼 — 마술사 아트워크 */}
           <div className="flex w-full items-center justify-center py-4 lg:max-w-125 lg:flex-1 lg:py-0">
-            <RelayBoothEntrance
-              onLeftReveal={() => setIsLeftRevealed(true)}
-            />
+            <RelayBoothEntrance onLeftReveal={() => setIsLeftRevealed(true)} />
           </div>
         </div>
       </section>

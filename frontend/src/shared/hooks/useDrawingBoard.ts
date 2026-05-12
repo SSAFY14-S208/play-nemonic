@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { MAX_RECENT_DRAWING_COLOR_COUNT } from '@/shared/constants'
 import type {
   DrawingArea,
   DrawingBoardSize,
@@ -17,8 +18,6 @@ interface UseDrawingBoardOptions {
   defaultColor: string
   defaultStrokeWidth?: number
 }
-
-const MAX_RECENT_COLOR_COUNT = 5
 
 export function useDrawingBoard({
   boardSize,
@@ -75,14 +74,14 @@ export function useDrawingBoard({
         (recentColor) => recentColor !== color,
       )
 
-      return [color, ...uniqueRecentColors].slice(0, MAX_RECENT_COLOR_COUNT)
+      return [color, ...uniqueRecentColors].slice(0, MAX_RECENT_DRAWING_COLOR_COUNT)
     })
   }, [])
 
   const beginDrawing = useCallback(
     (event: DrawingPointerEvent) => {
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getPointerPosition()
+      const pointerPosition = stage?.getRelativePointerPosition() ?? stage?.getPointerPosition()
       if (!pointerPosition) return
       if (!isPointInsideDrawingArea(pointerPosition, boardSize, drawArea)) return
 
@@ -92,6 +91,7 @@ export function useDrawingBoard({
           boardSize,
           fillColor: selectedColor,
           fillOpacity: selectedOpacity,
+          idPrefix: 'fill',
           lines,
           pointerPosition,
         }).then((fillLine) => {
@@ -141,7 +141,7 @@ export function useDrawingBoard({
       if (!isDrawing) return
 
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getPointerPosition()
+      const pointerPosition = stage?.getRelativePointerPosition() ?? stage?.getPointerPosition()
       if (!pointerPosition) return
 
       if (!isPointInsideDrawingArea(pointerPosition, boardSize, drawArea)) {

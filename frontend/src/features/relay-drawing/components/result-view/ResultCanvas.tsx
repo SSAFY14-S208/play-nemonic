@@ -1,5 +1,7 @@
 import {
+  RELAY_FINAL_STAGE_SIZE,
   RELAY_ROUND_ORDER,
+  RELAY_STAGE_SIZE,
   type RelayResultReveal,
   type RelayResultSegment,
   type RelayRoundKey,
@@ -20,6 +22,14 @@ interface ResultCanvasProps {
 
 // 결과 캔버스 박스 — 단계에 따라 한 라운드만 보이거나 최종 3개 합성을 보여준다.
 // 컨텍스트별 부가 UI(스포트라이트/세그먼트 태그)도 여기서 결합.
+//
+// reveal 모드별로 자연스러운 비율을 유지한다:
+//   • per-part(848:720): 가로형. 한 파트가 박스에 꽉 차게 보임.
+//   • final  (848:1920): 세로형. 3 파트가 자연 비례로 보임.
+// 모바일에선 컬럼 전체 폭을 채우고(`w-full + aspect-ratio`로 높이 자동 도출),
+// 데스크탑(lg+)에선 높이를 viewport에 맞춰 cap하고 너비는 aspect-ratio에서
+// 자동 도출되어 컬럼 안 중앙 정렬된다. height cap이 진입하면서 페이지 전체가
+// viewport 안에 들어가 스크롤이 생기지 않는다.
 export default function ResultCanvas({
   activeReveal,
   roundLines,
@@ -35,12 +45,20 @@ export default function ResultCanvas({
   return (
     <div
       className={cn(
-        'relative min-h-0 flex-1 overflow-hidden rounded-[14px] border-[1.5px] border-relay-line bg-relay-background',
-        // 모바일에선 부모 높이가 정해지지 않아 flex-1만으론 사이즈가 안 잡히므로
-        // 명시적 min-height로 보장. 데스크탑(lg+)에선 viewport가 짧을 때 min-h가
-        // 거꾸로 부모를 밀어내 StepNav가 카드 밖으로 빠지므로 lg:min-h-0으로 풀어둔다.
-        isFinalReveal ? 'min-h-110 lg:min-h-0' : 'min-h-100 lg:min-h-0',
+        'relative overflow-hidden rounded-[14px] border-[1.5px] border-relay-line bg-relay-background',
+        // 모바일: 컬럼 폭 full(높이는 aspect-ratio에서 도출).
+        'w-full',
+        // 데스크탑(lg+): 너비 auto + 높이 cap. mx-auto로 컬럼 안 중앙 정렬.
+        'lg:mx-auto lg:w-auto lg:max-w-full lg:self-center',
+        isFinalReveal
+          ? 'lg:h-[min(64vh,760px)]'
+          : 'lg:h-[min(54vh,600px)]',
       )}
+      style={{
+        aspectRatio: isFinalReveal
+          ? `${RELAY_STAGE_SIZE.width} / ${RELAY_FINAL_STAGE_SIZE.height}`
+          : `${RELAY_STAGE_SIZE.width} / ${RELAY_STAGE_SIZE.height}`,
+      }}
     >
       <CompositeDrawingCanvas
         visibleRoundKeys={visibleRoundKeys}

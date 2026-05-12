@@ -29,6 +29,11 @@ export interface FlipbookRoomViewerResponse {
   blockedReason: FlipbookBlockedReason | null
 }
 
+export interface FlipbookTimeLimitSecondsOptionsResponse {
+  default: number
+  allowed: number[]
+}
+
 export interface FlipbookRoomCreateResponse {
   roomCode: string
   status: FlipbookRoomStatus
@@ -36,7 +41,7 @@ export interface FlipbookRoomCreateResponse {
   timeLimitSeconds: number
   allowedTimeLimitSeconds?: number[]
   timeLimitOptions?: number[]
-  timeLimitSecondsOptions?: number[]
+  timeLimitSecondsOptions?: number[] | FlipbookTimeLimitSecondsOptionsResponse
   minParticipants: number
   maxParticipants: number
   participantCount: number
@@ -87,7 +92,7 @@ export interface FlipbookRoomStateResponse {
   timeLimitSeconds: number
   allowedTimeLimitSeconds?: number[]
   timeLimitOptions?: number[]
-  timeLimitSecondsOptions?: number[]
+  timeLimitSecondsOptions?: number[] | FlipbookTimeLimitSecondsOptionsResponse
   minParticipants: number
   maxParticipants: number
   participantCount: number

@@ -2,9 +2,10 @@
 
 import { useCallback, useRef } from 'react'
 import type { KonvaEventObject } from 'konva/lib/Node'
-import { RELAY_ROUND_RULES } from '../constants'
+import { createBucketFillLine } from '@/shared/utils'
+import { RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
 import { useRelayDrawingStore } from '../stores'
-import { createBucketFillLine, isPointInsideArea } from '../utils'
+import { isPointInsideArea } from '../utils'
 
 export function useRelayCanvas() {
   const isDrawing = useRef(false)
@@ -24,8 +25,10 @@ export function useRelayCanvas() {
         activeRoundKey,
         selectedToolKey,
         selectedColor,
+        selectedOpacity,
         strokeWidth,
         roundLines,
+        addRecentColor,
         commitLine,
       } = useRelayDrawingStore.getState()
 
@@ -34,26 +37,39 @@ export function useRelayCanvas() {
 
       if (selectedToolKey === 'bucket') {
         void createBucketFillLine({
-          activeRoundKey,
+          backgroundColor: '#fffdf7',
+          boardSize: RELAY_STAGE_SIZE,
           fillColor: selectedColor,
+          fillOpacity: selectedOpacity,
+          idPrefix: `${activeRoundKey}-fill`,
           lines: roundLines[activeRoundKey],
           pointerPosition,
         }).then((fillLine) => {
           if (!fillLine) return
-          useRelayDrawingStore.getState().commitLine(fillLine)
+          const currentStore = useRelayDrawingStore.getState()
+          if (currentStore.activeRoundKey !== activeRoundKey) return
+          currentStore.commitLine(fillLine)
+          currentStore.addRecentColor(selectedColor)
         })
         return
       }
 
       const stageColor = selectedToolKey === 'eraser' ? '#fffdf7' : selectedColor
-      const activeStrokeWidth = selectedToolKey === 'marker' ? strokeWidth + 4 : strokeWidth
+      const activeStrokeWidth = strokeWidth
+      const compositeOperation =
+        selectedToolKey === 'eraser' ? 'destination-out' : 'source-over'
 
       isDrawing.current = true
+      if (selectedToolKey !== 'eraser') {
+        addRecentColor(selectedColor)
+      }
       commitLine({
         id: `${activeRoundKey}-line-${Date.now()}-${roundLines[activeRoundKey].length}`,
         kind: 'stroke',
         color: stageColor,
         strokeWidth: activeStrokeWidth,
+        opacity: selectedToolKey === 'eraser' ? 1 : selectedOpacity,
+        compositeOperation,
         points: [{ x: pointerPosition.x, y: pointerPosition.y }],
       })
     },

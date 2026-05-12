@@ -18,13 +18,6 @@ const MAGICIAN_PARTS = [
   { src: magicianLeg, alt: "다리 라벨" },
 ] as const;
 
-const STAGGER_INTERVAL_SECONDS = 0.5;
-
-const containerVariants: Variants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: STAGGER_INTERVAL_SECONDS } },
-};
-
 // 위에서 살짝 큰 채로 내려와 안착하는 "챡 달라붙는" spring.
 const cardVariants: Variants = {
   hidden: { opacity: 0, scale: 1.18, y: -12 },
@@ -43,37 +36,45 @@ const cardVariants: Variants = {
 };
 
 interface RelayArtworkCardProps {
-  // true면 mount 시점에 face → body → leg 순서로 stagger 조립 애니메이션 재생.
-  // false면 즉시 완성 상태로 표시 (배경에 깔리는 사본용).
-  playAssembly?: boolean;
-  // 모든 자식 카드의 spring이 안착 완료된 시점에 1회 호출.
-  onAssemblyComplete?: () => void;
-  // 라벨지 한 장의 px 사이즈. 부스 인트로 choreography에선 200, 최종 상태에선 100.
+  // 표시할 part 개수. undefined면 모든 part를 즉시 visible 상태로 렌더 (FinalState · 사이드 사본).
+  // 0..3 사이 값은 부모가 phase에 맞춰 controlled stagger로 증가시키며, 그때마다 다음 part가
+  // spring으로 등장한다.
+  revealCount?: number;
+  // 각 part의 hidden → visible spring이 안착할 때 1회 호출. 부모는 이 콜백을 phase chain
+  // trigger로 사용한다. revealCount가 undefined면(즉시 visible 경로) 호출되지 않는다.
+  onPartReveal?: (revealedIndex: number) => void;
+  // 라벨지 한 장의 px 사이즈.
   size?: number;
   className?: string;
 }
 
 export default function RelayArtworkCard({
-  playAssembly = true,
-  onAssemblyComplete,
-  size = 200,
+  revealCount,
+  onPartReveal,
+  size = 150,
   className,
 }: RelayArtworkCardProps) {
+  const isControlled = revealCount !== undefined;
   return (
-    <motion.div
-      className={cn("relative flex flex-col gap-1 items-center", className)}
-      variants={containerVariants}
-      initial={playAssembly ? "hidden" : "visible"}
-      animate="visible"
-      onAnimationComplete={() => {
-        if (playAssembly) onAssemblyComplete?.();
-      }}
-    >
-      {MAGICIAN_PARTS.map((part) => (
-        <motion.div key={part.alt} variants={cardVariants}>
-          <RelayLabelCard imageSrc={part.src} imageAlt={part.alt} size={size} />
-        </motion.div>
-      ))}
-    </motion.div>
+    <div className={cn("relative flex flex-col gap-1 items-center", className)}>
+      {MAGICIAN_PARTS.map((part, index) => {
+        const isVisible = !isControlled || index < (revealCount ?? 0);
+        return (
+          <motion.div
+            key={part.alt}
+            variants={cardVariants}
+            initial={isControlled ? "hidden" : "visible"}
+            animate={isVisible ? "visible" : "hidden"}
+            onAnimationComplete={(definition) => {
+              if (definition === "visible" && isControlled) {
+                onPartReveal?.(index);
+              }
+            }}
+          >
+            <RelayLabelCard imageSrc={part.src} imageAlt={part.alt} size={size} />
+          </motion.div>
+        );
+      })}
+    </div>
   );
 }

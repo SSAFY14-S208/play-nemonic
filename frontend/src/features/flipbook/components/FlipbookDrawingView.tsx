@@ -3,12 +3,19 @@
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
+import { Eye, EyeOff, Timer } from 'lucide-react'
 import {
-  Check,
-  Eye,
-  EyeOff,
-  Timer,
-} from 'lucide-react'
+  ColorPanel,
+  DrawingCompleteButton,
+  HintToggleButton,
+  MobileColorGrid,
+  MobileToolGrid,
+  ProgressRail,
+  ToolPanel,
+  TopStatusBar,
+} from '@/shared/components'
+import { DRAWING_COLORS } from '@/shared/constants'
+import { useDrawingKeyboardShortcuts } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 import type {
   DrawingLine,
@@ -16,16 +23,7 @@ import type {
   DrawingToolKey,
   FlipbookConnectionStatus,
 } from '@/shared/types'
-import { FLIPBOOK_COLORS } from '../constants'
 import type { FlipbookDrawingSubmissionState, FlipbookParticipant } from '../types'
-import {
-  ColorPanel,
-  MobileColorGrid,
-  MobileToolGrid,
-  ProgressRail,
-  ToolPanel,
-  TopStatusBar,
-} from './drawing-view'
 
 const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
   ssr: false,
@@ -145,6 +143,12 @@ export default function FlipbookDrawingView({
     setIsOnionSkinVisible((currentVisibility) => !currentVisibility)
   }
 
+  useDrawingKeyboardShortcuts({
+    enabled: !isDrawingLocked,
+    onUndo: onUndoDrawing,
+    onRedo: onRedoDrawing,
+  })
+
   useEffect(() => {
     let cancelled = false
 
@@ -246,7 +250,7 @@ export default function FlipbookDrawingView({
         />
 
         <MobileColorGrid
-          colors={FLIPBOOK_COLORS}
+          colors={DRAWING_COLORS}
           selectedColor={selectedColor}
           selectedOpacity={selectedOpacity}
           strokeWidth={strokeWidth}
@@ -274,20 +278,14 @@ export default function FlipbookDrawingView({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleCompleteRound}
+        <DrawingCompleteButton
+          onComplete={handleCompleteRound}
           disabled={isDrawingLocked}
           className={cn(
-            'body-l-b inline-flex min-h-14 items-center justify-center gap-3 rounded-[16px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
-            isDrawingLocked && 'cursor-not-allowed opacity-70',
+            'min-h-14 rounded-[16px]',
           )}
-        >
-          <span className="grid size-8 place-items-center rounded-full bg-white">
-            <Check className="size-5 text-[#ff4f93]" aria-hidden />
-          </span>
-          {submitButtonText === '완료!' ? '완료하기' : submitButtonText}
-        </button>
+          label={submitButtonText === '완료!' ? '완료하기' : submitButtonText}
+        />
         {errorMessage && (
           <p className="caption-b rounded-[14px] bg-white/90 px-4 py-3 text-center text-flipbook-deep">
             {errorMessage}
@@ -306,7 +304,7 @@ export default function FlipbookDrawingView({
 
           <ColorPanel
             className={cn(isDrawingLocked && 'pointer-events-none opacity-60')}
-            colors={FLIPBOOK_COLORS}
+            colors={DRAWING_COLORS}
             selectedColor={selectedColor}
             selectedOpacity={selectedOpacity}
             strokeWidth={strokeWidth}
@@ -367,20 +365,14 @@ export default function FlipbookDrawingView({
 
           <ProgressRail activeRoundIndex={activeRoundIndex} roundCount={displayRoundCount} />
 
-          <button
-            type="button"
-            onClick={handleCompleteRound}
+          <DrawingCompleteButton
+            onComplete={handleCompleteRound}
             disabled={isDrawingLocked}
             className={cn(
-              'body-l-b absolute left-[1254px] top-[928px] inline-flex h-[62px] w-[222px] items-center justify-center gap-3 rounded-[14px] bg-[#ff4f93] text-white shadow-[0_12px_24px_rgb(173_68_96_/_28%)]',
-              isDrawingLocked && 'cursor-not-allowed opacity-70',
+              'absolute left-[1254px] top-[928px] h-[62px] w-[222px]',
             )}
-          >
-            <span className="grid size-8 place-items-center rounded-full bg-white">
-              <Check className="size-5 text-[#ff4f93]" aria-hidden />
-            </span>
-            {submitButtonText === '완료!' ? '완료하기' : submitButtonText}
-          </button>
+            label={submitButtonText === '완료!' ? '완료하기' : submitButtonText}
+          />
           {errorMessage && (
             <p className="caption-b absolute left-[345px] top-[908px] w-[900px] text-center text-flipbook-deep">
               {errorMessage}
@@ -389,46 +381,5 @@ export default function FlipbookDrawingView({
         </div>
       </div>
     </section>
-  )
-}
-
-function HintToggleButton({
-  className,
-  hasOnionSkinHint,
-  isOnionSkinVisible,
-  onToggle,
-}: {
-  className?: string
-  hasOnionSkinHint: boolean
-  isOnionSkinVisible: boolean
-  onToggle: () => void
-}) {
-  const label = hasOnionSkinHint ? (isOnionSkinVisible ? '힌트 끄기' : '힌트 보기') : '힌트 없음'
-
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      disabled={!hasOnionSkinHint}
-      aria-label={label}
-      aria-pressed={hasOnionSkinHint ? isOnionSkinVisible : undefined}
-      title={label}
-      className={cn(
-        'body-b inline-flex h-[62px] w-[204px] items-center justify-center gap-3 rounded-[14px] border shadow-[0_8px_18px_rgb(129_89_54_/_13%)] transition',
-        hasOnionSkinHint
-          ? isOnionSkinVisible
-            ? 'border-[#ff8bab] bg-[#ffecf3] text-[#db4d82]'
-            : 'border-[#ead7c9] bg-white text-[#7d6251]'
-          : 'cursor-not-allowed border-[#ead7c9] bg-[#f7efe7] text-[#b9a799]',
-        className,
-      )}
-    >
-      {isOnionSkinVisible && hasOnionSkinHint ? (
-        <Eye className="size-5" aria-hidden />
-      ) : (
-        <EyeOff className="size-5" aria-hidden />
-      )}
-      {label}
-    </button>
   )
 }
