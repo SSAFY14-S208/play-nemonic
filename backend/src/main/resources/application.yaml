@@ -174,10 +174,11 @@ nemonic:
       submit-lock-ttl-ms: ${FLIPBOOK_TIMEOUT_SUBMIT_LOCK_TTL_MS:10000}
     finalization:
       enabled: ${FLIPBOOK_FINALIZATION_ENABLED:true}
-      scan-delay-ms: ${FLIPBOOK_FINALIZATION_SCAN_DELAY_MS:5000}
+      scan-delay-ms: ${FLIPBOOK_FINALIZATION_SCAN_DELAY_MS:10000}
       scan-limit: ${FLIPBOOK_FINALIZATION_SCAN_LIMIT:50}
       lock-ttl-seconds: ${FLIPBOOK_FINALIZATION_LOCK_TTL_SECONDS:60}
       ready-delay-ms: ${FLIPBOOK_FINALIZATION_READY_DELAY_MS:1000}
+      max-retry-count: ${FLIPBOOK_FINALIZATION_MAX_RETRY_COUNT:60}
 
   fortune:
     gms:

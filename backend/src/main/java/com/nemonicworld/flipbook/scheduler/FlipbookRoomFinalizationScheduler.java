@@ -23,7 +23,7 @@ public class FlipbookRoomFinalizationScheduler {
     /**
      * 설정된 주기마다 최종화 대기 방을 처리합니다.
      */
-    @Scheduled(fixedDelayString = "${nemonic.flipbook.finalization.scan-delay-ms:5000}")
+    @Scheduled(fixedDelayString = "${nemonic.flipbook.finalization.scan-delay-ms:10000}")
     public void processFinalizingRooms() {
         if (!enabled) {
             return;
