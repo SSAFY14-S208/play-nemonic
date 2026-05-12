@@ -90,6 +90,50 @@ class RedisFlipbookRoomRepositoryTest {
     }
 
     @Test
+    void findAbandonedWaitingRoomsScansAllDisconnectedOldWaitingRooms() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime cutoff = now.minusMinutes(5);
+        UUID hostUuid = UUID.randomUUID();
+        FlipbookRoomParticipant disconnectedHost = disconnectedParticipant(hostUuid, "Mango", true, 0,
+            now.minusMinutes(6));
+        FlipbookRoomState abandonedRoom = roomState("WAITID", FlipbookRoomStatus.WAITING, null, null, null,
+            now.minusMinutes(10), disconnectedHost);
+        FlipbookRoomState connectedRoom = roomState("ACTIVE", FlipbookRoomStatus.WAITING, null, null, null,
+            now.minusMinutes(10), participant(UUID.randomUUID(), "Peach", true, 0));
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, false);
+        given(cursor.next()).willReturn("flipbook:room:WAITID", "flipbook:room:ACTIVE");
+        given(valueOperations.get("flipbook:room:WAITID")).willReturn(serialize(abandonedRoom));
+        given(valueOperations.get("flipbook:room:ACTIVE")).willReturn(serialize(connectedRoom));
+
+        List<FlipbookRoomState> abandonedRooms = repository.findAbandonedWaitingRooms(cutoff, 10);
+
+        assertThat(abandonedRooms).containsExactly(abandonedRoom);
+        verify(cursor).close();
+    }
+
+    @Test
+    void findEmptyWaitingRoomsScansOnlyWaitingRoomsWithoutParticipants() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomState emptyWaitingRoom = new FlipbookRoomState("EMPTY1", FlipbookRoomStatus.WAITING, null, 45, 2, 6,
+            List.of(), now.minusMinutes(10), now.minusMinutes(6), List.of());
+        FlipbookRoomState nonEmptyWaitingRoom = roomState("WAIT02", FlipbookRoomStatus.WAITING, null, null, null,
+            now.minusMinutes(10), participant(UUID.randomUUID(), "Mango", true, 0));
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, false);
+        given(cursor.next()).willReturn("flipbook:room:EMPTY1", "flipbook:room:WAIT02");
+        given(valueOperations.get("flipbook:room:EMPTY1")).willReturn(serialize(emptyWaitingRoom));
+        given(valueOperations.get("flipbook:room:WAIT02")).willReturn(serialize(nonEmptyWaitingRoom));
+
+        List<FlipbookRoomState> emptyRooms = repository.findEmptyWaitingRooms(10);
+
+        assertThat(emptyRooms).containsExactly(emptyWaitingRoom);
+        verify(cursor).close();
+    }
+
+    @Test
     void findClosableFinishedRoomsScansRoomKeysAndFiltersOldFinishedRooms() throws Exception {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         LocalDateTime closeCutoff = now.minusMinutes(5);
@@ -135,6 +179,12 @@ class RedisFlipbookRoomRepositoryTest {
 
     private FlipbookRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder) {
         return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, joinOrder, true, null,
+            LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private FlipbookRoomParticipant disconnectedParticipant(UUID userUuid, String nickname, boolean host, int joinOrder,
+        LocalDateTime disconnectedAt) {
+        return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, joinOrder, false, disconnectedAt,
             LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS));
     }
 
