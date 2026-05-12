@@ -38,7 +38,11 @@ def search_source(query="", filters=None):
 
 
 def viz(viz_id, title, vis_state, query="", description=""):
-    """visualization saved-object 1개."""
+    """visualization saved-object 1개.
+
+    migrationVersion은 박지 않는다: OpenSearch Dashboards 2.15가 "7.9.3까지 알고
+    있다"고 422로 거부하므로, 명시값을 두지 않고 import 시 자체 추론에 맡긴다.
+    """
     return {
         "id": viz_id,
         "type": "visualization",
@@ -53,7 +57,6 @@ def viz(viz_id, title, vis_state, query="", description=""):
             },
         },
         "references": [INDEX_PATTERN_REF],
-        "migrationVersion": {"visualization": "7.10.0"},
     }
 
 
@@ -403,7 +406,6 @@ def build_dashboard():
             },
         },
         "references": references,
-        "migrationVersion": {"dashboard": "7.10.0"},
     }
 
 
