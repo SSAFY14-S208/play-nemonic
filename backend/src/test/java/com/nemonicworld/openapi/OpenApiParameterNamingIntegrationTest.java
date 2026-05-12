@@ -1,13 +1,16 @@
 package com.nemonicworld.openapi;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.global.config.OpenApiConfig;
 import com.nemonicworld.support.IntegrationTest;
+import io.swagger.v3.oas.models.tags.Tag;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +35,22 @@ class OpenApiParameterNamingIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    /**
+     * Swagger UI의 카테고리가 한글 이름과 지정한 업무 흐름 순서로 노출되는지 확인합니다.
+     */
+    @Test
+    void openApiTagsUseKoreanNamesInDisplayOrder() throws Exception {
+        JsonNode tags = getOpenApiRoot().path("tags");
+        List<String> actualTagNames = new ArrayList<>();
+        for (JsonNode tag : tags) {
+            actualTagNames.add(tag.path("name").asText());
+        }
+
+        List<String> expectedTagNames = OpenApiTags.orderedTags().stream().map(Tag::getName).toList();
+
+        assertEquals(expectedTagNames, actualTagNames, "OpenAPI tags must use the configured Korean display order.");
+    }
 
     /**
      * 컨트롤러 파라미터 이름이 명시되지 않으면 Swagger에 arg0, arg1 같은 이름이 노출될 수 있습니다.
