@@ -1,5 +1,6 @@
 package com.nemonicworld.flipbook.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -39,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/flipbook/rooms")
-@Tag(name = "Flipbook", description = "플립북 API")
+@Tag(name = OpenApiTags.FLIPBOOK, description = OpenApiTags.FLIPBOOK_DESCRIPTION)
 public class FlipbookRoomController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;

@@ -1,5 +1,6 @@
 package com.nemonicworld.backoffice.setting.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.backoffice.setting.dto.request.SystemParameterTypedUpdateRequest;
@@ -34,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/backoffice/system-parameters")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "System Parameters", description = "백오피스 시스템 파라미터 조회/수정 API")
+@Tag(name = OpenApiTags.SYSTEM_PARAMETER, description = OpenApiTags.SYSTEM_PARAMETER_DESCRIPTION)
 public class SystemParameterController {
 
     private static final String LIST_SUCCESS_MESSAGE = "시스템 파라미터 목록 조회 성공";

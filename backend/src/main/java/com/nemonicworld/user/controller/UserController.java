@@ -1,5 +1,6 @@
 package com.nemonicworld.user.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -33,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/users")
-@Tag(name = "User", description = "사용자 API")
+@Tag(name = OpenApiTags.USER, description = OpenApiTags.USER_DESCRIPTION)
 /**
  * 익명 사용자와 관련된 HTTP 요청을 받는 컨트롤러입니다.
  *

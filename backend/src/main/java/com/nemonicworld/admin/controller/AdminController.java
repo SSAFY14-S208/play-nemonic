@@ -1,5 +1,6 @@
 package com.nemonicworld.admin.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.admin.dto.request.AdminCreateRequest;
 import com.nemonicworld.admin.dto.request.AdminPasswordChangeRequest;
 import com.nemonicworld.admin.dto.response.AdminResponse;
@@ -35,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/admins")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "Admins", description = "백오피스 관리자 API")
+@Tag(name = OpenApiTags.ADMIN, description = OpenApiTags.ADMIN_DESCRIPTION)
 public class AdminController {
 
     private static final String CREATE_SUCCESS_MESSAGE = "관리자 계정 생성 성공";

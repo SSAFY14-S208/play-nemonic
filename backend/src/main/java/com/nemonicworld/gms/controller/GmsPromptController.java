@@ -1,5 +1,6 @@
 package com.nemonicworld.gms.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
@@ -37,7 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/backoffice/gms/prompts")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "GMS Prompts", description = "백오피스 GMS 프롬프트 관리 API")
+@Tag(name = OpenApiTags.GMS_PROMPT, description = OpenApiTags.GMS_PROMPT_DESCRIPTION)
 public class GmsPromptController {
 
     private static final String DELETE_SUCCESS_MESSAGE = "GMS 프롬프트 삭제 성공";

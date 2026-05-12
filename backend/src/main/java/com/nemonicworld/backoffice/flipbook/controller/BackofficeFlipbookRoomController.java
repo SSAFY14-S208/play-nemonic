@@ -1,5 +1,6 @@
 package com.nemonicworld.backoffice.flipbook.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomDeleteResponse;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomListResponse;
@@ -31,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/backoffice/flipbook-rooms")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "Backoffice Flipbook Rooms", description = "백오피스 활성 플립북 방 조회 API")
+@Tag(name = OpenApiTags.BACKOFFICE_FLIPBOOK, description = OpenApiTags.BACKOFFICE_FLIPBOOK_DESCRIPTION)
 public class BackofficeFlipbookRoomController {
 
     private static final String LIST_SUCCESS_MESSAGE = "활성 플립북 방 목록 조회 성공";

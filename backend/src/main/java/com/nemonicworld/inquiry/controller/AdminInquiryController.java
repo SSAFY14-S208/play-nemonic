@@ -1,5 +1,6 @@
 package com.nemonicworld.inquiry.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
@@ -38,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/admin/inquiries")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "관리자 문의", description = "백오피스 고객 문의 관리 API")
+@Tag(name = OpenApiTags.ADMIN_INQUIRY, description = OpenApiTags.ADMIN_INQUIRY_DESCRIPTION)
 public class AdminInquiryController {
 
     private static final String DETAIL_SUCCESS_MESSAGE = "고객 문의 상세 조회 성공";

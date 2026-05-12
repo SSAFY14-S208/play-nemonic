@@ -1,5 +1,6 @@
 package com.nemonicworld.artifact.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.artifact.dto.response.ArtifactImageUrlResponse;
 import com.nemonicworld.artifact.service.ArtifactService;
 import com.nemonicworld.artifact.service.download.ArtifactDownloadFile;
@@ -30,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/artifacts")
-@Tag(name = "Artifact", description = "산출물 API")
+@Tag(name = OpenApiTags.ARTIFACT, description = OpenApiTags.ARTIFACT_DESCRIPTION)
 public class ArtifactController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;

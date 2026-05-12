@@ -1,5 +1,6 @@
 package com.nemonicworld.auth.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.dto.request.LoginRequest;
 import com.nemonicworld.auth.dto.request.LogoutRequest;
 import com.nemonicworld.auth.dto.request.TokenRefreshRequest;
@@ -31,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/auth")
-@Tag(name = "Auth", description = "인증 API")
+@Tag(name = OpenApiTags.AUTH, description = OpenApiTags.AUTH_DESCRIPTION)
 public class AuthController {
 
     private static final String BEARER_PREFIX = "Bearer ";

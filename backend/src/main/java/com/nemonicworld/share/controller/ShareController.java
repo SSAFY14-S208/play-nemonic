@@ -1,5 +1,6 @@
 package com.nemonicworld.share.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -26,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/share")
 @RequiredArgsConstructor
-@Tag(name = "Share", description = "SNS 공유 API")
+@Tag(name = OpenApiTags.SHARE, description = OpenApiTags.SHARE_DESCRIPTION)
 public class ShareController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;

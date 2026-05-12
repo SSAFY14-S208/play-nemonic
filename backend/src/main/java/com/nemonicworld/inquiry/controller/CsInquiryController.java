@@ -1,5 +1,6 @@
 package com.nemonicworld.inquiry.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -26,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/inquiries")
-@Tag(name = "CS 문의", description = "익명 사용자 CS 문의 API")
+@Tag(name = OpenApiTags.CS_INQUIRY, description = OpenApiTags.CS_INQUIRY_DESCRIPTION)
 public class CsInquiryController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;

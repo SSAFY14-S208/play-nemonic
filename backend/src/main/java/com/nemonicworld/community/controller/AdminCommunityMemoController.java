@@ -1,5 +1,6 @@
 package com.nemonicworld.community.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
@@ -39,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/admin/community/memos")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "Admin Community", description = "관리자 커뮤니티 메모 검토 API")
+@Tag(name = OpenApiTags.ADMIN_COMMUNITY, description = OpenApiTags.ADMIN_COMMUNITY_DESCRIPTION)
 public class AdminCommunityMemoController {
 
     private static final String LIST_SUCCESS_MESSAGE = "관리자 커뮤니티 메모 목록 조회 성공";

@@ -1,5 +1,6 @@
 package com.nemonicworld.fortune.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -26,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/fortune")
-@Tag(name = "Fortune", description = "오늘의 운세 API")
+@Tag(name = OpenApiTags.FORTUNE, description = OpenApiTags.FORTUNE_DESCRIPTION)
 /**
  * 오늘의 운세 부스에서 사용하는 공개 API 요청을 처리하는 컨트롤러입니다.
  */

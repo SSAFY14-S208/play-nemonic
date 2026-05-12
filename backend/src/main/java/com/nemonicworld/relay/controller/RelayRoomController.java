@@ -1,5 +1,6 @@
 package com.nemonicworld.relay.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.NotFoundException;
@@ -48,7 +49,7 @@ import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 @RestController
 @RequestMapping("/relay/rooms")
-@Tag(name = "Relay", description = "릴레이 API")
+@Tag(name = OpenApiTags.RELAY, description = OpenApiTags.RELAY_DESCRIPTION)
 /**
  * 릴레이 방 생성, 상태 조회, 입장/복귀 HTTP 요청을 받는 컨트롤러입니다.
  *

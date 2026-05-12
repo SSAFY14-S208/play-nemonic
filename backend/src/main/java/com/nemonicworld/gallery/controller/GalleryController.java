@@ -1,5 +1,6 @@
 package com.nemonicworld.gallery.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -32,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/gallery")
-@Tag(name = "Gallery", description = "갤러리 API")
+@Tag(name = OpenApiTags.GALLERY, description = OpenApiTags.GALLERY_DESCRIPTION)
 /**
  * UUID 기반 내 갤러리 조회 요청을 처리하는 컨트롤러입니다.
  */

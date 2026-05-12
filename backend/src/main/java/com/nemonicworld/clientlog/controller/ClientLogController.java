@@ -1,5 +1,6 @@
 package com.nemonicworld.clientlog.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.clientlog.dto.request.ClientLogIngestRequest;
 import com.nemonicworld.clientlog.dto.response.ClientLogIngestResponse;
 import com.nemonicworld.clientlog.service.ClientLogService;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
-@Tag(name = "클라이언트 로그", description = "프론트엔드 클라이언트 로그 수집 API")
+@Tag(name = OpenApiTags.CLIENT_LOG, description = OpenApiTags.CLIENT_LOG_DESCRIPTION)
 public class ClientLogController {
 
     private static final String INGEST_SUCCESS_MESSAGE = "클라이언트 로그 수집 성공";

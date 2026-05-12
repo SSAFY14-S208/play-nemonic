@@ -1,5 +1,6 @@
 package com.nemonicworld.invite.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -24,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/invites")
 @RequiredArgsConstructor
-@Tag(name = "Invite", description = "초대 API") // Swagger에서 Invite 그룹으로 묶임
+@Tag(name = OpenApiTags.INVITE, description = OpenApiTags.INVITE_DESCRIPTION) // Swagger에서 초대 그룹으로 묶임
 public class InviteController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;

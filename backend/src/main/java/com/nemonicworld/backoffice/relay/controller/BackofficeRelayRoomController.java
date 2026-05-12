@@ -1,5 +1,6 @@
 package com.nemonicworld.backoffice.relay.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomDeleteResponse;
@@ -32,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/backoffice/relay-rooms")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "Backoffice Relay Rooms", description = "백오피스 활성 릴레이 드로잉 방 관리 API")
+@Tag(name = OpenApiTags.BACKOFFICE_RELAY, description = OpenApiTags.BACKOFFICE_RELAY_DESCRIPTION)
 public class BackofficeRelayRoomController {
 
     private static final String LIST_SUCCESS_MESSAGE = "활성 릴레이 드로잉 방 목록 조회 성공";
