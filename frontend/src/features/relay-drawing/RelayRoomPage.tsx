@@ -67,7 +67,7 @@ function NicknameGate() {
   )
 
   return (
-    <section className="font-paperlogy relative isolate min-h-screen border border-relay-border bg-relay-background">
+    <section className="font-paperlogy relative isolate min-h-screen bg-relay-background">
       <RelayNicknameModal open onOpenChange={handleOpenChange} />
     </section>
   )
