@@ -117,6 +117,12 @@ counter. On the 60th failure, the room is closed with
 `close_reason=finalization_failed`, invite metadata is synced, and `ROOM_CLOSED`
 is published.
 
+The relay finalization async executor is configurable through
+`nemonic.relay.finalization.async.*`, including pool size, queue capacity,
+thread name prefix, shutdown task waiting, and await-termination seconds. The
+default shutdown policy waits up to 30 seconds for already queued immediate
+finalization work to finish.
+
 If a finalization attempt saved PostgreSQL result rows but failed to update the
 Redis room to `FINISHED`, a later retry first checks existing
 `artifact.source_room_id = roomCode` rows. When the stored result count and

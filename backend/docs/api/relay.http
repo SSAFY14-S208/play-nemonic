@@ -6,14 +6,15 @@
 ### Create relay room
 # REST room creation registers the host participant with connected=false.
 # connected becomes true only after approved /ws/relay STOMP CONNECT.
-# Response includes timeLimitSeconds, timeLimitDefaultSeconds, and timeLimitAllowedSeconds.
+# Response includes timeLimitSeconds, timeLimitDefaultSeconds, timeLimitAllowedSeconds, and reconnectGraceSeconds.
 # Example response data:
 # {
 #   "roomCode": "AB3K9Q",
 #   "status": "WAITING",
 #   "timeLimitSeconds": 45,
 #   "timeLimitDefaultSeconds": 60,
-#   "timeLimitAllowedSeconds": [60, 90]
+#   "timeLimitAllowedSeconds": [60, 90],
+#   "reconnectGraceSeconds": 10
 # }
 POST {{host}}/api/v1/relay/rooms
 Anonymous-User-UUID: {{anonymousUserUuid}}
@@ -32,6 +33,7 @@ POST {{host}}/api/v1/relay/rooms
 
 ### Get relay room state
 # timeLimitSeconds is the room's stored value; timeLimitAllowedSeconds is the current backoffice option list.
+# reconnectGraceSeconds is the current backoffice reconnect grace setting, with 10 seconds as fallback.
 # The stored timeLimitSeconds can be absent from the latest timeLimitAllowedSeconds for older rooms.
 # Example response data:
 # {
@@ -39,7 +41,8 @@ POST {{host}}/api/v1/relay/rooms
 #   "status": "WAITING",
 #   "timeLimitSeconds": 45,
 #   "timeLimitDefaultSeconds": 60,
-#   "timeLimitAllowedSeconds": [60, 90]
+#   "timeLimitAllowedSeconds": [60, 90],
+#   "reconnectGraceSeconds": 10
 # }
 GET {{host}}/api/v1/relay/rooms/{{roomCode}}
 Anonymous-User-UUID: {{anonymousUserUuid}}
