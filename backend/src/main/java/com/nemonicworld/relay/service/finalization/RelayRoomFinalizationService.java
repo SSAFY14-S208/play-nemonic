@@ -77,7 +77,7 @@ public class RelayRoomFinalizationService {
         @Value("${nemonic.relay.finalization.lock-ttl-seconds:120}") long lockTtlSeconds,
         @Value("${nemonic.relay.finalization.attempt-ttl-hours:24}") long attemptTtlHours,
         @Value("${nemonic.relay.finalization.ready-delay-ms:1000}") long readyDelayMs,
-        @Value("${nemonic.relay.finalization.max-retry-count:20}") int maxRetryCount) {
+        @Value("${nemonic.relay.finalization.max-retry-count:60}") int maxRetryCount) {
         this.relayRoomRepository = relayRoomRepository;
         this.relayArtifactRepository = relayArtifactRepository;
         this.relayResultStorage = relayResultStorage;
