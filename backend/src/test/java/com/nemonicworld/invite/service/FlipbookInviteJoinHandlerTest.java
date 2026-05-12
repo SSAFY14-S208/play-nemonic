@@ -1,6 +1,7 @@
 package com.nemonicworld.invite.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.nemonicworld.support.FlipbookRuntimeSettingsTestSupport.defaultFlipbookRoomPolicy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -14,7 +15,6 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
-import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.user.entity.AppUser;
 import java.time.LocalDateTime;
@@ -125,7 +125,7 @@ class FlipbookInviteJoinHandlerTest {
 
     private FlipbookInviteJoinHandler handler() {
         return new FlipbookInviteJoinHandler(flipbookRoomRepository, flipbookInviteMetadataSyncService,
-            new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository));
+            defaultFlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository));
     }
 
     private InviteMetadata activeInvite() {
