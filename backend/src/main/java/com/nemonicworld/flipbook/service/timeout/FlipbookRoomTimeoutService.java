@@ -14,7 +14,7 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomTimeUpNotificationReposi
 import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
-import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationService;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
 import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
@@ -46,7 +46,7 @@ public class FlipbookRoomTimeoutService {
     private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
-    private final FlipbookRoomFinalizationService flipbookRoomFinalizationService;
+    private final FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService;
     private final int scanLimit;
     private final Duration autoSubmitGrace;
     private final Duration roomMutationLockTtl;
@@ -58,7 +58,7 @@ public class FlipbookRoomTimeoutService {
         FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService,
         FlipbookRoomEventPublisher flipbookRoomEventPublisher,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
-        FlipbookRoomFinalizationService flipbookRoomFinalizationService,
+        FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService,
         @Value("${nemonic.flipbook.timeout.scan-limit:100}") int scanLimit,
         @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:5000}") long autoSubmitGraceMs,
         @Value("${nemonic.flipbook.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
@@ -69,7 +69,7 @@ public class FlipbookRoomTimeoutService {
         this.flipbookRoomRoundAdvanceService = flipbookRoomRoundAdvanceService;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
-        this.flipbookRoomFinalizationService = flipbookRoomFinalizationService;
+        this.flipbookRoomFinalizationTriggerService = flipbookRoomFinalizationTriggerService;
         this.scanLimit = scanLimit;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
         this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
@@ -293,7 +293,7 @@ public class FlipbookRoomTimeoutService {
             FlipbookRoomEventLogger.websocketBusiness("flipbook_all_rounds_completed",
                 metadata("room_id", result.roomCode(), "room_status", advanceResult.roomState().status(),
                     "total_rounds", advanceResult.roomState().totalRounds()));
-            flipbookRoomFinalizationService.triggerFinalization(result.roomCode());
+            flipbookRoomFinalizationTriggerService.triggerFinalizationAsync(result.roomCode());
         } else {
             flipbookRoomEventPublisher.publishRoundStarted(result.roomCode(), result.previousRound(),
                 advanceResult.nextRound(), advanceResult.nextRoundStartedAt(), advanceResult.nextRoundDeadlineAt());

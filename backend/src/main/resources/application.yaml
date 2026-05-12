@@ -179,6 +179,11 @@ nemonic:
       lock-ttl-seconds: ${FLIPBOOK_FINALIZATION_LOCK_TTL_SECONDS:60}
       ready-delay-ms: ${FLIPBOOK_FINALIZATION_READY_DELAY_MS:1000}
       max-retry-count: ${FLIPBOOK_FINALIZATION_MAX_RETRY_COUNT:60}
+      async:
+        core-pool-size: ${FLIPBOOK_FINALIZATION_ASYNC_CORE_POOL_SIZE:2}
+        max-pool-size: ${FLIPBOOK_FINALIZATION_ASYNC_MAX_POOL_SIZE:4}
+        queue-capacity: ${FLIPBOOK_FINALIZATION_ASYNC_QUEUE_CAPACITY:100}
+        await-termination-seconds: ${FLIPBOOK_FINALIZATION_ASYNC_AWAIT_TERMINATION_SECONDS:30}
 
   fortune:
     gms:
