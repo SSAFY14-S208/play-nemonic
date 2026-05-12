@@ -5,8 +5,10 @@
 import type { LucideIcon } from 'lucide-react'
 import { BadgeCheck, Link2 } from 'lucide-react'
 
-export const RELAY_TIME_LIMITS_SECONDS = [30, 45, 60]
-export const DEFAULT_TIME_LIMIT_SECONDS = 45
+// hydrate 전 store 초기값으로 사용되는 폴백 — 백엔드 응답(timeLimitAllowedSeconds)이
+// 도착하면 덮어씌워진다.
+export const DEFAULT_TIME_LIMIT_ALLOWED_SECONDS = [30, 45, 60]
+export const DEFAULT_TIME_LIMIT_SECONDS = DEFAULT_TIME_LIMIT_ALLOWED_SECONDS[0]
 
 export interface RelayLobbyAction {
   label: string

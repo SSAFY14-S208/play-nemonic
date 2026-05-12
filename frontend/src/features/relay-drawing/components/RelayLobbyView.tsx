@@ -5,7 +5,7 @@ import { ArrowLeft, Copy, Crown, X } from "lucide-react";
 import { useUserStore } from "@/shared/stores";
 import type { RelayRoomParticipantResponse } from "@/shared/types";
 
-import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from "../constants";
+import { RELAY_ROOM_CODE } from "../constants";
 import { useRelayLobby } from "../hooks";
 import { useRelayDrawingStore } from "../stores";
 import { cn } from "@/shared/libs";
@@ -23,6 +23,9 @@ export default function RelayLobbyView() {
   );
   const timeLimitSeconds = useRelayDrawingStore(
     (state) => state.timeLimitSeconds,
+  );
+  const timeLimitAllowedSeconds = useRelayDrawingStore(
+    (state) => state.timeLimitAllowedSeconds,
   );
   const currentUserUuid = useUserStore((state) => state.userUuid);
 
@@ -152,7 +155,7 @@ export default function RelayLobbyView() {
           >
             <h2 className="h3-b text-relay-muted">⏱ 제한 시간</h2>
             <div className="mt-4 grid grid-cols-3 gap-2.5">
-              {RELAY_TIME_LIMITS_SECONDS.map((seconds) => {
+              {timeLimitAllowedSeconds.map((seconds) => {
                 const isSelected = seconds === timeLimitSeconds;
                 return (
                   <button

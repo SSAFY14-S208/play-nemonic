@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand'
 
-import { DEFAULT_TIME_LIMIT_SECONDS } from '../constants'
+import { DEFAULT_TIME_LIMIT_ALLOWED_SECONDS, DEFAULT_TIME_LIMIT_SECONDS } from '../constants'
 
 import type { RelayDrawingStore, RoomSlice } from './store.types'
 
@@ -16,6 +16,7 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
   hostUserUuid: null,
   participants: [],
   timeLimitSeconds: DEFAULT_TIME_LIMIT_SECONDS,
+  timeLimitAllowedSeconds: DEFAULT_TIME_LIMIT_ALLOWED_SECONDS,
   minParticipants: DEFAULT_MIN_PARTICIPANTS,
   maxParticipants: DEFAULT_MAX_PARTICIPANTS,
   dismissalReason: null,
@@ -29,6 +30,11 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
       timeLimitSeconds: payload.timeLimitSeconds,
       minParticipants: payload.minParticipants,
       maxParticipants: payload.maxParticipants,
+      // timeLimitAllowedSeconds는 REST 응답에만 포함되고 WS 이벤트에는 없으므로
+      // 존재할 때만 갱신한다.
+      ...(payload.timeLimitAllowedSeconds && {
+        timeLimitAllowedSeconds: payload.timeLimitAllowedSeconds,
+      }),
     })
   },
 
@@ -50,6 +56,7 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
       participants: [],
       minParticipants: DEFAULT_MIN_PARTICIPANTS,
       maxParticipants: DEFAULT_MAX_PARTICIPANTS,
+      timeLimitAllowedSeconds: DEFAULT_TIME_LIMIT_ALLOWED_SECONDS,
       dismissalReason: null,
       // 캔버스 슬라이스 리셋
       activeRoundKey: 'face',

@@ -30,6 +30,7 @@ export type RelayDismissalReason = 'DUPLICATE_SESSION' | 'ROOM_CLOSED'
 
 // hydrateRoomState 인자 — REST(getRelayRoom)와 방 생성/입장 응답이 모두
 // 만족하는 최소 교집합. 게임 진행 필드(currentPart 등)는 다루지 않는다.
+// timeLimitAllowedSeconds는 REST 응답에만 포함되고 WS 이벤트에는 없으므로 optional.
 export type RelayRoomHydratePayload = Pick<
   RelayRoomStateResponse,
   | 'roomCode'
@@ -39,7 +40,9 @@ export type RelayRoomHydratePayload = Pick<
   | 'minParticipants'
   | 'maxParticipants'
   | 'participants'
->
+> & {
+  timeLimitAllowedSeconds?: number[]
+}
 
 export interface RoomSlice {
   roomCode: string | null
@@ -47,6 +50,9 @@ export interface RoomSlice {
   hostUserUuid: string | null
   participants: RelayRoomParticipantResponse[]
   timeLimitSeconds: number
+  // 백엔드가 방 생성 시 허용 가능한 제한 시간 목록을 내려준다.
+  // 로비 UI에서 시간 선택 버튼을 이 배열로 렌더링한다.
+  timeLimitAllowedSeconds: number[]
   // 정원 — 가이드 §9·§15. 백엔드가 방 생성 시 결정해 응답에 함께 내려준다.
   minParticipants: number
   maxParticipants: number
