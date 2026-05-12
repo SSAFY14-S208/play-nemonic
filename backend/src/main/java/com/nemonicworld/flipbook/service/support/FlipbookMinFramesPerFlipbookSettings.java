@@ -12,14 +12,12 @@ public record FlipbookMinFramesPerFlipbookSettings(int value) {
 
     public static FlipbookMinFramesPerFlipbookSettings fromJson(JsonNode value) {
         if (value == null || !value.isObject()) {
-            throw new InvalidFlipbookMinFramesPerFlipbookSettingsException(
-                "Flipbook min frames setting must be a JSON object.");
+            throw new InvalidFlipbookMinFramesPerFlipbookSettingsException("플립북 최소 프레임 수 설정은 JSON 객체여야 합니다.");
         }
 
         int frames = requireInteger(value.get("value"), "value");
         if (frames <= 0) {
-            throw new InvalidFlipbookMinFramesPerFlipbookSettingsException(
-                "Flipbook min frames value must be greater than zero.");
+            throw new InvalidFlipbookMinFramesPerFlipbookSettingsException("플립북 최소 프레임 수는 0보다 커야 합니다.");
         }
 
         return new FlipbookMinFramesPerFlipbookSettings(frames);
@@ -28,7 +26,7 @@ public record FlipbookMinFramesPerFlipbookSettings(int value) {
     private static int requireInteger(JsonNode value, String fieldName) {
         if (value == null || !value.isIntegralNumber() || !value.canConvertToInt()) {
             throw new InvalidFlipbookMinFramesPerFlipbookSettingsException(
-                "Flipbook min frames setting field must be an integer: " + fieldName);
+                "플립북 최소 프레임 수 설정 필드는 정수여야 합니다. field=" + fieldName);
         }
 
         return value.asInt();

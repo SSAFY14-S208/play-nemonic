@@ -13,22 +13,19 @@ public record FlipbookRoomTimeLimitSettings(int defaultSeconds, Set<Integer> all
 
     public FlipbookRoomTimeLimitSettings {
         if (allowedSeconds == null || allowedSeconds.isEmpty()) {
-            throw new InvalidFlipbookRoomTimeLimitSettingsException(
-                "Flipbook room time limit setting allowed values must not be empty.");
+            throw new InvalidFlipbookRoomTimeLimitSettingsException("플립북 방 제한 시간 허용값은 비어 있을 수 없습니다.");
         }
 
         allowedSeconds = Collections.unmodifiableSet(new LinkedHashSet<>(allowedSeconds));
         validateSeconds(defaultSeconds, "default");
         for (Integer allowedSecond : allowedSeconds) {
             if (allowedSecond == null) {
-                throw new InvalidFlipbookRoomTimeLimitSettingsException(
-                    "Flipbook room time limit setting allowed value must be an integer.");
+                throw new InvalidFlipbookRoomTimeLimitSettingsException("플립북 방 제한 시간 허용값은 정수여야 합니다.");
             }
             validateSeconds(allowedSecond, "allowed");
         }
         if (!allowedSeconds.contains(defaultSeconds)) {
-            throw new InvalidFlipbookRoomTimeLimitSettingsException(
-                "Flipbook room time limit default value must be included in allowed values.");
+            throw new InvalidFlipbookRoomTimeLimitSettingsException("플립북 방 기본 제한 시간은 허용값에 포함되어야 합니다.");
         }
     }
 
@@ -38,15 +35,13 @@ public record FlipbookRoomTimeLimitSettings(int defaultSeconds, Set<Integer> all
 
     public static FlipbookRoomTimeLimitSettings fromJson(JsonNode value) {
         if (value == null || !value.isObject()) {
-            throw new InvalidFlipbookRoomTimeLimitSettingsException(
-                "Flipbook room time limit setting must be a JSON object.");
+            throw new InvalidFlipbookRoomTimeLimitSettingsException("플립북 방 제한 시간 설정은 JSON 객체여야 합니다.");
         }
 
         int defaultSeconds = requireInteger(value.get("default"), "default");
         JsonNode allowed = value.get("allowed");
         if (allowed == null || !allowed.isArray() || allowed.isEmpty()) {
-            throw new InvalidFlipbookRoomTimeLimitSettingsException(
-                "Flipbook room time limit setting allowed values must be a non-empty array.");
+            throw new InvalidFlipbookRoomTimeLimitSettingsException("플립북 방 제한 시간 허용값은 비어 있지 않은 배열이어야 합니다.");
         }
 
         Set<Integer> allowedSeconds = new LinkedHashSet<>();
@@ -63,8 +58,7 @@ public record FlipbookRoomTimeLimitSettings(int defaultSeconds, Set<Integer> all
 
     private static int requireInteger(JsonNode value, String fieldName) {
         if (value == null || !value.isIntegralNumber() || !value.canConvertToInt()) {
-            throw new InvalidFlipbookRoomTimeLimitSettingsException(
-                "Flipbook room time limit setting field must be an integer: " + fieldName);
+            throw new InvalidFlipbookRoomTimeLimitSettingsException("플립북 방 제한 시간 설정 필드는 정수여야 합니다. field=" + fieldName);
         }
 
         return value.asInt();
@@ -72,13 +66,12 @@ public record FlipbookRoomTimeLimitSettings(int defaultSeconds, Set<Integer> all
 
     private static void validateSeconds(int seconds, String fieldName) {
         if (seconds < MIN_CONFIGURABLE_TIME_LIMIT_SECONDS) {
-            throw new InvalidFlipbookRoomTimeLimitSettingsException(
-                "Flipbook room time limit setting field is too small: " + fieldName);
+            throw new InvalidFlipbookRoomTimeLimitSettingsException("플립북 방 제한 시간 설정값이 너무 작습니다. field=" + fieldName);
         }
 
         if (seconds > MAX_CONFIGURABLE_TIME_LIMIT_SECONDS) {
             throw new InvalidFlipbookRoomTimeLimitSettingsException(
-                "Flipbook room time limit setting field exceeds the configurable upper bound: " + fieldName);
+                "플립북 방 제한 시간 설정값이 설정 가능한 상한을 초과했습니다. field=" + fieldName);
         }
     }
 }

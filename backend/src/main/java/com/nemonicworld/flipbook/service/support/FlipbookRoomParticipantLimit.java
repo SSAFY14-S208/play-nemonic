@@ -15,8 +15,7 @@ public record FlipbookRoomParticipantLimit(int minParticipants, int maxParticipa
 
     public static FlipbookRoomParticipantLimit fromJson(JsonNode value) {
         if (value == null || !value.isObject()) {
-            throw new InvalidFlipbookRoomParticipantLimitException(
-                "Flipbook participant limit setting must be a JSON object.");
+            throw new InvalidFlipbookRoomParticipantLimitException("플립북 참여 인원 설정은 JSON 객체여야 합니다.");
         }
 
         int minParticipants = requireInteger(value.get("min"), "min");
@@ -28,8 +27,7 @@ public record FlipbookRoomParticipantLimit(int minParticipants, int maxParticipa
 
     private static int requireInteger(JsonNode value, String fieldName) {
         if (value == null || !value.isIntegralNumber() || !value.canConvertToInt()) {
-            throw new InvalidFlipbookRoomParticipantLimitException(
-                "Flipbook participant limit setting field must be an integer: " + fieldName);
+            throw new InvalidFlipbookRoomParticipantLimitException("플립북 참여 인원 설정 필드는 정수여야 합니다. field=" + fieldName);
         }
 
         return value.asInt();
@@ -37,18 +35,15 @@ public record FlipbookRoomParticipantLimit(int minParticipants, int maxParticipa
 
     private static void validate(int minParticipants, int maxParticipants) {
         if (minParticipants < MIN_CONFIGURABLE_PARTICIPANTS) {
-            throw new InvalidFlipbookRoomParticipantLimitException(
-                "Flipbook minimum participants must be at least 2.");
+            throw new InvalidFlipbookRoomParticipantLimitException("플립북 최소 참여 인원은 2명 이상이어야 합니다.");
         }
 
         if (maxParticipants < minParticipants) {
-            throw new InvalidFlipbookRoomParticipantLimitException(
-                "Flipbook maximum participants must be greater than or equal to minimum.");
+            throw new InvalidFlipbookRoomParticipantLimitException("플립북 최대 참여 인원은 최소 참여 인원보다 크거나 같아야 합니다.");
         }
 
         if (maxParticipants > MAX_CONFIGURABLE_PARTICIPANTS) {
-            throw new InvalidFlipbookRoomParticipantLimitException(
-                "Flipbook maximum participants exceeds the configurable upper bound.");
+            throw new InvalidFlipbookRoomParticipantLimitException("플립북 최대 참여 인원이 설정 가능한 상한을 초과했습니다.");
         }
     }
 }
