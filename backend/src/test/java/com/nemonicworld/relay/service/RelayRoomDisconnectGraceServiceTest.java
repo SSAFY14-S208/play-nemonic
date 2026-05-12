@@ -28,6 +28,7 @@ import com.nemonicworld.relay.service.disconnect.RelayDisconnectGraceProcessResu
 import com.nemonicworld.relay.service.disconnect.RelayDisconnectGraceRoomResult;
 import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
 import com.nemonicworld.relay.service.disconnect.RelayRoomDisconnectGraceService;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
@@ -42,6 +43,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.InOrder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -73,6 +75,9 @@ class RelayRoomDisconnectGraceServiceTest {
     @Mock
     private RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
 
+    @Mock
+    private RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger;
+
     private RelayRoomDisconnectGraceService relayRoomDisconnectGraceService;
 
     @BeforeEach
@@ -87,7 +92,8 @@ class RelayRoomDisconnectGraceServiceTest {
             .thenReturn(Duration.ofSeconds(RECONNECT_GRACE_SECONDS));
         relayRoomDisconnectGraceService = new RelayRoomDisconnectGraceService(relayRoomRepository,
             relaySubmissionLockRepository, relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
-            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRuntimeSettingsProvider, 5000, 100);
+            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRoomFinalizationAsyncTrigger,
+            relayRuntimeSettingsProvider, 5000, 100);
     }
 
     @Test
@@ -167,6 +173,27 @@ class RelayRoomDisconnectGraceServiceTest {
             any(RelayRoomAssignment.class));
         verify(relayRoomEventPublisher).publishPartStarted(eq(ROOM_CODE), eq(RelayDrawingPart.FACE),
             eq(RelayDrawingPart.BODY), eq(NOW), eq(NOW.plusSeconds(45)));
+        verify(relayRoomFinalizationAsyncTrigger, never()).trigger(anyString());
+    }
+
+    @Test
+    void processRoomTriggersFinalizationWhenDisconnectGraceCompletesLastPart() {
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.LEGS,
+            List.of(pendingAssignment(0, RelayDrawingPart.LEGS, hostUuid)),
+            participant(hostUuid, "Mango", true, 0, false, NOW.minusSeconds(10)));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayDisconnectGraceRoomResult result = relayRoomDisconnectGraceService.processRoom(ROOM_CODE, NOW);
+
+        assertThat(result.processed()).isTrue();
+        assertThat(result.advanceResult().allPartsCompleted()).isTrue();
+        InOrder inOrder = org.mockito.Mockito.inOrder(relayRoomEventPublisher, relayRoomFinalizationAsyncTrigger);
+        inOrder.verify(relayRoomEventPublisher).publishAllPartsCompleted(eq(ROOM_CODE), eq(RelayRoomStatus.FINALIZING),
+            eq(NOW));
+        inOrder.verify(relayRoomFinalizationAsyncTrigger).trigger(ROOM_CODE);
     }
 
     @Test
