@@ -84,7 +84,7 @@ class RelayRoomFinalizationServiceTest {
         service = new RelayRoomFinalizationService(relayRoomRepository, relayArtifactRepository, relayResultStorage,
             new RelayResultComposer(4, 3, 4), relayRoomEventPublisher, new ObjectMapper().findAndRegisterModules(),
             relayInviteMetadataSyncService, relayFinalizationRetryRepository, relayFinalizationAttemptRepository,
-            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), 50, 60, 24, 1000, 20);
+            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), 50, 60, 24, 1000, 60);
     }
 
     @Test
@@ -225,7 +225,7 @@ class RelayRoomFinalizationServiceTest {
             relayArtifactRepository, relayResultStorage, new RelayResultComposer(4, 3, 4), relayRoomEventPublisher,
             new ObjectMapper().findAndRegisterModules(), relayInviteMetadataSyncService,
             relayFinalizationRetryRepository, relayFinalizationAttemptRepository,
-            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), 50, 60, 24, 60_000, 20);
+            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), 50, 60, 24, 60_000, 60);
         RelayRoomState baseRoom = finalizingRoom(UUID.randomUUID());
         RelayRoomState recentRoom = baseRoom.withAssignments(baseRoom.assignments(),
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
@@ -251,7 +251,7 @@ class RelayRoomFinalizationServiceTest {
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
         given(relayResultStorage.download(anyString())).willThrow(new InternalServerException("boom"));
         given(relayFinalizationRetryRepository.incrementFailureCount(eq(ROOM_CODE), eq(Duration.ofHours(24))))
-            .willReturn(19);
+            .willReturn(59);
 
         var result = service.processFinalizingRooms();
 
@@ -274,7 +274,7 @@ class RelayRoomFinalizationServiceTest {
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
         given(relayResultStorage.download(anyString())).willThrow(new InternalServerException("boom"));
         given(relayFinalizationRetryRepository.incrementFailureCount(eq(ROOM_CODE), eq(Duration.ofHours(24))))
-            .willReturn(20);
+            .willReturn(60);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(true);
 
