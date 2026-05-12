@@ -51,10 +51,11 @@ REST room membership. Room creation, room join, and REST reconnect keep
 participants registered with `connected=false`; a successful `/ws/relay` STOMP
 CONNECT is the only path that sets the participant to `connected=true`.
 DISCONNECT sets it back to `connected=false` and records `disconnectedAt` for
-the reconnect flow. The 10-second reconnect grace limit applies only after the
-game enters `PLAYING`; in `WAITING`, disconnected registered participants may
-REST re-enter and WebSocket reconnect without a grace-time cutoff unless they
-were kicked.
+the reconnect flow. The reconnect grace limit is read from backoffice setting
+`relay.reconnect_grace_seconds` and falls back to 10 seconds when the setting is
+missing or invalid. The cutoff applies only after the game enters `PLAYING`; in
+`WAITING`, disconnected registered participants may REST re-enter and WebSocket
+reconnect without a grace-time cutoff unless they were kicked.
 
 Because the session registry is same-server and in-memory, a process restart can
 leave Redis with `connected=true` participants whose actual WebSocket sessions no
@@ -68,6 +69,10 @@ observed at that moment.
 The game start command requires every participant to have `connected=true`.
 Publish relay room events only after the corresponding Redis CAS save succeeds.
 Personal kick messages and same-server session closes are best-effort.
+Room-state event payloads include the room's stored `timeLimitSeconds`, the
+latest backoffice time-limit metadata (`timeLimitDefaultSeconds`,
+`timeLimitAllowedSeconds`), and `reconnectGraceSeconds` so clients can refresh
+lobby controls and playing-room reconnect guidance from topic events alone.
 
 When a relay room becomes closed, publish `ROOM_CLOSED` and best-effort close
 all same-server active relay WebSocket sessions for that room. This applies to

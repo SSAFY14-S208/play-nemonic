@@ -1,6 +1,7 @@
 package com.nemonicworld.relay.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -24,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,12 +90,29 @@ class RelayOrphanObjectCleanupServiceTest {
     }
 
     @Test
+    void cleanupTempObjectsCachesRoomStateLookupWithinRun() {
+        String faceObjectKey = "relay/tmp/AB3K9Q/0/face.png";
+        String bodyObjectKey = "relay/tmp/AB3K9Q/0/body.png";
+        given(relayObjectStorage.findObjects("relay/tmp/", NOW.minusHours(24), 10))
+            .willReturn(List.of(new RelayStoredObject(faceObjectKey, NOW.minusHours(25)),
+                new RelayStoredObject(bodyObjectKey, NOW.minusHours(25))));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.empty());
+
+        RelayOrphanObjectCleanupResult result = service.cleanupTempObjects(NOW);
+
+        assertThat(result.deletedCount()).isEqualTo(2);
+        verify(relayRoomRepository).findByRoomCode(ROOM_CODE);
+        verify(relayObjectStorage).deleteObject(faceObjectKey);
+        verify(relayObjectStorage).deleteObject(bodyObjectKey);
+    }
+
+    @Test
     void cleanupResultObjectsDeletesUnreferencedOldResultObjects() {
         String objectKey = "relay/results/artifact-id/original.png";
         given(relayObjectStorage.findObjects("relay/results/", NOW.minusHours(24), 10))
             .willReturn(List.of(new RelayStoredObject(objectKey, NOW.minusHours(25))));
-        given(relayArtifactRepository.existsRelayResultObjectReference(objectKey)).willReturn(false);
-        given(relayFinalizationAttemptRepository.containsObjectKey(objectKey, 10)).willReturn(false);
+        given(relayArtifactRepository.findReferencedRelayResultObjectKeys(Set.of(objectKey))).willReturn(Set.of());
+        given(relayFinalizationAttemptRepository.findReferencedObjectKeys(Set.of(objectKey), 10)).willReturn(Set.of());
 
         RelayOrphanObjectCleanupResult result = service.cleanupResultObjects(NOW);
 
@@ -108,14 +127,15 @@ class RelayOrphanObjectCleanupServiceTest {
         String objectKey = "relay/results/artifact-id/original.png";
         given(relayObjectStorage.findObjects("relay/results/", NOW.minusHours(24), 10))
             .willReturn(List.of(new RelayStoredObject(objectKey, NOW.minusHours(25))));
-        given(relayArtifactRepository.existsRelayResultObjectReference(objectKey)).willReturn(true);
+        given(relayArtifactRepository.findReferencedRelayResultObjectKeys(Set.of(objectKey)))
+            .willReturn(Set.of(objectKey));
 
         RelayOrphanObjectCleanupResult result = service.cleanupResultObjects(NOW);
 
         assertThat(result.scannedCount()).isEqualTo(1);
         assertThat(result.deletedCount()).isZero();
         assertThat(result.skippedCount()).isEqualTo(1);
-        verify(relayFinalizationAttemptRepository, never()).containsObjectKey(anyString(), eq(10));
+        verify(relayFinalizationAttemptRepository).findReferencedObjectKeys(Set.of(), 10);
         verify(relayObjectStorage, never()).deleteObject(anyString());
     }
 
@@ -124,8 +144,9 @@ class RelayOrphanObjectCleanupServiceTest {
         String objectKey = "relay/results/artifact-id/original.png";
         given(relayObjectStorage.findObjects("relay/results/", NOW.minusHours(24), 10))
             .willReturn(List.of(new RelayStoredObject(objectKey, NOW.minusHours(25))));
-        given(relayArtifactRepository.existsRelayResultObjectReference(objectKey)).willReturn(false);
-        given(relayFinalizationAttemptRepository.containsObjectKey(objectKey, 10)).willReturn(true);
+        given(relayArtifactRepository.findReferencedRelayResultObjectKeys(Set.of(objectKey))).willReturn(Set.of());
+        given(relayFinalizationAttemptRepository.findReferencedObjectKeys(Set.of(objectKey), 10))
+            .willReturn(Set.of(objectKey));
 
         RelayOrphanObjectCleanupResult result = service.cleanupResultObjects(NOW);
 
@@ -142,8 +163,8 @@ class RelayOrphanObjectCleanupServiceTest {
         given(relayObjectStorage.findObjects("relay/results/", NOW.minusHours(24), 10))
             .willReturn(List.of(new RelayStoredObject(failedKey, NOW.minusHours(25)),
                 new RelayStoredObject(deletedKey, NOW.minusHours(25))));
-        given(relayArtifactRepository.existsRelayResultObjectReference(anyString())).willReturn(false);
-        given(relayFinalizationAttemptRepository.containsObjectKey(anyString(), eq(10))).willReturn(false);
+        given(relayArtifactRepository.findReferencedRelayResultObjectKeys(anySet())).willReturn(Set.of());
+        given(relayFinalizationAttemptRepository.findReferencedObjectKeys(anySet(), eq(10))).willReturn(Set.of());
         doThrow(new FileStorageException("storage", new RuntimeException("boom"))).when(relayObjectStorage)
             .deleteObject(failedKey);
 

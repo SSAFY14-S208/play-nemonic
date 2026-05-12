@@ -109,6 +109,7 @@ class RelayRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[0]").value(30))
             .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[1]").value(45))
             .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[2]").value(60))
+            .andExpect(jsonPath("$.data.reconnectGraceSeconds").value(10))
             .andExpect(jsonPath("$.data.minParticipants").value(2))
             .andExpect(jsonPath("$.data.maxParticipants").value(6))
             .andExpect(jsonPath("$.data.participantCount").value(1))
@@ -164,6 +165,17 @@ class RelayRoomControllerIntegrationTest {
 
         JsonNode storedRoom = readStoredJson("relay:room:%s".formatted(DEFAULT_ROOM_CODE));
         assertThat(storedRoom.path("timeLimitSeconds").asInt()).isEqualTo(60);
+    }
+
+    @Test
+    void createRelayRoomReturnsRuntimeReconnectGraceMetadata() throws Exception {
+        insertRelayReconnectGraceSetting("""
+            {"value":30,"unit":"seconds","description":"릴레이 진행 중 재연결 유예 시간"}
+            """);
+        UUID userUuid = createExistingUserWithNickname("Mango");
+
+        mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reconnectGraceSeconds").value(30));
     }
 
     @Test
@@ -430,6 +442,22 @@ class RelayRoomControllerIntegrationTest {
             )
             VALUES (?, ?, ?, ?, ?, ?)
             """, 11L, "relay.room_time_limit_seconds", settingValue, 0L, Timestamp.valueOf(now),
+            Timestamp.valueOf(now));
+    }
+
+    private void insertRelayReconnectGraceSetting(String settingValue) {
+        LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO backoffice_setting (
+                id,
+                setting_key,
+                setting_value,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, 12L, "relay.reconnect_grace_seconds", settingValue, 0L, Timestamp.valueOf(now),
             Timestamp.valueOf(now));
     }
 

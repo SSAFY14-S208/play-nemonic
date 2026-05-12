@@ -9,8 +9,8 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
-import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -54,6 +54,7 @@ public class RelayRoomStartUseCase {
         AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
         relayRoomPolicy.validateRoomCode(roomCodeValue);
         String viewerUserUuid = viewerUser.getId().toString();
+        RelayRuntimeSettingsSnapshot settings = relayRuntimeSettingsProvider.currentSettingsSnapshot();
 
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
@@ -68,9 +69,8 @@ public class RelayRoomStartUseCase {
 
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
-                RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now);
-                RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider
-                    .currentRoomTimeLimitSettings();
+                RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now,
+                    settings.reconnectGracePeriod());
                 RelayRoomEventLogger.apiBusiness("relay_game_started",
                     metadata("room_id", updatedRoomState.roomCode(), "host_uuid", viewerUserUuid, "participant_count",
                         updatedRoomState.participantCount(), "assignment_count", updatedRoomState.assignments().size(),
@@ -80,7 +80,8 @@ public class RelayRoomStartUseCase {
                         "previous_part", null, "participant_count", updatedRoomState.participantCount(),
                         "part_deadline_at", updatedRoomState.partDeadlineAt()));
 
-                return RelayRoomStateResponse.from(updatedRoomState, viewer, timeLimitSettings);
+                return RelayRoomStateResponse.from(updatedRoomState, viewer, settings.roomTimeLimitSettings(),
+                    settings.reconnectGracePeriod());
             }
         }
 

@@ -4,6 +4,7 @@ import com.nemonicworld.relay.dto.response.RelayRoomViewerBlockedReason;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -24,10 +25,17 @@ public class RelayRoomViewerFactory {
      * viewer 응답을 생성합니다.
      */
     public RelayRoomViewerResponse create(String viewerUserUuid, RelayRoomState roomState, LocalDateTime now) {
+        return create(viewerUserUuid, roomState, now,
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
+    }
+
+    public RelayRoomViewerResponse create(String viewerUserUuid, RelayRoomState roomState, LocalDateTime now,
+        Duration reconnectGracePeriod) {
         Optional<RelayRoomParticipant> participant = relayRoomPolicy.findParticipant(roomState, viewerUserUuid);
 
         if (participant.isPresent()) {
-            return createParticipantViewerResponse(viewerUserUuid, roomState, participant.get(), now);
+            return createParticipantViewerResponse(viewerUserUuid, roomState, participant.get(), now,
+                reconnectGracePeriod);
         }
 
         return createNonParticipantViewerResponse(viewerUserUuid, roomState);
@@ -37,7 +45,7 @@ public class RelayRoomViewerFactory {
      * 참여자 viewer 응답을 생성합니다.
      */
     private RelayRoomViewerResponse createParticipantViewerResponse(String viewerUserUuid, RelayRoomState roomState,
-        RelayRoomParticipant participant, LocalDateTime now) {
+        RelayRoomParticipant participant, LocalDateTime now, Duration reconnectGracePeriod) {
         boolean host = participant.host() || roomState.hostUserUuid().equals(viewerUserUuid);
 
         if (participant.dropped()) {
@@ -57,7 +65,7 @@ public class RelayRoomViewerFactory {
             return new RelayRoomViewerResponse(viewerUserUuid, true, host, false, true, null);
         }
 
-        if (relayRoomPolicy.canReconnect(participant, now)) {
+        if (relayRoomPolicy.canReconnect(participant, now, reconnectGracePeriod)) {
             return new RelayRoomViewerResponse(viewerUserUuid, true, host, false, true, null);
         }
 

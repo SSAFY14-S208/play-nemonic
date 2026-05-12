@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.backoffice.setting.entity.SystemParameter;
 import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -29,37 +33,72 @@ public class RelayRuntimeSettingsProvider {
     }
 
     public RelayRoomParticipantLimit currentParticipantLimit() {
-        return systemParameterRepository.findByKey(PARTICIPANT_LIMIT_SETTING_KEY).map(SystemParameter::value)
-            .filter(StringUtils::hasText).map(this::parseParticipantLimit).orElseGet(() -> {
-                RelayRoomParticipantLimit fallback = RelayRoomParticipantLimit.defaultLimit();
-                log.warn("relay participant limit setting is missing or blank. key={} fallbackMin={} fallbackMax={}",
-                    PARTICIPANT_LIMIT_SETTING_KEY, fallback.minParticipants(), fallback.maxParticipants());
-
-                return fallback;
-            });
+        return resolveParticipantLimit(systemParameterRepository.findByKey(PARTICIPANT_LIMIT_SETTING_KEY)
+            .map(SystemParameter::value).orElse(null));
     }
 
     public RelayRoomTimeLimitSettings currentRoomTimeLimitSettings() {
-        return systemParameterRepository.findByKey(ROOM_TIME_LIMIT_SECONDS_SETTING_KEY).map(SystemParameter::value)
-            .filter(StringUtils::hasText).map(this::parseRoomTimeLimitSettings).orElseGet(() -> {
-                RelayRoomTimeLimitSettings fallback = RelayRoomTimeLimitSettings.defaultSettings();
-                log.warn(
-                    "relay room time limit setting is missing or blank. key={} fallbackDefault={} fallbackAllowed={}",
-                    ROOM_TIME_LIMIT_SECONDS_SETTING_KEY, fallback.defaultSeconds(), fallback.allowedSeconds());
-
-                return fallback;
-            });
+        return resolveRoomTimeLimitSettings(systemParameterRepository.findByKey(ROOM_TIME_LIMIT_SECONDS_SETTING_KEY)
+            .map(SystemParameter::value).orElse(null));
     }
 
     public Duration currentReconnectGracePeriod() {
-        return systemParameterRepository.findByKey(RECONNECT_GRACE_SECONDS_SETTING_KEY).map(SystemParameter::value)
-            .filter(StringUtils::hasText).map(this::parseReconnectGracePeriod).orElseGet(() -> {
-                RelayReconnectGraceSettings fallback = RelayReconnectGraceSettings.defaultSettings();
-                log.warn("relay reconnect grace setting is missing or blank. key={} fallbackSeconds={}",
-                    RECONNECT_GRACE_SECONDS_SETTING_KEY, fallback.seconds());
+        return resolveReconnectGracePeriod(systemParameterRepository.findByKey(RECONNECT_GRACE_SECONDS_SETTING_KEY)
+            .map(SystemParameter::value).orElse(null));
+    }
 
-                return fallback.period();
-            });
+    public RelayRuntimeSettingsSnapshot currentSettingsSnapshot() {
+        Map<String, SystemParameter> parametersByKey = systemParameterRepository
+            .findAllByKeys(List.of(PARTICIPANT_LIMIT_SETTING_KEY, ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                RECONNECT_GRACE_SECONDS_SETTING_KEY))
+            .stream().collect(Collectors.toMap(SystemParameter::key, Function.identity(), (first, second) -> first));
+
+        return new RelayRuntimeSettingsSnapshot(
+            resolveParticipantLimit(valueOf(parametersByKey, PARTICIPANT_LIMIT_SETTING_KEY)),
+            resolveRoomTimeLimitSettings(valueOf(parametersByKey, ROOM_TIME_LIMIT_SECONDS_SETTING_KEY)),
+            resolveReconnectGracePeriod(valueOf(parametersByKey, RECONNECT_GRACE_SECONDS_SETTING_KEY)));
+    }
+
+    private String valueOf(Map<String, SystemParameter> parametersByKey, String key) {
+        SystemParameter parameter = parametersByKey.get(key);
+
+        return parameter == null ? null : parameter.value();
+    }
+
+    private RelayRoomParticipantLimit resolveParticipantLimit(String settingValue) {
+        if (!StringUtils.hasText(settingValue)) {
+            RelayRoomParticipantLimit fallback = RelayRoomParticipantLimit.defaultLimit();
+            log.warn("relay participant limit setting is missing or blank. key={} fallbackMin={} fallbackMax={}",
+                PARTICIPANT_LIMIT_SETTING_KEY, fallback.minParticipants(), fallback.maxParticipants());
+
+            return fallback;
+        }
+
+        return parseParticipantLimit(settingValue);
+    }
+
+    private RelayRoomTimeLimitSettings resolveRoomTimeLimitSettings(String settingValue) {
+        if (!StringUtils.hasText(settingValue)) {
+            RelayRoomTimeLimitSettings fallback = RelayRoomTimeLimitSettings.defaultSettings();
+            log.warn("relay room time limit setting is missing or blank. key={} fallbackDefault={} fallbackAllowed={}",
+                ROOM_TIME_LIMIT_SECONDS_SETTING_KEY, fallback.defaultSeconds(), fallback.allowedSeconds());
+
+            return fallback;
+        }
+
+        return parseRoomTimeLimitSettings(settingValue);
+    }
+
+    private Duration resolveReconnectGracePeriod(String settingValue) {
+        if (!StringUtils.hasText(settingValue)) {
+            RelayReconnectGraceSettings fallback = RelayReconnectGraceSettings.defaultSettings();
+            log.warn("relay reconnect grace setting is missing or blank. key={} fallbackSeconds={}",
+                RECONNECT_GRACE_SECONDS_SETTING_KEY, fallback.seconds());
+
+            return fallback.period();
+        }
+
+        return parseReconnectGracePeriod(settingValue);
     }
 
     private RelayRoomParticipantLimit parseParticipantLimit(String settingValue) {

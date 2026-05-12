@@ -106,6 +106,7 @@ class RelayRoomStateControllerIntegrationTest {
             .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[0]").value(30))
             .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[1]").value(45))
             .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[2]").value(60))
+            .andExpect(jsonPath("$.data.reconnectGraceSeconds").value(10))
             .andExpect(jsonPath("$.data.minParticipants").value(2))
             .andExpect(jsonPath("$.data.maxParticipants").value(6))
             .andExpect(jsonPath("$.data.participantCount").value(1))
@@ -151,6 +152,25 @@ class RelayRoomStateControllerIntegrationTest {
             .andExpect(jsonPath("$.data.timeLimitDefaultSeconds").value(60))
             .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[0]").value(60))
             .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[1]").value(90));
+
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    void getRelayRoomStateReturnsRuntimeReconnectGraceMetadata() throws Exception {
+        insertRelayReconnectGraceSetting("""
+            {"value":30,"unit":"seconds","description":"릴레이 진행 중 재연결 유예 시간"}
+            """);
+        UUID hostUuid = createExistingUserWithNickname("망고");
+        RelayRoomState roomState = createRoomState(RelayRoomStatus.PLAYING, RelayDrawingPart.FACE,
+            participant(hostUuid, "망고", true, 0, false));
+        storeRoom(DEFAULT_ROOM_CODE, roomState);
+
+        mockMvc
+            .perform(get("/api/v1/relay/rooms/{roomCode}", DEFAULT_ROOM_CODE).header(ANONYMOUS_USER_UUID_HEADER,
+                hostUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("PLAYING"))
+            .andExpect(jsonPath("$.data.reconnectGraceSeconds").value(30));
 
         verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
     }
@@ -419,6 +439,22 @@ class RelayRoomStateControllerIntegrationTest {
             )
             VALUES (?, ?, ?, ?, ?, ?)
             """, 11L, "relay.room_time_limit_seconds", settingValue, 0L, Timestamp.valueOf(now),
+            Timestamp.valueOf(now));
+    }
+
+    private void insertRelayReconnectGraceSetting(String settingValue) {
+        LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO backoffice_setting (
+                id,
+                setting_key,
+                setting_value,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, 12L, "relay.reconnect_grace_seconds", settingValue, 0L, Timestamp.valueOf(now),
             Timestamp.valueOf(now));
     }
 

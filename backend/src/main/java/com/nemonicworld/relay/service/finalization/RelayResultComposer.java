@@ -64,8 +64,10 @@ public class RelayResultComposer {
         }
 
         BufferedImage thumbnail = createThumbnail(original);
+        byte[] originalBytes = toPngBytes(original);
+        byte[] thumbnailBytes = thumbnail == original ? originalBytes : toPngBytes(thumbnail);
 
-        return new RelayComposedImage(toPngBytes(original), toPngBytes(thumbnail));
+        return new RelayComposedImage(originalBytes, thumbnailBytes);
     }
 
     private Map<RelayDrawingPart, BufferedImage> readImages(Map<RelayDrawingPart, byte[]> partImages) {

@@ -9,8 +9,12 @@ import com.nemonicworld.relay.repository.RelayRoomRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -54,13 +58,26 @@ public class RelayOrphanObjectCleanupService {
     }
 
     public RelayOrphanObjectCleanupResult cleanupTempObjects(LocalDateTime now) {
+        Map<String, Optional<RelayRoomState>> roomStateCache = new HashMap<>();
+
         return cleanupObjects(TEMP_TARGET, RELAY_TEMP_OBJECT_KEY_PREFIX, now, tempRetention,
-            this::isTempObjectSafeToDelete);
+            objectKey -> isTempObjectSafeToDelete(objectKey, roomStateCache));
     }
 
     public RelayOrphanObjectCleanupResult cleanupResultObjects(LocalDateTime now) {
-        return cleanupObjects(RESULT_TARGET, RELAY_RESULT_OBJECT_KEY_PREFIX, now, resultRetention,
-            this::isResultObjectSafeToDelete);
+        long startedNanos = System.nanoTime();
+        LocalDateTime cutoff = now.minus(resultRetention).truncatedTo(ChronoUnit.SECONDS);
+        List<RelayStoredObject> objects = relayObjectStorage.findObjects(RELAY_RESULT_OBJECT_KEY_PREFIX, cutoff,
+            scanLimit);
+        Set<String> objectKeys = findObjectKeys(objects);
+        Set<String> dbReferencedObjectKeys = relayArtifactRepository.findReferencedRelayResultObjectKeys(objectKeys);
+        Set<String> unreferencedByDbObjectKeys = new HashSet<>(objectKeys);
+        unreferencedByDbObjectKeys.removeAll(dbReferencedObjectKeys);
+        Set<String> attemptReferencedObjectKeys = relayFinalizationAttemptRepository
+            .findReferencedObjectKeys(unreferencedByDbObjectKeys, scanLimit);
+
+        return cleanupObjects(RESULT_TARGET, objects, resultRetention, startedNanos,
+            objectKey -> isResultObjectSafeToDelete(objectKey, dbReferencedObjectKeys, attemptReferencedObjectKeys));
     }
 
     private RelayOrphanObjectCleanupResult cleanupObjects(String target, String prefix, LocalDateTime now,
@@ -68,6 +85,11 @@ public class RelayOrphanObjectCleanupService {
         long startedNanos = System.nanoTime();
         LocalDateTime cutoff = now.minus(retention).truncatedTo(ChronoUnit.SECONDS);
         List<RelayStoredObject> objects = relayObjectStorage.findObjects(prefix, cutoff, scanLimit);
+        return cleanupObjects(target, objects, retention, startedNanos, deletionPolicy);
+    }
+
+    private RelayOrphanObjectCleanupResult cleanupObjects(String target, List<RelayStoredObject> objects,
+        Duration retention, long startedNanos, ObjectDeletionPolicy deletionPolicy) {
         int deletedCount = 0;
         int skippedCount = 0;
         int failedCount = 0;
@@ -97,13 +119,14 @@ public class RelayOrphanObjectCleanupService {
         return new RelayOrphanObjectCleanupResult(target, objects.size(), deletedCount, skippedCount, failedCount);
     }
 
-    private boolean isTempObjectSafeToDelete(String objectKey) {
+    private boolean isTempObjectSafeToDelete(String objectKey, Map<String, Optional<RelayRoomState>> roomStateCache) {
         String roomCode = extractRoomCodeFromTempObjectKey(objectKey);
         if (!StringUtils.hasText(roomCode)) {
             return false;
         }
 
-        Optional<RelayRoomState> roomState = relayRoomRepository.findByRoomCode(roomCode);
+        Optional<RelayRoomState> roomState = roomStateCache.computeIfAbsent(roomCode,
+            relayRoomRepository::findByRoomCode);
         if (roomState.isEmpty()) {
             return true;
         }
@@ -113,12 +136,20 @@ public class RelayOrphanObjectCleanupService {
         return status == RelayRoomStatus.CLOSED || status == RelayRoomStatus.FINISHED;
     }
 
-    private boolean isResultObjectSafeToDelete(String objectKey) {
-        if (relayArtifactRepository.existsRelayResultObjectReference(objectKey)) {
-            return false;
+    private boolean isResultObjectSafeToDelete(String objectKey, Set<String> dbReferencedObjectKeys,
+        Set<String> attemptReferencedObjectKeys) {
+        return !dbReferencedObjectKeys.contains(objectKey) && !attemptReferencedObjectKeys.contains(objectKey);
+    }
+
+    private Set<String> findObjectKeys(List<RelayStoredObject> objects) {
+        Set<String> objectKeys = new HashSet<>();
+        for (RelayStoredObject object : objects) {
+            if (StringUtils.hasText(object.objectKey())) {
+                objectKeys.add(object.objectKey());
+            }
         }
 
-        return !relayFinalizationAttemptRepository.containsObjectKey(objectKey, scanLimit);
+        return objectKeys;
     }
 
     private String extractRoomCodeFromTempObjectKey(String objectKey) {

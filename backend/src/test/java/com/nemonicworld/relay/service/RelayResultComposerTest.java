@@ -114,6 +114,19 @@ class RelayResultComposerTest {
         assertThat(original.getRGB(1, 1)).isEqualTo(Color.WHITE.getRGB());
     }
 
+    @Test
+    void composeReusesOriginalPngBytesWhenThumbnailDoesNotNeedResize() throws Exception {
+        RelayResultComposer largeThumbnailComposer = new RelayResultComposer(4, 3, 100);
+        Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
+        partImages.put(RelayDrawingPart.FACE, png(4, 2, Color.RED));
+        partImages.put(RelayDrawingPart.BODY, png(4, 3, Color.GREEN));
+        partImages.put(RelayDrawingPart.LEGS, png(4, 4, Color.BLUE));
+
+        RelayComposedImage result = largeThumbnailComposer.compose(partImages);
+
+        assertThat(result.thumbnailPng()).isSameAs(result.originalPng());
+    }
+
     private byte[] png(int width, int height, Color color) throws Exception {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         for (int y = 0; y < height; y++) {

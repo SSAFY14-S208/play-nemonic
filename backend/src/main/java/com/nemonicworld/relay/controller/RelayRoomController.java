@@ -273,7 +273,7 @@ public class RelayRoomController {
     }
 
     /**
-     * 대기 중 방에 신규 참여자를 추가하거나 기존 참여자의 10초 이내 재접속 복귀를 처리합니다.
+     * 대기 중 방에 신규 참여자를 추가하거나 기존 참여자의 재접속 복귀를 처리합니다.
      */
     @PostMapping("/{roomCode}/participants")
     @Operation(summary = "릴레이 방 입장/복귀", description = "대기 중 릴레이 방에 신규 참여자를 추가하거나 기존 참여자의 재접속 복귀를 Redis 방 상태에 반영합니다.")
