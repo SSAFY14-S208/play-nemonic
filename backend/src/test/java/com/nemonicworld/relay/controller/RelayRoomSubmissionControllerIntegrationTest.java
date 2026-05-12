@@ -30,6 +30,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationService;
 import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
@@ -109,6 +110,9 @@ class RelayRoomSubmissionControllerIntegrationTest {
 
     @MockitoBean
     private RelayRoomMutationLockRepository relayRoomMutationLockRepository;
+
+    @MockitoBean
+    private RelayRoomFinalizationService relayRoomFinalizationService;
 
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
@@ -339,6 +343,7 @@ class RelayRoomSubmissionControllerIntegrationTest {
         verify(relayRoomEventPublisher).publishPartSubmitted(any(RelayRoomSubmissionResponse.class));
         verify(relayRoomEventPublisher).publishPartStarted(any(RelayRoomSubmissionResponse.class));
         verify(relayRoomEventPublisher, never()).publishAllPartsCompleted(any(RelayRoomSubmissionResponse.class));
+        verify(relayRoomFinalizationService, never()).triggerFinalization(anyString());
     }
 
     @Test
@@ -366,6 +371,7 @@ class RelayRoomSubmissionControllerIntegrationTest {
         assertThat(storedRoom.path("status").asText()).isEqualTo("PLAYING");
         assertThat(storedRoom.path("currentPart").asText()).isEqualTo("LEGS");
         verify(relayRoomEventPublisher).publishPartStarted(any(RelayRoomSubmissionResponse.class));
+        verify(relayRoomFinalizationService, never()).triggerFinalization(anyString());
     }
 
     @Test
@@ -397,6 +403,9 @@ class RelayRoomSubmissionControllerIntegrationTest {
         assertThat(countRows("gallery")).isZero();
         assertThat(countRows("relay_drawing_artifact")).isZero();
         verify(relayRoomEventPublisher).publishAllPartsCompleted(any(RelayRoomSubmissionResponse.class));
+        InOrder inOrder = inOrder(relayRoomEventPublisher, relayRoomFinalizationService);
+        inOrder.verify(relayRoomEventPublisher).publishAllPartsCompleted(any(RelayRoomSubmissionResponse.class));
+        inOrder.verify(relayRoomFinalizationService).triggerFinalization(DEFAULT_ROOM_CODE);
         verify(relayRoomEventPublisher, never()).publishPartStarted(any(RelayRoomSubmissionResponse.class));
     }
 
