@@ -1,5 +1,4 @@
 export {
-  createBucketFillLine,
   isPointInsideArea,
   parseHexColor,
   renderLinesToRasterCanvas,
