@@ -2,7 +2,6 @@ import {
   BarChart3,
   BookOpen,
   FileText,
-  Flag,
   Image as ImageIcon,
   Infinity as InfinityIcon,
   Layers,
