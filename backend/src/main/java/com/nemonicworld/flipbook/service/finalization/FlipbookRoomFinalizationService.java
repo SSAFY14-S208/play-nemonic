@@ -11,9 +11,12 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookArtifactRepository;
+import com.nemonicworld.flipbook.repository.FlipbookFinalizationRetryRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
+import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseCommand;
+import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseResult;
 import com.nemonicworld.flipbook.service.result.FlipbookGifComposer;
 import com.nemonicworld.flipbook.service.result.FlipbookResultArtifactResult;
 import com.nemonicworld.flipbook.service.result.FlipbookResultStorage;
@@ -56,18 +59,24 @@ public class FlipbookRoomFinalizationService {
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
     private final ObjectMapper objectMapper;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+    private final FlipbookFinalizationRetryRepository flipbookFinalizationRetryRepository;
+    private final FlipbookRoomCloseCommand flipbookRoomCloseCommand;
     private final int scanLimit;
     private final Duration lockTtl;
     private final Duration finalizationReadyDelay;
+    private final int maxRetryCount;
 
     public FlipbookRoomFinalizationService(FlipbookRoomRepository flipbookRoomRepository,
         FlipbookArtifactRepository flipbookArtifactRepository, FlipbookResultStorage flipbookResultStorage,
         FlipbookGifComposer flipbookGifComposer, FlipbookThumbnailComposer flipbookThumbnailComposer,
         FlipbookRoomEventPublisher flipbookRoomEventPublisher, ObjectMapper objectMapper,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
+        FlipbookFinalizationRetryRepository flipbookFinalizationRetryRepository,
+        FlipbookRoomCloseCommand flipbookRoomCloseCommand,
         @Value("${nemonic.flipbook.finalization.scan-limit:50}") int scanLimit,
         @Value("${nemonic.flipbook.finalization.lock-ttl-seconds:60}") long lockTtlSeconds,
-        @Value("${nemonic.flipbook.finalization.ready-delay-ms:1000}") long readyDelayMs) {
+        @Value("${nemonic.flipbook.finalization.ready-delay-ms:1000}") long readyDelayMs,
+        @Value("${nemonic.flipbook.finalization.max-retry-count:60}") int maxRetryCount) {
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.flipbookArtifactRepository = flipbookArtifactRepository;
         this.flipbookResultStorage = flipbookResultStorage;
@@ -76,9 +85,12 @@ public class FlipbookRoomFinalizationService {
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
         this.objectMapper = objectMapper;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
+        this.flipbookFinalizationRetryRepository = flipbookFinalizationRetryRepository;
+        this.flipbookRoomCloseCommand = flipbookRoomCloseCommand;
         this.scanLimit = scanLimit;
         this.lockTtl = Duration.ofSeconds(Math.max(1L, lockTtlSeconds));
         this.finalizationReadyDelay = Duration.ofMillis(Math.max(0L, readyDelayMs));
+        this.maxRetryCount = Math.max(1, maxRetryCount);
     }
 
     /**
@@ -102,13 +114,56 @@ public class FlipbookRoomFinalizationService {
                     resultCount += result.resultCount();
                 }
             } catch (RuntimeException e) {
+                handleFinalizationFailure(finalizingRoom.roomCode(), e);
                 log.warn("플립북 최종 GIF 결과물 생성 중 오류가 발생했습니다. roomCode={}", finalizingRoom.roomCode(), e);
-                FlipbookRoomEventLogger.apiWarn("flipbook_finalization_failed", "failed to finalize flipbook room",
-                    metadata("room_id", finalizingRoom.roomCode()), e);
             }
         }
 
         return new FlipbookFinalizationProcessResult(finalizingRooms.size(), processedRoomCount, resultCount);
+    }
+
+    public FlipbookRoomFinalizationResult triggerFinalization(String roomCode) {
+        FlipbookRoomEventLogger.apiBusiness("flipbook_finalization_immediate_triggered",
+            metadata("room_id", roomCode, "trigger_reason", "all_rounds_completed"));
+        try {
+            return processFinalizingRoom(roomCode);
+        } catch (RuntimeException e) {
+            handleFinalizationFailure(roomCode, e);
+            log.warn("플립북 최종 GIF 결과물 즉시 생성 중 오류가 발생했습니다. roomCode={}", roomCode, e);
+            return FlipbookRoomFinalizationResult.noOp(roomCode);
+        }
+    }
+
+    private void handleFinalizationFailure(String roomCode, RuntimeException error) {
+        int retryCount = flipbookFinalizationRetryRepository.incrementFailureCount(roomCode,
+            FlipbookRoomRepository.ROOM_STATE_TTL);
+        FlipbookRoomEventLogger.apiWarn("flipbook_finalization_failed", "failed to finalize flipbook room",
+            metadata("room_id", roomCode, "operation", "finalization", "retry_count", retryCount, "max_retry_count",
+                maxRetryCount, "error", error.getClass().getSimpleName()),
+            error);
+
+        if (retryCount >= maxRetryCount) {
+            closeFinalizationFailedRoom(roomCode, retryCount);
+        }
+    }
+
+    private void closeFinalizationFailedRoom(String roomCode, int retryCount) {
+        LocalDateTime closedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomState roomState = flipbookRoomRepository.findByRoomCode(roomCode).orElse(null);
+        if (roomState == null || roomState.status() != FlipbookRoomStatus.FINALIZING) {
+            return;
+        }
+
+        FlipbookRoomCloseResult closeResult = flipbookRoomCloseCommand.closeActiveRoomIfUnchanged(roomState, closedAt);
+        if (!closeResult.closed()) {
+            return;
+        }
+
+        FlipbookRoomEventLogger.apiBusiness("flipbook_room_closed",
+            metadata("room_id", closeResult.roomCode(), "close_reason", "finalization_failed", "room_status_before",
+                roomState.status(), "participant_count", roomState.participantCount(), "retry_count", retryCount,
+                "closed_at", closeResult.closedAt()));
+        flipbookRoomEventPublisher.publishRoomClosed(roomCode, closeResult.closedAt());
     }
 
     private boolean isReadyForFinalization(FlipbookRoomState roomState, LocalDateTime readyCutoff) {
@@ -144,6 +199,7 @@ public class FlipbookRoomFinalizationService {
     private FlipbookRoomFinalizationResult processLockedFinalizingRoom(String roomCode) {
         FlipbookRoomState roomState = flipbookRoomRepository.findByRoomCode(roomCode).orElse(null);
         if (roomState == null || roomState.status() != FlipbookRoomStatus.FINALIZING) {
+            flipbookFinalizationRetryRepository.clearFailureCount(roomCode);
             return FlipbookRoomFinalizationResult.noOp(roomCode);
         }
 
@@ -160,6 +216,7 @@ public class FlipbookRoomFinalizationService {
         flipbookInviteMetadataSyncService.syncWithRoomState(finishedRoomState);
 
         FlipbookRoomFinalizationResult result = FlipbookRoomFinalizationResult.finished(roomCode, artifacts, now);
+        flipbookFinalizationRetryRepository.clearFailureCount(roomCode);
         flipbookRoomEventPublisher.publishResultCreated(result);
         FlipbookRoomEventLogger.websocketBusiness("flipbook_result_created",
             metadata("room_id", roomCode, "room_status", result.roomStatus(), "result_count", result.resultCount(),
