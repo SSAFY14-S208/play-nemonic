@@ -17,7 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Order(0)
 public class ClientLogPayloadLimitFilter extends OncePerRequestFilter {
 
-    private static final String CLIENT_LOG_PATH = "/api/logs/client";
+    private static final String CLIENT_LOG_PATH = "/api/v1/logs/client";
     private static final String PAYLOAD_TOO_LARGE_MESSAGE = "로그 요청 본문은 1MB 이하로 전송해 주세요.";
 
     private final ClientLogProperties properties;
