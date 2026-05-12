@@ -25,6 +25,11 @@ other scheduler ticks.
 Run relay background work through focused scheduler services. Scan Redis with
 `SCAN`-based repository methods instead of `KEYS`. Each scheduler tick processes
 rooms independently and logs per-room failures without stopping the full scan.
+The Redis room repository uses a shared scan helper and emits debug-level scan
+observability (`purpose`, scanned key count, matched room count, limit, and
+duration) per repository scan. State-specific Redis indexes are deferred because
+they require careful synchronization on every successful room-state CAS
+transition.
 
 Use Redis optimistic CAS (`saveIfUnchanged`) for room state transitions. Retry
 short-lived CAS conflicts where the use case already supports retries. Publish
@@ -136,6 +141,9 @@ scan limit. Temp objects are deleted only when their room state is missing or is
 already `FINISHED`/`CLOSED`. Result objects are deleted only when they are not
 referenced by DB result columns and are not listed in an active finalization
 attempt marker. Ambiguous result objects are skipped.
+Cleanup caches temp room-state lookups by `roomCode` within one run, batch-checks
+DB result object references, and batch-checks finalization attempt markers for
+candidate result object keys.
 
 ## Consequences
 
@@ -162,7 +170,11 @@ attempt marker. Ambiguous result objects are skipped.
   recovered without duplicate MinIO uploads or duplicate DB result rows.
 - Positive: Old orphan cleanup reduces long-lived storage drift while protecting
   active-room temp files and persisted result files.
+- Positive: Redis scan observability gives a low-risk way to spot scheduler scan
+  pressure before adding state indexes.
 - Negative: Orphan cleanup is intentionally conservative; result objects with
   uncertain references are skipped and may need manual investigation.
+- Follow-up: If scan metrics show room count pressure, introduce status-indexed
+  Redis sets with explicit CAS-success synchronization.
 - Follow-up: Full multi-node scheduler coordination may need stronger locks or
   leader election beyond the existing targeted locks.
