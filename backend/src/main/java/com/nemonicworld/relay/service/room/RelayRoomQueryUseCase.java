@@ -4,7 +4,9 @@ import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -21,12 +23,14 @@ public class RelayRoomQueryUseCase {
     private final AnonymousUserResolver anonymousUserResolver;
     private final RelayRoomPolicy relayRoomPolicy;
     private final RelayRoomViewerFactory relayRoomViewerFactory;
+    private final RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
 
     public RelayRoomQueryUseCase(AnonymousUserResolver anonymousUserResolver, RelayRoomPolicy relayRoomPolicy,
-        RelayRoomViewerFactory relayRoomViewerFactory) {
+        RelayRoomViewerFactory relayRoomViewerFactory, RelayRuntimeSettingsProvider relayRuntimeSettingsProvider) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomPolicy = relayRoomPolicy;
         this.relayRoomViewerFactory = relayRoomViewerFactory;
+        this.relayRuntimeSettingsProvider = relayRuntimeSettingsProvider;
     }
 
     /**
@@ -40,7 +44,8 @@ public class RelayRoomQueryUseCase {
         RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
         RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUser.getId().toString(), roomState,
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+        RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
 
-        return RelayRoomStateResponse.from(roomState, viewer);
+        return RelayRoomStateResponse.from(roomState, viewer, timeLimitSettings);
     }
 }

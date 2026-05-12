@@ -26,7 +26,7 @@ import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelayRoomTimeUpNotificationRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
-import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationService;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.timeout.RelayRoomTimeoutResult;
@@ -78,7 +78,7 @@ class RelayRoomTimeoutServiceTest {
     private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
     @Mock
-    private RelayRoomFinalizationService relayRoomFinalizationService;
+    private RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger;
 
     private RelayRoomTimeoutService relayRoomTimeoutService;
 
@@ -90,7 +90,7 @@ class RelayRoomTimeoutServiceTest {
             .willReturn(true);
         relayRoomTimeoutService = new RelayRoomTimeoutService(relayRoomRepository, relaySubmissionLockRepository,
             relayRoomTimeUpNotificationRepository, relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
-            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRoomFinalizationService, 100,
+            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRoomFinalizationAsyncTrigger, 100,
             AUTO_SUBMIT_GRACE_MS, 5000L);
     }
 
@@ -247,7 +247,7 @@ class RelayRoomTimeoutServiceTest {
             any(RelayRoomAssignment.class));
         verify(relayRoomEventPublisher).publishPartStarted(eq(ROOM_CODE), eq(RelayDrawingPart.FACE),
             eq(RelayDrawingPart.BODY), eq(NOW), eq(NOW.plusSeconds(45)));
-        verify(relayRoomFinalizationService, never()).triggerFinalization(anyString());
+        verify(relayRoomFinalizationAsyncTrigger, never()).trigger(anyString());
     }
 
     @Test
@@ -293,7 +293,7 @@ class RelayRoomTimeoutServiceTest {
         assertThat(captureUpdatedRoomState().currentPart()).isEqualTo(RelayDrawingPart.LEGS);
         verify(relayRoomEventPublisher).publishPartStarted(eq(ROOM_CODE), eq(RelayDrawingPart.BODY),
             eq(RelayDrawingPart.LEGS), eq(NOW), eq(NOW.plusSeconds(45)));
-        verify(relayRoomFinalizationService, never()).triggerFinalization(anyString());
+        verify(relayRoomFinalizationAsyncTrigger, never()).trigger(anyString());
     }
 
     @Test
@@ -314,10 +314,10 @@ class RelayRoomTimeoutServiceTest {
         assertThat(captureUpdatedRoomState().status()).isEqualTo(RelayRoomStatus.FINALIZING);
         verify(relayRoomEventPublisher).publishAllPartsCompleted(eq(ROOM_CODE), eq(RelayRoomStatus.FINALIZING),
             eq(NOW));
-        InOrder inOrder = inOrder(relayRoomEventPublisher, relayRoomFinalizationService);
+        InOrder inOrder = inOrder(relayRoomEventPublisher, relayRoomFinalizationAsyncTrigger);
         inOrder.verify(relayRoomEventPublisher).publishAllPartsCompleted(eq(ROOM_CODE), eq(RelayRoomStatus.FINALIZING),
             eq(NOW));
-        inOrder.verify(relayRoomFinalizationService).triggerFinalization(ROOM_CODE);
+        inOrder.verify(relayRoomFinalizationAsyncTrigger).trigger(ROOM_CODE);
         verify(relayRoomEventPublisher, never()).publishPartStarted(eq(ROOM_CODE), any(), any(), any(), any());
     }
 
@@ -407,7 +407,7 @@ class RelayRoomTimeoutServiceTest {
         RelayRoomTimeoutService limitedService = new RelayRoomTimeoutService(relayRoomRepository,
             relaySubmissionLockRepository, relayRoomTimeUpNotificationRepository, relayRoomMutationLockRepository,
             new RelayRoomPartAdvanceService(), relayRoomEventPublisher, relayInviteMetadataSyncService,
-            relayRoomFinalizationService, 5, AUTO_SUBMIT_GRACE_MS, 5000L);
+            relayRoomFinalizationAsyncTrigger, 5, AUTO_SUBMIT_GRACE_MS, 5000L);
         given(relayRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(5)))
             .willReturn(List.of(roomState));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));

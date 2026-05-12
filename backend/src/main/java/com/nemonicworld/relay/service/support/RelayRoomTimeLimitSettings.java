@@ -3,6 +3,7 @@ package com.nemonicworld.relay.service.support;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 public record RelayRoomTimeLimitSettings(int defaultSeconds, Set<Integer> allowedSeconds) {
@@ -54,6 +55,10 @@ public record RelayRoomTimeLimitSettings(int defaultSeconds, Set<Integer> allowe
 
     public boolean allows(int seconds) {
         return allowedSeconds.contains(seconds);
+    }
+
+    public List<Integer> allowedSecondsList() {
+        return allowedSeconds.stream().sorted().toList();
     }
 
     private static int requireInteger(JsonNode value, String fieldName) {

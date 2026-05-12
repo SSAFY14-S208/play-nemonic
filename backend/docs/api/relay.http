@@ -6,6 +6,7 @@
 ### Create relay room
 # REST room creation registers the host participant with connected=false.
 # connected becomes true only after approved /ws/relay STOMP CONNECT.
+# Response includes timeLimitSeconds, timeLimitDefaultSeconds, and timeLimitAllowedSeconds.
 POST {{host}}/api/v1/relay/rooms
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
@@ -22,6 +23,7 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 POST {{host}}/api/v1/relay/rooms
 
 ### Get relay room state
+# timeLimitSeconds is the room's stored value; timeLimitAllowedSeconds is the current backoffice option list.
 GET {{host}}/api/v1/relay/rooms/{{roomCode}}
 Anonymous-User-UUID: {{anonymousUserUuid}}
 

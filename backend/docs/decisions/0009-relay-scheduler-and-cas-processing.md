@@ -57,6 +57,11 @@ submissions or other scheduler ticks. The lock guards the latest room-state
 read, mutation, and CAS save window; expired or busy locks result in no-op
 processing for that tick rather than unsafe concurrent mutation.
 
+The current relay deployment target is a single backend server, so this ADR does
+not add scheduler leader election or scheduler-wide scan locks. Room-scoped
+mutation locks and the room-scoped finalization lock remain the authoritative
+guards for overlapping work inside the single server process.
+
 If a dropped host has a connected non-dropped candidate, transfer host ownership
 to the lowest `joinOrder` candidate. If there is no candidate, keep the current
 state safely and do not implement all-dropped room finalization in this step.
@@ -87,10 +92,11 @@ jobs perform the follow-up state transition in later ticks.
 
 When the last `LEGS` assignment completes through a user submission or timeout
 auto-submit, the successful `FINALIZING` CAS write emits `ALL_PARTS_COMPLETED`
-and then triggers one immediate finalization attempt in the same processing
-flow. This improves the normal user path without changing retry behavior. The
-immediate attempt does not loop on failure; failed attempts are recorded and the
-30-second scheduler remains responsible for later retries, server-restart
+and then schedules one asynchronous immediate finalization attempt. This
+improves the normal user path without making the submission or timeout
+processing wait for composition, upload, and database writes. The immediate
+attempt does not loop on failure; failed attempts are recorded and the
+10-second scheduler remains responsible for later retries, server-restart
 recovery, lock-busy recovery, and partial-success recovery.
 
 Finalization processing uses a room-scoped Redis lock,
@@ -103,10 +109,10 @@ object keys can be tied to the current attempt.
 
 Finalization retries use a separate Redis counter key,
 `relay:room-finalization-retry:{roomCode}`, with the same 24-hour TTL as the
-room state. The finalization scheduler runs every 30 seconds by default. Each
+room state. The finalization scheduler runs every 10 seconds by default. Each
 failed finalization tick increments the counter and logs `retry_count`,
 `max_retry_count`, and `attempt_id`. A successful finalization clears the retry
-counter. On the 20th failure, the room is closed with
+counter. On the 60th failure, the room is closed with
 `close_reason=finalization_failed`, invite metadata is synced, and `ROOM_CLOSED`
 is published.
 
@@ -141,8 +147,8 @@ attempt marker. Ambiguous result objects are skipped.
 - Positive: A server restart no longer leaves stale relay `connected=true`
   values that can permanently block abandoned-room cleanup.
 - Positive: The normal final-result path no longer waits for the next
-  30-second scheduler tick, while the scheduler still owns retry and recovery
-  after immediate-trigger failure.
+  scheduler tick or blocks the submission response, while the scheduler still
+  owns retry and recovery after immediate-trigger failure.
 - Positive: Finalization attempt ids make retry, recovery, and result object
   cleanup logs traceable for a single run.
 - Positive: A Redis `FINISHED` transition conflict after DB save can be
