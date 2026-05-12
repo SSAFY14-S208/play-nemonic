@@ -1,6 +1,6 @@
-package com.nemonicworld.phone.dto.response;
+package com.nemonicworld.gallery.phone.dto.response;
 
-import com.nemonicworld.phone.entity.PhoneDrawingArtifact;
+import com.nemonicworld.gallery.phone.entity.PhoneDrawingArtifact;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 

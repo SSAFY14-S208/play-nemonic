@@ -1,4 +1,4 @@
-package com.nemonicworld.phone.dto.request;
+package com.nemonicworld.gallery.phone.dto.request;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.media.Schema;

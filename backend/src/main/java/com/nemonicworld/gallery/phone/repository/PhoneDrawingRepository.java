@@ -1,4 +1,4 @@
-package com.nemonicworld.phone.repository;
+package com.nemonicworld.gallery.phone.repository;
 
 import java.sql.Timestamp;
 import java.sql.Types;

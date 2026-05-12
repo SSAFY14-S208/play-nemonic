@@ -6,6 +6,9 @@ import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.gallery.dto.response.GalleryDeleteResponse;
 import com.nemonicworld.gallery.dto.response.GalleryDetailResponse;
 import com.nemonicworld.gallery.dto.response.GalleryListResponse;
+import com.nemonicworld.gallery.phone.dto.request.PhoneDrawingSaveRequest;
+import com.nemonicworld.gallery.phone.dto.response.PhoneDrawingSaveResponse;
+import com.nemonicworld.gallery.phone.service.PhoneDrawingService;
 import com.nemonicworld.gallery.service.GalleryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,6 +23,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -37,11 +42,14 @@ public class GalleryController {
     private static final String MY_GALLERY_FOUND_MESSAGE = "내 갤러리 목록 조회 성공";
     private static final String GALLERY_ITEM_DETAIL_FOUND_MESSAGE = "내 갤러리 항목 상세 조회 성공";
     private static final String GALLERY_ITEM_DELETED_MESSAGE = "갤러리 항목 삭제 성공";
+    private static final String PHONE_DRAWING_SAVED_MESSAGE = "휴대폰 그림 갤러리 저장 성공";
 
     private final GalleryService galleryService;
+    private final PhoneDrawingService phoneDrawingService;
 
-    public GalleryController(GalleryService galleryService) {
+    public GalleryController(GalleryService galleryService, PhoneDrawingService phoneDrawingService) {
         this.galleryService = galleryService;
+        this.phoneDrawingService = phoneDrawingService;
     }
 
     /**
@@ -66,6 +74,29 @@ public class GalleryController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(MY_GALLERY_FOUND_MESSAGE, response));
+    }
+
+    /**
+     * 휴대폰 모달에서 만든 그림을 phone 산출물로 저장하고 내 갤러리에 추가합니다.
+     */
+    @PostMapping("/drawings")
+    @Operation(summary = "휴대폰 그림 갤러리 추가", description = "휴대폰 모달에서 그린 이미지를 phone 산출물로 저장하고 내 갤러리에 추가합니다.")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true, description = "익명 사용자 UUID")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "휴대폰 그림 갤러리 저장 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_UUID))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "파일 접근 권한 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FILE_ACCESS_DENIED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 또는 파일 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "파일 없음", value = OpenApiErrorExamples.FILE_UPLOAD_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "파일 업로드 상태 충돌", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FILE_UPLOAD_STATUS_CONFLICT)))})
+    public ResponseEntity<ApiResponse<PhoneDrawingSaveResponse>> addPhoneDrawingToGallery(
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @RequestBody(required = false) PhoneDrawingSaveRequest request) {
+        PhoneDrawingSaveResponse response = phoneDrawingService.savePhoneDrawing(userUuid, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(PHONE_DRAWING_SAVED_MESSAGE, response));
     }
 
     /**
