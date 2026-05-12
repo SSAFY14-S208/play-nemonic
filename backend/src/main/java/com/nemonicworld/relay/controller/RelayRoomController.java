@@ -20,6 +20,7 @@ import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.RelayRoomService;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -72,13 +73,15 @@ public class RelayRoomController {
     private final RelayRoomService relayRoomService;
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
+    private final RelayRoomFinalizationService relayRoomFinalizationService;
     private static final String RELAY_PART_SUBMITTED_MESSAGE = "릴레이 그림 제출 성공";
 
     public RelayRoomController(RelayRoomService relayRoomService, RelayRoomRepository relayRoomRepository,
-        RelayRoomEventPublisher relayRoomEventPublisher) {
+        RelayRoomEventPublisher relayRoomEventPublisher, RelayRoomFinalizationService relayRoomFinalizationService) {
         this.relayRoomService = relayRoomService;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
+        this.relayRoomFinalizationService = relayRoomFinalizationService;
     }
 
     /**
@@ -227,6 +230,7 @@ public class RelayRoomController {
             relayRoomEventPublisher.publishPartSubmitted(response);
             if (response.advanced() && response.allPartsCompleted()) {
                 relayRoomEventPublisher.publishAllPartsCompleted(response);
+                relayRoomFinalizationService.triggerFinalization(response.roomCode());
             } else if (response.advanced()) {
                 relayRoomEventPublisher.publishPartStarted(response);
             }

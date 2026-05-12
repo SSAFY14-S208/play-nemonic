@@ -37,16 +37,20 @@ object existence. Redis still stores only object keys; the public URL is a
 response-time projection for the current game screen. Empty hints and missing
 hint object keys return `url=null`.
 
-When all parts are completed, move the room to `FINALIZING`. The finalization
-scheduler waits a short ready delay after the `FINALIZING` update before
-processing the room, then composes one `FACE`/`BODY`/`LEGS` PNG per
-`canvasIndex`. `nemonic.relay.finalization.overlap-height` defaults to `120` px
-to match the frontend hint area. If this setting is `0`, the backend keeps the
-previous vertical composition. If the setting is positive, the backend overlaps
+When all parts are completed, move the room to `FINALIZING`, emit
+`ALL_PARTS_COMPLETED`, and trigger one immediate finalization attempt. The
+finalization scheduler still scans `FINALIZING` rooms every 30 seconds after a
+short ready delay so failed immediate attempts, lock-busy rooms, server restarts,
+and partial-success states are retried and recovered. Both paths compose one
+`FACE`/`BODY`/`LEGS` PNG per `canvasIndex`.
+
+`nemonic.relay.finalization.overlap-height` defaults to `120` px to match the
+frontend hint area. If this setting is `0`, the backend keeps the previous
+vertical composition. If the setting is positive, the backend overlaps
 `FACE`/`BODY` and `BODY`/`LEGS` by the configured pixel height, clamps excessive
-overlap so the result remains valid, and renders the overlap with layer
-priority `FACE > BODY > LEGS`. This changes only final result rendering; the
-game still progresses in `FACE -> BODY -> LEGS` order.
+overlap so the result remains valid, and renders the overlap with layer priority
+`FACE > BODY > LEGS`. This changes only final result rendering; the game still
+progresses in `FACE -> BODY -> LEGS` order.
 
 Hint images are not directly composed into the final result. The frontend must
 submit drawing images that include the same overlap hint area as the backend
@@ -121,8 +125,10 @@ object is skipped.
   MinIO calls to assignment lookup.
 - Positive: Empty auto-submitted parts compose as blank areas without requiring
   placeholder uploads.
-- Positive: The ready delay reduces races between the Redis `FINALIZING`
-  transition and result generation.
+- Positive: Normal final result creation can start immediately after
+  `ALL_PARTS_COMPLETED` instead of waiting for the next scheduler tick.
+- Positive: The scheduler ready delay remains available for retry, server
+  restart, lock-busy, and partial-success recovery.
 - Positive: Token-scoped finalization locks make expired-worker cleanup safe in
   repeated scheduler scans.
 - Positive: Attempt ids make finalization retry, cleanup, and warning logs

@@ -85,11 +85,19 @@ same-server relay `WebSocketSessionRegistry`, and CAS-updates missing sessions t
 `relay_room_recovered_or_reconciled` and lets disconnect-grace or abandoned-close
 jobs perform the follow-up state transition in later ticks.
 
+When the last `LEGS` assignment completes through a user submission or timeout
+auto-submit, the successful `FINALIZING` CAS write emits `ALL_PARTS_COMPLETED`
+and then triggers one immediate finalization attempt in the same processing
+flow. This improves the normal user path without changing retry behavior. The
+immediate attempt does not loop on failure; failed attempts are recorded and the
+30-second scheduler remains responsible for later retries, server-restart
+recovery, lock-busy recovery, and partial-success recovery.
+
 Finalization processing uses a room-scoped Redis lock,
 `relay:room-finalization-lock:{roomCode}`, with a 120-second default TTL. Lock
-acquisition failure is a no-op for that scheduler tick and logs
-`relay_finalization_lock_skipped`. After the lock is acquired, the worker creates
-a finalization attempt id and stores a 24-hour attempt marker under
+acquisition failure is a no-op for that scheduler tick or immediate trigger and
+logs `relay_finalization_lock_skipped`. After the lock is acquired, the worker
+creates a finalization attempt id and stores a 24-hour attempt marker under
 `relay:room-finalization-attempt:{roomCode}:{attemptId}` so uploaded result
 object keys can be tied to the current attempt.
 
@@ -132,8 +140,11 @@ attempt marker. Ambiguous result objects are skipped.
   keeps failing.
 - Positive: A server restart no longer leaves stale relay `connected=true`
   values that can permanently block abandoned-room cleanup.
+- Positive: The normal final-result path no longer waits for the next
+  30-second scheduler tick, while the scheduler still owns retry and recovery
+  after immediate-trigger failure.
 - Positive: Finalization attempt ids make retry, recovery, and result object
-  cleanup logs traceable for a single scheduler run.
+  cleanup logs traceable for a single run.
 - Positive: A Redis `FINISHED` transition conflict after DB save can be
   recovered without duplicate MinIO uploads or duplicate DB result rows.
 - Positive: Old orphan cleanup reduces long-lived storage drift while protecting

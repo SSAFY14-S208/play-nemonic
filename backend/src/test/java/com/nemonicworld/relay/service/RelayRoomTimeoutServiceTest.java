@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -25,6 +26,7 @@ import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelayRoomTimeUpNotificationRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationService;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.timeout.RelayRoomTimeoutResult;
@@ -42,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -74,6 +77,9 @@ class RelayRoomTimeoutServiceTest {
     @Mock
     private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
+    @Mock
+    private RelayRoomFinalizationService relayRoomFinalizationService;
+
     private RelayRoomTimeoutService relayRoomTimeoutService;
 
     @BeforeEach
@@ -84,7 +90,8 @@ class RelayRoomTimeoutServiceTest {
             .willReturn(true);
         relayRoomTimeoutService = new RelayRoomTimeoutService(relayRoomRepository, relaySubmissionLockRepository,
             relayRoomTimeUpNotificationRepository, relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
-            relayRoomEventPublisher, relayInviteMetadataSyncService, 100, AUTO_SUBMIT_GRACE_MS, 5000L);
+            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRoomFinalizationService, 100,
+            AUTO_SUBMIT_GRACE_MS, 5000L);
     }
 
     @Test
@@ -240,6 +247,7 @@ class RelayRoomTimeoutServiceTest {
             any(RelayRoomAssignment.class));
         verify(relayRoomEventPublisher).publishPartStarted(eq(ROOM_CODE), eq(RelayDrawingPart.FACE),
             eq(RelayDrawingPart.BODY), eq(NOW), eq(NOW.plusSeconds(45)));
+        verify(relayRoomFinalizationService, never()).triggerFinalization(anyString());
     }
 
     @Test
@@ -285,6 +293,7 @@ class RelayRoomTimeoutServiceTest {
         assertThat(captureUpdatedRoomState().currentPart()).isEqualTo(RelayDrawingPart.LEGS);
         verify(relayRoomEventPublisher).publishPartStarted(eq(ROOM_CODE), eq(RelayDrawingPart.BODY),
             eq(RelayDrawingPart.LEGS), eq(NOW), eq(NOW.plusSeconds(45)));
+        verify(relayRoomFinalizationService, never()).triggerFinalization(anyString());
     }
 
     @Test
@@ -305,6 +314,10 @@ class RelayRoomTimeoutServiceTest {
         assertThat(captureUpdatedRoomState().status()).isEqualTo(RelayRoomStatus.FINALIZING);
         verify(relayRoomEventPublisher).publishAllPartsCompleted(eq(ROOM_CODE), eq(RelayRoomStatus.FINALIZING),
             eq(NOW));
+        InOrder inOrder = inOrder(relayRoomEventPublisher, relayRoomFinalizationService);
+        inOrder.verify(relayRoomEventPublisher).publishAllPartsCompleted(eq(ROOM_CODE), eq(RelayRoomStatus.FINALIZING),
+            eq(NOW));
+        inOrder.verify(relayRoomFinalizationService).triggerFinalization(ROOM_CODE);
         verify(relayRoomEventPublisher, never()).publishPartStarted(eq(ROOM_CODE), any(), any(), any(), any());
     }
 
@@ -393,8 +406,8 @@ class RelayRoomTimeoutServiceTest {
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
         RelayRoomTimeoutService limitedService = new RelayRoomTimeoutService(relayRoomRepository,
             relaySubmissionLockRepository, relayRoomTimeUpNotificationRepository, relayRoomMutationLockRepository,
-            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, relayInviteMetadataSyncService, 5,
-            AUTO_SUBMIT_GRACE_MS, 5000L);
+            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, relayInviteMetadataSyncService,
+            relayRoomFinalizationService, 5, AUTO_SUBMIT_GRACE_MS, 5000L);
         given(relayRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(5)))
             .willReturn(List.of(roomState));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
