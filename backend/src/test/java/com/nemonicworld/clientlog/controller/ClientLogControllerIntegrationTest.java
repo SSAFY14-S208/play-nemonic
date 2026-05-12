@@ -27,7 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestPropertySource(properties = "nemonic.client-log.allowed-origins=http://localhost:3000")
 class ClientLogControllerIntegrationTest {
 
-    private static final String CLIENT_LOG_ENDPOINT = "/api/logs/client";
+    private static final String CLIENT_LOG_ENDPOINT = "/api/v1/logs/client";
     private static final String ALLOWED_ORIGIN = "http://localhost:3000";
 
     @Autowired
