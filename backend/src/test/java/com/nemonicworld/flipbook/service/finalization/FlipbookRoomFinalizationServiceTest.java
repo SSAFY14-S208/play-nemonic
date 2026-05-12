@@ -8,14 +8,17 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookArtifactRepository;
+import com.nemonicworld.flipbook.repository.FlipbookFinalizationRetryRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
+import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseCommand;
 import com.nemonicworld.flipbook.service.result.FlipbookGifComposer;
 import com.nemonicworld.flipbook.service.result.FlipbookResultArtifactResult;
 import com.nemonicworld.flipbook.service.result.FlipbookResultStorage;
@@ -62,6 +65,9 @@ class FlipbookRoomFinalizationServiceTest {
     @Mock
     private FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
 
+    @Mock
+    private FlipbookFinalizationRetryRepository flipbookFinalizationRetryRepository;
+
     private FlipbookRoomFinalizationService service;
 
     @BeforeEach
@@ -69,7 +75,8 @@ class FlipbookRoomFinalizationServiceTest {
         service = new FlipbookRoomFinalizationService(flipbookRoomRepository, flipbookArtifactRepository,
             flipbookResultStorage, new FlipbookGifComposer(200), new FlipbookThumbnailComposer(512),
             flipbookRoomEventPublisher, new ObjectMapper().findAndRegisterModules(), flipbookInviteMetadataSyncService,
-            50, 60, 0);
+            flipbookFinalizationRetryRepository,
+            new FlipbookRoomCloseCommand(flipbookRoomRepository, flipbookInviteMetadataSyncService), 50, 60, 0, 60);
     }
 
     @Test
@@ -108,9 +115,55 @@ class FlipbookRoomFinalizationServiceTest {
         verify(flipbookRoomRepository).saveIfUnchanged(eq(finalizingRoomState), updatedRoomStateCaptor.capture());
         assertThat(updatedRoomStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.FINISHED);
         verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomStateCaptor.getValue());
+        verify(flipbookFinalizationRetryRepository).clearFailureCount(ROOM_CODE);
         verify(flipbookRoomEventPublisher).publishResultCreated(any(FlipbookRoomFinalizationResult.class));
         verify(flipbookResultStorage).upload(anyString(), any(byte[].class), eq("image/gif"));
         verify(flipbookResultStorage).upload(anyString(), any(byte[].class), eq("image/png"));
+    }
+
+    @Test
+    void processFinalizingRoomsKeepsRoomFinalizingBeforeMaxRetryCount() {
+        FlipbookRoomState finalizingRoomState = finalizingRoomState();
+        given(flipbookRoomRepository.findFinalizingRooms(50)).willReturn(List.of(finalizingRoomState));
+        given(flipbookRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(finalizingRoomState));
+        given(flipbookArtifactRepository.findFlipbookArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(flipbookResultStorage.download(anyString())).willThrow(new InternalServerException("boom"));
+        given(flipbookFinalizationRetryRepository.incrementFailureCount(eq(ROOM_CODE), eq(Duration.ofHours(24))))
+            .willReturn(59);
+
+        var result = service.processFinalizingRooms();
+
+        assertThat(result.scannedRoomCount()).isEqualTo(1);
+        assertThat(result.processedRoomCount()).isZero();
+        assertThat(result.resultCount()).isZero();
+        verify(flipbookRoomEventPublisher, org.mockito.Mockito.never()).publishRoomClosed(anyString(),
+            any(LocalDateTime.class));
+    }
+
+    @Test
+    void processFinalizingRoomsClosesRoomWhenMaxRetryCountIsReached() {
+        FlipbookRoomState finalizingRoomState = finalizingRoomState();
+        given(flipbookRoomRepository.findFinalizingRooms(50)).willReturn(List.of(finalizingRoomState));
+        given(flipbookRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(finalizingRoomState),
+            Optional.of(finalizingRoomState));
+        given(flipbookArtifactRepository.findFlipbookArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(flipbookResultStorage.download(anyString())).willThrow(new InternalServerException("boom"));
+        given(flipbookFinalizationRetryRepository.incrementFailureCount(eq(ROOM_CODE), eq(Duration.ofHours(24))))
+            .willReturn(60);
+        given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        service.processFinalizingRooms();
+
+        ArgumentCaptor<FlipbookRoomState> updatedRoomStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).saveIfUnchanged(eq(finalizingRoomState), updatedRoomStateCaptor.capture());
+        assertThat(updatedRoomStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.CLOSED);
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomStateCaptor.getValue());
+        verify(flipbookRoomEventPublisher).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class));
     }
 
     @Test
@@ -124,6 +177,7 @@ class FlipbookRoomFinalizationServiceTest {
 
         assertThat(result.processed()).isFalse();
         verify(flipbookRoomRepository).releaseFinalizationLock(eq(ROOM_CODE), anyString());
+        verify(flipbookFinalizationRetryRepository).incrementFailureCount(eq(ROOM_CODE), eq(Duration.ofHours(24)));
     }
 
     private FlipbookRoomState finalizingRoomState() {
