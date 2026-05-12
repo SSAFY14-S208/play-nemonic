@@ -52,7 +52,7 @@ export default function RelayLobbyView() {
     : `게임 시작 (${participants.length}명)`;
 
   return (
-    <section className="relative isolate min-h-full overflow-hidden border border-relay-border bg-relay-background">
+    <section className="relative isolate min-h-full overflow-hidden bg-relay-background">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-5 px-3 py-5 sm:gap-6 sm:px-5 lg:h-screen lg:min-h-0 lg:gap-5 lg:px-[4%] lg:py-6">
         {/* 헤더 — 나가기 버튼 */}
         <header className="flex items-center">
