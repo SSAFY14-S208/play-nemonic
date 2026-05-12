@@ -18,7 +18,9 @@ public class RelayRoomFinalizationAsyncConfig {
         @Value("${nemonic.relay.finalization.async.core-pool-size:2}") int corePoolSize,
         @Value("${nemonic.relay.finalization.async.max-pool-size:4}") int maxPoolSize,
         @Value("${nemonic.relay.finalization.async.queue-capacity:100}") int queueCapacity,
-        @Value("${nemonic.relay.finalization.async.thread-name-prefix:relay-finalization-}") String threadNamePrefix) {
+        @Value("${nemonic.relay.finalization.async.thread-name-prefix:relay-finalization-}") String threadNamePrefix,
+        @Value("${nemonic.relay.finalization.async.wait-for-tasks-to-complete-on-shutdown:true}") boolean waitForTasksToCompleteOnShutdown,
+        @Value("${nemonic.relay.finalization.async.await-termination-seconds:30}") int awaitTerminationSeconds) {
         int resolvedCorePoolSize = Math.max(1, corePoolSize);
         int resolvedMaxPoolSize = Math.max(resolvedCorePoolSize, maxPoolSize);
         String resolvedThreadNamePrefix = StringUtils.hasText(threadNamePrefix)
@@ -29,6 +31,8 @@ public class RelayRoomFinalizationAsyncConfig {
         executor.setMaxPoolSize(resolvedMaxPoolSize);
         executor.setQueueCapacity(Math.max(0, queueCapacity));
         executor.setThreadNamePrefix(resolvedThreadNamePrefix);
+        executor.setWaitForTasksToCompleteOnShutdown(waitForTasksToCompleteOnShutdown);
+        executor.setAwaitTerminationSeconds(Math.max(0, awaitTerminationSeconds));
         executor.initialize();
         return executor;
     }
