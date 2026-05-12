@@ -9,13 +9,11 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
-import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
-import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -62,12 +60,11 @@ public class RelayRoomCreateUseCase {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         RelayRoomParticipant hostParticipant = new RelayRoomParticipant(hostUser.getId().toString(),
             hostUser.getNickname(), true, RelayRoomPolicy.HOST_JOIN_ORDER, false, null, now);
-        RelayRoomParticipantLimit participantLimit = relayRuntimeSettingsProvider.currentParticipantLimit();
-        RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
-        Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
+        RelayRuntimeSettingsSnapshot settings = relayRuntimeSettingsProvider.currentSettingsSnapshot();
         RelayRoomState roomState = new RelayRoomState(roomCode, RelayRoomStatus.WAITING, hostUser.getId().toString(),
-            timeLimitSettings.defaultSeconds(), participantLimit.minParticipants(), participantLimit.maxParticipants(),
-            null, List.of(hostParticipant), List.of(), null, null, null, now, now);
+            settings.roomTimeLimitSettings().defaultSeconds(), settings.participantLimit().minParticipants(),
+            settings.participantLimit().maxParticipants(), null, List.of(hostParticipant), List.of(), null, null, null,
+            now, now);
 
         relayRoomRepository.save(roomState);
         relayInviteMetadataSyncService.syncWithRoomState(roomState);
@@ -76,6 +73,7 @@ public class RelayRoomCreateUseCase {
                 roomState.timeLimitSeconds(), "min_participants", roomState.minParticipants(), "max_participants",
                 roomState.maxParticipants()));
 
-        return RelayRoomCreateResponse.from(roomState, timeLimitSettings, reconnectGracePeriod);
+        return RelayRoomCreateResponse.from(roomState, settings.roomTimeLimitSettings(),
+            settings.reconnectGracePeriod());
     }
 }

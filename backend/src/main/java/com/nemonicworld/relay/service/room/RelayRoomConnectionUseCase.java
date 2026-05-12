@@ -9,12 +9,11 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
-import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -79,6 +78,7 @@ public class RelayRoomConnectionUseCase {
      */
     private RelayRoomStateResponse updateParticipantConnectionState(String viewerUserUuid, String roomCodeValue,
         boolean connected, String sessionId) {
+        RelayRuntimeSettingsSnapshot settings = relayRuntimeSettingsProvider.currentSettingsSnapshot();
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
             if (connected) {
@@ -92,7 +92,7 @@ public class RelayRoomConnectionUseCase {
                 relayRoomPolicy.validateNotDropped(roomState, viewerUserUuid);
                 if (!participant.connected() && participant.disconnectedAt() != null
                     && relayRoomPolicy.requiresReconnectGrace(roomState)) {
-                    relayRoomPolicy.requireReconnectable(participant, now);
+                    relayRoomPolicy.requireReconnectable(participant, now, settings.reconnectGracePeriod());
                 }
             }
 
@@ -101,10 +101,8 @@ public class RelayRoomConnectionUseCase {
 
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
-                RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now);
-                RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider
-                    .currentRoomTimeLimitSettings();
-                Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
+                RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now,
+                    settings.reconnectGracePeriod());
                 if (connected && !participant.connected() && participant.disconnectedAt() != null) {
                     RelayRoomEventLogger.websocketBusiness("relay_ws_reconnected",
                         metadata("room_id", updatedRoomState.roomCode(), "uuid", viewerUserUuid, "old_disconnected_at",
@@ -112,7 +110,8 @@ public class RelayRoomConnectionUseCase {
                             updatedRoomState.status(), "current_part", updatedRoomState.currentPart()));
                 }
 
-                return RelayRoomStateResponse.from(updatedRoomState, viewer, timeLimitSettings, reconnectGracePeriod);
+                return RelayRoomStateResponse.from(updatedRoomState, viewer, settings.roomTimeLimitSettings(),
+                    settings.reconnectGracePeriod());
             }
         }
 

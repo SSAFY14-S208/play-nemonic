@@ -4,12 +4,11 @@ import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
-import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
@@ -43,11 +42,11 @@ public class RelayRoomQueryUseCase {
         relayRoomPolicy.validateRoomCode(roomCodeValue);
 
         RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
+        RelayRuntimeSettingsSnapshot settings = relayRuntimeSettingsProvider.currentSettingsSnapshot();
         RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUser.getId().toString(), roomState,
-            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
-        RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
-        Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), settings.reconnectGracePeriod());
 
-        return RelayRoomStateResponse.from(roomState, viewer, timeLimitSettings, reconnectGracePeriod);
+        return RelayRoomStateResponse.from(roomState, viewer, settings.roomTimeLimitSettings(),
+            settings.reconnectGracePeriod());
     }
 }

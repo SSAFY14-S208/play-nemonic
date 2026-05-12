@@ -58,6 +58,7 @@ import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.nio.charset.StandardCharsets;
@@ -129,6 +130,8 @@ class RelayRoomServiceImplTest {
             .thenReturn(RelayRoomTimeLimitSettings.defaultSettings());
         lenient().when(relayRuntimeSettingsProvider.currentReconnectGracePeriod())
             .thenReturn(Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
+        lenient().when(relayRuntimeSettingsProvider.currentSettingsSnapshot())
+            .thenReturn(defaultRuntimeSettingsSnapshot());
         RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository,
             relayRuntimeSettingsProvider);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
@@ -169,9 +172,9 @@ class RelayRoomServiceImplTest {
         AppUser hostUser = appUserWithNickname(hostUuid, "망고");
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.generateUnique(any())).willReturn(ROOM_CODE);
-        given(relayRuntimeSettingsProvider.currentParticipantLimit()).willReturn(new RelayRoomParticipantLimit(3, 8));
-        given(relayRuntimeSettingsProvider.currentRoomTimeLimitSettings())
-            .willReturn(new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)));
+        given(relayRuntimeSettingsProvider.currentSettingsSnapshot()).willReturn(new RelayRuntimeSettingsSnapshot(
+            new RelayRoomParticipantLimit(3, 8), new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS)));
 
         RelayRoomCreateResponse response = relayRoomService.createRoom(hostUuid.toString());
 
@@ -355,7 +358,9 @@ class RelayRoomServiceImplTest {
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
-        given(relayRuntimeSettingsProvider.currentReconnectGracePeriod()).willReturn(Duration.ofSeconds(30));
+        given(relayRuntimeSettingsProvider.currentSettingsSnapshot())
+            .willReturn(runtimeSettingsSnapshot(RelayRoomParticipantLimit.defaultLimit(),
+                RelayRoomTimeLimitSettings.defaultSettings(), Duration.ofSeconds(30)));
 
         RelayRoomStateResponse response = relayRoomService.joinRoom(hostUuid.toString(), ROOM_CODE);
 
@@ -473,8 +478,9 @@ class RelayRoomServiceImplTest {
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
-        given(relayRuntimeSettingsProvider.currentRoomTimeLimitSettings())
-            .willReturn(new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)));
+        given(relayRuntimeSettingsProvider.currentSettingsSnapshot()).willReturn(runtimeSettingsSnapshot(
+            RelayRoomParticipantLimit.defaultLimit(), new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS)));
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(true);
 
@@ -489,8 +495,9 @@ class RelayRoomServiceImplTest {
 
     @Test
     void updateRoomSettingsRejectsTimeLimitOutsideRuntimeAllowedValues() {
-        given(relayRuntimeSettingsProvider.currentRoomTimeLimitSettings())
-            .willReturn(new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)));
+        given(relayRuntimeSettingsProvider.currentSettingsSnapshot()).willReturn(runtimeSettingsSnapshot(
+            RelayRoomParticipantLimit.defaultLimit(), new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS)));
 
         assertThatThrownBy(() -> relayRoomService.updateRoomSettings(UUID.randomUUID().toString(), ROOM_CODE,
             new RelayRoomSettingsRequest(30))).isInstanceOf(BadRequestException.class)
@@ -623,7 +630,9 @@ class RelayRoomServiceImplTest {
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
-        given(relayRuntimeSettingsProvider.currentReconnectGracePeriod()).willReturn(Duration.ofSeconds(30));
+        given(relayRuntimeSettingsProvider.currentSettingsSnapshot())
+            .willReturn(runtimeSettingsSnapshot(RelayRoomParticipantLimit.defaultLimit(),
+                RelayRoomTimeLimitSettings.defaultSettings(), Duration.ofSeconds(30)));
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(true);
 
@@ -1053,6 +1062,17 @@ class RelayRoomServiceImplTest {
 
     private MockMultipartFile pngFile(String name, String originalFileName) {
         return new MockMultipartFile(name, originalFileName, "image/png", "image".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private RelayRuntimeSettingsSnapshot defaultRuntimeSettingsSnapshot() {
+        return runtimeSettingsSnapshot(RelayRoomParticipantLimit.defaultLimit(),
+            RelayRoomTimeLimitSettings.defaultSettings(),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
+    }
+
+    private RelayRuntimeSettingsSnapshot runtimeSettingsSnapshot(RelayRoomParticipantLimit participantLimit,
+        RelayRoomTimeLimitSettings timeLimitSettings, Duration reconnectGracePeriod) {
+        return new RelayRuntimeSettingsSnapshot(participantLimit, timeLimitSettings, reconnectGracePeriod);
     }
 
     private MinioStorageProperties minioStorageProperties() {

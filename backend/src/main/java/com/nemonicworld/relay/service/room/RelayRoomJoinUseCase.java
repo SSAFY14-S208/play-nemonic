@@ -9,12 +9,11 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
-import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -56,6 +55,7 @@ public class RelayRoomJoinUseCase {
     public RelayRoomStateResponse joinRoom(String userUuidValue, String roomCodeValue) {
         AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
         relayRoomPolicy.validateRoomCode(roomCodeValue);
+        RelayRuntimeSettingsSnapshot settings = relayRuntimeSettingsProvider.currentSettingsSnapshot();
 
         for (int attempt = 0; attempt < RelayRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             RelayRoomState roomState = relayRoomPolicy.findRoomState(roomCodeValue);
@@ -67,7 +67,7 @@ public class RelayRoomJoinUseCase {
 
             if (participant.isPresent()) {
                 Optional<RelayRoomStateResponse> existingParticipantResponse = joinExistingParticipant(viewerUserUuid,
-                    roomState, participant.get(), now);
+                    roomState, participant.get(), now, settings);
 
                 if (existingParticipantResponse.isPresent()) {
                     return existingParticipantResponse.get();
@@ -76,7 +76,7 @@ public class RelayRoomJoinUseCase {
                 continue;
             }
 
-            Optional<RelayRoomStateResponse> joinResponse = joinNewParticipant(viewerUser, roomState, now);
+            Optional<RelayRoomStateResponse> joinResponse = joinNewParticipant(viewerUser, roomState, now, settings);
 
             if (joinResponse.isPresent()) {
                 return joinResponse.get();
@@ -90,33 +90,33 @@ public class RelayRoomJoinUseCase {
      * 기존 참여자의 입장 재호출을 처리합니다.
      */
     private Optional<RelayRoomStateResponse> joinExistingParticipant(String viewerUserUuid, RelayRoomState roomState,
-        RelayRoomParticipant participant, LocalDateTime now) {
+        RelayRoomParticipant participant, LocalDateTime now, RelayRuntimeSettingsSnapshot settings) {
         if (participant.connected()) {
-            RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, roomState, now);
-            RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
-            Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
+            RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, roomState, now,
+                settings.reconnectGracePeriod());
             logParticipantJoined(roomState, participant, false);
 
-            return Optional.of(RelayRoomStateResponse.from(roomState, viewer, timeLimitSettings, reconnectGracePeriod));
+            return Optional.of(RelayRoomStateResponse.from(roomState, viewer, settings.roomTimeLimitSettings(),
+                settings.reconnectGracePeriod()));
         }
 
         if (participant.disconnectedAt() != null && relayRoomPolicy.requiresReconnectGrace(roomState)) {
-            relayRoomPolicy.requireReconnectable(participant, now);
+            relayRoomPolicy.requireReconnectable(participant, now, settings.reconnectGracePeriod());
         }
 
-        RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, roomState, now);
-        RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
-        Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
+        RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, roomState, now,
+            settings.reconnectGracePeriod());
         logParticipantJoined(roomState, participant, participant.disconnectedAt() != null);
 
-        return Optional.of(RelayRoomStateResponse.from(roomState, viewer, timeLimitSettings, reconnectGracePeriod));
+        return Optional.of(RelayRoomStateResponse.from(roomState, viewer, settings.roomTimeLimitSettings(),
+            settings.reconnectGracePeriod()));
     }
 
     /**
      * 새 참여자를 방에 추가합니다.
      */
     private Optional<RelayRoomStateResponse> joinNewParticipant(AppUser viewerUser, RelayRoomState roomState,
-        LocalDateTime now) {
+        LocalDateTime now, RelayRuntimeSettingsSnapshot settings) {
         relayRoomPolicy.validateJoinableRoom(roomState);
         relayRoomPolicy.validateNicknameRegistered(viewerUser);
 
@@ -132,13 +132,11 @@ public class RelayRoomJoinUseCase {
 
         relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
         RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUser.getId().toString(), updatedRoomState,
-            now);
-        RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
-        Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
+            now, settings.reconnectGracePeriod());
         logParticipantJoined(updatedRoomState, newParticipant, false);
 
-        return Optional
-            .of(RelayRoomStateResponse.from(updatedRoomState, viewer, timeLimitSettings, reconnectGracePeriod));
+        return Optional.of(RelayRoomStateResponse.from(updatedRoomState, viewer, settings.roomTimeLimitSettings(),
+            settings.reconnectGracePeriod()));
     }
 
     private void logParticipantJoined(RelayRoomState roomState, RelayRoomParticipant participant,

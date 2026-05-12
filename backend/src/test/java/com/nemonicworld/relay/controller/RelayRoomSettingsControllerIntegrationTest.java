@@ -21,8 +21,11 @@ import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
+import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
@@ -108,6 +111,8 @@ class RelayRoomSettingsControllerIntegrationTest {
         });
         lenient().when(relayRuntimeSettingsProvider.currentRoomTimeLimitSettings())
             .thenReturn(RelayRoomTimeLimitSettings.defaultSettings());
+        lenient().when(relayRuntimeSettingsProvider.currentSettingsSnapshot())
+            .thenReturn(defaultRuntimeSettingsSnapshot());
     }
 
     /**
@@ -543,6 +548,12 @@ class RelayRoomSettingsControllerIntegrationTest {
         }
 
         throw new AssertionError("Redis 저장 key를 찾을 수 없습니다. expectedKey=" + expectedKey);
+    }
+
+    private RelayRuntimeSettingsSnapshot defaultRuntimeSettingsSnapshot() {
+        return new RelayRuntimeSettingsSnapshot(RelayRoomParticipantLimit.defaultLimit(),
+            RelayRoomTimeLimitSettings.defaultSettings(),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
     }
 
     @SuppressWarnings("unchecked")
