@@ -27,7 +27,7 @@ export function getFlipbookTimeLimitOptions(
   if (!roomState) return []
 
   const roomStateRecord = roomState as unknown as Record<string, unknown>
-  const serverOptions =
+  const serverOptionsPayload =
     roomState.allowedTimeLimitSeconds ??
     roomState.timeLimitOptions ??
     roomState.timeLimitSecondsOptions ??
@@ -39,12 +39,23 @@ export function getFlipbookTimeLimitOptions(
     roomStateRecord.availableTimeLimitSecondsList ??
     roomStateRecord.availableTimeLimits ??
     []
-  const normalizedServerOptions = Array.isArray(serverOptions) ? serverOptions : []
-  const options = [roomState.timeLimitSeconds, ...normalizedServerOptions].filter(
-    isFlipbookTimeLimitSeconds,
-  )
 
-  return Array.from(new Set(options))
+  const normalizedServerOptions = Array.isArray(serverOptionsPayload)
+    ? serverOptionsPayload
+    : typeof serverOptionsPayload === 'object' &&
+        serverOptionsPayload !== null &&
+        Array.isArray((serverOptionsPayload as { allowed?: unknown }).allowed)
+      ? (serverOptionsPayload as { allowed: unknown[] }).allowed
+      : []
+  const options = normalizedServerOptions.filter(isFlipbookTimeLimitSeconds)
+
+  if (options.length > 0) {
+    return Array.from(new Set(options))
+  }
+
+  return isFlipbookTimeLimitSeconds(roomState.timeLimitSeconds)
+    ? [roomState.timeLimitSeconds]
+    : []
 }
 
 export function toFlipbookParticipant(

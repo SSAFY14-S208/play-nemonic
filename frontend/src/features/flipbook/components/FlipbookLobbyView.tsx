@@ -225,9 +225,9 @@ export default function FlipbookLobbyView({
                       onClick={() => onSelectTimeLimit(seconds)}
                       disabled={timeLimitControlDisabled}
                       className={cn(
-                        'h3-b min-h-[72px] rounded-[16px] border border-[#f2dece] bg-[#fff2e9] text-[#b79a88] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60',
+                        'h3-b min-h-[72px] rounded-[16px] border border-[#f2dece] bg-[#fff2e9] text-[#b79a88] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] transition-colors duration-150 ease-out hover:bg-[#fff7f0] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[#fff2e9]',
                         selectedTimeLimitSeconds === seconds &&
-                          'border-[#ff7a8c] bg-[#ff7182] text-white shadow-[0_9px_16px_rgb(255_113_130_/_28%)]',
+                          'border-[#ff7a8c] bg-[#ff7182] text-white hover:bg-[#ff7182]',
                       )}
                     >
                       {seconds}초
