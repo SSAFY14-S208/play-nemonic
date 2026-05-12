@@ -15,6 +15,7 @@ import com.nemonicworld.relay.repository.RelayRoomTimeUpNotificationRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
@@ -46,6 +47,7 @@ public class RelayRoomTimeoutService {
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+    private final RelayRoomFinalizationService relayRoomFinalizationService;
     private final int scanLimit;
     private final Duration autoSubmitGrace;
     private final Duration roomMutationLockTtl;
@@ -56,6 +58,7 @@ public class RelayRoomTimeoutService {
         RelayRoomMutationLockRepository relayRoomMutationLockRepository,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
         RelayInviteMetadataSyncService relayInviteMetadataSyncService,
+        RelayRoomFinalizationService relayRoomFinalizationService,
         @Value("${nemonic.relay.timeout.scan-limit:100}") int scanLimit,
         @Value("${nemonic.relay.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs,
         @Value("${nemonic.relay.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
@@ -66,6 +69,7 @@ public class RelayRoomTimeoutService {
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
+        this.relayRoomFinalizationService = relayRoomFinalizationService;
         this.scanLimit = scanLimit;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
         this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
@@ -291,6 +295,7 @@ public class RelayRoomTimeoutService {
             RelayRoomEventLogger.websocketBusiness("relay_all_parts_completed", metadata("room_id", result.roomCode(),
                 "participant_count", advanceResult.roomState().participantCount(), "assignment_count",
                 advanceResult.roomState().assignments().size(), "completed_at", advanceResult.roomState().updatedAt()));
+            relayRoomFinalizationService.triggerFinalization(result.roomCode());
         } else {
             relayRoomEventPublisher.publishPartStarted(result.roomCode(), result.previousPart(),
                 advanceResult.nextPart(), advanceResult.nextPartStartedAt(), advanceResult.nextPartDeadlineAt());

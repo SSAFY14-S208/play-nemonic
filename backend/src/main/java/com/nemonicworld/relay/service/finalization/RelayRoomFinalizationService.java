@@ -124,6 +124,18 @@ public class RelayRoomFinalizationService {
         return new RelayFinalizationProcessResult(finalizingRooms.size(), processedRoomCount, resultCount);
     }
 
+    public RelayRoomFinalizationResult triggerFinalization(String roomCode) {
+        RelayRoomEventLogger.apiBusiness("relay_finalization_immediate_triggered",
+            metadata("room_id", roomCode, "trigger_reason", "all_parts_completed"));
+        try {
+            return processFinalizingRoom(roomCode);
+        } catch (RuntimeException e) {
+            handleFinalizationFailure(roomCode, e);
+            log.warn("릴레이 최종 결과물 즉시 생성 중 오류가 발생했습니다. roomCode={}", roomCode, e);
+            return RelayRoomFinalizationResult.noOp(roomCode);
+        }
+    }
+
     private boolean isReadyForFinalization(RelayRoomState roomState, LocalDateTime readyCutoff) {
         return roomState.updatedAt() == null || !roomState.updatedAt().isAfter(readyCutoff);
     }
