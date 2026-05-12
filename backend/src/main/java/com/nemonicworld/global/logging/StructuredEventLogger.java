@@ -22,6 +22,7 @@ public final class StructuredEventLogger {
     private static final Logger API_LOG = LoggerFactory.getLogger("logs.api");
     private static final Logger WEBSOCKET_LOG = LoggerFactory.getLogger("logs.websocket");
     private static final Logger AUDIT_LOG = LoggerFactory.getLogger("logs.audit");
+    private static final Logger CLIENT_LOG = LoggerFactory.getLogger("logs.client");
     private static final Logger INTERNAL_LOG = LoggerFactory.getLogger(StructuredEventLogger.class);
 
     private static final String SERVICE_API = "backend-api";
@@ -52,6 +53,17 @@ public final class StructuredEventLogger {
     public static void websocketWarn(String eventName, String message, Map<String, Object> metadata, Throwable error) {
         emit(WEBSOCKET_LOG, "WARN", SERVICE_WEBSOCKET, "system_event", eventName, message, null, null, null, metadata,
             error);
+    }
+
+    public static void clientEvent(String level, String service, String eventName, String message, String traceId,
+        String contentType, String uuid, Map<String, Object> standardFields, Map<String, Object> metadata,
+        Map<String, Object> error) {
+        emitClient(level, service, "client_event", eventName, message, traceId, contentType, uuid, standardFields,
+            metadata, error);
+    }
+
+    public static void clientWarn(String eventName, String message, Map<String, Object> metadata) {
+        emitClient("WARN", "client-ingest", "system_event", eventName, message, null, null, null, null, metadata, null);
     }
 
     public static void audit(String eventName, Map<String, Object> metadata) {
@@ -106,6 +118,38 @@ public final class StructuredEventLogger {
         try {
             String payload = OBJECT_MAPPER.writeValueAsString(eventLog);
             write(logger, level, payload, error);
+        } catch (JsonProcessingException e) {
+            INTERNAL_LOG.error("structured_log_emit_failure event_name={}", eventName, e);
+        }
+    }
+
+    private static void emitClient(String level, String service, String logType, String eventName, String message,
+        String traceId, String contentType, String uuid, Map<String, Object> standardFields,
+        Map<String, Object> metadata, Map<String, Object> error) {
+        Map<String, Object> eventLog = new LinkedHashMap<>();
+        eventLog.put("@timestamp", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        eventLog.put("level", level);
+        eventLog.put("service", hasText(service) ? service : "client-web");
+        eventLog.put("trace_id", hasText(traceId) ? traceId : UUID.randomUUID().toString());
+        if (hasText(uuid)) {
+            eventLog.put("uuid", uuid);
+        }
+        eventLog.put("log_type", logType);
+        eventLog.put("event_name", eventName);
+        if (hasText(contentType)) {
+            eventLog.put("content_type", contentType);
+        }
+        if (standardFields != null) {
+            eventLog.putAll(normalizeMap(standardFields));
+        }
+        eventLog.put("message", hasText(message) ? message : eventName);
+        eventLog.put("metadata", metadata == null ? Map.of() : normalizeMap(metadata));
+        if (error != null && !error.isEmpty()) {
+            eventLog.put("error", normalizeMap(error));
+        }
+
+        try {
+            write(CLIENT_LOG, level, OBJECT_MAPPER.writeValueAsString(eventLog), null);
         } catch (JsonProcessingException e) {
             INTERNAL_LOG.error("structured_log_emit_failure event_name={}", eventName, e);
         }

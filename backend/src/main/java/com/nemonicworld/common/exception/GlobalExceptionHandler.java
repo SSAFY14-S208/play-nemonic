@@ -61,6 +61,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(ApiResponse.fail(e.getMessage(), null));
     }
 
+    // 429 Too Many Requests - 요청 한도 초과
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTooManyRequests(TooManyRequestsException e) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ApiResponse.fail(e.getMessage(), null));
+    }
+
     // 503 Service Unavailable - 외부 서비스 일시 실패
     @ExceptionHandler(ServiceUnavailableException.class)
     public ResponseEntity<ApiResponse<Void>> handleServiceUnavailable(ServiceUnavailableException e) {
