@@ -17,6 +17,7 @@ interface UseFlipbookRealtimeEventHandlerOptions {
   userUuid: string | null
   clearRoundTransitionFallbackTimer: () => void
   clearDrawingRound: () => void
+  fetchResult: (roomCode: string) => Promise<unknown>
   handleCompletedRounds: (roomCode: string) => Promise<void>
   handleSubmittedFrameProgress: (roomCode: string) => Promise<FlipbookRoomStateResponse | null>
   refreshPlayingRound: (roomCode: string, expectedRound?: number) => Promise<void>
@@ -55,6 +56,7 @@ export function useFlipbookRealtimeEventHandler({
   userUuid,
   clearRoundTransitionFallbackTimer,
   clearDrawingRound,
+  fetchResult,
   handleCompletedRounds,
   handleSubmittedFrameProgress,
   refreshPlayingRound,
@@ -216,6 +218,19 @@ export function useFlipbookRealtimeEventHandler({
           return
         }
 
+        if (event.type === 'RESULT_CREATED') {
+          clearRoundTransitionFallbackTimer()
+          setTimeUpSubmitRequest(null)
+          setIsSubmitting(false)
+          await fetchResult(event.roomCode)
+          return
+        }
+
+        if (event.type === 'PARTICIPANT_DROPPED') {
+          await refreshRoom(event.roomCode, { syncStep: false })
+          return
+        }
+
         if (
           event.type === 'PARTICIPANT_LEFT' ||
           event.type === 'HOST_CHANGED' ||
@@ -249,6 +264,7 @@ export function useFlipbookRealtimeEventHandler({
     [
       assignment,
       clearRoundTransitionFallbackTimer,
+      fetchResult,
       handleCompletedRounds,
       handleSubmittedFrameProgress,
       refreshPlayingRound,

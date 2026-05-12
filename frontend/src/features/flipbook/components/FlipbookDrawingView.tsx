@@ -42,6 +42,7 @@ interface FlipbookDrawingViewProps {
   currentParticipant: FlipbookParticipant
   isSubmitting: boolean
   isRoundSubmitted: boolean
+  isAssignmentReady: boolean
   connectionStatus: FlipbookConnectionStatus
   errorMessage: string | null
   lines: DrawingLine[]
@@ -73,6 +74,7 @@ export default function FlipbookDrawingView({
   currentParticipant,
   isSubmitting,
   isRoundSubmitted,
+  isAssignmentReady,
   connectionStatus,
   errorMessage,
   lines,
@@ -108,7 +110,8 @@ export default function FlipbookDrawingView({
     : isWaitingForNextRound
       ? 'waiting'
       : 'drawing'
-  const isDrawingLocked = isConnectionUnstable || drawingSubmissionState !== 'drawing'
+  const isDrawingLocked =
+    !isAssignmentReady || isConnectionUnstable || drawingSubmissionState !== 'drawing'
   const hasOnionSkinHint = previousFrameLines.length > 0
   const instructionText =
     activeRoundIndex === 0
@@ -123,7 +126,9 @@ export default function FlipbookDrawingView({
         ? '대기 중'
         : '완료!'
   const overlayMessage =
-    drawingSubmissionState === 'submitting'
+    !isAssignmentReady
+      ? '그릴 종이를 준비하고 있어요'
+      : drawingSubmissionState === 'submitting'
       ? '그림을 제출하고 있어요'
       : drawingSubmissionState === 'waiting'
         ? '제출 완료! 다음 라운드를 기다리는 중이에요'
