@@ -136,17 +136,18 @@ class RelayRoomServiceImplTest {
         relayRoomService = new RelayRoomServiceImpl(
             new RelayRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator, relayRoomRepository, inviteRepository,
                 relayRoomPolicy, relayInviteMetadataSyncService, relayRuntimeSettingsProvider),
-            new RelayRoomQueryUseCase(anonymousUserResolver, relayRoomPolicy, relayRoomViewerFactory),
+            new RelayRoomQueryUseCase(anonymousUserResolver, relayRoomPolicy, relayRoomViewerFactory,
+                relayRuntimeSettingsProvider),
             new RelayRoomJoinUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory, relayInviteMetadataSyncService),
+                relayRoomViewerFactory, relayInviteMetadataSyncService, relayRuntimeSettingsProvider),
             new RelayRoomKickUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayInviteMetadataSyncService),
             new RelayRoomLeaveUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayInviteMetadataSyncService),
             new RelayRoomSettingsUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory, relayInviteMetadataSyncService),
+                relayRoomViewerFactory, relayInviteMetadataSyncService, relayRuntimeSettingsProvider),
             new RelayRoomStartUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory, relayInviteMetadataSyncService),
+                relayRoomViewerFactory, relayInviteMetadataSyncService, relayRuntimeSettingsProvider),
             new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayHintImageUrlResolver(minioStorageProperties())),
             new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
@@ -159,7 +160,7 @@ class RelayRoomServiceImplTest {
             new RelayRoomManualCloseUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService)),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory, relayInviteMetadataSyncService));
+                relayRoomViewerFactory, relayInviteMetadataSyncService, relayRuntimeSettingsProvider));
     }
 
     @Test
@@ -175,6 +176,8 @@ class RelayRoomServiceImplTest {
         RelayRoomCreateResponse response = relayRoomService.createRoom(hostUuid.toString());
 
         assertThat(response.timeLimitSeconds()).isEqualTo(60);
+        assertThat(response.timeLimitDefaultSeconds()).isEqualTo(60);
+        assertThat(response.timeLimitAllowedSeconds()).containsExactly(45, 60, 90);
         assertThat(response.minParticipants()).isEqualTo(3);
         assertThat(response.maxParticipants()).isEqualTo(8);
 
