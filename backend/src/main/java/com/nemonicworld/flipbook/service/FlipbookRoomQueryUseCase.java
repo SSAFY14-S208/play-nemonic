@@ -3,6 +3,8 @@ package com.nemonicworld.flipbook.service;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ public class FlipbookRoomQueryUseCase {
     private final AnonymousUserResolver anonymousUserResolver;
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookRoomViewerFactory flipbookRoomViewerFactory;
+    private final FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
 
     /**
      * Redis에 저장된 플립북 방 상태를 변경하지 않고 조회합니다.
@@ -30,7 +33,9 @@ public class FlipbookRoomQueryUseCase {
 
         FlipbookRoomState roomState = flipbookRoomPolicy.findRoomState(roomCodeValue);
         FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUser.getId().toString(), roomState);
+        FlipbookRoomTimeLimitSettings timeLimitSettings = flipbookRuntimeSettingsProvider
+            .currentRoomTimeLimitSettings();
 
-        return FlipbookRoomStateResponse.from(roomState, viewer);
+        return FlipbookRoomStateResponse.from(roomState, viewer, timeLimitSettings);
     }
 }
