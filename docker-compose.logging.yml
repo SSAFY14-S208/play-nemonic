@@ -105,6 +105,37 @@ services:
       retries: 10
       start_period: 90s
 
+  # ============================================================
+  # OpenSearch Dashboards saved-objects 자동 import (oneshot)
+  #
+  # opensearch-dashboards 가 healthy 된 후 단 한 번 실행되어
+  # logging/opensearch-dashboards/saved-objects/*.ndjson 을 import.
+  # overwrite=true 멱등 — 매 배포마다 다시 돌아도 같은 상태로 수렴.
+  #
+  # 신규 대시보드 추가 절차:
+  #   1) UI에서 만들고 export → NDJSON 받기
+  #      docker exec nemonic-logging-dashboards \
+  #        curl -X POST -H "osd-xsrf: true" \
+  #             -d '{"objects":[...]}' \
+  #             "http://127.0.0.1:5601/_dashboards/api/saved_objects/_export"
+  #   2) logging/opensearch-dashboards/saved-objects/<NN>-<name>.ndjson 으로 commit
+  #      (파일명 prefix 00/10/20/... 로 import 순서 제어 — index-pattern 먼저)
+  #   3) docker compose -f docker-compose.logging.yml up -d --no-deps dashboards-init
+  # ============================================================
+  dashboards-init:
+    image: curlimages/curl:8.10.1
+    container_name: nemonic-logging-dashboards-init
+    restart: "no"
+    depends_on:
+      opensearch-dashboards:
+        condition: service_healthy
+    volumes:
+      - ./logging/opensearch-dashboards/saved-objects:/saved-objects:ro
+      - ./logging/opensearch-dashboards/import.sh:/import.sh:ro
+    entrypoint: ["sh", "/import.sh"]
+    networks:
+      - cicd-net
+
   logstash:
     image: opensearchproject/logstash-oss-with-opensearch-output-plugin:8.9.0
     container_name: nemonic-logging-logstash
