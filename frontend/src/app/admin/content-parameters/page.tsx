@@ -1,3 +1,5 @@
-export default function ContentParametersPage() {
-  return null;
+import { ContentParametersPage } from "@/features/admin/content-parameters";
+
+export default function Page() {
+  return <ContentParametersPage />;
 }
