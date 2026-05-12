@@ -52,7 +52,7 @@ export default function FlipbookPage() {
   })
 
   return (
-    <main className="min-h-screen bg-flipbook-background text-flipbook-ink">
+    <main className="relative min-h-screen bg-flipbook-background text-flipbook-ink">
       {flipbook.currentStep === 'booth' && (
         <FlipbookEntranceView
           roomCodeDraft={flipbook.roomCodeDraft}
@@ -78,7 +78,6 @@ export default function FlipbookPage() {
           isHost={flipbook.isHost}
           isBusy={flipbook.isBusy}
           errorMessage={flipbook.errorMessage}
-          onBack={flipbook.leaveRoom}
           onSelectTimeLimit={flipbook.selectTimeLimit}
           onSelectRoundCount={flipbook.selectRoundCount}
           onStartGame={flipbook.startGame}
@@ -99,12 +98,14 @@ export default function FlipbookPage() {
           previousFrameLines={flipbook.previousFrameLines}
           selectedToolKey={flipbook.drawingBoard.selectedToolKey}
           selectedColor={flipbook.drawingBoard.selectedColor}
+          selectedOpacity={flipbook.drawingBoard.selectedOpacity}
           strokeWidth={flipbook.drawingBoard.strokeWidth}
           recentColors={flipbook.drawingBoard.recentColors}
           canUndoDrawing={flipbook.drawingBoard.canUndoDrawing}
           canRedoDrawing={flipbook.drawingBoard.canRedoDrawing}
           onSelectTool={flipbook.drawingBoard.setSelectedToolKey}
           onSelectColor={flipbook.drawingBoard.setSelectedColor}
+          onOpacityChange={flipbook.drawingBoard.setSelectedOpacity}
           onStrokeWidthChange={flipbook.drawingBoard.setStrokeWidth}
           onUndoDrawing={flipbook.drawingBoard.undoDrawing}
           onRedoDrawing={flipbook.drawingBoard.redoDrawing}
@@ -112,28 +113,17 @@ export default function FlipbookPage() {
           onDrawStart={flipbook.drawingBoard.beginDrawing}
           onDrawMove={flipbook.drawingBoard.continueDrawing}
           onDrawEnd={flipbook.drawingBoard.endDrawing}
-          onExit={flipbook.leaveRoom}
           onCompleteRound={flipbook.completeRound}
         />
       )}
 
       {flipbook.currentStep === 'result' && (
         <FlipbookResultView
-          frames={flipbook.frames}
           resultItems={flipbook.resultItems}
           resultOwnerNames={flipbook.resultOwnerNames}
           activeResultIndex={flipbook.activeResultIndex}
           gifUrl={flipbook.gifUrl}
           resultCount={flipbook.resultCount}
-          activeFrame={flipbook.activeResultFrame}
-          resultFrameIndex={flipbook.resultFrameIndex}
-          isGifPlaying={flipbook.isGifPlaying}
-          canGoPreviousResultFrame={flipbook.canGoPreviousResultFrame}
-          canGoNextResultFrame={flipbook.canGoNextResultFrame}
-          onToggleGifPlaying={flipbook.setIsGifPlaying}
-          onShowFrame={flipbook.showResultFrame}
-          onShowPreviousFrame={flipbook.showPreviousResultFrame}
-          onShowNextFrame={flipbook.showNextResultFrame}
           onSelectResult={flipbook.selectResult}
           onCreateAnother={() => flipbook.selectStep('booth')}
         />

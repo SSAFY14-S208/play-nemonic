@@ -16,18 +16,24 @@ interface FlipbookEntranceViewProps {
   onEnterRoom: () => void
 }
 
-const FLIPBOOK_ENTRANCE_FRAMES = Array.from({ length: 12 }, (unusedValue, frameIndex) => {
-  const frameNumber = String(frameIndex + 1).padStart(2, '0')
+const FLIPBOOK_ENTRANCE_FRAME_COUNT = 12
 
-  return {
-    src: `/images/flipbook-entrance/${frameNumber}.png`,
-    alt: `플립북 입장 애니메이션 ${frameIndex + 1}번째 장면`,
-  }
-})
+const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
+  { length: FLIPBOOK_ENTRANCE_FRAME_COUNT },
+  (unusedValue, frameIndex) => {
+    const frameNumber = String(frameIndex + 1).padStart(2, '0')
+
+    return {
+      src: `/images/flipbook-entrance/${frameNumber}.webp`,
+      alt: `플립북 입장 애니메이션 ${frameIndex + 1}번째 장면`,
+    }
+  },
+)
 const FLIPBOOK_BUTTON_IMAGES = {
   createRoom: '/images/flipbook-buttons/create-room.png',
   enterRoom: '/images/flipbook-buttons/enter-room.png',
 }
+const FLIPBOOK_LOGO_IMAGE = '/images/flipbook-logo-v2.webp'
 
 const FLIPBOOK_ENTRANCE_ACTIONS = [
   {
@@ -95,11 +101,15 @@ export default function FlipbookEntranceView({
               y: timeline.actionY,
             }}
           >
-            <h1
-              className="h1-b origin-center scale-150 text-flipbook-ink drop-shadow-[0_5px_0_rgba(251,188,196,0.62)]"
-            >
-              플립북
-            </h1>
+            <Image
+              src={FLIPBOOK_LOGO_IMAGE}
+              alt="플립북"
+              width={979}
+              height={646}
+              priority
+              sizes="(max-width: 640px) 44vw, 300px"
+              className="h-auto w-[min(44vw,300px)] drop-shadow-[0_12px_22px_rgba(251,188,196,0.36)]"
+            />
           </motion.div>
 
           <motion.div

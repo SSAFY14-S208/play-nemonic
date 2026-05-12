@@ -6,6 +6,7 @@ import type {
   FilePresignedUploadRequest,
   FilePresignRequest,
   FilePresignResponse,
+  FileViewUrlResponse,
 } from '@/shared/types'
 
 import { apiUnwrap } from '@/shared/utils'
@@ -39,6 +40,10 @@ export const putFileToPresignedUrl = async ({
     throw new Error(`파일 업로드에 실패했습니다. (${response.status})${uploadErrorDetail}`)
   }
 }
+
+// GET /files/{fileId}/view-url — 파일 뷰 URL 조회
+export const getFileViewUrl = (fileId: string) =>
+  apiUnwrap(api.get<ApiResponse<FileViewUrlResponse>>(`files/${fileId}/view-url`))
 
 // DELETE /files/{fileId} — 파일 삭제
 export const deleteFile = (fileId: string) =>

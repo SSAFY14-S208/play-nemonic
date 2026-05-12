@@ -1,5 +1,6 @@
 export { useFlipbook } from './useFlipbook'
 export { useFlipbookEntranceTimeline } from './useFlipbookEntranceTimeline'
+export { useFlipbookGifDownload } from './useFlipbookGifDownload'
 export { useFlipbookNickname } from './useFlipbookNickname'
 export { useFlipbookRealtimeActions } from './useFlipbookRealtimeActions'
 export { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'

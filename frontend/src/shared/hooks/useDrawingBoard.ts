@@ -29,6 +29,7 @@ export function useDrawingBoard({
 }: UseDrawingBoardOptions) {
   const [selectedToolKey, setSelectedToolKey] = useState<DrawingToolKey>('pencil')
   const [selectedColor, setSelectedColor] = useState(defaultColor)
+  const [selectedOpacity, setSelectedOpacity] = useState(1)
   const [strokeWidth, setStrokeWidth] = useState(defaultStrokeWidth)
   const [lines, setLines] = useState<DrawingLine[]>([])
   const [redoLines, setRedoLines] = useState<DrawingLine[]>([])
@@ -90,6 +91,7 @@ export function useDrawingBoard({
           backgroundColor,
           boardSize,
           fillColor: selectedColor,
+          fillOpacity: selectedOpacity,
           lines,
           pointerPosition,
         }).then((fillLine) => {
@@ -113,6 +115,7 @@ export function useDrawingBoard({
           kind: 'stroke',
           color: drawingColor,
           strokeWidth: activeStrokeWidth,
+          opacity: isEraserSelected ? 1 : selectedOpacity,
           compositeOperation: isEraserSelected ? 'destination-out' : 'source-over',
           points: [{ x: pointerPosition.x, y: pointerPosition.y }],
         },
@@ -128,6 +131,7 @@ export function useDrawingBoard({
       isEraserSelected,
       lines,
       selectedColor,
+      selectedOpacity,
       selectedToolKey,
     ],
   )
@@ -167,6 +171,7 @@ export function useDrawingBoard({
   return {
     selectedToolKey,
     selectedColor,
+    selectedOpacity,
     strokeWidth,
     recentColors,
     lines,
@@ -176,6 +181,7 @@ export function useDrawingBoard({
     setLines,
     setSelectedToolKey,
     setSelectedColor,
+    setSelectedOpacity,
     setStrokeWidth,
     clearDrawing,
     undoDrawing,

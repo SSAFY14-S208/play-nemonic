@@ -1,0 +1,185 @@
+'use client'
+
+import { Search } from 'lucide-react'
+
+import { useBackofficeRelayRooms } from '../hooks'
+import type { RelayRoomStatusFilter } from '../hooks'
+
+import { type RoomFilterOption, RoomFilterBar } from './RoomFilterBar'
+import { RoomPagination } from './RoomPagination'
+import { RoomStatusBadge } from './RoomStatusBadge'
+
+const STATUS_OPTIONS: RoomFilterOption<RelayRoomStatusFilter>[] = [
+  { value: 'ALL', label: '전체' },
+  { value: 'WAITING', label: '대기중' },
+  { value: 'PLAYING', label: '진행중' },
+  { value: 'FINALIZING', label: '마무리중' },
+  { value: 'FINISHED', label: '완료' },
+]
+
+function formatGameStartedAt(value: string | null): string {
+  if (!value) return '—'
+  // 백엔드는 timezone 정보 없는 LocalDateTime 문자열 — 서버 시간대 표시로 충분.
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
+
+export default function BackofficeRelayRoomsPage() {
+  const {
+    items,
+    isFiltered,
+    totalElements,
+    page,
+    totalPages,
+    statusFilter,
+    keyword,
+    isLoading,
+    loadError,
+    isMutating,
+    setKeyword,
+    changeStatusFilter,
+    goToPage,
+    forceClose,
+  } = useBackofficeRelayRooms()
+
+  return (
+    <div className="flex flex-col gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="h3-b text-fg-primary">활성 방 목록</h2>
+          <p className="body-r text-fg-secondary">
+            현재 진행 중인 릴레이 드로잉 — 메타데이터만 표시
+          </p>
+        </div>
+        <RoomFilterBar<RelayRoomStatusFilter>
+          value={statusFilter}
+          onChange={changeStatusFilter}
+          options={STATUS_OPTIONS}
+          disabled={isMutating}
+        />
+      </header>
+
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-2 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2">
+          <Search className="h-4 w-4 text-fg-secondary" />
+          <input
+            type="text"
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="방 코드 검색 (예: AB3K9Q)"
+            className="body-r flex-1 bg-transparent text-fg-primary placeholder:text-fg-disabled focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border-default bg-surface-default">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border-default bg-surface-subtle">
+              <th className="caption-b px-4 py-3 text-left text-fg-secondary">
+                방 코드
+              </th>
+              <th className="caption-b px-4 py-3 text-left text-fg-secondary">
+                인원
+              </th>
+              <th className="caption-b px-4 py-3 text-left text-fg-secondary">
+                시작 시각
+              </th>
+              <th className="caption-b px-4 py-3 text-left text-fg-secondary">
+                상태
+              </th>
+              <th className="caption-b px-4 py-3 text-right text-fg-secondary">
+                액션
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="body-r px-4 py-8 text-center text-fg-secondary"
+                >
+                  불러오는 중…
+                </td>
+              </tr>
+            ) : loadError ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="body-r px-4 py-8 text-center text-red-500"
+                  role="alert"
+                >
+                  {loadError}
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="body-r px-4 py-8 text-center text-fg-secondary"
+                >
+                  {isFiltered
+                    ? '검색 결과가 없습니다.'
+                    : '활성 방이 없습니다.'}
+                </td>
+              </tr>
+            ) : (
+              items.map((room) => (
+                <tr
+                  key={room.roomCode}
+                  className="border-b border-border-default last:border-b-0"
+                >
+                  <td className="body-m px-4 py-3 font-mono text-fg-primary">
+                    /r/{room.roomCode}
+                  </td>
+                  <td className="body-m px-4 py-3 text-fg-primary">
+                    {room.participantCount}
+                  </td>
+                  <td className="body-r px-4 py-3 text-fg-secondary">
+                    {formatGameStartedAt(room.gameStartedAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <RoomStatusBadge status={room.status} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => forceClose(room.roomCode)}
+                      disabled={isMutating}
+                      className="caption-b rounded-[var(--radius-md)] bg-red-500 px-3 py-1.5 text-fg-inverse transition-opacity hover:bg-red-600 disabled:opacity-50"
+                    >
+                      강제 종료
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="caption-r text-fg-secondary">
+        ⓘ 라운드별 드로잉과 완성 GIF는 어떤 경우에도 표시되지 않습니다. 강제 종료는
+        메타데이터만 보고 판단합니다.
+      </p>
+
+      <div className="flex items-center justify-between">
+        <span className="caption-r text-fg-secondary">
+          총 {totalElements}개
+        </span>
+        <RoomPagination
+          page={page}
+          totalPages={totalPages}
+          onChange={goToPage}
+          disabled={isLoading || isMutating}
+        />
+      </div>
+    </div>
+  )
+}
