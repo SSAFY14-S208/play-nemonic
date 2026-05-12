@@ -7,6 +7,7 @@ import com.nemonicworld.support.IntegrationTest;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -121,6 +122,20 @@ class RelayArtifactRepositoryTest {
         assertThat(found.get(0).contentUrl()).isEqualTo(artifacts.get(0).originalObjectKey());
         assertThat(found.get(0).createdAt()).isEqualTo(now);
         assertThat(relayArtifactRepository.countRelayResultsByRoomCode(ROOM_CODE)).isEqualTo(2);
+    }
+
+    @Test
+    void findReferencedRelayResultObjectKeysReturnsReferencedOriginalAndThumbnailKeys() {
+        RelayFinalizationArtifactResult artifact = artifact(0);
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        relayArtifactRepository.saveRelayDrawingResults(ROOM_CODE, List.of(artifact),
+            List.of(UUID.randomUUID().toString()), now);
+
+        Set<String> referencedObjectKeys = relayArtifactRepository.findReferencedRelayResultObjectKeys(
+            Set.of(artifact.originalObjectKey(), artifact.thumbnailObjectKey(), "relay/results/orphan/original.png"));
+
+        assertThat(referencedObjectKeys).containsExactlyInAnyOrder(artifact.originalObjectKey(),
+            artifact.thumbnailObjectKey());
     }
 
     private RelayFinalizationArtifactResult artifact(int canvasIndex) {

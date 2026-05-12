@@ -12,6 +12,7 @@ import com.nemonicworld.relay.service.finalization.RelayFinalizationAttempt;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.Cursor;
@@ -64,6 +65,24 @@ class RedisRelayFinalizationAttemptRepositoryTest {
         boolean contains = repository.containsObjectKey(OBJECT_KEY, 10);
 
         assertThat(contains).isTrue();
+        verify(cursor).close();
+    }
+
+    @Test
+    void findReferencedObjectKeysReturnsMatchedAttemptObjects() throws Exception {
+        String thumbnailKey = "relay/results/artifact-id/thumbnail.png";
+        RelayFinalizationAttempt attempt = new RelayFinalizationAttempt(ROOM_CODE, ATTEMPT_ID,
+            List.of(OBJECT_KEY, thumbnailKey), LocalDateTime.of(2026, 5, 11, 22, 0));
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, false);
+        given(cursor.next()).willReturn(ATTEMPT_KEY);
+        given(valueOperations.get(ATTEMPT_KEY)).willReturn(objectMapper.writeValueAsString(attempt));
+
+        Set<String> referencedObjectKeys = repository
+            .findReferencedObjectKeys(Set.of(OBJECT_KEY, "relay/results/other/original.png"), 10);
+
+        assertThat(referencedObjectKeys).containsExactly(OBJECT_KEY);
         verify(cursor).close();
     }
 
