@@ -136,6 +136,11 @@ nemonic:
       default-part-height: ${RELAY_FINALIZATION_DEFAULT_PART_HEIGHT:512}
       thumbnail-max-size: ${RELAY_FINALIZATION_THUMBNAIL_MAX_SIZE:512}
       overlap-height: ${RELAY_FINALIZATION_OVERLAP_HEIGHT:120}
+      async:
+        core-pool-size: ${RELAY_FINALIZATION_ASYNC_CORE_POOL_SIZE:2}
+        max-pool-size: ${RELAY_FINALIZATION_ASYNC_MAX_POOL_SIZE:4}
+        queue-capacity: ${RELAY_FINALIZATION_ASYNC_QUEUE_CAPACITY:100}
+        thread-name-prefix: ${RELAY_FINALIZATION_ASYNC_THREAD_NAME_PREFIX:relay-finalization-}
     orphan-cleanup:
       enabled: ${RELAY_ORPHAN_CLEANUP_ENABLED:true}
       scan-delay-ms: ${RELAY_ORPHAN_CLEANUP_SCAN_DELAY_MS:3600000}
