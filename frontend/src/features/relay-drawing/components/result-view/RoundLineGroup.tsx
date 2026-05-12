@@ -12,14 +12,11 @@ interface RoundLineGroupProps {
 }
 
 // 한 라운드의 라인을 SVG group으로 그린다.
-// 최종 합성(isFinalReveal)일 때는 (point.y - drawArea.y) + finalOffsetY 위치로
-// 옮겨서 얼굴/몸통/다리가 한 캔버스에 쌓이도록 한다.
-// 단일 라운드 reveal일 때는 drawArea를 viewBox 0..720으로 보여주려 -drawArea.y만큼 옮긴다.
+// 최종 합성(isFinalReveal)일 때는 finalOffsetY만큼 옮겨서 얼굴/몸통/다리가
+// 한 캔버스에 쌓이도록 한다. 단일 라운드 reveal일 때는 변환 없음 (drawArea.y=0).
 export default function RoundLineGroup({ roundKey, lines, isFinalReveal }: RoundLineGroupProps) {
   const roundRule = RELAY_ROUND_RULES[roundKey]
-  const verticalOffset = isFinalReveal
-    ? roundRule.finalOffsetY - roundRule.drawArea.y
-    : -roundRule.drawArea.y
+  const verticalOffset = isFinalReveal ? roundRule.finalOffsetY : 0
   const clipId = `relay-result-${roundKey}-${isFinalReveal ? 'final' : 'single'}`
 
   // clipPath는 user space(부모 좌표계) 기준이라 transform 후 라인이 가는 위치
