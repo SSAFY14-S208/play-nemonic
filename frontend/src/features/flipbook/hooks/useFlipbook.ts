@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import {
   deleteFlipbookRoomParticipantMe,
   getFlipbookRoom,
@@ -129,6 +129,7 @@ export function useFlipbook({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUpdatingTimeLimit, startTimeLimitTransition] = useTransition()
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
   const [timeUpSubmitRequest, setTimeUpSubmitRequest] = useState<{
     roomCode: string
@@ -140,6 +141,7 @@ export function useFlipbook({
   const assignmentRequestSequenceRef = useRef(0)
   const roundTransitionFallbackTimerRef = useRef<number | null>(null)
   const pendingNicknameActionRef = useRef<FlipbookNicknamePendingAction | null>(null)
+  const pendingTimeLimitSecondsRef = useRef<FlipbookTimeLimitSeconds | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -229,8 +231,17 @@ export function useFlipbook({
     ) => {
       if (!targetRoomCode) return null
       const nextRoomState = await getFlipbookRoom(targetRoomCode)
+      const nextTimeLimitSeconds = toFlipbookTimeLimitSeconds(nextRoomState.timeLimitSeconds)
+      const pendingTimeLimitSeconds = pendingTimeLimitSecondsRef.current
       setRoomState(nextRoomState)
-      setSelectedTimeLimitSeconds(toFlipbookTimeLimitSeconds(nextRoomState.timeLimitSeconds))
+      if (
+        pendingTimeLimitSeconds === null ||
+        pendingTimeLimitSeconds === nextTimeLimitSeconds ||
+        nextRoomState.status !== 'WAITING'
+      ) {
+        pendingTimeLimitSecondsRef.current = null
+        setSelectedTimeLimitSeconds(nextTimeLimitSeconds)
+      }
       setTimeLimitOptions(getFlipbookTimeLimitOptions(nextRoomState))
       setRoundCount(nextRoomState.totalRounds)
       setStartedParticipantCount((currentParticipantCount) => {
@@ -408,6 +419,7 @@ export function useFlipbook({
     setRoomCode,
     setRoomState,
     setRoundCount,
+    setSelectedTimeLimitSeconds,
     setStartedParticipantCount,
     setSubmittedAssignmentKeys,
     setTimeUpSubmitRequest,
@@ -683,23 +695,32 @@ export function useFlipbook({
 
   const selectTimeLimit = useCallback(
     (timeLimitSeconds: FlipbookTimeLimitSeconds) => {
-      if (!roomCode || !isHost || !isWaitingRoom) return
+      if (!roomCode || !isHost || !isWaitingRoom || isUpdatingTimeLimit) return
       if (timeLimitOptions.length > 0 && !timeLimitOptions.includes(timeLimitSeconds)) return
       if (timeLimitSeconds === selectedTimeLimitSeconds) return
 
+      const previousTimeLimitSeconds = selectedTimeLimitSeconds
+      pendingTimeLimitSecondsRef.current = timeLimitSeconds
       setSelectedTimeLimitSeconds(timeLimitSeconds)
-      void (async () => {
+      setErrorMessage(null)
+      startTimeLimitTransition(async () => {
         try {
-          const updatedRoom = await patchFlipbookRoomSettings(roomCode, { timeLimitSeconds })
-          setRoomState(updatedRoom)
-          setTimeLimitOptions(getFlipbookTimeLimitOptions(updatedRoom))
-          setRoundCount(updatedRoom.totalRounds)
+          await patchFlipbookRoomSettings(roomCode, { timeLimitSeconds })
         } catch (error) {
+          pendingTimeLimitSecondsRef.current = null
+          setSelectedTimeLimitSeconds(previousTimeLimitSeconds)
           setErrorMessage(error instanceof Error ? error.message : '제한 시간 변경에 실패했습니다.')
         }
-      })()
+      })
     },
-    [isHost, isWaitingRoom, roomCode, selectedTimeLimitSeconds, timeLimitOptions],
+    [
+      isHost,
+      isUpdatingTimeLimit,
+      isWaitingRoom,
+      roomCode,
+      selectedTimeLimitSeconds,
+      timeLimitOptions,
+    ],
   )
 
   const kickParticipant = useCallback(
