@@ -4,15 +4,11 @@ import Image from 'next/image'
 import {
   Clock3,
   Copy,
-  Flag,
-  Minus,
-  Plus,
   QrCode,
   UsersRound,
 } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type { FlipbookConnectionStatus } from '@/shared/types'
-import { FLIPBOOK_TIME_LIMITS_SECONDS } from '../constants'
 import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../types'
 import FlipbookLobbyShareButton from './FlipbookLobbyShareButton'
 import {
@@ -27,17 +23,20 @@ interface FlipbookLobbyViewProps {
   participants: FlipbookParticipant[]
   roomCode: string | null
   participantCount: number
+  minParticipants: number
   maxParticipants: number
   selectedTimeLimitSeconds: number
-  roundCount: number | null
+  timeLimitOptions: FlipbookTimeLimitSeconds[]
   connectionStatus: FlipbookConnectionStatus
   canStartGame: boolean
   isHost: boolean
   isBusy: boolean
+  canLeaveRoom: boolean
   errorMessage: string | null
   onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
-  onSelectRoundCount: (roundCount: number) => void
   onStartGame: () => void
+  onLeaveRoom: () => void
+  onKickParticipant: (targetUserUuid: string) => void
 }
 
 const FLIPBOOK_LOBBY_IMAGES = {
@@ -52,24 +51,26 @@ const SHARE_ACTIONS: FlipbookLobbyShareAction[] = [
   { key: 'qrCode', label: 'QR 코드', Icon: QrCode },
 ]
 const VISIBLE_PARTICIPANT_SLOT_LIMIT = 6
-const MINIMUM_FRAME_COUNT_PER_FLIPBOOK = 8
 
 export default function FlipbookLobbyView({
   currentParticipant,
   participants,
   roomCode,
   participantCount,
+  minParticipants,
   maxParticipants,
   selectedTimeLimitSeconds,
-  roundCount,
+  timeLimitOptions,
   connectionStatus,
   canStartGame,
   isHost,
   isBusy,
+  canLeaveRoom,
   errorMessage,
   onSelectTimeLimit,
-  onSelectRoundCount,
   onStartGame,
+  onLeaveRoom,
+  onKickParticipant,
 }: FlipbookLobbyViewProps) {
   const sessionParticipantName = currentParticipant.name.replace(' (나)', '')
   const displayedParticipants = participants.slice(0, VISIBLE_PARTICIPANT_SLOT_LIMIT)
@@ -86,12 +87,7 @@ export default function FlipbookLobbyView({
   const isConnectionReady = connectionStatus === 'connected'
   const startGameButtonDisabled = !isHost || !canStartGame || !isConnectionReady || isBusy
   const startGameButtonLabel = !isHost ? '게임 대기중' : isBusy ? '시작 중' : '게임 시작!'
-  const roundControlDisabled = !isHost || roundCount === null || isBusy
-  const minimumRoundCount = Math.max(
-    1,
-    Math.ceil(MINIMUM_FRAME_COUNT_PER_FLIPBOOK / Math.max(2, participantCount)),
-  )
-  const canDecreaseRoundCount = !roundControlDisabled && roundCount > minimumRoundCount
+  const timeLimitControlDisabled = !isHost || isBusy
 
   return (
     <section className="relative min-h-screen overflow-y-auto bg-[#fff5ed] text-[#684834] lg:grid lg:h-screen lg:place-items-center lg:overflow-hidden">
@@ -112,21 +108,22 @@ export default function FlipbookLobbyView({
         waitingSlots={waitingSlots}
         roomCode={roomCode}
         visibleParticipantCount={visibleParticipantCount}
+        minParticipants={minParticipants}
         maxParticipants={maxParticipants}
         selectedTimeLimitSeconds={selectedTimeLimitSeconds}
-        roundCount={roundCount}
-        minimumRoundCount={minimumRoundCount}
+        timeLimitOptions={timeLimitOptions}
         isHost={isHost}
-        canDecreaseRoundCount={canDecreaseRoundCount}
-        roundControlDisabled={roundControlDisabled}
+        isBusy={isBusy}
+        canLeaveRoom={canLeaveRoom}
         startGameButtonDisabled={startGameButtonDisabled}
         startGameButtonLabel={startGameButtonLabel}
         errorMessage={errorMessage}
         shareActions={SHARE_ACTIONS}
         images={FLIPBOOK_LOBBY_IMAGES}
         onSelectTimeLimit={onSelectTimeLimit}
-        onSelectRoundCount={onSelectRoundCount}
         onStartGame={onStartGame}
+        onLeaveRoom={onLeaveRoom}
+        onKickParticipant={onKickParticipant}
       />
 
       <div className="relative z-10 hidden h-[720px] w-[1170px] shrink-0 lg:block">
@@ -184,6 +181,9 @@ export default function FlipbookLobbyView({
                 {visibleParticipantCount} / {maxParticipants}
               </span>
             </div>
+            <p className="caption-b mt-3 text-[#9a7f6d]">
+              최소 {minParticipants}명부터 시작할 수 있어요.
+            </p>
 
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
               {displayedParticipants.map((participant) => (
@@ -196,6 +196,14 @@ export default function FlipbookLobbyView({
                   }
                   avatar={participant.avatar}
                   isHost={participant.isHost === true}
+                  isConnected={participant.isConnected === true}
+                  canKick={
+                    isHost &&
+                    !isBusy &&
+                    participant.userUuid !== currentParticipant.userUuid &&
+                    participant.isHost !== true
+                  }
+                  onKick={() => onKickParticipant(participant.userUuid)}
                 />
               ))}
               {waitingSlots.map((waitingSlot) => (
@@ -210,12 +218,12 @@ export default function FlipbookLobbyView({
                   제한 시간
                 </h3>
                 <div className="mt-6 grid grid-cols-3 gap-4">
-                  {FLIPBOOK_TIME_LIMITS_SECONDS.map((seconds) => (
+                  {timeLimitOptions.map((seconds) => (
                     <button
                       key={seconds}
                       type="button"
                       onClick={() => onSelectTimeLimit(seconds)}
-                      disabled={!isHost}
+                      disabled={timeLimitControlDisabled}
                       className={cn(
                         'h3-b min-h-[72px] rounded-[16px] border border-[#f2dece] bg-[#fff2e9] text-[#b79a88] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60',
                         selectedTimeLimitSeconds === seconds &&
@@ -229,40 +237,20 @@ export default function FlipbookLobbyView({
               </section>
 
               <section className="rounded-[22px] border border-[#efd8c7] bg-white/54 p-6 shadow-[inset_0_1px_0_rgb(255_255_255_/_82%)]">
-                <h3 className="h3-b inline-flex items-center gap-3 text-[#684834]">
-                  <Flag className="size-7 text-[#ff7182]" strokeWidth={2.2} aria-hidden />
-                  라운드
-                </h3>
-                <div className="mt-7 flex items-center justify-between gap-5">
-                  <span className="h3-b text-[#9a7f6d]">설정값</span>
-                  <div className="flex items-center gap-6">
-                    <button
-                      type="button"
-                      disabled={!canDecreaseRoundCount}
-                      onClick={() => {
-                        if (roundCount !== null) onSelectRoundCount(roundCount - 1)
-                      }}
-                      className="grid size-16 place-items-center rounded-full bg-[#fff2e9] text-[#80543b] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label="라운드 감소"
-                    >
-                      <Minus className="size-7" strokeWidth={3} aria-hidden />
-                    </button>
-                    <span className="text-[48px] font-black leading-none text-[#684834]">
-                      {roundCount ?? '-'}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={roundControlDisabled}
-                      onClick={() => {
-                        if (roundCount !== null) onSelectRoundCount(roundCount + 1)
-                      }}
-                      className="grid size-16 place-items-center rounded-full bg-[#fff0ed] text-[#ff7182] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label="라운드 증가"
-                    >
-                      <Plus className="size-8" strokeWidth={3} aria-hidden />
-                    </button>
-                  </div>
-                </div>
+                <h3 className="h3-b text-[#684834]">참여 조건</h3>
+                <p className="body-b mt-5 text-[#9a7f6d]">
+                  현재 {visibleParticipantCount}명 참여 중 · 최소 {minParticipants}명 필요
+                </p>
+                {canLeaveRoom && (
+                  <button
+                    type="button"
+                    onClick={onLeaveRoom}
+                    disabled={isBusy}
+                    className="body-b mt-5 min-h-12 w-full rounded-[16px] border border-[#f2dece] bg-[#fff2e9] text-[#80543b] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    방 나가기
+                  </button>
+                )}
               </section>
             </div>
 
@@ -287,11 +275,6 @@ export default function FlipbookLobbyView({
               )}
               <span className="sr-only">{startGameButtonLabel}</span>
             </button>
-            {errorMessage && (
-              <p className="body-b mt-5 rounded-full bg-white/76 px-5 py-3 text-center text-[#cf5d68] shadow-[0_8px_18px_rgb(126_74_42_/_10%)]">
-                {errorMessage}
-              </p>
-            )}
             </section>
           </main>
         </div>

@@ -2,7 +2,7 @@ import type { DrawingLine } from './drawing'
 
 // REST API 도메인 (OpenAPI: tag "Flipbook")
 
-export type FlipbookRoomStatus = 'WAITING' | 'PLAYING' | 'FINISHED' | 'CLOSED'
+export type FlipbookRoomStatus = 'WAITING' | 'PLAYING' | 'FINALIZING' | 'FINISHED' | 'CLOSED'
 
 export type FlipbookBlockedReason =
   | 'ROOM_FULL'
@@ -34,6 +34,9 @@ export interface FlipbookRoomCreateResponse {
   status: FlipbookRoomStatus
   hostUserUuid: string
   timeLimitSeconds: number
+  allowedTimeLimitSeconds?: number[]
+  timeLimitOptions?: number[]
+  timeLimitSecondsOptions?: number[]
   minParticipants: number
   maxParticipants: number
   participantCount: number
@@ -43,7 +46,6 @@ export interface FlipbookRoomCreateResponse {
 
 export interface FlipbookRoomSettingsRequest {
   timeLimitSeconds?: number
-  roundCount?: number
 }
 
 export interface FlipbookRoomKickRequest {
@@ -71,11 +73,21 @@ export interface FlipbookRoomLeaveResponse {
   leftAt: string
 }
 
+export interface FlipbookRoomCloseResponse {
+  roomCode: string
+  roomStatus: 'CLOSED'
+  closedAt: string
+  alreadyClosed: boolean
+}
+
 export interface FlipbookRoomStateResponse {
   roomCode: string
   status: FlipbookRoomStatus
   hostUserUuid: string
   timeLimitSeconds: number
+  allowedTimeLimitSeconds?: number[]
+  timeLimitOptions?: number[]
+  timeLimitSecondsOptions?: number[]
   minParticipants: number
   maxParticipants: number
   participantCount: number
@@ -128,9 +140,9 @@ export interface FlipbookFrameSubmitResponse {
   flipbookIndex: number
   frameIndex: number
   assignmentStatus: FlipbookAssignmentStatus
-  fileId: string
-  objectKey: string
-  frameUrl: string
+  fileId: string | null
+  objectKey: string | null
+  frameUrl: string | null
   submittedAt: string
   alreadySubmitted: boolean
   currentRoundCompleted: boolean
@@ -146,18 +158,18 @@ export interface FlipbookFrameSubmitResponse {
 
 export interface FlipbookResultFrameResponse {
   frameIndex: number
-  imageUrl: string
-  drawnByUserUuid: string
-  drawnByNickname: string
+  imageUrl: string | null
+  drawnByUserUuid: string | null
+  drawnByNickname: string | null
 }
 
 export interface FlipbookResultItemResponse {
-  flipbookIndex: number
+  flipbookIndex: number | null
   galleryId: string
   artifactId: string
-  thumbnailUrl: string
-  gifUrl: string
-  firstImageUrl: string
+  thumbnailUrl: string | null
+  gifUrl: string | null
+  firstImageUrl: string | null
   createdAt: string
   frames: FlipbookResultFrameResponse[]
 }
@@ -188,6 +200,7 @@ export type FlipbookWsEventType =
   | 'FRAME_AUTO_SUBMITTED'
   | 'ROUND_STARTED'
   | 'ALL_ROUNDS_COMPLETED'
+  | 'RESULT_CREATED'
   | 'ROOM_CLOSED'
   | 'PARTICIPANT_KICKED'
   | 'PARTICIPANT_LEFT'
@@ -262,8 +275,15 @@ export interface FlipbookWsRoundTimeUpData {
 
 export interface FlipbookWsAllRoundsCompletedData {
   roomCode: string
-  roomStatus: 'FINISHED'
+  roomStatus: 'FINALIZING' | 'FINISHED'
   completedAt: string
+}
+
+export interface FlipbookWsResultCreatedData {
+  roomCode: string
+  roomStatus: 'FINISHED'
+  resultCount: number
+  createdAt: string
 }
 
 export interface FlipbookWsRoomClosedData {
@@ -310,6 +330,7 @@ export type FlipbookWsEvent =
   | FlipbookWsEnvelope<'FRAME_AUTO_SUBMITTED', FlipbookWsFrameAutoSubmittedData>
   | FlipbookWsEnvelope<'ROUND_STARTED', FlipbookWsRoundStartedData>
   | FlipbookWsEnvelope<'ALL_ROUNDS_COMPLETED', FlipbookWsAllRoundsCompletedData>
+  | FlipbookWsEnvelope<'RESULT_CREATED', FlipbookWsResultCreatedData>
   | FlipbookWsEnvelope<'ROOM_CLOSED', FlipbookWsRoomClosedData>
   | FlipbookWsEnvelope<'PARTICIPANT_KICKED', FlipbookWsParticipantKickedData>
   | FlipbookWsEnvelope<'PARTICIPANT_LEFT', FlipbookWsParticipantLeftData>
@@ -342,7 +363,7 @@ export interface FlipbookRoomParticipant {
 }
 
 export interface FlipbookSessionSettings {
-  timeLimitSeconds: 30 | 45 | 60
+  timeLimitSeconds: number
   roundCount: number
   frameCountPerFlipbook: number
 }
@@ -351,8 +372,8 @@ export interface FlipbookFramePayload {
   frameId: string
   index: number
   flipbookId: string
-  drawnByUserUuid: string
-  drawnByNickname: string
+  drawnByUserUuid: string | null
+  drawnByNickname: string | null
   lines: DrawingLine[]
   isEmpty: boolean
 }

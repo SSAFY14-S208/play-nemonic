@@ -16,7 +16,7 @@ export function getResultFrames(result: FlipbookResultItemResponse | null): Flip
       : ''
 
   return sortedFrames.map((frame) => ({
-    id: `${result.flipbookIndex}-${frame.frameIndex}`,
+    id: `${result.flipbookIndex ?? 'result'}-${frame.frameIndex}`,
     index: frame.frameIndex,
     drawnByUserUuid: frame.drawnByUserUuid,
     drawnBy: frame.drawnByNickname,
@@ -32,10 +32,11 @@ export function getNormalizedResultItems(
 ) {
   const resultItemsByFlipbookIndex = new Map<number, FlipbookResultItemResponse[]>()
 
-  results.forEach((result) => {
-    const resultItems = resultItemsByFlipbookIndex.get(result.flipbookIndex) ?? []
+  results.forEach((result, resultIndex) => {
+    const normalizedFlipbookIndex = result.flipbookIndex ?? resultIndex
+    const resultItems = resultItemsByFlipbookIndex.get(normalizedFlipbookIndex) ?? []
     resultItems.push(result)
-    resultItemsByFlipbookIndex.set(result.flipbookIndex, resultItems)
+    resultItemsByFlipbookIndex.set(normalizedFlipbookIndex, resultItems)
   })
 
   const duplicateFlipbookIndexes = Array.from(resultItemsByFlipbookIndex.entries())
