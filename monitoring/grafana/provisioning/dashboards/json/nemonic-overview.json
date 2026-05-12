@@ -376,7 +376,7 @@
           "query": "event_name:client_alive AND _exists_:content_type",
           "metrics": [ { "type": "cardinality", "field": "uuid", "id": "1" } ],
           "bucketAggs": [
-            { "type": "terms", "id": "3", "field": "content_type.keyword", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "terms", "id": "3", "field": "content_type", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
             { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
           ],
           "timeField": "@timestamp"
@@ -445,7 +445,7 @@
           "query": "event_name:session_start",
           "metrics": [ { "type": "count", "id": "1" } ],
           "bucketAggs": [
-            { "type": "terms", "id": "3", "field": "entry_type.keyword", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "terms", "id": "3", "field": "entry_type", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
             { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
           ],
           "timeField": "@timestamp"
@@ -536,7 +536,7 @@
           "query": "event_name:(js_error OR unhandled_rejection OR client_network_failed)",
           "metrics": [ { "type": "count", "id": "1" } ],
           "bucketAggs": [
-            { "type": "terms", "id": "3", "field": "event_name.keyword", "settings": { "size": "5", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "terms", "id": "3", "field": "event_name", "settings": { "size": "5", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
             { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
           ],
           "timeField": "@timestamp"
@@ -595,7 +595,7 @@
           "query": "NOT event_name:(client_alive OR page_view OR page_leave OR visibility_change OR session_start OR session_end OR web_vitals OR scroll_depth_reached OR resource_load_slow OR js_error OR unhandled_rejection OR client_network_failed OR landing_source_detected OR campaign_attributed)",
           "metrics": [ { "type": "count", "id": "1" } ],
           "bucketAggs": [
-            { "type": "terms", "id": "3", "field": "event_name.keyword", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "terms", "id": "3", "field": "event_name", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
             { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
           ],
           "timeField": "@timestamp"
