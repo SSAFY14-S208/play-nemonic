@@ -9,7 +9,9 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -30,15 +32,18 @@ public class RelayRoomStartUseCase {
     private final RelayRoomPolicy relayRoomPolicy;
     private final RelayRoomViewerFactory relayRoomViewerFactory;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+    private final RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
 
     public RelayRoomStartUseCase(AnonymousUserResolver anonymousUserResolver, RelayRoomRepository relayRoomRepository,
         RelayRoomPolicy relayRoomPolicy, RelayRoomViewerFactory relayRoomViewerFactory,
-        RelayInviteMetadataSyncService relayInviteMetadataSyncService) {
+        RelayInviteMetadataSyncService relayInviteMetadataSyncService,
+        RelayRuntimeSettingsProvider relayRuntimeSettingsProvider) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
         this.relayRoomViewerFactory = relayRoomViewerFactory;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
+        this.relayRuntimeSettingsProvider = relayRuntimeSettingsProvider;
     }
 
     /**
@@ -64,6 +69,8 @@ public class RelayRoomStartUseCase {
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
                 RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now);
+                RelayRoomTimeLimitSettings timeLimitSettings = relayRuntimeSettingsProvider
+                    .currentRoomTimeLimitSettings();
                 RelayRoomEventLogger.apiBusiness("relay_game_started",
                     metadata("room_id", updatedRoomState.roomCode(), "host_uuid", viewerUserUuid, "participant_count",
                         updatedRoomState.participantCount(), "assignment_count", updatedRoomState.assignments().size(),
@@ -73,7 +80,7 @@ public class RelayRoomStartUseCase {
                         "previous_part", null, "participant_count", updatedRoomState.participantCount(),
                         "part_deadline_at", updatedRoomState.partDeadlineAt()));
 
-                return RelayRoomStateResponse.from(updatedRoomState, viewer);
+                return RelayRoomStateResponse.from(updatedRoomState, viewer, timeLimitSettings);
             }
         }
 

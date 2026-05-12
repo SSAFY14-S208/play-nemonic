@@ -74,6 +74,6 @@ public class RelayRoomCreateUseCase {
                 roomState.timeLimitSeconds(), "min_participants", roomState.minParticipants(), "max_participants",
                 roomState.maxParticipants()));
 
-        return RelayRoomCreateResponse.from(roomState);
+        return RelayRoomCreateResponse.from(roomState, timeLimitSettings);
     }
 }
