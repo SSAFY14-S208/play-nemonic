@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
+import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import java.time.Duration;
@@ -154,6 +155,40 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         return candidateRooms;
     }
 
+    @Override
+    public List<FlipbookRoomState> findAbandonedWaitingRooms(LocalDateTime idleCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<FlipbookRoomState> abandonedRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && abandonedRooms.size() < limit) {
+                findAbandonedWaitingRoom(roomKeys.next(), idleCutoff).ifPresent(abandonedRooms::add);
+            }
+        }
+
+        return abandonedRooms;
+    }
+
+    @Override
+    public List<FlipbookRoomState> findEmptyWaitingRooms(int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<FlipbookRoomState> emptyRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && emptyRooms.size() < limit) {
+                findEmptyWaitingRoom(roomKeys.next()).ifPresent(emptyRooms::add);
+            }
+        }
+
+        return emptyRooms;
+    }
+
     /**
      * Redis room key를 SCAN하며 현재 라운드 마감 시각이 지난 PLAYING 방만 조회합니다.
      */
@@ -269,6 +304,43 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         return Optional.of(roomState);
     }
 
+    private Optional<FlipbookRoomState> findEmptyWaitingRoom(String roomKey) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        FlipbookRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() == FlipbookRoomStatus.WAITING && roomState.participants().isEmpty()) {
+            return Optional.of(roomState);
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<FlipbookRoomState> findAbandonedWaitingRoom(String roomKey, LocalDateTime idleCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        FlipbookRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != FlipbookRoomStatus.WAITING || roomState.participants().isEmpty()) {
+            return Optional.empty();
+        }
+
+        if (!allParticipantsDisconnected(roomState)) {
+            return Optional.empty();
+        }
+
+        LocalDateTime idleSince = latestWaitingInactiveAt(roomState);
+        if (idleSince == null || idleSince.isAfter(idleCutoff)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
     private Optional<FlipbookRoomState> findExpiredPlayingRoom(String roomKey, LocalDateTime roundDeadlineCutoff) {
         String roomStateValue = redisTemplate.opsForValue().get(roomKey);
         if (!StringUtils.hasText(roomStateValue)) {
@@ -346,6 +418,30 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
 
         return roomState.participants().stream()
             .anyMatch(participant -> !participant.dropped() && participant.connected());
+    }
+
+    private boolean allParticipantsDisconnected(FlipbookRoomState roomState) {
+        return roomState.participants().stream().allMatch(participant -> !participant.connected());
+    }
+
+    private LocalDateTime latestWaitingInactiveAt(FlipbookRoomState roomState) {
+        LocalDateTime latest = roomState.updatedAt();
+        for (FlipbookRoomParticipant participant : roomState.participants()) {
+            latest = maxTime(latest, participant.disconnectedAt());
+        }
+
+        return latest;
+    }
+
+    private LocalDateTime maxTime(LocalDateTime left, LocalDateTime right) {
+        if (left == null) {
+            return right;
+        }
+        if (right == null) {
+            return left;
+        }
+
+        return left.isAfter(right) ? left : right;
     }
 
     private String createRoomKey(String roomCode) {

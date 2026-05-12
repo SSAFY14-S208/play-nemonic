@@ -40,4 +40,22 @@ public class FlipbookRoomCloseCommand {
 
         return FlipbookRoomCloseResult.closed(closedRoomState, closedAt);
     }
+
+    /**
+     * 백오피스 강제 삭제나 방치 방 정리처럼 FINISHED 여부와 무관하게 활성 방을 CLOSED 상태로 저장합니다.
+     */
+    public FlipbookRoomCloseResult closeActiveRoomIfUnchanged(FlipbookRoomState roomState, LocalDateTime now) {
+        LocalDateTime closedAt = now.truncatedTo(ChronoUnit.SECONDS);
+        if (roomState == null || roomState.status() == FlipbookRoomStatus.CLOSED) {
+            return FlipbookRoomCloseResult.noOp(roomState == null ? null : roomState.roomCode());
+        }
+
+        FlipbookRoomState closedRoomState = roomState.close(closedAt);
+        if (!flipbookRoomRepository.saveIfUnchanged(roomState, closedRoomState)) {
+            return FlipbookRoomCloseResult.noOp(roomState.roomCode());
+        }
+        flipbookInviteMetadataSyncService.syncWithRoomState(closedRoomState);
+
+        return FlipbookRoomCloseResult.closed(closedRoomState, closedAt);
+    }
 }
