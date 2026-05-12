@@ -71,6 +71,9 @@ const adminClient = ky.create({
           request.headers.set('Authorization', `Bearer ${accessToken}`)
         }
       },
+      ({ request }) => {
+        request.headers.set('X-Trace-Id', crypto.randomUUID())
+      },
     ],
     afterResponse: [
       async ({ request, response }) => {
