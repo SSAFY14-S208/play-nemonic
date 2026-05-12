@@ -27,14 +27,14 @@ const ARTWORK_HEIGHT = 3 * PART_SIZE + 2 * PART_GAP;
 const VIEWPORT_FILL_RATIO = 0.85;
 
 // 각 part가 spring으로 안착한 후 다음 카메라 pan을 시작하기 전 잠깐 머무는 시간(ms).
-// 0이면 ease 없이 연속 pan, 100ms 정도면 deliberate camera feel.
-const PART_HOLD_MS = 100;
+// 짧게 50ms 정도면 deliberate camera feel을 유지하면서 시퀀스 전체를 2초 내로 압축.
+const PART_HOLD_MS = 50;
 
 // 카메라 pan 트윈 transition. critically-damped cinematic 이동. spring을 쓰면
 // mid-flight 속도 carry-over로 두 번째·세 번째 pan이 점점 빨라지고 overshoot이 발생.
 const CAMERA_PAN_TRANSITION = {
   type: "tween" as const,
-  duration: 0.35,
+  duration: 0.3,
   ease: [0.32, 0.72, 0, 1] as [number, number, number, number],
 };
 
@@ -47,31 +47,35 @@ const SLOT_TRANSITION = {
   mass: 0.7,
 };
 
-// 사이드 카드 opacity fade-in. 카메라 줌아웃이 먼저 시작되도록 0.15s delay → 0.5s에 걸쳐 페이드인.
-// rotate는 한 번도 애니메이트되지 않고 ±45°로 고정.
-const SIDE_OPACITY_TRANSITION = {
-  opacity: {
-    duration: 0.5,
-    delay: 0.15,
-    ease: "easeOut" as const,
-  },
+// 사이드 카드 fan-out transition. settling 완료 후 fanning phase에서 rotate(0°→±45°)와
+// opacity(0→1)를 동시에 애니메이트. 0.34, 1.2 overshoot easing으로 살짝 튕기듯 펼쳐진다.
+const SIDE_ROTATION_TRANSITION = {
+  duration: 0.4,
+  ease: [0.34, 1.2, 0.5, 1] as [number, number, number, number],
 };
 
-type ChoreographyPhase = "intro-1" | "intro-2" | "intro-3" | "settling";
+type ChoreographyPhase =
+  | "intro-1"
+  | "intro-2"
+  | "intro-3"
+  | "settling"
+  | "fanning";
 
 const REVEAL_COUNT_BY_PHASE: Record<ChoreographyPhase, number> = {
   "intro-1": 1,
   "intro-2": 2,
   "intro-3": 3,
   settling: 3,
+  fanning: 3,
 };
 
-// 각 phase에서 카메라가 집중할 part index. (0=face, 1=body, 2=leg, settling은 정중앙)
+// 각 phase에서 카메라가 집중할 part index. (0=face, 1=body, 2=leg, settling/fanning은 정중앙)
 const FOCUS_INDEX_BY_PHASE: Record<ChoreographyPhase, number> = {
   "intro-1": 0,
   "intro-2": 1,
   "intro-3": 2,
   settling: 1,
+  fanning: 1,
 };
 
 // 각 phase에서 다음 phase 전환을 일으킬 reveal index. null이면 더 이상 trigger 없음.
@@ -85,6 +89,7 @@ const EXPECTED_REVEAL_INDEX_BY_PHASE: Record<
   "intro-2": 1,
   "intro-3": 2,
   settling: null,
+  fanning: null,
 };
 
 interface RelayBoothEntranceProps {
@@ -142,6 +147,7 @@ export default function RelayBoothEntrance({
       phase={phase}
       onPhaseChange={setPhase}
       onComplete={() => setCompleted(true)}
+      onLeftReveal={onLeftReveal}
       className={className}
     />
   );
@@ -151,6 +157,11 @@ interface ChoreographyTreeProps {
   phase: ChoreographyPhase;
   onPhaseChange: (next: ChoreographyPhase) => void;
   onComplete: () => void;
+  // settling 완료 → fanning phase 진입 시점에 호출. 사이드 카드 rotate/opacity 애니메이션과
+  // 동시에 부모(RelayBoothView)의 좌측 영역+배경이 페이드인되도록 트리거.
+  // FinalState에서도 idempotent 가드(hasRevealedRef) 뒤에서 동일하게 호출되므로 skip/
+  // reduced-motion 경로에서도 중복 발화 안전.
+  onLeftReveal: () => void;
   className?: string;
 }
 
@@ -163,6 +174,7 @@ function ChoreographyTree({
   phase,
   onPhaseChange,
   onComplete,
+  onLeftReveal,
   className,
 }: ChoreographyTreeProps) {
   const slotRef = useRef<HTMLDivElement>(null);
@@ -234,7 +246,11 @@ function ChoreographyTree({
     [phase, onPhaseChange],
   );
 
-  const isSettling = phase === "settling";
+  // isSettled: 카메라/슬롯이 settled 상태(slot center, scale 1)로 머물러야 하는 phase 통합 플래그.
+  //   - settling: 카메라가 슬롯으로 돌아오는 트랜지션이 진행 중.
+  //   - fanning: 카메라/슬롯은 이미 안착했고, 사이드 카드만 0° → ±45°로 회전 중.
+  const isSettled = phase === "settling" || phase === "fanning";
+  const isFanning = phase === "fanning";
   const focusIndex = FOCUS_INDEX_BY_PHASE[phase];
   const revealCount = REVEAL_COUNT_BY_PHASE[phase];
 
@@ -252,14 +268,14 @@ function ChoreographyTree({
       {measurement !== null && (
         <motion.div
           // Layer 1 — slot-positioner: viewport center ↔ slot center translate.
-          // 인트로 동안엔 viewport center에 정지, settling에서 slot center로 spring.
+          // 인트로 동안엔 viewport center에 정지, settling/fanning에서 slot center로 spring 후 정지.
           className="relative"
           initial={{
             x: measurement.centerOffset.x,
             y: measurement.centerOffset.y,
           }}
           animate={
-            isSettling
+            isSettled
               ? { x: 0, y: 0 }
               : {
                   x: measurement.centerOffset.x,
@@ -268,35 +284,52 @@ function ChoreographyTree({
           }
           transition={SLOT_TRANSITION}
           onAnimationComplete={() => {
-            // settling이 안착하는 시점에만 onComplete 호출. 인트로 동안엔 target이
-            // 변하지 않으므로 애니메이션도 일어나지 않아 콜백이 호출되지 않는다(방어용 가드).
-            if (isSettling) onComplete();
+            // settling 애니메이션이 안착하면 fanning phase로 전환 → 사이드 카드 rotate+opacity 시작.
+            // 동시에 onLeftReveal()로 부모의 배경+좌측 텍스트 페이드인 트리거 → 사이드 카드
+            // 펼침 애니메이션과 배경 등장이 같은 시간 창에서 진행된다.
+            // fanning phase에서는 slot-positioner target이 그대로(0,0) 유지되어 추가 애니메이션 없음.
+            if (phase === "settling") {
+              onPhaseChange("fanning");
+              onLeftReveal();
+            }
           }}
         >
-          {/* z-10 BACK — +45° 회전한 채 슬롯에 미리 마운트. 카메라 layer 밖에 있어
-              인트로 동안 1.0 scale로 존재하지만 opacity 0으로 숨음. settling에서만 fade-in. */}
+          {/* z-10 BACK — opacity 0으로 마운트되어 인트로/settling 동안 완전히 숨음 (z-30 카메라 카드의
+              반투명 영역으로도 비치지 않음). fanning phase에서 opacity 0→1, rotate 0°→+45°가 동시에
+              애니메이트되어 부채꼴로 펼쳐지면서 나타난다. 이 카드의 애니메이션 완료가
+              전체 시퀀스의 마지막 트리거. */}
           <motion.div
             className="absolute inset-0 z-10 origin-bottom"
-            initial={{ rotate: 45, opacity: 0 }}
-            animate={{ rotate: 45, opacity: isSettling ? 1 : 0 }}
-            transition={SIDE_OPACITY_TRANSITION}
+            initial={{ rotate: 0, opacity: 0 }}
+            animate={{
+              rotate: isFanning ? 45 : 0,
+              opacity: isFanning ? 1 : 0,
+            }}
+            transition={SIDE_ROTATION_TRANSITION}
+            onAnimationComplete={() => {
+              if (isFanning) onComplete();
+            }}
           >
             <RelayArtworkCard size={PART_SIZE} />
           </motion.div>
 
-          {/* z-20 MID — -45° 회전 사본. 동일 패턴. */}
+          {/* z-20 MID — 동일 패턴, fanning에서 0° → -45°. onComplete는 z-10에서 처리하므로 여기엔 없음. */}
           <motion.div
             className="absolute inset-0 z-20 origin-bottom"
-            initial={{ rotate: -45, opacity: 0 }}
-            animate={{ rotate: -45, opacity: isSettling ? 1 : 0 }}
-            transition={SIDE_OPACITY_TRANSITION}
+            initial={{ rotate: 0, opacity: 0 }}
+            animate={{
+              rotate: isFanning ? -45 : 0,
+              opacity: isFanning ? 1 : 0,
+            }}
+            transition={SIDE_ROTATION_TRANSITION}
           >
             <RelayArtworkCard size={PART_SIZE} />
           </motion.div>
 
           {/* Layer 2 — 카메라: 인트로 동안 scale=introScale, translateY=focus offset.
-              settling 시 scale=1, translateY=0으로 줌아웃. transform-origin은 default 50% 50%이라
-              스케일이 슬롯 중앙을 기준으로 적용되고, translateY로 focus part가 viewport 중앙에 온다. */}
+              settling/fanning 시 scale=1, translateY=0으로 줌아웃 후 정지. transform-origin은
+              default 50% 50%이라 스케일이 슬롯 중앙을 기준으로 적용되고, translateY로 focus part가
+              viewport 중앙에 온다. */}
           <motion.div
             className="relative z-30"
             initial={{
@@ -304,7 +337,7 @@ function ChoreographyTree({
               y: PART_STEP * 1 * measurement.introScale,
             }}
             animate={
-              isSettling
+              isSettled
                 ? { scale: 1, y: 0 }
                 : {
                     scale: measurement.introScale,

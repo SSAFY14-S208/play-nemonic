@@ -81,16 +81,14 @@ export default function RelayBoothView() {
 
   return (
     <>
-      <section className="relative isolate min-h-full overflow-hidden border border-relay-border bg-relay-background">
+      <section className="relative isolate min-h-full overflow-auto bg-relay-background lg:overflow-hidden">
         {/* 데코 배경 — sparkle/squiggle/post-it 등 (lg+에서만 표시).
             인트로 시퀀스가 끝난 시점(좌측 페이드 인 트리거)에 함께 등장. */}
         <RelayBoothBackground isVisible={isLeftRevealed} />
 
         {/* 컨테이너 — 모바일/태블릿: 세로 stack, lg+: 가로 row.
             높이도 lg+에서만 고정(900px), 그 이하는 viewport 높이 기준으로 자연스럽게. */}
-        <div
-          className="mx-auto flex min-h-screen w-full max-w-2xl flex-col-reverse items-center justify-center gap-8 px-4 py-8 sm:px-6 lg:h-screen lg:min-h-0 lg:max-w-360 lg:flex-row lg:justify-between lg:gap-12 lg:px-[5%] lg:py-0"
-        >
+        <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col-reverse items-center justify-center gap-8 px-4 py-8 sm:px-6 lg:h-screen lg:min-h-0 lg:max-w-360 lg:flex-row lg:justify-between lg:gap-12 lg:px-[5%] lg:py-0">
           {/* 좌측 컬럼 — 안내 콘텐츠 */}
           <div className="flex w-full flex-1 py-8 lg:max-w-150 lg:py-12">
             <motion.div
@@ -150,9 +148,7 @@ export default function RelayBoothView() {
 
           {/* 우측 컬럼 — 마술사 아트워크 */}
           <div className="flex w-full items-center justify-center py-4 lg:max-w-125 lg:flex-1 lg:py-0">
-            <RelayBoothEntrance
-              onLeftReveal={() => setIsLeftRevealed(true)}
-            />
+            <RelayBoothEntrance onLeftReveal={() => setIsLeftRevealed(true)} />
           </div>
         </div>
       </section>
