@@ -1,5 +1,4 @@
 export { default as CountdownTimer } from "./CountdownTimer";
-export { default as DrawingToolPanel } from "./DrawingToolPanel";
 export { default as RelayArtworkCard } from "./RelayArtworkCard";
 export { default as RelayBoothBackground } from "./RelayBoothBackground";
 export { default as RelayBoothEntrance } from "./RelayBoothEntrance";

@@ -36,29 +36,6 @@ export function getFlipbookStepFromPathname(pathname: string): FlipbookStep {
   return 'booth'
 }
 
-export const FLIPBOOK_COLORS = [
-  '#212121',
-  '#4d4d52',
-  '#8c8c94',
-  '#2e73f2',
-  '#ffffff',
-  '#ebebed',
-  '#c7c7cc',
-  '#8cc7f2',
-  '#4da666',
-  '#33804d',
-  '#d93333',
-  '#804d33',
-  '#a6d98c',
-  '#ff736b',
-  '#ff9e33',
-  '#ffd933',
-  '#8c5926',
-  '#a6338c',
-  '#ff9ec7',
-  '#ffc7a6',
-]
-
 export const FLIPBOOK_ROOM_CODE = 'ABC123'
 export const FLIPBOOK_TOPIC = '동물원에 간 우주비행사'
 export const FLIPBOOK_BACKGROUND_COLOR = '#ffffff'

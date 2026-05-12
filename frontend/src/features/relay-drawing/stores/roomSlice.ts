@@ -1,16 +1,26 @@
-import type { StateCreator } from 'zustand'
+import type { StateCreator } from "zustand";
 
-import { DEFAULT_TIME_LIMIT_ALLOWED_SECONDS, DEFAULT_TIME_LIMIT_SECONDS } from '../constants'
+import {
+  DEFAULT_TIME_LIMIT_ALLOWED_SECONDS,
+  DEFAULT_TIME_LIMIT_SECONDS,
+} from "../constants";
+import {
+  DEFAULT_DRAWING_STROKE_WIDTH,
+  DRAWING_COLORS,
+} from "@/shared/constants";
 
-import type { RelayDrawingStore, RoomSlice } from './store.types'
+import type { RelayDrawingStore, RoomSlice } from "./store.types";
 
 // 정원 기본값 — 백엔드 hydrate 전에는 가이드 §9의 기본 정원으로 표시한다.
-const DEFAULT_MIN_PARTICIPANTS = 2
-const DEFAULT_MAX_PARTICIPANTS = 6
+const DEFAULT_MIN_PARTICIPANTS = 2;
+const DEFAULT_MAX_PARTICIPANTS = 6;
 
-export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice> = (
-  set,
-) => ({
+export const createRoomSlice: StateCreator<
+  RelayDrawingStore,
+  [],
+  [],
+  RoomSlice
+> = (set) => ({
   roomCode: null,
   roomStatus: null,
   hostUserUuid: null,
@@ -35,7 +45,7 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
       ...(payload.timeLimitAllowedSeconds && {
         timeLimitAllowedSeconds: payload.timeLimitAllowedSeconds,
       }),
-    })
+    });
   },
 
   setRoomStatus: (roomStatus) => set({ roomStatus }),
@@ -59,8 +69,14 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
       timeLimitAllowedSeconds: DEFAULT_TIME_LIMIT_ALLOWED_SECONDS,
       dismissalReason: null,
       // 캔버스 슬라이스 리셋
-      activeRoundKey: 'face',
+      activeRoundKey: "face",
+      selectedToolKey: "pencil",
+      selectedColor: DRAWING_COLORS[0],
+      selectedOpacity: 1,
+      strokeWidth: DEFAULT_DRAWING_STROKE_WIDTH,
+      recentColors: [],
       roundLines: { face: [], body: [], legs: [] },
+      roundRedoStack: { face: [], body: [], legs: [] },
       canvasIndex: null,
       currentPart: null,
       partDeadlineAt: null,
@@ -75,9 +91,9 @@ export const createRoomSlice: StateCreator<RelayDrawingStore, [], [], RoomSlice>
       pendingAutoSubmitTrigger: 0,
       // 결과 슬라이스 리셋
       completedAt: null,
-      resultRevealStep: 'final',
+      resultRevealStep: "final",
       resultItems: [],
       activeResultIndex: 0,
-    })
+    });
   },
-})
+});

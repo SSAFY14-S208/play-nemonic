@@ -73,7 +73,9 @@ export interface CanvasSlice {
   activeRoundKey: RelayRoundKey
   selectedToolKey: RelayToolKey
   selectedColor: string
+  selectedOpacity: number
   strokeWidth: number
+  recentColors: string[]
   roundLines: RelayRoundLines
 
   // 서버 배정 — getRelayRoomAssignmentMe 응답으로 채워진다.
@@ -125,7 +127,9 @@ export interface CanvasSlice {
   completeRound: () => void
   setSelectedToolKey: (toolKey: RelayToolKey) => void
   setSelectedColor: (color: string) => void
+  setSelectedOpacity: (opacity: number) => void
   setStrokeWidth: (strokeWidth: number) => void
+  addRecentColor: (color: string) => void
   commitLine: (line: RelayDrawLine) => void
   appendPointToLastLine: (point: RelayDrawPoint) => void
   undoLine: () => void
