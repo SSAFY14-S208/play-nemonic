@@ -39,6 +39,15 @@ public class ArtifactShareServiceImpl implements ArtifactShareService {
     @Transactional
     @Override
     public ShareCreateResponse createArtifactShare(String userUuidValue, String artifactIdValue) {
+        try {
+            return createArtifactShareInternal(userUuidValue, artifactIdValue);
+        } catch (RuntimeException e) {
+            shareEventLogger.logArtifactShareCreateFailed(userUuidValue, artifactIdValue, e);
+            throw e;
+        }
+    }
+
+    private ShareCreateResponse createArtifactShareInternal(String userUuidValue, String artifactIdValue) {
         ArtifactQrAsset asset = artifactQrAssetService.prepareQrAsset(userUuidValue, artifactIdValue);
         String imageUrl = minioPublicUrlResolver.resolve(asset.cacheObjectKey());
         if (!StringUtils.hasText(imageUrl)) {

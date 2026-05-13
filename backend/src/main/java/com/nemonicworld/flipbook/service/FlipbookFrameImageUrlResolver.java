@@ -1,6 +1,7 @@
 package com.nemonicworld.flipbook.service;
 
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -36,8 +37,9 @@ public class FlipbookFrameImageUrlResolver {
         String normalizedObjectKey = trimSlashes(objectKey.trim());
         if (!StringUtils.hasText(publicUrl) || !StringUtils.hasText(bucket)
             || !StringUtils.hasText(normalizedObjectKey)) {
-            log.warn("플립북 프레임 이미지 URL을 생성할 수 없습니다. publicUrl={}, bucket={}, objectKey={}", publicUrl, bucket,
-                objectKey);
+            log.warn("플립북 프레임 이미지 URL을 생성할 수 없습니다. publicUrlConfigured={} bucketConfigured={} objectKeyHash={}",
+                StringUtils.hasText(publicUrl), StringUtils.hasText(bucket),
+                StructuredEventLogger.sha256Prefix(objectKey));
 
             return null;
         }
@@ -45,7 +47,8 @@ public class FlipbookFrameImageUrlResolver {
         try {
             return "%s/%s/%s".formatted(publicUrl, encodePathSegment(bucket), encodeObjectKey(normalizedObjectKey));
         } catch (RuntimeException e) {
-            log.warn("플립북 프레임 이미지 URL 생성 중 오류가 발생했습니다. objectKey={}", objectKey, e);
+            log.warn("플립북 프레임 이미지 URL 생성 중 오류가 발생했습니다. objectKeyHash={}", StructuredEventLogger.sha256Prefix(objectKey),
+                e);
 
             return null;
         }

@@ -106,8 +106,10 @@ public class RelayOrphanObjectCleanupService {
                 deletedCount++;
             } catch (RuntimeException e) {
                 failedCount++;
-                RelayRoomEventLogger.apiWarn("relay_orphan_cleanup_failed", "failed to cleanup relay orphan object",
-                    metadata("target", target, "object_key", objectKey, "error", e.getClass().getSimpleName()), e);
+                RelayRoomEventLogger.apiWarn(
+                    "relay_orphan_cleanup_failed", "failed to cleanup relay orphan object", metadata("target", target,
+                        "object_key_hash", RelayRoomEventLogger.hash(objectKey), "error", e.getClass().getSimpleName()),
+                    e);
             }
         }
 

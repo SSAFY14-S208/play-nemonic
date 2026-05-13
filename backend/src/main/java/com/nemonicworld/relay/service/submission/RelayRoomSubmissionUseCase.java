@@ -202,8 +202,8 @@ public class RelayRoomSubmissionUseCase {
 
                 RelayRoomEventLogger.apiWarn("relay_minio_upload_redis_save_failed", cleanupMessage,
                     metadata("room_id", latestRoomState.roomCode(), "uuid", viewerUserUuid, "canvas_index",
-                        latestCurrentAssignment.canvasIndex(), "part", latestCurrentAssignment.part(), "object_key",
-                        drawingObjectKey),
+                        latestCurrentAssignment.canvasIndex(), "part", latestCurrentAssignment.part(),
+                        "object_key_hash", RelayRoomEventLogger.hash(drawingObjectKey)),
                     null);
                 log.warn("{} roomCode={}, canvasIndex={}, part={}", cleanupMessage, latestRoomState.roomCode(),
                     latestCurrentAssignment.canvasIndex(), latestCurrentAssignment.part());

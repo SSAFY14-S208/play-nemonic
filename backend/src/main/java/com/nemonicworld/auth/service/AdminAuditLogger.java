@@ -1,37 +1,24 @@
 package com.nemonicworld.auth.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.common.jwt.AdminPrincipal;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AdminAuditLogger {
 
-    private static final Logger log = LoggerFactory.getLogger(AdminAuditLogger.class);
-    private static final String SERVICE_NAME = "backoffice-api";
     private static final String TARGET_TYPE_ADMIN_ACCOUNT = "admin_account";
     private static final String TARGET_TYPE_MEMO = "memo";
     private static final String HIDDEN_REASON_ADMIN_HIDDEN = "admin_hidden";
     private static final String UNKNOWN = "unknown";
 
-    private final ObjectMapper objectMapper;
-
-    public AdminAuditLogger(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
-
     public void logLoginSuccess(AdminUser adminUser, AdminClientInfo clientInfo) {
         Map<String, Object> metadata = baseMetadata(adminUser.getId().toString(), adminUser.getRole().getValue(),
             clientInfo, adminUser.getId().toString(), "login", "success");
-        emit("INFO", "admin_login", "admin login succeeded", clientInfo, metadata);
+        emit("INFO", "admin_login_success", "admin login succeeded", clientInfo, metadata);
     }
 
     public void logLoginFailure(String attemptedLoginId, AdminUser adminUser, AdminClientInfo clientInfo) {
@@ -319,20 +306,11 @@ public class AdminAuditLogger {
 
     private void emit(String level, String eventName, String message, AdminClientInfo clientInfo,
         Map<String, Object> metadata) {
-        Map<String, Object> auditLog = new LinkedHashMap<>();
-        auditLog.put("@timestamp", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
-        auditLog.put("level", level);
-        auditLog.put("service", SERVICE_NAME);
-        auditLog.put("trace_id", clientInfo.traceId());
-        auditLog.put("log_type", "audit_event");
-        auditLog.put("event_name", eventName);
-        auditLog.put("message", message);
-        auditLog.put("metadata", metadata);
-
-        try {
-            System.out.println(objectMapper.writeValueAsString(auditLog));
-        } catch (JsonProcessingException e) {
-            log.error("audit_log_emit_failure event_name={}", eventName, e);
+        if ("WARN".equals(level)) {
+            StructuredEventLogger.auditWarn(eventName, message, clientInfo.traceId(), metadata);
+            return;
         }
+
+        StructuredEventLogger.audit(eventName, message, clientInfo.traceId(), metadata);
     }
 }
