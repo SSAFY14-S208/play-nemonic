@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
@@ -31,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class FlipbookRoomAbandonedCloseServiceTest {
 
     private static final String WAITING_ROOM_CODE = "FWAIT1";
+    private static final String PLAYING_ROOM_CODE = "FPLAY1";
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 12, 11, 0).truncatedTo(ChronoUnit.SECONDS);
 
     @Mock
@@ -48,16 +50,21 @@ class FlipbookRoomAbandonedCloseServiceTest {
     void setUp() {
         service = new FlipbookRoomAbandonedCloseService(flipbookRoomRepository,
             new FlipbookRoomCloseCommand(flipbookRoomRepository, flipbookInviteMetadataSyncService),
-            flipbookRoomEventPublisher, 300, 10);
+            flipbookRoomEventPublisher, 300, 300, 10);
     }
 
     @Test
-    void closeAbandonedRoomsClosesDisconnectedWaitingRooms() {
+    void closeAbandonedRoomsClosesWaitingAndPlayingRooms() {
         FlipbookRoomState waitingRoom = room(WAITING_ROOM_CODE, FlipbookRoomStatus.WAITING, NOW.minusMinutes(6),
             disconnectedParticipant(UUID.randomUUID(), true, 0, NOW.minusMinutes(6)));
+        FlipbookRoomState playingRoom = room(PLAYING_ROOM_CODE, FlipbookRoomStatus.PLAYING, NOW.minusMinutes(6),
+            disconnectedParticipant(UUID.randomUUID(), true, 0, NOW.minusMinutes(6)),
+            droppedParticipant(UUID.randomUUID(), false, 1, NOW.minusMinutes(6), NOW.minusMinutes(6)));
         given(flipbookRoomRepository.findEmptyWaitingRooms(10)).willReturn(List.of());
         given(flipbookRoomRepository.findAbandonedWaitingRooms(NOW.minusMinutes(5), 10))
             .willReturn(List.of(waitingRoom));
+        given(flipbookRoomRepository.findAbandonedPlayingRooms(NOW.minusMinutes(5), 10))
+            .willReturn(List.of(playingRoom));
         given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
             .willReturn(true);
 
@@ -65,11 +72,16 @@ class FlipbookRoomAbandonedCloseServiceTest {
 
         assertThat(result.scannedWaitingRoomCount()).isEqualTo(1);
         assertThat(result.closedWaitingRoomCount()).isEqualTo(1);
+        assertThat(result.scannedPlayingRoomCount()).isEqualTo(1);
+        assertThat(result.closedPlayingRoomCount()).isEqualTo(1);
         verify(flipbookRoomEventPublisher).publishRoomClosed(WAITING_ROOM_CODE, NOW);
+        verify(flipbookRoomEventPublisher).publishRoomClosed(PLAYING_ROOM_CODE, NOW);
         ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
-        verify(flipbookRoomRepository).saveIfUnchanged(eq(waitingRoom), updatedStateCaptor.capture());
-        assertThat(updatedStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.CLOSED);
-        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedStateCaptor.getValue());
+        verify(flipbookRoomRepository, times(2)).saveIfUnchanged(any(FlipbookRoomState.class),
+            updatedStateCaptor.capture());
+        assertThat(updatedStateCaptor.getAllValues()).extracting(FlipbookRoomState::status)
+            .containsOnly(FlipbookRoomStatus.CLOSED);
+        verify(flipbookInviteMetadataSyncService, times(2)).syncWithRoomState(any(FlipbookRoomState.class));
     }
 
     @Test
@@ -77,6 +89,7 @@ class FlipbookRoomAbandonedCloseServiceTest {
         FlipbookRoomState emptyWaitingRoom = emptyWaitingRoom();
         given(flipbookRoomRepository.findEmptyWaitingRooms(10)).willReturn(List.of(emptyWaitingRoom));
         given(flipbookRoomRepository.findAbandonedWaitingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
+        given(flipbookRoomRepository.findAbandonedPlayingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
         given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
             .willReturn(true);
 
@@ -84,6 +97,8 @@ class FlipbookRoomAbandonedCloseServiceTest {
 
         assertThat(result.scannedWaitingRoomCount()).isEqualTo(1);
         assertThat(result.closedWaitingRoomCount()).isEqualTo(1);
+        assertThat(result.scannedPlayingRoomCount()).isZero();
+        assertThat(result.closedPlayingRoomCount()).isZero();
         verify(flipbookRoomEventPublisher).publishRoomClosed(WAITING_ROOM_CODE, NOW);
         ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
         verify(flipbookRoomRepository).saveIfUnchanged(eq(emptyWaitingRoom), updatedStateCaptor.capture());
@@ -99,12 +114,14 @@ class FlipbookRoomAbandonedCloseServiceTest {
         given(flipbookRoomRepository.findEmptyWaitingRooms(10)).willReturn(List.of());
         given(flipbookRoomRepository.findAbandonedWaitingRooms(NOW.minusMinutes(5), 10))
             .willReturn(List.of(waitingRoom));
+        given(flipbookRoomRepository.findAbandonedPlayingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
         given(flipbookRoomRepository.saveIfUnchanged(any(FlipbookRoomState.class), any(FlipbookRoomState.class)))
             .willReturn(false);
 
         FlipbookRoomAbandonedCloseProcessResult result = service.closeAbandonedRooms(NOW);
 
         assertThat(result.closedWaitingRoomCount()).isZero();
+        assertThat(result.closedPlayingRoomCount()).isZero();
         verify(flipbookRoomEventPublisher, never()).publishRoomClosed(any(), any());
         verify(flipbookInviteMetadataSyncService, never()).syncWithRoomState(any());
     }
@@ -113,11 +130,13 @@ class FlipbookRoomAbandonedCloseServiceTest {
     void closeAbandonedRoomsUsesConfiguredCutoff() {
         given(flipbookRoomRepository.findEmptyWaitingRooms(10)).willReturn(List.of());
         given(flipbookRoomRepository.findAbandonedWaitingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
+        given(flipbookRoomRepository.findAbandonedPlayingRooms(NOW.minusMinutes(5), 10)).willReturn(List.of());
 
         service.closeAbandonedRooms(NOW);
 
         verify(flipbookRoomRepository).findEmptyWaitingRooms(10);
         verify(flipbookRoomRepository).findAbandonedWaitingRooms(NOW.minusMinutes(5), 10);
+        verify(flipbookRoomRepository).findAbandonedPlayingRooms(NOW.minusMinutes(5), 10);
     }
 
     private FlipbookRoomState room(String roomCode, FlipbookRoomStatus status, LocalDateTime updatedAt,
@@ -137,5 +156,11 @@ class FlipbookRoomAbandonedCloseServiceTest {
         LocalDateTime disconnectedAt) {
         return new FlipbookRoomParticipant(userUuid.toString(), "Mango-%d".formatted(joinOrder), host, joinOrder, false,
             disconnectedAt, NOW.minusMinutes(10));
+    }
+
+    private FlipbookRoomParticipant droppedParticipant(UUID userUuid, boolean host, int joinOrder,
+        LocalDateTime disconnectedAt, LocalDateTime droppedAt) {
+        return new FlipbookRoomParticipant(userUuid.toString(), "Mango-%d".formatted(joinOrder), host, joinOrder, false,
+            disconnectedAt, NOW.minusMinutes(10), true, droppedAt);
     }
 }
