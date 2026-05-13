@@ -15,6 +15,7 @@ import com.nemonicworld.backoffice.setting.service.SystemParameterTypedUpdateMap
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.community.service.support.CommunityRuntimeSettingsProvider;
 import com.nemonicworld.flipbook.service.support.FlipbookMinFramesPerFlipbookSettings;
 import com.nemonicworld.flipbook.service.support.FlipbookReconnectGraceSettings;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
@@ -64,8 +65,10 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private static final String INVALID_FLIPBOOK_MIN_FRAMES_MESSAGE = "플립북 최소 프레임 수 설정이 올바르지 않습니다.";
     private static final String INVALID_FLIPBOOK_RECONNECT_GRACE_MESSAGE = "플립북 재연결 유예 시간 설정이 올바르지 않습니다.";
     private static final String INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE = "시스템 파라미터 값이 올바르지 않습니다.";
-    private static final Set<String> POSITIVE_VALUE_SETTING_KEYS = Set.of("community.max_memo_count",
-        "fortune.daily_limit", "cs_inquiry.unresolved_alert_threshold_hours");
+    private static final Set<String> POSITIVE_VALUE_SETTING_KEYS = Set.of(
+        CommunityRuntimeSettingsProvider.MAX_MEMO_COUNT_SETTING_KEY,
+        CommunityRuntimeSettingsProvider.REPORT_HIDE_THRESHOLD_SETTING_KEY, "fortune.daily_limit",
+        "cs_inquiry.unresolved_alert_threshold_hours");
     private static final String REDACTED_VALUE = "[redacted]";
     private static final List<String> SENSITIVE_KEY_TOKENS = List.of("password", "secret", "token", "jwt",
         "authorization", "webhook", "smtp", "api_key", "apikey", "access_key", "refresh");

@@ -1,4 +1,4 @@
-package com.nemonicworld.community.service;
+package com.nemonicworld.community.service.memo;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -27,6 +27,7 @@ import com.nemonicworld.community.service.moderation.CommunityMemoModerationClie
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationException;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationRequest;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationResult;
+import com.nemonicworld.community.service.support.CommunityMemoEventLogger;
 import com.nemonicworld.files.entity.FileUpload;
 import com.nemonicworld.files.entity.FileUploadPurpose;
 import com.nemonicworld.files.repository.FileUploadRepository;
@@ -43,7 +44,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import static com.nemonicworld.community.service.CommunityMemoEventLogger.metadata;
+import static com.nemonicworld.community.service.support.CommunityMemoEventLogger.metadata;
 
 /**
  * 커뮤니티 캔버스 공용 벽 메모 조회 유스케이스를 처리합니다.
@@ -73,7 +74,6 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private static final String MODERATION_BLOCKED_MESSAGE = "부적절한 표현이 감지되어 게시할 수 없습니다.";
     private static final String MODERATION_UNAVAILABLE_MESSAGE = "커뮤니티 메모 모더레이션을 완료할 수 없습니다.";
     private static final String EMPTY_DECORATION_JSON = "{}";
-    private static final int REPORT_HIDE_THRESHOLD = 5;
     private static final int MODERATION_LOG_TEXT_PREVIEW_LIMIT = 300;
     private static final long MODERATION_SLOW_LOG_THRESHOLD_MS = 30_000L;
     private static final TypeReference<Map<String, Object>> DECORATION_TYPE = new TypeReference<>() {
@@ -364,13 +364,14 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             throw new NotFoundException(COMMUNITY_MEMO_NOT_FOUND_MESSAGE);
         }
 
-        boolean hidden = reportCount >= REPORT_HIDE_THRESHOLD;
+        int reportHideThreshold = communityRuntimeSettingsProvider.currentReportHideThreshold();
+        boolean hidden = reportCount >= reportHideThreshold;
         if (hidden) {
             CommunityMemoEventLogger.business("community_memo_report_threshold_reached", userUuid, metadata("memo_id",
-                memoId, "report_count", reportCount, "threshold", REPORT_HIDE_THRESHOLD, "reason", reason.value()));
-            communityMemoRepository.hideMemoByReportThreshold(memoId, reportedAt, REPORT_HIDE_THRESHOLD);
+                memoId, "report_count", reportCount, "threshold", reportHideThreshold, "reason", reason.value()));
+            communityMemoRepository.hideMemoByReportThreshold(memoId, reportedAt, reportHideThreshold);
             CommunityMemoEventLogger.business("community_memo_auto_hidden_by_report", userUuid,
-                metadata("memo_id", memoId, "report_count", reportCount, "threshold", REPORT_HIDE_THRESHOLD,
+                metadata("memo_id", memoId, "report_count", reportCount, "threshold", reportHideThreshold,
                     "hidden_reason", "report_threshold", "hidden_at", reportedAt));
         }
 

@@ -76,6 +76,11 @@ public class SystemParameterController {
             "unit": "count",
             "description": "커뮤니티 캔버스 표시 메모 수 제한"
           },
+          "communityReportHideThreshold": {
+            "value": 5,
+            "unit": "count",
+            "description": "커뮤니티 메모 자동 숨김 신고 기준"
+          },
           "relayRoomParticipantLimit": {
             "min": 3,
             "max": 8,

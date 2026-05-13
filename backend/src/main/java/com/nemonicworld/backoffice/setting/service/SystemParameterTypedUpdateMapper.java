@@ -18,6 +18,7 @@ final class SystemParameterTypedUpdateMapper {
         }
 
         add(updates, objectMapper, "community.max_memo_count", request.communityMaxMemoCount());
+        add(updates, objectMapper, "community.report_hide_threshold", request.communityReportHideThreshold());
         add(updates, objectMapper, "relay.room_participant_limit", request.relayRoomParticipantLimit());
         add(updates, objectMapper, "relay.room_time_limit_seconds", request.relayRoomTimeLimitSeconds());
         add(updates, objectMapper, "relay.reconnect_grace_seconds", request.relayReconnectGraceSeconds());

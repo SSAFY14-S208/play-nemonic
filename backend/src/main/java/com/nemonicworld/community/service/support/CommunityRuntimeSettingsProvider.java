@@ -14,7 +14,9 @@ import org.springframework.util.StringUtils;
 public class CommunityRuntimeSettingsProvider {
 
     public static final String MAX_MEMO_COUNT_SETTING_KEY = "community.max_memo_count";
+    public static final String REPORT_HIDE_THRESHOLD_SETTING_KEY = "community.report_hide_threshold";
     public static final int DEFAULT_MAX_VISIBLE_MEMO_COUNT = 50;
+    public static final int DEFAULT_REPORT_HIDE_THRESHOLD = 5;
 
     private static final Logger log = LoggerFactory.getLogger(CommunityRuntimeSettingsProvider.class);
 
@@ -29,7 +31,10 @@ public class CommunityRuntimeSettingsProvider {
 
     public int currentMaxVisibleMemoCount() {
         return systemParameterRepository.findByKey(MAX_MEMO_COUNT_SETTING_KEY).map(SystemParameter::value)
-            .filter(StringUtils::hasText).map(this::parseMaxVisibleMemoCount).orElseGet(() -> {
+            .filter(StringUtils::hasText)
+            .map(
+                value -> parsePositiveIntegerSetting(MAX_MEMO_COUNT_SETTING_KEY, value, DEFAULT_MAX_VISIBLE_MEMO_COUNT))
+            .orElseGet(() -> {
                 log.warn("community max memo count setting is missing or blank. key={} fallbackValue={}",
                     MAX_MEMO_COUNT_SETTING_KEY, DEFAULT_MAX_VISIBLE_MEMO_COUNT);
 
@@ -37,23 +42,35 @@ public class CommunityRuntimeSettingsProvider {
             });
     }
 
-    private int parseMaxVisibleMemoCount(String settingValue) {
+    public int currentReportHideThreshold() {
+        return systemParameterRepository.findByKey(REPORT_HIDE_THRESHOLD_SETTING_KEY).map(SystemParameter::value)
+            .filter(StringUtils::hasText).map(value -> parsePositiveIntegerSetting(REPORT_HIDE_THRESHOLD_SETTING_KEY,
+                value, DEFAULT_REPORT_HIDE_THRESHOLD))
+            .orElseGet(() -> {
+                log.warn("community report hide threshold setting is missing or blank. key={} fallbackValue={}",
+                    REPORT_HIDE_THRESHOLD_SETTING_KEY, DEFAULT_REPORT_HIDE_THRESHOLD);
+
+                return DEFAULT_REPORT_HIDE_THRESHOLD;
+            });
+    }
+
+    private int parsePositiveIntegerSetting(String key, String settingValue, int fallbackValue) {
         try {
             JsonNode root = objectMapper.readTree(settingValue);
             JsonNode value = root == null || !root.isObject() ? null : root.get("value");
             if (value == null || !value.isIntegralNumber() || !value.canConvertToInt() || value.asInt() <= 0) {
-                log.warn("community max memo count setting is invalid. key={} fallbackValue={} reason=invalid_value",
-                    MAX_MEMO_COUNT_SETTING_KEY, DEFAULT_MAX_VISIBLE_MEMO_COUNT);
+                log.warn("community positive integer setting is invalid. key={} fallbackValue={} reason=invalid_value",
+                    key, fallbackValue);
 
-                return DEFAULT_MAX_VISIBLE_MEMO_COUNT;
+                return fallbackValue;
             }
 
             return value.asInt();
         } catch (JsonProcessingException e) {
-            log.warn("community max memo count setting is invalid. key={} fallbackValue={} reason=invalid_json",
-                MAX_MEMO_COUNT_SETTING_KEY, DEFAULT_MAX_VISIBLE_MEMO_COUNT, e);
+            log.warn("community positive integer setting is invalid. key={} fallbackValue={} reason=invalid_json", key,
+                fallbackValue, e);
 
-            return DEFAULT_MAX_VISIBLE_MEMO_COUNT;
+            return fallbackValue;
         }
     }
 }

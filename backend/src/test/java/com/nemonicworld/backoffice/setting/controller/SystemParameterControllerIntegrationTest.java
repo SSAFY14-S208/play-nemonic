@@ -285,6 +285,32 @@ class SystemParameterControllerIntegrationTest {
     }
 
     @Test
+    void adminUpdatesCommunityReportHideThresholdParameter() throws Exception {
+        insertSetting(10L, "community.report_hide_threshold",
+            "{\"value\":5,\"unit\":\"count\",\"description\":\"커뮤니티 메모 자동 숨김 신고 기준\"}", SUPER_ADMIN_ID);
+
+        mockMvc
+            .perform(
+                patch("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                        {
+                          "communityReportHideThreshold": {
+                            "value": 3,
+                            "unit": "count",
+                            "description": "커뮤니티 메모 자동 숨김 신고 기준"
+                          }
+                        }
+                        """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].key").value("community.report_hide_threshold"))
+            .andExpect(jsonPath("$.data.items[0].value.value").value(3))
+            .andExpect(jsonPath("$.data.items[0].updatedBy.id").value(ADMIN_ID));
+
+        assertThat(findSettingValue(10L))
+            .isEqualTo("{\"value\":3,\"unit\":\"count\",\"description\":\"커뮤니티 메모 자동 숨김 신고 기준\"}");
+    }
+
+    @Test
     void systemParameterTypedUpdateAcceptsRelayParticipantLimit() throws Exception {
         insertSetting(10L, "relay.room_participant_limit",
             "{\"min\":2,\"max\":6,\"unit\":\"people\",\"description\":\"릴레이 방 참여 인원 제한\"}", ADMIN_ID);
