@@ -18,6 +18,8 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookArtifactRepository;
 import com.nemonicworld.flipbook.repository.FlipbookResultArtifactRow;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.result.FlipbookRoomResultQueryUseCase;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.user.entity.AppUser;

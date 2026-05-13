@@ -5,7 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
-import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.support.FlipbookMinFramesPerFlipbookSettings;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;

@@ -27,8 +27,18 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.assignment.FlipbookRoomAssignmentQueryUseCase;
+import com.nemonicworld.flipbook.service.game.FlipbookRoomStartUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomCreateUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomKickUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomLeaveUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomSettingsUseCase;
+import com.nemonicworld.flipbook.service.submission.FlipbookFrameImageUrlResolver;
+import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomViewerFactory;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.invite.repository.InviteRepository;
@@ -376,7 +386,7 @@ class FlipbookRoomServiceImplTest {
             participant(thirdUuid, "포도", false, 2));
         LocalDateTime startedAt = LocalDateTime.now().minusSeconds(10).truncatedTo(ChronoUnit.SECONDS);
         FlipbookRoomState playingRoomState = waitingRoomState.startGame(8,
-            FlipbookFrameAssignmentGenerator.generate(waitingRoomState.participants(), 8), startedAt);
+            generateAssignments(waitingRoomState.participants(), 8), startedAt);
         given(anonymousUserResolver.resolve(participantUuid.toString())).willReturn(participantUser);
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
         given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(playingRoomState));
@@ -722,6 +732,17 @@ class FlipbookRoomServiceImplTest {
         boolean connected, LocalDateTime disconnectedAt) {
         return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, joinOrder, connected, disconnectedAt,
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private List<FlipbookFrameAssignment> generateAssignments(List<FlipbookRoomParticipant> participants,
+        int totalRounds) {
+        return java.util.stream.IntStream.range(0, participants.size()).boxed()
+            .flatMap(flipbookIndex -> java.util.stream.IntStream.rangeClosed(1, totalRounds).mapToObj(round -> {
+                FlipbookRoomParticipant assignedParticipant = participants
+                    .get((flipbookIndex + round - 1) % participants.size());
+                return new FlipbookFrameAssignment(flipbookIndex, round - 1, round, assignedParticipant.userUuid(),
+                    FlipbookFrameAssignmentStatus.PENDING, null, null, false, false, null);
+            })).toList();
     }
 
     private AppUser appUserWithNickname(UUID userUuid, String nickname) {

@@ -22,6 +22,7 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomTimeUpNotificationReposi
 import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
+import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.timeout.FlipbookRoomTimeoutResult;
 import com.nemonicworld.flipbook.service.timeout.FlipbookRoomTimeoutService;
 import com.nemonicworld.flipbook.service.timeout.FlipbookTimeoutProcessResult;

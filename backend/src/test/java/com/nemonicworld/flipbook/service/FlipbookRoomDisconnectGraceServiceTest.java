@@ -27,8 +27,9 @@ import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceRoomR
 import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookRoomDisconnectGraceService;
 import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
-import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
+import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
+import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
