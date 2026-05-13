@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import { ArrowLeft, Clock3, Crown, UsersRound, X } from "lucide-react";
+import { motion } from "motion/react";
 
 import { cn } from "@/shared/libs";
 import { useUserStore } from "@/shared/stores";
 import type { RelayRoomParticipantResponse } from "@/shared/types";
 
-import nemonicDrawingLobbyBg from "../assets/nemonic-drawing-lobby-bg.png";
 import relayDrawingTitle from "../assets/relay-drawing-title.png";
 import {
   RELAY_QR_ACTION,
@@ -37,10 +37,14 @@ export default function RelayLobbyView() {
   );
   const currentUserUuid = useUserStore((state) => state.userUuid);
 
+  const gameStartPhase = useRelayDrawingStore(
+    (state) => state.gameStartPhase,
+  );
+  const isExiting = gameStartPhase === "animating";
+
   const {
     isHost,
     canStartGame,
-    startError,
     isStarting,
     settingsError,
     kickingTargetUuid,
@@ -57,20 +61,13 @@ export default function RelayLobbyView() {
     : `게임 시작 (${participants.length}명)`;
 
   return (
-    <section className="relative min-h-screen overflow-y-auto bg-relay-background text-relay-ink">
-      <Image
-        src={nemonicDrawingLobbyBg}
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="pointer-events-none object-cover"
-        aria-hidden
-      />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_40%,rgb(255_255_255_/_36%),transparent_42%)]" />
-
+    <section className="relative min-h-screen overflow-x-hidden overflow-y-auto text-relay-ink">
       {/* ─── 모바일 레이아웃 (lg 미만) ─── */}
-      <div className="relative z-10 grid w-full gap-4 px-4 pb-8 pt-6 lg:hidden">
+      <motion.div
+        className="relative z-10 grid w-full gap-4 px-4 pb-8 pt-6 lg:hidden"
+        animate={isExiting ? { opacity: 0, y: 40 } : { opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.65, 0, 0.35, 1] }}
+      >
         {/* 나가기 */}
         <header className="flex items-center">
           <button
@@ -218,18 +215,17 @@ export default function RelayLobbyView() {
               방장이 게임을 시작할 때까지 기다려주세요
             </div>
           )}
-          {startError && (
-            <p role="alert" className="caption-r text-error">
-              {startError}
-            </p>
-          )}
         </div>
-      </div>
+      </motion.div>
 
       {/* ─── 데스크탑 레이아웃 (lg+) ─── */}
-      <div className="relative z-10 hidden w-full min-h-screen flex-col lg:flex">
+      <motion.div className="relative z-10 hidden w-full min-h-screen flex-col lg:flex">
         {/* 나가기 — 데스크탑 좌상단 */}
-        <header className="shrink-0 px-8 pt-6">
+        <motion.header
+          className="shrink-0 px-8 pt-6"
+          animate={isExiting ? { opacity: 0, y: -20 } : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           <button
             type="button"
             onClick={leaveRoom}
@@ -238,11 +234,19 @@ export default function RelayLobbyView() {
             <ArrowLeft className="size-5" aria-hidden />
             나가기
           </button>
-        </header>
+        </motion.header>
 
         <main className="mx-auto grid w-full max-w-[1400px] flex-1 items-center gap-10 px-8 pb-8 lg:grid-cols-[2fr_3fr] xl:gap-14">
           {/* 좌측: 타이틀 + 입장 코드 + 공유 */}
-          <aside className="flex w-full flex-col items-center">
+          <motion.aside
+            className="flex w-full flex-col items-center"
+            animate={
+              isExiting
+                ? { x: "-100%", opacity: 0 }
+                : { x: 0, opacity: 1 }
+            }
+            transition={{ duration: 0.5, ease: [0.65, 0, 0.35, 1] }}
+          >
             <div className="w-full max-w-[400px] text-center">
               <Image
                 src={relayDrawingTitle}
@@ -297,10 +301,18 @@ export default function RelayLobbyView() {
                 />
               </div>
             </section>
-          </aside>
+          </motion.aside>
 
           {/* 우측: 참여자 + 제한 시간 + 시작 */}
-          <section className="rounded-[32px] border border-relay-line bg-white/68 p-8 shadow-[0_18px_44px_rgba(184,121,22,0.14),inset_0_1px_0_rgb(255_255_255_/_86%)] backdrop-blur-sm">
+          <motion.section
+            className="rounded-[32px] border border-relay-line bg-white/68 p-8 shadow-[0_18px_44px_rgba(184,121,22,0.14),inset_0_1px_0_rgb(255_255_255_/_86%)] backdrop-blur-sm"
+            animate={
+              isExiting
+                ? { x: "100%", opacity: 0 }
+                : { x: 0, opacity: 1 }
+            }
+            transition={{ duration: 0.5, ease: [0.65, 0, 0.35, 1] }}
+          >
             <div className="flex items-center justify-between border-b border-relay-line pb-5">
               <h2 className="h3-b inline-flex items-center gap-3 text-relay-ink">
                 <UsersRound className="size-6" strokeWidth={2.2} aria-hidden />
@@ -381,17 +393,12 @@ export default function RelayLobbyView() {
 
               <section className="rounded-2xl border border-relay-line bg-white/54 p-5 shadow-[inset_0_1px_0_rgb(255_255_255_/_82%)]">
                 <h3 className="h3-b text-relay-ink">참여 조건</h3>
-                <p className="body-r mt-3 text-relay-muted">
-                  현재 {participants.length}명 참여 중 · 최소 {minParticipants}
-                  명 필요
-                </p>
-                <button
-                  type="button"
-                  onClick={leaveRoom}
-                  className="body-b mt-4 min-h-11 w-full cursor-pointer rounded-xl border border-relay-line bg-relay-active text-relay-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  방 나가기
-                </button>
+                <div className="h-full flex items-center">
+                  <p className="text-l mb-1 text-relay-muted">
+                    현재 {participants.length}명 참여 중 · 최소{" "}
+                    {minParticipants}명 필요
+                  </p>
+                </div>
               </section>
             </div>
 
@@ -411,15 +418,10 @@ export default function RelayLobbyView() {
                   방장이 게임을 시작할 때까지 기다려주세요
                 </div>
               )}
-              {startError && (
-                <p role="alert" className="caption-r text-error">
-                  {startError}
-                </p>
-              )}
             </div>
-          </section>
+          </motion.section>
         </main>
-      </div>
+      </motion.div>
     </section>
   );
 }

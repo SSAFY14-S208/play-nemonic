@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   ColorPanel,
@@ -32,10 +31,6 @@ import PartTimeUpOverlay from "./PartTimeUpOverlay";
 const RelayDrawingStage = dynamic(() => import("../RelayDrawingStage"), {
   ssr: false,
 });
-
-const RELAY_DRAWING_IMAGES = {
-  background: "",
-};
 
 // 데스크탑(lg+) 그리기 화면은 1536×1024 디자인을 기준으로 절대 좌표로 배치되어
 // 있다. 작은 viewport에선 디자인 그대로 두면 클리핑되므로, 부모 크기를 측정해
@@ -148,19 +143,9 @@ export default function RelayDrawingView() {
 
   return (
     <section
-      className="relative min-h-screen overflow-y-auto bg-[#fdf1e6] text-[#30343b] lg:grid lg:h-screen lg:overflow-hidden"
+      className="relative min-h-screen overflow-y-auto text-[#30343b] lg:grid lg:h-screen lg:overflow-hidden"
       aria-label="릴레이 드로잉"
     >
-      <Image
-        src={RELAY_DRAWING_IMAGES.background}
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="pointer-events-none object-cover"
-        aria-hidden
-      />
-
       <div className="relative z-10 grid w-full gap-4 px-3 py-4 lg:hidden">
         <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
           <div className="flex items-center justify-between gap-3">
