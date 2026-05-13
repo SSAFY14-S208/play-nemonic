@@ -60,6 +60,54 @@ export const useFlipbookRealtimeStore = create<FlipbookRealtimeState>((set) => (
         }
       }
 
+      if (message.type === 'flipbook.assignment.changed') {
+        return {
+          ...state,
+          lastServerMessage: message,
+          lastErrorMessage: null,
+          sessionSnapshot: state.sessionSnapshot
+            ? {
+                ...state.sessionSnapshot,
+                activeAssignment: message.payload,
+                phase: 'drawing',
+                serverSyncedAt: new Date().toISOString(),
+              }
+            : state.sessionSnapshot,
+        }
+      }
+
+      if (message.type === 'flipbook.participants.changed') {
+        return {
+          ...state,
+          lastServerMessage: message,
+          lastErrorMessage: null,
+          sessionSnapshot: state.sessionSnapshot
+            ? {
+                ...state.sessionSnapshot,
+                participants: message.payload,
+                serverSyncedAt: new Date().toISOString(),
+              }
+            : state.sessionSnapshot,
+        }
+      }
+
+      if (message.type === 'flipbook.result.completed') {
+        return {
+          ...state,
+          lastServerMessage: message,
+          lastErrorMessage: null,
+          sessionSnapshot: state.sessionSnapshot
+            ? {
+                ...state.sessionSnapshot,
+                phase: 'result',
+                result: message.payload,
+                completedFrames: message.payload.frames,
+                serverSyncedAt: new Date().toISOString(),
+              }
+            : state.sessionSnapshot,
+        }
+      }
+
       return {
         ...state,
         lastServerMessage: message,

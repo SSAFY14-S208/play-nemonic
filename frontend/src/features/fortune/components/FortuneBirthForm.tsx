@@ -101,11 +101,7 @@ export default function FortuneBirthForm({ onSubmit }: FortuneBirthFormProps) {
     <form className="fortune-birth-form" onSubmit={handleSubmit}>
       <div className="fortune-birth-heading">
         <span className="fortune-birth-heading-spark" aria-hidden />
-        <h1>
-          오늘의 운세를 위한
-          <br />
-          사주 정보를 알려줘
-        </h1>
+        <h1>오늘의 운세를 위한 사주 정보를 알려줘</h1>
         <p>입력한 정보로 오늘의 운세 메모를 정성껏 준비할게요.</p>
       </div>
 

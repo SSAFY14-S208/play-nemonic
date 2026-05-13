@@ -2,9 +2,10 @@
 
 import { useCallback, useRef } from 'react'
 import type { KonvaEventObject } from 'konva/lib/Node'
-import { RELAY_ROUND_RULES } from '../constants'
+import { createBucketFillLine } from '@/shared/utils'
+import { RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
 import { useRelayDrawingStore } from '../stores'
-import { createBucketFillLine, isPointInsideArea } from '../utils'
+import { isPointInsideArea } from '../utils'
 
 export function useRelayCanvas() {
   const isDrawing = useRef(false)
@@ -12,15 +13,22 @@ export function useRelayCanvas() {
   const beginDrawing = useCallback(
     (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getPointerPosition()
+      // getPointerPosition()은 Stage scaleX/scaleY를 적용하지 않은 캔버스-CSS-픽셀
+      // 좌표를 반환한다. responsive sizing으로 Stage에 scale을 걸어둔 상황에서는
+      // 그대로 쓰면 line이 저장된 좌표가 다시 scale로 곱해져 포인터와 다른 위치에
+      // 그려진다. getRelativePointerPosition()이 Stage 자체의 transform 역변환을
+      // 자동으로 해줘서 children 좌표계의 포인트를 돌려준다.
+      const pointerPosition = stage?.getRelativePointerPosition()
       if (!pointerPosition) return
 
       const {
         activeRoundKey,
         selectedToolKey,
         selectedColor,
+        selectedOpacity,
         strokeWidth,
         roundLines,
+        addRecentColor,
         commitLine,
       } = useRelayDrawingStore.getState()
 
@@ -29,26 +37,39 @@ export function useRelayCanvas() {
 
       if (selectedToolKey === 'bucket') {
         void createBucketFillLine({
-          activeRoundKey,
+          backgroundColor: '#fffdf7',
+          boardSize: RELAY_STAGE_SIZE,
           fillColor: selectedColor,
+          fillOpacity: selectedOpacity,
+          idPrefix: `${activeRoundKey}-fill`,
           lines: roundLines[activeRoundKey],
           pointerPosition,
         }).then((fillLine) => {
           if (!fillLine) return
-          useRelayDrawingStore.getState().commitLine(fillLine)
+          const currentStore = useRelayDrawingStore.getState()
+          if (currentStore.activeRoundKey !== activeRoundKey) return
+          currentStore.commitLine(fillLine)
+          currentStore.addRecentColor(selectedColor)
         })
         return
       }
 
       const stageColor = selectedToolKey === 'eraser' ? '#fffdf7' : selectedColor
-      const activeStrokeWidth = selectedToolKey === 'marker' ? strokeWidth + 4 : strokeWidth
+      const activeStrokeWidth = strokeWidth
+      const compositeOperation =
+        selectedToolKey === 'eraser' ? 'destination-out' : 'source-over'
 
       isDrawing.current = true
+      if (selectedToolKey !== 'eraser') {
+        addRecentColor(selectedColor)
+      }
       commitLine({
         id: `${activeRoundKey}-line-${Date.now()}-${roundLines[activeRoundKey].length}`,
         kind: 'stroke',
         color: stageColor,
         strokeWidth: activeStrokeWidth,
+        opacity: selectedToolKey === 'eraser' ? 1 : selectedOpacity,
+        compositeOperation,
         points: [{ x: pointerPosition.x, y: pointerPosition.y }],
       })
     },
@@ -60,7 +81,9 @@ export function useRelayCanvas() {
       if (!isDrawing.current) return
 
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getPointerPosition()
+      // getRelativePointerPosition: Stage scale이 걸린 상황에서도 children 좌표계
+      // 의 포인트를 돌려준다 (beginDrawing 주석 참조).
+      const pointerPosition = stage?.getRelativePointerPosition()
       if (!pointerPosition) return
 
       const { activeRoundKey, appendPointToLastLine } = useRelayDrawingStore.getState()

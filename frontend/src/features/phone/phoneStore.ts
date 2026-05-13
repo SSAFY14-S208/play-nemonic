@@ -16,14 +16,14 @@ import type {
   PhoneDrawingSaveResponse,
 } from '@/shared/types'
 import type { PhoneGalleryItem, PhoneScreenKey } from './types'
-import { mapGalleryItemResponseToPhoneItem } from './utils/galleryMapping'
+import { mapGalleryItemResponseToPhoneItem } from './utils'
 
 const GALLERY_PAGE_SIZE = 15
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
 export interface PhoneProfile {
-  nickname: string
+  nickname: string | null
   birthday: string | null
   birthtime: string | null
   isLunar: boolean | null

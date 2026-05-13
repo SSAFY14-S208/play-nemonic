@@ -1,9 +1,11 @@
 'use client'
 
-import { Dialog } from '@base-ui/react/dialog'
 import { LogOut, MonitorSmartphone } from 'lucide-react'
 
 import type { RelayDismissalReason } from '../stores'
+
+import RelayButton from './RelayButton'
+import RelayModal from './RelayModal'
 
 interface DismissalContent {
   Icon: typeof LogOut
@@ -40,31 +42,34 @@ export default function RelayDismissalModal({
   const { Icon, title, description } = DISMISSAL_CONTENT[reason]
 
   return (
-    <Dialog.Root open onOpenChange={() => {}}>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-black/30" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-[var(--z-modal)] w-[min(380px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[var(--radius-xl)] bg-relay-paper shadow-lg">
-          <div className="flex flex-col items-center gap-4 px-6 py-8 text-center">
-            <div className="grid size-14 place-items-center rounded-full bg-relay-active">
-              <Icon className="size-6 text-relay-accent-strong" aria-hidden />
-            </div>
+    <RelayModal
+      open
+      onOpenChange={() => {}}
+      title={title}
+      showHeader={false}
+      width="sm"
+    >
+      <div className="flex flex-col items-center gap-4 px-6 py-8 text-center">
+        <div className="grid size-14 place-items-center rounded-full bg-relay-active">
+          <Icon className="size-6 text-relay-accent-strong" aria-hidden />
+        </div>
 
-            <Dialog.Title className="h4-b text-relay-ink">
-              {title}
-            </Dialog.Title>
+        {/* RelayModal이 sr-only Dialog.Title을 이미 렌더하므로 시각적 표시는
+            aria-hidden으로 두어 SR이 동일 문구를 두 번 읽지 않게 한다. */}
+        <p className="h4-b text-relay-ink" aria-hidden>
+          {title}
+        </p>
 
-            <p className="body-r text-relay-muted">{description}</p>
+        <p className="body-r text-relay-muted">{description}</p>
 
-            <button
-              type="button"
-              onClick={onConfirm}
-              className="body-b mt-2 min-h-11 w-full rounded-[var(--radius-md)] bg-relay-accent px-5 text-relay-ink"
-            >
-              확인
-            </button>
-          </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+        <RelayButton
+          variant="primary"
+          onClick={onConfirm}
+          className="mt-2 w-full"
+        >
+          확인
+        </RelayButton>
+      </div>
+    </RelayModal>
   )
 }

@@ -6,6 +6,7 @@ import type { ThreeElements, ThreeEvent } from '@react-three/fiber'
 import { RigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import type { AnimationAction } from 'three'
+import { useButtonMeshHighlight } from '../hooks'
 
 const MODEL_PATH = '/models/nemonic-printer.glb'
 const BUTTON_MESH_NAMES = new Set([
@@ -33,6 +34,7 @@ export default function NemonicPrinterMesh({
   const { gl } = useThree()
   const { scene, animations } = useGLTF(MODEL_PATH)
   const { actions } = useAnimations(animations, groupRef)
+  const { hoveredMeshRef } = useButtonMeshHighlight(scene, BUTTON_MESH_NAMES)
 
   useEffect(() => {
     const maxAnisotropy = gl.capabilities.getMaxAnisotropy()
@@ -91,12 +93,16 @@ export default function NemonicPrinterMesh({
   }
 
   const handlePointerOver = (event: ThreeEvent<PointerEvent>) => {
-    if (typeof document !== 'undefined' && BUTTON_MESH_NAMES.has(event.object.name)) {
-      document.body.style.cursor = 'pointer'
+    if (BUTTON_MESH_NAMES.has(event.object.name)) {
+      hoveredMeshRef.current = event.object as THREE.Mesh
+      if (typeof document !== 'undefined') {
+        document.body.style.cursor = 'pointer'
+      }
     }
   }
 
   const handlePointerOut = () => {
+    hoveredMeshRef.current = null
     if (typeof document !== 'undefined') {
       document.body.style.cursor = ''
     }

@@ -3,6 +3,8 @@ import { parseHexColor, renderLinesToRasterCanvas } from './drawingRaster'
 
 const TRANSPARENT_ALPHA_TOLERANCE = 16
 const COLOR_MATCH_TOLERANCE = 12
+const DILATION_PASSES = 6
+const DILATION_COLOR_TOLERANCE = 96
 
 function isPixelMatchingTarget(
   imageData: Uint8ClampedArray,
@@ -27,12 +29,16 @@ export async function createBucketFillLine({
   backgroundColor,
   boardSize,
   fillColor,
+  fillOpacity = 1,
+  idPrefix = 'fill',
   lines,
   pointerPosition,
 }: {
   backgroundColor: string
   boardSize: DrawingBoardSize
   fillColor: string
+  fillOpacity?: number
+  idPrefix?: string
   lines: DrawingLine[]
   pointerPosition: DrawingPoint
 }) {
@@ -62,6 +68,7 @@ export async function createBucketFillLine({
     alpha: sourcePixels[seedPixelOffset + 3],
   }
   const selectedFillColor = parseHexColor(fillColor)
+  const selectedFillAlpha = Math.round(Math.min(Math.max(fillOpacity, 0), 1) * 255)
 
   if (
     targetColor.alpha > TRANSPARENT_ALPHA_TOLERANCE &&
@@ -101,7 +108,7 @@ export async function createBucketFillLine({
     fillPixels[currentPixelOffset] = selectedFillColor.red
     fillPixels[currentPixelOffset + 1] = selectedFillColor.green
     fillPixels[currentPixelOffset + 2] = selectedFillColor.blue
-    fillPixels[currentPixelOffset + 3] = 255
+    fillPixels[currentPixelOffset + 3] = selectedFillAlpha
     filledPixelCount += 1
 
     const currentX = currentPixelIndex % canvasWidth
@@ -115,13 +122,73 @@ export async function createBucketFillLine({
 
   if (filledPixelCount === 0) return null
 
+  const isTransparentTarget = targetColor.alpha <= TRANSPARENT_ALPHA_TOLERANCE
+
+  for (let dilationPass = 0; dilationPass < DILATION_PASSES; dilationPass++) {
+    const newlyFilledIndexes: number[] = []
+
+    for (let pixelIndex = 0; pixelIndex < canvasWidth * canvasHeight; pixelIndex++) {
+      const pixelOffset = pixelIndex * 4
+      if (fillPixels[pixelOffset + 3] === selectedFillAlpha) continue
+
+      const currentX = pixelIndex % canvasWidth
+      const currentY = Math.floor(pixelIndex / canvasWidth)
+      let filledNeighborCount = 0
+
+      if (currentX > 0 && fillPixels[(pixelIndex - 1) * 4 + 3] === selectedFillAlpha) {
+        filledNeighborCount += 1
+      }
+      if (
+        currentX < canvasWidth - 1 &&
+        fillPixels[(pixelIndex + 1) * 4 + 3] === selectedFillAlpha
+      ) {
+        filledNeighborCount += 1
+      }
+      if (currentY > 0 && fillPixels[(pixelIndex - canvasWidth) * 4 + 3] === selectedFillAlpha) {
+        filledNeighborCount += 1
+      }
+      if (
+        currentY < canvasHeight - 1 &&
+        fillPixels[(pixelIndex + canvasWidth) * 4 + 3] === selectedFillAlpha
+      ) {
+        filledNeighborCount += 1
+      }
+
+      if (filledNeighborCount === 0) continue
+
+      const sourceAlpha = sourcePixels[pixelOffset + 3]
+      const isHaloCandidate = isTransparentTarget
+        ? sourceAlpha < 255 || filledNeighborCount >= 3
+        : Math.abs(sourcePixels[pixelOffset] - targetColor.red) <= DILATION_COLOR_TOLERANCE &&
+          Math.abs(sourcePixels[pixelOffset + 1] - targetColor.green) <=
+            DILATION_COLOR_TOLERANCE &&
+          Math.abs(sourcePixels[pixelOffset + 2] - targetColor.blue) <= DILATION_COLOR_TOLERANCE
+
+      if (isHaloCandidate) {
+        newlyFilledIndexes.push(pixelIndex)
+      }
+    }
+
+    if (newlyFilledIndexes.length === 0) break
+
+    for (const dilatedPixelIndex of newlyFilledIndexes) {
+      const dilatedPixelOffset = dilatedPixelIndex * 4
+      fillPixels[dilatedPixelOffset] = selectedFillColor.red
+      fillPixels[dilatedPixelOffset + 1] = selectedFillColor.green
+      fillPixels[dilatedPixelOffset + 2] = selectedFillColor.blue
+      fillPixels[dilatedPixelOffset + 3] = selectedFillAlpha
+      filledPixelCount += 1
+    }
+  }
+
   fillContext.putImageData(fillImageData, 0, 0)
 
   return {
-    id: `fill-${Date.now()}-${lines.length}`,
+    id: `${idPrefix}-${Date.now()}-${lines.length}`,
     kind: 'fill' as const,
     color: fillColor,
     strokeWidth: 0,
+    opacity: 1,
     points: [],
     imageDataUrl: fillCanvas.toDataURL('image/png'),
   }

@@ -27,9 +27,10 @@ function drawStrokeLineOnContext(
   context.lineJoin = 'round'
   context.lineWidth = line.strokeWidth
   context.strokeStyle = line.color
+  context.globalAlpha = line.opacity ?? 1
 
   // 캔버스 배경색과 같은 흰색이면 지우개로 동작 — destination-out이면 알파를 비운다.
-  if (line.color === '#fffdf7') {
+  if (line.compositeOperation === 'destination-out' || line.color === '#fffdf7') {
     context.globalCompositeOperation = 'destination-out'
   }
 
@@ -60,6 +61,7 @@ function drawFallbackFillOnContext(
 
   context.save()
   context.fillStyle = line.color
+  context.globalAlpha = line.opacity ?? 1
   context.beginPath()
   context.moveTo(firstPoint.x, firstPoint.y)
 
@@ -90,12 +92,18 @@ async function drawLineOnContext(
   drawStrokeLineOnContext(context, line)
 }
 
-// 한 라운드의 모든 라인을 RELAY_STAGE_SIZE 크기 raster Canvas에 합성한다.
+// 한 라운드의 모든 라인을 raster Canvas에 합성한다.
 // bucket fill 시드 검사 / 라운드 전환 애니메이션 / 결과 합성이 공통으로 사용한다.
-export async function renderLinesToRasterCanvas(lines: RelayDrawLine[]) {
+//
+// canvasHeight는 모든 라운드에서 720으로 동일하다. 호출자는 보통
+// RELAY_ROUND_RULES[roundKey].canvasHeight를 넘긴다.
+export async function renderLinesToRasterCanvas(
+  lines: RelayDrawLine[],
+  canvasHeight: number = RELAY_STAGE_SIZE.height,
+) {
   const rasterCanvas = document.createElement('canvas')
   rasterCanvas.width = RELAY_STAGE_SIZE.width
-  rasterCanvas.height = RELAY_STAGE_SIZE.height
+  rasterCanvas.height = canvasHeight
 
   const rasterContext = rasterCanvas.getContext('2d')
   if (!rasterContext) return null

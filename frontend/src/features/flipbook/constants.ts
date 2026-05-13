@@ -1,14 +1,5 @@
 import type { DrawingBoardSize } from '@/shared/types'
-
-export type FlipbookStep = 'booth' | 'lobby' | 'drawing' | 'result'
-
-export interface FlipbookParticipant {
-  id: string
-  userUuid: string
-  name: string
-  avatar: string
-  isHost?: boolean
-}
+import type { FlipbookStep } from './types'
 
 export const FLIPBOOK_STEPS: { key: FlipbookStep; label: string }[] = [
   { key: 'booth', label: '부스' },
@@ -17,40 +8,39 @@ export const FLIPBOOK_STEPS: { key: FlipbookStep; label: string }[] = [
   { key: 'result', label: '결과' },
 ]
 
-export const FLIPBOOK_PARTICIPANTS: FlipbookParticipant[] = [
-  { id: 'fox', userUuid: 'demo-user-fox', name: '여우 (나)', avatar: '🦊', isHost: true },
-  { id: 'cat', userUuid: 'demo-user-cat', name: '고양이', avatar: '🐱' },
-  { id: 'bear', userUuid: 'demo-user-bear', name: '곰돌이', avatar: '🐻' },
-  { id: 'dog', userUuid: 'demo-user-dog', name: '강아지', avatar: '🐶' },
-  { id: 'rabbit', userUuid: 'demo-user-rabbit', name: '토끼', avatar: '🐰' },
-]
+export const FLIPBOOK_STEP_PATHS = {
+  booth: '/flipbook',
+  lobby: '/flipbook/lobby',
+  drawing: '/flipbook/drawing',
+  result: '/flipbook/result',
+} as const satisfies Record<FlipbookStep, string>
 
-export const FLIPBOOK_COLORS = [
-  '#8b1e2d',
-  '#ff3d00',
-  '#ffc629',
-  '#63c086',
-  '#75a7df',
-  '#3f78c7',
-  '#9b6bd3',
-  '#ffa3c3',
-  '#c16535',
-  '#ffffff',
-  '#9a9ca3',
-]
-
-export const FLIPBOOK_TIME_LIMITS_SECONDS = [30, 45, 60] as const
-export type FlipbookTimeLimitSeconds = (typeof FLIPBOOK_TIME_LIMITS_SECONDS)[number]
-export const FLIPBOOK_ROOM_CODE = 'ABC123'
-export const FLIPBOOK_TOPIC = '동물원에 간 우주비행사'
-export const FLIPBOOK_BACKGROUND_COLOR = '#fffdf7'
-export const FLIPBOOK_MIN_FRAME_COUNT = 8
-
-export const FLIPBOOK_BOARD_SIZE: DrawingBoardSize = {
-  width: 850,
-  height: 720,
+export function getFlipbookStepPath(step: FlipbookStep) {
+  return FLIPBOOK_STEP_PATHS[step]
 }
 
-export function getMinimumRoundCount(participantCount: number) {
-  return Math.max(1, Math.ceil(FLIPBOOK_MIN_FRAME_COUNT / participantCount))
+export function getFlipbookStepFromPathname(pathname: string): FlipbookStep {
+  const matchedStep = Object.entries(FLIPBOOK_STEP_PATHS).find(
+    ([, stepPath]) => pathname === stepPath,
+  )?.[0]
+
+  if (
+    matchedStep === 'booth' ||
+    matchedStep === 'lobby' ||
+    matchedStep === 'drawing' ||
+    matchedStep === 'result'
+  ) {
+    return matchedStep
+  }
+
+  return 'booth'
+}
+
+export const FLIPBOOK_ROOM_CODE = 'ABC123'
+export const FLIPBOOK_TOPIC = '동물원에 간 우주비행사'
+export const FLIPBOOK_BACKGROUND_COLOR = '#ffffff'
+
+export const FLIPBOOK_BOARD_SIZE: DrawingBoardSize = {
+  width: 680,
+  height: 520,
 }

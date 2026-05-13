@@ -1,130 +1,80 @@
-import { RELAY_PARTICIPANTS } from '../constants'
-import { cn } from '@/shared/libs'
+"use client";
+
+import { motion, type Variants } from "motion/react";
+
+import { cn } from "@/shared/libs";
+
+import magicianBody from "../assets/magician-body-t.png";
+import magicianFace from "../assets/magician-face-t.png";
+import magicianLeg from "../assets/magician-leg-t.png";
+
+import RelayLabelCard from "./RelayLabelCard";
+
+// TODO: 추후 face/body/leg 이미지 세트를 variant prop으로 받아 다른 캐릭터 라벨도
+// 같은 컴포넌트로 그릴 수 있도록 일반화. 현재는 마술사 단일 세트 하드코딩.
+const MAGICIAN_PARTS = [
+  { src: magicianFace, alt: "얼굴 라벨" },
+  { src: magicianBody, alt: "몸통 라벨" },
+  { src: magicianLeg, alt: "다리 라벨" },
+] as const;
+
+// 위에서 살짝 큰 채로 내려와 안착하는 "챡 달라붙는" spring.
+const cardVariants: Variants = {
+  hidden: { opacity: 0, scale: 1.18, y: -12 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 320,
+      damping: 16,
+      mass: 0.9,
+      opacity: { duration: 0.18 },
+    },
+  },
+};
 
 interface RelayArtworkCardProps {
-  character?: 'left' | 'right' | 'center'
-  size?: 'hero' | 'result'
+  // 표시할 part 개수. undefined면 모든 part를 즉시 visible 상태로 렌더 (FinalState · 사이드 사본).
+  // 0..3 사이 값은 부모가 phase에 맞춰 controlled stagger로 증가시키며, 그때마다 다음 part가
+  // spring으로 등장한다.
+  revealCount?: number;
+  // 각 part의 hidden → visible spring이 안착할 때 1회 호출. 부모는 이 콜백을 phase chain
+  // trigger로 사용한다. revealCount가 undefined면(즉시 visible 경로) 호출되지 않는다.
+  onPartReveal?: (revealedIndex: number) => void;
+  // 라벨지 한 장의 px 사이즈.
+  size?: number;
+  className?: string;
 }
 
 export default function RelayArtworkCard({
-  character = 'center',
-  size = 'hero',
+  revealCount,
+  onPartReveal,
+  size = 150,
+  className,
 }: RelayArtworkCardProps) {
-  const isResult = size === 'result'
-
+  const isControlled = revealCount !== undefined;
   return (
-    <figure
-      className="relative overflow-hidden rounded-[var(--radius-md)] bg-relay-paper shadow-[0_20px_45px_rgba(148,124,64,0.16)]"
-      aria-label="완성된 릴레이 캐릭터"
-    >
-      <div className={cn(isResult ? 'aspect-[4/3] p-7' : 'aspect-[2/3] p-6')}>
-        <div className="relative h-full w-full">
-          <RelayDashedGuide top="35%" />
-          <RelayDashedGuide top="66%" />
-
-          {character === 'left' && <LeftCharacter />}
-          {character === 'right' && <RightCharacter />}
-          {character === 'center' && <CenterCharacter />}
-
-          {isResult && (
-            <div className="absolute left-4 top-4 flex flex-col gap-[34%]">
-              {RELAY_PARTICIPANTS.map((participant) => (
-                <span
-                  key={participant.id}
-                  className="caption-b rounded-full bg-relay-active px-3 py-1 text-relay-muted"
-                >
-                  {participant.avatar} · {participant.role}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </figure>
-  )
-}
-
-function RelayDashedGuide({ top }: { top: string }) {
-  return (
-    <div
-      className="absolute left-0 right-0 h-px opacity-50"
-      style={{
-        top,
-        backgroundImage:
-          'linear-gradient(to right, var(--color-relay-dash) 0 8px, transparent 8px 18px)',
-      }}
-    />
-  )
-}
-
-function LeftCharacter() {
-  return (
-    <>
-      <div className="absolute left-1/2 top-[4%] h-[30%] w-[50%] -translate-x-1/2 rounded-full border-[4px] border-relay-coral bg-relay-paper">
-        <span className="absolute left-[32%] top-[34%] size-2 rounded-full bg-relay-ink" />
-        <span className="absolute right-[31%] top-[39%] size-3 rounded-full bg-relay-ink" />
-        <span className="absolute bottom-[18%] left-1/2 h-4 w-12 -translate-x-1/2 rotate-[12deg] rounded-full border-[3px] border-relay-ink" />
-      </div>
-
-      <div className="absolute left-1/2 top-[41%] h-[26%] w-[34%] -translate-x-1/2 rotate-[8deg] rounded-[var(--radius-sm)] border-[4px] border-relay-card-blue bg-relay-paper">
-        {[28, 50, 72].map((verticalPosition) => (
-          <span
-            key={verticalPosition}
-            className="absolute left-1/2 size-2 -translate-x-1/2 rounded-full bg-relay-card-blue"
-            style={{ top: `${verticalPosition}%` }}
-          />
-        ))}
-      </div>
-
-      <span className="absolute bottom-[11%] left-[37%] h-[20%] w-2 rotate-[8deg] rounded-full bg-relay-green" />
-      <span className="absolute bottom-[10%] right-[37%] h-[18%] w-2 rotate-[8deg] rounded-full bg-relay-green" />
-      <span className="absolute bottom-[8%] left-[34%] h-3 w-8 rounded-full bg-relay-ink" />
-      <span className="absolute bottom-[7%] right-[31%] h-3 w-8 rounded-full bg-relay-ink" />
-    </>
-  )
-}
-
-function RightCharacter() {
-  return (
-    <>
-      <div className="absolute left-1/2 top-[3%] h-[31%] w-[56%] -translate-x-1/2 rounded-full border-[4px] border-relay-ink bg-relay-skin">
-        <span className="absolute -top-[9%] left-[-6%] h-[34%] w-[104%] -rotate-[5deg] rounded-full bg-relay-yellow" />
-        <span className="absolute left-[30%] top-[33%] size-2 rounded-full bg-relay-ink" />
-        <span className="absolute right-[30%] top-[33%] size-2 rounded-full bg-relay-ink" />
-        <span className="absolute bottom-[21%] left-1/2 h-4 w-8 -translate-x-1/2 rounded-full border-[3px] border-relay-ink bg-relay-skin" />
-      </div>
-
-      <div className="absolute left-1/2 top-[42%] h-[23%] w-[58%] -translate-x-1/2 rounded-[var(--radius-md)] bg-relay-card-blue">
-        <span className="absolute -left-[16%] top-[15%] h-[76%] w-[20%] rounded-[var(--radius-sm)] bg-relay-card-blue" />
-        <span className="absolute -right-[16%] top-[15%] h-[76%] w-[20%] rounded-[var(--radius-sm)] bg-relay-card-blue" />
-      </div>
-
-      <span className="absolute bottom-[8%] left-[34%] h-[28%] w-[20%] rotate-[-4deg] rounded-[var(--radius-sm)] bg-relay-ink" />
-      <span className="absolute bottom-[8%] right-[34%] h-[28%] w-[20%] rotate-[-4deg] rounded-[var(--radius-sm)] bg-relay-ink" />
-    </>
-  )
-}
-
-function CenterCharacter() {
-  return (
-    <>
-      <div className="absolute left-1/2 top-[4%] h-[31%] w-[58%] -translate-x-1/2 rounded-full border-[4px] border-relay-ink bg-relay-yellow">
-        <span className="body-b absolute left-[30%] top-[26%] text-relay-ink">X</span>
-        <span className="body-b absolute right-[30%] top-[26%] text-relay-ink">X</span>
-        <span className="absolute bottom-[20%] left-1/2 h-[19%] w-[45%] -translate-x-1/2 rounded-full border-[4px] border-relay-ink" />
-      </div>
-
-      <div
-        className="absolute left-1/2 top-[43%] h-[27%] w-[55%] -translate-x-1/2 bg-relay-triangle"
-        style={{ clipPath: 'polygon(50% 0, 100% 92%, 0 84%)' }}
-      />
-      <div
-        className="absolute left-1/2 top-[44%] h-[24%] w-[50%] -translate-x-1/2 bg-relay-pink"
-        style={{ clipPath: 'polygon(50% 0, 100% 92%, 0 84%)' }}
-      />
-
-      <span className="absolute bottom-[5%] left-[45%] h-[27%] w-[5px] rotate-[3deg] bg-relay-ink" />
-      <span className="absolute bottom-[5%] right-[45%] h-[27%] w-[5px] rotate-[3deg] bg-relay-ink" />
-    </>
-  )
+    <div className={cn("relative flex flex-col gap-1 items-center", className)}>
+      {MAGICIAN_PARTS.map((part, index) => {
+        const isVisible = !isControlled || index < (revealCount ?? 0);
+        return (
+          <motion.div
+            key={part.alt}
+            variants={cardVariants}
+            initial={isControlled ? "hidden" : "visible"}
+            animate={isVisible ? "visible" : "hidden"}
+            onAnimationComplete={(definition) => {
+              if (definition === "visible" && isControlled) {
+                onPartReveal?.(index);
+              }
+            }}
+          >
+            <RelayLabelCard imageSrc={part.src} imageAlt={part.alt} size={size} />
+          </motion.div>
+        );
+      })}
+    </div>
+  );
 }

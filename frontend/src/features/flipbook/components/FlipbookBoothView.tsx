@@ -1,3 +1,5 @@
+'use client'
+
 import Image from 'next/image'
 import { PostItNote } from '@/shared/components'
 
@@ -19,10 +21,7 @@ export default function FlipbookBoothView({
           <span className="body-b inline-flex min-h-[43px] items-center rounded-full bg-flipbook-result-soft px-5 text-flipbook-deep">
             2~12명
           </span>
-          <h1
-            className="mt-4 whitespace-nowrap text-fg-inverse"
-            style={{ fontSize: '49px', fontWeight: 700, lineHeight: '78px' }}
-          >
+          <h1 className="h1-b mt-4 whitespace-nowrap text-fg-inverse">
             플립북
           </h1>
           <div className="body-l-r mt-6 text-fg-inverse/80">

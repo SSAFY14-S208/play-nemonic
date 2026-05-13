@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   RELAY_ROUND_ORDER,
+  RELAY_ROUND_RULES,
   type RelayRoundKey,
 } from "../constants";
 import { useRelayDrawingStore } from "../stores";
@@ -92,7 +93,10 @@ export function useRoundTransition(): UseRoundTransitionReturn {
   const captureRoundImage = useCallback(
     async (roundKey: RelayRoundKey) => {
       const lines = roundLines[roundKey];
-      const canvas = await renderLinesToRasterCanvas(lines);
+      const canvas = await renderLinesToRasterCanvas(
+        lines,
+        RELAY_ROUND_RULES[roundKey].canvasHeight,
+      );
       return canvas?.toDataURL("image/png") ?? null;
     },
     [roundLines],
