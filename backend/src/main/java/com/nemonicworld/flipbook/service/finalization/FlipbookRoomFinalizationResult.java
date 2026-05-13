@@ -24,6 +24,10 @@ public record FlipbookRoomFinalizationResult(String roomCode, boolean processed,
         return new FlipbookRoomFinalizationResult(roomCode, true, FlipbookRoomStatus.FINISHED, artifacts, createdAt);
     }
 
+    public static FlipbookRoomFinalizationResult closed(String roomCode, LocalDateTime closedAt) {
+        return new FlipbookRoomFinalizationResult(roomCode, true, FlipbookRoomStatus.CLOSED, List.of(), closedAt);
+    }
+
     public int resultCount() {
         return artifacts.size();
     }

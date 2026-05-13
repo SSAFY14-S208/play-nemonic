@@ -9,7 +9,7 @@ import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Component;
 
 /**
- * FINISHED 플립북 방을 Redis CAS 방식으로 CLOSED 상태로 바꿉니다.
+ * 플립북 방을 Redis CAS 방식으로 CLOSED 상태로 바꿉니다.
  */
 @Component
 public class FlipbookRoomCloseCommand {
