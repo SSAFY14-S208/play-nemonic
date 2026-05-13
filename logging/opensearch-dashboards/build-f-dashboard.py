@@ -117,6 +117,8 @@ def metric_params(threshold=False):
     구간은 7일 누적 기준 — 0~10 정상(green), 10~50 주의(yellow), 50+ 위험(red).
     """
     if threshold:
+        # SRE / Grafana stat 패널 패턴 — 박스 배경은 다크 그대로,
+        # 숫자(value) 색만 임계에 따라 변경. 시각적 노이즈 최소화.
         return {
             "addTooltip": True,
             "addLegend": False,
@@ -125,7 +127,8 @@ def metric_params(threshold=False):
                 "percentageMode": False,
                 "useRanges": True,
                 "colorSchema": "Green to Red",
-                "metricColorMode": "Background",
+                # "Labels" = value 글자에만 색. "Background"는 박스 전체 칠함.
+                "metricColorMode": "Labels",
                 "colorsRange": [
                     {"from": 0,   "to": 10},
                     {"from": 10,  "to": 50},
@@ -134,11 +137,11 @@ def metric_params(threshold=False):
                 "labels": {"show": True},
                 "invertColors": False,
                 "style": {
-                    "bgFill": "#1B1B1F",
-                    "bgColor": True,
+                    "bgFill": "#000",
+                    "bgColor": False,
                     "labelColor": False,
                     "subText": "",
-                    "fontSize": 36,
+                    "fontSize": 48,
                 },
             },
         }
