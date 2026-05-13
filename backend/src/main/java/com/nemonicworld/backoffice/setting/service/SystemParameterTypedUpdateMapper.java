@@ -17,17 +17,26 @@ final class SystemParameterTypedUpdateMapper {
             return updates;
         }
 
-        add(updates, objectMapper, "community.max_memo_count", request.communityMaxMemoCount());
-        add(updates, objectMapper, "community.report_hide_threshold", request.communityReportHideThreshold());
-        add(updates, objectMapper, "relay.room_participant_limit", request.relayRoomParticipantLimit());
-        add(updates, objectMapper, "relay.room_time_limit_seconds", request.relayRoomTimeLimitSeconds());
-        add(updates, objectMapper, "relay.reconnect_grace_seconds", request.relayReconnectGraceSeconds());
-        add(updates, objectMapper, "flipbook.room_participant_limit", request.flipbookRoomParticipantLimit());
-        add(updates, objectMapper, "flipbook.room_time_limit_seconds", request.flipbookRoomTimeLimitSeconds());
-        add(updates, objectMapper, "flipbook.min_frames_per_flipbook", request.flipbookMinFramesPerFlipbook());
-        add(updates, objectMapper, "flipbook.reconnect_grace_seconds", request.flipbookReconnectGraceSeconds());
-        add(updates, objectMapper, "fortune.daily_limit", request.fortuneDailyLimit());
-        add(updates, objectMapper, "cs_inquiry.unresolved_alert_threshold_hours",
+        add(updates, objectMapper, SystemParameterSettingKeys.COMMUNITY_MAX_MEMO_COUNT,
+            request.communityMaxMemoCount());
+        add(updates, objectMapper, SystemParameterSettingKeys.COMMUNITY_REPORT_HIDE_THRESHOLD,
+            request.communityReportHideThreshold());
+        add(updates, objectMapper, SystemParameterSettingKeys.RELAY_ROOM_PARTICIPANT_LIMIT,
+            request.relayRoomParticipantLimit());
+        add(updates, objectMapper, SystemParameterSettingKeys.RELAY_ROOM_TIME_LIMIT_SECONDS,
+            request.relayRoomTimeLimitSeconds());
+        add(updates, objectMapper, SystemParameterSettingKeys.RELAY_RECONNECT_GRACE_SECONDS,
+            request.relayReconnectGraceSeconds());
+        add(updates, objectMapper, SystemParameterSettingKeys.FLIPBOOK_ROOM_PARTICIPANT_LIMIT,
+            request.flipbookRoomParticipantLimit());
+        add(updates, objectMapper, SystemParameterSettingKeys.FLIPBOOK_ROOM_TIME_LIMIT_SECONDS,
+            request.flipbookRoomTimeLimitSeconds());
+        add(updates, objectMapper, SystemParameterSettingKeys.FLIPBOOK_MIN_FRAMES_PER_FLIPBOOK,
+            request.flipbookMinFramesPerFlipbook());
+        add(updates, objectMapper, SystemParameterSettingKeys.FLIPBOOK_RECONNECT_GRACE_SECONDS,
+            request.flipbookReconnectGraceSeconds());
+        add(updates, objectMapper, SystemParameterSettingKeys.FORTUNE_DAILY_LIMIT, request.fortuneDailyLimit());
+        add(updates, objectMapper, SystemParameterSettingKeys.CS_INQUIRY_UNRESOLVED_ALERT_THRESHOLD_HOURS,
             request.csInquiryUnresolvedAlertThresholdHours());
 
         return updates;
