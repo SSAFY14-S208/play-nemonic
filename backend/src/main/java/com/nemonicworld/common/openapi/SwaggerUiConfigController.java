@@ -25,17 +25,17 @@ public class SwaggerUiConfigController {
         config.put("configUrl", PUBLIC_CONFIG_URL);
         config.put("validatorUrl", "");
         config.put("urls", orderedUrls());
-        config.put("urls.primaryName", OpenApiGroups.ALL_DISPLAY_NAME);
+        config.put("urls.primaryName", OpenApiGroups.ALL_GROUP.displayName());
 
         return config;
     }
 
     private List<Map<String, String>> orderedUrls() {
         List<Map<String, String>> urls = new ArrayList<>();
-        for (int index = 0; index < OpenApiGroups.ORDERED_GROUPS.size(); index++) {
+        for (OpenApiGroups.GroupDefinition groupDefinition : OpenApiGroups.ORDERED_GROUPS) {
             Map<String, String> url = new LinkedHashMap<>();
-            url.put("name", OpenApiGroups.ORDERED_DISPLAY_NAMES.get(index));
-            url.put("url", OpenApiGroups.ORDERED_API_DOCS_URLS.get(index));
+            url.put("name", groupDefinition.displayName());
+            url.put("url", groupDefinition.apiDocsUrl());
             urls.add(url);
         }
 

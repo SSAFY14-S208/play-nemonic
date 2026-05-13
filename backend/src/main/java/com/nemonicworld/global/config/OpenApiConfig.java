@@ -7,6 +7,7 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.util.List;
+import com.nemonicworld.common.openapi.OpenApiGroups.GroupDefinition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springdoc.core.customizers.OpenApiCustomizer;
@@ -42,44 +43,43 @@ public class OpenApiConfig {
 
     @Bean
     public GroupedOpenApi allApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
-        return groupedOpenApi(OpenApiGroups.ALL, OpenApiGroups.ALL_DISPLAY_NAME, openApiTagOrderCustomizer,
-            OpenApiGroups.ALL_PATHS);
+        return groupedOpenApi(OpenApiGroups.ALL_GROUP, openApiTagOrderCustomizer);
     }
 
     @Bean
     public GroupedOpenApi commonApiGroup() {
-        return groupedOpenApi(OpenApiGroups.COMMON, OpenApiGroups.COMMON_DISPLAY_NAME,
-            tagOrderCustomizer(OpenApiGroups.COMMON_TAGS), OpenApiGroups.COMMON_PATHS);
+        return groupedOpenApi(OpenApiGroups.COMMON_GROUP);
     }
 
     @Bean
     public GroupedOpenApi contentsApiGroup() {
-        return groupedOpenApi(OpenApiGroups.CONTENTS, OpenApiGroups.CONTENTS_DISPLAY_NAME,
-            tagOrderCustomizer(OpenApiGroups.CONTENTS_TAGS), OpenApiGroups.CONTENTS_PATHS);
+        return groupedOpenApi(OpenApiGroups.CONTENTS_GROUP);
     }
 
     @Bean
     public GroupedOpenApi gamesApiGroup() {
-        return groupedOpenApi(OpenApiGroups.GAMES, OpenApiGroups.GAMES_DISPLAY_NAME,
-            tagOrderCustomizer(OpenApiGroups.GAMES_TAGS), OpenApiGroups.GAMES_PATHS);
+        return groupedOpenApi(OpenApiGroups.GAMES_GROUP);
     }
 
     @Bean
     public GroupedOpenApi supportLogsApiGroup() {
-        return groupedOpenApi(OpenApiGroups.SUPPORT_LOGS, OpenApiGroups.SUPPORT_LOGS_DISPLAY_NAME,
-            tagOrderCustomizer(OpenApiGroups.SUPPORT_LOGS_TAGS), OpenApiGroups.SUPPORT_LOGS_PATHS);
+        return groupedOpenApi(OpenApiGroups.SUPPORT_LOGS_GROUP);
     }
 
     @Bean
     public GroupedOpenApi backofficeApiGroup() {
-        return groupedOpenApi(OpenApiGroups.BACKOFFICE, OpenApiGroups.BACKOFFICE_DISPLAY_NAME,
-            tagOrderCustomizer(OpenApiGroups.BACKOFFICE_TAGS), OpenApiGroups.BACKOFFICE_PATHS);
+        return groupedOpenApi(OpenApiGroups.BACKOFFICE_GROUP);
     }
 
-    private GroupedOpenApi groupedOpenApi(String group, String displayName, OpenApiCustomizer openApiTagOrderCustomizer,
-        List<String> pathsToMatch) {
-        return GroupedOpenApi.builder().group(group).displayName(displayName)
-            .pathsToMatch(pathsToMatch.toArray(String[]::new)).addOpenApiCustomizer(openApiTagOrderCustomizer).build();
+    private GroupedOpenApi groupedOpenApi(GroupDefinition groupDefinition) {
+        return groupedOpenApi(groupDefinition, tagOrderCustomizer(groupDefinition.tagNames()));
+    }
+
+    private GroupedOpenApi groupedOpenApi(GroupDefinition groupDefinition,
+        OpenApiCustomizer openApiTagOrderCustomizer) {
+        return GroupedOpenApi.builder().group(groupDefinition.name()).displayName(groupDefinition.displayName())
+            .pathsToMatch(groupDefinition.pathsToMatch().toArray(String[]::new))
+            .addOpenApiCustomizer(openApiTagOrderCustomizer).build();
     }
 
     private OpenApiCustomizer tagOrderCustomizer(List<String> tagNames) {
