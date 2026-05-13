@@ -3,6 +3,7 @@
 import { useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
+import { WorldHomeLink } from '@/shared/components'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { useUserStore } from '@/shared/stores'
 
@@ -128,6 +129,7 @@ function RelayRoomPageInner() {
   // Dialog.Popup className에 font-paperlogy를 직접 둔다.
   return (
     <div className="font-paperlogy">
+      {roomStatus === 'FINISHED' && <WorldHomeLink />}
       {view}
       {dismissalReason && (
         <RelayDismissalModal
