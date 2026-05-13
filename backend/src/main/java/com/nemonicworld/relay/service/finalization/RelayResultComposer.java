@@ -2,7 +2,6 @@ package com.nemonicworld.relay.service.finalization;
 
 import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
-import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
@@ -52,12 +51,10 @@ public class RelayResultComposer {
         PartPlacement[] placements = resolvePlacements(images, blankHeight);
         int totalHeight = resolveTotalHeight(placements);
 
-        BufferedImage original = new BufferedImage(width, totalHeight, BufferedImage.TYPE_INT_RGB);
+        BufferedImage original = new BufferedImage(width, totalHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = original.createGraphics();
         try {
             applyQualityRenderingHints(graphics);
-            graphics.setColor(Color.WHITE);
-            graphics.fillRect(0, 0, width, totalHeight);
             drawParts(graphics, images, placements, width);
         } finally {
             graphics.dispose();
@@ -153,9 +150,6 @@ public class RelayResultComposer {
         int width) {
         for (RelayDrawingPart part : DRAW_ORDER) {
             PartPlacement placement = findPlacement(placements, part);
-            graphics.setColor(Color.WHITE);
-            graphics.fillRect(0, placement.y(), width, placement.height());
-
             BufferedImage image = images.get(part);
             if (image == null) {
                 continue;
@@ -192,7 +186,7 @@ public class RelayResultComposer {
         double scale = (double) thumbnailMaxSize / longestSide;
         int thumbnailWidth = Math.max(1, (int) Math.round(originalWidth * scale));
         int thumbnailHeight = Math.max(1, (int) Math.round(originalHeight * scale));
-        BufferedImage thumbnail = new BufferedImage(thumbnailWidth, thumbnailHeight, BufferedImage.TYPE_INT_RGB);
+        BufferedImage thumbnail = new BufferedImage(thumbnailWidth, thumbnailHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = thumbnail.createGraphics();
         try {
             applyQualityRenderingHints(graphics);
