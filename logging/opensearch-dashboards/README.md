@@ -15,13 +15,16 @@ UI에서 만든 작업물이 OpenSearch 데이터 디스크 (`/opt/nemonic/data/
 logging/opensearch-dashboards/
 ├── README.md
 ├── import.sh                       # dashboards-init 컨테이너 entrypoint
+├── build-*-dashboard.py            # 각 dashboard NDJSON 생성기 (멱등)
 └── saved-objects/
     ├── 00-index-patterns.ndjson    # 모든 visualization의 prerequisite
-    ├── 10-dashboard-websocket-health.ndjson
-    ├── 20-dashboard-community-ops.ndjson
-    ├── 30-dashboard-audit.ndjson
-    ├── 40-dashboard-errors.ndjson
-    └── 50-dashboard-overview.ndjson
+    ├── 10-dashboard-room-stats.ndjson         # [B] 릴레이/플립북 방 통계
+    ├── 20-dashboard-community.ndjson          # [C] 커뮤니티 메모
+    ├── 30-dashboard-audit.ndjson              # [E] 운영자 감사
+    ├── 40-dashboard-errors.ndjson             # [F] 에러
+    ├── 50-dashboard-overview.ndjson           # [A] 전체 개요
+    ├── 60-dashboard-fortune.ndjson            # [G] 운세
+    └── 70-dashboard-frontend.ndjson           # [H] 프론트엔드 사용자 행동
 ```
 
 **파일명 prefix(`00-`, `10-`, `20-`...)는 import 순서를 결정한다.**
