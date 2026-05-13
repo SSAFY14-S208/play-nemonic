@@ -5,7 +5,7 @@ interface ResultSegmentTagsProps {
   segments: RelayResultSegment[]
 }
 
-// 최종 합성 캔버스 위에 얹는 세그먼트 태그(🐱 고양이 · 얼굴 등).
+// 최종 합성 캔버스 위에 얹는 세그먼트 태그(닉네임 · 라운드 라벨).
 export default function ResultSegmentTags({ segments }: ResultSegmentTagsProps) {
   return (
     <>
