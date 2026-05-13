@@ -77,7 +77,9 @@ presign -> direct PUT to MinIO -> confirm upload -> submit frame
 
 The submitted file must belong to the submitting user, must be uploaded, and
 must use `FileUploadPurpose.FLIPBOOK`. Redis assignments store the file id and
-object key; final GIF generation later downloads the stored object keys.
+object key; final GIF generation later downloads the stored object keys. The
+presign/confirm flow does not decode the uploaded image bytes or add a white
+background.
 
 Timeout processing is backend-authoritative. When the round deadline passes,
 the backend publishes one `ROUND_TIME_UP` event during the auto-submit grace
@@ -130,6 +132,14 @@ flipbook/results/{artifactId}/result.gif
 flipbook/results/{artifactId}/thumbnail.png
 ```
 
+Result composition must not paint transparent frame backgrounds white. GIF
+normalization uses ARGB frames before writing while preserving the existing
+`image/gif` contract. The thumbnail PNG resize path also uses ARGB so
+transparent PNG frame alpha remains transparent in the thumbnail. GIF remains a
+palette-based format, so it does not provide PNG-style full alpha precision;
+APNG or animated WebP would be a separate contract-changing follow-up if higher
+fidelity transparency becomes necessary.
+
 Then persist:
 
 - `artifact` with `kind=flipbook` and `source_room_id=roomCode`
@@ -159,6 +169,8 @@ close with `close_reason=waiting_idle_timeout`.
   than the configured target.
 - Positive: Existing result rows can recover a `FINALIZING` room without
   duplicate GIF uploads when only the Redis `FINISHED` transition failed.
+- Positive: Result generation no longer adds a backend white background to
+  transparent frames, and PNG thumbnails keep transparent backgrounds.
 - Positive: Gallery ownership is explicit and excludes dropped participants.
 - Negative: Unlike Relay, flipbook finalization does not currently track an
   attempt marker or delete newly uploaded result objects if DB persistence fails
@@ -170,5 +182,7 @@ close with `close_reason=waiting_idle_timeout`.
   properties, not backoffice system parameters.
 - Follow-up: Add Relay-style result upload rollback/orphan cleanup for
   `flipbook/results/**` if storage drift becomes operationally visible.
+- Follow-up: Consider APNG or animated WebP only if GIF palette transparency is
+  not sufficient for product-quality transparent animation.
 - Follow-up: Add `PLAYING` abandoned close parity if product policy requires
   stuck in-game flipbook rooms to close automatically without finalization.
