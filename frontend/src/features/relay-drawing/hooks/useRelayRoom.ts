@@ -268,7 +268,12 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         setParticipants(event.data.participants);
       },
       GAME_STARTED: (event) => {
-        // roomStatus 'PLAYING'으로 전환 — RelayRoomPage가 자동으로 RelayDrawingView로 스왑.
+        // 게임 시작 애니메이션 — 호스트는 버튼 클릭 시 이미 'animating'이므로 no-op,
+        // 비호스트는 여기서 'animating'으로 전환해 로비 패널 슬라이드 아웃 +
+        // 게임 시작 이미지를 보여준다. RelayRoomPage의 effect가 일정 시간 후
+        // 'idle'로 되돌리면 RelayDrawingView로 자연스럽게 전환된다.
+        useRelayDrawingStore.getState().setGameStartPhase('animating');
+        // roomStatus 'PLAYING'으로 전환.
         setRoomStatus(event.data.status);
         setParticipants(event.data.participants);
         useRelayDrawingStore.getState().setIsSubmitting(false);
