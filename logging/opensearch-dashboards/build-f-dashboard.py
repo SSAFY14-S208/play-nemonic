@@ -334,22 +334,29 @@ F6 = viz(
         "aggs": [
             {"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
             {"id": "2", "enabled": True, "type": "filters", "schema": "group", "params": {
+                # logger 분포 실측 기반 카테고리. 부팅 노이즈를 분리해서
+                # 실제 도메인 에러를 가려보게.
                 "filters": [
                     {"input": {"query": "log_level:ERROR", "language": "lucene"},
                      "label": "ERROR"},
                     {"input": {"query": "log_level:FATAL", "language": "lucene"},
                      "label": "FATAL"},
-                    {"input": {"query": "logger:(*jdbc* OR *Hikari* OR *postgres*)",
+                    # Spring 부팅/배포 실패: ApplicationContext / TomcatStarter /
+                    # SpringApplication / WebappClassLoader 등 startup 단계 logger.
+                    {"input": {"query": "logger:(*ApplicationContext* OR *TomcatStarter* OR *SpringApplication* OR *WebappClassLoader*)",
                                "language": "lucene"},
-                     "label": "DB"},
-                    {"input": {"query": "logger:*kafka*", "language": "lucene"},
-                     "label": "Kafka"},
-                    {"input": {"query": "logger:(*moderation* OR *gms*)",
+                     "label": "Spring 부팅"},
+                    # Scheduler/Task — 백그라운드 잡 실패 (TaskUtils LoggingErrorHandler 등).
+                    {"input": {"query": "logger:(*Task* OR *Schedul*)",
                                "language": "lucene"},
-                     "label": "AI/GMS"},
-                    {"input": {"query": "logger:(*minio* OR *s3* OR *redis*)",
+                     "label": "Scheduler"},
+                    # nemonic 자체 도메인 코드 — c.n.* (com.nemonicworld) 축약 표기.
+                    {"input": {"query": "logger:c.n.*", "language": "lucene"},
+                     "label": "도메인"},
+                    # WebSocket / STOMP — 실시간 통신 핸들러.
+                    {"input": {"query": "logger:(*Stomp* OR *WebSocket*)",
                                "language": "lucene"},
-                     "label": "외부 의존성"},
+                     "label": "WebSocket"},
                 ],
             }},
         ],
