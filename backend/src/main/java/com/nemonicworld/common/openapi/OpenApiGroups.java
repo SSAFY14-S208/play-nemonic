@@ -47,6 +47,12 @@ public final class OpenApiGroups {
         OpenApiTags.ADMIN_INQUIRY, OpenApiTags.SYSTEM_PARAMETER, OpenApiTags.BACKOFFICE_RELAY,
         OpenApiTags.BACKOFFICE_FLIPBOOK, OpenApiTags.GMS_PROMPT);
 
+    public static final List<String> ORDERED_GROUPS = List.of(ALL, COMMON, CONTENTS, GAMES, SUPPORT_LOGS, BACKOFFICE);
+    public static final List<String> ORDERED_DISPLAY_NAMES = List.of(ALL_DISPLAY_NAME, COMMON_DISPLAY_NAME,
+        CONTENTS_DISPLAY_NAME, GAMES_DISPLAY_NAME, SUPPORT_LOGS_DISPLAY_NAME, BACKOFFICE_DISPLAY_NAME);
+    public static final List<String> ORDERED_API_DOCS_URLS = ORDERED_GROUPS.stream()
+        .map(group -> "/v3/api-docs/" + group).toList();
+
     private OpenApiGroups() {
     }
 }

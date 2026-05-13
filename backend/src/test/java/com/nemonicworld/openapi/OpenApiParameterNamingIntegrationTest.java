@@ -87,6 +87,29 @@ class OpenApiParameterNamingIntegrationTest {
     }
 
     /**
+     * Swagger UI 드롭다운 탭 순서가 전체 API부터 업무 흐름 순서대로 고정되는지 확인합니다.
+     */
+    @Test
+    void swaggerUiConfigExposesGroupsInDisplayOrder() throws Exception {
+        JsonNode config = getJson("/api/v1/api-docs/swagger-config");
+        JsonNode urls = config.path("urls");
+        List<String> actualNames = new ArrayList<>();
+        List<String> actualUrls = new ArrayList<>();
+
+        for (JsonNode url : urls) {
+            actualNames.add(url.path("name").asText());
+            actualUrls.add(url.path("url").asText());
+        }
+
+        assertEquals(OpenApiGroups.ORDERED_DISPLAY_NAMES, actualNames,
+            "Swagger UI groups must be listed in the requested display order.");
+        assertEquals(OpenApiGroups.ORDERED_API_DOCS_URLS, actualUrls,
+            "Swagger UI group URLs must match the configured OpenAPI groups.");
+        assertEquals(OpenApiGroups.ALL_DISPLAY_NAME, config.path("urls.primaryName").asText(),
+            "Swagger UI must select the all-API group first.");
+    }
+
+    /**
      * 컨트롤러 파라미터 이름이 명시되지 않으면 Swagger에 arg0, arg1 같은 이름이 노출될 수 있습니다.
      */
     @Test
@@ -195,6 +218,10 @@ class OpenApiParameterNamingIntegrationTest {
     }
 
     private JsonNode getOpenApiRoot(String docsPath) throws Exception {
+        return getJson(docsPath);
+    }
+
+    private JsonNode getJson(String docsPath) throws Exception {
         byte[] responseBody = mockMvc.perform(get(docsPath)).andExpect(status().isOk()).andReturn().getResponse()
             .getContentAsByteArray();
         String body = new String(responseBody, StandardCharsets.UTF_8);

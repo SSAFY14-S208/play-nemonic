@@ -61,6 +61,10 @@ management:
       percentiles-histogram:
         http.server.requests: true
 
+springdoc:
+  swagger-ui:
+    config-url: /api/v1/api-docs/swagger-config
+
 nemonic:
   time-zone: ${APP_TIME_ZONE:Asia/Seoul}
 
