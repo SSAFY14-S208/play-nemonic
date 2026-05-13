@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.openapi.OpenApiGroups;
 import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.global.config.OpenApiConfig;
 import com.nemonicworld.support.IntegrationTest;
@@ -57,21 +58,32 @@ class OpenApiParameterNamingIntegrationTest {
      */
     @Test
     void openApiGroupsExposeRelatedApiPaths() throws Exception {
-        assertGroupContainsPaths("all", List.of("/api/v1/relay/rooms", "/api/v1/gallery", "/api/logs/client"),
-            List.of());
-        assertGroupContainsPaths("common",
+        assertGroupContainsPaths(OpenApiGroups.ALL,
+            List.of("/api/v1/relay/rooms", "/api/v1/gallery", "/api/logs/client"), List.of());
+        assertGroupContainsTags(OpenApiGroups.ALL, OpenApiGroups.ALL_TAGS);
+
+        assertGroupContainsPaths(OpenApiGroups.COMMON,
             List.of("/api/v1/users/anonymous", "/api/v1/auth/login", "/api/v1/files/presign"),
             List.of("/api/v1/relay/rooms", "/api/v1/backoffice/system-parameters"));
-        assertGroupContainsPaths("contents",
+        assertGroupContainsTags(OpenApiGroups.COMMON, OpenApiGroups.COMMON_TAGS);
+
+        assertGroupContainsPaths(OpenApiGroups.CONTENTS,
             List.of("/api/v1/gallery", "/api/v1/community/memos", "/api/v1/fortune/today"),
             List.of("/api/v1/relay/rooms", "/api/v1/admins"));
-        assertGroupContainsPaths("games", List.of("/api/v1/relay/rooms", "/api/v1/flipbook/rooms"),
+        assertGroupContainsTags(OpenApiGroups.CONTENTS, OpenApiGroups.CONTENTS_TAGS);
+
+        assertGroupContainsPaths(OpenApiGroups.GAMES, List.of("/api/v1/relay/rooms", "/api/v1/flipbook/rooms"),
             List.of("/api/v1/files/presign", "/api/v1/gallery"));
-        assertGroupContainsPaths("support-logs", List.of("/api/v1/inquiries", "/api/logs/client"),
+        assertGroupContainsTags(OpenApiGroups.GAMES, OpenApiGroups.GAMES_TAGS);
+
+        assertGroupContainsPaths(OpenApiGroups.SUPPORT_LOGS, List.of("/api/v1/inquiries", "/api/logs/client"),
             List.of("/api/v1/admin/inquiries", "/api/v1/relay/rooms"));
-        assertGroupContainsPaths("backoffice",
+        assertGroupContainsTags(OpenApiGroups.SUPPORT_LOGS, OpenApiGroups.SUPPORT_LOGS_TAGS);
+
+        assertGroupContainsPaths(OpenApiGroups.BACKOFFICE,
             List.of("/api/v1/admins", "/api/v1/admin/community/memos", "/api/v1/backoffice/system-parameters"),
             List.of("/api/v1/inquiries", "/api/v1/relay/rooms"));
+        assertGroupContainsTags(OpenApiGroups.BACKOFFICE, OpenApiGroups.BACKOFFICE_TAGS);
     }
 
     /**
@@ -200,6 +212,17 @@ class OpenApiParameterNamingIntegrationTest {
         for (String unexpectedPath : unexpectedPaths) {
             assertTrue(!paths.has(unexpectedPath), () -> group + " OpenAPI group must not include " + unexpectedPath);
         }
+    }
+
+    private void assertGroupContainsTags(String group, List<String> expectedTagNames) throws Exception {
+        JsonNode tags = getOpenApiRoot("/v3/api-docs/" + group).path("tags");
+        List<String> actualTagNames = new ArrayList<>();
+        for (JsonNode tag : tags) {
+            actualTagNames.add(tag.path("name").asText());
+        }
+
+        assertEquals(expectedTagNames, actualTagNames,
+            () -> group + " OpenAPI group must not expose empty tag groups.");
     }
 
     private boolean hasSecurityRequirement(JsonNode root, String path, String method) {
