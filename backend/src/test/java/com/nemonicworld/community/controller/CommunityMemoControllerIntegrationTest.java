@@ -1000,9 +1000,10 @@ class CommunityMemoControllerIntegrationTest {
     }
 
     @Test
-    void reportCommunityMemoHidesMemoWhenReportThresholdIsReached() throws Exception {
+    void reportCommunityMemoUsesCommunityReportHideThresholdSetting() throws Exception {
+        insertCommunityReportHideThresholdSetting(3);
         UUID ownerUuid = createExistingUser("자동숨김");
-        UUID reporterUuid = createExistingUser("다섯번째");
+        UUID reporterUuid = createExistingUser("세번째");
         LocalDateTime baseTime = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
         UUID artifactId = UUID.randomUUID();
         UUID galleryId = UUID.randomUUID();
@@ -1013,7 +1014,7 @@ class CommunityMemoControllerIntegrationTest {
         insertFileUpload(ownerUuid, ORIGINAL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
         insertFileUpload(ownerUuid, THUMBNAIL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
         insertCommunityMemo(memoId, ownerUuid, artifactId, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 3, baseTime, null,
-            false, "{\"scale\":1.0}", 4, "allowed", baseTime.minusMinutes(1), baseTime.minusMinutes(1));
+            false, "{\"scale\":1.0}", 2, "allowed", baseTime.minusMinutes(1), baseTime.minusMinutes(1));
         jdbcTemplate.update("""
             UPDATE community_memo
             SET ocr_text = '신고 전 OCR',
@@ -1021,13 +1022,13 @@ class CommunityMemoControllerIntegrationTest {
                 moderation_checked_at = ?
             WHERE id = ?
             """, baseTime.plusMinutes(1), memoId);
-        for (int index = 0; index < 4; index++) {
+        for (int index = 0; index < 2; index++) {
             insertMemoReport(memoId, createExistingUser("기존신고" + index), "spam", baseTime.plusSeconds(index));
         }
 
         clearInvocations(moderationClient);
         mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), validReportJson("기타")))
-            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reportCount").value(5))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reportCount").value(3))
             .andExpect(jsonPath("$.data.hidden").value(true));
         verifyNoInteractions(moderationClient);
 
@@ -1039,7 +1040,7 @@ class CommunityMemoControllerIntegrationTest {
         assertThat(updatedAt).isEqualTo(hiddenAt);
         assertThat(
             jdbcTemplate.queryForObject("SELECT report_count FROM community_memo WHERE id = ?", Integer.class, memoId))
-            .isEqualTo(5);
+            .isEqualTo(3);
         assertThat(
             jdbcTemplate.queryForObject("SELECT is_hidden FROM community_memo WHERE id = ?", Boolean.class, memoId))
             .isTrue();
@@ -1435,6 +1436,23 @@ class CommunityMemoControllerIntegrationTest {
             """, 10L, "community.max_memo_count",
             "{\"value\":%d,\"unit\":\"count\",\"description\":\"커뮤니티 캔버스 표시 메모 수 제한\"}".formatted(maxMemoCount), 0L,
             now, now);
+    }
+
+    private void insertCommunityReportHideThresholdSetting(int threshold) {
+        LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO backoffice_setting (
+                id,
+                setting_key,
+                setting_value,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, 11L, "community.report_hide_threshold",
+            "{\"value\":%d,\"unit\":\"count\",\"description\":\"커뮤니티 메모 자동 숨김 신고 기준\"}".formatted(threshold), 0L, now,
+            now);
     }
 
     private void updateCommunityMaxMemoCountSetting(int maxMemoCount) {
