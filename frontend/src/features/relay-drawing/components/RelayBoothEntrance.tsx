@@ -14,18 +14,12 @@ import redNemoMoved from "../assets/red-nemo-moved.png";
 import redNemoSatisfied from "../assets/red-nemo-satisfied.png";
 import RelayArtworkCard from "./RelayArtworkCard";
 
-// 한 part(label card)의 px 크기. RelayLabelCard와 동일 단위. 슬롯의 폭/높이는 3*PART_SIZE + 2*PART_GAP.
-const PART_SIZE = 150;
+// 한 part(label card)의 px 크기. lg 미만(flex-col 레이아웃)에서는 작은 값을 사용해
+// 카드가 모바일 화면을 넘치지 않도록 한다. FAN_BREAKPOINT_PX(1024px)로 분기.
+const PART_SIZE_SM = 100;
+const PART_SIZE_LG = 150;
 // part 간 vertical gap (RelayArtworkCard가 gap-1 = 4px로 쌓는 값과 일치).
 const PART_GAP = 4;
-// part 1칸 step. 카메라가 한 part씩 panning할 때 이동량의 base.
-const PART_STEP = PART_SIZE + PART_GAP;
-// 아트워크 카드 1장의 총 높이 (3 parts + 2 gaps). 슬롯 ref의 명시 height에 사용해,
-// 첫 렌더에서 motion 트리가 마운트되지 않아도 slot이 0×0이 아닌 정확한 사이즈를 갖게 한다.
-// — measurement 가드로 인해 slot ref가 빈 div가 되면 getBoundingClientRect의 height=0이
-// 되고, centerOffset이 slot 중심이 아닌 slot 상단을 viewport 중심으로 끌어와 ARTWORK_HEIGHT/2
-// 만큼 아래로 어긋난다 (col-reverse 레이아웃에서만 증상이 보임).
-const ARTWORK_HEIGHT = 3 * PART_SIZE + 2 * PART_GAP;
 
 // 인트로 단계에서 한 part가 viewport의 min(width, height) 기준 몇 %를 차지하도록 카메라를 줌인할지.
 // 0.85 → 한 part가 viewport 짧은 변 기준 ~85% 점유.
@@ -205,6 +199,7 @@ interface Measurement {
   centerOffset: { x: number; y: number };
   introScale: number;
   fanAngle: number;
+  partSize: number;
 }
 
 function ChoreographyTree({
@@ -226,13 +221,21 @@ function ChoreographyTree({
   useEffect(() => {
     const measure = () => {
       if (!slotRef.current) return;
+      // viewport 폭에 따라 part 크기 결정 — 모바일/태블릿(< lg)에서는 카드를 줄여
+      // flex-col 레이아웃이 깨지지 않도록 한다.
+      const partSize =
+        window.innerWidth >= FAN_BREAKPOINT_PX ? PART_SIZE_LG : PART_SIZE_SM;
+      const artworkHeight = 3 * partSize + 2 * PART_GAP;
+      // getBoundingClientRect 전에 slot 크기를 맞춰 centerOffset이 정확하도록 보장.
+      slotRef.current.style.width = `${partSize}px`;
+      slotRef.current.style.height = `${artworkHeight}px`;
       const rect = slotRef.current.getBoundingClientRect();
       // 한 part가 viewport 짧은 변의 ~85%를 차지하도록 scale 계산.
       // height 기준과 width 기준 둘 중 작은 값을 택해 화면 밖으로 넘치지 않게 보장.
       const scaleByHeight =
-        (window.innerHeight * VIEWPORT_FILL_RATIO) / PART_SIZE;
+        (window.innerHeight * VIEWPORT_FILL_RATIO) / partSize;
       const scaleByWidth =
-        (window.innerWidth * VIEWPORT_FILL_RATIO) / PART_SIZE;
+        (window.innerWidth * VIEWPORT_FILL_RATIO) / partSize;
       setMeasurement({
         centerOffset: {
           x: window.innerWidth / 2 - (rect.left + rect.width / 2),
@@ -243,6 +246,7 @@ function ChoreographyTree({
           window.innerWidth >= FAN_BREAKPOINT_PX
             ? FAN_ANGLE_LG
             : FAN_ANGLE_SM,
+        partSize,
       });
     };
     // 첫 측정도 raf로 비동기화 — React Compiler가 useEffect 본문 동기 setState를 금지.
@@ -348,13 +352,16 @@ function ChoreographyTree({
       <div
         ref={slotRef}
         className={cn("relative", className)}
-      // motion 트리가 마운트되기 전에도 slot ref가 실제 아트워크 카드와 동일한 dimension을
-      // 갖도록 명시 사이즈를 부여. 빈 div(0×0) 상태에서 measurement가 일어나면 centerOffset이
-      // slot 중심이 아닌 상단을 기준으로 계산되어 카메라가 ARTWORK_HEIGHT/2(229px)만큼
-      // 아래로 어긋난다 (col-reverse 레이아웃에서만 발생: 데스크탑은 슬롯이 viewport 세로
-      // 중앙에 위치해 height=0이든 정확하든 centerOffset.y가 0으로 동일하게 떨어지기 때문).
-      style={{ width: PART_SIZE, height: ARTWORK_HEIGHT }}
-    >
+        // motion 트리가 마운트되기 전에도 slot ref가 실제 아트워크 카드와 동일한 dimension을
+        // 갖도록 명시 사이즈를 부여. measurement rAF에서 viewport 폭에 맞춘 정확한 크기로
+        // 다시 세팅하므로 여기서는 PART_SIZE_LG(최대값)를 기본으로 둔다.
+        style={{
+          width: measurement?.partSize ?? PART_SIZE_LG,
+          height: measurement
+            ? 3 * measurement.partSize + 2 * PART_GAP
+            : 3 * PART_SIZE_LG + 2 * PART_GAP,
+        }}
+      >
       {measurement !== null && (
         <motion.div
           // Layer 1 — slot-positioner: viewport center ↔ slot center translate.
@@ -400,7 +407,7 @@ function ChoreographyTree({
               if (isFanning) onComplete();
             }}
           >
-            <RelayArtworkCard size={PART_SIZE} />
+            <RelayArtworkCard size={measurement.partSize} />
           </motion.div>
 
           {/* z-20 MID — 동일 패턴, fanning에서 0° → -fanAngle. onComplete는 z-10에서 처리하므로 여기엔 없음. */}
@@ -413,7 +420,7 @@ function ChoreographyTree({
             }}
             transition={SIDE_ROTATION_TRANSITION}
           >
-            <RelayArtworkCard size={PART_SIZE} />
+            <RelayArtworkCard size={measurement.partSize} />
           </motion.div>
 
           {/* Layer 2 — 카메라: 인트로 동안 scale=introScale, translateY=focus offset.
@@ -424,14 +431,20 @@ function ChoreographyTree({
             className="relative z-30"
             initial={{
               scale: measurement.introScale,
-              y: PART_STEP * 1 * measurement.introScale,
+              y:
+                (measurement.partSize + PART_GAP) *
+                1 *
+                measurement.introScale,
             }}
             animate={
               isSettled
                 ? { scale: 1, y: 0 }
                 : {
                     scale: measurement.introScale,
-                    y: PART_STEP * (1 - focusIndex) * measurement.introScale,
+                    y:
+                      (measurement.partSize + PART_GAP) *
+                      (1 - focusIndex) *
+                      measurement.introScale,
                   }
             }
             transition={CAMERA_PAN_TRANSITION}
@@ -439,7 +452,7 @@ function ChoreographyTree({
             <RelayArtworkCard
               revealCount={revealCount}
               onPartReveal={handlePartReveal}
-              size={PART_SIZE}
+              size={measurement.partSize}
             />
           </motion.div>
         </motion.div>
@@ -458,6 +471,17 @@ function RelayBoothEntranceFinalState({
   onReveal,
   className,
 }: RelayBoothEntranceFinalStateProps) {
+  // lg 미만에서는 카드 크기를 줄여 모바일 레이아웃이 깨지지 않도록 한다.
+  const [partSize, setPartSize] = useState(PART_SIZE_LG);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      setPartSize(
+        window.innerWidth >= FAN_BREAKPOINT_PX ? PART_SIZE_LG : PART_SIZE_SM,
+      );
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   // 자연 완료 / 스킵 / reduced-motion 어느 경로든 결국 이 컴포넌트가 마운트되며,
   // 부모의 좌측 페이드 인 트리거를 1회만 발화하도록 ref 플래그로 가드.
   const hasRevealedRef = useRef(false);
@@ -471,13 +495,13 @@ function RelayBoothEntranceFinalState({
     <div className={cn("relative", className)}>
       {/* 모바일/태블릿(< lg)은 30°, 데스크탑은 45°. ChoreographyTree의 fanAngle 분기와 동일 1024px. */}
       <div className="absolute inset-0 z-10 origin-bottom rotate-30 lg:rotate-45">
-        <RelayArtworkCard size={PART_SIZE} />
+        <RelayArtworkCard size={partSize} />
       </div>
       <div className="absolute inset-0 z-20 origin-bottom rotate-[-30deg] lg:-rotate-45">
-        <RelayArtworkCard size={PART_SIZE} />
+        <RelayArtworkCard size={partSize} />
       </div>
       <div className="relative z-30">
-        <RelayArtworkCard size={PART_SIZE} />
+        <RelayArtworkCard size={partSize} />
       </div>
     </div>
   );
