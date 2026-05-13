@@ -71,7 +71,7 @@ export default function RelayResultView() {
   };
 
   return (
-    <section className="relative isolate min-h-full bg-relay-background">
+    <section className="relative isolate min-h-full">
       <div className="mx-auto flex min-h-screen w-full max-w-360 flex-col gap-4 px-4 py-6 sm:gap-6 sm:px-6 lg:gap-4 lg:px-[5%] lg:py-6">
         <ResultProgressStrip
           activeReveal={activeReveal}
