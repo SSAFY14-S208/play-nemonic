@@ -2,10 +2,13 @@
 
 import Image from 'next/image'
 import { useEffect } from 'react'
-import { ArrowRight, Download, Share2, Trash2, X } from 'lucide-react'
+import { ArrowRight, Download, Printer, Share2, Trash2, X } from 'lucide-react'
+import { cn } from '@/shared/libs'
 import { PHONE_COLORS, PHONE_GALLERY_ITEM_STYLES } from '../constants'
+import { useNemonicImagePrint } from '../hooks'
 import { usePhoneStore } from '../phoneStore'
 import type { PhoneGalleryItem } from '../types'
+import { PhonePrintFrame } from './PhonePrintFrame'
 
 interface PhoneGalleryItemSheetProps {
   item: PhoneGalleryItem
@@ -78,12 +81,24 @@ export function PhoneGalleryItemSheet({
   const loadGalleryDetail = usePhoneStore((state) => state.loadGalleryDetail)
   const clearGalleryDetail = usePhoneStore((state) => state.clearGalleryDetail)
   const deleteGalleryItem = usePhoneStore((state) => state.deleteGalleryItem)
+  const setToast = usePhoneStore((state) => state.setToast)
 
   const isLoading = galleryDetailStatus === 'loading'
   const detailImageUrl =
     galleryDetail && galleryDetail.galleryId === item.id
       ? galleryDetail.contentUrl || galleryDetail.thumbnailUrl
       : null
+  const printImageUrl = detailImageUrl ?? item.imageDataUrl ?? null
+  const {
+    isPreparingPrint,
+    isPrintDisabled,
+    printImage,
+    printMessage,
+  } = useNemonicImagePrint({
+    imageUrl: printImageUrl,
+    isImageLoading: isLoading,
+    onPrintBlocked: setToast,
+  })
 
   useEffect(() => {
     void loadGalleryDetail(item.id)
@@ -191,6 +206,30 @@ export function PhoneGalleryItemSheet({
 
         <button
           type="button"
+          onClick={() => void printImage()}
+          disabled={isPrintDisabled}
+          aria-describedby={printMessage ? 'phone-gallery-print-status' : undefined}
+          className={cn(
+            'body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] transition',
+            isPrintDisabled
+              ? 'cursor-not-allowed bg-surface-subtle text-fg-secondary'
+              : 'bg-primary-1 text-fg-inverse hover:-translate-y-0.5',
+          )}
+        >
+          <Printer className="size-5" />
+          {isPreparingPrint ? '인쇄창 준비 중' : '네모닉 출력'}
+        </button>
+        {printMessage && (
+          <p
+            id="phone-gallery-print-status"
+            className="caption-r mt-2 text-center text-fg-secondary"
+          >
+            {printMessage}
+          </p>
+        )}
+
+        <button
+          type="button"
           className="body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary text-fg-inverse transition hover:-translate-y-0.5"
         >
           커뮤니티 캔버스에 붙이기
@@ -200,6 +239,7 @@ export function PhoneGalleryItemSheet({
           월드 캔버스에 메모지로 부착됩니다.
         </p>
       </section>
+      <PhonePrintFrame imageUrl={printImageUrl} title={item.title} />
     </div>
   )
 }
