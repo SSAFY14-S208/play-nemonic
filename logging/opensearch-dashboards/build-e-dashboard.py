@@ -64,6 +64,13 @@ def viz(viz_id, title, vis_state, query="", description="", colors=None):
 COLOR_AUDIT_RESULT = {
     "success": "#10B981",
     "failure": "#EF4444",
+    "(결과 미기록)": "#475569",
+}
+
+# E2 target_type, E4 actor 의 missingBucketLabel — 무관/회색 톤
+COLOR_FALLBACK = {
+    "(target 없음)": "#475569",
+    "(actor 없음)":  "#475569",
 }
 
 COLOR_RISK_ACTIONS = {
@@ -206,6 +213,7 @@ E2 = viz(
     title="[E2] target_type 분포",
     description="조작 대상 카테고리 분포 (memo/room/canvas/param/prompt/...).",
     query="",
+    colors=COLOR_FALLBACK,
     vis_state={
         "title": "[E2] target_type 분포",
         "type": "pie",

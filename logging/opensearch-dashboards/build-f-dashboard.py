@@ -77,6 +77,10 @@ COLOR_APPLICATION = {
     "client-web":       "#A78BFA",
     "client-ingest":    "#94A3B8",
     "backoffice-api":   "#94A3B8",
+    # fallback bucket — spring grok 실패 등으로 application 미식별인 doc.
+    # 무관/회색 톤으로 두면 의미 있는 색 위주로 시선 집중됨.
+    "(미식별)":         "#475569",
+    "(none)":           "#475569",
 }
 
 COLOR_LOG_LEVEL = {
@@ -85,6 +89,7 @@ COLOR_LOG_LEVEL = {
     "WARN":  "#F59E0B",
     "INFO":  "#60A5FA",
     "DEBUG": "#94A3B8",
+    "(level 없음)": "#475569",
 }
 
 COLOR_F6_LABELS = {
