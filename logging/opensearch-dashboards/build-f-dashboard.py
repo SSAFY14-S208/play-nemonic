@@ -110,7 +110,38 @@ def table_params(per_page=20):
     }
 
 
-def metric_params():
+def metric_params(threshold=False):
+    """카운터(metric) viz의 params.
+
+    threshold=True 면 SRE 스타일 임계 색상 (green / yellow / red) 자동 적용.
+    구간은 7일 누적 기준 — 0~10 정상(green), 10~50 주의(yellow), 50+ 위험(red).
+    """
+    if threshold:
+        return {
+            "addTooltip": True,
+            "addLegend": False,
+            "type": "metric",
+            "metric": {
+                "percentageMode": False,
+                "useRanges": True,
+                "colorSchema": "Green to Red",
+                "metricColorMode": "Background",
+                "colorsRange": [
+                    {"from": 0,   "to": 10},
+                    {"from": 10,  "to": 50},
+                    {"from": 50,  "to": 1000000},
+                ],
+                "labels": {"show": True},
+                "invertColors": False,
+                "style": {
+                    "bgFill": "#1B1B1F",
+                    "bgColor": True,
+                    "labelColor": False,
+                    "subText": "",
+                    "fontSize": 36,
+                },
+            },
+        }
     return {
         "addTooltip": True,
         "addLegend": False,
@@ -296,7 +327,7 @@ F6 = viz(
     vis_state={
         "title": "[F6] 카테고리별 카운터",
         "type": "metric",
-        "params": metric_params(),
+        "params": metric_params(threshold=True),
         "aggs": [
             {"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
             {"id": "2", "enabled": True, "type": "filters", "schema": "group", "params": {
