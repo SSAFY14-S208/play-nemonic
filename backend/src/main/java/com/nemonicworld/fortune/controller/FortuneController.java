@@ -1,6 +1,8 @@
 package com.nemonicworld.fortune.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.fortune.dto.request.FortuneCreateRequest;
@@ -26,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/fortune")
-@Tag(name = "Fortune", description = "오늘의 운세 API")
+@Tag(name = OpenApiTags.FORTUNE, description = OpenApiTags.FORTUNE_DESCRIPTION)
 /**
  * 오늘의 운세 부스에서 사용하는 공개 API 요청을 처리하는 컨트롤러입니다.
  */
@@ -53,7 +55,7 @@ public class FortuneController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "오늘의 운세 생성 가능 여부 조회 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_UUID))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 사용자", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.USER_NOT_FOUND))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FortuneAvailabilityResponse>> getTodayAvailability(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
         FortuneAvailabilityResponse response = fortuneService.getTodayAvailability(userUuid);
@@ -74,7 +76,7 @@ public class FortuneController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
             @ExampleObject(name = "오늘 운세 없음", value = OpenApiErrorExamples.FORTUNE_NOT_FOUND)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FortuneResponse>> getTodayFortune(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
         FortuneResponse response = fortuneService.getTodayFortune(userUuid);
@@ -97,7 +99,7 @@ public class FortuneController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 사용자", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.USER_NOT_FOUND))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "오늘 운세 이미 생성됨", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FORTUNE_ALREADY_CREATED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "GMS 생성 실패", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FORTUNE_GMS_UNAVAILABLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FortuneResponse>> createFortune(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
         @Valid @RequestBody FortuneCreateRequest request) {

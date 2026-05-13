@@ -1,5 +1,6 @@
 package com.nemonicworld.files.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -33,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/files")
 @RequiredArgsConstructor
-@Tag(name = "File", description = "파일 API")
+@Tag(name = OpenApiTags.FILE, description = OpenApiTags.FILE_DESCRIPTION)
 public class FileController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;

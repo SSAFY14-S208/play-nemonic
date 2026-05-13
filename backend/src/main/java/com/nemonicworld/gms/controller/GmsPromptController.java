@@ -1,7 +1,9 @@
 package com.nemonicworld.gms.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
@@ -37,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/backoffice/gms/prompts")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "GMS Prompts", description = "백오피스 GMS 프롬프트 관리 API")
+@Tag(name = OpenApiTags.GMS_PROMPT, description = OpenApiTags.GMS_PROMPT_DESCRIPTION)
 public class GmsPromptController {
 
     private static final String DELETE_SUCCESS_MESSAGE = "GMS 프롬프트 삭제 성공";
@@ -66,7 +68,7 @@ public class GmsPromptController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "GMS 프롬프트 생성 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "중복 프롬프트 코드", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST)))})
     public ResponseEntity<ApiResponse<GmsPromptResponse>> createPrompt(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @Valid @RequestBody GmsPromptCreateRequest request,
@@ -87,7 +89,7 @@ public class GmsPromptController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 목록 조회 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 파라미터 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF)})
     public ResponseEntity<ApiResponse<GmsPromptListResponse>> getPrompts(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestParam(name = "keyword", required = false) String keyword,
@@ -105,7 +107,7 @@ public class GmsPromptController {
     @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "조회할 GMS 프롬프트 ID")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 상세 조회 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS 프롬프트 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
     public ResponseEntity<ApiResponse<GmsPromptResponse>> getPrompt(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("promptId") Long promptId) {
@@ -120,7 +122,7 @@ public class GmsPromptController {
     @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "삭제할 GMS 프롬프트 ID")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 삭제 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS 프롬프트 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
     public ResponseEntity<ApiResponse<Void>> deletePrompt(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @PathVariable("promptId") Long promptId, HttpServletRequest servletRequest) {
@@ -136,7 +138,7 @@ public class GmsPromptController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 수정 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS 프롬프트 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "중복 프롬프트 이름", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST)))})
     public ResponseEntity<ApiResponse<GmsPromptResponse>> updatePrompt(

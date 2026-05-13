@@ -77,18 +77,6 @@ GET {{host}}/api/v1/relay/rooms/{{roomCode}}/results
 GET {{host}}/api/v1/relay/rooms/not-a-room/results
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
-### Join relay room
-# REST room join registers the participant with connected=false.
-# The frontend must connect to /ws/relay before game start is allowed.
-POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
-Anonymous-User-UUID: {{anonymousUserUuid}}
-
-### Reconnect relay room
-# REST reconnect keeps connected=false until WebSocket CONNECT.
-# WAITING rooms have no reconnect grace cutoff; PLAYING rooms use the current backoffice reconnect grace setting.
-POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
-Anonymous-User-UUID: {{anonymousUserUuid}}
-
 ### Leave relay room
 DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
 Anonymous-User-UUID: {{anonymousUserUuid}}
@@ -113,28 +101,8 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 DELETE {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/me
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
-### Join relay room - invalid user UUID
-POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
-Anonymous-User-UUID: not-a-uuid
-
-### Join relay room - missing user UUID
-POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
-
-### Join relay room - invalid room code
-POST {{host}}/api/v1/relay/rooms/not-a-room/participants
-Anonymous-User-UUID: {{anonymousUserUuid}}
-
-### Join relay room - not found
-POST {{host}}/api/v1/relay/rooms/ZZZZZZ/participants
-Anonymous-User-UUID: {{anonymousUserUuid}}
-
-### Join relay room - nickname required
-# Use an anonymous user UUID whose nickname is still the default "익명".
-POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants
-Anonymous-User-UUID: {{anonymousUserUuid}}
-
 ### Kick relay room participant
-POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/kick
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
@@ -143,7 +111,7 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 }
 
 ### Kick relay room participant - invalid target UUID
-POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/kick
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
@@ -153,7 +121,7 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Kick relay room participant - not host
 # Use a participant UUID that is not the room host.
-POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/kick
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
@@ -163,7 +131,7 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
 
 ### Kick relay room participant - non-waiting room
 # 강퇴는 WAITING 대기실에서만 가능합니다.
-POST {{host}}/api/v1/relay/rooms/{{roomCode}}/participants/kick
+POST {{host}}/api/v1/relay/rooms/{{roomCode}}/kick
 Content-Type: application/json
 Anonymous-User-UUID: {{anonymousUserUuid}}
 

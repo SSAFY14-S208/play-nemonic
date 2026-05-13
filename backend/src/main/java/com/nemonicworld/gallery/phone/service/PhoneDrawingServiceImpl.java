@@ -1,4 +1,4 @@
-package com.nemonicworld.phone.service;
+package com.nemonicworld.gallery.phone.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,11 +12,11 @@ import com.nemonicworld.files.entity.FileUploadPurpose;
 import com.nemonicworld.files.repository.FileUploadRepository;
 import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
-import com.nemonicworld.phone.dto.request.PhoneDrawingSaveRequest;
-import com.nemonicworld.phone.dto.response.PhoneDrawingSaveResponse;
-import com.nemonicworld.phone.entity.PhoneDrawingArtifact;
-import com.nemonicworld.phone.repository.PhoneDrawingCreateCommand;
-import com.nemonicworld.phone.repository.PhoneDrawingRepository;
+import com.nemonicworld.gallery.phone.dto.request.PhoneDrawingSaveRequest;
+import com.nemonicworld.gallery.phone.dto.response.PhoneDrawingSaveResponse;
+import com.nemonicworld.gallery.phone.entity.PhoneDrawingArtifact;
+import com.nemonicworld.gallery.phone.repository.PhoneDrawingCreateCommand;
+import com.nemonicworld.gallery.phone.repository.PhoneDrawingRepository;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
 import java.util.UUID;

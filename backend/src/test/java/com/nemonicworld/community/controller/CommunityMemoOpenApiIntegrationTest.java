@@ -32,7 +32,7 @@ class CommunityMemoOpenApiIntegrationTest {
     void communityMemoListApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.summary").value("커뮤니티 메모 목록 조회"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.tags[0]").value("커뮤니티"))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID")))
             .andExpect(jsonPath(
@@ -54,7 +54,7 @@ class CommunityMemoOpenApiIntegrationTest {
     void communityMemoDetailApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.summary").value("커뮤니티 메모 상세 조회"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.tags[0]").value("커뮤니티"))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.parameters[*].name")
                 .value(hasItems("memoId", "Anonymous-User-UUID")))
             .andExpect(
@@ -77,7 +77,7 @@ class CommunityMemoOpenApiIntegrationTest {
     void communityMemoCreateApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.summary").value("커뮤니티 메모 생성"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.tags[0]").value("커뮤니티"))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID")))
             .andExpect(jsonPath(
@@ -106,7 +106,7 @@ class CommunityMemoOpenApiIntegrationTest {
 
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.summary").value("커뮤니티 메모 위치 수정"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.tags[0]").value("커뮤니티"))
             .andExpect(jsonPath(parametersPath + "[*].name").value(hasItems("memoId", "Anonymous-User-UUID")))
             .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoId')].required").value(hasItems(true)))
             .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))
@@ -132,7 +132,7 @@ class CommunityMemoOpenApiIntegrationTest {
 
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.summary").value("커뮤니티 메모 삭제"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.tags[0]").value("커뮤니티"))
             .andExpect(jsonPath(parametersPath + "[*].name").value(hasItems("memoId", "Anonymous-User-UUID")))
             .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoId')].required").value(hasItems(true)))
             .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))
@@ -152,7 +152,7 @@ class CommunityMemoOpenApiIntegrationTest {
 
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.summary").value("커뮤니티 메모 신고"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.tags[0]").value("커뮤니티"))
             .andExpect(jsonPath(parametersPath + "[*].name").value(hasItems("memoId", "Anonymous-User-UUID")))
             .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoId')].required").value(hasItems(true)))
             .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))

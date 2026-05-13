@@ -1,5 +1,6 @@
 package com.nemonicworld.community.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
@@ -33,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/community/memos")
-@Tag(name = "Community", description = "커뮤니티 API")
+@Tag(name = OpenApiTags.COMMUNITY, description = OpenApiTags.COMMUNITY_DESCRIPTION)
 /**
  * 커뮤니티 캔버스 공용 벽 메모 조회 요청을 처리하는 컨트롤러입니다.
  */

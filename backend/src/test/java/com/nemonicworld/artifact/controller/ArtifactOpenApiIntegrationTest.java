@@ -30,7 +30,7 @@ class ArtifactOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(
                 jsonPath("$.paths['/api/v1/artifacts/{artifactId}/image-urls'].get.summary").value("산출물 이미지 URL 조회"))
-            .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/image-urls'].get.tags[0]").value("Artifact"))
+            .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/image-urls'].get.tags[0]").value("산출물"))
             .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/image-urls'].get.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID", "artifactId")))
             .andExpect(jsonPath(
@@ -48,7 +48,7 @@ class ArtifactOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(
                 jsonPath("$.paths['/api/v1/artifacts/{artifactId}/download'].get.summary").value("QR 합성 산출물 다운로드"))
-            .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/download'].get.tags[0]").value("Artifact"))
+            .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/download'].get.tags[0]").value("산출물"))
             .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/download'].get.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID", "artifactId")))
             .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/download'].get.responses['200'].description")
@@ -63,7 +63,7 @@ class ArtifactOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(
                 jsonPath("$.paths['/api/v1/artifacts/{artifactId}/share'].post.summary").value("산출물 SNS 공유 정보 생성"))
-            .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/share'].post.tags[0]").value("Artifact"))
+            .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/share'].post.tags[0]").value("산출물"))
             .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/share'].post.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID", "artifactId")))
             .andExpect(jsonPath("$.paths['/api/v1/artifacts/{artifactId}/share'].post.responses['200'].description")

@@ -1,5 +1,6 @@
 package com.nemonicworld.auth.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.dto.request.LoginRequest;
 import com.nemonicworld.auth.dto.request.LogoutRequest;
 import com.nemonicworld.auth.dto.request.TokenRefreshRequest;
@@ -8,6 +9,7 @@ import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.auth.service.AuthService;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
@@ -31,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/auth")
-@Tag(name = "Auth", description = "인증 API")
+@Tag(name = OpenApiTags.AUTH, description = OpenApiTags.AUTH_DESCRIPTION)
 public class AuthController {
 
     private static final String BEARER_PREFIX = "Bearer ";
@@ -81,7 +83,7 @@ public class AuthController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 로그아웃 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF)})
     public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @Valid @RequestBody LogoutRequest request, HttpServletRequest servletRequest) {
         AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);

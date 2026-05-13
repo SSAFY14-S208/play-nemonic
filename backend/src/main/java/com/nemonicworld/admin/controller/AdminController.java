@@ -1,5 +1,6 @@
 package com.nemonicworld.admin.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.admin.dto.request.AdminCreateRequest;
 import com.nemonicworld.admin.dto.request.AdminPasswordChangeRequest;
 import com.nemonicworld.admin.dto.response.AdminResponse;
@@ -7,6 +8,7 @@ import com.nemonicworld.admin.service.AdminService;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
@@ -35,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/admins")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "Admins", description = "백오피스 관리자 API")
+@Tag(name = OpenApiTags.ADMIN, description = OpenApiTags.ADMIN_DESCRIPTION)
 public class AdminController {
 
     private static final String CREATE_SUCCESS_MESSAGE = "관리자 계정 생성 성공";
@@ -61,7 +63,7 @@ public class AdminController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "관리자 계정 생성 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "슈퍼 관리자 권한 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_SUPER_ADMIN_REQUIRED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "중복 관리자 아이디", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_LOGIN_ID_DUPLICATED)))})
     public ResponseEntity<ApiResponse<AdminResponse>> createAdmin(
@@ -78,7 +80,7 @@ public class AdminController {
     @Operation(summary = "관리자 계정 목록 조회", description = "슈퍼 관리자가 활성 관리자 계정 목록을 조회합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 계정 목록 조회 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "슈퍼 관리자 권한 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_SUPER_ADMIN_REQUIRED)))})
     public ResponseEntity<ApiResponse<List<AdminResponse>>> findAdmins(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal) {
@@ -92,7 +94,7 @@ public class AdminController {
     @Operation(summary = "관리자 계정 상세 조회", description = "슈퍼 관리자가 관리자 계정 상세 정보를 조회합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 계정 상세 조회 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "슈퍼 관리자 권한 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_SUPER_ADMIN_REQUIRED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "관리자 계정 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_ACCOUNT_NOT_FOUND)))})
     public ResponseEntity<ApiResponse<AdminResponse>> findAdmin(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
@@ -108,7 +110,7 @@ public class AdminController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 비밀번호 변경 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "관리자 비밀번호 변경 권한 없음", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "superAdminRequired", value = OpenApiErrorExamples.ADMIN_SUPER_ADMIN_REQUIRED),
             @ExampleObject(name = "super", value = OpenApiErrorExamples.ADMIN_SUPER_DELETE)})),
@@ -125,7 +127,7 @@ public class AdminController {
     @Operation(summary = "관리자 계정 삭제", description = "슈퍼 관리자가 일반 관리자 계정을 삭제합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 계정 삭제 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "관리자 계정 삭제 권한 없음", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "superAdminRequired", value = OpenApiErrorExamples.ADMIN_SUPER_ADMIN_REQUIRED),
             @ExampleObject(name = "selfDeleteForbidden", value = OpenApiErrorExamples.ADMIN_SELF_DELETE_FORBIDDEN),

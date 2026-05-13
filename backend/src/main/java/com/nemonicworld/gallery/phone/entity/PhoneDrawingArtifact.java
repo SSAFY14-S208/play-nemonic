@@ -1,4 +1,4 @@
-package com.nemonicworld.phone.entity;
+package com.nemonicworld.gallery.phone.entity;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
