@@ -86,8 +86,9 @@ Reporting policy:
 - A user can report the same memo once.
 - A user cannot report their own memo.
 - `community_memo.report_count` is incremented transactionally.
-- `report_count >= 5` automatically hides the memo with
-  `hidden_reason = report_threshold`.
+- When `report_count` reaches the configured `community.report_hide_threshold`
+  value, the memo is automatically hidden with
+  `hidden_reason = report_threshold`. The default threshold is 5 reports.
 - Admin detail embeds latest report history, including `reason_detail`, to
   support review decisions.
 

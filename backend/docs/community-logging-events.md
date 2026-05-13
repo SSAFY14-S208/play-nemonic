@@ -112,7 +112,7 @@
 | `community_memo_report_requested` | `POST /api/v1/community/memos/{memoId}/reports` 신고 요청 검증 후 | `memo_id`, `user_uuid`, `reason`, `reason_detail_present` | 신고 요청 진입 시점이다. |
 | `community_memo_report_created` | 신고 row 생성과 `report_count` 증가가 성공했을 때 | `report_id`, `memo_id`, `user_uuid`, `memo_owner_uuid`, `reason`, `reason_detail`, `reason_detail_present`, `report_count`, `hidden` | 신고 성공 로그다. 신고 상세 사유가 있으면 함께 남는다. |
 | `community_memo_report_rejected` | 본인 메모 신고, 중복 신고, hidden/deleted 메모 신고 등으로 거절됐을 때 | `memo_id`, `user_uuid`, `reason`, `reject_reason`, `reason_code`, `visibility_reason_code`, `message` | 신고 거절 사유를 집계한다. |
-| `community_memo_report_threshold_reached` | 신고 수가 자동 숨김 임계값에 도달했을 때 | `memo_id`, `user_uuid`, `report_count`, `threshold`, `reason` | 신고 5회 도달 시점이다. |
+| `community_memo_report_threshold_reached` | 신고 수가 자동 숨김 임계값에 도달했을 때 | `memo_id`, `user_uuid`, `report_count`, `threshold`, `reason` | 시스템 설정 `community.report_hide_threshold` 기준 도달 시점이다. 기본값은 5회다. |
 | `community_memo_auto_hidden_by_report` | 신고 임계값 도달로 메모가 자동 숨김 처리됐을 때 | `memo_id`, `user_uuid`, `report_count`, `threshold`, `hidden_reason`, `hidden_at` | `hidden_reason=report_threshold` 자동 숨김 처리 로그다. |
 
 ## 관리자 백오피스 조회 이벤트
@@ -185,7 +185,7 @@
 
 게시 실패를 볼 때는 `community_memo_create_validation_failed`, `community_memo_moderation_blocked`, `community_memo_moderation_failed`를 먼저 본다. 파일 소유권 문제는 `community_file_ownership_violation`, FastAPI 장애는 `community_memo_moderation_failed.fail_closed=true`, 유해성 차단은 `community_memo_moderation_blocked.allowed=false`로 좁혀 보면 된다.
 
-신고와 자동 숨김은 `community_memo_report_created`의 `report_count`를 따라가다가, 5회 도달 시 `community_memo_report_threshold_reached`와 `community_memo_auto_hidden_by_report`가 이어지는지 확인한다. 신고 후 일반 사용자 목록/상세에서 사라졌는지는 `community_hidden_memo_access_attempt`와 관리자 `admin_community_memo_detail_viewed`를 함께 보면 된다.
+신고와 자동 숨김은 `community_memo_report_created`의 `report_count`를 따라가다가, 시스템 설정 `community.report_hide_threshold` 기준에 도달할 때 `community_memo_report_threshold_reached`와 `community_memo_auto_hidden_by_report`가 이어지는지 확인한다. 기본값은 5회이며 백오피스 시스템 파라미터로 변경할 수 있다. 신고 후 일반 사용자 목록/상세에서 사라졌는지는 `community_hidden_memo_access_attempt`와 관리자 `admin_community_memo_detail_viewed`를 함께 보면 된다.
 
 관리자 수동 숨김/복구는 요청 이벤트와 결과 이벤트를 쌍으로 본다. 숨김은 `admin_community_memo_hide_requested` -> `admin_community_memo_hidden`, 복구는 `admin_community_memo_restore_requested` -> `admin_community_memo_restored` 순서다. 이미 같은 상태라 변경이 없으면 각각 `admin_community_memo_hide_noop`, `admin_community_memo_restore_noop`가 남는다. 상태 변경 전후는 `before_*`, `after_*` metadata로 비교한다.
 

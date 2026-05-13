@@ -58,7 +58,7 @@
 - FIFO 갯수 검증은 메모 CREATE, 즉 부착 시점에만 실행한다.
 - 사용자 삭제, 운영자 숨김 해제, 운영자 복원 등 다른 경로에서는 별도 갯수 검증을 하지 않는다.
 - 복원 등으로 일시적으로 51개 이상이 되어도 다음 CREATE 시점에 FIFO가 자연스럽게 정리한다.
-- 부적절 콘텐츠의 최초 노출 리스크는 게시 전 AI 모더레이션 차단으로 줄이고, 게시 후 리스크는 신고 5회 자동 숨김으로 보완한다.
+- 부적절 콘텐츠의 최초 노출 리스크는 게시 전 AI 모더레이션 차단으로 줄이고, 게시 후 리스크는 신고 자동 숨김으로 보완한다. 자동 숨김 기준은 기본 5회이며 `community.report_hide_threshold` 시스템 파라미터로 변경할 수 있다.
 - 숨김 상태 메모는 벽 렌더링에서 제외되며 갯수 한도 50개 카운트에도 포함하지 않는다.
 
 ## 사용자 인증 및 소유권
@@ -275,7 +275,7 @@ DB에는 커뮤니티 게시용 최종 원본 이미지 object key와 썸네일 
 - 가려진 내 메모 찾기 기능을 제공한다.
 - 타인 메모는 읽기와 터치 반응만 가능하며 수정 및 이동은 불가하다.
 - 신고 기능을 제공한다.
-- 신고 5회 누적 시 `is_hidden = true`로 자동 숨김 처리한다.
+- 신고 수가 시스템 설정 기준에 도달하면 `is_hidden = true`로 자동 숨김 처리한다. 기본 기준은 5회이며 백오피스 시스템 파라미터로 변경할 수 있다.
 - 운영자는 백오피스에서 숨김 메모를 검토해 복원하거나 `deleted_reason = admin_removed`로 소프트 삭제한다.
 
 ## 조회 응답 정책
@@ -397,7 +397,7 @@ FastAPI OCR/모더레이션 응답 시간이 사용자 경험을 해칠 정도�
 - 통과한 메모에 대해서도 OCR 원문 텍스트를 보존해야 한다면 `community_memo.ocr_text`에 평문으로 저장한다.
 - 분류 결과 라벨, 점수, 모델 메타데이터를 보존해야 한다면 `community_memo.ocr_categories`에 JSON 문자열로 저장한다.
 - 검사 완료 시각은 `moderation_checked_at`에 기록한다.
-- 신고 5회 누적 자동 숨김은 게시 후 사용자 신고 정책이므로 `moderation_status`를 변경하지 않고 `is_hidden = true`, `hidden_reason = report_threshold`로 처리한다.
+- 신고 누적 자동 숨김은 게시 후 사용자 신고 정책이므로 `moderation_status`를 변경하지 않고 `is_hidden = true`, `hidden_reason = report_threshold`로 처리한다. 자동 숨김 기준은 `community.report_hide_threshold` 설정값을 사용하며 기본값은 5회다.
 - 운영자가 게시 후 숨김 메모를 복원하면 `is_hidden = false`로 되돌리며, `moderation_status`는 기존 값을 유지한다.
 
 ### pending 미노출 대안
@@ -425,9 +425,9 @@ FastAPI 응답 시간이 길어 동기 차단이 어렵다면 다음 대안을 �
 
 ### 신고와 병행
 
-- AI 모더레이션은 게시 전 차단이고, 신고 5회 누적은 게시 후 숨김이다.
+- AI 모더레이션은 게시 전 차단이고, 신고 누적 자동 숨김은 게시 후 숨김이다.
 - 게시 전 AI 차단은 `community_memo`를 visible 상태로 만들지 않는다.
-- 게시 후 신고 5회 누적은 `is_hidden = true`, `hidden_reason = report_threshold`로 전환한다.
+- 게시 후 신고 수가 `community.report_hide_threshold` 기준에 도달하면 `is_hidden = true`, `hidden_reason = report_threshold`로 전환한다. 기본값은 5회다.
 - 백오피스 검토 큐에서 사유별 분리 조회가 가능해야 한다.
 
 ### 오탐과 운영 모니터링
@@ -462,7 +462,7 @@ FastAPI 응답 시간이 길어 동기 차단이 어렵다면 다음 대안을 �
 | 신고 방식 | 메모 터치 후 신고 버튼 노출, 신고 사유 선택 |
 | 신고 사유 | 부적절한 콘텐츠, 욕설/비방/혐오, 선정적/음란물, 폭력적/위협적 표현, 스팸/광고, 개인정보 노출, 도용/사칭, 기타 |
 | 중복 신고 방지 | 동일 UUID로 같은 메모 중복 신고 불가 |
-| 자동 숨김 기준 | 신고 5회 누적 |
+| 자동 숨김 기준 | `community.report_hide_threshold` 설정값, 기본 5회 |
 | 숨김 방식 | DB 삭제가 아니라 `is_hidden = true`로 전환 |
 | 본인 메모 신고 | 불가, 본인은 직접 삭제 가능 |
 
@@ -479,7 +479,7 @@ FastAPI 응답 시간이 길어 동기 차단이 어렵다면 다음 대안을 �
 
 | 값 | 의미 |
 | --- | --- |
-| `report_threshold` | 신고 5회 누적에 따른 자동 숨김 |
+| `report_threshold` | 신고 수가 시스템 설정 기준에 도달한 자동 숨김 |
 | `ai_moderation` | AI/모더레이션 차단에 따른 숨김 |
 | `admin_hidden` | 운영자 수동 숨김 |
 
