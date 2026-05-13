@@ -22,8 +22,11 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
@@ -34,6 +37,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 @IntegrationTest
 @AutoConfigureMockMvc
+@ExtendWith(OutputCaptureExtension.class)
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 @Sql(statements = "DELETE FROM app_user")
 /**
@@ -56,7 +60,7 @@ class UserControllerIntegrationTest {
      * 201 응답과 ApiResponse 형식, 그리고 app_user 저장 필드를 함께 검증합니다.
      */
     @Test
-    void createAnonymousUserReturnsCreatedResponseAndPersistsUser() throws Exception {
+    void createAnonymousUserReturnsCreatedResponseAndPersistsUser(CapturedOutput output) throws Exception {
         MvcResult result = mockMvc
             .perform(post("/api/v1/users/anonymous").header(HttpHeaders.USER_AGENT, "MangoApp/1.0"))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
@@ -76,6 +80,8 @@ class UserControllerIntegrationTest {
         assertThat(savedUser.getCreatedAt()).isEqualTo(LocalDateTime.parse(data.path("createdAt").asText()));
         assertThat(savedUser.getLastSeenAt()).isEqualTo(savedUser.getCreatedAt());
         assertThat(savedUser.getUpdatedAt()).isEqualTo(savedUser.getCreatedAt());
+        assertThat(output).contains("\"event_name\":\"anonymous_user_created\"")
+            .contains("\"event_name\":\"api_request_completed\"");
     }
 
     /**
@@ -272,7 +278,7 @@ class UserControllerIntegrationTest {
      * 닉네임이 없거나 전체 공백이거나 10자를 초과하면 400 응답을 반환하고 기존 값을 바꾸지 않는지 검증합니다.
      */
     @Test
-    void updateAnonymousUserNicknameRejectsInvalidNicknameAndDoesNotModifyUser() throws Exception {
+    void updateAnonymousUserNicknameRejectsInvalidNicknameAndDoesNotModifyUser(CapturedOutput output) throws Exception {
         UUID missingNicknameUserUuid = createExistingUser("MangoApp/1.0");
         UUID blankNicknameUserUuid = createExistingUser("MangoApp/1.0");
         UUID tooLongNicknameUserUuid = createExistingUser("MangoApp/1.0");
@@ -288,13 +294,14 @@ class UserControllerIntegrationTest {
         assertThat(userRepository.findById(tooLongNicknameUserUuid).orElseThrow().getNickname())
             .isEqualTo(AppUser.ANONYMOUS_NICKNAME);
         assertThat(userRepository.count()).isEqualTo(3);
+        assertThat(output).contains("\"event_name\":\"api_validation_failed\"");
     }
 
     /**
      * 서버에 존재하는 UUID로 생년월일 정보를 최초 등록하면 운세 재사용 필드와 updated_at만 갱신되는지 검증합니다.
      */
     @Test
-    void registerAnonymousUserBirthInfoReturnsOkResponseAndUpdatesBirthInfo() throws Exception {
+    void registerAnonymousUserBirthInfoReturnsOkResponseAndUpdatesBirthInfo(CapturedOutput output) throws Exception {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         userRepository.saveAndFlush(AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt));
@@ -322,6 +329,8 @@ class UserControllerIntegrationTest {
         assertThat(savedUser.getLastSeenAt()).isEqualTo(createdAt);
         assertThat(savedUser.getUserAgent()).isEqualTo("MangoApp/1.0");
         assertThat(userRepository.count()).isEqualTo(1);
+        assertThat(output).contains("\"event_name\":\"birth_info_saved\"").doesNotContain("1998-03-15")
+            .doesNotContain("13:30:00");
     }
 
     /**

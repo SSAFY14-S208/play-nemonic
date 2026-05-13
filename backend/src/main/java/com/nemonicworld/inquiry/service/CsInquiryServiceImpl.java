@@ -7,9 +7,11 @@ import com.nemonicworld.auth.service.AdminAuditLogger;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.EmailDeliveryException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.inquiry.dto.request.CsInquiryCreateRequest;
 import com.nemonicworld.inquiry.dto.request.CsInquiryReplyRequest;
 import com.nemonicworld.inquiry.dto.request.CsInquiryStatusUpdateRequest;
@@ -89,7 +91,13 @@ public class CsInquiryServiceImpl implements CsInquiryService {
             normalizeOptional(request.email()), serializeAttachments(request.attachments()),
             serializeMeta(request.meta(), userAgent, referer, now), CsInquiryStatus.NEW.getValue(), now, now);
 
-        return CsInquiryCreateResponse.from(csInquiryRepository.insertInquiry(command));
+        CsInquiryCreateResponse response = CsInquiryCreateResponse.from(csInquiryRepository.insertInquiry(command));
+        StructuredEventLogger.apiBusiness("inquiry_created", "inquiry", user.getId().toString(),
+            StructuredEventLogger.metadata("inquiry_id", response.id(), "type", type, "has_email",
+                StringUtils.hasText(request.email()), "attachment_count",
+                request.attachments() == null ? 0 : request.attachments().size(), "result", "success"));
+
+        return response;
     }
 
     @Override
@@ -145,7 +153,16 @@ public class CsInquiryServiceImpl implements CsInquiryService {
 
         String subject = normalizeRequiredTrimmed(request.subject());
         String message = normalizeRequiredTrimmed(request.message());
-        inquiryMailSender.sendReply(inquiry.getEmail(), subject, message);
+        try {
+            inquiryMailSender.sendReply(inquiry.getEmail(), subject, message);
+        } catch (EmailDeliveryException e) {
+            StructuredEventLogger.apiBusinessWarn("inquiry_reply_email_failed", "inquiry",
+                inquiry.getUserId().toString(), "inquiry reply email failed",
+                StructuredEventLogger.metadata("inquiry_id", inquiryId, "admin_id", adminPrincipal.id(), "result",
+                    "failed", "reason_code", e.getClass().getSimpleName()),
+                e);
+            throw e;
+        }
 
         LocalDateTime respondedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         int updatedCount = csInquiryRepository.updateReply(inquiryId, adminPrincipal.id(), message, respondedAt,
