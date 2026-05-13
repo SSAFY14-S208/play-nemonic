@@ -1,10 +1,12 @@
 package com.nemonicworld.global.config;
 
+import com.nemonicworld.common.openapi.OpenApiGroups;
 import com.nemonicworld.common.openapi.OpenApiTags;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springdoc.core.customizers.OpenApiCustomizer;
@@ -40,43 +42,47 @@ public class OpenApiConfig {
 
     @Bean
     public GroupedOpenApi allApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
-        return groupedOpenApi("all", "전체 API", openApiTagOrderCustomizer, "/api/v1/**", "/api/logs/**");
+        return groupedOpenApi(OpenApiGroups.ALL, OpenApiGroups.ALL_DISPLAY_NAME, openApiTagOrderCustomizer,
+            OpenApiGroups.ALL_PATHS);
     }
 
     @Bean
-    public GroupedOpenApi commonApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
-        return groupedOpenApi("common", "공통", openApiTagOrderCustomizer, "/api/v1/users/**", "/api/v1/auth/**",
-            "/api/v1/invites/**", "/api/v1/files/**");
+    public GroupedOpenApi commonApiGroup() {
+        return groupedOpenApi(OpenApiGroups.COMMON, OpenApiGroups.COMMON_DISPLAY_NAME,
+            tagOrderCustomizer(OpenApiGroups.COMMON_TAGS), OpenApiGroups.COMMON_PATHS);
     }
 
     @Bean
-    public GroupedOpenApi contentsApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
-        return groupedOpenApi("contents", "콘텐츠", openApiTagOrderCustomizer, "/api/v1/gallery", "/api/v1/gallery/**",
-            "/api/v1/artifacts/**", "/api/v1/share", "/api/v1/share/**", "/api/v1/community/memos",
-            "/api/v1/community/memos/**", "/api/v1/fortune", "/api/v1/fortune/**");
+    public GroupedOpenApi contentsApiGroup() {
+        return groupedOpenApi(OpenApiGroups.CONTENTS, OpenApiGroups.CONTENTS_DISPLAY_NAME,
+            tagOrderCustomizer(OpenApiGroups.CONTENTS_TAGS), OpenApiGroups.CONTENTS_PATHS);
     }
 
     @Bean
-    public GroupedOpenApi gamesApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
-        return groupedOpenApi("games", "게임", openApiTagOrderCustomizer, "/api/v1/relay/rooms", "/api/v1/relay/rooms/**",
-            "/api/v1/flipbook/rooms", "/api/v1/flipbook/rooms/**");
+    public GroupedOpenApi gamesApiGroup() {
+        return groupedOpenApi(OpenApiGroups.GAMES, OpenApiGroups.GAMES_DISPLAY_NAME,
+            tagOrderCustomizer(OpenApiGroups.GAMES_TAGS), OpenApiGroups.GAMES_PATHS);
     }
 
     @Bean
-    public GroupedOpenApi supportLogsApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
-        return groupedOpenApi("support-logs", "문의·로그", openApiTagOrderCustomizer, "/api/v1/inquiries",
-            "/api/v1/inquiries/**", "/api/logs/**");
+    public GroupedOpenApi supportLogsApiGroup() {
+        return groupedOpenApi(OpenApiGroups.SUPPORT_LOGS, OpenApiGroups.SUPPORT_LOGS_DISPLAY_NAME,
+            tagOrderCustomizer(OpenApiGroups.SUPPORT_LOGS_TAGS), OpenApiGroups.SUPPORT_LOGS_PATHS);
     }
 
     @Bean
-    public GroupedOpenApi backofficeApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
-        return groupedOpenApi("backoffice", "백오피스", openApiTagOrderCustomizer, "/api/v1/admins", "/api/v1/admins/**",
-            "/api/v1/admin/**", "/api/v1/backoffice/**");
+    public GroupedOpenApi backofficeApiGroup() {
+        return groupedOpenApi(OpenApiGroups.BACKOFFICE, OpenApiGroups.BACKOFFICE_DISPLAY_NAME,
+            tagOrderCustomizer(OpenApiGroups.BACKOFFICE_TAGS), OpenApiGroups.BACKOFFICE_PATHS);
     }
 
     private GroupedOpenApi groupedOpenApi(String group, String displayName, OpenApiCustomizer openApiTagOrderCustomizer,
-        String... pathsToMatch) {
-        return GroupedOpenApi.builder().group(group).displayName(displayName).pathsToMatch(pathsToMatch)
-            .addOpenApiCustomizer(openApiTagOrderCustomizer).build();
+        List<String> pathsToMatch) {
+        return GroupedOpenApi.builder().group(group).displayName(displayName)
+            .pathsToMatch(pathsToMatch.toArray(String[]::new)).addOpenApiCustomizer(openApiTagOrderCustomizer).build();
+    }
+
+    private OpenApiCustomizer tagOrderCustomizer(List<String> tagNames) {
+        return openApi -> openApi.setTags(OpenApiTags.orderedTags(tagNames));
     }
 }

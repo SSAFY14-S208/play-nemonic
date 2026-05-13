@@ -82,6 +82,14 @@ public final class OpenApiTags {
             tag(BACKOFFICE_FLIPBOOK, BACKOFFICE_FLIPBOOK_DESCRIPTION), tag(GMS_PROMPT, GMS_PROMPT_DESCRIPTION));
     }
 
+    public static List<String> orderedTagNames() {
+        return orderedTags().stream().map(Tag::getName).toList();
+    }
+
+    public static List<Tag> orderedTags(List<String> tagNames) {
+        return orderedTags().stream().filter(tag -> tagNames.contains(tag.getName())).toList();
+    }
+
     private static Tag tag(String name, String description) {
         return new Tag().name(name).description(description);
     }
