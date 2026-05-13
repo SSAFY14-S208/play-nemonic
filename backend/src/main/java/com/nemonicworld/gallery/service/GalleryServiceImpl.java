@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.NotFoundException;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.gallery.dto.response.GalleryDeleteResponse;
 import com.nemonicworld.gallery.dto.response.GalleryDetailResponse;
@@ -68,6 +69,9 @@ public class GalleryServiceImpl implements GalleryService {
         List<GalleryItemResponse> items = galleryRepository
             .findActiveItemsByUserId(userUuid, size, calculateOffset(page, size)).stream().map(this::toResponse)
             .toList();
+        StructuredEventLogger.apiBusiness("gallery_list_viewed", "gallery", userUuid.toString(),
+            StructuredEventLogger.metadata("page", page, "size", size, "item_count", items.size(), "total_elements",
+                totalElements, "result", "success"));
 
         return new GalleryListResponse(items, page, size, totalElements, calculateHasNext(page, size, totalElements));
     }
@@ -85,6 +89,9 @@ public class GalleryServiceImpl implements GalleryService {
 
         GalleryDetailRow row = galleryRepository.findActiveItemDetail(galleryId, userUuid)
             .orElseThrow(() -> new NotFoundException(GALLERY_ITEM_NOT_FOUND_MESSAGE));
+        StructuredEventLogger.apiBusiness("gallery_detail_viewed", "gallery", userUuid.toString(),
+            StructuredEventLogger.metadata("gallery_id", row.galleryId(), "artifact_id", row.artifactId(), "kind",
+                row.kind(), "result", "success"));
 
         return new GalleryDetailResponse(row.galleryId().toString(), row.artifactId().toString(), row.kind(),
             minioPublicUrlResolver.resolve(row.thumbnailUrl()), minioPublicUrlResolver.resolve(row.contentUrl()),
@@ -110,6 +117,8 @@ public class GalleryServiceImpl implements GalleryService {
         if (updatedCount == 0) {
             throw new NotFoundException(GALLERY_ITEM_NOT_FOUND_MESSAGE);
         }
+        StructuredEventLogger.apiBusiness("gallery_item_deleted", "gallery", userUuid.toString(), StructuredEventLogger
+            .metadata("gallery_id", target.galleryId(), "artifact_id", target.artifactId(), "result", "success"));
 
         return new GalleryDeleteResponse(target.galleryId().toString(), target.artifactId().toString(), deletedAt);
     }

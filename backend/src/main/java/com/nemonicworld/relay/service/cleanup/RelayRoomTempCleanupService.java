@@ -76,8 +76,7 @@ public class RelayRoomTempCleanupService {
                 }
             } catch (RuntimeException e) {
                 RelayRoomEventLogger.apiWarn("relay_temp_cleanup_failed", "failed to cleanup relay room temp files",
-                    metadata("room_id", closedRoom.roomCode(), "object_key_prefix",
-                        "relay/tmp/%s/".formatted(closedRoom.roomCode()), "failed_object_count",
+                    metadata("room_id", closedRoom.roomCode(), "object_role", "relay_temp_room", "failed_object_count",
                         countTempObjectKeys(closedRoom)),
                     e);
                 log.warn("릴레이 방 임시 파일 정리에 실패했습니다. roomCode={}", closedRoom.roomCode(), e);
@@ -144,7 +143,7 @@ public class RelayRoomTempCleanupService {
             oldTempObjectKeys = relayTempFileStorage.findOldTempObjectKeys(cutoff, oldTempScanLimit);
         } catch (RuntimeException e) {
             RelayRoomEventLogger.apiWarn("relay_old_temp_lookup_failed", "failed to lookup old relay temp files",
-                metadata("room_id", null, "object_key_prefix", "relay/tmp/", "failed_object_count", 0), e);
+                metadata("room_id", null, "object_role", "relay_temp", "failed_object_count", 0), e);
             log.warn("오래된 릴레이 임시 파일 조회에 실패했습니다.", e);
             return new RelayOldTempCleanupResult(0, 0);
         }
@@ -163,7 +162,7 @@ public class RelayRoomTempCleanupService {
             relayTempFileStorage.deleteObjects(safeOldTempObjectKeys);
         } catch (RuntimeException e) {
             RelayRoomEventLogger.apiWarn("relay_old_temp_cleanup_failed", "failed to cleanup old relay temp files",
-                metadata("room_id", null, "object_key_prefix", "relay/tmp/", "failed_object_count",
+                metadata("room_id", null, "object_role", "relay_temp", "failed_object_count",
                     safeOldTempObjectKeys.size()),
                 e);
             log.warn("오래된 릴레이 임시 파일 삭제에 실패했습니다.", e);

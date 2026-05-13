@@ -210,9 +210,10 @@ public class FlipbookFrameSubmitUseCase {
         FlipbookRoomEventLogger.apiBusiness("flipbook_frame_submitted",
             metadata("room_id", advanceResult.roomState().roomCode(), "uuid", participant.userUuid(), "round",
                 assignment.round(), "flipbook_index", assignment.flipbookIndex(), "frame_index",
-                assignment.frameIndex(), "file_id", frameFile.getId(), "object_key", frameFile.getObjectKey(),
-                "submitted_count", advanceResult.progress().submittedCount(), "total_count",
-                advanceResult.progress().totalCount(), "room_status", advanceResult.roomState().status()));
+                assignment.frameIndex(), "file_id", frameFile.getId(), "object_key_hash",
+                FlipbookRoomEventLogger.hash(frameFile.getObjectKey()), "submitted_count",
+                advanceResult.progress().submittedCount(), "total_count", advanceResult.progress().totalCount(),
+                "room_status", advanceResult.roomState().status()));
         if (advanceResult.allRoundsCompleted()) {
             FlipbookRoomEventLogger.apiBusiness("flipbook_all_rounds_completed",
                 metadata("room_id", advanceResult.roomState().roomCode(), "room_status",

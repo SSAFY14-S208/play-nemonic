@@ -10,6 +10,7 @@ import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.files.entity.FileUpload;
 import com.nemonicworld.files.entity.FileUploadPurpose;
 import com.nemonicworld.files.repository.FileUploadRepository;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.phone.dto.request.PhoneDrawingSaveRequest;
 import com.nemonicworld.phone.dto.response.PhoneDrawingSaveResponse;
@@ -55,6 +56,15 @@ public class PhoneDrawingServiceImpl implements PhoneDrawingService {
     @Override
     @Transactional
     public PhoneDrawingSaveResponse savePhoneDrawing(String userUuidValue, PhoneDrawingSaveRequest request) {
+        try {
+            return savePhoneDrawingInternal(userUuidValue, request);
+        } catch (RuntimeException e) {
+            logPhoneDrawingSaveFailed(userUuidValue, request, e);
+            throw e;
+        }
+    }
+
+    private PhoneDrawingSaveResponse savePhoneDrawingInternal(String userUuidValue, PhoneDrawingSaveRequest request) {
         UUID userUuid = anonymousUserResolver.parseUuid(userUuidValue);
         anonymousUserResolver.resolve(userUuid);
 
@@ -63,6 +73,9 @@ public class PhoneDrawingServiceImpl implements PhoneDrawingService {
         UUID thumbnailFileId = parseOptionalFileId(request == null ? null : request.thumbnailFileId(),
             INVALID_THUMBNAIL_FILE_ID_MESSAGE);
         String meta = serializeMeta(request == null ? null : request.meta());
+        StructuredEventLogger.apiBusiness("phone_drawing_save_requested", ARTIFACT_KIND_PHONE, userUuid.toString(),
+            StructuredEventLogger.metadata("image_file_id", imageFileId, "thumbnail_file_id", thumbnailFileId, "result",
+                "requested"));
 
         FileUpload imageFileUpload = findFileUpload(imageFileId);
         validatePhoneFile(imageFileUpload, userUuid);
@@ -84,8 +97,32 @@ public class PhoneDrawingServiceImpl implements PhoneDrawingService {
 
         PhoneDrawingArtifact artifact = new PhoneDrawingArtifact(galleryId, artifactId, ARTIFACT_KIND_PHONE,
             thumbnailObjectKey, imageObjectKey, now);
+        StructuredEventLogger.apiBusiness("phone_drawing_saved", ARTIFACT_KIND_PHONE, userUuid.toString(),
+            StructuredEventLogger.metadata("gallery_id", galleryId, "artifact_id", artifactId, "image_file_id",
+                imageFileId, "thumbnail_file_id", thumbnailFileId, "result", "success"));
         return PhoneDrawingSaveResponse.from(artifact, minioPublicUrlResolver.resolve(thumbnailObjectKey),
             minioPublicUrlResolver.resolve(imageObjectKey));
+    }
+
+    private void logPhoneDrawingSaveFailed(String userUuidValue, PhoneDrawingSaveRequest request, RuntimeException e) {
+        StructuredEventLogger.apiBusinessWarn("phone_drawing_save_failed", ARTIFACT_KIND_PHONE, safeUuid(userUuidValue),
+            "phone drawing save failed",
+            StructuredEventLogger.metadata("image_file_id", request == null ? null : request.imageFileId(),
+                "thumbnail_file_id", request == null ? null : request.thumbnailFileId(), "result", "failed",
+                "reason_code", e.getClass().getSimpleName()),
+            e);
+    }
+
+    private String safeUuid(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+
+        try {
+            return UUID.fromString(value).toString();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private UUID parseRequiredFileId(String value, String invalidMessage) {

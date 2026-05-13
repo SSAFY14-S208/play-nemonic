@@ -31,9 +31,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
@@ -44,6 +47,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
+@ExtendWith(OutputCaptureExtension.class)
 /**
  * 커뮤니티 메모 조회/생성 API가 최종 게시 이미지 스냅샷 계약을 지키는지 검증합니다.
  */
@@ -147,7 +151,7 @@ class CommunityMemoControllerIntegrationTest {
     }
 
     @Test
-    void createCommunityMemoCreatesDirectSnapshotMemoAfterModerationAllowed() throws Exception {
+    void createCommunityMemoCreatesDirectSnapshotMemoAfterModerationAllowed(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser("생성메모");
         UUID originalFileId = insertFileUpload(userUuid, ORIGINAL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
         UUID thumbnailFileId = insertFileUpload(userUuid, THUMBNAIL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
@@ -217,6 +221,13 @@ class CommunityMemoControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.totalElements").value(1))
             .andExpect(jsonPath("$.data.items[0].memoUuid").value(memoId.toString()));
+
+        assertThat(output).contains("\"event_name\":\"community_memo_created\"")
+            .contains("\"event_name\":\"community_memo_moderation_allowed\"").contains("body_image_object_key_hash")
+            .contains("thumbnail_image_object_key_hash").contains("client_text_length").contains("checked_text_length")
+            .doesNotContain("텍스트박스 원문").doesNotContain("추출 텍스트").doesNotContain(ORIGINAL_OBJECT_KEY)
+            .doesNotContain(THUMBNAIL_OBJECT_KEY).doesNotContain("client_text_preview")
+            .doesNotContain("ocr_text_preview");
     }
 
     @Test

@@ -396,15 +396,17 @@ public class RelayRoomFinalizationService {
                 failedObjectKeys.add(objectKey);
                 RelayRoomEventLogger.apiWarn("relay_result_orphan_cleanup_failed",
                     "failed to clean orphan relay result object",
-                    metadata("room_id", roomCode, "attempt_id", attempt.attemptId(), "object_keys", List.of(objectKey),
-                        "failed_object_count", 1, "error", e.getClass().getSimpleName()),
+                    metadata("room_id", roomCode, "attempt_id", attempt.attemptId(), "object_key_hashes",
+                        List.of(RelayRoomEventLogger.hash(objectKey)), "failed_object_count", 1, "error",
+                        e.getClass().getSimpleName()),
                     e);
             }
         }
 
         RelayRoomEventLogger.apiBusiness("relay_result_orphan_cleanup_completed",
-            metadata("room_id", roomCode, "attempt_id", attempt.attemptId(), "object_keys", objectKeys,
-                "deleted_object_count", deletedObjectCount, "failed_object_count", failedObjectKeys.size(), "result",
+            metadata("room_id", roomCode, "attempt_id", attempt.attemptId(), "object_key_hashes",
+                objectKeys.stream().map(RelayRoomEventLogger::hash).toList(), "deleted_object_count",
+                deletedObjectCount, "failed_object_count", failedObjectKeys.size(), "result",
                 failedObjectKeys.isEmpty() ? "success" : "partial_failure"));
     }
 

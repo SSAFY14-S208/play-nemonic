@@ -111,6 +111,11 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
             StructuredEventLogger.auditWarn("admin_token_invalid", "admin token invalid", resolveTraceId(request),
                 StructuredEventLogger.metadata("path", resolveRequestPath(request), "method", request.getMethod(),
                     "reason_code", e.getClass().getSimpleName()));
+            StructuredEventLogger.apiWarn("api_unauthorized", "api unauthorized", resolveTraceId(request),
+                StructuredEventLogger.metadata("path", resolveRequestPath(request), "method", request.getMethod(),
+                    "status", HttpStatus.UNAUTHORIZED.value(), "result", "failed", "reason_code",
+                    e.getClass().getSimpleName()),
+                e);
             writeUnauthorizedResponse(response);
         }
     }

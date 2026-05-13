@@ -35,6 +35,15 @@ public class ShareServiceImpl implements ShareService {
     @Transactional(readOnly = true)
     @Override
     public ShareCreateResponse createShare(String userUuidValue, ShareCreateRequest request) {
+        try {
+            return createShareInternal(userUuidValue, request);
+        } catch (RuntimeException e) {
+            shareEventLogger.logShareCreateFailed(userUuidValue, request == null ? null : request.galleryId(), e);
+            throw e;
+        }
+    }
+
+    private ShareCreateResponse createShareInternal(String userUuidValue, ShareCreateRequest request) {
         GalleryDetailResponse galleryItem = galleryService.getMyGalleryItemDetail(userUuidValue, request.galleryId());
         String imageUrl = selectImageUrl(galleryItem);
         String campaign = resolveCampaign(request.campaign(), galleryItem.kind());
