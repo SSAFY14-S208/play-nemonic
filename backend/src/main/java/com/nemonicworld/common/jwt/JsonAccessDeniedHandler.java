@@ -33,6 +33,11 @@ public class JsonAccessDeniedHandler implements AccessDeniedHandler {
                 StructuredEventLogger.metadata("path", request.getRequestURI(), "method", request.getMethod(),
                     "reason_code", accessDeniedException.getClass().getSimpleName()));
         }
+        StructuredEventLogger.apiWarn("api_forbidden", "api forbidden", resolveTraceId(request),
+            StructuredEventLogger.metadata("path", request.getRequestURI(), "method", request.getMethod(), "status",
+                HttpStatus.FORBIDDEN.value(), "result", "failed", "reason_code",
+                accessDeniedException.getClass().getSimpleName()),
+            accessDeniedException);
 
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

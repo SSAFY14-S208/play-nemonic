@@ -33,6 +33,11 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
                 StructuredEventLogger.metadata("path", request.getRequestURI(), "method", request.getMethod(),
                     "reason_code", authenticationException.getClass().getSimpleName()));
         }
+        StructuredEventLogger.apiWarn("api_unauthorized", "api unauthorized", resolveTraceId(request),
+            StructuredEventLogger.metadata("path", request.getRequestURI(), "method", request.getMethod(), "status",
+                HttpStatus.UNAUTHORIZED.value(), "result", "failed", "reason_code",
+                authenticationException.getClass().getSimpleName()),
+            authenticationException);
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
