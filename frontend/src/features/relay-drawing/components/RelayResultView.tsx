@@ -7,10 +7,7 @@ import { useRelayResult } from "../hooks";
 import { useRelayDrawingStore } from "../stores";
 import { cn } from "@/shared/libs";
 
-import {
-  ResultRevealAnimation,
-  ResultRightPanel,
-} from "./result-view";
+import { ResultRevealAnimation, ResultRightPanel } from "./result-view";
 
 const PANEL_CARD_CLASS =
   "rounded-3xl bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)] sm:px-8";
@@ -62,12 +59,14 @@ export default function RelayResultView() {
             )}
           >
             {resultImageUrl ? (
-              <ResultRevealAnimation
-                resultImageUrl={resultImageUrl}
-                segments={segments}
-                replayKey={activeResultIndex}
-                className={CANVAS_BOX_HEIGHT_CLASS}
-              />
+              <div className="w-full h-full relative flex items-center justify-center rounded-[14px] border-[1.5px] border-relay-line bg-relay-background">
+                <ResultRevealAnimation
+                  resultImageUrl={resultImageUrl}
+                  segments={segments}
+                  replayKey={activeResultIndex}
+                  className={CANVAS_BOX_HEIGHT_CLASS}
+                />
+              </div>
             ) : (
               <div
                 className={cn(
@@ -86,12 +85,7 @@ export default function RelayResultView() {
           </div>
 
           {/* ② 우측 — face-drawer 버튼 + 액션 버튼 통합. */}
-          <div
-            className={cn(
-              PANEL_CARD_CLASS,
-              "order-2 lg:col-start-2",
-            )}
-          >
+          <div className={cn(PANEL_CARD_CLASS, "order-2 lg:col-start-2")}>
             <ResultRightPanel
               resultItems={resultItems}
               activeResultIndex={activeResultIndex}
