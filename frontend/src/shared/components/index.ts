@@ -14,4 +14,5 @@ export {
 export { BrowserExtensionErrorGuard } from './BrowserExtensionErrorGuard'
 export { PostItNote } from './PostItNote'
 export { UserBootstrap, UserBootstrapLoader } from './UserBootstrap'
+export { LogBootstrap, LogBootstrapLoader } from './LogBootstrap'
 export { WorldHomeLink } from './WorldHomeLink'

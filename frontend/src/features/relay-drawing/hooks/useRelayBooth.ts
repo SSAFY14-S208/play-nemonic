@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
-import { ApiError, postRelayRoom, postRelayRoomParticipant } from '@/shared/apis'
+import { ApiError, getRelayRoom, postInvite, postRelayRoom } from '@/shared/apis'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { useUserStore } from '@/shared/stores'
 
@@ -28,7 +28,8 @@ interface UseRelayBoothReturn {
  * 부스 화면의 "방 만들기" / "방 입장" 액션을 결선한다.
  *
  * 흐름:
- *   1. POST /relay/rooms 또는 POST /relay/rooms/{roomCode}/participants
+ *   1. 방 만들기: POST /relay/rooms
+ *      방 입장: POST /invites/{roomCode} → GET /relay/rooms/{roomId}
  *   2. 성공 응답을 store.hydrateRoomState로 넣어 RelayRoomPage가 로비를
  *      바로 그릴 수 있도록 준비
  *   3. router.push(`/relay-drawing/${roomCode}`) — RelayRoomPage 마운트
@@ -85,9 +86,10 @@ export function useRelayBooth(): UseRelayBoothReturn {
     setError(null)
     startTransition(async () => {
       try {
-        const room = await postRelayRoomParticipant(roomCode)
+        const invite = await postInvite(roomCode)
+        const room = await getRelayRoom(invite.roomId)
         hydrateRoomState(room)
-        navigateToRoom(room.roomCode)
+        navigateToRoom(invite.roomId)
       } catch (caughtError) {
         const message =
           caughtError instanceof ApiError

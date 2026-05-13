@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Toaster } from "sonner";
 
-import { BrowserExtensionErrorGuard, UserBootstrapLoader } from "@/shared/components";
+import { BrowserExtensionErrorGuard, LogBootstrapLoader, UserBootstrapLoader } from "@/shared/components";
 import "@/shared/styles/index.css";
 
 export const metadata: Metadata = {
@@ -51,6 +51,7 @@ export default function RootLayout({
         />
         <BrowserExtensionErrorGuard />
         <UserBootstrapLoader />
+        <LogBootstrapLoader />
         <Toaster position="top-center" />
         {children}
       </body>

@@ -1,11 +1,18 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'motion/react'
+import { toast } from 'sonner'
 
+import { ApiError, postRelayRoomStart } from '@/shared/apis'
+import { WorldHomeLink } from '@/shared/components'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { useUserStore } from '@/shared/stores'
 
+import relayDrawingGameStart from './assets/relay-drawing-game-start.png'
+import nemonicDrawingLobbyBg from './assets/nemonic-drawing-lobby-bg.png'
 import {
   RelayButton,
   RelayDismissalModal,
@@ -80,11 +87,48 @@ function RelayRoomPageInner() {
   const roomStatus = useRelayDrawingStore((state) => state.roomStatus)
   const dismissalReason = useRelayDrawingStore((state) => state.dismissalReason)
   const clearRoom = useRelayDrawingStore((state) => state.clearRoom)
+  const gameStartPhase = useRelayDrawingStore((state) => state.gameStartPhase)
+  const setGameStartPhase = useRelayDrawingStore(
+    (state) => state.setGameStartPhase,
+  )
+  const hostUserUuid = useRelayDrawingStore((state) => state.hostUserUuid)
+  const userUuid = useUserStore((state) => state.userUuid)
+
+  const isHost = userUuid !== null && userUuid === hostUserUuid
 
   const handleDismissalConfirm = useCallback(() => {
     clearRoom()
     router.push('/relay-drawing')
   }, [clearRoom, router])
+
+  // 게임 시작 이미지 스케일 업 애니메이션 완료 → 호스트만 게임 시작 API 발사.
+  // 비호스트는 이미 GAME_STARTED WS 이벤트로 roomStatus가 PLAYING이므로 호출 불필요.
+  const handleGameStartImageShown = useCallback(() => {
+    if (!isHost || !roomCode) return
+    void (async () => {
+      try {
+        await postRelayRoomStart(roomCode)
+      } catch (caughtError) {
+        useRelayDrawingStore.getState().setGameStartPhase('idle')
+        toast.error(
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : '게임 시작에 실패했어요',
+        )
+      }
+    })()
+  }, [isHost, roomCode])
+
+  // roomStatus가 PLAYING이 되면 게임 시작 이미지를 잠시 보여준 뒤 drawing으로 전환.
+  // 호스트: 이미지 등장 → API → WS(PLAYING) → 1.5s 후 idle → drawing
+  // 비호스트: WS(PLAYING + animating 동시) → 1.5s 후 idle → drawing
+  useEffect(() => {
+    if (roomStatus !== 'PLAYING' || gameStartPhase !== 'animating') return
+    const timer = setTimeout(() => {
+      setGameStartPhase('idle')
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [roomStatus, gameStartPhase, setGameStartPhase])
 
   if (isHydrating) {
     return (
@@ -113,22 +157,106 @@ function RelayRoomPageInner() {
     )
   }
 
-  const view =
-    roomStatus === 'PLAYING' ? (
-      <RelayDrawingView />
-    ) : roomStatus === 'FINALIZING' ? (
-      <RelayFinalizingView />
-    ) : roomStatus === 'FINISHED' ? (
-      <RelayResultView />
-    ) : (
-      <RelayLobbyView />
-    )
-
   // 페이지 도메인 폰트(Paperlogy) 적용 wrap. portal로 분리된 모달은 별도로
   // Dialog.Popup className에 font-paperlogy를 직접 둔다.
+  //
+  // 배경 이미지는 뷰 전환과 무관하게 상시 마운트. AnimatePresence mode="wait"로
+  // 로비 exit 완료 후 다음 뷰가 enter된다 — 로비 좌/우 패널이 양쪽으로 밀려나
+  // 배경이 드러난 뒤 드로잉 뷰가 페이드 인하는 연출.
   return (
-    <div className="font-paperlogy">
-      {view}
+    <div className="font-paperlogy relative min-h-screen overflow-x-hidden bg-relay-background">
+      <Image
+        src={nemonicDrawingLobbyBg}
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="pointer-events-none object-cover"
+        aria-hidden
+      />
+      <div
+        className="absolute inset-0 bg-[radial-gradient(circle_at_52%_40%,rgb(255_255_255/36%),transparent_42%)]"
+        aria-hidden
+      />
+
+      {roomStatus === 'FINISHED' && <WorldHomeLink />}
+
+      <div className="mx-auto w-full max-w-300">
+        <AnimatePresence mode="wait">
+          {roomStatus === 'PLAYING' && gameStartPhase === 'idle' ? (
+            <motion.div
+              key="drawing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.35 }}
+            >
+              <RelayDrawingView />
+            </motion.div>
+          ) : roomStatus === 'FINALIZING' ? (
+            <motion.div
+              key="finalizing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <RelayFinalizingView />
+            </motion.div>
+          ) : roomStatus === 'FINISHED' ? (
+            <motion.div
+              key="finished"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <RelayResultView />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="lobby"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0 } }}
+              transition={{ duration: 0.55 }}
+            >
+              <RelayLobbyView />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* 게임 시작 오버레이 — AnimatePresence 밖에 배치해 뷰 전환과 독립적으로
+          페이드 아웃된다. 로비 exit(즉시) → 드로잉 enter와 동시에 이미지가 사라지는 연출. */}
+      <AnimatePresence>
+        {gameStartPhase === 'animating' && (
+          <motion.div
+            key="game-start-overlay"
+            className="fixed inset-0 z-30 grid place-items-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{
+                delay: 0.35,
+                duration: 0.5,
+                ease: [0.34, 1.56, 0.64, 1],
+              }}
+              onAnimationComplete={handleGameStartImageShown}
+            >
+              <Image
+                src={relayDrawingGameStart}
+                alt="게임 시작!"
+                className="h-auto w-[min(90vw,600px)]"
+                priority
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {dismissalReason && (
         <RelayDismissalModal
           reason={dismissalReason}

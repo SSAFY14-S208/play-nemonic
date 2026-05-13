@@ -30,6 +30,7 @@ export const createRoomSlice: StateCreator<
   minParticipants: DEFAULT_MIN_PARTICIPANTS,
   maxParticipants: DEFAULT_MAX_PARTICIPANTS,
   dismissalReason: null,
+  gameStartPhase: 'idle' as const,
 
   hydrateRoomState: (payload) => {
     set({
@@ -53,6 +54,7 @@ export const createRoomSlice: StateCreator<
   setHostUserUuid: (hostUserUuid) => set({ hostUserUuid }),
   setTimeLimitSeconds: (seconds) => set({ timeLimitSeconds: seconds }),
   setDismissalReason: (reason) => set({ dismissalReason: reason }),
+  setGameStartPhase: (phase) => set({ gameStartPhase: phase }),
 
   // clearRoom은 룸 슬라이스가 주체지만, 다음 룸 진입이 stale state로 시작하지
   // 않도록 캔버스/결과 슬라이스도 함께 비워준다. set()이 shallow merge라서
@@ -68,6 +70,7 @@ export const createRoomSlice: StateCreator<
       maxParticipants: DEFAULT_MAX_PARTICIPANTS,
       timeLimitAllowedSeconds: DEFAULT_TIME_LIMIT_ALLOWED_SECONDS,
       dismissalReason: null,
+      gameStartPhase: 'idle' as const,
       // 캔버스 슬라이스 리셋
       activeRoundKey: "face",
       selectedToolKey: "pencil",
