@@ -50,6 +50,7 @@ public class FlipbookRoomFinalizationService {
     private static final String PNG_CONTENT_TYPE = "image/png";
     private static final String FINALIZATION_STATE_ERROR_MESSAGE = "플립북 최종화 상태가 올바르지 않습니다.";
     private static final String FINALIZATION_META_ERROR_MESSAGE = "플립북 최종화 메타데이터를 생성할 수 없습니다.";
+    private static final String NO_RESULT_FRAMES_CLOSE_REASON = "no_result_frames";
 
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookArtifactRepository flipbookArtifactRepository;
@@ -163,7 +164,7 @@ public class FlipbookRoomFinalizationService {
             metadata("room_id", closeResult.roomCode(), "close_reason", "finalization_failed", "room_status_before",
                 roomState.status(), "participant_count", roomState.participantCount(), "retry_count", retryCount,
                 "closed_at", closeResult.closedAt()));
-        flipbookRoomEventPublisher.publishRoomClosed(roomCode, closeResult.closedAt());
+        flipbookRoomEventPublisher.publishRoomClosed(roomCode, closeResult.closedAt(), "finalization_failed");
     }
 
     private boolean isReadyForFinalization(FlipbookRoomState roomState, LocalDateTime readyCutoff) {
@@ -205,6 +206,10 @@ public class FlipbookRoomFinalizationService {
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         List<Integer> expectedIndexes = findFlipbookIndexes(roomState);
+        if (expectedIndexes.isEmpty()) {
+            return closeNoResultFramesRoom(roomState, now);
+        }
+
         List<FlipbookResultArtifactResult> existingArtifacts = flipbookArtifactRepository
             .findFlipbookArtifactsBySourceRoomId(roomCode);
         List<FlipbookResultArtifactResult> artifacts = resolveArtifacts(roomState, expectedIndexes, existingArtifacts,
@@ -223,6 +228,24 @@ public class FlipbookRoomFinalizationService {
                 "artifact_ids", artifacts.stream().map(artifact -> artifact.artifactId().toString()).toList()));
 
         return result;
+    }
+
+    private FlipbookRoomFinalizationResult closeNoResultFramesRoom(FlipbookRoomState roomState,
+        LocalDateTime closedAt) {
+        FlipbookRoomCloseResult closeResult = flipbookRoomCloseCommand.closeActiveRoomIfUnchanged(roomState, closedAt);
+        if (!closeResult.closed()) {
+            throw new ConflictException(FlipbookRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
+        }
+
+        flipbookFinalizationRetryRepository.clearFailureCount(roomState.roomCode());
+        flipbookRoomEventPublisher.publishRoomClosed(roomState.roomCode(), closeResult.closedAt(),
+            NO_RESULT_FRAMES_CLOSE_REASON);
+        FlipbookRoomEventLogger.apiBusiness("flipbook_room_closed",
+            metadata("room_id", roomState.roomCode(), "close_reason", NO_RESULT_FRAMES_CLOSE_REASON,
+                "room_status_before", roomState.status(), "participant_count", roomState.participantCount(),
+                "total_rounds", roomState.totalRounds(), "closed_at", closeResult.closedAt()));
+
+        return FlipbookRoomFinalizationResult.closed(roomState.roomCode(), closeResult.closedAt());
     }
 
     /**

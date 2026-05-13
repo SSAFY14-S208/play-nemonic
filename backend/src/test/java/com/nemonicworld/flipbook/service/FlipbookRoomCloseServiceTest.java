@@ -88,7 +88,7 @@ class FlipbookRoomCloseServiceTest {
         assertThat(result.roomState().status()).isEqualTo(FlipbookRoomStatus.CLOSED);
         verify(flipbookRoomRepository).saveIfUnchanged(eq(roomState), any(FlipbookRoomState.class));
         verify(flipbookInviteMetadataSyncService).syncWithRoomState(result.roomState());
-        verify(flipbookRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW);
+        verify(flipbookRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW, "auto_delay");
     }
 
     @Test
@@ -121,7 +121,7 @@ class FlipbookRoomCloseServiceTest {
         ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
         verify(flipbookRoomRepository).saveIfUnchanged(eq(roomState), updatedStateCaptor.capture());
         assertThat(updatedStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.CLOSED);
-        verify(flipbookRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW);
+        verify(flipbookRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW, "auto_delay");
     }
 
     @ParameterizedTest
@@ -164,7 +164,7 @@ class FlipbookRoomCloseServiceTest {
         assertThat(result.closed()).isTrue();
         verify(flipbookRoomRepository, times(2)).saveIfUnchanged(any(FlipbookRoomState.class),
             any(FlipbookRoomState.class));
-        verify(flipbookRoomEventPublisher, times(1)).publishRoomClosed(ROOM_CODE, NOW);
+        verify(flipbookRoomEventPublisher, times(1)).publishRoomClosed(ROOM_CODE, NOW, "auto_delay");
     }
 
     @Test
@@ -199,8 +199,8 @@ class FlipbookRoomCloseServiceTest {
 
         assertThat(result.scannedRoomCount()).isEqualTo(2);
         assertThat(result.closedRoomCount()).isEqualTo(1);
-        verify(flipbookRoomEventPublisher).publishRoomClosed(SECOND_ROOM_CODE, NOW);
-        verify(flipbookRoomEventPublisher, never()).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class));
+        verify(flipbookRoomEventPublisher).publishRoomClosed(SECOND_ROOM_CODE, NOW, "auto_delay");
+        verify(flipbookRoomEventPublisher, never()).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class), any());
     }
 
     private FlipbookRoomState finishedRoom(String roomCode, LocalDateTime updatedAt) {
