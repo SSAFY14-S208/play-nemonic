@@ -11,7 +11,7 @@ import com.nemonicworld.community.dto.request.AdminCommunityMemoReviewRequest;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoListResponse;
 import com.nemonicworld.community.dto.response.AdminCommunityMemoReportListResponse;
-import com.nemonicworld.community.service.AdminCommunityMemoService;
+import com.nemonicworld.community.service.admin.AdminCommunityMemoService;
 import com.nemonicworld.global.config.OpenApiConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

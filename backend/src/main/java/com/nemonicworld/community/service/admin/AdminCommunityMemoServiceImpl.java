@@ -1,4 +1,4 @@
-package com.nemonicworld.community.service;
+package com.nemonicworld.community.service.admin;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -21,6 +21,7 @@ import com.nemonicworld.community.entity.CommunityMemoSourceType;
 import com.nemonicworld.community.repository.AdminCommunityMemoRepository;
 import com.nemonicworld.community.repository.AdminCommunityMemoReportRow;
 import com.nemonicworld.community.repository.AdminCommunityMemoRow;
+import com.nemonicworld.community.service.support.CommunityMemoEventLogger;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -280,6 +281,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         metadata.put("after_reviewed_by", after.reviewedBy());
         metadata.put("before_reviewed_at", before.reviewedAt());
         metadata.put("after_reviewed_at", after.reviewedAt());
+        metadata.put("before_report_count", before.reportCount());
+        metadata.put("after_report_count", after.reportCount());
         return metadata;
     }
 

@@ -1,4 +1,4 @@
-package com.nemonicworld.community.service;
+package com.nemonicworld.community.service.support;
 
 import com.nemonicworld.global.logging.StructuredEventLogger;
 import java.util.LinkedHashMap;
