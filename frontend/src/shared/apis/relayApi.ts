@@ -21,17 +21,11 @@ export const postRelayRoom = () =>
 export const postRelayRoomStart = (roomCode: string) =>
   apiUnwrap(api.post<ApiResponse<RelayRoomStateResponse>>(`relay/rooms/${roomCode}/start`))
 
-// POST /relay/rooms/{roomCode}/participants — 릴레이 방 입장/복귀
-export const postRelayRoomParticipant = (roomCode: string) =>
-  apiUnwrap(
-    api.post<ApiResponse<RelayRoomStateResponse>>(`relay/rooms/${roomCode}/participants`),
-  )
-
-// POST /relay/rooms/{roomCode}/participants/kick — 릴레이 방 참여자 강퇴
+// POST /relay/rooms/{roomCode}/kick — 릴레이 방 참여자 강퇴
 // targetUserUuid는 강퇴 대상의 UUID(다른 사용자)이므로 body에 그대로 둔다.
 export const postRelayRoomKick = (roomCode: string, targetUserUuid: string) =>
   apiUnwrap(
-    api.post<ApiResponse<RelayRoomKickResponse>>(`relay/rooms/${roomCode}/participants/kick`, {
+    api.post<ApiResponse<RelayRoomKickResponse>>(`relay/rooms/${roomCode}/kick`, {
       targetUserUuid,
     }),
   )

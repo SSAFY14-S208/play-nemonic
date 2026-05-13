@@ -10,7 +10,7 @@ import {
   deleteRelayRoomParticipantMe,
   getRelayRoom,
   getRelayRoomResults,
-  postRelayRoomParticipant,
+  postInvite,
 } from "@/shared/apis";
 import type { RelaySocketStatus } from "@/shared/libs";
 import { useUserStore } from "@/shared/stores";
@@ -85,7 +85,8 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
 
         // 공유 링크 진입 자동 join — 가이드 §11.
         // 본인이 아직 참여자가 아니고 입장 가능한 WAITING 상태면 자동으로
-        // postRelayRoomParticipant를 호출해 백엔드 participants 목록에 등록한다.
+        // postInvite를 호출해 백엔드 participants 목록에 등록한 뒤,
+        // getRelayRoom으로 방 상태를 다시 가져와 store를 갱신한다.
         // 이미 참여자(부스에서 방 만들기/입장 직후 또는 새로고침)인 경우는 건너뛴다.
         // PLAYING/FINISHED/CLOSED 상태에서는 신규 입장 불가하므로 시도하지 않는다.
         if (
@@ -94,7 +95,9 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
           !room.viewer.participant
         ) {
           try {
-            const joined = await postRelayRoomParticipant(roomCode);
+            await postInvite(roomCode);
+            if (cancelled) return;
+            const joined = await getRelayRoom(roomCode);
             if (cancelled) return;
             hydrateRoomState(joined);
           } catch (joinError) {
@@ -180,11 +183,11 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
 
   // WebSocket 연결 — REST hydrate 완료 + 본인이 백엔드 participant 목록에 등록된
   // 시점에만 connect를 시도한다. 직접 링크 진입 시 REST chain(getRelayRoom +
-  // 자동 postRelayRoomParticipant)이 끝나기 전에 STOMP CONNECT가 먼저 발사되면
+  // 자동 postInvite)이 끝나기 전에 STOMP CONNECT가 먼저 발사되면
   // 백엔드가 "허용할 수 없습니다" 에러로 거부하고, 5초 후 재연결로 복구되는
   // race가 있어서 이 게이트를 둔다.
   //
-  // 부스 입장 플로우는 이미 postRelayRoomParticipant 후 navigate하므로 첫 렌더에
+  // 부스 입장 플로우는 이미 postInvite 후 navigate하므로 첫 렌더에
   // 본인이 participants에 들어있어 즉시 enabled=true가 된다. 새로고침 케이스도
   // REST 응답이 본인을 포함한 채 오면 동일.
   const isViewerParticipant =
