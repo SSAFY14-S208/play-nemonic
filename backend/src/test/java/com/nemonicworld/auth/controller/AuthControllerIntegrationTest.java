@@ -125,7 +125,7 @@ class AuthControllerIntegrationTest {
         assertThat(data.path("refreshToken").asText()).isNotBlank();
         assertThat(readLastLoginAt(ADMIN_ID)).isNotNull();
 
-        JsonNode auditLog = findAuditLog(output, "admin_login");
+        JsonNode auditLog = findAuditLog(output, "admin_login_success");
         JsonNode metadata = auditLog.path("metadata");
         assertThat(auditLog.path("level").asText()).isEqualTo("INFO");
         assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
@@ -625,7 +625,7 @@ class AuthControllerIntegrationTest {
     private JsonNode findAuditLog(CapturedOutput output, String eventName) throws Exception {
         for (String line : output.getOut().split("\\R")) {
             if (line.contains("\"event_name\":\"%s\"".formatted(eventName))) {
-                return objectMapper.readTree(line);
+                return objectMapper.readTree(line.substring(line.indexOf('{')));
             }
         }
 

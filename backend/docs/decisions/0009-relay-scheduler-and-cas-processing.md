@@ -25,6 +25,11 @@ other scheduler ticks.
 Run relay background work through focused scheduler services. Scan Redis with
 `SCAN`-based repository methods instead of `KEYS`. Each scheduler tick processes
 rooms independently and logs per-room failures without stopping the full scan.
+The Redis room repository uses a shared scan helper and emits debug-level scan
+observability (`purpose`, scanned key count, matched room count, limit, and
+duration) per repository scan. State-specific Redis indexes are deferred because
+they require careful synchronization on every successful room-state CAS
+transition.
 
 Use Redis optimistic CAS (`saveIfUnchanged`) for room state transitions. Retry
 short-lived CAS conflicts where the use case already supports retries. Publish
@@ -57,6 +62,11 @@ submissions or other scheduler ticks. The lock guards the latest room-state
 read, mutation, and CAS save window; expired or busy locks result in no-op
 processing for that tick rather than unsafe concurrent mutation.
 
+The current relay deployment target is a single backend server, so this ADR does
+not add scheduler leader election or scheduler-wide scan locks. Room-scoped
+mutation locks and the room-scoped finalization lock remain the authoritative
+guards for overlapping work inside the single server process.
+
 If a dropped host has a connected non-dropped candidate, transfer host ownership
 to the lowest `joinOrder` candidate. If there is no candidate, keep the current
 state safely and do not implement all-dropped room finalization in this step.
@@ -85,13 +95,15 @@ same-server relay `WebSocketSessionRegistry`, and CAS-updates missing sessions t
 `relay_room_recovered_or_reconciled` and lets disconnect-grace or abandoned-close
 jobs perform the follow-up state transition in later ticks.
 
-When the last `LEGS` assignment completes through a user submission or timeout
-auto-submit, the successful `FINALIZING` CAS write emits `ALL_PARTS_COMPLETED`
-and then triggers one immediate finalization attempt in the same processing
-flow. This improves the normal user path without changing retry behavior. The
-immediate attempt does not loop on failure; failed attempts are recorded and the
-30-second scheduler remains responsible for later retries, server-restart
-recovery, lock-busy recovery, and partial-success recovery.
+When the last `LEGS` assignment completes through a user submission, timeout
+auto-submit, or disconnect-grace auto-submit, the successful `FINALIZING` CAS
+write emits `ALL_PARTS_COMPLETED` and then schedules one asynchronous immediate
+finalization attempt. This improves the normal user path without making the
+submission, timeout, or disconnect-grace processing wait for composition,
+upload, and database writes. The immediate attempt does not loop on failure;
+failed attempts are recorded and the 10-second scheduler remains responsible
+for later retries, server-restart recovery, lock-busy recovery, and
+partial-success recovery.
 
 Finalization processing uses a room-scoped Redis lock,
 `relay:room-finalization-lock:{roomCode}`, with a 120-second default TTL. Lock
@@ -103,12 +115,18 @@ object keys can be tied to the current attempt.
 
 Finalization retries use a separate Redis counter key,
 `relay:room-finalization-retry:{roomCode}`, with the same 24-hour TTL as the
-room state. The finalization scheduler runs every 30 seconds by default. Each
+room state. The finalization scheduler runs every 10 seconds by default. Each
 failed finalization tick increments the counter and logs `retry_count`,
 `max_retry_count`, and `attempt_id`. A successful finalization clears the retry
-counter. On the 20th failure, the room is closed with
+counter. On the 60th failure, the room is closed with
 `close_reason=finalization_failed`, invite metadata is synced, and `ROOM_CLOSED`
 is published.
+
+The relay finalization async executor is configurable through
+`nemonic.relay.finalization.async.*`, including pool size, queue capacity,
+thread name prefix, shutdown task waiting, and await-termination seconds. The
+default shutdown policy waits up to 30 seconds for already queued immediate
+finalization work to finish.
 
 If a finalization attempt saved PostgreSQL result rows but failed to update the
 Redis room to `FINISHED`, a later retry first checks existing
@@ -123,6 +141,9 @@ scan limit. Temp objects are deleted only when their room state is missing or is
 already `FINISHED`/`CLOSED`. Result objects are deleted only when they are not
 referenced by DB result columns and are not listed in an active finalization
 attempt marker. Ambiguous result objects are skipped.
+Cleanup caches temp room-state lookups by `roomCode` within one run, batch-checks
+DB result object references, and batch-checks finalization attempt markers for
+candidate result object keys.
 
 ## Consequences
 
@@ -141,15 +162,19 @@ attempt marker. Ambiguous result objects are skipped.
 - Positive: A server restart no longer leaves stale relay `connected=true`
   values that can permanently block abandoned-room cleanup.
 - Positive: The normal final-result path no longer waits for the next
-  30-second scheduler tick, while the scheduler still owns retry and recovery
-  after immediate-trigger failure.
+  scheduler tick or blocks the submission response, while the scheduler still
+  owns retry and recovery after immediate-trigger failure.
 - Positive: Finalization attempt ids make retry, recovery, and result object
   cleanup logs traceable for a single run.
 - Positive: A Redis `FINISHED` transition conflict after DB save can be
   recovered without duplicate MinIO uploads or duplicate DB result rows.
 - Positive: Old orphan cleanup reduces long-lived storage drift while protecting
   active-room temp files and persisted result files.
+- Positive: Redis scan observability gives a low-risk way to spot scheduler scan
+  pressure before adding state indexes.
 - Negative: Orphan cleanup is intentionally conservative; result objects with
   uncertain references are skipped and may need manual investigation.
+- Follow-up: If scan metrics show room count pressure, introduce status-indexed
+  Redis sets with explicit CAS-success synchronization.
 - Follow-up: Full multi-node scheduler coordination may need stronger locks or
   leader election beyond the existing targeted locks.

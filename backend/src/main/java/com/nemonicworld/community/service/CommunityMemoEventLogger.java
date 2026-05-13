@@ -51,6 +51,10 @@ public final class CommunityMemoEventLogger {
         return value == null ? 0 : value.length();
     }
 
+    public static String hash(String value) {
+        return StructuredEventLogger.sha256Prefix(value);
+    }
+
     public static String textPreview(String value) {
         if (!StringUtils.hasText(value)) {
             return "";

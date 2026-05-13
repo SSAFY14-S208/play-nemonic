@@ -458,8 +458,8 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         String imageUrl = minioPublicUrlResolver.resolve(objectKey);
         if (StringUtils.hasText(objectKey) && !StringUtils.hasText(imageUrl)) {
             CommunityMemoEventLogger.warn("community_file_url_resolve_failed",
-                "admin community memo image url resolve failed", null,
-                CommunityMemoEventLogger.metadata("memo_id", memoId, "image_role", imageRole, "object_key", objectKey),
+                "admin community memo image url resolve failed", null, CommunityMemoEventLogger.metadata("memo_id",
+                    memoId, "image_role", imageRole, "object_key_hash", CommunityMemoEventLogger.hash(objectKey)),
                 null);
         }
 
@@ -485,7 +485,11 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
             Map<String, Object> parsedDecoration = objectMapper.readValue(decoration, DECORATION_TYPE);
             return parsedDecoration == null ? Map.of() : parsedDecoration;
         } catch (JsonProcessingException e) {
-            log.warn("관리자 커뮤니티 메모 decoration JSON을 파싱할 수 없습니다. decoration={}", decoration, e);
+            CommunityMemoEventLogger.warn("community_decoration_parse_failed",
+                "admin community memo decoration parse failed", CommunityMemoEventLogger.metadata("decoration_length",
+                    decoration.length(), "reason_code", "parse_failed"),
+                e);
+            log.warn("admin community memo decoration JSON parse failed. decorationLength={}", decoration.length(), e);
 
             return Map.of();
         }

@@ -3,7 +3,10 @@ package com.nemonicworld.relay.dto.response;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.service.support.RelayReconnectGraceSettings;
+import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -16,6 +19,9 @@ public record RelayRoomStateResponse(@Schema(description = "공유 방코드", e
     @Schema(description = "방 상태", example = "WAITING") RelayRoomStatus status,
     @Schema(description = "방장 사용자 UUID", example = "550e8400-e29b-41d4-a716-446655440000") String hostUserUuid,
     @Schema(description = "파트별 제한 시간(초)", example = "45") int timeLimitSeconds,
+    @Schema(description = "현재 백오피스 설정 기준 신규 릴레이 방 기본 제한시간(초)", example = "45") int timeLimitDefaultSeconds,
+    @Schema(description = "현재 백오피스 설정 기준 대기방에서 선택 가능한 제한시간 목록(초)", example = "[30,45,60]") List<Integer> timeLimitAllowedSeconds,
+    @Schema(description = "현재 백오피스 설정 기준 릴레이 진행 중 재연결 유예 시간(초)", example = "10") int reconnectGraceSeconds,
     @Schema(description = "최소 시작 인원", example = "2") int minParticipants,
     @Schema(description = "최대 참여 인원", example = "6") int maxParticipants,
     @Schema(description = "현재 참여자 수", example = "1") int participantCount,
@@ -33,14 +39,57 @@ public record RelayRoomStateResponse(@Schema(description = "공유 방코드", e
         int minParticipants, int maxParticipants, int participantCount, RelayDrawingPart currentPart,
         List<RelayRoomParticipantResponse> participants, RelayRoomViewerResponse viewer, LocalDateTime createdAt,
         LocalDateTime updatedAt) {
+        this(roomCode, status, hostUserUuid, timeLimitSeconds, RelayRoomTimeLimitSettings.defaultSettings(),
+            minParticipants, maxParticipants, participantCount, currentPart, participants, viewer, createdAt,
+            updatedAt);
+    }
+
+    public RelayRoomStateResponse(String roomCode, RelayRoomStatus status, String hostUserUuid, int timeLimitSeconds,
+        RelayRoomTimeLimitSettings timeLimitSettings, int minParticipants, int maxParticipants, int participantCount,
+        RelayDrawingPart currentPart, List<RelayRoomParticipantResponse> participants, RelayRoomViewerResponse viewer,
+        LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants, participantCount,
-            currentPart, 0, null, null, null, participants, viewer, createdAt, updatedAt);
+            currentPart, 0, null, null, null, participants, viewer, createdAt, updatedAt, timeLimitSettings,
+            Duration.ofSeconds(RelayReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS));
+    }
+
+    public RelayRoomStateResponse(String roomCode, RelayRoomStatus status, String hostUserUuid, int timeLimitSeconds,
+        int minParticipants, int maxParticipants, int participantCount, RelayDrawingPart currentPart,
+        int assignmentCount, LocalDateTime partStartedAt, LocalDateTime partDeadlineAt, LocalDateTime gameStartedAt,
+        List<RelayRoomParticipantResponse> participants, RelayRoomViewerResponse viewer, LocalDateTime createdAt,
+        LocalDateTime updatedAt) {
+        this(roomCode, status, hostUserUuid, timeLimitSeconds, minParticipants, maxParticipants, participantCount,
+            currentPart, assignmentCount, partStartedAt, partDeadlineAt, gameStartedAt, participants, viewer, createdAt,
+            updatedAt, RelayRoomTimeLimitSettings.defaultSettings(),
+            Duration.ofSeconds(RelayReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS));
+    }
+
+    private RelayRoomStateResponse(String roomCode, RelayRoomStatus status, String hostUserUuid, int timeLimitSeconds,
+        int minParticipants, int maxParticipants, int participantCount, RelayDrawingPart currentPart,
+        int assignmentCount, LocalDateTime partStartedAt, LocalDateTime partDeadlineAt, LocalDateTime gameStartedAt,
+        List<RelayRoomParticipantResponse> participants, RelayRoomViewerResponse viewer, LocalDateTime createdAt,
+        LocalDateTime updatedAt, RelayRoomTimeLimitSettings timeLimitSettings, Duration reconnectGracePeriod) {
+        this(roomCode, status, hostUserUuid, timeLimitSeconds, timeLimitSettings.defaultSeconds(),
+            timeLimitSettings.allowedSecondsList(), reconnectGraceSeconds(reconnectGracePeriod), minParticipants,
+            maxParticipants, participantCount, currentPart, assignmentCount, partStartedAt, partDeadlineAt,
+            gameStartedAt, participants, viewer, createdAt, updatedAt);
     }
 
     /**
      * Redis 상태 모델에서 외부에 노출할 조회 응답 값을 구성합니다.
      */
     public static RelayRoomStateResponse from(RelayRoomState roomState, RelayRoomViewerResponse viewer) {
+        return from(roomState, viewer, RelayRoomTimeLimitSettings.defaultSettings());
+    }
+
+    public static RelayRoomStateResponse from(RelayRoomState roomState, RelayRoomViewerResponse viewer,
+        RelayRoomTimeLimitSettings timeLimitSettings) {
+        return from(roomState, viewer, timeLimitSettings,
+            Duration.ofSeconds(RelayReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS));
+    }
+
+    public static RelayRoomStateResponse from(RelayRoomState roomState, RelayRoomViewerResponse viewer,
+        RelayRoomTimeLimitSettings timeLimitSettings, Duration reconnectGracePeriod) {
         // Redis 저장 순서가 흔들려도 대기실/게임 화면은 입장 순서 기준으로 안정적으로 표시합니다.
         List<RelayRoomParticipantResponse> participantResponses = roomState.participants().stream()
             .sorted(Comparator.comparingInt(participant -> participant.joinOrder()))
@@ -51,6 +100,16 @@ public record RelayRoomStateResponse(@Schema(description = "공유 방코드", e
             roomState.timeLimitSeconds(), roomState.minParticipants(), roomState.maxParticipants(),
             roomState.participantCount(), roomState.currentPart(), roomState.assignments().size(),
             roomState.partStartedAt(), roomState.partDeadlineAt(), roomState.gameStartedAt(), participantResponses,
-            viewer, roomState.createdAt(), roomState.updatedAt());
+            viewer, roomState.createdAt(), roomState.updatedAt(), timeLimitSettings, reconnectGracePeriod);
+    }
+
+    private static int reconnectGraceSeconds(Duration reconnectGracePeriod) {
+        if (reconnectGracePeriod == null) {
+            return Math.toIntExact(RelayReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS);
+        }
+
+        long seconds = Math.max(0L, reconnectGracePeriod.getSeconds());
+
+        return seconds > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) seconds;
     }
 }

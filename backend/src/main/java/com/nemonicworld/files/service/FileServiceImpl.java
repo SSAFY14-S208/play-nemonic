@@ -213,8 +213,9 @@ public class FileServiceImpl implements FileService {
         }
 
         Map<String, Object> metadata = StructuredEventLogger.metadata("file_id", fileUpload.getId(), "purpose",
-            fileUpload.getPurpose(), "status", fileUpload.getStatus(), "object_key", fileUpload.getObjectKey(),
-            "content_type", fileUpload.getContentType(), "byte_size", fileUpload.getByteSize());
+            fileUpload.getPurpose(), "status", fileUpload.getStatus(), "object_key_hash",
+            StructuredEventLogger.sha256Prefix(fileUpload.getObjectKey()), "content_type", fileUpload.getContentType(),
+            "byte_size", fileUpload.getByteSize());
         metadata.putAll(extraMetadata == null ? Map.of() : extraMetadata);
         StructuredEventLogger.apiBusiness(eventName, "community_file", userUuid.toString(), metadata);
     }

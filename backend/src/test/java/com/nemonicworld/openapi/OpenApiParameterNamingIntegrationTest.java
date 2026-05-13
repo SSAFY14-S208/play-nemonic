@@ -60,7 +60,7 @@ class OpenApiParameterNamingIntegrationTest {
     @Test
     void openApiGroupsExposeRelatedApiPaths() throws Exception {
         assertGroupContainsPaths(OpenApiGroups.ALL_GROUP,
-            List.of("/api/v1/relay/rooms", "/api/v1/gallery", "/api/logs/client"), List.of());
+            List.of("/api/v1/relay/rooms", "/api/v1/gallery", "/api/v1/logs/client"), List.of());
         assertGroupContainsTags(OpenApiGroups.ALL_GROUP);
 
         assertGroupContainsPaths(OpenApiGroups.COMMON_GROUP,
@@ -79,7 +79,7 @@ class OpenApiParameterNamingIntegrationTest {
                 "/api/v1/relay/rooms/{roomCode}/participants/kick"));
         assertGroupContainsTags(OpenApiGroups.GAMES_GROUP);
 
-        assertGroupContainsPaths(OpenApiGroups.SUPPORT_LOGS_GROUP, List.of("/api/v1/inquiries", "/api/logs/client"),
+        assertGroupContainsPaths(OpenApiGroups.SUPPORT_LOGS_GROUP, List.of("/api/v1/inquiries", "/api/v1/logs/client"),
             List.of("/api/v1/admin/inquiries", "/api/v1/relay/rooms"));
         assertGroupContainsTags(OpenApiGroups.SUPPORT_LOGS_GROUP);
 

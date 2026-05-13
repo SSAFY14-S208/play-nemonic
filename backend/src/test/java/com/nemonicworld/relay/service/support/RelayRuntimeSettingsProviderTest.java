@@ -1,14 +1,17 @@
 package com.nemonicworld.relay.service.support;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.backoffice.setting.entity.SystemParameter;
 import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -91,6 +94,43 @@ class RelayRuntimeSettingsProviderTest {
                 .of(systemParameter(RelayRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY, settingValue)));
 
         assertThat(provider.currentReconnectGracePeriod()).isEqualTo(Duration.ofSeconds(10));
+    }
+
+    @Test
+    void currentSettingsSnapshotLoadsRelaySettingsInSingleQuery() {
+        given(systemParameterRepository.findAllByKeys(anyList())).willReturn(List.of(
+            systemParameter(RelayRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY,
+                "{\"min\":3,\"max\":8,\"unit\":\"people\"}"),
+            systemParameter(RelayRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                "{\"default\":60,\"allowed\":[45,60,90],\"unit\":\"seconds\"}"),
+            systemParameter(RelayRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY,
+                "{\"value\":30,\"unit\":\"seconds\"}")));
+
+        RelayRuntimeSettingsSnapshot snapshot = provider.currentSettingsSnapshot();
+
+        assertThat(snapshot.participantLimit()).isEqualTo(new RelayRoomParticipantLimit(3, 8));
+        assertThat(snapshot.roomTimeLimitSettings())
+            .isEqualTo(new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)));
+        assertThat(snapshot.reconnectGracePeriod()).isEqualTo(Duration.ofSeconds(30));
+        verify(systemParameterRepository)
+            .findAllByKeys(List.of(RelayRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY,
+                RelayRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                RelayRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY));
+    }
+
+    @Test
+    void currentSettingsSnapshotFallsBackIndependently() {
+        given(systemParameterRepository.findAllByKeys(anyList()))
+            .willReturn(List.of(systemParameter(RelayRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY, "not-json"),
+                systemParameter(RelayRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                    "{\"default\":60,\"allowed\":[45,60,90],\"unit\":\"seconds\"}")));
+
+        RelayRuntimeSettingsSnapshot snapshot = provider.currentSettingsSnapshot();
+
+        assertThat(snapshot.participantLimit()).isEqualTo(RelayRoomParticipantLimit.defaultLimit());
+        assertThat(snapshot.roomTimeLimitSettings())
+            .isEqualTo(new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)));
+        assertThat(snapshot.reconnectGracePeriod()).isEqualTo(Duration.ofSeconds(10));
     }
 
     private SystemParameter systemParameter(String key, String value) {

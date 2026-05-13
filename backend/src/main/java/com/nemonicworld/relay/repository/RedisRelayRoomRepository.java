@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisOperations;
@@ -19,6 +20,8 @@ import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -27,6 +30,8 @@ import org.springframework.util.StringUtils;
  */
 @Repository
 public class RedisRelayRoomRepository implements RelayRoomRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(RedisRelayRoomRepository.class);
 
     private static final String ROOM_KEY_PREFIX = "relay:room:";
     private static final String FINALIZATION_LOCK_KEY_PREFIX = "relay:room-finalization-lock:";
@@ -124,19 +129,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findExpiredPlayingRooms(LocalDateTime now, int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> expiredRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && expiredRooms.size() < limit) {
-                findExpiredPlayingRoom(roomKeys.next(), now).ifPresent(expiredRooms::add);
-            }
-        }
-
-        return expiredRooms;
+        return scanRoomKeys("expired_playing", limit, limit, roomKey -> findExpiredPlayingRoom(roomKey, now));
     }
 
     /**
@@ -144,53 +137,20 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> candidateRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && candidateRooms.size() < limit) {
-                findPlayingRoomForDisconnectGrace(roomKeys.next(), disconnectCutoff).ifPresent(candidateRooms::add);
-            }
-        }
-
-        return candidateRooms;
+        return scanRoomKeys("disconnect_grace", limit, limit,
+            roomKey -> findPlayingRoomForDisconnectGrace(roomKey, disconnectCutoff));
     }
 
     @Override
     public List<RelayRoomState> findAbandonedWaitingRooms(LocalDateTime idleCutoff, int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> abandonedRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && abandonedRooms.size() < limit) {
-                findAbandonedWaitingRoom(roomKeys.next(), idleCutoff).ifPresent(abandonedRooms::add);
-            }
-        }
-
-        return abandonedRooms;
+        return scanRoomKeys("abandoned_waiting", limit, limit,
+            roomKey -> findAbandonedWaitingRoom(roomKey, idleCutoff));
     }
 
     @Override
     public List<RelayRoomState> findAbandonedPlayingRooms(LocalDateTime abandonedCutoff, int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> abandonedRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && abandonedRooms.size() < limit) {
-                findAbandonedPlayingRoom(roomKeys.next(), abandonedCutoff).ifPresent(abandonedRooms::add);
-            }
-        }
-
-        return abandonedRooms;
+        return scanRoomKeys("abandoned_playing", limit, limit,
+            roomKey -> findAbandonedPlayingRoom(roomKey, abandonedCutoff));
     }
 
     /**
@@ -198,36 +158,12 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findRoomsForConnectionReconciliation(int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> candidateRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && candidateRooms.size() < limit) {
-                findRoomForConnectionReconciliation(roomKeys.next()).ifPresent(candidateRooms::add);
-            }
-        }
-
-        return candidateRooms;
+        return scanRoomKeys("connection_reconciliation", limit, limit, this::findRoomForConnectionReconciliation);
     }
 
     @Override
     public List<RelayRoomState> findEmptyWaitingRooms(int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> emptyRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && emptyRooms.size() < limit) {
-                findEmptyWaitingRoom(roomKeys.next()).ifPresent(emptyRooms::add);
-            }
-        }
-
-        return emptyRooms;
+        return scanRoomKeys("empty_waiting", limit, limit, this::findEmptyWaitingRoom);
     }
 
     /**
@@ -235,19 +171,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findFinalizingRooms(int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> finalizingRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && finalizingRooms.size() < limit) {
-                findFinalizingRoom(roomKeys.next()).ifPresent(finalizingRooms::add);
-            }
-        }
-
-        return finalizingRooms;
+        return scanRoomKeys("finalizing", limit, limit, this::findFinalizingRoom);
     }
 
     /**
@@ -255,19 +179,8 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findClosableFinishedRooms(LocalDateTime closeCutoff, int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> closableRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && closableRooms.size() < limit) {
-                findClosableFinishedRoom(roomKeys.next(), closeCutoff).ifPresent(closableRooms::add);
-            }
-        }
-
-        return closableRooms;
+        return scanRoomKeys("closable_finished", limit, limit,
+            roomKey -> findClosableFinishedRoom(roomKey, closeCutoff));
     }
 
     /**
@@ -276,15 +189,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     @Override
     public List<RelayRoomState> findAllActiveRooms() {
         // SCAN count는 Redis 내부 페이지 힌트일 뿐 결과 상한이 아닙니다.
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(200).build();
-        List<RelayRoomState> activeRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext()) {
-                findActiveRoom(roomKeys.next()).ifPresent(activeRooms::add);
-            }
-        }
-
-        return activeRooms;
+        return scanRoomKeys("active_rooms", 200, Integer.MAX_VALUE, this::findActiveRoom);
     }
 
     /**
@@ -292,19 +197,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findClosedRooms(int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> closedRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && closedRooms.size() < limit) {
-                findClosedRoom(roomKeys.next()).ifPresent(closedRooms::add);
-            }
-        }
-
-        return closedRooms;
+        return scanRoomKeys("closed_cleanup", limit, limit, this::findClosedRoom);
     }
 
     /**
@@ -357,6 +250,32 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     @Override
     public void releaseTempCleanupLock(String roomCode) {
         redisTemplate.delete(createTempCleanupLockKey(roomCode));
+    }
+
+    private List<RelayRoomState> scanRoomKeys(String purpose, int scanCount, int matchedLimit,
+        Function<String, Optional<RelayRoomState>> matcher) {
+        if (scanCount <= 0 || matchedLimit <= 0) {
+            return List.of();
+        }
+
+        long startedNanos = System.nanoTime();
+        int scannedKeyCount = 0;
+        List<RelayRoomState> matchedRooms = new ArrayList<>();
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(scanCount).build();
+
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && matchedRooms.size() < matchedLimit) {
+                scannedKeyCount++;
+                matcher.apply(roomKeys.next()).ifPresent(matchedRooms::add);
+            }
+        }
+
+        log.debug(
+            "relay room scan completed. purpose={} scanned_key_count={} matched_room_count={} limit={} duration_ms={}",
+            purpose, scannedKeyCount, matchedRooms.size(), matchedLimit,
+            Duration.ofNanos(System.nanoTime() - startedNanos).toMillis());
+
+        return matchedRooms;
     }
 
     private Optional<RelayRoomState> findExpiredPlayingRoom(String roomKey, LocalDateTime now) {

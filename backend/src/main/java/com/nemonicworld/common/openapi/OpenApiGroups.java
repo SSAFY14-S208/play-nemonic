@@ -14,8 +14,8 @@ public final class OpenApiGroups {
     public static final String SUPPORT_LOGS = "support-logs";
     public static final String BACKOFFICE = "backoffice";
 
-    public static final GroupDefinition ALL_GROUP = new GroupDefinition(ALL, "전체 API",
-        List.of("/api/v1/**", "/api/logs/**"), OpenApiTags.orderedTagNames());
+    public static final GroupDefinition ALL_GROUP = new GroupDefinition(ALL, "전체 API", List.of("/api/v1/**"),
+        OpenApiTags.orderedTagNames());
     public static final GroupDefinition COMMON_GROUP = new GroupDefinition(COMMON, "공통",
         List.of("/api/v1/users/**", "/api/v1/auth/**", "/api/v1/invites/**", "/api/v1/files/**"),
         List.of(OpenApiTags.AUTH, OpenApiTags.USER, OpenApiTags.INVITE, OpenApiTags.FILE));
@@ -28,7 +28,7 @@ public final class OpenApiGroups {
         List.of("/api/v1/relay/rooms", "/api/v1/relay/rooms/**", "/api/v1/flipbook/rooms", "/api/v1/flipbook/rooms/**"),
         List.of(OpenApiTags.RELAY, OpenApiTags.FLIPBOOK));
     public static final GroupDefinition SUPPORT_LOGS_GROUP = new GroupDefinition(SUPPORT_LOGS, "문의·로그",
-        List.of("/api/v1/inquiries", "/api/v1/inquiries/**", "/api/logs/**"),
+        List.of("/api/v1/inquiries", "/api/v1/inquiries/**", "/api/v1/logs/**"),
         List.of(OpenApiTags.CS_INQUIRY, OpenApiTags.CLIENT_LOG));
     public static final GroupDefinition BACKOFFICE_GROUP = new GroupDefinition(BACKOFFICE, "백오피스",
         List.of("/api/v1/admins", "/api/v1/admins/**", "/api/v1/admin/**", "/api/v1/backoffice/**"),

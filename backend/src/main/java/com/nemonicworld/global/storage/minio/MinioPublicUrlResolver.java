@@ -1,5 +1,6 @@
 package com.nemonicworld.global.storage.minio;
 
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -39,8 +40,10 @@ public class MinioPublicUrlResolver {
         String bucket = trimSlashes(minioStorageProperties.bucket());
         String objectKey = trimSlashes(trimmedObjectReference);
         if (!StringUtils.hasText(publicUrl) || !StringUtils.hasText(bucket) || !StringUtils.hasText(objectKey)) {
-            log.warn("MinIO 공개 URL을 생성할 수 없습니다. publicUrl={}, bucket={}, objectReference={}", publicUrl, bucket,
-                objectReference);
+            log.warn(
+                "MinIO public URL cannot be created. publicUrlConfigured={} bucketConfigured={} objectReferenceHash={}",
+                StringUtils.hasText(publicUrl), StringUtils.hasText(bucket),
+                StructuredEventLogger.sha256Prefix(objectReference));
 
             return null;
         }
@@ -48,7 +51,8 @@ public class MinioPublicUrlResolver {
         try {
             return "%s/%s/%s".formatted(publicUrl, encodePathSegment(bucket), encodeObjectKey(objectKey));
         } catch (RuntimeException e) {
-            log.warn("MinIO 공개 URL 생성 중 오류가 발생했습니다. objectReference={}", objectReference, e);
+            log.warn("MinIO public URL creation failed. objectReferenceHash={}",
+                StructuredEventLogger.sha256Prefix(objectReference), e);
 
             return null;
         }

@@ -3,6 +3,7 @@ package com.nemonicworld.invite.service;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.GoneException;
 import com.nemonicworld.common.exception.NotFoundException;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.invite.dto.response.InviteJoinResponse;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.invite.repository.InviteRepository;
@@ -11,6 +12,7 @@ import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,14 +47,34 @@ public class InviteServiceImpl implements InviteService {
     @Transactional(readOnly = true)
     @Override
     public InviteJoinResponse joinByInviteCode(String inviteCode, String userUuidValue) {
-        validateInviteCode(inviteCode);
-        AppUser user = anonymousUserResolver.resolve(userUuidValue);
-        InviteMetadata invite = findInvite(inviteCode);
-        validateNotExpired(invite);
-        String boothType = normalizeBoothType(invite.boothType());
-        InviteJoinHandler handler = findInviteJoinHandler(boothType);
+        long startedAt = System.nanoTime();
+        InviteMetadata invite = null;
+        String boothType = null;
+        AppUser user = null;
+        try {
+            validateInviteCode(inviteCode);
+            user = anonymousUserResolver.resolve(userUuidValue);
+            invite = findInvite(inviteCode);
+            validateNotExpired(invite);
+            boothType = normalizeBoothType(invite.boothType());
+            InviteJoinHandler handler = findInviteJoinHandler(boothType);
+            StructuredEventLogger.apiBusiness("invite_join_requested", "invite", user.getId().toString(),
+                StructuredEventLogger.metadata("invite_code_hash", StructuredEventLogger.sha256Prefix(inviteCode),
+                    "booth_type", boothType, "room_id", invite.roomId(), "result", "requested"));
 
-        return handler.join(invite, user);
+            InviteJoinResponse response = handler.join(invite, user);
+            StructuredEventLogger.apiBusiness("invite_join_succeeded", "invite", user.getId().toString(),
+                StructuredEventLogger.metadata("invite_code_hash", StructuredEventLogger.sha256Prefix(inviteCode),
+                    "booth_type", response.boothType(), "room_id", response.roomId(), "already_joined",
+                    response.alreadyJoined(), "role", response.yourRole(), "participant_count",
+                    response.currentParticipants(), "duration_ms", calculateDurationMs(startedAt), "result",
+                    "success"));
+
+            return response;
+        } catch (RuntimeException e) {
+            logInviteJoinBlocked(inviteCode, userUuidValue, invite, boothType, e, calculateDurationMs(startedAt));
+            throw e;
+        }
     }
 
     /**
@@ -93,5 +115,32 @@ public class InviteServiceImpl implements InviteService {
         }
 
         throw new BadRequestException(UNSUPPORTED_BOOTH_TYPE_MESSAGE);
+    }
+
+    private void logInviteJoinBlocked(String inviteCode, String userUuidValue, InviteMetadata invite, String boothType,
+        RuntimeException e, long durationMs) {
+        StructuredEventLogger.apiBusinessWarn("invite_join_blocked", "invite", safeUuid(userUuidValue),
+            "invite join blocked",
+            StructuredEventLogger.metadata("invite_code_hash", StructuredEventLogger.sha256Prefix(inviteCode),
+                "booth_type", boothType == null && invite != null ? normalizeBoothType(invite.boothType()) : boothType,
+                "room_id", invite == null ? null : invite.roomId(), "duration_ms", durationMs, "result", "blocked",
+                "reason_code", e.getClass().getSimpleName()),
+            e);
+    }
+
+    private long calculateDurationMs(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
+    }
+
+    private String safeUuid(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+
+        try {
+            return UUID.fromString(value).toString();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }

@@ -8,8 +8,11 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -59,14 +62,18 @@ public class RelayArtifactRepository {
         WHERE CAST(a.kind AS VARCHAR) = :kind
           AND a.source_room_id = :roomCode
         """;
-    private static final String EXISTS_RELAY_RESULT_OBJECT_REFERENCE_SQL = """
-        SELECT EXISTS (
-            SELECT 1
-            FROM artifact a
-            JOIN relay_drawing_artifact rda ON rda.artifact_id = a.id
-            WHERE CAST(a.kind AS VARCHAR) = :kind
-              AND (a.thumbnail_url = :objectKey OR rda.combined_preview_url = :objectKey)
-        )
+    private static final String FIND_REFERENCED_RELAY_RESULT_OBJECT_KEYS_SQL = """
+        SELECT a.thumbnail_url AS object_key
+        FROM artifact a
+        JOIN relay_drawing_artifact rda ON rda.artifact_id = a.id
+        WHERE CAST(a.kind AS VARCHAR) = :kind
+          AND a.thumbnail_url IN (:objectKeys)
+        UNION
+        SELECT rda.combined_preview_url AS object_key
+        FROM artifact a
+        JOIN relay_drawing_artifact rda ON rda.artifact_id = a.id
+        WHERE CAST(a.kind AS VARCHAR) = :kind
+          AND rda.combined_preview_url IN (:objectKeys)
         """;
     private static final String INSERT_ARTIFACT_SQL = """
         INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
@@ -126,11 +133,23 @@ public class RelayArtifactRepository {
     }
 
     public boolean existsRelayResultObjectReference(String objectKey) {
-        MapSqlParameterSource params = new MapSqlParameterSource().addValue("kind", RELAY_DRAWING_KIND)
-            .addValue("objectKey", objectKey);
-        Boolean exists = jdbcTemplate.queryForObject(EXISTS_RELAY_RESULT_OBJECT_REFERENCE_SQL, params, Boolean.class);
+        Set<String> referencedObjectKeys = findReferencedRelayResultObjectKeys(List.of(objectKey));
 
-        return Boolean.TRUE.equals(exists);
+        return referencedObjectKeys.contains(objectKey);
+    }
+
+    public Set<String> findReferencedRelayResultObjectKeys(Collection<String> objectKeys) {
+        Set<String> distinctObjectKeys = new HashSet<>(objectKeys == null ? List.of() : objectKeys);
+        distinctObjectKeys.removeIf(key -> key == null || key.isBlank());
+        if (distinctObjectKeys.isEmpty()) {
+            return Set.of();
+        }
+
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("kind", RELAY_DRAWING_KIND)
+            .addValue("objectKeys", distinctObjectKeys);
+
+        return new HashSet<>(
+            jdbcTemplate.queryForList(FIND_REFERENCED_RELAY_RESULT_OBJECT_KEYS_SQL, params, String.class));
     }
 
     @Transactional

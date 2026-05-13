@@ -34,7 +34,7 @@ public class ClientLogController {
     }
 
     @ResponseBody
-    @PostMapping("/api/logs/client")
+    @PostMapping("/api/v1/logs/client")
     @Operation(summary = "클라이언트 로그 수집", description = "프론트엔드에서 전송한 표준 로그 이벤트 묶음을 stdout 로그 파이프라인으로 전달합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "클라이언트 로그 수집 성공"),

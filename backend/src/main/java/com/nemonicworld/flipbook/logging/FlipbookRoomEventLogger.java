@@ -31,4 +31,8 @@ public final class FlipbookRoomEventLogger {
     public static Map<String, Object> metadata(Object... keyValues) {
         return StructuredEventLogger.metadata(keyValues);
     }
+
+    public static String hash(String value) {
+        return StructuredEventLogger.sha256Prefix(value);
+    }
 }

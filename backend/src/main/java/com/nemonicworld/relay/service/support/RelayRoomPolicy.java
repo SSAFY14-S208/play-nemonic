@@ -105,7 +105,10 @@ public class RelayRoomPolicy {
      * 제한 시간 요청값을 검증합니다.
      */
     public int resolveTimeLimitSeconds(RelayRoomSettingsRequest request) {
-        RelayRoomTimeLimitSettings settings = relayRuntimeSettingsProvider.currentRoomTimeLimitSettings();
+        return resolveTimeLimitSeconds(request, relayRuntimeSettingsProvider.currentRoomTimeLimitSettings());
+    }
+
+    public int resolveTimeLimitSeconds(RelayRoomSettingsRequest request, RelayRoomTimeLimitSettings settings) {
         if (request == null || request.timeLimitSeconds() == null || !settings.allows(request.timeLimitSeconds())) {
             throw new BadRequestException(INVALID_TIME_LIMIT_SECONDS_MESSAGE);
         }
@@ -379,6 +382,10 @@ public class RelayRoomPolicy {
      * 재접속 가능 여부를 계산합니다.
      */
     public boolean canReconnect(RelayRoomParticipant participant, LocalDateTime now) {
+        return canReconnect(participant, now, relayRuntimeSettingsProvider.currentReconnectGracePeriod());
+    }
+
+    public boolean canReconnect(RelayRoomParticipant participant, LocalDateTime now, Duration reconnectGracePeriod) {
         if (participant.dropped()) {
             return false;
         }
@@ -388,8 +395,6 @@ public class RelayRoomPolicy {
         if (disconnectedAt == null) {
             return false;
         }
-
-        Duration reconnectGracePeriod = relayRuntimeSettingsProvider.currentReconnectGracePeriod();
 
         return !disconnectedAt.plus(reconnectGracePeriod).isBefore(now);
     }
@@ -412,7 +417,12 @@ public class RelayRoomPolicy {
      * 재접속 가능 상태인지 검증합니다.
      */
     public void requireReconnectable(RelayRoomParticipant participant, LocalDateTime now) {
-        if (!canReconnect(participant, now)) {
+        requireReconnectable(participant, now, relayRuntimeSettingsProvider.currentReconnectGracePeriod());
+    }
+
+    public void requireReconnectable(RelayRoomParticipant participant, LocalDateTime now,
+        Duration reconnectGracePeriod) {
+        if (!canReconnect(participant, now, reconnectGracePeriod)) {
             throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
         }
     }

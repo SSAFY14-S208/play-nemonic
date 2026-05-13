@@ -11,6 +11,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
@@ -49,6 +50,7 @@ public class RelayRoomDisconnectGraceService {
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
+    private final RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger;
     private final Duration roomMutationLockTtl;
     private final int scanLimit;
 
@@ -57,6 +59,7 @@ public class RelayRoomDisconnectGraceService {
         RelayRoomMutationLockRepository relayRoomMutationLockRepository,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
         RelayInviteMetadataSyncService relayInviteMetadataSyncService,
+        RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger,
         RelayRuntimeSettingsProvider relayRuntimeSettingsProvider,
         @Value("${nemonic.relay.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs,
         @Value("${nemonic.relay.disconnect.scan-limit:100}") int scanLimit) {
@@ -66,6 +69,7 @@ public class RelayRoomDisconnectGraceService {
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
+        this.relayRoomFinalizationAsyncTrigger = relayRoomFinalizationAsyncTrigger;
         this.relayRuntimeSettingsProvider = relayRuntimeSettingsProvider;
         this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
         this.scanLimit = scanLimit;
@@ -399,6 +403,7 @@ public class RelayRoomDisconnectGraceService {
             RelayRoomEventLogger.websocketBusiness("relay_all_parts_completed", metadata("room_id", result.roomCode(),
                 "participant_count", advanceResult.roomState().participantCount(), "assignment_count",
                 advanceResult.roomState().assignments().size(), "completed_at", advanceResult.roomState().updatedAt()));
+            relayRoomFinalizationAsyncTrigger.trigger(result.roomCode());
         } else {
             RelayDrawingPart previousPart = result.autoSubmissions().get(0).assignment().part();
             relayRoomEventPublisher.publishPartStarted(result.roomCode(), previousPart, advanceResult.nextPart(),

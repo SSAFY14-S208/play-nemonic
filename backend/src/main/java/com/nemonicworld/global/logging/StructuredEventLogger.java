@@ -3,10 +3,15 @@ package com.nemonicworld.global.logging;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.InternalServerException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -41,6 +46,16 @@ public final class StructuredEventLogger {
             null);
     }
 
+    public static void apiBusinessWarn(String eventName, String contentType, String uuid, String message,
+        Map<String, Object> metadata, Throwable error) {
+        emit(API_LOG, "WARN", SERVICE_API, "business_event", eventName, message, null, contentType, uuid, metadata,
+            error);
+    }
+
+    public static void apiSystem(String eventName, String message, String traceId, Map<String, Object> metadata) {
+        emit(API_LOG, "INFO", SERVICE_API, "system_event", eventName, message, traceId, null, null, metadata, null);
+    }
+
     public static void websocketBusiness(String eventName, Map<String, Object> metadata) {
         emit(WEBSOCKET_LOG, "INFO", SERVICE_WEBSOCKET, "business_event", eventName, eventName, null, null, null,
             metadata, null);
@@ -48,6 +63,11 @@ public final class StructuredEventLogger {
 
     public static void apiWarn(String eventName, String message, Map<String, Object> metadata, Throwable error) {
         emit(API_LOG, "WARN", SERVICE_API, "system_event", eventName, message, null, null, null, metadata, error);
+    }
+
+    public static void apiWarn(String eventName, String message, String traceId, Map<String, Object> metadata,
+        Throwable error) {
+        emit(API_LOG, "WARN", SERVICE_API, "system_event", eventName, message, traceId, null, null, metadata, error);
     }
 
     public static void websocketWarn(String eventName, String message, Map<String, Object> metadata, Throwable error) {
@@ -91,6 +111,25 @@ public final class StructuredEventLogger {
         }
 
         return metadata;
+    }
+
+    public static String sha256Prefix(String value) {
+        return sha256Prefix(value, 16);
+    }
+
+    public static String sha256Prefix(String value, int length) {
+        if (!hasText(value)) {
+            return null;
+        }
+
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            String encoded = HexFormat.of().formatHex(digest);
+
+            return encoded.substring(0, Math.min(Math.max(1, length), encoded.length()));
+        } catch (NoSuchAlgorithmException e) {
+            throw new InternalServerException("SHA-256 hash algorithm is unavailable", e);
+        }
     }
 
     private static void emit(Logger logger, String level, String service, String logType, String eventName,
@@ -190,6 +229,10 @@ public final class StructuredEventLogger {
 
         if (value instanceof LocalDateTime dateTime) {
             return dateTime.toString();
+        }
+
+        if (value instanceof LocalDate date) {
+            return date.toString();
         }
 
         if (value instanceof OffsetDateTime dateTime) {

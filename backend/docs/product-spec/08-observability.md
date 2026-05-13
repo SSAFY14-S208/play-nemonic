@@ -76,12 +76,13 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 포함 데이터:
 
 - `method`
-- `path_template`
+- `path`
 - `status`
-- `latency_ms`
+- `duration_ms`
+- `result`
 - `trace_id`
 - `uuid` 또는 `admin_id`(존재하는 경우)
-- `error_code`(실패 시)
+- `reason_code`(실패 시)
 
 분석 활용:
 
@@ -116,6 +117,30 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `relay_result_created`
 - `relay_room_closed`
 - `relay_temp_cleanup_completed`
+- `relay_ws_disconnect_update_failed`
+- `relay_room_recovered_or_reconciled`
+- `relay_disconnect_grace_scheduler_failed`
+- `relay_room_mutation_lock_busy`
+- `relay_redis_cas_retry_exceeded`
+- `relay_timeout_scheduler_failed`
+- `relay_part_time_up_publish_failed`
+- `relay_minio_upload_redis_save_failed`
+- `relay_orphan_cleanup_failed`
+- `relay_orphan_cleanup_completed`
+- `relay_temp_cleanup_failed`
+- `relay_temp_cleanup_lock_release_failed`
+- `relay_old_temp_lookup_failed`
+- `relay_old_temp_cleanup_failed`
+- `relay_finalization_immediate_triggered`
+- `relay_finalization_immediate_trigger_failed`
+- `relay_finalization_attempt_started`
+- `relay_finalization_attempt_failed`
+- `relay_finalization_failed`
+- `relay_finalization_lock_skipped`
+- `relay_finalization_attempt_clear_failed`
+- `relay_finalization_recovered`
+- `relay_result_orphan_cleanup_failed`
+- `relay_result_orphan_cleanup_completed`
 - `flipbook_room_created`
 - `flipbook_room_settings_changed`
 - `flipbook_participant_left`
@@ -136,6 +161,18 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `flipbook_all_rounds_completed`
 - `flipbook_result_created`
 - `flipbook_room_closed`
+- `flipbook_ws_disconnect_update_failed`
+- `flipbook_disconnect_grace_scheduler_failed`
+- `flipbook_room_mutation_lock_busy`
+- `flipbook_room_close_failed`
+- `flipbook_timeout_scheduler_failed`
+- `flipbook_round_time_up_publish_failed`
+- `flipbook_finalization_immediate_triggered`
+- `flipbook_finalization_failed`
+- `flipbook_finalization_lock_busy`
+- `flipbook_finalization_async_trigger_queued`
+- `flipbook_finalization_async_trigger_rejected`
+- `flipbook_finalization_async_trigger_failed`
 
 포함 데이터:
 
@@ -235,19 +272,65 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `artifact_id`
 - `original_file_id`
 - `thumbnail_file_id`
+- `object_key_hash`
 - `moderation_status`
 - `hidden_reason`
 - `deleted_reason`
 - `report_reason`
 - `reason_code`
 - `result`
+- `client_text_length`
+- `checked_text_length`
 - `duration_ms`
 - `report_count`
 - `fifo_rank`
 - `reject_reason`
 
+### 갤러리/공유/초대/사용자 서버 처리 이벤트
+
+- `gallery_list_viewed`
+- `gallery_detail_viewed`
+- `gallery_item_deleted`
+- `phone_drawing_save_requested`
+- `phone_drawing_saved`
+- `phone_drawing_save_failed`
+- `invite_join_requested`
+- `invite_join_succeeded`
+- `invite_join_blocked`
+- `artifact_download_requested`
+- `artifact_download_created`
+- `artifact_download_failed`
+- `share_link_created`
+- `share_link_create_failed`
+- `inquiry_created`
+- `inquiry_reply_email_failed`
+- `anonymous_user_created`
+- `birth_info_saved`
+
+포함 데이터:
+
+- `uuid`
+- `gallery_id`
+- `artifact_id`
+- `file_id`
+- `image_role`
+- `object_key_hash`
+- `invite_code_hash`
+- `share_token_hash`
+- `booth_type`
+- `room_id`
+- `participant_count`
+- `inquiry_id`
+- `operation`
+- `duration_ms`
+- `reason_code`
+- `result`
+
 ### 오늘의 운세/GMS 처리 이벤트
 
+- `fortune_availability_checked`
+- `fortune_create_requested`
+- `fortune_daily_limit_blocked`
 - `fortune_created`
 - `fortune_reissued`
 - `fortune_gms_succeeded`
@@ -257,7 +340,12 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 포함 데이터:
 
 - `uuid`
+- `fortune_date`
+- `fortune_id`
+- `today_fortune_id`
+- `available`
 - `gms_latency_ms`
+- `attempt_count`
 - `retry_count`
 - `prompt_version`
 - `result`
@@ -267,6 +355,20 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - GMS API 응답 지연
 - 재시도율
 - 최종 실패율
+
+### 클라이언트 로그 수집 처리 이벤트
+
+- `client_log_events_dropped`
+- `client_log_event_unlisted`
+
+포함 데이터:
+
+- `received_count`
+- `accepted_count`
+- `dropped_count`
+- `event_name`
+- `reason_code`
+- `result`
 
 ### 백엔드에서 수집하지 않는 이벤트
 
@@ -333,6 +435,9 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - 비밀번호, 세션 토큰, JWT, API key는 어떤 필드에도 포함하지 않는다.
 - Mattermost Webhook URL과 SMTP 자격 증명은 원문 대신 채널명/계정 식별자만 기록한다.
 - CS 문의 회신 이메일 본문은 길이와 첨부 수만 기록하고 본문은 남기지 않는다.
+- 요청 body 전체, GMS 프롬프트 전문, AI 응답 본문 전체, 사주/생년월일/생시 원문은 기록하지 않는다.
+- 사용자 입력 텍스트 preview, presigned URL, public URL, share token 원문, MinIO object key 원문은 기록하지 않는다.
+- 원문 식별이 필요한 경우 `*_hash`, `*_count`, `*_length`, enum, duration, `reason_code`, `result` 수준으로만 남긴다.
 - 사용자 UUID는 이미 익명 식별자이므로 마스킹하지 않는다.
 
 ### 무결성 보장
@@ -392,7 +497,7 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 | `session_id` | string | 조건부 | 브라우저 탭 단위 세션 ID. 30분 idle 후 재발급. |
 | `uuid` | string | 조건부 | 익명 사용자 UUID. localStorage 기반이므로 storage clear 시 단절될 수 있다. |
 | `event_name` | string | 필수 | snake_case 이벤트 이름 |
-| `content_type` | string | 조건부 | `community`, `relay`, `flipbook`, `canvas`, `fortune`, `lobby` |
+| `content_type` | string | 조건부 | `community`, `relay`, `flipbook`, `canvas`, `fortune`, `gallery`, `phone`, `artifact`, `share`, `invite`, `inquiry`, `user`, `lobby` |
 | `room_id` | string | 조건부 | 방/캔버스 고유 ID |
 | `prev_zone` | string | 조건부 | `zone_enter`에서 직전 방문 `content_type` (콘텐츠 단위) |
 | `prev_path` | string | 조건부 | `page_view`/`page_leave`에서 직전 정규화된 route (route 단위) |
@@ -555,7 +660,7 @@ metadata:
 
 - 정상 200 응답 로그는 10% 샘플링
 - 4xx/5xx는 100% 수집
-- `request_body`, `response_body`는 에러 시에만 수집
+- `request_body`, `response_body` 원문은 수집하지 않고 필요한 경우 길이, count, reason code만 수집
 - 30일 지난 인덱스는 S3 snapshot cold archive
 
 ## 파이프라인 장애 대응

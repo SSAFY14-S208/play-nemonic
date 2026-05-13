@@ -22,7 +22,7 @@ import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.RelayRoomService;
-import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationService;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -74,15 +74,16 @@ public class RelayRoomController {
     private final RelayRoomService relayRoomService;
     private final RelayRoomRepository relayRoomRepository;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
-    private final RelayRoomFinalizationService relayRoomFinalizationService;
+    private final RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger;
     private static final String RELAY_PART_SUBMITTED_MESSAGE = "릴레이 그림 제출 성공";
 
     public RelayRoomController(RelayRoomService relayRoomService, RelayRoomRepository relayRoomRepository,
-        RelayRoomEventPublisher relayRoomEventPublisher, RelayRoomFinalizationService relayRoomFinalizationService) {
+        RelayRoomEventPublisher relayRoomEventPublisher,
+        RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger) {
         this.relayRoomService = relayRoomService;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
-        this.relayRoomFinalizationService = relayRoomFinalizationService;
+        this.relayRoomFinalizationAsyncTrigger = relayRoomFinalizationAsyncTrigger;
     }
 
     /**
@@ -231,7 +232,7 @@ public class RelayRoomController {
             relayRoomEventPublisher.publishPartSubmitted(response);
             if (response.advanced() && response.allPartsCompleted()) {
                 relayRoomEventPublisher.publishAllPartsCompleted(response);
-                relayRoomFinalizationService.triggerFinalization(response.roomCode());
+                relayRoomFinalizationAsyncTrigger.trigger(response.roomCode());
             } else if (response.advanced()) {
                 relayRoomEventPublisher.publishPartStarted(response);
             }
@@ -348,7 +349,7 @@ public class RelayRoomController {
      * 방장이 대기 중 방의 파트별 제한 시간을 변경하고 방 전체에 최신 설정을 알립니다.
      */
     @PatchMapping("/{roomCode}/settings")
-    @Operation(summary = "릴레이 방 설정 변경", description = "대기 중 릴레이 방의 방장이 파트별 제한 시간을 30초, 45초, 60초 중 하나로 변경합니다.")
+    @Operation(summary = "릴레이 방 설정 변경", description = "대기 중 릴레이 방의 방장이 백오피스 설정의 허용 제한시간 목록 중 하나로 파트별 제한시간을 변경합니다.")
     @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @ApiResponses({

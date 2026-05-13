@@ -38,10 +38,12 @@ response-time projection for the current game screen. Empty hints and missing
 hint object keys return `url=null`.
 
 When all parts are completed, move the room to `FINALIZING`, emit
-`ALL_PARTS_COMPLETED`, and trigger one immediate finalization attempt. The
-finalization scheduler still scans `FINALIZING` rooms every 30 seconds after a
-short ready delay so failed immediate attempts, lock-busy rooms, server restarts,
-and partial-success states are retried and recovered. Both paths compose one
+`ALL_PARTS_COMPLETED`, and schedule one asynchronous immediate finalization
+attempt. The submission, timeout, or disconnect-grace processing that completed
+the room does not wait for finalization to finish. The finalization scheduler
+still scans `FINALIZING` rooms every 10 seconds after a short ready delay so
+failed immediate attempts, lock-busy rooms, server restarts, and
+partial-success states are retried and recovered. Both paths compose one
 `FACE`/`BODY`/`LEGS` PNG per `canvasIndex`.
 
 `nemonic.relay.finalization.overlap-height` defaults to `120` px to match the
@@ -63,6 +65,11 @@ Finalization uploads final original and thumbnail files under:
 relay/results/{artifactId}/original.png
 relay/results/{artifactId}/thumbnail.png
 ```
+
+When the composed image already fits within the thumbnail maximum size, the
+thumbnail uses the same PNG bytes as the original to avoid a second PNG encode.
+If resizing is required, the thumbnail is still encoded separately with the
+existing max-size policy.
 
 Then persist matching PostgreSQL rows:
 
@@ -115,6 +122,10 @@ referenced by `artifact.thumbnail_url` or
 `relay_drawing_artifact.combined_preview_url` and are not listed in an active
 finalization attempt marker. If reference status cannot be determined, the
 object is skipped.
+Within one cleanup run, temp room-state lookups are cached by `roomCode`, DB
+result object references are checked in batches, and active finalization attempt
+object references are checked in batches so old object scans do not fan out into
+one DB/Redis lookup per object.
 
 ## Consequences
 
@@ -140,6 +151,10 @@ object is skipped.
   deleting persisted artifacts.
 - Positive: Old temp/result orphan cleanup can reduce storage drift while
   protecting active room temp files and DB-referenced result files.
+- Positive: Small final images avoid duplicate PNG encoding when the original
+  already satisfies the thumbnail size limit.
+- Positive: Orphan cleanup keeps the same conservative deletion rules while
+  reducing repeated DB/Redis reference checks during a cleanup run.
 - Negative: Hint image rendering depends on `public-url` and bucket read access
   being configured correctly for the client environment.
 - Negative: Temporary hint object URLs expose relay temporary object paths while

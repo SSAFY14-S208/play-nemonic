@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.service.finalization.RelayFinalizationAttempt;
 import java.time.Duration;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -43,11 +46,24 @@ public class RedisRelayFinalizationAttemptRepository implements RelayFinalizatio
             return false;
         }
 
+        return findReferencedObjectKeys(Set.of(objectKey), scanLimit).contains(objectKey);
+    }
+
+    @Override
+    public Set<String> findReferencedObjectKeys(Collection<String> objectKeys, int scanLimit) {
+        Set<String> targetObjectKeys = new HashSet<>(objectKeys == null ? Set.of() : objectKeys);
+        targetObjectKeys.removeIf(key -> !StringUtils.hasText(key));
+        if (targetObjectKeys.isEmpty() || scanLimit <= 0) {
+            return Set.of();
+        }
+
         ScanOptions scanOptions = ScanOptions.scanOptions().match(FINALIZATION_ATTEMPT_KEY_PREFIX + "*")
             .count(scanLimit).build();
         int scannedCount = 0;
+        Set<String> referencedObjectKeys = new HashSet<>();
         try (Cursor<String> attemptKeys = redisTemplate.scan(scanOptions)) {
-            while (attemptKeys.hasNext() && scannedCount < scanLimit) {
+            while (attemptKeys.hasNext() && scannedCount < scanLimit
+                && referencedObjectKeys.size() < targetObjectKeys.size()) {
                 scannedCount++;
                 String attemptValue = redisTemplate.opsForValue().get(attemptKeys.next());
                 if (!StringUtils.hasText(attemptValue)) {
@@ -55,13 +71,11 @@ public class RedisRelayFinalizationAttemptRepository implements RelayFinalizatio
                 }
 
                 RelayFinalizationAttempt attempt = deserialize(attemptValue);
-                if (attempt.objectKeys().contains(objectKey)) {
-                    return true;
-                }
+                attempt.objectKeys().stream().filter(targetObjectKeys::contains).forEach(referencedObjectKeys::add);
             }
         }
 
-        return false;
+        return referencedObjectKeys;
     }
 
     private String createAttemptKey(String roomCode, String attemptId) {

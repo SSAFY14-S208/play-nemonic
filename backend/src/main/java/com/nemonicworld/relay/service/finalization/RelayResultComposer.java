@@ -21,6 +21,7 @@ public class RelayResultComposer {
 
     private static final String IMAGE_READ_ERROR_MESSAGE = "릴레이 파트 이미지를 읽을 수 없습니다.";
     private static final String IMAGE_WRITE_ERROR_MESSAGE = "릴레이 최종 이미지를 생성할 수 없습니다.";
+    private static final String PART_PLACEMENT_ERROR_MESSAGE = "릴레이 최종 합성 파트 배치 정보를 찾을 수 없습니다.";
     private static final RelayDrawingPart[] DRAW_ORDER = {RelayDrawingPart.LEGS, RelayDrawingPart.BODY,
         RelayDrawingPart.FACE};
 
@@ -63,8 +64,10 @@ public class RelayResultComposer {
         }
 
         BufferedImage thumbnail = createThumbnail(original);
+        byte[] originalBytes = toPngBytes(original);
+        byte[] thumbnailBytes = thumbnail == original ? originalBytes : toPngBytes(thumbnail);
 
-        return new RelayComposedImage(toPngBytes(original), toPngBytes(thumbnail));
+        return new RelayComposedImage(originalBytes, thumbnailBytes);
     }
 
     private Map<RelayDrawingPart, BufferedImage> readImages(Map<RelayDrawingPart, byte[]> partImages) {
@@ -175,7 +178,7 @@ public class RelayResultComposer {
             }
         }
 
-        throw new IllegalStateException("릴레이 최종 합성 파트 배치 정보를 찾을 수 없습니다.");
+        throw new InternalServerException(PART_PLACEMENT_ERROR_MESSAGE);
     }
 
     private BufferedImage createThumbnail(BufferedImage original) {

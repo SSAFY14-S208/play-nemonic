@@ -131,7 +131,7 @@ class FortuneControllerIntegrationTest {
      * 만세력 결과로 운세를 생성하면 artifact, fortune_artifact, gallery가 함께 저장됩니다.
      */
     @Test
-    void createFortuneCreatesArtifactAndGallery() throws Exception {
+    void createFortuneCreatesArtifactAndGallery(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         insertPrompt();
         when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResult());
@@ -173,13 +173,17 @@ class FortuneControllerIntegrationTest {
             .contains("\"yearPillar\":\"임신\"");
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
             eq("image/png"));
+        org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_create_requested\"")
+            .contains("\"event_name\":\"fortune_gms_succeeded\"").contains("\"event_name\":\"fortune_created\"")
+            .contains("\"content_type\":\"fortune\"").contains("\"prompt_version\":\"1\"")
+            .doesNotContain("template_text");
     }
 
     /**
      * 하루 1회 제한 정책상 재조회는 다시 생성하지 않고 최초 생성 응답과 같은 data를 반환합니다.
      */
     @Test
-    void getTodayFortuneReturnsSameDataAsCreatedFortune() throws Exception {
+    void getTodayFortuneReturnsSameDataAsCreatedFortune(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         insertPrompt();
         when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResult());
@@ -197,6 +201,7 @@ class FortuneControllerIntegrationTest {
         JsonNode requeryData = responseData(requeryResult);
 
         org.assertj.core.api.Assertions.assertThat(requeryData).isEqualTo(createData);
+        org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_reissued\"");
         verify(fortuneGmsClient).generate(anyString(), any(JsonNode.class));
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
             eq("image/png"));
@@ -206,7 +211,7 @@ class FortuneControllerIntegrationTest {
      * 같은 UUID가 같은 KST 날짜에 다시 생성하면 GMS 호출 전 409로 차단합니다.
      */
     @Test
-    void createFortuneReturnsConflictWhenUserAlreadyCreatedToday() throws Exception {
+    void createFortuneReturnsConflictWhenUserAlreadyCreatedToday(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         insertFortuneArtifact(userUuid, LocalDate.now(KST_ZONE), LocalDateTime.now().minusMinutes(10));
 
@@ -217,6 +222,8 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.message").value("오늘의 운세는 이미 생성했습니다. 내일 다시 이용해주세요."));
 
         verifyNoInteractions(fortuneGmsClient, fortuneCardStorage);
+        org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_create_requested\"")
+            .contains("\"event_name\":\"fortune_daily_limit_blocked\"").contains("\"result\":\"blocked\"");
     }
 
     /**
@@ -302,10 +309,9 @@ class FortuneControllerIntegrationTest {
 
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM fortune_artifact", Integer.class);
         org.assertj.core.api.Assertions.assertThat(count).isZero();
-        org.assertj.core.api.Assertions.assertThat(output).contains("event_name=fortune_gms_retry")
-            .contains("event_name=fortune_gms_final_fail").contains("retry_count=2")
-            .doesNotContain("event_name=fortune_gms_retry user_uuid=%s fortune_date=%s attempt=3".formatted(userUuid,
-                LocalDate.now(KST_ZONE)));
+        org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_gms_retried\"")
+            .contains("\"event_name\":\"fortune_gms_failed\"").contains("\"retry_count\":2")
+            .doesNotContain("fortune_gms_retry").doesNotContain("fortune_gms_final_fail");
         verify(fortuneGmsClient, times(3)).generate(anyString(), any(JsonNode.class));
         verifyNoInteractions(fortuneCardStorage);
     }
@@ -328,8 +334,8 @@ class FortuneControllerIntegrationTest {
 
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM fortune_artifact", Integer.class);
         org.assertj.core.api.Assertions.assertThat(count).isZero();
-        org.assertj.core.api.Assertions.assertThat(output).contains("event_name=fortune_gms_retry")
-            .contains("event_name=fortune_gms_final_fail").contains("retry_count=2");
+        org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_gms_retried\"")
+            .contains("\"event_name\":\"fortune_gms_failed\"").contains("\"retry_count\":2");
         verify(fortuneGmsClient, times(3)).generate(anyString(), any(JsonNode.class));
         verifyNoInteractions(fortuneCardStorage);
     }
@@ -338,7 +344,7 @@ class FortuneControllerIntegrationTest {
      * 오늘 생성된 운세가 없으면 생성 가능 상태를 반환합니다.
      */
     @Test
-    void getTodayAvailabilityReturnsAvailableWhenUserHasNoFortuneToday() throws Exception {
+    void getTodayAvailabilityReturnsAvailableWhenUserHasNoFortuneToday(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         LocalDate today = LocalDate.now(KST_ZONE);
 
@@ -351,13 +357,16 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.data.todayFortuneId").value(nullValue()))
             .andExpect(jsonPath("$.data.createdAt").value(nullValue()))
             .andExpect(jsonPath("$.data.nextAvailableAt").value(nextAvailableAt(today)));
+
+        org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_availability_checked\"")
+            .contains("\"available\":true").contains("\"result\":\"success\"");
     }
 
     /**
      * 오늘 생성된 운세가 있으면 재생성 불가와 기존 fortuneId를 반환합니다.
      */
     @Test
-    void getTodayAvailabilityReturnsUnavailableWhenUserAlreadyHasFortuneToday() throws Exception {
+    void getTodayAvailabilityReturnsUnavailableWhenUserAlreadyHasFortuneToday(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         LocalDate today = LocalDate.now(KST_ZONE);
         LocalDateTime createdAt = LocalDateTime.now().minusMinutes(10).withSecond(1).truncatedTo(ChronoUnit.SECONDS);
@@ -371,6 +380,9 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.data.todayFortuneId").value(fortuneId.toString()))
             .andExpect(jsonPath("$.data.createdAt").value(createdAt.toString()))
             .andExpect(jsonPath("$.data.nextAvailableAt").value(nextAvailableAt(today)));
+
+        org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_availability_checked\"")
+            .contains("\"available\":false").contains(fortuneId.toString());
     }
 
     /**
@@ -394,7 +406,7 @@ class FortuneControllerIntegrationTest {
      * 오늘 생성된 운세가 있으면 저장된 description JSON을 생성 응답 형식으로 복원해 반환합니다.
      */
     @Test
-    void getTodayFortuneReturnsStoredFortuneResult() throws Exception {
+    void getTodayFortuneReturnsStoredFortuneResult(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         LocalDate today = LocalDate.now(KST_ZONE);
         UUID fortuneId = insertFortuneArtifact(userUuid, today, LocalDateTime.now().minusMinutes(10),
@@ -424,6 +436,8 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.data.design.iconKey").value("moon_waning"));
 
         verifyNoInteractions(fortuneGmsClient, fortuneCardStorage);
+        org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_reissued\"")
+            .contains(fortuneId.toString());
     }
 
     /**

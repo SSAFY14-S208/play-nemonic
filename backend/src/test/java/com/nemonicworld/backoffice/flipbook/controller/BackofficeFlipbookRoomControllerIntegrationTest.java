@@ -515,7 +515,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
     private JsonNode findAuditLog(CapturedOutput output, String eventName) throws Exception {
         for (String line : output.getOut().split("\\R")) {
             if (line.contains("\"event_name\":\"%s\"".formatted(eventName))) {
-                return objectMapper.readTree(line);
+                return objectMapper.readTree(line.substring(line.indexOf('{')));
             }
         }
 

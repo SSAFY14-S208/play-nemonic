@@ -185,10 +185,10 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         String clientText = normalizeClientText(request.clientText());
         CommunityMemoEventLogger.business("community_memo_moderation_requested", userUuid,
             metadata("source_type", sourceType.value(), "source_artifact_id", sourceArtifactId, "original_file_id",
-                originalFileId, "thumbnail_file_id", thumbnailFileId, "original_image_url", originalImageUrl,
-                "thumbnail_url", thumbnailImageUrl, "client_text_length",
-                CommunityMemoEventLogger.textLength(clientText), "client_text_preview",
-                CommunityMemoEventLogger.textPreview(clientText)));
+                originalFileId, "thumbnail_file_id", thumbnailFileId, "original_image_available",
+                StringUtils.hasText(originalImageUrl), "thumbnail_image_available",
+                StringUtils.hasText(thumbnailImageUrl), "client_text_length",
+                CommunityMemoEventLogger.textLength(clientText)));
         // 게시 전 모더레이션은 insert 이전에 끝내서 차단된 메모 row가 생기지 않도록 합니다.
         CommunityMemoModerationResult moderationResult = checkModeration(originalImageUrl, thumbnailImageUrl,
             clientText, sourceType, userUuid);
@@ -209,8 +209,9 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
         CommunityMemoEventLogger.business("community_memo_created", userUuid,
             metadata("memo_id", memoId, "source_type", sourceType.value(), "artifact_id", sourceArtifactId,
                 "original_file_id", originalFileId, "thumbnail_file_id", thumbnailFileId, "report_count",
-                row.reportCount(), "moderation_status", row.moderationStatus(), "body_image_object_key",
-                originalFileUpload.getObjectKey(), "thumbnail_image_object_key", thumbnailFileUpload.getObjectKey()));
+                row.reportCount(), "moderation_status", row.moderationStatus(), "body_image_object_key_hash",
+                CommunityMemoEventLogger.hash(originalFileUpload.getObjectKey()), "thumbnail_image_object_key_hash",
+                CommunityMemoEventLogger.hash(thumbnailFileUpload.getObjectKey())));
         return toDetailResponse(row, userUuid);
     }
 
@@ -765,22 +766,21 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     }
 
     /**
-     * 모더레이션 결과를 운영 로그에 남기되, 긴 텍스트는 미리보기 길이로 제한합니다.
+     * 모더레이션 결과를 운영 로그에 남기되, 텍스트 원문 대신 길이만 남깁니다.
      */
     private void logModerationResult(CommunityMemoModerationResult result, String clientText,
         CommunityMemoSourceType sourceType, UUID userUuid, long latencyMs) {
         String categories = result.categories() == null || result.categories().isNull()
             ? "[]"
             : result.categories().toString();
-        log.info("커뮤니티 메모 모더레이션 결과 allowed={} clientTextPreview={} checkedTextPreview={} categories={}",
-            result.allowed(), previewModerationText(clientText), previewModerationText(result.ocrText()), categories);
+        log.info("커뮤니티 메모 모더레이션 결과 allowed={} clientTextLength={} checkedTextLength={} categories={}", result.allowed(),
+            CommunityMemoEventLogger.textLength(clientText), CommunityMemoEventLogger.textLength(result.ocrText()),
+            categories);
         CommunityMemoEventLogger.business(
             result.allowed() ? "community_memo_moderation_allowed" : "community_memo_moderation_blocked", userUuid,
             metadata("source_type", sourceType.value(), "allowed", result.allowed(), "client_text_length",
-                CommunityMemoEventLogger.textLength(clientText), "client_text_preview",
-                CommunityMemoEventLogger.textPreview(clientText), "ocr_text_length",
-                CommunityMemoEventLogger.textLength(result.ocrText()), "ocr_text_preview",
-                CommunityMemoEventLogger.textPreview(result.ocrText()), "categories", categories, "latency_ms",
+                CommunityMemoEventLogger.textLength(clientText), "checked_text_length",
+                CommunityMemoEventLogger.textLength(result.ocrText()), "categories", categories, "latency_ms",
                 latencyMs, "checked_at", LocalDateTime.now()));
     }
 
@@ -877,9 +877,10 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private String resolveMemoImageUrl(String objectKey, UUID memoId, String imageRole) {
         String imageUrl = minioPublicUrlResolver.resolve(objectKey);
         if (StringUtils.hasText(objectKey) && !StringUtils.hasText(imageUrl)) {
-            CommunityMemoEventLogger.warn("community_file_url_resolve_failed",
-                "community memo image url resolve failed",
-                metadata("memo_id", memoId, "image_role", imageRole, "object_key", objectKey), null);
+            CommunityMemoEventLogger.warn(
+                "community_file_url_resolve_failed", "community memo image url resolve failed", metadata("memo_id",
+                    memoId, "image_role", imageRole, "object_key_hash", CommunityMemoEventLogger.hash(objectKey)),
+                null);
         }
 
         return imageUrl;
@@ -912,9 +913,9 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
             return parsedDecoration == null ? Map.of() : parsedDecoration;
         } catch (JsonProcessingException e) {
             CommunityMemoEventLogger.warn("community_decoration_parse_failed", "community memo decoration parse failed",
-                metadata("decoration_preview", CommunityMemoEventLogger.textPreview(decoration)), e);
+                metadata("decoration_length", decoration.length(), "reason_code", "parse_failed"), e);
             // 깨진 decoration 데이터가 있어도 상세 패널 조회는 실패시키지 않고 빈 객체로 낮춥니다.
-            log.warn("커뮤니티 메모 decoration JSON을 파싱할 수 없습니다. decoration={}", decoration, e);
+            log.warn("community memo decoration JSON parse failed. decorationLength={}", decoration.length(), e);
 
             return Map.of();
         }
