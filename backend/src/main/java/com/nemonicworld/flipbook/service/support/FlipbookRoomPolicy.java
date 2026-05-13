@@ -30,7 +30,7 @@ public class FlipbookRoomPolicy {
     public static final int DEFAULT_TIME_LIMIT_SECONDS = FlipbookRoomTimeLimitSettings.DEFAULT_TIME_LIMIT_SECONDS;
     public static final int MIN_PARTICIPANTS = FlipbookRoomParticipantLimit.DEFAULT_MIN_PARTICIPANTS;
     public static final int MAX_PARTICIPANTS = FlipbookRoomParticipantLimit.DEFAULT_MAX_PARTICIPANTS;
-    public static final int MIN_FRAMES_PER_FLIPBOOK = FlipbookMinFramesPerFlipbookSettings.DEFAULT_MIN_FRAMES_PER_FLIPBOOK;
+    public static final int MIN_FRAMES_PER_FLIPBOOK = defaultMinFramesPerFlipbook();
     public static final int HOST_JOIN_ORDER = 0;
     public static final int ROOM_UPDATE_MAX_RETRIES = 3;
     public static final long DEFAULT_RECONNECT_GRACE_SECONDS = defaultReconnectGraceSeconds();
@@ -83,6 +83,10 @@ public class FlipbookRoomPolicy {
 
     private static long defaultReconnectGraceSeconds() {
         return FlipbookReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS;
+    }
+
+    private static int defaultMinFramesPerFlipbook() {
+        return FlipbookMinFramesPerFlipbookSettings.DEFAULT_MIN_FRAMES_PER_FLIPBOOK;
     }
 
     /**
