@@ -28,10 +28,11 @@ Store community memos as final rendered image snapshots.
 
 For every created community memo:
 
-- `community_memo.body_image_url` stores the final original-size community
-  display snapshot object key.
-- `community_memo.thumbnail_image_url` stores the final community display
-  thumbnail snapshot object key.
+- `community_memo.body_image_url` stores the confirmed `COMMUNITY` original
+  upload object key that will be displayed on the wall.
+- `community_memo.thumbnail_image_url` stores the confirmed `COMMUNITY`
+  thumbnail upload object key used for list, preview, and representative image
+  responses.
 - `community_memo.artifact_id` is nullable source metadata.
 - `artifact_id = null` means `DIRECT`.
 - `artifact_id != null` means `GALLERY`.
@@ -39,21 +40,21 @@ For every created community memo:
   artifact subtype image URLs.
 
 At memo creation time, the backend preserves the confirmed `COMMUNITY`
-`file_upload` source objects and creates separate transparent PNG derivatives
-for wall display:
+`file_upload` source objects and uses their object keys directly for wall
+display:
 
-- Body derivative: `community/memos/{memoId}/body.png`.
-- Thumbnail derivative: `community/memos/{memoId}/thumbnail.png`.
-- The derivative content type is `image/png`; JPEG derivatives are not used.
-- The first pass does not use AI, GMS, or an external background-removal API.
-- White-key processing scans every pixel and makes white-like pixels
-  transparent when `r >= threshold && g >= threshold && b >= threshold`.
-- The threshold is configured by
-  `nemonic.community.memo.image.white-threshold`, default `245`.
-- This is intentionally not flood-fill; white areas inside closed shapes are
-  transparent too.
-- Existing transparent pixels remain transparent, and non-white colors keep
-  their color and alpha.
+- The common files flow keeps its direct-upload contract: the frontend PUTs
+  bytes to MinIO, while the backend validates metadata and object existence but
+  does not decode, re-encode, or paint image bytes.
+- The community memo create flow no longer creates
+  `community/memos/{memoId}/body.png` or
+  `community/memos/{memoId}/thumbnail.png` derivatives.
+- The backend does not run white-key background removal when a memo is posted.
+  Intentional white strokes, text, highlights, or decoration must remain intact.
+- Direct drawing clients must export transparent PNGs when transparent memo
+  stickers are desired.
+- Gallery-origin relay and flipbook images follow their own result-composition
+  alpha preservation policy before they are re-uploaded as `COMMUNITY` files.
 
 Return three image fields:
 
@@ -64,18 +65,19 @@ Return three image fields:
 
 Run moderation before inserting a memo.
 
-- The moderation client receives the derivative original snapshot URL,
-  derivative thumbnail URL, client text, and source type.
+- The moderation client receives the public URL for the actual posted original
+  upload, the public URL for the actual posted thumbnail upload, client text,
+  and source type.
 - Allowed results insert the memo with `moderation_status = allowed` when the
   database enum supports it.
 - Blocked results do not insert a memo.
 - Moderation errors and timeouts are fail-closed by default.
 - OCR text, OCR categories, and moderation checked time are stored when
   available.
-- If derivative objects were uploaded but moderation, database insert, or later
-  create-time processing fails, the derivative objects are deleted
-  best-effort. The original upload objects, artifact results, gallery rows, and
-  file upload rows are not deleted by this flow.
+- If moderation, database insert, or later create-time processing fails, the
+  original upload objects, artifact results, gallery rows, and file upload rows
+  are not deleted by this flow. There are no create-time derivative objects to
+  clean up.
 
 Use visibility states instead of physical deletion for wall lifecycle:
 
@@ -117,9 +119,9 @@ Reporting policy:
 
 - Positive: Community rendering is stable even if the source artifact, gallery
   row, or file upload lifecycle changes later.
-- Positive: Community wall images can render as transparent memo stickers while
-  original uploads and artifact result images remain intact for gallery,
-  download, card, or other product surfaces.
+- Positive: Community wall rendering uses the same uploaded image bytes the
+  frontend prepared, so transparent PNG alpha is preserved and intentional white
+  foreground details are not removed by a backend white-key pass.
 - Positive: Direct and gallery-based community memos share the same display
   image contract.
 - Positive: Existing `memoImageUrl` clients keep working while newer clients can
@@ -128,19 +130,21 @@ Reporting policy:
   through `moderation_status`, `hidden_reason`, `reviewed_by`, and `reviewed_at`.
 - Positive: User-facing APIs avoid leaking whether a memo was hidden or deleted.
 - Negative: Each memo requires two confirmed upload files before creation.
-- Negative: Gallery-origin memos duplicate rendered image storage instead of
-  reusing artifact subtype images directly.
-- Negative: White text, white highlights, and white decoration pixels are also
-  transparent because white-key processing removes all white-like pixels.
-- Negative: Complex photographic cutouts are outside the first-pass algorithm.
+- Negative: Gallery-origin memos duplicate rendered image storage in
+  `COMMUNITY` uploads instead of reusing artifact subtype images directly.
+- Negative: Direct drawing transparency now depends on the frontend exporting a
+  transparent PNG correctly; the backend does not repair white backgrounds at
+  post time.
+- Negative: Complex photographic cutouts are outside the default create flow.
 - Negative: Restoring a hidden memo can temporarily push visible memo count over
   the wall limit until the next create-time FIFO pass.
 - No migration: existing `body_image_url` and `thumbnail_image_url` columns store
-  derivative object keys, while existing `file_upload` rows keep source upload
-  tracking.
-- Follow-up: Evaluate AI segmentation or a dedicated background-removal model if
-  the product needs reliable complex photo cutouts without removing intentional
-  white foreground details.
+  object keys, and existing `file_upload` rows keep source upload tracking.
+  Older rows that already contain derivative object keys still resolve through
+  the same public URL projection.
+- Follow-up: Evaluate AI segmentation or a dedicated background-removal model as
+  an explicit user-selected feature if the product needs reliable complex photo
+  cutouts without removing intentional white foreground details.
 - Follow-up: If admin review history needs full auditability, add a dedicated
   admin review/audit table instead of relying only on latest `reviewed_by` and
   `reviewed_at`.

@@ -105,14 +105,18 @@
 스티커, 프레임 등 편집을 적용한다. 게시 시점에는 이 편집 결과를 최종 원본 이미지와 썸네일 이미지로 export해
 기존 Files API로 업로드한다.
 
+공통 파일 업로드는 프론트가 presigned URL로 MinIO에 직접 PUT하는 구조다. 백엔드는 confirm 단계나 커뮤니티
+메모 생성 단계에서 이미지 바이트를 디코딩하거나 흰 배경을 제거하지 않는다. 직접 작성 메모에서 투명 배경이
+필요한 경우 프론트가 투명 PNG로 export해야 한다.
+
 백엔드는 편집 도구의 내부 구조를 해석하지 않는다. OCR, 커뮤니티 벽 렌더링, 상세 보기, 후속 외부 공유의
 기준은 MinIO에 저장된 커뮤니티 게시용 최종 이미지이다. `decoration`은 프론트가 다시 편집 화면을 열거나 상태를
 복원하기 위한 보조 JSON이다.
 
 | sourceType | 설명 | 요청 식별자 | 저장 방식 |
 | --- | --- | --- | --- |
-| `DIRECT` | 빈 캔버스에서 직접 작성, 드로잉, 텍스트박스, 색칠 등을 거쳐 만든 최종 게시 이미지 | `originalFileId`, `thumbnailFileId` | `community_memo.body_image_url`에 최종 원본 이미지 object key 저장, `community_memo.thumbnail_image_url`에 썸네일 object key 저장 |
-| `GALLERY` | 갤러리 결과물을 출처로 불러와 그대로 또는 추가 편집 후 만든 최종 게시 이미지 | `sourceGalleryId`, `originalFileId`, `thumbnailFileId` | `community_memo.artifact_id`에 원본 artifact 연결, 최종 게시 이미지는 `body_image_url`과 `thumbnail_image_url`에 별도 저장 |
+| `DIRECT` | 빈 캔버스에서 직접 작성, 드로잉, 텍스트박스, 색칠 등을 거쳐 만든 최종 게시 이미지 | `originalFileId`, `thumbnailFileId` | `community_memo.body_image_url`에 confirmed `COMMUNITY` 원본 업로드 object key 저장, `community_memo.thumbnail_image_url`에 썸네일 업로드 object key 저장 |
+| `GALLERY` | 갤러리 결과물을 출처로 불러와 그대로 또는 추가 편집 후 만든 최종 게시 이미지 | `sourceGalleryId`, `originalFileId`, `thumbnailFileId` | `community_memo.artifact_id`에 원본 artifact 연결, 실제 게시 이미지는 confirmed `COMMUNITY` 업로드 object key를 `body_image_url`과 `thumbnail_image_url`에 저장 |
 
 원본 URL과 썸네일 URL을 모두 응답하기 위해 `community_memo.thumbnail_image_url` 컬럼을 추가한다. 이 컬럼은
 커뮤니티 게시용 썸네일 object key를 저장하며, 원본 갤러리 artifact의 썸네일과는 별개이다.
@@ -126,6 +130,9 @@
 - GALLERY 메모는 `artifact_id`로 원본 artifact를 참조하지만, 벽에 보여주는 이미지는 별도 업로드된 최종 게시 이미지이다.
 - 갤러리 원본 artifact, subtype row, 원본 MinIO 파일은 커뮤니티 게시나 삭제로 수정하지 않는다.
 - 같은 갤러리 결과물을 여러 번 게시하면 각 게시물은 서로 다른 최종 게시 이미지와 썸네일을 가질 수 있다.
+- 백엔드는 커뮤니티 게시 시점에 white-key 흰색 배경 제거를 수행하지 않는다. 흰색 선, 흰 글씨, 흰 하이라이트,
+  흰 장식이 손실될 수 있기 때문이다.
+- 복잡한 사진 누끼나 AI segmentation은 현재 생성 흐름의 기본 동작이 아니며, 필요하면 별도 사용자 선택 기능으로 검토한다.
 
 ### 직접 작성 메모 게시 이미지 업로드
 
