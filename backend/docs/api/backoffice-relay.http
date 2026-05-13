@@ -27,6 +27,21 @@ Content-Type: application/json
   }
 }
 
+### Update community report hide threshold
+# Included typed fields are updated in one transaction.
+# Changed value is applied from the next community memo report request.
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "communityReportHideThreshold": {
+    "value": 5,
+    "unit": "count",
+    "description": "커뮤니티 메모 자동 숨김 신고 기준"
+  }
+}
+
 ### Update relay room participant limit
 # Included typed fields are updated in one transaction.
 # Changed min/max values are applied to newly created relay rooms.
@@ -85,6 +100,11 @@ Content-Type: application/json
     "value": 50,
     "unit": "count",
     "description": "커뮤니티 캔버스 표시 메모 수 제한"
+  },
+  "communityReportHideThreshold": {
+    "value": 5,
+    "unit": "count",
+    "description": "커뮤니티 메모 자동 숨김 신고 기준"
   },
   "relayRoomParticipantLimit": {
     "min": 3,
