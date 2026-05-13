@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   phoneDrawingRedo,
   phoneDrawingToolEraser,
@@ -16,8 +16,10 @@ import {
   PHONE_COLORS,
   PHONE_DRAWING_LAYOUT,
 } from '../constants'
-import { usePhoneDrawing } from '../hooks'
+import { useNemonicImagePrint, usePhoneDrawing } from '../hooks'
 import { usePhoneStore } from '../phoneStore'
+import type { PhoneDrawingAction } from '../types'
+import { PhonePrintFrame } from './PhonePrintFrame'
 import {
   DrawingActionButtonRow,
   DrawingBackIcon,
@@ -28,6 +30,10 @@ import {
 
 export function PhoneDrawingScreen() {
   const goHome = usePhoneStore((state) => state.goHome)
+  const setToast = usePhoneStore((state) => state.setToast)
+  const [drawingPrintImageUrl, setDrawingPrintImageUrl] = useState<
+    string | null
+  >(null)
 
   const {
     activeTool,
@@ -36,6 +42,8 @@ export function PhoneDrawingScreen() {
     createArtifact,
     draw,
     endDrawing,
+    getDrawingImageDataUrl,
+    hasDrawing,
     isSaving,
     lines,
     redoLines,
@@ -47,12 +55,50 @@ export function PhoneDrawingScreen() {
     startDrawing,
     undoDrawing,
   } = usePhoneDrawing()
+  const {
+    isPreparingPrint: isPreparingDrawingPrint,
+    printImage,
+  } = useNemonicImagePrint({
+    imageUrl: drawingPrintImageUrl,
+    isImageLoading: false,
+    onPrintBlocked: setToast,
+  })
 
   const [isToolControlOpen, setIsToolControlOpen] = useState(true)
   const isPenActive = activeTool === 'pen'
   const isEraserActive = activeTool === 'eraser'
   const canUndoDrawing = lines.length > 0
   const canRedoDrawing = redoLines.length > 0
+
+  const handleCreateArtifact = useCallback(
+    async (action: PhoneDrawingAction) => {
+      if (action === 'save') {
+        await createArtifact('save')
+        return
+      }
+
+      if (!hasDrawing) {
+        setToast('출력할 그림이 없어요.')
+        return
+      }
+
+      const imageDataUrl = getDrawingImageDataUrl()
+      if (!imageDataUrl) {
+        setToast('출력 이미지를 준비하지 못했어요.')
+        return
+      }
+
+      setDrawingPrintImageUrl(imageDataUrl)
+      await printImage(imageDataUrl)
+    },
+    [
+      createArtifact,
+      getDrawingImageDataUrl,
+      hasDrawing,
+      printImage,
+      setToast,
+    ],
+  )
 
   const toolButtons = [
     {
@@ -209,8 +255,13 @@ export function PhoneDrawingScreen() {
       </main>
 
       <DrawingActionButtonRow
-        onCreateArtifact={createArtifact}
+        onCreateArtifact={handleCreateArtifact}
+        isPrinting={isPreparingDrawingPrint}
         isSaving={isSaving}
+      />
+      <PhonePrintFrame
+        imageUrl={drawingPrintImageUrl}
+        title="네모닉 그림판"
       />
     </div>
   )
