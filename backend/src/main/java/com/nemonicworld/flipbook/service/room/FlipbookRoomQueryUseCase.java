@@ -4,8 +4,8 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
-import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomViewerFactory;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsSnapshot;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -35,9 +35,8 @@ public class FlipbookRoomQueryUseCase {
 
         FlipbookRoomState roomState = flipbookRoomPolicy.findRoomState(roomCodeValue);
         FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUser.getId().toString(), roomState);
-        FlipbookRoomTimeLimitSettings timeLimitSettings = flipbookRuntimeSettingsProvider
-            .currentRoomTimeLimitSettings();
+        FlipbookRuntimeSettingsSnapshot settings = flipbookRuntimeSettingsProvider.currentSettingsSnapshot();
 
-        return FlipbookRoomStateResponse.from(roomState, viewer, timeLimitSettings);
+        return FlipbookRoomStateResponse.from(roomState, viewer, settings.roomTimeLimitSettings());
     }
 }

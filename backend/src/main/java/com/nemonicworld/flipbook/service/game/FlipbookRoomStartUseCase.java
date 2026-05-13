@@ -11,6 +11,8 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomViewerFactory;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsSnapshot;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -33,6 +35,7 @@ public class FlipbookRoomStartUseCase {
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookRoomViewerFactory flipbookRoomViewerFactory;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+    private final FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
 
     /**
      * 방장이 대기 중인 플립북 방을 게임 진행 상태로 전환합니다.
@@ -44,6 +47,7 @@ public class FlipbookRoomStartUseCase {
         String viewerUserUuid = viewerUser.getId().toString();
 
         try {
+            FlipbookRuntimeSettingsSnapshot settings = flipbookRuntimeSettingsProvider.currentSettingsSnapshot();
             for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
                 FlipbookRoomState roomState = flipbookRoomPolicy.findRoomState(roomCodeValue);
                 FlipbookRoomParticipant participant = flipbookRoomPolicy.requireParticipant(roomState, viewerUserUuid);
@@ -51,7 +55,7 @@ public class FlipbookRoomStartUseCase {
                 flipbookRoomPolicy.validateStartableRoomStatus(roomState);
 
                 List<FlipbookRoomParticipant> startParticipants = flipbookRoomPolicy.findStartParticipants(roomState);
-                int totalRounds = flipbookRoomPolicy.resolveDefaultTotalRounds();
+                int totalRounds = flipbookRoomPolicy.resolveDefaultTotalRounds(settings.minFramesPerFlipbook());
                 List<FlipbookFrameAssignment> assignments = FlipbookFrameAssignmentGenerator.generate(startParticipants,
                     totalRounds);
                 LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -70,7 +74,7 @@ public class FlipbookRoomStartUseCase {
                     FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid,
                         updatedRoomState);
 
-                    return FlipbookRoomStateResponse.from(updatedRoomState, viewer);
+                    return FlipbookRoomStateResponse.from(updatedRoomState, viewer, settings.roomTimeLimitSettings());
                 }
             }
 
