@@ -58,14 +58,16 @@ os_curl() {
 }
 
 # 인덱스 존재 여부 (HEAD 응답 코드).
+# 주의: curl 은 '-X HEAD' 만 주면 헤더는 HEAD 로 보내지만 본문 read 를 기다려
+#       hang 한다. '-I' (--head) 로 해야 본문을 안 기다림.
 index_exists() {
   local name="$1"
   local code
   if [[ -n "$OS_CONTAINER" ]]; then
     code=$(docker exec -i "$OS_CONTAINER" \
-      curl -sS -o /dev/null -w '%{http_code}' -X HEAD "${OS_HOST}/${name}")
+      curl -sS -o /dev/null -w '%{http_code}' -I "${OS_HOST}/${name}")
   else
-    code=$(curl -sS -o /dev/null -w '%{http_code}' -X HEAD "${OS_HOST}/${name}")
+    code=$(curl -sS -o /dev/null -w '%{http_code}' -I "${OS_HOST}/${name}")
   fi
   [[ "$code" == "200" ]]
 }
