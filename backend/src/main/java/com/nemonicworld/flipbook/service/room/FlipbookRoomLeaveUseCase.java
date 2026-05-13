@@ -1,4 +1,4 @@
-package com.nemonicworld.flipbook.service;
+package com.nemonicworld.flipbook.service.room;
 
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
@@ -7,6 +7,8 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;

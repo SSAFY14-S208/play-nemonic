@@ -1,4 +1,4 @@
-package com.nemonicworld.flipbook.service;
+package com.nemonicworld.flipbook.service.submission;
 
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.global.logging.StructuredEventLogger;

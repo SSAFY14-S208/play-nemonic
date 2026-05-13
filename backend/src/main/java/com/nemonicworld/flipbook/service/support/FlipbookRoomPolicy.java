@@ -1,4 +1,4 @@
-package com.nemonicworld.flipbook.service;
+package com.nemonicworld.flipbook.service.support;
 
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
@@ -12,11 +12,6 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
-import com.nemonicworld.flipbook.service.support.FlipbookMinFramesPerFlipbookSettings;
-import com.nemonicworld.flipbook.service.support.FlipbookReconnectGraceSettings;
-import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
-import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
-import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -32,11 +27,11 @@ import org.springframework.util.StringUtils;
 @Component
 public class FlipbookRoomPolicy {
 
-    static final int DEFAULT_TIME_LIMIT_SECONDS = FlipbookRoomTimeLimitSettings.DEFAULT_TIME_LIMIT_SECONDS;
-    static final int MIN_PARTICIPANTS = FlipbookRoomParticipantLimit.DEFAULT_MIN_PARTICIPANTS;
-    static final int MAX_PARTICIPANTS = FlipbookRoomParticipantLimit.DEFAULT_MAX_PARTICIPANTS;
-    static final int MIN_FRAMES_PER_FLIPBOOK = FlipbookMinFramesPerFlipbookSettings.DEFAULT_MIN_FRAMES_PER_FLIPBOOK;
-    static final int HOST_JOIN_ORDER = 0;
+    public static final int DEFAULT_TIME_LIMIT_SECONDS = FlipbookRoomTimeLimitSettings.DEFAULT_TIME_LIMIT_SECONDS;
+    public static final int MIN_PARTICIPANTS = FlipbookRoomParticipantLimit.DEFAULT_MIN_PARTICIPANTS;
+    public static final int MAX_PARTICIPANTS = FlipbookRoomParticipantLimit.DEFAULT_MAX_PARTICIPANTS;
+    public static final int MIN_FRAMES_PER_FLIPBOOK = FlipbookMinFramesPerFlipbookSettings.DEFAULT_MIN_FRAMES_PER_FLIPBOOK;
+    public static final int HOST_JOIN_ORDER = 0;
     public static final int ROOM_UPDATE_MAX_RETRIES = 3;
     public static final long DEFAULT_RECONNECT_GRACE_SECONDS = defaultReconnectGraceSeconds();
     public static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요.";
@@ -93,7 +88,7 @@ public class FlipbookRoomPolicy {
     /**
      * 기본 닉네임인 '익명' 상태로는 협동 방을 만들 수 없도록 검증합니다.
      */
-    void validateNicknameRegistered(AppUser appUser) {
+    public void validateNicknameRegistered(AppUser appUser) {
         if (!StringUtils.hasText(appUser.getNickname()) || AppUser.ANONYMOUS_NICKNAME.equals(appUser.getNickname())) {
             throw new BadRequestException(NICKNAME_REQUIRED_MESSAGE);
         }
@@ -111,7 +106,7 @@ public class FlipbookRoomPolicy {
     /**
      * 제한 시간 요청값을 검증합니다.
      */
-    int resolveTimeLimitSeconds(FlipbookRoomSettingsRequest request) {
+    public int resolveTimeLimitSeconds(FlipbookRoomSettingsRequest request) {
         FlipbookRoomTimeLimitSettings settings = flipbookRuntimeSettingsProvider.currentRoomTimeLimitSettings();
         if (request == null || request.timeLimitSeconds() == null || !settings.allows(request.timeLimitSeconds())) {
             throw new BadRequestException(INVALID_TIME_LIMIT_SECONDS_MESSAGE);
@@ -131,7 +126,7 @@ public class FlipbookRoomPolicy {
     /**
      * 현재 방 상태에서 특정 사용자의 참여자 정보를 찾습니다.
      */
-    Optional<FlipbookRoomParticipant> findParticipant(FlipbookRoomState roomState, String userUuid) {
+    public Optional<FlipbookRoomParticipant> findParticipant(FlipbookRoomState roomState, String userUuid) {
         return roomState.participants().stream().filter(participant -> participant.userUuid().equals(userUuid))
             .findFirst();
     }
@@ -147,7 +142,7 @@ public class FlipbookRoomPolicy {
     /**
      * WebSocket 연결 대상 참여자를 조회합니다.
      */
-    FlipbookRoomParticipant requireConnectionParticipant(FlipbookRoomState roomState, String userUuid) {
+    public FlipbookRoomParticipant requireConnectionParticipant(FlipbookRoomState roomState, String userUuid) {
         return findParticipant(roomState, userUuid)
             .orElseThrow(() -> new ConflictException(ROOM_PARTICIPANT_NOT_FOUND_MESSAGE));
     }
@@ -155,7 +150,7 @@ public class FlipbookRoomPolicy {
     /**
      * 강퇴 대상 참여자 정보를 필수로 조회합니다.
      */
-    FlipbookRoomParticipant requireKickTargetParticipant(FlipbookRoomState roomState, String targetUserUuid) {
+    public FlipbookRoomParticipant requireKickTargetParticipant(FlipbookRoomState roomState, String targetUserUuid) {
         return findParticipant(roomState, targetUserUuid)
             .orElseThrow(() -> new NotFoundException(KICK_TARGET_NOT_FOUND_MESSAGE));
     }
@@ -163,7 +158,8 @@ public class FlipbookRoomPolicy {
     /**
      * 방장 전용 동작인지 검증합니다.
      */
-    void validateRoomHost(String viewerUserUuid, FlipbookRoomState roomState, FlipbookRoomParticipant participant) {
+    public void validateRoomHost(String viewerUserUuid, FlipbookRoomState roomState,
+        FlipbookRoomParticipant participant) {
         if (participant.host() || roomState.hostUserUuid().equals(viewerUserUuid)) {
             return;
         }
@@ -186,7 +182,8 @@ public class FlipbookRoomPolicy {
     /**
      * 강퇴 요청자가 방장인지 검증합니다.
      */
-    void validateKickHost(String viewerUserUuid, FlipbookRoomState roomState, FlipbookRoomParticipant participant) {
+    public void validateKickHost(String viewerUserUuid, FlipbookRoomState roomState,
+        FlipbookRoomParticipant participant) {
         if (participant.host() || roomState.hostUserUuid().equals(viewerUserUuid)) {
             return;
         }
@@ -197,7 +194,7 @@ public class FlipbookRoomPolicy {
     /**
      * 설정 변경 가능한 방 상태인지 검증합니다.
      */
-    void validateWaitingRoomForSettings(FlipbookRoomState roomState) {
+    public void validateWaitingRoomForSettings(FlipbookRoomState roomState) {
         if (roomState.status() != FlipbookRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_SETTINGS_ONLY_MESSAGE);
         }
@@ -206,7 +203,7 @@ public class FlipbookRoomPolicy {
     /**
      * 강퇴 가능한 방 상태인지 검증합니다.
      */
-    void validateWaitingRoomForKick(FlipbookRoomState roomState) {
+    public void validateWaitingRoomForKick(FlipbookRoomState roomState) {
         if (roomState.status() != FlipbookRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_KICK_ONLY_MESSAGE);
         }
@@ -215,7 +212,7 @@ public class FlipbookRoomPolicy {
     /**
      * 자발적 퇴장이 가능한 방 상태인지 검증합니다.
      */
-    void validateWaitingRoomForLeave(FlipbookRoomState roomState) {
+    public void validateWaitingRoomForLeave(FlipbookRoomState roomState) {
         if (roomState.status() != FlipbookRoomStatus.WAITING) {
             throw new ConflictException(WAITING_ROOM_LEAVE_ONLY_MESSAGE);
         }
@@ -247,7 +244,7 @@ public class FlipbookRoomPolicy {
     /**
      * 게임 시작 가능한 방 상태인지 검증합니다.
      */
-    void validateStartableRoomStatus(FlipbookRoomState roomState) {
+    public void validateStartableRoomStatus(FlipbookRoomState roomState) {
         if (roomState.status() == FlipbookRoomStatus.WAITING) {
             return;
         }
@@ -262,7 +259,7 @@ public class FlipbookRoomPolicy {
     /**
      * 내 프레임 배정 조회가 가능한 방 상태인지 검증합니다.
      */
-    void validateAssignmentQueryableRoom(FlipbookRoomState roomState) {
+    public void validateAssignmentQueryableRoom(FlipbookRoomState roomState) {
         if (roomState.status() == FlipbookRoomStatus.PLAYING) {
             return;
         }
@@ -277,7 +274,7 @@ public class FlipbookRoomPolicy {
     /**
      * 현재 라운드에서 사용자가 맡은 프레임 배정을 조회합니다.
      */
-    FlipbookFrameAssignment requireCurrentAssignment(FlipbookRoomState roomState, String viewerUserUuid) {
+    public FlipbookFrameAssignment requireCurrentAssignment(FlipbookRoomState roomState, String viewerUserUuid) {
         Integer currentRound = roomState.currentRound();
         if (currentRound == null) {
             throw new ConflictException(CURRENT_ASSIGNMENT_NOT_FOUND_MESSAGE);
@@ -291,7 +288,7 @@ public class FlipbookRoomPolicy {
     /**
      * 특정 플립북과 프레임 번호에 해당하는 배정을 조회합니다.
      */
-    Optional<FlipbookFrameAssignment> findFrameAssignment(FlipbookRoomState roomState, int flipbookIndex,
+    public Optional<FlipbookFrameAssignment> findFrameAssignment(FlipbookRoomState roomState, int flipbookIndex,
         int frameIndex) {
         return roomState.assignments().stream().filter(assignment -> assignment.flipbookIndex() == flipbookIndex)
             .filter(assignment -> assignment.frameIndex() == frameIndex).findFirst();
@@ -300,7 +297,7 @@ public class FlipbookRoomPolicy {
     /**
      * 게임 시작에 참여할 대상자를 입장 순서대로 조회합니다.
      */
-    List<FlipbookRoomParticipant> findStartParticipants(FlipbookRoomState roomState) {
+    public List<FlipbookRoomParticipant> findStartParticipants(FlipbookRoomState roomState) {
         List<FlipbookRoomParticipant> startParticipants = roomState.participants().stream()
             .sorted(Comparator.comparingInt(FlipbookRoomParticipant::joinOrder)).toList();
 
@@ -318,14 +315,14 @@ public class FlipbookRoomPolicy {
     /**
      * 플립북당 최소 8프레임이 보장되는 기본 라운드 수를 반환합니다.
      */
-    int resolveDefaultTotalRounds() {
+    public int resolveDefaultTotalRounds() {
         return flipbookRuntimeSettingsProvider.currentMinFramesPerFlipbook();
     }
 
     /**
      * 강퇴 대상이 허용되는 참여자인지 검증합니다.
      */
-    void validateKickTarget(String viewerUserUuid, FlipbookRoomState roomState,
+    public void validateKickTarget(String viewerUserUuid, FlipbookRoomState roomState,
         FlipbookRoomParticipant targetParticipant) {
         if (viewerUserUuid.equals(targetParticipant.userUuid())) {
             throw new ConflictException(SELF_KICK_NOT_ALLOWED_MESSAGE);
@@ -339,7 +336,7 @@ public class FlipbookRoomPolicy {
     /**
      * 대기방과 플레이 중 방에서만 WebSocket 연결 상태를 관리합니다.
      */
-    void validateWebSocketConnectableRoom(FlipbookRoomState roomState) {
+    public void validateWebSocketConnectableRoom(FlipbookRoomState roomState) {
         if (roomState.status() == FlipbookRoomStatus.WAITING || roomState.status() == FlipbookRoomStatus.PLAYING) {
             return;
         }

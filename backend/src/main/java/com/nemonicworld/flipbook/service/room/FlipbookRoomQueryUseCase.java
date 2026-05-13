@@ -1,9 +1,11 @@
-package com.nemonicworld.flipbook.service;
+package com.nemonicworld.flipbook.service.room;
 
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomViewerFactory;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;

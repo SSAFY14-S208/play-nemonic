@@ -1,4 +1,4 @@
-package com.nemonicworld.flipbook.service;
+package com.nemonicworld.flipbook.service.game;
 
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;

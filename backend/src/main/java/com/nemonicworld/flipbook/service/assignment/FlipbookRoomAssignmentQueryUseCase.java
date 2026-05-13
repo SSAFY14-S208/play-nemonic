@@ -1,4 +1,4 @@
-package com.nemonicworld.flipbook.service;
+package com.nemonicworld.flipbook.service.assignment;
 
 import com.nemonicworld.flipbook.dto.response.FlipbookFrameHintResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomMyAssignmentResponse;
@@ -6,6 +6,8 @@ import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
+import com.nemonicworld.flipbook.service.submission.FlipbookFrameImageUrlResolver;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.Duration;
