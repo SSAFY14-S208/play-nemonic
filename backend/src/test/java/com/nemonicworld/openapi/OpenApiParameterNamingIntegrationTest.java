@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiGroups;
 import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.global.config.OpenApiConfig;
@@ -133,14 +134,16 @@ class OpenApiParameterNamingIntegrationTest {
      */
     @Test
     void openApiOperationsExposeFailureResponses() throws Exception {
-        JsonNode paths = getOpenApiPaths();
+        JsonNode root = getOpenApiRoot();
+        JsonNode paths = root.path("paths");
+        JsonNode components = root.path("components");
         List<String> operationsWithoutFailureResponses = new ArrayList<>();
         List<String> failureResponsesWithoutExamples = new ArrayList<>();
 
         for (Map.Entry<String, JsonNode> pathEntry : paths.properties()) {
             collectOperationsWithoutFailureResponses(pathEntry.getKey(), pathEntry.getValue(),
                 operationsWithoutFailureResponses);
-            collectFailureResponsesWithoutExamples(pathEntry.getKey(), pathEntry.getValue(),
+            collectFailureResponsesWithoutExamples(pathEntry.getKey(), pathEntry.getValue(), components,
                 failureResponsesWithoutExamples);
         }
 
@@ -150,6 +153,26 @@ class OpenApiParameterNamingIntegrationTest {
         assertTrue(failureResponsesWithoutExamples.isEmpty(),
             () -> "OpenAPI failure responses must include examples with success=false: "
                 + failureResponsesWithoutExamples);
+    }
+
+    /**
+     * 반복되는 실패 응답은 components.responses에 등록한 뒤 각 operation에서 참조합니다.
+     */
+    @Test
+    void openApiCommonFailureResponsesAreRegisteredAndReferenced() throws Exception {
+        JsonNode root = getOpenApiRoot();
+        JsonNode components = root.path("components");
+
+        assertCommonResponse(components, OpenApiCommonResponses.ADMIN_UNAUTHORIZED, "관리자 인증 필요");
+        assertCommonResponse(components, OpenApiCommonResponses.SERVER_ERROR, "서버 오류");
+
+        assertEquals(
+            OpenApiCommonResponses.SERVER_ERROR_REF, root.path("paths").path("/api/v1/users/anonymous").path("post")
+                .path("responses").path("500").path("$ref").asText(),
+            "Shared server error response must be referenced from operations.");
+        assertEquals(OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF,
+            root.path("paths").path("/api/v1/admins").path("get").path("responses").path("401").path("$ref").asText(),
+            "Shared admin unauthorized response must be referenced from operations.");
     }
 
     /**
@@ -313,7 +336,7 @@ class OpenApiParameterNamingIntegrationTest {
         }
     }
 
-    private void collectFailureResponsesWithoutExamples(String path, JsonNode pathItem,
+    private void collectFailureResponsesWithoutExamples(String path, JsonNode pathItem, JsonNode components,
         List<String> failureResponsesWithoutExamples) {
         for (Map.Entry<String, JsonNode> operationEntry : pathItem.properties()) {
             String method = operationEntry.getKey();
@@ -328,15 +351,16 @@ class OpenApiParameterNamingIntegrationTest {
                     continue;
                 }
 
-                if (!hasSuccessFalseExample(responseEntry.getValue())) {
+                if (!hasSuccessFalseExample(responseEntry.getValue(), components)) {
                     failureResponsesWithoutExamples.add(method.toUpperCase() + " " + path + " -> " + responseCode);
                 }
             }
         }
     }
 
-    private boolean hasSuccessFalseExample(JsonNode response) {
-        JsonNode mediaType = response.path("content").path("application/json");
+    private boolean hasSuccessFalseExample(JsonNode response, JsonNode components) {
+        JsonNode resolvedResponse = resolveResponse(response, components);
+        JsonNode mediaType = resolvedResponse.path("content").path("application/json");
         JsonNode example = mediaType.path("example");
         if (hasSuccessFalse(example)) {
             return true;
@@ -350,6 +374,23 @@ class OpenApiParameterNamingIntegrationTest {
         }
 
         return false;
+    }
+
+    private JsonNode resolveResponse(JsonNode response, JsonNode components) {
+        String ref = response.path("$ref").asText("");
+        String componentResponsePrefix = "#/components/responses/";
+        if (!ref.startsWith(componentResponsePrefix)) {
+            return response;
+        }
+
+        return components.path("responses").path(ref.substring(componentResponsePrefix.length()));
+    }
+
+    private void assertCommonResponse(JsonNode components, String responseName, String expectedDescription) {
+        JsonNode response = components.path("responses").path(responseName);
+        assertEquals(expectedDescription, response.path("description").asText(),
+            () -> "OpenAPI common response must be registered: " + responseName);
+        assertTrue(hasSuccessFalseExample(response, components), () -> responseName + " must include success=false.");
     }
 
     private boolean hasSuccessFalse(JsonNode example) {

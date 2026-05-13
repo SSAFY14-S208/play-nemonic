@@ -4,6 +4,7 @@ import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.community.dto.request.AdminCommunityMemoReviewRequest;
@@ -85,7 +86,7 @@ public class AdminCommunityMemoController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 커뮤니티 메모 목록 조회 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "조회 조건 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF)})
     public ResponseEntity<ApiResponse<AdminCommunityMemoListResponse>> getCommunityMemos(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestParam(name = "hidden", required = false) Boolean hidden,
@@ -118,7 +119,7 @@ public class AdminCommunityMemoController {
             @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
             @ExampleObject(name = "신고 사유 오류", value = OpenApiErrorExamples.INVALID_COMMUNITY_MEMO_REPORT_REASON),
             @ExampleObject(name = "페이징 오류", value = OpenApiErrorExamples.BAD_REQUEST)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "커뮤니티 메모 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)))})
     public ResponseEntity<ApiResponse<AdminCommunityMemoReportListResponse>> getCommunityMemoReports(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId,
@@ -142,7 +143,7 @@ public class AdminCommunityMemoController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "관리자 커뮤니티 메모 상세 조회 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "메모 UUID 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_UUID))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "커뮤니티 메모 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)))})
     public ResponseEntity<ApiResponse<AdminCommunityMemoDetailResponse>> getCommunityMemo(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId,
@@ -171,7 +172,7 @@ public class AdminCommunityMemoController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청값 오류", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
             @ExampleObject(name = "숨김 사유 오류", value = INVALID_HIDE_REASON_EXAMPLE)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "커뮤니티 메모 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)))})
     public ResponseEntity<ApiResponse<AdminCommunityMemoDetailResponse>> hideCommunityMemo(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId,
@@ -200,7 +201,7 @@ public class AdminCommunityMemoController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청값 오류", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
             @ExampleObject(name = "복구 사유 오류", value = INVALID_RESTORE_REASON_EXAMPLE)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "커뮤니티 메모 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)))})
     public ResponseEntity<ApiResponse<AdminCommunityMemoDetailResponse>> restoreCommunityMemo(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("memoId") String memoId,

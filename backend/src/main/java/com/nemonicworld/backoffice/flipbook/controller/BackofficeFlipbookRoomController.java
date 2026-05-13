@@ -6,6 +6,7 @@ import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomD
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomListResponse;
 import com.nemonicworld.backoffice.flipbook.service.BackofficeFlipbookRoomService;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
@@ -62,7 +63,7 @@ public class BackofficeFlipbookRoomController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "활성 플립북 방 목록 조회 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 파라미터 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INVALID_STATUS_EXAMPLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF)})
     public ResponseEntity<ApiResponse<BackofficeFlipbookRoomListResponse>> getActiveFlipbookRooms(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestParam(name = "status", required = false) String status,
@@ -81,7 +82,7 @@ public class BackofficeFlipbookRoomController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "플립북 방 삭제 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "방코드 형식 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_ROOM_CODE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 방", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.FLIPBOOK_ROOM_NOT_FOUND))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "방 삭제 충돌", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "이미 종료된 방", value = OpenApiErrorExamples.FLIPBOOK_ROOM_CLOSED),

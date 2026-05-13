@@ -2,6 +2,7 @@ package com.nemonicworld.inquiry.controller;
 
 import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.inquiry.dto.request.CsInquiryCreateRequest;
@@ -52,7 +53,7 @@ public class CsInquiryController {
             @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
             @ExampleObject(name = "요청 본문 오류", value = OpenApiErrorExamples.BAD_REQUEST)})),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "익명 사용자 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.USER_NOT_FOUND))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<CsInquiryCreateResponse>> createInquiry(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
         @RequestHeader(value = USER_AGENT_HEADER, required = false) String userAgent,

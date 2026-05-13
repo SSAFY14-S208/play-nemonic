@@ -7,6 +7,7 @@ import com.nemonicworld.backoffice.setting.dto.request.SystemParameterTypedUpdat
 import com.nemonicworld.backoffice.setting.dto.response.SystemParameterListResponse;
 import com.nemonicworld.backoffice.setting.service.SystemParameterService;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
@@ -55,7 +56,7 @@ public class SystemParameterController {
     @Parameter(name = "keyword", in = ParameterIn.QUERY, description = "파라미터 키 검색어")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "시스템 파라미터 목록 조회 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF)})
     public ResponseEntity<ApiResponse<SystemParameterListResponse>> getSystemParameters(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestParam(name = "keyword", required = false) String keyword) {
@@ -129,7 +130,7 @@ public class SystemParameterController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "시스템 파라미터 수정 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값이 올바르지 않음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SYSTEM_PARAMETER_BULK_UPDATE_INVALID))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF)})
     public ResponseEntity<ApiResponse<SystemParameterListResponse>> bulkUpdateSystemParameters(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @Valid @RequestBody SystemParameterTypedUpdateRequest request, HttpServletRequest servletRequest) {

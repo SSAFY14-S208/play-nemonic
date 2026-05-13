@@ -7,6 +7,7 @@ import com.nemonicworld.artifact.service.download.ArtifactDownloadFile;
 import com.nemonicworld.artifact.service.download.ArtifactDownloadService;
 import com.nemonicworld.artifact.service.share.ArtifactShareService;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.share.dto.response.ShareCreateResponse;
@@ -64,7 +65,7 @@ public class ArtifactController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 사용자 또는 산출물", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
             @ExampleObject(name = "산출물 이미지 없음", value = OpenApiErrorExamples.ARTIFACT_IMAGE_URL_NOT_FOUND)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<ArtifactImageUrlResponse>> getArtifactImageUrls(
         @PathVariable("artifactId") String artifactId,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
@@ -89,7 +90,7 @@ public class ArtifactController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 사용자 또는 산출물", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
             @ExampleObject(name = "산출물 이미지 없음", value = OpenApiErrorExamples.ARTIFACT_IMAGE_URL_NOT_FOUND)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<byte[]> downloadArtifact(@PathVariable("artifactId") String artifactId,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
         ArtifactDownloadFile file = artifactDownloadService.prepareDownloadFile(userUuid, artifactId);
@@ -115,7 +116,7 @@ public class ArtifactController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 사용자 또는 산출물", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
             @ExampleObject(name = "산출물 이미지 없음", value = OpenApiErrorExamples.ARTIFACT_IMAGE_URL_NOT_FOUND)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<ShareCreateResponse>> createArtifactShare(
         @PathVariable("artifactId") String artifactId,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
