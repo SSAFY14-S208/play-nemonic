@@ -104,6 +104,8 @@ public class FileServiceImpl implements FileService {
         FileUpload fileUpload = FileUpload.createPending(fileId, userUuid, purpose, safeFileName, request.contentType(),
             byteSize, objectKey, expiresAt, now);
         fileUploadRepository.save(fileUpload);
+        logFileEvent("file_presign_requested", userUuid, fileUpload,
+            StructuredEventLogger.metadata("expires_at", expiresAt, "expires_in", expiresIn));
         logCommunityFileEvent("community_memo_presign_requested", userUuid, fileUpload,
             StructuredEventLogger.metadata("expires_at", expiresAt, "expires_in", expiresIn));
 
@@ -169,6 +171,8 @@ public class FileServiceImpl implements FileService {
         }
 
         fileUpload.markUploaded(LocalDateTime.now());
+        logFileEvent("file_upload_confirmed", userUuid, fileUpload,
+            StructuredEventLogger.metadata("stat_object_size", statObjectResponse.size()));
         logCommunityFileEvent("community_memo_upload_confirmed", userUuid, fileUpload,
             StructuredEventLogger.metadata("stat_object_size", statObjectResponse.size()));
 
@@ -200,6 +204,8 @@ public class FileServiceImpl implements FileService {
         removeObject(fileUpload.getObjectKey());
 
         fileUpload.markDeleted(LocalDateTime.now());
+        logFileEvent("file_upload_deleted", userUuid, fileUpload,
+            StructuredEventLogger.metadata("delete_scope", "pending_upload"));
         logCommunityFileEvent("community_memo_upload_deleted", userUuid, fileUpload,
             StructuredEventLogger.metadata("delete_scope", "pending_upload"));
 
@@ -212,12 +218,22 @@ public class FileServiceImpl implements FileService {
             return;
         }
 
+        logFileEvent(eventName, "community_file", userUuid, fileUpload, extraMetadata);
+    }
+
+    private void logFileEvent(String eventName, UUID userUuid, FileUpload fileUpload,
+        Map<String, Object> extraMetadata) {
+        logFileEvent(eventName, "file_upload", userUuid, fileUpload, extraMetadata);
+    }
+
+    private void logFileEvent(String eventName, String contentType, UUID userUuid, FileUpload fileUpload,
+        Map<String, Object> extraMetadata) {
         Map<String, Object> metadata = StructuredEventLogger.metadata("file_id", fileUpload.getId(), "purpose",
             fileUpload.getPurpose(), "status", fileUpload.getStatus(), "object_key_hash",
             StructuredEventLogger.sha256Prefix(fileUpload.getObjectKey()), "content_type", fileUpload.getContentType(),
             "byte_size", fileUpload.getByteSize());
         metadata.putAll(extraMetadata == null ? Map.of() : extraMetadata);
-        StructuredEventLogger.apiBusiness(eventName, "community_file", userUuid.toString(), metadata);
+        StructuredEventLogger.apiBusiness(eventName, contentType, userUuid.toString(), metadata);
     }
 
     private UUID parseFileId(String value) {

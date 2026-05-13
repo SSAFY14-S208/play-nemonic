@@ -42,11 +42,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
  * 플립북 프레임 제출 유스케이스의 Redis 상태 갱신 흐름을 검증합니다.
  */
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class FlipbookFrameSubmitUseCaseTest {
 
     private static final String ROOM_CODE = "FB3K9Q";
@@ -258,7 +260,7 @@ class FlipbookFrameSubmitUseCaseTest {
      * 같은 배정에 대한 제출 처리가 이미 진행 중이면 Redis 방 상태 갱신 전에 거부합니다.
      */
     @Test
-    void submitFrameRejectsWhenSubmissionLockIsBusy() {
+    void submitFrameRejectsWhenSubmissionLockIsBusy(CapturedOutput output) {
         UUID hostUuid = UUID.randomUUID();
         UUID participantUuid = UUID.randomUUID();
         UUID fileId = UUID.randomUUID();
@@ -279,6 +281,8 @@ class FlipbookFrameSubmitUseCaseTest {
 
         verify(flipbookRoomMutationLockRepository, never()).acquireRoomMutationLock(any(), any(), any(Duration.class));
         verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        assertThat(output.getOut()).contains("\"event_name\":\"flipbook_submission_rejected\"")
+            .contains("\"room_id\":\"%s\"".formatted(ROOM_CODE)).contains("\"uuid\":\"%s\"".formatted(hostUuid));
     }
 
     /**

@@ -143,6 +143,7 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `relay_result_orphan_cleanup_completed`
 - `flipbook_room_created`
 - `flipbook_room_settings_changed`
+- `flipbook_participant_joined`
 - `flipbook_participant_left`
 - `flipbook_participant_kicked`
 - `flipbook_host_changed`
@@ -152,10 +153,12 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `flipbook_ws_connection_rejected`
 - `flipbook_duplicate_session_closed`
 - `flipbook_room_state_snapshot_sent`
+- `flipbook_start_rejected`
 - `flipbook_game_started`
 - `flipbook_round_started`
 - `flipbook_round_time_up`
 - `flipbook_frame_submitted`
+- `flipbook_submission_rejected`
 - `flipbook_frame_auto_submitted`
 - `flipbook_participant_dropped`
 - `flipbook_all_rounds_completed`
@@ -181,9 +184,12 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `content_type`
 - `current_round`
 - `participant_count`
+- `max_participants`
+- `join_order`
 - `is_host`
 - `disconnect_reason`
 - `reconnect_attempt`
+- `already_joined`
 
 분석 활용:
 
@@ -300,6 +306,9 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `artifact_download_requested`
 - `artifact_download_created`
 - `artifact_download_failed`
+- `file_presign_requested`
+- `file_upload_confirmed`
+- `file_upload_deleted`
 - `share_link_created`
 - `share_link_create_failed`
 - `inquiry_created`
@@ -313,6 +322,8 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `gallery_id`
 - `artifact_id`
 - `file_id`
+- `purpose`
+- `status`
 - `image_role`
 - `object_key_hash`
 - `invite_code_hash`

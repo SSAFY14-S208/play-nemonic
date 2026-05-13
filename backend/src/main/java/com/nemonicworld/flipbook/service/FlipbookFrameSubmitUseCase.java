@@ -100,6 +100,16 @@ public class FlipbookFrameSubmitUseCase {
     @Transactional(readOnly = true)
     public FlipbookFrameSubmitResponse submitFrame(String userUuidValue, String roomCodeValue, int round,
         FlipbookFrameSubmitRequest request) {
+        try {
+            return submitFrameInternal(userUuidValue, roomCodeValue, round, request);
+        } catch (RuntimeException e) {
+            logFrameSubmissionRejected(userUuidValue, roomCodeValue, round, request, e);
+            throw e;
+        }
+    }
+
+    private FlipbookFrameSubmitResponse submitFrameInternal(String userUuidValue, String roomCodeValue, int round,
+        FlipbookFrameSubmitRequest request) {
         AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
         flipbookRoomPolicy.validateRoomCode(roomCodeValue);
         validateRound(round);
@@ -202,6 +212,27 @@ public class FlipbookFrameSubmitUseCase {
                 flipbookSubmissionLockRepository.releaseSubmissionLock(roomCodeValue, request.flipbookIndex(),
                     request.frameIndex(), round, viewerUserUuid, submissionLockToken);
             }
+        }
+    }
+
+    private void logFrameSubmissionRejected(String userUuidValue, String roomCodeValue, int round,
+        FlipbookFrameSubmitRequest request, RuntimeException e) {
+        FlipbookRoomEventLogger.apiBusiness("flipbook_submission_rejected",
+            metadata("room_id", roomCodeValue, "uuid", safeUuid(userUuidValue), "round", round, "flipbook_index",
+                request == null ? null : request.flipbookIndex(), "frame_index",
+                request == null ? null : request.frameIndex(), "file_id", request == null ? null : request.fileId(),
+                "result", "rejected", "reason_code", e.getClass().getSimpleName()));
+    }
+
+    private String safeUuid(String userUuidValue) {
+        if (!StringUtils.hasText(userUuidValue)) {
+            return null;
+        }
+
+        try {
+            return UUID.fromString(userUuidValue).toString();
+        } catch (IllegalArgumentException e) {
+            return null;
         }
     }
 

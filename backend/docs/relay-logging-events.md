@@ -37,7 +37,7 @@
 | --- | --- | --- | --- |
 | `relay_room_created` | 릴레이 방 생성이 Redis 저장까지 성공한 직후 | `room_id`, `host_uuid`, `time_limit_seconds`, `max_participants` | 방 생성 수, 방장 기준 생성량, 기본 제한 시간 사용 현황을 집계할 수 있다. |
 | `relay_room_settings_changed` | 대기방에서 방장이 제한 시간을 변경하고 Redis CAS 저장이 성공한 직후 | `room_id`, `actor_uuid`, `before`, `after` | 설정 변경 이력을 본다. 현재 `before`/`after`에는 `time_limit_seconds`, `max_participants`가 들어간다. |
-| `relay_participant_joined` | 참여자가 대기방에 새로 들어오거나 재입장 처리가 성공한 직후 | `room_id`, `uuid`, `participant_count`, `join_order`, `reconnect_attempt` | 대기방 유입, 재입장 비율, 인원 증가 흐름을 집계한다. `reconnect_attempt=true`면 기존 참여자의 재입장 시도다. |
+| `relay_participant_joined` | 참여자가 대기방에 새로 들어오거나 재입장 처리가 성공한 직후 | `room_id`, `uuid`, `participant_count`, `max_participants`, `join_order`, `room_status`, `reconnect_attempt`, `already_joined` | 대기방 유입, 재입장 비율, 인원 증가 흐름을 집계한다. `reconnect_attempt=true`면 기존 참여자의 재입장 시도다. |
 | `relay_participant_left` | 대기방 참여자가 자진 퇴장하고 Redis 저장이 성공한 직후 | `room_id`, `uuid`, `room_status`, `participant_count`, `left_at` | 대기방 이탈률과 마지막 참여자 퇴장으로 방이 닫혔는지 확인한다. |
 | `relay_participant_kicked` | 방장이 대기방 참여자를 강퇴하고 Redis 저장이 성공한 직후 | `room_id`, `host_uuid`, `kicked_uuid`, `room_status`, `participant_count` | 강퇴 빈도와 방장 조작 이력을 통계로 볼 수 있다. |
 | `relay_host_changed` | 방장 자진 퇴장 또는 게임 중 방장 이탈 확정으로 방장이 위임된 직후 | `room_id`, `previous_host_uuid`, `new_host_uuid`, `reason` | 방장 교체 흐름을 추적한다. 현재 `reason`은 `host_left`, `host_dropped`가 사용된다. |

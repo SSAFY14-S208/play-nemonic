@@ -322,6 +322,13 @@ class BackofficeFlipbookRoomControllerIntegrationTest {
         then(flipbookInviteMetadataSyncService).should().syncWithRoomState(closedRoomState);
         then(flipbookRoomEventPublisher).should().publishRoomClosed(eq(roomCode), eq(closedRoomState.updatedAt()));
 
+        JsonNode roomClosedLog = findAuditLog(output, "flipbook_room_closed");
+        JsonNode roomClosedMetadata = roomClosedLog.path("metadata");
+        assertThat(roomClosedMetadata.path("room_id").asText()).isEqualTo(roomCode);
+        assertThat(roomClosedMetadata.path("close_reason").asText()).isEqualTo("admin_force");
+        assertThat(roomClosedMetadata.path("room_status_before").asText()).isEqualTo(roomStatus.name());
+        assertThat(roomClosedMetadata.path("participant_count").asInt()).isEqualTo(roomState.participantCount());
+
         JsonNode auditLog = findAuditLog(output, "flipbook_room_force_close");
         JsonNode metadata = auditLog.path("metadata");
         assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");

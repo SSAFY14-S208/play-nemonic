@@ -3,6 +3,7 @@ package com.nemonicworld.invite.service;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.invite.dto.response.InviteJoinResponse;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
@@ -78,7 +79,9 @@ public class RelayInviteJoinHandler implements InviteJoinHandler {
             Optional<RelayRoomParticipant> existingParticipant = findParticipant(roomState, userUuid);
 
             if (existingParticipant.isPresent()) {
-                validateExistingParticipantReturn(roomState, existingParticipant.get(), now);
+                RelayRoomParticipant participant = existingParticipant.get();
+                validateExistingParticipantReturn(roomState, participant, now);
+                logParticipantJoined(roomState, participant.joinOrder(), userUuid, true);
                 return createResponse(invite, roomState, userUuid, true);
             }
 
@@ -88,6 +91,7 @@ public class RelayInviteJoinHandler implements InviteJoinHandler {
             RelayRoomState updatedRoomState = addParticipant(roomState, user);
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
+                logParticipantJoined(updatedRoomState, nextJoinOrder(roomState), userUuid, false);
                 return createResponse(invite, updatedRoomState, userUuid, false);
             }
         }
@@ -169,6 +173,15 @@ public class RelayInviteJoinHandler implements InviteJoinHandler {
     private int nextJoinOrder(RelayRoomState roomState) {
         return roomState.participants().stream().map(RelayRoomParticipant::joinOrder).max(Comparator.naturalOrder())
             .orElse(-1) + 1;
+    }
+
+    private void logParticipantJoined(RelayRoomState roomState, int joinOrder, String userUuid,
+        boolean reconnectAttempt) {
+        StructuredEventLogger.apiBusiness("relay_participant_joined", "relay", userUuid,
+            StructuredEventLogger.metadata("room_id", roomState.roomCode(), "uuid", userUuid, "participant_count",
+                roomState.participantCount(), "max_participants", roomState.maxParticipants(), "join_order", joinOrder,
+                "room_status", roomState.status(), "reconnect_attempt", reconnectAttempt, "already_joined",
+                reconnectAttempt));
     }
 
     /**

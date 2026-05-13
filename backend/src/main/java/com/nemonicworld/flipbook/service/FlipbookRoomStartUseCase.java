@@ -40,35 +40,42 @@ public class FlipbookRoomStartUseCase {
         flipbookRoomPolicy.validateRoomCode(roomCodeValue);
         String viewerUserUuid = viewerUser.getId().toString();
 
-        for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
-            FlipbookRoomState roomState = flipbookRoomPolicy.findRoomState(roomCodeValue);
-            FlipbookRoomParticipant participant = flipbookRoomPolicy.requireParticipant(roomState, viewerUserUuid);
-            flipbookRoomPolicy.validateRoomHost(viewerUserUuid, roomState, participant);
-            flipbookRoomPolicy.validateStartableRoomStatus(roomState);
+        try {
+            for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
+                FlipbookRoomState roomState = flipbookRoomPolicy.findRoomState(roomCodeValue);
+                FlipbookRoomParticipant participant = flipbookRoomPolicy.requireParticipant(roomState, viewerUserUuid);
+                flipbookRoomPolicy.validateRoomHost(viewerUserUuid, roomState, participant);
+                flipbookRoomPolicy.validateStartableRoomStatus(roomState);
 
-            List<FlipbookRoomParticipant> startParticipants = flipbookRoomPolicy.findStartParticipants(roomState);
-            int totalRounds = flipbookRoomPolicy.resolveDefaultTotalRounds();
-            List<FlipbookFrameAssignment> assignments = FlipbookFrameAssignmentGenerator.generate(startParticipants,
-                totalRounds);
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            FlipbookRoomState updatedRoomState = roomState.startGame(totalRounds, assignments, now);
+                List<FlipbookRoomParticipant> startParticipants = flipbookRoomPolicy.findStartParticipants(roomState);
+                int totalRounds = flipbookRoomPolicy.resolveDefaultTotalRounds();
+                List<FlipbookFrameAssignment> assignments = FlipbookFrameAssignmentGenerator.generate(startParticipants,
+                    totalRounds);
+                LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+                FlipbookRoomState updatedRoomState = roomState.startGame(totalRounds, assignments, now);
 
-            if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
-                flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
-                FlipbookRoomEventLogger.apiBusiness("flipbook_game_started",
-                    metadata("room_id", updatedRoomState.roomCode(), "host_uuid", viewerUserUuid, "participant_count",
-                        updatedRoomState.participantCount(), "total_rounds", updatedRoomState.totalRounds(),
-                        "time_limit_seconds", updatedRoomState.timeLimitSeconds(), "round",
-                        updatedRoomState.currentRound()));
-                FlipbookRoomEventLogger.apiBusiness("flipbook_round_started",
-                    metadata("room_id", updatedRoomState.roomCode(), "round", updatedRoomState.currentRound(),
-                        "round_deadline_at", updatedRoomState.roundDeadlineAt()));
-                FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
+                if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
+                    flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
+                    FlipbookRoomEventLogger.apiBusiness("flipbook_game_started",
+                        metadata("room_id", updatedRoomState.roomCode(), "host_uuid", viewerUserUuid,
+                            "participant_count", updatedRoomState.participantCount(), "total_rounds",
+                            updatedRoomState.totalRounds(), "time_limit_seconds", updatedRoomState.timeLimitSeconds(),
+                            "round", updatedRoomState.currentRound()));
+                    FlipbookRoomEventLogger.apiBusiness("flipbook_round_started",
+                        metadata("room_id", updatedRoomState.roomCode(), "round", updatedRoomState.currentRound(),
+                            "round_deadline_at", updatedRoomState.roundDeadlineAt()));
+                    FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid,
+                        updatedRoomState);
 
-                return FlipbookRoomStateResponse.from(updatedRoomState, viewer);
+                    return FlipbookRoomStateResponse.from(updatedRoomState, viewer);
+                }
             }
-        }
 
-        throw new ConflictException(FlipbookRoomPolicy.ROOM_START_UPDATE_CONFLICT_MESSAGE);
+            throw new ConflictException(FlipbookRoomPolicy.ROOM_START_UPDATE_CONFLICT_MESSAGE);
+        } catch (RuntimeException e) {
+            FlipbookRoomEventLogger.apiBusiness("flipbook_start_rejected", metadata("room_id", roomCodeValue, "uuid",
+                viewerUserUuid, "result", "rejected", "reason_code", e.getClass().getSimpleName()));
+            throw e;
+        }
     }
 }

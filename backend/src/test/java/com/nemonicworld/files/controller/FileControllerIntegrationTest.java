@@ -33,8 +33,11 @@ import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
@@ -45,6 +48,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 @IntegrationTest
 @AutoConfigureMockMvc
+@ExtendWith(OutputCaptureExtension.class)
 @TestPropertySource(properties = {"spring.jpa.hibernate.ddl-auto=create-drop",
     "nemonic.storage.minio.public-url=http://localhost:9000/minio",
     "nemonic.storage.minio.presign-expiration-minutes=10", "nemonic.storage.minio.view-url-expiration-minutes=1440",
@@ -85,7 +89,7 @@ class FileControllerIntegrationTest {
      * 정상 요청이면 pending 업로드 메타데이터를 저장하고 presigned PUT URL 정보를 반환합니다.
      */
     @Test
-    void presignReturnsUrlAndPersistsPendingUpload() throws Exception {
+    void presignReturnsUrlAndPersistsPendingUpload(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         given(publicMinioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
             .willReturn(SIGNED_PRESIGNED_URL);
@@ -108,6 +112,9 @@ class FileControllerIntegrationTest {
         assertThat(readLongColumn(fileId, "byte_size")).isEqualTo(1024L);
         assertThat(readStringColumn(fileId, "object_key")).startsWith("uploads/flipbook/")
             .endsWith("/%s/drawing.png".formatted(fileId));
+        assertThat(output.getOut()).contains("\"event_name\":\"file_presign_requested\"")
+            .contains("\"purpose\":\"FLIPBOOK\"").contains("\"file_id\":\"%s\"".formatted(fileId))
+            .doesNotContain(readStringColumn(fileId, "object_key"));
     }
 
     /**
@@ -386,7 +393,7 @@ class FileControllerIntegrationTest {
      * MinIO에 객체가 실제로 있으면 pending 업로드를 uploaded 상태로 확정합니다.
      */
     @Test
-    void confirmMarksPendingUploadAsUploadedWhenObjectExists() throws Exception {
+    void confirmMarksPendingUploadAsUploadedWhenObjectExists(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
         given(minioClient.statObject(any(StatObjectArgs.class))).willReturn(statObjectResponse(1024L));
@@ -400,6 +407,9 @@ class FileControllerIntegrationTest {
             .andExpect(jsonPath("$.data.status").value("UPLOADED"));
 
         assertThat(readStringColumn(fileId, "status")).isEqualTo("UPLOADED");
+        assertThat(output.getOut()).contains("\"event_name\":\"file_upload_confirmed\"")
+            .contains("\"purpose\":\"FLIPBOOK\"").contains("\"file_id\":\"%s\"".formatted(fileId))
+            .contains("\"stat_object_size\":1024");
     }
 
     /**
@@ -505,7 +515,7 @@ class FileControllerIntegrationTest {
      * pending 업로드 삭제 요청이면 MinIO object 삭제 후 DB 메타데이터를 deleted 상태로 변경합니다.
      */
     @Test
-    void deleteMarksPendingUploadAsDeleted() throws Exception {
+    void deleteMarksPendingUploadAsDeleted(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         UUID fileId = insertFileUpload(userUuid, "PENDING", 1024L);
 
@@ -519,6 +529,9 @@ class FileControllerIntegrationTest {
         assertThat(readStringColumn(fileId, "status")).isEqualTo("DELETED");
         assertThat(readTimestampColumn(fileId, "deleted_at")).isNotNull();
         verify(minioClient).removeObject(any(RemoveObjectArgs.class));
+        assertThat(output.getOut()).contains("\"event_name\":\"file_upload_deleted\"")
+            .contains("\"purpose\":\"FLIPBOOK\"").contains("\"file_id\":\"%s\"".formatted(fileId))
+            .contains("\"delete_scope\":\"pending_upload\"");
     }
 
     /**

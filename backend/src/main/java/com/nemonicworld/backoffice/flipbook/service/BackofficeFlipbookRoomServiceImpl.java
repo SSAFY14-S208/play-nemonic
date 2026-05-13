@@ -9,6 +9,7 @@ import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
@@ -24,6 +25,7 @@ import java.util.Locale;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 @Service
 public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoomService {
@@ -99,6 +101,10 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
             FlipbookRoomState closedRoomState = roomState.close(closedAt);
             if (flipbookRoomRepository.saveIfUnchanged(roomState, closedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(closedRoomState);
+                FlipbookRoomEventLogger.apiBusiness("flipbook_room_closed",
+                    metadata("room_id", closedRoomState.roomCode(), "close_reason", "admin_force", "room_status_before",
+                        roomState.status(), "participant_count", roomState.participantCount(), "closed_at",
+                        closedRoomState.updatedAt()));
                 flipbookRoomEventPublisher.publishRoomClosed(closedRoomState.roomCode(), closedRoomState.updatedAt());
                 adminAuditLogger.logFlipbookRoomForceClose(adminPrincipal, closedRoomState.roomCode(),
                     roomState.status().name(), clientInfo);

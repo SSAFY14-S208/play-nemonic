@@ -47,11 +47,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
  * 플립북 방 서비스의 Redis 낙관적 갱신 재시도 흐름을 검증합니다.
  */
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class FlipbookRoomServiceImplTest {
 
     private static final String ROOM_CODE = "FB3K9Q";
@@ -435,7 +437,7 @@ class FlipbookRoomServiceImplTest {
      * 최소 시작 인원보다 적은 방은 시작할 수 없습니다.
      */
     @Test
-    void startRoomRejectsNotEnoughParticipants() {
+    void startRoomRejectsNotEnoughParticipants(CapturedOutput output) {
         UUID hostUuid = UUID.randomUUID();
         AppUser hostUser = appUserWithNickname(hostUuid, "망고");
         FlipbookRoomState roomState = roomState(FlipbookRoomStatus.WAITING, 45, participant(hostUuid, "망고", true, 0));
@@ -447,6 +449,8 @@ class FlipbookRoomServiceImplTest {
             .isInstanceOf(ConflictException.class).hasMessage("최소 2명이 모여야 시작할 수 있습니다.");
 
         verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        assertThat(output.getOut()).contains("\"event_name\":\"flipbook_start_rejected\"")
+            .contains("\"room_id\":\"%s\"".formatted(ROOM_CODE)).contains("\"uuid\":\"%s\"".formatted(hostUuid));
     }
 
     /**

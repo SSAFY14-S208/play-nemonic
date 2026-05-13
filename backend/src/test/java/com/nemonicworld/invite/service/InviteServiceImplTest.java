@@ -33,11 +33,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
  * 초대코드 입장 서비스의 Redis invite 조회와 릴레이 방 입장 분기를 검증합니다.
  */
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class InviteServiceImplTest {
 
     private static final String INVITE_CODE = "A3K9P2";
@@ -69,7 +71,7 @@ class InviteServiceImplTest {
      * 대기 중인 릴레이 방 초대코드로 신규 사용자가 입장하면 Redis 방 상태에 참여자를 추가합니다.
      */
     @Test
-    void joinByInviteCodeAddsNewRelayParticipant() {
+    void joinByInviteCodeAddsNewRelayParticipant(CapturedOutput output) {
         AppUser joiner = user(JOINER_UUID, "다현");
         InviteMetadata invite = activeInvite();
         RelayRoomState roomState = waitingRoom(hostParticipant());
@@ -95,13 +97,16 @@ class InviteServiceImplTest {
         verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedRoomCaptor.capture());
         assertThat(updatedRoomCaptor.getValue().participants()).extracting(RelayRoomParticipant::userUuid)
             .containsExactly(HOST_UUID, JOINER_UUID);
+        assertThat(output.getOut()).contains("\"event_name\":\"relay_participant_joined\"")
+            .contains("\"room_id\":\"%s\"".formatted(ROOM_CODE)).contains("\"uuid\":\"%s\"".formatted(JOINER_UUID))
+            .contains("\"reconnect_attempt\":false").contains("\"already_joined\":false");
     }
 
     /**
      * 이미 참여 중인 사용자는 중복 추가하지 않고 멱등 응답을 반환합니다.
      */
     @Test
-    void joinByInviteCodeReturnsAlreadyJoinedForExistingParticipant() {
+    void joinByInviteCodeReturnsAlreadyJoinedForExistingParticipant(CapturedOutput output) {
         AppUser joiner = user(JOINER_UUID, "다현");
         RelayRoomParticipant existingParticipant = participant(JOINER_UUID, "다현", false, 1);
         RelayRoomState roomState = waitingRoom(hostParticipant(), existingParticipant);
@@ -115,6 +120,9 @@ class InviteServiceImplTest {
         assertThat(response.currentParticipants()).isEqualTo(2);
         assertThat(response.alreadyJoined()).isTrue();
         verify(relayRoomRepository, never()).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
+        assertThat(output.getOut()).contains("\"event_name\":\"relay_participant_joined\"")
+            .contains("\"room_id\":\"%s\"".formatted(ROOM_CODE)).contains("\"uuid\":\"%s\"".formatted(JOINER_UUID))
+            .contains("\"reconnect_attempt\":true").contains("\"already_joined\":true");
     }
 
     /**
