@@ -286,12 +286,30 @@ class FlipbookRoomEventPublisherTest {
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
         assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.CLOSED);
         assertThat(data.closedAt()).isEqualTo(closedAt);
+        assertThat(data.closeReason()).isNull();
         verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), closeStatusCaptor.capture());
         verify(webSocketSessionRegistry).closeWebSocketSession(eq(secondSessionId), closeStatusCaptor.capture());
         assertThat(closeStatusCaptor.getAllValues()).allSatisfy(status -> {
             assertThat(status.getCode()).isEqualTo(CloseStatus.NORMAL.getCode());
             assertThat(status.getReason()).isEqualTo("ROOM_CLOSED");
         });
+    }
+
+    @Test
+    void publishRoomClosedSendsCloseReasonWhenProvided() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        LocalDateTime closedAt = LocalDateTime.now().minusSeconds(1);
+
+        publisher.publishRoomClosed(ROOM_CODE, closedAt, "playing_abandoned");
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        FlipbookRoomClosedEventResponse data = (FlipbookRoomClosedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.CLOSED);
+        assertThat(data.closedAt()).isEqualTo(closedAt);
+        assertThat(data.closeReason()).isEqualTo("playing_abandoned");
     }
 
     /**

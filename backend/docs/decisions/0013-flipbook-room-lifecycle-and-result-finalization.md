@@ -124,8 +124,12 @@ objectKey is present
 ```
 
 This encodes the product decision that timeout/disconnect empty frames are not
-rendered into the final GIF. Group valid frames by `flipbookIndex`, sort by
-`frameIndex`, compose a GIF and thumbnail, and upload them under:
+rendered into the final GIF. If no valid result frame remains at all, do not
+create an empty GIF or gallery artifact. Close the room directly with
+`close_reason=no_result_frames` and publish `ROOM_CLOSED`.
+
+When at least one valid frame remains, group valid frames by `flipbookIndex`,
+sort by `frameIndex`, compose a GIF and thumbnail, and upload them under:
 
 ```text
 flipbook/results/{artifactId}/result.gif
@@ -152,10 +156,16 @@ exist and their flipbook indexes match the expected submitted indexes, reuse
 them and only retry the Redis transition to `FINISHED`.
 
 Finished rooms are automatically closed after
-`nemonic.flipbook.close.delay-seconds`, defaulting to 300 seconds. Waiting rooms
-are also cleaned up: empty waiting rooms close immediately, and waiting rooms
+`nemonic.flipbook.close.delay-seconds`, defaulting to 300 seconds. Abandoned
+rooms are also cleaned up: empty waiting rooms close immediately, waiting rooms
 where all participants remain disconnected past the configured idle duration
-close with `close_reason=waiting_idle_timeout`.
+close with `close_reason=waiting_idle_timeout`, and playing rooms where every
+participant is disconnected or dropped past the configured abandoned duration
+close with `close_reason=playing_abandoned`.
+
+`ROOM_CLOSED` includes additive `closeReason` metadata. Current close reasons
+include `waiting_empty`, `waiting_idle_timeout`, `playing_abandoned`,
+`auto_delay`, `finalization_failed`, and `no_result_frames`.
 
 ## Consequences
 
@@ -167,6 +177,8 @@ close with `close_reason=waiting_idle_timeout`.
 - Positive: Empty timeout/disconnect frames are excluded from final GIF output,
   matching the confirmed product policy that results may contain fewer frames
   than the configured target.
+- Positive: Rooms with zero renderable frames no longer produce empty
+  artifacts; clients receive a clear `ROOM_CLOSED.closeReason=no_result_frames`.
 - Positive: Existing result rows can recover a `FINALIZING` room without
   duplicate GIF uploads when only the Redis `FINISHED` transition failed.
 - Positive: Result generation no longer adds a backend white background to
@@ -175,14 +187,9 @@ close with `close_reason=waiting_idle_timeout`.
 - Negative: Unlike Relay, flipbook finalization does not currently track an
   attempt marker or delete newly uploaded result objects if DB persistence fails
   after upload.
-- Negative: Waiting-room abandoned cleanup exists, but a `PLAYING` room where
-  every participant is disconnected or dropped is not closed by the flipbook
-  abandoned-close scheduler today.
 - Negative: Finalization retry count and scheduler cadence are environment
   properties, not backoffice system parameters.
 - Follow-up: Add Relay-style result upload rollback/orphan cleanup for
   `flipbook/results/**` if storage drift becomes operationally visible.
 - Follow-up: Consider APNG or animated WebP only if GIF palette transparency is
   not sufficient for product-quality transparent animation.
-- Follow-up: Add `PLAYING` abandoned close parity if product policy requires
-  stuck in-game flipbook rooms to close automatically without finalization.

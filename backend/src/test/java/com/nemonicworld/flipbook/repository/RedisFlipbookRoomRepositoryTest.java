@@ -114,6 +114,35 @@ class RedisFlipbookRoomRepositoryTest {
     }
 
     @Test
+    void findAbandonedPlayingRoomsScansAllDisconnectedOrDroppedOldPlayingRooms() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime cutoff = now.minusMinutes(5);
+        UUID hostUuid = UUID.randomUUID();
+        FlipbookRoomParticipant disconnectedHost = disconnectedParticipant(hostUuid, "Mango", true, 0,
+            now.minusMinutes(6));
+        FlipbookRoomParticipant droppedParticipant = droppedParticipant(UUID.randomUUID(), "Dropped", false, 1,
+            now.minusMinutes(7), now.minusMinutes(6));
+        FlipbookRoomState abandonedRoom = roomState("PLAYID", FlipbookRoomStatus.PLAYING, 1, 4, now.minusMinutes(7),
+            now.minusMinutes(7), disconnectedHost, droppedParticipant);
+        FlipbookRoomState activeRoom = roomState("ACTIVE", FlipbookRoomStatus.PLAYING, 1, 4, now.minusMinutes(7),
+            now.minusMinutes(7), participant(UUID.randomUUID(), "Active", true, 0));
+        FlipbookRoomState recentRoom = roomState("RECENT", FlipbookRoomStatus.PLAYING, 1, 4, now.minusMinutes(7),
+            now.minusMinutes(7), disconnectedParticipant(UUID.randomUUID(), "Recent", true, 0, now.minusMinutes(4)));
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, true, false);
+        given(cursor.next()).willReturn("flipbook:room:PLAYID", "flipbook:room:ACTIVE", "flipbook:room:RECENT");
+        given(valueOperations.get("flipbook:room:PLAYID")).willReturn(serialize(abandonedRoom));
+        given(valueOperations.get("flipbook:room:ACTIVE")).willReturn(serialize(activeRoom));
+        given(valueOperations.get("flipbook:room:RECENT")).willReturn(serialize(recentRoom));
+
+        List<FlipbookRoomState> abandonedRooms = repository.findAbandonedPlayingRooms(cutoff, 10);
+
+        assertThat(abandonedRooms).containsExactly(abandonedRoom);
+        verify(cursor).close();
+    }
+
+    @Test
     void findEmptyWaitingRoomsScansOnlyWaitingRoomsWithoutParticipants() throws Exception {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         FlipbookRoomState emptyWaitingRoom = new FlipbookRoomState("EMPTY1", FlipbookRoomStatus.WAITING, null, 45, 2, 6,

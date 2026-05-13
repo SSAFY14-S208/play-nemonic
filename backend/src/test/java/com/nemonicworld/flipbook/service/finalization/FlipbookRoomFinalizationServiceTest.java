@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -122,6 +123,35 @@ class FlipbookRoomFinalizationServiceTest {
     }
 
     @Test
+    void processFinalizingRoomClosesRoomWhenNoResultFramesExist() {
+        FlipbookRoomState finalizingRoomState = noResultFramesFinalizingRoomState();
+        given(flipbookRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(finalizingRoomState));
+        given(flipbookRoomRepository.saveIfUnchanged(eq(finalizingRoomState), any(FlipbookRoomState.class)))
+            .willReturn(true);
+
+        FlipbookRoomFinalizationResult result = service.processFinalizingRoom(ROOM_CODE);
+
+        assertThat(result.processed()).isTrue();
+        assertThat(result.roomStatus()).isEqualTo(FlipbookRoomStatus.CLOSED);
+        assertThat(result.resultCount()).isZero();
+
+        ArgumentCaptor<FlipbookRoomState> updatedRoomStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
+        verify(flipbookRoomRepository).saveIfUnchanged(eq(finalizingRoomState), updatedRoomStateCaptor.capture());
+        assertThat(updatedRoomStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.CLOSED);
+        verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomStateCaptor.getValue());
+        verify(flipbookFinalizationRetryRepository).clearFailureCount(ROOM_CODE);
+        verify(flipbookRoomEventPublisher).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class),
+            eq("no_result_frames"));
+        verify(flipbookRoomEventPublisher, never()).publishResultCreated(any(FlipbookRoomFinalizationResult.class));
+        verify(flipbookArtifactRepository, never()).findFlipbookArtifactsBySourceRoomId(anyString());
+        verify(flipbookArtifactRepository, never()).saveFlipbookResults(anyString(), any(), any(),
+            any(LocalDateTime.class));
+        verify(flipbookResultStorage, never()).upload(anyString(), any(byte[].class), anyString());
+    }
+
+    @Test
     void processFinalizingRoomsKeepsRoomFinalizingBeforeMaxRetryCount() {
         FlipbookRoomState finalizingRoomState = finalizingRoomState();
         given(flipbookRoomRepository.findFinalizingRooms(50)).willReturn(List.of(finalizingRoomState));
@@ -139,7 +169,7 @@ class FlipbookRoomFinalizationServiceTest {
         assertThat(result.processedRoomCount()).isZero();
         assertThat(result.resultCount()).isZero();
         verify(flipbookRoomEventPublisher, org.mockito.Mockito.never()).publishRoomClosed(anyString(),
-            any(LocalDateTime.class));
+            any(LocalDateTime.class), any());
     }
 
     @Test
@@ -163,7 +193,8 @@ class FlipbookRoomFinalizationServiceTest {
         verify(flipbookRoomRepository).saveIfUnchanged(eq(finalizingRoomState), updatedRoomStateCaptor.capture());
         assertThat(updatedRoomStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.CLOSED);
         verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomStateCaptor.getValue());
-        verify(flipbookRoomEventPublisher).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class));
+        verify(flipbookRoomEventPublisher).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class),
+            eq("finalization_failed"));
     }
 
     @Test
@@ -188,6 +219,14 @@ class FlipbookRoomFinalizationServiceTest {
                 autoSubmittedAssignment(1, 0, DROPPED_UUID)),
             List.of(participant(HOST_UUID, "Mango", true, false), participant(PARTICIPANT_UUID, "Peach", false, false),
                 participant(DROPPED_UUID, "Berry", false, true)),
+            NOW.minusMinutes(7), NOW.minusSeconds(2), List.of());
+    }
+
+    private FlipbookRoomState noResultFramesFinalizingRoomState() {
+        return new FlipbookRoomState(ROOM_CODE, FlipbookRoomStatus.FINALIZING, HOST_UUID.toString(), 45, 2, 6, 8, 8,
+            NOW.minusSeconds(45), NOW, NOW.minusMinutes(6),
+            List.of(autoSubmittedAssignment(0, 0, HOST_UUID), autoSubmittedAssignment(0, 1, PARTICIPANT_UUID)),
+            List.of(participant(HOST_UUID, "Mango", true, false), participant(PARTICIPANT_UUID, "Peach", false, false)),
             NOW.minusMinutes(7), NOW.minusSeconds(2), List.of());
     }
 
