@@ -12,6 +12,7 @@ import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncServi
 import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsSnapshot;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.invite.repository.InviteRepository;
 import com.nemonicworld.user.entity.AppUser;
@@ -60,9 +61,9 @@ public class FlipbookRoomCreateUseCase {
 
         String roomCode = roomCodeGenerator.generateUnique(inviteRepository::existsByInviteCode);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        FlipbookRoomParticipantLimit participantLimit = flipbookRuntimeSettingsProvider.currentParticipantLimit();
-        FlipbookRoomTimeLimitSettings timeLimitSettings = flipbookRuntimeSettingsProvider
-            .currentRoomTimeLimitSettings();
+        FlipbookRuntimeSettingsSnapshot settings = flipbookRuntimeSettingsProvider.currentSettingsSnapshot();
+        FlipbookRoomParticipantLimit participantLimit = settings.participantLimit();
+        FlipbookRoomTimeLimitSettings timeLimitSettings = settings.roomTimeLimitSettings();
         FlipbookRoomParticipant hostParticipant = new FlipbookRoomParticipant(hostUser.getId().toString(),
             hostUser.getNickname(), true, FlipbookRoomPolicy.HOST_JOIN_ORDER, false, null, now);
         FlipbookRoomState roomState = new FlipbookRoomState(roomCode, FlipbookRoomStatus.WAITING,

@@ -39,6 +39,7 @@ import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomViewerFactory;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsSnapshot;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.invite.repository.InviteRepository;
@@ -103,6 +104,8 @@ class FlipbookRoomServiceImplTest {
             .thenReturn(FlipbookRoomPolicy.MIN_FRAMES_PER_FLIPBOOK);
         lenient().when(flipbookRuntimeSettingsProvider.currentReconnectGracePeriod())
             .thenReturn(Duration.ofSeconds(FlipbookRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
+        lenient().when(flipbookRuntimeSettingsProvider.currentSettingsSnapshot())
+            .thenReturn(defaultRuntimeSettingsSnapshot());
         FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository,
             flipbookRuntimeSettingsProvider);
         FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
@@ -110,9 +113,11 @@ class FlipbookRoomServiceImplTest {
             flipbookRoomRepository, inviteRepository, flipbookRoomPolicy, flipbookInviteMetadataSyncService,
             flipbookRuntimeSettingsProvider);
         flipbookRoomSettingsUseCase = new FlipbookRoomSettingsUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);
+            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService,
+            flipbookRuntimeSettingsProvider);
         flipbookRoomStartUseCase = new FlipbookRoomStartUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);
+            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService,
+            flipbookRuntimeSettingsProvider);
         FlipbookFrameImageUrlResolver flipbookFrameImageUrlResolver = new FlipbookFrameImageUrlResolver(
             new MinioStorageProperties("http://minio:9000", "https://example.com/minio", "access", "secret", "nemonic",
                 10, 10_485_760));
@@ -130,10 +135,10 @@ class FlipbookRoomServiceImplTest {
         AppUser hostUser = appUserWithNickname(hostUuid, "망고");
         given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
         given(roomCodeGenerator.generateUnique(any())).willReturn(ROOM_CODE);
-        given(flipbookRuntimeSettingsProvider.currentParticipantLimit())
-            .willReturn(new FlipbookRoomParticipantLimit(3, 8));
-        given(flipbookRuntimeSettingsProvider.currentRoomTimeLimitSettings())
-            .willReturn(new FlipbookRoomTimeLimitSettings(60, Set.of(45, 60, 90)));
+        given(flipbookRuntimeSettingsProvider.currentSettingsSnapshot())
+            .willReturn(new FlipbookRuntimeSettingsSnapshot(new FlipbookRoomParticipantLimit(3, 8),
+                new FlipbookRoomTimeLimitSettings(60, Set.of(45, 60, 90)), FlipbookRoomPolicy.MIN_FRAMES_PER_FLIPBOOK,
+                Duration.ofSeconds(FlipbookRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS)));
 
         FlipbookRoomCreateResponse response = flipbookRoomCreateUseCase.createRoom(hostUuid.toString());
 
@@ -751,5 +756,11 @@ class FlipbookRoomServiceImplTest {
         appUser.updateNickname(nickname, createdAt.plusHours(1));
 
         return appUser;
+    }
+
+    private FlipbookRuntimeSettingsSnapshot defaultRuntimeSettingsSnapshot() {
+        return new FlipbookRuntimeSettingsSnapshot(FlipbookRoomParticipantLimit.defaultLimit(),
+            FlipbookRoomTimeLimitSettings.defaultSettings(), FlipbookRoomPolicy.MIN_FRAMES_PER_FLIPBOOK,
+            Duration.ofSeconds(FlipbookRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
     }
 }

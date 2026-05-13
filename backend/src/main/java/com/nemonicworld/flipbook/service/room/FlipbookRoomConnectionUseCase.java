@@ -10,6 +10,8 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomViewerFactory;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsSnapshot;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -32,6 +34,7 @@ public class FlipbookRoomConnectionUseCase {
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookRoomViewerFactory flipbookRoomViewerFactory;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+    private final FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
 
     /**
      * WebSocket CONNECT 성공을 Redis 참여자 상태에 반영합니다.
@@ -58,6 +61,8 @@ public class FlipbookRoomConnectionUseCase {
     // connected 상태 업데이트 메서드
     private FlipbookRoomStateResponse updateParticipantConnectionState(String viewerUserUuid, String roomCodeValue,
         boolean connected) {
+        FlipbookRuntimeSettingsSnapshot settings = flipbookRuntimeSettingsProvider.currentSettingsSnapshot();
+
         for (int attempt = 0; attempt < FlipbookRoomPolicy.ROOM_UPDATE_MAX_RETRIES; attempt++) {
             // 현재 방 상태
             FlipbookRoomState roomState = flipbookRoomPolicy.findRoomState(roomCodeValue);
@@ -76,7 +81,8 @@ public class FlipbookRoomConnectionUseCase {
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
             if (connected) {
-                flipbookRoomPolicy.validateExistingParticipantReturn(roomState, participant, now);
+                flipbookRoomPolicy.validateExistingParticipantReturn(roomState, participant, now,
+                    settings.reconnectGracePeriod());
             }
 
             // 해당 사용자의 connected 상태 업데이트
@@ -93,7 +99,7 @@ public class FlipbookRoomConnectionUseCase {
                 }
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 
-                return FlipbookRoomStateResponse.from(updatedRoomState, viewer);
+                return FlipbookRoomStateResponse.from(updatedRoomState, viewer, settings.roomTimeLimitSettings());
             }
         }
 

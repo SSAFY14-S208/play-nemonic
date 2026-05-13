@@ -2,7 +2,7 @@ package com.nemonicworld.flipbook.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static com.nemonicworld.support.FlipbookRuntimeSettingsTestSupport.defaultFlipbookRoomPolicy;
+import static com.nemonicworld.support.FlipbookRuntimeSettingsTestSupport.defaultFlipbookRuntimeSettingsProvider;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -21,6 +21,7 @@ import com.nemonicworld.flipbook.service.room.FlipbookRoomConnectionUseCase;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomViewerFactory;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -59,10 +60,13 @@ class FlipbookRoomConnectionUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        FlipbookRoomPolicy flipbookRoomPolicy = defaultFlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
+        FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider = defaultFlipbookRuntimeSettingsProvider();
+        FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository,
+            flipbookRuntimeSettingsProvider);
         FlipbookRoomViewerFactory flipbookRoomViewerFactory = new FlipbookRoomViewerFactory(flipbookRoomPolicy);
         flipbookRoomConnectionUseCase = new FlipbookRoomConnectionUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService);
+            flipbookRoomPolicy, flipbookRoomViewerFactory, flipbookInviteMetadataSyncService,
+            flipbookRuntimeSettingsProvider);
     }
 
     /**

@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.backoffice.setting.entity.SystemParameter;
 import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -30,49 +34,91 @@ public class FlipbookRuntimeSettingsProvider {
     }
 
     public FlipbookRoomParticipantLimit currentParticipantLimit() {
-        return systemParameterRepository.findByKey(PARTICIPANT_LIMIT_SETTING_KEY).map(SystemParameter::value)
-            .filter(StringUtils::hasText).map(this::parseParticipantLimit).orElseGet(() -> {
-                FlipbookRoomParticipantLimit fallback = FlipbookRoomParticipantLimit.defaultLimit();
-                log.warn("flipbook participant limit setting is missing or blank. key={} fallbackMin={} fallbackMax={}",
-                    PARTICIPANT_LIMIT_SETTING_KEY, fallback.minParticipants(), fallback.maxParticipants());
-
-                return fallback;
-            });
+        return resolveParticipantLimit(systemParameterRepository.findByKey(PARTICIPANT_LIMIT_SETTING_KEY)
+            .map(SystemParameter::value).orElse(null));
     }
 
     public FlipbookRoomTimeLimitSettings currentRoomTimeLimitSettings() {
-        return systemParameterRepository.findByKey(ROOM_TIME_LIMIT_SECONDS_SETTING_KEY).map(SystemParameter::value)
-            .filter(StringUtils::hasText).map(this::parseRoomTimeLimitSettings).orElseGet(() -> {
-                FlipbookRoomTimeLimitSettings fallback = FlipbookRoomTimeLimitSettings.defaultSettings();
-                log.warn(
-                    "flipbook room time limit setting is missing or blank. key={} fallbackDefault={} "
-                        + "fallbackAllowed={}",
-                    ROOM_TIME_LIMIT_SECONDS_SETTING_KEY, fallback.defaultSeconds(), fallback.allowedSeconds());
-
-                return fallback;
-            });
+        return resolveRoomTimeLimitSettings(systemParameterRepository.findByKey(ROOM_TIME_LIMIT_SECONDS_SETTING_KEY)
+            .map(SystemParameter::value).orElse(null));
     }
 
     public int currentMinFramesPerFlipbook() {
-        return systemParameterRepository.findByKey(MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY).map(SystemParameter::value)
-            .filter(StringUtils::hasText).map(this::parseMinFramesPerFlipbook).orElseGet(() -> {
-                FlipbookMinFramesPerFlipbookSettings fallback = FlipbookMinFramesPerFlipbookSettings.defaultSettings();
-                log.warn("flipbook min frames setting is missing or blank. key={} fallbackValue={}",
-                    MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY, fallback.value());
-
-                return fallback.value();
-            });
+        return resolveMinFramesPerFlipbook(systemParameterRepository.findByKey(MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY)
+            .map(SystemParameter::value).orElse(null));
     }
 
     public Duration currentReconnectGracePeriod() {
-        return systemParameterRepository.findByKey(RECONNECT_GRACE_SECONDS_SETTING_KEY).map(SystemParameter::value)
-            .filter(StringUtils::hasText).map(this::parseReconnectGracePeriod).orElseGet(() -> {
-                FlipbookReconnectGraceSettings fallback = FlipbookReconnectGraceSettings.defaultSettings();
-                log.warn("flipbook reconnect grace setting is missing or blank. key={} fallbackSeconds={}",
-                    RECONNECT_GRACE_SECONDS_SETTING_KEY, fallback.seconds());
+        return resolveReconnectGracePeriod(systemParameterRepository.findByKey(RECONNECT_GRACE_SECONDS_SETTING_KEY)
+            .map(SystemParameter::value).orElse(null));
+    }
 
-                return fallback.period();
-            });
+    public FlipbookRuntimeSettingsSnapshot currentSettingsSnapshot() {
+        Map<String, SystemParameter> parametersByKey = systemParameterRepository
+            .findAllByKeys(List.of(PARTICIPANT_LIMIT_SETTING_KEY, ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY, RECONNECT_GRACE_SECONDS_SETTING_KEY))
+            .stream().collect(Collectors.toMap(SystemParameter::key, Function.identity(), (first, second) -> first));
+
+        return new FlipbookRuntimeSettingsSnapshot(
+            resolveParticipantLimit(valueOf(parametersByKey, PARTICIPANT_LIMIT_SETTING_KEY)),
+            resolveRoomTimeLimitSettings(valueOf(parametersByKey, ROOM_TIME_LIMIT_SECONDS_SETTING_KEY)),
+            resolveMinFramesPerFlipbook(valueOf(parametersByKey, MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY)),
+            resolveReconnectGracePeriod(valueOf(parametersByKey, RECONNECT_GRACE_SECONDS_SETTING_KEY)));
+    }
+
+    private String valueOf(Map<String, SystemParameter> parametersByKey, String key) {
+        SystemParameter parameter = parametersByKey.get(key);
+
+        return parameter == null ? null : parameter.value();
+    }
+
+    private FlipbookRoomParticipantLimit resolveParticipantLimit(String settingValue) {
+        if (!StringUtils.hasText(settingValue)) {
+            FlipbookRoomParticipantLimit fallback = FlipbookRoomParticipantLimit.defaultLimit();
+            log.warn("flipbook participant limit setting is missing or blank. key={} fallbackMin={} fallbackMax={}",
+                PARTICIPANT_LIMIT_SETTING_KEY, fallback.minParticipants(), fallback.maxParticipants());
+
+            return fallback;
+        }
+
+        return parseParticipantLimit(settingValue);
+    }
+
+    private FlipbookRoomTimeLimitSettings resolveRoomTimeLimitSettings(String settingValue) {
+        if (!StringUtils.hasText(settingValue)) {
+            FlipbookRoomTimeLimitSettings fallback = FlipbookRoomTimeLimitSettings.defaultSettings();
+            log.warn(
+                "flipbook room time limit setting is missing or blank. key={} fallbackDefault={} fallbackAllowed={}",
+                ROOM_TIME_LIMIT_SECONDS_SETTING_KEY, fallback.defaultSeconds(), fallback.allowedSeconds());
+
+            return fallback;
+        }
+
+        return parseRoomTimeLimitSettings(settingValue);
+    }
+
+    private int resolveMinFramesPerFlipbook(String settingValue) {
+        if (!StringUtils.hasText(settingValue)) {
+            FlipbookMinFramesPerFlipbookSettings fallback = FlipbookMinFramesPerFlipbookSettings.defaultSettings();
+            log.warn("flipbook min frames setting is missing or blank. key={} fallbackValue={}",
+                MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY, fallback.value());
+
+            return fallback.value();
+        }
+
+        return parseMinFramesPerFlipbook(settingValue);
+    }
+
+    private Duration resolveReconnectGracePeriod(String settingValue) {
+        if (!StringUtils.hasText(settingValue)) {
+            FlipbookReconnectGraceSettings fallback = FlipbookReconnectGraceSettings.defaultSettings();
+            log.warn("flipbook reconnect grace setting is missing or blank. key={} fallbackSeconds={}",
+                RECONNECT_GRACE_SECONDS_SETTING_KEY, fallback.seconds());
+
+            return fallback.period();
+        }
+
+        return parseReconnectGracePeriod(settingValue);
     }
 
     private FlipbookRoomParticipantLimit parseParticipantLimit(String settingValue) {

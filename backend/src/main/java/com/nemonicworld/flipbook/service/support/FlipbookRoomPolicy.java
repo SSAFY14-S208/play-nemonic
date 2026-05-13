@@ -107,7 +107,10 @@ public class FlipbookRoomPolicy {
      * 제한 시간 요청값을 검증합니다.
      */
     public int resolveTimeLimitSeconds(FlipbookRoomSettingsRequest request) {
-        FlipbookRoomTimeLimitSettings settings = flipbookRuntimeSettingsProvider.currentRoomTimeLimitSettings();
+        return resolveTimeLimitSeconds(request, flipbookRuntimeSettingsProvider.currentRoomTimeLimitSettings());
+    }
+
+    public int resolveTimeLimitSeconds(FlipbookRoomSettingsRequest request, FlipbookRoomTimeLimitSettings settings) {
         if (request == null || request.timeLimitSeconds() == null || !settings.allows(request.timeLimitSeconds())) {
             throw new BadRequestException(INVALID_TIME_LIMIT_SECONDS_MESSAGE);
         }
@@ -316,7 +319,11 @@ public class FlipbookRoomPolicy {
      * 플립북당 최소 8프레임이 보장되는 기본 라운드 수를 반환합니다.
      */
     public int resolveDefaultTotalRounds() {
-        return flipbookRuntimeSettingsProvider.currentMinFramesPerFlipbook();
+        return resolveDefaultTotalRounds(flipbookRuntimeSettingsProvider.currentMinFramesPerFlipbook());
+    }
+
+    public int resolveDefaultTotalRounds(int minFramesPerFlipbook) {
+        return minFramesPerFlipbook;
     }
 
     /**
@@ -388,6 +395,10 @@ public class FlipbookRoomPolicy {
      * 끊겼던 참여자가 아직 재접속 가능한 시간 안에 있는지 계산합니다.
      */
     public boolean canReconnect(FlipbookRoomParticipant participant, LocalDateTime now) {
+        return canReconnect(participant, now, flipbookRuntimeSettingsProvider.currentReconnectGracePeriod());
+    }
+
+    public boolean canReconnect(FlipbookRoomParticipant participant, LocalDateTime now, Duration reconnectGracePeriod) {
         if (participant.dropped()) {
             return false;
         }
@@ -398,8 +409,6 @@ public class FlipbookRoomPolicy {
             return false;
         }
 
-        Duration reconnectGracePeriod = flipbookRuntimeSettingsProvider.currentReconnectGracePeriod();
-
         return !disconnectedAt.plus(reconnectGracePeriod).isBefore(now);
     }
 
@@ -407,7 +416,12 @@ public class FlipbookRoomPolicy {
      * 재접속 가능 시간이 지난 참여자의 invite 재입장과 WebSocket 재연결을 막습니다.
      */
     public void requireReconnectable(FlipbookRoomParticipant participant, LocalDateTime now) {
-        if (!canReconnect(participant, now)) {
+        requireReconnectable(participant, now, flipbookRuntimeSettingsProvider.currentReconnectGracePeriod());
+    }
+
+    public void requireReconnectable(FlipbookRoomParticipant participant, LocalDateTime now,
+        Duration reconnectGracePeriod) {
+        if (!canReconnect(participant, now, reconnectGracePeriod)) {
             throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
         }
     }
@@ -417,6 +431,12 @@ public class FlipbookRoomPolicy {
      */
     public void validateExistingParticipantReturn(FlipbookRoomState roomState, FlipbookRoomParticipant participant,
         LocalDateTime now) {
+        validateExistingParticipantReturn(roomState, participant, now,
+            flipbookRuntimeSettingsProvider.currentReconnectGracePeriod());
+    }
+
+    public void validateExistingParticipantReturn(FlipbookRoomState roomState, FlipbookRoomParticipant participant,
+        LocalDateTime now, Duration reconnectGracePeriod) {
         if (participant.dropped()) {
             throw new ConflictException(RECONNECT_EXPIRED_MESSAGE);
         }
@@ -426,7 +446,7 @@ public class FlipbookRoomPolicy {
         }
 
         if (participant.disconnectedAt() != null && requiresReconnectGrace(roomState)) {
-            requireReconnectable(participant, now);
+            requireReconnectable(participant, now, reconnectGracePeriod);
         }
     }
 
