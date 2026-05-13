@@ -1,7 +1,6 @@
 package com.nemonicworld.flipbook.service.result;
 
 import com.nemonicworld.common.exception.InternalServerException;
-import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -93,7 +92,7 @@ public class FlipbookGifComposer {
 
     private void writeFrame(ImageWriter writer, BufferedImage frame) throws IOException {
         ImageWriteParam params = writer.getDefaultWriteParam();
-        ImageTypeSpecifier imageType = ImageTypeSpecifier.createFromBufferedImageType(BufferedImage.TYPE_INT_RGB);
+        ImageTypeSpecifier imageType = ImageTypeSpecifier.createFromRenderedImage(frame);
         IIOMetadata metadata = writer.getDefaultImageMetadata(imageType, params);
         configureGifMetadata(metadata);
 
@@ -133,11 +132,9 @@ public class FlipbookGifComposer {
     }
 
     private BufferedImage normalize(BufferedImage source, int width, int height) {
-        BufferedImage target = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        BufferedImage target = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = target.createGraphics();
         try {
-            graphics.setColor(Color.WHITE);
-            graphics.fillRect(0, 0, width, height);
             graphics.drawImage(source, 0, 0, width, height, null);
         } finally {
             graphics.dispose();

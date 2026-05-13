@@ -2,15 +2,11 @@ package com.nemonicworld.community.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.anEmptyMap;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
-import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -23,8 +19,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
-import com.nemonicworld.community.service.image.CommunityMemoImageDerivative;
-import com.nemonicworld.community.service.image.CommunityMemoImageProcessor;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationException;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationRequest;
@@ -69,9 +63,6 @@ class CommunityMemoControllerIntegrationTest {
         + "2026/05/07/direct-user/thumbnail%20image.png";
     private static final String OBJECT_KEY_PREFIX = "uploads/community/2026/05/07/gallery/";
     private static final String PUBLIC_URL_PREFIX = "http://localhost:9000/nemonic-local/" + OBJECT_KEY_PREFIX;
-    private static final String DERIVATIVE_OBJECT_KEY_PREFIX = "community/memos/";
-    private static final String DERIVATIVE_PUBLIC_URL_PREFIX = "http://localhost:9000/nemonic-local/"
-        + DERIVATIVE_OBJECT_KEY_PREFIX;
 
     @Autowired
     private MockMvc mockMvc;
@@ -88,16 +79,9 @@ class CommunityMemoControllerIntegrationTest {
     @MockitoBean
     private CommunityMemoModerationClient moderationClient;
 
-    @MockitoBean
-    private CommunityMemoImageProcessor imageProcessor;
-
     @BeforeEach
     void prepareCommunityTables() {
         when(moderationClient.check(any())).thenReturn(CommunityMemoModerationResult.allowedResult());
-        when(imageProcessor.process(any(), any(), any())).thenAnswer(invocation -> {
-            UUID memoId = invocation.getArgument(0);
-            return derivativeFor(memoId);
-        });
         createTables();
         cleanTables();
     }
@@ -196,12 +180,9 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.message").value("커뮤니티 메모 생성 성공"))
             .andExpect(jsonPath("$.data.authorNickname").value("생성메모"))
             .andExpect(jsonPath("$.data.sourceType").value("DIRECT"))
-            .andExpect(jsonPath("$.data.memoOriginalImageUrl")
-                .value(allOf(startsWith(DERIVATIVE_PUBLIC_URL_PREFIX), endsWith("/body.png"))))
-            .andExpect(jsonPath("$.data.memoThumbnailImageUrl")
-                .value(allOf(startsWith(DERIVATIVE_PUBLIC_URL_PREFIX), endsWith("/thumbnail.png"))))
-            .andExpect(jsonPath("$.data.memoImageUrl")
-                .value(allOf(startsWith(DERIVATIVE_PUBLIC_URL_PREFIX), endsWith("/thumbnail.png"))))
+            .andExpect(jsonPath("$.data.memoOriginalImageUrl").value(ORIGINAL_PUBLIC_URL))
+            .andExpect(jsonPath("$.data.memoThumbnailImageUrl").value(THUMBNAIL_PUBLIC_URL))
+            .andExpect(jsonPath("$.data.memoImageUrl").value(THUMBNAIL_PUBLIC_URL))
             .andExpect(jsonPath("$.data.positionX").value(12.5)).andExpect(jsonPath("$.data.positionY").value(-7.25))
             .andExpect(jsonPath("$.data.zIndex").value(10)).andExpect(jsonPath("$.data.rotationDeg").value(5.5))
             .andExpect(jsonPath("$.data.ownedByMe").value(true))
@@ -215,9 +196,9 @@ class CommunityMemoControllerIntegrationTest {
         assertThat(memoId).isNotNull();
         assertThat(
             jdbcTemplate.queryForObject("SELECT body_image_url FROM community_memo WHERE id = ?", String.class, memoId))
-            .isEqualTo(bodyObjectKey(memoId));
+            .isEqualTo(ORIGINAL_OBJECT_KEY);
         assertThat(jdbcTemplate.queryForObject("SELECT thumbnail_image_url FROM community_memo WHERE id = ?",
-            String.class, memoId)).isEqualTo(thumbnailObjectKey(memoId));
+            String.class, memoId)).isEqualTo(THUMBNAIL_OBJECT_KEY);
         assertThat(jdbcTemplate.queryForObject("SELECT moderation_status FROM community_memo WHERE id = ?",
             String.class, memoId)).isEqualTo("allowed");
         assertThat(jdbcTemplate.queryForObject("SELECT moderation_checked_at FROM community_memo WHERE id = ?",
@@ -232,14 +213,14 @@ class CommunityMemoControllerIntegrationTest {
         ArgumentCaptor<CommunityMemoModerationRequest> requestCaptor = ArgumentCaptor
             .forClass(CommunityMemoModerationRequest.class);
         verify(moderationClient).check(requestCaptor.capture());
-        assertThat(requestCaptor.getValue().imageUrl()).isEqualTo(bodyPublicUrl(memoId));
-        assertThat(requestCaptor.getValue().thumbnailUrl()).isEqualTo(thumbnailPublicUrl(memoId));
+        assertThat(requestCaptor.getValue().imageUrl()).isEqualTo(ORIGINAL_PUBLIC_URL);
+        assertThat(requestCaptor.getValue().thumbnailUrl()).isEqualTo(THUMBNAIL_PUBLIC_URL);
         assertThat(requestCaptor.getValue().clientText()).isEqualTo("텍스트박스 원문");
         assertThat(requestCaptor.getValue().sourceType()).isEqualTo("DIRECT");
 
         mockMvc.perform(get("/api/v1/community/memos/{memoId}", memoId)).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.memoUuid").value(memoId.toString()))
-            .andExpect(jsonPath("$.data.memoImageUrl").value(thumbnailPublicUrl(memoId)));
+            .andExpect(jsonPath("$.data.memoImageUrl").value(THUMBNAIL_PUBLIC_URL));
         mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.totalElements").value(1))
             .andExpect(jsonPath("$.data.items[0].memoUuid").value(memoId.toString()));
@@ -255,10 +236,10 @@ class CommunityMemoControllerIntegrationTest {
     @Test
     void createCommunityMemoStoresEmptyDecorationAndEmptyClientTextWhenOmitted() throws Exception {
         UUID userUuid = createExistingUser("기본값");
-        UUID originalFileId = insertFileUpload(userUuid, "uploads/community/no-decoration-original.png", "COMMUNITY",
-            "UPLOADED", null);
-        UUID thumbnailFileId = insertFileUpload(userUuid, "uploads/community/no-decoration-thumbnail.png", "COMMUNITY",
-            "UPLOADED", null);
+        String originalObjectKey = "uploads/community/no-decoration-original.png";
+        String thumbnailObjectKey = "uploads/community/no-decoration-thumbnail.png";
+        UUID originalFileId = insertFileUpload(userUuid, originalObjectKey, "COMMUNITY", "UPLOADED", null);
+        UUID thumbnailFileId = insertFileUpload(userUuid, thumbnailObjectKey, "COMMUNITY", "UPLOADED", null);
 
         MvcResult createResult = mockMvc
             .perform(post("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
@@ -278,14 +259,14 @@ class CommunityMemoControllerIntegrationTest {
         UUID memoId = createdMemoId(createResult);
         assertThat(
             jdbcTemplate.queryForObject("SELECT body_image_url FROM community_memo WHERE id = ?", String.class, memoId))
-            .isEqualTo(bodyObjectKey(memoId));
+            .isEqualTo(originalObjectKey);
         assertThat(
             jdbcTemplate.queryForObject("SELECT decoration FROM community_memo WHERE id = ?", String.class, memoId))
             .isEqualTo("{}");
         ArgumentCaptor<CommunityMemoModerationRequest> requestCaptor = ArgumentCaptor
             .forClass(CommunityMemoModerationRequest.class);
         verify(moderationClient).check(requestCaptor.capture());
-        assertThat(requestCaptor.getValue().thumbnailUrl()).isEqualTo(thumbnailPublicUrl(memoId));
+        assertThat(requestCaptor.getValue().thumbnailUrl()).isEqualTo(publicUrl(thumbnailObjectKey));
         assertThat(requestCaptor.getValue().clientText()).isEmpty();
     }
 
@@ -295,10 +276,10 @@ class CommunityMemoControllerIntegrationTest {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         UUID artifactId = UUID.randomUUID();
         UUID galleryId = UUID.randomUUID();
-        UUID originalFileId = insertFileUpload(userUuid, OBJECT_KEY_PREFIX + "posted-original.png", "COMMUNITY",
-            "UPLOADED", null);
-        UUID thumbnailFileId = insertFileUpload(userUuid, OBJECT_KEY_PREFIX + "posted-thumbnail.png", "COMMUNITY",
-            "UPLOADED", null);
+        String originalObjectKey = OBJECT_KEY_PREFIX + "posted-original.png";
+        String thumbnailObjectKey = OBJECT_KEY_PREFIX + "posted-thumbnail.png";
+        UUID originalFileId = insertFileUpload(userUuid, originalObjectKey, "COMMUNITY", "UPLOADED", null);
+        UUID thumbnailFileId = insertFileUpload(userUuid, thumbnailObjectKey, "COMMUNITY", "UPLOADED", null);
         insertArtifact(artifactId, "flipbook", "artifact-thumbnail-should-not-render.png", now);
         insertGallery(galleryId, userUuid, artifactId, null);
         when(moderationClient.check(any()))
@@ -325,12 +306,9 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(status().isCreated()).andExpect(jsonPath("$.data.sourceType").value("GALLERY"))
             .andExpect(jsonPath("$.data.artifactId").value(artifactId.toString()))
             .andExpect(jsonPath("$.data.galleryContentKind").value("flipbook"))
-            .andExpect(jsonPath("$.data.memoOriginalImageUrl")
-                .value(allOf(startsWith(DERIVATIVE_PUBLIC_URL_PREFIX), endsWith("/body.png"))))
-            .andExpect(jsonPath("$.data.memoThumbnailImageUrl")
-                .value(allOf(startsWith(DERIVATIVE_PUBLIC_URL_PREFIX), endsWith("/thumbnail.png"))))
-            .andExpect(jsonPath("$.data.memoImageUrl")
-                .value(allOf(startsWith(DERIVATIVE_PUBLIC_URL_PREFIX), endsWith("/thumbnail.png"))))
+            .andExpect(jsonPath("$.data.memoOriginalImageUrl").value(PUBLIC_URL_PREFIX + "posted-original.png"))
+            .andExpect(jsonPath("$.data.memoThumbnailImageUrl").value(PUBLIC_URL_PREFIX + "posted-thumbnail.png"))
+            .andExpect(jsonPath("$.data.memoImageUrl").value(PUBLIC_URL_PREFIX + "posted-thumbnail.png"))
             .andExpect(jsonPath("$.data.decoration.scale").value(1.0))
             .andExpect(jsonPath("$.data.ownedByMe").value(true))
             .andExpect(jsonPath("$.data.moderationStatus").value("allowed")).andReturn();
@@ -341,9 +319,9 @@ class CommunityMemoControllerIntegrationTest {
             .isEqualTo(artifactId);
         assertThat(
             jdbcTemplate.queryForObject("SELECT body_image_url FROM community_memo WHERE id = ?", String.class, memoId))
-            .isEqualTo(bodyObjectKey(memoId));
+            .isEqualTo(originalObjectKey);
         assertThat(jdbcTemplate.queryForObject("SELECT thumbnail_image_url FROM community_memo WHERE id = ?",
-            String.class, memoId)).isEqualTo(thumbnailObjectKey(memoId));
+            String.class, memoId)).isEqualTo(thumbnailObjectKey);
         assertThat(
             jdbcTemplate.queryForObject("SELECT ocr_categories FROM community_memo WHERE id = ?", String.class, memoId))
             .contains("safe");
@@ -351,8 +329,8 @@ class CommunityMemoControllerIntegrationTest {
         ArgumentCaptor<CommunityMemoModerationRequest> requestCaptor = ArgumentCaptor
             .forClass(CommunityMemoModerationRequest.class);
         verify(moderationClient).check(requestCaptor.capture());
-        assertThat(requestCaptor.getValue().imageUrl()).isEqualTo(bodyPublicUrl(memoId));
-        assertThat(requestCaptor.getValue().thumbnailUrl()).isEqualTo(thumbnailPublicUrl(memoId));
+        assertThat(requestCaptor.getValue().imageUrl()).isEqualTo(PUBLIC_URL_PREFIX + "posted-original.png");
+        assertThat(requestCaptor.getValue().thumbnailUrl()).isEqualTo(PUBLIC_URL_PREFIX + "posted-thumbnail.png");
         assertThat(requestCaptor.getValue().clientText()).isEqualTo("사용자가 추가한 텍스트");
         assertThat(requestCaptor.getValue().sourceType()).isEqualTo("GALLERY");
     }
@@ -533,7 +511,6 @@ class CommunityMemoControllerIntegrationTest {
         mockMvc.perform(createRequest(userUuid, failedOriginalFileId.toString(), failedThumbnailFileId.toString()))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 모더레이션을 완료할 수 없습니다."));
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM community_memo", Integer.class)).isZero();
-        verify(imageProcessor, times(2)).deleteQuietly(any(CommunityMemoImageDerivative.class));
     }
 
     @Test
@@ -553,9 +530,12 @@ class CommunityMemoControllerIntegrationTest {
         UUID thumbnailFileId = insertFileUpload(userUuid, "uploads/community/fifo-new-thumbnail.png", "COMMUNITY",
             "UPLOADED", null);
 
-        mockMvc.perform(createRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString()))
-            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.memoImageUrl")
-                .value(allOf(startsWith(DERIVATIVE_PUBLIC_URL_PREFIX), endsWith("/thumbnail.png"))));
+        MvcResult createResult = mockMvc
+            .perform(createRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString()))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.data.memoImageUrl").value(publicUrl("uploads/community/fifo-new-thumbnail.png")))
+            .andReturn();
+        UUID memoId = createdMemoId(createResult);
 
         assertThat(jdbcTemplate.queryForObject("""
             SELECT COUNT(*)
@@ -565,12 +545,9 @@ class CommunityMemoControllerIntegrationTest {
             """, Integer.class)).isEqualTo(50);
         assertThat(jdbcTemplate.queryForObject("SELECT deleted_reason FROM community_memo WHERE id = ?", String.class,
             oldestMemoId)).isEqualTo("expired");
-        assertThat(jdbcTemplate.queryForObject("""
-            SELECT COUNT(*)
-            FROM community_memo
-            WHERE body_image_url LIKE 'community/memos/%/body.png'
-              AND deleted_at IS NULL
-            """, Integer.class)).isEqualTo(1);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT body_image_url FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("uploads/community/fifo-new-original.png");
     }
 
     @Test
@@ -1595,24 +1572,8 @@ class CommunityMemoControllerIntegrationTest {
         return request;
     }
 
-    private CommunityMemoImageDerivative derivativeFor(UUID memoId) {
-        return new CommunityMemoImageDerivative(bodyObjectKey(memoId), thumbnailObjectKey(memoId));
-    }
-
-    private String bodyObjectKey(UUID memoId) {
-        return DERIVATIVE_OBJECT_KEY_PREFIX + memoId + "/body.png";
-    }
-
-    private String thumbnailObjectKey(UUID memoId) {
-        return DERIVATIVE_OBJECT_KEY_PREFIX + memoId + "/thumbnail.png";
-    }
-
-    private String bodyPublicUrl(UUID memoId) {
-        return DERIVATIVE_PUBLIC_URL_PREFIX + memoId + "/body.png";
-    }
-
-    private String thumbnailPublicUrl(UUID memoId) {
-        return DERIVATIVE_PUBLIC_URL_PREFIX + memoId + "/thumbnail.png";
+    private String publicUrl(String objectKey) {
+        return "http://localhost:9000/nemonic-local/" + objectKey.replace(" ", "%20");
     }
 
     private UUID createdMemoId(MvcResult result) throws Exception {
