@@ -268,26 +268,6 @@ class RelayRoomKickControllerIntegrationTest {
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
     }
 
-    /**
-     * 강퇴된 사용자는 같은 roomCode의 입장 API를 다시 호출해도 거부됩니다.
-     */
-    @Test
-    void joinRelayRoomRejectsKickedUser() throws Exception {
-        UUID hostUuid = createExistingUserWithNickname("망고");
-        UUID kickedUuid = createExistingUserWithNickname("포도");
-        RelayRoomState roomState = createRoomState(RelayRoomStatus.WAITING, participant(hostUuid, "망고", true, 0));
-        storeRoom(DEFAULT_ROOM_CODE, roomState.withParticipantsAndKickedUserUuids(roomState.participants(),
-            List.of(kickedUuid.toString()), roomState.updatedAt()));
-
-        mockMvc
-            .perform(post("/api/v1/relay/rooms/{roomCode}/participants", DEFAULT_ROOM_CODE)
-                .header(ANONYMOUS_USER_UUID_HEADER, kickedUuid.toString()))
-            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("강퇴된 방에는 다시 입장할 수 없습니다."));
-
-        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
-    }
-
     private UUID createExistingUserWithNickname(String nickname) {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
@@ -300,13 +280,13 @@ class RelayRoomKickControllerIntegrationTest {
     }
 
     private ResultActions performKick(UUID requesterUuid, Object targetUserUuid) throws Exception {
-        return mockMvc.perform(post("/api/v1/relay/rooms/{roomCode}/participants/kick", DEFAULT_ROOM_CODE)
-            .contentType(MediaType.APPLICATION_JSON).header(ANONYMOUS_USER_UUID_HEADER, requesterUuid.toString())
-            .content("""
-                {
-                  "targetUserUuid": "%s"
-                }
-                """.formatted(targetUserUuid)));
+        return mockMvc.perform(
+            post("/api/v1/relay/rooms/{roomCode}/kick", DEFAULT_ROOM_CODE).contentType(MediaType.APPLICATION_JSON)
+                .header(ANONYMOUS_USER_UUID_HEADER, requesterUuid.toString()).content("""
+                    {
+                      "targetUserUuid": "%s"
+                    }
+                    """.formatted(targetUserUuid)));
     }
 
     private void storeRoom(String roomCode, RelayRoomState roomState) throws Exception {

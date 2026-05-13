@@ -72,8 +72,10 @@ class OpenApiParameterNamingIntegrationTest {
             List.of("/api/v1/relay/rooms", "/api/v1/admins"));
         assertGroupContainsTags(OpenApiGroups.CONTENTS_GROUP);
 
-        assertGroupContainsPaths(OpenApiGroups.GAMES_GROUP, List.of("/api/v1/relay/rooms", "/api/v1/flipbook/rooms"),
-            List.of("/api/v1/files/presign", "/api/v1/gallery"));
+        assertGroupContainsPaths(OpenApiGroups.GAMES_GROUP,
+            List.of("/api/v1/relay/rooms", "/api/v1/relay/rooms/{roomCode}/kick", "/api/v1/flipbook/rooms"),
+            List.of("/api/v1/files/presign", "/api/v1/gallery", "/api/v1/relay/rooms/{roomCode}/participants",
+                "/api/v1/relay/rooms/{roomCode}/participants/kick"));
         assertGroupContainsTags(OpenApiGroups.GAMES_GROUP);
 
         assertGroupContainsPaths(OpenApiGroups.SUPPORT_LOGS_GROUP, List.of("/api/v1/inquiries", "/api/logs/client"),

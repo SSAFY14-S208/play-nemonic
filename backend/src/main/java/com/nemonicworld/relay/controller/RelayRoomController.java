@@ -51,7 +51,7 @@ import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 @RequestMapping("/relay/rooms")
 @Tag(name = OpenApiTags.RELAY, description = OpenApiTags.RELAY_DESCRIPTION)
 /**
- * 릴레이 방 생성, 상태 조회, 입장/복귀 HTTP 요청을 받는 컨트롤러입니다.
+ * 릴레이 방 생성, 상태 조회, 게임 진행 HTTP 요청을 받는 컨트롤러입니다.
  *
  * 실제 방 상태 변경과 Redis 조회는 서비스 계층에 위임합니다.
  */
@@ -60,7 +60,6 @@ public class RelayRoomController {
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String RELAY_ROOM_CREATED_MESSAGE = "릴레이 방 생성 성공";
     private static final String RELAY_ROOM_STATE_FOUND_MESSAGE = "릴레이 방 상태 조회 성공";
-    private static final String RELAY_ROOM_JOINED_MESSAGE = "릴레이 방 입장/복귀 성공";
     private static final String RELAY_ROOM_PARTICIPANT_KICKED_MESSAGE = "참여자 강퇴 성공";
     private static final String RELAY_ROOM_LEFT_MESSAGE = "릴레이 방 퇴장 성공";
     private static final String RELAY_ROOM_SETTINGS_UPDATED_MESSAGE = "릴레이 방 설정 변경 성공";
@@ -273,40 +272,9 @@ public class RelayRoomController {
     }
 
     /**
-     * 대기 중 방에 신규 참여자를 추가하거나 기존 참여자의 10초 이내 재접속 복귀를 처리합니다.
-     */
-    @PostMapping("/{roomCode}/participants")
-    @Operation(summary = "릴레이 방 입장/복귀", description = "대기 중 릴레이 방에 신규 참여자를 추가하거나 기존 참여자의 재접속 복귀를 Redis 방 상태에 반영합니다.")
-    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
-    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "릴레이 방 입장/복귀 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
-            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
-            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE),
-            @ExampleObject(name = "닉네임 미설정", value = OpenApiErrorExamples.RELAY_NICKNAME_REQUIRED)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
-            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
-            @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.RELAY_ROOM_NOT_FOUND)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "강퇴된 방 재입장 불가", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.RELAY_KICKED_ROOM_REJOIN))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "입장 또는 재접속 불가", content = @Content(mediaType = "application/json", examples = {
-            @ExampleObject(name = "정원 초과", value = OpenApiErrorExamples.RELAY_ROOM_FULL),
-            @ExampleObject(name = "게임 진행 중", value = OpenApiErrorExamples.RELAY_GAME_IN_PROGRESS),
-            @ExampleObject(name = "재접속 만료", value = OpenApiErrorExamples.RELAY_RECONNECT_EXPIRED),
-            @ExampleObject(name = "종료된 방", value = OpenApiErrorExamples.RELAY_ROOM_CLOSED)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
-    public ResponseEntity<ApiResponse<RelayRoomStateResponse>> joinRoom(@PathVariable("roomCode") String roomCode,
-        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
-        RelayRoomStateResponse response = relayRoomService.joinRoom(userUuid, roomCode);
-
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
-            .body(ApiResponse.success(RELAY_ROOM_JOINED_MESSAGE, response));
-    }
-
-    /**
      * 방장이 대기 중 방의 일반 참여자를 강퇴하고 강퇴 이벤트를 알립니다.
      */
-    @PostMapping("/{roomCode}/participants/kick")
+    @PostMapping("/{roomCode}/kick")
     @Operation(summary = "릴레이 방 참여자 강퇴", description = "방장이 WAITING 상태의 릴레이 대기실에서 일반 참여자를 강퇴합니다.")
     @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
