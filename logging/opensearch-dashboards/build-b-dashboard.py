@@ -37,19 +37,26 @@ def search_source(query="", filters=None):
     })
 
 
-def viz(viz_id, title, vis_state, query="", description=""):
+def viz(viz_id, title, vis_state, query="", description="", colors=None):
     """visualization saved-object 1개.
+
+    colors: 시리즈 라벨 → hex 색 매핑. OS Dashboards VisLib는 uiStateJSON.vis.colors
+    에 라벨별 색을 박으면 colorMapping advanced setting 매칭 실패 케이스도 우회.
+    legend 시리즈 라벨과 정확히 일치해야 적용된다.
 
     migrationVersion은 박지 않는다: OpenSearch Dashboards 2.15가 "7.9.3까지 알고
     있다"고 422로 거부하므로, 명시값을 두지 않고 import 시 자체 추론에 맡긴다.
     """
+    ui_state = "{}"
+    if colors:
+        ui_state = json.dumps({"vis": {"colors": colors}}, ensure_ascii=False)
     return {
         "id": viz_id,
         "type": "visualization",
         "attributes": {
             "title": title,
             "visState": json.dumps(vis_state, ensure_ascii=False),
-            "uiStateJSON": "{}",
+            "uiStateJSON": ui_state,
             "description": description,
             "version": 1,
             "kibanaSavedObjectMeta": {
@@ -58,6 +65,37 @@ def viz(viz_id, title, vis_state, query="", description=""):
         },
         "references": [INDEX_PATTERN_REF],
     }
+
+
+# ============================================================
+# SRE 컬러 시스템 — 시리즈 라벨별 색 매핑.
+# 시계열/분류 viz가 각자 자기 시리즈에 해당하는 매핑만 colors= 로 전달.
+# ============================================================
+COLOR_CONTENT_TYPE = {
+    "relay":      "#60A5FA",
+    "flipbook":   "#FB923C",
+    "community":  "#34D399",
+    "canvas":     "#A78BFA",
+    "fortune":    "#F472B6",
+    "backoffice": "#94A3B8",
+}
+
+COLOR_ROOM_CLOSE = {
+    "relay_room_closed":               "#10B981",
+    "flipbook_room_closed":            "#10B981",
+    "relay_room_force_close":          "#EF4444",
+    "flipbook_room_force_close":       "#EF4444",
+    "infinite_canvas_force_close":     "#EF4444",
+    "relay_orphan_cleanup_completed":  "#F59E0B",
+    "relay_temp_cleanup_completed":    "#94A3B8",
+}
+
+COLOR_METRIC_LABELS_B6 = {
+    "게임 시작":  "#3B82F6",
+    "제출":       "#34D399",
+    "강제 종료":  "#EF4444",
+    "정상 종료":  "#10B981",
+}
 
 
 # ============================================================
@@ -70,6 +108,7 @@ V1 = viz(
     title="[B1] 콘텐츠별 이벤트 추이 (1h)",
     description="websocket-server 이벤트를 content_type(relay/flipbook)별로 시간 분포 누적.",
     query="service:websocket-server",
+    colors=COLOR_CONTENT_TYPE,
     vis_state={
         "title": "[B1] 콘텐츠별 이벤트 추이 (1h)",
         "type": "histogram",
@@ -151,6 +190,7 @@ V3 = viz(
     viz_id="vis-roomstats-close-types",
     title="[B3] 방 종료 분류",
     description="room_closed / force_close / cleanup 이벤트 비율로 종료 사유 구분.",
+    colors=COLOR_ROOM_CLOSE,
     query=(
         'event_name:('
         '*_room_closed OR '
@@ -279,6 +319,7 @@ V6 = viz(
     title="[B6] 핵심 카운터",
     description="기간 내 게임 시작 / 제출 / 강제 종료 / 정상 종료 누적 카운트.",
     query="",
+    colors=COLOR_METRIC_LABELS_B6,
     vis_state={
         "title": "[B6] 핵심 카운터",
         "type": "metric",

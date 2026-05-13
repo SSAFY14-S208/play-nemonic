@@ -44,14 +44,17 @@ def search_source(query=""):
     })
 
 
-def viz(viz_id, title, vis_state, pattern_ref, query="", description=""):
+def viz(viz_id, title, vis_state, pattern_ref, query="", description="", colors=None):
+    ui_state = "{}"
+    if colors:
+        ui_state = json.dumps({"vis": {"colors": colors}}, ensure_ascii=False)
     return {
         "id": viz_id,
         "type": "visualization",
         "attributes": {
             "title": title,
             "visState": json.dumps(vis_state, ensure_ascii=False),
-            "uiStateJSON": "{}",
+            "uiStateJSON": ui_state,
             "description": description,
             "version": 1,
             "kibanaSavedObjectMeta": {
@@ -60,6 +63,38 @@ def viz(viz_id, title, vis_state, pattern_ref, query="", description=""):
         },
         "references": [pattern_ref],
     }
+
+
+# ============================================================
+# SRE 컬러 시스템 (F 도메인 — 에러)
+# ============================================================
+COLOR_APPLICATION = {
+    "backend":          "#60A5FA",
+    "backend-api":      "#60A5FA",
+    "api-server":       "#60A5FA",
+    "websocket-server": "#FB923C",
+    "next-ssr":         "#34D399",
+    "client-web":       "#A78BFA",
+    "client-ingest":    "#94A3B8",
+    "backoffice-api":   "#94A3B8",
+}
+
+COLOR_LOG_LEVEL = {
+    "ERROR": "#EF4444",
+    "FATAL": "#991B1B",
+    "WARN":  "#F59E0B",
+    "INFO":  "#60A5FA",
+    "DEBUG": "#94A3B8",
+}
+
+COLOR_F6_LABELS = {
+    "ERROR":       "#EF4444",
+    "FATAL":       "#991B1B",
+    "Spring 부팅": "#F59E0B",
+    "Scheduler":   "#F59E0B",
+    "도메인":      "#A78BFA",
+    "WebSocket":   "#FB923C",
+}
 
 
 # --- 공통 visualization params ---
@@ -179,6 +214,7 @@ F1 = viz(
     description="error-logs 전체 — application 별 일별 stacked bar.",
     pattern_ref=ERROR_PATTERN_REF,
     query="",
+    colors=COLOR_APPLICATION,
     vis_state={
         "title": "[F1] 에러 추이 (1d)",
         "type": "histogram",
@@ -208,6 +244,7 @@ F2 = viz(
     description="application 라벨 비율. F1과 함께 보면 어느 인스턴스가 노이지한지 한눈에.",
     pattern_ref=ERROR_PATTERN_REF,
     query="",
+    colors=COLOR_APPLICATION,
     vis_state={
         "title": "[F2] Application별 에러 비율",
         "type": "pie",
@@ -262,6 +299,7 @@ F4 = viz(
     description="ERROR / FATAL / (있다면) WARN 비율.",
     pattern_ref=ERROR_PATTERN_REF,
     query="",
+    colors=COLOR_LOG_LEVEL,
     vis_state={
         "title": "[F4] log_level 분포",
         "type": "pie",
@@ -327,6 +365,7 @@ F6 = viz(
     description="logger / level 패턴으로 분류한 에러 카운트.",
     pattern_ref=ERROR_PATTERN_REF,
     query="",
+    colors=COLOR_F6_LABELS,
     vis_state={
         "title": "[F6] 카테고리별 카운터",
         "type": "metric",

@@ -37,14 +37,17 @@ def search_source(query=""):
     })
 
 
-def viz(viz_id, title, vis_state, query="", description=""):
+def viz(viz_id, title, vis_state, query="", description="", colors=None):
+    ui_state = "{}"
+    if colors:
+        ui_state = json.dumps({"vis": {"colors": colors}}, ensure_ascii=False)
     return {
         "id": viz_id,
         "type": "visualization",
         "attributes": {
             "title": title,
             "visState": json.dumps(vis_state, ensure_ascii=False),
-            "uiStateJSON": "{}",
+            "uiStateJSON": ui_state,
             "description": description,
             "version": 1,
             "kibanaSavedObjectMeta": {
@@ -53,6 +56,42 @@ def viz(viz_id, title, vis_state, query="", description=""):
         },
         "references": [INDEX_PATTERN_REF],
     }
+
+
+# ============================================================
+# SRE 컬러 시스템 (E 도메인 — 감사)
+# ============================================================
+COLOR_AUDIT_RESULT = {
+    "success": "#10B981",
+    "failure": "#EF4444",
+}
+
+COLOR_RISK_ACTIONS = {
+    "relay_room_force_close":      "#EF4444",
+    "flipbook_room_force_close":   "#EF4444",
+    "infinite_canvas_force_close": "#EF4444",
+    "memo_soft_delete":            "#F59E0B",
+    "memo_bulk_soft_delete":       "#F59E0B",
+    "memo_restore":                "#3B82F6",
+    "memo_bulk_restore":           "#3B82F6",
+    "admin_account_create":        "#991B1B",
+    "admin_account_delete":        "#991B1B",
+    "prompt_update":               "#F59E0B",
+    "prompt_rollback":             "#F59E0B",
+    "param_change":                "#F59E0B",
+    "ai_moderation_override":      "#F59E0B",
+    "electron_channel_change":     "#94A3B8",
+    "electron_release_publish":    "#94A3B8",
+}
+
+COLOR_E6_LABELS = {
+    "로그인 성공":          "#10B981",
+    "로그인 실패":          "#EF4444",
+    "메모 삭제":            "#F59E0B",
+    "메모 복원":            "#3B82F6",
+    "방/캔버스 강제 종료":  "#EF4444",
+    "파라미터 변경":        "#F59E0B",
+}
 
 
 # --- 공통 visualization params (B/C와 동일) ---
@@ -192,6 +231,7 @@ E3 = viz(
     title="[E3] 액션 결과 분포",
     description="metadata.result success vs failure — 운영 실패율 추적.",
     query="",
+    colors=COLOR_AUDIT_RESULT,
     vis_state={
         "title": "[E3] 액션 결과 분포",
         "type": "pie",
@@ -248,6 +288,7 @@ E5 = viz(
     viz_id="vis-audit-risk-actions",
     title="[E5] 위험 액션 추이 (1d)",
     description="강제 종료/삭제·복원/admin 계정/프롬프트 롤백/파라미터 변경.",
+    colors=COLOR_RISK_ACTIONS,
     query=(
         "event_name:("
         "*_force_close OR "
@@ -287,6 +328,7 @@ E6 = viz(
     title="[E6] 핵심 카운터",
     description="기간 내 로그인/삭제/복원/강제 종료/파라미터 변경 누적.",
     query="",
+    colors=COLOR_E6_LABELS,
     vis_state={
         "title": "[E6] 핵심 카운터",
         "type": "metric",

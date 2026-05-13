@@ -36,14 +36,17 @@ def search_source(query=""):
     })
 
 
-def viz(viz_id, title, vis_state, query="", description=""):
+def viz(viz_id, title, vis_state, query="", description="", colors=None):
+    ui_state = "{}"
+    if colors:
+        ui_state = json.dumps({"vis": {"colors": colors}}, ensure_ascii=False)
     return {
         "id": viz_id,
         "type": "visualization",
         "attributes": {
             "title": title,
             "visState": json.dumps(vis_state, ensure_ascii=False),
-            "uiStateJSON": "{}",
+            "uiStateJSON": ui_state,
             "description": description,
             "version": 1,
             "kibanaSavedObjectMeta": {
@@ -52,6 +55,45 @@ def viz(viz_id, title, vis_state, query="", description=""):
         },
         "references": [INDEX_PATTERN_REF],
     }
+
+
+# ============================================================
+# SRE 컬러 시스템 (C 도메인)
+# ============================================================
+COLOR_LIFECYCLE = {
+    "community_memo_created":               "#10B981",
+    "community_memo_user_deleted":          "#94A3B8",
+    "community_memo_auto_hidden_by_report": "#EF4444",
+    "admin_community_memo_hidden":          "#F59E0B",
+    "admin_community_memo_restored":        "#3B82F6",
+}
+
+COLOR_MODERATION = {
+    "community_memo_moderation_allowed": "#10B981",
+    "community_memo_moderation_blocked": "#EF4444",
+    "community_memo_moderation_failed":  "#991B1B",
+}
+
+COLOR_REPORT = {
+    "community_memo_report_requested":         "#3B82F6",
+    "community_memo_report_created":           "#F59E0B",
+    "community_memo_report_rejected":          "#94A3B8",
+    "community_memo_report_threshold_reached": "#EF4444",
+}
+
+COLOR_HIDDEN_REASON = {
+    "community_memo_auto_hidden_by_report": "#EF4444",
+    "admin_community_memo_hidden":          "#F59E0B",
+}
+
+COLOR_C6_LABELS = {
+    "메모 작성":    "#10B981",
+    "AI 차단":      "#EF4444",
+    "신고 접수":    "#F59E0B",
+    "자동 숨김":    "#991B1B",
+    "운영자 숨김":  "#F59E0B",
+    "복원":         "#3B82F6",
+}
 
 
 # ============================================================
@@ -138,6 +180,7 @@ C1 = viz(
     viz_id="vis-community-lifecycle",
     title="[C1] 메모 라이프사이클 추이 (1d)",
     description="created / user_deleted / auto_hidden / admin_hidden / admin_restored 일별 추이.",
+    colors=COLOR_LIFECYCLE,
     query=(
         "event_name:("
         "community_memo_created OR "
@@ -174,6 +217,7 @@ C2 = viz(
     viz_id="vis-community-moderation",
     title="[C2] AI 모더레이션 결과 분포",
     description="moderation_allowed / blocked / failed 비율 (slow는 핵심 카운터에 별도).",
+    colors=COLOR_MODERATION,
     query=(
         "event_name:("
         "community_memo_moderation_allowed OR "
@@ -205,6 +249,7 @@ C3 = viz(
     viz_id="vis-community-report-activity",
     title="[C3] 신고 활동 추이 (1d)",
     description="report_requested / created / rejected / threshold_reached 일별 분포.",
+    colors=COLOR_REPORT,
     query=(
         "event_name:("
         "community_memo_report_requested OR "
@@ -240,6 +285,7 @@ C4 = viz(
     viz_id="vis-community-hidden-reason",
     title="[C4] 숨김 사유 분포",
     description="자동 숨김(report_threshold) vs 운영자 숨김(admin_hidden) 비율.",
+    colors=COLOR_HIDDEN_REASON,
     query=(
         "event_name:("
         "community_memo_auto_hidden_by_report OR "
@@ -306,6 +352,7 @@ C6 = viz(
     title="[C6] 핵심 카운터",
     description="기간 내 작성/차단/신고/자동숨김/운영자숨김/복원 누적.",
     query="",
+    colors=COLOR_C6_LABELS,
     vis_state={
         "title": "[C6] 핵심 카운터",
         "type": "metric",
