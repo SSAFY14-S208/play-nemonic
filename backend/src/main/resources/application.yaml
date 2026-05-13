@@ -106,6 +106,9 @@ nemonic:
     rate-limit-events-per-minute: ${CLIENT_LOG_RATE_LIMIT_EVENTS_PER_MINUTE:1000}
 
   community:
+    memo:
+      image:
+        white-threshold: ${COMMUNITY_MEMO_IMAGE_WHITE_THRESHOLD:245}
     moderation:
       enabled: ${COMMUNITY_MODERATION_ENABLED:true}
       base-url: ${COMMUNITY_MODERATION_BASE_URL:http://localhost:8000}
