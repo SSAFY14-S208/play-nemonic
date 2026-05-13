@@ -68,19 +68,24 @@ def viz(viz_id, title, vis_state, pattern_ref, query="", description="", colors=
 # ============================================================
 # SRE 컬러 시스템 (F 도메인 — 에러)
 # ============================================================
-COLOR_APPLICATION = {
-    "backend":          "#60A5FA",
-    "backend-api":      "#60A5FA",
-    "api-server":       "#60A5FA",
-    "websocket-server": "#FB923C",
-    "next-ssr":         "#34D399",
-    "client-web":       "#A78BFA",
-    "client-ingest":    "#94A3B8",
-    "backoffice-api":   "#94A3B8",
-    # fallback bucket — spring grok 실패 등으로 application 미식별인 doc.
-    # 무관/회색 톤으로 두면 의미 있는 색 위주로 시선 집중됨.
-    "(미식별)":         "#475569",
-    "(none)":           "#475569",
+COLOR_SERVICE = {
+    "api-server":         "#60A5FA",
+    "websocket-server":   "#FB923C",
+    "backend-api":        "#60A5FA",
+    "next-ssr":           "#34D399",
+    "client-web":         "#A78BFA",
+    "moderation-server":  "#F472B6",
+    "nginx":              "#94A3B8",
+    "postgres":           "#475569",
+    "redis":              "#475569",
+    "minio":              "#475569",
+    "jenkins":            "#475569",
+    "registry":           "#475569",
+    "logging-stack":      "#475569",
+    "monitoring-stack":   "#475569",
+    # fallback — logstash가 service 못 박은 doc (드물게 발생)
+    "(미식별)":           "#475569",
+    "(none)":             "#475569",
 }
 
 COLOR_LOG_LEVEL = {
@@ -215,11 +220,11 @@ def metric_params(threshold=False):
 # ============================================================
 F1 = viz(
     viz_id="vis-errors-timeline",
-    title="[F1] 에러 추이 (1d)",
-    description="error-logs 전체 — application 별 일별 stacked bar.",
+    title="[F1] 서비스별 에러 추이 (1d)",
+    description="error-logs 전체 — service 별 일별 stacked bar. container_name 기반 매핑.",
     pattern_ref=ERROR_PATTERN_REF,
     query="",
-    colors=COLOR_APPLICATION,
+    colors=COLOR_SERVICE,
     vis_state={
         "title": "[F1] 에러 추이 (1d)",
         "type": "histogram",
@@ -231,7 +236,7 @@ F1 = viz(
                 "interval": "d", "drop_partials": False, "min_doc_count": 1, "extended_bounds": {},
             }},
             {"id": "3", "enabled": True, "type": "terms", "schema": "group", "params": {
-                "field": "application", "orderBy": "1", "order": "desc",
+                "field": "service", "orderBy": "1", "order": "desc",
                 "size": 10, "otherBucket": True, "otherBucketLabel": "그 외",
                 "missingBucket": True, "missingBucketLabel": "(미식별)",
             }},
@@ -245,11 +250,11 @@ F1 = viz(
 # ============================================================
 F2 = viz(
     viz_id="vis-errors-application",
-    title="[F2] Application별 에러 비율",
-    description="application 라벨 비율. F1과 함께 보면 어느 인스턴스가 노이지한지 한눈에.",
+    title="[F2] 서비스별 에러 비율",
+    description="service 라벨 비율 (container_name 매핑 기반). F1과 함께 보면 노이지한 서비스 한눈에.",
     pattern_ref=ERROR_PATTERN_REF,
     query="",
-    colors=COLOR_APPLICATION,
+    colors=COLOR_SERVICE,
     vis_state={
         "title": "[F2] Application별 에러 비율",
         "type": "pie",
@@ -257,7 +262,7 @@ F2 = viz(
         "aggs": [
             {"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
             {"id": "2", "enabled": True, "type": "terms", "schema": "segment", "params": {
-                "field": "application", "orderBy": "1", "order": "desc",
+                "field": "service", "orderBy": "1", "order": "desc",
                 "size": 10, "otherBucket": False,
                 "missingBucket": True, "missingBucketLabel": "(미식별)",
             }},
