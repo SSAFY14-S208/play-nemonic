@@ -1,6 +1,7 @@
 package com.nemonicworld.invite.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static com.nemonicworld.support.FlipbookRuntimeSettingsTestSupport.defaultFlipbookRoomPolicy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -26,11 +27,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
  * 플립북 초대코드 입장 핸들러의 부스별 Redis 방 상태 검증을 확인합니다.
  */
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class FlipbookInviteJoinHandlerTest {
 
     private static final String INVITE_CODE = "FB3K9Q";
@@ -44,6 +47,47 @@ class FlipbookInviteJoinHandlerTest {
 
     @Mock
     private RoomCodeGenerator roomCodeGenerator;
+
+    /**
+     * 대기 중인 플립북 방에 신규 사용자가 입장하면 참여 로그를 남깁니다.
+     */
+    @Test
+    void joinAddsNewParticipantAndEmitsRoomEvent(CapturedOutput output) {
+        UUID hostUuid = UUID.randomUUID();
+        UUID joinerUuid = UUID.randomUUID();
+        FlipbookRoomState roomState = waitingRoom(participant(hostUuid, "망고", true, 0));
+        FlipbookInviteJoinHandler handler = handler();
+
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(flipbookRoomRepository.saveIfUnchanged(any(), any())).willReturn(true);
+
+        handler.join(activeInvite(), user(joinerUuid, "포도"));
+
+        assertThat(output.getOut()).contains("\"event_name\":\"flipbook_participant_joined\"")
+            .contains("\"room_id\":\"%s\"".formatted(ROOM_CODE)).contains("\"uuid\":\"%s\"".formatted(joinerUuid))
+            .contains("\"reconnect_attempt\":false").contains("\"already_joined\":false");
+    }
+
+    /**
+     * 이미 참여 중인 플립북 사용자가 초대코드로 다시 들어오면 복귀 시도 로그를 남깁니다.
+     */
+    @Test
+    void joinReturnsAlreadyJoinedAndEmitsReconnectEvent(CapturedOutput output) {
+        UUID hostUuid = UUID.randomUUID();
+        UUID participantUuid = UUID.randomUUID();
+        FlipbookRoomState roomState = waitingRoom(participant(hostUuid, "망고", true, 0),
+            participant(participantUuid, "포도", false, 1));
+        FlipbookInviteJoinHandler handler = handler();
+
+        given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        handler.join(activeInvite(), user(participantUuid, "포도"));
+
+        verify(flipbookRoomRepository, never()).saveIfUnchanged(any(), any());
+        assertThat(output.getOut()).contains("\"event_name\":\"flipbook_participant_joined\"")
+            .contains("\"room_id\":\"%s\"".formatted(ROOM_CODE)).contains("\"uuid\":\"%s\"".formatted(participantUuid))
+            .contains("\"reconnect_attempt\":true").contains("\"already_joined\":true");
+    }
 
     /**
      * 플립북 방에서 강퇴된 UUID는 초대코드 입장 경로로도 재입장할 수 없습니다.

@@ -8,6 +8,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.invite.dto.response.InviteJoinResponse;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.user.entity.AppUser;
@@ -72,7 +73,9 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
             // 이미 참여자 목록에 있으면 새로 추가하지 않고 그대로 성공 응답한다.
             // 이게 멱등 처리. 같은 API를 여러 번 호출해도 중복 참가자가 생기지 않음.
             if (existingParticipant.isPresent()) {
-                flipbookRoomPolicy.validateExistingParticipantReturn(roomState, existingParticipant.get(), now);
+                FlipbookRoomParticipant participant = existingParticipant.get();
+                flipbookRoomPolicy.validateExistingParticipantReturn(roomState, participant, now);
+                logParticipantJoined(roomState, participant.joinOrder(), userUuid, true);
                 return createResponse(invite, roomState, userUuid, true);
             }
 
@@ -90,6 +93,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
             // 현재 상태가 초기 상태와 같다면 복사본으로 대체
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
+                logParticipantJoined(updatedRoomState, nextJoinOrder(roomState), userUuid, false);
                 return createResponse(invite, updatedRoomState, userUuid, false);
             }
         }
@@ -143,6 +147,15 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private int nextJoinOrder(FlipbookRoomState roomState) {
         return roomState.participants().stream().map(FlipbookRoomParticipant::joinOrder).max(Comparator.naturalOrder())
             .orElse(-1) + 1;
+    }
+
+    private void logParticipantJoined(FlipbookRoomState roomState, int joinOrder, String userUuid,
+        boolean reconnectAttempt) {
+        StructuredEventLogger.apiBusiness("flipbook_participant_joined", "flipbook", userUuid,
+            StructuredEventLogger.metadata("room_id", roomState.roomCode(), "uuid", userUuid, "participant_count",
+                roomState.participantCount(), "max_participants", roomState.maxParticipants(), "join_order", joinOrder,
+                "room_status", roomState.status(), "reconnect_attempt", reconnectAttempt, "already_joined",
+                reconnectAttempt));
     }
 
     /**
