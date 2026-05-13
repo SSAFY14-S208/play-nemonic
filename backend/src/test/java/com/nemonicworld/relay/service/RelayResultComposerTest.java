@@ -54,6 +54,57 @@ class RelayResultComposerTest {
     }
 
     @Test
+    void composeOverlapsPartsWithUpperPartPriority() throws Exception {
+        RelayResultComposer overlapComposer = new RelayResultComposer(4, 10, 100, 2);
+        Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
+        partImages.put(RelayDrawingPart.FACE, png(4, 10, Color.RED));
+        partImages.put(RelayDrawingPart.BODY, png(4, 10, Color.GREEN));
+        partImages.put(RelayDrawingPart.LEGS, png(4, 10, Color.BLUE));
+
+        RelayComposedImage result = overlapComposer.compose(partImages);
+
+        BufferedImage original = read(result.originalPng());
+        assertThat(original.getWidth()).isEqualTo(4);
+        assertThat(original.getHeight()).isEqualTo(26);
+        assertThat(original.getRGB(1, 8)).isEqualTo(Color.RED.getRGB());
+        assertThat(original.getRGB(1, 9)).isEqualTo(Color.RED.getRGB());
+        assertThat(original.getRGB(1, 16)).isEqualTo(Color.GREEN.getRGB());
+        assertThat(original.getRGB(1, 17)).isEqualTo(Color.GREEN.getRGB());
+        assertThat(original.getRGB(1, 18)).isEqualTo(Color.BLUE.getRGB());
+    }
+
+    @Test
+    void composeKeepsBlankPartWhiteEvenWhenOverlapped() throws Exception {
+        RelayResultComposer overlapComposer = new RelayResultComposer(4, 10, 100, 2);
+        Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
+        partImages.put(RelayDrawingPart.FACE, png(4, 10, Color.RED));
+        partImages.put(RelayDrawingPart.LEGS, png(4, 10, Color.BLUE));
+
+        RelayComposedImage result = overlapComposer.compose(partImages);
+
+        BufferedImage original = read(result.originalPng());
+        assertThat(original.getHeight()).isEqualTo(26);
+        assertThat(original.getRGB(1, 12)).isEqualTo(Color.WHITE.getRGB());
+        assertThat(original.getRGB(1, 16)).isEqualTo(Color.WHITE.getRGB());
+        assertThat(original.getRGB(1, 18)).isEqualTo(Color.BLUE.getRGB());
+    }
+
+    @Test
+    void composeClampsExcessiveOverlap() throws Exception {
+        RelayResultComposer overlapComposer = new RelayResultComposer(4, 3, 100, 100);
+        Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
+        partImages.put(RelayDrawingPart.FACE, png(4, 3, Color.RED));
+        partImages.put(RelayDrawingPart.BODY, png(4, 3, Color.GREEN));
+        partImages.put(RelayDrawingPart.LEGS, png(4, 3, Color.BLUE));
+
+        RelayComposedImage result = overlapComposer.compose(partImages);
+
+        BufferedImage original = read(result.originalPng());
+        assertThat(original.getHeight()).isEqualTo(5);
+        assertThat(original.getHeight()).isPositive();
+    }
+
+    @Test
     void composeCreatesDefaultBlankResultWhenAllPartsAreEmpty() throws Exception {
         RelayComposedImage result = composer.compose(Map.of());
 
@@ -61,6 +112,19 @@ class RelayResultComposerTest {
         assertThat(original.getWidth()).isEqualTo(4);
         assertThat(original.getHeight()).isEqualTo(9);
         assertThat(original.getRGB(1, 1)).isEqualTo(Color.WHITE.getRGB());
+    }
+
+    @Test
+    void composeReusesOriginalPngBytesWhenThumbnailDoesNotNeedResize() throws Exception {
+        RelayResultComposer largeThumbnailComposer = new RelayResultComposer(4, 3, 100);
+        Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
+        partImages.put(RelayDrawingPart.FACE, png(4, 2, Color.RED));
+        partImages.put(RelayDrawingPart.BODY, png(4, 3, Color.GREEN));
+        partImages.put(RelayDrawingPart.LEGS, png(4, 4, Color.BLUE));
+
+        RelayComposedImage result = largeThumbnailComposer.compose(partImages);
+
+        assertThat(result.thumbnailPng()).isSameAs(result.originalPng());
     }
 
     private byte[] png(int width, int height, Color color) throws Exception {

@@ -27,12 +27,12 @@ class FileOpenApiIntegrationTest {
     @Test
     void filePresignApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
-            .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.summary").value("이미지 업로드 Presigned URL 발급"))
-            .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.tags[0]").value("File"))
+            .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.summary").value("이미지 업로드 사전 서명 URL 발급"))
+            .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.tags[0]").value("파일 업로드"))
             .andExpect(
                 jsonPath("$.paths['/api/v1/files/presign'].post.parameters[0].name").value("Anonymous-User-UUID"))
             .andExpect(jsonPath("$.paths['/api/v1/files/presign'].post.responses['200'].description")
-                .value("Presigned URL 발급 성공"));
+                .value("사전 서명 URL 발급 성공"));
     }
 
     /**
@@ -42,7 +42,7 @@ class FileOpenApiIntegrationTest {
     void fileConfirmApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.summary").value("파일 업로드 완료 확인"))
-            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.tags[0]").value("File"))
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.tags[0]").value("파일 업로드"))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID", "fileId")))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}/confirm'].post.parameters[?(@.name == 'fileId')].in")
@@ -58,7 +58,7 @@ class FileOpenApiIntegrationTest {
     void fileDeleteApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.summary").value("파일 삭제"))
-            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.tags[0]").value("File"))
+            .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.tags[0]").value("파일 업로드"))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID", "fileId")))
             .andExpect(jsonPath("$.paths['/api/v1/files/{fileId}'].delete.parameters[?(@.name == 'fileId')].in")

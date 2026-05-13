@@ -1,6 +1,7 @@
 package com.nemonicworld.relay.service.assignment;
 
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * 릴레이 힌트 이미지 object key를 브라우저에서 접근 가능한 public URL로 변환합니다.
+ * 릴레이 힌트 이미지 객체 키를 브라우저에서 접근 가능한 공개 URL로 변환합니다.
  */
 @Component
 public class RelayHintImageUrlResolver {
@@ -24,7 +25,7 @@ public class RelayHintImageUrlResolver {
     }
 
     /**
-     * MinIO 파일 존재 확인이나 presigned URL 발급 없이 설정값과 object key만 조합합니다.
+     * MinIO 파일 존재 확인이나 사전 서명 URL 발급 없이 설정값과 객체 키만 조합합니다.
      */
     public String resolve(String objectKey) {
         if (!StringUtils.hasText(objectKey)) {
@@ -36,7 +37,9 @@ public class RelayHintImageUrlResolver {
         String normalizedObjectKey = trimSlashes(objectKey.trim());
         if (!StringUtils.hasText(publicUrl) || !StringUtils.hasText(bucket)
             || !StringUtils.hasText(normalizedObjectKey)) {
-            log.warn("릴레이 힌트 이미지 URL을 생성할 수 없습니다. publicUrl={}, bucket={}, objectKey={}", publicUrl, bucket, objectKey);
+            log.warn("릴레이 힌트 이미지 URL을 생성할 수 없습니다. publicUrlConfigured={} bucketConfigured={} objectKeyHash={}",
+                StringUtils.hasText(publicUrl), StringUtils.hasText(bucket),
+                StructuredEventLogger.sha256Prefix(objectKey));
 
             return null;
         }
@@ -44,7 +47,8 @@ public class RelayHintImageUrlResolver {
         try {
             return "%s/%s/%s".formatted(publicUrl, encodePathSegment(bucket), encodeObjectKey(normalizedObjectKey));
         } catch (RuntimeException e) {
-            log.warn("릴레이 힌트 이미지 URL 생성 중 오류가 발생했습니다. objectKey={}", objectKey, e);
+            log.warn("릴레이 힌트 이미지 URL 생성 중 오류가 발생했습니다. objectKeyHash={}", StructuredEventLogger.sha256Prefix(objectKey),
+                e);
 
             return null;
         }

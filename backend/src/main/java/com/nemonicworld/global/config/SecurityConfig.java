@@ -1,6 +1,7 @@
 package com.nemonicworld.global.config;
 
 import com.nemonicworld.common.jwt.AdminJwtAuthenticationFilter;
+import com.nemonicworld.common.jwt.JsonAccessDeniedHandler;
 import com.nemonicworld.common.jwt.JsonAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,24 +21,35 @@ public class SecurityConfig {
 
     private final AdminJwtAuthenticationFilter adminJwtAuthenticationFilter;
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+    private final JsonAccessDeniedHandler jsonAccessDeniedHandler;
 
     public SecurityConfig(AdminJwtAuthenticationFilter adminJwtAuthenticationFilter,
-        JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint) {
+        JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint, JsonAccessDeniedHandler jsonAccessDeniedHandler) {
         this.adminJwtAuthenticationFilter = adminJwtAuthenticationFilter;
         this.jsonAuthenticationEntryPoint = jsonAuthenticationEntryPoint;
+        this.jsonAccessDeniedHandler = jsonAccessDeniedHandler;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(Customizer.withDefaults()).csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(exception -> exception.authenticationEntryPoint(jsonAuthenticationEntryPoint))
+            .exceptionHandling(exception -> exception.authenticationEntryPoint(jsonAuthenticationEntryPoint)
+                .accessDeniedHandler(jsonAccessDeniedHandler))
             .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/login", "/api/v1/auth/reissue")
                 .permitAll().requestMatchers("/api/v1/auth/logout", "/api/v1/admins", "/api/v1/admins/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/admin/inquiries", "/api/v1/admin/inquiries/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/admin/community/memos", "/api/v1/admin/community/memos/**")
+                .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/backoffice/gms/prompts", "/api/v1/backoffice/gms/prompts/**")
+                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/backoffice/system-parameters", "/api/v1/backoffice/system-parameters/**")
+                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/backoffice/relay-rooms", "/api/v1/backoffice/relay-rooms/**")
+                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/backoffice/flipbook-rooms", "/api/v1/backoffice/flipbook-rooms/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN").anyRequest().permitAll())
             .addFilterBefore(adminJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -176,9 +176,13 @@ public class CsInquiryRepository {
         }
 
         if (StringUtils.hasText(keyword)) {
-            String keywordPattern = "%" + keyword + "%";
+            String keywordPattern = "%" + escapeLikeKeyword(keyword) + "%";
             sql.append("""
-                  AND (LOWER(title) LIKE ? OR LOWER(content) LIKE ? OR LOWER(email) LIKE ?)
+                  AND (
+                      LOWER(title) LIKE ? ESCAPE '!'
+                      OR LOWER(content) LIKE ? ESCAPE '!'
+                      OR LOWER(email) LIKE ? ESCAPE '!'
+                  )
                 """);
             params.add(keywordPattern);
             params.add(keywordPattern);
@@ -191,6 +195,10 @@ public class CsInquiryRepository {
                 """);
             params.add(userUuid);
         }
+    }
+
+    private String escapeLikeKeyword(String keyword) {
+        return keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     private CsInquiry mapInquiry(ResultSet resultSet, int rowNumber) throws SQLException {

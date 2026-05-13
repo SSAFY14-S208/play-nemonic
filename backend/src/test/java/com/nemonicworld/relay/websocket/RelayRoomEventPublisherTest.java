@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomParticipantResponse;
@@ -22,6 +23,8 @@ import com.nemonicworld.relay.dto.websocket.RelayRoomEventType;
 import com.nemonicworld.relay.dto.websocket.RelayRoomHostChangedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartAutoSubmittedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartStartedEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse;
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantDroppedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantKickedEventResponse;
 import com.nemonicworld.relay.dto.websocket.RelayRoomParticipantLeftEventResponse;
@@ -43,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.web.socket.CloseStatus;
 
 /**
  * 릴레이 WebSocket 이벤트 발행 시 방 전체 topic과 개인 session queue 라우팅 헤더를 검증합니다.
@@ -76,6 +80,9 @@ class RelayRoomEventPublisherTest {
 
         RelayRoomEventStateResponse data = (RelayRoomEventStateResponse) event.data();
         assertThat(data.timeLimitSeconds()).isEqualTo(45);
+        assertThat(data.timeLimitDefaultSeconds()).isEqualTo(45);
+        assertThat(data.timeLimitAllowedSeconds()).containsExactly(30, 45, 60);
+        assertThat(data.reconnectGraceSeconds()).isEqualTo(10);
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
         assertThat(data.changedParticipant()).isNull();
     }
@@ -96,6 +103,9 @@ class RelayRoomEventPublisherTest {
 
         RelayRoomEventStateResponse data = (RelayRoomEventStateResponse) event.data();
         assertThat(data.changedParticipant()).isNotNull();
+        assertThat(data.timeLimitDefaultSeconds()).isEqualTo(45);
+        assertThat(data.timeLimitAllowedSeconds()).containsExactly(30, 45, 60);
+        assertThat(data.reconnectGraceSeconds()).isEqualTo(10);
         assertThat(data.changedParticipant().userUuid()).isEqualTo(USER_UUID);
         assertThat(data.changedParticipant().nickname()).isEqualTo("망고");
         assertThat(data.changedParticipant().host()).isTrue();
@@ -205,6 +215,30 @@ class RelayRoomEventPublisherTest {
     }
 
     @Test
+    void publishPartTimeUpSendsPartTimeUpEventToRoomTopic() {
+        ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        LocalDateTime partDeadlineAt = LocalDateTime.now().minusSeconds(1);
+        LocalDateTime submitGraceDeadlineAt = partDeadlineAt.plusSeconds(2);
+        List<PendingSubmission> pendingSubmissions = List.of(new PendingSubmission(1, USER_UUID, "Mango", true));
+
+        publisher.publishPartTimeUp(ROOM_CODE, RelayDrawingPart.BODY, partDeadlineAt, submitGraceDeadlineAt, 2000L,
+            pendingSubmissions);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
+        RelayRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(RelayRoomEventType.PART_TIME_UP);
+
+        RelayRoomPartTimeUpEventResponse data = (RelayRoomPartTimeUpEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.part()).isEqualTo(RelayDrawingPart.BODY);
+        assertThat(data.partDeadlineAt()).isEqualTo(partDeadlineAt);
+        assertThat(data.submitGraceDeadlineAt()).isEqualTo(submitGraceDeadlineAt);
+        assertThat(data.autoSubmitGraceMillis()).isEqualTo(2000L);
+        assertThat(data.pendingCount()).isEqualTo(1);
+        assertThat(data.pendingSubmissions()).containsExactly(new PendingSubmission(1, USER_UUID, "Mango", true));
+    }
+
+    @Test
     void publishResultCreatedSendsResultCreatedEventToRoomTopic() {
         ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
         UUID artifactId = UUID.randomUUID();
@@ -230,11 +264,19 @@ class RelayRoomEventPublisherTest {
     }
 
     @Test
-    void publishRoomClosedSendsRoomClosedEventToRoomTopic() {
+    void publishRoomClosedSendsRoomClosedEventToRoomTopicAndClosesRoomSessions() {
         ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
+        ArgumentCaptor<CloseStatus> closeStatusCaptor = ArgumentCaptor.forClass(CloseStatus.class);
         LocalDateTime closedAt = LocalDateTime.now().minusSeconds(1);
+        String secondSessionId = "session-2";
+        given(webSocketSessionRegistry.findCurrentSessions(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE))
+            .willReturn(List.of(
+                new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE, USER_UUID,
+                    SESSION_ID),
+                new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE,
+                    "11111111-1111-1111-1111-111111111111", secondSessionId)));
 
-        publisher.publishRoomClosed(ROOM_CODE, closedAt);
+        publisher.publishRoomClosed(ROOM_CODE, closedAt, "waiting_idle_timeout");
 
         verify(messagingTemplate).convertAndSend(eq("/topic/relay/rooms/" + ROOM_CODE), eventCaptor.capture());
         RelayRoomEventResponse event = eventCaptor.getValue();
@@ -244,6 +286,13 @@ class RelayRoomEventPublisherTest {
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
         assertThat(data.roomStatus()).isEqualTo(RelayRoomStatus.CLOSED);
         assertThat(data.closedAt()).isEqualTo(closedAt);
+        assertThat(data.closeReason()).isEqualTo("waiting_idle_timeout");
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), closeStatusCaptor.capture());
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(secondSessionId), closeStatusCaptor.capture());
+        assertThat(closeStatusCaptor.getAllValues()).allSatisfy(status -> {
+            assertThat(status.getCode()).isEqualTo(CloseStatus.NORMAL.getCode());
+            assertThat(status.getReason()).isEqualTo("ROOM_CLOSED");
+        });
     }
 
     @Test
@@ -371,8 +420,10 @@ class RelayRoomEventPublisherTest {
         ArgumentCaptor<RelayRoomEventResponse> eventCaptor = ArgumentCaptor.forClass(RelayRoomEventResponse.class);
         ArgumentCaptor<Map<String, Object>> headersCaptor = ArgumentCaptor.forClass(Map.class);
         String kickedUserUuid = "11111111-1111-1111-1111-111111111111";
-        given(webSocketSessionRegistry.findCurrentSession(ROOM_CODE, kickedUserUuid))
-            .willReturn(Optional.of(new ActiveWebSocketSession(ROOM_CODE, kickedUserUuid, SESSION_ID)));
+        given(webSocketSessionRegistry.findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE,
+            kickedUserUuid))
+            .willReturn(Optional.of(new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY,
+                ROOM_CODE, kickedUserUuid, SESSION_ID)));
 
         publisher.publishKickedFromRoom(ROOM_CODE, kickedUserUuid);
 
@@ -387,8 +438,10 @@ class RelayRoomEventPublisherTest {
     @Test
     void closeLeftRoomSessionClosesActiveSessionWithoutPersonalEvent() {
         String leftUserUuid = "11111111-1111-1111-1111-111111111111";
-        given(webSocketSessionRegistry.findCurrentSession(ROOM_CODE, leftUserUuid))
-            .willReturn(Optional.of(new ActiveWebSocketSession(ROOM_CODE, leftUserUuid, SESSION_ID)));
+        given(webSocketSessionRegistry.findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE,
+            leftUserUuid))
+            .willReturn(Optional.of(new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY,
+                ROOM_CODE, leftUserUuid, SESSION_ID)));
 
         publisher.closeLeftRoomSession(ROOM_CODE, leftUserUuid);
 

@@ -1,5 +1,6 @@
 package com.nemonicworld.flipbook.service.result;
 
+import com.nemonicworld.common.exception.InternalServerException;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
@@ -38,12 +39,12 @@ public class FlipbookThumbnailComposer {
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
             if (image == null) {
-                throw new IllegalStateException(THUMBNAIL_CREATE_ERROR_MESSAGE);
+                throw new InternalServerException(THUMBNAIL_CREATE_ERROR_MESSAGE);
             }
 
             return image;
         } catch (IOException e) {
-            throw new IllegalStateException(THUMBNAIL_CREATE_ERROR_MESSAGE, e);
+            throw new InternalServerException(THUMBNAIL_CREATE_ERROR_MESSAGE, e);
         }
     }
 
@@ -81,7 +82,7 @@ public class FlipbookThumbnailComposer {
             ImageIO.write(image, "png", outputStream);
             return outputStream.toByteArray();
         } catch (IOException e) {
-            throw new IllegalStateException(THUMBNAIL_CREATE_ERROR_MESSAGE, e);
+            throw new InternalServerException(THUMBNAIL_CREATE_ERROR_MESSAGE, e);
         }
     }
 }

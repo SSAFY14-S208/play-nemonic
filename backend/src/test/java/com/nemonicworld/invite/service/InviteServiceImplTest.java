@@ -33,11 +33,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
  * 초대코드 입장 서비스의 Redis invite 조회와 릴레이 방 입장 분기를 검증합니다.
  */
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class InviteServiceImplTest {
 
     private static final String INVITE_CODE = "A3K9P2";
@@ -62,14 +64,14 @@ class InviteServiceImplTest {
     @BeforeEach
     void setUp() {
         inviteService = new InviteServiceImpl(inviteRepository, anonymousUserResolver,
-            List.of(new RelayInviteJoinHandler(relayRoomRepository, relayInviteMetadataSyncService)));
+            List.of(new RelayInviteJoinHandler(relayRoomRepository, relayInviteMetadataSyncService, 10L)));
     }
 
     /**
      * 대기 중인 릴레이 방 초대코드로 신규 사용자가 입장하면 Redis 방 상태에 참여자를 추가합니다.
      */
     @Test
-    void joinByInviteCodeAddsNewRelayParticipant() {
+    void joinByInviteCodeAddsNewRelayParticipant(CapturedOutput output) {
         AppUser joiner = user(JOINER_UUID, "다현");
         InviteMetadata invite = activeInvite();
         RelayRoomState roomState = waitingRoom(hostParticipant());
@@ -95,13 +97,16 @@ class InviteServiceImplTest {
         verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedRoomCaptor.capture());
         assertThat(updatedRoomCaptor.getValue().participants()).extracting(RelayRoomParticipant::userUuid)
             .containsExactly(HOST_UUID, JOINER_UUID);
+        assertThat(output.getOut()).contains("\"event_name\":\"relay_participant_joined\"")
+            .contains("\"room_id\":\"%s\"".formatted(ROOM_CODE)).contains("\"uuid\":\"%s\"".formatted(JOINER_UUID))
+            .contains("\"reconnect_attempt\":false").contains("\"already_joined\":false");
     }
 
     /**
      * 이미 참여 중인 사용자는 중복 추가하지 않고 멱등 응답을 반환합니다.
      */
     @Test
-    void joinByInviteCodeReturnsAlreadyJoinedForExistingParticipant() {
+    void joinByInviteCodeReturnsAlreadyJoinedForExistingParticipant(CapturedOutput output) {
         AppUser joiner = user(JOINER_UUID, "다현");
         RelayRoomParticipant existingParticipant = participant(JOINER_UUID, "다현", false, 1);
         RelayRoomState roomState = waitingRoom(hostParticipant(), existingParticipant);
@@ -115,6 +120,9 @@ class InviteServiceImplTest {
         assertThat(response.currentParticipants()).isEqualTo(2);
         assertThat(response.alreadyJoined()).isTrue();
         verify(relayRoomRepository, never()).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
+        assertThat(output.getOut()).contains("\"event_name\":\"relay_participant_joined\"")
+            .contains("\"room_id\":\"%s\"".formatted(ROOM_CODE)).contains("\"uuid\":\"%s\"".formatted(JOINER_UUID))
+            .contains("\"reconnect_attempt\":true").contains("\"already_joined\":true");
     }
 
     /**
@@ -194,6 +202,65 @@ class InviteServiceImplTest {
     }
 
     /**
+     * 이미 게임이 시작된 릴레이 방에는 신규 사용자가 초대코드로 입장할 수 없습니다.
+     */
+    @Test
+    void joinByInviteCodeRejectsNewRelayParticipantWhenGameIsPlaying() {
+        AppUser joiner = user(JOINER_UUID, "다현");
+        RelayRoomState roomState = room(RelayRoomStatus.PLAYING, hostParticipant());
+
+        given(anonymousUserResolver.resolve(JOINER_UUID)).willReturn(joiner);
+        given(inviteRepository.findByInviteCode(INVITE_CODE)).willReturn(Optional.of(activeInvite()));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> inviteService.joinByInviteCode(INVITE_CODE, JOINER_UUID))
+            .isInstanceOf(ConflictException.class).hasMessage("게임이 진행 중입니다.");
+
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
+    /**
+     * 게임 중 끊긴 기존 참여자는 재접속 유예 시간이 지나면 초대코드 복귀도 거부됩니다.
+     */
+    @Test
+    void joinByInviteCodeRejectsExistingRelayParticipantAfterReconnectGracePeriod() {
+        AppUser joiner = user(JOINER_UUID, "다현");
+        RelayRoomState roomState = room(RelayRoomStatus.PLAYING, hostParticipant(),
+            disconnectedParticipant(JOINER_UUID, "다현", false, 1, 11));
+
+        given(anonymousUserResolver.resolve(JOINER_UUID)).willReturn(joiner);
+        given(inviteRepository.findByInviteCode(INVITE_CODE)).willReturn(Optional.of(activeInvite()));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> inviteService.joinByInviteCode(INVITE_CODE, JOINER_UUID))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
+
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
+    /**
+     * 이미 이탈 확정된 릴레이 참여자는 초대코드 복귀도 거부됩니다.
+     */
+    @Test
+    void joinByInviteCodeRejectsDroppedRelayParticipant() {
+        AppUser joiner = user(JOINER_UUID, "다현");
+        RelayRoomState roomState = room(RelayRoomStatus.PLAYING, hostParticipant(),
+            droppedParticipant(JOINER_UUID, "다현", false, 1));
+
+        given(anonymousUserResolver.resolve(JOINER_UUID)).willReturn(joiner);
+        given(inviteRepository.findByInviteCode(INVITE_CODE)).willReturn(Optional.of(activeInvite()));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+
+        assertThatThrownBy(() -> inviteService.joinByInviteCode(INVITE_CODE, JOINER_UUID))
+            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
+
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayInviteMetadataSyncService, never()).syncWithRoomState(any());
+    }
+
+    /**
      * 릴레이 방에서 강퇴된 UUID는 초대코드 입장 경로로도 재입장할 수 없습니다.
      */
     @Test
@@ -215,9 +282,13 @@ class InviteServiceImplTest {
     }
 
     private RelayRoomState waitingRoom(RelayRoomParticipant... participants) {
+        return room(RelayRoomStatus.WAITING, participants);
+    }
+
+    private RelayRoomState room(RelayRoomStatus status, RelayRoomParticipant... participants) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
-        return new RelayRoomState(ROOM_CODE, RelayRoomStatus.WAITING, HOST_UUID, 45, 2, 6, null, List.of(participants),
+        return new RelayRoomState(ROOM_CODE, status, HOST_UUID, 45, 2, 6, null, List.of(participants),
             now.minusMinutes(5), now);
     }
 
@@ -229,6 +300,21 @@ class InviteServiceImplTest {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         return new RelayRoomParticipant(userUuid, nickname, host, joinOrder, true, null, now);
+    }
+
+    private RelayRoomParticipant disconnectedParticipant(String userUuid, String nickname, boolean host, int joinOrder,
+        int disconnectedSecondsAgo) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomParticipant(userUuid, nickname, host, joinOrder, false,
+            now.minusSeconds(disconnectedSecondsAgo), now.minusMinutes(5));
+    }
+
+    private RelayRoomParticipant droppedParticipant(String userUuid, String nickname, boolean host, int joinOrder) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        return new RelayRoomParticipant(userUuid, nickname, host, joinOrder, false, now.minusSeconds(20),
+            now.minusMinutes(5), true, now.minusSeconds(10));
     }
 
     private AppUser user(String userUuid, String nickname) {

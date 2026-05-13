@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.ServiceUnavailableException;
 import com.nemonicworld.fortune.dto.request.FortuneCreateRequest;
@@ -14,6 +15,7 @@ import com.nemonicworld.fortune.dto.response.FortuneResponse;
 import com.nemonicworld.fortune.dto.response.FortuneResponse.FortuneDesign;
 import com.nemonicworld.fortune.dto.response.FortuneResponse.FortuneResult;
 import com.nemonicworld.fortune.dto.response.FortuneResponse.SajuInfo;
+import com.nemonicworld.fortune.logging.FortuneEventLogger;
 import com.nemonicworld.fortune.repository.FortuneCreateCommand;
 import com.nemonicworld.fortune.repository.FortuneDetailRow;
 import com.nemonicworld.fortune.repository.FortuneRepository;
@@ -22,6 +24,7 @@ import com.nemonicworld.fortune.service.gms.FortuneGmsClient;
 import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
 import com.nemonicworld.fortune.service.image.FortuneCardRenderer;
 import com.nemonicworld.fortune.service.image.FortuneCardStorage;
+import com.nemonicworld.gms.entity.GmsPrompt;
 import com.nemonicworld.gms.repository.GmsPromptRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -32,9 +35,8 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,8 +47,6 @@ import org.springframework.util.StringUtils;
  */
 @Service
 public class FortuneServiceImpl implements FortuneService {
-
-    private static final Logger log = LoggerFactory.getLogger(FortuneServiceImpl.class);
 
     private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
     private static final String FEATURE_TYPE_FORTUNE = "fortune";
@@ -99,14 +99,19 @@ public class FortuneServiceImpl implements FortuneService {
         LocalDate today = LocalDate.now(KST_ZONE);
         OffsetDateTime nextAvailableAt = today.plusDays(1).atStartOfDay(KST_ZONE).toOffsetDateTime();
         Optional<FortuneTodayRow> todayFortune = fortuneRepository.findTodayFortune(user.getId(), today);
+        FortuneAvailabilityResponse response;
 
         if (todayFortune.isEmpty()) {
-            return new FortuneAvailabilityResponse(true, today, null, null, nextAvailableAt);
+            response = new FortuneAvailabilityResponse(true, today, null, null, nextAvailableAt);
+        } else {
+            FortuneTodayRow row = todayFortune.get();
+            response = new FortuneAvailabilityResponse(false, row.fortuneDate(), row.fortuneId().toString(),
+                row.createdAt(), nextAvailableAt);
         }
 
-        FortuneTodayRow row = todayFortune.get();
-        return new FortuneAvailabilityResponse(false, row.fortuneDate(), row.fortuneId().toString(), row.createdAt(),
-            nextAvailableAt);
+        logAvailabilityChecked(user.getId(), response);
+
+        return response;
     }
 
     /**
@@ -119,8 +124,12 @@ public class FortuneServiceImpl implements FortuneService {
         LocalDate today = LocalDate.now(KST_ZONE);
         FortuneDetailRow row = fortuneRepository.findTodayFortuneDetail(user.getId(), today)
             .orElseThrow(() -> new NotFoundException(FORTUNE_NOT_FOUND_MESSAGE));
+        FortuneResponse response = toFortuneResponse(row);
 
-        return toFortuneResponse(row);
+        FortuneEventLogger.apiBusiness("fortune_reissued", user.getId(), FortuneEventLogger.metadata("fortune_id",
+            row.fortuneId(), "fortune_date", row.fortuneDate(), "result", "success"));
+
+        return response;
     }
 
     /**
@@ -132,15 +141,17 @@ public class FortuneServiceImpl implements FortuneService {
         AppUser user = anonymousUserResolver.resolve(userUuidValue);
         LocalDate today = LocalDate.now(KST_ZONE);
         JsonNode saju = validateAndGetSaju(request);
+        FortuneEventLogger.apiBusiness("fortune_create_requested", user.getId(),
+            FortuneEventLogger.metadata("fortune_date", today, "result", "requested"));
 
-        if (fortuneRepository.findTodayFortune(user.getId(), today).isPresent()) {
+        Optional<FortuneTodayRow> todayFortune = fortuneRepository.findTodayFortune(user.getId(), today);
+        if (todayFortune.isPresent()) {
+            logDailyLimitBlocked(user.getId(), todayFortune.get());
             throw new ConflictException(FORTUNE_ALREADY_CREATED_MESSAGE);
         }
 
-        log.info("business_event event_name=fortune_request user_uuid={} fortune_date={}", user.getId(), today);
-
-        String promptTemplate = findFortunePromptTemplate();
-        FortuneGmsResult gmsResult = generateFortune(promptTemplate, saju, user.getId(), today);
+        FortunePrompt prompt = findFortunePromptTemplate();
+        FortuneGmsResult gmsResult = generateFortune(prompt.template(), prompt.version(), saju, user.getId(), today);
 
         UUID fortuneId = UUID.randomUUID();
         UUID galleryId = UUID.randomUUID();
@@ -153,8 +164,9 @@ public class FortuneServiceImpl implements FortuneService {
         fortuneCardStorage.upload(imageObjectKey, cardImageBytes, PNG_CONTENT_TYPE);
         saveFortune(user, today, fortuneId, galleryId, imageObjectKey, description, artifactMeta, now);
 
-        log.info("business_event event_name=fortune_gms_success user_uuid={} fortune_id={} fortune_date={}",
-            user.getId(), fortuneId, today);
+        FortuneEventLogger.apiBusiness("fortune_created", user.getId(),
+            FortuneEventLogger.metadata("fortune_id", fortuneId, "gallery_id", galleryId, "fortune_date", today,
+                "prompt_version", prompt.version(), "result", "success"));
 
         return new FortuneResponse(fortuneId.toString(), today, toFortuneResult(gmsResult), toSajuInfo(saju),
             toFortuneDesign(gmsResult));
@@ -175,28 +187,44 @@ public class FortuneServiceImpl implements FortuneService {
         return saju;
     }
 
-    private String findFortunePromptTemplate() {
-        return gmsPromptRepository.findLatestActiveByFeatureType(FEATURE_TYPE_FORTUNE)
-            .map(prompt -> prompt.getContent()).orElse(DEFAULT_PROMPT_TEMPLATE);
+    private FortunePrompt findFortunePromptTemplate() {
+        return gmsPromptRepository.findLatestActiveByFeatureType(FEATURE_TYPE_FORTUNE).map(this::toFortunePrompt)
+            .orElse(new FortunePrompt(DEFAULT_PROMPT_TEMPLATE, "default"));
     }
 
-    private FortuneGmsResult generateFortune(String promptTemplate, JsonNode saju, UUID userUuid,
+    private FortunePrompt toFortunePrompt(GmsPrompt prompt) {
+        return new FortunePrompt(prompt.getContent(), String.valueOf(prompt.getId()));
+    }
+
+    private FortuneGmsResult generateFortune(String promptTemplate, String promptVersion, JsonNode saju, UUID userUuid,
         LocalDate fortuneDate) {
         RuntimeException lastFailure = null;
         for (int attempt = 1; attempt <= GMS_MAX_ATTEMPTS; attempt++) {
+            long startedAtNanos = System.nanoTime();
             try {
                 FortuneGmsResult result = fortuneGmsClient.generate(promptTemplate, saju);
                 validateGmsResult(result);
+                long latencyMs = elapsedMillis(startedAtNanos);
+                FortuneEventLogger.apiBusiness("fortune_gms_succeeded", userUuid,
+                    FortuneEventLogger.metadata("fortune_date", fortuneDate, "attempt_count", attempt, "retry_count",
+                        attempt - 1, "gms_latency_ms", latencyMs, "prompt_version", promptVersion, "result",
+                        "success"));
                 return result;
             } catch (RuntimeException e) {
+                long latencyMs = elapsedMillis(startedAtNanos);
                 lastFailure = e;
                 if (attempt < GMS_MAX_ATTEMPTS) {
-                    log.warn("business_event event_name=fortune_gms_retry user_uuid={} fortune_date={} attempt={}",
-                        userUuid, fortuneDate, attempt, e);
+                    FortuneEventLogger.apiBusinessWarn("fortune_gms_retried", "fortune gms request will retry",
+                        userUuid,
+                        FortuneEventLogger.metadata("fortune_date", fortuneDate, "attempt", attempt, "retry_count",
+                            attempt, "gms_latency_ms", latencyMs, "prompt_version", promptVersion, "result", "retry"),
+                        e);
                 } else {
-                    log.error(
-                        "business_event event_name=fortune_gms_final_fail user_uuid={} fortune_date={} attempt_count={} retry_count={}",
-                        userUuid, fortuneDate, attempt, attempt - 1, e);
+                    FortuneEventLogger.apiBusinessWarn("fortune_gms_failed", "fortune gms request failed", userUuid,
+                        FortuneEventLogger.metadata("fortune_date", fortuneDate, "attempt_count", attempt,
+                            "retry_count", attempt - 1, "gms_latency_ms", latencyMs, "prompt_version", promptVersion,
+                            "result", "failed"),
+                        e);
                 }
             }
         }
@@ -204,12 +232,27 @@ public class FortuneServiceImpl implements FortuneService {
         throw new ServiceUnavailableException(FORTUNE_GMS_UNAVAILABLE_MESSAGE, lastFailure);
     }
 
+    private long elapsedMillis(long startedAtNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos);
+    }
+
+    private void logAvailabilityChecked(UUID userUuid, FortuneAvailabilityResponse response) {
+        FortuneEventLogger.apiBusiness("fortune_availability_checked", userUuid,
+            FortuneEventLogger.metadata("fortune_date", response.fortuneDate(), "available", response.available(),
+                "today_fortune_id", response.todayFortuneId(), "result", "success"));
+    }
+
+    private void logDailyLimitBlocked(UUID userUuid, FortuneTodayRow row) {
+        FortuneEventLogger.apiBusiness("fortune_daily_limit_blocked", userUuid, FortuneEventLogger
+            .metadata("fortune_date", row.fortuneDate(), "today_fortune_id", row.fortuneId(), "result", "blocked"));
+    }
+
     private FortuneResponse toFortuneResponse(FortuneDetailRow row) {
         try {
             JsonNode description = objectMapper.readTree(row.description());
             return new FortuneResponse(row.fortuneId().toString(), row.fortuneDate(), toFortuneResult(description),
                 toSajuInfo(description), toFortuneDesign(description));
-        } catch (JsonProcessingException | IllegalArgumentException e) {
+        } catch (JsonProcessingException e) {
             throw new BadRequestException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
         }
     }
@@ -249,7 +292,7 @@ public class FortuneServiceImpl implements FortuneService {
     private String requiredText(JsonNode node, String fieldName) {
         String value = text(node, fieldName);
         if (!StringUtils.hasText(value)) {
-            throw new IllegalArgumentException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
+            throw new BadRequestException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
         }
         return value;
     }
@@ -266,7 +309,7 @@ public class FortuneServiceImpl implements FortuneService {
     private int requiredScore(JsonNode node, String fieldName) {
         JsonNode value = node.path(fieldName);
         if (value == null || !value.canConvertToInt() || !isScore(value.asInt())) {
-            throw new IllegalArgumentException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
+            throw new BadRequestException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
         }
 
         return value.asInt();
@@ -333,7 +376,7 @@ public class FortuneServiceImpl implements FortuneService {
         try {
             return objectMapper.writeValueAsString(description);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 
@@ -344,7 +387,7 @@ public class FortuneServiceImpl implements FortuneService {
         try {
             return objectMapper.writeValueAsString(meta);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 
@@ -366,5 +409,8 @@ public class FortuneServiceImpl implements FortuneService {
         }
 
         return value.asText().trim();
+    }
+
+    private record FortunePrompt(String template, String version) {
     }
 }

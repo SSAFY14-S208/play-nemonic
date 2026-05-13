@@ -17,10 +17,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.exception.RoomCodeGenerationException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -75,6 +77,8 @@ class RelayRoomControllerIntegrationTest {
     @BeforeEach
     void prepare() {
         prepareArtifactTables();
+        prepareBackofficeSettingTables();
+        jdbcTemplate.update("DELETE FROM backoffice_setting");
         jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
         jdbcTemplate.update("DELETE FROM gallery");
         jdbcTemplate.update("DELETE FROM artifact");
@@ -101,6 +105,11 @@ class RelayRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.status").value("WAITING"))
             .andExpect(jsonPath("$.data.hostUserUuid").value(userUuid.toString()))
             .andExpect(jsonPath("$.data.timeLimitSeconds").value(45))
+            .andExpect(jsonPath("$.data.timeLimitDefaultSeconds").value(45))
+            .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[0]").value(30))
+            .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[1]").value(45))
+            .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[2]").value(60))
+            .andExpect(jsonPath("$.data.reconnectGraceSeconds").value(10))
             .andExpect(jsonPath("$.data.minParticipants").value(2))
             .andExpect(jsonPath("$.data.maxParticipants").value(6))
             .andExpect(jsonPath("$.data.participantCount").value(1))
@@ -138,6 +147,65 @@ class RelayRoomControllerIntegrationTest {
         assertThat(countRows("artifact")).isZero();
         assertThat(countRows("gallery")).isZero();
         assertThat(countRows("relay_drawing_artifact")).isZero();
+    }
+
+    @Test
+    void createRelayRoomReturnsRuntimeTimeLimitMetadata() throws Exception {
+        insertRelayRoomTimeLimitSetting("""
+            {"default":60,"allowed":[45,60,90],"unit":"seconds","description":"릴레이 방 그리기 제한 시간"}
+            """);
+        UUID userUuid = createExistingUserWithNickname("Mango");
+
+        mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.timeLimitSeconds").value(60))
+            .andExpect(jsonPath("$.data.timeLimitDefaultSeconds").value(60))
+            .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[0]").value(45))
+            .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[1]").value(60))
+            .andExpect(jsonPath("$.data.timeLimitAllowedSeconds[2]").value(90));
+
+        JsonNode storedRoom = readStoredJson("relay:room:%s".formatted(DEFAULT_ROOM_CODE));
+        assertThat(storedRoom.path("timeLimitSeconds").asInt()).isEqualTo(60);
+    }
+
+    @Test
+    void createRelayRoomReturnsRuntimeReconnectGraceMetadata() throws Exception {
+        insertRelayReconnectGraceSetting("""
+            {"value":30,"unit":"seconds","description":"릴레이 진행 중 재연결 유예 시간"}
+            """);
+        UUID userUuid = createExistingUserWithNickname("Mango");
+
+        mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reconnectGraceSeconds").value(30));
+    }
+
+    @Test
+    void createRelayRoomUsesRelayParticipantLimitSettingForNewRoom() throws Exception {
+        insertRelayParticipantLimitSetting("""
+            {"min":3,"max":8,"unit":"people","description":"릴레이 방 참여 인원 제한"}
+            """);
+        UUID userUuid = createExistingUserWithNickname("Mango");
+
+        mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.minParticipants").value(3))
+            .andExpect(jsonPath("$.data.maxParticipants").value(8));
+
+        JsonNode storedRoom = readStoredJson("relay:room:%s".formatted(DEFAULT_ROOM_CODE));
+        assertThat(storedRoom.path("minParticipants").asInt()).isEqualTo(3);
+        assertThat(storedRoom.path("maxParticipants").asInt()).isEqualTo(8);
+    }
+
+    @Test
+    void createRelayRoomFallsBackToDefaultParticipantLimitWhenSettingInvalid() throws Exception {
+        insertRelayParticipantLimitSetting("not-json");
+        UUID userUuid = createExistingUserWithNickname("Mango");
+
+        mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.minParticipants").value(2))
+            .andExpect(jsonPath("$.data.maxParticipants").value(6));
+
+        JsonNode storedRoom = readStoredJson("relay:room:%s".formatted(DEFAULT_ROOM_CODE));
+        assertThat(storedRoom.path("minParticipants").asInt()).isEqualTo(2);
+        assertThat(storedRoom.path("maxParticipants").asInt()).isEqualTo(6);
     }
 
     /**
@@ -268,7 +336,7 @@ class RelayRoomControllerIntegrationTest {
     @Test
     void createRelayRoomReturnsServerErrorWhenRoomCodeGenerationFails() throws Exception {
         UUID userUuid = createExistingUserWithNickname("망고");
-        given(roomCodeGenerator.generateUnique(any())).willThrow(new IllegalStateException("방코드 생성에 실패했습니다."));
+        given(roomCodeGenerator.generateUnique(any())).willThrow(new RoomCodeGenerationException("방코드 생성에 실패했습니다."));
 
         mockMvc.perform(post("/api/v1/relay/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))
@@ -317,6 +385,80 @@ class RelayRoomControllerIntegrationTest {
                 combined_preview_url VARCHAR(200) NULL
             )
             """);
+    }
+
+    private void prepareBackofficeSettingTables() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS admin_user (
+                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                login_id VARCHAR(64) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                nickname VARCHAR(20) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                role VARCHAR(32) NOT NULL,
+                last_login_at TIMESTAMP NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS backoffice_setting (
+                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                setting_key VARCHAR(128) NOT NULL UNIQUE,
+                setting_value TEXT NOT NULL DEFAULT '{}',
+                updated_by BIGINT NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """);
+    }
+
+    private void insertRelayParticipantLimitSetting(String settingValue) {
+        LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO backoffice_setting (
+                id,
+                setting_key,
+                setting_value,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, 10L, "relay.room_participant_limit", settingValue, 0L, Timestamp.valueOf(now), Timestamp.valueOf(now));
+    }
+
+    private void insertRelayRoomTimeLimitSetting(String settingValue) {
+        LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO backoffice_setting (
+                id,
+                setting_key,
+                setting_value,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, 11L, "relay.room_time_limit_seconds", settingValue, 0L, Timestamp.valueOf(now),
+            Timestamp.valueOf(now));
+    }
+
+    private void insertRelayReconnectGraceSetting(String settingValue) {
+        LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO backoffice_setting (
+                id,
+                setting_key,
+                setting_value,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, 12L, "relay.reconnect_grace_seconds", settingValue, 0L, Timestamp.valueOf(now),
+            Timestamp.valueOf(now));
     }
 
     private UUID createExistingUserWithNickname(String nickname) {

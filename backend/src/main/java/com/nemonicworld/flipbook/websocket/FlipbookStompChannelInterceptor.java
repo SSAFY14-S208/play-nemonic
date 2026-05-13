@@ -2,6 +2,7 @@ package com.nemonicworld.flipbook.websocket;
 
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
@@ -19,6 +20,7 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 플립북 STOMP CONNECT frame을 검증하고 활성 세션을 등록합니다.
@@ -70,10 +72,17 @@ public class FlipbookStompChannelInterceptor implements ChannelInterceptor {
 
             // /topic/flipbook/rooms/{roomCode}로 PARTICIPANT_CONNECTED 이벤트를 보냄
             flipbookRoomEventPublisher.publishParticipantConnected(roomStateResponse, userUuid);
+            FlipbookRoomEventLogger.websocketBusiness("flipbook_ws_connected",
+                metadata("room_id", roomCode, "uuid", userUuid, "session_id", sessionId, "room_status",
+                    roomStateResponse.status(), "participant_count", roomStateResponse.participantCount()));
+            FlipbookRoomEventLogger.websocketBusiness("flipbook_room_state_snapshot_sent", metadata("room_id", roomCode,
+                "uuid", userUuid, "session_id", sessionId, "room_status", roomStateResponse.status()));
 
             return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
         } catch (RuntimeException e) {
             webSocketSessionRegistry.removeStaleSession(sessionId);
+            FlipbookRoomEventLogger.websocketBusiness("flipbook_ws_connection_rejected", metadata("room_id", roomCode,
+                "uuid", userUuid, "session_id", sessionId, "reason", e.getClass().getSimpleName()));
             throw new MessageDeliveryException(message, CONNECTION_REJECTED_MESSAGE, e);
         }
     }
@@ -101,6 +110,8 @@ public class FlipbookStompChannelInterceptor implements ChannelInterceptor {
     private void closeDuplicateSession(FlipbookRoomEventPublisher flipbookRoomEventPublisher, String sessionId,
         String roomCode) {
         flipbookRoomEventPublisher.publishDuplicateSessionClosed(sessionId, roomCode);
+        FlipbookRoomEventLogger.websocketBusiness("flipbook_duplicate_session_closed",
+            metadata("room_id", roomCode, "session_id", sessionId));
         webSocketSessionRegistry.closeWebSocketSession(sessionId);
         webSocketSessionRegistry.removeStaleSession(sessionId);
     }

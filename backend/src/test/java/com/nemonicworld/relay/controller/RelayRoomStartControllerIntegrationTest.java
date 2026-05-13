@@ -270,6 +270,20 @@ class RelayRoomStartControllerIntegrationTest {
     }
 
     @Test
+    void startRelayGameRejectsBelowStoredMinimumParticipants() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        storeRoom(DEFAULT_ROOM_CODE, createRoomState(RelayRoomStatus.WAITING, 45, 3, 8,
+            participant(hostUuid, "Mango", true, 0, true), participant(participantUuid, "Peach", false, 1, true)));
+
+        mockMvc.perform(post("/api/v1/relay/rooms/{roomCode}/start", DEFAULT_ROOM_CODE)
+            .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString())).andExpect(status().isConflict());
+
+        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
+        verify(relayRoomEventPublisher, never()).publishGameStarted(any(RelayRoomStateResponse.class));
+    }
+
+    @Test
     void startRelayGameRejectsDisconnectedParticipant() throws Exception {
         UUID hostUuid = createExistingUserWithNickname("Mango");
         UUID participantUuid = createExistingUserWithNickname("Peach");
@@ -453,13 +467,18 @@ class RelayRoomStartControllerIntegrationTest {
 
     private RelayRoomState createRoomState(RelayRoomStatus status, int timeLimitSeconds,
         RelayRoomParticipant... participants) {
+        return createRoomState(status, timeLimitSeconds, 2, 6, participants);
+    }
+
+    private RelayRoomState createRoomState(RelayRoomStatus status, int timeLimitSeconds, int minParticipants,
+        int maxParticipants, RelayRoomParticipant... participants) {
         LocalDateTime createdAt = LocalDateTime.now().minusMinutes(5).truncatedTo(ChronoUnit.SECONDS);
         List<RelayRoomParticipant> participantList = new ArrayList<>(List.of(participants));
         String hostUserUuid = participantList.stream().filter(RelayRoomParticipant::host).findFirst()
             .map(RelayRoomParticipant::userUuid).orElse(participantList.get(0).userUuid());
 
-        return new RelayRoomState(DEFAULT_ROOM_CODE, status, hostUserUuid, timeLimitSeconds, 2, 6, null,
-            participantList, createdAt, createdAt.plusSeconds(1));
+        return new RelayRoomState(DEFAULT_ROOM_CODE, status, hostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, null, participantList, createdAt, createdAt.plusSeconds(1));
     }
 
     private RelayRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder,

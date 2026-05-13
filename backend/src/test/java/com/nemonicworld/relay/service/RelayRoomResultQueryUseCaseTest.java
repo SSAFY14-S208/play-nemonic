@@ -22,6 +22,7 @@ import com.nemonicworld.relay.repository.RelayResultArtifactRow;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.result.RelayRoomResultQueryUseCase;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -55,11 +56,15 @@ class RelayRoomResultQueryUseCaseTest {
     @Mock
     private RoomCodeGenerator roomCodeGenerator;
 
+    @Mock
+    private RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
+
     private RelayRoomResultQueryUseCase useCase;
 
     @BeforeEach
     void setUp() {
-        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
+        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository,
+            relayRuntimeSettingsProvider);
         MinioPublicUrlResolver minioPublicUrlResolver = new MinioPublicUrlResolver(minioStorageProperties());
         useCase = new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
             relayRoomPolicy, new ObjectMapper().findAndRegisterModules(), minioPublicUrlResolver);

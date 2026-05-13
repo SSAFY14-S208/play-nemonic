@@ -1,6 +1,8 @@
 package com.nemonicworld.invite.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.invite.dto.response.InviteJoinResponse;
@@ -24,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/invites")
 @RequiredArgsConstructor
-@Tag(name = "Invite", description = "초대 API") // Swagger에서 Invite 그룹으로 묶임
+@Tag(name = OpenApiTags.INVITE, description = OpenApiTags.INVITE_DESCRIPTION) // Swagger에서 초대 그룹으로 묶임
 public class InviteController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
@@ -51,8 +53,9 @@ public class InviteController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "410", description = "만료된 초대코드", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVITE_EXPIRED))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "입장 불가 상태", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "종료된 방", value = OpenApiErrorExamples.INVITE_ROOM_CLOSED),
+            @ExampleObject(name = "게임 진행 중", value = OpenApiErrorExamples.INVITE_GAME_IN_PROGRESS),
             @ExampleObject(name = "정원 초과", value = OpenApiErrorExamples.INVITE_ROOM_FULL)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<InviteJoinResponse>> joinByInviteCode(@PathVariable String inviteCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
         InviteJoinResponse response = inviteService.joinByInviteCode(inviteCode, userUuid);

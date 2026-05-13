@@ -8,4 +8,6 @@ public interface RelayResultStorage {
     byte[] download(String objectKey);
 
     void upload(String objectKey, byte[] bytes, String contentType);
+
+    void delete(String objectKey);
 }

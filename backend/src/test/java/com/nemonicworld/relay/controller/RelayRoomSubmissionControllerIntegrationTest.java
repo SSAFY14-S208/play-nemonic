@@ -28,8 +28,11 @@ import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
 import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
+import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
@@ -105,6 +108,12 @@ class RelayRoomSubmissionControllerIntegrationTest {
     @MockitoBean
     private RelaySubmissionLockRepository relaySubmissionLockRepository;
 
+    @MockitoBean
+    private RelayRoomMutationLockRepository relayRoomMutationLockRepository;
+
+    @MockitoBean
+    private RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger;
+
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
 
@@ -129,6 +138,8 @@ class RelayRoomSubmissionControllerIntegrationTest {
         });
         given(relaySubmissionLockRepository.acquireSubmissionLock(anyString(), anyInt(), any(RelayDrawingPart.class),
             anyString(), anyString(), any(Duration.class))).willReturn(true);
+        given(relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
+            .willReturn(true);
     }
 
     @Test
@@ -160,10 +171,15 @@ class RelayRoomSubmissionControllerIntegrationTest {
 
         verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face.png"), any());
         verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face-hint.png"), any());
-        InOrder inOrder = inOrder(relaySubmissionLockRepository, relaySubmissionStorage);
+        InOrder inOrder = inOrder(relaySubmissionLockRepository, relaySubmissionStorage,
+            relayRoomMutationLockRepository);
         inOrder.verify(relaySubmissionLockRepository).acquireSubmissionLock(eq(DEFAULT_ROOM_CODE), eq(0),
             eq(RelayDrawingPart.FACE), eq(hostUuid.toString()), anyString(), eq(Duration.ofMillis(10000)));
         inOrder.verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face.png"), any());
+        inOrder.verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face-hint.png"), any());
+        inOrder.verify(relayRoomMutationLockRepository).acquireRoomMutationLock(eq(DEFAULT_ROOM_CODE), anyString(),
+            eq(Duration.ofMillis(5000)));
+        verify(relayRoomMutationLockRepository).releaseRoomMutationLock(eq(DEFAULT_ROOM_CODE), anyString());
         verify(relaySubmissionLockRepository).releaseSubmissionLock(eq(DEFAULT_ROOM_CODE), eq(0),
             eq(RelayDrawingPart.FACE), eq(hostUuid.toString()), anyString());
         JsonNode storedRoom = readSavedRoom();
@@ -191,6 +207,68 @@ class RelayRoomSubmissionControllerIntegrationTest {
         assertThat(countRows("file_upload")).isZero();
         verify(relayRoomEventPublisher).publishPartSubmitted(any(RelayRoomSubmissionResponse.class));
         verify(relayRoomEventPublisher, never()).publishPartStarted(any(RelayRoomSubmissionResponse.class));
+    }
+
+    @Test
+    void submitAssignmentUsesLatestRoomStateAfterRoomMutationLock() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        RelayRoomState firstReadRoomState = playingRoom(RelayDrawingPart.FACE,
+            List.of(assignment(0, RelayDrawingPart.FACE, hostUuid),
+                assignment(1, RelayDrawingPart.FACE, participantUuid)),
+            participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
+        RelayRoomState latestRoomState = playingRoom(RelayDrawingPart.FACE,
+            List.of(
+                assignment(0, RelayDrawingPart.FACE, hostUuid, RelayAssignmentStatus.SUBMITTED,
+                    "relay/tmp/AB3K9Q/0/face.png", "relay/tmp/AB3K9Q/0/face-hint.png", false, false),
+                assignment(1, RelayDrawingPart.FACE, participantUuid)),
+            participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1));
+        storeRoomReads(DEFAULT_ROOM_CODE, firstReadRoomState, latestRoomState);
+
+        mockMvc
+            .perform(multipart("/api/v1/relay/rooms/{roomCode}/submissions", DEFAULT_ROOM_CODE)
+                .file(pngFile("drawingImage", "face.png")).file(pngFile("hintImage", "face-hint.png"))
+                .param("canvasIndex", "1").param("part", "FACE")
+                .header(ANONYMOUS_USER_UUID_HEADER, participantUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.canvasIndex").value(1))
+            .andExpect(jsonPath("$.data.assignmentStatus").value("SUBMITTED"));
+
+        JsonNode storedRoom = readSavedRoom();
+        assertThat(storedRoom.path("assignments").get(0).path("status").asText()).isEqualTo("SUBMITTED");
+        assertThat(storedRoom.path("assignments").get(0).path("objectKey").asText())
+            .isEqualTo("relay/tmp/AB3K9Q/0/face.png");
+        assertThat(storedRoom.path("assignments").get(1).path("status").asText()).isEqualTo("SUBMITTED");
+        assertThat(storedRoom.path("assignments").get(1).path("objectKey").asText())
+            .isEqualTo("relay/tmp/AB3K9Q/1/face.png");
+        verify(relayRoomMutationLockRepository).acquireRoomMutationLock(eq(DEFAULT_ROOM_CODE), anyString(),
+            eq(Duration.ofMillis(5000)));
+        verify(relayRoomMutationLockRepository).releaseRoomMutationLock(eq(DEFAULT_ROOM_CODE), anyString());
+    }
+
+    @Test
+    void submitAssignmentReturnsConflictWhenRoomMutationLockIsBusy() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        storeRoom(DEFAULT_ROOM_CODE,
+            playingRoom(RelayDrawingPart.FACE, List.of(assignment(0, RelayDrawingPart.FACE, hostUuid)),
+                participant(hostUuid, "Mango", true, 0), participant(participantUuid, "Peach", false, 1)));
+        given(relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
+            .willReturn(false);
+
+        mockMvc.perform(multipart("/api/v1/relay/rooms/{roomCode}/submissions", DEFAULT_ROOM_CODE)
+            .file(pngFile("drawingImage", "face.png")).file(pngFile("hintImage", "face-hint.png"))
+            .param("canvasIndex", "0").param("part", "FACE").header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString()))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE));
+
+        verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face.png"), any());
+        verify(relaySubmissionStorage).upload(eq("relay/tmp/AB3K9Q/0/face-hint.png"), any());
+        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
+        verify(relayRoomMutationLockRepository, never()).releaseRoomMutationLock(anyString(), anyString());
+        verify(relaySubmissionLockRepository).releaseSubmissionLock(eq(DEFAULT_ROOM_CODE), eq(0),
+            eq(RelayDrawingPart.FACE), eq(hostUuid.toString()), anyString());
+        verify(relayRoomEventPublisher, never()).publishPartSubmitted(any(RelayRoomSubmissionResponse.class));
     }
 
     @Test
@@ -265,6 +343,7 @@ class RelayRoomSubmissionControllerIntegrationTest {
         verify(relayRoomEventPublisher).publishPartSubmitted(any(RelayRoomSubmissionResponse.class));
         verify(relayRoomEventPublisher).publishPartStarted(any(RelayRoomSubmissionResponse.class));
         verify(relayRoomEventPublisher, never()).publishAllPartsCompleted(any(RelayRoomSubmissionResponse.class));
+        verify(relayRoomFinalizationAsyncTrigger, never()).trigger(anyString());
     }
 
     @Test
@@ -292,6 +371,7 @@ class RelayRoomSubmissionControllerIntegrationTest {
         assertThat(storedRoom.path("status").asText()).isEqualTo("PLAYING");
         assertThat(storedRoom.path("currentPart").asText()).isEqualTo("LEGS");
         verify(relayRoomEventPublisher).publishPartStarted(any(RelayRoomSubmissionResponse.class));
+        verify(relayRoomFinalizationAsyncTrigger, never()).trigger(anyString());
     }
 
     @Test
@@ -323,6 +403,9 @@ class RelayRoomSubmissionControllerIntegrationTest {
         assertThat(countRows("gallery")).isZero();
         assertThat(countRows("relay_drawing_artifact")).isZero();
         verify(relayRoomEventPublisher).publishAllPartsCompleted(any(RelayRoomSubmissionResponse.class));
+        InOrder inOrder = inOrder(relayRoomEventPublisher, relayRoomFinalizationAsyncTrigger);
+        inOrder.verify(relayRoomEventPublisher).publishAllPartsCompleted(any(RelayRoomSubmissionResponse.class));
+        inOrder.verify(relayRoomFinalizationAsyncTrigger).trigger(DEFAULT_ROOM_CODE);
         verify(relayRoomEventPublisher, never()).publishPartStarted(any(RelayRoomSubmissionResponse.class));
     }
 
@@ -744,6 +827,13 @@ class RelayRoomSubmissionControllerIntegrationTest {
     private void storeRoom(String roomCode, RelayRoomState roomState) throws Exception {
         given(valueOperations.get("relay:room:%s".formatted(roomCode)))
             .willReturn(objectMapper.writeValueAsString(roomState));
+    }
+
+    private void storeRoomReads(String roomCode, RelayRoomState firstRoomState, RelayRoomState secondRoomState)
+        throws Exception {
+        given(valueOperations.get("relay:room:%s".formatted(roomCode))).willReturn(
+            objectMapper.writeValueAsString(firstRoomState), objectMapper.writeValueAsString(secondRoomState),
+            objectMapper.writeValueAsString(secondRoomState));
     }
 
     private RelayRoomState waitingRoom(RelayRoomParticipant... participants) {

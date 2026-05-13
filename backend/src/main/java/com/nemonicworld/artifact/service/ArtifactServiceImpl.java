@@ -50,7 +50,7 @@ public class ArtifactServiceImpl implements ArtifactService {
     }
 
     /**
-     * 기존 사용자와 active gallery row를 확인한 뒤 DB의 object key를 public URL로 변환합니다.
+     * 기존 사용자와 활성 갤러리 행을 확인한 뒤 DB의 객체 키를 공개 URL로 변환합니다.
      */
     @Transactional(readOnly = true)
     @Override

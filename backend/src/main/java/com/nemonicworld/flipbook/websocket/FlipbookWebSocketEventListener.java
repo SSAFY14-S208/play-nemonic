@@ -1,6 +1,7 @@
 package com.nemonicworld.flipbook.websocket;
 
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
+import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
+import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata;
 
 /**
  * 플립북 STOMP 세션 종료 이벤트를 Redis 연결 상태에 반영합니다.
@@ -55,9 +57,14 @@ public class FlipbookWebSocketEventListener {
             FlipbookRoomStateResponse roomStateResponse = flipbookRoomService.disconnectRoom(session.userUuid(),
                 roomCode);
             flipbookRoomEventPublisher.publishParticipantDisconnected(roomStateResponse, session.userUuid());
+            FlipbookRoomEventLogger.websocketBusiness("flipbook_ws_disconnected", metadata("room_id", roomCode, "uuid",
+                session.userUuid(), "session_id", sessionId, "room_status", roomStateResponse.status()));
         } catch (RuntimeException e) {
             log.warn("Failed to update flipbook websocket disconnect state. roomCode={}, sessionId={}", roomCode,
                 sessionId, e);
+            FlipbookRoomEventLogger.websocketWarn("flipbook_ws_disconnect_update_failed",
+                "failed to update flipbook websocket disconnect state",
+                metadata("room_id", roomCode, "uuid", session.userUuid(), "session_id", sessionId), e);
         } finally {
             webSocketSessionRegistry.removeIfCurrent(sessionId);
         }

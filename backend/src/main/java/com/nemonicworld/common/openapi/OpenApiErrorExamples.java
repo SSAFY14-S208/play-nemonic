@@ -71,6 +71,12 @@ public final class OpenApiErrorExamples {
           "message": "이미 종료된 방입니다."
         }
         """;
+    public static final String INVITE_GAME_IN_PROGRESS = """
+        {
+          "success": false,
+          "message": "게임이 진행 중입니다."
+        }
+        """;
     public static final String INVITE_ROOM_FULL = """
         {
           "success": false,
@@ -221,6 +227,12 @@ public final class OpenApiErrorExamples {
           "message": "방장만 사용할 수 있습니다."
         }
         """;
+    public static final String FLIPBOOK_ROOM_CLOSE_HOST_REQUIRED = """
+        {
+          "success": false,
+          "message": "방장만 사용할 수 있는 기능입니다."
+        }
+        """;
     public static final String FLIPBOOK_ROOM_KICK_HOST_REQUIRED = """
         {
           "success": false,
@@ -231,6 +243,24 @@ public final class OpenApiErrorExamples {
         {
           "success": false,
           "message": "강퇴할 참여자를 찾을 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_CLOSE_BEFORE_RESULT = """
+        {
+          "success": false,
+          "message": "결과 생성 전에는 방을 종료할 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_CLOSE_WHILE_PLAYING = """
+        {
+          "success": false,
+          "message": "게임 진행 중에는 방을 종료할 수 없습니다."
+        }
+        """;
+    public static final String FLIPBOOK_CLOSE_WHILE_FINALIZING = """
+        {
+          "success": false,
+          "message": "결과 생성 중에는 방을 종료할 수 없습니다."
         }
         """;
     public static final String FLIPBOOK_WAITING_ROOM_SETTINGS_ONLY = """
@@ -479,6 +509,36 @@ public final class OpenApiErrorExamples {
           "message": "존재하지 않는 커뮤니티 메모입니다."
         }
         """;
+    public static final String COMMUNITY_MEMO_ACCESS_DENIED = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 위치를 수정할 권한이 없습니다."
+        }
+        """;
+    public static final String COMMUNITY_MEMO_DELETE_ACCESS_DENIED = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모를 삭제할 권한이 없습니다."
+        }
+        """;
+    public static final String INVALID_COMMUNITY_MEMO_REPORT_REASON = """
+        {
+          "success": false,
+          "message": "커뮤니티 메모 신고 사유가 올바르지 않습니다."
+        }
+        """;
+    public static final String OWN_COMMUNITY_MEMO_REPORT = """
+        {
+          "success": false,
+          "message": "본인 메모는 신고할 수 없습니다."
+        }
+        """;
+    public static final String DUPLICATE_COMMUNITY_MEMO_REPORT = """
+        {
+          "success": false,
+          "message": "이미 신고한 커뮤니티 메모입니다."
+        }
+        """;
     public static final String UNSUPPORTED_COMMUNITY_MEMO_SOURCE_TYPE = """
         {
           "success": false,
@@ -629,6 +689,24 @@ public final class OpenApiErrorExamples {
           "message": "서버 오류가 발생했습니다."
         }
         """;
+    public static final String EMAIL_DELIVERY_UNAVAILABLE = """
+        {
+          "success": false,
+          "message": "이메일 발송에 실패했습니다."
+        }
+        """;
+    public static final String CLIENT_LOG_PAYLOAD_TOO_LARGE = """
+        {
+          "success": false,
+          "message": "로그 요청 본문은 1MB 이하로 전송해 주세요."
+        }
+        """;
+    public static final String CLIENT_LOG_RATE_LIMITED = """
+        {
+          "success": false,
+          "message": "클라이언트 로그 전송 한도를 초과했습니다."
+        }
+        """;
     public static final String BAD_REQUEST = """
         {
           "success": false,
@@ -676,6 +754,36 @@ public final class OpenApiErrorExamples {
         {
           "success": false,
           "message": "슈퍼 관리자 계정은 삭제할 수 없습니다."
+        }
+        """;
+    public static final String SYSTEM_PARAMETER_BULK_UPDATE_INVALID = """
+        {
+          "success": false,
+          "message": "존재하지 않는 시스템 파라미터입니다."
+        }
+        """;
+    public static final String BACKOFFICE_RELAY_ROOM_INVALID_STATUS = """
+        {
+          "success": false,
+          "message": "조회할 수 없는 방 상태입니다."
+        }
+        """;
+    public static final String BACKOFFICE_FLIPBOOK_ROOM_INVALID_STATUS = """
+        {
+          "success": false,
+          "message": "조회할 수 없는 플립북 방 상태입니다."
+        }
+        """;
+    public static final String BACKOFFICE_FLIPBOOK_ROOM_UPDATE_CONFLICT = """
+        {
+          "success": false,
+          "message": "동시 설정 변경 요청이 많아 방 설정을 갱신하지 못했습니다. 다시 시도해주세요."
+        }
+        """;
+    public static final String BACKOFFICE_RELAY_ROOM_UPDATE_CONFLICT = """
+        {
+          "success": false,
+          "message": "릴레이 방 상태를 갱신할 수 없습니다."
         }
         """;
 

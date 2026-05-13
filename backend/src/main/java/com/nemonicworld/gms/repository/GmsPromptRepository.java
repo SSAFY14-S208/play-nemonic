@@ -154,9 +154,12 @@ public class GmsPromptRepository {
 
     private void appendSearchConditions(StringBuilder sql, List<Object> params, String keyword, String featureType) {
         if (StringUtils.hasText(keyword)) {
-            String keywordPattern = "%" + keyword + "%";
+            String keywordPattern = "%" + escapeLikeKeyword(keyword) + "%";
             sql.append("""
-                  AND (LOWER(prompt_name) LIKE ? OR LOWER(template_text) LIKE ?)
+                  AND (
+                      LOWER(prompt_name) LIKE ? ESCAPE '!'
+                      OR LOWER(template_text) LIKE ? ESCAPE '!'
+                  )
                 """);
             params.add(keywordPattern);
             params.add(keywordPattern);
@@ -168,6 +171,10 @@ public class GmsPromptRepository {
                 """);
             params.add(featureType);
         }
+    }
+
+    private String escapeLikeKeyword(String keyword) {
+        return keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     private GmsPrompt mapPrompt(ResultSet resultSet, int rowNumber) throws SQLException {

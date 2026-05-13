@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.auth.service.AdminTokenStore;
@@ -25,9 +27,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
@@ -39,6 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
+@ExtendWith(OutputCaptureExtension.class)
 class GmsPromptControllerIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
@@ -51,6 +57,9 @@ class GmsPromptControllerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -91,9 +100,10 @@ class GmsPromptControllerIntegrationTest {
     }
 
     @Test
-    void adminCreatesPrompt() throws Exception {
+    void adminCreatesPrompt(CapturedOutput output) throws Exception {
         mockMvc
             .perform(post("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .header("X-Trace-Id", "prompt-create-audit-test").header("X-Real-IP", "10.10.50.11")
                 .contentType(MediaType.APPLICATION_JSON).content(createRequestBody("Daily fortune")))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.name").value("Daily fortune"))
@@ -103,6 +113,20 @@ class GmsPromptControllerIntegrationTest {
 
         assertThat(countPromptsByName("Daily fortune")).isEqualTo(1);
         assertThat(countPromptsByFeatureType("fortune")).isEqualTo(1);
+
+        JsonNode auditLog = findAuditLog(output, "prompt_update");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("prompt-create-audit-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.50.11");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("prompt");
+        assertThat(metadata.path("action").asText()).isEqualTo("create");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("after").path("name").asText()).isEqualTo("Daily fortune");
+        assertThat(metadata.path("after").path("feature_type").asText()).isEqualTo("fortune");
+        assertThat(auditLog.toString()).doesNotContain("Prompt body for {{nickname}}.");
     }
 
     @Test
@@ -164,6 +188,25 @@ class GmsPromptControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[0].id").value(10L))
             .andExpect(jsonPath("$.data.items[0].content").value("Use moon phase for fortune."))
             .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    void promptKeywordSearchTreatsLikeWildcardsAsLiteralText() throws Exception {
+        insertPrompt(10L, "Percent prompt", "Use 100% of the provided context.", "fortune", null);
+        insertPrompt(11L, "Underscore prompt", "Use under_score marker.", "sticker", null);
+        insertPrompt(12L, "Plain prompt", "Use plain marker.", "fortune", null);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "%"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(10L)).andExpect(jsonPath("$.data.totalElements").value(1));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("keyword", "_"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(11L)).andExpect(jsonPath("$.data.totalElements").value(1));
     }
 
     @Test
@@ -259,18 +302,32 @@ class GmsPromptControllerIntegrationTest {
     }
 
     @Test
-    void adminDeletesPrompt() throws Exception {
+    void adminDeletesPrompt(CapturedOutput output) throws Exception {
         insertPrompt(10L, "Daily fortune", "fortune", null);
 
         mockMvc
-            .perform(delete("/api/v1/backoffice/gms/prompts/{promptId}", 10L).header(HttpHeaders.AUTHORIZATION,
-                bearerAccessToken()))
+            .perform(delete("/api/v1/backoffice/gms/prompts/{promptId}", 10L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).header("X-Trace-Id", "prompt-delete-audit-test")
+                .header("X-Forwarded-For", "10.10.50.21, 10.10.50.22"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").isNotEmpty());
 
         assertThat(countPromptsByName("Daily fortune")).isEqualTo(1);
         assertThat(countActivePromptsById(10L)).isZero();
         assertThat(findPromptDeletedAt(10L)).isNotNull();
+
+        JsonNode auditLog = findAuditLog(output, "prompt_update");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("prompt-delete-audit-test");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.50.21");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("prompt");
+        assertThat(metadata.path("target_id").asText()).isEqualTo("10");
+        assertThat(metadata.path("action").asText()).isEqualTo("delete");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("before").path("name").asText()).isEqualTo("Daily fortune");
+        assertThat(metadata.path("before").path("feature_type").asText()).isEqualTo("fortune");
+        assertThat(metadata.path("after").path("deleted").asBoolean()).isTrue();
+        assertThat(auditLog.toString()).doesNotContain("Prompt body for {{nickname}}.");
     }
 
     @Test
@@ -297,14 +354,14 @@ class GmsPromptControllerIntegrationTest {
     }
 
     @Test
-    void adminUpdatesPrompt() throws Exception {
+    void adminUpdatesPrompt(CapturedOutput output) throws Exception {
         insertPrompt(10L, "Daily fortune", "fortune", null);
         LocalDateTime beforeUpdatedAt = findPromptUpdatedAt(10L);
 
         mockMvc
             .perform(patch("/api/v1/backoffice/gms/prompts/{promptId}", 10L)
-                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
-                .content("""
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).header("X-Trace-Id", "prompt-update-audit-test")
+                .header("X-Real-IP", "10.10.50.31").contentType(MediaType.APPLICATION_JSON).content("""
                     {
                       "name": "Updated fortune",
                       "content": "Updated prompt body.",
@@ -320,6 +377,21 @@ class GmsPromptControllerIntegrationTest {
         assertThat(findPromptContent(10L)).isEqualTo("Updated prompt body.");
         assertThat(findPromptFeatureType(10L)).isEqualTo("sticker");
         assertThat(findPromptUpdatedAt(10L)).isAfter(beforeUpdatedAt);
+
+        JsonNode auditLog = findAuditLog(output, "prompt_update");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("prompt-update-audit-test");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.50.31");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("prompt");
+        assertThat(metadata.path("target_id").asText()).isEqualTo("10");
+        assertThat(metadata.path("action").asText()).isEqualTo("update");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("before").path("name").asText()).isEqualTo("Daily fortune");
+        assertThat(metadata.path("before").path("feature_type").asText()).isEqualTo("fortune");
+        assertThat(metadata.path("after").path("name").asText()).isEqualTo("Updated fortune");
+        assertThat(metadata.path("after").path("feature_type").asText()).isEqualTo("sticker");
+        assertThat(metadata.path("after").path("content_changed").asBoolean()).isTrue();
+        assertThat(auditLog.toString()).doesNotContain("Prompt body for {{nickname}}.", "Updated prompt body.");
     }
 
     @Test
@@ -552,6 +624,16 @@ class GmsPromptControllerIntegrationTest {
             Integer.class, featureType);
 
         return count == null ? 0 : count;
+    }
+
+    private JsonNode findAuditLog(CapturedOutput output, String eventName) throws Exception {
+        for (String line : output.getOut().split("\\R")) {
+            if (line.contains("\"event_name\":\"%s\"".formatted(eventName))) {
+                return objectMapper.readTree(line.substring(line.indexOf('{')));
+            }
+        }
+
+        throw new AssertionError("Audit log not found. eventName=" + eventName);
     }
 
     @TestConfiguration

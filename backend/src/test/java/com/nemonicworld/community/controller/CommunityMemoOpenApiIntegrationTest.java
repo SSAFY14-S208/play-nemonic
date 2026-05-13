@@ -32,7 +32,7 @@ class CommunityMemoOpenApiIntegrationTest {
     void communityMemoListApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.summary").value("커뮤니티 메모 목록 조회"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.tags[0]").value("커뮤니티"))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].get.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID")))
             .andExpect(jsonPath(
@@ -54,7 +54,7 @@ class CommunityMemoOpenApiIntegrationTest {
     void communityMemoDetailApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.summary").value("커뮤니티 메모 상세 조회"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.tags[0]").value("커뮤니티"))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].get.parameters[*].name")
                 .value(hasItems("memoId", "Anonymous-User-UUID")))
             .andExpect(
@@ -77,7 +77,7 @@ class CommunityMemoOpenApiIntegrationTest {
     void communityMemoCreateApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.summary").value("커뮤니티 메모 생성"))
-            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.tags[0]").value("Community"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.tags[0]").value("커뮤니티"))
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID")))
             .andExpect(jsonPath(
@@ -98,5 +98,115 @@ class CommunityMemoOpenApiIntegrationTest {
                 jsonPath("$.paths['/api/v1/community/memos'].post.responses['404'].description").value("사용자 또는 파일 없음"))
             .andExpect(
                 jsonPath("$.paths['/api/v1/community/memos'].post.responses['409'].description").value("파일 업로드 상태 오류"));
+    }
+
+    @Test
+    void communityMemoLayoutUpdateApiIsExposedInOpenApiDocs() throws Exception {
+        String parametersPath = "$.paths['/api/v1/community/memos/{memoId}'].patch.parameters";
+
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.summary").value("커뮤니티 메모 위치 수정"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.tags[0]").value("커뮤니티"))
+            .andExpect(jsonPath(parametersPath + "[*].name").value(hasItems("memoId", "Anonymous-User-UUID")))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoId')].required").value(hasItems(true)))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.requestBody.required").value(true))
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoLayoutUpdateRequest.properties.positionX").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoLayoutUpdateRequest.properties.positionY").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoLayoutUpdateRequest.properties.zIndex").exists())
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoLayoutUpdateRequest.properties.rotationDeg").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.responses['200'].description")
+                .value("커뮤니티 메모 위치 수정 성공"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.responses['400'].description")
+                .value("잘못된 요청"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.responses['403'].description")
+                .value("커뮤니티 메모 위치 수정 권한 없음"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].patch.responses['404'].description")
+                .value("사용자 또는 커뮤니티 메모 없음"));
+    }
+
+    @Test
+    void communityMemoDeleteApiIsExposedInOpenApiDocs() throws Exception {
+        String parametersPath = "$.paths['/api/v1/community/memos/{memoId}'].delete.parameters";
+
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.summary").value("커뮤니티 메모 삭제"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.tags[0]").value("커뮤니티"))
+            .andExpect(jsonPath(parametersPath + "[*].name").value(hasItems("memoId", "Anonymous-User-UUID")))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoId')].required").value(hasItems(true)))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.responses['200'].description")
+                .value("커뮤니티 메모 삭제 성공"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.responses['400'].description")
+                .value("잘못된 요청"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.responses['403'].description")
+                .value("커뮤니티 메모 삭제 권한 없음"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}'].delete.responses['404'].description")
+                .value("사용자 또는 커뮤니티 메모 없음"));
+    }
+
+    @Test
+    void communityMemoReportApiIsExposedInOpenApiDocs() throws Exception {
+        String parametersPath = "$.paths['/api/v1/community/memos/{memoId}/reports'].post.parameters";
+
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.summary").value("커뮤니티 메모 신고"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.tags[0]").value("커뮤니티"))
+            .andExpect(jsonPath(parametersPath + "[*].name").value(hasItems("memoId", "Anonymous-User-UUID")))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoId')].required").value(hasItems(true)))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.requestBody.required").value(true))
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoReportRequest.properties.reason").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoReportRequest.properties.reason.enum")
+                .value(hasItems("부적절한 콘텐츠", "욕설/비방/혐오", "선정적/음란물", "폭력적/위협적 표현", "스팸/광고", "개인정보 노출", "도용/사칭", "기타")))
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoReportRequest.properties.reasonDetail").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoReportResponse.properties.memoId").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoReportResponse.properties.reportCount").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoReportResponse.properties.hidden").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.responses['201'].description")
+                .value("커뮤니티 메모 신고 성공"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.responses['400'].description")
+                .value("잘못된 요청"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.responses['404'].description")
+                .value("사용자 또는 커뮤니티 메모 없음"))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoId}/reports'].post.responses['409'].description")
+                .value("중복 신고"));
+    }
+
+    @Test
+    void adminCommunityMemoReviewApisAreExposedInOpenApiDocs() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos'].get.summary").value("관리자 커뮤니티 메모 목록 조회"))
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos'].get.security[0].bearerAuth").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos'].get.parameters[*].name")
+                .value(hasItems("hidden", "moderationStatus", "sourceType", "reported", "keyword", "page", "size")))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}'].get.summary").value("관리자 커뮤니티 메모 상세 조회"))
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/reports'].get.summary")
+                .value("관리자 커뮤니티 메모 신고 내역 조회"))
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/reports'].get.parameters[*].name")
+                .value(hasItems("memoId", "reason", "page", "size")))
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/hide'].patch.summary")
+                .value("관리자 커뮤니티 메모 숨김 처리"))
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/hide'].patch.requestBody.required")
+                .value(true))
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/restore'].patch.requestBody.required")
+                .value(true))
+            .andExpect(jsonPath("$.paths['/api/v1/admin/community/memos/{memoId}/restore'].patch.summary")
+                .value("관리자 커뮤니티 메모 숨김 복구"))
+            .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoItemResponse.properties.isHidden").exists())
+            .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoDetailResponse.properties.isHidden").exists())
+            .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoDetailResponse.properties.reviewedBy").exists())
+            .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoDetailResponse.properties.reviewedAt").exists())
+            .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoDetailResponse.properties.reports").exists())
+            .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoReportItemResponse.properties.reporterUserUuid")
+                .exists())
+            .andExpect(
+                jsonPath("$.components.schemas.AdminCommunityMemoReportItemResponse.properties.reasonDetail").exists())
+            .andExpect(
+                jsonPath("$.components.schemas.AdminCommunityMemoReportListResponse.properties.totalElements").exists())
+            .andExpect(jsonPath("$.components.schemas.AdminCommunityMemoReviewRequest.properties.reason").exists());
     }
 }

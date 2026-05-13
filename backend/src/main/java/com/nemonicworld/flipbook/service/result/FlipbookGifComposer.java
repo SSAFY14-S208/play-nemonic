@@ -1,5 +1,6 @@
 package com.nemonicworld.flipbook.service.result;
 
+import com.nemonicworld.common.exception.InternalServerException;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -41,7 +42,7 @@ public class FlipbookGifComposer {
     public byte[] compose(List<byte[]> frameImageBytes) {
         List<BufferedImage> frames = frameImageBytes.stream().map(this::readImage).toList();
         if (frames.isEmpty()) {
-            throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE);
+            throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE);
         }
 
         BufferedImage firstFrame = frames.get(0);
@@ -64,7 +65,7 @@ public class FlipbookGifComposer {
 
             return outputStream.toByteArray();
         } catch (IOException e) {
-            throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE, e);
+            throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE, e);
         }
     }
 
@@ -72,19 +73,19 @@ public class FlipbookGifComposer {
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
             if (image == null) {
-                throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE);
+                throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE);
             }
 
             return image;
         } catch (IOException e) {
-            throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE, e);
+            throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE, e);
         }
     }
 
     private ImageWriter findGifWriter() {
         Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(GIF_FORMAT);
         if (!writers.hasNext()) {
-            throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE);
+            throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE);
         }
 
         return writers.next();

@@ -4,18 +4,22 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomViewerResponse;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 릴레이 방 설정 변경 유스케이스입니다.
@@ -28,15 +32,18 @@ public class RelayRoomSettingsUseCase {
     private final RelayRoomPolicy relayRoomPolicy;
     private final RelayRoomViewerFactory relayRoomViewerFactory;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+    private final RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
 
     public RelayRoomSettingsUseCase(AnonymousUserResolver anonymousUserResolver,
         RelayRoomRepository relayRoomRepository, RelayRoomPolicy relayRoomPolicy,
-        RelayRoomViewerFactory relayRoomViewerFactory, RelayInviteMetadataSyncService relayInviteMetadataSyncService) {
+        RelayRoomViewerFactory relayRoomViewerFactory, RelayInviteMetadataSyncService relayInviteMetadataSyncService,
+        RelayRuntimeSettingsProvider relayRuntimeSettingsProvider) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.relayRoomRepository = relayRoomRepository;
         this.relayRoomPolicy = relayRoomPolicy;
         this.relayRoomViewerFactory = relayRoomViewerFactory;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
+        this.relayRuntimeSettingsProvider = relayRuntimeSettingsProvider;
     }
 
     /**
@@ -45,7 +52,8 @@ public class RelayRoomSettingsUseCase {
     @Transactional(readOnly = true)
     public RelayRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
         RelayRoomSettingsRequest request) {
-        int timeLimitSeconds = relayRoomPolicy.resolveTimeLimitSeconds(request);
+        RelayRuntimeSettingsSnapshot settings = relayRuntimeSettingsProvider.currentSettingsSnapshot();
+        int timeLimitSeconds = relayRoomPolicy.resolveTimeLimitSeconds(request, settings.roomTimeLimitSettings());
         AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
         relayRoomPolicy.validateRoomCode(roomCodeValue);
         String viewerUserUuid = viewerUser.getId().toString();
@@ -61,9 +69,17 @@ public class RelayRoomSettingsUseCase {
 
             if (relayRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 relayInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
-                RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now);
+                RelayRoomViewerResponse viewer = relayRoomViewerFactory.create(viewerUserUuid, updatedRoomState, now,
+                    settings.reconnectGracePeriod());
+                RelayRoomEventLogger.apiBusiness("relay_room_settings_changed",
+                    metadata("room_id", updatedRoomState.roomCode(), "actor_uuid", viewerUserUuid, "before",
+                        metadata("time_limit_seconds", roomState.timeLimitSeconds(), "max_participants",
+                            roomState.maxParticipants()),
+                        "after", metadata("time_limit_seconds", updatedRoomState.timeLimitSeconds(), "max_participants",
+                            updatedRoomState.maxParticipants())));
 
-                return RelayRoomStateResponse.from(updatedRoomState, viewer);
+                return RelayRoomStateResponse.from(updatedRoomState, viewer, settings.roomTimeLimitSettings(),
+                    settings.reconnectGracePeriod());
             }
         }
 

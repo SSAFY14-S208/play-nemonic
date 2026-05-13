@@ -5,10 +5,14 @@ import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -27,9 +31,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
@@ -40,6 +47,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @IntegrationTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
+@ExtendWith(OutputCaptureExtension.class)
 /**
  * 커뮤니티 메모 조회/생성 API가 최종 게시 이미지 스냅샷 계약을 지키는지 검증합니다.
  */
@@ -143,7 +151,7 @@ class CommunityMemoControllerIntegrationTest {
     }
 
     @Test
-    void createCommunityMemoCreatesDirectSnapshotMemoAfterModerationAllowed() throws Exception {
+    void createCommunityMemoCreatesDirectSnapshotMemoAfterModerationAllowed(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser("생성메모");
         UUID originalFileId = insertFileUpload(userUuid, ORIGINAL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
         UUID thumbnailFileId = insertFileUpload(userUuid, THUMBNAIL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
@@ -213,6 +221,13 @@ class CommunityMemoControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.totalElements").value(1))
             .andExpect(jsonPath("$.data.items[0].memoUuid").value(memoId.toString()));
+
+        assertThat(output).contains("\"event_name\":\"community_memo_created\"")
+            .contains("\"event_name\":\"community_memo_moderation_allowed\"").contains("body_image_object_key_hash")
+            .contains("thumbnail_image_object_key_hash").contains("client_text_length").contains("checked_text_length")
+            .doesNotContain("텍스트박스 원문").doesNotContain("추출 텍스트").doesNotContain(ORIGINAL_OBJECT_KEY)
+            .doesNotContain(THUMBNAIL_OBJECT_KEY).doesNotContain("client_text_preview")
+            .doesNotContain("ocr_text_preview");
     }
 
     @Test
@@ -527,6 +542,74 @@ class CommunityMemoControllerIntegrationTest {
     }
 
     @Test
+    void createCommunityMemoUsesCommunityMaxMemoCountSettingForFifoLimit() throws Exception {
+        insertCommunityMaxMemoCountSetting(3);
+        UUID userUuid = createExistingUser("설정FIFO");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
+        UUID oldestMemoId = null;
+        for (int index = 0; index < 3; index++) {
+            UUID memoId = insertDirectMemo(userUuid, "dynamic-fifo-original-%02d.png".formatted(index),
+                "dynamic-fifo-thumbnail-%02d.png".formatted(index), 1, baseTime.plusMinutes(index), null, false);
+            if (index == 0) {
+                oldestMemoId = memoId;
+            }
+        }
+        UUID originalFileId = insertFileUpload(userUuid, "uploads/community/dynamic-fifo-new-original.png", "COMMUNITY",
+            "UPLOADED", null);
+        UUID thumbnailFileId = insertFileUpload(userUuid, "uploads/community/dynamic-fifo-new-thumbnail.png",
+            "COMMUNITY", "UPLOADED", null);
+
+        mockMvc.perform(createRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString()))
+            .andExpect(status().isCreated());
+
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+            """, Integer.class)).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_reason FROM community_memo WHERE id = ?", String.class,
+            oldestMemoId)).isEqualTo("expired");
+    }
+
+    @Test
+    void communityMaxMemoCountSettingChangeAppliesFromNextCreateWithoutImmediateExpiry() throws Exception {
+        insertCommunityMaxMemoCountSetting(5);
+        UUID userUuid = createExistingUser("설정변경FIFO");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
+        for (int index = 0; index < 5; index++) {
+            insertDirectMemo(userUuid, "setting-change-original-%02d.png".formatted(index),
+                "setting-change-thumbnail-%02d.png".formatted(index), 1, baseTime.plusMinutes(index), null, false);
+        }
+
+        updateCommunityMaxMemoCountSetting(3);
+
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+            """, Integer.class)).isEqualTo(5);
+
+        UUID originalFileId = insertFileUpload(userUuid, "uploads/community/setting-change-new-original.png",
+            "COMMUNITY", "UPLOADED", null);
+        UUID thumbnailFileId = insertFileUpload(userUuid, "uploads/community/setting-change-new-thumbnail.png",
+            "COMMUNITY", "UPLOADED", null);
+
+        mockMvc.perform(createRequest(userUuid, originalFileId.toString(), thumbnailFileId.toString()))
+            .andExpect(status().isCreated());
+
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+            """, Integer.class)).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM community_memo WHERE deleted_reason = 'expired'",
+            Integer.class)).isEqualTo(3);
+    }
+
+    @Test
     void createCommunityMemoDoesNotCountHiddenMemosForFifoLimit() throws Exception {
         UUID userUuid = createExistingUser("숨김제외");
         LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
@@ -554,6 +637,554 @@ class CommunityMemoControllerIntegrationTest {
             """, Integer.class)).isEqualTo(50);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM community_memo WHERE deleted_reason = 'expired'",
             Integer.class)).isZero();
+    }
+
+    @Test
+    void updateCommunityMemoLayoutUpdatesOnlyOwnedVisibleMemoLayout() throws Exception {
+        UUID userUuid = createExistingUser("배치수정");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactId = UUID.randomUUID();
+        UUID memoId = UUID.randomUUID();
+        insertArtifact(artifactId, "relay_drawing", "artifact-thumbnail.png", baseTime);
+        insertCommunityMemo(memoId, userUuid, artifactId, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 3, baseTime, null,
+            false, "{\"scale\":1.0}", 2, "allowed", baseTime.minusMinutes(1), baseTime.minusMinutes(1));
+
+        clearInvocations(moderationClient);
+        mockMvc
+            .perform(patch("/api/v1/community/memos/{memoId}", memoId)
+                .header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "positionX": 120.5,
+                      "positionY": -30.0,
+                      "zIndex": 12,
+                      "rotationDeg": 5.5,
+                      "decoration": {
+                        "scale": 9.9
+                      }
+                    }
+                    """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 수정 성공"))
+            .andExpect(jsonPath("$.data.memoUuid").value(memoId.toString()))
+            .andExpect(jsonPath("$.data.sourceType").value("GALLERY"))
+            .andExpect(jsonPath("$.data.memoOriginalImageUrl").value(ORIGINAL_PUBLIC_URL))
+            .andExpect(jsonPath("$.data.memoThumbnailImageUrl").value(THUMBNAIL_PUBLIC_URL))
+            .andExpect(jsonPath("$.data.memoImageUrl").value(THUMBNAIL_PUBLIC_URL))
+            .andExpect(jsonPath("$.data.positionX").value(120.5)).andExpect(jsonPath("$.data.positionY").value(-30.0))
+            .andExpect(jsonPath("$.data.zIndex").value(12)).andExpect(jsonPath("$.data.rotationDeg").value(5.5))
+            .andExpect(jsonPath("$.data.ownedByMe").value(true))
+            .andExpect(jsonPath("$.data.decoration.scale").value(1.0))
+            .andExpect(jsonPath("$.data.artifactId").value(artifactId.toString()))
+            .andExpect(jsonPath("$.data.galleryContentKind").value("relay_drawing"))
+            .andExpect(jsonPath("$.data.moderationStatus").value("allowed"))
+            .andExpect(jsonPath("$.data.reportCount").value(2));
+        verifyNoInteractions(moderationClient);
+
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT position_x FROM community_memo WHERE id = ?", Double.class, memoId))
+            .isEqualTo(120.5);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT position_y FROM community_memo WHERE id = ?", Double.class, memoId))
+            .isEqualTo(-30.0);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT z_index FROM community_memo WHERE id = ?", Integer.class, memoId))
+            .isEqualTo(12);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT rotation_deg FROM community_memo WHERE id = ?", Float.class, memoId))
+            .isEqualTo(5.5f);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT body_image_url FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo(ORIGINAL_OBJECT_KEY);
+        assertThat(jdbcTemplate.queryForObject("SELECT thumbnail_image_url FROM community_memo WHERE id = ?",
+            String.class, memoId)).isEqualTo(THUMBNAIL_OBJECT_KEY);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT artifact_id FROM community_memo WHERE id = ?", UUID.class, memoId))
+            .isEqualTo(artifactId);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT decoration FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("{\"scale\":1.0}");
+        assertThat(jdbcTemplate.queryForObject("SELECT attached_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isEqualTo(baseTime);
+        assertThat(jdbcTemplate.queryForObject("SELECT updated_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isAfter(baseTime.minusMinutes(1));
+    }
+
+    @Test
+    void updateCommunityMemoLayoutRejectsUnauthorizedMissingDeletedAndHiddenMemos() throws Exception {
+        UUID ownerUuid = createExistingUser("소유자");
+        UUID otherUserUuid = createExistingUser("타인");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID visibleMemoId = insertDirectMemo(ownerUuid, "owned-original.png", "owned-thumbnail.png", 1, now, null,
+            false);
+        UUID deletedMemoId = insertDirectMemo(ownerUuid, "deleted-update-original.png", "deleted-update-thumbnail.png",
+            1, now, now, false);
+        UUID hiddenMemoId = insertDirectMemo(ownerUuid, "hidden-update-original.png", "hidden-update-thumbnail.png", 1,
+            now, null, true);
+
+        mockMvc.perform(updateRequest(visibleMemoId, otherUserUuid.toString())).andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치를 수정할 권한이 없습니다."));
+        mockMvc.perform(updateRequest(UUID.randomUUID(), ownerUuid.toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(updateRequest(deletedMemoId, ownerUuid.toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(updateRequest(hiddenMemoId, ownerUuid.toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(updateRequest(visibleMemoId, UUID.randomUUID().toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+        mockMvc.perform(updateRequest(visibleMemoId, null)).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc.perform(updateRequest(visibleMemoId, "not-a-uuid")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc
+            .perform(
+                patch("/api/v1/community/memos/not-a-uuid").header(ANONYMOUS_USER_UUID_HEADER, ownerUuid.toString())
+                    .contentType(MediaType.APPLICATION_JSON).content(validLayoutJson()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+    }
+
+    @Test
+    void updateCommunityMemoLayoutValidatesRequiredAndFinitePositionFields() throws Exception {
+        UUID userUuid = createExistingUser("검증");
+        UUID memoId = insertDirectMemo(userUuid, "validation-original.png", "validation-thumbnail.png", 1,
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), null, false);
+
+        mockMvc.perform(updateRequest(memoId, userUuid.toString(), """
+            {
+              "positionY": 0.0,
+              "zIndex": 1,
+              "rotationDeg": 0.0
+            }
+            """)).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 정보가 올바르지 않습니다."));
+        mockMvc.perform(updateRequest(memoId, userUuid.toString(), """
+            {
+              "positionX": 0.0,
+              "zIndex": 1,
+              "rotationDeg": 0.0
+            }
+            """)).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 정보가 올바르지 않습니다."));
+        mockMvc.perform(updateRequest(memoId, userUuid.toString(), """
+            {
+              "positionX": 0.0,
+              "positionY": 0.0,
+              "rotationDeg": 0.0
+            }
+            """)).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 정보가 올바르지 않습니다."));
+        mockMvc.perform(updateRequest(memoId, userUuid.toString(), """
+            {
+              "positionX": 0.0,
+              "positionY": 0.0,
+              "zIndex": 1
+            }
+            """)).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 정보가 올바르지 않습니다."));
+        mockMvc.perform(updateRequest(memoId, userUuid.toString(), """
+            {
+              "positionX": 1e309,
+              "positionY": 0.0,
+              "zIndex": 1,
+              "rotationDeg": 0.0
+            }
+            """)).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 정보가 올바르지 않습니다."));
+        mockMvc.perform(updateRequest(memoId, userUuid.toString(), """
+            {
+              "positionX": 0.0,
+              "positionY": 0.0,
+              "zIndex": 1,
+              "rotationDeg": 4e38
+            }
+            """)).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 위치 정보가 올바르지 않습니다."));
+    }
+
+    @Test
+    void updateCommunityMemoLayoutDoesNotRunFifoWhenVisibleCountAlreadyExceedsLimit() throws Exception {
+        UUID userUuid = createExistingUser("수정FIFO");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
+        UUID updateTargetMemoId = null;
+        for (int index = 0; index < 51; index++) {
+            UUID memoId = insertDirectMemo(userUuid, "update-fifo-original-%02d.png".formatted(index),
+                "update-fifo-thumbnail-%02d.png".formatted(index), 1, baseTime.plusMinutes(index), null, false);
+            if (index == 50) {
+                updateTargetMemoId = memoId;
+            }
+        }
+
+        mockMvc.perform(updateRequest(updateTargetMemoId, userUuid.toString())).andExpect(status().isOk());
+
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+            """, Integer.class)).isEqualTo(51);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM community_memo WHERE deleted_reason = 'expired'",
+            Integer.class)).isZero();
+    }
+
+    @Test
+    void deleteCommunityMemoSoftDeletesOwnedVisibleMemoAndPreservesRelatedData() throws Exception {
+        UUID userUuid = createExistingUser("삭제메모");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactId = UUID.randomUUID();
+        UUID galleryId = UUID.randomUUID();
+        UUID memoId = UUID.randomUUID();
+
+        insertArtifact(artifactId, "relay_drawing", "artifact-thumbnail.png", baseTime);
+        insertGallery(galleryId, userUuid, artifactId, null);
+        insertFileUpload(userUuid, ORIGINAL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
+        insertFileUpload(userUuid, THUMBNAIL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
+        insertCommunityMemo(memoId, userUuid, artifactId, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 3, baseTime, null,
+            false, "{\"scale\":1.0}", 2, "allowed", baseTime.minusMinutes(1), baseTime.minusMinutes(1));
+        jdbcTemplate.update("""
+            UPDATE community_memo
+            SET ocr_text = '검수 텍스트',
+                ocr_categories = '[\"safe\"]',
+                moderation_checked_at = ?
+            WHERE id = ?
+            """, baseTime.plusMinutes(1), memoId);
+
+        clearInvocations(moderationClient);
+        mockMvc.perform(deleteRequest(memoId, userUuid.toString())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.message").value("커뮤니티 메모 삭제 성공"))
+            .andExpect(jsonPath("$.data").doesNotExist());
+        verifyNoInteractions(moderationClient);
+
+        LocalDateTime deletedAt = jdbcTemplate.queryForObject("SELECT deleted_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId);
+        LocalDateTime updatedAt = jdbcTemplate.queryForObject("SELECT updated_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId);
+        assertThat(deletedAt).isNotNull();
+        assertThat(updatedAt).isEqualTo(deletedAt);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT deleted_reason FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("user_delete");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT body_image_url FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo(ORIGINAL_OBJECT_KEY);
+        assertThat(jdbcTemplate.queryForObject("SELECT thumbnail_image_url FROM community_memo WHERE id = ?",
+            String.class, memoId)).isEqualTo(THUMBNAIL_OBJECT_KEY);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT artifact_id FROM community_memo WHERE id = ?", UUID.class, memoId))
+            .isEqualTo(artifactId);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT decoration FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("{\"scale\":1.0}");
+        assertThat(jdbcTemplate.queryForObject("SELECT moderation_status FROM community_memo WHERE id = ?",
+            String.class, memoId)).isEqualTo("allowed");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT ocr_text FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("검수 텍스트");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT ocr_categories FROM community_memo WHERE id = ?", String.class, memoId))
+            .contains("safe");
+        assertThat(jdbcTemplate.queryForObject("SELECT attached_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isEqualTo(baseTime);
+        assertThat(jdbcTemplate.queryForObject("SELECT created_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isEqualTo(baseTime.minusMinutes(1));
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM file_upload WHERE object_key IN (?, ?)",
+            Integer.class, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY)).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM gallery WHERE id = ?", Integer.class, galleryId))
+            .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM artifact WHERE id = ?", Integer.class, artifactId))
+            .isEqualTo(1);
+
+        mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalElements").value(0));
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", memoId)).andExpect(status().isNotFound());
+        mockMvc.perform(updateRequest(memoId, userUuid.toString())).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteCommunityMemoRejectsUnauthorizedMissingDeletedAndHiddenMemos() throws Exception {
+        UUID ownerUuid = createExistingUser("삭제소유자");
+        UUID otherUserUuid = createExistingUser("삭제타인");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID visibleMemoId = insertDirectMemo(ownerUuid, "delete-owned-original.png", "delete-owned-thumbnail.png", 1,
+            now, null, false);
+        UUID deletedMemoId = insertDirectMemo(ownerUuid, "already-deleted-original.png",
+            "already-deleted-thumbnail.png", 1, now, now, false);
+        UUID hiddenMemoId = insertDirectMemo(ownerUuid, "hidden-delete-original.png", "hidden-delete-thumbnail.png", 1,
+            now, null, true);
+
+        mockMvc.perform(deleteRequest(visibleMemoId, otherUserUuid.toString())).andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모를 삭제할 권한이 없습니다."));
+        mockMvc.perform(deleteRequest(UUID.randomUUID(), ownerUuid.toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(deleteRequest(deletedMemoId, ownerUuid.toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(deleteRequest(hiddenMemoId, ownerUuid.toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(deleteRequest(visibleMemoId, UUID.randomUUID().toString())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+        mockMvc.perform(deleteRequest(visibleMemoId, null)).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc.perform(deleteRequest(visibleMemoId, "not-a-uuid")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc
+            .perform(
+                delete("/api/v1/community/memos/not-a-uuid").header(ANONYMOUS_USER_UUID_HEADER, ownerUuid.toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+    }
+
+    @Test
+    void deleteCommunityMemoDoesNotRunFifoOrRestoreExpiredMemos() throws Exception {
+        UUID userUuid = createExistingUser("삭제FIFO");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
+        UUID deleteTargetMemoId = null;
+        for (int index = 0; index < 50; index++) {
+            UUID memoId = insertDirectMemo(userUuid, "delete-fifo-original-%02d.png".formatted(index),
+                "delete-fifo-thumbnail-%02d.png".formatted(index), 1, baseTime.plusMinutes(index), null, false);
+            if (index == 49) {
+                deleteTargetMemoId = memoId;
+            }
+        }
+        UUID expiredMemoId = insertDirectMemo(userUuid, "expired-restore-original.png", "expired-restore-thumbnail.png",
+            1, baseTime.minusMinutes(1), baseTime, false);
+        jdbcTemplate.update("UPDATE community_memo SET deleted_reason = 'expired' WHERE id = ?", expiredMemoId);
+
+        clearInvocations(moderationClient);
+        mockMvc.perform(deleteRequest(deleteTargetMemoId, userUuid.toString())).andExpect(status().isOk());
+        verifyNoInteractions(moderationClient);
+
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+            """, Integer.class)).isEqualTo(49);
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_reason FROM community_memo WHERE id = ?", String.class,
+            expiredMemoId)).isEqualTo("expired");
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, expiredMemoId)).isNotNull();
+    }
+
+    @Test
+    void reportCommunityMemoCreatesReportAndIncrementsCount() throws Exception {
+        UUID ownerUuid = createExistingUser("신고대상");
+        UUID reporterUuid = createExistingUser("신고자");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID memoId = insertDirectMemo(ownerUuid, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 1, now, null, false);
+
+        clearInvocations(moderationClient);
+        mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), reportJson("욕설/비방/혐오", "욕설이 포함되어 있어요.")))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 성공"))
+            .andExpect(jsonPath("$.data.memoId").value(memoId.toString()))
+            .andExpect(jsonPath("$.data.reportCount").value(1)).andExpect(jsonPath("$.data.hidden").value(false));
+        verifyNoInteractions(moderationClient);
+
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo_report
+            WHERE memo_id = ?
+              AND user_id = ?
+              AND reason = 'abuse_hate'
+            """, Integer.class, memoId, reporterUuid)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT reason_detail
+            FROM community_memo_report
+            WHERE memo_id = ?
+              AND user_id = ?
+            """, String.class, memoId, reporterUuid)).isEqualTo("욕설이 포함되어 있어요.");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT report_count FROM community_memo WHERE id = ?", Integer.class, memoId))
+            .isEqualTo(1);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT is_hidden FROM community_memo WHERE id = ?", Boolean.class, memoId))
+            .isFalse();
+    }
+
+    @Test
+    void reportCommunityMemoHidesMemoWhenReportThresholdIsReached() throws Exception {
+        UUID ownerUuid = createExistingUser("자동숨김");
+        UUID reporterUuid = createExistingUser("다섯번째");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactId = UUID.randomUUID();
+        UUID galleryId = UUID.randomUUID();
+        UUID memoId = UUID.randomUUID();
+
+        insertArtifact(artifactId, "relay_drawing", "artifact-thumbnail.png", baseTime);
+        insertGallery(galleryId, ownerUuid, artifactId, null);
+        insertFileUpload(ownerUuid, ORIGINAL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
+        insertFileUpload(ownerUuid, THUMBNAIL_OBJECT_KEY, "COMMUNITY", "UPLOADED", null);
+        insertCommunityMemo(memoId, ownerUuid, artifactId, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 3, baseTime, null,
+            false, "{\"scale\":1.0}", 4, "allowed", baseTime.minusMinutes(1), baseTime.minusMinutes(1));
+        jdbcTemplate.update("""
+            UPDATE community_memo
+            SET ocr_text = '신고 전 OCR',
+                ocr_categories = '[\"safe\"]',
+                moderation_checked_at = ?
+            WHERE id = ?
+            """, baseTime.plusMinutes(1), memoId);
+        for (int index = 0; index < 4; index++) {
+            insertMemoReport(memoId, createExistingUser("기존신고" + index), "spam", baseTime.plusSeconds(index));
+        }
+
+        clearInvocations(moderationClient);
+        mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), validReportJson("기타")))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reportCount").value(5))
+            .andExpect(jsonPath("$.data.hidden").value(true));
+        verifyNoInteractions(moderationClient);
+
+        LocalDateTime hiddenAt = jdbcTemplate.queryForObject("SELECT hidden_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId);
+        LocalDateTime updatedAt = jdbcTemplate.queryForObject("SELECT updated_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId);
+        assertThat(hiddenAt).isNotNull();
+        assertThat(updatedAt).isEqualTo(hiddenAt);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT report_count FROM community_memo WHERE id = ?", Integer.class, memoId))
+            .isEqualTo(5);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT is_hidden FROM community_memo WHERE id = ?", Boolean.class, memoId))
+            .isTrue();
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT hidden_reason FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("report_threshold");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT body_image_url FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo(ORIGINAL_OBJECT_KEY);
+        assertThat(jdbcTemplate.queryForObject("SELECT thumbnail_image_url FROM community_memo WHERE id = ?",
+            String.class, memoId)).isEqualTo(THUMBNAIL_OBJECT_KEY);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT artifact_id FROM community_memo WHERE id = ?", UUID.class, memoId))
+            .isEqualTo(artifactId);
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT decoration FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("{\"scale\":1.0}");
+        assertThat(jdbcTemplate.queryForObject("SELECT moderation_status FROM community_memo WHERE id = ?",
+            String.class, memoId)).isEqualTo("allowed");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT ocr_text FROM community_memo WHERE id = ?", String.class, memoId))
+            .isEqualTo("신고 전 OCR");
+        assertThat(
+            jdbcTemplate.queryForObject("SELECT ocr_categories FROM community_memo WHERE id = ?", String.class, memoId))
+            .contains("safe");
+        assertThat(jdbcTemplate.queryForObject("SELECT attached_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isEqualTo(baseTime);
+        assertThat(jdbcTemplate.queryForObject("SELECT created_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isEqualTo(baseTime.minusMinutes(1));
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, memoId)).isNull();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM file_upload WHERE object_key IN (?, ?)",
+            Integer.class, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY)).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM gallery WHERE id = ?", Integer.class, galleryId))
+            .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM artifact WHERE id = ?", Integer.class, artifactId))
+            .isEqualTo(1);
+
+        mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalElements").value(0));
+        mockMvc.perform(get("/api/v1/community/memos/{memoId}", memoId)).andExpect(status().isNotFound());
+        mockMvc.perform(updateRequest(memoId, ownerUuid.toString())).andExpect(status().isNotFound());
+        mockMvc.perform(deleteRequest(memoId, ownerUuid.toString())).andExpect(status().isNotFound());
+        mockMvc.perform(reportRequest(memoId, createExistingUser("숨김후신고").toString(), validReportJson("스팸/광고")))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void reportCommunityMemoRejectsDuplicateOwnMissingDeletedHiddenAndInvalidUuid() throws Exception {
+        UUID ownerUuid = createExistingUser("신고소유자");
+        UUID reporterUuid = createExistingUser("중복신고자");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID visibleMemoId = insertDirectMemo(ownerUuid, "report-owned-original.png", "report-owned-thumbnail.png", 1,
+            now, null, false);
+        UUID deletedMemoId = insertDirectMemo(ownerUuid, "report-deleted-original.png", "report-deleted-thumbnail.png",
+            1, now, now, false);
+        UUID hiddenMemoId = insertDirectMemo(ownerUuid, "report-hidden-original.png", "report-hidden-thumbnail.png", 1,
+            now, null, true);
+        insertMemoReport(visibleMemoId, reporterUuid, "spam", now);
+
+        mockMvc.perform(reportRequest(visibleMemoId, reporterUuid.toString(), validReportJson("스팸/광고")))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.message").value("이미 신고한 커뮤니티 메모입니다."));
+        mockMvc.perform(reportRequest(visibleMemoId, ownerUuid.toString(), validReportJson("부적절한 콘텐츠")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("본인 메모는 신고할 수 없습니다."));
+        mockMvc.perform(reportRequest(UUID.randomUUID(), reporterUuid.toString(), validReportJson("기타")))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(reportRequest(deletedMemoId, reporterUuid.toString(), validReportJson("기타")))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(reportRequest(hiddenMemoId, reporterUuid.toString(), validReportJson("기타")))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 커뮤니티 메모입니다."));
+        mockMvc.perform(reportRequest(visibleMemoId, UUID.randomUUID().toString(), validReportJson("기타")))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+        mockMvc.perform(reportRequest(visibleMemoId, null, validReportJson("기타"))).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc.perform(reportRequest(visibleMemoId, "not-a-uuid", validReportJson("기타")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+        mockMvc
+            .perform(post("/api/v1/community/memos/not-a-uuid/reports")
+                .header(ANONYMOUS_USER_UUID_HEADER, reporterUuid.toString()).contentType(MediaType.APPLICATION_JSON)
+                .content(validReportJson("기타")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("유효하지 않은 UUID 형식입니다."));
+    }
+
+    @Test
+    void reportCommunityMemoValidatesAndAcceptsReportReasonValues() throws Exception {
+        UUID ownerUuid = createExistingUser("사유대상");
+        UUID reporterUuid = createExistingUser("사유신고자");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        String[][] allowedReasons = {{"부적절한 콘텐츠", "inappropriate"}, {"욕설/비방/혐오", "abuse_hate"},
+            {"선정적/음란물", "sexual_content"}, {"폭력적/위협적 표현", "violence_threat"}, {"스팸/광고", "spam"},
+            {"개인정보 노출", "personal_info"}, {"도용/사칭", "impersonation"}, {"기타", "other"}};
+        UUID invalidMemoId = insertDirectMemo(ownerUuid, "invalid-original.png", "invalid-thumbnail.png", 1,
+            now.plusMinutes(2), null, false);
+
+        for (int index = 0; index < allowedReasons.length; index++) {
+            UUID memoId = insertDirectMemo(ownerUuid, "reason-original-%02d.png".formatted(index),
+                "reason-thumbnail-%02d.png".formatted(index), 1, now.plusMinutes(index), null, false);
+
+            mockMvc.perform(reportRequest(memoId, reporterUuid.toString(), validReportJson(allowedReasons[index][0])))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.reportCount").value(1));
+            assertThat(jdbcTemplate.queryForObject("SELECT reason FROM community_memo_report WHERE memo_id = ?",
+                String.class, memoId)).isEqualTo(allowedReasons[index][1]);
+        }
+        mockMvc.perform(reportRequest(invalidMemoId, reporterUuid.toString(), "{}")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 사유가 올바르지 않습니다."));
+        mockMvc.perform(reportRequest(invalidMemoId, reporterUuid.toString(), validReportJson("INAPPROPRIATE")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 사유가 올바르지 않습니다."));
+        mockMvc.perform(reportRequest(invalidMemoId, reporterUuid.toString(), validReportJson("inappropriate")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 사유가 올바르지 않습니다."));
+        mockMvc.perform(reportRequest(invalidMemoId, reporterUuid.toString(), validReportJson("unknown")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("커뮤니티 메모 신고 사유가 올바르지 않습니다."));
+    }
+
+    @Test
+    void reportCommunityMemoDoesNotRunFifoOrRestoreExpiredMemos() throws Exception {
+        UUID ownerUuid = createExistingUser("신고FIFO");
+        UUID reporterUuid = createExistingUser("신고자FIFO");
+        LocalDateTime baseTime = LocalDateTime.now().minusHours(2).truncatedTo(ChronoUnit.SECONDS);
+        UUID reportTargetMemoId = null;
+        for (int index = 0; index < 50; index++) {
+            UUID memoId = insertDirectMemo(ownerUuid, "report-fifo-original-%02d.png".formatted(index),
+                "report-fifo-thumbnail-%02d.png".formatted(index), 1, baseTime.plusMinutes(index), null, false);
+            if (index == 49) {
+                reportTargetMemoId = memoId;
+            }
+        }
+        UUID expiredMemoId = insertDirectMemo(ownerUuid, "report-expired-original.png", "report-expired-thumbnail.png",
+            1, baseTime.minusMinutes(1), baseTime, false);
+        jdbcTemplate.update("UPDATE community_memo SET deleted_reason = 'expired' WHERE id = ?", expiredMemoId);
+
+        clearInvocations(moderationClient);
+        mockMvc.perform(reportRequest(reportTargetMemoId, reporterUuid.toString(), validReportJson("기타")))
+            .andExpect(status().isCreated());
+        verifyNoInteractions(moderationClient);
+
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM community_memo
+            WHERE deleted_at IS NULL
+              AND is_hidden = FALSE
+            """, Integer.class)).isEqualTo(50);
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_reason FROM community_memo WHERE id = ?", String.class,
+            expiredMemoId)).isEqualTo("expired");
+        assertThat(jdbcTemplate.queryForObject("SELECT deleted_at FROM community_memo WHERE id = ?",
+            LocalDateTime.class, expiredMemoId)).isNotNull();
     }
 
     @Test
@@ -587,6 +1218,30 @@ class CommunityMemoControllerIntegrationTest {
 
     private void createTables() {
         jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS admin_user (
+                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                login_id VARCHAR(64) NOT NULL DEFAULT '',
+                password_hash VARCHAR(255) NOT NULL DEFAULT '',
+                nickname VARCHAR(20) NOT NULL,
+                email VARCHAR(255) NOT NULL DEFAULT '',
+                role VARCHAR(32) NOT NULL DEFAULT 'admin',
+                last_login_at TIMESTAMP NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS backoffice_setting (
+                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                setting_key VARCHAR(128) NOT NULL UNIQUE,
+                setting_value TEXT NOT NULL DEFAULT '{}',
+                updated_by BIGINT NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS artifact (
                 id UUID PRIMARY KEY,
                 kind VARCHAR(32) NOT NULL,
@@ -595,6 +1250,44 @@ class CommunityMemoControllerIntegrationTest {
                 meta VARCHAR(1000) NOT NULL DEFAULT '{}',
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS fortune_artifact (
+                artifact_id UUID PRIMARY KEY,
+                description VARCHAR(1000) NOT NULL DEFAULT '',
+                fortune_image_url VARCHAR(1000) NOT NULL DEFAULT ''
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS fortune_artifact_asset (
+                id BIGINT PRIMARY KEY,
+                artifact_id UUID NOT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS flipbook_artifact (
+                artifact_id UUID PRIMARY KEY,
+                gif_url VARCHAR(1000) NOT NULL DEFAULT '',
+                first_image VARCHAR(1000) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS infinite_canvas_artifact (
+                artifact_id UUID PRIMARY KEY,
+                canvas_image_url VARCHAR(1000) NOT NULL DEFAULT ''
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS phone_artifact (
+                artifact_id UUID PRIMARY KEY,
+                phone_image_url VARCHAR(1000) NOT NULL DEFAULT ''
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
+                artifact_id UUID PRIMARY KEY,
+                combined_preview_url VARCHAR(1000) NULL
             )
             """);
         jdbcTemplate.execute("""
@@ -636,6 +1329,8 @@ class CommunityMemoControllerIntegrationTest {
                 attached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 report_count INT NOT NULL DEFAULT 0,
                 is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
+                hidden_reason VARCHAR(32) NULL,
+                hidden_at TIMESTAMP NULL,
                 moderation_status VARCHAR(32) NOT NULL DEFAULT 'pending',
                 ocr_text VARCHAR(1000) NULL,
                 ocr_categories VARCHAR(1000) NULL,
@@ -660,6 +1355,8 @@ class CommunityMemoControllerIntegrationTest {
             "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS attached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_reason VARCHAR(32)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMP");
         jdbcTemplate.execute(
             "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_status VARCHAR(32) DEFAULT 'pending'");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_text VARCHAR(1000)");
@@ -670,12 +1367,31 @@ class CommunityMemoControllerIntegrationTest {
         jdbcTemplate.execute(
             "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_reason VARCHAR(32)");
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS community_memo_report (
+                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                memo_id UUID NOT NULL,
+                user_id UUID NOT NULL,
+                reason VARCHAR(32) NOT NULL,
+                reason_detail VARCHAR(1000) NULL,
+                created_at TIMESTAMP NOT NULL,
+                CONSTRAINT uq_community_memo_report_memo_user UNIQUE (memo_id, user_id)
+            )
+            """);
     }
 
     private void cleanTables() {
+        jdbcTemplate.update("DELETE FROM backoffice_setting");
+        jdbcTemplate.update("DELETE FROM community_memo_report");
         jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM gallery");
         jdbcTemplate.update("DELETE FROM file_upload");
+        jdbcTemplate.update("DELETE FROM fortune_artifact_asset");
+        jdbcTemplate.update("DELETE FROM fortune_artifact");
+        jdbcTemplate.update("DELETE FROM flipbook_artifact");
+        jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
+        jdbcTemplate.update("DELETE FROM phone_artifact");
+        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
         jdbcTemplate.update("DELETE FROM artifact");
     }
 
@@ -702,6 +1418,33 @@ class CommunityMemoControllerIntegrationTest {
             """, fileId, userUuid, purpose, objectKey, status, now.plusHours(1), now, now, deletedAt);
 
         return fileId;
+    }
+
+    private void insertCommunityMaxMemoCountSetting(int maxMemoCount) {
+        LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO backoffice_setting (
+                id,
+                setting_key,
+                setting_value,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, 10L, "community.max_memo_count",
+            "{\"value\":%d,\"unit\":\"count\",\"description\":\"커뮤니티 캔버스 표시 메모 수 제한\"}".formatted(maxMemoCount), 0L,
+            now, now);
+    }
+
+    private void updateCommunityMaxMemoCountSetting(int maxMemoCount) {
+        jdbcTemplate.update("""
+            UPDATE backoffice_setting
+            SET setting_value = ?,
+                updated_at = ?
+            WHERE setting_key = ?
+            """, "{\"value\":%d,\"unit\":\"count\",\"description\":\"커뮤니티 캔버스 표시 메모 수 제한\"}".formatted(maxMemoCount),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), "community.max_memo_count");
     }
 
     private UUID insertDirectMemo(UUID userUuid, String originalImageUrl, String thumbnailImageUrl, int zIndex,
@@ -739,6 +1482,13 @@ class CommunityMemoControllerIntegrationTest {
             decoration, reportCount, moderationStatus, createdAt, updatedAt);
     }
 
+    private void insertMemoReport(UUID memoId, UUID userUuid, String reason, LocalDateTime createdAt) {
+        jdbcTemplate.update("""
+            INSERT INTO community_memo_report (memo_id, user_id, reason, reason_detail, created_at)
+            VALUES (?, ?, ?, NULL, ?)
+            """, memoId, userUuid, reason, createdAt);
+    }
+
     private MockHttpServletRequestBuilder createRequest(UUID userUuid, String originalFileIdValue,
         String thumbnailFileIdValue) {
         String originalField = originalFileIdValue == null
@@ -760,6 +1510,67 @@ class CommunityMemoControllerIntegrationTest {
                   "rotationDeg": 0.0
                 }
                 """.formatted(originalField, thumbnailField));
+    }
+
+    private MockHttpServletRequestBuilder updateRequest(UUID memoId, String userUuidValue) {
+        return updateRequest(memoId, userUuidValue, validLayoutJson());
+    }
+
+    private MockHttpServletRequestBuilder updateRequest(UUID memoId, String userUuidValue, String content) {
+        MockHttpServletRequestBuilder request = patch("/api/v1/community/memos/{memoId}", memoId)
+            .contentType(MediaType.APPLICATION_JSON).content(content);
+        if (userUuidValue != null) {
+            request.header(ANONYMOUS_USER_UUID_HEADER, userUuidValue);
+        }
+
+        return request;
+    }
+
+    private MockHttpServletRequestBuilder deleteRequest(UUID memoId, String userUuidValue) {
+        MockHttpServletRequestBuilder request = delete("/api/v1/community/memos/{memoId}", memoId);
+        if (userUuidValue != null) {
+            request.header(ANONYMOUS_USER_UUID_HEADER, userUuidValue);
+        }
+
+        return request;
+    }
+
+    private MockHttpServletRequestBuilder reportRequest(UUID memoId, String userUuidValue, String content) {
+        MockHttpServletRequestBuilder request = post("/api/v1/community/memos/{memoId}/reports", memoId)
+            .contentType(MediaType.APPLICATION_JSON).content(content);
+        if (userUuidValue != null) {
+            request.header(ANONYMOUS_USER_UUID_HEADER, userUuidValue);
+        }
+
+        return request;
+    }
+
+    private String validReportJson(String reason) {
+        return """
+            {
+              "reason": "%s"
+            }
+            """.formatted(reason);
+    }
+
+    private String reportJson(String reason, String reasonDetail) {
+        return """
+            {
+              "reason": "%s",
+              "reasonDetail": "%s"
+            }
+            """.formatted(reason, reasonDetail);
+    }
+
+    private String validLayoutJson() {
+        return """
+            {
+              "positionX": 120.5,
+              "positionY": -30.0,
+              "zIndex": 12,
+              "rotationDeg": 5.5
+            }
+            """;
     }
 
     private MockHttpServletRequestBuilder createRequestWithSource(UUID userUuid, UUID originalFileId,

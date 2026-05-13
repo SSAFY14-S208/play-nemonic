@@ -3,23 +3,30 @@ package com.nemonicworld.relay.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.repository.RelayRoomTimeUpNotificationRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
+import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.timeout.RelayRoomTimeoutResult;
@@ -37,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -58,10 +66,19 @@ class RelayRoomTimeoutServiceTest {
     private RelaySubmissionLockRepository relaySubmissionLockRepository;
 
     @Mock
+    private RelayRoomTimeUpNotificationRepository relayRoomTimeUpNotificationRepository;
+
+    @Mock
+    private RelayRoomMutationLockRepository relayRoomMutationLockRepository;
+
+    @Mock
     private RelayRoomEventPublisher relayRoomEventPublisher;
 
     @Mock
     private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+
+    @Mock
+    private RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger;
 
     private RelayRoomTimeoutService relayRoomTimeoutService;
 
@@ -69,9 +86,12 @@ class RelayRoomTimeoutServiceTest {
     void setUp() {
         given(relaySubmissionLockRepository.isSubmissionLocked(anyString(), anyInt(), any(RelayDrawingPart.class),
             anyString())).willReturn(false);
+        given(relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
+            .willReturn(true);
         relayRoomTimeoutService = new RelayRoomTimeoutService(relayRoomRepository, relaySubmissionLockRepository,
-            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, relayInviteMetadataSyncService, 100,
-            AUTO_SUBMIT_GRACE_MS);
+            relayRoomTimeUpNotificationRepository, relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
+            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRoomFinalizationAsyncTrigger, 100,
+            AUTO_SUBMIT_GRACE_MS, 5000L);
     }
 
     @Test
@@ -99,6 +119,42 @@ class RelayRoomTimeoutServiceTest {
 
         assertThat(result.processed()).isFalse();
         verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verifyNoInteractions(relayRoomEventPublisher);
+    }
+
+    @Test
+    void processExpiredRoomDoesNothingWhenRoomMutationLockIsBusy() {
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
+            List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
+            .willReturn(false);
+
+        RelayRoomTimeoutResult result = relayRoomTimeoutService.processExpiredRoom(ROOM_CODE, NOW);
+
+        assertThat(result.processed()).isFalse();
+        assertThat(result.autoSubmissions()).isEmpty();
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayRoomMutationLockRepository, never()).releaseRoomMutationLock(anyString(), anyString());
+        verifyNoInteractions(relayRoomEventPublisher);
+    }
+
+    @Test
+    void processExpiredRoomRechecksLatestRoomStateAfterRoomMutationLock() {
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomState candidateRoomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
+            List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        RelayRoomState latestRoomState = playingRoom(RelayDrawingPart.BODY, NOW, NOW.plusSeconds(45),
+            List.of(submittedAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(candidateRoomState),
+            Optional.of(latestRoomState));
+
+        RelayRoomTimeoutResult result = relayRoomTimeoutService.processExpiredRoom(ROOM_CODE, NOW);
+
+        assertThat(result.processed()).isFalse();
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayRoomMutationLockRepository).releaseRoomMutationLock(eq(ROOM_CODE), anyString());
         verifyNoInteractions(relayRoomEventPublisher);
     }
 
@@ -191,6 +247,7 @@ class RelayRoomTimeoutServiceTest {
             any(RelayRoomAssignment.class));
         verify(relayRoomEventPublisher).publishPartStarted(eq(ROOM_CODE), eq(RelayDrawingPart.FACE),
             eq(RelayDrawingPart.BODY), eq(NOW), eq(NOW.plusSeconds(45)));
+        verify(relayRoomFinalizationAsyncTrigger, never()).trigger(anyString());
     }
 
     @Test
@@ -236,6 +293,7 @@ class RelayRoomTimeoutServiceTest {
         assertThat(captureUpdatedRoomState().currentPart()).isEqualTo(RelayDrawingPart.LEGS);
         verify(relayRoomEventPublisher).publishPartStarted(eq(ROOM_CODE), eq(RelayDrawingPart.BODY),
             eq(RelayDrawingPart.LEGS), eq(NOW), eq(NOW.plusSeconds(45)));
+        verify(relayRoomFinalizationAsyncTrigger, never()).trigger(anyString());
     }
 
     @Test
@@ -256,6 +314,10 @@ class RelayRoomTimeoutServiceTest {
         assertThat(captureUpdatedRoomState().status()).isEqualTo(RelayRoomStatus.FINALIZING);
         verify(relayRoomEventPublisher).publishAllPartsCompleted(eq(ROOM_CODE), eq(RelayRoomStatus.FINALIZING),
             eq(NOW));
+        InOrder inOrder = inOrder(relayRoomEventPublisher, relayRoomFinalizationAsyncTrigger);
+        inOrder.verify(relayRoomEventPublisher).publishAllPartsCompleted(eq(ROOM_CODE), eq(RelayRoomStatus.FINALIZING),
+            eq(NOW));
+        inOrder.verify(relayRoomFinalizationAsyncTrigger).trigger(ROOM_CODE);
         verify(relayRoomEventPublisher, never()).publishPartStarted(eq(ROOM_CODE), any(), any(), any(), any());
     }
 
@@ -297,13 +359,55 @@ class RelayRoomTimeoutServiceTest {
     }
 
     @Test
+    void processExpiredRoomsPublishesPartTimeUpDuringAutoSubmitGracePeriod() {
+        UUID hostUuid = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime partDeadlineAt = now.minusSeconds(1);
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, now.minusSeconds(45), partDeadlineAt,
+            List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        given(relayRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(100)))
+            .willReturn(List.of(roomState)).willReturn(List.of());
+        given(relayRoomTimeUpNotificationRepository.markPartTimeUpNotified(eq(ROOM_CODE), eq(RelayDrawingPart.FACE),
+            eq(partDeadlineAt), eq(RelayRoomRepository.ROOM_STATE_TTL))).willReturn(true);
+
+        relayRoomTimeoutService.processExpiredRooms();
+
+        verify(relayRoomTimeUpNotificationRepository).markPartTimeUpNotified(eq(ROOM_CODE), eq(RelayDrawingPart.FACE),
+            eq(partDeadlineAt), eq(RelayRoomRepository.ROOM_STATE_TTL));
+        verify(relayRoomEventPublisher).publishPartTimeUp(ROOM_CODE, RelayDrawingPart.FACE, partDeadlineAt,
+            partDeadlineAt.plus(AUTO_SUBMIT_GRACE_MS, ChronoUnit.MILLIS), AUTO_SUBMIT_GRACE_MS,
+            List.of(new PendingSubmission(0, hostUuid.toString(), "Mango", true)));
+        verify(relayRoomEventPublisher, never()).publishPartAutoSubmitted(any(), any(), any());
+    }
+
+    @Test
+    void processExpiredRoomsDoesNotDuplicatePartTimeUpWhenNotificationWasAlreadyMarked() {
+        UUID hostUuid = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime partDeadlineAt = now.minusSeconds(1);
+        RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, now.minusSeconds(45), partDeadlineAt,
+            List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
+        given(relayRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(100)))
+            .willReturn(List.of(roomState)).willReturn(List.of());
+        given(relayRoomTimeUpNotificationRepository.markPartTimeUpNotified(anyString(), any(RelayDrawingPart.class),
+            any(LocalDateTime.class), any(Duration.class))).willReturn(false);
+
+        relayRoomTimeoutService.processExpiredRooms();
+
+        verify(relayRoomEventPublisher, never()).publishPartTimeUp(anyString(), any(RelayDrawingPart.class), any(),
+            any(), anyLong(), anyList());
+        verify(relayRoomEventPublisher, never()).publishPartAutoSubmitted(any(), any(), any());
+    }
+
+    @Test
     void processExpiredRoomsSummarizesScannedRooms() {
         UUID hostUuid = UUID.randomUUID();
         RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
         RelayRoomTimeoutService limitedService = new RelayRoomTimeoutService(relayRoomRepository,
-            relaySubmissionLockRepository, new RelayRoomPartAdvanceService(), relayRoomEventPublisher,
-            relayInviteMetadataSyncService, 5, AUTO_SUBMIT_GRACE_MS);
+            relaySubmissionLockRepository, relayRoomTimeUpNotificationRepository, relayRoomMutationLockRepository,
+            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, relayInviteMetadataSyncService,
+            relayRoomFinalizationAsyncTrigger, 5, AUTO_SUBMIT_GRACE_MS, 5000L);
         given(relayRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(5)))
             .willReturn(List.of(roomState));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));

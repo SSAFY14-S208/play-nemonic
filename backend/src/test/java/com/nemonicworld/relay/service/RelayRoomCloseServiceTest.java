@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
@@ -87,7 +88,7 @@ class RelayRoomCloseServiceTest {
         assertThat(result.closed()).isTrue();
         assertThat(result.roomState().status()).isEqualTo(RelayRoomStatus.CLOSED);
         verify(relayRoomRepository).saveIfUnchanged(eq(roomState), any(RelayRoomState.class));
-        verify(relayRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW);
+        verify(relayRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW, "auto_delay");
     }
 
     @Test
@@ -120,7 +121,7 @@ class RelayRoomCloseServiceTest {
         ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
         verify(relayRoomRepository).saveIfUnchanged(eq(roomState), updatedStateCaptor.capture());
         assertThat(updatedStateCaptor.getValue().status()).isEqualTo(RelayRoomStatus.CLOSED);
-        verify(relayRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW);
+        verify(relayRoomEventPublisher).publishRoomClosed(ROOM_CODE, NOW, "auto_delay");
     }
 
     @ParameterizedTest
@@ -160,7 +161,7 @@ class RelayRoomCloseServiceTest {
 
         assertThat(result.closed()).isTrue();
         verify(relayRoomRepository, times(2)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
-        verify(relayRoomEventPublisher, times(1)).publishRoomClosed(ROOM_CODE, NOW);
+        verify(relayRoomEventPublisher, times(1)).publishRoomClosed(ROOM_CODE, NOW, "auto_delay");
     }
 
     @Test
@@ -186,7 +187,7 @@ class RelayRoomCloseServiceTest {
         RelayRoomState secondRoom = finishedRoom(SECOND_ROOM_CODE, NOW.minusMinutes(10));
         given(relayRoomRepository.findClosableFinishedRooms(NOW.minusSeconds(CLOSE_DELAY_SECONDS), SCAN_LIMIT))
             .willReturn(List.of(firstRoom, secondRoom));
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new IllegalStateException("boom"));
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willThrow(new InternalServerException("boom"));
         given(relayRoomRepository.findByRoomCode(SECOND_ROOM_CODE)).willReturn(Optional.of(secondRoom));
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
             .willReturn(true);
@@ -195,8 +196,8 @@ class RelayRoomCloseServiceTest {
 
         assertThat(result.scannedRoomCount()).isEqualTo(2);
         assertThat(result.closedRoomCount()).isEqualTo(1);
-        verify(relayRoomEventPublisher).publishRoomClosed(SECOND_ROOM_CODE, NOW);
-        verify(relayRoomEventPublisher, never()).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher).publishRoomClosed(SECOND_ROOM_CODE, NOW, "auto_delay");
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class), any());
     }
 
     private RelayRoomState finishedRoom(String roomCode, LocalDateTime updatedAt) {

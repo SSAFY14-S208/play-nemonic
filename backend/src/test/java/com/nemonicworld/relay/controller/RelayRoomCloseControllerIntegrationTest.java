@@ -138,7 +138,8 @@ class RelayRoomCloseControllerIntegrationTest {
         assertThat(countRows("artifact")).isZero();
         assertThat(countRows("gallery")).isZero();
         assertThat(countRows("relay_drawing_artifact")).isZero();
-        verify(relayRoomEventPublisher).publishRoomClosed(eq(DEFAULT_ROOM_CODE), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher).publishRoomClosed(eq(DEFAULT_ROOM_CODE), any(LocalDateTime.class),
+            eq("host_manual"));
     }
 
     @Test

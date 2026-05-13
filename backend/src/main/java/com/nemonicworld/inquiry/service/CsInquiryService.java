@@ -1,5 +1,6 @@
 package com.nemonicworld.inquiry.service;
 
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.inquiry.dto.request.CsInquiryCreateRequest;
 import com.nemonicworld.inquiry.dto.request.CsInquiryReplyRequest;
@@ -20,8 +21,9 @@ public interface CsInquiryService {
 
     CsInquiryDetailResponse getInquiry(AdminPrincipal adminPrincipal, String inquiryId);
 
-    CsInquiryReplyResponse replyInquiry(AdminPrincipal adminPrincipal, String inquiryId, CsInquiryReplyRequest request);
+    CsInquiryReplyResponse replyInquiry(AdminPrincipal adminPrincipal, String inquiryId, CsInquiryReplyRequest request,
+        AdminClientInfo clientInfo);
 
     CsInquiryStatusUpdateResponse updateInquiryStatus(AdminPrincipal adminPrincipal, String inquiryId,
-        CsInquiryStatusUpdateRequest request);
+        CsInquiryStatusUpdateRequest request, AdminClientInfo clientInfo);
 }

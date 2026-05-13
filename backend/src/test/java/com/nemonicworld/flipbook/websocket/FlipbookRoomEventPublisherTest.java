@@ -11,14 +11,20 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomParticipantResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookAllRoundsCompletedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookFrameAutoSubmittedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomClosedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventStateResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomEventType;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomResultCreatedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationResult;
+import com.nemonicworld.flipbook.service.result.FlipbookResultArtifactResult;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
@@ -26,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -150,6 +157,34 @@ class FlipbookRoomEventPublisherTest {
     }
 
     /**
+     * 제한 시간 종료 이벤트는 라운드와 유예 제출 마감 시각을 방 전체 topic에 보냅니다.
+     */
+    @Test
+    void publishRoundTimeUpSendsRoundTimeUpEventToRoomTopic() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        LocalDateTime roundDeadlineAt = LocalDateTime.now().minusSeconds(1);
+        LocalDateTime submitGraceDeadlineAt = roundDeadlineAt.plusSeconds(2);
+        PendingSubmission pendingSubmission = new PendingSubmission(1, 2, USER_UUID, "망고", true);
+
+        publisher.publishRoundTimeUp(ROOM_CODE, 2, roundDeadlineAt, submitGraceDeadlineAt, 2000L,
+            List.of(pendingSubmission));
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.ROUND_TIME_UP);
+
+        FlipbookRoundTimeUpEventResponse data = (FlipbookRoundTimeUpEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.round()).isEqualTo(2);
+        assertThat(data.roundDeadlineAt()).isEqualTo(roundDeadlineAt);
+        assertThat(data.submitGraceDeadlineAt()).isEqualTo(submitGraceDeadlineAt);
+        assertThat(data.autoSubmitGraceMillis()).isEqualTo(2000L);
+        assertThat(data.pendingCount()).isEqualTo(1);
+        assertThat(data.pendingSubmissions()).containsExactly(pendingSubmission);
+    }
+
+    /**
      * 라운드 시작 이벤트는 다음 라운드 번호와 제한 시간을 방 전체 topic에 보냅니다.
      */
     @Test
@@ -183,7 +218,7 @@ class FlipbookRoomEventPublisherTest {
             .forClass(FlipbookRoomEventResponse.class);
         LocalDateTime completedAt = LocalDateTime.now().minusSeconds(1);
 
-        publisher.publishAllRoundsCompleted(ROOM_CODE, FlipbookRoomStatus.FINISHED, completedAt);
+        publisher.publishAllRoundsCompleted(ROOM_CODE, FlipbookRoomStatus.FINALIZING, completedAt);
 
         verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
         FlipbookRoomEventResponse event = eventCaptor.getValue();
@@ -191,8 +226,72 @@ class FlipbookRoomEventPublisherTest {
 
         FlipbookAllRoundsCompletedEventResponse data = (FlipbookAllRoundsCompletedEventResponse) event.data();
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
-        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.FINISHED);
+        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.FINALIZING);
         assertThat(data.completedAt()).isEqualTo(completedAt);
+    }
+
+    /**
+     * 최종 GIF 생성 완료 이벤트는 artifact 목록과 방 상태를 방 전체 topic에 보냅니다.
+     */
+    @Test
+    void publishResultCreatedSendsResultCreatedEventToRoomTopic() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        UUID artifactId = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusSeconds(1);
+        FlipbookRoomFinalizationResult result = FlipbookRoomFinalizationResult
+            .finished(ROOM_CODE,
+                List.of(new FlipbookResultArtifactResult(artifactId, 0,
+                    "flipbook/results/%s/result.gif".formatted(artifactId), "uploads/flipbook/frame-0.png",
+                    "flipbook/results/%s/thumbnail.png".formatted(artifactId), "{}")),
+                createdAt);
+
+        publisher.publishResultCreated(result);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.RESULT_CREATED);
+        assertThat(event.roomCode()).isEqualTo(ROOM_CODE);
+
+        FlipbookRoomResultCreatedEventResponse data = (FlipbookRoomResultCreatedEventResponse) event.data();
+        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.FINISHED);
+        assertThat(data.artifactIds()).containsExactly(artifactId);
+        assertThat(data.resultCount()).isEqualTo(1);
+        assertThat(data.results().get(0).gifUrl()).endsWith("/result.gif");
+    }
+
+    @Test
+    void publishRoomClosedSendsRoomClosedEventToRoomTopicAndClosesRoomSessions() {
+        ArgumentCaptor<FlipbookRoomEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(FlipbookRoomEventResponse.class);
+        ArgumentCaptor<CloseStatus> closeStatusCaptor = ArgumentCaptor.forClass(CloseStatus.class);
+        LocalDateTime closedAt = LocalDateTime.now().minusSeconds(1);
+        String secondSessionId = "session-2";
+        org.mockito.BDDMockito
+            .given(webSocketSessionRegistry.findCurrentSessions(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK,
+                ROOM_CODE))
+            .willReturn(List.of(
+                new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE, USER_UUID,
+                    SESSION_ID),
+                new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE,
+                    "11111111-1111-1111-1111-111111111111", secondSessionId)));
+
+        publisher.publishRoomClosed(ROOM_CODE, closedAt);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/flipbook/rooms/" + ROOM_CODE), eventCaptor.capture());
+        FlipbookRoomEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(FlipbookRoomEventType.ROOM_CLOSED);
+
+        FlipbookRoomClosedEventResponse data = (FlipbookRoomClosedEventResponse) event.data();
+        assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(data.roomStatus()).isEqualTo(FlipbookRoomStatus.CLOSED);
+        assertThat(data.closedAt()).isEqualTo(closedAt);
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), closeStatusCaptor.capture());
+        verify(webSocketSessionRegistry).closeWebSocketSession(eq(secondSessionId), closeStatusCaptor.capture());
+        assertThat(closeStatusCaptor.getAllValues()).allSatisfy(status -> {
+            assertThat(status.getCode()).isEqualTo(CloseStatus.NORMAL.getCode());
+            assertThat(status.getReason()).isEqualTo("ROOM_CLOSED");
+        });
     }
 
     /**

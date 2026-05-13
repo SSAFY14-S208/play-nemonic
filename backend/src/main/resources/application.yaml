@@ -50,9 +50,24 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: backend
+    distribution:
+      # Grafana 대시보드의 p50/p95/p99 latency 패널은 histogram_quantile를
+      # 호출하므로 *_bucket 시계열이 필요. 이 옵션을 켜야 Micrometer가
+      # http.server.requests 메트릭을 bucket 형태로 노출한다.
+      percentiles-histogram:
+        http.server.requests: true
+
+springdoc:
+  swagger-ui:
+    config-url: /api/v1/api-docs/swagger-config
 
 nemonic:
+  time-zone: ${APP_TIME_ZONE:Asia/Seoul}
+
   auth:
     jwt:
       secret: ${ADMIN_JWT_SECRET:}
@@ -77,10 +92,18 @@ nemonic:
 
   share:
     site-url: ${NEMONIC_SITE_URL:http://localhost:3000}
+    token-secret: ${SHARE_TOKEN_SECRET:${ADMIN_JWT_SECRET:local-share-token-secret-change-me}}
 
   inquiry:
     mail:
-      from: ${MAIL_FROM:}
+      from: ${MAIL_FROM:${MAIL_USERNAME:}}
+
+  client-log:
+    allowed-origins: ${CLIENT_LOG_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://127.0.0.1:8080}
+    max-events-per-request: ${CLIENT_LOG_MAX_EVENTS_PER_REQUEST:200}
+    max-payload-bytes: ${CLIENT_LOG_MAX_PAYLOAD_BYTES:1048576}
+    rate-limit-events-per-second: ${CLIENT_LOG_RATE_LIMIT_EVENTS_PER_SECOND:100}
+    rate-limit-events-per-minute: ${CLIENT_LOG_RATE_LIMIT_EVENTS_PER_MINUTE:1000}
 
   community:
     moderation:
@@ -92,6 +115,10 @@ nemonic:
       fail-closed: ${COMMUNITY_MODERATION_FAIL_CLOSED:false}
 
   relay:
+    reconciliation:
+      enabled: ${RELAY_RECONCILIATION_ENABLED:true}
+      scan-delay-ms: ${RELAY_RECONCILIATION_SCAN_DELAY_MS:30000}
+      scan-limit: ${RELAY_RECONCILIATION_SCAN_LIMIT:100}
     disconnect:
       enabled: ${RELAY_DISCONNECT_ENABLED:true}
       reconnect-grace-seconds: ${RELAY_DISCONNECT_RECONNECT_GRACE_SECONDS:10}
@@ -104,12 +131,35 @@ nemonic:
       auto-submit-grace-ms: ${RELAY_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}
     finalization:
       enabled: ${RELAY_FINALIZATION_ENABLED:true}
-      scan-delay-ms: ${RELAY_FINALIZATION_SCAN_DELAY_MS:2000}
+      scan-delay-ms: ${RELAY_FINALIZATION_SCAN_DELAY_MS:10000}
       scan-limit: ${RELAY_FINALIZATION_SCAN_LIMIT:50}
-      lock-ttl-seconds: ${RELAY_FINALIZATION_LOCK_TTL_SECONDS:60}
+      lock-ttl-seconds: ${RELAY_FINALIZATION_LOCK_TTL_SECONDS:120}
+      attempt-ttl-hours: ${RELAY_FINALIZATION_ATTEMPT_TTL_HOURS:24}
+      max-retry-count: ${RELAY_FINALIZATION_MAX_RETRY_COUNT:60}
       default-part-width: ${RELAY_FINALIZATION_DEFAULT_PART_WIDTH:512}
       default-part-height: ${RELAY_FINALIZATION_DEFAULT_PART_HEIGHT:512}
       thumbnail-max-size: ${RELAY_FINALIZATION_THUMBNAIL_MAX_SIZE:512}
+      overlap-height: ${RELAY_FINALIZATION_OVERLAP_HEIGHT:120}
+      async:
+        core-pool-size: ${RELAY_FINALIZATION_ASYNC_CORE_POOL_SIZE:2}
+        max-pool-size: ${RELAY_FINALIZATION_ASYNC_MAX_POOL_SIZE:4}
+        queue-capacity: ${RELAY_FINALIZATION_ASYNC_QUEUE_CAPACITY:100}
+        thread-name-prefix: ${RELAY_FINALIZATION_ASYNC_THREAD_NAME_PREFIX:relay-finalization-}
+        wait-for-tasks-to-complete-on-shutdown: ${RELAY_FINALIZATION_ASYNC_WAIT_FOR_TASKS_TO_COMPLETE_ON_SHUTDOWN:true}
+        await-termination-seconds: ${RELAY_FINALIZATION_ASYNC_AWAIT_TERMINATION_SECONDS:30}
+    orphan-cleanup:
+      enabled: ${RELAY_ORPHAN_CLEANUP_ENABLED:true}
+      scan-delay-ms: ${RELAY_ORPHAN_CLEANUP_SCAN_DELAY_MS:3600000}
+      initial-delay-ms: ${RELAY_ORPHAN_CLEANUP_INITIAL_DELAY_MS:3600000}
+      scan-limit: ${RELAY_ORPHAN_CLEANUP_SCAN_LIMIT:500}
+      temp-retention-hours: ${RELAY_ORPHAN_CLEANUP_TEMP_RETENTION_HOURS:24}
+      result-retention-hours: ${RELAY_ORPHAN_CLEANUP_RESULT_RETENTION_HOURS:24}
+    abandoned-close:
+      enabled: ${RELAY_ABANDONED_CLOSE_ENABLED:true}
+      scan-delay-ms: ${RELAY_ABANDONED_CLOSE_SCAN_DELAY_MS:30000}
+      scan-limit: ${RELAY_ABANDONED_CLOSE_SCAN_LIMIT:100}
+      waiting-idle-seconds: ${RELAY_WAITING_IDLE_CLOSE_SECONDS:300}
+      playing-abandoned-seconds: ${RELAY_PLAYING_ABANDONED_CLOSE_SECONDS:300}
     close:
       enabled: ${RELAY_CLOSE_ENABLED:true}
       delay-seconds: ${RELAY_CLOSE_DELAY_SECONDS:300}
@@ -117,6 +167,11 @@ nemonic:
       scan-limit: ${RELAY_CLOSE_SCAN_LIMIT:100}
 
   flipbook:
+    abandoned-close:
+      enabled: ${FLIPBOOK_ABANDONED_CLOSE_ENABLED:true}
+      scan-delay-ms: ${FLIPBOOK_ABANDONED_CLOSE_SCAN_DELAY_MS:30000}
+      scan-limit: ${FLIPBOOK_ABANDONED_CLOSE_SCAN_LIMIT:100}
+      waiting-idle-seconds: ${FLIPBOOK_WAITING_IDLE_CLOSE_SECONDS:300}
     disconnect:
       enabled: ${FLIPBOOK_DISCONNECT_ENABLED:true}
       reconnect-grace-seconds: ${FLIPBOOK_DISCONNECT_RECONNECT_GRACE_SECONDS:10}
@@ -126,7 +181,20 @@ nemonic:
       enabled: ${FLIPBOOK_TIMEOUT_ENABLED:true}
       scan-delay-ms: ${FLIPBOOK_TIMEOUT_SCAN_DELAY_MS:1000}
       scan-limit: ${FLIPBOOK_TIMEOUT_SCAN_LIMIT:100}
-      auto-submit-grace-ms: ${FLIPBOOK_TIMEOUT_AUTO_SUBMIT_GRACE_MS:2000}
+      auto-submit-grace-ms: ${FLIPBOOK_TIMEOUT_AUTO_SUBMIT_GRACE_MS:5000}
+      submit-lock-ttl-ms: ${FLIPBOOK_TIMEOUT_SUBMIT_LOCK_TTL_MS:10000}
+    finalization:
+      enabled: ${FLIPBOOK_FINALIZATION_ENABLED:true}
+      scan-delay-ms: ${FLIPBOOK_FINALIZATION_SCAN_DELAY_MS:10000}
+      scan-limit: ${FLIPBOOK_FINALIZATION_SCAN_LIMIT:50}
+      lock-ttl-seconds: ${FLIPBOOK_FINALIZATION_LOCK_TTL_SECONDS:60}
+      ready-delay-ms: ${FLIPBOOK_FINALIZATION_READY_DELAY_MS:1000}
+      max-retry-count: ${FLIPBOOK_FINALIZATION_MAX_RETRY_COUNT:60}
+      async:
+        core-pool-size: ${FLIPBOOK_FINALIZATION_ASYNC_CORE_POOL_SIZE:2}
+        max-pool-size: ${FLIPBOOK_FINALIZATION_ASYNC_MAX_POOL_SIZE:4}
+        queue-capacity: ${FLIPBOOK_FINALIZATION_ASYNC_QUEUE_CAPACITY:100}
+        await-termination-seconds: ${FLIPBOOK_FINALIZATION_ASYNC_AWAIT_TERMINATION_SECONDS:30}
 
   fortune:
     gms:

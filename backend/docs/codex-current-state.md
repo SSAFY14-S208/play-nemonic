@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-08
+Last updated: 2026-05-12
 
 ## Current Focus
 
@@ -8,6 +8,19 @@ Last updated: 2026-05-08
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
 - The first real backend feature API now includes anonymous user UUID issuance through `POST /api/v1/users/anonymous`.
+- Backend runtime now sets the JVM default timezone from `nemonic.time-zone`
+  (`APP_TIME_ZONE`, default `Asia/Seoul`) during application startup so
+  `LocalDateTime.now()` based DB writes and API responses follow the Korean
+  service timezone consistently.
+- Backend Gradle tests now start the test JVM with
+  `user.timezone=Asia/Seoul` so CI date/time assertions stay aligned with the
+  Korean service timezone even when the Jenkins host uses UTC.
+- Backend now exposes Micrometer/Prometheus metrics for Grafana overview
+  panels: `nemonic_ws_active_sessions`, `nemonic_ws_connect_total`,
+  `nemonic_ws_disconnect_total`, and `nemonic_content_active_rooms` tagged by
+  `content_type=relay|flipbook`. WebSocket active sessions are tracked by STOMP
+  session id, and content active rooms count Redis `WAITING`, `PLAYING`, and
+  `FINALIZING` rooms while excluding `FINISHED`/`CLOSED`.
 - Existing anonymous user APIs identify the caller with the `Anonymous-User-UUID` request header instead of request body or query parameters.
 - Anonymous user re-entry now includes `POST /api/v1/users/anonymous/verify` to validate the header UUID and update `last_seen_at`, `updated_at`, and `user_agent`.
 - Anonymous user nickname setup/change now uses `PATCH /api/v1/users/anonymous/nickname` with the UUID in `Anonymous-User-UUID`, 1-10 code point validation, and no duplicate check.
@@ -46,12 +59,19 @@ Last updated: 2026-05-08
   `POST /api/v1/admin/inquiries/{inquiryId}/reply`; the API sends SMTP mail
   before marking the inquiry `resolved`, then stores `assignedTo`,
   `responseNote`, `respondedAt`, and `updatedAt`. SMTP settings are
-  environment-driven through `MAIL_*` variables.
+  environment-driven through `MAIL_*` variables. `MAIL_FROM` falls back to
+  `MAIL_USERNAME`, and SMTP configuration/delivery failures now return 503
+  without resolving the inquiry.
 - Backoffice admins can now change a customer inquiry status through
   `PATCH /api/v1/admin/inquiries/{inquiryId}/status`; the API accepts
   `new`, `in_progress`, `resolved`, and `closed`, updates only `status` and
   `updatedAt`, and leaves reply fields such as `assignedTo`, `responseNote`,
   and `respondedAt` untouched.
+- The client log ingest endpoint `POST /api/v1/logs/client` accepts standard
+  frontend log events and emits valid entries to stdout through `logs.client`.
+  It applies per-IP in-memory rate limits, payload/event-count limits,
+  Origin/Referer allow-list checks, bot drops, event allow-list routing, schema
+  drops, and server-side PII sanitization before logging.
 - Anonymous user UUID parsing and existing-user lookup are centralized in `AnonymousUserResolver`, which is reused by User, Gallery, and Files services.
 - Backoffice admin authentication now exposes `POST /api/v1/auth/login`,
   `POST /api/v1/auth/logout`, and `POST /api/v1/auth/reissue`; admin account
@@ -106,26 +126,77 @@ Last updated: 2026-05-08
   `featureType`, `page`, and `size`, returns the local pagination DTO shape
   (`items`, `page`, `size`, `totalElements`, `hasNext`), and reads only
   `deleted_at IS NULL` rows from the existing `gms_prompt_template` table.
+- Backoffice admins can now list system parameters through
+  `GET /api/v1/backoffice/system-parameters`; the API requires an admin JWT,
+  reads existing `backoffice_setting` rows sorted by `setting_key ASC`,
+  supports optional `keyword` search on `setting_key`, parses
+  `setting_value` JSON text into the response `value`, and Flyway V8 seeds
+  initial backoffice setting rows without changing the schema.
+- Backoffice admins can now manage active relay drawing rooms through
+  `GET /api/v1/backoffice/relay-rooms` and
+  `DELETE /api/v1/backoffice/relay-rooms/{roomCode}`; delete requires an admin
+  JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`, rejects
+  already CLOSED rooms with 409, emits `ROOM_CLOSED`, and leaves MinIO,
+  artifact, and gallery cleanup out of scope.
+- Backoffice admins can now list active flipbook rooms through
+  `GET /api/v1/backoffice/flipbook-rooms`; the API requires an admin JWT,
+  scans Redis `flipbook:room:{roomCode}` state, returns CLOSED-excluded
+  WAITING/PLAYING/FINISHED rooms with `roomCode`, `status`, participant count,
+  current/total round, and `gameStartedAt`, supports `status`, `page`, and
+  `size`, and keeps database/artifact/gallery lookup out of scope.
+- Backoffice admins can now delete active flipbook rooms through
+  `DELETE /api/v1/backoffice/flipbook-rooms/{roomCode}`; delete requires an
+  admin JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`,
+  rejects already CLOSED rooms with 409, syncs invite metadata, emits
+  `ROOM_CLOSED`, and leaves MinIO, artifact, gallery, and DB rows untouched.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.
 - Admin login, failed login, and logout events emit structured JSON audit logs
   to stdout using the `08-observability.md` audit schema, with no RDB audit log
   table.
+- Admin account creation and deletion also emit `admin_account_create` and
+  `admin_account_delete` stdout JSON audit logs after successful service
+  transactions; the application still does not write directly to Kafka or
+  OpenSearch.
+- Admin community memo hide/restore now emit `memo_soft_delete` and
+  `memo_restore` stdout JSON audit logs after successful service transactions;
+  bulk memo review and `report_review_decided` remain pending because no
+  current admin API exists for those operations.
 - `admin_user.login_id` is made unique through Flyway V5.
 - Room code generation is available through `RoomCodeGenerator`, producing 6-character uppercase human-readable codes and supporting repository-backed collision checks with `generateUnique(...)`.
 - Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `relay:room:{roomCode}` with a 24-hour TTL, creates the host participant with `connected=false` until WebSocket CONNECT succeeds, and creates no PostgreSQL artifact/gallery rows.
 - Relay room state lookup now uses `GET /api/v1/relay/rooms/{roomCode}`, reads the Redis room snapshot without mutation, sorts participants by `joinOrder`, and computes viewer join/reconnect eligibility from the requested `Anonymous-User-UUID`.
-- Relay room join/reconnect now uses `POST /api/v1/relay/rooms/{roomCode}/participants`, applies Redis `WATCH`/`MULTI`/`EXEC` optimistic conditional updates for new WAITING-room participants with `connected=false`, keeps WAITING-room REST re-entry open without a reconnect grace cutoff unless the UUID was kicked, validates the 10-second reconnect grace only for PLAYING rooms without setting `connected=true`, retries short-lived write conflicts, and remains free of PostgreSQL artifact/gallery, MinIO, and WebSocket side effects.
+- Relay room join/reconnect now uses `POST /api/v1/relay/rooms/{roomCode}/participants`, applies Redis `WATCH`/`MULTI`/`EXEC` optimistic conditional updates for new WAITING-room participants with `connected=false`, keeps WAITING-room REST re-entry open without a reconnect grace cutoff unless the UUID was kicked, validates the current backoffice `relay.reconnect_grace_seconds` setting only for PLAYING rooms without setting `connected=true`, retries short-lived write conflicts, and remains free of PostgreSQL artifact/gallery, MinIO, and WebSocket side effects.
 - Relay room WebSocket lobby connections use the STOMP endpoint `/ws/relay`, CONNECT headers `roomCode` and `Anonymous-User-UUID`, topic `/topic/relay/rooms/{roomCode}`, user queue `/user/queue/relay/rooms/{roomCode}`, Redis `connected`/`disconnectedAt` updates where successful CONNECT is the only path to `connected=true` and DISCONNECT returns it to `false`, applies the reconnect grace cutoff only in PLAYING rooms, keeps WAITING-room reconnection available without a time cutoff, session-id-scoped duplicate-session close events, and common `global.websocket` infrastructure for single-server in-memory active session tracking.
-- Relay drawing submissions now advance the Redis room state from `FACE` to `BODY` and `BODY` to `LEGS` when every assignment in the current part is `SUBMITTED` or `AUTO_SUBMITTED`; completing `LEGS` moves the room to `FINALIZING` and emits `ALL_PARTS_COMPLETED`, while final image composition, artifact/gallery persistence, and temp cleanup remain separate follow-up work.
+- Relay drawing submissions now advance the Redis room state from `FACE` to `BODY` and `BODY` to `LEGS` when every assignment in the current part is `SUBMITTED` or `AUTO_SUBMITTED`; completing `LEGS` moves the room to `FINALIZING`, emits `ALL_PARTS_COMPLETED`, and asynchronously triggers one finalization attempt while keeping the scheduler as the retry/recovery path.
 - Relay timeout auto-submit now scans `PLAYING` Redis rooms only after `partDeadlineAt + auto-submit-grace-ms`, marks remaining current-part `PENDING` assignments as `AUTO_SUBMITTED` empty entries without MinIO upload, reuses the shared part advancement flow, and emits `PART_AUTO_SUBMITTED` plus existing transition events after successful CAS saves.
+- Relay disconnect-grace auto-submit now uses the same finalization trigger policy as user submission and timeout paths: if dropped-participant auto-submit completes the last `LEGS` assignment, it emits `ALL_PARTS_COMPLETED` and schedules one asynchronous finalization attempt.
+- Relay timeout processing now emits a one-time `PART_TIME_UP` WebSocket
+  event during the `partDeadlineAt` to
+  `partDeadlineAt + auto-submit-grace-ms` window for rooms with pending
+  current-part assignments. The event includes `partDeadlineAt`,
+  `submitGraceDeadlineAt`, `autoSubmitGraceMillis`, and the current part's
+  pending submission list, while the backend remains responsible for fallback
+  auto-submit after the grace window.
 - Relay drawing submissions now acquire assignment-scoped Redis submit-in-progress locks before file upload; the timeout scheduler skips locked pending assignments until the lock TTL expires, preventing deadline-time user submissions from racing against `AUTO_SUBMITTED` fallback processing.
-- Relay disconnect grace processing now scans candidate `PLAYING` Redis rooms after the 10-second reconnect grace, marks expired disconnected participants as `dropped` with `droppedAt`, blocks dropped UUIDs from REST rejoin and WebSocket reconnect, auto-submits only their current-part `PENDING` assignments as empty `AUTO_SUBMITTED`, leaves future part assignments pending until that part becomes current, transfers a dropped host to the lowest `joinOrder` connected non-dropped participant when available, and emits `PARTICIPANT_DROPPED`, `HOST_CHANGED`, `PART_AUTO_SUBMITTED`, and existing part transition events only after successful CAS saves.
-- Relay finalization now scans `FINALIZING` Redis rooms, composes one vertical FACE/BODY/LEGS PNG per `canvasIndex`, stores final original and thumbnail objects under `relay/results/{artifactId}/`, writes matching `artifact`, `relay_drawing_artifact`, and participant gallery rows, marks the Redis room `FINISHED`, and emits `RESULT_CREATED`; presigned result URLs remain follow-up work.
+- Relay disconnect grace processing now scans candidate `PLAYING` Redis rooms after the configured reconnect grace, takes the room mutation lock before mutating room state, marks expired disconnected participants as `dropped` with `droppedAt`, blocks dropped UUIDs from REST rejoin and WebSocket reconnect, auto-submits only their current-part unlocked `PENDING` assignments as empty `AUTO_SUBMITTED`, leaves future part assignments pending until that part becomes current, transfers a dropped host to the lowest `joinOrder` connected non-dropped participant when available, and emits `PARTICIPANT_DROPPED`, `HOST_CHANGED`, `PART_AUTO_SUBMITTED`, and existing part transition events only after successful CAS saves.
+- Relay finalization now schedules one asynchronous immediate run right after `ALL_PARTS_COMPLETED`, then still scans `FINALIZING` Redis rooms every 10 seconds after a short ready delay for failure, lock-busy, server-restart, or partial-success recovery. The submission/timeout/disconnect-grace flows do not wait for finalization to finish. Both paths acquire the room-scoped `relay:room-finalization-lock:{roomCode}` lock with a 120-second default TTL, create a UUID attempt id, store attempt object-key markers under `relay:room-finalization-attempt:{roomCode}:{attemptId}` for 24 hours by default, compose one vertical FACE/BODY/LEGS PNG per `canvasIndex`, store final original and thumbnail objects under `relay/results/{artifactId}/`, write matching `artifact`, `relay_drawing_artifact`, and participant gallery rows, mark the Redis room `FINISHED`, and emit `RESULT_CREATED`; presigned result URLs remain follow-up work.
+- Relay finalization async executor values are configurable under `nemonic.relay.finalization.async.*`; defaults are core pool size `2`, max pool size `4`, queue capacity `100`, thread prefix `relay-finalization-`, shutdown task waiting enabled, and a 30-second await-termination window.
+- Relay final result composition supports `nemonic.relay.finalization.overlap-height`, currently defaulted to `120` px to match the frontend hint area. A value of `0` preserves the previous vertical composition. Positive values overlap FACE/BODY and BODY/LEGS by that many pixels, clamp excessive overlap safely, and render with layer priority `FACE > BODY > LEGS`. Hint images are still not composed directly; the frontend must submit drawing images that already include matching overlap hint areas.
+- Relay finalization idempotency now checks existing `artifact.source_room_id = roomCode` relay results before creating new files. If DB result rows already match the expected canvas indexes after a previous Redis transition failure, the retry skips MinIO upload/DB insert, retries only the Redis `FINISHED` transition, clears retry state, and logs `relay_finalization_recovered`.
 - Relay result lookup now uses `GET /api/v1/relay/rooms/{roomCode}/results`, reads PostgreSQL `artifact`/`relay_drawing_artifact`/active `gallery` rows as the source of truth, returns final combined/thumbnail URLs plus canvasIndex FACE/BODY/LEGS drawer metadata parsed from `artifact.meta`, and succeeds even after Redis room state expires when DB result ownership exists.
-- Relay room close now scans `FINISHED` Redis rooms after `updatedAt + close-delay` and also supports host-triggered `POST /api/v1/relay/rooms/{roomCode}/close`; both paths mark eligible rooms `CLOSED` through CAS and emit `ROOM_CLOSED` only on the successful state transition, while artifact/gallery deletion remains out of scope.
-- Relay temp cleanup now scans `CLOSED` Redis rooms, collects distinct assignment `objectKey` and `hintObjectKey` values only under `relay/tmp/{roomCode}/`, hard-deletes those temporary objects from MinIO, and records cleanup completion with a separate Redis marker plus cleanup lock; it also has a fallback scheduler that lists `relay/tmp/` objects and deletes only objects older than the configured threshold (24 hours by default), while `relay/results/**` and artifact/gallery rows remain out of scope.
+- Relay room close now scans `FINISHED` Redis rooms after `updatedAt + close-delay` and also supports host-triggered `POST /api/v1/relay/rooms/{roomCode}/close`; both paths mark eligible rooms `CLOSED` through CAS, sync invite metadata, emit `ROOM_CLOSED` with additive `closeReason`, and best-effort close same-server active WebSocket sessions only on the successful state transition, while artifact/gallery deletion remains out of scope.
+- Relay abandoned-room cleanup now scans `WAITING` rooms where every participant has been disconnected for 5 minutes and `PLAYING` rooms where every participant has been disconnected or dropped for 5 minutes, closes them through the shared CAS close command, syncs invite metadata, emits `ROOM_CLOSED`, and logs `close_reason=waiting_idle_timeout` or `playing_abandoned`.
+- Relay connection reconciliation now scans `WAITING`/`PLAYING` Redis rooms whose participants still have `connected=true`, compares them against the same-server relay `WebSocketSessionRegistry`, and CAS-corrects missing sessions to `connected=false` with `disconnectedAt` set to the reconciliation time; it logs `relay_room_recovered_or_reconciled` without publishing `PARTICIPANT_DISCONNECTED`.
+- Relay abandoned-room cleanup also closes abnormal `WAITING` rooms with an empty participant list using `close_reason=waiting_empty`.
+- Relay finalization failure handling now increments Redis key `relay:room-finalization-retry:{roomCode}` with the room-state TTL, retries on the next 10-second scheduler tick, clears the key after successful finalization, and closes the `FINALIZING` room with `close_reason=finalization_failed` on the 60th failed attempt.
+- Relay remains scoped to a single backend server for scheduler coordination; no scheduler leader election or scheduler-wide scan lock is currently used. Room mutation locks and the room-scoped finalization lock protect overlapping relay work in the single-server runtime.
+- Relay finalization now best-effort deletes result objects created by the current attempt if MinIO upload succeeded but DB result persistence fails before rows are saved; cleanup failures are logged and do not replace the original finalization exception, and existing artifact rows or reused result objects are not deleted.
+- Relay temp cleanup now scans `CLOSED` Redis rooms, collects distinct assignment `objectKey` and `hintObjectKey` values only under `relay/tmp/{roomCode}/`, hard-deletes those temporary objects from MinIO, and records cleanup completion with a separate Redis marker plus cleanup lock; its old-temp fallback deletes only 24-hour-old `relay/tmp/` objects whose room state is missing, `FINISHED`, or `CLOSED`.
+- Relay Redis room scan repository methods share bounded `SCAN` instrumentation and emit debug-level scan purpose, scanned key count, matched room count, limit, and duration data. State-specific Redis indexes remain a follow-up optimization because they would require index synchronization on every CAS state transition.
+- Relay orphan object cleanup now runs hourly by default, scans old `relay/tmp/` and `relay/results/` objects with 24-hour retention and bounded limits, deletes temp objects only for inactive/missing rooms, caches temp room-state lookups within one cleanup run, batch-checks DB result object references before deletion, checks active finalization attempt references in batches, and skips ambiguous result objects instead of risking deletion of persisted artifacts.
+- Relay final result composition reuses original PNG bytes as thumbnail bytes when thumbnail resizing is unnecessary; when resizing is needed, the existing separate thumbnail encoding path is preserved.
 - Relay waiting-room host kick now uses `POST /api/v1/relay/rooms/{roomCode}/participants/kick` with `targetUserUuid` in the JSON body, removes only non-host participants while preserving remaining `joinOrder` values, records `kickedUserUuids` in the Redis room state, blocks kicked UUIDs from REST invite/join and WebSocket reconnect paths, and emits `PARTICIPANT_KICKED` plus a best-effort personal `KICKED_FROM_ROOM` queue event before closing the same-server active session.
 - Relay waiting-room voluntary leave now uses `DELETE /api/v1/relay/rooms/{roomCode}/participants/me`, removes the caller without adding them to `kickedUserUuids`, preserves remaining `joinOrder` values, transfers host ownership to the lowest remaining `joinOrder` when the host leaves, marks the room `CLOSED` when the last participant leaves, emits `PARTICIPANT_LEFT` plus `HOST_CHANGED` or `ROOM_CLOSED` when applicable, and best-effort closes the leaving user's same-server active WebSocket session.
 - Relay service internals are grouped under `service.room`, `service.game`, `service.assignment`, `service.submission`, `service.timeout`, `service.finalization`, `service.close`, `service.cleanup`, and `service.support`, while `RelayRoomService` and `RelayRoomServiceImpl` remain the controller-facing facade.
@@ -135,6 +206,23 @@ Last updated: 2026-05-08
 - Flipbook game start now uses `POST /api/v1/flipbook/rooms/{roomCode}/start`, requires the caller to be the host of a WAITING room, requires at least two connected WebSocket participants, calculates the default total rounds from the minimum 8-frame policy, stores `currentRound`, `totalRounds`, round deadline, `gameStartedAt`, and generated frame assignments in Redis, syncs invite TTL metadata, and emits `GAME_STARTED`.
 - Flipbook current assignment lookup now uses `GET /api/v1/flipbook/rooms/{roomCode}/assignments/me`, requires the caller to be a non-dropped participant in a PLAYING room, returns the current round assignment, remaining seconds, and previous-frame hint metadata when a submitted/auto-submitted previous frame exists.
 - Flipbook PLAYING-room re-entry now applies a 10-second reconnect grace period to both common invite re-entry and WebSocket CONNECT; the frontend should call invite and immediately open WebSocket, and either path returns the reconnect-expired 409 once `disconnectedAt + 10s` has passed.
+- Flipbook timeout processing now emits a one-time `ROUND_TIME_UP` WebSocket
+  event during the `roundDeadlineAt` to
+  `roundDeadlineAt + auto-submit-grace-ms` window for rooms with pending
+  current-round assignments. The event includes `roundDeadlineAt`,
+  `submitGraceDeadlineAt`, and `autoSubmitGraceMillis` so the frontend can
+  export the current canvas and call the normal frame submit API before the
+  backend fallback auto-submit runs. A separate Redis marker key prevents
+  duplicate `ROUND_TIME_UP` events for the same room, round, and deadline.
+- Flipbook frame submission now accepts requests until
+  `roundDeadlineAt + auto-submit-grace-ms`, keeping the default two-second
+  grace window aligned with timeout fallback auto-submit.
+- Flipbook frame submission now also emits `ROUND_STARTED` whenever a normal
+  submit advances to the next round, and emits `ALL_ROUNDS_COMPLETED` when the
+  last round completes. Frontend screen transitions can therefore use
+  `ROUND_STARTED` for every next-round start and `ALL_ROUNDS_COMPLETED` for game
+  completion, regardless of whether the round ended by manual submission or
+  timeout auto-submit.
 - Super admin bootstrap is available through `ADMIN_BOOTSTRAP_ENABLED` and
   related `ADMIN_BOOTSTRAP_*` environment variables; it creates one
   `super_admin` row in `admin_user` only when enabled and the login ID does not
@@ -149,6 +237,9 @@ Last updated: 2026-05-08
 - Community memo listing now uses `GET /api/v1/community/memos` to return visible `community_memo` rows (`deleted_at IS NULL`, `is_hidden = false`) ordered by `z_index ASC, attached_at ASC`; optional `Anonymous-User-UUID` is parsed only for `ownedByMe` and does not require app user lookup or visit metadata updates.
 - Community memo detail now uses `GET /api/v1/community/memos/{memoId}` for visible memos only, returns list fields plus decoration/artifact/moderation metadata, parses optional `Anonymous-User-UUID` only for `ownedByMe`, and falls back to `{}` for blank or invalid decoration JSON.
 - Community memo creation now uses `POST /api/v1/community/memos` with required `Anonymous-User-UUID`, supports `sourceType=DIRECT` and `sourceType=GALLERY`, requires distinct confirmed `COMMUNITY` `originalFileId` and `thumbnailFileId`, links GALLERY posts to an owned active gallery artifact only for source attribution, runs pre-publication moderation before insert, stores the final original object key in `community_memo.body_image_url` and thumbnail object key in `community_memo.thumbnail_image_url`, and applies 50-visible-memo FIFO soft deletion with `deleted_reason=expired`.
+- Community memo layout updates now use `PATCH /api/v1/community/memos/{memoId}` with required `Anonymous-User-UUID`; only the owner of a visible memo can update `position_x`, `position_y`, `z_index`, `rotation_deg`, and `updated_at`, while image keys, artifact linkage, decoration, moderation fields, `attached_at`, and FIFO state remain untouched.
+- Community memo deletion now uses `DELETE /api/v1/community/memos/{memoId}` with required `Anonymous-User-UUID`; only the owner of a visible memo can soft delete it with `deleted_reason=user_delete`, while MinIO files, file_upload rows, artifact/gallery links, moderation data, and FIFO restoration state remain untouched.
+- Community memo reporting now uses `POST /api/v1/community/memos/{memoId}/reports` with required `Anonymous-User-UUID`; visible non-owned memos can be reported once per user with Korean report categories plus optional nullable `reasonDetail`, and `report_count >= 5` automatically hides the memo with `hidden_reason=report_threshold` without invoking FIFO or moderation.
 - Community canvas planning now treats each posted memo as a final rendered image snapshot: frontend editing can start from a blank canvas or gallery source, then uploads both original and thumbnail `COMMUNITY` files, with `thumbnail_image_url` planned as a required schema addition; `clientText` is included as OCR moderation helper input, the original gallery artifact remains source attribution only, rendering/moderation use the posted snapshot, the default moderation policy is pre-publication FastAPI blocking with a hidden `pending` fallback only if synchronous latency becomes unacceptable, first-pass updates are layout-only, and external sharing remains a follow-up scope.
 - Upcoming backend work should continue using the feature package structure and product specs as the source of truth.
 
@@ -314,15 +405,54 @@ Recent artifact image URL lookup work added `GET /api/v1/artifacts/{artifactId}/
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.artifact.*' --no-daemon
 ```
 
-Recent flipbook result lookup work added `GET /api/v1/flipbook/rooms/{roomCode}/result`.
+Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/download` and
+`POST /api/v1/artifacts/{artifactId}/share`.
 
-- Existing artifact/gallery rows are returned first for idempotent result lookup.
-- If Redis room state is `FINISHED` and no DB result exists yet, submitted non-empty frames are grouped by `flipbookIndex`, converted into GIF files under `flipbook/results/{artifactId}/result.gif`, and stored as `artifact` + `flipbook_artifact` + gallery rows for non-dropped participants.
-- The response mirrors relay result shape with `ready`, `resultCount`, per-result `galleryId`/`artifactId`, `thumbnailUrl`, `gifUrl`, `firstImageUrl`, and ordered frame metadata.
+- Both APIs verify the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
+- Download/share artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, and `community_memo`; `phone` and `infinite_canvas` return unsupported-kind errors for this flow.
+- QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and `QR_DOWNLOAD` channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
+- The API creates or reuses a QR-composed MinIO cache object, then returns JPG/GIF bytes as an attachment.
+- Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr.gif` with QR overlaid on every frame.
+- `POST /api/v1/artifacts/{artifactId}/share` reuses the same QR cache and returns the public QR image URL plus Kakao/Instagram UTM URLs in the existing `ShareCreateResponse` shape.
+- Community memo QR assets read `community_memo.body_image_url` first, then `community_memo.thumbnail_image_url`, and only fall back to `artifact.thumbnail_url`.
+- `POST /api/v1/share` remains the older galleryId-based token/link generation endpoint.
+
+```bash
+./gradlew --no-daemon test --tests com.nemonicworld.artifact.service.download.ArtifactDownloadServiceImplTest --tests com.nemonicworld.artifact.service.share.ArtifactShareServiceImplTest --tests com.nemonicworld.artifact.controller.ArtifactControllerIntegrationTest --tests com.nemonicworld.artifact.controller.ArtifactOpenApiIntegrationTest
+```
+
+Recent flipbook result work aligns room completion with the relay finalization model.
+
+- Last-round completion now changes Redis room status to `FINALIZING`, and `ALL_ROUNDS_COMPLETED` WebSocket events carry `roomStatus=FINALIZING`.
+- `FlipbookRoomFinalizationScheduler` scans `FINALIZING` rooms, acquires a room-scoped Redis finalization lock, creates GIF/thumbnail results under `flipbook/results/{artifactId}/`, stores `artifact` + `flipbook_artifact` + gallery rows for non-dropped participants, then changes the room to `FINISHED`.
+- After finalization completes, the backend emits a `RESULT_CREATED` WebSocket event with artifact IDs and per-`flipbookIndex` object keys.
+- `GET /api/v1/flipbook/rooms/{roomCode}/result` is now a read-side API: existing artifact/gallery rows return `ready=true`; while result generation is pending or inconsistent, the API returns `ready=false` instead of lazily creating GIFs.
+- Flipbook game start uses `totalRounds=8` so every generated flipbook has the minimum 8 frames; assignment count is `participantCount * 8`.
 
 ```bash
 GRADLE_USER_HOME=.gradle-user-home ./gradlew spotlessCheck test --tests 'com.nemonicworld.flipbook.*' --no-daemon
 ```
+
+Recent flipbook room mutation work aligned Redis state-change contention handling with relay.
+
+- `FlipbookRoomMutationLockRepository` uses `flipbook:room-mutation-lock:{roomCode}` with token-checked Lua release.
+- Frame submission acquires the room mutation lock before latest-state mutation/CAS save, while keeping duplicate submitted-frame lookup idempotent.
+- Timeout auto-submit and disconnect-grace scans precheck candidates, skip when the room lock is busy, and release the lock after event publication.
+- The lock protects shared `flipbook:room:{roomCode}` updates; existing Redis CAS retries remain as a final guard.
+- Flipbook auto-submit grace defaults to 5 seconds, and submit API processing now also uses an assignment-scoped submission lock.
+- Timeout auto-submit skips PENDING assignments that are currently protected by a flipbook submission lock.
+- Disconnect-grace now mirrors relay more closely: dropped participants' current PENDING frame assignments are auto-submitted immediately unless a submission lock is active, and round advancement/result finalizing events are published from that update.
+- `ROUND_TIME_UP` WebSocket payload now includes `pendingCount` and current-round `pendingSubmissions` with `flipbookIndex`, `frameIndex`, user UUID/nickname, and connected status.
+- FINISHED flipbook rooms now mirror relay's runtime lifecycle: `FlipbookRoomCloseScheduler` scans rooms past `nemonic.flipbook.close.delay-seconds`, transitions them to CLOSED through Redis CAS, syncs invite metadata, and publishes `ROOM_CLOSED`.
+- `FlipbookRoomEventLogger` now mirrors relay's structured logging wrapper and emits flipbook business/warn events for room lifecycle, WebSocket connect/disconnect, submission, timeout, disconnect-grace, finalization, and close flows.
+- Invite-code new joins now distinguish PLAYING rooms from closed rooms: relay and flipbook return `게임이 진행 중입니다.` for in-progress games and keep `이미 종료된 방입니다.` for non-waiting terminal states.
+
+Recent relay submission concurrency work added a room-scoped Redis mutation lock.
+
+- Assignment submit locks still protect a single user/canvas/part submission from timeout auto-submit.
+- Room mutation locks now serialize `relay:room:{roomCode}` JSON updates between submission API requests and timeout auto-submit.
+- The mutation lock key uses `relay:room-mutation-lock:{roomCode}` so it is not picked up by existing `relay:room:*` room scans.
+- Submission uploads still happen before the room mutation lock; only latest room state read, validation, mutation, and save run inside the lock.
 
 Recent fortune result re-query work added `GET /api/v1/fortune/today`.
 
@@ -339,6 +469,71 @@ Recent fortune result re-query work added `GET /api/v1/fortune/today`.
 
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.
+
+Recent community admin review work added admin memo list/detail plus manual hide/restore APIs.
+
+- `hidden_reason_type` now includes `admin_hidden` for operator-initiated hides; admins submit a review reason and the server records that reason in audit log metadata.
+- `community_memo.reviewed_at` records the latest admin review timestamp alongside `reviewed_by`.
+- Admin community APIs use the existing admin JWT flow under `/api/v1/admin/community/memos`.
+- Admin list/detail include hidden memos while still excluding soft-deleted memos by default.
+- Hide/restore updates `reviewed_by` and does not run FIFO, moderation, or MinIO/file/artifact/gallery mutation.
+- Admin community list supports `reported=true/false` filtering, admin detail embeds latest-first report history including `reasonDetail`, and admins can still inspect paged report history through `GET /api/v1/admin/community/memos/{memoId}/reports` without mutating memo/report state.
+- Community memo query performance now has Flyway V12 indexes for public visible-wall ordering, FIFO expiry scans, admin list filters, and memo report history lookups.
+- Admin community keyword search escapes SQL `LIKE` wildcard characters so `%` and `_` are treated as literal search text.
+- Common query performance now has Flyway V13 indexes for active gallery ownership lookups, artifact source-room result scans, CS inquiry admin list filters, and GMS prompt list/latest lookups.
+- Admin keyword searches for community memos, CS inquiries, GMS prompts, and system parameters now escape SQL `LIKE` wildcard characters consistently.
+
+Recent backoffice audit log emit work aligned remaining operator mutation APIs with the observability spec and the stdout -> Fluent Bit -> Kafka `logs.audit` -> OpenSearch `audit-logs-*` pipeline.
+
+- CS inquiry mutations emit `inquiry_status_change` and `inquiry_reply_send` after successful transaction commit. Audit snapshots include only status/assignee metadata, not inquiry body, reply body, email address, or attachments.
+- GMS prompt create/update/delete emit the documented `prompt_update` event with `metadata.action` set to `create`, `update`, or `delete`. Prompt body text is excluded; updates only flag `content_changed`.
+- System parameter bulk update emits `param_change` with `target_id=bulk:<count>`. Safe `before`/`after` values are keyed by parameter name, and sensitive parameter keys such as password/secret/token/webhook/SMTP/API-key values are redacted.
+- Relay and flipbook backoffice forced closes emit `relay_room_force_close` and `flipbook_room_force_close` with `target_type=room`, `action=force_close`, and before/after status snapshots.
+- Still deferred because current APIs are missing or read-only: `prompt_rollback`, `inquiry_internal_memo`, `infinite_canvas_force_close`, `notification_send`, `electron_channel_change`, `electron_release_publish`, `memo_bulk_soft_delete`, `memo_bulk_restore`, and `report_review_decided`.
+- No Kafka producer, OpenSearch client, Fluent Bit config, audit RDB table, or audit migration was added; backend remains responsible only for one-line JSON emit to stdout.
+
+Recent relay logging work added structured event emission for the relay drawing lifecycle.
+
+- Relay business events now cover room creation/settings/join/leave/kick/host change, WebSocket connect/reconnect/disconnect/reject/duplicate-session close, start/part start/time-up/submission/rejection/auto-submit/drop/all-parts-complete/finalization-immediate-trigger/finalization-attempt-start/finalization-recovery/result-created/room-closed/temp-cleanup-completed/orphan-cleanup-completed.
+- Relay operational warning events cover timeout/disconnect/finalization/cleanup failures, finalization attempt failures, orphan cleanup failures, room mutation lock contention, Redis CAS retry exhaustion, and MinIO upload followed by Redis save conflict.
+- Relay logging field coverage now includes WebSocket reconnect `session_id`, rejected WebSocket/start/submission room-state fields, disconnect-grace failure `uuid`, stage-specific finalization `artifact_id`, finalization `attempt_id`, orphan cleanup counters, and non-null temp cleanup failure counts.
+- Backoffice relay force-close emits `relay_room_force_close` audit metadata and `relay_room_closed` business metadata; relay-scoped system parameter changes emit `param_change`.
+- `backend/docs/product-spec/08-observability.md` includes the relay event names in the backend business-event allow-list.
+
+Recent relay runtime settings work connects the seeded backoffice relay parameters to runtime behavior.
+
+- New relay rooms read `backoffice_setting` key `relay.room_participant_limit` and store the resolved min/max values in the Redis room snapshot.
+- Missing, blank, malformed, or invalid participant-limit settings fall back to the default `2..6` range and emit a warning log.
+- Existing Redis room snapshots keep their stored min/max values after backoffice setting changes; the setting is applied only to newly created rooms.
+- Backoffice system parameter bulk updates validate `relay.room_participant_limit` as a JSON object with integer `min`/`max`, `min >= 2`, `max >= min`, and an operational upper bound of 20.
+- New relay rooms read `relay.room_time_limit_seconds` and store its `default` value as `timeLimitSeconds`; existing Redis room snapshots keep their current time limit after backoffice setting changes.
+- Relay waiting-room setting changes validate requested `timeLimitSeconds` against the latest `relay.room_time_limit_seconds.allowed` list, falling back to `30/45/60` when the setting is missing or invalid.
+- Relay room create and state lookup responses now expose `timeLimitDefaultSeconds`, `timeLimitAllowedSeconds`, and `reconnectGraceSeconds` alongside the room's stored `timeLimitSeconds`. WebSocket room-state events expose the same time-limit and reconnect-grace metadata except for viewer-only fields. Frontend screens should display the stored room value, use the allowed list for future waiting-room setting changes, and use `reconnectGraceSeconds` for PLAYING-room reconnect guidance; the current room value is not forced to match a later backoffice allowed-list change.
+- Relay REST rejoin, WebSocket reconnect, and disconnect-grace scheduler processing read `relay.reconnect_grace_seconds` on each request or scheduler tick, falling back to 10 seconds when the setting is missing or invalid.
+- Relay request flows that need multiple relay runtime settings now use a `RelayRuntimeSettingsSnapshot` loaded through one `backoffice_setting` key batch lookup, then reuse it within the request. No cross-request cache is used, so backoffice changes still apply from the next request or scheduler tick.
+- Backoffice validation now rejects invalid relay time-limit objects (`default`, non-empty integer `allowed`, `default` included in `allowed`, 5-600 seconds) and invalid relay reconnect grace objects (`value` 0-300 seconds) before any system parameter row is updated.
+
+Recent backoffice system parameter update work changed the PATCH request contract to typed fields.
+
+- `PATCH /api/v1/backoffice/system-parameters` now accepts named optional fields such as `relayRoomParticipantLimit`, `relayRoomTimeLimitSeconds`, `communityMaxMemoCount`, `flipbookRoomParticipantLimit`, and `fortuneDailyLimit` instead of client-supplied `items[].id`.
+- The service maps each included request field to the existing `backoffice_setting.setting_key`, updates only included fields in one transaction, and keeps the existing list-style response and `param_change` audit log.
+- The typed request covers the V9 seeded editable settings and validates participant limits, time-limit objects, and positive integer value objects before updating any row.
+- The legacy `SystemParameterBulkUpdateRequest` DTO remains in source, but the default controller/OpenAPI PATCH contract is the typed request body.
+
+Recent community runtime settings work connects the seeded backoffice max memo count to FIFO.
+
+- Community memo creation now reads `backoffice_setting` key `community.max_memo_count` before the post-create FIFO check.
+- Missing, blank, malformed, or invalid `community.max_memo_count` settings fall back to the default visible memo limit of 50 and emit a warning log.
+- Backoffice changes to `communityMaxMemoCount` do not immediately expire existing visible memos; the changed value is applied on the next community memo create/FIFO check.
+- The community FIFO business log now records the resolved dynamic `max_visible_memo_count` instead of a hard-coded value.
+
+Recent community logging work reused the shared structured event logger for community canvas and backoffice review flows.
+
+- `StructuredEventLogger` centralizes JSON emission to `logs.api`, `logs.websocket`, and `logs.audit`; the existing relay logger and admin audit logger now delegate to it.
+- Community API logs now cover memo list/detail views, create, moderation request/allowed/blocked/failure, FIFO check/expiry, layout update/denial, user delete/denial, report create/rejection, and report-threshold auto hide.
+- COMMUNITY-purpose file uploads now emit presign, confirm, and pending-delete events without affecting other file purposes.
+- Admin community list/detail/report-history views emit audit events, while existing hide/restore audit logs keep the operator-provided review reason in metadata.
+- `backend/docs/product-spec/08-observability.md` includes the community event names in the backend event allow-list.
 
 ## Next Suggested Steps
 
