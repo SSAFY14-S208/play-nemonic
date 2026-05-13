@@ -14,6 +14,7 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomAbandonedCloseProcessResult;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomAbandonedCloseService;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseCommand;
+import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;

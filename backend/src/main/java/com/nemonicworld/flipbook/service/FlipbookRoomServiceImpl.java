@@ -10,7 +10,17 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomMyAssignmentResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomResultsResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
+import com.nemonicworld.flipbook.service.assignment.FlipbookRoomAssignmentQueryUseCase;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomManualCloseUseCase;
+import com.nemonicworld.flipbook.service.game.FlipbookRoomStartUseCase;
+import com.nemonicworld.flipbook.service.result.FlipbookRoomResultQueryUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomConnectionUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomCreateUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomKickUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomLeaveUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomQueryUseCase;
+import com.nemonicworld.flipbook.service.room.FlipbookRoomSettingsUseCase;
+import com.nemonicworld.flipbook.service.submission.FlipbookFrameSubmitUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

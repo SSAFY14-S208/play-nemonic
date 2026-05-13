@@ -17,7 +17,7 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookArtifactRepository;
 import com.nemonicworld.flipbook.repository.FlipbookFinalizationRetryRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
-import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
+import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseCommand;
 import com.nemonicworld.flipbook.service.result.FlipbookGifComposer;
 import com.nemonicworld.flipbook.service.result.FlipbookResultArtifactResult;

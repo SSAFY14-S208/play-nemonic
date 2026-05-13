@@ -1,4 +1,4 @@
-package com.nemonicworld.flipbook.service;
+package com.nemonicworld.flipbook.service.support;
 
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerBlockedReason;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;

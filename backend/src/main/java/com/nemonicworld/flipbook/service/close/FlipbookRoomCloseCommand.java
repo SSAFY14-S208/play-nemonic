@@ -3,7 +3,7 @@ package com.nemonicworld.flipbook.service.close;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
-import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
+import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Component;
