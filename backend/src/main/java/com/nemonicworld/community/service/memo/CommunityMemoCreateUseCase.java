@@ -10,6 +10,8 @@ import com.nemonicworld.community.entity.CommunityMemoSourceType;
 import com.nemonicworld.community.repository.CommunityMemoCreateCommand;
 import com.nemonicworld.community.repository.CommunityMemoDetailRow;
 import com.nemonicworld.community.repository.CommunityMemoRepository;
+import com.nemonicworld.community.service.image.CommunityMemoImageDerivative;
+import com.nemonicworld.community.service.image.CommunityMemoImageProcessor;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationException;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationRequest;
@@ -44,18 +46,21 @@ class CommunityMemoCreateUseCase {
     private final MinioPublicUrlResolver minioPublicUrlResolver;
     private final CommunityMemoModerationClient communityMemoModerationClient;
     private final CommunityRuntimeSettingsProvider communityRuntimeSettingsProvider;
+    private final CommunityMemoImageProcessor communityMemoImageProcessor;
     private final ObjectMapper objectMapper;
     private final CommunityMemoSupport communityMemoSupport;
     private final CommunityMemoResponseMapper communityMemoResponseMapper;
 
     CommunityMemoCreateUseCase(CommunityMemoRepository communityMemoRepository,
         MinioPublicUrlResolver minioPublicUrlResolver, CommunityMemoModerationClient communityMemoModerationClient,
-        CommunityRuntimeSettingsProvider communityRuntimeSettingsProvider, ObjectMapper objectMapper,
+        CommunityRuntimeSettingsProvider communityRuntimeSettingsProvider,
+        CommunityMemoImageProcessor communityMemoImageProcessor, ObjectMapper objectMapper,
         CommunityMemoSupport communityMemoSupport, CommunityMemoResponseMapper communityMemoResponseMapper) {
         this.communityMemoRepository = communityMemoRepository;
         this.minioPublicUrlResolver = minioPublicUrlResolver;
         this.communityMemoModerationClient = communityMemoModerationClient;
         this.communityRuntimeSettingsProvider = communityRuntimeSettingsProvider;
+        this.communityMemoImageProcessor = communityMemoImageProcessor;
         this.objectMapper = objectMapper;
         this.communityMemoSupport = communityMemoSupport;
         this.communityMemoResponseMapper = communityMemoResponseMapper;
@@ -97,41 +102,50 @@ class CommunityMemoCreateUseCase {
         communityMemoSupport.validateCommunityFile(originalFileUpload, userUuid);
         communityMemoSupport.validateCommunityFile(thumbnailFileUpload, userUuid);
 
-        String originalImageUrl = minioPublicUrlResolver.resolve(originalFileUpload.getObjectKey());
-        String thumbnailImageUrl = minioPublicUrlResolver.resolve(thumbnailFileUpload.getObjectKey());
-        if (!StringUtils.hasText(originalImageUrl) || !StringUtils.hasText(thumbnailImageUrl)) {
-            throw new BadRequestException(CommunityMemoSupport.INVALID_MEMO_SOURCE_MESSAGE);
-        }
-
-        String clientText = normalizeClientText(request.clientText());
-        CommunityMemoEventLogger.business("community_memo_moderation_requested", userUuid,
-            metadata("source_type", sourceType.value(), "source_artifact_id", sourceArtifactId, "original_file_id",
-                originalFileId, "thumbnail_file_id", thumbnailFileId, "original_image_available",
-                StringUtils.hasText(originalImageUrl), "thumbnail_image_available",
-                StringUtils.hasText(thumbnailImageUrl), "client_text_length",
-                CommunityMemoEventLogger.textLength(clientText)));
-        CommunityMemoModerationResult moderationResult = checkModeration(originalImageUrl, thumbnailImageUrl,
-            clientText, sourceType, userUuid);
-
-        LocalDateTime now = LocalDateTime.now();
         UUID memoId = UUID.randomUUID();
-        CommunityMemoCreateCommand command = new CommunityMemoCreateCommand(memoId, userUuid, sourceArtifactId,
-            originalFileUpload.getObjectKey(), thumbnailFileUpload.getObjectKey(), request.positionX(),
-            request.positionY(), request.zIndex(), request.rotationDeg().floatValue(), decorationJson,
-            moderationResult.ocrText(), serializeModerationCategories(moderationResult.categories()), now, now, now,
-            now);
-        communityMemoRepository.insertMemo(command);
-        expireOverflowVisibleMemos(memoId, now);
+        CommunityMemoImageDerivative imageDerivative = null;
+        try {
+            imageDerivative = communityMemoImageProcessor.process(memoId, originalFileUpload.getObjectKey(),
+                thumbnailFileUpload.getObjectKey());
 
-        CommunityMemoDetailRow row = communityMemoSupport.findVisibleMemoOrLogNotFound(memoId, userUuid,
-            "community_memo_create_validation_failed");
-        CommunityMemoEventLogger.business("community_memo_created", userUuid,
-            metadata("memo_id", memoId, "source_type", sourceType.value(), "artifact_id", sourceArtifactId,
-                "original_file_id", originalFileId, "thumbnail_file_id", thumbnailFileId, "report_count",
-                row.reportCount(), "moderation_status", row.moderationStatus(), "body_image_object_key_hash",
-                CommunityMemoEventLogger.hash(originalFileUpload.getObjectKey()), "thumbnail_image_object_key_hash",
-                CommunityMemoEventLogger.hash(thumbnailFileUpload.getObjectKey())));
-        return communityMemoResponseMapper.toDetailResponse(row, userUuid);
+            String originalImageUrl = minioPublicUrlResolver.resolve(imageDerivative.bodyObjectKey());
+            String thumbnailImageUrl = minioPublicUrlResolver.resolve(imageDerivative.thumbnailObjectKey());
+            if (!StringUtils.hasText(originalImageUrl) || !StringUtils.hasText(thumbnailImageUrl)) {
+                throw new BadRequestException(CommunityMemoSupport.INVALID_MEMO_SOURCE_MESSAGE);
+            }
+
+            String clientText = normalizeClientText(request.clientText());
+            CommunityMemoEventLogger.business("community_memo_moderation_requested", userUuid,
+                metadata("source_type", sourceType.value(), "source_artifact_id", sourceArtifactId, "original_file_id",
+                    originalFileId, "thumbnail_file_id", thumbnailFileId, "original_image_available",
+                    StringUtils.hasText(originalImageUrl), "thumbnail_image_available",
+                    StringUtils.hasText(thumbnailImageUrl), "client_text_length",
+                    CommunityMemoEventLogger.textLength(clientText)));
+            CommunityMemoModerationResult moderationResult = checkModeration(originalImageUrl, thumbnailImageUrl,
+                clientText, sourceType, userUuid);
+
+            LocalDateTime now = LocalDateTime.now();
+            CommunityMemoCreateCommand command = new CommunityMemoCreateCommand(memoId, userUuid, sourceArtifactId,
+                imageDerivative.bodyObjectKey(), imageDerivative.thumbnailObjectKey(), request.positionX(),
+                request.positionY(), request.zIndex(), request.rotationDeg().floatValue(), decorationJson,
+                moderationResult.ocrText(), serializeModerationCategories(moderationResult.categories()), now, now, now,
+                now);
+            communityMemoRepository.insertMemo(command);
+            expireOverflowVisibleMemos(memoId, now);
+
+            CommunityMemoDetailRow row = communityMemoSupport.findVisibleMemoOrLogNotFound(memoId, userUuid,
+                "community_memo_create_validation_failed");
+            CommunityMemoEventLogger.business("community_memo_created", userUuid,
+                metadata("memo_id", memoId, "source_type", sourceType.value(), "artifact_id", sourceArtifactId,
+                    "original_file_id", originalFileId, "thumbnail_file_id", thumbnailFileId, "report_count",
+                    row.reportCount(), "moderation_status", row.moderationStatus(), "body_image_object_key_hash",
+                    CommunityMemoEventLogger.hash(imageDerivative.bodyObjectKey()), "thumbnail_image_object_key_hash",
+                    CommunityMemoEventLogger.hash(imageDerivative.thumbnailObjectKey())));
+            return communityMemoResponseMapper.toDetailResponse(row, userUuid);
+        } catch (RuntimeException e) {
+            communityMemoImageProcessor.deleteQuietly(imageDerivative);
+            throw e;
+        }
     }
 
     private void expireOverflowVisibleMemos(UUID newMemoId, LocalDateTime now) {

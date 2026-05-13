@@ -28,15 +28,32 @@ Store community memos as final rendered image snapshots.
 
 For every created community memo:
 
-- `community_memo.body_image_url` stores the final original-size snapshot object
-  key.
-- `community_memo.thumbnail_image_url` stores the final thumbnail snapshot
-  object key.
+- `community_memo.body_image_url` stores the final original-size community
+  display snapshot object key.
+- `community_memo.thumbnail_image_url` stores the final community display
+  thumbnail snapshot object key.
 - `community_memo.artifact_id` is nullable source metadata.
 - `artifact_id = null` means `DIRECT`.
 - `artifact_id != null` means `GALLERY`.
 - Even for `GALLERY` memos, wall rendering uses the community snapshot URLs, not
   artifact subtype image URLs.
+
+At memo creation time, the backend preserves the confirmed `COMMUNITY`
+`file_upload` source objects and creates separate transparent PNG derivatives
+for wall display:
+
+- Body derivative: `community/memos/{memoId}/body.png`.
+- Thumbnail derivative: `community/memos/{memoId}/thumbnail.png`.
+- The derivative content type is `image/png`; JPEG derivatives are not used.
+- The first pass does not use AI, GMS, or an external background-removal API.
+- White-key processing scans every pixel and makes white-like pixels
+  transparent when `r >= threshold && g >= threshold && b >= threshold`.
+- The threshold is configured by
+  `nemonic.community.memo.image.white-threshold`, default `245`.
+- This is intentionally not flood-fill; white areas inside closed shapes are
+  transparent too.
+- Existing transparent pixels remain transparent, and non-white colors keep
+  their color and alpha.
 
 Return three image fields:
 
@@ -47,14 +64,18 @@ Return three image fields:
 
 Run moderation before inserting a memo.
 
-- The moderation client receives the original snapshot URL, thumbnail URL,
-  client text, and source type.
+- The moderation client receives the derivative original snapshot URL,
+  derivative thumbnail URL, client text, and source type.
 - Allowed results insert the memo with `moderation_status = allowed` when the
   database enum supports it.
 - Blocked results do not insert a memo.
 - Moderation errors and timeouts are fail-closed by default.
 - OCR text, OCR categories, and moderation checked time are stored when
   available.
+- If derivative objects were uploaded but moderation, database insert, or later
+  create-time processing fails, the derivative objects are deleted
+  best-effort. The original upload objects, artifact results, gallery rows, and
+  file upload rows are not deleted by this flow.
 
 Use visibility states instead of physical deletion for wall lifecycle:
 
@@ -96,6 +117,9 @@ Reporting policy:
 
 - Positive: Community rendering is stable even if the source artifact, gallery
   row, or file upload lifecycle changes later.
+- Positive: Community wall images can render as transparent memo stickers while
+  original uploads and artifact result images remain intact for gallery,
+  download, card, or other product surfaces.
 - Positive: Direct and gallery-based community memos share the same display
   image contract.
 - Positive: Existing `memoImageUrl` clients keep working while newer clients can
@@ -106,8 +130,17 @@ Reporting policy:
 - Negative: Each memo requires two confirmed upload files before creation.
 - Negative: Gallery-origin memos duplicate rendered image storage instead of
   reusing artifact subtype images directly.
+- Negative: White text, white highlights, and white decoration pixels are also
+  transparent because white-key processing removes all white-like pixels.
+- Negative: Complex photographic cutouts are outside the first-pass algorithm.
 - Negative: Restoring a hidden memo can temporarily push visible memo count over
   the wall limit until the next create-time FIFO pass.
+- No migration: existing `body_image_url` and `thumbnail_image_url` columns store
+  derivative object keys, while existing `file_upload` rows keep source upload
+  tracking.
+- Follow-up: Evaluate AI segmentation or a dedicated background-removal model if
+  the product needs reliable complex photo cutouts without removing intentional
+  white foreground details.
 - Follow-up: If admin review history needs full auditability, add a dedicated
   admin review/audit table instead of relying only on latest `reviewed_by` and
   `reviewed_at`.
