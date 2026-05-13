@@ -163,7 +163,7 @@ public class FlipbookRoomFinalizationService {
             metadata("room_id", closeResult.roomCode(), "close_reason", "finalization_failed", "room_status_before",
                 roomState.status(), "participant_count", roomState.participantCount(), "retry_count", retryCount,
                 "closed_at", closeResult.closedAt()));
-        flipbookRoomEventPublisher.publishRoomClosed(roomCode, closeResult.closedAt());
+        flipbookRoomEventPublisher.publishRoomClosed(roomCode, closeResult.closedAt(), "finalization_failed");
     }
 
     private boolean isReadyForFinalization(FlipbookRoomState roomState, LocalDateTime readyCutoff) {

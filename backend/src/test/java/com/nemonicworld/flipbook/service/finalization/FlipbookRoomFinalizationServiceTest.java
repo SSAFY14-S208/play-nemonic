@@ -139,7 +139,7 @@ class FlipbookRoomFinalizationServiceTest {
         assertThat(result.processedRoomCount()).isZero();
         assertThat(result.resultCount()).isZero();
         verify(flipbookRoomEventPublisher, org.mockito.Mockito.never()).publishRoomClosed(anyString(),
-            any(LocalDateTime.class));
+            any(LocalDateTime.class), any());
     }
 
     @Test
@@ -163,7 +163,8 @@ class FlipbookRoomFinalizationServiceTest {
         verify(flipbookRoomRepository).saveIfUnchanged(eq(finalizingRoomState), updatedRoomStateCaptor.capture());
         assertThat(updatedRoomStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.CLOSED);
         verify(flipbookInviteMetadataSyncService).syncWithRoomState(updatedRoomStateCaptor.getValue());
-        verify(flipbookRoomEventPublisher).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class));
+        verify(flipbookRoomEventPublisher).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class),
+            eq("finalization_failed"));
     }
 
     @Test

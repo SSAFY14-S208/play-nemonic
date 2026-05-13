@@ -71,7 +71,7 @@ public class FlipbookRoomAbandonedCloseService {
                 if (result.closed()) {
                     closedRoomCount++;
                     logRoomClosed(roomState, result, closeReason, durationFieldName, durationSeconds);
-                    flipbookRoomEventPublisher.publishRoomClosed(roomState.roomCode(), result.closedAt());
+                    flipbookRoomEventPublisher.publishRoomClosed(roomState.roomCode(), result.closedAt(), closeReason);
                 }
             } catch (RuntimeException e) {
                 log.warn("Failed to close abandoned flipbook room. roomCode={}, closeReason={}", roomState.roomCode(),

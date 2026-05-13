@@ -74,8 +74,8 @@ class FlipbookRoomAbandonedCloseServiceTest {
         assertThat(result.closedWaitingRoomCount()).isEqualTo(1);
         assertThat(result.scannedPlayingRoomCount()).isEqualTo(1);
         assertThat(result.closedPlayingRoomCount()).isEqualTo(1);
-        verify(flipbookRoomEventPublisher).publishRoomClosed(WAITING_ROOM_CODE, NOW);
-        verify(flipbookRoomEventPublisher).publishRoomClosed(PLAYING_ROOM_CODE, NOW);
+        verify(flipbookRoomEventPublisher).publishRoomClosed(WAITING_ROOM_CODE, NOW, "waiting_idle_timeout");
+        verify(flipbookRoomEventPublisher).publishRoomClosed(PLAYING_ROOM_CODE, NOW, "playing_abandoned");
         ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
         verify(flipbookRoomRepository, times(2)).saveIfUnchanged(any(FlipbookRoomState.class),
             updatedStateCaptor.capture());
@@ -99,7 +99,7 @@ class FlipbookRoomAbandonedCloseServiceTest {
         assertThat(result.closedWaitingRoomCount()).isEqualTo(1);
         assertThat(result.scannedPlayingRoomCount()).isZero();
         assertThat(result.closedPlayingRoomCount()).isZero();
-        verify(flipbookRoomEventPublisher).publishRoomClosed(WAITING_ROOM_CODE, NOW);
+        verify(flipbookRoomEventPublisher).publishRoomClosed(WAITING_ROOM_CODE, NOW, "waiting_empty");
         ArgumentCaptor<FlipbookRoomState> updatedStateCaptor = ArgumentCaptor.forClass(FlipbookRoomState.class);
         verify(flipbookRoomRepository).saveIfUnchanged(eq(emptyWaitingRoom), updatedStateCaptor.capture());
         assertThat(updatedStateCaptor.getValue().status()).isEqualTo(FlipbookRoomStatus.CLOSED);
@@ -122,7 +122,7 @@ class FlipbookRoomAbandonedCloseServiceTest {
 
         assertThat(result.closedWaitingRoomCount()).isZero();
         assertThat(result.closedPlayingRoomCount()).isZero();
-        verify(flipbookRoomEventPublisher, never()).publishRoomClosed(any(), any());
+        verify(flipbookRoomEventPublisher, never()).publishRoomClosed(any(), any(), any());
         verify(flipbookInviteMetadataSyncService, never()).syncWithRoomState(any());
     }
 
