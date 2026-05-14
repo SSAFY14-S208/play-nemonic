@@ -312,6 +312,13 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
             host: participant.userUuid === event.data.newHostUserUuid,
           })),
         );
+        // 방장 변경 토스트 — 본인이면 임명 안내, 타인이면 닉네임 표시.
+        const currentUserUuid = useUserStore.getState().userUuid;
+        if (event.data.newHostUserUuid === currentUserUuid) {
+          toast('방장으로 임명되었습니다.');
+        } else {
+          toast(`${event.data.newHostNickname}님이 방장으로 임명되었습니다.`);
+        }
       },
       ALL_PARTS_COMPLETED: (event) => {
         // FINALIZING으로 전환 → RelayRoomPage가 RelayFinalizingView 표시.
