@@ -183,6 +183,11 @@ I1 = viz_classic(
 # ============================================================
 I2_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    # single chart spec 에 width/height 만 있으면 OS Dashboards Vega plugin 이 autosize:"fit"
+    # 을 자동 주입하면서 "width/height ignored" warning 을 띄운다. 명시적으로 autosize 를
+    # 두면 plugin 이 자동 주입을 건너뛰어 warning 사라짐. multi-view(facet) 인 I3 는
+    # 자동 주입 대상이 아니라 명시 불필요.
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "컨텐츠별 완주율 (%)",
         "subtitle": "진입(funnel_started) 대비 완료(funnel_goal_reached) 비율. 막대 길이 = 비율, 색 = 위험도.",
@@ -458,6 +463,8 @@ I3 = viz_vega(
 # ============================================================
 I4_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    # I2 와 같은 이유로 autosize 명시 (plugin 자동 주입 + warning 회피).
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "화면 이동 흐름",
         "subtitle": "이전 화면(가로) → 다음 화면(세로) 이동 빈도. 색이 진할수록 이동량 많음.",
