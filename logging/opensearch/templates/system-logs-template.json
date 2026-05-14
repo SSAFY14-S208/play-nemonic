@@ -29,6 +29,12 @@
         "@timestamp": {
           "type": "date"
         },
+        "service": {
+          "type": "keyword"
+        },
+        "container_name": {
+          "type": "keyword"
+        },
         "log_level": {
           "type": "keyword"
         },
