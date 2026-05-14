@@ -245,7 +245,13 @@ I2_SPEC = {
             "field": "funnel_label",
             "type": "nominal",
             "sort": "-x",
-            "axis": {"title": None, "labelFontSize": 13, "labelLimit": 200},
+            "axis": {
+                "title": None,
+                "labelFontSize": 13,
+                "labelLimit": 240,
+                "labelPadding": 8,
+                "offset": 4,
+            },
         },
         "x": {
             "field": "rate",
@@ -254,6 +260,8 @@ I2_SPEC = {
             "axis": {"title": "완주율 (%)", "labelFontSize": 11, "tickCount": 5},
         },
     },
+    # y축 label 자리 확보 — 좌측 padding 충분히.
+    "padding": {"left": 170, "right": 60, "top": 50, "bottom": 40},
     "layer": [
         {
             "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
@@ -384,8 +392,13 @@ I3_SPEC = {
         "format": {"property": "aggregations.filtered.funnels.buckets"}
     },
     "transform": [
-        # funnel_step_completed 의 step buckets 를 평면화.
-        {"flatten": ["steps_done.by_step.buckets"], "as": ["step_bucket"]},
+        # vega-lite flatten 은 dotted path 직접 접근이 불안정하므로
+        # calculate 로 먼저 array 를 평면 필드로 끌어낸 뒤 flatten 한다.
+        {"calculate":
+            "datum.steps_done && datum.steps_done.by_step "
+            "? datum.steps_done.by_step.buckets : []",
+         "as": "step_array"},
+        {"flatten": ["step_array"], "as": ["step_bucket"]},
         {"calculate": "datum.step_bucket.key", "as": "step_name"},
         {"calculate": "datum.step_bucket.doc_count", "as": "count"},
         {"calculate": "'1. ' + datum.step_name", "as": "step_label"},
