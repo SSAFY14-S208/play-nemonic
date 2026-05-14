@@ -350,16 +350,21 @@ I3_SPEC = {
                                 ]
                             }
                         },
+                        # composite aggregation 으로 funnel × step 조합을 평면 응답으로 받는다.
+                        # nested terms 의 다단 buckets 를 vega-lite flatten 으로 풀면 vega-expression
+                        # 의 chained property + ternary 조합이 안정적이지 않음.
                         "aggs": {
-                            "funnels": {
-                                "terms": {"field": "metadata.funnel_name", "size": 10},
-                                "aggs": {
-                                    "steps": {
-                                        "terms": {
-                                            "field": "metadata.step_name",
-                                            "size": 20
-                                        }
-                                    }
+                            "pairs": {
+                                "composite": {
+                                    "size": 200,
+                                    "sources": [
+                                        {"funnel": {"terms": {
+                                            "field": "metadata.funnel_name"
+                                        }}},
+                                        {"step": {"terms": {
+                                            "field": "metadata.step_name"
+                                        }}}
+                                    ]
                                 }
                             }
                         }
@@ -367,17 +372,13 @@ I3_SPEC = {
                 }
             }
         },
-        "format": {"property": "aggregations.filtered.funnels.buckets"}
+        "format": {"property": "aggregations.filtered.pairs.buckets"}
     },
     "transform": [
-        # funnels.buckets[].steps.buckets[] → 평면 row.
-        # vega-expression 의 && short-circuit + ternary 가 일부 케이스에서 빈 결과를 내므로
-        # datum.steps.buckets 를 직접 가리킨다 (응답에 항상 존재).
-        {"calculate": "datum.steps.buckets", "as": "step_array"},
-        {"flatten": ["step_array"], "as": ["step_bucket"]},
-        {"calculate": "datum.step_bucket.key", "as": "step_name"},
-        {"calculate": "datum.step_bucket.doc_count", "as": "count"},
-        {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.key",
+        {"calculate": "datum.key.funnel", "as": "funnel_name"},
+        {"calculate": "datum.key.step", "as": "step_name"},
+        {"calculate": "datum.doc_count", "as": "count"},
+        {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.funnel_name",
          "as": "funnel_label"},
         {"filter": "datum.count > 0"},
     ],
@@ -482,13 +483,15 @@ I4_SPEC = {
                                 ]
                             }
                         },
+                        # composite aggregation 으로 prev_path × path 조합을 평면 응답으로 받음.
                         "aggs": {
-                            "sources": {
-                                "terms": {"field": "prev_path", "size": 12},
-                                "aggs": {
-                                    "targets": {
-                                        "terms": {"field": "path", "size": 12}
-                                    }
+                            "pairs": {
+                                "composite": {
+                                    "size": 200,
+                                    "sources": [
+                                        {"from_path": {"terms": {"field": "prev_path"}}},
+                                        {"to_path": {"terms": {"field": "path"}}}
+                                    ]
                                 }
                             }
                         }
@@ -496,13 +499,12 @@ I4_SPEC = {
                 }
             }
         },
-        "format": {"property": "aggregations.filtered.sources.buckets"}
+        "format": {"property": "aggregations.filtered.pairs.buckets"}
     },
     "transform": [
-        {"flatten": ["targets.buckets"], "as": ["target"]},
-        {"calculate": "datum.key", "as": "from"},
-        {"calculate": "datum.target.key", "as": "to"},
-        {"calculate": "datum.target.doc_count", "as": "count"},
+        {"calculate": "datum.key.from_path", "as": "from"},
+        {"calculate": "datum.key.to_path", "as": "to"},
+        {"calculate": "datum.doc_count", "as": "count"},
         {"filter": "datum.from != datum.to"},
     ],
     "mark": {"type": "rect", "tooltip": True},
