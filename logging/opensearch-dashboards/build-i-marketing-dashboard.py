@@ -61,7 +61,8 @@ def viz_markdown(viz_id, title, markdown):
                 "type": "markdown",
                 "aggs": [],
                 "params": {
-                    "fontSize": 14,
+                    # fontSize 단위는 px. h2 헤더 + 설명 두 줄이 한눈에 들어오는 크기.
+                    "fontSize": 18,
                     "openLinksInNewTab": False,
                     "markdown": markdown,
                 },
@@ -1643,51 +1644,51 @@ HEADER_RETENTION = viz_markdown(
 #     [I9 체류시간 ──────────][I12 결과 체류 분포 ──]
 #     [I13 이탈 직전 체류 ───────────────────────]
 PANELS = [
-    # 섹션 1: 오늘의 핵심 지표
+    # 섹션 1: 오늘의 핵심 지표 (헤더 h6 — 큼지막하게)
     {"vis_id": HEADER_OVERVIEW["id"], "panel_id": "h1",
-     "grid": {"x": 0, "y": 0, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 0, "w": 48, "h": 6}},
     {"vis_id": I1["id"],  "panel_id": "1",
-     "grid": {"x": 0,  "y": 3,  "w": 24, "h": 10}},
+     "grid": {"x": 0,  "y": 6,  "w": 24, "h": 10}},
     {"vis_id": I11["id"], "panel_id": "2",
-     "grid": {"x": 24, "y": 3,  "w": 24, "h": 10}},
+     "grid": {"x": 24, "y": 6,  "w": 24, "h": 10}},
 
     # 섹션 2: 유입 채널 분석
     {"vis_id": HEADER_CHANNEL["id"], "panel_id": "h2",
-     "grid": {"x": 0, "y": 13, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 16, "w": 48, "h": 6}},
     {"vis_id": I7["id"],  "panel_id": "3",
-     "grid": {"x": 0,  "y": 16, "w": 24, "h": 16}},
+     "grid": {"x": 0,  "y": 22, "w": 24, "h": 16}},
     {"vis_id": I10["id"], "panel_id": "4",
-     "grid": {"x": 24, "y": 16, "w": 24, "h": 16}},
+     "grid": {"x": 24, "y": 22, "w": 24, "h": 16}},
     {"vis_id": I8["id"],  "panel_id": "5",
-     "grid": {"x": 0,  "y": 32, "w": 24, "h": 16}},
+     "grid": {"x": 0,  "y": 38, "w": 24, "h": 16}},
     {"vis_id": I6["id"],  "panel_id": "6",
-     "grid": {"x": 24, "y": 32, "w": 24, "h": 16}},
+     "grid": {"x": 24, "y": 38, "w": 24, "h": 16}},
 
     # 섹션 3: 컨텐츠 매력도
     {"vis_id": HEADER_CONTENT["id"], "panel_id": "h3",
-     "grid": {"x": 0, "y": 48, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 54, "w": 48, "h": 6}},
     {"vis_id": I2["id"],  "panel_id": "7",
-     "grid": {"x": 0,  "y": 51, "w": 24, "h": 16}},
+     "grid": {"x": 0,  "y": 60, "w": 24, "h": 16}},
     {"vis_id": I5["id"],  "panel_id": "8",
-     "grid": {"x": 24, "y": 51, "w": 24, "h": 16}},
+     "grid": {"x": 24, "y": 60, "w": 24, "h": 16}},
 
     # 섹션 4: 단계별 / 화면 흐름
     {"vis_id": HEADER_FLOW["id"], "panel_id": "h4",
-     "grid": {"x": 0, "y": 67, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 76, "w": 48, "h": 6}},
     {"vis_id": I3["id"],  "panel_id": "9",
-     "grid": {"x": 0,  "y": 70, "w": 48, "h": 24}},
+     "grid": {"x": 0,  "y": 82, "w": 48, "h": 24}},
     {"vis_id": I4["id"],  "panel_id": "10",
-     "grid": {"x": 0,  "y": 94, "w": 48, "h": 22}},
+     "grid": {"x": 0,  "y": 106, "w": 48, "h": 22}},
 
     # 섹션 5: 만족도 & 이탈
     {"vis_id": HEADER_RETENTION["id"], "panel_id": "h5",
-     "grid": {"x": 0, "y": 116, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 128, "w": 48, "h": 6}},
     {"vis_id": I9["id"],  "panel_id": "11",
-     "grid": {"x": 0,  "y": 119, "w": 24, "h": 18}},
+     "grid": {"x": 0,  "y": 134, "w": 24, "h": 18}},
     {"vis_id": I12["id"], "panel_id": "12",
-     "grid": {"x": 24, "y": 119, "w": 24, "h": 18}},
+     "grid": {"x": 24, "y": 134, "w": 24, "h": 18}},
     {"vis_id": I13["id"], "panel_id": "13",
-     "grid": {"x": 0,  "y": 137, "w": 48, "h": 14}},
+     "grid": {"x": 0,  "y": 152, "w": 48, "h": 14}},
 ]
 
 
