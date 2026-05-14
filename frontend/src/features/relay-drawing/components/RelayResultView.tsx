@@ -6,6 +6,7 @@ import { RELAY_RESULT_ACTIONS } from "../constants";
 import { useRelayResult } from "../hooks";
 import { useRelayDrawingStore } from "../stores";
 import { cn } from "@/shared/libs";
+import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
 
 import RelayButton from "./RelayButton";
 import {
@@ -64,6 +65,23 @@ export default function RelayResultView() {
   // 부스(/relay-drawing)가 의미상 가장 가까운 "로비".
   // closeRoom은 fire-and-forget — API/WS 결과를 기다리지 않고 즉시 화면 정리 후
   // 부스로 이동한다. 다른 참가자에게 ROOM_CLOSED는 백엔드/WS가 책임진다.
+  const activeResultItem = resultItems[activeResultIndex] ?? null;
+
+  const handleCommunityPost = () => {
+    const communityImageUrl = activeResultItem?.contentUrl ?? resultImageUrl;
+    if (!communityImageUrl) return;
+
+    writeCommunityCanvasHandoffDraft({
+      sourceKind: "RELAY",
+      title: ownerNickname ? `${ownerNickname}의 릴레이 드로잉` : "릴레이 드로잉",
+      imageUrl: communityImageUrl,
+      thumbnailUrl: activeResultItem?.thumbnailUrl ?? communityImageUrl,
+      sourceGalleryId: activeResultItem?.galleryId ?? null,
+      sourceContentKind: "relay_drawing",
+    });
+    router.push("/community-canvas");
+  };
+
   const handleReturnToLobby = () => {
     if (isHost) closeRoom();
     clearRoom();
@@ -160,22 +178,28 @@ export default function RelayResultView() {
             "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3",
           )}
         >
-          {RELAY_RESULT_ACTIONS.map(({ label, Icon }, index) => (
-            <RelayButton
-              key={label}
-              variant={index === 0 ? "secondary" : "primary"}
-              size="md"
-              className={cn(
-                "gap-2 rounded-[14px] border-[1.5px]",
-                index === 0
-                  ? "border-relay-line"
-                  : "border-relay-accent shadow-[0_4px_10px_rgba(212,156,31,0.18)]",
-              )}
-            >
-              <Icon className="size-4" aria-hidden />
-              {label}
-            </RelayButton>
-          ))}
+          {RELAY_RESULT_ACTIONS.map(({ label, Icon }, index) => {
+            const isCommunityPostAction = index === 1;
+
+            return (
+              <RelayButton
+                key={label}
+                variant={index === 0 ? "secondary" : "primary"}
+                size="md"
+                onClick={isCommunityPostAction ? handleCommunityPost : undefined}
+                disabled={isCommunityPostAction && !resultImageUrl}
+                className={cn(
+                  "gap-2 rounded-[14px] border-[1.5px]",
+                  index === 0
+                    ? "border-relay-line"
+                    : "border-relay-accent shadow-[0_4px_10px_rgba(212,156,31,0.18)]",
+                )}
+              >
+                <Icon className="size-4" aria-hidden />
+                {label}
+              </RelayButton>
+            );
+          })}
           <RelayButton
             onClick={handleReturnToLobby}
             size="md"

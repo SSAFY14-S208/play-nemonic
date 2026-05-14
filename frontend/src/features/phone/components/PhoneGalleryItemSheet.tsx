@@ -1,9 +1,11 @@
 'use client'
 
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { ArrowRight, Download, Printer, Share2, Trash2, X } from 'lucide-react'
 import { cn } from '@/shared/libs'
+import { writeCommunityCanvasHandoffDraft } from '@/shared/utils'
 import { PHONE_COLORS, PHONE_GALLERY_ITEM_STYLES } from '../constants'
 import { useNemonicImagePrint } from '../hooks'
 import { usePhoneStore } from '../phoneStore'
@@ -73,6 +75,7 @@ export function PhoneGalleryItemSheet({
   item,
   onClose,
 }: PhoneGalleryItemSheetProps) {
+  const router = useRouter()
   const itemStyle = PHONE_GALLERY_ITEM_STYLES[item.kind]
   const galleryDetail = usePhoneStore((state) => state.galleryDetail)
   const galleryDetailStatus = usePhoneStore(
@@ -113,6 +116,23 @@ export function PhoneGalleryItemSheet({
       if (!confirmed) return
     }
     await deleteGalleryItem(item.id)
+  }
+
+  const handleCommunityAttach = () => {
+    if (!printImageUrl) {
+      setToast('커뮤니티에 붙일 이미지를 불러오지 못했어요.')
+      return
+    }
+
+    writeCommunityCanvasHandoffDraft({
+      sourceKind: 'GALLERY',
+      title: item.title,
+      imageUrl: printImageUrl,
+      thumbnailUrl: item.imageDataUrl ?? printImageUrl,
+      sourceGalleryId: item.id,
+      sourceContentKind: item.kind,
+    })
+    router.push('/community-canvas')
   }
 
   return (
@@ -230,7 +250,12 @@ export function PhoneGalleryItemSheet({
 
         <button
           type="button"
-          className="body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary text-fg-inverse transition hover:-translate-y-0.5"
+          onClick={handleCommunityAttach}
+          disabled={!printImageUrl}
+          className={cn(
+            'body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary text-fg-inverse transition hover:-translate-y-0.5',
+            !printImageUrl && 'cursor-not-allowed opacity-60',
+          )}
         >
           커뮤니티 캔버스에 붙이기
           <ArrowRight className="size-5" />
