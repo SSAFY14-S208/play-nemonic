@@ -1,0 +1,47 @@
+<svg width="1500" height="1040" viewBox="0 0 1500 1040" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="outerFrame" x1="24" y1="12" x2="1476" y2="1028" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF9DC"/>
+      <stop offset="0.28" stop-color="#DDF2DB"/>
+      <stop offset="0.66" stop-color="#D8F0F8"/>
+      <stop offset="1" stop-color="#FFE5C3"/>
+    </linearGradient>
+    <linearGradient id="innerFrame" x1="76" y1="56" x2="1424" y2="984" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF2C7"/>
+      <stop offset="0.5" stop-color="#F8E4B2"/>
+      <stop offset="1" stop-color="#F1C87C"/>
+    </linearGradient>
+    <linearGradient id="imagePaper" x1="105" y1="112" x2="1398" y2="735" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.56" stop-color="#FFFDF6"/>
+      <stop offset="1" stop-color="#F5FBF7"/>
+    </linearGradient>
+    <linearGradient id="infoPaper" x1="95" y1="820" x2="1402" y2="996" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFCEB"/>
+      <stop offset="0.5" stop-color="#FFF4D7"/>
+      <stop offset="1" stop-color="#E9F7F5"/>
+    </linearGradient>
+    <radialGradient id="softLight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(728 322) rotate(90) scale(460 1020)">
+      <stop stop-color="#F8FFE8" stop-opacity="0.48"/>
+      <stop offset="0.65" stop-color="#D7F0E5" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#F7C77A" stop-opacity="0.14"/>
+    </radialGradient>
+    <filter id="shadow" x="-35" y="-30" width="1570" height="1105" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="18" flood-color="#617B6B" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="10" y="10" width="1480" height="1020" rx="44" fill="url(#outerFrame)"/>
+    <rect x="30" y="30" width="1440" height="980" rx="34" fill="url(#innerFrame)"/>
+    <rect x="52" y="52" width="1396" height="936" rx="28" stroke="#FFF8BE" stroke-opacity="0.86" stroke-width="7"/>
+
+    <rect x="74" y="74" width="1352" height="724" rx="25" fill="url(#imagePaper)"/>
+    <rect x="74" y="74" width="1352" height="724" rx="25" fill="url(#softLight)"/>
+    <rect x="96" y="96" width="1308" height="680" rx="20" stroke="#D6EEDB" stroke-opacity="0.62" stroke-width="6"/>
+
+    <rect x="74" y="826" width="1352" height="140" rx="24" fill="url(#infoPaper)"/>
+    <rect x="74" y="826" width="1352" height="140" rx="24" stroke="#F4D481" stroke-opacity="0.58" stroke-width="5"/>
+    <path d="M94 814H1406" stroke="#CDE4CD" stroke-opacity="0.6" stroke-width="12" stroke-linecap="round"/>
+  </g>
+</svg>

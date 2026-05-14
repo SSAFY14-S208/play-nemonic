@@ -39,10 +39,16 @@ export function CommunityReportModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-report-title"
-      className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center bg-black/35 p-4"
+      className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
     >
-      <section className="w-full max-w-md rounded-[0.5rem] bg-surface-default p-5 shadow-[0_18px_44px_rgb(30_24_18_/_24%)]">
-        <header className="flex items-center justify-between">
+      <section
+        className="w-full max-w-md bg-contain bg-center bg-no-repeat px-10 pb-10 pt-9"
+        style={{
+          backgroundImage: 'url("/images/community-canvas/ui/modal-report-frame.svg")',
+          backgroundSize: '100% 100%',
+        }}
+      >
+        <header className="flex items-center justify-between px-3 py-3">
           <h2 id="community-report-title" className="h3-b text-fg-primary">
             메모 신고
           </h2>
@@ -50,13 +56,13 @@ export function CommunityReportModal({
             type="button"
             aria-label="신고 닫기"
             onClick={onClose}
-            className="grid size-9 place-items-center rounded-full bg-surface-subtle text-fg-secondary"
+            className="grid size-9 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_6px_14px_rgb(71_68_112_/_16%)]"
           >
             <X className="size-5" />
           </button>
         </header>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-8 grid grid-cols-2 gap-2 px-2">
           {REPORT_REASONS.map((reportReason) => (
             <button
               key={reportReason}
@@ -83,7 +89,7 @@ export function CommunityReportModal({
           value={reasonDetail}
           onChange={(event) => setReasonDetail(event.target.value)}
           maxLength={300}
-          className="body-r mt-2 min-h-24 w-full resize-none rounded-[0.45rem] border border-border-default bg-white p-3 text-fg-primary outline-none focus:border-primary-1"
+          className="body-r mt-2 min-h-24 w-full resize-none rounded-[0.45rem] border border-[#ffcf58]/70 bg-[#fff8e8]/88 p-3 text-fg-primary outline-none focus:border-primary-1"
         />
 
         <button
