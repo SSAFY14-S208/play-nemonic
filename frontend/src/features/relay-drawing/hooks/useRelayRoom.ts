@@ -81,6 +81,17 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
       try {
         const room = await getRelayRoom(roomCode);
         if (cancelled) return;
+
+        // ── CLOSED 방 진입 차단 ──
+        // 이미 종료된 방에 대한 직접 URL/공유 링크 진입.
+        // store를 hydrate하지 않고 부스로 즉시 복귀한다.
+        if (room.status === "CLOSED") {
+          wasDismissedRef.current = true;
+          toast("종료된 방이에요");
+          router.replace("/relay-drawing");
+          return;
+        }
+
         hydrateRoomState(room);
 
         // 공유 링크 진입 자동 join — 가이드 §11.
