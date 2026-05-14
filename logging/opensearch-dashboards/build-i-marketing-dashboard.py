@@ -749,34 +749,43 @@ I6_SPEC = {
         {"filter": "datum.goal > 0"},
         {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.key", "as": "funnel_label"},
     ],
-    # donut 대신 horizontal bar — panel container fit 시에도 legend 자리 안 깨짐.
-    # y axis label 이 카테고리 역할.
-    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
-    "encoding": {
-        "y": {
-            "field": "funnel_label",
-            "type": "nominal",
-            "sort": "-x",
-            "axis": {"title": None, "labelFontSize": 12, "labelLimit": 200},
+    # donut + slice 위 직접 라벨 (layered) — legend 없이 panel 안에 fit.
+    "layer": [
+        {
+            "mark": {"type": "arc", "innerRadius": 50, "outerRadius": 95,
+                     "stroke": "#0F172A", "strokeWidth": 1, "tooltip": True},
+            "encoding": {
+                "theta": {"field": "shared", "type": "quantitative", "stack": True},
+                "color": {
+                    "field": "funnel_label",
+                    "type": "nominal",
+                    "scale": {"range": ["#60A5FA", "#FB923C", "#F472B6",
+                                        "#34D399", "#22D3EE"]},
+                    "legend": None,
+                },
+                "tooltip": [
+                    {"field": "funnel_label", "type": "nominal", "title": "컨텐츠"},
+                    {"field": "goal", "type": "quantitative", "title": "결과 도달"},
+                    {"field": "shared", "type": "quantitative", "title": "공유 (추정)"},
+                    {"field": "abandoned", "type": "quantitative",
+                     "title": "공유 없이 이탈"},
+                ],
+            },
         },
-        "x": {
-            "field": "shared",
-            "type": "quantitative",
-            "axis": {"title": "공유 추정 (세션)", "labelFontSize": 10},
+        {
+            "mark": {"type": "text", "radius": 75, "fontSize": 11,
+                     "fontWeight": "bold", "color": "#FFFFFF"},
+            "encoding": {
+                "theta": {"field": "shared", "type": "quantitative", "stack": True},
+                "text": {"field": "funnel_label", "type": "nominal"},
+                # 작은 slice 라벨 숨김 (겹침 방지) — 전체의 5% 미만은 숨김.
+                "opacity": {
+                    "condition": {"test": "datum.shared > 0", "value": 1},
+                    "value": 0
+                },
+            },
         },
-        "color": {
-            "field": "funnel_label",
-            "type": "nominal",
-            "scale": {"range": ["#60A5FA", "#FB923C", "#F472B6", "#34D399", "#22D3EE"]},
-            "legend": None,
-        },
-        "tooltip": [
-            {"field": "funnel_label", "type": "nominal", "title": "컨텐츠"},
-            {"field": "goal", "type": "quantitative", "title": "결과 도달"},
-            {"field": "shared", "type": "quantitative", "title": "공유 (추정)"},
-            {"field": "abandoned", "type": "quantitative", "title": "공유 없이 이탈"},
-        ],
-    },
+    ],
     # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
     "width": 240,
     "height": 200,
@@ -851,33 +860,42 @@ I7_SPEC = {
             "'unknown':'알 수 없음'}[datum.entry_type] || datum.entry_type",
          "as": "entry_label"},
     ],
-    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
-    "encoding": {
-        "y": {
-            "field": "entry_label",
-            "type": "nominal",
-            "sort": "-x",
-            "axis": {"title": None, "labelFontSize": 12, "labelLimit": 200},
-        },
-        "x": {
-            "field": "count",
-            "type": "quantitative",
-            "axis": {"title": "세션 수", "labelFontSize": 10},
-        },
-        "color": {
-            "field": "entry_label",
-            "type": "nominal",
-            "scale": {
-                "domain": ["직접 접속", "검색", "SNS", "QR 코드", "공유 링크", "캠페인", "알 수 없음"],
-                "range": ["#94A3B8", "#60A5FA", "#34D399", "#FBBF24", "#A78BFA", "#F472B6", "#475569"],
+    "layer": [
+        {
+            "mark": {"type": "arc", "innerRadius": 50, "outerRadius": 95,
+                     "stroke": "#0F172A", "strokeWidth": 1, "tooltip": True},
+            "encoding": {
+                "theta": {"field": "count", "type": "quantitative", "stack": True},
+                "color": {
+                    "field": "entry_label",
+                    "type": "nominal",
+                    "scale": {
+                        "domain": ["직접 접속", "검색", "SNS", "QR 코드",
+                                   "공유 링크", "캠페인", "알 수 없음"],
+                        "range": ["#94A3B8", "#60A5FA", "#34D399", "#FBBF24",
+                                  "#A78BFA", "#F472B6", "#475569"],
+                    },
+                    "legend": None,
+                },
+                "tooltip": [
+                    {"field": "entry_label", "type": "nominal", "title": "경로"},
+                    {"field": "count", "type": "quantitative", "title": "세션 수"},
+                ],
             },
-            "legend": None,
         },
-        "tooltip": [
-            {"field": "entry_label", "type": "nominal", "title": "경로"},
-            {"field": "count", "type": "quantitative", "title": "세션 수"},
-        ],
-    },
+        {
+            "mark": {"type": "text", "radius": 75, "fontSize": 11,
+                     "fontWeight": "bold", "color": "#FFFFFF"},
+            "encoding": {
+                "theta": {"field": "count", "type": "quantitative", "stack": True},
+                "text": {"field": "entry_label", "type": "nominal"},
+                "opacity": {
+                    "condition": {"test": "datum.count > 0", "value": 1},
+                    "value": 0
+                },
+            },
+        },
+    ],
     # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
     "width": 240,
     "height": 200,
@@ -955,33 +973,42 @@ I8_SPEC = {
          "as": "sns_label"},
         {"aggregate": [{"op": "sum", "field": "count", "as": "count"}], "groupby": ["sns_label"]},
     ],
-    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
-    "encoding": {
-        "y": {
-            "field": "sns_label",
-            "type": "nominal",
-            "sort": "-x",
-            "axis": {"title": None, "labelFontSize": 12, "labelLimit": 200},
-        },
-        "x": {
-            "field": "count",
-            "type": "quantitative",
-            "axis": {"title": "세션 수", "labelFontSize": 10},
-        },
-        "color": {
-            "field": "sns_label",
-            "type": "nominal",
-            "scale": {
-                "domain": ["인스타그램", "트위터", "카카오톡", "페이스북", "링크드인", "기타"],
-                "range": ["#EC4899", "#60A5FA", "#FBBF24", "#3B82F6", "#0E76A8", "#94A3B8"],
+    "layer": [
+        {
+            "mark": {"type": "arc", "innerRadius": 50, "outerRadius": 95,
+                     "stroke": "#0F172A", "strokeWidth": 1, "tooltip": True},
+            "encoding": {
+                "theta": {"field": "count", "type": "quantitative", "stack": True},
+                "color": {
+                    "field": "sns_label",
+                    "type": "nominal",
+                    "scale": {
+                        "domain": ["인스타그램", "트위터", "카카오톡",
+                                   "페이스북", "링크드인", "기타"],
+                        "range": ["#EC4899", "#60A5FA", "#FBBF24",
+                                  "#3B82F6", "#0E76A8", "#94A3B8"],
+                    },
+                    "legend": None,
+                },
+                "tooltip": [
+                    {"field": "sns_label", "type": "nominal", "title": "SNS"},
+                    {"field": "count", "type": "quantitative", "title": "세션 수"},
+                ],
             },
-            "legend": None,
         },
-        "tooltip": [
-            {"field": "sns_label", "type": "nominal", "title": "SNS"},
-            {"field": "count", "type": "quantitative", "title": "세션 수"},
-        ],
-    },
+        {
+            "mark": {"type": "text", "radius": 75, "fontSize": 11,
+                     "fontWeight": "bold", "color": "#FFFFFF"},
+            "encoding": {
+                "theta": {"field": "count", "type": "quantitative", "stack": True},
+                "text": {"field": "sns_label", "type": "nominal"},
+                "opacity": {
+                    "condition": {"test": "datum.count > 0", "value": 1},
+                    "value": 0
+                },
+            },
+        },
+    ],
     # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
     "width": 240,
     "height": 200,
@@ -1122,15 +1149,15 @@ I9 = viz_vega(
 # ============================================================
 PANELS = [
     {"vis_id": I1["id"], "panel_id": "1", "grid": {"x": 0,  "y": 0,  "w": 48, "h": 10}},
-    # horizontal bar viz 3개 — h 14 면 충분, panel 안에 자연 fit.
-    {"vis_id": I7["id"], "panel_id": "2", "grid": {"x": 0,  "y": 10, "w": 16, "h": 14}},
-    {"vis_id": I8["id"], "panel_id": "3", "grid": {"x": 16, "y": 10, "w": 16, "h": 14}},
-    {"vis_id": I6["id"], "panel_id": "4", "grid": {"x": 32, "y": 10, "w": 16, "h": 14}},
-    {"vis_id": I2["id"], "panel_id": "5", "grid": {"x": 0,  "y": 24, "w": 24, "h": 16}},
-    {"vis_id": I5["id"], "panel_id": "6", "grid": {"x": 24, "y": 24, "w": 24, "h": 16}},
-    {"vis_id": I3["id"], "panel_id": "7", "grid": {"x": 0,  "y": 40, "w": 48, "h": 24}},
-    {"vis_id": I4["id"], "panel_id": "8", "grid": {"x": 0,  "y": 64, "w": 48, "h": 22}},
-    {"vis_id": I9["id"], "panel_id": "9", "grid": {"x": 0,  "y": 86, "w": 48, "h": 20}},
+    # 도넛 viz 3개 — chart 안 라벨 표시 방식이라 legend 공간 불필요. h 18 정도면 충분.
+    {"vis_id": I7["id"], "panel_id": "2", "grid": {"x": 0,  "y": 10, "w": 16, "h": 18}},
+    {"vis_id": I8["id"], "panel_id": "3", "grid": {"x": 16, "y": 10, "w": 16, "h": 18}},
+    {"vis_id": I6["id"], "panel_id": "4", "grid": {"x": 32, "y": 10, "w": 16, "h": 18}},
+    {"vis_id": I2["id"], "panel_id": "5", "grid": {"x": 0,  "y": 28, "w": 24, "h": 16}},
+    {"vis_id": I5["id"], "panel_id": "6", "grid": {"x": 24, "y": 28, "w": 24, "h": 16}},
+    {"vis_id": I3["id"], "panel_id": "7", "grid": {"x": 0,  "y": 44, "w": 48, "h": 24}},
+    {"vis_id": I4["id"], "panel_id": "8", "grid": {"x": 0,  "y": 68, "w": 48, "h": 22}},
+    {"vis_id": I9["id"], "panel_id": "9", "grid": {"x": 0,  "y": 90, "w": 48, "h": 20}},
 ]
 
 
