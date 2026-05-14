@@ -39,7 +39,7 @@ export function CommunityReportModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-report-title"
-      className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center bg-[#1f160d]/58 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
     >
       <section
         className="w-full max-w-md bg-contain bg-center bg-no-repeat px-10 pb-10 pt-9"
@@ -56,7 +56,7 @@ export function CommunityReportModal({
             type="button"
             aria-label="신고 닫기"
             onClick={onClose}
-            className="grid size-9 place-items-center rounded-full border border-[#e0b46f] bg-[#fff6df] text-fg-secondary shadow-[0_6px_14px_rgb(84_45_18_/_16%)]"
+            className="grid size-9 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_6px_14px_rgb(71_68_112_/_16%)]"
           >
             <X className="size-5" />
           </button>
@@ -89,7 +89,7 @@ export function CommunityReportModal({
           value={reasonDetail}
           onChange={(event) => setReasonDetail(event.target.value)}
           maxLength={300}
-          className="body-r mt-2 min-h-24 w-full resize-none rounded-[0.45rem] border border-[#d9994a]/70 bg-[#fff8e8]/88 p-3 text-fg-primary outline-none focus:border-primary-1"
+          className="body-r mt-2 min-h-24 w-full resize-none rounded-[0.45rem] border border-[#ffcf58]/70 bg-[#fff8e8]/88 p-3 text-fg-primary outline-none focus:border-primary-1"
         />
 
         <button

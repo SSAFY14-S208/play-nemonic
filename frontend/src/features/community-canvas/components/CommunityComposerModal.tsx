@@ -55,6 +55,7 @@ const TOOL_ACTIONS: Array<{
 ]
 
 const GALLERY_HIDDEN_TOOL_ACTIONS: ToolActionKey[] = []
+const COMPOSER_BOARD_SURFACE_CLASS = 'h-[540px] w-[720px] max-h-full max-w-full'
 
 function getContainedImageFrame({
   imageWidth,
@@ -105,7 +106,7 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-composer-title"
-      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#1f160d]/58 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
     >
       <section
         className="relative aspect-[1600/980] overflow-hidden bg-contain bg-center bg-no-repeat"
@@ -126,20 +127,20 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
             type="button"
             aria-label="작성 닫기"
             onClick={composer.closeComposer}
-            className="grid size-11 place-items-center rounded-full border border-[#e0b46f] bg-[#fff6df] text-fg-secondary shadow-[0_7px_16px_rgb(84_45_18_/_18%)] transition hover:-translate-y-0.5 hover:bg-white"
+            className="grid size-11 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
           >
             <X className="size-5" />
           </button>
         </header>
 
-        <div className="absolute left-[4.75%] top-[21%] h-[7.15%] w-[16.875%]">
+        <div className="absolute left-[4.75%] top-[21.55%] h-[4.65%] w-[16.875%]">
           <SourceTabs
             sourceType={sourceType}
             onSelectSourceType={composer.selectSourceType}
           />
         </div>
 
-        <div className="absolute bottom-[8.6%] left-[4.75%] right-[4.75%] top-[31.3%] grid min-h-0 gap-[1.5%] overflow-hidden xl:grid-cols-[minmax(0,750fr)_320fr_330fr]">
+        <div className="absolute bottom-[8.6%] left-[4.75%] right-[4.75%] top-[29%] grid min-h-0 gap-[1.5%] overflow-hidden xl:grid-cols-[minmax(0,750fr)_320fr_330fr]">
             {sourceType === 'DIRECT' ? (
               <>
                 <div className="flex h-full min-w-0 items-center justify-center overflow-visible">
@@ -187,10 +188,13 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
               <>
                 <div className="flex h-full min-w-0 items-center justify-center overflow-visible">
                   {!selectedGalleryCanvasImageUrl && composer.handoffDraft ? (
-                    <CommunityHandoffSourcePanel draft={composer.handoffDraft} />
+                    <CommunityHandoffSourcePanel
+                      draft={composer.handoffDraft}
+                      className={COMPOSER_BOARD_SURFACE_CLASS}
+                    />
                   ) : !selectedGalleryCanvasImageUrl ? (
                     <CommunityGalleryPicker
-                      className="h-full w-full max-h-full"
+                      className={COMPOSER_BOARD_SURFACE_CLASS}
                       items={composer.galleryItems}
                       status={composer.galleryStatus}
                       error={composer.galleryError}
@@ -223,35 +227,28 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
                   className={cn(
                     'grid min-h-0 self-center auto-rows-max content-start gap-3 overflow-y-auto rounded-[0.55rem] bg-surface-default p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] [height:min(100%,33.75rem)]',
                     isPosting && 'pointer-events-none opacity-60',
-                    !selectedGalleryCanvasImageUrl && 'h-full place-items-center',
                   )}
                 >
-                  {selectedGalleryCanvasImageUrl ? (
-                    <>
-                      <DrawingToolStrip
-                        hiddenToolKeys={GALLERY_HIDDEN_TOOL_ACTIONS}
-                        selectedToolKey={drawingBoard.selectedToolKey}
-                        canUndoDrawing={drawingBoard.canUndoDrawing}
-                        canRedoDrawing={drawingBoard.canRedoDrawing}
-                        onSelectTool={drawingBoard.setSelectedToolKey}
-                        onUndoDrawing={drawingBoard.undoDrawing}
-                        onRedoDrawing={drawingBoard.redoDrawing}
-                        onClearDrawing={drawingBoard.clearDrawing}
-                      />
+                  <DrawingToolStrip
+                    hiddenToolKeys={GALLERY_HIDDEN_TOOL_ACTIONS}
+                    selectedToolKey={drawingBoard.selectedToolKey}
+                    canUndoDrawing={drawingBoard.canUndoDrawing}
+                    canRedoDrawing={drawingBoard.canRedoDrawing}
+                    onSelectTool={drawingBoard.setSelectedToolKey}
+                    onUndoDrawing={drawingBoard.undoDrawing}
+                    onRedoDrawing={drawingBoard.redoDrawing}
+                    onClearDrawing={drawingBoard.clearDrawing}
+                  />
 
-                      <DrawingBrushPanel
-                        colors={DRAWING_COLORS}
-                        selectedColor={drawingBoard.selectedColor}
-                        selectedOpacity={drawingBoard.selectedOpacity}
-                        strokeWidth={drawingBoard.strokeWidth}
-                        onSelectColor={drawingBoard.setSelectedColor}
-                        onOpacityChange={drawingBoard.setSelectedOpacity}
-                        onStrokeWidthChange={drawingBoard.setStrokeWidth}
-                      />
-                    </>
-                  ) : (
-                    <ImagePlus className="size-9 text-fg-secondary" />
-                  )}
+                  <DrawingBrushPanel
+                    colors={DRAWING_COLORS}
+                    selectedColor={drawingBoard.selectedColor}
+                    selectedOpacity={drawingBoard.selectedOpacity}
+                    strokeWidth={drawingBoard.strokeWidth}
+                    onSelectColor={drawingBoard.setSelectedColor}
+                    onOpacityChange={drawingBoard.setSelectedOpacity}
+                    onStrokeWidthChange={drawingBoard.setStrokeWidth}
+                  />
                 </div>
               </>
             )}
@@ -276,7 +273,7 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
               type="button"
               disabled={isPosting}
               onClick={handlePreparePlacement}
-              className="body-b mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-primary-1 text-fg-inverse transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="body-b mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-primary-1 text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {sourceType === 'DIRECT' ? <Send className="size-5" /> : <ImagePlus className="size-5" />}
               {isPosting ? '메모지 준비 중' : '메모지 들기'}
@@ -290,8 +287,10 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
 
 function CommunityHandoffSourcePanel({
   draft,
+  className,
 }: {
   draft: NonNullable<ReturnType<typeof useCommunityComposer>['handoffDraft']>
+  className?: string
 }) {
   const previewUrl = draft.thumbnailUrl || draft.imageUrl
   const sourceLabel =
@@ -302,7 +301,7 @@ function CommunityHandoffSourcePanel({
         : '폰 갤러리'
 
   return (
-    <section className="rounded-[0.5rem] border border-border-default bg-surface-subtle p-4">
+    <section className={cn('rounded-[0.5rem] border border-border-default bg-surface-subtle p-4', className)}>
       <p className="caption-b text-primary-2">{sourceLabel}</p>
       <h3 className="body-b mt-1 truncate text-fg-primary">{draft.title}</h3>
       <div className="relative mt-4 aspect-[4/3] overflow-hidden rounded-[0.45rem] border border-border-default bg-surface-default">
@@ -385,7 +384,7 @@ function SourceTabs({
   onSelectSourceType: (sourceType: MemoSourceType) => void
 }) {
   return (
-    <div className="grid h-full w-full grid-cols-2 rounded-[0.45rem] border border-border-default bg-surface-subtle p-1">
+    <div className="grid h-full w-full grid-cols-2 rounded-[0.45rem] border border-border-default bg-surface-subtle px-1 py-0.5">
       {SOURCE_TABS.map((tab) => (
         <button
           key={tab.key}

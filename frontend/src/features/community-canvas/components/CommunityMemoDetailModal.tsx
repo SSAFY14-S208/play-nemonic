@@ -44,7 +44,7 @@ export function CommunityMemoDetailModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-memo-detail-title"
-      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#1f160d]/58 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
     >
       <section
         className="relative aspect-[1500/1040] w-full max-w-6xl bg-contain bg-center bg-no-repeat"
@@ -57,12 +57,12 @@ export function CommunityMemoDetailModal({
           type="button"
           aria-label="메모 상세 닫기"
           onClick={onClose}
-          className="absolute right-[5.3%] top-[5.3%] z-10 grid size-11 place-items-center rounded-full border border-[#e0b46f] bg-[#fff6df] text-fg-secondary shadow-[0_7px_16px_rgb(84_45_18_/_18%)] transition hover:-translate-y-0.5 hover:bg-white"
+          className="absolute right-[5.3%] top-[5.3%] z-10 grid size-11 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
         >
           <X className="size-5" />
         </button>
 
-        <div className="absolute left-[6.4%] right-[6.4%] top-[9.2%] bottom-[25.4%] overflow-hidden rounded-[1rem] border border-[#f0dcae]/80 bg-white shadow-[inset_0_1px_0_rgb(255_255_255_/_88%),0_8px_22px_rgb(80_45_18_/_10%)]">
+        <div className="absolute left-[6.4%] right-[6.4%] top-[9.2%] bottom-[25.4%] overflow-hidden rounded-[1rem] border border-[#ffdf82]/80 bg-white shadow-[inset_0_1px_0_rgb(255_255_255_/_88%),0_8px_22px_rgb(71_68_112_/_10%)]">
           {detailStatus === 'loading' && (
             <div className="absolute inset-0 grid place-items-center">
               <p className="body-b text-fg-secondary">메모를 여는 중</p>

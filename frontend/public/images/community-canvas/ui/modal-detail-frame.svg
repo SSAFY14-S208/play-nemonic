@@ -1,79 +1,47 @@
 <svg width="1500" height="1040" viewBox="0 0 1500 1040" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="outerWood" x1="24" y1="12" x2="1476" y2="1028" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#6B3419"/>
-      <stop offset="0.22" stop-color="#B86A2C"/>
-      <stop offset="0.48" stop-color="#E29239"/>
-      <stop offset="0.78" stop-color="#A65B25"/>
-      <stop offset="1" stop-color="#4B2311"/>
+    <linearGradient id="outerFrame" x1="24" y1="12" x2="1476" y2="1028" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF9DC"/>
+      <stop offset="0.28" stop-color="#DDF2DB"/>
+      <stop offset="0.66" stop-color="#D8F0F8"/>
+      <stop offset="1" stop-color="#FFE5C3"/>
     </linearGradient>
-    <linearGradient id="innerWood" x1="76" y1="56" x2="1424" y2="984" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F4B65C"/>
-      <stop offset="0.5" stop-color="#C97732"/>
-      <stop offset="1" stop-color="#7C3A1B"/>
+    <linearGradient id="innerFrame" x1="76" y1="56" x2="1424" y2="984" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF2C7"/>
+      <stop offset="0.5" stop-color="#F8E4B2"/>
+      <stop offset="1" stop-color="#F1C87C"/>
     </linearGradient>
-    <linearGradient id="cork" x1="105" y1="112" x2="1398" y2="735" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#D89442"/>
-      <stop offset="0.5" stop-color="#C78138"/>
-      <stop offset="1" stop-color="#A7602C"/>
+    <linearGradient id="imagePaper" x1="105" y1="112" x2="1398" y2="735" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.56" stop-color="#FFFDF6"/>
+      <stop offset="1" stop-color="#F5FBF7"/>
     </linearGradient>
     <linearGradient id="infoPaper" x1="95" y1="820" x2="1402" y2="996" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFF6E4"/>
-      <stop offset="0.48" stop-color="#F5E2BF"/>
-      <stop offset="1" stop-color="#E7C894"/>
+      <stop stop-color="#FFFCEB"/>
+      <stop offset="0.5" stop-color="#FFF4D7"/>
+      <stop offset="1" stop-color="#E9F7F5"/>
     </linearGradient>
-    <radialGradient id="corkLight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(728 322) rotate(90) scale(460 1020)">
-      <stop stop-color="#F7C57A" stop-opacity="0.55"/>
-      <stop offset="0.65" stop-color="#D99546" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#6F3518" stop-opacity="0.16"/>
+    <radialGradient id="softLight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(728 322) rotate(90) scale(460 1020)">
+      <stop stop-color="#F8FFE8" stop-opacity="0.48"/>
+      <stop offset="0.65" stop-color="#D7F0E5" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#F7C77A" stop-opacity="0.14"/>
     </radialGradient>
-    <pattern id="corkGrain" width="42" height="42" patternUnits="userSpaceOnUse">
-      <circle cx="8" cy="9" r="1.5" fill="#6D3819" fill-opacity="0.2"/>
-      <circle cx="28" cy="17" r="1.1" fill="#F4B55D" fill-opacity="0.22"/>
-      <circle cx="36" cy="34" r="1.4" fill="#7E4320" fill-opacity="0.14"/>
-      <path d="M4 29C14 25 23 25 34 30" stroke="#82471F" stroke-opacity="0.12" stroke-width="1.2" stroke-linecap="round"/>
-    </pattern>
     <filter id="shadow" x="-35" y="-30" width="1570" height="1105" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="24" stdDeviation="18" flood-color="#1E1007" flood-opacity="0.4"/>
+      <feDropShadow dx="0" dy="24" stdDeviation="18" flood-color="#617B6B" flood-opacity="0.28"/>
     </filter>
   </defs>
 
   <g filter="url(#shadow)">
-    <rect x="10" y="10" width="1480" height="1020" rx="44" fill="url(#outerWood)"/>
-    <rect x="30" y="30" width="1440" height="980" rx="34" fill="url(#innerWood)"/>
-    <rect x="52" y="52" width="1396" height="936" rx="28" stroke="#F5BE63" stroke-opacity="0.62" stroke-width="7"/>
+    <rect x="10" y="10" width="1480" height="1020" rx="44" fill="url(#outerFrame)"/>
+    <rect x="30" y="30" width="1440" height="980" rx="34" fill="url(#innerFrame)"/>
+    <rect x="52" y="52" width="1396" height="936" rx="28" stroke="#FFF8BE" stroke-opacity="0.86" stroke-width="7"/>
 
-    <rect x="74" y="74" width="1352" height="724" rx="25" fill="url(#cork)"/>
-    <rect x="74" y="74" width="1352" height="724" rx="25" fill="url(#corkLight)"/>
-    <rect x="74" y="74" width="1352" height="724" rx="25" fill="url(#corkGrain)"/>
-    <rect x="96" y="96" width="1308" height="680" rx="20" stroke="#FFD986" stroke-opacity="0.66" stroke-width="6"/>
+    <rect x="74" y="74" width="1352" height="724" rx="25" fill="url(#imagePaper)"/>
+    <rect x="74" y="74" width="1352" height="724" rx="25" fill="url(#softLight)"/>
+    <rect x="96" y="96" width="1308" height="680" rx="20" stroke="#D6EEDB" stroke-opacity="0.62" stroke-width="6"/>
 
     <rect x="74" y="826" width="1352" height="140" rx="24" fill="url(#infoPaper)"/>
-    <rect x="74" y="826" width="1352" height="140" rx="24" stroke="#FAD383" stroke-opacity="0.7" stroke-width="5"/>
-    <path d="M94 814H1406" stroke="#70401C" stroke-opacity="0.48" stroke-width="12" stroke-linecap="round"/>
-  </g>
-
-  <g opacity="0.98">
-    <circle cx="134" cy="154" r="13" fill="#E94D3D"/>
-    <circle cx="123" cy="164" r="8" fill="#B83831"/>
-    <circle cx="166" cy="202" r="13" fill="#F0C43E"/>
-    <circle cx="154" cy="211" r="8" fill="#B98D22"/>
-    <circle cx="200" cy="254" r="13" fill="#2F9DD0"/>
-    <circle cx="188" cy="263" r="8" fill="#1D6F98"/>
-    <circle cx="1362" cy="160" r="13" fill="#78AE49"/>
-    <circle cx="1350" cy="170" r="8" fill="#4F7A35"/>
-    <circle cx="1395" cy="211" r="13" fill="#EF7676"/>
-    <circle cx="1383" cy="220" r="8" fill="#B64D4D"/>
-    <rect x="1162" y="96" width="184" height="50" rx="8" transform="rotate(16 1162 96)" fill="#80C8E7"/>
-    <circle cx="1210" cy="116" r="3.8" fill="#EDF9FF"/>
-    <circle cx="1242" cy="124" r="3.8" fill="#EDF9FF"/>
-    <circle cx="1274" cy="133" r="3.8" fill="#EDF9FF"/>
-  </g>
-
-  <g opacity="0.92">
-    <path d="M72 25C125 -5 181 3 220 42C170 70 114 66 72 25Z" fill="#78A942"/>
-    <path d="M168 28C216 -1 264 8 300 44C254 66 207 63 168 28Z" fill="#A8C56B"/>
-    <path d="M1270 26C1324 -5 1380 4 1422 42C1371 70 1314 66 1270 26Z" fill="#7DAF4D"/>
-    <path d="M1344 30C1396 1 1440 12 1464 47C1422 68 1375 64 1344 30Z" fill="#A7C46C"/>
+    <rect x="74" y="826" width="1352" height="140" rx="24" stroke="#F4D481" stroke-opacity="0.58" stroke-width="5"/>
+    <path d="M94 814H1406" stroke="#CDE4CD" stroke-opacity="0.6" stroke-width="12" stroke-linecap="round"/>
   </g>
 </svg>

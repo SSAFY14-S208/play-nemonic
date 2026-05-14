@@ -36,14 +36,13 @@ const WALL_HEIGHT = 941
 const MEMO_WIDTH = 160
 const MEMO_HEIGHT = 160
 const MEMO_VISUAL_SAFE_PADDING = 24
-const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg.png'
-const WALL_FOREGROUND_IMAGE = '/images/community-canvas/wall-fg.png'
+const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg-studio.png'
 const BOUNDARY_EPSILON = 0.5
 const ATTACHABLE_SURFACE_BOUNDS = {
-  left: -630,
-  top: -365,
+  left: -590,
+  top: -550,
   right: 630,
-  bottom: 292,
+  bottom: 550,
 }
 const MEMO_PLACEMENT_ANIMATION_DURATION_MS = 720
 
@@ -798,15 +797,6 @@ export function CommunityWall({
           </>
         )}
 
-        <Image
-          src={WALL_FOREGROUND_IMAGE}
-          alt=""
-          fill
-          sizes={`${WALL_WIDTH}px`}
-          aria-hidden="true"
-          className="pointer-events-none z-[9000] select-none object-cover"
-        />
-
         {memoStatus === 'loading' && !isWallManipulating && (
           <div className="absolute inset-0 z-[11000] grid place-items-center bg-white/45 backdrop-blur-[1px]">
             <p className="body-b rounded-[0.45rem] bg-white px-4 py-3 text-fg-primary shadow-sm">
@@ -834,7 +824,7 @@ export function CommunityWall({
                 event.stopPropagation()
                 onRetry()
               }}
-              className="body-b mt-4 h-10 rounded-[0.45rem] bg-primary-1 px-4 text-fg-inverse"
+              className="body-b mt-4 h-10 rounded-[0.45rem] bg-primary-1 px-4 text-fg-primary"
             >
               다시 불러오기
             </button>
@@ -861,7 +851,7 @@ function PendingCancelButton({
         onCancelPendingMemo()
       }}
       disabled={isAttachingMemo}
-      className="absolute right-5 top-5 z-[10001] grid size-10 place-items-center rounded-full bg-white text-fg-secondary shadow-[0_10px_22px_rgb(61_43_22_/_16%)] disabled:cursor-not-allowed disabled:opacity-60"
+      className="absolute right-5 top-5 z-[10001] grid size-10 place-items-center rounded-full bg-white text-fg-secondary shadow-[0_10px_22px_rgb(71_68_112_/_16%)] disabled:cursor-not-allowed disabled:opacity-60"
     >
       <X className="size-5" />
     </button>
@@ -1003,7 +993,7 @@ function MemoSurface({
         onMouseDown={onBeginRotate}
         onClick={(event) => event.stopPropagation()}
         disabled={disabled}
-        className="pointer-events-auto absolute left-1/2 top-0 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border-default bg-white text-fg-secondary shadow-[0_8px_16px_rgb(61_43_22_/_18%)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="pointer-events-auto absolute left-1/2 top-0 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border-default bg-white text-fg-secondary shadow-[0_8px_16px_rgb(71_68_112_/_18%)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <RotateCw className="size-4" />
       </button>

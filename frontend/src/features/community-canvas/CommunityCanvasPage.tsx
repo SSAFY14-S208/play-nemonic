@@ -19,6 +19,18 @@ const memoButtonStyle = {
   backgroundImage: 'url("/images/community-canvas/ui/button-add-token.png")',
 } satisfies CSSProperties
 
+type CommunityCanvasThemeStyle = CSSProperties & Record<`--${string}`, string>
+
+const communityCanvasThemeStyle: CommunityCanvasThemeStyle = {
+  '--color-primary-1': '#FFB72C',
+  '--color-primary-2': '#E88900',
+  '--color-primary-5': '#FFF0B8',
+  '--color-fg-primary': '#2D2638',
+  '--color-fg-secondary': '#6F6681',
+  '--color-fg-disabled': '#B4ACBF',
+  '--color-border-default': '#E7DAB8',
+}
+
 export function CommunityCanvasPage() {
   const [isReportOpen, setReportOpen] = useState(false)
   const communityCanvas = useCommunityCanvas()
@@ -59,7 +71,10 @@ export function CommunityCanvasPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-surface-default text-fg-primary">
+    <main
+      className="relative min-h-screen overflow-hidden bg-surface-default text-fg-primary"
+      style={communityCanvasThemeStyle}
+    >
       <WorldHomeLink />
       <header className="pointer-events-none fixed inset-x-4 top-4 z-[12000] flex justify-end">
         <div className="pointer-events-auto flex items-center gap-2">
@@ -68,14 +83,14 @@ export function CommunityCanvasPage() {
             aria-label="새로고침"
             onClick={() => void communityCanvas.loadCommunityMemos()}
             style={refreshButtonStyle}
-            className="size-20 rounded-full bg-contain bg-center bg-no-repeat transition duration-150 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 active:translate-y-0 active:brightness-95"
+            className="size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 active:translate-y-0 active:brightness-95"
           />
           <button
             type="button"
             aria-label="새 메모 붙이기"
             onClick={composer.openComposer}
             style={memoButtonStyle}
-            className="size-20 rounded-full bg-contain bg-center bg-no-repeat transition duration-150 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 active:translate-y-0 active:brightness-95"
+            className="size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 active:translate-y-0 active:brightness-95"
           />
         </div>
       </header>
