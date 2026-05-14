@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { HTTPError } from 'ky'
-import { toast } from 'sonner'
-
 import { getRelayRoomAssignmentMe, postRelayRoomSubmission } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 
 import { PART_TO_ROUND_KEY, RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
 import { useRelayDrawingStore } from '../stores'
-import { renderLinesToRasterCanvas } from '../utils'
+import { relayToast, renderLinesToRasterCanvas } from '../utils'
 
 interface UseRelayDrawingGameReturn {
   submitDrawing: () => Promise<void>
@@ -203,7 +201,7 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
 
       if (!drawingImage) {
         store.setIsSubmitting(false)
-        toast.error('캔버스를 캡처하지 못했어요')
+        relayToast.error('캔버스를 캡처하지 못했어요')
         return
       }
 
@@ -241,7 +239,7 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
 
       // 그 외 실패 — submitting 플래그를 내려 재시도 가능하게 한다.
       useRelayDrawingStore.getState().setIsSubmitting(false)
-      toast.error('제출에 실패했어요. 다시 시도해 주세요.')
+      relayToast.error('제출에 실패했어요. 다시 시도해 주세요.')
     }
   }, [captureCanvasBlob, captureHintBlob])
 
