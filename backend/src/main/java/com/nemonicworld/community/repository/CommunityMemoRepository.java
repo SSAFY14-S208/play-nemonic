@@ -48,6 +48,7 @@ public class CommunityMemoRepository {
             cm.position_y AS position_y,
             cm.z_index AS z_index,
             cm.rotation_deg AS rotation_deg,
+            cm.decoration AS decoration,
             cm.attached_at AS attached_at
         """ + VISIBLE_MEMO_FROM + """
         -- 벽 렌더링 순서는 z-index가 낮은 메모부터, 같은 층에서는 먼저 붙은 메모부터입니다.
@@ -476,7 +477,7 @@ public class CommunityMemoRepository {
             resultSet.getObject("artifact_id", UUID.class), resultSet.getString("original_image_reference"),
             resultSet.getString("thumbnail_image_reference"), resultSet.getDouble("position_x"),
             resultSet.getDouble("position_y"), resultSet.getInt("z_index"), resultSet.getFloat("rotation_deg"),
-            resultSet.getTimestamp("attached_at").toLocalDateTime());
+            resultSet.getString("decoration"), resultSet.getTimestamp("attached_at").toLocalDateTime());
     }
 
     /**

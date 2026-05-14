@@ -46,7 +46,7 @@ class CommunityMemoResponseMapper {
 
         return new CommunityMemoItemResponse(row.memoId().toString(), row.authorNickname(), sourceType, memoImageUrl,
             memoOriginalImageUrl, memoThumbnailImageUrl, row.positionX(), row.positionY(), row.zIndex(),
-            row.rotationDeg(), ownedByMe, row.attachedAt());
+            row.rotationDeg(), ownedByMe, row.attachedAt(), parseDecoration(row.decoration()));
     }
 
     CommunityMemoDetailResponse toDetailResponse(CommunityMemoDetailRow row, UUID viewerUserUuid) {
