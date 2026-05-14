@@ -8,6 +8,13 @@
 ### Get community memos
 GET {{host}}/api/v1/community/memos
 
+# Response item includes saved decoration so the frontend can restore memoColor after refresh.
+# Example item field:
+# "decoration": {
+#   "kind": "community-direct-v1",
+#   "memoColor": "#ffe887"
+# }
+
 ### Get community memos with viewer UUID
 GET {{host}}/api/v1/community/memos
 Anonymous-User-UUID: {{anonymousUserUuid}}
@@ -197,6 +204,8 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
   "zIndex": 1,
   "rotationDeg": 0.0,
   "decoration": {
+    "kind": "community-direct-v1",
+    "memoColor": "#ffe887",
     "layers": []
   },
   "clientText": "텍스트박스 원문"

@@ -8,5 +8,5 @@ import java.util.UUID;
  */
 public record CommunityMemoRow(UUID memoId, UUID userId, String authorNickname, UUID artifactId,
     String originalImageReference, String thumbnailImageReference, double positionX, double positionY, int zIndex,
-    float rotationDeg, LocalDateTime attachedAt) {
+    float rotationDeg, String decoration, LocalDateTime attachedAt) {
 }
