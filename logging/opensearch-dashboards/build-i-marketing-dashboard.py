@@ -183,7 +183,6 @@ I1 = viz_classic(
 # ============================================================
 I2_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "컨텐츠별 완주율 (%)",
         "subtitle": "진입(funnel_started) 대비 완료(funnel_goal_reached) 비율. 막대 길이 = 비율, 색 = 위험도.",
@@ -203,19 +202,20 @@ I2_SPEC = {
                     "filtered": {
                         "filter": {
                             "bool": {
-                                "filter": [
-                                    {"term": {"service": "client-web"}},
-                                    {"terms": {"event_name":
-                                               ["funnel_started", "funnel_goal_reached"]}}
-                                ]
+                                "filter": [{"term": {"service": "client-web"}}]
                             }
                         },
                         "aggs": {
                             "funnels": {
                                 "terms": {"field": "metadata.funnel_name", "size": 10},
+                                # started/completed 를 filter sub-agg 로 분리 — Vega-Lite
+                                # transform 에서 reduce 같은 JS 메서드 의존 없이 평면 필드로 받음.
                                 "aggs": {
-                                    "events": {
-                                        "terms": {"field": "event_name", "size": 5}
+                                    "started": {
+                                        "filter": {"term": {"event_name": "funnel_started"}}
+                                    },
+                                    "completed": {
+                                        "filter": {"term": {"event_name": "funnel_goal_reached"}}
                                     }
                                 }
                             }
@@ -227,17 +227,13 @@ I2_SPEC = {
         "format": {"property": "aggregations.filtered.funnels.buckets"}
     },
     "transform": [
-        # 각 funnel 의 started/goal 카운트를 별도 필드로 분리
+        {"calculate": "datum.started ? datum.started.doc_count : 0", "as": "started"},
+        {"calculate": "datum.completed ? datum.completed.doc_count : 0", "as": "completed"},
         {"calculate":
-            "(datum.events.buckets || []).reduce(function(a,b){a[b.key]=b.doc_count;return a;},{})",
-         "as": "by_event"},
-        {"calculate": "datum.by_event.funnel_started || 0", "as": "started"},
-        {"calculate": "datum.by_event.funnel_goal_reached || 0", "as": "completed"},
-        {"calculate": "datum.started > 0 ? datum.completed / datum.started * 100 : 0",
+            "datum.started > 0 ? datum.completed / datum.started * 100 : 0",
          "as": "rate"},
         {"filter": "datum.started > 0"},
         {"calculate": "datum.key", "as": "funnel_name"},
-        # 한글 라벨 매핑
         {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.funnel_name",
          "as": "funnel_label"},
     ],
@@ -315,7 +311,6 @@ I2 = viz_vega(
 # ============================================================
 I3_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "단계별 이탈 깔때기",
         "subtitle": "각 컨텐츠의 단계별 잔존 세션 수. 막대가 짧아질수록 그 단계에서 사용자가 빠진 것.",
@@ -351,14 +346,24 @@ I3_SPEC = {
                             "funnels": {
                                 "terms": {"field": "metadata.funnel_name", "size": 10},
                                 "aggs": {
-                                    "events": {
-                                        "terms": {"field": "event_name", "size": 5},
+                                    # funnel_started/goal_reached 는 step_name 이 없으므로
+                                    # filter sub-agg 로 단일 카운트만 받고,
+                                    # funnel_step_completed 만 step_name 별로 분해한다.
+                                    "started": {
+                                        "filter": {"term": {"event_name": "funnel_started"}}
+                                    },
+                                    "completed_goal": {
+                                        "filter": {"term": {"event_name": "funnel_goal_reached"}}
+                                    },
+                                    "steps_done": {
+                                        "filter": {
+                                            "term": {"event_name": "funnel_step_completed"}
+                                        },
                                         "aggs": {
-                                            "steps": {
+                                            "by_step": {
                                                 "terms": {
                                                     "field": "metadata.step_name",
-                                                    "size": 20,
-                                                    "missing": "(none)"
+                                                    "size": 20
                                                 }
                                             }
                                         }
@@ -373,31 +378,14 @@ I3_SPEC = {
         "format": {"property": "aggregations.filtered.funnels.buckets"}
     },
     "transform": [
-        # funnels.buckets[].events.buckets[].steps.buckets[] 트리를 flatten.
-        {"flatten": ["events.buckets"], "as": ["event_bucket"]},
-        {"calculate": "datum.event_bucket.key", "as": "event_name"},
-        {"calculate": "datum.event_bucket.doc_count", "as": "event_total"},
-        {"calculate": "datum.event_bucket.steps && datum.event_bucket.steps.buckets || []",
-         "as": "step_buckets"},
-        # funnel_started/goal_reached 는 step_name 이 없으므로 단일 row 로 처리.
-        # step_completed 는 step_name 별로 분리.
-        {"calculate":
-            "datum.event_name == 'funnel_step_completed' "
-            "? datum.step_buckets "
-            ": [{'key': datum.event_name == 'funnel_started' ? '0_진입' : '99_완료', "
-            "    'doc_count': datum.event_total}]",
-         "as": "rows"},
-        {"flatten": ["rows"], "as": ["row"]},
-        {"calculate": "datum.row.key", "as": "step_key"},
-        {"calculate": "datum.row.doc_count", "as": "count"},
-        {"filter": "datum.count > 0"},
-        {"calculate":
-            "datum.step_key == '0_진입' ? '0. 진입' "
-            ": (datum.step_key == '99_완료' ? '99. 완료' "
-            ": '1. ' + datum.step_key)",
-         "as": "step_label"},
+        # funnel_step_completed 의 step buckets 를 평면화.
+        {"flatten": ["steps_done.by_step.buckets"], "as": ["step_bucket"]},
+        {"calculate": "datum.step_bucket.key", "as": "step_name"},
+        {"calculate": "datum.step_bucket.doc_count", "as": "count"},
+        {"calculate": "'1. ' + datum.step_name", "as": "step_label"},
         {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.key",
          "as": "funnel_label"},
+        {"filter": "datum.count > 0"},
     ],
     "facet": {
         "row": {
