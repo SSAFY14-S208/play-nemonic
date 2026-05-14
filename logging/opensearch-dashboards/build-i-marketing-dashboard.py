@@ -389,12 +389,9 @@ I3_SPEC = {
          "as": "funnel_label"},
         {"filter": "datum.count > 0"},
     ],
-    # facet object 구조 대신 row encoding 단축형 사용. facet/spec 분리가 일부 vega-lite
-    # 버전에서 inner spec 의 width/height 와 충돌하는 케이스를 회피.
-    "width": 1200,
-    "height": 520,
-    "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True},
-    "encoding": {
+    # facet object + inner spec 정식 구조. row encoding shorthand 와 outer width/height
+    # 동시 사용은 invalid spec 으로 떨어져서 vega view 가 mount 안 됨.
+    "facet": {
         "row": {
             "field": "funnel_label",
             "type": "nominal",
@@ -407,29 +404,36 @@ I3_SPEC = {
                 "labelOrient": "left",
             },
         },
-        "y": {
-            "field": "step_name",
-            "type": "nominal",
-            "axis": {"title": None, "labelFontSize": 11, "labelLimit": 140},
-        },
-        "x": {
-            "field": "count",
-            "type": "quantitative",
-            "axis": {"title": "세션 수", "labelFontSize": 11},
-        },
-        "color": {
-            "field": "step_name",
-            "type": "nominal",
-            "scale": {"scheme": "blues"},
-            "legend": None,
-        },
-        "tooltip": [
-            {"field": "funnel_label", "type": "nominal", "title": "컨텐츠"},
-            {"field": "step_name", "type": "nominal", "title": "단계"},
-            {"field": "count", "type": "quantitative", "title": "세션 수"},
-        ],
     },
-    "resolve": {"scale": {"x": "independent", "y": "independent"}},
+    "spec": {
+        "width": 1100,
+        "height": 140,
+        "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True},
+        "encoding": {
+            "y": {
+                "field": "step_name",
+                "type": "nominal",
+                "axis": {"title": None, "labelFontSize": 11, "labelLimit": 140},
+            },
+            "x": {
+                "field": "count",
+                "type": "quantitative",
+                "axis": {"title": "세션 수", "labelFontSize": 11},
+            },
+            "color": {
+                "field": "step_name",
+                "type": "nominal",
+                "scale": {"scheme": "blues"},
+                "legend": None,
+            },
+            "tooltip": [
+                {"field": "funnel_label", "type": "nominal", "title": "컨텐츠"},
+                {"field": "step_name", "type": "nominal", "title": "단계"},
+                {"field": "count", "type": "quantitative", "title": "세션 수"},
+            ],
+        },
+    },
+    "resolve": {"scale": {"x": "independent"}},
     "config": {
         "background": "transparent",
         "view": {"stroke": None},
