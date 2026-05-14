@@ -11,8 +11,10 @@ const INTRO_DONE_AFTER_ACTION_MS = 650
 export function useFlipbookEntranceIntro() {
   const shouldReduceMotion = useReducedMotion() ?? false
   const [introPhase, setIntroPhase] = useState<FlipbookEntranceIntroPhase>('playing')
+  const [wasIntroSkipped, setWasIntroSkipped] = useState(false)
 
   const skipIntro = useCallback(() => {
+    setWasIntroSkipped(true)
     setIntroPhase('done')
   }, [])
 
@@ -62,6 +64,7 @@ export function useFlipbookEntranceIntro() {
     introPhase,
     isIntroComplete: introPhase === 'done',
     isActionVisible: introPhase !== 'playing',
+    wasIntroSkipped,
     skipIntro,
   }
 }

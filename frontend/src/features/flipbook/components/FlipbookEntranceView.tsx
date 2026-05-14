@@ -50,7 +50,12 @@ const FLIPBOOK_PRELOAD_IMAGE_SOURCES = [
   ...FLIPBOOK_ENTRANCE_FRAME_SOURCES,
 ]
 
-const DROP_TRANSITION_EASE = [0.16, 0.92, 0.24, 1] as const
+const DROP_SPRING_TRANSITION = {
+  type: 'spring',
+  stiffness: 96,
+  damping: 13,
+  mass: 0.82,
+} as const
 
 const DROP_LAYERS = [
   {
@@ -60,8 +65,6 @@ const DROP_LAYERS = [
     rotate: 3.2,
     fallDistance: 720,
     delay: 0.12,
-    duration: 0.96,
-    bounceY: -18,
   },
   {
     key: 'furniture-left',
@@ -70,8 +73,6 @@ const DROP_LAYERS = [
     rotate: 0,
     fallDistance: 860,
     delay: 0.34,
-    duration: 1.12,
-    bounceY: -28,
   },
   {
     key: 'furniture-right',
@@ -80,8 +81,6 @@ const DROP_LAYERS = [
     rotate: 0,
     fallDistance: 940,
     delay: 0.24,
-    duration: 1.18,
-    bounceY: -34,
   },
 ] as const
 
@@ -111,7 +110,8 @@ export default function FlipbookEntranceView({
   const roomCodeInputRef = useRef<HTMLInputElement>(null)
   const scrollZoneRef = useRef<HTMLDivElement>(null)
   const [isRoomCodeModalOpen, setIsRoomCodeModalOpen] = useState(false)
-  const { introPhase, isActionVisible, isIntroComplete } = useFlipbookEntranceIntro()
+  const { isActionVisible, isIntroComplete, wasIntroSkipped } = useFlipbookEntranceIntro()
+  const shouldInstantCompleteIntro = isIntroComplete && wasIntroSkipped
   const { activeFrameIndex, handleScroll, handleWheel } = useFlipbookEntranceWheelFrames(
     scrollZoneRef,
     FLIPBOOK_ENTRANCE_FRAMES.length,
@@ -151,11 +151,16 @@ export default function FlipbookEntranceView({
       onWheelCapture={handleWheel}
     >
       <div
+        suppressHydrationWarning
         className="absolute left-1/2 top-1/2 aspect-[16/9] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
         style={{
           '--flipbook-entrance-stage-width': `max(100vw, calc(100svh * ${DESIGN_WIDTH} / ${DESIGN_HEIGHT}))`,
           width: 'var(--flipbook-entrance-stage-width)',
           height: `max(100svh, calc(100vw * ${DESIGN_HEIGHT} / ${DESIGN_WIDTH}))`,
+          backgroundColor: '#f8d38d',
+          backgroundImage: `url(${FLIPBOOK_SCENE_IMAGES.background})`,
+          backgroundPosition: 'center',
+          backgroundSize: 'cover',
         } as CSSProperties}
       >
         <Image
@@ -167,20 +172,20 @@ export default function FlipbookEntranceView({
           className="object-cover"
         />
 
-        <FlipbookEntranceDropScene introPhase={introPhase} />
+        <FlipbookEntranceDropScene shouldInstantCompleteIntro={shouldInstantCompleteIntro} />
 
         <FlipbookEntranceSketchbook
           scrollZoneRef={scrollZoneRef}
           activeFrameIndex={activeFrameIndex}
           onScroll={handleScroll}
           isInteractive={isIntroComplete}
-          introPhase={introPhase}
+          shouldInstantCompleteIntro={shouldInstantCompleteIntro}
         />
 
         <FlipbookEntranceActions
           visible={isActionVisible}
           interactive={isIntroComplete}
-          introPhase={introPhase}
+          shouldInstantCompleteIntro={shouldInstantCompleteIntro}
           isBusy={isBusy}
           errorMessage={!isRoomCodeModalOpen ? errorMessage : null}
           actionHandlers={actionHandlers}
@@ -202,15 +207,15 @@ export default function FlipbookEntranceView({
 }
 
 function FlipbookEntranceDropScene({
-  introPhase,
+  shouldInstantCompleteIntro,
 }: {
-  introPhase: ReturnType<typeof useFlipbookEntranceIntro>['introPhase']
+  shouldInstantCompleteIntro: boolean
 }) {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0">
       {DROP_LAYERS.map((layer) => (
         <motion.div
-          key={layer.key}
+          key={`${layer.key}-${shouldInstantCompleteIntro ? 'done' : 'drop'}`}
           className={`absolute overflow-hidden ${layer.className}`}
           initial={{
             opacity: 0,
@@ -218,7 +223,7 @@ function FlipbookEntranceDropScene({
             scale: 0.98,
           }}
           animate={
-            introPhase === 'done'
+            shouldInstantCompleteIntro
               ? {
                   opacity: 1,
                   y: 0,
@@ -226,14 +231,24 @@ function FlipbookEntranceDropScene({
                   transition: { duration: 0 },
                 }
               : {
-                  opacity: [0, 1, 1],
-                  y: [-layer.fallDistance, layer.bounceY, 0],
-                  scale: [0.98, 1.018, 1],
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
                   transition: {
-                    delay: layer.delay,
-                    duration: layer.duration,
-                    ease: DROP_TRANSITION_EASE,
-                    times: [0, 0.78, 1],
+                    y: {
+                      ...DROP_SPRING_TRANSITION,
+                      delay: layer.delay,
+                    },
+                    opacity: {
+                      delay: layer.delay,
+                      duration: 0.18,
+                      ease: 'easeOut',
+                    },
+                    scale: {
+                      delay: layer.delay,
+                      duration: 0.36,
+                      ease: [0.22, 0.8, 0.22, 1],
+                    },
                   },
                 }
           }
@@ -262,24 +277,24 @@ function FlipbookEntranceSketchbook({
   activeFrameIndex,
   onScroll,
   isInteractive,
-  introPhase,
+  shouldInstantCompleteIntro,
 }: {
   scrollZoneRef: RefObject<HTMLDivElement | null>
   activeFrameIndex: number
   onScroll: ReturnType<typeof useFlipbookEntranceWheelFrames>['handleScroll']
   isInteractive: boolean
-  introPhase: ReturnType<typeof useFlipbookEntranceIntro>['introPhase']
+  shouldInstantCompleteIntro: boolean
 }) {
   return (
     <motion.div
-      className="absolute left-[48.96%] top-[34.91%] h-[36.76%] w-[34.04%] overflow-hidden"
-      ref={scrollZoneRef}
+      key={shouldInstantCompleteIntro ? 'sketchbook-done' : 'sketchbook-drop'}
+      className="absolute left-[43.94%] top-[26.82%] z-10 flex h-[63.30%] w-[48.48%] items-center justify-center"
       aria-label="스케치북 플립북 재생 구역"
       role="region"
       tabIndex={isInteractive ? 0 : -1}
       initial={{ opacity: 0, y: -820, scale: 0.98 }}
       animate={
-        introPhase === 'done'
+        shouldInstantCompleteIntro
           ? {
               opacity: 1,
               y: 0,
@@ -291,34 +306,45 @@ function FlipbookEntranceSketchbook({
               y: 0,
               scale: 1,
               transition: {
-                delay: 0.54,
-                duration: 1.18,
-                ease: DROP_TRANSITION_EASE,
-                times: [0, 0.78, 1],
+                y: {
+                  ...DROP_SPRING_TRANSITION,
+                  delay: 0.54,
+                },
+                opacity: {
+                  delay: 0.54,
+                  duration: 0.18,
+                  ease: 'easeOut',
+                },
+                scale: {
+                  delay: 0.54,
+                  duration: 0.36,
+                  ease: [0.22, 0.8, 0.22, 1],
+                },
               },
             }
       }
-      style={{ rotate: '6.46deg' }}
     >
-      <div
-        className="absolute left-[-21.44%] top-[-40.81%] h-[168.77%] w-[141.04%]"
-        style={{ rotate: '-5.6deg' }}
-      >
+      <div className="relative h-[98.01%] w-[98.94%]" style={{ rotate: '0.86deg' }}>
         <Image
           src={FLIPBOOK_SCENE_IMAGES.sketchbook}
           alt=""
           fill
           priority
           sizes="50vw"
-          className="object-fill"
+          className="object-contain"
         />
         <div
-          className="absolute overflow-hidden rounded-[18px]"
+          ref={scrollZoneRef}
+          aria-label="플립북애니메이션재생구역"
+          className={`absolute z-10 overflow-hidden rounded-[18px] ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}
+          role="region"
+          tabIndex={isInteractive ? 0 : -1}
           style={{
-            left: '14.2%',
-            top: '17.9%',
-            width: '71.5%',
-            height: '58%',
+            left: '16.26%',
+            top: '18.27%',
+            width: '63.57%',
+            height: '55.22%',
+            rotate: '5.9deg',
           }}
         >
           {FLIPBOOK_ENTRANCE_FRAMES.map((entranceFrame, entranceFrameIndex) => {
@@ -340,16 +366,16 @@ function FlipbookEntranceSketchbook({
               />
             )
           })}
+          <div
+            aria-label="스케치북 프레임 스크롤"
+            className="absolute inset-0 z-10 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            role="region"
+            tabIndex={isInteractive ? 0 : -1}
+            onScroll={onScroll}
+          >
+            <div style={{ height: `${FLIPBOOK_ENTRANCE_FRAME_COUNT * 420}px` }} />
+          </div>
         </div>
-      </div>
-      <div
-        aria-label="스케치북 프레임 스크롤"
-        className={`absolute inset-0 z-10 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}
-        role="region"
-        tabIndex={isInteractive ? 0 : -1}
-        onScroll={onScroll}
-      >
-        <div style={{ height: `${FLIPBOOK_ENTRANCE_FRAME_COUNT * 420}px` }} />
       </div>
     </motion.div>
   )
@@ -358,14 +384,14 @@ function FlipbookEntranceSketchbook({
 function FlipbookEntranceActions({
   visible,
   interactive,
-  introPhase,
+  shouldInstantCompleteIntro,
   isBusy,
   errorMessage,
   actionHandlers,
 }: {
   visible: boolean
   interactive: boolean
-  introPhase: ReturnType<typeof useFlipbookEntranceIntro>['introPhase']
+  shouldInstantCompleteIntro: boolean
   isBusy: boolean
   errorMessage: string | null
   actionHandlers: Record<(typeof FLIPBOOK_ENTRANCE_ACTIONS)[number]['key'], () => void>
@@ -380,7 +406,7 @@ function FlipbookEntranceActions({
               opacity: 1,
               y: 0,
               transition: {
-                duration: introPhase === 'done' ? 0 : 0.62,
+                duration: shouldInstantCompleteIntro ? 0 : 0.62,
                 ease: [0.22, 0.8, 0.22, 1],
               },
             }
@@ -391,7 +417,7 @@ function FlipbookEntranceActions({
             }
       }
     >
-      <div className="absolute left-[8.23%] top-[31.76%] h-[24.81%] w-[28.49%] overflow-hidden">
+      <div className="absolute left-[13.49%] top-[31.76%] h-[24.81%] w-[28.49%] overflow-hidden">
         <Image
           src={FLIPBOOK_SCENE_IMAGES.titleLogoSprite}
           alt="플립북"
