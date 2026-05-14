@@ -684,19 +684,408 @@ I5 = viz_classic(
 
 
 # ============================================================
-# Dashboard — 5개 viz 그리드 (48 column).
+# I6: 결과물 → 커뮤니티 게시 전환율 (Donut, 컨텐츠별)
+# 결과 도달(funnel_goal_reached) 이후 공유 없이 떠난(result_share_abandoned) 비율의 보완.
+# 공유 = goal_reached 카운트 - result_share_abandoned 카운트 (대략적 근사치).
+# 정밀한 "커뮤니티 게시 전환" 은 community_memo_posting funnel 구현 후 측정 가능.
+# ============================================================
+I6_SPEC = {
+    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "title": {
+        "text": "결과 도달 후 공유 비율",
+        "subtitle": "컨텐츠별 결과 도달(funnel_goal_reached) 대비 공유 없이 이탈하지 않은 비율. "
+                    "정밀한 커뮤니티 게시 전환은 community_memo_posting funnel 구현 시 측정.",
+        "subtitleColor": "#94A3B8",
+        "subtitleFontSize": 10,
+        "fontSize": 14,
+        "anchor": "start",
+    },
+    "data": {
+        "url": {
+            "%context%": True,
+            "%timefield%": "@timestamp",
+            "index": "biz-events-*",
+            "body": {
+                "size": 0,
+                "aggs": {
+                    "filtered": {
+                        "filter": {
+                            "bool": {
+                                "filter": [{"term": {"service": "client-web"}}]
+                            }
+                        },
+                        "aggs": {
+                            "funnels": {
+                                "terms": {"field": "metadata.funnel_name", "size": 10},
+                                "aggs": {
+                                    "goal": {
+                                        "filter": {"term":
+                                                   {"event_name": "funnel_goal_reached"}}
+                                    },
+                                    "abandoned": {
+                                        "filter": {"term":
+                                                   {"event_name": "result_share_abandoned"}}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "format": {"property": "aggregations.filtered.funnels.buckets"}
+    },
+    "transform": [
+        {"calculate": "datum.goal ? datum.goal.doc_count : 0", "as": "goal"},
+        {"calculate":
+            "datum.abandoned ? datum.abandoned.doc_count : 0",
+         "as": "abandoned"},
+        {"calculate": "max(datum.goal - datum.abandoned, 0)", "as": "shared"},
+        {"filter": "datum.goal > 0"},
+        {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.key", "as": "funnel_label"},
+    ],
+    "mark": {"type": "arc", "innerRadius": 60, "tooltip": True},
+    "encoding": {
+        "theta": {"field": "shared", "type": "quantitative"},
+        "color": {
+            "field": "funnel_label",
+            "type": "nominal",
+            "scale": {"range": ["#60A5FA", "#FB923C", "#F472B6", "#34D399", "#22D3EE"]},
+            "legend": {"title": None, "labelFontSize": 11},
+        },
+        "tooltip": [
+            {"field": "funnel_label", "type": "nominal", "title": "컨텐츠"},
+            {"field": "goal", "type": "quantitative", "title": "결과 도달"},
+            {"field": "shared", "type": "quantitative", "title": "공유 (추정)"},
+            {"field": "abandoned", "type": "quantitative", "title": "공유 없이 이탈"},
+        ],
+    },
+    "width": 360,
+    "height": 280,
+    "config": {
+        "background": "transparent",
+        "view": {"stroke": None},
+        "legend": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1"},
+        "title": {"color": "#E5E7EB"},
+    },
+}
+I6 = viz_vega(
+    viz_id="vis-marketing-share-rate",
+    title="[I6] 결과 도달 후 공유 비율",
+    description="컨텐츠별 결과 도달 대비 공유 비율(근사치). 정밀 측정은 community_memo_posting funnel 구현 후.",
+    spec=wrap_single_as_multiview(I6_SPEC),
+)
+
+
+# ============================================================
+# I7: 유입 경로 비율 (Donut, entry_type 별)
+# landing_source_detected 의 metadata.entry_type. 직접/검색/SNS/공유/QR/캠페인.
+# 한글 라벨로 매핑.
+# ============================================================
+I7_SPEC = {
+    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "title": {
+        "text": "유입 경로 비율",
+        "subtitle": "랜딩 시점의 entry_type 분포 — 어디서 들어오는 사용자가 많은가.",
+        "subtitleColor": "#94A3B8",
+        "subtitleFontSize": 10,
+        "fontSize": 14,
+        "anchor": "start",
+    },
+    "data": {
+        "url": {
+            "%context%": True,
+            "%timefield%": "@timestamp",
+            "index": "biz-events-*",
+            "body": {
+                "size": 0,
+                "aggs": {
+                    "filtered": {
+                        "filter": {
+                            "bool": {
+                                "filter": [
+                                    {"term": {"service": "client-web"}},
+                                    {"term": {"event_name": "landing_source_detected"}}
+                                ]
+                            }
+                        },
+                        "aggs": {
+                            "by_type": {
+                                "terms": {
+                                    "field": "metadata.entry_type",
+                                    "size": 10,
+                                    "missing": "unknown"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "format": {"property": "aggregations.filtered.by_type.buckets"}
+    },
+    "transform": [
+        {"calculate": "datum.key", "as": "entry_type"},
+        {"calculate": "datum.doc_count", "as": "count"},
+        {"calculate":
+            "{'direct':'직접 접속','search':'검색','social':'SNS',"
+            "'qr':'QR 코드','share':'공유 링크','campaign':'캠페인',"
+            "'unknown':'알 수 없음'}[datum.entry_type] || datum.entry_type",
+         "as": "entry_label"},
+    ],
+    "mark": {"type": "arc", "innerRadius": 60, "tooltip": True},
+    "encoding": {
+        "theta": {"field": "count", "type": "quantitative"},
+        "color": {
+            "field": "entry_label",
+            "type": "nominal",
+            "scale": {
+                "domain": ["직접 접속", "검색", "SNS", "QR 코드", "공유 링크", "캠페인", "알 수 없음"],
+                "range": ["#94A3B8", "#60A5FA", "#34D399", "#FBBF24", "#A78BFA", "#F472B6", "#475569"],
+            },
+            "legend": {"title": None, "labelFontSize": 11},
+        },
+        "tooltip": [
+            {"field": "entry_label", "type": "nominal", "title": "경로"},
+            {"field": "count", "type": "quantitative", "title": "세션 수"},
+        ],
+    },
+    "width": 360,
+    "height": 280,
+    "config": {
+        "background": "transparent",
+        "view": {"stroke": None},
+        "legend": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1"},
+        "title": {"color": "#E5E7EB"},
+    },
+}
+I7 = viz_vega(
+    viz_id="vis-marketing-entry-types",
+    title="[I7] 유입 경로 비율",
+    description="entry_type 별 랜딩 세션 비율 (direct/search/social/share/qr/campaign).",
+    spec=wrap_single_as_multiview(I7_SPEC),
+)
+
+
+# ============================================================
+# I8: SNS 유입 비율 (Donut, referrer host 별)
+# entry_type=social 인 세션의 referrer host 분포. 인스타/트위터/카카오톡 등.
+# referrer 는 metadata.referrer (top-level path 아님) 에 들어있다.
+# ============================================================
+I8_SPEC = {
+    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "title": {
+        "text": "SNS 유입 비율",
+        "subtitle": "entry_type=social 세션의 referrer host 분포 — 어느 SNS 가 강한가.",
+        "subtitleColor": "#94A3B8",
+        "subtitleFontSize": 10,
+        "fontSize": 14,
+        "anchor": "start",
+    },
+    "data": {
+        "url": {
+            "%context%": True,
+            "%timefield%": "@timestamp",
+            "index": "biz-events-*",
+            "body": {
+                "size": 0,
+                "aggs": {
+                    "filtered": {
+                        "filter": {
+                            "bool": {
+                                "filter": [
+                                    {"term": {"service": "client-web"}},
+                                    {"term": {"event_name": "landing_source_detected"}},
+                                    {"term": {"metadata.entry_type": "social"}},
+                                    {"exists": {"field": "metadata.referrer"}}
+                                ]
+                            }
+                        },
+                        "aggs": {
+                            "by_ref": {
+                                "terms": {"field": "metadata.referrer", "size": 30}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "format": {"property": "aggregations.filtered.by_ref.buckets"}
+    },
+    "transform": [
+        {"calculate": "datum.key", "as": "referrer_raw"},
+        {"calculate": "datum.doc_count", "as": "count"},
+        # referrer host 추출 + SNS 별로 묶기.
+        {"calculate":
+            "indexof(datum.referrer_raw, 'instagram') >= 0 ? '인스타그램' "
+            ": (indexof(datum.referrer_raw, 'twitter') >= 0 || indexof(datum.referrer_raw, 'x.com') >= 0 || indexof(datum.referrer_raw, 't.co') >= 0) ? '트위터' "
+            ": (indexof(datum.referrer_raw, 'kakao') >= 0) ? '카카오톡' "
+            ": (indexof(datum.referrer_raw, 'facebook') >= 0) ? '페이스북' "
+            ": (indexof(datum.referrer_raw, 'linkedin') >= 0) ? '링크드인' "
+            ": '기타'",
+         "as": "sns_label"},
+        {"aggregate": [{"op": "sum", "field": "count", "as": "count"}], "groupby": ["sns_label"]},
+    ],
+    "mark": {"type": "arc", "innerRadius": 60, "tooltip": True},
+    "encoding": {
+        "theta": {"field": "count", "type": "quantitative"},
+        "color": {
+            "field": "sns_label",
+            "type": "nominal",
+            "scale": {
+                "domain": ["인스타그램", "트위터", "카카오톡", "페이스북", "링크드인", "기타"],
+                "range": ["#EC4899", "#60A5FA", "#FBBF24", "#3B82F6", "#0E76A8", "#94A3B8"],
+            },
+            "legend": {"title": None, "labelFontSize": 11},
+        },
+        "tooltip": [
+            {"field": "sns_label", "type": "nominal", "title": "SNS"},
+            {"field": "count", "type": "quantitative", "title": "세션 수"},
+        ],
+    },
+    "width": 360,
+    "height": 280,
+    "config": {
+        "background": "transparent",
+        "view": {"stroke": None},
+        "legend": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1"},
+        "title": {"color": "#E5E7EB"},
+    },
+}
+I8 = viz_vega(
+    viz_id="vis-marketing-sns-referrer",
+    title="[I8] SNS 유입 비율",
+    description="SNS 유입(entry_type=social) 의 referrer host 분포 — 인스타/트위터/카카오톡 등.",
+    spec=wrap_single_as_multiview(I8_SPEC),
+)
+
+
+# ============================================================
+# I9: 체험 공간 평균 체류 시간 (Bar, path 별)
+# page_leave 의 metadata.time_on_page_ms 평균. 어느 화면이 사용자를 오래 붙드는가.
+# 동적 segment(roomCode 등) 는 I4 와 같은 방식으로 정규화.
+# ============================================================
+I9_SPEC = {
+    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "title": {
+        "text": "체험 공간 평균 체류 시간",
+        "subtitle": "page_leave 의 time_on_page_ms 평균 (초). 막대가 길수록 더 오래 머무는 화면.",
+        "subtitleColor": "#94A3B8",
+        "subtitleFontSize": 10,
+        "fontSize": 14,
+        "anchor": "start",
+    },
+    "data": {
+        "url": {
+            "%context%": True,
+            "%timefield%": "@timestamp",
+            "index": "biz-events-*",
+            "body": {
+                "size": 0,
+                "aggs": {
+                    "filtered": {
+                        "filter": {
+                            "bool": {
+                                "filter": [
+                                    {"term": {"service": "client-web"}},
+                                    {"term": {"event_name": "page_leave"}},
+                                    {"exists": {"field": "path"}},
+                                    {"exists": {"field": "metadata.time_on_page_ms"}}
+                                ]
+                            }
+                        },
+                        "aggs": {
+                            "by_path": {
+                                "terms": {"field": "path", "size": 30},
+                                "aggs": {
+                                    "avg_ms": {"avg": {"field": "metadata.time_on_page_ms"}}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "format": {"property": "aggregations.filtered.by_path.buckets"}
+    },
+    "transform": [
+        {"calculate": "datum.key", "as": "path_raw"},
+        # 동적 segment 정규화 (I4 와 동일).
+        {"calculate":
+            "replace(replace(replace(replace(replace(datum.path_raw, "
+            "regexp('/relay-drawing/[A-Z0-9]+'), '/relay-drawing/:room'), "
+            "regexp('/flipbook/lobby/[A-Z0-9]+'), '/flipbook/lobby/:room'), "
+            "regexp('/flipbook/drawing/[A-Z0-9]+'), '/flipbook/drawing/:room'), "
+            "regexp('/flipbook/result/[A-Z0-9]+'), '/flipbook/result/:room'), "
+            "regexp('/share/[A-Za-z0-9_-]+'), '/share/:token')",
+         "as": "path"},
+        {"calculate": "datum.avg_ms ? datum.avg_ms.value / 1000 : 0", "as": "avg_sec_raw"},
+        {"calculate": "datum.doc_count", "as": "samples"},
+        # 정규화로 같은 path 가 된 row 들을 다시 평균. 가중 평균을 위해 sum(avg*samples)/sum(samples).
+        {"calculate": "datum.avg_sec_raw * datum.samples", "as": "weighted"},
+        {"aggregate": [
+            {"op": "sum", "field": "weighted", "as": "weighted_sum"},
+            {"op": "sum", "field": "samples", "as": "n"}
+         ], "groupby": ["path"]},
+        {"calculate": "datum.n > 0 ? datum.weighted_sum / datum.n : 0", "as": "avg_sec"},
+        {"filter": "datum.avg_sec > 0"},
+    ],
+    "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True, "color": "#A78BFA"},
+    "encoding": {
+        "y": {
+            "field": "path",
+            "type": "nominal",
+            "sort": "-x",
+            "axis": {"title": None, "labelFontSize": 11, "labelLimit": 200},
+        },
+        "x": {
+            "field": "avg_sec",
+            "type": "quantitative",
+            "axis": {"title": "평균 체류 시간 (초)", "labelFontSize": 11},
+        },
+        "tooltip": [
+            {"field": "path", "type": "nominal", "title": "화면"},
+            {"field": "avg_sec", "type": "quantitative", "title": "평균 (초)", "format": ".1f"},
+            {"field": "n", "type": "quantitative", "title": "샘플 수"},
+        ],
+    },
+    "width": 1100,
+    "height": 420,
+    "config": {
+        "background": "transparent",
+        "view": {"stroke": None},
+        "axis": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1", "gridColor": "#334155"},
+        "title": {"color": "#E5E7EB"},
+    },
+}
+I9 = viz_vega(
+    viz_id="vis-marketing-time-on-page",
+    title="[I9] 체험 공간 평균 체류 시간",
+    description="page_leave 의 time_on_page_ms 평균. 정규화된 path 별. 막대 길이 = 평균 초.",
+    spec=wrap_single_as_multiview(I9_SPEC),
+)
+
+
+# ============================================================
+# Dashboard — 9개 viz 그리드 (48 column).
 #
-#   [I1 KPI (full width, 짧음)]
-#   [I2 완주율 (절반)][I5 시간대별 진입 (절반)]
-#   [I3 단계별 깔때기 (full width, 큼)]
-#   [I4 화면 이동 흐름 (full width)]
+#   [I1 KPI (full, 짧음)]
+#   [I7 유입경로 (16)][I8 SNS유입 (16)][I6 공유율 (16)]
+#   [I2 완주율 (24)][I5 시간대별 진입 (24)]
+#   [I3 단계별 깔때기 (full)]
+#   [I4 화면 이동 (full)]
+#   [I9 페이지별 체류 시간 (full)]
 # ============================================================
 PANELS = [
     {"vis_id": I1["id"], "panel_id": "1", "grid": {"x": 0,  "y": 0,  "w": 48, "h": 10}},
-    {"vis_id": I2["id"], "panel_id": "2", "grid": {"x": 0,  "y": 10, "w": 24, "h": 16}},
-    {"vis_id": I5["id"], "panel_id": "3", "grid": {"x": 24, "y": 10, "w": 24, "h": 16}},
-    {"vis_id": I3["id"], "panel_id": "4", "grid": {"x": 0,  "y": 26, "w": 48, "h": 24}},
-    {"vis_id": I4["id"], "panel_id": "5", "grid": {"x": 0,  "y": 50, "w": 48, "h": 22}},
+    {"vis_id": I7["id"], "panel_id": "2", "grid": {"x": 0,  "y": 10, "w": 16, "h": 16}},
+    {"vis_id": I8["id"], "panel_id": "3", "grid": {"x": 16, "y": 10, "w": 16, "h": 16}},
+    {"vis_id": I6["id"], "panel_id": "4", "grid": {"x": 32, "y": 10, "w": 16, "h": 16}},
+    {"vis_id": I2["id"], "panel_id": "5", "grid": {"x": 0,  "y": 26, "w": 24, "h": 16}},
+    {"vis_id": I5["id"], "panel_id": "6", "grid": {"x": 24, "y": 26, "w": 24, "h": 16}},
+    {"vis_id": I3["id"], "panel_id": "7", "grid": {"x": 0,  "y": 42, "w": 48, "h": 24}},
+    {"vis_id": I4["id"], "panel_id": "8", "grid": {"x": 0,  "y": 66, "w": 48, "h": 22}},
+    {"vis_id": I9["id"], "panel_id": "9", "grid": {"x": 0,  "y": 88, "w": 48, "h": 20}},
 ]
 
 
@@ -763,7 +1152,7 @@ def write_ndjson(objects, path):
 
 
 if __name__ == "__main__":
-    OBJECTS = [I1, I2, I3, I4, I5, DASHBOARD]
+    OBJECTS = [I1, I2, I3, I4, I5, I6, I7, I8, I9, DASHBOARD]
     write_ndjson(OBJECTS, OUT)
     print(f"wrote {len(OBJECTS)} saved-objects -> {OUT}")
     print("titles:")
