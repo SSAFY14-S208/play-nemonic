@@ -7,6 +7,7 @@ import {
   PhoneFrame,
   PhoneGalleryScreen,
   PhoneHomeScreen,
+  PhoneInquiryScreen,
   PhoneToast,
 } from './components'
 import { usePhoneScale } from './hooks'
@@ -50,6 +51,7 @@ export default function PhoneModal() {
               {activeScreen === 'home' && <PhoneHomeScreen />}
               {activeScreen === 'drawing' && <PhoneDrawingScreen />}
               {activeScreen === 'gallery' && <PhoneGalleryScreen />}
+              {activeScreen === 'inquiry' && <PhoneInquiryScreen />}
               <PhoneToast />
             </PhoneFrame>
             <PhoneCloseButton onClose={closePhone} />
