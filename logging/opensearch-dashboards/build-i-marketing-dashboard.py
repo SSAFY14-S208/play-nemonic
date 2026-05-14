@@ -760,9 +760,10 @@ I6_SPEC = {
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "width": "container",
     "height": "container",
-    # bottom 큰 padding 으로 도넛 아래 legend 자리 확보. orient:"bottom" 으로 도넛과 겹침 회피.
-    "padding": {"top": 20, "right": 20, "bottom": 100, "left": 20},
-    "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
+    "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+    # 도넛 크기 고정 — view fit 으로 도넛이 panel 다 차지하면 legend 자리 안 남음.
+    # 명시 innerRadius/outerRadius 로 도넛 크기 고정, 남은 공간에 legend 배치.
+    "mark": {"type": "arc", "innerRadius": 35, "outerRadius": 80, "tooltip": True},
     "encoding": {
         "theta": {"field": "shared", "type": "quantitative"},
         "color": {
@@ -773,14 +774,16 @@ I6_SPEC = {
                 "title": None,
                 "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
-                # 도넛 아래 가로로 펼침. orient:right 가 잘리는 문제 회피.
-                "orient": "bottom",
-                "direction": "horizontal",
-                "columns": 4,
+                # vega-lite docs: fit autosize 는 legend space 부족 시 클리핑.
+                # orient:"none" + ExprRef 로 view width 에 비례한 절대 좌표 — panel container
+                # 크기가 어떻든 도넛(outerRadius 80) 우측에 안전하게 배치.
+                "orient": "none",
+                "legendX": {"expr": "(width / 2) + 100"},
+                "legendY": {"expr": "20"},
+                "direction": "vertical",
                 "symbolSize": 100,
                 "labelLimit": 140,
-                "padding": 8,
-                "rowPadding": 4,
+                "padding": 6,
             },
         },
         "tooltip": [
@@ -870,9 +873,10 @@ I7_SPEC = {
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "width": "container",
     "height": "container",
-    # bottom 큰 padding 으로 도넛 아래 legend 자리 확보. orient:"bottom" 으로 도넛과 겹침 회피.
-    "padding": {"top": 20, "right": 20, "bottom": 100, "left": 20},
-    "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
+    "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+    # 도넛 크기 고정 — view fit 으로 도넛이 panel 다 차지하면 legend 자리 안 남음.
+    # 명시 innerRadius/outerRadius 로 도넛 크기 고정, 남은 공간에 legend 배치.
+    "mark": {"type": "arc", "innerRadius": 35, "outerRadius": 80, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
@@ -888,14 +892,16 @@ I7_SPEC = {
                 "title": None,
                 "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
-                # 도넛 아래 가로로 펼침. orient:right 가 잘리는 문제 회피.
-                "orient": "bottom",
-                "direction": "horizontal",
-                "columns": 4,
+                # vega-lite docs: fit autosize 는 legend space 부족 시 클리핑.
+                # orient:"none" + ExprRef 로 view width 에 비례한 절대 좌표 — panel container
+                # 크기가 어떻든 도넛(outerRadius 80) 우측에 안전하게 배치.
+                "orient": "none",
+                "legendX": {"expr": "(width / 2) + 100"},
+                "legendY": {"expr": "20"},
+                "direction": "vertical",
                 "symbolSize": 100,
                 "labelLimit": 140,
-                "padding": 8,
-                "rowPadding": 4,
+                "padding": 6,
             },
         },
         "tooltip": [
@@ -986,9 +992,10 @@ I8_SPEC = {
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "width": "container",
     "height": "container",
-    # bottom 큰 padding 으로 도넛 아래 legend 자리 확보. orient:"bottom" 으로 도넛과 겹침 회피.
-    "padding": {"top": 20, "right": 20, "bottom": 100, "left": 20},
-    "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
+    "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+    # 도넛 크기 고정 — view fit 으로 도넛이 panel 다 차지하면 legend 자리 안 남음.
+    # 명시 innerRadius/outerRadius 로 도넛 크기 고정, 남은 공간에 legend 배치.
+    "mark": {"type": "arc", "innerRadius": 35, "outerRadius": 80, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
@@ -1002,14 +1009,16 @@ I8_SPEC = {
                 "title": None,
                 "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
-                # 도넛 아래 가로로 펼침. orient:right 가 잘리는 문제 회피.
-                "orient": "bottom",
-                "direction": "horizontal",
-                "columns": 4,
+                # vega-lite docs: fit autosize 는 legend space 부족 시 클리핑.
+                # orient:"none" + ExprRef 로 view width 에 비례한 절대 좌표 — panel container
+                # 크기가 어떻든 도넛(outerRadius 80) 우측에 안전하게 배치.
+                "orient": "none",
+                "legendX": {"expr": "(width / 2) + 100"},
+                "legendY": {"expr": "20"},
+                "direction": "vertical",
                 "symbolSize": 100,
                 "labelLimit": 140,
-                "padding": 8,
-                "rowPadding": 4,
+                "padding": 6,
             },
         },
         "tooltip": [
