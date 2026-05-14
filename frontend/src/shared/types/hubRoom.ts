@@ -19,3 +19,24 @@ export interface HubPerformanceProfile {
   shadows: boolean
   smoothCameraTransitions: boolean
 }
+
+export type NoteSurface = 'floating' | 'workspace' | 'pegboard'
+
+export interface PrintedNote {
+  createdAt: number
+  id: string
+  imageDataUrl: string | null
+  position: [number, number, number]
+  rotation: [number, number, number]
+  surface: NoteSurface
+  text: string
+}
+
+export interface PrintRequest {
+  id: string
+  imageDataUrl: string | null
+  requestedAt: number
+  text: string
+}
+
+export type PrintStatus = 'idle' | 'requested' | 'printing' | 'complete'

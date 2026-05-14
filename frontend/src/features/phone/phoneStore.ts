@@ -9,7 +9,7 @@ import {
   getGalleryList,
   patchAnonymousNickname,
 } from '@/shared/apis'
-import { useUserStore } from '@/shared/stores'
+import { useHubPrintStore, useHubRoomStore, useUserStore } from '@/shared/stores'
 import type {
   AnonymousUserProfileResponse,
   GalleryDetailResponse,
@@ -86,11 +86,18 @@ interface PhoneStore {
 
   // drawing actions
   setSavingDrawing: (isSaving: boolean) => void
-  addDrawingArtifact: (params: {
-    saveResponse: PhoneDrawingSaveResponse
-    imageDataUrl: string
-    action: 'save' | 'print'
-  }) => void
+  addDrawingArtifact: (
+    params:
+      | {
+          action: 'save'
+          imageDataUrl: string
+          saveResponse: PhoneDrawingSaveResponse
+        }
+      | {
+          action: 'print'
+          imageDataUrl: string
+        },
+  ) => void
 }
 
 function toErrorMessage(error: unknown, fallback: string): string {
@@ -348,19 +355,31 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
 
   setSavingDrawing: (isSavingDrawing) => set({ isSavingDrawing }),
 
-  addDrawingArtifact: ({ saveResponse, imageDataUrl, action }) => {
+  addDrawingArtifact: (params) => {
+    if (params.action === 'print') {
+      useHubPrintStore
+        .getState()
+        .requestPrint(params.imageDataUrl, '내가 그린 메모')
+      useHubRoomStore.getState().setFocus('printer')
+
+      set({
+        activeScreen: 'home',
+        isPhoneOpen: false,
+        selectedGalleryItemId: null,
+        toastMessage: '네모닉 출력 요청을 보냈어요.',
+      })
+      return
+    }
+
     set((state) => ({
       activeScreen: 'gallery',
       galleryItems: [
-        createSavedDrawingItem(saveResponse, imageDataUrl),
+        createSavedDrawingItem(params.saveResponse, params.imageDataUrl),
         ...state.galleryItems,
       ],
       galleryTotal: state.galleryTotal + 1,
       selectedGalleryItemId: null,
-      toastMessage:
-        action === 'print'
-          ? '네모닉 출력 요청을 보냈어요.'
-          : '갤러리에 저장했어요.',
+      toastMessage: '갤러리에 저장했어요.',
     }))
     void get().loadGallery({ force: true })
   },
