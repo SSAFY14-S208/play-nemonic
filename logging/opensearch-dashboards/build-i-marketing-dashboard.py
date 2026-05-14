@@ -62,7 +62,7 @@ def viz_markdown(viz_id, title, markdown):
                 "aggs": [],
                 "params": {
                     # fontSize 단위는 px. h2 헤더 + 설명 두 줄이 한눈에 들어오는 크기.
-                    "fontSize": 18,
+                    "fontSize": 17,
                     "openLinksInNewTab": False,
                     "markdown": markdown,
                 },
