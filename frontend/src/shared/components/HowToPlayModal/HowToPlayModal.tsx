@@ -14,6 +14,8 @@ interface HowToPlayModalProps {
   onOpenChange: (open: boolean) => void
   panels: HowToPlayPanel[]
   title?: string
+  /** 버튼·인디케이터에 적용할 테마 색상. 미지정 시 디자인 시스템 primary 사용. */
+  accentColor?: string
 }
 
 // 한 번에 1컷씩 만화 컷을 보여주는 캐러셀 모달.
@@ -25,6 +27,7 @@ export function HowToPlayModal({
   onOpenChange,
   panels,
   title = '게임 설명',
+  accentColor,
 }: HowToPlayModalProps) {
   const [index, setIndex] = useState(0)
   const totalCount = panels.length
@@ -57,8 +60,26 @@ export function HowToPlayModal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-black/30" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-[var(--z-modal)] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[var(--radius-xl)] bg-surface-default shadow-lg">
+        <Dialog.Backdrop
+          render={
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            />
+          }
+          className="fixed inset-0 z-[var(--z-overlay)] bg-black/30"
+        />
+        <Dialog.Popup
+          render={
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            />
+          }
+          className="fixed left-1/2 top-1/2 z-[var(--z-modal)] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[var(--radius-xl)] bg-surface-default shadow-lg"
+        >
           <header className="flex items-center justify-between border-b border-border-default px-5 py-4">
             <Dialog.Title className="h4-b text-fg-primary">{title}</Dialog.Title>
             <Dialog.Close
@@ -86,7 +107,10 @@ export function HowToPlayModal({
                   exit={{ opacity: 0, x: -24 }}
                   transition={{ duration: 0.25, ease: 'easeOut' }}
                 >
-                  <span className="caption-b text-primary-2">
+                  <span
+                    className="caption-b text-primary-2"
+                    style={accentColor ? { color: accentColor } : undefined}
+                  >
                     {`#${index + 1}`}
                   </span>
                   <p
@@ -132,6 +156,11 @@ export function HowToPlayModal({
                           ? 'w-6 bg-primary-1'
                           : 'w-2 bg-border-default hover:bg-fg-secondary',
                       )}
+                      style={
+                        isActive && accentColor
+                          ? { backgroundColor: accentColor }
+                          : undefined
+                      }
                     />
                   )
                 })}
@@ -151,7 +180,10 @@ export function HowToPlayModal({
                 이전
               </button>
               {isLast ? (
-                <Dialog.Close className="body-b inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[var(--radius-md)] bg-primary-1 px-5 text-fg-inverse transition-all hover:brightness-105">
+                <Dialog.Close
+                  className="body-b inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[var(--radius-md)] bg-primary-1 px-5 text-fg-inverse transition-all hover:brightness-105"
+                  style={accentColor ? { backgroundColor: accentColor } : undefined}
+                >
                   닫기
                 </Dialog.Close>
               ) : (
@@ -160,6 +192,7 @@ export function HowToPlayModal({
                   onClick={goNext}
                   aria-label="다음 컷"
                   className="body-b inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[var(--radius-md)] bg-primary-1 px-5 text-fg-inverse transition-all hover:brightness-105"
+                  style={accentColor ? { backgroundColor: accentColor } : undefined}
                 >
                   다음
                   <ChevronRight className="size-4" aria-hidden />
