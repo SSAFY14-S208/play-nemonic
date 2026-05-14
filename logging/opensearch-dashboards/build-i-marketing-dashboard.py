@@ -198,11 +198,15 @@ I1 = viz_classic(
 
 # ============================================================
 # I2: 컨텐츠별 완주율 (Vega-Lite, %)
-# funnel_name 별로 진입(funnel_started) 대비 완료(funnel_goal_reached) 비율 백분율.
-# 색 = 위험도 (낮을수록 빨강, 높을수록 녹색).
+# funnel_name 별로 "참여 확정 후" 진입 대비 완료(funnel_goal_reached) 비율 백분율.
 #
-# 두 번 ES 쿼리하지 않고 한 번에 funnel_name × event_name 으로 받은 뒤
-# Vega-Lite transform 으로 비율 계산.
+# 분모는 funnel_started 가 아니라 funnel_step_completed 의 첫 단계 — 사용자가 실제
+# 참여를 확정한 시점:
+#   - relay_room_creation / flipbook_room_creation: step_name="settings" (방 생성/입장 직후)
+#   - fortune_creation: step_name="birth_info" (생년월일 정보 입력 직후)
+# 단순 랜딩만 한 세션은 분모에서 제외해 "마음먹은 사용자 중 끝까지 간 비율" 측정.
+#
+# 색 = 위험도 (낮을수록 빨강, 높을수록 녹색).
 # ============================================================
 I2_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -213,7 +217,7 @@ I2_SPEC = {
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "컨텐츠별 완주율 (%)",
-        "subtitle": "진입(funnel_started) 대비 완료(funnel_goal_reached) 비율. 막대 길이 = 비율, 색 = 위험도.",
+        "subtitle": "방 생성/참여 후 완료 비율. 단순 랜딩만 한 세션은 분모에서 제외. 막대 길이 = 비율, 색 = 위험도.",
         "subtitleColor": "#94A3B8",
         "subtitleFontSize": 11,
         "fontSize": 14,
@@ -236,11 +240,21 @@ I2_SPEC = {
                         "aggs": {
                             "funnels": {
                                 "terms": {"field": "metadata.funnel_name", "size": 10},
-                                # started/completed 를 filter sub-agg 로 분리 — Vega-Lite
-                                # transform 에서 reduce 같은 JS 메서드 의존 없이 평면 필드로 받음.
+                                # 분모(started)는 "방 생성/참여 직후" — funnel_step_completed 의 첫 단계.
+                                # relay/flipbook: settings, fortune: birth_info. terms 로 묶어 funnel_name
+                                # 별 분류 시 자기 funnel 에 해당하는 step 만 매칭됨.
                                 "aggs": {
                                     "started": {
-                                        "filter": {"term": {"event_name": "funnel_started"}}
+                                        "filter": {
+                                            "bool": {
+                                                "must": [
+                                                    {"term": {"event_name":
+                                                              "funnel_step_completed"}},
+                                                    {"terms": {"metadata.step_name":
+                                                               ["settings", "birth_info"]}}
+                                                ]
+                                            }
+                                        }
                                     },
                                     "completed": {
                                         "filter": {"term": {"event_name": "funnel_goal_reached"}}
