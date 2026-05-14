@@ -752,9 +752,13 @@ I6_SPEC = {
     # padding 으로 chart 영역을 미리 좁힘 → panel container fit 시 chart 가 panel 다 안 차지하고
     # 남는 영역(right 160 px)에 legend 가 들어감. autosize fit contains padding 으로 panel
     # 안에 모두 fit 되도록.
+    # autosize fit + container — Kibana/OS Dashboards 권장 default 패턴. legend 는
+    # orient:"none" + 절대 좌표로 chart view 내부에 직접 배치해 panel 강제 fit 환경에서도
+    # legend 가 view boundary 안에 항상 들어가도록 보장 (vega-lite docs 의 fit clipping 한계 회피).
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
-    # right padding 을 충분히 잡아 legend 가 panel 안에 완전히 들어가도록.
-    "padding": {"top": 30, "right": 220, "bottom": 30, "left": 30},
+    "width": "container",
+    "height": "container",
+    "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
     "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
     "encoding": {
         "theta": {"field": "shared", "type": "quantitative"},
@@ -766,9 +770,16 @@ I6_SPEC = {
                 "title": None,
                 "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
-                "orient": "right",
+                # orient:"none" + 좌표 명시 — legend 가 chart view 내부 절대 위치로 그려지므로
+                # panel container fit 환경에서도 view boundary 안에 잘 들어감.
+                "orient": "none",
+                "legendX": 200,
+                "legendY": 50,
+                "direction": "vertical",
                 "symbolSize": 110,
                 "labelLimit": 140,
+                "fillColor": "#0F172A",
+                "padding": 6,
             },
         },
         "tooltip": [
@@ -852,9 +863,13 @@ I7_SPEC = {
             "'unknown':'알 수 없음'}[datum.entry_type] || datum.entry_type",
          "as": "entry_label"},
     ],
+    # autosize fit + container — Kibana/OS Dashboards 권장 default 패턴. legend 는
+    # orient:"none" + 절대 좌표로 chart view 내부에 직접 배치해 panel 강제 fit 환경에서도
+    # legend 가 view boundary 안에 항상 들어가도록 보장 (vega-lite docs 의 fit clipping 한계 회피).
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
-    # right padding 을 충분히 잡아 legend 가 panel 안에 완전히 들어가도록.
-    "padding": {"top": 30, "right": 220, "bottom": 30, "left": 30},
+    "width": "container",
+    "height": "container",
+    "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
     "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
@@ -871,9 +886,16 @@ I7_SPEC = {
                 "title": None,
                 "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
-                "orient": "right",
+                # orient:"none" + 좌표 명시 — legend 가 chart view 내부 절대 위치로 그려지므로
+                # panel container fit 환경에서도 view boundary 안에 잘 들어감.
+                "orient": "none",
+                "legendX": 200,
+                "legendY": 50,
+                "direction": "vertical",
                 "symbolSize": 110,
                 "labelLimit": 140,
+                "fillColor": "#0F172A",
+                "padding": 6,
             },
         },
         "tooltip": [
@@ -958,9 +980,13 @@ I8_SPEC = {
          "as": "sns_label"},
         {"aggregate": [{"op": "sum", "field": "count", "as": "count"}], "groupby": ["sns_label"]},
     ],
+    # autosize fit + container — Kibana/OS Dashboards 권장 default 패턴. legend 는
+    # orient:"none" + 절대 좌표로 chart view 내부에 직접 배치해 panel 강제 fit 환경에서도
+    # legend 가 view boundary 안에 항상 들어가도록 보장 (vega-lite docs 의 fit clipping 한계 회피).
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
-    # right padding 을 충분히 잡아 legend 가 panel 안에 완전히 들어가도록.
-    "padding": {"top": 30, "right": 220, "bottom": 30, "left": 30},
+    "width": "container",
+    "height": "container",
+    "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
     "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
@@ -975,9 +1001,16 @@ I8_SPEC = {
                 "title": None,
                 "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
-                "orient": "right",
+                # orient:"none" + 좌표 명시 — legend 가 chart view 내부 절대 위치로 그려지므로
+                # panel container fit 환경에서도 view boundary 안에 잘 들어감.
+                "orient": "none",
+                "legendX": 200,
+                "legendY": 50,
+                "direction": "vertical",
                 "symbolSize": 110,
                 "labelLimit": 140,
+                "fillColor": "#0F172A",
+                "padding": 6,
             },
         },
         "tooltip": [
