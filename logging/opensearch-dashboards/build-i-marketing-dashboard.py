@@ -49,6 +49,37 @@ def search_source(query="", filters=None):
     })
 
 
+def viz_markdown(viz_id, title, markdown):
+    """섹션 헤더용 markdown panel — chart 그룹을 시각적으로 구분."""
+    return {
+        "id": viz_id,
+        "type": "visualization",
+        "attributes": {
+            "title": title,
+            "visState": json.dumps({
+                "title": title,
+                "type": "markdown",
+                "aggs": [],
+                "params": {
+                    "fontSize": 14,
+                    "openLinksInNewTab": False,
+                    "markdown": markdown,
+                },
+            }, ensure_ascii=False),
+            "uiStateJSON": "{}",
+            "description": "",
+            "version": 1,
+            "kibanaSavedObjectMeta": {
+                "searchSourceJSON": json.dumps({
+                    "query": {"query": "", "language": "lucene"},
+                    "filter": [],
+                }),
+            },
+        },
+        "references": [],
+    }
+
+
 def viz_classic(viz_id, title, vis_state, query="", description="", colors=None):
     """일반(non-Vega) visualization 래퍼 — search source 분리, index pattern reference 첨부."""
     ui_state = "{}"
@@ -1530,7 +1561,60 @@ I13 = viz_vega(
 
 
 # ============================================================
-# Dashboard — 13개 viz 그리드 (48 column).
+# 섹션 헤더 (Markdown panels) — chart 그룹별 시각적 구분.
+# ============================================================
+HEADER_OVERVIEW = viz_markdown(
+    viz_id="vis-marketing-header-overview",
+    title="섹션 헤더 — 총량",
+    markdown=(
+        "## 🎯 오늘의 핵심 지표\n"
+        "**얼마나 들어왔고**, **얼마나 끝까지 갔는가** — 일일 모니터링용 KPI."
+    ),
+)
+
+HEADER_CHANNEL = viz_markdown(
+    viz_id="vis-marketing-header-channel",
+    title="섹션 헤더 — 채널",
+    markdown=(
+        "## 📡 유입 채널 분석\n"
+        "**어디서 들어오는가** · **어느 시간대에 강한가** · **SNS / 공유 효과** "
+        "— 홍보·광고 의사결정."
+    ),
+)
+
+HEADER_CONTENT = viz_markdown(
+    viz_id="vis-marketing-header-content",
+    title="섹션 헤더 — 컨텐츠",
+    markdown=(
+        "## 🎨 컨텐츠 매력도\n"
+        "**어느 컨텐츠가 사용자를 끝까지 잡나** · **시간대별 컨텐츠 mix** "
+        "— 매력 포인트 식별."
+    ),
+)
+
+HEADER_FLOW = viz_markdown(
+    viz_id="vis-marketing-header-flow",
+    title="섹션 헤더 — 단계·흐름",
+    markdown=(
+        "## 🔍 단계별 / 화면 흐름\n"
+        "**어느 단계에서 사용자가 빠지나** · **어디로 이동하나** "
+        "— 약점 / 다음 행동 패턴."
+    ),
+)
+
+HEADER_RETENTION = viz_markdown(
+    viz_id="vis-marketing-header-retention",
+    title="섹션 헤더 — 만족도·이탈",
+    markdown=(
+        "## ⏱️ 만족도 & 이탈 분석\n"
+        "**어느 화면이 사용자를 붙드나** · **결과를 진짜 즐기는가** · "
+        "**언제 빨리 빠지는가** — 재미있는지 측정."
+    ),
+)
+
+
+# ============================================================
+# Dashboard — viz + 섹션 헤더 그리드 (48 column).
 #
 #   [I1 KPI (full, 짧음)]
 #   [I7 유입경로 (16)][I8 SNS유입 (16)][I6 공유율 (16)]
@@ -1539,35 +1623,71 @@ I13 = viz_vega(
 #   [I4 화면 이동 (full)]
 #   [I9 페이지별 체류 시간 (full)]
 # ============================================================
-#   [I1 KPI (full) + I11 방문자 완주율 (full)]
-#   [I7 유입경로 (24)][I10 시간대별 유입원 (24)]
-#   [I8 SNS 유입 (24)][I6 공유율 (24)]
-#   [I2 완주율 (24)][I5 시간대별 진입 (24)]
-#   [I3 단계별 깔때기 (full)]
-#   [I4 화면 이동 (full)]
-#   [I9 체류시간 (24)][I12 결과 체류 분포 (24)]
-#   [I13 이탈 직전 체류 (full)]
+# 섹션별 그룹화 — 각 섹션은 markdown header(h=3) + 본문 viz 들.
+#
+#   [§ 오늘의 핵심 지표]
+#     [I1 KPI ─────────][I11 방문자 완주율 ─────────]
+#
+#   [§ 유입 채널 분석]
+#     [I7 유입경로 ────][I10 시간대별 유입원 ────]
+#     [I8 SNS ─────────][I6 공유율 ──────────────]
+#
+#   [§ 컨텐츠 매력도]
+#     [I2 컨텐츠 완주율 ──────][I5 시간대별 진입 ──────]
+#
+#   [§ 단계별 / 화면 흐름]
+#     [I3 깔때기 ────────────────────────────────]
+#     [I4 화면 이동 ─────────────────────────────]
+#
+#   [§ 만족도 & 이탈]
+#     [I9 체류시간 ──────────][I12 결과 체류 분포 ──]
+#     [I13 이탈 직전 체류 ───────────────────────]
 PANELS = [
-    {"vis_id": I1["id"],  "panel_id": "1",  "grid": {"x": 0,  "y": 0,   "w": 48, "h": 10}},
-    {"vis_id": I11["id"], "panel_id": "2",  "grid": {"x": 0,  "y": 10,  "w": 48, "h": 10}},
-    # row: 채널 분석 — 도넛 + 시간대 추이
-    {"vis_id": I7["id"],  "panel_id": "3",  "grid": {"x": 0,  "y": 20,  "w": 24, "h": 16}},
-    {"vis_id": I10["id"], "panel_id": "4",  "grid": {"x": 24, "y": 20,  "w": 24, "h": 16}},
-    # row: SNS + 공유율
-    {"vis_id": I8["id"],  "panel_id": "5",  "grid": {"x": 0,  "y": 36,  "w": 24, "h": 16}},
-    {"vis_id": I6["id"],  "panel_id": "6",  "grid": {"x": 24, "y": 36,  "w": 24, "h": 16}},
-    # row: 완주율 + funnel 시간대별
-    {"vis_id": I2["id"],  "panel_id": "7",  "grid": {"x": 0,  "y": 52,  "w": 24, "h": 16}},
-    {"vis_id": I5["id"],  "panel_id": "8",  "grid": {"x": 24, "y": 52,  "w": 24, "h": 16}},
-    # full: funnel 깔때기
-    {"vis_id": I3["id"],  "panel_id": "9",  "grid": {"x": 0,  "y": 68,  "w": 48, "h": 24}},
-    # full: 화면 이동
-    {"vis_id": I4["id"],  "panel_id": "10", "grid": {"x": 0,  "y": 92,  "w": 48, "h": 22}},
-    # row: 체류 시간 분석
-    {"vis_id": I9["id"],  "panel_id": "11", "grid": {"x": 0,  "y": 114, "w": 24, "h": 18}},
-    {"vis_id": I12["id"], "panel_id": "12", "grid": {"x": 24, "y": 114, "w": 24, "h": 18}},
-    # full: 이탈 직전
-    {"vis_id": I13["id"], "panel_id": "13", "grid": {"x": 0,  "y": 132, "w": 48, "h": 14}},
+    # 섹션 1: 오늘의 핵심 지표
+    {"vis_id": HEADER_OVERVIEW["id"], "panel_id": "h1",
+     "grid": {"x": 0, "y": 0, "w": 48, "h": 3}},
+    {"vis_id": I1["id"],  "panel_id": "1",
+     "grid": {"x": 0,  "y": 3,  "w": 24, "h": 10}},
+    {"vis_id": I11["id"], "panel_id": "2",
+     "grid": {"x": 24, "y": 3,  "w": 24, "h": 10}},
+
+    # 섹션 2: 유입 채널 분석
+    {"vis_id": HEADER_CHANNEL["id"], "panel_id": "h2",
+     "grid": {"x": 0, "y": 13, "w": 48, "h": 3}},
+    {"vis_id": I7["id"],  "panel_id": "3",
+     "grid": {"x": 0,  "y": 16, "w": 24, "h": 16}},
+    {"vis_id": I10["id"], "panel_id": "4",
+     "grid": {"x": 24, "y": 16, "w": 24, "h": 16}},
+    {"vis_id": I8["id"],  "panel_id": "5",
+     "grid": {"x": 0,  "y": 32, "w": 24, "h": 16}},
+    {"vis_id": I6["id"],  "panel_id": "6",
+     "grid": {"x": 24, "y": 32, "w": 24, "h": 16}},
+
+    # 섹션 3: 컨텐츠 매력도
+    {"vis_id": HEADER_CONTENT["id"], "panel_id": "h3",
+     "grid": {"x": 0, "y": 48, "w": 48, "h": 3}},
+    {"vis_id": I2["id"],  "panel_id": "7",
+     "grid": {"x": 0,  "y": 51, "w": 24, "h": 16}},
+    {"vis_id": I5["id"],  "panel_id": "8",
+     "grid": {"x": 24, "y": 51, "w": 24, "h": 16}},
+
+    # 섹션 4: 단계별 / 화면 흐름
+    {"vis_id": HEADER_FLOW["id"], "panel_id": "h4",
+     "grid": {"x": 0, "y": 67, "w": 48, "h": 3}},
+    {"vis_id": I3["id"],  "panel_id": "9",
+     "grid": {"x": 0,  "y": 70, "w": 48, "h": 24}},
+    {"vis_id": I4["id"],  "panel_id": "10",
+     "grid": {"x": 0,  "y": 94, "w": 48, "h": 22}},
+
+    # 섹션 5: 만족도 & 이탈
+    {"vis_id": HEADER_RETENTION["id"], "panel_id": "h5",
+     "grid": {"x": 0, "y": 116, "w": 48, "h": 3}},
+    {"vis_id": I9["id"],  "panel_id": "11",
+     "grid": {"x": 0,  "y": 119, "w": 24, "h": 18}},
+    {"vis_id": I12["id"], "panel_id": "12",
+     "grid": {"x": 24, "y": 119, "w": 24, "h": 18}},
+    {"vis_id": I13["id"], "panel_id": "13",
+     "grid": {"x": 0,  "y": 137, "w": 48, "h": 14}},
 ]
 
 
@@ -1634,7 +1754,11 @@ def write_ndjson(objects, path):
 
 
 if __name__ == "__main__":
-    OBJECTS = [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, DASHBOARD]
+    OBJECTS = [
+        I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13,
+        HEADER_OVERVIEW, HEADER_CHANNEL, HEADER_CONTENT, HEADER_FLOW, HEADER_RETENTION,
+        DASHBOARD,
+    ]
     write_ndjson(OBJECTS, OUT)
     print(f"wrote {len(OBJECTS)} saved-objects -> {OUT}")
     print("titles:")
