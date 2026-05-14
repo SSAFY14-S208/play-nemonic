@@ -389,7 +389,12 @@ I3_SPEC = {
          "as": "funnel_label"},
         {"filter": "datum.count > 0"},
     ],
-    "facet": {
+    # facet object 구조 대신 row encoding 단축형 사용. facet/spec 분리가 일부 vega-lite
+    # 버전에서 inner spec 의 width/height 와 충돌하는 케이스를 회피.
+    "width": 1200,
+    "height": 520,
+    "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True},
+    "encoding": {
         "row": {
             "field": "funnel_label",
             "type": "nominal",
@@ -402,40 +407,29 @@ I3_SPEC = {
                 "labelOrient": "left",
             },
         },
-    },
-    "spec": {
-        # dashboard 전체 폭(48/48 grid) 기준. inner spec(facet row 별) 크기.
-        "width": 1200,
-        "height": 160,
-        "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True},
-        "encoding": {
-            "y": {
-                "field": "step_label",
-                "type": "ordinal",
-                "sort": "ascending",
-                "axis": {"title": None, "labelFontSize": 11, "labelLimit": 140},
-            },
-            "x": {
-                "field": "count",
-                "type": "quantitative",
-                "axis": {"title": "세션 수", "labelFontSize": 11},
-            },
-            "color": {
-                "field": "step_label",
-                "type": "nominal",
-                "scale": {
-                    "scheme": "blues",
-                },
-                "legend": None,
-            },
-            "tooltip": [
-                {"field": "funnel_label", "type": "nominal", "title": "컨텐츠"},
-                {"field": "step_label", "type": "nominal", "title": "단계"},
-                {"field": "count", "type": "quantitative", "title": "세션 수"},
-            ],
+        "y": {
+            "field": "step_name",
+            "type": "nominal",
+            "axis": {"title": None, "labelFontSize": 11, "labelLimit": 140},
         },
+        "x": {
+            "field": "count",
+            "type": "quantitative",
+            "axis": {"title": "세션 수", "labelFontSize": 11},
+        },
+        "color": {
+            "field": "step_name",
+            "type": "nominal",
+            "scale": {"scheme": "blues"},
+            "legend": None,
+        },
+        "tooltip": [
+            {"field": "funnel_label", "type": "nominal", "title": "컨텐츠"},
+            {"field": "step_name", "type": "nominal", "title": "단계"},
+            {"field": "count", "type": "quantitative", "title": "세션 수"},
+        ],
     },
-    "resolve": {"scale": {"x": "independent"}},
+    "resolve": {"scale": {"x": "independent", "y": "independent"}},
     "config": {
         "background": "transparent",
         "view": {"stroke": None},
@@ -491,10 +485,11 @@ I4_SPEC = {
                             }
                         },
                         # composite aggregation 으로 prev_path × path 조합을 평면 응답으로 받음.
+                        # 너무 많이 받으면 heatmap 이 잘게 쪼개져 가독성 떨어지므로 상위 60개만.
                         "aggs": {
                             "pairs": {
                                 "composite": {
-                                    "size": 200,
+                                    "size": 60,
                                     "sources": [
                                         {"from_path": {"terms": {"field": "prev_path"}}},
                                         {"to_path": {"terms": {"field": "path"}}}
@@ -520,14 +515,12 @@ I4_SPEC = {
         "x": {
             "field": "from",
             "type": "nominal",
-            # heatmap 정렬은 axis 자연 순서로 충분. sort: "-color" 는 일부 vega-lite 버전에서
-            # 무효 처리되어 chart 가 안 그려지는 경우 있음.
             "axis": {
                 "title": "이전 화면",
-                "labelAngle": -35,
-                "labelFontSize": 11,
-                "labelLimit": 140,
-                "titleFontSize": 12,
+                "labelAngle": -25,
+                "labelFontSize": 12,
+                "labelLimit": 200,
+                "titleFontSize": 13,
             },
         },
         "y": {
@@ -535,9 +528,9 @@ I4_SPEC = {
             "type": "nominal",
             "axis": {
                 "title": "다음 화면",
-                "labelFontSize": 11,
-                "labelLimit": 160,
-                "titleFontSize": 12,
+                "labelFontSize": 12,
+                "labelLimit": 220,
+                "titleFontSize": 13,
             },
         },
         "color": {
