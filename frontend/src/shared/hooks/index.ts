@@ -4,3 +4,4 @@ export { usePageTracking } from "./usePageTracking";
 export { useWebVitals } from "./useWebVitals";
 export { useClientAlive } from "./useClientAlive";
 export { useDrawingKeyboardShortcuts } from "./useDrawingKeyboardShortcuts";
+export { useFunnelEntry } from "./useFunnelEntry";

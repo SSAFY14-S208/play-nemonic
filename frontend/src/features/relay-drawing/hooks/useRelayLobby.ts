@@ -2,16 +2,16 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
-
 import {
   ApiError,
   patchRelayRoomSettings,
   postRelayRoomKick,
 } from '@/shared/apis'
+import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
 import { useRelayDrawingStore } from '../stores'
+import { relayToast } from '../utils'
 
 interface UseRelayLobbyReturn {
   // 현재 사용자가 호스트인지. 시작 버튼/시간 설정/강퇴 등 호스트 전용 UI 게이트.
@@ -87,6 +87,11 @@ export function useRelayLobby(): UseRelayLobbyReturn {
   // RelayRoomPage가 실제 API(postRelayRoomStart)를 발사한다.
   const startGame = () => {
     if (!roomCode || !canStartGame) return
+    completeFunnelStep('lobby', 3, {
+      content_type: 'relay',
+      room_id: roomCode,
+      participant_count: participants.length,
+    })
     setGameStartPhase('animating')
   }
 
@@ -142,7 +147,7 @@ export function useRelayLobby(): UseRelayLobbyReturn {
     void navigator.clipboard.writeText(window.location.href).then(() => {
       setCopyConfirm('link')
       window.setTimeout(() => setCopyConfirm(null), COPY_CONFIRM_DURATION_MS)
-      toast.success('초대 링크를 복사했어요', { position: 'bottom-center' })
+      relayToast.success('초대 링크를 복사했어요', { position: 'bottom-center' })
     })
   }
 
@@ -151,7 +156,7 @@ export function useRelayLobby(): UseRelayLobbyReturn {
     void navigator.clipboard.writeText(roomCode).then(() => {
       setCopyConfirm('roomCode')
       window.setTimeout(() => setCopyConfirm(null), COPY_CONFIRM_DURATION_MS)
-      toast.success(`입장 코드 ${roomCode}를 복사했어요`, {
+      relayToast.success(`입장 코드 ${roomCode}를 복사했어요`, {
         position: 'bottom-center',
       })
     })

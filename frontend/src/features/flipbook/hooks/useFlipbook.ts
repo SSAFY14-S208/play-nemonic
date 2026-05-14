@@ -18,7 +18,8 @@ import {
   putFileToPresignedUrl,
 } from '@/shared/apis'
 import { DRAWING_COLORS, DEFAULT_DRAWING_STROKE_WIDTH } from '@/shared/constants'
-import { useDrawingBoard } from '@/shared/hooks'
+import { useDrawingBoard, useFunnelEntry } from '@/shared/hooks'
+import { completeFunnelStep, logEvent, reachFunnelGoal } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import type {
   DrawingLine,
@@ -95,6 +96,12 @@ export function useFlipbook({
     defaultColor: DRAWING_COLORS[0],
     defaultStrokeWidth: DEFAULT_DRAWING_STROKE_WIDTH,
   })
+  // FlipbookPage가 booth + session 라우트에 양쪽으로 마운트되므로(layout.tsx 공유),
+  // 진입 step이 booth일 때만 funnel을 시작한다. lobby/drawing/result로 직접 진입한
+  // 경우(예: 새로고침)는 funnel을 새로 시작하지 않는다 — 진행 중 funnel 정합성
+  // 보존이 우선.
+  useFunnelEntry('flipbook_room_creation', { enabled: routeStep === 'booth' })
+
   const [currentStep, setCurrentStepState] = useState<FlipbookStep>(routeStep)
   const setCurrentStep = useCallback(
     (
@@ -142,6 +149,8 @@ export function useFlipbook({
   const roundTransitionFallbackTimerRef = useRef<number | null>(null)
   const pendingNicknameActionRef = useRef<FlipbookNicknamePendingAction | null>(null)
   const pendingTimeLimitSecondsRef = useRef<FlipbookTimeLimitSeconds | null>(null)
+  // result goal은 fetchResult polling이 ready=true를 처음 만나는 시점에만 1회 발사.
+  const resultGoalFiredRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -324,6 +333,13 @@ export function useFlipbook({
         setActiveResultIndex((currentIndex) =>
           Math.min(currentIndex, Math.max(0, visibleResultItems.length - 1)),
         )
+        if (!resultGoalFiredRef.current) {
+          resultGoalFiredRef.current = true
+          reachFunnelGoal('result_viewed', {
+            content_type: 'flipbook',
+            room_id: targetRoomCode,
+          })
+        }
         setIsResultReady(true)
         setCurrentStep('result', { roomCode: targetRoomCode })
         resultPlayback.resetResultFrameIndex()
@@ -489,6 +505,11 @@ export function useFlipbook({
       setRoomCodeDraft(createdRoom.roomCode)
       linkRoomCodeHandledRef.current = createdRoom.roomCode
       await refreshRoom(createdRoom.roomCode)
+      completeFunnelStep('nickname', 1, { content_type: 'flipbook' })
+      completeFunnelStep('settings', 2, {
+        content_type: 'flipbook',
+        room_id: createdRoom.roomCode,
+      })
       setCurrentStep('lobby', { roomCode: createdRoom.roomCode })
     } catch (error) {
       const actionError = await getFlipbookActionError(error, true)
@@ -525,6 +546,11 @@ export function useFlipbook({
       setRoomCode(joinedRoom.roomId)
       linkRoomCodeHandledRef.current = joinedRoom.roomId
       await refreshRoom(joinedRoom.roomId)
+      completeFunnelStep('nickname', 1, { content_type: 'flipbook' })
+      completeFunnelStep('settings', 2, {
+        content_type: 'flipbook',
+        room_id: joinedRoom.roomId,
+      })
     } catch (error) {
       const actionError = await getFlipbookActionError(error, true)
       if (actionError.requiresNickname) {
@@ -586,6 +612,11 @@ export function useFlipbook({
       setStartedParticipantCount(getRoomParticipantCount(startedRoom))
       setSubmittedAssignmentKeys(new Set())
       await fetchAssignment(roomCode, startedRoom.currentRound ?? undefined)
+      completeFunnelStep('lobby', 3, {
+        content_type: 'flipbook',
+        room_id: roomCode,
+        participant_count: getRoomParticipantCount(startedRoom),
+      })
       setCurrentStep('drawing', { roomCode })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '게임 시작에 실패했습니다.')
@@ -630,6 +661,10 @@ export function useFlipbook({
         const nextKeys = new Set(currentKeys)
         nextKeys.add(assignmentKey)
         return nextKeys
+      })
+      completeFunnelStep('drawing', 4, {
+        content_type: 'flipbook',
+        room_id: roomCode,
       })
       const nextRoomState = await handleSubmittedFrameProgress(roomCode)
       if (nextRoomState?.status === 'FINISHED') {
@@ -751,7 +786,43 @@ export function useFlipbook({
         return
       }
 
-      if (roomState?.status === 'WAITING') {
+      // 명시적 나가기 — 현재 step에 따른 이탈 이벤트 1종 발사.
+      const status = roomState?.status
+      if (status === 'WAITING') {
+        logEvent('room_lobby_abandoned', {
+          contentType: 'flipbook',
+          roomId: roomCode,
+          metadata: {
+            content_type: 'flipbook',
+            room_id: roomCode,
+            participant_count: roomState ? getRoomParticipantCount(roomState) : undefined,
+          },
+        })
+      } else if (status === 'PLAYING' || status === 'FINALIZING') {
+        const assignmentKey = assignment ? getAssignmentKey(assignment) : null
+        const submitted = assignmentKey ? submittedAssignmentKeys.has(assignmentKey) : false
+        if (!submitted) {
+          logEvent('creation_abandoned', {
+            contentType: 'flipbook',
+            roomId: roomCode,
+            metadata: {
+              content_type: 'flipbook',
+              funnel_name: 'flipbook_room_creation',
+              step_name: 'drawing',
+            },
+          })
+        }
+      } else if (status === 'FINISHED') {
+        logEvent('result_share_abandoned', {
+          contentType: 'flipbook',
+          roomId: roomCode,
+          metadata: {
+            content_type: 'flipbook',
+          },
+        })
+      }
+
+      if (status === 'WAITING') {
         try {
           await deleteFlipbookRoomParticipantMe(roomCode)
         } catch {

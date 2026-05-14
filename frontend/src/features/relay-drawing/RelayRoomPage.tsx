@@ -4,8 +4,6 @@ import { useCallback, useEffect } from 'react'
 import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'motion/react'
-import { toast } from 'sonner'
-
 import { ApiError, postRelayRoomStart } from '@/shared/apis'
 import { WorldHomeLink } from '@/shared/components'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
@@ -22,8 +20,9 @@ import {
   RelayNicknameModal,
   RelayResultView,
 } from './components'
-import { useRelayRoom } from './hooks'
+import { useRelayAbandonmentTracking, useRelayRoom } from './hooks'
 import { useRelayDrawingStore } from './stores'
+import { relayToast } from './utils'
 import './relay-drawing.css'
 
 // 라우트: /relay-drawing/[roomCode]
@@ -84,6 +83,7 @@ function RelayRoomPageInner() {
   const router = useRouter()
   const { roomCode } = useParams<{ roomCode: string }>()
   const { isHydrating, hydrationError } = useRelayRoom(roomCode ?? null)
+  useRelayAbandonmentTracking()
   const roomStatus = useRelayDrawingStore((state) => state.roomStatus)
   const dismissalReason = useRelayDrawingStore((state) => state.dismissalReason)
   const clearRoom = useRelayDrawingStore((state) => state.clearRoom)
@@ -110,7 +110,7 @@ function RelayRoomPageInner() {
         await postRelayRoomStart(roomCode)
       } catch (caughtError) {
         useRelayDrawingStore.getState().setGameStartPhase('idle')
-        toast.error(
+        relayToast.error(
           caughtError instanceof ApiError
             ? caughtError.message
             : '게임 시작에 실패했어요',

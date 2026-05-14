@@ -79,7 +79,6 @@ export const createCanvasSlice: StateCreator<RelayDrawingStore, [], [], CanvasSl
     // 이벤트가 결정한다. 여기서는 result 슬라이스의 로컬 마무리 상태만 박는다.
     set({
       completedAt: new Date().toISOString(),
-      resultRevealStep: 'final',
     })
   },
 

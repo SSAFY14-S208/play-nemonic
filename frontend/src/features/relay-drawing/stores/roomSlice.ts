@@ -94,7 +94,6 @@ export const createRoomSlice: StateCreator<
       pendingAutoSubmitTrigger: 0,
       // 결과 슬라이스 리셋
       completedAt: null,
-      resultRevealStep: "final",
       resultItems: [],
       activeResultIndex: 0,
     });
