@@ -178,6 +178,16 @@
           "options": { "byField": "Time", "mode": "outer" }
         },
         {
+          "id": "filterByValue",
+          "options": {
+            "type": "include",
+            "match": "all",
+            "filters": [
+              { "fieldName": "started", "config": { "id": "greater", "options": { "value": 0 } } }
+            ]
+          }
+        },
+        {
           "id": "calculateField",
           "options": {
             "alias": "완주율",
