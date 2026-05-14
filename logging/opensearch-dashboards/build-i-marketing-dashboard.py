@@ -75,7 +75,12 @@ def viz_vega(viz_id, title, spec, description=""):
     """Vega/Vega-Lite visualization 래퍼.
 
     Vega viz 는 spec 안에서 직접 ES 쿼리를 발사하므로 search_source/references 가 필요 없다.
+
+    OpenSearch Dashboards 의 Vega plugin 은 `params.spec` 을 **JSON 문자열** 로 기대한다
+    (객체를 그대로 넣으면 escapeString 단계에서 `data.replace is not a function` 에러).
+    그래서 spec dict 를 여기서 한 번 더 json.dumps 한다.
     """
+    spec_str = json.dumps(spec, ensure_ascii=False)
     return {
         "id": viz_id,
         "type": "visualization",
@@ -85,7 +90,7 @@ def viz_vega(viz_id, title, spec, description=""):
                 "title": title,
                 "type": "vega",
                 "aggs": [],
-                "params": {"spec": spec},
+                "params": {"spec": spec_str},
             }, ensure_ascii=False),
             "uiStateJSON": "{}",
             "description": description,
@@ -555,25 +560,25 @@ I4 = viz_vega(
 
 # ============================================================
 # I5: 시간대별 진입 추이 (Stacked Area, 1h)
-# funnel_started 이벤트를 content_type 별로 누적. 어느 시간대에 어느 컨텐츠가 강한지.
+# funnel_started 이벤트를 funnel_name 별로 누적. 어느 시간대에 어느 컨텐츠가 강한지.
+#
+# 주의: content_type 으로 group by 하지 않는다 — startFunnel 헬퍼는 metadata.funnel_name 만
+# 채우고 top-level content_type 은 비워서 보낸다. content_type 으로 group by 하면 전체가
+# missing bucket 으로 빠져 차트가 비게 된다.
 # ============================================================
-COLOR_CONTENT_TYPE = {
-    "landing":    "#FBBF24",
-    "hub":        "#94A3B8",
-    "community":  "#34D399",
-    "relay":      "#60A5FA",
-    "flipbook":   "#FB923C",
-    "canvas":     "#A78BFA",
-    "fortune":    "#F472B6",
-    "gallery":    "#22D3EE",
-    "backoffice": "#475569",
+COLOR_FUNNEL = {
+    "relay_room_creation":     "#60A5FA",
+    "flipbook_room_creation":  "#FB923C",
+    "community_memo_posting":  "#34D399",
+    "fortune_creation":        "#F472B6",
+    "gallery_save_share":      "#22D3EE",
 }
 I5 = viz_classic(
     viz_id="vis-marketing-entry-timeline",
     title="[I5] 시간대별 진입 추이",
-    description="funnel_started 를 content_type 별로 1시간 단위 누적. 피크 타임 + 컨텐츠 mix.",
+    description="funnel_started 를 컨텐츠별로 1시간 단위 누적. 피크 타임 + 컨텐츠 mix.",
     query="service:client-web AND event_name:funnel_started",
-    colors=COLOR_CONTENT_TYPE,
+    colors=COLOR_FUNNEL,
     vis_state={
         "title": "[I5] 시간대별 진입 추이",
         "type": "area",
@@ -612,9 +617,9 @@ I5 = viz_classic(
                 "interval": "h", "drop_partials": False, "min_doc_count": 1, "extended_bounds": {},
             }},
             {"id": "3", "enabled": True, "type": "terms", "schema": "group", "params": {
-                "field": "content_type", "orderBy": "1", "order": "desc",
-                "size": 10, "otherBucket": True, "otherBucketLabel": "(미지정)",
-                "missingBucket": False,
+                "field": "metadata.funnel_name", "orderBy": "1", "order": "desc",
+                "size": 10, "otherBucket": False,
+                "missingBucket": True, "missingBucketLabel": "(미지정)",
             }},
         ],
     },
