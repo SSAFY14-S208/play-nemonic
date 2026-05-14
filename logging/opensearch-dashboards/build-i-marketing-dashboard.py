@@ -346,13 +346,7 @@ I3_SPEC = {
                             "bool": {
                                 "filter": [
                                     {"term": {"service": "client-web"}},
-                                    {"terms": {
-                                        "event_name": [
-                                            "funnel_started",
-                                            "funnel_step_completed",
-                                            "funnel_goal_reached"
-                                        ]
-                                    }}
+                                    {"term": {"event_name": "funnel_step_completed"}}
                                 ]
                             }
                         },
@@ -360,26 +354,10 @@ I3_SPEC = {
                             "funnels": {
                                 "terms": {"field": "metadata.funnel_name", "size": 10},
                                 "aggs": {
-                                    # funnel_started/goal_reached 는 step_name 이 없으므로
-                                    # filter sub-agg 로 단일 카운트만 받고,
-                                    # funnel_step_completed 만 step_name 별로 분해한다.
-                                    "started": {
-                                        "filter": {"term": {"event_name": "funnel_started"}}
-                                    },
-                                    "completed_goal": {
-                                        "filter": {"term": {"event_name": "funnel_goal_reached"}}
-                                    },
-                                    "steps_done": {
-                                        "filter": {
-                                            "term": {"event_name": "funnel_step_completed"}
-                                        },
-                                        "aggs": {
-                                            "by_step": {
-                                                "terms": {
-                                                    "field": "metadata.step_name",
-                                                    "size": 20
-                                                }
-                                            }
+                                    "steps": {
+                                        "terms": {
+                                            "field": "metadata.step_name",
+                                            "size": 20
                                         }
                                     }
                                 }
@@ -392,16 +370,13 @@ I3_SPEC = {
         "format": {"property": "aggregations.filtered.funnels.buckets"}
     },
     "transform": [
-        # vega-lite flatten 은 dotted path 직접 접근이 불안정하므로
-        # calculate 로 먼저 array 를 평면 필드로 끌어낸 뒤 flatten 한다.
+        # funnels.buckets[].steps.buckets[] → 평면 row.
         {"calculate":
-            "datum.steps_done && datum.steps_done.by_step "
-            "? datum.steps_done.by_step.buckets : []",
+            "datum.steps && datum.steps.buckets ? datum.steps.buckets : []",
          "as": "step_array"},
         {"flatten": ["step_array"], "as": ["step_bucket"]},
         {"calculate": "datum.step_bucket.key", "as": "step_name"},
         {"calculate": "datum.step_bucket.doc_count", "as": "count"},
-        {"calculate": "'1. ' + datum.step_name", "as": "step_label"},
         {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.key",
          "as": "funnel_label"},
         {"filter": "datum.count > 0"},
