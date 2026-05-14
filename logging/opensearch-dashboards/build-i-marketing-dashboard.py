@@ -511,6 +511,11 @@ I4_SPEC = {
                                     {"term": {"service": "client-web"}},
                                     {"term": {"event_name": "page_view"}},
                                     {"exists": {"field": "prev_path"}}
+                                ],
+                                # admin 백오피스 라우트 제외 — 마케팅 흐름 분석 노이즈.
+                                "must_not": [
+                                    {"prefix": {"path": "/admin"}},
+                                    {"prefix": {"prev_path": "/admin"}}
                                 ]
                             }
                         },
@@ -755,7 +760,9 @@ I6_SPEC = {
                 "title": None,
                 "labelFontSize": 12,
                 "labelColor": "#E5E7EB",
-                "orient": "right",
+                # panel 폭이 16/48 grid 라 우측 legend 가 잘림. donut 아래로 빼기.
+                "orient": "bottom",
+                "columns": 2,
                 "symbolSize": 120,
             },
         },
@@ -853,7 +860,9 @@ I7_SPEC = {
                 "title": None,
                 "labelFontSize": 12,
                 "labelColor": "#E5E7EB",
-                "orient": "right",
+                # panel 폭이 16/48 grid 라 우측 legend 가 잘림. donut 아래로 빼기.
+                "orient": "bottom",
+                "columns": 2,
                 "symbolSize": 120,
             },
         },
@@ -952,7 +961,9 @@ I8_SPEC = {
                 "title": None,
                 "labelFontSize": 12,
                 "labelColor": "#E5E7EB",
-                "orient": "right",
+                # panel 폭이 16/48 grid 라 우측 legend 가 잘림. donut 아래로 빼기.
+                "orient": "bottom",
+                "columns": 2,
                 "symbolSize": 120,
             },
         },
