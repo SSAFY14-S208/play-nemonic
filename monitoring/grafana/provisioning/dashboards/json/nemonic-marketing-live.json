@@ -126,12 +126,12 @@
     {
       "type": "gauge",
       "title": "실시간 완주율 % (15m)",
-      "description": "최근 15분간 funnel_goal_reached / funnel_started. 빨강(20% 미만) → 주황 → 녹색(50%↑).",
+      "description": "최근 15분간 funnel_goal_reached / funnel_started. 빨강(20%↓) → 주황 → 녹색(50%↑). transformation 으로 두 시리즈 나눈 후 percent.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
       "id": 4,
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^완주율 %$/", "values": false },
         "orientation": "auto",
         "showThresholdLabels": false,
         "showThresholdMarkers": true
@@ -156,22 +156,46 @@
         {
           "refId": "A",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
-          "query": "event_name:(funnel_started OR funnel_goal_reached)",
-          "metrics": [
-            { "type": "count", "id": "1" },
-            { "type": "bucket_script", "id": "4", "settings": { "script": "params.goal / params.started * 100" },
-              "pipelineVariables": [
-                { "name": "started", "pipelineAgg": "5" },
-                { "name": "goal", "pipelineAgg": "6" }
-              ]
-            },
-            { "type": "filter", "id": "5", "field": "event_name", "settings": { "query": "event_name:funnel_started" }, "hide": true },
-            { "type": "filter", "id": "6", "field": "event_name", "settings": { "query": "event_name:funnel_goal_reached" }, "hide": true }
-          ],
-          "bucketAggs": [
-            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
-          ],
+          "query": "event_name:funnel_started",
+          "alias": "started",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
           "timeField": "@timestamp"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_goal_reached",
+          "alias": "goal",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": { "reducers": ["sum"] }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "완주율 %",
+            "mode": "binary",
+            "binary": { "left": "goal Total", "operator": "/", "right": "started Total" },
+            "reduce": { "reducer": "sum" },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "완주율 %",
+            "mode": "binary",
+            "binary": { "left": "완주율 %", "operator": "*", "right": "100" },
+            "reduce": { "reducer": "sum" },
+            "replaceFields": false
+          }
         }
       ]
     },
@@ -209,6 +233,7 @@
           "refId": "A",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
           "query": "event_name:landing_source_detected",
+          "alias": "{{term metadata.entry_type}}",
           "metrics": [ { "type": "count", "id": "1" } ],
           "bucketAggs": [
             { "type": "terms", "id": "2", "field": "metadata.entry_type", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "missing": "unknown" } }
@@ -221,7 +246,7 @@
     {
       "type": "timeseries",
       "title": "컨텐츠별 활성 사용자 (1m, 누적)",
-      "description": "content_type 별 client_alive uuid cardinality. 어느 컨텐츠에 사람이 몰리는지 즉시.",
+      "description": "client_alive 의 path 별 unique uuid cardinality. content_type 이 비어있어도 path 로 어느 화면에 사람이 있는지.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 9, "w": 16, "x": 8, "y": 8 },
       "id": 6,
@@ -236,10 +261,11 @@
         {
           "refId": "A",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
-          "query": "event_name:client_alive AND _exists_:content_type",
+          "query": "event_name:client_alive AND NOT path:/admin\\/*",
+          "alias": "{{term path}}",
           "metrics": [ { "type": "cardinality", "field": "uuid", "id": "1" } ],
           "bucketAggs": [
-            { "type": "terms", "id": "3", "field": "content_type", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "terms", "id": "3", "field": "path", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
             { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
           ],
           "timeField": "@timestamp"
