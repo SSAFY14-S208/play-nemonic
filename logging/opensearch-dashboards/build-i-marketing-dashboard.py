@@ -753,8 +753,9 @@ I6_SPEC = {
     # 남는 영역(right 160 px)에 legend 가 들어감. autosize fit contains padding 으로 panel
     # 안에 모두 fit 되도록.
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
-    "padding": {"top": 20, "right": 160, "bottom": 20, "left": 20},
-    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
+    # right padding 을 충분히 잡아 legend 가 panel 안에 완전히 들어가도록.
+    "padding": {"top": 30, "right": 220, "bottom": 30, "left": 30},
+    "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
     "encoding": {
         "theta": {"field": "shared", "type": "quantitative"},
         "color": {
@@ -852,8 +853,9 @@ I7_SPEC = {
          "as": "entry_label"},
     ],
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
-    "padding": {"top": 20, "right": 160, "bottom": 20, "left": 20},
-    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
+    # right padding 을 충분히 잡아 legend 가 panel 안에 완전히 들어가도록.
+    "padding": {"top": 30, "right": 220, "bottom": 30, "left": 30},
+    "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
@@ -957,8 +959,9 @@ I8_SPEC = {
         {"aggregate": [{"op": "sum", "field": "count", "as": "count"}], "groupby": ["sns_label"]},
     ],
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
-    "padding": {"top": 20, "right": 160, "bottom": 20, "left": 20},
-    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
+    # right padding 을 충분히 잡아 legend 가 panel 안에 완전히 들어가도록.
+    "padding": {"top": 30, "right": 220, "bottom": 30, "left": 30},
+    "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
