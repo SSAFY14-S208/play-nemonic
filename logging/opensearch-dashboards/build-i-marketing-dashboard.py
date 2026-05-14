@@ -747,7 +747,9 @@ I6_SPEC = {
          "as": "abandoned"},
         {"calculate": "max(datum.goal - datum.abandoned, 0)", "as": "shared"},
         {"filter": "datum.goal > 0"},
-        {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.key", "as": "funnel_label"},
+        # FUNNEL_KOREAN_LABEL_EXPR 가 datum.funnel_name 을 참조하므로 별도 calculate.
+        {"calculate": "datum.key", "as": "funnel_name"},
+        {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.funnel_name", "as": "funnel_label"},
     ],
     # padding 으로 chart 영역을 미리 좁힘 → panel container fit 시 chart 가 panel 다 안 차지하고
     # 남는 영역(right 160 px)에 legend 가 들어감. autosize fit contains padding 으로 panel
@@ -758,7 +760,8 @@ I6_SPEC = {
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "width": "container",
     "height": "container",
-    "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+    # bottom 큰 padding 으로 도넛 아래 legend 자리 확보. orient:"bottom" 으로 도넛과 겹침 회피.
+    "padding": {"top": 20, "right": 20, "bottom": 100, "left": 20},
     "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
     "encoding": {
         "theta": {"field": "shared", "type": "quantitative"},
@@ -770,16 +773,14 @@ I6_SPEC = {
                 "title": None,
                 "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
-                # orient:"none" + 좌표 명시 — legend 가 chart view 내부 절대 위치로 그려지므로
-                # panel container fit 환경에서도 view boundary 안에 잘 들어감.
-                "orient": "none",
-                "legendX": 200,
-                "legendY": 50,
-                "direction": "vertical",
-                "symbolSize": 110,
+                # 도넛 아래 가로로 펼침. orient:right 가 잘리는 문제 회피.
+                "orient": "bottom",
+                "direction": "horizontal",
+                "columns": 4,
+                "symbolSize": 100,
                 "labelLimit": 140,
-                "fillColor": "#0F172A",
-                "padding": 6,
+                "padding": 8,
+                "rowPadding": 4,
             },
         },
         "tooltip": [
@@ -869,7 +870,8 @@ I7_SPEC = {
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "width": "container",
     "height": "container",
-    "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+    # bottom 큰 padding 으로 도넛 아래 legend 자리 확보. orient:"bottom" 으로 도넛과 겹침 회피.
+    "padding": {"top": 20, "right": 20, "bottom": 100, "left": 20},
     "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
@@ -886,16 +888,14 @@ I7_SPEC = {
                 "title": None,
                 "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
-                # orient:"none" + 좌표 명시 — legend 가 chart view 내부 절대 위치로 그려지므로
-                # panel container fit 환경에서도 view boundary 안에 잘 들어감.
-                "orient": "none",
-                "legendX": 200,
-                "legendY": 50,
-                "direction": "vertical",
-                "symbolSize": 110,
+                # 도넛 아래 가로로 펼침. orient:right 가 잘리는 문제 회피.
+                "orient": "bottom",
+                "direction": "horizontal",
+                "columns": 4,
+                "symbolSize": 100,
                 "labelLimit": 140,
-                "fillColor": "#0F172A",
-                "padding": 6,
+                "padding": 8,
+                "rowPadding": 4,
             },
         },
         "tooltip": [
@@ -986,7 +986,8 @@ I8_SPEC = {
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "width": "container",
     "height": "container",
-    "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+    # bottom 큰 padding 으로 도넛 아래 legend 자리 확보. orient:"bottom" 으로 도넛과 겹침 회피.
+    "padding": {"top": 20, "right": 20, "bottom": 100, "left": 20},
     "mark": {"type": "arc", "innerRadius": 40, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
@@ -1001,16 +1002,14 @@ I8_SPEC = {
                 "title": None,
                 "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
-                # orient:"none" + 좌표 명시 — legend 가 chart view 내부 절대 위치로 그려지므로
-                # panel container fit 환경에서도 view boundary 안에 잘 들어감.
-                "orient": "none",
-                "legendX": 200,
-                "legendY": 50,
-                "direction": "vertical",
-                "symbolSize": 110,
+                # 도넛 아래 가로로 펼침. orient:right 가 잘리는 문제 회피.
+                "orient": "bottom",
+                "direction": "horizontal",
+                "columns": 4,
+                "symbolSize": 100,
                 "labelLimit": 140,
-                "fillColor": "#0F172A",
-                "padding": 6,
+                "padding": 8,
+                "rowPadding": 4,
             },
         },
         "tooltip": [
