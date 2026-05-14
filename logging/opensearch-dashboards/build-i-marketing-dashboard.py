@@ -183,6 +183,7 @@ I1 = viz_classic(
 # ============================================================
 I2_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "컨텐츠별 완주율 (%)",
         "subtitle": "진입(funnel_started) 대비 완료(funnel_goal_reached) 비율. 막대 길이 = 비율, 색 = 위험도.",
@@ -198,27 +199,32 @@ I2_SPEC = {
             "index": "biz-events-*",
             "body": {
                 "size": 0,
-                "query": {
-                    "bool": {
-                        "filter": [
-                            {"term": {"service": "client-web"}},
-                            {"terms": {"event_name": ["funnel_started", "funnel_goal_reached"]}}
-                        ]
-                    }
-                },
                 "aggs": {
-                    "funnels": {
-                        "terms": {"field": "metadata.funnel_name", "size": 10},
+                    "filtered": {
+                        "filter": {
+                            "bool": {
+                                "filter": [
+                                    {"term": {"service": "client-web"}},
+                                    {"terms": {"event_name":
+                                               ["funnel_started", "funnel_goal_reached"]}}
+                                ]
+                            }
+                        },
                         "aggs": {
-                            "events": {
-                                "terms": {"field": "event_name", "size": 5}
+                            "funnels": {
+                                "terms": {"field": "metadata.funnel_name", "size": 10},
+                                "aggs": {
+                                    "events": {
+                                        "terms": {"field": "event_name", "size": 5}
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         },
-        "format": {"property": "aggregations.funnels.buckets"}
+        "format": {"property": "aggregations.filtered.funnels.buckets"}
     },
     "transform": [
         # 각 funnel 의 started/goal 카운트를 별도 필드로 분리
@@ -309,6 +315,7 @@ I2 = viz_vega(
 # ============================================================
 I3_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "단계별 이탈 깔때기",
         "subtitle": "각 컨텐츠의 단계별 잔존 세션 수. 막대가 짧아질수록 그 단계에서 사용자가 빠진 것.",
@@ -324,29 +331,36 @@ I3_SPEC = {
             "index": "biz-events-*",
             "body": {
                 "size": 0,
-                "query": {
-                    "bool": {
-                        "filter": [
-                            {"term": {"service": "client-web"}},
-                            {"terms": {
-                                "event_name":
-                                    ["funnel_started", "funnel_step_completed", "funnel_goal_reached"]
-                            }}
-                        ]
-                    }
-                },
                 "aggs": {
-                    "funnels": {
-                        "terms": {"field": "metadata.funnel_name", "size": 10},
+                    "filtered": {
+                        "filter": {
+                            "bool": {
+                                "filter": [
+                                    {"term": {"service": "client-web"}},
+                                    {"terms": {
+                                        "event_name": [
+                                            "funnel_started",
+                                            "funnel_step_completed",
+                                            "funnel_goal_reached"
+                                        ]
+                                    }}
+                                ]
+                            }
+                        },
                         "aggs": {
-                            "events": {
-                                "terms": {"field": "event_name", "size": 5},
+                            "funnels": {
+                                "terms": {"field": "metadata.funnel_name", "size": 10},
                                 "aggs": {
-                                    "steps": {
-                                        "terms": {
-                                            "field": "metadata.step_name",
-                                            "size": 20,
-                                            "missing": "(none)"
+                                    "events": {
+                                        "terms": {"field": "event_name", "size": 5},
+                                        "aggs": {
+                                            "steps": {
+                                                "terms": {
+                                                    "field": "metadata.step_name",
+                                                    "size": 20,
+                                                    "missing": "(none)"
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -356,7 +370,7 @@ I3_SPEC = {
                 }
             }
         },
-        "format": {"property": "aggregations.funnels.buckets"}
+        "format": {"property": "aggregations.filtered.funnels.buckets"}
     },
     "transform": [
         # funnels.buckets[].events.buckets[].steps.buckets[] 트리를 flatten.
@@ -458,6 +472,7 @@ I3 = viz_vega(
 # ============================================================
 I4_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "화면 이동 흐름",
         "subtitle": "이전 화면(가로) → 다음 화면(세로) 이동 빈도. 색이 진할수록 이동량 많음.",
@@ -473,28 +488,32 @@ I4_SPEC = {
             "index": "biz-events-*",
             "body": {
                 "size": 0,
-                "query": {
-                    "bool": {
-                        "filter": [
-                            {"term": {"service": "client-web"}},
-                            {"term": {"event_name": "page_view"}},
-                            {"exists": {"field": "prev_path"}}
-                        ]
-                    }
-                },
                 "aggs": {
-                    "sources": {
-                        "terms": {"field": "prev_path", "size": 12},
+                    "filtered": {
+                        "filter": {
+                            "bool": {
+                                "filter": [
+                                    {"term": {"service": "client-web"}},
+                                    {"term": {"event_name": "page_view"}},
+                                    {"exists": {"field": "prev_path"}}
+                                ]
+                            }
+                        },
                         "aggs": {
-                            "targets": {
-                                "terms": {"field": "path", "size": 12}
+                            "sources": {
+                                "terms": {"field": "prev_path", "size": 12},
+                                "aggs": {
+                                    "targets": {
+                                        "terms": {"field": "path", "size": 12}
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         },
-        "format": {"property": "aggregations.sources.buckets"}
+        "format": {"property": "aggregations.filtered.sources.buckets"}
     },
     "transform": [
         {"flatten": ["targets.buckets"], "as": ["target"]},
