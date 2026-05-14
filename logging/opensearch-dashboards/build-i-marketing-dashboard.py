@@ -751,7 +751,13 @@ I6_SPEC = {
             "field": "funnel_label",
             "type": "nominal",
             "scale": {"range": ["#60A5FA", "#FB923C", "#F472B6", "#34D399", "#22D3EE"]},
-            "legend": {"title": None, "labelFontSize": 11},
+            "legend": {
+                "title": None,
+                "labelFontSize": 12,
+                "labelColor": "#E5E7EB",
+                "orient": "right",
+                "symbolSize": 120,
+            },
         },
         "tooltip": [
             {"field": "funnel_label", "type": "nominal", "title": "컨텐츠"},
@@ -843,7 +849,13 @@ I7_SPEC = {
                 "domain": ["직접 접속", "검색", "SNS", "QR 코드", "공유 링크", "캠페인", "알 수 없음"],
                 "range": ["#94A3B8", "#60A5FA", "#34D399", "#FBBF24", "#A78BFA", "#F472B6", "#475569"],
             },
-            "legend": {"title": None, "labelFontSize": 11},
+            "legend": {
+                "title": None,
+                "labelFontSize": 12,
+                "labelColor": "#E5E7EB",
+                "orient": "right",
+                "symbolSize": 120,
+            },
         },
         "tooltip": [
             {"field": "entry_label", "type": "nominal", "title": "경로"},
@@ -936,7 +948,13 @@ I8_SPEC = {
                 "domain": ["인스타그램", "트위터", "카카오톡", "페이스북", "링크드인", "기타"],
                 "range": ["#EC4899", "#60A5FA", "#FBBF24", "#3B82F6", "#0E76A8", "#94A3B8"],
             },
-            "legend": {"title": None, "labelFontSize": 11},
+            "legend": {
+                "title": None,
+                "labelFontSize": 12,
+                "labelColor": "#E5E7EB",
+                "orient": "right",
+                "symbolSize": 120,
+            },
         },
         "tooltip": [
             {"field": "sns_label", "type": "nominal", "title": "SNS"},
@@ -991,6 +1009,10 @@ I9_SPEC = {
                                     {"term": {"event_name": "page_leave"}},
                                     {"exists": {"field": "path"}},
                                     {"exists": {"field": "metadata.time_on_page_ms"}}
+                                ],
+                                # admin 백오피스 라우트는 마케팅 분석에서 제외.
+                                "must_not": [
+                                    {"prefix": {"path": "/admin"}}
                                 ]
                             }
                         },
