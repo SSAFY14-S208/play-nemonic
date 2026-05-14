@@ -49,6 +49,14 @@ export const HUB_PERFORMANCE_PROFILES: Record<
   },
 }
 
+export const HUB_MONITOR_SCREEN_POSITION: [number, number, number] = [
+  -2.4,
+  3.25,
+  -4.08,
+]
+
+export const HUB_MONITOR_SCREEN_SIZE: [number, number] = [2.58, 1.4]
+
 export function parseHubPerformanceMode(
   value: string | null | undefined,
 ): HubPerformanceMode {
