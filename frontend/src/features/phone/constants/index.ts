@@ -1,10 +1,11 @@
 import type { StaticImageData } from 'next/image'
 import {
+  phoneAppCs,
   phoneAppDrawing,
   phoneAppGallery,
-  phoneAppSettings,
   phoneAppShop,
 } from '@/shared/assets'
+import type { CsInquiryType } from '@/shared/types'
 import { PHONE_COLORS } from './colors'
 import type {
   PhoneGalleryFilterKey,
@@ -240,8 +241,8 @@ export const PHONE_MAX_BRUSH_SIZE =
   PHONE_BRUSH_SIZES[PHONE_BRUSH_SIZES.length - 1]
 
 export const PHONE_APP_SHORTCUTS: Array<{
-  key: 'drawing' | 'gallery' | 'shop' | 'settings'
-  action: 'open-drawing' | 'open-gallery' | 'open-external' | 'disabled'
+  key: 'drawing' | 'gallery' | 'shop' | 'cs'
+  action: 'open-drawing' | 'open-gallery' | 'open-external' | 'open-inquiry'
   label: string
   asset: StaticImageData
   isEnabled: boolean
@@ -270,12 +271,22 @@ export const PHONE_APP_SHORTCUTS: Array<{
     isEnabled: true,
   },
   {
-    key: 'settings',
-    action: 'disabled',
-    label: '설정',
-    asset: phoneAppSettings,
-    isEnabled: false,
+    key: 'cs',
+    action: 'open-inquiry',
+    label: '고객 문의',
+    asset: phoneAppCs,
+    isEnabled: true,
   },
+]
+
+export const PHONE_INQUIRY_TYPE_OPTIONS: Array<{
+  value: CsInquiryType
+  label: string
+}> = [
+  { value: 'error', label: '오류/버그 신고' },
+  { value: 'feature_request', label: '기능 제안' },
+  { value: 'content_report', label: '콘텐츠 신고' },
+  { value: 'other', label: '기타 문의' },
 ]
 
 export const PHONE_GALLERY_FILTERS: Array<{

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 
-import { BrowserExtensionErrorGuard, UserBootstrapLoader } from "@/shared/components";
+import { BrowserExtensionErrorGuard, LogBootstrapLoader, UserBootstrapLoader } from "@/shared/components";
 import "@/shared/styles/index.css";
 
 export const metadata: Metadata = {
@@ -19,6 +19,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <BrowserExtensionErrorGuard />
         <UserBootstrapLoader />
+        <LogBootstrapLoader />
         <Toaster position="top-center" />
         {children}
       </body>

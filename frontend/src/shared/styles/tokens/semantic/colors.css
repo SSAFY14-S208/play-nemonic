@@ -26,6 +26,8 @@
   --color-primary-2: var(--p-primary-600);  /* 링크, 활성 아이콘 색 */
   --color-primary-5: var(--p-primary-50);   /* 활성 탭 배경 (연한 강조색) */
 
+  --color-hub-room-background: #0f0b22;
+
   /* ── Relay Drawing (Figma v2_07 semantic roles) ─────────────────────────── */
   --color-fortune-backdrop: oklch(94% 0.034 315);
   --color-fortune-stage: oklch(91% 0.045 312);

@@ -4,7 +4,7 @@
 // 이후 RESULT_CREATED가 올 때까지의 서버 합성 대기 화면.
 export default function RelayFinalizingView() {
   return (
-    <section className="grid min-h-screen place-items-center bg-relay-background text-relay-ink">
+    <section className="grid min-h-screen place-items-center text-relay-ink">
       <div className="flex flex-col items-center gap-4">
         <span
           aria-hidden

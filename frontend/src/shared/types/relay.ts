@@ -36,6 +36,7 @@ export interface RelayRoomCreateResponse {
   status: RelayRoomStatus
   hostUserUuid: string
   timeLimitSeconds: number
+  timeLimitAllowedSeconds: number[]
   minParticipants: number
   maxParticipants: number
   participantCount: number
@@ -48,6 +49,7 @@ export interface RelayRoomStateResponse {
   status: RelayRoomStatus
   hostUserUuid: string
   timeLimitSeconds: number
+  timeLimitAllowedSeconds: number[]
   minParticipants: number
   maxParticipants: number
   participantCount: number

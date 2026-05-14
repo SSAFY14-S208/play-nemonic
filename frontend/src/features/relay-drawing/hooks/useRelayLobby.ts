@@ -2,24 +2,22 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
-
 import {
   ApiError,
   patchRelayRoomSettings,
   postRelayRoomKick,
-  postRelayRoomStart,
 } from '@/shared/apis'
+import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
 import { useRelayDrawingStore } from '../stores'
+import { relayToast } from '../utils'
 
 interface UseRelayLobbyReturn {
   // 현재 사용자가 호스트인지. 시작 버튼/시간 설정/강퇴 등 호스트 전용 UI 게이트.
   isHost: boolean
   // 게임 시작 가능 조건: 호스트 + 진행 중 아님 + 최소 인원 + 모두 connected.
   canStartGame: boolean
-  startError: string | null
   isStarting: boolean
 
   settingsError: string | null
@@ -65,8 +63,8 @@ export function useRelayLobby(): UseRelayLobbyReturn {
   const setTimeLimitSeconds = useRelayDrawingStore((state) => state.setTimeLimitSeconds)
   const clearRoom = useRelayDrawingStore((state) => state.clearRoom)
 
-  const [isStarting, startStartTransition] = useTransition()
-  const [startError, setStartError] = useState<string | null>(null)
+  const gameStartPhase = useRelayDrawingStore((state) => state.gameStartPhase)
+  const setGameStartPhase = useRelayDrawingStore((state) => state.setGameStartPhase)
 
   const [isUpdatingSettings, startSettingsTransition] = useTransition()
   const [settingsError, setSettingsError] = useState<string | null>(null)
@@ -77,28 +75,24 @@ export function useRelayLobby(): UseRelayLobbyReturn {
   const [copyConfirm, setCopyConfirm] = useState<'link' | 'roomCode' | null>(null)
 
   const isHost = userUuid !== null && userUuid === hostUserUuid
+  const isStarting = gameStartPhase === 'animating'
   // 가이드 §15: "최소 2명 이상, 모든 참여자가 WebSocket 연결 상태여야 한다"
   const allConnected =
     participants.length > 0 && participants.every((participant) => participant.connected)
   const canStartGame =
     isHost && !isStarting && participants.length >= minParticipants && allConnected
 
+  // 게임 시작 — API를 즉시 호출하지 않고 gameStartPhase를 'animating'으로 전환.
+  // 로비 패널 슬라이드 아웃 + 게임 시작 이미지 등장 애니메이션 후에
+  // RelayRoomPage가 실제 API(postRelayRoomStart)를 발사한다.
   const startGame = () => {
     if (!roomCode || !canStartGame) return
-    setStartError(null)
-    startStartTransition(async () => {
-      try {
-        await postRelayRoomStart(roomCode)
-        // GAME_STARTED 이벤트가 곧 도착해 store.roomStatus를 'PLAYING'으로 바꾼다.
-        // RelayRoomPage가 이를 감지해 자동으로 RelayDrawingView로 스왑.
-      } catch (caughtError) {
-        const message =
-          caughtError instanceof ApiError
-            ? caughtError.message
-            : '게임 시작에 실패했어요'
-        setStartError(message)
-      }
+    completeFunnelStep('lobby', 3, {
+      content_type: 'relay',
+      room_id: roomCode,
+      participant_count: participants.length,
     })
+    setGameStartPhase('animating')
   }
 
   const changeTimeLimit = (seconds: number) => {
@@ -153,7 +147,7 @@ export function useRelayLobby(): UseRelayLobbyReturn {
     void navigator.clipboard.writeText(window.location.href).then(() => {
       setCopyConfirm('link')
       window.setTimeout(() => setCopyConfirm(null), COPY_CONFIRM_DURATION_MS)
-      toast.success('초대 링크를 복사했어요', { position: 'bottom-center' })
+      relayToast.success('초대 링크를 복사했어요', { position: 'bottom-center' })
     })
   }
 
@@ -162,14 +156,13 @@ export function useRelayLobby(): UseRelayLobbyReturn {
     void navigator.clipboard.writeText(roomCode).then(() => {
       setCopyConfirm('roomCode')
       window.setTimeout(() => setCopyConfirm(null), COPY_CONFIRM_DURATION_MS)
-      toast.success(`입장 코드 ${roomCode}를 복사했어요`, {
+      relayToast.success(`입장 코드 ${roomCode}를 복사했어요`, {
         position: 'bottom-center',
       })
     })
   }
 
   const clearErrors = () => {
-    setStartError(null)
     setSettingsError(null)
     setKickError(null)
   }
@@ -185,7 +178,6 @@ export function useRelayLobby(): UseRelayLobbyReturn {
   return {
     isHost,
     canStartGame,
-    startError,
     isStarting,
     settingsError,
     isUpdatingSettings,

@@ -172,3 +172,121 @@
     display: none;
   }
 }
+
+/* Community canvas wall status text is intentionally hidden. */
+
+[data-community-wall="true"] [class*="left-5"][class*="top-5"][class*="bg-fg-primary"],
+[data-community-memo-interactive="true"][class*="left-5"][class*="top-5"][class*="bg-fg-primary"],
+.pointer-events-none[class*="left-5"][class*="top-5"][class*="bg-fg-primary"] {
+  display: none !important;
+}
+
+/* Post-it note surface motion */
+
+.post-it-note {
+  overflow: visible;
+}
+
+.post-it-note-paper,
+.post-it-note-shadow {
+  transform-box: fill-box;
+  transform-origin: 50% 12%;
+  will-change: transform;
+}
+
+.post-it-note-art {
+  transform-origin: 50% 52%;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .post-it-note[data-post-it-motion="hover"]:hover .post-it-note-paper,
+  .group:hover .post-it-note[data-post-it-motion="hover"] .post-it-note-paper {
+    animation: post-it-note-hover-paper 760ms cubic-bezier(0.37, 0, 0.25, 1) infinite;
+  }
+
+  .post-it-note[data-post-it-motion="active"] .post-it-note-paper {
+    animation: post-it-note-active-paper 360ms cubic-bezier(0.36, 0, 0.24, 1) infinite;
+  }
+
+  .post-it-note[data-post-it-motion="active"] .post-it-note-shadow {
+    animation: post-it-note-active-shadow 360ms ease-in-out infinite;
+  }
+
+  .group:hover .post-it-note-art[data-post-it-art-motion="hover"] {
+    animation: post-it-note-hover-art 760ms cubic-bezier(0.37, 0, 0.25, 1) infinite;
+  }
+
+  .post-it-note-art[data-post-it-art-motion="active"] {
+    animation: post-it-note-active-art 360ms cubic-bezier(0.36, 0, 0.24, 1) infinite;
+  }
+}
+
+@keyframes post-it-note-hover-paper {
+  0%,
+  100% {
+    transform: rotate(0deg) skewY(0deg) translate(0, 0);
+  }
+
+  20% {
+    transform: rotate(-2.2deg) skewY(1.1deg) translate(-0.5px, -1px);
+  }
+
+  48% {
+    transform: rotate(1.8deg) skewY(-0.9deg) translate(0.8px, 0.4px);
+  }
+
+  72% {
+    transform: rotate(-1.1deg) skewY(0.55deg) translate(-0.3px, -0.6px);
+  }
+}
+
+@keyframes post-it-note-active-paper {
+  0%,
+  100% {
+    transform: rotate(-2.4deg) skewY(1.2deg) translate(-1px, 0);
+  }
+
+  50% {
+    transform: rotate(2.7deg) skewY(-1.1deg) translate(1px, -3px);
+  }
+}
+
+@keyframes post-it-note-hover-art {
+  0%,
+  100% {
+    transform: rotate(0deg) translate(0, 0) scale(1);
+  }
+
+  35% {
+    transform: rotate(1.4deg) translate(1px, -0.8px) scale(1.012);
+  }
+
+  70% {
+    transform: rotate(-1deg) translate(-0.8px, 0.6px) scale(1.006);
+  }
+}
+
+@keyframes post-it-note-active-art {
+  0%,
+  100% {
+    transform: rotate(-1.8deg) translate(-1.2px, 0) scale(1.015);
+  }
+
+  50% {
+    transform: rotate(2deg) translate(1.3px, -1.8px) scale(1.025);
+  }
+}
+
+@keyframes post-it-note-active-shadow {
+  0%,
+  100% {
+    opacity: 0.94;
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    opacity: 0.66;
+    transform: translate(0, 5px) scale(1.026);
+  }
+}

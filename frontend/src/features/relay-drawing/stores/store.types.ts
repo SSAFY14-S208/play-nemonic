@@ -13,11 +13,7 @@ import type {
   RelayRoomStatus,
 } from '@/shared/types'
 
-import type {
-  RelayResultRevealStep,
-  RelayRoundKey,
-  RelayToolKey,
-} from '../constants'
+import type { RelayRoundKey, RelayToolKey } from '../constants'
 import type { RelayDrawLine, RelayDrawPoint, RelayRoundLines } from '../types'
 
 // WS 종료성 이벤트 수신 시 모달에 표시할 사유.
@@ -30,6 +26,7 @@ export type RelayDismissalReason = 'DUPLICATE_SESSION' | 'ROOM_CLOSED'
 
 // hydrateRoomState 인자 — REST(getRelayRoom)와 방 생성/입장 응답이 모두
 // 만족하는 최소 교집합. 게임 진행 필드(currentPart 등)는 다루지 않는다.
+// timeLimitAllowedSeconds는 REST 응답에만 포함되고 WS 이벤트에는 없으므로 optional.
 export type RelayRoomHydratePayload = Pick<
   RelayRoomStateResponse,
   | 'roomCode'
@@ -39,7 +36,9 @@ export type RelayRoomHydratePayload = Pick<
   | 'minParticipants'
   | 'maxParticipants'
   | 'participants'
->
+> & {
+  timeLimitAllowedSeconds?: number[]
+}
 
 export interface RoomSlice {
   roomCode: string | null
@@ -47,11 +46,19 @@ export interface RoomSlice {
   hostUserUuid: string | null
   participants: RelayRoomParticipantResponse[]
   timeLimitSeconds: number
+  // 백엔드가 방 생성 시 허용 가능한 제한 시간 목록을 내려준다.
+  // 로비 UI에서 시간 선택 버튼을 이 배열로 렌더링한다.
+  timeLimitAllowedSeconds: number[]
   // 정원 — 가이드 §9·§15. 백엔드가 방 생성 시 결정해 응답에 함께 내려준다.
   minParticipants: number
   maxParticipants: number
   // 종료성 이벤트 사유 — 모달 표시 후 clearRoom + 부스 이동.
   dismissalReason: RelayDismissalReason | null
+
+  // 게임 시작 전환 애니메이션 단계.
+  // idle: 대기 상태 (로비 표시)
+  // animating: 로비 패널 슬라이드 아웃 + 게임 시작 이미지 표시 중
+  gameStartPhase: 'idle' | 'animating'
 
   hydrateRoomState: (payload: RelayRoomHydratePayload) => void
   setRoomStatus: (roomStatus: RelayRoomStatus) => void
@@ -59,6 +66,7 @@ export interface RoomSlice {
   setHostUserUuid: (hostUserUuid: string) => void
   setTimeLimitSeconds: (seconds: number) => void
   setDismissalReason: (reason: RelayDismissalReason) => void
+  setGameStartPhase: (phase: 'idle' | 'animating') => void
   // clearRoom: 룸 떠나기 / 모달 확인 시. 캔버스/결과 슬라이스 필드도 같이 비움.
   clearRoom: () => void
 }
@@ -67,7 +75,9 @@ export interface CanvasSlice {
   activeRoundKey: RelayRoundKey
   selectedToolKey: RelayToolKey
   selectedColor: string
+  selectedOpacity: number
   strokeWidth: number
+  recentColors: string[]
   roundLines: RelayRoundLines
 
   // 서버 배정 — getRelayRoomAssignmentMe 응답으로 채워진다.
@@ -119,7 +129,9 @@ export interface CanvasSlice {
   completeRound: () => void
   setSelectedToolKey: (toolKey: RelayToolKey) => void
   setSelectedColor: (color: string) => void
+  setSelectedOpacity: (opacity: number) => void
   setStrokeWidth: (strokeWidth: number) => void
+  addRecentColor: (color: string) => void
   commitLine: (line: RelayDrawLine) => void
   appendPointToLastLine: (point: RelayDrawPoint) => void
   undoLine: () => void
@@ -148,7 +160,6 @@ export interface CanvasSlice {
 }
 
 export interface ResultSlice {
-  resultRevealStep: RelayResultRevealStep
   completedAt: string | null
 
   // 서버 결과 — getRelayRoomResults 응답으로 채워진다.
@@ -157,8 +168,6 @@ export interface ResultSlice {
 
   setResults: (items: RelayRoomResultItemResponse[]) => void
   setActiveResultIndex: (index: number) => void
-  goToNextResultReveal: () => void
-  goToPreviousResultReveal: () => void
   // resetSession: 새 게임 시작 시 캔버스/결과 슬라이스를 초기화.
   resetSession: () => void
 }

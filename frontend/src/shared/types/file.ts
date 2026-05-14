@@ -1,11 +1,13 @@
 // File 도메인 (OpenAPI: tag "File")
 
 export type FilePurpose =
+  | 'COMMUNITY'
   | 'RELAY_DRAWING'
   | 'FLIPBOOK'
-  | 'PHONE_DRAWING'
-  | 'COMMUNITY_MEMO_ORIGINAL'
-  | 'COMMUNITY_MEMO_THUMBNAIL'
+  | 'FLIPBOOK_GIF'
+  | 'FORTUNE'
+  | 'INFINITE_CANVAS'
+  | 'PHONE'
 
 export type FileUploadStatus = 'PENDING' | 'UPLOADED' | 'FAILED'
 

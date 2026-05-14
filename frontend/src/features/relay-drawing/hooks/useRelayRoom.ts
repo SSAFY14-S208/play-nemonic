@@ -2,22 +2,48 @@
 
 import { HTTPError } from "ky";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
-
+import { useEffect, useState } from "react";
 import {
   ApiError,
   deleteRelayRoomParticipantMe,
   getRelayRoom,
   getRelayRoomResults,
-  postRelayRoomParticipant,
+  postInvite,
 } from "@/shared/apis";
 import type { RelaySocketStatus } from "@/shared/libs";
 import { useUserStore } from "@/shared/stores";
+import type { RelayBlockedReason } from "@/shared/types";
 
 import { PART_TO_ROUND_KEY } from "../constants";
+import { relayToast } from "../utils";
+
+// viewer.blockedReason → 사용자 안내 토스트 메시지 매핑.
+const BLOCKED_REASON_MESSAGE: Record<RelayBlockedReason, string> = {
+  ROOM_FULL: "정원이 가득 찬 방이에요",
+  GAME_IN_PROGRESS: "이미 게임이 진행 중인 방이에요",
+  RECONNECT_EXPIRED: "재접속 시간이 만료되었어요",
+  KICKED: "강퇴된 방이에요",
+  ROOM_FINISHED: "이미 종료된 방이에요",
+  ROOM_CLOSED: "종료된 방이에요",
+};
 import { useRelayDrawingStore } from "../stores";
 import { useRelaySocket } from "./useRelaySocket";
+
+const dismissedRoomCodes = new Set<string>();
+
+function markRoomDismissed(roomCode: string | null): void {
+  if (!roomCode) return;
+  dismissedRoomCodes.add(roomCode);
+}
+
+function hasRoomDismissed(roomCode: string | null): boolean {
+  return roomCode !== null && dismissedRoomCodes.has(roomCode);
+}
+
+function resetRoomDismissed(roomCode: string | null): void {
+  if (!roomCode) return;
+  dismissedRoomCodes.delete(roomCode);
+}
 
 interface UseRelayRoomReturn {
   isHydrating: boolean;
@@ -81,11 +107,26 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
       try {
         const room = await getRelayRoom(roomCode);
         if (cancelled) return;
+
+        // ── 비참여자 입장 차단 ──
+        // 참여자가 아니면서 입장도 불가능한 경우(CLOSED·FINISHED·게임 진행 중·
+        // 정원 초과·강퇴 등) store를 hydrate하지 않고 부스로 즉시 복귀한다.
+        if (!room.viewer.participant && !room.viewer.canJoin) {
+          markRoomDismissed(roomCode);
+          relayToast(
+            BLOCKED_REASON_MESSAGE[room.viewer.blockedReason] ??
+              "입장할 수 없는 방이에요",
+          );
+          router.replace("/relay-drawing");
+          return;
+        }
+
         hydrateRoomState(room);
 
         // 공유 링크 진입 자동 join — 가이드 §11.
         // 본인이 아직 참여자가 아니고 입장 가능한 WAITING 상태면 자동으로
-        // postRelayRoomParticipant를 호출해 백엔드 participants 목록에 등록한다.
+        // postInvite를 호출해 백엔드 participants 목록에 등록한 뒤,
+        // getRelayRoom으로 방 상태를 다시 가져와 store를 갱신한다.
         // 이미 참여자(부스에서 방 만들기/입장 직후 또는 새로고침)인 경우는 건너뛴다.
         // PLAYING/FINISHED/CLOSED 상태에서는 신규 입장 불가하므로 시도하지 않는다.
         if (
@@ -94,7 +135,9 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
           !room.viewer.participant
         ) {
           try {
-            const joined = await postRelayRoomParticipant(roomCode);
+            await postInvite(roomCode);
+            if (cancelled) return;
+            const joined = await getRelayRoom(roomCode);
             if (cancelled) return;
             hydrateRoomState(joined);
           } catch (joinError) {
@@ -159,32 +202,31 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
     return () => {
       cancelled = true;
     };
-  }, [roomCode, hydrateRoomState]);
+  }, [roomCode, hydrateRoomState, router]);
 
   // ── 자발적 퇴장 감지 ─────────────────────────────────────────
   // 페이지 이탈(브라우저 뒤로가기·라우트 전환 등) 시 서버에 퇴장 의사를 즉시
   // 전달한다. WS 종료성 이벤트(강퇴·방 종료 등)로 인한 퇴장은 이미 서버가
   // 처리했으므로 중복 호출을 방지한다.
-  const wasDismissedRef = useRef(false);
-
   useEffect(() => {
     if (!roomCode) return;
-    wasDismissedRef.current = false;
+    resetRoomDismissed(roomCode);
 
     return () => {
-      if (!wasDismissedRef.current) {
+      if (!hasRoomDismissed(roomCode)) {
         void deleteRelayRoomParticipantMe(roomCode).catch(() => {});
       }
+      resetRoomDismissed(roomCode);
     };
   }, [roomCode]);
 
   // WebSocket 연결 — REST hydrate 완료 + 본인이 백엔드 participant 목록에 등록된
   // 시점에만 connect를 시도한다. 직접 링크 진입 시 REST chain(getRelayRoom +
-  // 자동 postRelayRoomParticipant)이 끝나기 전에 STOMP CONNECT가 먼저 발사되면
+  // 자동 postInvite)이 끝나기 전에 STOMP CONNECT가 먼저 발사되면
   // 백엔드가 "허용할 수 없습니다" 에러로 거부하고, 5초 후 재연결로 복구되는
   // race가 있어서 이 게이트를 둔다.
   //
-  // 부스 입장 플로우는 이미 postRelayRoomParticipant 후 navigate하므로 첫 렌더에
+  // 부스 입장 플로우는 이미 postInvite 후 navigate하므로 첫 렌더에
   // 본인이 participants에 들어있어 즉시 enabled=true가 된다. 새로고침 케이스도
   // REST 응답이 본인을 포함한 채 오면 동일.
   const isViewerParticipant =
@@ -226,7 +268,7 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         // 다른 사용자가 입장한 경우에만 토스트 — 본인 입장은 알림 불필요.
         const currentUserUuid = useUserStore.getState().userUuid;
         if (connectedUuid !== currentUserUuid) {
-          toast(`${event.data.changedParticipant.nickname}님이 입장했습니다.`);
+          relayToast(`${event.data.changedParticipant.nickname}님이 입장했습니다.`);
         }
       },
       PARTICIPANT_DISCONNECTED: (event) => {
@@ -249,7 +291,7 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
             (participant) => participant.userUuid !== event.data.leftUserUuid,
           ),
         );
-        toast(`${event.data.leftNickname}님이 방을 나갔습니다.`);
+        relayToast(`${event.data.leftNickname}님이 방을 나갔습니다.`);
       },
       PARTICIPANT_DROPPED: (event) => {
         // 10초 grace 만료로 이탈 확정 — 현재 목록에서 제거.
@@ -265,7 +307,12 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         setParticipants(event.data.participants);
       },
       GAME_STARTED: (event) => {
-        // roomStatus 'PLAYING'으로 전환 — RelayRoomPage가 자동으로 RelayDrawingView로 스왑.
+        // 게임 시작 애니메이션 — 호스트는 버튼 클릭 시 이미 'animating'이므로 no-op,
+        // 비호스트는 여기서 'animating'으로 전환해 로비 패널 슬라이드 아웃 +
+        // 게임 시작 이미지를 보여준다. RelayRoomPage의 effect가 일정 시간 후
+        // 'idle'로 되돌리면 RelayDrawingView로 자연스럽게 전환된다.
+        useRelayDrawingStore.getState().setGameStartPhase('animating');
+        // roomStatus 'PLAYING'으로 전환.
         setRoomStatus(event.data.status);
         setParticipants(event.data.participants);
         useRelayDrawingStore.getState().setIsSubmitting(false);
@@ -293,6 +340,13 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
             host: participant.userUuid === event.data.newHostUserUuid,
           })),
         );
+        // 방장 변경 토스트 — 본인이면 임명 안내, 타인이면 닉네임 표시.
+        const currentUserUuid = useUserStore.getState().userUuid;
+        if (event.data.newHostUserUuid === currentUserUuid) {
+          relayToast('방장으로 임명되었습니다.');
+        } else {
+          relayToast(`${event.data.newHostNickname}님이 방장으로 임명되었습니다.`);
+        }
       },
       ALL_PARTS_COMPLETED: (event) => {
         // FINALIZING으로 전환 → RelayRoomPage가 RelayFinalizingView 표시.
@@ -320,7 +374,7 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
       ROOM_CLOSED: () => {
         // 방 종료 — 모달로 안내 후 부스 복귀. roomStatus는 건드리지 않아서
         // 현재 뷰 위에 모달이 오버레이된다.
-        wasDismissedRef.current = true;
+        markRoomDismissed(roomCode);
         setDismissalReason("ROOM_CLOSED");
       },
       // 호스트가 다른 참여자를 강퇴 — 방 전체 브로드캐스트.
@@ -331,9 +385,9 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         const currentUserUuid = useUserStore.getState().userUuid;
 
         if (currentUserUuid === event.data.kickedUserUuid) {
-          if (wasDismissedRef.current) return;
-          wasDismissedRef.current = true;
-          toast.error("호스트에 의해 방에서 내보내졌습니다.");
+          if (hasRoomDismissed(roomCode)) return;
+          markRoomDismissed(roomCode);
+          relayToast.error("호스트에 의해 방에서 내보내졌습니다.");
           clearRoom();
           router.push("/relay-drawing");
           return;
@@ -346,21 +400,21 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
             (participant) => participant.userUuid !== event.data.kickedUserUuid,
           ),
         );
-        toast(`${event.data.kickedNickname}님이 강퇴되었습니다.`);
+        relayToast(`${event.data.kickedNickname}님이 강퇴되었습니다.`);
       },
 
       // ── 개인 큐: 본인에게만 전달되는 종료성 이벤트 ────────────────
       // 강퇴 대상자: 모달로 멈추지 않고 즉시 부스로 복귀시키고 토스트로 사유를 알린다.
       // PARTICIPANT_KICKED 브로드캐스트가 먼저 도착해 이미 처리됐으면 dedup으로 건너뛴다.
       KICKED_FROM_ROOM: () => {
-        if (wasDismissedRef.current) return;
-        wasDismissedRef.current = true;
-        toast.error("호스트에 의해 방에서 내보내졌습니다.");
+        if (hasRoomDismissed(roomCode)) return;
+        markRoomDismissed(roomCode);
+        relayToast.error("호스트에 의해 방에서 내보내졌습니다.");
         clearRoom();
         router.push("/relay-drawing");
       },
       DUPLICATE_SESSION_CLOSED: () => {
-        wasDismissedRef.current = true;
+        markRoomDismissed(roomCode);
         setDismissalReason("DUPLICATE_SESSION");
       },
 

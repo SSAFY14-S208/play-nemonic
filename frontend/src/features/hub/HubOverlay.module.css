@@ -1,309 +1,92 @@
-@import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
-
-@keyframes copySwap {
-  0% {
-    opacity: 0.2;
-    transform: translateY(-0.45rem);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.copySwap {
-  display: grid;
-  gap: 0.62rem;
-  justify-items: center;
-  animation: copySwap 380ms ease-out both;
-}
-
-.viewerCopy {
-  position: absolute;
-  top: clamp(1.1rem, 4vh, 2.6rem);
-  left: 50%;
+.brandPanel {
+  position: fixed;
+  top: 1.5rem;
+  left: 1.5rem;
   z-index: 30;
-  width: min(58rem, calc(100% - 2rem));
-  transform: translateX(-50%);
-  display: grid;
-  text-align: center;
-  justify-items: center;
-  pointer-events: none;
-  filter: drop-shadow(0 14px 24px rgba(7, 6, 24, 0.3));
-}
-
-.eyebrow {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  min-height: 1.9rem;
-  margin: 0;
-  padding: 0.38rem 1rem;
-  border: 1px solid rgba(255, 236, 218, 0.22);
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 245, 229, 0.1));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.26),
-    0 8px 18px rgba(9, 7, 30, 0.18);
-  color: rgba(255, 238, 221, 0.78);
-  font-size: clamp(0.76rem, 1.1vw, 0.88rem);
-  font-weight: 400;
-  letter-spacing: 0;
-  white-space: nowrap;
-  backdrop-filter: blur(14px);
-}
-
-.eyebrow::before,
-.eyebrow::after {
-  content: "";
-  width: 0.7rem;
-  height: 1px;
-  border-radius: 999px;
-  background: rgba(255, 238, 221, 0.34);
-}
-
-.eyebrow::before {
-  margin-right: 0.52rem;
-}
-
-.eyebrow::after {
-  margin-left: 0.52rem;
-}
-
-.viewerTitle {
-  margin: 0;
-  color: #fff6ed;
-  font-family: "Jua", var(--font-pretendard);
-  font-size: clamp(2.8rem, 5.4vw, 5.4rem);
-  line-height: 0.96;
-  letter-spacing: 0;
-  font-weight: 400;
-  white-space: nowrap;
-  text-shadow:
-    0 2px 0 rgba(90, 65, 112, 0.44),
-    0 14px 28px rgba(2, 2, 18, 0.34);
-}
-
-.viewerDescription {
-  margin: 0;
-  max-width: 35rem;
-  justify-self: center;
-  color: rgba(255, 245, 230, 0.82);
-  font-size: clamp(0.98rem, 1.28vw, 1.08rem);
-  font-weight: 300;
-  line-height: 1.68;
-  word-break: keep-all;
-}
-
-@keyframes entryShimmer {
-  0% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(220%);
-  }
-}
-
-.entryButton {
-  appearance: none;
-  pointer-events: auto;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  min-height: 3rem;
-  margin-top: 0.55rem;
-  padding: 0.78rem 1.6rem 0.78rem 1.3rem;
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: 999px;
-  background: var(--hub-entry-gradient, linear-gradient(135deg, #f4e6ff 0%, #c8a8ee 100%));
-  color: var(--hub-entry-text, #5a3f8a);
-  font: inherit;
-  font-size: 0.98rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  overflow: hidden;
-  isolation: isolate;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -2px 6px rgba(255, 255, 255, 0.35),
-    0 12px 28px var(--hub-entry-glow, rgba(168, 122, 224, 0.45)),
-    0 4px 10px rgba(20, 14, 50, 0.18);
-}
-
-/* 광택 shimmer가 좌→우로 한 번 흐름 */
-.entryButton::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(
-    115deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.55) 50%,
-    transparent 70%
-  );
-  transform: translateX(-120%);
-  animation: entryShimmer 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  color: #362d50;
   pointer-events: none;
 }
 
-/* 호버 시 글로우 강도 ↑ */
-.entryButton:hover {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -2px 8px rgba(255, 255, 255, 0.45),
-    0 18px 38px var(--hub-entry-glow, rgba(168, 122, 224, 0.65)),
-    0 6px 14px rgba(20, 14, 50, 0.24);
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  border: 1px solid rgb(255 255 255 / 62%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 72%);
+  box-shadow: 0 1rem 2.5rem rgb(87 74 122 / 14%);
+  padding: 0.62rem 0.9rem;
+  color: #64509a;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  backdrop-filter: blur(16px);
 }
 
-.entryButton:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.95);
-  outline-offset: 4px;
-}
-
-.entryIcon,
-.entryArrow,
-.entryLabel {
-  position: relative;
-  z-index: 1;
-}
-
-.entryIcon {
-  width: 1.15rem;
-  height: 1.15rem;
-}
-
-.entryArrow {
-  width: 1rem;
-  height: 1rem;
-  margin-left: 0.15rem;
-  opacity: 0.85;
-  transition: transform 220ms cubic-bezier(0.2, 1, 0.34, 1);
-}
-
-.entryButton:hover .entryArrow {
-  transform: translateX(0.25rem);
-}
-
-.viewerControls {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(0.5rem, 2vh, 1rem);
+.focusControls {
+  position: fixed;
+  right: 1.4rem;
+  top: 1.4rem;
   z-index: 30;
-  width: min(54rem, calc(100% - 2rem));
-  transform: translateX(-50%);
-  display: grid;
-}
-
-.platformButtons {
   display: flex;
-  justify-content: center;
-  gap: clamp(0.52rem, 1vw, 0.78rem);
-  flex-wrap: wrap;
   align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgb(255 255 255 / 58%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 70%);
+  box-shadow: 0 1.1rem 2.8rem rgb(87 74 122 / 15%);
+  padding: 0.48rem;
+  backdrop-filter: blur(18px);
 }
 
-.platformButton {
-  appearance: none;
-  position: relative;
-  min-width: 4.95rem;
-  min-height: 2.78rem;
-  border: 1px solid var(--hub-chip-border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), var(--hub-chip-bg));
-  color: var(--hub-chip-text);
-  padding: 0.64rem 1.02rem 0.68rem;
+.focusButton {
+  display: inline-flex;
+  height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  border: 0;
   border-radius: 999px;
+  background: transparent;
+  padding: 0 0.78rem;
+  color: #5f5578;
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 500;
-  letter-spacing: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
   cursor: pointer;
   transition:
-    transform 190ms cubic-bezier(0.2, 1, 0.34, 1),
-    background-color 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    box-shadow 220ms ease,
-    filter 180ms ease;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.58),
-    0 10px 22px rgba(9, 7, 30, 0.22);
-  white-space: nowrap;
-  backdrop-filter: blur(12px);
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
-.platformButton:hover {
-  transform: translateY(-2px);
-  filter: saturate(1.04);
+.focusButton:hover {
+  transform: translateY(-1px);
+  background: rgb(255 255 255 / 72%);
 }
 
-.active {
-  color: #fff6ed;
-  transform: translateY(-2px) scale(1.025);
-  border-color: rgba(83, 62, 54, 0.28);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.76),
-    0 10px 22px rgba(103, 78, 68, 0.12),
-    0 0 0 4px rgba(255, 255, 255, 0.56);
-  filter: saturate(1.08);
+.focusButtonActive {
+  background: linear-gradient(135deg, #bca4ff, #a5dbff);
+  color: #ffffff;
+  box-shadow: 0 0.55rem 1.5rem rgb(146 118 219 / 24%);
 }
 
-.platformButton:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.95);
-  outline-offset: 4px;
-}
-
-@media (max-width: 800px) {
-  .viewerCopy {
-    top: 1.2rem;
-    width: min(34rem, calc(100% - 1.2rem));
+@media (max-width: 860px) {
+  .brandPanel {
+    top: 1rem;
+    left: 1rem;
   }
 
-  .copySwap {
-    gap: 0.45rem;
+  .focusControls {
+    right: 1rem;
+    top: auto;
+    bottom: 1rem;
+    max-width: calc(100vw - 2rem);
+    overflow-x: auto;
+    border-radius: 1rem;
   }
 
-  .viewerTitle {
-    /* 모바일은 폭이 좁아 한 줄 강제하면 overflow되므로 wrap 다시 허용 */
-    white-space: normal;
-    font-size: clamp(2.4rem, 12vw, 3.8rem);
-  }
-
-  .viewerDescription {
-    max-width: 25rem;
-    font-size: 0.94rem;
-    line-height: 1.6;
-  }
-
-  .entryButton {
-    min-height: 2.56rem;
-    padding: 0.58rem 1rem;
-    font-size: 0.82rem;
-  }
-
-  .eyebrow {
-    min-height: 1.86rem;
-    padding: 0.36rem 0.92rem;
-    font-size: 0.75rem;
-  }
-
-  .viewerControls {
-    width: calc(100% - 1.2rem);
-    bottom: 0.45rem;
-  }
-
-  .platformButtons {
-    gap: 0.55rem;
-  }
-
-  .platformButton {
-    min-width: 4.25rem;
-    min-height: 2.55rem;
-    padding: 0.58rem 0.74rem 0.62rem;
-    font-size: 0.8rem;
+  .focusButton span {
+    display: none;
   }
 }

@@ -27,9 +27,10 @@ function drawStrokeLineOnContext(
   context.lineJoin = 'round'
   context.lineWidth = line.strokeWidth
   context.strokeStyle = line.color
+  context.globalAlpha = line.opacity ?? 1
 
   // 캔버스 배경색과 같은 흰색이면 지우개로 동작 — destination-out이면 알파를 비운다.
-  if (line.color === '#fffdf7') {
+  if (line.compositeOperation === 'destination-out' || line.color === '#fffdf7') {
     context.globalCompositeOperation = 'destination-out'
   }
 
@@ -60,6 +61,7 @@ function drawFallbackFillOnContext(
 
   context.save()
   context.fillStyle = line.color
+  context.globalAlpha = line.opacity ?? 1
   context.beginPath()
   context.moveTo(firstPoint.x, firstPoint.y)
 

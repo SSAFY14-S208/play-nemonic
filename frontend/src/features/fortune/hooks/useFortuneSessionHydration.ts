@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { getAnonymousProfile, getFortuneTodayAvailability } from '@/shared/apis'
 import { runtime } from '@/shared/config'
+import { useFunnelEntry } from '@/shared/hooks'
+import { logEvent } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
 import { FORTUNE_EMPTY_BIRTH_INFO, FORTUNE_RESET_QUERY_PARAM } from '../constants'
@@ -21,6 +23,9 @@ import {
 const USER_STORE_HYDRATION_FALLBACK_DELAY_MS = 1500
 
 export function useFortuneSessionHydration() {
+  // fortune funnel 진입 — FortunePage 마운트 1회.
+  useFunnelEntry('fortune_creation')
+
   const userUuid = useUserStore((state) => state.userUuid)
   const { hasUserStoreHydrated, hasHydrated } = useFortuneSessionStore(
     useShallow((state) => ({
@@ -175,8 +180,32 @@ export function useFortuneSessionHydration() {
     userUuid,
   ])
 
+  // 결과 step에서 사용자가 share/save 액션 없이 페이지를 떠나면 result_share_abandoned 발사.
+  // 결과 step 진입 시각 기록 + cleanup에서 step==='result'였는지 확인.
+  const resultEnteredAtRef = useRef<number | null>(null)
+  useEffect(() => {
+    const unsubscribe = useFortuneSessionStore.subscribe((state, prev) => {
+      if (state.step === 'result' && prev.step !== 'result') {
+        resultEnteredAtRef.current = Date.now()
+      }
+    })
+    return () => {
+      unsubscribe()
+    }
+  }, [])
+
   useEffect(() => {
     return () => {
+      const finalStep = useFortuneSessionStore.getState().step
+      if (finalStep === 'result' && resultEnteredAtRef.current !== null) {
+        logEvent('result_share_abandoned', {
+          contentType: 'fortune',
+          metadata: {
+            content_type: 'fortune',
+            time_on_result_ms: Date.now() - resultEnteredAtRef.current,
+          },
+        })
+      }
       useFortuneSessionStore.getState().resetSession()
     }
   }, [])

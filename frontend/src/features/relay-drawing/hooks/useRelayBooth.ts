@@ -3,8 +3,10 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
-import { ApiError, postRelayRoom, postRelayRoomParticipant } from '@/shared/apis'
+import { ApiError, getRelayRoom, postInvite, postRelayRoom } from '@/shared/apis'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
+import { useFunnelEntry } from '@/shared/hooks'
+import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
 import { useRelayDrawingStore } from '../stores'
@@ -28,7 +30,8 @@ interface UseRelayBoothReturn {
  * 부스 화면의 "방 만들기" / "방 입장" 액션을 결선한다.
  *
  * 흐름:
- *   1. POST /relay/rooms 또는 POST /relay/rooms/{roomCode}/participants
+ *   1. 방 만들기: POST /relay/rooms
+ *      방 입장: POST /invites/{roomCode} → GET /relay/rooms/{roomId}
  *   2. 성공 응답을 store.hydrateRoomState로 넣어 RelayRoomPage가 로비를
  *      바로 그릴 수 있도록 준비
  *   3. router.push(`/relay-drawing/${roomCode}`) — RelayRoomPage 마운트
@@ -41,6 +44,10 @@ export function useRelayBooth(): UseRelayBoothReturn {
   const userUuid = useUserStore((state) => state.userUuid)
   const nickname = useUserStore((state) => state.nickname)
   const hydrateRoomState = useRelayDrawingStore((state) => state.hydrateRoomState)
+
+  // 부스 마운트 = relay funnel landing (step_index=0). startFunnel이 step 1 진입을
+  // 의미하므로 별도 logFunnelStep 호출은 하지 않는다.
+  useFunnelEntry('relay_room_creation')
 
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +71,12 @@ export function useRelayBooth(): UseRelayBoothReturn {
       try {
         const room = await postRelayRoom()
         hydrateRoomState(room)
+        // 닉네임은 이미 게이트를 통과했고, 방 생성 성공 = settings 단계까지 완료한 것.
+        completeFunnelStep('nickname', 1, { content_type: 'relay' })
+        completeFunnelStep('settings', 2, {
+          content_type: 'relay',
+          room_id: room.roomCode,
+        })
         navigateToRoom(room.roomCode)
       } catch (caughtError) {
         const message =
@@ -85,9 +98,15 @@ export function useRelayBooth(): UseRelayBoothReturn {
     setError(null)
     startTransition(async () => {
       try {
-        const room = await postRelayRoomParticipant(roomCode)
+        const invite = await postInvite(roomCode)
+        const room = await getRelayRoom(invite.roomId)
         hydrateRoomState(room)
-        navigateToRoom(room.roomCode)
+        completeFunnelStep('nickname', 1, { content_type: 'relay' })
+        completeFunnelStep('settings', 2, {
+          content_type: 'relay',
+          room_id: invite.roomId,
+        })
+        navigateToRoom(invite.roomId)
       } catch (caughtError) {
         const message =
           caughtError instanceof ApiError

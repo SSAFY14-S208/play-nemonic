@@ -1,5 +1,7 @@
 export { usePhoneClock } from './usePhoneClock'
 export { usePhoneDrawing } from './usePhoneDrawing'
 export { usePhoneGallery } from './usePhoneGallery'
+export { usePhoneInquiry } from './usePhoneInquiry'
 export { usePhoneScale } from './usePhoneScale'
 export { usePhoneToast } from './usePhoneToast'
+export { useNemonicImagePrint } from './useNemonicImagePrint'

@@ -1,29 +1,74 @@
 "use client";
 
-import { useEffect } from "react";
 import dynamic from "next/dynamic";
-
-import { RELAY_ROUND_SEGMENTS } from "../constants";
+import { useEffect, useRef, useState } from "react";
+import {
+  ColorPanel,
+  DrawingCompleteButton,
+  MobileColorGrid,
+  MobileToolGrid,
+  ProgressRail,
+  ToolPanel,
+  TopStatusBar,
+} from "@/shared/components";
+import {
+  DRAWING_COLORS,
+  DRAWING_STROKE_WIDTH_OPTIONS,
+} from "@/shared/constants";
+import { useDrawingKeyboardShortcuts } from "@/shared/hooks";
+import { cn } from "@/shared/libs";
+import type { DrawingToolKey } from "@/shared/types";
+import {
+  RELAY_ROUND_ORDER,
+  RELAY_ROUND_SEGMENTS,
+  RELAY_STAGE_SIZE,
+} from "../constants";
 import { useRelayDrawingGame } from "../hooks/useRelayDrawingGame";
 import { useRelayTimer } from "../hooks/useRelayTimer";
 import { useRelayDrawingStore } from "../stores";
-import CountdownTimer from "./CountdownTimer";
-import DrawingToolPanel from "./DrawingToolPanel";
 import PartTimeUpOverlay from "./PartTimeUpOverlay";
-import RelayButton from "./RelayButton";
-import RoundProgressBar from "./RoundProgressBar";
-import RoundProgressPanel from "./RoundProgressPanel";
 
 const RelayDrawingStage = dynamic(() => import("../RelayDrawingStage"), {
   ssr: false,
 });
 
+// 데스크탑(lg+) 그리기 화면은 1536×1024 디자인을 기준으로 절대 좌표로 배치되어
+// 있다. 작은 viewport에선 디자인 그대로 두면 클리핑되므로, 부모 크기를 측정해
+// 가로/세로 중 더 작은 비율로 scale을 동적으로 잡는다. 측정 전에는 0으로 두어
+// 첫 프레임의 클리핑 노출을 막는다.
+const DESKTOP_DESIGN_WIDTH = 1536;
+const DESKTOP_DESIGN_HEIGHT = 1024;
+
 export default function RelayDrawingView() {
   const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey);
   const isPartTimeUp = useRelayDrawingStore((state) => state.isPartTimeUp);
+  const selectedToolKey = useRelayDrawingStore(
+    (state) => state.selectedToolKey,
+  );
+  const selectedColor = useRelayDrawingStore((state) => state.selectedColor);
+  const selectedOpacity = useRelayDrawingStore(
+    (state) => state.selectedOpacity,
+  );
+  const strokeWidth = useRelayDrawingStore((state) => state.strokeWidth);
+  const recentColors = useRelayDrawingStore((state) => state.recentColors);
+  const roundLines = useRelayDrawingStore((state) => state.roundLines);
+  const roundRedoStack = useRelayDrawingStore((state) => state.roundRedoStack);
+  const setSelectedToolKey = useRelayDrawingStore(
+    (state) => state.setSelectedToolKey,
+  );
+  const setSelectedColor = useRelayDrawingStore(
+    (state) => state.setSelectedColor,
+  );
+  const setSelectedOpacity = useRelayDrawingStore(
+    (state) => state.setSelectedOpacity,
+  );
+  const setStrokeWidth = useRelayDrawingStore((state) => state.setStrokeWidth);
   const undoLine = useRelayDrawingStore((state) => state.undoLine);
   const redoLine = useRelayDrawingStore((state) => state.redoLine);
-  const { formattedTime, isExpiring } = useRelayTimer();
+  const clearRoundLines = useRelayDrawingStore(
+    (state) => state.clearRoundLines,
+  );
+  const { remainingSeconds, formattedTime } = useRelayTimer();
   const {
     submitDrawing,
     isSubmitting,
@@ -32,104 +77,203 @@ export default function RelayDrawingView() {
     totalCount,
   } = useRelayDrawingGame();
 
-  // 키보드 단축키 — Ctrl+Z (Cmd+Z) 되돌리기, Ctrl+Shift+Z / Ctrl+Y (Cmd+Shift+Z)
-  // 다시 실행. 일반 입력 필드(input/textarea/contentEditable)에 포커스가 있을 땐
-  // 스킵해 텍스트 편집을 방해하지 않는다.
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey)) return
-      const target = event.target as HTMLElement | null
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable)
-      ) {
-        return
-      }
-      const key = event.key.toLowerCase();
-      if (key === "z" && !event.shiftKey) {
-        event.preventDefault();
-        undoLine();
-      } else if ((key === "z" && event.shiftKey) || key === "y") {
-        event.preventDefault();
-        redoLine();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undoLine, redoLine]);
-
   const activeRound = RELAY_ROUND_SEGMENTS[activeRoundKey];
+  const activeRoundIndex = RELAY_ROUND_ORDER.findIndex(
+    (roundKey) => roundKey === activeRoundKey,
+  );
   const isLastRound = activeRoundKey === "legs";
-
-  // 자동 제출은 백엔드 PART_TIME_UP WS 이벤트가 단일 진입점.
-  // useRelayRoom의 핸들러가 본인이 미제출자 목록에 있으면 store의
-  // pendingAutoSubmitTrigger를 increment하고, useRelayDrawingGame의 effect가
-  // 그걸 감지해 submitDrawing을 호출한다. 클라이언트 측 deadline 폴링과
-  // beforeunload best-effort 자동 제출은 모두 제거됐다.
-
-  // 버튼은 "이 라운드에서 이미 제출했는가"만 체크한다.
-  const buttonDisabled = isSubmitting || isSubmitted;
-
+  const canUndoDrawing = roundLines[activeRoundKey].length > 0;
+  const canRedoDrawing = roundRedoStack[activeRoundKey].length > 0;
+  const isDrawingLocked = isSubmitting || isSubmitted || isPartTimeUp;
+  const completionStatusText =
+    isSubmitted && totalCount > 0 ? ` (${submittedCount}/${totalCount})` : "";
   const buttonLabel = (() => {
-    if (isSubmitting) return "제출 중...";
-    if (isSubmitted) {
-      return totalCount > 0
-        ? `다른 참여자 대기 중 (${submittedCount}/${totalCount})`
-        : "대기 중...";
-    }
-    return isLastRound ? "완료" : `${activeRound.label} 저장하고 다음 →`;
+    if (isSubmitting) return "제출 중";
+    if (isSubmitted) return `대기 중${completionStatusText}`;
+    return isLastRound ? "완료하기" : `${activeRound.label} 저장하기`;
   })();
+  const overlayMessage = isPartTimeUp
+    ? "다음 파트를 준비하고 있어요"
+    : isSubmitted
+      ? "제출 완료! 다음 파트를 기다리는 중이에요"
+      : isSubmitting
+        ? "그림을 제출하고 있어요"
+        : null;
 
-  // 배정 미도착 시 클릭은 silent no-op. submitDrawing 내부의 canvasIndex 가드가
-  // 안전망 역할을 하고, 첫 배정 fetch 지연(~100ms)은 사용자에게 보이지 않는다.
+  const handleSelectTool = (toolKey: DrawingToolKey) => {
+    if (toolKey === "marker") return;
+    setSelectedToolKey(toolKey);
+  };
+
   const handleSubmitClick = () => {
     void submitDrawing();
   };
 
+  useDrawingKeyboardShortcuts({
+    enabled: !isDrawingLocked,
+    onUndo: undoLine,
+    onRedo: redoLine,
+  });
+
+  // 데스크탑 레이아웃 동적 스케일 — 부모 크기를 측정해 1536×1024 디자인이
+  // 정확히 들어맞는 scale을 계산. 측정 전 0이면 인너가 사라져 클리핑/플래시를
+  // 방지한다. ResizeObserver가 콜백에서 setState하므로 React Compiler effect-body
+  // 동기 setState 규칙을 위반하지 않는다.
+  const desktopWrapperRef = useRef<HTMLDivElement>(null);
+  const [desktopScale, setDesktopScale] = useState(0);
+
+  useEffect(() => {
+    const wrapper = desktopWrapperRef.current;
+    if (!wrapper) return;
+    const updateScale = () => {
+      const rect = wrapper.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      const widthRatio = rect.width / DESKTOP_DESIGN_WIDTH;
+      const heightRatio = rect.height / DESKTOP_DESIGN_HEIGHT;
+      setDesktopScale(Math.min(widthRatio, heightRatio, 1));
+    };
+    const raf = requestAnimationFrame(updateScale);
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(wrapper);
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
+  }, []);
+
   return (
-    <section className="min-h-screen w-full bg-relay-background text-relay-ink">
-      {/* lg+: 좌(도구) - 중(캔버스) - 우(타이머/진행도/제출) 3열 가로 배치.
-          그 아래(모바일/태블릿): 캔버스를 최우선으로 두고 그 아래에 도구 + 우측
-          정보 패널을 세로로 stack. 캔버스(848×720)는 RelayDrawingStage가
-          ResizeObserver로 컨테이너 크기에 맞춰 비례 스케일하므로 좁은 viewport
-          에서도 잘리지 않고 들어맞는다. */}
-      <div className="mx-auto flex w-full max-w-360 flex-col items-stretch gap-4 px-4 py-4 lg:h-screen lg:flex-row lg:items-center lg:justify-center lg:gap-5 lg:px-6">
-        {/* Canvas — lg+에선 가운데 고정폭, 그 아래에선 페이지 최상단 + 전체 폭 */}
-        <main className="order-1 flex w-full flex-col overflow-hidden rounded-2xl bg-relay-paper shadow-[0_28px_60px_rgba(148,124,64,0.12)] lg:order-2 lg:max-w-212 lg:flex-none">
-          <div className="flex w-full items-center px-4 pt-3">
-            <RoundProgressBar />
+    <section
+      className="relative min-h-screen overflow-y-auto text-[#30343b] lg:grid lg:h-screen lg:overflow-hidden"
+      aria-label="릴레이 드로잉"
+    >
+      <div className="relative z-10 grid w-full gap-4 px-3 py-4 lg:hidden">
+        <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div className="flex items-center justify-between gap-3">
+            <p className="h2-b text-[#f45d8d]">
+              {activeRoundIndex + 1}/{RELAY_ROUND_ORDER.length}
+            </p>
+            <div className="body-b inline-flex min-h-10 items-center rounded-full border border-[#ead7c9] bg-white px-4 text-[#f45d8d]">
+              {formattedTime}
+            </div>
           </div>
-          <div className="aspect-848/720 w-full lg:h-180 lg:aspect-auto">
-            <RelayDrawingStage />
-          </div>
-        </main>
+          <p className="body-b mt-3 text-[#30343b]">{activeRound.helperText}</p>
+        </div>
 
-        {/* 도구 — lg+에선 좌측, 그 아래에선 캔버스 아래에 가로 폭 유지 */}
-        <aside className="order-2 flex w-full flex-col justify-center gap-4 rounded-3xl bg-relay-paper p-4 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)] sm:p-6 lg:order-1 lg:w-56.25 lg:flex-none">
-          <DrawingToolPanel />
-        </aside>
+        <MobileToolGrid
+          selectedToolKey={selectedToolKey}
+          canUndoDrawing={canUndoDrawing}
+          canRedoDrawing={canRedoDrawing}
+          isDrawingLocked={isDrawingLocked}
+          onSelectTool={handleSelectTool}
+          onUndoDrawing={undoLine}
+          onRedoDrawing={redoLine}
+          onClearDrawing={clearRoundLines}
+        />
 
-        {/* 타이머 + 진행도 + 제출 버튼 — lg+에선 우측, 그 아래에선 도구 아래 */}
-        <div className="order-3 flex w-full flex-col gap-4 lg:w-67.5 lg:flex-none">
-          <CountdownTimer
-            formattedTime={formattedTime}
-            isExpiring={isExpiring}
-          />
-          <aside className="rounded-3xl bg-relay-paper p-6 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
-            <RoundProgressPanel />
-          </aside>
+        <MobileColorGrid
+          colors={DRAWING_COLORS}
+          selectedColor={selectedColor}
+          selectedOpacity={selectedOpacity}
+          strokeWidth={strokeWidth}
+          strokeWidthOptions={DRAWING_STROKE_WIDTH_OPTIONS}
+          isDrawingLocked={isDrawingLocked}
+          onSelectColor={setSelectedColor}
+          onOpacityChange={setSelectedOpacity}
+          onStrokeWidthChange={setStrokeWidth}
+        />
 
-          <RelayButton
-            onClick={handleSubmitClick}
-            disabled={buttonDisabled}
-            size="lg"
-            shape="roundedLg"
-            className="shadow-[0_6px_16px_rgba(184,121,22,0.35)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
+        <div className="rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div
+            className="relative w-full overflow-hidden rounded-[8px] bg-white"
+            style={{
+              aspectRatio: `${RELAY_STAGE_SIZE.width} / ${RELAY_STAGE_SIZE.height}`,
+            }}
           >
-            {buttonLabel}
-          </RelayButton>
+            <RelayDrawingStage />
+            {overlayMessage && (
+              <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-[#30343b]">
+                {overlayMessage}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DrawingCompleteButton
+          onComplete={handleSubmitClick}
+          disabled={isDrawingLocked}
+          className="min-h-14 rounded-[16px]"
+          label={buttonLabel}
+        />
+      </div>
+
+      <div
+        ref={desktopWrapperRef}
+        className="relative hidden lg:block lg:h-full lg:w-full"
+      >
+        <div
+          className="absolute left-1/2 top-1/2 origin-center"
+          style={{
+            width: DESKTOP_DESIGN_WIDTH,
+            height: DESKTOP_DESIGN_HEIGHT,
+            transform: `translate(-50%, -50%) scale(${desktopScale})`,
+          }}
+        >
+          <TopStatusBar
+            activeRoundIndex={activeRoundIndex}
+            roundCount={RELAY_ROUND_ORDER.length}
+            remainingSeconds={remainingSeconds}
+            remainingTimeLabel={formattedTime}
+            timerUnitLabel=""
+            instructionText={activeRound.helperText}
+          />
+
+          <ColorPanel
+            className={cn(isDrawingLocked && "pointer-events-none opacity-60")}
+            colors={DRAWING_COLORS}
+            selectedColor={selectedColor}
+            selectedOpacity={selectedOpacity}
+            strokeWidth={strokeWidth}
+            strokeWidthOptions={DRAWING_STROKE_WIDTH_OPTIONS}
+            recentColors={recentColors}
+            onSelectColor={setSelectedColor}
+            onOpacityChange={setSelectedOpacity}
+            onStrokeWidthChange={setStrokeWidth}
+          />
+
+          <main className="absolute left-[345px] top-[188px] h-[720px] w-[848px]">
+            <div className="absolute inset-0 rounded-[8px] bg-white shadow-[0_8px_42px_-10px_rgb(0_0_0_/_25%)]" />
+            <div className="absolute inset-0 z-10 overflow-hidden rounded-[4px] bg-white">
+              <RelayDrawingStage />
+              {overlayMessage && (
+                <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-[#30343b]">
+                  {overlayMessage}
+                </div>
+              )}
+            </div>
+          </main>
+
+          <ToolPanel
+            className={cn(isDrawingLocked && "pointer-events-none opacity-60")}
+            selectedToolKey={selectedToolKey}
+            canUndoDrawing={canUndoDrawing}
+            canRedoDrawing={canRedoDrawing}
+            onSelectTool={handleSelectTool}
+            onUndoDrawing={undoLine}
+            onRedoDrawing={redoLine}
+            onClearDrawing={clearRoundLines}
+          />
+
+          <ProgressRail
+            activeRoundIndex={activeRoundIndex}
+            roundCount={RELAY_ROUND_ORDER.length}
+          />
+
+          <DrawingCompleteButton
+            onComplete={handleSubmitClick}
+            disabled={isDrawingLocked}
+            className="absolute left-[1254px] top-[928px] h-[62px] w-[222px]"
+            label={buttonLabel}
+          />
         </div>
       </div>
 

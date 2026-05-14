@@ -1,36 +1,47 @@
 // Community 도메인 (OpenAPI: tag "Community")
 
 export type MemoSourceType = 'DIRECT' | 'GALLERY'
-export type MemoVisibleStatus = 'VISIBLE' | 'HIDDEN'
-export type MemoModerationStatus = 'PENDING' | 'ALLOWED' | 'BLOCKED'
-export type MemoReportReason = '욕설/비방/혐오' | '스팸/광고' | '개인정보유출' | '기타'
+export type MemoModerationStatus = 'pending' | 'allowed' | 'blocked'
+export type MemoReportReason =
+  | '부적절한 콘텐츠'
+  | '욕설/비방/혐오'
+  | '선정적/음란물'
+  | '폭력적/위협적 표현'
+  | '스팸/광고'
+  | '개인정보 노출'
+  | '도용/사칭'
+  | '기타'
+export type CommunityMemoReportReason = MemoReportReason
 
-export interface CommunityMemoResponse {
-  memoId: string
-  userUuid: string
-  nickname: string
+export interface CommunityMemoItemResponse {
+  memoUuid: string
+  authorNickname: string
   sourceType: MemoSourceType
-  sourceGalleryId: string | null
-  originalFileId: string
-  thumbnailFileId: string
+  memoImageUrl: string
+  memoOriginalImageUrl: string
+  memoThumbnailImageUrl: string
   positionX: number
   positionY: number
   zIndex: number
   rotationDeg: number
-  decoration: unknown
-  clientText: string
-  visibleStatus: MemoVisibleStatus
-  hiddenReason: string | null
-  moderationStatus: MemoModerationStatus
+  ownedByMe: boolean
+  attachedAt: string
+  decoration?: Record<string, unknown> | null
+}
+
+export interface CommunityMemoDetailResponse extends CommunityMemoItemResponse {
+  decoration: Record<string, unknown>
+  artifactId: string | null
+  galleryContentKind: string | null
+  moderationStatus: MemoModerationStatus | string
+  reportCount: number
   createdAt: string
   updatedAt: string
 }
 
 export interface CommunityMemoListResponse {
-  memos: CommunityMemoResponse[]
-  totalCount: number
-  pageNumber: number
-  pageSize: number
+  items: CommunityMemoItemResponse[]
+  totalElements: number
 }
 
 export interface CommunityMemoCreateRequest {
@@ -42,8 +53,8 @@ export interface CommunityMemoCreateRequest {
   positionY: number
   zIndex: number
   rotationDeg: number
-  decoration: unknown
-  clientText: string
+  decoration?: unknown
+  clientText?: string
 }
 
 export interface CommunityMemoLayoutRequest {
@@ -59,10 +70,7 @@ export interface CommunityMemoReportRequest {
 }
 
 export interface CommunityMemoReportResponse {
-  reportId: string
   memoId: string
-  reason: MemoReportReason
-  reasonDetail: string
   reportCount: number
-  createdAt: string
+  hidden: boolean
 }

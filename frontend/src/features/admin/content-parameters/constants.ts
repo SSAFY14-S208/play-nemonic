@@ -55,6 +55,16 @@ export const CONTENT_PARAMETERS: ParameterMeta[] = [
     unit: 'count',
   },
   {
+    id: 'community-report-hide-threshold',
+    type: 'integer',
+    category: 'community',
+    backendKey: 'community.report_hide_threshold',
+    patchKey: 'communityReportHideThreshold',
+    title: '커뮤니티 메모 자동 숨김 신고 기준',
+    description: '커뮤니티 메모 자동 숨김 신고 기준',
+    unit: 'count',
+  },
+  {
     id: 'relay-room-participant-limit',
     type: 'range',
     category: 'relay',
