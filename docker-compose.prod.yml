@@ -286,6 +286,10 @@ services:
       COMMUNITY_MODERATION_CONNECT_TIMEOUT_MS: ${COMMUNITY_MODERATION_CONNECT_TIMEOUT_MS:-1000}
       COMMUNITY_MODERATION_READ_TIMEOUT_MS: ${COMMUNITY_MODERATION_READ_TIMEOUT_MS:-10000}
       COMMUNITY_MODERATION_FAIL_CLOSED: ${COMMUNITY_MODERATION_FAIL_CLOSED:-false}
+      # 클라이언트 로그 ingest 허용 origin — 빈 값으로 두면 application.yaml의
+      # localhost 기본값으로 폴백되어 운영 사용자 요청이 100% disallowed_origin으로 폐기된다.
+      # .env에 CLIENT_LOG_ALLOWED_ORIGINS=https://${DOMAIN} 형태로 지정.
+      CLIENT_LOG_ALLOWED_ORIGINS: ${CLIENT_LOG_ALLOWED_ORIGINS:-}
     depends_on:
       postgres:
         condition: service_healthy
