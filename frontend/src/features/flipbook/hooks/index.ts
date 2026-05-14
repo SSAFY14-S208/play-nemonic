@@ -1,6 +1,8 @@
 export { useFlipbook } from './useFlipbook'
+export { useFlipbookEntranceIntro } from './useFlipbookEntranceIntro'
 export { useFlipbookEntrancePreload } from './useFlipbookEntrancePreload'
 export { useFlipbookEntranceTimeline } from './useFlipbookEntranceTimeline'
+export { useFlipbookEntranceWheelFrames } from './useFlipbookEntranceWheelFrames'
 export { useFlipbookGifDownload } from './useFlipbookGifDownload'
 export { useFlipbookNickname } from './useFlipbookNickname'
 export { useFlipbookRealtimeActions } from './useFlipbookRealtimeActions'

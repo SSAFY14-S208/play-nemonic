@@ -4,8 +4,11 @@ import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 
 import Image from 'next/image'
 import { KeyRound, Sparkles, X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useFlipbookEntrancePreload, useFlipbookEntranceTimeline } from '../hooks'
-import FlipbookPaperBackground from './FlipbookPaperBackground'
+import {
+  useFlipbookEntranceIntro,
+  useFlipbookEntrancePreload,
+  useFlipbookEntranceWheelFrames,
+} from '../hooks'
 
 interface FlipbookEntranceViewProps {
   roomCodeDraft: string
@@ -17,6 +20,8 @@ interface FlipbookEntranceViewProps {
 }
 
 const FLIPBOOK_ENTRANCE_FRAME_COUNT = 12
+const DESIGN_WIDTH = 1920
+const DESIGN_HEIGHT = 1080
 
 const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
   { length: FLIPBOOK_ENTRANCE_FRAME_COUNT },
@@ -25,72 +30,71 @@ const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
 
     return {
       src: `/images/flipbook-entrance/${frameNumber}.webp`,
-      alt: `플립북 입장 애니메이션 ${frameIndex + 1}번째 장면`,
+      alt: `플립북 스케치북 재생 ${frameIndex + 1}번째 장면`,
     }
   },
 )
 const FLIPBOOK_ENTRANCE_FRAME_SOURCES = FLIPBOOK_ENTRANCE_FRAMES.map(
   (entranceFrame) => entranceFrame.src,
 )
-const FLIPBOOK_FINAL_IMAGES = {
-  actionButtonsSprite: '/images/flipbook-entrance-final/action-buttons-sprite.png',
-  logo: '/images/flipbook-entrance-final/flipbook-logo-title.png',
-  storybookStage: '/images/flipbook-entrance-final/storybook-stage-blank.png',
+const FLIPBOOK_SCENE_IMAGES = {
+  background: '/images/flipbook-entrance-scene/room-background.png',
+  furnitureSprite: '/images/flipbook-entrance-scene/furniture-sprite.png',
+  titleLogoSprite: '/images/flipbook-entrance-scene/title-logo-sprite.png',
+  actionButtonsSprite: '/images/flipbook-entrance-scene/action-buttons-sprite.png',
+  sketchbook: '/images/flipbook-entrance-scene/sketchbook.png',
 }
+const FLIPBOOK_SCENE_IMAGE_SOURCES = Object.values(FLIPBOOK_SCENE_IMAGES)
+const FLIPBOOK_PRELOAD_IMAGE_SOURCES = [
+  ...FLIPBOOK_SCENE_IMAGE_SOURCES,
+  ...FLIPBOOK_ENTRANCE_FRAME_SOURCES,
+]
 
-const FLIPBOOK_FINAL_ROOM_LAYERS = [
+const DROP_TRANSITION_EASE = [0.16, 0.92, 0.24, 1] as const
+
+const DROP_LAYERS = [
   {
-    key: 'roomBackdrop',
-    src: '/images/flipbook-entrance-final/room-backdrop.png',
-    sizes: '100vw',
+    key: 'furniture-top',
+    className: 'left-[17.43%] top-[-5.33%] h-[22.04%] w-[57.76%]',
+    imageClassName: 'h-[593.26%] w-[191.05%] -left-[36.96%] -top-[33.16%]',
+    rotate: 3.2,
+    fallDistance: 720,
+    delay: 0.12,
+    duration: 0.96,
+    bounceY: -18,
   },
   {
-    key: 'cloudRug',
-    src: '/images/flipbook-entrance-final/cloud-rug.png',
-    sizes: '100vw',
+    key: 'furniture-left',
+    className: 'left-[-5.05%] top-[44.91%] h-[62.50%] w-[47.97%]',
+    imageClassName: 'h-[181.75%] w-[199.94%] -left-[0.03%] -top-[81.75%]',
+    rotate: 0,
+    fallDistance: 860,
+    delay: 0.34,
+    duration: 1.12,
+    bounceY: -28,
   },
   {
-    key: 'leftBooksProps',
-    src: '/images/flipbook-entrance-final/left-books-props.png',
-    sizes: '100vw',
-  },
-  {
-    key: 'starPillow',
-    src: '/images/flipbook-entrance-final/star-pillow.png',
-    sizes: '100vw',
-  },
-  {
-    key: 'floorCrayonsLeft',
-    src: '/images/flipbook-entrance-final/floor-crayons-left.png',
-    sizes: '100vw',
-  },
-  {
-    key: 'floorCrayonsRight',
-    src: '/images/flipbook-entrance-final/floor-crayons-right.png',
-    sizes: '100vw',
-  },
-  {
-    key: 'rightShelf',
-    src: '/images/flipbook-entrance-final/right-shelf.png',
-    sizes: '100vw',
-  },
-  {
-    key: 'teddyBear',
-    src: '/images/flipbook-entrance-final/teddy-bear.png',
-    sizes: '100vw',
+    key: 'furniture-right',
+    className: 'left-[63.13%] top-[3.98%] h-[103.06%] w-[39.22%]',
+    imageClassName: 'h-[125.96%] w-[279.19%] -left-[165.03%] -top-[25.96%]',
+    rotate: 0,
+    fallDistance: 940,
+    delay: 0.24,
+    duration: 1.18,
+    bounceY: -34,
   },
 ] as const
 
 const FLIPBOOK_ENTRANCE_ACTIONS = [
   {
     key: 'create-room',
-    buttonClassName: 'left-[11.33%] top-[58.50%] h-[12.01%] w-[19.01%]',
+    buttonClassName: 'left-[11.90%] top-[62.69%] h-[11.39%] w-[15.21%]',
     imageCropClassName: 'h-[383.52%] w-[241.89%] -left-[17.95%] -top-[150.56%]',
     label: '방 만들기',
   },
   {
     key: 'enter-room',
-    buttonClassName: 'left-[31.90%] top-[58.50%] h-[12.01%] w-[19.01%]',
+    buttonClassName: 'left-[28.36%] top-[62.69%] h-[11.39%] w-[15.21%]',
     imageCropClassName: 'h-[383.52%] w-[241.89%] -left-[128.98%] -top-[150.56%]',
     label: '입장하기',
   },
@@ -104,11 +108,16 @@ export default function FlipbookEntranceView({
   onCreateRoom,
   onEnterRoom,
 }: FlipbookEntranceViewProps) {
-  const sectionRef = useRef<HTMLElement>(null)
   const roomCodeInputRef = useRef<HTMLInputElement>(null)
+  const scrollZoneRef = useRef<HTMLDivElement>(null)
   const [isRoomCodeModalOpen, setIsRoomCodeModalOpen] = useState(false)
-  useFlipbookEntrancePreload(FLIPBOOK_ENTRANCE_FRAME_SOURCES)
-  const timeline = useFlipbookEntranceTimeline(sectionRef, FLIPBOOK_ENTRANCE_FRAMES.length)
+  const { introPhase, isActionVisible, isIntroComplete } = useFlipbookEntranceIntro()
+  const { activeFrameIndex, handleScroll, handleWheel } = useFlipbookEntranceWheelFrames(
+    scrollZoneRef,
+    FLIPBOOK_ENTRANCE_FRAMES.length,
+    isIntroComplete,
+  )
+  useFlipbookEntrancePreload(FLIPBOOK_PRELOAD_IMAGE_SOURCES)
   const actionHandlers = {
     'create-room': onCreateRoom,
     'enter-room': () => setIsRoomCodeModalOpen(true),
@@ -137,82 +146,45 @@ export default function FlipbookEntranceView({
   }
 
   return (
-    <section ref={sectionRef} className="relative h-[260svh] bg-flipbook-background text-flipbook-ink">
-      <div className="sticky top-0 grid h-[100svh] min-h-[620px] overflow-hidden">
-        <FlipbookPaperBackground layerStyles={timeline.background} />
-        <FlipbookEntranceRoomBackdrop
-          baseOpacity={timeline.roomBaseOpacity}
-          layerStyles={timeline.roomLayers}
+    <section
+      className="relative h-[100svh] overflow-hidden bg-flipbook-room-base text-flipbook-ink"
+      onWheelCapture={handleWheel}
+    >
+      <div
+        className="absolute left-1/2 top-1/2 aspect-[16/9] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+        style={{
+          '--flipbook-entrance-stage-width': `max(100vw, calc(100svh * ${DESIGN_WIDTH} / ${DESIGN_HEIGHT}))`,
+          width: 'var(--flipbook-entrance-stage-width)',
+          height: `max(100svh, calc(100vw * ${DESIGN_HEIGHT} / ${DESIGN_WIDTH}))`,
+        } as CSSProperties}
+      >
+        <Image
+          src={FLIPBOOK_SCENE_IMAGES.background}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
         />
-        <div className="relative z-10 grid h-full place-items-center px-5 py-8">
-          <motion.div
-            className="relative z-10 aspect-[626/480] w-[min(82vw,626px)]"
-            style={{
-              opacity: timeline.frameOpacity,
-              scale: timeline.frameScale,
-              y: timeline.frameY,
-              rotate: timeline.frameRotate,
-              transformOrigin: 'center center',
-            }}
-          >
-            <div className="absolute inset-0 overflow-hidden rounded-[8px] border border-flipbook-light bg-flipbook-paper shadow-[0_16px_26px_var(--color-flipbook-shadow)]">
-              {FLIPBOOK_ENTRANCE_FRAMES.map((entranceFrame, entranceFrameIndex) => {
-                const isActiveEntranceFrame = entranceFrameIndex === timeline.activeFrameIndex
 
-                return (
-                  <Image
-                    key={entranceFrame.src}
-                    src={entranceFrame.src}
-                    alt={isActiveEntranceFrame ? entranceFrame.alt : ''}
-                    fill
-                    priority={entranceFrameIndex === 0}
-                    loading={entranceFrameIndex === 0 ? undefined : 'eager'}
-                    unoptimized
-                    aria-hidden={!isActiveEntranceFrame}
-                    sizes="(max-width: 768px) 82vw, 626px"
-                    className="object-cover transition-opacity duration-75"
-                    style={{
-                      opacity: isActiveEntranceFrame ? 1 : 0,
-                    }}
-                  />
-                )
-              })}
-            </div>
-            <motion.div
-              key={`blank-paper-flight-${timeline.activeFrameIndex}`}
-              aria-hidden
-              className="absolute inset-0 origin-top-left rounded-[8px] bg-flipbook-paper shadow-[0_12px_24px_var(--color-flipbook-shadow)]"
-              initial={{
-                opacity: timeline.activeFrameIndex === 0 ? 0 : 0.92,
-                x: 0,
-                y: 34,
-                rotate: 0,
-                scale: 1,
-              }}
-              animate={{
-                opacity: 0,
-                x: -246,
-                y: -178,
-                rotate: -22,
-                scale: 0.86,
-                filter: 'blur(0.8px)',
-              }}
-              transition={{
-                duration: 0.38,
-                ease: [0.14, 0.76, 0.18, 1],
-              }}
-            />
-          </motion.div>
+        <FlipbookEntranceDropScene introPhase={introPhase} />
 
-          <FlipbookEntranceFinalStage
-            isReady={timeline.isFinalStageReady}
-            opacity={timeline.actionOpacity}
-            y={timeline.actionY}
-            isBusy={isBusy}
-            errorMessage={!isRoomCodeModalOpen ? errorMessage : null}
-            actionHandlers={actionHandlers}
-          />
-        </div>
+        <FlipbookEntranceSketchbook
+          scrollZoneRef={scrollZoneRef}
+          activeFrameIndex={activeFrameIndex}
+          onScroll={handleScroll}
+          isInteractive={isIntroComplete}
+          introPhase={introPhase}
+        />
+
+        <FlipbookEntranceActions
+          visible={isActionVisible}
+          interactive={isIntroComplete}
+          introPhase={introPhase}
+          isBusy={isBusy}
+          errorMessage={!isRoomCodeModalOpen ? errorMessage : null}
+          actionHandlers={actionHandlers}
+        />
       </div>
 
       <FlipbookRoomCodeModal
@@ -229,44 +201,225 @@ export default function FlipbookEntranceView({
   )
 }
 
-function FlipbookEntranceRoomBackdrop({
-  baseOpacity,
-  layerStyles,
+function FlipbookEntranceDropScene({
+  introPhase,
 }: {
-  baseOpacity: ReturnType<typeof useFlipbookEntranceTimeline>['roomBaseOpacity']
-  layerStyles: ReturnType<typeof useFlipbookEntranceTimeline>['roomLayers']
+  introPhase: ReturnType<typeof useFlipbookEntranceIntro>['introPhase']
 }) {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 z-[2] overflow-hidden">
-      <div
-        className="absolute left-1/2 top-1/2 aspect-[1536/1024] -translate-x-1/2 -translate-y-1/2"
-        style={{
-          '--flipbook-final-canvas-width': 'max(100vw, calc(100svh * 1536 / 1024))',
-          width: 'var(--flipbook-final-canvas-width)',
-          height: 'max(100svh, calc(100vw * 1024 / 1536))',
-        } as CSSProperties}
-      >
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      {DROP_LAYERS.map((layer) => (
         <motion.div
-          className="absolute inset-0 bg-flipbook-room-base"
-          style={{ opacity: baseOpacity }}
-        />
-        {FLIPBOOK_FINAL_ROOM_LAYERS.map((layer) => (
-          <motion.div
-            key={layer.key}
-            className="absolute inset-0 will-change-transform"
-            style={layerStyles[layer.key]}
+          key={layer.key}
+          className={`absolute overflow-hidden ${layer.className}`}
+          initial={{
+            opacity: 0,
+            y: -layer.fallDistance,
+            scale: 0.98,
+          }}
+          animate={
+            introPhase === 'done'
+              ? {
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                  transition: { duration: 0 },
+                }
+              : {
+                  opacity: [0, 1, 1],
+                  y: [-layer.fallDistance, layer.bounceY, 0],
+                  scale: [0.98, 1.018, 1],
+                  transition: {
+                    delay: layer.delay,
+                    duration: layer.duration,
+                    ease: DROP_TRANSITION_EASE,
+                    times: [0, 0.78, 1],
+                  },
+                }
+          }
+        >
+          <div
+            className="absolute inset-0"
+            style={{ rotate: `${layer.rotate}deg` }}
           >
             <Image
-              src={layer.src}
+              src={FLIPBOOK_SCENE_IMAGES.furnitureSprite}
               alt=""
-              fill
-              sizes={layer.sizes}
-              className="object-fill"
+              width={1536}
+              height={1024}
+              sizes="100vw"
+              className={`absolute max-w-none ${layer.imageClassName}`}
             />
-          </motion.div>
-        ))}
-      </div>
+          </div>
+        </motion.div>
+      ))}
     </div>
+  )
+}
+
+function FlipbookEntranceSketchbook({
+  scrollZoneRef,
+  activeFrameIndex,
+  onScroll,
+  isInteractive,
+  introPhase,
+}: {
+  scrollZoneRef: RefObject<HTMLDivElement | null>
+  activeFrameIndex: number
+  onScroll: ReturnType<typeof useFlipbookEntranceWheelFrames>['handleScroll']
+  isInteractive: boolean
+  introPhase: ReturnType<typeof useFlipbookEntranceIntro>['introPhase']
+}) {
+  return (
+    <motion.div
+      className="absolute left-[48.96%] top-[34.91%] h-[36.76%] w-[34.04%] overflow-hidden"
+      ref={scrollZoneRef}
+      aria-label="스케치북 플립북 재생 구역"
+      role="region"
+      tabIndex={isInteractive ? 0 : -1}
+      initial={{ opacity: 0, y: -820, scale: 0.98 }}
+      animate={
+        introPhase === 'done'
+          ? {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              transition: { duration: 0 },
+            }
+          : {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              transition: {
+                delay: 0.54,
+                duration: 1.18,
+                ease: DROP_TRANSITION_EASE,
+                times: [0, 0.78, 1],
+              },
+            }
+      }
+      style={{ rotate: '6.46deg' }}
+    >
+      <div
+        className="absolute left-[-21.44%] top-[-40.81%] h-[168.77%] w-[141.04%]"
+        style={{ rotate: '-5.6deg' }}
+      >
+        <Image
+          src={FLIPBOOK_SCENE_IMAGES.sketchbook}
+          alt=""
+          fill
+          priority
+          sizes="50vw"
+          className="object-fill"
+        />
+        <div
+          className="absolute overflow-hidden rounded-[18px]"
+          style={{
+            left: '14.2%',
+            top: '17.9%',
+            width: '71.5%',
+            height: '58%',
+          }}
+        >
+          {FLIPBOOK_ENTRANCE_FRAMES.map((entranceFrame, entranceFrameIndex) => {
+            const isActiveEntranceFrame = entranceFrameIndex === activeFrameIndex
+
+            return (
+              <Image
+                key={entranceFrame.src}
+                src={entranceFrame.src}
+                alt={isActiveEntranceFrame ? entranceFrame.alt : ''}
+                fill
+                priority={entranceFrameIndex === 0}
+                loading={entranceFrameIndex === 0 ? undefined : 'eager'}
+                unoptimized
+                aria-hidden={!isActiveEntranceFrame}
+                sizes="35vw"
+                className="object-contain transition-opacity duration-100"
+                style={{ opacity: isActiveEntranceFrame ? 1 : 0 }}
+              />
+            )
+          })}
+        </div>
+      </div>
+      <div
+        aria-label="스케치북 프레임 스크롤"
+        className={`absolute inset-0 z-10 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        role="region"
+        tabIndex={isInteractive ? 0 : -1}
+        onScroll={onScroll}
+      >
+        <div style={{ height: `${FLIPBOOK_ENTRANCE_FRAME_COUNT * 420}px` }} />
+      </div>
+    </motion.div>
+  )
+}
+
+function FlipbookEntranceActions({
+  visible,
+  interactive,
+  introPhase,
+  isBusy,
+  errorMessage,
+  actionHandlers,
+}: {
+  visible: boolean
+  interactive: boolean
+  introPhase: ReturnType<typeof useFlipbookEntranceIntro>['introPhase']
+  isBusy: boolean
+  errorMessage: string | null
+  actionHandlers: Record<(typeof FLIPBOOK_ENTRANCE_ACTIONS)[number]['key'], () => void>
+}) {
+  return (
+    <motion.div
+      className={`absolute inset-0 z-20 ${interactive ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      initial={false}
+      animate={
+        visible
+          ? {
+              opacity: 1,
+              y: 0,
+              transition: {
+                duration: introPhase === 'done' ? 0 : 0.62,
+                ease: [0.22, 0.8, 0.22, 1],
+              },
+            }
+          : {
+              opacity: 0,
+              y: 28,
+              transition: { duration: 0.18 },
+            }
+      }
+    >
+      <div className="absolute left-[8.23%] top-[31.76%] h-[24.81%] w-[28.49%] overflow-hidden">
+        <Image
+          src={FLIPBOOK_SCENE_IMAGES.titleLogoSprite}
+          alt="플립북"
+          width={1536}
+          height={1024}
+          priority
+          sizes="30vw"
+          className="absolute h-[184.45%] w-[135.49%] max-w-none -left-[17.95%] -top-[56.72%]"
+        />
+      </div>
+
+      {FLIPBOOK_ENTRANCE_ACTIONS.map((action) => (
+        <FlipbookEntranceImageButton
+          key={action.key}
+          buttonClassName={action.buttonClassName}
+          imageCropClassName={action.imageCropClassName}
+          label={isBusy ? '처리 중' : action.label}
+          disabled={isBusy || !interactive}
+          onClick={actionHandlers[action.key]}
+        />
+      ))}
+
+      {errorMessage && (
+        <p className="caption-b absolute left-[11.90%] top-[75.8%] w-[31.67%] rounded-full border border-flipbook-light bg-flipbook-paper/88 px-5 py-3 text-center text-flipbook-deep shadow-[0_8px_18px_var(--color-flipbook-shadow)]">
+          {errorMessage}
+        </p>
+      )}
+    </motion.div>
   )
 }
 
@@ -295,88 +448,16 @@ function FlipbookEntranceImageButton({
     >
       <span className="absolute inset-0 overflow-hidden" aria-hidden>
         <Image
-          src={FLIPBOOK_FINAL_IMAGES.actionButtonsSprite}
+          src={FLIPBOOK_SCENE_IMAGES.actionButtonsSprite}
           alt=""
           width={1536}
           height={1024}
-          sizes="(max-width: 640px) 43vw, 433px"
+          sizes="18vw"
           className={`absolute max-w-none ${imageCropClassName}`}
         />
       </span>
       <span className="sr-only">{label}</span>
     </motion.button>
-  )
-}
-
-function FlipbookEntranceFinalStage({
-  isReady,
-  opacity,
-  y,
-  isBusy,
-  errorMessage,
-  actionHandlers,
-}: {
-  isReady: boolean
-  opacity: ReturnType<typeof useFlipbookEntranceTimeline>['actionOpacity']
-  y: ReturnType<typeof useFlipbookEntranceTimeline>['actionY']
-  isBusy: boolean
-  errorMessage: string | null
-  actionHandlers: Record<(typeof FLIPBOOK_ENTRANCE_ACTIONS)[number]['key'], () => void>
-}) {
-  return (
-    <motion.div
-      className={`absolute inset-0 z-30 overflow-hidden ${isReady ? 'pointer-events-auto' : 'pointer-events-none'}`}
-      style={{
-        opacity,
-        y,
-      }}
-      aria-hidden={!isReady}
-    >
-      <div
-        className="absolute left-1/2 top-1/2 aspect-[1536/1024] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
-        style={{
-          '--flipbook-final-canvas-width': 'max(100vw, calc(100svh * 1536 / 1024))',
-          width: 'var(--flipbook-final-canvas-width)',
-          height: 'max(100svh, calc(100vw * 1024 / 1536))',
-        } as CSSProperties}
-      >
-        <Image
-          src={FLIPBOOK_FINAL_IMAGES.storybookStage}
-          alt=""
-          width={1392}
-          height={1012}
-          priority
-          sizes="50vw"
-          className="absolute left-[51.56%] top-[28.81%] h-[49.41%] w-[45.31%] object-fill"
-        />
-        <Image
-          src={FLIPBOOK_FINAL_IMAGES.logo}
-          alt="플립북"
-          width={1018}
-          height={513}
-          priority
-          sizes="32vw"
-          className="absolute left-[11.33%] top-[31.35%] h-[23.24%] w-[31.64%] object-fill"
-        />
-
-        {FLIPBOOK_ENTRANCE_ACTIONS.map((action) => (
-          <FlipbookEntranceImageButton
-            key={action.key}
-            buttonClassName={action.buttonClassName}
-            imageCropClassName={action.imageCropClassName}
-            label={isBusy ? '처리 중' : action.label}
-            disabled={isBusy || !isReady}
-            onClick={actionHandlers[action.key]}
-          />
-        ))}
-
-        {errorMessage && (
-          <p className="caption-b absolute left-[11.33%] top-[72.8%] w-[39.58%] rounded-full border border-flipbook-light bg-flipbook-paper/88 px-5 py-3 text-center text-flipbook-deep shadow-[0_8px_18px_var(--color-flipbook-shadow)]">
-            {errorMessage}
-          </p>
-        )}
-      </div>
-    </motion.div>
   )
 }
 
