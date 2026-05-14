@@ -242,7 +242,7 @@ H3 = viz(
         "aggs": [
             {"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
             {"id": "2", "enabled": True, "type": "terms", "schema": "segment", "params": {
-                "field": "entry_type", "orderBy": "1", "order": "desc",
+                "field": "metadata.entry_type", "orderBy": "1", "order": "desc",
                 "size": 10, "otherBucket": False,
                 "missingBucket": True, "missingBucketLabel": "(unknown)",
             }},
@@ -318,7 +318,7 @@ H5 = viz(
         "aggs": [
             {"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
             {"id": "2", "enabled": True, "type": "terms", "schema": "bucket", "params": {
-                "field": "funnel_name", "orderBy": "1", "order": "desc",
+                "field": "metadata.funnel_name", "orderBy": "1", "order": "desc",
                 "size": 10, "otherBucket": False, "missingBucket": False,
                 "customLabel": "Funnel",
             }},
