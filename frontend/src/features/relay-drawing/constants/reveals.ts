@@ -14,7 +14,7 @@ export interface RelayResultAction {
 
 export const RELAY_RESULT_ACTIONS: RelayResultAction[] = [
   { label: '보관함에', Icon: Download },
-  { label: '광장에 전시하기', Icon: Share2 },
+  { label: '커뮤니티 게시', Icon: Share2 },
 ]
 
 // ── 결과 세그먼트 (얼굴/몸통/다리 카드·태그 메타) ─────────────────────

@@ -2,6 +2,8 @@ export type PhoneScreenKey = 'home' | 'drawing' | 'gallery' | 'inquiry'
 
 export type PhoneDrawingToolKey = 'pen' | 'eraser'
 
+export type PhoneDrawingAction = 'save' | 'print'
+
 export type PhoneGalleryItemKind =
   | 'phone'
   | 'fortune'

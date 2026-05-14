@@ -9,7 +9,7 @@ import { logEvent } from '@/shared/libs'
 export function usePageTracking() {
   const pathname = usePathname()
   const prevPathRef = useRef<string | null>(null)
-  const enteredAtRef = useRef<number>(Date.now())
+  const enteredAtRef = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -21,7 +21,8 @@ export function usePageTracking() {
 
       // 이전 경로가 있으면 page_leave 먼저
       if (prevPathRef.current !== null && prevPathRef.current !== currentPath) {
-        const timeOnPage = Date.now() - enteredAtRef.current
+        const enteredAt = enteredAtRef.current ?? Date.now()
+        const timeOnPage = Date.now() - enteredAt
         logEvent('page_leave', {
           path: prevPathRef.current,
           metadata: {
