@@ -124,30 +124,25 @@
     },
 
     {
-      "type": "gauge",
-      "title": "완주율",
-      "description": "최근 15분간 funnel_goal_reached / funnel_started. unit:percentunit 라 비율(0~1)을 자동으로 % 로 표시. 빨강(20%↓) → 주황 → 녹색(50%↑).",
+      "type": "stat",
+      "title": "이탈 (전체)",
+      "description": "윈도우 내 모든 이탈 이벤트 합 — funnel_abandoned + room_lobby/creation/result_share_abandoned. 0 이면 안정, 빨강이면 약점 발생.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
       "id": 4,
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^완주율$/", "values": false },
-        "orientation": "auto",
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "colorMode": "value", "graphMode": "area", "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1,
+          "unit": "short",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": 0.2 },
-              { "color": "yellow", "value": 0.35 },
-              { "color": "green", "value": 0.5 }
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 20 }
             ]
           }
         }
@@ -156,45 +151,12 @@
         {
           "refId": "A",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
-          "query": "event_name:funnel_started",
-          "alias": "started",
+          "query": "event_name:(funnel_abandoned OR room_lobby_abandoned OR creation_abandoned OR result_share_abandoned)",
           "metrics": [ { "type": "count", "id": "1" } ],
-          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "auto", "min_doc_count": "0" } } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
           "timeField": "@timestamp"
-        },
-        {
-          "refId": "B",
-          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
-          "query": "event_name:funnel_goal_reached",
-          "alias": "goal",
-          "metrics": [ { "type": "count", "id": "1" } ],
-          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "auto", "min_doc_count": "0" } } ],
-          "timeField": "@timestamp"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "joinByField",
-          "options": { "byField": "Time", "mode": "outer" }
-        },
-        {
-          "id": "filterByValue",
-          "options": {
-            "type": "include",
-            "match": "all",
-            "filters": [
-              { "fieldName": "started", "config": { "id": "greater", "options": { "value": 0 } } }
-            ]
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "완주율",
-            "mode": "binary",
-            "binary": { "left": "goal", "operator": "/", "right": "started" },
-            "replaceFields": false
-          }
         }
       ]
     },
