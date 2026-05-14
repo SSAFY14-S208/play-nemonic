@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { PHONE_INQUIRY_TYPE_OPTIONS } from '../constants'
 import { usePhoneInquiry } from '../hooks'
 import { usePhoneStore } from '../phoneStore'
@@ -30,21 +30,21 @@ export function PhoneInquiryScreen() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-white">
-      <header className="flex items-center gap-2 border-b border-gray-200 px-4 py-3">
-        <button
-          type="button"
-          onClick={goHome}
-          disabled={isSubmitting}
-          aria-label="홈으로 돌아가기"
-          className="flex size-8 items-center justify-center text-gray-600 transition-colors hover:text-gray-900 disabled:opacity-50"
-        >
-          <ChevronLeft className="size-5" />
-        </button>
-        <h2 className="phone-home-body-m flex-1 text-center text-gray-900">
-          고객 문의
-        </h2>
-        <div className="size-8" aria-hidden />
+    <div className="flex h-full flex-col bg-white pt-[3.35rem]">
+      <header className="shrink-0 border-b border-gray-200 px-5 pb-3">
+        <div className="flex h-12 items-center justify-between">
+          <button
+            type="button"
+            onClick={goHome}
+            disabled={isSubmitting}
+            aria-label="홈으로 돌아가기"
+            className="grid size-11 place-items-center rounded-full text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
+          >
+            <ArrowLeft className="size-5" />
+          </button>
+          <h2 className="phone-home-body-m text-gray-900">고객 문의</h2>
+          <div className="size-11" aria-hidden />
+        </div>
       </header>
 
       <form
