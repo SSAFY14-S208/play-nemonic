@@ -22,7 +22,7 @@ import {
   RelayNicknameModal,
   RelayResultView,
 } from './components'
-import { useRelayRoom } from './hooks'
+import { useRelayAbandonmentTracking, useRelayRoom } from './hooks'
 import { useRelayDrawingStore } from './stores'
 import './relay-drawing.css'
 
@@ -84,6 +84,7 @@ function RelayRoomPageInner() {
   const router = useRouter()
   const { roomCode } = useParams<{ roomCode: string }>()
   const { isHydrating, hydrationError } = useRelayRoom(roomCode ?? null)
+  useRelayAbandonmentTracking()
   const roomStatus = useRelayDrawingStore((state) => state.roomStatus)
   const dismissalReason = useRelayDrawingStore((state) => state.dismissalReason)
   const clearRoom = useRelayDrawingStore((state) => state.clearRoom)

@@ -9,6 +9,7 @@ import {
   patchRelayRoomSettings,
   postRelayRoomKick,
 } from '@/shared/apis'
+import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
 import { useRelayDrawingStore } from '../stores'
@@ -87,6 +88,11 @@ export function useRelayLobby(): UseRelayLobbyReturn {
   // RelayRoomPage가 실제 API(postRelayRoomStart)를 발사한다.
   const startGame = () => {
     if (!roomCode || !canStartGame) return
+    completeFunnelStep('lobby', 3, {
+      content_type: 'relay',
+      room_id: roomCode,
+      participant_count: participants.length,
+    })
     setGameStartPhase('animating')
   }
 
