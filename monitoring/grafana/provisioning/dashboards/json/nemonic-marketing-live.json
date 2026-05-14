@@ -31,7 +31,7 @@
 
     {
       "type": "stat",
-      "title": "동시 사용자 (5m)",
+      "title": "동시 사용자",
       "description": "최근 5분 이내 client_alive heartbeat을 보낸 unique uuid. 지금 서비스에 있는 사람 수.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
@@ -63,7 +63,7 @@
 
     {
       "type": "stat",
-      "title": "진입 (1m, funnel_started)",
+      "title": "진입 (funnel_started)",
       "description": "최근 1분간 funnel 진입 카운트 — 지금 누가 들어오고 있는가.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
@@ -94,7 +94,7 @@
 
     {
       "type": "stat",
-      "title": "완주 (1m, funnel_goal_reached)",
+      "title": "완주 (funnel_goal_reached)",
       "description": "최근 1분간 funnel 목표 도달 카운트 — 지금 누가 끝까지 가고 있는가.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
@@ -125,7 +125,7 @@
 
     {
       "type": "gauge",
-      "title": "실시간 완주율 (15m)",
+      "title": "실시간 완주율",
       "description": "최근 15분간 funnel_goal_reached / funnel_started. unit:percentunit 라 비율(0~1)을 자동으로 % 로 표시. 빨강(20%↓) → 주황 → 녹색(50%↑).",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
@@ -210,7 +210,7 @@
 
     {
       "type": "piechart",
-      "title": "유입 채널 분포 (5m)",
+      "title": "유입 채널 분포",
       "description": "최근 5분 landing_source_detected 의 entry_type 분포 — direct / search / social / qr / share / campaign.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 9, "w": 8, "x": 0, "y": 8 },
@@ -244,7 +244,7 @@
 
     {
       "type": "timeseries",
-      "title": "컨텐츠별 활성 사용자 (1m, 누적)",
+      "title": "컨텐츠별 활성 사용자",
       "description": "client_alive 의 path 별 unique uuid cardinality. content_type 이 비어있어도 path 로 어느 화면에 사람이 있는지.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 9, "w": 16, "x": 8, "y": 8 },
@@ -283,7 +283,7 @@
 
     {
       "type": "timeseries",
-      "title": "Funnel 흐름 (started / step / goal / abandoned, 분당)",
+      "title": "Funnel 흐름 (started / step / goal / abandoned)",
       "description": "네 시리즈 비교 — 진입 vs 단계 통과 vs 완료 vs 이탈. 갭이 크면 사용자가 어느 구간에서 빠지는지 즉시.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
@@ -335,7 +335,7 @@
 
     {
       "type": "timeseries",
-      "title": "단계별 이탈 추이 (분당)",
+      "title": "단계별 이탈 추이",
       "description": "room_lobby / creation / result_share abandoned 시리즈. 어느 단계가 약점인지.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
@@ -388,7 +388,7 @@
 
     {
       "type": "table",
-      "title": "인기 화면 Top 10 (5m)",
+      "title": "인기 화면 Top 10",
       "description": "최근 5분 page_view path 별 카운트. 어디로 가장 많이 가는지.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 27 },
@@ -418,7 +418,7 @@
 
     {
       "type": "timeseries",
-      "title": "클라이언트 에러 발생률 (분당)",
+      "title": "클라이언트 에러 발생률",
       "description": "js_error / unhandled_rejection / client_network_failed 시리즈. 사용자가 에러로 떠나지 않는지 모니터링.",
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 27 },
