@@ -288,8 +288,10 @@ I2_SPEC = {
             },
         },
     ],
-    # spec 에 width/height/autosize 를 명시하지 않으면 OS Dashboards Vega plugin 이
-    # panel 컨테이너 크기에 맞춰 자동 fit. "width and height ignored..." warning 은 cosmetic.
+    # OS Dashboards Vega 가 spec.width 를 panel 폭으로 자동 inject 하지 않아서
+    # 명시 안 하면 vega-lite default(200) 로 chart 가 작게 그려진다. 명시 숫자로 둠.
+    "width": 700,
+    "height": 240,
     "config": {
         "background": "transparent",
         "view": {"stroke": None},
@@ -400,7 +402,9 @@ I3_SPEC = {
         },
     },
     "spec": {
-        # facet 의 inner spec — width/height 명시 안 하면 OS Dashboards 가 panel 크기로 fit.
+        # facet 의 inner spec — 명시 안 하면 default(200) 로 작게 그려짐.
+        "width": 1100,
+        "height": 140,
         "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True},
         "encoding": {
             "y": {
@@ -501,10 +505,32 @@ I4_SPEC = {
     },
     "transform": [
         # composite key 객체를 bracket notation 으로 안전 추출.
-        {"calculate": "datum['key']['from_path']", "as": "from"},
-        {"calculate": "datum['key']['to_path']", "as": "to"},
-        {"calculate": "datum['doc_count']", "as": "count"},
+        {"calculate": "datum['key']['from_path']", "as": "from_raw"},
+        {"calculate": "datum['key']['to_path']", "as": "to_raw"},
+        {"calculate": "datum['doc_count']", "as": "count_raw"},
+        # 동적 segment 정규화 — relay 방코드, flipbook 라우트, share 토큰, admin 동적 ID 등을
+        # 패턴으로 묶어서 같은 흐름으로 집계되도록.
+        # vega-expression 의 replace 는 regexp() 정규식을 두 번째 인자로 받는다.
+        {"calculate":
+            "replace(replace(replace(replace(replace(datum.from_raw, "
+            "regexp('/relay-drawing/[A-Z0-9]+'), '/relay-drawing/:room'), "
+            "regexp('/flipbook/lobby/[A-Z0-9]+'), '/flipbook/lobby/:room'), "
+            "regexp('/flipbook/drawing/[A-Z0-9]+'), '/flipbook/drawing/:room'), "
+            "regexp('/flipbook/result/[A-Z0-9]+'), '/flipbook/result/:room'), "
+            "regexp('/share/[A-Za-z0-9_-]+'), '/share/:token')",
+         "as": "from"},
+        {"calculate":
+            "replace(replace(replace(replace(replace(datum.to_raw, "
+            "regexp('/relay-drawing/[A-Z0-9]+'), '/relay-drawing/:room'), "
+            "regexp('/flipbook/lobby/[A-Z0-9]+'), '/flipbook/lobby/:room'), "
+            "regexp('/flipbook/drawing/[A-Z0-9]+'), '/flipbook/drawing/:room'), "
+            "regexp('/flipbook/result/[A-Z0-9]+'), '/flipbook/result/:room'), "
+            "regexp('/share/[A-Za-z0-9_-]+'), '/share/:token')",
+         "as": "to"},
         {"filter": "datum.from != datum.to"},
+        # 정규화로 합쳐진 같은 (from, to) 페어들을 sum 으로 다시 집계.
+        {"aggregate": [{"op": "sum", "field": "count_raw", "as": "count"}],
+         "groupby": ["from", "to"]},
     ],
     "mark": {"type": "rect", "tooltip": True},
     "encoding": {
@@ -541,7 +567,8 @@ I4_SPEC = {
             {"field": "count", "type": "quantitative", "title": "세션 수"},
         ],
     },
-    # width/height 명시 안 함 — OS Dashboards 가 panel 크기로 자동 fit.
+    "width": 1100,
+    "height": 420,
     "config": {
         "background": "transparent",
         "view": {"stroke": None},
