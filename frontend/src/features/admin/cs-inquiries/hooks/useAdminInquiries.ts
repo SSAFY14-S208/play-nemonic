@@ -16,13 +16,17 @@ import type {
   AdminInquiryReplyResponse,
   AdminInquiryStatus,
   AdminInquiryStatusUpdateResponse,
+  AdminInquiryType,
 } from '@/shared/types'
 
 // 백오피스 CS 문의 목록 + 필터 + 페이지네이션 + 상태 변경/답변.
 //
-// 필터 모델: 'ALL' | new | in_progress | resolved | closed
+// 필터 모델:
+//   상태: 'ALL' | new | in_progress | resolved | closed
+//   유형: 'ALL' | error | feature_request | content_report | other
 
 export type InquiryStatusFilter = AdminInquiryStatus | 'ALL'
+export type InquiryTypeFilter = AdminInquiryType | 'ALL'
 
 /** PATCH/POST 성공 후 호출 — 페이지가 detail/list 양쪽을 동기화하는 데 사용. */
 export type InquiryStatusMutationSuccess = (
@@ -35,12 +39,14 @@ export type InquiryReplyMutationSuccess = (
 const PAGE_SIZE = 20
 
 function buildListParams(
-  filter: InquiryStatusFilter,
+  statusFilter: InquiryStatusFilter,
+  typeFilter: InquiryTypeFilter,
   keyword: string,
   page: number,
 ): AdminInquiryListParams {
   const params: AdminInquiryListParams = { page, size: PAGE_SIZE }
-  if (filter !== 'ALL') params.status = filter
+  if (statusFilter !== 'ALL') params.status = statusFilter
+  if (typeFilter !== 'ALL') params.type = typeFilter
   if (keyword) params.keyword = keyword
   return params
 }
@@ -50,6 +56,7 @@ export function useAdminInquiries() {
   const [totalElements, setTotalElements] = useState(0)
   const [page, setPage] = useState(0)
   const [filter, setFilter] = useState<InquiryStatusFilter>('ALL')
+  const [typeFilter, setTypeFilter] = useState<InquiryTypeFilter>('ALL')
   const [inputKeyword, setInputKeyword] = useState('')
   const [committedKeyword, setCommittedKeyword] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -61,7 +68,7 @@ export function useAdminInquiries() {
     ;(async () => {
       try {
         const response = await getAdminInquiryList(
-          buildListParams(filter, committedKeyword, page),
+          buildListParams(filter, typeFilter, committedKeyword, page),
         )
         if (cancelled) return
         setItems(response.items)
@@ -81,7 +88,7 @@ export function useAdminInquiries() {
     return () => {
       cancelled = true
     }
-  }, [filter, page, committedKeyword])
+  }, [filter, typeFilter, page, committedKeyword])
 
   const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE))
 
@@ -91,6 +98,11 @@ export function useAdminInquiries() {
 
   const changeFilter = (next: InquiryStatusFilter) => {
     setFilter(next)
+    setPage(0)
+  }
+
+  const changeTypeFilter = (next: InquiryTypeFilter) => {
+    setTypeFilter(next)
     setPage(0)
   }
 
@@ -179,6 +191,7 @@ export function useAdminInquiries() {
     page,
     totalPages,
     filter,
+    typeFilter,
     inputKeyword,
     committedKeyword,
     isLoading,
@@ -188,6 +201,7 @@ export function useAdminInquiries() {
     commitKeyword,
     clearKeyword,
     changeFilter,
+    changeTypeFilter,
     goToPage,
     changeStatus,
     reply,

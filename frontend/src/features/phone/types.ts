@@ -1,4 +1,4 @@
-export type PhoneScreenKey = 'home' | 'drawing' | 'gallery'
+export type PhoneScreenKey = 'home' | 'drawing' | 'gallery' | 'inquiry'
 
 export type PhoneDrawingToolKey = 'pen' | 'eraser'
 

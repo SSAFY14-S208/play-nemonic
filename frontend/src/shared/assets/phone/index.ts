@@ -1,5 +1,6 @@
 export * from './drawing'
 
+export { default as phoneAppCs } from './phone-app-cs.svg'
 export { default as phoneAppDrawing } from './phone-app-drawing.svg'
 export { default as phoneAppGallery } from './phone-app-gallery.svg'
 export { default as phoneAppSettings } from './phone-app-settings.svg'

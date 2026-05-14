@@ -23,6 +23,7 @@ const NICKNAME_MAX_LENGTH = 10
 export function PhoneHomeScreen() {
   const showDrawing = usePhoneStore((state) => state.showDrawing)
   const showGallery = usePhoneStore((state) => state.showGallery)
+  const showInquiry = usePhoneStore((state) => state.showInquiry)
   const profile = usePhoneStore((state) => state.profile)
   const profileStatus = usePhoneStore((state) => state.profileStatus)
   const nicknameUpdateStatus = usePhoneStore(
@@ -184,6 +185,9 @@ export function PhoneHomeScreen() {
                   return
                 case 'open-gallery':
                   showGallery()
+                  return
+                case 'open-inquiry':
+                  showInquiry()
                   return
                 default:
                   return
