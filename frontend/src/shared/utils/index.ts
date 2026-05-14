@@ -13,4 +13,13 @@ export {
   parseHexColor,
   renderLinesToRasterCanvas,
 } from './drawingRaster'
+export {
+  isHubPerformanceDiagnosticsEnabled,
+  logHubMaterialStats,
+  startHubPerformanceDiagnostics,
+  trackHubControlEvent,
+  trackHubFrame,
+  trackHubInvalidate,
+  trackHubStoreUpdate,
+} from './hubPerformanceDiagnostics'
 export { parseServerInstant } from './parseServerInstant'
