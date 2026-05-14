@@ -749,7 +749,12 @@ I6_SPEC = {
         {"filter": "datum.goal > 0"},
         {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.key", "as": "funnel_label"},
     ],
-    "mark": {"type": "arc", "innerRadius": 55, "tooltip": True},
+    # padding 으로 chart 영역을 미리 좁힘 → panel container fit 시 chart 가 panel 다 안 차지하고
+    # 남는 영역(right 160 px)에 legend 가 들어감. autosize fit contains padding 으로 panel
+    # 안에 모두 fit 되도록.
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
+    "padding": {"top": 20, "right": 160, "bottom": 20, "left": 20},
+    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
     "encoding": {
         "theta": {"field": "shared", "type": "quantitative"},
         "color": {
@@ -758,11 +763,11 @@ I6_SPEC = {
             "scale": {"range": ["#60A5FA", "#FB923C", "#F472B6", "#34D399", "#22D3EE"]},
             "legend": {
                 "title": None,
-                "labelFontSize": 12,
+                "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
                 "orient": "right",
-                "symbolSize": 140,
-                "labelLimit": 200,
+                "symbolSize": 110,
+                "labelLimit": 140,
             },
         },
         "tooltip": [
@@ -846,7 +851,9 @@ I7_SPEC = {
             "'unknown':'알 수 없음'}[datum.entry_type] || datum.entry_type",
          "as": "entry_label"},
     ],
-    "mark": {"type": "arc", "innerRadius": 55, "tooltip": True},
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
+    "padding": {"top": 20, "right": 160, "bottom": 20, "left": 20},
+    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
@@ -860,11 +867,11 @@ I7_SPEC = {
             },
             "legend": {
                 "title": None,
-                "labelFontSize": 12,
+                "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
                 "orient": "right",
-                "symbolSize": 140,
-                "labelLimit": 200,
+                "symbolSize": 110,
+                "labelLimit": 140,
             },
         },
         "tooltip": [
@@ -949,7 +956,9 @@ I8_SPEC = {
          "as": "sns_label"},
         {"aggregate": [{"op": "sum", "field": "count", "as": "count"}], "groupby": ["sns_label"]},
     ],
-    "mark": {"type": "arc", "innerRadius": 55, "tooltip": True},
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
+    "padding": {"top": 20, "right": 160, "bottom": 20, "left": 20},
+    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
@@ -961,11 +970,11 @@ I8_SPEC = {
             },
             "legend": {
                 "title": None,
-                "labelFontSize": 12,
+                "labelFontSize": 11,
                 "labelColor": "#E5E7EB",
                 "orient": "right",
-                "symbolSize": 140,
-                "labelLimit": 200,
+                "symbolSize": 110,
+                "labelLimit": 140,
             },
         },
         "tooltip": [
