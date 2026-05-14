@@ -1,5 +1,6 @@
 .idea/
 .claude/
+.worktrees/
 *.iml
 .DS_Store
 .env
@@ -26,3 +27,6 @@ release*.tar.gz
 # SSH 키
 *.ppk
 id_rsa*
+.next-dev-*.log
+frontend/tmp-*.log
+frontend/tmp-*.png

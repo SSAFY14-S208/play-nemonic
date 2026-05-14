@@ -1,45 +1,57 @@
-import { Suspense, useRef } from 'react'
-import type { Group } from 'three'
-import { SkyDome } from '@/components'
-import HubLighting from '@/worlds/_infra/HubLighting'
+import { Suspense } from 'react'
+import { ContactShadows } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import CameraRig from './CameraRig'
+import LightingSetup from './LightingSetup'
+import RoomModel from './objects/RoomModel'
+import { HUB_PERFORMANCE_PROFILES } from '@/shared/constants'
+import type { HubPerformanceMode } from '@/shared/types'
 import {
-  HUB_SKY_DOME_RADIUS,
-  HUB_SKY_DOME_ROTATION_Y_OFFSET,
-  HUB_SKY_DOME_SCALE,
-  HUB_SKY_TEXTURE_OFFSET,
-  HUB_SKY_TEXTURE_REPEAT,
-} from './constants'
-import { useHubViewportControls } from './hooks'
-import HubPlatformGroup from './objects/HubPlatformGroup'
-import NightStarFieldMesh from './objects/NightStarFieldMesh'
-import ThreeWaterMesh from './objects/ThreeWaterMesh'
+  isHubPerformanceDiagnosticsEnabled,
+  trackHubFrame,
+} from '@/shared/utils'
 
-export default function HubScene() {
-  const modelRootRef = useRef<Group>(null)
-  const skyRootRef = useRef<Group>(null)
-  useHubViewportControls(modelRootRef, skyRootRef)
+function HubRenderDiagnostics() {
+  useFrame(() => {
+    trackHubFrame('hubCanvas')
+  })
+
+  return null
+}
+
+export default function HubScene({
+  performanceMode,
+}: {
+  performanceMode: HubPerformanceMode
+}) {
+  const performanceProfile = HUB_PERFORMANCE_PROFILES[performanceMode]
 
   return (
     <>
+      <color attach="background" args={['#17112c']} />
+      <fog attach="fog" args={['#17112c', 17, 36]} />
+      <CameraRig performanceMode={performanceMode} />
+      {isHubPerformanceDiagnosticsEnabled(performanceMode) && (
+        <HubRenderDiagnostics />
+      )}
+      <LightingSetup performanceMode={performanceMode} />
       <Suspense fallback={null}>
-        <group ref={skyRootRef}>
-          <SkyDome
-            radius={HUB_SKY_DOME_RADIUS}
-            rotationY={HUB_SKY_DOME_ROTATION_Y_OFFSET}
-            domeScale={HUB_SKY_DOME_SCALE}
-            textureOffset={HUB_SKY_TEXTURE_OFFSET}
-            textureRepeat={HUB_SKY_TEXTURE_REPEAT}
+        <RoomModel performanceMode={performanceMode} />
+      </Suspense>
+      {performanceProfile.contactShadows && (
+        <Suspense fallback={null}>
+          <ContactShadows
+            blur={2.6}
+            color="#9e88cc"
+            far={6.5}
+            frames={1}
+            opacity={0.18}
+            position={[-1.05, -0.08, -1.95]}
+            resolution={768}
+            scale={9.5}
           />
-        </group>
-      </Suspense>
-      <HubLighting />
-      <NightStarFieldMesh />
-      <Suspense fallback={null}>
-        <ThreeWaterMesh />
-      </Suspense>
-      <Suspense fallback={null}>
-        <HubPlatformGroup modelRootRef={modelRootRef} />
-      </Suspense>
+        </Suspense>
+      )}
     </>
   )
 }
