@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ApiError, postRelayRoomClose } from '@/shared/apis'
+import { reachFunnelGoal } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import type { RelayPart } from '@/shared/types'
 
@@ -59,6 +60,17 @@ export function useRelayResult() {
 
   const activeResultItem = resultItems[activeResultIndex] ?? null
   const hasServerResults = resultItems.length > 0 && activeResultItem !== null
+
+  // 결과 화면 도달 — funnel goal. 결과 데이터가 도착한 시점 1회만 발사.
+  const goalFiredRef = useRef(false)
+  useEffect(() => {
+    if (!hasServerResults || goalFiredRef.current) return
+    goalFiredRef.current = true
+    reachFunnelGoal('result_viewed', {
+      content_type: 'relay',
+      room_id: roomCode ?? undefined,
+    })
+  }, [hasServerResults, roomCode])
 
   // 서버 결과 데이터로 segments + resultImageUrl 도출.
   const { segments, resultImageUrl } = useMemo(() => {
