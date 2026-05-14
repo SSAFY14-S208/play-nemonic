@@ -749,7 +749,7 @@ I6_SPEC = {
         {"filter": "datum.goal > 0"},
         {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.key", "as": "funnel_label"},
     ],
-    "mark": {"type": "arc", "innerRadius": 60, "tooltip": True},
+    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
     "encoding": {
         "theta": {"field": "shared", "type": "quantitative"},
         "color": {
@@ -758,12 +758,13 @@ I6_SPEC = {
             "scale": {"range": ["#60A5FA", "#FB923C", "#F472B6", "#34D399", "#22D3EE"]},
             "legend": {
                 "title": None,
-                "labelFontSize": 12,
+                "labelFontSize": 10,
                 "labelColor": "#E5E7EB",
-                # panel 폭이 16/48 grid 라 우측 legend 가 잘림. donut 아래로 빼기.
+                # panel 1/3 폭 안에서 잘리지 않도록 단일 column + 하단 배치.
                 "orient": "bottom",
-                "columns": 2,
-                "symbolSize": 120,
+                "direction": "vertical",
+                "symbolSize": 90,
+                "labelLimit": 200,
             },
         },
         "tooltip": [
@@ -773,8 +774,9 @@ I6_SPEC = {
             {"field": "abandoned", "type": "quantitative", "title": "공유 없이 이탈"},
         ],
     },
-    "width": 360,
-    "height": 280,
+    # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
+    "width": 240,
+    "height": 200,
     "config": {
         "background": "transparent",
         "view": {"stroke": None},
@@ -846,7 +848,7 @@ I7_SPEC = {
             "'unknown':'알 수 없음'}[datum.entry_type] || datum.entry_type",
          "as": "entry_label"},
     ],
-    "mark": {"type": "arc", "innerRadius": 60, "tooltip": True},
+    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
@@ -858,12 +860,13 @@ I7_SPEC = {
             },
             "legend": {
                 "title": None,
-                "labelFontSize": 12,
+                "labelFontSize": 10,
                 "labelColor": "#E5E7EB",
-                # panel 폭이 16/48 grid 라 우측 legend 가 잘림. donut 아래로 빼기.
+                # panel 1/3 폭 안에서 잘리지 않도록 단일 column + 하단 배치.
                 "orient": "bottom",
-                "columns": 2,
-                "symbolSize": 120,
+                "direction": "vertical",
+                "symbolSize": 90,
+                "labelLimit": 200,
             },
         },
         "tooltip": [
@@ -871,8 +874,9 @@ I7_SPEC = {
             {"field": "count", "type": "quantitative", "title": "세션 수"},
         ],
     },
-    "width": 360,
-    "height": 280,
+    # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
+    "width": 240,
+    "height": 200,
     "config": {
         "background": "transparent",
         "view": {"stroke": None},
@@ -947,7 +951,7 @@ I8_SPEC = {
          "as": "sns_label"},
         {"aggregate": [{"op": "sum", "field": "count", "as": "count"}], "groupby": ["sns_label"]},
     ],
-    "mark": {"type": "arc", "innerRadius": 60, "tooltip": True},
+    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
@@ -959,12 +963,13 @@ I8_SPEC = {
             },
             "legend": {
                 "title": None,
-                "labelFontSize": 12,
+                "labelFontSize": 10,
                 "labelColor": "#E5E7EB",
-                # panel 폭이 16/48 grid 라 우측 legend 가 잘림. donut 아래로 빼기.
+                # panel 1/3 폭 안에서 잘리지 않도록 단일 column + 하단 배치.
                 "orient": "bottom",
-                "columns": 2,
-                "symbolSize": 120,
+                "direction": "vertical",
+                "symbolSize": 90,
+                "labelLimit": 200,
             },
         },
         "tooltip": [
@@ -972,8 +977,9 @@ I8_SPEC = {
             {"field": "count", "type": "quantitative", "title": "세션 수"},
         ],
     },
-    "width": 360,
-    "height": 280,
+    # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
+    "width": 240,
+    "height": 200,
     "config": {
         "background": "transparent",
         "view": {"stroke": None},
