@@ -749,23 +749,26 @@ I6_SPEC = {
         {"filter": "datum.goal > 0"},
         {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.key", "as": "funnel_label"},
     ],
-    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
+    # donut 대신 horizontal bar — panel container fit 시에도 legend 자리 안 깨짐.
+    # y axis label 이 카테고리 역할.
+    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
     "encoding": {
-        "theta": {"field": "shared", "type": "quantitative"},
+        "y": {
+            "field": "funnel_label",
+            "type": "nominal",
+            "sort": "-x",
+            "axis": {"title": None, "labelFontSize": 12, "labelLimit": 200},
+        },
+        "x": {
+            "field": "shared",
+            "type": "quantitative",
+            "axis": {"title": "공유 추정 (세션)", "labelFontSize": 10},
+        },
         "color": {
             "field": "funnel_label",
             "type": "nominal",
             "scale": {"range": ["#60A5FA", "#FB923C", "#F472B6", "#34D399", "#22D3EE"]},
-            "legend": {
-                "title": None,
-                "labelFontSize": 10,
-                "labelColor": "#E5E7EB",
-                # panel 1/3 폭 안에서 잘리지 않도록 단일 column + 하단 배치.
-                "orient": "bottom",
-                "direction": "vertical",
-                "symbolSize": 90,
-                "labelLimit": 200,
-            },
+            "legend": None,
         },
         "tooltip": [
             {"field": "funnel_label", "type": "nominal", "title": "컨텐츠"},
@@ -848,9 +851,19 @@ I7_SPEC = {
             "'unknown':'알 수 없음'}[datum.entry_type] || datum.entry_type",
          "as": "entry_label"},
     ],
-    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
+    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
     "encoding": {
-        "theta": {"field": "count", "type": "quantitative"},
+        "y": {
+            "field": "entry_label",
+            "type": "nominal",
+            "sort": "-x",
+            "axis": {"title": None, "labelFontSize": 12, "labelLimit": 200},
+        },
+        "x": {
+            "field": "count",
+            "type": "quantitative",
+            "axis": {"title": "세션 수", "labelFontSize": 10},
+        },
         "color": {
             "field": "entry_label",
             "type": "nominal",
@@ -858,16 +871,7 @@ I7_SPEC = {
                 "domain": ["직접 접속", "검색", "SNS", "QR 코드", "공유 링크", "캠페인", "알 수 없음"],
                 "range": ["#94A3B8", "#60A5FA", "#34D399", "#FBBF24", "#A78BFA", "#F472B6", "#475569"],
             },
-            "legend": {
-                "title": None,
-                "labelFontSize": 10,
-                "labelColor": "#E5E7EB",
-                # panel 1/3 폭 안에서 잘리지 않도록 단일 column + 하단 배치.
-                "orient": "bottom",
-                "direction": "vertical",
-                "symbolSize": 90,
-                "labelLimit": 200,
-            },
+            "legend": None,
         },
         "tooltip": [
             {"field": "entry_label", "type": "nominal", "title": "경로"},
@@ -951,9 +955,19 @@ I8_SPEC = {
          "as": "sns_label"},
         {"aggregate": [{"op": "sum", "field": "count", "as": "count"}], "groupby": ["sns_label"]},
     ],
-    "mark": {"type": "arc", "innerRadius": 45, "tooltip": True},
+    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
     "encoding": {
-        "theta": {"field": "count", "type": "quantitative"},
+        "y": {
+            "field": "sns_label",
+            "type": "nominal",
+            "sort": "-x",
+            "axis": {"title": None, "labelFontSize": 12, "labelLimit": 200},
+        },
+        "x": {
+            "field": "count",
+            "type": "quantitative",
+            "axis": {"title": "세션 수", "labelFontSize": 10},
+        },
         "color": {
             "field": "sns_label",
             "type": "nominal",
@@ -961,16 +975,7 @@ I8_SPEC = {
                 "domain": ["인스타그램", "트위터", "카카오톡", "페이스북", "링크드인", "기타"],
                 "range": ["#EC4899", "#60A5FA", "#FBBF24", "#3B82F6", "#0E76A8", "#94A3B8"],
             },
-            "legend": {
-                "title": None,
-                "labelFontSize": 10,
-                "labelColor": "#E5E7EB",
-                # panel 1/3 폭 안에서 잘리지 않도록 단일 column + 하단 배치.
-                "orient": "bottom",
-                "direction": "vertical",
-                "symbolSize": 90,
-                "labelLimit": 200,
-            },
+            "legend": None,
         },
         "tooltip": [
             {"field": "sns_label", "type": "nominal", "title": "SNS"},
@@ -1117,15 +1122,15 @@ I9 = viz_vega(
 # ============================================================
 PANELS = [
     {"vis_id": I1["id"], "panel_id": "1", "grid": {"x": 0,  "y": 0,  "w": 48, "h": 10}},
-    # 도넛 viz 3개 — h 22 로 충분한 vertical 공간 확보. legend bottom 잘림 방지.
-    {"vis_id": I7["id"], "panel_id": "2", "grid": {"x": 0,  "y": 10, "w": 16, "h": 22}},
-    {"vis_id": I8["id"], "panel_id": "3", "grid": {"x": 16, "y": 10, "w": 16, "h": 22}},
-    {"vis_id": I6["id"], "panel_id": "4", "grid": {"x": 32, "y": 10, "w": 16, "h": 22}},
-    {"vis_id": I2["id"], "panel_id": "5", "grid": {"x": 0,  "y": 32, "w": 24, "h": 16}},
-    {"vis_id": I5["id"], "panel_id": "6", "grid": {"x": 24, "y": 32, "w": 24, "h": 16}},
-    {"vis_id": I3["id"], "panel_id": "7", "grid": {"x": 0,  "y": 48, "w": 48, "h": 24}},
-    {"vis_id": I4["id"], "panel_id": "8", "grid": {"x": 0,  "y": 72, "w": 48, "h": 22}},
-    {"vis_id": I9["id"], "panel_id": "9", "grid": {"x": 0,  "y": 94, "w": 48, "h": 20}},
+    # horizontal bar viz 3개 — h 14 면 충분, panel 안에 자연 fit.
+    {"vis_id": I7["id"], "panel_id": "2", "grid": {"x": 0,  "y": 10, "w": 16, "h": 14}},
+    {"vis_id": I8["id"], "panel_id": "3", "grid": {"x": 16, "y": 10, "w": 16, "h": 14}},
+    {"vis_id": I6["id"], "panel_id": "4", "grid": {"x": 32, "y": 10, "w": 16, "h": 14}},
+    {"vis_id": I2["id"], "panel_id": "5", "grid": {"x": 0,  "y": 24, "w": 24, "h": 16}},
+    {"vis_id": I5["id"], "panel_id": "6", "grid": {"x": 24, "y": 24, "w": 24, "h": 16}},
+    {"vis_id": I3["id"], "panel_id": "7", "grid": {"x": 0,  "y": 40, "w": 48, "h": 24}},
+    {"vis_id": I4["id"], "panel_id": "8", "grid": {"x": 0,  "y": 64, "w": 48, "h": 22}},
+    {"vis_id": I9["id"], "panel_id": "9", "grid": {"x": 0,  "y": 86, "w": 48, "h": 20}},
 ]
 
 
