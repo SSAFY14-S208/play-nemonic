@@ -23,6 +23,11 @@ export {
 export { useCommunityCanvasNavigation } from './useCommunityCanvasNavigation'
 export { useFlipbookNavigation } from './useFlipbookNavigation'
 export { useNightStarField } from './useNightStarField'
+export {
+  useMonitorButtonMaterial,
+  useMonitorGameSelector,
+  type MonitorGameAction,
+} from './useMonitorGameSelector'
 export { useRelayDrawingNavigation } from './useRelayDrawingNavigation'
 export { useRoomModel } from './useRoomModel'
 export { useThreeWaterTime } from './useThreeWaterTime'

@@ -3,6 +3,7 @@ import { ContactShadows } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import CameraRig from './CameraRig'
 import LightingSetup from './LightingSetup'
+import MonitorGameSelector from './objects/MonitorGameSelector'
 import RoomModel from './objects/RoomModel'
 import { HUB_PERFORMANCE_PROFILES } from '@/shared/constants'
 import type { HubPerformanceMode } from '@/shared/types'
@@ -37,6 +38,9 @@ export default function HubScene({
       <LightingSetup performanceMode={performanceMode} />
       <Suspense fallback={null}>
         <RoomModel performanceMode={performanceMode} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <MonitorGameSelector />
       </Suspense>
       {performanceProfile.contactShadows && (
         <Suspense fallback={null}>
