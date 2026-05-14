@@ -375,10 +375,17 @@ I3_SPEC = {
         "format": {"property": "aggregations.filtered.pairs.buckets"}
     },
     "transform": [
-        {"calculate": "datum.key.funnel", "as": "funnel_name"},
-        {"calculate": "datum.key.step", "as": "step_name"},
-        {"calculate": "datum.doc_count", "as": "count"},
-        {"calculate": FUNNEL_KOREAN_LABEL_EXPR + " || datum.funnel_name",
+        # composite agg 의 key 객체는 dotted property access 가 vega-expression 에서
+        # 일관되지 않게 풀림. bracket notation 으로 안전하게 추출.
+        {"calculate": "datum['key']['funnel']", "as": "funnel_name"},
+        {"calculate": "datum['key']['step']", "as": "step_name"},
+        {"calculate": "datum['doc_count']", "as": "count"},
+        {"calculate":
+            "{'relay_room_creation':'릴레이드로잉',"
+            "'flipbook_room_creation':'플립북',"
+            "'community_memo_posting':'커뮤니티 메모',"
+            "'fortune_creation':'오늘의 운세',"
+            "'gallery_save_share':'갤러리·공유'}[datum.funnel_name] || datum.funnel_name",
          "as": "funnel_label"},
         {"filter": "datum.count > 0"},
     ],
@@ -502,9 +509,10 @@ I4_SPEC = {
         "format": {"property": "aggregations.filtered.pairs.buckets"}
     },
     "transform": [
-        {"calculate": "datum.key.from_path", "as": "from"},
-        {"calculate": "datum.key.to_path", "as": "to"},
-        {"calculate": "datum.doc_count", "as": "count"},
+        # composite key 객체를 bracket notation 으로 안전 추출.
+        {"calculate": "datum['key']['from_path']", "as": "from"},
+        {"calculate": "datum['key']['to_path']", "as": "to"},
+        {"calculate": "datum['doc_count']", "as": "count"},
         {"filter": "datum.from != datum.to"},
     ],
     "mark": {"type": "rect", "tooltip": True},
@@ -512,7 +520,8 @@ I4_SPEC = {
         "x": {
             "field": "from",
             "type": "nominal",
-            "sort": "-color",
+            # heatmap 정렬은 axis 자연 순서로 충분. sort: "-color" 는 일부 vega-lite 버전에서
+            # 무효 처리되어 chart 가 안 그려지는 경우 있음.
             "axis": {
                 "title": "이전 화면",
                 "labelAngle": -35,
@@ -524,7 +533,6 @@ I4_SPEC = {
         "y": {
             "field": "to",
             "type": "nominal",
-            "sort": "-color",
             "axis": {
                 "title": "다음 화면",
                 "labelFontSize": 11,
