@@ -11,6 +11,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.models.GroupedOpenApi;
 
@@ -44,7 +45,8 @@ public class OpenApiConfig {
     }
 
     @Bean
-    public GroupedOpenApi allApiGroup(OpenApiCustomizer openApiTagOrderCustomizer) {
+    public GroupedOpenApi allApiGroup(
+        @Qualifier("openApiTagOrderCustomizer") OpenApiCustomizer openApiTagOrderCustomizer) {
         return groupedOpenApi(OpenApiGroups.ALL_GROUP, openApiTagOrderCustomizer);
     }
 
