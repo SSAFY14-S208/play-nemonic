@@ -293,8 +293,8 @@ I2_SPEC = {
     ],
     # autosize: "none" + 명시 width/height — OS Dashboards Vega plugin 의 autosize 자동
     # 주입을 차단하기 위함. width 는 dashboard 절반 폭(24/48 grid) 기준 넉넉한 숫자로.
-    "width": 700,
-    "height": 240,
+    "width": 1100,
+    "height": 380,
     "config": {
         "background": "transparent",
         "view": {"stroke": None},
@@ -371,9 +371,9 @@ I3_SPEC = {
     },
     "transform": [
         # funnels.buckets[].steps.buckets[] → 평면 row.
-        {"calculate":
-            "datum.steps && datum.steps.buckets ? datum.steps.buckets : []",
-         "as": "step_array"},
+        # vega-expression 의 && short-circuit + ternary 가 일부 케이스에서 빈 결과를 내므로
+        # datum.steps.buckets 를 직접 가리킨다 (응답에 항상 존재).
+        {"calculate": "datum.steps.buckets", "as": "step_array"},
         {"flatten": ["step_array"], "as": ["step_bucket"]},
         {"calculate": "datum.step_bucket.key", "as": "step_name"},
         {"calculate": "datum.step_bucket.doc_count", "as": "count"},
