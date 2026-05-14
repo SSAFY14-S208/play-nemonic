@@ -54,7 +54,7 @@ const TOOL_ACTIONS: Array<{
   { key: 'clear', label: '전체 지우기', icon: Trash2 },
 ]
 
-const GALLERY_HIDDEN_TOOL_ACTIONS: ToolActionKey[] = ['bucket']
+const GALLERY_HIDDEN_TOOL_ACTIONS: ToolActionKey[] = []
 
 function getContainedImageFrame({
   imageWidth,
@@ -105,10 +105,17 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-composer-title"
-      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-black/45 p-4"
+      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#1f160d]/58 p-4 backdrop-blur-[2px]"
     >
-      <section className="flex max-h-[94vh] w-full max-w-[86rem] flex-col overflow-hidden rounded-[0.5rem] bg-surface-default shadow-[0_24px_60px_rgb(17_24_21_/_30%)]">
-        <header className="flex items-center justify-between border-b border-border-default px-5 py-4">
+      <section
+        className="relative aspect-[1600/980] overflow-hidden bg-contain bg-center bg-no-repeat"
+        style={{
+          width: 'min(96vw, 100rem, 153.47vh)',
+          backgroundImage: 'url("/images/community-canvas/ui/modal-composer-frame.svg")',
+          backgroundSize: '100% 100%',
+        }}
+      >
+        <header className="absolute left-[5.5%] right-[5.5%] top-[7.1%] flex h-[11.4%] items-center justify-between px-4">
           <div>
             <p className="caption-b text-primary-2">커뮤니티 캔버스</p>
             <h2 id="community-composer-title" className="h2-b text-fg-primary">
@@ -119,23 +126,23 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
             type="button"
             aria-label="작성 닫기"
             onClick={composer.closeComposer}
-            className="grid size-11 place-items-center rounded-full bg-surface-subtle text-fg-secondary transition hover:bg-surface-muted"
+            className="grid size-11 place-items-center rounded-full border border-[#e0b46f] bg-[#fff6df] text-fg-secondary shadow-[0_7px_16px_rgb(84_45_18_/_18%)] transition hover:-translate-y-0.5 hover:bg-white"
           >
             <X className="size-5" />
           </button>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+        <div className="absolute left-[4.75%] top-[21%] h-[7.15%] w-[16.875%]">
           <SourceTabs
             sourceType={sourceType}
             onSelectSourceType={composer.selectSourceType}
           />
+        </div>
 
-          <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <section className="min-w-0">
+        <div className="absolute bottom-[8.6%] left-[4.75%] right-[4.75%] top-[31.3%] grid min-h-0 gap-[1.5%] overflow-hidden xl:grid-cols-[minmax(0,750fr)_320fr_330fr]">
             {sourceType === 'DIRECT' ? (
-              <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,46rem)_18rem]">
-                <div className="w-fit max-w-full overflow-x-auto rounded-[0.5rem] border border-border-default bg-surface-subtle p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <>
+                <div className="flex h-full min-w-0 items-center justify-center overflow-visible">
                   <DrawingBoard
                     boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
                     backgroundColor={backgroundColor}
@@ -145,13 +152,13 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
                     onDrawStart={drawingBoard.beginDrawing}
                     onDrawMove={drawingBoard.continueDrawing}
                     onDrawEnd={drawingBoard.endDrawing}
-                    className="mx-auto"
+                    className="overflow-hidden rounded-[1rem] shadow-[0_10px_20px_rgb(78_44_20_/_12%)]"
                   />
                 </div>
 
                 <div
                   className={cn(
-                    'grid gap-3 rounded-[0.5rem] border border-border-default bg-surface-default p-3',
+                    'grid min-h-0 self-center auto-rows-max content-start gap-3 overflow-y-auto rounded-[0.55rem] bg-surface-default p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] [height:min(100%,33.75rem)]',
                     isPosting && 'pointer-events-none opacity-60',
                   )}
                 >
@@ -175,14 +182,15 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
                     onStrokeWidthChange={drawingBoard.setStrokeWidth}
                   />
                 </div>
-              </div>
+              </>
             ) : (
-              <div className="grid min-h-0 gap-4 xl:grid-cols-[18rem_minmax(0,46rem)]">
-                <div className="grid min-w-0 gap-3">
-                  {composer.handoffDraft ? (
+              <>
+                <div className="flex h-full min-w-0 items-center justify-center overflow-visible">
+                  {!selectedGalleryCanvasImageUrl && composer.handoffDraft ? (
                     <CommunityHandoffSourcePanel draft={composer.handoffDraft} />
-                  ) : (
+                  ) : !selectedGalleryCanvasImageUrl ? (
                     <CommunityGalleryPicker
+                      className="h-full w-full max-h-full"
                       items={composer.galleryItems}
                       status={composer.galleryStatus}
                       error={composer.galleryError}
@@ -190,17 +198,37 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
                       onLoad={composer.loadGalleryItems}
                       onSelect={(galleryId) => void composer.selectGalleryItem(galleryId)}
                     />
+                  ) : (
+                    <DrawingBoard
+                      boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
+                      backgroundColor={backgroundColor}
+                      backgroundCornerRadius={18}
+                      gridColor="transparent"
+                      lines={drawingBoard.lines}
+                      onDrawStart={drawingBoard.beginDrawing}
+                      onDrawMove={drawingBoard.continueDrawing}
+                      onDrawEnd={drawingBoard.endDrawing}
+                      className="overflow-hidden rounded-[1rem] shadow-[0_10px_20px_rgb(78_44_20_/_12%)]"
+                      childrenBeforeLines={
+                        <GalleryCanvasBaseImage
+                          imageUrl={selectedGalleryCanvasImageUrl}
+                          boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
+                        />
+                      }
+                    />
                   )}
+                </div>
 
-                  {selectedGalleryCanvasImageUrl && (
-                    <div
-                      className={cn(
-                        'grid gap-3 rounded-[0.5rem] border border-border-default bg-surface-default p-3',
-                        isPosting && 'pointer-events-none opacity-60',
-                      )}
-                    >
+                <div
+                  className={cn(
+                    'grid min-h-0 self-center auto-rows-max content-start gap-3 overflow-y-auto rounded-[0.55rem] bg-surface-default p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] [height:min(100%,33.75rem)]',
+                    isPosting && 'pointer-events-none opacity-60',
+                    !selectedGalleryCanvasImageUrl && 'h-full place-items-center',
+                  )}
+                >
+                  {selectedGalleryCanvasImageUrl ? (
+                    <>
                       <DrawingToolStrip
-                        compact
                         hiddenToolKeys={GALLERY_HIDDEN_TOOL_ACTIONS}
                         selectedToolKey={drawingBoard.selectedToolKey}
                         canUndoDrawing={drawingBoard.canUndoDrawing}
@@ -212,7 +240,6 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
                       />
 
                       <DrawingBrushPanel
-                        compact
                         colors={DRAWING_COLORS}
                         selectedColor={drawingBoard.selectedColor}
                         selectedOpacity={drawingBoard.selectedOpacity}
@@ -221,40 +248,15 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
                         onOpacityChange={drawingBoard.setSelectedOpacity}
                         onStrokeWidthChange={drawingBoard.setStrokeWidth}
                       />
-                    </div>
-                  )}
-                </div>
-
-                <div className="w-fit max-w-full overflow-x-auto rounded-[0.5rem] border border-border-default bg-surface-subtle p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {selectedGalleryCanvasImageUrl ? (
-                    <DrawingBoard
-                      boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
-                      backgroundColor={backgroundColor}
-                      backgroundCornerRadius={18}
-                      gridColor="transparent"
-                      lines={drawingBoard.lines}
-                      onDrawStart={drawingBoard.beginDrawing}
-                      onDrawMove={drawingBoard.continueDrawing}
-                      onDrawEnd={drawingBoard.endDrawing}
-                      className="mx-auto"
-                      childrenBeforeLines={
-                        <GalleryCanvasBaseImage
-                          imageUrl={selectedGalleryCanvasImageUrl}
-                          boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
-                        />
-                      }
-                    />
+                    </>
                   ) : (
-                    <div className="grid h-[33.75rem] w-[45rem] max-w-full place-items-center rounded-[0.5rem] border border-dashed border-border-default bg-surface-default text-fg-secondary">
-                      <ImagePlus className="size-8" />
-                    </div>
+                    <ImagePlus className="size-9 text-fg-secondary" />
                   )}
                 </div>
-              </div>
+              </>
             )}
-          </section>
 
-          <aside className="flex min-h-0 flex-col gap-4 rounded-[0.5rem] border border-border-default bg-surface-subtle p-4">
+          <aside className="flex min-h-0 flex-col gap-4 self-center overflow-y-auto overflow-x-hidden rounded-[0.55rem] bg-surface-subtle p-4 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] [height:min(100%,33.75rem)]">
             <MemoColorPicker
               selectedMemoColor={composer.selectedMemoColor}
               onSelectMemoColor={composer.setSelectedMemoColor}
@@ -280,7 +282,6 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
               {isPosting ? '메모지 준비 중' : '메모지 들기'}
             </button>
           </aside>
-          </div>
         </div>
       </section>
     </div>
@@ -384,7 +385,7 @@ function SourceTabs({
   onSelectSourceType: (sourceType: MemoSourceType) => void
 }) {
   return (
-    <div className="inline-grid grid-cols-2 self-start rounded-[0.45rem] border border-border-default bg-surface-subtle p-1">
+    <div className="grid h-full w-full grid-cols-2 rounded-[0.45rem] border border-border-default bg-surface-subtle p-1">
       {SOURCE_TABS.map((tab) => (
         <button
           key={tab.key}
@@ -392,7 +393,7 @@ function SourceTabs({
           aria-pressed={sourceType === tab.key}
           onClick={() => onSelectSourceType(tab.key)}
           className={cn(
-            'body-b h-11 rounded-[0.35rem] px-5 transition',
+            'body-b h-full rounded-[0.35rem] px-5 transition',
             sourceType === tab.key
               ? 'bg-surface-default text-fg-primary shadow-sm'
               : 'text-fg-secondary hover:text-fg-primary',
@@ -445,7 +446,7 @@ function DrawingToolStrip({
   return (
     <section className={cn('rounded-[0.45rem] bg-surface-subtle', compact ? 'p-2' : 'p-3')}>
       <p className="caption-b mb-2 text-fg-secondary">도구</p>
-      <div className={cn('grid gap-2', compact ? 'grid-cols-5' : 'grid-cols-3')}>
+      <div className="grid grid-cols-3 gap-2">
         {TOOL_ACTIONS.filter(
           (toolAction) => !hiddenToolKeys.includes(toolAction.key),
         ).map((toolAction) => {
@@ -466,7 +467,7 @@ function DrawingToolStrip({
               onClick={() => handleToolAction(toolAction.key)}
               className={cn(
                 'grid w-full place-items-center rounded-[0.45rem] border border-border-default bg-surface-default text-fg-secondary shadow-sm transition hover:border-primary-1 hover:text-fg-primary',
-                compact ? 'h-10' : 'h-11',
+                compact ? 'h-11' : 'h-14',
                 isSelected && 'border-primary-1 bg-primary-5 text-primary-2 ring-2 ring-primary-5',
                 isDisabled && 'cursor-not-allowed opacity-40 shadow-none',
               )}
@@ -501,7 +502,7 @@ function DrawingBrushPanel({
   onStrokeWidthChange: (strokeWidth: number) => void
 }) {
   return (
-    <section className={cn('rounded-[0.45rem] bg-surface-subtle', compact ? 'p-2' : 'p-3')}>
+    <section className={cn('rounded-[0.45rem] bg-surface-subtle', compact ? 'p-2 pb-1.5' : 'p-3 pb-2')}>
       <p className="caption-b mb-2 text-fg-secondary">펜</p>
       <div className={cn('flex flex-wrap', compact ? 'gap-1.5' : 'gap-2')}>
         {colors.slice(0, 20).map((color) => (
@@ -604,20 +605,21 @@ function MemoPreview({
   imageUrl: string | null | undefined
 }) {
   return (
-    <section className="mt-2 rounded-[0.5rem] border border-border-default bg-surface-default p-4">
+    <section className="mt-2 overflow-hidden rounded-[0.5rem] border border-border-default bg-surface-default p-4">
       <p className="caption-b mb-3 text-fg-secondary">미리보기</p>
-      <div className="relative mx-auto h-[12rem] w-[14rem]">
+      <div className="relative mx-auto aspect-square w-[min(13rem,100%)]">
         <PostItNote
+          shape="square"
           className="absolute inset-0 h-full w-full drop-shadow-[0_12px_18px_rgb(66_45_25_/_18%)]"
           style={{ color: memoColor || DEFAULT_COMMUNITY_MEMO_COLOR }}
         />
-        <span className="absolute inset-x-6 bottom-7 top-9 overflow-hidden rounded-[0.35rem]">
+        <span className="absolute inset-x-7 bottom-8 top-10 overflow-hidden rounded-[0.35rem]">
           {imageUrl ? (
             <Image
               src={imageUrl}
               alt="선택한 갤러리 메모 미리보기"
               fill
-              sizes="224px"
+              sizes="208px"
               unoptimized
               className="object-contain"
             />

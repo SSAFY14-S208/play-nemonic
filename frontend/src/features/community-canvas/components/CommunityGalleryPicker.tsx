@@ -10,6 +10,7 @@ interface CommunityGalleryPickerProps {
   status: 'idle' | 'loading' | 'success' | 'error'
   error: string | null
   selectedGalleryId: string | null
+  className?: string
   onLoad: () => void
   onSelect: (galleryId: string) => void
 }
@@ -19,12 +20,13 @@ export function CommunityGalleryPicker({
   status,
   error,
   selectedGalleryId,
+  className,
   onLoad,
   onSelect,
 }: CommunityGalleryPickerProps) {
   if (status === 'idle') {
     return (
-      <div className="grid min-h-[12rem] place-items-center rounded-[0.5rem] border border-border-default bg-surface-subtle p-5 text-center">
+      <div className={cn('grid min-h-[12rem] place-items-center rounded-[0.5rem] border border-border-default bg-surface-subtle p-5 text-center', className)}>
         <button
           type="button"
           onClick={onLoad}
@@ -39,7 +41,7 @@ export function CommunityGalleryPicker({
 
   if (status === 'loading') {
     return (
-      <div className="grid min-h-[12rem] place-items-center rounded-[0.5rem] border border-border-default bg-surface-subtle">
+      <div className={cn('grid min-h-[12rem] place-items-center rounded-[0.5rem] border border-border-default bg-surface-subtle', className)}>
         <p className="body-b text-fg-secondary">갤러리 불러오는 중</p>
       </div>
     )
@@ -47,7 +49,7 @@ export function CommunityGalleryPicker({
 
   if (status === 'error') {
     return (
-      <div className="grid min-h-[12rem] place-items-center rounded-[0.5rem] border border-border-default bg-surface-subtle p-5 text-center">
+      <div className={cn('grid min-h-[12rem] place-items-center rounded-[0.5rem] border border-border-default bg-surface-subtle p-5 text-center', className)}>
         <div>
           <p className="body-r text-fg-secondary">{error}</p>
           <button
@@ -65,14 +67,14 @@ export function CommunityGalleryPicker({
 
   if (items.length === 0) {
     return (
-      <div className="grid min-h-[12rem] place-items-center rounded-[0.5rem] border border-border-default bg-surface-subtle">
+      <div className={cn('grid min-h-[12rem] place-items-center rounded-[0.5rem] border border-border-default bg-surface-subtle', className)}>
         <p className="body-r text-fg-secondary">갤러리에 붙일 항목이 없어요.</p>
       </div>
     )
   }
 
   return (
-    <div className="max-h-[12rem] overflow-y-auto rounded-[0.5rem] border border-border-default bg-surface-subtle p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className={cn('max-h-[12rem] overflow-y-auto rounded-[0.5rem] border border-border-default bg-surface-subtle p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}>
       <div className="grid grid-cols-3 gap-2">
         {items.map((item) => {
           const isSelected = selectedGalleryId === item.galleryId
