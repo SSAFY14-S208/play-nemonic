@@ -280,7 +280,9 @@ I2_SPEC = {
             },
         },
     ],
-    "height": {"step": 36},
+    # height 를 step 기반(autosize fit 트리거) 대신 funnel 수에 맞춘 고정값으로 둔다.
+    # autosize warning("width/height ignored")을 피하기 위함.
+    "height": 240,
     "width": "container",
     "config": {
         "background": "transparent",
@@ -403,7 +405,8 @@ I3_SPEC = {
     },
     "spec": {
         "width": "container",
-        "height": {"step": 22},
+        # I3 는 facet 안의 inner spec — step 단계 수에 비례한 고정 높이로 단순화.
+        "height": 160,
         "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True},
         "encoding": {
             "y": {
@@ -460,7 +463,6 @@ I3 = viz_vega(
 # ============================================================
 I4_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "화면 이동 흐름",
         "subtitle": "이전 화면(가로) → 다음 화면(세로) 이동 빈도. 색이 진할수록 이동량 많음.",
