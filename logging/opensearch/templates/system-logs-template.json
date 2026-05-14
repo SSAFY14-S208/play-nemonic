@@ -1,5 +1,7 @@
 {
-  "index_patterns": ["system-logs-*"],
+  "index_patterns": [
+    "system-logs-*"
+  ],
   "priority": 100,
   "template": {
     "settings": {
@@ -12,24 +14,66 @@
     },
     "mappings": {
       "dynamic": "true",
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ],
       "properties": {
-        "@timestamp":   { "type": "date" },
-        "log_level":    { "type": "keyword" },
-        "pid":          { "type": "long" },
-        "application":  { "type": "keyword" },
-        "thread":       { "type": "keyword" },
-        "logger":       { "type": "keyword" },
-        "log_message":  {
-          "type": "text",
-          "fields": { "keyword": { "type": "keyword", "ignore_above": 1024 } }
+        "@timestamp": {
+          "type": "date"
         },
-        "message":      { "type": "text" },
-        "container_id": { "type": "keyword" },
-        "log_tag":      { "type": "keyword" },
-        "hostname":     { "type": "keyword" },
-        "stream":       { "type": "keyword" },
-        "tags":         { "type": "keyword" },
-        "log_type":     { "type": "keyword" }
+        "log_level": {
+          "type": "keyword"
+        },
+        "pid": {
+          "type": "long"
+        },
+        "application": {
+          "type": "keyword"
+        },
+        "thread": {
+          "type": "keyword"
+        },
+        "logger": {
+          "type": "keyword"
+        },
+        "log_message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        },
+        "message": {
+          "type": "text"
+        },
+        "container_id": {
+          "type": "keyword"
+        },
+        "log_tag": {
+          "type": "keyword"
+        },
+        "hostname": {
+          "type": "keyword"
+        },
+        "stream": {
+          "type": "keyword"
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "log_type": {
+          "type": "keyword"
+        }
       }
     }
   },

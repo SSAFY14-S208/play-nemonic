@@ -1,5 +1,7 @@
 {
-  "index_patterns": ["audit-logs-*"],
+  "index_patterns": [
+    "audit-logs-*"
+  ],
   "priority": 100,
   "template": {
     "settings": {
@@ -12,41 +14,111 @@
     },
     "mappings": {
       "dynamic": "false",
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ],
       "properties": {
-        "@timestamp":   { "type": "date" },
-        "level":        { "type": "keyword" },
-        "service":      { "type": "keyword" },
-        "trace_id":     { "type": "keyword" },
-        "flow_id":      { "type": "keyword" },
-        "session_id":   { "type": "keyword" },
-        "uuid":         { "type": "keyword" },
-        "event_name":   { "type": "keyword" },
-        "content_type": { "type": "keyword" },
-        "room_id":      { "type": "keyword" },
-        "message":      { "type": "text" },
+        "@timestamp": {
+          "type": "date"
+        },
+        "level": {
+          "type": "keyword"
+        },
+        "service": {
+          "type": "keyword"
+        },
+        "trace_id": {
+          "type": "keyword"
+        },
+        "flow_id": {
+          "type": "keyword"
+        },
+        "session_id": {
+          "type": "keyword"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "event_name": {
+          "type": "keyword"
+        },
+        "content_type": {
+          "type": "keyword"
+        },
+        "room_id": {
+          "type": "keyword"
+        },
+        "message": {
+          "type": "text"
+        },
         "metadata": {
           "properties": {
-            "actor_id":    { "type": "keyword" },
-            "actor_role":  { "type": "keyword" },
-            "actor_ip":    { "type": "ip" },
-            "target_type": { "type": "keyword" },
-            "target_id":   { "type": "keyword" },
-            "action":      { "type": "keyword" },
-            "reason":      {
-              "type": "text",
-              "fields": { "keyword": { "type": "keyword", "ignore_above": 1024 } }
+            "actor_id": {
+              "type": "keyword"
             },
-            "result":      { "type": "keyword" },
-            "before":      { "type": "object", "enabled": false },
-            "after":       { "type": "object", "enabled": false }
+            "actor_role": {
+              "type": "keyword"
+            },
+            "actor_ip": {
+              "type": "ip"
+            },
+            "target_type": {
+              "type": "keyword"
+            },
+            "target_id": {
+              "type": "keyword"
+            },
+            "action": {
+              "type": "keyword"
+            },
+            "reason": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 1024
+                }
+              }
+            },
+            "result": {
+              "type": "keyword"
+            },
+            "before": {
+              "type": "object",
+              "enabled": false
+            },
+            "after": {
+              "type": "object",
+              "enabled": false
+            }
           }
         },
-        "container_id": { "type": "keyword" },
-        "log_tag":      { "type": "keyword" },
-        "hostname":     { "type": "keyword" },
-        "stream":       { "type": "keyword" },
-        "tags":         { "type": "keyword" },
-        "log_type":     { "type": "keyword" }
+        "container_id": {
+          "type": "keyword"
+        },
+        "log_tag": {
+          "type": "keyword"
+        },
+        "hostname": {
+          "type": "keyword"
+        },
+        "stream": {
+          "type": "keyword"
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "log_type": {
+          "type": "keyword"
+        }
       }
     }
   },
