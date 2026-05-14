@@ -44,19 +44,25 @@ export function CommunityMemoDetailModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-memo-detail-title"
-      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-black/35 p-4"
+      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#1f160d]/58 p-4 backdrop-blur-[2px]"
     >
-      <section className="relative flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-[0.5rem] bg-surface-default shadow-[0_18px_44px_rgb(30_24_18_/_24%)]">
+      <section
+        className="relative aspect-[1500/1040] w-full max-w-6xl bg-contain bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url("/images/community-canvas/ui/modal-detail-frame.svg")',
+          backgroundSize: '100% 100%',
+        }}
+      >
         <button
           type="button"
           aria-label="메모 상세 닫기"
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 grid size-10 place-items-center rounded-full bg-surface-default text-fg-secondary shadow-[0_8px_16px_rgb(30_24_18_/_12%)]"
+          className="absolute right-[5.3%] top-[5.3%] z-10 grid size-11 place-items-center rounded-full border border-[#e0b46f] bg-[#fff6df] text-fg-secondary shadow-[0_7px_16px_rgb(84_45_18_/_18%)] transition hover:-translate-y-0.5 hover:bg-white"
         >
           <X className="size-5" />
         </button>
 
-        <div className="relative min-h-[28rem] flex-1 bg-surface-subtle md:min-h-[40rem]">
+        <div className="absolute left-[6.4%] right-[6.4%] top-[9.2%] bottom-[25.4%] overflow-hidden rounded-[1rem] border border-[#f0dcae]/80 bg-white shadow-[inset_0_1px_0_rgb(255_255_255_/_88%),0_8px_22px_rgb(80_45_18_/_10%)]">
           {detailStatus === 'loading' && (
             <div className="absolute inset-0 grid place-items-center">
               <p className="body-b text-fg-secondary">메모를 여는 중</p>
@@ -84,7 +90,7 @@ export function CommunityMemoDetailModal({
           )}
         </div>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border-default bg-surface-default p-5">
+        <footer className="absolute bottom-[7.1%] left-[6.4%] right-[6.4%] flex min-h-[6.5rem] flex-wrap items-center justify-between gap-3 px-6">
           <div>
             <p className="caption-b text-primary-2">{detail?.sourceType ?? 'COMMUNITY'}</p>
             <h2 id="community-memo-detail-title" className="h3-b mt-1 text-fg-primary">
