@@ -1,0 +1,449 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "마케팅 페르소나 실시간 대시보드 — 동시 사용자 / funnel 진입·완주율 / 유입 채널 / 이탈 추이 / 인기 화면. 5초 refresh, OpenSearch biz-events-* 실시간 집계.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "type": "row",
+      "title": "🎯 핵심 KPI (실시간)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "panels": []
+    },
+
+    {
+      "type": "stat",
+      "title": "동시 사용자 (5m)",
+      "description": "최근 5분 이내 client_alive heartbeat을 보낸 unique uuid. 지금 서비스에 있는 사람 수.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:client_alive",
+          "metrics": [ { "type": "cardinality", "field": "uuid", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "title": "진입 (1m, funnel_started)",
+      "description": "최근 1분간 funnel 진입 카운트 — 지금 누가 들어오고 있는가.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "purple", "value": null } ] }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_started",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "title": "완주 (1m, funnel_goal_reached)",
+      "description": "최근 1분간 funnel 목표 도달 카운트 — 지금 누가 끝까지 가고 있는가.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_goal_reached",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "gauge",
+      "title": "실시간 완주율 % (15m)",
+      "description": "최근 15분간 funnel_goal_reached / funnel_started. 빨강(20% 미만) → 주황 → 녹색(50%↑).",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 20 },
+              { "color": "yellow", "value": 35 },
+              { "color": "green", "value": 50 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:(funnel_started OR funnel_goal_reached)",
+          "metrics": [
+            { "type": "count", "id": "1" },
+            { "type": "bucket_script", "id": "4", "settings": { "script": "params.goal / params.started * 100" },
+              "pipelineVariables": [
+                { "name": "started", "pipelineAgg": "5" },
+                { "name": "goal", "pipelineAgg": "6" }
+              ]
+            },
+            { "type": "filter", "id": "5", "field": "event_name", "settings": { "query": "event_name:funnel_started" }, "hide": true },
+            { "type": "filter", "id": "6", "field": "event_name", "settings": { "query": "event_name:funnel_goal_reached" }, "hide": true }
+          ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "📡 유입·채널 분석",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 200,
+      "panels": []
+    },
+
+    {
+      "type": "piechart",
+      "title": "유입 채널 분포 (5m)",
+      "description": "최근 5분 landing_source_detected 의 entry_type 분포 — direct / search / social / qr / share / campaign.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 8 },
+      "id": 5,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "pieType": "donut",
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "list", "placement": "right", "values": ["value"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:landing_source_detected",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "2", "field": "metadata.entry_type", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "missing": "unknown" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "컨텐츠별 활성 사용자 (1m, 누적)",
+      "description": "content_type 별 client_alive uuid cardinality. 어느 컨텐츠에 사람이 몰리는지 즉시.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 9, "w": 16, "x": 8, "y": 8 },
+      "id": 6,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 30, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:client_alive AND _exists_:content_type",
+          "metrics": [ { "type": "cardinality", "field": "uuid", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "3", "field": "content_type", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "🎨 Funnel 흐름 & 이탈",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "id": 300,
+      "panels": []
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Funnel 흐름 (started / step / goal / abandoned, 분당)",
+      "description": "네 시리즈 비교 — 진입 vs 단계 통과 vs 완료 vs 이탈. 갭이 크면 사용자가 어느 구간에서 빠지는지 즉시.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "id": 7,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "started" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } } ] },
+          { "matcher": { "id": "byName", "options": "step" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "purple" } } ] },
+          { "matcher": { "id": "byName", "options": "goal" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
+          { "matcher": { "id": "byName", "options": "abandoned" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_started", "alias": "started",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "B", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_step_completed", "alias": "step",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "C", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_goal_reached", "alias": "goal",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "D", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_abandoned", "alias": "abandoned",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "단계별 이탈 추이 (분당)",
+      "description": "room_lobby / creation / result_share abandoned 시리즈. 어느 단계가 약점인지.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "id": 8,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 20, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "lobby" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } } ] },
+          { "matcher": { "id": "byName", "options": "creation" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+          { "matcher": { "id": "byName", "options": "result_share" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } } ] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:room_lobby_abandoned", "alias": "lobby",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "B", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:creation_abandoned", "alias": "creation",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "C", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:result_share_abandoned", "alias": "result_share",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "🔍 화면·에러",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 400,
+      "panels": []
+    },
+
+    {
+      "type": "table",
+      "title": "인기 화면 Top 10 (5m)",
+      "description": "최근 5분 page_view path 별 카운트. 어디로 가장 많이 가는지.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 27 },
+      "id": 9,
+      "options": {
+        "showHeader": true,
+        "footer": { "show": false, "reducer": ["sum"], "fields": "" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "auto", "displayMode": "auto" }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:page_view AND NOT path:/admin\\/*",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "2", "field": "path", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "클라이언트 에러 발생률 (분당)",
+      "description": "js_error / unhandled_rejection / client_network_failed 시리즈. 사용자가 에러로 떠나지 않는지 모니터링.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 27 },
+      "id": 10,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 15, "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "js_error" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+          { "matcher": { "id": "byName", "options": "unhandled_rejection" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } } ] },
+          { "matcher": { "id": "byName", "options": "client_network_failed" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "purple" } } ] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:js_error", "alias": "js_error",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "B", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:unhandled_rejection", "alias": "unhandled_rejection",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "C", "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:client_network_failed", "alias": "client_network_failed",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [ { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } } ],
+          "timeField": "@timestamp"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["marketing", "live", "nemonic"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Nemonic — 마케팅 라이브",
+  "uid": "nemonic-marketing-live",
+  "version": 1,
+  "weekStart": ""
+}
