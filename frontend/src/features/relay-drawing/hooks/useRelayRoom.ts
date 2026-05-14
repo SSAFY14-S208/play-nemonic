@@ -14,6 +14,17 @@ import {
 } from "@/shared/apis";
 import type { RelaySocketStatus } from "@/shared/libs";
 import { useUserStore } from "@/shared/stores";
+import type { RelayBlockedReason } from "@/shared/types";
+
+// viewer.blockedReason → 사용자 안내 토스트 메시지 매핑.
+const BLOCKED_REASON_MESSAGE: Record<RelayBlockedReason, string> = {
+  ROOM_FULL: "정원이 가득 찬 방이에요",
+  GAME_IN_PROGRESS: "이미 게임이 진행 중인 방이에요",
+  RECONNECT_EXPIRED: "재접속 시간이 만료되었어요",
+  KICKED: "강퇴된 방이에요",
+  ROOM_FINISHED: "이미 종료된 방이에요",
+  ROOM_CLOSED: "종료된 방이에요",
+};
 
 import { PART_TO_ROUND_KEY } from "../constants";
 import { useRelayDrawingStore } from "../stores";
@@ -82,12 +93,15 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         const room = await getRelayRoom(roomCode);
         if (cancelled) return;
 
-        // ── CLOSED 방 진입 차단 ──
-        // 이미 종료된 방에 대한 직접 URL/공유 링크 진입.
-        // store를 hydrate하지 않고 부스로 즉시 복귀한다.
-        if (room.status === "CLOSED") {
+        // ── 비참여자 입장 차단 ──
+        // 참여자가 아니면서 입장도 불가능한 경우(CLOSED·FINISHED·게임 진행 중·
+        // 정원 초과·강퇴 등) store를 hydrate하지 않고 부스로 즉시 복귀한다.
+        if (!room.viewer.participant && !room.viewer.canJoin) {
           wasDismissedRef.current = true;
-          toast("종료된 방이에요");
+          toast(
+            BLOCKED_REASON_MESSAGE[room.viewer.blockedReason] ??
+              "입장할 수 없는 방이에요",
+          );
           router.replace("/relay-drawing");
           return;
         }
