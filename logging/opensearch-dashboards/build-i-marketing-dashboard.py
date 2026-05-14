@@ -183,6 +183,9 @@ I1 = viz_classic(
 # ============================================================
 I2_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    # OS Dashboards Vega plugin 이 spec.width 를 보면 autosize fit 을 자동 주입하면서
+    # "width/height ignored" warning 을 띄운다. autosize: "none" 을 명시해서 fit 자동 주입을 차단.
+    "autosize": "none",
     "title": {
         "text": "컨텐츠별 완주율 (%)",
         "subtitle": "진입(funnel_started) 대비 완료(funnel_goal_reached) 비율. 막대 길이 = 비율, 색 = 위험도.",
@@ -280,10 +283,10 @@ I2_SPEC = {
             },
         },
     ],
-    # height 를 step 기반(autosize fit 트리거) 대신 funnel 수에 맞춘 고정값으로 둔다.
-    # autosize warning("width/height ignored")을 피하기 위함.
+    # autosize: "none" + 명시 width/height — OS Dashboards Vega plugin 의 autosize 자동
+    # 주입을 차단하기 위함. width 는 dashboard 절반 폭(24/48 grid) 기준 넉넉한 숫자로.
+    "width": 700,
     "height": 240,
-    "width": "container",
     "config": {
         "background": "transparent",
         "view": {"stroke": None},
@@ -313,6 +316,7 @@ I2 = viz_vega(
 # ============================================================
 I3_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "autosize": "none",
     "title": {
         "text": "단계별 이탈 깔때기",
         "subtitle": "각 컨텐츠의 단계별 잔존 세션 수. 막대가 짧아질수록 그 단계에서 사용자가 빠진 것.",
@@ -404,8 +408,8 @@ I3_SPEC = {
         },
     },
     "spec": {
-        "width": "container",
-        # I3 는 facet 안의 inner spec — step 단계 수에 비례한 고정 높이로 단순화.
+        # dashboard 전체 폭(48/48 grid) 기준. inner spec(facet row 별) 크기.
+        "width": 1200,
         "height": 160,
         "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True},
         "encoding": {
@@ -463,6 +467,7 @@ I3 = viz_vega(
 # ============================================================
 I4_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "autosize": "none",
     "title": {
         "text": "화면 이동 흐름",
         "subtitle": "이전 화면(가로) → 다음 화면(세로) 이동 빈도. 색이 진할수록 이동량 많음.",
@@ -549,7 +554,8 @@ I4_SPEC = {
             {"field": "count", "type": "quantitative", "title": "세션 수"},
         ],
     },
-    "width": "container",
+    # dashboard 전체 폭(48/48 grid) 기준.
+    "width": 1200,
     "height": 380,
     "config": {
         "background": "transparent",
