@@ -236,7 +236,7 @@ F1 = viz(
                 "interval": "d", "drop_partials": False, "min_doc_count": 1, "extended_bounds": {},
             }},
             {"id": "3", "enabled": True, "type": "terms", "schema": "group", "params": {
-                "field": "service.keyword", "orderBy": "1", "order": "desc",
+                "field": "service", "orderBy": "1", "order": "desc",
                 "size": 10, "otherBucket": True, "otherBucketLabel": "그 외",
                 "missingBucket": True, "missingBucketLabel": "(미식별)",
             }},
@@ -262,7 +262,7 @@ F2 = viz(
         "aggs": [
             {"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
             {"id": "2", "enabled": True, "type": "terms", "schema": "segment", "params": {
-                "field": "service.keyword", "orderBy": "1", "order": "desc",
+                "field": "service", "orderBy": "1", "order": "desc",
                 "size": 10, "otherBucket": False,
                 "missingBucket": True, "missingBucketLabel": "(미식별)",
             }},

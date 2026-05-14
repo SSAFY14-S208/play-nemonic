@@ -1,7 +1,5 @@
 {
-  "index_patterns": [
-    "error-logs-*"
-  ],
+  "index_patterns": ["error-logs-*"],
   "priority": 100,
   "template": {
     "settings": {
@@ -14,122 +12,52 @@
     },
     "mappings": {
       "dynamic": "true",
-      "properties": {
-        "@timestamp": {
-          "type": "date"
-        },
-        "level": {
-          "type": "keyword"
-        },
-        "log_level": {
-          "type": "keyword"
-        },
-        "service": {
-          "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
-          }
-        },
-        "trace_id": {
-          "type": "keyword"
-        },
-        "flow_id": {
-          "type": "keyword"
-        },
-        "session_id": {
-          "type": "keyword"
-        },
-        "uuid": {
-          "type": "keyword"
-        },
-        "event_name": {
-          "type": "keyword"
-        },
-        "content_type": {
-          "type": "keyword"
-        },
-        "room_id": {
-          "type": "keyword"
-        },
-        "prev_zone": {
-          "type": "keyword"
-        },
-        "prev_path": {
-          "type": "keyword",
-          "ignore_above": 512
-        },
-        "path": {
-          "type": "keyword",
-          "ignore_above": 512
-        },
-        "pid": {
-          "type": "long"
-        },
-        "application": {
-          "type": "keyword"
-        },
-        "thread": {
-          "type": "keyword"
-        },
-        "logger": {
-          "type": "keyword"
-        },
-        "log_message": {
-          "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 1024
-            }
-          }
-        },
-        "message": {
-          "type": "text"
-        },
-        "error": {
-          "properties": {
-            "type": {
-              "type": "keyword"
-            },
-            "message": {
-              "type": "text"
-            },
-            "stack": {
-              "type": "text",
-              "index": false
-            }
-          }
-        },
-        "container_id": {
-          "type": "keyword"
-        },
-        "log_tag": {
-          "type": "keyword"
-        },
-        "hostname": {
-          "type": "keyword"
-        },
-        "stream": {
-          "type": "keyword"
-        },
-        "tags": {
-          "type": "keyword"
-        },
-        "log_type": {
-          "type": "keyword"
-        },
-        "container_name": {
-          "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": { "type": "keyword", "ignore_above": 1024 }
           }
         }
+      ],
+      "properties": {
+        "@timestamp":     { "type": "date" },
+        "level":          { "type": "keyword" },
+        "log_level":      { "type": "keyword" },
+        "service":        { "type": "keyword" },
+        "trace_id":       { "type": "keyword" },
+        "flow_id":        { "type": "keyword" },
+        "session_id":     { "type": "keyword" },
+        "uuid":           { "type": "keyword" },
+        "event_name":     { "type": "keyword" },
+        "content_type":   { "type": "keyword" },
+        "room_id":        { "type": "keyword" },
+        "prev_zone":      { "type": "keyword" },
+        "prev_path":      { "type": "keyword", "ignore_above": 512 },
+        "path":           { "type": "keyword", "ignore_above": 512 },
+        "pid":            { "type": "long" },
+        "application":    { "type": "keyword" },
+        "thread":         { "type": "keyword" },
+        "logger":         { "type": "keyword" },
+        "log_message":    {
+          "type": "text",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 1024 } }
+        },
+        "message":        { "type": "text" },
+        "error": {
+          "properties": {
+            "type":    { "type": "keyword" },
+            "message": { "type": "text" },
+            "stack":   { "type": "text", "index": false }
+          }
+        },
+        "container_id":   { "type": "keyword" },
+        "container_name": { "type": "keyword", "ignore_above": 256 },
+        "log_tag":        { "type": "keyword" },
+        "hostname":       { "type": "keyword" },
+        "stream":         { "type": "keyword" },
+        "tags":           { "type": "keyword" },
+        "log_type":       { "type": "keyword" }
       }
     }
   },

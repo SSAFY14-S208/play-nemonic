@@ -1,7 +1,5 @@
 {
-  "index_patterns": [
-    "access-logs-*"
-  ],
+  "index_patterns": ["access-logs-*"],
   "priority": 100,
   "template": {
     "settings": {
@@ -15,88 +13,29 @@
     "mappings": {
       "dynamic": "true",
       "properties": {
-        "@timestamp": {
-          "type": "date"
-        },
-        "remote_addr": {
-          "type": "ip"
-        },
-        "remote_user": {
-          "type": "keyword"
-        },
-        "http_method": {
-          "type": "keyword"
-        },
-        "http_uri": {
+        "@timestamp":           { "type": "date" },
+        "remote_addr":          { "type": "ip" },
+        "remote_user":          { "type": "keyword" },
+        "http_method":          { "type": "keyword" },
+        "http_uri":             {
           "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 2048
-            }
-          }
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 2048 } }
         },
-        "http_version": {
-          "type": "keyword"
-        },
-        "status_code": {
-          "type": "short"
-        },
-        "body_bytes_sent": {
-          "type": "long"
-        },
-        "http_referer": {
-          "type": "keyword",
-          "ignore_above": 2048
-        },
-        "http_user_agent": {
+        "http_version":         { "type": "keyword" },
+        "status_code":          { "type": "short" },
+        "body_bytes_sent":      { "type": "long" },
+        "http_referer":         { "type": "keyword", "ignore_above": 2048 },
+        "http_user_agent":      {
           "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 1024
-            }
-          }
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 1024 } }
         },
-        "http_x_forwarded_for": {
-          "type": "keyword"
-        },
-        "container_id": {
-          "type": "keyword"
-        },
-        "log_tag": {
-          "type": "keyword"
-        },
-        "hostname": {
-          "type": "keyword"
-        },
-        "stream": {
-          "type": "keyword"
-        },
-        "tags": {
-          "type": "keyword"
-        },
-        "log_type": {
-          "type": "keyword"
-        },
-        "service": {
-          "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
-          }
-        },
-        "container_name": {
-          "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
-          }
-        }
+        "http_x_forwarded_for": { "type": "keyword" },
+        "container_id":         { "type": "keyword" },
+        "log_tag":              { "type": "keyword" },
+        "hostname":             { "type": "keyword" },
+        "stream":               { "type": "keyword" },
+        "tags":                 { "type": "keyword" },
+        "log_type":             { "type": "keyword" }
       }
     }
   },
