@@ -12,6 +12,8 @@ interface ResultRightPanelProps {
   onSelectResult: (index: number) => void
   isHost: boolean
   onReturnToLobby: () => void
+  onCommunityPost: () => void
+  canPostCommunity: boolean
 }
 
 // 결과 화면 우측 1컬럼 패널 — 얼굴 작성자(앨범 소유자) 닉네임 버튼 + 액션 버튼.
@@ -23,6 +25,8 @@ export default function ResultRightPanel({
   onSelectResult,
   isHost,
   onReturnToLobby,
+  onCommunityPost,
+  canPostCommunity,
 }: ResultRightPanelProps) {
   return (
     <section className="flex flex-col gap-4">
@@ -58,22 +62,28 @@ export default function ResultRightPanel({
       </div>
 
       <div className="flex flex-col gap-2">
-        {RELAY_RESULT_ACTIONS.map(({ label, Icon }, index) => (
-          <RelayButton
-            key={label}
-            variant={index === 0 ? 'secondary' : 'primary'}
-            size="md"
-            className={cn(
-              'w-full gap-2 rounded-[14px] border-[1.5px]',
-              index === 0
-                ? 'border-relay-line'
-                : 'border-relay-accent shadow-[0_4px_10px_rgba(212,156,31,0.18)]',
-            )}
-          >
-            <Icon className="size-4" aria-hidden />
-            {label}
-          </RelayButton>
-        ))}
+        {RELAY_RESULT_ACTIONS.map(({ label, Icon }, index) => {
+          const isCommunityPostAction = index === 1
+
+          return (
+            <RelayButton
+              key={label}
+              variant={index === 0 ? 'secondary' : 'primary'}
+              size="md"
+              onClick={isCommunityPostAction ? onCommunityPost : undefined}
+              disabled={isCommunityPostAction && !canPostCommunity}
+              className={cn(
+                'w-full gap-2 rounded-[14px] border-[1.5px]',
+                index === 0
+                  ? 'border-relay-line'
+                  : 'border-relay-accent shadow-[0_4px_10px_rgba(212,156,31,0.18)]',
+              )}
+            >
+              <Icon className="size-4" aria-hidden />
+              {label}
+            </RelayButton>
+          )
+        })}
         <RelayButton
           onClick={onReturnToLobby}
           size="md"

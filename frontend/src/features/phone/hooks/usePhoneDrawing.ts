@@ -50,6 +50,11 @@ export function usePhoneDrawing() {
   const brushSize = brushSizes[activeTool]
   const hasDrawing = lines.length > 0
 
+  const getDrawingImageDataUrl = useCallback(
+    () => stageRef.current?.toDataURL({ pixelRatio: 2 }) ?? null,
+    [],
+  )
+
   const setBrushSize = useCallback(
     (nextBrushSize: number) => {
       setBrushSizes((currentBrushSizes) => ({
@@ -140,7 +145,7 @@ export function usePhoneDrawing() {
     async (action: 'save' | 'print') => {
       if (!hasDrawing || isSaving) return
 
-      const imageDataUrl = stageRef.current?.toDataURL({ pixelRatio: 2 })
+      const imageDataUrl = getDrawingImageDataUrl()
       if (!imageDataUrl) return
 
       setSavingDrawing(true)
@@ -162,6 +167,7 @@ export function usePhoneDrawing() {
     [
       addDrawingArtifact,
       clearDrawing,
+      getDrawingImageDataUrl,
       hasDrawing,
       isSaving,
       setSavingDrawing,
@@ -176,6 +182,7 @@ export function usePhoneDrawing() {
     createArtifact,
     draw,
     endDrawing,
+    getDrawingImageDataUrl,
     hasDrawing,
     isSaving,
     lines,

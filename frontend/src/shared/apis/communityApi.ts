@@ -2,11 +2,11 @@ import { api } from '@/shared/libs'
 import type {
   ApiResponse,
   CommunityMemoCreateRequest,
+  CommunityMemoDetailResponse,
   CommunityMemoLayoutRequest,
   CommunityMemoListResponse,
   CommunityMemoReportRequest,
   CommunityMemoReportResponse,
-  CommunityMemoResponse,
 } from '@/shared/types'
 
 import { apiUnwrap } from '@/shared/utils'
@@ -17,15 +17,17 @@ export const getCommunityMemoList = () =>
 
 // POST /community/memos — 커뮤니티 메모 생성
 export const postCommunityMemo = (payload: CommunityMemoCreateRequest) =>
-  apiUnwrap(api.post<ApiResponse<CommunityMemoResponse>>('community/memos', payload))
+  apiUnwrap(api.post<ApiResponse<CommunityMemoDetailResponse>>('community/memos', payload))
 
 // GET /community/memos/{memoId} — 커뮤니티 메모 상세 조회
 export const getCommunityMemo = (memoId: string) =>
-  apiUnwrap(api.get<ApiResponse<CommunityMemoResponse>>(`community/memos/${memoId}`))
+  apiUnwrap(api.get<ApiResponse<CommunityMemoDetailResponse>>(`community/memos/${memoId}`))
 
 // PATCH /community/memos/{memoId} — 커뮤니티 메모 레이아웃 수정
 export const patchCommunityMemo = (memoId: string, payload: CommunityMemoLayoutRequest) =>
-  apiUnwrap(api.patch<ApiResponse<CommunityMemoResponse>>(`community/memos/${memoId}`, payload))
+  apiUnwrap(
+    api.patch<ApiResponse<CommunityMemoDetailResponse>>(`community/memos/${memoId}`, payload),
+  )
 
 // DELETE /community/memos/{memoId} — 커뮤니티 메모 삭제
 export const deleteCommunityMemo = (memoId: string) =>

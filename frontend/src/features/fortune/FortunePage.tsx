@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { cn } from '@/shared/libs'
+import { writeCommunityCanvasHandoffDraft } from '@/shared/utils'
 
 import {
   FORTUNE_DIALOGUES,
@@ -30,6 +31,7 @@ import {
   useFortuneReducedMotion,
   useFortuneSessionHydration,
 } from './hooks'
+import { createFortuneCommunityImageDataUrl } from './utils'
 
 const LAST_DIALOGUE_INDEX = FORTUNE_DIALOGUES.length - 1
 
@@ -93,7 +95,25 @@ export default function FortunePage() {
   }, [])
 
   const handleAttach = () => {
-    setNoticeMessage('커뮤니티 캔버스 부착은 다음 통합 단계에서 연결할게요.')
+    if (result) {
+      const imageUrl = result.fortuneImageUrl ?? createFortuneCommunityImageDataUrl(result)
+      if (!imageUrl) {
+        setNoticeMessage('커뮤니티에 붙일 운세 이미지를 만들지 못했어요.')
+        return
+      }
+
+      writeCommunityCanvasHandoffDraft({
+        sourceKind: 'FORTUNE',
+        title: result.title,
+        imageUrl,
+        thumbnailUrl: imageUrl,
+        sourceContentKind: 'fortune',
+      })
+      router.push('/community-canvas')
+      return
+    }
+
+    setNoticeMessage('커뮤니티에 붙일 운세 결과가 없어요.')
   }
 
   const goBackToHub = () => {

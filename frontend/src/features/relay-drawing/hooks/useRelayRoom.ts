@@ -2,7 +2,7 @@
 
 import { HTTPError } from "ky";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ApiError,
   deleteRelayRoomParticipantMe,
@@ -28,6 +28,22 @@ const BLOCKED_REASON_MESSAGE: Record<RelayBlockedReason, string> = {
 };
 import { useRelayDrawingStore } from "../stores";
 import { useRelaySocket } from "./useRelaySocket";
+
+const dismissedRoomCodes = new Set<string>();
+
+function markRoomDismissed(roomCode: string | null): void {
+  if (!roomCode) return;
+  dismissedRoomCodes.add(roomCode);
+}
+
+function hasRoomDismissed(roomCode: string | null): boolean {
+  return roomCode !== null && dismissedRoomCodes.has(roomCode);
+}
+
+function resetRoomDismissed(roomCode: string | null): void {
+  if (!roomCode) return;
+  dismissedRoomCodes.delete(roomCode);
+}
 
 interface UseRelayRoomReturn {
   isHydrating: boolean;
@@ -96,7 +112,7 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         // 참여자가 아니면서 입장도 불가능한 경우(CLOSED·FINISHED·게임 진행 중·
         // 정원 초과·강퇴 등) store를 hydrate하지 않고 부스로 즉시 복귀한다.
         if (!room.viewer.participant && !room.viewer.canJoin) {
-          wasDismissedRef.current = true;
+          markRoomDismissed(roomCode);
           relayToast(
             BLOCKED_REASON_MESSAGE[room.viewer.blockedReason] ??
               "입장할 수 없는 방이에요",
@@ -186,22 +202,21 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
     return () => {
       cancelled = true;
     };
-  }, [roomCode, hydrateRoomState]);
+  }, [roomCode, hydrateRoomState, router]);
 
   // ── 자발적 퇴장 감지 ─────────────────────────────────────────
   // 페이지 이탈(브라우저 뒤로가기·라우트 전환 등) 시 서버에 퇴장 의사를 즉시
   // 전달한다. WS 종료성 이벤트(강퇴·방 종료 등)로 인한 퇴장은 이미 서버가
   // 처리했으므로 중복 호출을 방지한다.
-  const wasDismissedRef = useRef(false);
-
   useEffect(() => {
     if (!roomCode) return;
-    wasDismissedRef.current = false;
+    resetRoomDismissed(roomCode);
 
     return () => {
-      if (!wasDismissedRef.current) {
+      if (!hasRoomDismissed(roomCode)) {
         void deleteRelayRoomParticipantMe(roomCode).catch(() => {});
       }
+      resetRoomDismissed(roomCode);
     };
   }, [roomCode]);
 
@@ -359,7 +374,7 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
       ROOM_CLOSED: () => {
         // 방 종료 — 모달로 안내 후 부스 복귀. roomStatus는 건드리지 않아서
         // 현재 뷰 위에 모달이 오버레이된다.
-        wasDismissedRef.current = true;
+        markRoomDismissed(roomCode);
         setDismissalReason("ROOM_CLOSED");
       },
       // 호스트가 다른 참여자를 강퇴 — 방 전체 브로드캐스트.
@@ -370,8 +385,8 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         const currentUserUuid = useUserStore.getState().userUuid;
 
         if (currentUserUuid === event.data.kickedUserUuid) {
-          if (wasDismissedRef.current) return;
-          wasDismissedRef.current = true;
+          if (hasRoomDismissed(roomCode)) return;
+          markRoomDismissed(roomCode);
           relayToast.error("호스트에 의해 방에서 내보내졌습니다.");
           clearRoom();
           router.push("/relay-drawing");
@@ -392,14 +407,14 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
       // 강퇴 대상자: 모달로 멈추지 않고 즉시 부스로 복귀시키고 토스트로 사유를 알린다.
       // PARTICIPANT_KICKED 브로드캐스트가 먼저 도착해 이미 처리됐으면 dedup으로 건너뛴다.
       KICKED_FROM_ROOM: () => {
-        if (wasDismissedRef.current) return;
-        wasDismissedRef.current = true;
+        if (hasRoomDismissed(roomCode)) return;
+        markRoomDismissed(roomCode);
         relayToast.error("호스트에 의해 방에서 내보내졌습니다.");
         clearRoom();
         router.push("/relay-drawing");
       },
       DUPLICATE_SESSION_CLOSED: () => {
-        wasDismissedRef.current = true;
+        markRoomDismissed(roomCode);
         setDismissalReason("DUPLICATE_SESSION");
       },
 

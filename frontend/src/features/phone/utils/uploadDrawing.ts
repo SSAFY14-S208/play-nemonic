@@ -14,7 +14,7 @@ export async function uploadDrawingArtifact(
 ): Promise<PhoneDrawingSaveResponse> {
   const fileName = options.fileName ?? `phone-drawing-${Date.now()}.png`
   const contentType = options.contentType ?? 'image/png'
-  const purpose = options.purpose ?? 'PHONE_DRAWING'
+  const purpose = options.purpose ?? 'PHONE'
 
   const presign = await postFilePresign({
     fileName,

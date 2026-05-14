@@ -10,10 +10,11 @@ const INACTIVE_INTERVAL_MS = 5 * 60_000 // 비활성 탭 5분
 // visibility 기반 interval 전환 heartbeat
 export function useClientAlive() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const sessionStartRef = useRef<number>(Date.now())
+  const sessionStartRef = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    sessionStartRef.current = Date.now()
 
     function sendHeartbeat() {
       if (cancelled) return
@@ -21,7 +22,7 @@ export function useClientAlive() {
       logEvent('client_alive', {
         path: window.location.pathname,
         metadata: {
-          time_in_session_ms: Date.now() - sessionStartRef.current,
+          time_in_session_ms: Date.now() - (sessionStartRef.current ?? Date.now()),
         },
       })
     }
