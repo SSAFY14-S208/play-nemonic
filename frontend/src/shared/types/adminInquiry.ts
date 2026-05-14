@@ -10,9 +10,13 @@
 export type AdminInquiryStatus = 'new' | 'in_progress' | 'resolved' | 'closed'
 
 /**
- * 문의 유형 enum 값. Swagger 예시는 `"error"` 한 종류만 노출 — 전체 값 미확정이라 string.
+ * 문의 유형 enum 값. 백엔드 CsInquiryType과 동일한 소문자 값.
  */
-export type AdminInquiryType = string
+export type AdminInquiryType =
+  | 'error'
+  | 'feature_request'
+  | 'content_report'
+  | 'other'
 
 /**
  * `GET /admin/inquiries` 응답 항목.

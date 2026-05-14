@@ -70,6 +70,7 @@ interface PhoneStore {
   selectGalleryItem: (itemId: string) => void
   showDrawing: () => void
   showGallery: () => void
+  showInquiry: () => void
 
   // profile actions
   loadProfile: () => Promise<void>
@@ -178,6 +179,7 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
   selectGalleryItem: (itemId) => set({ selectedGalleryItemId: itemId }),
   showDrawing: () => set({ activeScreen: 'drawing', selectedGalleryItemId: null }),
   showGallery: () => set({ activeScreen: 'gallery', selectedGalleryItemId: null }),
+  showInquiry: () => set({ activeScreen: 'inquiry', selectedGalleryItemId: null }),
 
   loadProfile: async () => {
     const { profileStatus } = get()
