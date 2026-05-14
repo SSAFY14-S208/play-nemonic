@@ -12,6 +12,7 @@ export function useFlipbookEntranceTimeline(
   frameCount: number,
 ) {
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
+  const [isFinalStageReady, setIsFinalStageReady] = useState(false)
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start start', 'end end'],
@@ -38,6 +39,11 @@ export function useFlipbookEntranceTimeline(
     setActiveFrameIndex((currentFrameIndex) =>
       currentFrameIndex === nextFrameIndex ? currentFrameIndex : nextFrameIndex,
     )
+    setIsFinalStageReady((currentValue) => {
+      const nextValue = latestProgress >= 0.86
+
+      return currentValue === nextValue ? currentValue : nextValue
+    })
   })
 
   const frameOpacity = useTransform(smoothProgress, [0, 1], [1, 1])
@@ -66,6 +72,7 @@ export function useFlipbookEntranceTimeline(
     frameScale,
     frameY,
     frameRotate,
+    isFinalStageReady,
     actionOpacity,
     actionY,
     background: {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import Image from 'next/image'
 import { KeyRound, Sparkles, X } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -32,21 +32,39 @@ const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
 const FLIPBOOK_ENTRANCE_FRAME_SOURCES = FLIPBOOK_ENTRANCE_FRAMES.map(
   (entranceFrame) => entranceFrame.src,
 )
-const FLIPBOOK_BUTTON_IMAGES = {
-  createRoom: '/images/flipbook-buttons/create-room.png',
-  enterRoom: '/images/flipbook-buttons/enter-room.png',
+const FLIPBOOK_FINAL_IMAGES = {
+  background: '/images/flipbook-entrance-final/background.png',
+  logo: '/images/flipbook-entrance-final/flipbook-logo.png',
+  storybookStage: '/images/flipbook-entrance-final/storybook-stage.png',
+  createRoomButton: '/images/flipbook-entrance-final/create-room-button.png',
+  enterRoomButton: '/images/flipbook-entrance-final/enter-room-button.png',
+  key: '/images/flipbook-entrance-final/key.png',
+  lock: '/images/flipbook-entrance-final/lock.png',
 }
-const FLIPBOOK_LOGO_IMAGE = '/images/flipbook-logo-v2.webp'
 
 const FLIPBOOK_ENTRANCE_ACTIONS = [
   {
     key: 'create-room',
-    imageSrc: FLIPBOOK_BUTTON_IMAGES.createRoom,
+    imageSrc: FLIPBOOK_FINAL_IMAGES.createRoomButton,
+    iconSrc: FLIPBOOK_FINAL_IMAGES.lock,
+    buttonClassName: 'left-[15.374%] top-[62.968%] h-[9.573%] w-[12.741%]',
+    iconClassName: 'left-[8.544%] top-[23.222%] h-[52.129%] w-[25.400%]',
+    textClassName: 'left-[37.877%] top-[33.647%] h-[31.279%] w-[70.439%]',
+    imageCropClassName: 'h-[432.07%] w-[245.37%] -left-[131.47%] -top-[187.76%]',
+    iconCropClassName: 'h-[185.51%] w-[278.26%] -left-[30.99%] -top-[35.33%]',
+    strokeColor: '#a84867',
     label: '방 만들기',
   },
   {
     key: 'enter-room',
-    imageSrc: FLIPBOOK_BUTTON_IMAGES.enterRoom,
+    imageSrc: FLIPBOOK_FINAL_IMAGES.enterRoomButton,
+    iconSrc: FLIPBOOK_FINAL_IMAGES.key,
+    buttonClassName: 'left-[31.793%] top-[62.968%] h-[9.573%] w-[12.771%]',
+    iconClassName: 'left-[11.290%] top-[23.696%] h-[52.612%] w-[25.569%]',
+    textClassName: 'left-[40.092%] top-[33.647%] h-[31.279%] w-[70.275%]',
+    imageCropClassName: 'h-[430.25%] w-[245.37%] -left-[131.63%] -top-[65.55%]',
+    iconCropClassName: 'h-[185.51%] w-[278.26%] -left-[161.03%] -top-[35.33%]',
+    strokeColor: '#a76508',
     label: '입장하기',
   },
 ] as const
@@ -96,24 +114,6 @@ export default function FlipbookEntranceView({
       <div className="sticky top-0 grid h-[100svh] min-h-[620px] overflow-hidden">
         <FlipbookPaperBackground layerStyles={timeline.background} />
         <div className="relative z-10 grid h-full place-items-center px-5 py-8">
-          <motion.div
-            className="absolute inset-x-0 top-[max(3svh,18px)] z-20 mx-auto flex justify-center px-5"
-            style={{
-              opacity: timeline.actionOpacity,
-              y: timeline.actionY,
-            }}
-          >
-            <Image
-              src={FLIPBOOK_LOGO_IMAGE}
-              alt="플립북"
-              width={979}
-              height={646}
-              priority
-              sizes="(max-width: 640px) 44vw, 300px"
-              className="h-auto w-[min(44vw,300px)] drop-shadow-[0_12px_22px_rgba(251,188,196,0.36)]"
-            />
-          </motion.div>
-
           <motion.div
             className="relative z-10 aspect-[626/480] w-[min(82vw,626px)]"
             style={{
@@ -173,30 +173,14 @@ export default function FlipbookEntranceView({
             />
           </motion.div>
 
-          <motion.div
-            className="absolute inset-x-0 bottom-[max(3.5svh,18px)] z-20 mx-auto grid w-full max-w-[680px] gap-4 px-5 sm:gap-5"
-            style={{
-              opacity: timeline.actionOpacity,
-              y: timeline.actionY,
-            }}
-          >
-            <div className="grid grid-cols-2 items-center gap-4 sm:gap-6">
-              {FLIPBOOK_ENTRANCE_ACTIONS.map((action) => (
-                <FlipbookEntranceImageButton
-                  key={action.key}
-                  imageSrc={action.imageSrc}
-                  label={isBusy ? '처리 중' : action.label}
-                  disabled={isBusy}
-                  onClick={actionHandlers[action.key]}
-                />
-              ))}
-            </div>
-            {errorMessage && !isRoomCodeModalOpen && (
-              <p className="caption-b mx-auto max-w-[520px] rounded-full border border-flipbook-light bg-flipbook-paper/88 px-5 py-3 text-center text-flipbook-deep shadow-[0_8px_18px_var(--color-flipbook-shadow)]">
-                {errorMessage}
-              </p>
-            )}
-          </motion.div>
+          <FlipbookEntranceFinalStage
+            isReady={timeline.isFinalStageReady}
+            opacity={timeline.actionOpacity}
+            y={timeline.actionY}
+            isBusy={isBusy}
+            errorMessage={!isRoomCodeModalOpen ? errorMessage : null}
+            actionHandlers={actionHandlers}
+          />
         </div>
       </div>
 
@@ -216,11 +200,25 @@ export default function FlipbookEntranceView({
 
 function FlipbookEntranceImageButton({
   imageSrc,
+  iconSrc,
+  buttonClassName,
+  iconClassName,
+  textClassName,
+  imageCropClassName,
+  iconCropClassName,
+  strokeColor,
   label,
   disabled,
   onClick,
 }: {
   imageSrc: string
+  iconSrc: string
+  buttonClassName: string
+  iconClassName: string
+  textClassName: string
+  imageCropClassName: string
+  iconCropClassName: string
+  strokeColor: string
   label: string
   disabled: boolean
   onClick: () => void
@@ -233,19 +231,126 @@ function FlipbookEntranceImageButton({
       aria-label={label}
       whileHover={{ y: -4, scale: 1.025 }}
       whileTap={{ y: 1, scale: 0.985 }}
-      className="relative aspect-[649/255] w-full overflow-hidden rounded-[18px] transition-transform focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary"
+      className={`absolute overflow-visible transition-transform focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary disabled:cursor-not-allowed disabled:opacity-70 ${buttonClassName}`}
     >
-      <Image
-        src={imageSrc}
-        alt=""
-        fill
-        sizes="(max-width: 640px) 42vw, 320px"
-        className="object-contain"
-      />
-      <span className="h4-b pointer-events-none absolute left-[30%] right-[20%] top-1/2 -translate-y-1/2 text-center text-flipbook-ink drop-shadow-[0_2px_0_rgb(255_255_255_/_80%)]">
+      <span className="absolute inset-0 overflow-hidden" aria-hidden>
+        <Image
+          src={imageSrc}
+          alt=""
+          width={1536}
+          height={1024}
+          sizes="(max-width: 640px) 43vw, 433px"
+          className={`absolute max-w-none ${imageCropClassName}`}
+        />
+      </span>
+      <span className={`absolute overflow-hidden ${iconClassName}`} aria-hidden>
+        <Image
+          src={iconSrc}
+          alt=""
+          width={1536}
+          height={1024}
+          sizes="(max-width: 640px) 12vw, 111px"
+          className={`absolute max-w-none ${iconCropClassName}`}
+        />
+      </span>
+      <span
+        className={`pointer-events-none absolute flex flex-col justify-center text-center font-[var(--font-gumi-romance)] font-normal leading-none text-white ${textClassName}`}
+        style={{
+          fontSize: 'calc(var(--flipbook-final-canvas-width) * 32 / 2140)',
+          WebkitTextStroke: `calc(var(--flipbook-final-canvas-width) * 2 / 2140) ${strokeColor}`,
+          paintOrder: 'stroke fill',
+        }}
+      >
         {label}
       </span>
     </motion.button>
+  )
+}
+
+function FlipbookEntranceFinalStage({
+  isReady,
+  opacity,
+  y,
+  isBusy,
+  errorMessage,
+  actionHandlers,
+}: {
+  isReady: boolean
+  opacity: ReturnType<typeof useFlipbookEntranceTimeline>['actionOpacity']
+  y: ReturnType<typeof useFlipbookEntranceTimeline>['actionY']
+  isBusy: boolean
+  errorMessage: string | null
+  actionHandlers: Record<(typeof FLIPBOOK_ENTRANCE_ACTIONS)[number]['key'], () => void>
+}) {
+  return (
+    <motion.div
+      className={`absolute inset-0 z-30 overflow-hidden ${isReady ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      style={{
+        opacity,
+        y,
+      }}
+      aria-hidden={!isReady}
+    >
+      <div
+        className="absolute left-1/2 top-1/2 aspect-[2140/1388] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+        style={{
+          '--flipbook-final-canvas-width': 'max(100vw, calc(100svh * 2140 / 1388))',
+          width: 'var(--flipbook-final-canvas-width)',
+          height: 'max(100svh, calc(100vw * 1388 / 2140))',
+        } as CSSProperties}
+      >
+        <Image
+          src={FLIPBOOK_FINAL_IMAGES.background}
+          alt=""
+          width={1536}
+          height={1024}
+          priority
+          sizes="100vw"
+          className="absolute left-0 top-[-2.161%] h-[102.738%] w-[99.953%] object-fill"
+        />
+        <Image
+          src={FLIPBOOK_FINAL_IMAGES.logo}
+          alt="플립북"
+          width={979}
+          height={646}
+          priority
+          sizes="27vw"
+          className="absolute left-[17.336%] top-[27.378%] h-[27.089%] w-[26.636%] object-fill"
+        />
+        <Image
+          src={FLIPBOOK_FINAL_IMAGES.storybookStage}
+          alt=""
+          width={1024}
+          height={682}
+          priority
+          sizes="50vw"
+          className="absolute left-[43.972%] top-[22.118%] h-[50.432%] w-[49.112%] object-fill"
+        />
+
+        {FLIPBOOK_ENTRANCE_ACTIONS.map((action) => (
+          <FlipbookEntranceImageButton
+            key={action.key}
+            imageSrc={action.imageSrc}
+            iconSrc={action.iconSrc}
+            buttonClassName={action.buttonClassName}
+            iconClassName={action.iconClassName}
+            textClassName={action.textClassName}
+            imageCropClassName={action.imageCropClassName}
+            iconCropClassName={action.iconCropClassName}
+            strokeColor={action.strokeColor}
+            label={isBusy ? '처리 중' : action.label}
+            disabled={isBusy || !isReady}
+            onClick={actionHandlers[action.key]}
+          />
+        ))}
+
+        {errorMessage && (
+          <p className="caption-b absolute left-[15.374%] top-[73.3%] w-[30.514%] rounded-full border border-flipbook-light bg-flipbook-paper/88 px-5 py-3 text-center text-flipbook-deep shadow-[0_8px_18px_var(--color-flipbook-shadow)]">
+            {errorMessage}
+          </p>
+        )}
+      </div>
+    </motion.div>
   )
 }
 
