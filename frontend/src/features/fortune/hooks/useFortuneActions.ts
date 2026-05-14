@@ -3,6 +3,7 @@
 import { useCallback } from 'react'
 
 import { runtime } from '@/shared/config'
+import { completeFunnelStep, reachFunnelGoal } from '@/shared/libs'
 
 import { FORTUNE_EMPTY_BIRTH_INFO } from '../constants'
 import { useFortuneSessionStore } from '../fortuneSessionStore'
@@ -22,6 +23,9 @@ import {
 
 export function useFortuneActions() {
   const startBirthInfo = useCallback(() => {
+    // intro(landing) → birthInfo 전환. landing step(step_index=0)이 완료된 시점.
+    // funnel_started가 step 0 진입을 의미하므로 별도 viewed 이벤트는 발사하지 않는다.
+    completeFunnelStep('landing', 0, { content_type: 'fortune' })
     useFortuneSessionStore.getState().setStep('birthInfo')
   }, [])
 
@@ -54,9 +58,11 @@ export function useFortuneActions() {
     try {
       await saveBirthInfo(birthInfo, hasServerBirthInfo)
       setHasServerBirthInfo(true)
+      completeFunnelStep('birth_info', 1, { content_type: 'fortune' })
       setStep('draw')
     } catch (error) {
       if (canUseLocalFortuneFallback(error)) {
+        completeFunnelStep('birth_info', 1, { content_type: 'fortune' })
         setStep('draw')
       } else {
         setErrorMessage(resolveBirthInfoErrorMessage(error))
@@ -87,6 +93,7 @@ export function useFortuneActions() {
     try {
       const nextResult = await issueNewFortune(birthInfo)
       setResult(nextResult)
+      completeFunnelStep('theme_select', 2, { content_type: 'fortune' })
       setStep('printing')
     } catch (error) {
       const alreadyIssuedResult = await resolveAlreadyIssuedResult(error, birthInfo)
@@ -101,6 +108,7 @@ export function useFortuneActions() {
       } else if (canUseLocalFortuneFallback(error)) {
         const nextResult = createMockFortuneResult(birthInfo)
         setResult(nextResult)
+        completeFunnelStep('theme_select', 2, { content_type: 'fortune' })
         setStep('printing')
       } else {
         setErrorMessage(resolveFortuneErrorMessage(error))
@@ -127,6 +135,8 @@ export function useFortuneActions() {
       issuedAt: new Date().toISOString(),
     })
 
+    completeFunnelStep('loading', 3, { content_type: 'fortune' })
+    reachFunnelGoal('fortune_result_viewed', { content_type: 'fortune' })
     setStep('result')
   }, [])
 
