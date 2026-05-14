@@ -74,6 +74,7 @@
   /* ── Flipbook (Figma v2 Flipbook Pastel semantic roles) ─────────────────── */
   --color-flipbook-background: #fdecee;
   --color-flipbook-tint: #fff5f7;
+  --color-flipbook-room-base: #fff4df;
   --color-flipbook-paper: #ffffff;
   --color-flipbook-light: #fbbcc4;
   --color-flipbook-primary: #f58c97;
