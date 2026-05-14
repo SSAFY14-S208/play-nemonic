@@ -71,6 +71,29 @@ def viz_classic(viz_id, title, vis_state, query="", description="", colors=None)
     }
 
 
+def wrap_single_as_multiview(spec):
+    """single chart vega-lite spec 을 vconcat 단일 항목으로 wrap.
+
+    OS Dashboards Vega plugin 은 single chart spec 에 width/height 가 명시되면 autosize:"fit"
+    을 자동 주입하면서 "width/height ignored" warning 을 출력한다. 이 자동 주입은 spec 이
+    multi-view(facet/vconcat/hconcat/repeat) 일 때만 건너뛴다.
+
+    single chart 를 vconcat 안에 1개짜리로 wrap 하면 plugin 입장에서 multi-view 가 되어
+    width/height/autosize 가 inner spec 에서 그대로 적용되고 warning 도 사라진다.
+
+    outer 에는 $schema 와 config 만 남기고, 나머지는 inner spec 으로 이동한다 — title 은
+    inner 안에 있어야 multi-view 내부 chart 의 title 로 표시된다.
+    """
+    outer_keys = {"$schema", "config"}
+    inner_spec = {k: v for k, v in spec.items() if k not in outer_keys}
+    wrapped = {"vconcat": [inner_spec]}
+    if "$schema" in spec:
+        wrapped["$schema"] = spec["$schema"]
+    if "config" in spec:
+        wrapped["config"] = spec["config"]
+    return wrapped
+
+
 def viz_vega(viz_id, title, spec, description=""):
     """Vega/Vega-Lite visualization 래퍼.
 
@@ -308,7 +331,7 @@ I2 = viz_vega(
     viz_id="vis-marketing-conversion-rate",
     title="[I2] 컨텐츠별 완주율",
     description="진입 → 완료 비율 (%). 색이 빨강일수록 이탈이 심한 컨텐츠.",
-    spec=I2_SPEC,
+    spec=wrap_single_as_multiview(I2_SPEC),
 )
 
 
@@ -588,7 +611,7 @@ I4 = viz_vega(
     viz_id="vis-marketing-flow-heatmap",
     title="[I4] 화면 이동 흐름",
     description="이전 화면 → 다음 화면 이동 빈도 히트맵. 짙은 칸 = 자주 일어나는 흐름.",
-    spec=I4_SPEC,
+    spec=wrap_single_as_multiview(I4_SPEC),
 )
 
 
