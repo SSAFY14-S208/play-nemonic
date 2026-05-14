@@ -24,6 +24,82 @@ OUT = Path(__file__).parent / "saved-objects" / "80-dashboard-marketing.ndjson"
 # index-pattern ID — saved-objects/00-index-patterns.ndjson 의 biz-events-* 항목.
 BIZ_EVENTS_PATTERN_ID = "8528e1b0-4cd5-11f1-93a4-814592ee4ccd"
 
+
+# ============================================================
+# Design tokens — modern dark + violet accent.
+#
+# 모든 viz 가 여기에서 색을 끌어다 쓰도록 통일한다. viz 마다 임의의 hex 를 박지 않는다.
+#   - ACCENT_VIOLET   : 마케팅 대시보드의 brand accent. neutral 차트(I9/I13)의 단일 색.
+#   - STATUS_*        : 좋음/나쁨 의미가 분명한 지표(I2/I12)의 신호 색.
+#   - FUNNEL_COLORS   : 5개 컨텐츠 funnel — I5/I6/I3 모두 동일 매핑 사용 (cross-viz 일관성).
+#   - ENTRY_COLORS    : 7개 유입 채널 — I7/I10 동일 매핑.
+#   - AXIS_*/GRID/BG  : 차트 chrome 톤. config 마다 복붙하지 않도록 dict 로 묶음.
+# ============================================================
+ACCENT_VIOLET = "#A78BFA"        # primary brand accent
+ACCENT_VIOLET_DEEP = "#7C3AED"   # gradient stop / hover
+ACCENT_VIOLET_SOFT = "#C4B5FD"   # highlight / label
+
+STATUS_DANGER = "#F43F5E"        # 이탈/위험
+STATUS_WARN = "#FB923C"          # 경계
+STATUS_NEUTRAL = "#FBBF24"       # 중간
+STATUS_GOOD = "#34D399"          # 양호
+STATUS_GREAT = "#10B981"         # 좋음
+
+NEUTRAL_MUTED = "#64748B"
+
+# 컨텐츠(funnel) 색 — 보라 accent 중심으로 analogous(인접 색조)+ 한 가지 contrast.
+# I5(시간대별 진입) / I6(공유율 도넛) / I3(단계별 깔때기 row) 가 모두 같은 funnel→색 매핑.
+FUNNEL_COLORS = {
+    "relay_room_creation":     "#A78BFA",   # violet (brand)
+    "flipbook_room_creation":  "#F472B6",   # pink
+    "community_memo_posting":  "#38BDF8",   # sky
+    "fortune_creation":        "#FBBF24",   # amber
+    "gallery_save_share":      "#34D399",   # emerald
+}
+
+# 유입 채널 색 — I7(분포)/I10(시간대 추이) 동일.
+ENTRY_COLORS = {
+    "direct":   "#94A3B8",   # slate
+    "search":   "#38BDF8",   # sky
+    "social":   "#A78BFA",   # violet
+    "qr":       "#FBBF24",   # amber
+    "share":    "#F472B6",   # pink
+    "campaign": "#34D399",   # emerald
+    "unknown":  "#475569",   # dark slate
+}
+
+# Vega config 공통 chrome — axis/grid/title 색을 viz 마다 복붙하지 않도록.
+VEGA_CHROME = {
+    "background": "transparent",
+    "view": {"stroke": None},
+    "axis": {
+        "labelColor": "#CBD5E1",
+        "titleColor": "#E2E8F0",
+        "gridColor": "#1E293B",        # 기존 #334155 보다 어둡게 — 그리드 노이즈 ↓
+        "domainColor": "#334155",
+        "tickColor": "#334155",
+        "labelFontSize": 11,
+        "titleFontSize": 12,
+        "titleFontWeight": 500,
+        "titlePadding": 8,
+    },
+    "legend": {
+        "labelColor": "#CBD5E1",
+        "titleColor": "#E2E8F0",
+        "labelFontSize": 11,
+        "symbolStrokeWidth": 0,
+    },
+    "title": {
+        "color": "#F1F5F9",
+        "subtitleColor": "#94A3B8",
+        "fontSize": 14,
+        "subtitleFontSize": 11,
+        "anchor": "start",
+        "offset": 8,
+    },
+    "header": {"labelColor": "#E2E8F0", "titleColor": "#E2E8F0"},
+}
+
 INDEX_PATTERN_REF = {
     "name": "kibanaSavedObjectMeta.searchSourceJSON.index",
     "type": "index-pattern",
@@ -49,6 +125,27 @@ def search_source(query="", filters=None):
     })
 
 
+def section_header_markdown(heading, subtitle, accent=ACCENT_VIOLET):
+    """섹션 헤더용 markdown — 좌측 accent bar + heading + subtitle 카드.
+
+    OS Dashboards 2.x markdown_vis 는 markdown-it 기반으로 inline HTML 을 허용한다.
+    HTML 이 strip 되는 환경에서도 뒤에 plain markdown 폴백을 두면 깨지지 않게.
+    """
+    return (
+        '<div style="display:flex;flex-direction:column;gap:6px;padding:6px 4px;">'
+        '<div style="display:flex;align-items:center;gap:12px;">'
+        f'<span style="display:inline-block;width:4px;height:22px;'
+        f'background:linear-gradient(180deg,{accent},{ACCENT_VIOLET_DEEP});'
+        'border-radius:2px;"></span>'
+        '<span style="font-size:20px;font-weight:600;color:#F1F5F9;'
+        f'letter-spacing:-0.01em;">{heading}</span>'
+        '</div>'
+        f'<div style="font-size:12px;color:#94A3B8;margin-left:16px;'
+        f'line-height:1.5;">{subtitle}</div>'
+        '</div>'
+    )
+
+
 def viz_markdown(viz_id, title, markdown):
     """섹션 헤더용 markdown panel — chart 그룹을 시각적으로 구분."""
     return {
@@ -61,8 +158,9 @@ def viz_markdown(viz_id, title, markdown):
                 "type": "markdown",
                 "aggs": [],
                 "params": {
-                    # fontSize 단위는 px. h2 헤더 + 설명 두 줄이 한눈에 들어오는 크기.
-                    "fontSize": 17,
+                    # fontSize 는 markdown 기본 본문 크기. HTML 카드 안에서는 직접 px 지정해서
+                    # 이 값에 의존 안 함 — 작게 둬서 fallback markdown 도 컴팩트.
+                    "fontSize": 12,
                     "openLinksInNewTab": False,
                     "markdown": markdown,
                 },
@@ -177,10 +275,11 @@ I1 = viz_classic(
     ),
     query="service:client-web",
     colors={
-        "활성 세션":   "#3B82F6",   # 파랑 — 신경 안정
-        "진입":        "#A78BFA",   # 보라
-        "완료":        "#10B981",   # 녹색 — 좋음
-        "이탈":        "#EF4444",   # 빨강 — 위험
+        # 의미: 활성=중립(slate), 진입=brand violet, 완료=success green, 이탈=danger rose.
+        "활성 세션":   NEUTRAL_MUTED,
+        "진입":        ACCENT_VIOLET,
+        "완료":        STATUS_GREAT,
+        "이탈":        STATUS_DANGER,
     },
     vis_state={
         "title": "[I1] 오늘의 핵심 지표",
@@ -249,11 +348,7 @@ I2_SPEC = {
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
         "text": "컨텐츠별 완주율 (%)",
-        "subtitle": "방 생성/참여 후 완료 비율. 단순 랜딩만 한 세션은 분모에서 제외. 막대 길이 = 비율, 색 = 위험도.",
-        "subtitleColor": "#94A3B8",
-        "subtitleFontSize": 11,
-        "fontSize": 14,
-        "anchor": "start",
+        "subtitle": "방 생성/참여 후 완료 비율. 단순 랜딩만 한 세션은 분모에서 제외.",
     },
     "data": {
         "url": {
@@ -328,21 +423,31 @@ I2_SPEC = {
             "field": "rate",
             "type": "quantitative",
             "scale": {"domain": [0, 100]},
-            "axis": {"title": "완주율 (%)", "labelFontSize": 11, "tickCount": 5},
+            "axis": {"title": "완주율 (%)", "tickCount": 5},
         },
     },
     # y축 label 자리 확보 — 좌측 padding 충분히.
     "padding": {"left": 170, "right": 60, "top": 50, "bottom": 40},
     "layer": [
+        # background track — 100% 기준선 (subtle하게 panel 안의 max-rail 보여줌).
+        {
+            "mark": {"type": "bar", "cornerRadiusEnd": 4, "color": "#1E293B",
+                     "opacity": 0.5, "tooltip": False},
+            "encoding": {
+                "x": {"datum": 100, "type": "quantitative"},
+            },
+        },
         {
             "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
             "encoding": {
                 "color": {
                     "field": "rate",
                     "type": "quantitative",
+                    # 3-stop muted gradient (rose → amber → emerald). 기존 5-stop rainbow 보다
+                    # 부드럽고 modern dark 와 어울림. "위험/중간/양호" 의미만 살림.
                     "scale": {
-                        "domain": [0, 20, 50, 80, 100],
-                        "range": ["#EF4444", "#F97316", "#FBBF24", "#84CC16", "#10B981"],
+                        "domain": [0, 50, 100],
+                        "range": [STATUS_DANGER, STATUS_NEUTRAL, STATUS_GREAT],
                     },
                     "legend": None,
                 },
@@ -356,7 +461,7 @@ I2_SPEC = {
         },
         {
             "mark": {"type": "text", "align": "left", "dx": 6, "fontSize": 12, "fontWeight": "bold",
-                     "color": "#E5E7EB"},
+                     "color": "#F1F5F9"},
             "encoding": {
                 "text": {"field": "rate", "type": "quantitative", "format": ".1f"},
             },
@@ -366,12 +471,7 @@ I2_SPEC = {
     # 명시 안 하면 vega-lite default(200) 로 chart 가 작게 그려진다. 명시 숫자로 둠.
     "width": 700,
     "height": 240,
-    "config": {
-        "background": "transparent",
-        "view": {"stroke": None},
-        "axis": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1", "gridColor": "#334155"},
-        "title": {"color": "#E5E7EB"},
-    },
+    "config": VEGA_CHROME,
 }
 I2 = viz_vega(
     viz_id="vis-marketing-conversion-rate",
@@ -398,10 +498,6 @@ I3_SPEC = {
     "title": {
         "text": "단계별 이탈 깔때기",
         "subtitle": "각 컨텐츠의 단계별 잔존 세션 수. 막대가 짧아질수록 그 단계에서 사용자가 빠진 것.",
-        "subtitleColor": "#94A3B8",
-        "subtitleFontSize": 11,
-        "fontSize": 14,
-        "anchor": "start",
     },
     "data": {
         "url": {
@@ -472,6 +568,7 @@ I3_SPEC = {
                 "labelAngle": 0,
                 "labelAlign": "left",
                 "labelOrient": "left",
+                "labelFontWeight": 500,
             },
         },
     },
@@ -489,12 +586,23 @@ I3_SPEC = {
             "x": {
                 "field": "count",
                 "type": "quantitative",
-                "axis": {"title": "세션 수", "labelFontSize": 11},
+                "axis": {"title": "세션 수"},
             },
+            # 막대 색을 funnel(=row) 별로 지정 — 같은 row 안에서는 동일 색으로 잔존량 차이를
+            # bar length 가 단독으로 표현 (모던 dark 톤). cross-viz 일관성: I5/I6 도 같은 매핑.
             "color": {
-                "field": "step_name",
+                "field": "funnel_label",
                 "type": "nominal",
-                "scale": {"scheme": "blues"},
+                "scale": {
+                    "domain": ["릴레이드로잉", "플립북", "커뮤니티 메모", "오늘의 운세", "갤러리·공유"],
+                    "range": [
+                        FUNNEL_COLORS["relay_room_creation"],
+                        FUNNEL_COLORS["flipbook_room_creation"],
+                        FUNNEL_COLORS["community_memo_posting"],
+                        FUNNEL_COLORS["fortune_creation"],
+                        FUNNEL_COLORS["gallery_save_share"],
+                    ],
+                },
                 "legend": None,
             },
             "tooltip": [
@@ -505,13 +613,7 @@ I3_SPEC = {
         },
     },
     "resolve": {"scale": {"x": "independent"}},
-    "config": {
-        "background": "transparent",
-        "view": {"stroke": None},
-        "axis": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1", "gridColor": "#334155"},
-        "title": {"color": "#E5E7EB"},
-        "header": {"labelColor": "#E5E7EB", "titleColor": "#E5E7EB"},
-    },
+    "config": VEGA_CHROME,
 }
 I3 = viz_vega(
     viz_id="vis-marketing-funnel-stages",
@@ -537,10 +639,6 @@ I4_SPEC = {
     "title": {
         "text": "화면 이동 흐름",
         "subtitle": "이전 화면(가로) → 다음 화면(세로) 이동 빈도. 색이 진할수록 이동량 많음.",
-        "subtitleColor": "#94A3B8",
-        "subtitleFontSize": 11,
-        "fontSize": 14,
-        "anchor": "start",
     },
     "data": {
         "url": {
@@ -613,7 +711,7 @@ I4_SPEC = {
         {"aggregate": [{"op": "sum", "field": "count_raw", "as": "count"}],
          "groupby": ["from", "to"]},
     ],
-    "mark": {"type": "rect", "tooltip": True},
+    "mark": {"type": "rect", "tooltip": True, "stroke": "#0F172A", "strokeWidth": 1},
     "encoding": {
         "x": {
             "field": "from",
@@ -621,9 +719,7 @@ I4_SPEC = {
             "axis": {
                 "title": "이전 화면",
                 "labelAngle": -25,
-                "labelFontSize": 12,
                 "labelLimit": 200,
-                "titleFontSize": 13,
             },
         },
         "y": {
@@ -631,15 +727,14 @@ I4_SPEC = {
             "type": "nominal",
             "axis": {
                 "title": "다음 화면",
-                "labelFontSize": 12,
                 "labelLimit": 220,
-                "titleFontSize": 13,
             },
         },
         "color": {
             "field": "count",
             "type": "quantitative",
-            "scale": {"scheme": "tealblues"},
+            # 단일 hue(violet/purple) intensity gradient — modern dark 다크 배경 + brand accent 통일.
+            "scale": {"scheme": "purples"},
             "legend": {"title": "세션 수"},
         },
         "tooltip": [
@@ -650,13 +745,7 @@ I4_SPEC = {
     },
     "width": 1100,
     "height": 420,
-    "config": {
-        "background": "transparent",
-        "view": {"stroke": None},
-        "axis": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1", "gridColor": "#334155"},
-        "legend": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1"},
-        "title": {"color": "#E5E7EB"},
-    },
+    "config": VEGA_CHROME,
 }
 I4 = viz_vega(
     viz_id="vis-marketing-flow-heatmap",
@@ -674,19 +763,13 @@ I4 = viz_vega(
 # 채우고 top-level content_type 은 비워서 보낸다. content_type 으로 group by 하면 전체가
 # missing bucket 으로 빠져 차트가 비게 된다.
 # ============================================================
-COLOR_FUNNEL = {
-    "relay_room_creation":     "#60A5FA",
-    "flipbook_room_creation":  "#FB923C",
-    "community_memo_posting":  "#34D399",
-    "fortune_creation":        "#F472B6",
-    "gallery_save_share":      "#22D3EE",
-}
 I5 = viz_classic(
     viz_id="vis-marketing-entry-timeline",
     title="[I5] 시간대별 진입 추이",
     description="funnel_started 를 컨텐츠별로 1시간 단위 누적. 피크 타임 + 컨텐츠 mix.",
     query="service:client-web AND event_name:funnel_started",
-    colors=COLOR_FUNNEL,
+    # cross-viz 일관성: I3/I6 와 같은 funnel→색 매핑.
+    colors=FUNNEL_COLORS,
     vis_state={
         "title": "[I5] 시간대별 진입 추이",
         "type": "area",
@@ -744,12 +827,7 @@ I6_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
     "title": {
         "text": "결과 도달 후 공유 비율",
-        "subtitle": "컨텐츠별 결과 도달(funnel_goal_reached) 대비 공유 없이 이탈하지 않은 비율. "
-                    "정밀한 커뮤니티 게시 전환은 community_memo_posting funnel 구현 시 측정.",
-        "subtitleColor": "#94A3B8",
-        "subtitleFontSize": 10,
-        "fontSize": 14,
-        "anchor": "start",
+        "subtitle": "컨텐츠별 결과 도달 대비 공유 없이 이탈하지 않은 비율 (근사치).",
     },
     "data": {
         "url": {
@@ -809,22 +887,31 @@ I6_SPEC = {
     "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
     # 도넛 크기 고정 — view fit 으로 도넛이 panel 다 차지하면 legend 자리 안 남음.
     # 명시 innerRadius/outerRadius 로 도넛 크기 고정, 남은 공간에 legend 배치.
-    "mark": {"type": "arc", "innerRadius": 35, "outerRadius": 80, "tooltip": True},
+    "mark": {"type": "arc", "innerRadius": 50, "outerRadius": 90, "tooltip": True,
+             "stroke": "#0F172A", "strokeWidth": 2},
     "encoding": {
         "theta": {"field": "shared", "type": "quantitative"},
         "color": {
             "field": "funnel_label",
             "type": "nominal",
-            "scale": {"range": ["#60A5FA", "#FB923C", "#F472B6", "#34D399", "#22D3EE"]},
+            # domain 명시 → I3/I5 와 동일한 funnel→색 매핑.
+            "scale": {
+                "domain": ["릴레이드로잉", "플립북", "커뮤니티 메모", "오늘의 운세", "갤러리·공유"],
+                "range": [
+                    FUNNEL_COLORS["relay_room_creation"],
+                    FUNNEL_COLORS["flipbook_room_creation"],
+                    FUNNEL_COLORS["community_memo_posting"],
+                    FUNNEL_COLORS["fortune_creation"],
+                    FUNNEL_COLORS["gallery_save_share"],
+                ],
+            },
             "legend": {
                 "title": None,
-                "labelFontSize": 11,
-                "labelColor": "#E5E7EB",
                 # vega-lite docs: fit autosize 는 legend space 부족 시 클리핑.
                 # orient:"none" + ExprRef 로 view width 에 비례한 절대 좌표 — panel container
-                # 크기가 어떻든 도넛(outerRadius 80) 우측에 안전하게 배치.
+                # 크기가 어떻든 도넛(outerRadius 90) 우측에 안전하게 배치.
                 "orient": "none",
-                "legendX": {"expr": "(width / 2) + 100"},
+                "legendX": {"expr": "(width / 2) + 110"},
                 "legendY": {"expr": "20"},
                 "direction": "vertical",
                 "symbolSize": 100,
@@ -842,12 +929,7 @@ I6_SPEC = {
     # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
     "width": 240,
     "height": 200,
-    "config": {
-        "background": "transparent",
-        "view": {"stroke": None},
-        "legend": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1"},
-        "title": {"color": "#E5E7EB"},
-    },
+    "config": VEGA_CHROME,
 }
 I6 = viz_vega(
     viz_id="vis-marketing-share-rate",
@@ -867,10 +949,6 @@ I7_SPEC = {
     "title": {
         "text": "유입 경로 비율",
         "subtitle": "랜딩 시점의 entry_type 분포 — 어디서 들어오는 사용자가 많은가.",
-        "subtitleColor": "#94A3B8",
-        "subtitleFontSize": 10,
-        "fontSize": 14,
-        "anchor": "start",
     },
     "data": {
         "url": {
@@ -922,27 +1000,34 @@ I7_SPEC = {
     "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
     # 도넛 크기 고정 — view fit 으로 도넛이 panel 다 차지하면 legend 자리 안 남음.
     # 명시 innerRadius/outerRadius 로 도넛 크기 고정, 남은 공간에 legend 배치.
-    "mark": {"type": "arc", "innerRadius": 35, "outerRadius": 80, "tooltip": True},
+    "mark": {"type": "arc", "innerRadius": 50, "outerRadius": 90, "tooltip": True,
+             "stroke": "#0F172A", "strokeWidth": 2},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
             "field": "entry_label",
             "type": "nominal",
+            # I10 (시간대별 유입원) 과 동일 매핑 — ENTRY_COLORS 의 raw key 와 한글 라벨 매핑.
             "scale": {
                 "domain": ["직접 접속", "검색", "SNS", "QR 코드",
                            "공유 링크", "캠페인", "알 수 없음"],
-                "range": ["#94A3B8", "#60A5FA", "#34D399", "#FBBF24",
-                          "#A78BFA", "#F472B6", "#475569"],
+                "range": [
+                    ENTRY_COLORS["direct"],
+                    ENTRY_COLORS["search"],
+                    ENTRY_COLORS["social"],
+                    ENTRY_COLORS["qr"],
+                    ENTRY_COLORS["share"],
+                    ENTRY_COLORS["campaign"],
+                    ENTRY_COLORS["unknown"],
+                ],
             },
             "legend": {
                 "title": None,
-                "labelFontSize": 11,
-                "labelColor": "#E5E7EB",
                 # vega-lite docs: fit autosize 는 legend space 부족 시 클리핑.
                 # orient:"none" + ExprRef 로 view width 에 비례한 절대 좌표 — panel container
-                # 크기가 어떻든 도넛(outerRadius 80) 우측에 안전하게 배치.
+                # 크기가 어떻든 도넛(outerRadius 90) 우측에 안전하게 배치.
                 "orient": "none",
-                "legendX": {"expr": "(width / 2) + 100"},
+                "legendX": {"expr": "(width / 2) + 110"},
                 "legendY": {"expr": "20"},
                 "direction": "vertical",
                 "symbolSize": 100,
@@ -958,12 +1043,7 @@ I7_SPEC = {
     # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
     "width": 240,
     "height": 200,
-    "config": {
-        "background": "transparent",
-        "view": {"stroke": None},
-        "legend": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1"},
-        "title": {"color": "#E5E7EB"},
-    },
+    "config": VEGA_CHROME,
 }
 I7 = viz_vega(
     viz_id="vis-marketing-entry-types",
@@ -983,10 +1063,6 @@ I8_SPEC = {
     "title": {
         "text": "SNS 유입 비율",
         "subtitle": "entry_type=social 세션의 referrer host 분포 — 어느 SNS 가 강한가.",
-        "subtitleColor": "#94A3B8",
-        "subtitleFontSize": 10,
-        "fontSize": 14,
-        "anchor": "start",
     },
     "data": {
         "url": {
@@ -1041,25 +1117,25 @@ I8_SPEC = {
     "padding": {"top": 20, "right": 20, "bottom": 20, "left": 20},
     # 도넛 크기 고정 — view fit 으로 도넛이 panel 다 차지하면 legend 자리 안 남음.
     # 명시 innerRadius/outerRadius 로 도넛 크기 고정, 남은 공간에 legend 배치.
-    "mark": {"type": "arc", "innerRadius": 35, "outerRadius": 80, "tooltip": True},
+    "mark": {"type": "arc", "innerRadius": 50, "outerRadius": 90, "tooltip": True,
+             "stroke": "#0F172A", "strokeWidth": 2},
     "encoding": {
         "theta": {"field": "count", "type": "quantitative"},
         "color": {
             "field": "sns_label",
             "type": "nominal",
+            # SNS 브랜드 색 유지 — 사용자 인식 ↑. 단 채도/명도 살짝 낮춰 다크 톤과 어울리게.
             "scale": {
                 "domain": ["인스타그램", "트위터", "카카오톡", "페이스북", "링크드인", "기타"],
-                "range": ["#EC4899", "#60A5FA", "#FBBF24", "#3B82F6", "#0E76A8", "#94A3B8"],
+                "range": ["#E11D74", "#1DA1F2", "#FEE500", "#1877F2", "#0A66C2", NEUTRAL_MUTED],
             },
             "legend": {
                 "title": None,
-                "labelFontSize": 11,
-                "labelColor": "#E5E7EB",
                 # vega-lite docs: fit autosize 는 legend space 부족 시 클리핑.
                 # orient:"none" + ExprRef 로 view width 에 비례한 절대 좌표 — panel container
-                # 크기가 어떻든 도넛(outerRadius 80) 우측에 안전하게 배치.
+                # 크기가 어떻든 도넛(outerRadius 90) 우측에 안전하게 배치.
                 "orient": "none",
-                "legendX": {"expr": "(width / 2) + 100"},
+                "legendX": {"expr": "(width / 2) + 110"},
                 "legendY": {"expr": "20"},
                 "direction": "vertical",
                 "symbolSize": 100,
@@ -1075,12 +1151,7 @@ I8_SPEC = {
     # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
     "width": 240,
     "height": 200,
-    "config": {
-        "background": "transparent",
-        "view": {"stroke": None},
-        "legend": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1"},
-        "title": {"color": "#E5E7EB"},
-    },
+    "config": VEGA_CHROME,
 }
 I8 = viz_vega(
     viz_id="vis-marketing-sns-referrer",
@@ -1100,10 +1171,6 @@ I9_SPEC = {
     "title": {
         "text": "체험 공간 평균 체류 시간",
         "subtitle": "page_leave 의 time_on_page_ms 평균 (초). 막대가 길수록 더 오래 머무는 화면.",
-        "subtitleColor": "#94A3B8",
-        "subtitleFontSize": 10,
-        "fontSize": 14,
-        "anchor": "start",
     },
     "data": {
         "url": {
@@ -1164,18 +1231,32 @@ I9_SPEC = {
         {"calculate": "datum.n > 0 ? datum.weighted_sum / datum.n : 0", "as": "avg_sec"},
         {"filter": "datum.avg_sec > 0"},
     ],
-    "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True, "color": "#A78BFA"},
+    # 막대 안에 가로 violet 그라데이션 — 왼쪽 deep → 오른쪽 soft. 긴 막대일수록 그라데이션이
+    # 길게 펴져 시각적으로 강조됨.
+    "mark": {
+        "type": "bar",
+        "cornerRadiusEnd": 4,
+        "tooltip": True,
+        "color": {
+            "x1": 0, "y1": 0, "x2": 1, "y2": 0,
+            "gradient": "linear",
+            "stops": [
+                {"offset": 0,   "color": ACCENT_VIOLET_DEEP},
+                {"offset": 1,   "color": ACCENT_VIOLET_SOFT},
+            ],
+        },
+    },
     "encoding": {
         "y": {
             "field": "path",
             "type": "nominal",
             "sort": "-x",
-            "axis": {"title": None, "labelFontSize": 11, "labelLimit": 200},
+            "axis": {"title": None, "labelLimit": 200},
         },
         "x": {
             "field": "avg_sec",
             "type": "quantitative",
-            "axis": {"title": "평균 체류 시간 (초)", "labelFontSize": 11},
+            "axis": {"title": "평균 체류 시간 (초)"},
         },
         "tooltip": [
             {"field": "path", "type": "nominal", "title": "화면"},
@@ -1185,12 +1266,7 @@ I9_SPEC = {
     },
     "width": 1100,
     "height": 420,
-    "config": {
-        "background": "transparent",
-        "view": {"stroke": None},
-        "axis": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1", "gridColor": "#334155"},
-        "title": {"color": "#E5E7EB"},
-    },
+    "config": VEGA_CHROME,
 }
 I9 = viz_vega(
     viz_id="vis-marketing-time-on-page",
@@ -1205,21 +1281,13 @@ I9 = viz_vega(
 # landing_source_detected 이벤트를 entry_type 별로 1h 단위 누적. I5(funnel별)의
 # 채널 버전. "어느 시간대에 어느 채널로 사용자가 들어오는가" — 광고 timing 분석.
 # ============================================================
-COLOR_ENTRY = {
-    "direct":   "#94A3B8",
-    "search":   "#60A5FA",
-    "social":   "#34D399",
-    "qr":       "#FBBF24",
-    "share":    "#A78BFA",
-    "campaign": "#F472B6",
-    "unknown":  "#475569",
-}
 I10 = viz_classic(
     viz_id="vis-marketing-entry-by-channel-timeline",
     title="[I10] 시간대별 유입원 추이",
     description="landing_source_detected 의 metadata.entry_type 1h 단위 누적. 시간대별 채널 mix.",
     query="service:client-web AND event_name:landing_source_detected",
-    colors=COLOR_ENTRY,
+    # cross-viz 일관성: I7(유입 경로 비율 도넛) 과 같은 channel→색 매핑.
+    colors=ENTRY_COLORS,
     vis_state={
         "title": "[I10] 시간대별 유입원 추이",
         "type": "area",
@@ -1279,8 +1347,9 @@ I11 = viz_classic(
     description="기간 내 distinct 방문자(uuid) 중 결과(funnel_goal_reached)에 도달한 비율.",
     query="service:client-web",
     colors={
-        "방문자":     "#3B82F6",
-        "완주 방문자": "#10B981",
+        # 방문자 = brand violet, 완주 = success green.
+        "방문자":      ACCENT_VIOLET,
+        "완주 방문자":  STATUS_GREAT,
     },
     vis_state={
         "title": "[I11] 방문자 완주율",
@@ -1336,10 +1405,6 @@ I12_SPEC = {
     "title": {
         "text": "결과 화면 체류 시간 분포",
         "subtitle": "결과 페이지 체류 시간 (초). 짧을수록 만족도 낮음(보고 바로 닫음).",
-        "subtitleColor": "#94A3B8",
-        "subtitleFontSize": 11,
-        "fontSize": 14,
-        "anchor": "start",
     },
     "data": {
         "url": {
@@ -1404,19 +1469,20 @@ I12_SPEC = {
             "field": "bucket_label",
             "type": "ordinal",
             "sort": ["0-5초", "5-10초", "10-30초", "30-60초", "60초+"],
-            "axis": {"title": "체류 시간 구간", "labelFontSize": 11, "labelAngle": 0},
+            "axis": {"title": "체류 시간 구간", "labelAngle": 0},
         },
         "y": {
             "field": "n",
             "type": "quantitative",
-            "axis": {"title": "세션 수", "labelFontSize": 11},
+            "axis": {"title": "세션 수"},
         },
         "color": {
             "field": "bucket_label",
             "type": "nominal",
+            # 3-stop muted (I2 와 동일 의미 체계) — 짧음(나쁨) → 보통 → 김(좋음).
             "scale": {
                 "domain": ["0-5초", "5-10초", "10-30초", "30-60초", "60초+"],
-                "range": ["#EF4444", "#F97316", "#FBBF24", "#84CC16", "#10B981"],
+                "range": [STATUS_DANGER, STATUS_WARN, STATUS_NEUTRAL, STATUS_GOOD, STATUS_GREAT],
             },
             "legend": None,
         },
@@ -1425,12 +1491,7 @@ I12_SPEC = {
             {"field": "n", "type": "quantitative", "title": "세션 수"},
         ],
     },
-    "config": {
-        "background": "transparent",
-        "view": {"stroke": None},
-        "axis": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1", "gridColor": "#334155"},
-        "title": {"color": "#E5E7EB"},
-    },
+    "config": VEGA_CHROME,
 }
 I12 = viz_vega(
     viz_id="vis-marketing-result-dwell-time",
@@ -1452,10 +1513,6 @@ I13_SPEC = {
     "title": {
         "text": "이탈 직전 평균 체류 시간",
         "subtitle": "이탈 유형별 평균 시간(초). 짧을수록 사용자가 빨리 지루해함.",
-        "subtitleColor": "#94A3B8",
-        "subtitleFontSize": 11,
-        "fontSize": 14,
-        "anchor": "start",
     },
     "data": {
         "url": {
@@ -1527,7 +1584,20 @@ I13_SPEC = {
     "width": "container",
     "height": "container",
     "padding": {"top": 30, "right": 30, "bottom": 30, "left": 160},
-    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True, "color": "#EF4444"},
+    # rose 그라데이션 — 이탈은 위험 신호. 단일 fill 보다 그라데이션이 막대 무게감을 줌.
+    "mark": {
+        "type": "bar",
+        "cornerRadiusEnd": 4,
+        "tooltip": True,
+        "color": {
+            "x1": 0, "y1": 0, "x2": 1, "y2": 0,
+            "gradient": "linear",
+            "stops": [
+                {"offset": 0, "color": "#9F1239"},   # rose-900
+                {"offset": 1, "color": STATUS_DANGER},
+            ],
+        },
+    },
     "encoding": {
         "y": {
             "field": "label",
@@ -1538,7 +1608,7 @@ I13_SPEC = {
         "x": {
             "field": "avg_sec",
             "type": "quantitative",
-            "axis": {"title": "평균 (초)", "labelFontSize": 11},
+            "axis": {"title": "평균 (초)"},
         },
         "tooltip": [
             {"field": "label", "type": "nominal", "title": "이탈 유형"},
@@ -1546,12 +1616,7 @@ I13_SPEC = {
             {"field": "n", "type": "quantitative", "title": "이탈 건수"},
         ],
     },
-    "config": {
-        "background": "transparent",
-        "view": {"stroke": None},
-        "axis": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1", "gridColor": "#334155"},
-        "title": {"color": "#E5E7EB"},
-    },
+    "config": VEGA_CHROME,
 }
 I13 = viz_vega(
     viz_id="vis-marketing-abandon-elapsed",
@@ -1567,31 +1632,46 @@ I13 = viz_vega(
 HEADER_OVERVIEW = viz_markdown(
     viz_id="vis-marketing-header-overview",
     title="섹션 헤더 — 총량",
-    markdown="## 오늘의 KPI",
+    markdown=section_header_markdown(
+        heading="오늘의 KPI",
+        subtitle="오늘 들어온 사용자와 핵심 행동의 완료·이탈 현황",
+    ),
 )
 
 HEADER_CHANNEL = viz_markdown(
     viz_id="vis-marketing-header-channel",
     title="섹션 헤더 — 채널",
-    markdown="## 유입 채널",
+    markdown=section_header_markdown(
+        heading="유입 채널",
+        subtitle="어떤 경로로 들어오는지 — 직접·검색·SNS·공유·QR·캠페인",
+    ),
 )
 
 HEADER_CONTENT = viz_markdown(
     viz_id="vis-marketing-header-content",
     title="섹션 헤더 — 컨텐츠",
-    markdown="## 컨텐츠",
+    markdown=section_header_markdown(
+        heading="컨텐츠",
+        subtitle="컨텐츠별 완주율과 시간대별 진입 추이",
+    ),
 )
 
 HEADER_FLOW = viz_markdown(
     viz_id="vis-marketing-header-flow",
     title="섹션 헤더 — 단계·흐름",
-    markdown="## 단계·화면 흐름",
+    markdown=section_header_markdown(
+        heading="단계 · 화면 흐름",
+        subtitle="어느 단계에서 사용자가 빠지고, 한 화면 다음에 어디로 가는가",
+    ),
 )
 
 HEADER_RETENTION = viz_markdown(
     viz_id="vis-marketing-header-retention",
     title="섹션 헤더 — 만족도·이탈",
-    markdown="## 체류·이탈",
+    markdown=section_header_markdown(
+        heading="체류 · 이탈",
+        subtitle="얼마나 오래 머물고, 어느 단계에서 얼마나 빨리 떠나는가",
+    ),
 )
 
 
@@ -1625,51 +1705,51 @@ HEADER_RETENTION = viz_markdown(
 #     [I9 체류시간 ──────────][I12 결과 체류 분포 ──]
 #     [I13 이탈 직전 체류 ───────────────────────]
 PANELS = [
-    # 섹션 1: 오늘의 KPI (헤더 h3 — 단순 한 줄)
+    # 섹션 1: 오늘의 KPI
     {"vis_id": HEADER_OVERVIEW["id"], "panel_id": "h1",
-     "grid": {"x": 0, "y": 0, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 0, "w": 48, "h": 4}},
     {"vis_id": I1["id"],  "panel_id": "1",
-     "grid": {"x": 0,  "y": 3,  "w": 24, "h": 10}},
+     "grid": {"x": 0,  "y": 4,  "w": 24, "h": 10}},
     {"vis_id": I11["id"], "panel_id": "2",
-     "grid": {"x": 24, "y": 3,  "w": 24, "h": 10}},
+     "grid": {"x": 24, "y": 4,  "w": 24, "h": 10}},
 
-    # 섹션 2: 유입 채널
+    # 섹션 2: 유입 채널 (도넛 row 높이 ↑ — legend 자리 + 시각적 숨통)
     {"vis_id": HEADER_CHANNEL["id"], "panel_id": "h2",
-     "grid": {"x": 0, "y": 13, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 14, "w": 48, "h": 4}},
     {"vis_id": I7["id"],  "panel_id": "3",
-     "grid": {"x": 0,  "y": 16, "w": 24, "h": 16}},
+     "grid": {"x": 0,  "y": 18, "w": 24, "h": 18}},
     {"vis_id": I10["id"], "panel_id": "4",
-     "grid": {"x": 24, "y": 16, "w": 24, "h": 16}},
+     "grid": {"x": 24, "y": 18, "w": 24, "h": 18}},
     {"vis_id": I8["id"],  "panel_id": "5",
-     "grid": {"x": 0,  "y": 32, "w": 24, "h": 16}},
+     "grid": {"x": 0,  "y": 36, "w": 24, "h": 18}},
     {"vis_id": I6["id"],  "panel_id": "6",
-     "grid": {"x": 24, "y": 32, "w": 24, "h": 16}},
+     "grid": {"x": 24, "y": 36, "w": 24, "h": 18}},
 
     # 섹션 3: 컨텐츠
     {"vis_id": HEADER_CONTENT["id"], "panel_id": "h3",
-     "grid": {"x": 0, "y": 48, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 54, "w": 48, "h": 4}},
     {"vis_id": I2["id"],  "panel_id": "7",
-     "grid": {"x": 0,  "y": 51, "w": 24, "h": 16}},
+     "grid": {"x": 0,  "y": 58, "w": 24, "h": 16}},
     {"vis_id": I5["id"],  "panel_id": "8",
-     "grid": {"x": 24, "y": 51, "w": 24, "h": 16}},
+     "grid": {"x": 24, "y": 58, "w": 24, "h": 16}},
 
     # 섹션 4: 단계·화면 흐름
     {"vis_id": HEADER_FLOW["id"], "panel_id": "h4",
-     "grid": {"x": 0, "y": 67, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 74, "w": 48, "h": 4}},
     {"vis_id": I3["id"],  "panel_id": "9",
-     "grid": {"x": 0,  "y": 70, "w": 48, "h": 24}},
+     "grid": {"x": 0,  "y": 78, "w": 48, "h": 24}},
     {"vis_id": I4["id"],  "panel_id": "10",
-     "grid": {"x": 0,  "y": 94, "w": 48, "h": 22}},
+     "grid": {"x": 0,  "y": 102, "w": 48, "h": 22}},
 
     # 섹션 5: 체류·이탈
     {"vis_id": HEADER_RETENTION["id"], "panel_id": "h5",
-     "grid": {"x": 0, "y": 116, "w": 48, "h": 3}},
+     "grid": {"x": 0, "y": 124, "w": 48, "h": 4}},
     {"vis_id": I9["id"],  "panel_id": "11",
-     "grid": {"x": 0,  "y": 119, "w": 24, "h": 18}},
+     "grid": {"x": 0,  "y": 128, "w": 24, "h": 18}},
     {"vis_id": I12["id"], "panel_id": "12",
-     "grid": {"x": 24, "y": 119, "w": 24, "h": 18}},
+     "grid": {"x": 24, "y": 128, "w": 24, "h": 18}},
     {"vis_id": I13["id"], "panel_id": "13",
-     "grid": {"x": 0,  "y": 137, "w": 48, "h": 14}},
+     "grid": {"x": 0,  "y": 146, "w": 48, "h": 14}},
 ]
 
 
@@ -1736,6 +1816,12 @@ def write_ndjson(objects, path):
 
 
 if __name__ == "__main__":
+    import sys
+    # Windows cp949 콘솔에서 em-dash / 한글 자모 출력 시 UnicodeEncodeError 회피.
+    # 파일 출력(UTF-8)에는 영향 없음 — stdout 만 UTF-8 로 재설정.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     OBJECTS = [
         I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13,
         HEADER_OVERVIEW, HEADER_CHANNEL, HEADER_CONTENT, HEADER_FLOW, HEADER_RETENTION,
