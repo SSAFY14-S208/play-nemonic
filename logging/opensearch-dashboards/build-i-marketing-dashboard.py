@@ -1169,7 +1169,368 @@ I9 = viz_vega(
 
 
 # ============================================================
-# Dashboard — 9개 viz 그리드 (48 column).
+# I10: 시간대별 유입원 추이 (Stacked Area, entry_type)
+# landing_source_detected 이벤트를 entry_type 별로 1h 단위 누적. I5(funnel별)의
+# 채널 버전. "어느 시간대에 어느 채널로 사용자가 들어오는가" — 광고 timing 분석.
+# ============================================================
+COLOR_ENTRY = {
+    "direct":   "#94A3B8",
+    "search":   "#60A5FA",
+    "social":   "#34D399",
+    "qr":       "#FBBF24",
+    "share":    "#A78BFA",
+    "campaign": "#F472B6",
+    "unknown":  "#475569",
+}
+I10 = viz_classic(
+    viz_id="vis-marketing-entry-by-channel-timeline",
+    title="[I10] 시간대별 유입원 추이",
+    description="landing_source_detected 의 metadata.entry_type 1h 단위 누적. 시간대별 채널 mix.",
+    query="service:client-web AND event_name:landing_source_detected",
+    colors=COLOR_ENTRY,
+    vis_state={
+        "title": "[I10] 시간대별 유입원 추이",
+        "type": "area",
+        "params": {
+            "type": "area",
+            "grid": {"categoryLines": False},
+            "categoryAxes": [{
+                "id": "CategoryAxis-1", "type": "category", "position": "bottom",
+                "show": True, "style": {}, "scale": {"type": "linear"},
+                "labels": {"show": True, "filter": True, "truncate": 100},
+                "title": {},
+            }],
+            "valueAxes": [{
+                "id": "ValueAxis-1", "name": "LeftAxis-1", "type": "value", "position": "left",
+                "show": True, "style": {},
+                "scale": {"type": "linear", "mode": "normal"},
+                "labels": {"show": True, "rotate": 0, "filter": False, "truncate": 100},
+                "title": {"text": "랜딩 세션"},
+            }],
+            "seriesParams": [{
+                "show": True, "type": "area", "mode": "stacked",
+                "data": {"label": "Count", "id": "1"},
+                "drawLinesBetweenPoints": True,
+                "showCircles": False,
+                "interpolate": "cardinal",
+                "valueAxis": "ValueAxis-1",
+                "lineWidth": 1,
+            }],
+            "addTooltip": True, "addLegend": True, "legendPosition": "right",
+            "times": [], "addTimeMarker": False,
+        },
+        "aggs": [
+            {"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
+            {"id": "2", "enabled": True, "type": "date_histogram", "schema": "segment", "params": {
+                "field": "@timestamp", "useNormalizedEsInterval": True,
+                "interval": "h", "drop_partials": False, "min_doc_count": 1, "extended_bounds": {},
+            }},
+            {"id": "3", "enabled": True, "type": "terms", "schema": "group", "params": {
+                "field": "metadata.entry_type", "orderBy": "1", "order": "desc",
+                "size": 10, "otherBucket": False,
+                "missingBucket": True, "missingBucketLabel": "unknown",
+            }},
+        ],
+    },
+)
+
+
+# ============================================================
+# I11: 사용자 완주율 (Metric, distinct uuid 기반)
+# 전체 distinct 방문자(uuid) vs 결과 도달한 distinct 방문자.
+# session 기준이 아니라 uuid 기준이라 "1명이 여러 번 시도 후 완주" 케이스도 한 명으로 카운트.
+# 단순 funnel_started 카운트보다 진짜 사용자 만족도에 가까운 지표.
+# ============================================================
+I11 = viz_classic(
+    viz_id="vis-marketing-visitor-completion",
+    title="[I11] 방문자 완주율",
+    description="기간 내 distinct 방문자(uuid) 중 결과(funnel_goal_reached)에 도달한 비율.",
+    query="service:client-web",
+    colors={
+        "방문자":     "#3B82F6",
+        "완주 방문자": "#10B981",
+    },
+    vis_state={
+        "title": "[I11] 방문자 완주율",
+        "type": "metric",
+        "params": {
+            "addTooltip": True,
+            "addLegend": False,
+            "type": "metric",
+            "metric": {
+                "percentageMode": False,
+                "useRanges": False,
+                "colorSchema": "Green to Red",
+                "metricColorMode": "Labels",
+                "colorsRange": [{"from": 0, "to": 10000}],
+                "labels": {"show": True},
+                "invertColors": False,
+                "style": {
+                    "bgFill": "#000",
+                    "bgColor": False,
+                    "labelColor": False,
+                    "subText": "",
+                    "fontSize": 42,
+                },
+            },
+        },
+        "aggs": [
+            {"id": "1", "enabled": True, "type": "cardinality", "schema": "metric", "params": {
+                "field": "uuid",
+                "customLabel": "방문자",
+            }},
+            {"id": "2", "enabled": True, "type": "filters", "schema": "group", "params": {
+                "filters": [
+                    {"input": {"query": "*", "language": "lucene"}, "label": "방문자"},
+                    {"input": {"query": "event_name:funnel_goal_reached", "language": "lucene"},
+                     "label": "완주 방문자"},
+                ],
+            }},
+        ],
+    },
+)
+
+
+# ============================================================
+# I12: 결과 화면 체류 시간 분포 (Vega-Lite Histogram)
+# page_leave 이벤트 중 path 가 결과 화면인 것의 time_on_page_ms histogram.
+# 결과 보고 바로 닫는 사용자 vs 오래 머무는 사용자 비율 — 컨텐츠 만족도 proxy.
+#
+# 결과 path 패턴: /flipbook/result, /share/:token, /relay-drawing/:room (FINISHED 상태 path)
+# 단순화 — /result, /share, fortune /result 포함 path 만 필터.
+# ============================================================
+I12_SPEC = {
+    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "title": {
+        "text": "결과 화면 체류 시간 분포",
+        "subtitle": "결과 페이지 체류 시간 (초). 짧을수록 만족도 낮음(보고 바로 닫음).",
+        "subtitleColor": "#94A3B8",
+        "subtitleFontSize": 11,
+        "fontSize": 14,
+        "anchor": "start",
+    },
+    "data": {
+        "url": {
+            "%context%": True,
+            "%timefield%": "@timestamp",
+            "index": "biz-events-*",
+            "body": {
+                "size": 0,
+                "aggs": {
+                    "filtered": {
+                        "filter": {
+                            "bool": {
+                                "filter": [
+                                    {"term": {"service": "client-web"}},
+                                    {"term": {"event_name": "page_leave"}},
+                                    {"exists": {"field": "metadata.time_on_page_ms"}}
+                                ],
+                                # 결과 화면 path 만. 동적 segment 포함.
+                                "should": [
+                                    {"wildcard": {"path": "*/result*"}},
+                                    {"wildcard": {"path": "/share/*"}},
+                                    {"prefix": {"path": "/fortune"}}
+                                ],
+                                "minimum_should_match": 1
+                            }
+                        },
+                        "aggs": {
+                            "duration_hist": {
+                                "histogram": {
+                                    "field": "metadata.time_on_page_ms",
+                                    "interval": 5000,
+                                    "min_doc_count": 1,
+                                    "extended_bounds": {"min": 0, "max": 60000}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "format": {"property": "aggregations.filtered.duration_hist.buckets"}
+    },
+    "transform": [
+        {"calculate": "datum.key / 1000", "as": "sec_bucket"},
+        {"calculate": "datum.doc_count", "as": "count"},
+        {"calculate":
+            "datum.sec_bucket < 5 ? '0-5초' "
+            ": datum.sec_bucket < 10 ? '5-10초' "
+            ": datum.sec_bucket < 30 ? '10-30초' "
+            ": datum.sec_bucket < 60 ? '30-60초' "
+            ": '60초+'",
+         "as": "bucket_label"},
+        {"aggregate": [{"op": "sum", "field": "count", "as": "n"}], "groupby": ["bucket_label"]},
+    ],
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
+    "width": "container",
+    "height": "container",
+    "padding": {"top": 30, "right": 30, "bottom": 50, "left": 50},
+    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
+    "encoding": {
+        "x": {
+            "field": "bucket_label",
+            "type": "ordinal",
+            "sort": ["0-5초", "5-10초", "10-30초", "30-60초", "60초+"],
+            "axis": {"title": "체류 시간 구간", "labelFontSize": 11, "labelAngle": 0},
+        },
+        "y": {
+            "field": "n",
+            "type": "quantitative",
+            "axis": {"title": "세션 수", "labelFontSize": 11},
+        },
+        "color": {
+            "field": "bucket_label",
+            "type": "nominal",
+            "scale": {
+                "domain": ["0-5초", "5-10초", "10-30초", "30-60초", "60초+"],
+                "range": ["#EF4444", "#F97316", "#FBBF24", "#84CC16", "#10B981"],
+            },
+            "legend": None,
+        },
+        "tooltip": [
+            {"field": "bucket_label", "type": "nominal", "title": "구간"},
+            {"field": "n", "type": "quantitative", "title": "세션 수"},
+        ],
+    },
+    "config": {
+        "background": "transparent",
+        "view": {"stroke": None},
+        "axis": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1", "gridColor": "#334155"},
+        "title": {"color": "#E5E7EB"},
+    },
+}
+I12 = viz_vega(
+    viz_id="vis-marketing-result-dwell-time",
+    title="[I12] 결과 화면 체류 시간 분포",
+    description="결과 화면(result) 체류 시간 histogram. 만족도 proxy.",
+    spec=wrap_single_as_multiview(I12_SPEC),
+)
+
+
+# ============================================================
+# I13: 이탈 직전 체류 시간 (Bar by phase)
+# 각 이탈 이벤트의 시간 metadata 평균 — 사용자가 N초 안에 빠지는가.
+# - room_lobby_abandoned.metadata.wait_time_ms (lobby 대기 시간)
+# - creation_abandoned.metadata.elapsed_ms (그리기 진행 시간)
+# - result_share_abandoned.metadata.time_on_result_ms (결과 보고 떠난 시간)
+# ============================================================
+I13_SPEC = {
+    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "title": {
+        "text": "이탈 직전 평균 체류 시간",
+        "subtitle": "이탈 유형별 평균 시간(초). 짧을수록 사용자가 빨리 지루해함.",
+        "subtitleColor": "#94A3B8",
+        "subtitleFontSize": 11,
+        "fontSize": 14,
+        "anchor": "start",
+    },
+    "data": {
+        "url": {
+            "%context%": True,
+            "%timefield%": "@timestamp",
+            "index": "biz-events-*",
+            "body": {
+                "size": 0,
+                "aggs": {
+                    "filtered": {
+                        "filter": {
+                            "bool": {
+                                "filter": [{"term": {"service": "client-web"}}]
+                            }
+                        },
+                        "aggs": {
+                            "lobby_avg": {
+                                "filter": {"term": {"event_name": "room_lobby_abandoned"}},
+                                "aggs": {
+                                    "avg_ms": {"avg": {"field": "metadata.wait_time_ms"}},
+                                    "n": {"value_count": {"field": "event_name"}}
+                                }
+                            },
+                            "creation_avg": {
+                                "filter": {"term": {"event_name": "creation_abandoned"}},
+                                "aggs": {
+                                    "avg_ms": {"avg": {"field": "metadata.elapsed_ms"}},
+                                    "n": {"value_count": {"field": "event_name"}}
+                                }
+                            },
+                            "result_avg": {
+                                "filter": {"term": {"event_name": "result_share_abandoned"}},
+                                "aggs": {
+                                    "avg_ms": {"avg": {"field": "metadata.time_on_result_ms"}},
+                                    "n": {"value_count": {"field": "event_name"}}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        # 단일 객체 → array 로 풀기 위해 transform 으로 명시.
+        "format": {"property": "aggregations.filtered"}
+    },
+    "transform": [
+        # 세 개의 named filter aggregation 결과를 row 로 풀어내기.
+        {"calculate": "[{ "
+            "'label': '로비 대기 후 이탈', "
+            "'avg_sec': datum.lobby_avg && datum.lobby_avg.avg_ms && datum.lobby_avg.avg_ms.value ? datum.lobby_avg.avg_ms.value / 1000 : 0, "
+            "'n': datum.lobby_avg && datum.lobby_avg.doc_count ? datum.lobby_avg.doc_count : 0"
+            "}, { "
+            "'label': '그리는 도중 이탈', "
+            "'avg_sec': datum.creation_avg && datum.creation_avg.avg_ms && datum.creation_avg.avg_ms.value ? datum.creation_avg.avg_ms.value / 1000 : 0, "
+            "'n': datum.creation_avg && datum.creation_avg.doc_count ? datum.creation_avg.doc_count : 0"
+            "}, { "
+            "'label': '결과 보고 이탈', "
+            "'avg_sec': datum.result_avg && datum.result_avg.avg_ms && datum.result_avg.avg_ms.value ? datum.result_avg.avg_ms.value / 1000 : 0, "
+            "'n': datum.result_avg && datum.result_avg.doc_count ? datum.result_avg.doc_count : 0"
+            "}]",
+         "as": "rows"},
+        {"flatten": ["rows"], "as": ["row"]},
+        {"calculate": "datum.row.label", "as": "label"},
+        {"calculate": "datum.row.avg_sec", "as": "avg_sec"},
+        {"calculate": "datum.row.n", "as": "n"},
+        {"filter": "datum.n > 0"},
+    ],
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
+    "width": "container",
+    "height": "container",
+    "padding": {"top": 30, "right": 30, "bottom": 30, "left": 160},
+    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True, "color": "#EF4444"},
+    "encoding": {
+        "y": {
+            "field": "label",
+            "type": "nominal",
+            "sort": "-x",
+            "axis": {"title": None, "labelFontSize": 12, "labelLimit": 200},
+        },
+        "x": {
+            "field": "avg_sec",
+            "type": "quantitative",
+            "axis": {"title": "평균 (초)", "labelFontSize": 11},
+        },
+        "tooltip": [
+            {"field": "label", "type": "nominal", "title": "이탈 유형"},
+            {"field": "avg_sec", "type": "quantitative", "title": "평균 (초)", "format": ".1f"},
+            {"field": "n", "type": "quantitative", "title": "이탈 건수"},
+        ],
+    },
+    "config": {
+        "background": "transparent",
+        "view": {"stroke": None},
+        "axis": {"labelColor": "#CBD5E1", "titleColor": "#CBD5E1", "gridColor": "#334155"},
+        "title": {"color": "#E5E7EB"},
+    },
+}
+I13 = viz_vega(
+    viz_id="vis-marketing-abandon-elapsed",
+    title="[I13] 이탈 직전 평균 체류 시간",
+    description="이탈 유형별 직전 체류 시간 평균. 사용자가 N초 안에 지루해하는지 측정.",
+    spec=wrap_single_as_multiview(I13_SPEC),
+)
+
+
+# ============================================================
+# Dashboard — 13개 viz 그리드 (48 column).
 #
 #   [I1 KPI (full, 짧음)]
 #   [I7 유입경로 (16)][I8 SNS유입 (16)][I6 공유율 (16)]
@@ -1178,18 +1539,35 @@ I9 = viz_vega(
 #   [I4 화면 이동 (full)]
 #   [I9 페이지별 체류 시간 (full)]
 # ============================================================
+#   [I1 KPI (full) + I11 방문자 완주율 (full)]
+#   [I7 유입경로 (24)][I10 시간대별 유입원 (24)]
+#   [I8 SNS 유입 (24)][I6 공유율 (24)]
+#   [I2 완주율 (24)][I5 시간대별 진입 (24)]
+#   [I3 단계별 깔때기 (full)]
+#   [I4 화면 이동 (full)]
+#   [I9 체류시간 (24)][I12 결과 체류 분포 (24)]
+#   [I13 이탈 직전 체류 (full)]
 PANELS = [
-    {"vis_id": I1["id"], "panel_id": "1", "grid": {"x": 0,  "y": 0,  "w": 48, "h": 10}},
-    # 도넛 viz 3개 — panel w 24 (절반 폭)로 legend right 가 잘리지 않게.
-    # 3개라 row 두 개 사용 (2 + 1).
-    {"vis_id": I7["id"], "panel_id": "2", "grid": {"x": 0,  "y": 10, "w": 24, "h": 16}},
-    {"vis_id": I8["id"], "panel_id": "3", "grid": {"x": 24, "y": 10, "w": 24, "h": 16}},
-    {"vis_id": I6["id"], "panel_id": "4", "grid": {"x": 0,  "y": 26, "w": 24, "h": 16}},
-    {"vis_id": I2["id"], "panel_id": "5", "grid": {"x": 24, "y": 26, "w": 24, "h": 16}},
-    {"vis_id": I5["id"], "panel_id": "6", "grid": {"x": 0,  "y": 42, "w": 48, "h": 16}},
-    {"vis_id": I3["id"], "panel_id": "7", "grid": {"x": 0,  "y": 58, "w": 48, "h": 24}},
-    {"vis_id": I4["id"], "panel_id": "8", "grid": {"x": 0,  "y": 82, "w": 48, "h": 22}},
-    {"vis_id": I9["id"], "panel_id": "9", "grid": {"x": 0,  "y": 104, "w": 48, "h": 20}},
+    {"vis_id": I1["id"],  "panel_id": "1",  "grid": {"x": 0,  "y": 0,   "w": 48, "h": 10}},
+    {"vis_id": I11["id"], "panel_id": "2",  "grid": {"x": 0,  "y": 10,  "w": 48, "h": 10}},
+    # row: 채널 분석 — 도넛 + 시간대 추이
+    {"vis_id": I7["id"],  "panel_id": "3",  "grid": {"x": 0,  "y": 20,  "w": 24, "h": 16}},
+    {"vis_id": I10["id"], "panel_id": "4",  "grid": {"x": 24, "y": 20,  "w": 24, "h": 16}},
+    # row: SNS + 공유율
+    {"vis_id": I8["id"],  "panel_id": "5",  "grid": {"x": 0,  "y": 36,  "w": 24, "h": 16}},
+    {"vis_id": I6["id"],  "panel_id": "6",  "grid": {"x": 24, "y": 36,  "w": 24, "h": 16}},
+    # row: 완주율 + funnel 시간대별
+    {"vis_id": I2["id"],  "panel_id": "7",  "grid": {"x": 0,  "y": 52,  "w": 24, "h": 16}},
+    {"vis_id": I5["id"],  "panel_id": "8",  "grid": {"x": 24, "y": 52,  "w": 24, "h": 16}},
+    # full: funnel 깔때기
+    {"vis_id": I3["id"],  "panel_id": "9",  "grid": {"x": 0,  "y": 68,  "w": 48, "h": 24}},
+    # full: 화면 이동
+    {"vis_id": I4["id"],  "panel_id": "10", "grid": {"x": 0,  "y": 92,  "w": 48, "h": 22}},
+    # row: 체류 시간 분석
+    {"vis_id": I9["id"],  "panel_id": "11", "grid": {"x": 0,  "y": 114, "w": 24, "h": 18}},
+    {"vis_id": I12["id"], "panel_id": "12", "grid": {"x": 24, "y": 114, "w": 24, "h": 18}},
+    # full: 이탈 직전
+    {"vis_id": I13["id"], "panel_id": "13", "grid": {"x": 0,  "y": 132, "w": 48, "h": 14}},
 ]
 
 
@@ -1256,7 +1634,7 @@ def write_ndjson(objects, path):
 
 
 if __name__ == "__main__":
-    OBJECTS = [I1, I2, I3, I4, I5, I6, I7, I8, I9, DASHBOARD]
+    OBJECTS = [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, DASHBOARD]
     write_ndjson(OBJECTS, OUT)
     print(f"wrote {len(OBJECTS)} saved-objects -> {OUT}")
     print("titles:")
