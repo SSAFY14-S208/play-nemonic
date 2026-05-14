@@ -26,6 +26,13 @@
 #          주요 사용자 액션 rate = OpenSearch terms — backend Counter 불필요)
 #     · ⑤ 서버 리소스 (host CPU/Mem/Disk/Net)
 #     · datasource uid: "prometheus" + "opensearch" 두 개 참조.
+#   - Nemonic Marketing Live (자체 작성) → nemonic-marketing-live.json
+#     · 마케팅 페르소나 전용 — 5초 refresh, 30분 윈도우. 운영 panel 없음.
+#     · 🎯 핵심 KPI: 동시 사용자 / 진입 / 완주 / 실시간 완주율 게이지
+#     · 📡 유입·채널: entry_type donut + 컨텐츠별 활성 사용자 stacked area
+#     · 🎨 Funnel 흐름: started/step/goal/abandoned + 단계별 이탈 stacked
+#     · 🔍 화면·에러: 인기 path Top 10 + 클라이언트 에러 timeseries
+#     · OpenSearch datasource 단일 (prometheus panel 없음).
 
 apiVersion: 1
 
