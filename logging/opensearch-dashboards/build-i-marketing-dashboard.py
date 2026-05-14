@@ -1117,14 +1117,15 @@ I9 = viz_vega(
 # ============================================================
 PANELS = [
     {"vis_id": I1["id"], "panel_id": "1", "grid": {"x": 0,  "y": 0,  "w": 48, "h": 10}},
-    {"vis_id": I7["id"], "panel_id": "2", "grid": {"x": 0,  "y": 10, "w": 16, "h": 16}},
-    {"vis_id": I8["id"], "panel_id": "3", "grid": {"x": 16, "y": 10, "w": 16, "h": 16}},
-    {"vis_id": I6["id"], "panel_id": "4", "grid": {"x": 32, "y": 10, "w": 16, "h": 16}},
-    {"vis_id": I2["id"], "panel_id": "5", "grid": {"x": 0,  "y": 26, "w": 24, "h": 16}},
-    {"vis_id": I5["id"], "panel_id": "6", "grid": {"x": 24, "y": 26, "w": 24, "h": 16}},
-    {"vis_id": I3["id"], "panel_id": "7", "grid": {"x": 0,  "y": 42, "w": 48, "h": 24}},
-    {"vis_id": I4["id"], "panel_id": "8", "grid": {"x": 0,  "y": 66, "w": 48, "h": 22}},
-    {"vis_id": I9["id"], "panel_id": "9", "grid": {"x": 0,  "y": 88, "w": 48, "h": 20}},
+    # 도넛 viz 3개 — h 22 로 충분한 vertical 공간 확보. legend bottom 잘림 방지.
+    {"vis_id": I7["id"], "panel_id": "2", "grid": {"x": 0,  "y": 10, "w": 16, "h": 22}},
+    {"vis_id": I8["id"], "panel_id": "3", "grid": {"x": 16, "y": 10, "w": 16, "h": 22}},
+    {"vis_id": I6["id"], "panel_id": "4", "grid": {"x": 32, "y": 10, "w": 16, "h": 22}},
+    {"vis_id": I2["id"], "panel_id": "5", "grid": {"x": 0,  "y": 32, "w": 24, "h": 16}},
+    {"vis_id": I5["id"], "panel_id": "6", "grid": {"x": 24, "y": 32, "w": 24, "h": 16}},
+    {"vis_id": I3["id"], "panel_id": "7", "grid": {"x": 0,  "y": 48, "w": 48, "h": 24}},
+    {"vis_id": I4["id"], "panel_id": "8", "grid": {"x": 0,  "y": 72, "w": 48, "h": 22}},
+    {"vis_id": I9["id"], "panel_id": "9", "grid": {"x": 0,  "y": 94, "w": 48, "h": 20}},
 ]
 
 
