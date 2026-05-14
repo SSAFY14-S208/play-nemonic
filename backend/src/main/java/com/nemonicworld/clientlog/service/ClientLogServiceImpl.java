@@ -22,10 +22,22 @@ public class ClientLogServiceImpl implements ClientLogService {
 
     private static final String RATE_LIMIT_EXCEEDED_MESSAGE = "클라이언트 로그 전송 한도를 초과했습니다.";
     private static final Set<String> REQUIRED_FIELDS = Set.of("@timestamp", "event_name", "service");
-    private static final Set<String> ALLOWED_EVENT_NAMES = Set.of("page_view", "page_leave", "session_start",
-        "session_end", "cta_clicked", "funnel_step_viewed", "funnel_step_completed", "funnel_abandoned",
-        "landing_source_detected", "campaign_attributed", "share_link_opened", "scroll_depth_reached",
-        "visibility_change", "client_alive", "js_error", "unhandled_rejection", "client_network_failed");
+    private static final Set<String> ALLOWED_EVENT_NAMES = Set.copyOf(List.of(
+        // Spec §3: acquisition
+        "landing_source_detected", "campaign_attributed", "share_link_opened", "install_prompt_shown",
+        "install_prompt_accepted", "install_prompt_dismissed",
+        // Spec §4: session/page
+        "session_start", "session_end", "page_view", "page_leave", "visibility_change", "client_alive",
+        // Spec §5: funnel
+        "funnel_started", "funnel_step_viewed", "funnel_step_completed", "funnel_goal_reached", "funnel_abandoned",
+        "cta_clicked",
+        // Spec §6: abandonment
+        "page_exit_intent_detected", "room_lobby_abandoned", "creation_abandoned", "result_share_abandoned",
+        // Spec §7: UI engagement
+        "scroll_depth_reached", "modal_opened", "modal_closed", "tool_selected", "canvas_interaction_started",
+        "canvas_interaction_paused",
+        // Spec §8: performance/error
+        "web_vitals", "resource_load_slow", "js_error", "unhandled_rejection", "client_network_failed"));
     private static final Set<String> ERROR_EVENT_NAMES = Set.of("js_error", "unhandled_rejection",
         "client_network_failed");
     private static final List<String> STANDARD_FIELD_NAMES = List.of("flow_id", "session_id", "room_id", "prev_zone",
