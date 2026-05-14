@@ -92,8 +92,10 @@ class CommunityMemoControllerIntegrationTest {
         LocalDateTime baseTime = LocalDateTime.now().minusHours(1).truncatedTo(ChronoUnit.SECONDS);
         UUID firstMemoId = insertDirectMemo(userUuid, "first-original.png", "first-thumbnail.png", 2,
             baseTime.plusMinutes(2), null, false);
-        UUID secondMemoId = insertDirectMemo(userUuid, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 1,
-            baseTime.plusMinutes(2), null, false);
+        UUID secondMemoId = UUID.randomUUID();
+        insertCommunityMemo(secondMemoId, userUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 1,
+            baseTime.plusMinutes(2), null, false, "{\"kind\":\"community-direct-v1\",\"memoColor\":\"#ffe887\"}", 0,
+            "pending", baseTime.plusMinutes(2), baseTime.plusMinutes(2));
         UUID fallbackMemoId = insertDirectMemo(userUuid, "fallback-original.png", null, 1, baseTime.plusMinutes(1),
             null, false);
 
@@ -119,6 +121,9 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[1].zIndex").value(1))
             .andExpect(jsonPath("$.data.items[1].rotationDeg").value(-4.5))
             .andExpect(jsonPath("$.data.items[1].ownedByMe").value(false))
+            .andExpect(jsonPath("$.data.items[0].decoration", anEmptyMap()))
+            .andExpect(jsonPath("$.data.items[1].decoration.kind").value("community-direct-v1"))
+            .andExpect(jsonPath("$.data.items[1].decoration.memoColor").value("#ffe887"))
             .andExpect(jsonPath("$.data.items[1].userId").doesNotExist())
             .andExpect(jsonPath("$.data.items[1].authorUuid").doesNotExist());
     }
@@ -149,6 +154,51 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.data.moderationStatus").value("allowed"))
             .andExpect(jsonPath("$.data.reportCount").value(1)).andExpect(jsonPath("$.data.userId").doesNotExist())
             .andExpect(jsonPath("$.data.authorUuid").doesNotExist());
+    }
+
+    @Test
+    void getCommunityMemosReturnsDecorationConsistentWithDetail() throws Exception {
+        UUID userUuid = createExistingUser("color-user");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID memoId = UUID.randomUUID();
+        String decoration = "{\"kind\":\"community-direct-v1\",\"memoColor\":\"#d7f3ff\"}";
+
+        insertCommunityMemo(memoId, userUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 1, now, null, false,
+            decoration, 0, "allowed", now, now);
+
+        mockMvc.perform(get("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
+            .andExpect(jsonPath("$.data.items[0].memoUuid").value(memoId.toString()))
+            .andExpect(jsonPath("$.data.items[0].decoration.kind").value("community-direct-v1"))
+            .andExpect(jsonPath("$.data.items[0].decoration.memoColor").value("#d7f3ff"));
+
+        mockMvc
+            .perform(
+                get("/api/v1/community/memos/{memoId}", memoId).header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.decoration.kind").value("community-direct-v1"))
+            .andExpect(jsonPath("$.data.decoration.memoColor").value("#d7f3ff"));
+    }
+
+    @Test
+    void getCommunityMemosReturnsEmptyDecorationForEmptyOrInvalidDecoration() throws Exception {
+        UUID userUuid = createExistingUser("deco-empty");
+        LocalDateTime baseTime = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
+        UUID emptyDecorationMemoId = UUID.randomUUID();
+        UUID invalidDecorationMemoId = UUID.randomUUID();
+
+        insertCommunityMemo(emptyDecorationMemoId, userUuid, null, "empty-decoration-original.png",
+            "empty-decoration-thumbnail.png", 1, baseTime.plusMinutes(1), null, false, "{}", 0, "allowed",
+            baseTime.plusMinutes(1), baseTime.plusMinutes(1));
+        insertCommunityMemo(invalidDecorationMemoId, userUuid, null, "invalid-decoration-original.png",
+            "invalid-decoration-thumbnail.png", 2, baseTime.plusMinutes(2), null, false, "{invalid-json", 0, "allowed",
+            baseTime.plusMinutes(2), baseTime.plusMinutes(2));
+
+        mockMvc.perform(get("/api/v1/community/memos")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items", hasSize(2)))
+            .andExpect(jsonPath("$.data.items[0].memoUuid").value(emptyDecorationMemoId.toString()))
+            .andExpect(jsonPath("$.data.items[0].decoration", anEmptyMap()))
+            .andExpect(jsonPath("$.data.items[1].memoUuid").value(invalidDecorationMemoId.toString()))
+            .andExpect(jsonPath("$.data.items[1].decoration", anEmptyMap()));
     }
 
     @Test
