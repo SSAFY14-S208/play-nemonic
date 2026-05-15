@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye, EyeOff, Timer } from 'lucide-react'
 import {
   ColorPanel,
@@ -32,6 +32,12 @@ const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
 const FLIPBOOK_DRAWING_IMAGES = {
   background: '/images/flipbook-lobby/background.png',
 }
+
+// 데스크탑(lg+) 그리기 화면은 1536×1024 디자인을 기준으로 절대 좌표로 배치되어
+// 있다. 작은 viewport에선 디자인 그대로 두면 클리핑되므로, 부모 크기를 측정해
+// 가로/세로 중 더 작은 비율로 scale을 동적으로 잡는다.
+const DESKTOP_DESIGN_WIDTH = 1536
+const DESKTOP_DESIGN_HEIGHT = 1024
 
 interface FlipbookDrawingViewProps {
   activeRoundIndex: number
@@ -181,6 +187,30 @@ export default function FlipbookDrawingView({
     }
   }, [activeRoundIndex, previousFrameLines.length])
 
+  // 데스크탑 레이아웃 동적 스케일 — 부모 크기를 측정해 1536×1024 디자인이
+  // 정확히 들어맞는 scale을 계산. 측정 전 0이면 인너가 사라져 클리핑을 방지한다.
+  const desktopWrapperRef = useRef<HTMLDivElement>(null)
+  const [desktopScale, setDesktopScale] = useState(0)
+
+  useEffect(() => {
+    const wrapper = desktopWrapperRef.current
+    if (!wrapper) return
+    const updateScale = () => {
+      const rect = wrapper.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return
+      const widthRatio = rect.width / DESKTOP_DESIGN_WIDTH
+      const heightRatio = rect.height / DESKTOP_DESIGN_HEIGHT
+      setDesktopScale(Math.min(widthRatio, heightRatio, 1))
+    }
+    const raf = requestAnimationFrame(updateScale)
+    const observer = new ResizeObserver(updateScale)
+    observer.observe(wrapper)
+    return () => {
+      cancelAnimationFrame(raf)
+      observer.disconnect()
+    }
+  }, [])
+
   const handleCompleteRound = () => {
     if (isDrawingLocked) return
 
@@ -190,7 +220,7 @@ export default function FlipbookDrawingView({
 
   return (
     <section
-      className="relative min-h-screen overflow-y-auto bg-[#fdf1e6] text-[#30343b] lg:grid lg:h-screen lg:place-items-center lg:overflow-hidden"
+      className="relative min-h-screen overflow-y-auto bg-[#fdf1e6] text-[#30343b] lg:grid lg:h-screen lg:overflow-hidden"
       aria-label={`${currentParticipant.name} 플립북 드로잉`}
     >
       <Image
@@ -293,8 +323,18 @@ export default function FlipbookDrawingView({
         )}
       </div>
 
-      <div className="relative hidden h-[819.2px] w-[1228.8px] shrink-0 lg:block">
-        <div className="absolute left-0 top-0 h-[1024px] w-[1536px] origin-top-left scale-[0.8]">
+      <div
+        ref={desktopWrapperRef}
+        className="relative hidden lg:block lg:h-full lg:w-full"
+      >
+        <div
+          className="absolute left-1/2 top-1/2 origin-center"
+          style={{
+            width: DESKTOP_DESIGN_WIDTH,
+            height: DESKTOP_DESIGN_HEIGHT,
+            transform: `translate(-50%, -50%) scale(${desktopScale})`,
+          }}
+        >
           <TopStatusBar
             activeRoundIndex={activeRoundIndex}
             roundCount={displayRoundCount}
