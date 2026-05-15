@@ -46,6 +46,8 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final String CANVAS_FULL_MESSAGE = "무한 캔버스 최대 참여자 수를 초과했습니다.";
     private static final String NOT_PARTICIPANT_MESSAGE = "무한 캔버스 참여자가 아닙니다.";
     private static final String INVALID_OPERATIONS_MESSAGE = "캔버스 편집 연산 목록 형식이 올바르지 않습니다.";
+    private static final String BASE_REVISION_REQUIRED_MESSAGE = "baseRevision을 지정해주세요.";
+    private static final String STALE_REVISION_MESSAGE = "캔버스 revision이 최신이 아닙니다. 서버 상태를 다시 동기화해주세요.";
     private static final String LOCK_CONFLICT_MESSAGE = "다른 참여자가 해당 요소를 편집 중입니다.";
     private static final String UPDATE_CONFLICT_MESSAGE = "무한 캔버스 상태 갱신 충돌이 발생했습니다. 다시 시도해주세요.";
     private static final int UPDATE_MAX_RETRIES = 8;
@@ -229,6 +231,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
                 return new InfiniteCanvasOpsAppliedResponse(normalizedCanvasId, state.revision(),
                     state.elements().size(), List.of());
             }
+            requireFreshRevision(request == null ? null : request.baseRevision(), state.revision());
 
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             List<JsonNode> elements = new ArrayList<>(state.elements());
@@ -385,6 +388,15 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         }
 
         return List.copyOf(operations);
+    }
+
+    private void requireFreshRevision(Long baseRevision, long currentRevision) {
+        if (baseRevision == null) {
+            throw new BadRequestException(BASE_REVISION_REQUIRED_MESSAGE);
+        }
+        if (baseRevision.longValue() != currentRevision) {
+            throw new ConflictException(STALE_REVISION_MESSAGE);
+        }
     }
 
     private InfiniteCanvasOperation createOperation(InfiniteCanvasOperationRequest request, String userUuid,
