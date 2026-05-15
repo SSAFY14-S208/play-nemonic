@@ -4,7 +4,13 @@ import { useEffect, useRef } from 'react'
 
 const IMAGE_PRELOAD_REL = 'preload'
 const IMAGE_PRELOAD_AS = 'image'
-const WEBP_MIME_TYPE = 'image/webp'
+
+function getImageMimeType(imageSource: string) {
+  if (imageSource.endsWith('.webp')) return 'image/webp'
+  if (imageSource.endsWith('.png')) return 'image/png'
+
+  return undefined
+}
 
 export function useFlipbookEntrancePreload(imageSources: readonly string[]) {
   const preloadedImageElementsRef = useRef<HTMLImageElement[]>([])
@@ -17,7 +23,10 @@ export function useFlipbookEntrancePreload(imageSources: readonly string[]) {
       const preloadLink = document.createElement('link')
       preloadLink.rel = IMAGE_PRELOAD_REL
       preloadLink.as = IMAGE_PRELOAD_AS
-      preloadLink.type = WEBP_MIME_TYPE
+      const mimeType = getImageMimeType(imageSource)
+      if (mimeType) {
+        preloadLink.type = mimeType
+      }
       preloadLink.href = imageSource
       preloadLink.setAttribute('fetchpriority', 'high')
       document.head.appendChild(preloadLink)
