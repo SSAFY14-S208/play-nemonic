@@ -1,9 +1,10 @@
 'use client'
 
 import Image from 'next/image'
-import { Flag, Trash2, X } from 'lucide-react'
+import { Flag, Trash2 } from 'lucide-react'
 import type { CommunityMemoDetailResponse } from '@/shared/types'
 import { parseServerInstant } from '@/shared/utils'
+import { CommunityModalFrame } from './CommunityModalFrame'
 
 interface CommunityMemoDetailModalProps {
   isOpen: boolean
@@ -46,39 +47,30 @@ export function CommunityMemoDetailModal({
     : null
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="community-memo-detail-title"
-      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
+    <CommunityModalFrame
+      isOpen={isOpen}
+      titleId="community-memo-detail-title"
+      frameImageUrl="/images/community-canvas/ui/modal-detail-frame.svg"
+      aspectRatio={1500 / 1040}
+      maxWidth="70rem"
+      closeButtonLabel="메모 상세 닫기"
+      frameClassName="max-md:aspect-auto max-md:h-[calc(100dvh_-_2rem)]"
+      contentClassName="bottom-[6.4%] left-[6.4%] right-[6.4%] top-[8.8%] max-md:inset-4 max-md:pt-12"
+      closeButtonClassName="right-[4.9%] top-[4.7%] max-md:right-4 max-md:top-4"
+      onClose={onClose}
     >
-      <section
-        className="relative aspect-[1500/1040] w-full max-w-6xl bg-contain bg-center bg-no-repeat"
-        style={{
-          backgroundImage: 'url("/images/community-canvas/ui/modal-detail-frame.svg")',
-          backgroundSize: '100% 100%',
-        }}
-      >
-        <button
-          type="button"
-          aria-label="메모 상세 닫기"
-          onClick={onClose}
-          className="absolute right-[5.3%] top-[5.3%] z-10 grid size-11 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
-        >
-          <X className="size-5" />
-        </button>
-
-        <div className="absolute left-[6.4%] right-[6.4%] top-[9.2%] bottom-[25.4%] overflow-hidden rounded-[1rem] border border-[#ffdf82]/80 bg-white shadow-[inset_0_1px_0_rgb(255_255_255_/_88%),0_8px_22px_rgb(71_68_112_/_10%)]">
+      <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-3">
+        <div className="relative min-h-0 overflow-hidden rounded-[1rem] border border-[#ffdf82]/80 bg-white shadow-[inset_0_1px_0_rgb(255_255_255_/_88%),0_8px_22px_rgb(71_68_112_/_10%)]">
           {detailStatus === 'loading' && (
             <div className="absolute inset-0 grid place-items-center">
-              <p className="body-b text-fg-secondary">메모를 여는 중</p>
+              <p className="body-b text-fg-secondary">메모를 불러오는 중이에요.</p>
             </div>
           )}
 
           {detailStatus === 'error' && (
             <div className="absolute inset-0 grid place-items-center p-8 text-center">
               <div>
-                <p className="h3-b text-fg-primary">메모를 열지 못했어요.</p>
+                <p className="h3-b text-fg-primary">메모를 불러오지 못했어요.</p>
                 <p className="body-r mt-2 text-fg-secondary">{detailError}</p>
               </div>
             </div>
@@ -97,7 +89,7 @@ export function CommunityMemoDetailModal({
           )}
         </div>
 
-        <footer className="absolute bottom-[7.1%] left-[6.4%] right-[6.4%] flex min-h-[6.5rem] flex-wrap items-center justify-between gap-3 px-6">
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[0.85rem] border border-[#ffdf82]/70 bg-[#fffdf1]/80 px-5 py-4 shadow-[0_6px_18px_rgb(71_68_112_/_8%)] max-md:px-4">
           <div>
             <p className="caption-b text-primary-2">{detail?.sourceType ?? 'COMMUNITY'}</p>
             <h2 id="community-memo-detail-title" className="h3-b mt-1 text-fg-primary">
@@ -136,7 +128,7 @@ export function CommunityMemoDetailModal({
             </div>
           )}
         </footer>
-      </section>
-    </div>
+      </div>
+    </CommunityModalFrame>
   )
 }
