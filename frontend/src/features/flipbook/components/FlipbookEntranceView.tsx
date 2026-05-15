@@ -259,7 +259,7 @@ function FlipbookEntranceTopControls({
   onToggleBgmMuted: () => void
 }) {
   return (
-    <div className="absolute right-[3.02%] top-[4.72%] z-30 flex items-center gap-[0.63vw]">
+    <div className="absolute right-[3.02%] top-[8.15%] z-30 flex items-center gap-[0.63vw]">
       <FlipbookEntranceIconButton
         imageSrc={FLIPBOOK_SCENE_IMAGES.howToPlayButton}
         imageWidth={63}
