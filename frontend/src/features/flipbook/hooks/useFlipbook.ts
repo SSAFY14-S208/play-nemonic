@@ -278,8 +278,6 @@ export function useFlipbook({
         setCurrentStepState('result')
       }
       resetResultPlaybackFrameIndex()
-
-      return visibleResultItems
     },
     [resetResultPlaybackFrameIndex, setCurrentStep],
   )
