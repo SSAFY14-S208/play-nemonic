@@ -26,6 +26,7 @@ import com.nemonicworld.community.service.moderation.CommunityMemoModerationResu
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -112,6 +113,7 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[1].sourceType").value("DIRECT"))
             .andExpect(jsonPath("$.data.items[1].memoOriginalImageUrl").value(ORIGINAL_PUBLIC_URL))
             .andExpect(jsonPath("$.data.items[1].memoThumbnailImageUrl").value(THUMBNAIL_PUBLIC_URL))
+            .andExpect(jsonPath("$.data.items[1].memoPlaybackImageUrl").value(nullValue()))
             .andExpect(jsonPath("$.data.items[1].memoImageUrl").value(THUMBNAIL_PUBLIC_URL))
             .andExpect(jsonPath("$.data.items[0].memoThumbnailImageUrl").value(nullValue()))
             .andExpect(jsonPath("$.data.items[0].memoImageUrl")
@@ -126,6 +128,38 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[1].decoration.memoColor").value("#ffe887"))
             .andExpect(jsonPath("$.data.items[1].userId").doesNotExist())
             .andExpect(jsonPath("$.data.items[1].authorUuid").doesNotExist());
+    }
+
+    @Test
+    void getCommunityMemosReturnsFlipbookPlaybackUrlForVisibleGalleryMemoOwnedByAnotherUser() throws Exception {
+        UUID ownerUuid = createExistingUser("gif-owner");
+        UUID viewerUuid = createExistingUser("gif-viewer");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID flipbookArtifactId = UUID.randomUUID();
+        UUID relayArtifactId = UUID.randomUUID();
+        UUID flipbookMemoId = UUID.randomUUID();
+        UUID relayMemoId = UUID.randomUUID();
+
+        insertArtifact(flipbookArtifactId, "flipbook", "flipbook-thumbnail.png", now);
+        insertFlipbookArtifact(flipbookArtifactId, "flipbook/results/%s/result.gif".formatted(flipbookArtifactId),
+            "flipbook/results/%s/first.png".formatted(flipbookArtifactId));
+        insertArtifact(relayArtifactId, "relay_drawing", "relay-thumbnail.png", now);
+        insertCommunityMemo(flipbookMemoId, ownerUuid, flipbookArtifactId, OBJECT_KEY_PREFIX + "flipbook-original.png",
+            OBJECT_KEY_PREFIX + "flipbook-thumbnail.png", 1, now, null, false, "{}", 0, "allowed", now, now);
+        insertCommunityMemo(relayMemoId, ownerUuid, relayArtifactId, OBJECT_KEY_PREFIX + "relay-original.png",
+            OBJECT_KEY_PREFIX + "relay-thumbnail.png", 2, now.plusMinutes(1), null, false, "{}", 0, "allowed", now,
+            now);
+
+        mockMvc.perform(get("/api/v1/community/memos").header(ANONYMOUS_USER_UUID_HEADER, viewerUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(2)))
+            .andExpect(jsonPath("$.data.items[0].memoUuid").value(flipbookMemoId.toString()))
+            .andExpect(jsonPath("$.data.items[0].sourceType").value("GALLERY"))
+            .andExpect(jsonPath("$.data.items[0].ownedByMe").value(false))
+            .andExpect(jsonPath("$.data.items[0].memoPlaybackImageUrl").value(
+                "http://localhost:9000/nemonic-local/flipbook/results/%s/result.gif".formatted(flipbookArtifactId)))
+            .andExpect(jsonPath("$.data.items[1].memoUuid").value(relayMemoId.toString()))
+            .andExpect(jsonPath("$.data.items[1].sourceType").value("GALLERY"))
+            .andExpect(jsonPath("$.data.items[1].memoPlaybackImageUrl").value(nullValue()));
     }
 
     @Test
@@ -147,6 +181,7 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.data.memoOriginalImageUrl").value(PUBLIC_URL_PREFIX + "gallery-original.png"))
             .andExpect(jsonPath("$.data.memoThumbnailImageUrl").value(PUBLIC_URL_PREFIX + "gallery-thumbnail.png"))
             .andExpect(jsonPath("$.data.memoImageUrl").value(PUBLIC_URL_PREFIX + "gallery-thumbnail.png"))
+            .andExpect(jsonPath("$.data.memoPlaybackImageUrl").value(nullValue()))
             .andExpect(jsonPath("$.data.ownedByMe").value(true))
             .andExpect(jsonPath("$.data.artifactId").value(artifactId.toString()))
             .andExpect(jsonPath("$.data.galleryContentKind").value("relay_drawing"))
@@ -154,6 +189,33 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.data.moderationStatus").value("allowed"))
             .andExpect(jsonPath("$.data.reportCount").value(1)).andExpect(jsonPath("$.data.userId").doesNotExist())
             .andExpect(jsonPath("$.data.authorUuid").doesNotExist());
+    }
+
+    @Test
+    void getCommunityMemoReturnsFlipbookPlaybackUrlForVisibleMemoOwnedByAnotherUser() throws Exception {
+        UUID ownerUuid = createExistingUser("gif-owner");
+        UUID viewerUuid = createExistingUser("gif-viewer");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactId = UUID.randomUUID();
+        UUID memoId = UUID.randomUUID();
+        String gifObjectKey = "flipbook/results/%s/result.gif".formatted(artifactId);
+
+        insertArtifact(artifactId, "flipbook", "artifact-thumbnail-should-not-be-used.png", now);
+        insertFlipbookArtifact(artifactId, gifObjectKey, "flipbook/results/%s/first.png".formatted(artifactId));
+        insertCommunityMemo(memoId, ownerUuid, artifactId, OBJECT_KEY_PREFIX + "detail-original.png",
+            OBJECT_KEY_PREFIX + "detail-thumbnail.png", 4, now, null, false, "{\"frame\":\"silver\"}", 0, "allowed",
+            now, now);
+
+        mockMvc
+            .perform(get("/api/v1/community/memos/{memoId}", memoId).header(ANONYMOUS_USER_UUID_HEADER,
+                viewerUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.sourceType").value("GALLERY"))
+            .andExpect(jsonPath("$.data.ownedByMe").value(false))
+            .andExpect(jsonPath("$.data.galleryContentKind").value("flipbook"))
+            .andExpect(
+                jsonPath("$.data.memoPlaybackImageUrl").value("http://localhost:9000/nemonic-local/" + gifObjectKey))
+            .andExpect(jsonPath("$.data.memoOriginalImageUrl").value(PUBLIC_URL_PREFIX + "detail-original.png"))
+            .andExpect(jsonPath("$.data.memoThumbnailImageUrl").value(PUBLIC_URL_PREFIX + "detail-thumbnail.png"));
     }
 
     @Test
@@ -328,9 +390,11 @@ class CommunityMemoControllerIntegrationTest {
         UUID galleryId = UUID.randomUUID();
         String originalObjectKey = OBJECT_KEY_PREFIX + "posted-original.png";
         String thumbnailObjectKey = OBJECT_KEY_PREFIX + "posted-thumbnail.png";
+        String playbackObjectKey = "flipbook/results/%s/result.gif".formatted(artifactId);
         UUID originalFileId = insertFileUpload(userUuid, originalObjectKey, "COMMUNITY", "UPLOADED", null);
         UUID thumbnailFileId = insertFileUpload(userUuid, thumbnailObjectKey, "COMMUNITY", "UPLOADED", null);
         insertArtifact(artifactId, "flipbook", "artifact-thumbnail-should-not-render.png", now);
+        insertFlipbookArtifact(artifactId, playbackObjectKey, "flipbook/results/%s/first.png".formatted(artifactId));
         insertGallery(galleryId, userUuid, artifactId, null);
         when(moderationClient.check(any()))
             .thenReturn(new CommunityMemoModerationResult(true, "갤러리 OCR", objectMapper.readTree("[\"safe\"]")));
@@ -359,6 +423,8 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(jsonPath("$.data.memoOriginalImageUrl").value(PUBLIC_URL_PREFIX + "posted-original.png"))
             .andExpect(jsonPath("$.data.memoThumbnailImageUrl").value(PUBLIC_URL_PREFIX + "posted-thumbnail.png"))
             .andExpect(jsonPath("$.data.memoImageUrl").value(PUBLIC_URL_PREFIX + "posted-thumbnail.png"))
+            .andExpect(jsonPath("$.data.memoPlaybackImageUrl")
+                .value("http://localhost:9000/nemonic-local/" + playbackObjectKey))
             .andExpect(jsonPath("$.data.decoration.scale").value(1.0))
             .andExpect(jsonPath("$.data.ownedByMe").value(true))
             .andExpect(jsonPath("$.data.moderationStatus").value("allowed")).andReturn();
@@ -1537,7 +1603,13 @@ class CommunityMemoControllerIntegrationTest {
         jdbcTemplate.update("""
             INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
             VALUES (?, ?, NULL, ?, '{}', ?, ?)
-            """, artifactId, kind, thumbnailUrl, createdAt, createdAt);
+            """, new Object[]{artifactId, kind, thumbnailUrl, createdAt, createdAt},
+            new int[]{Types.OTHER, Types.OTHER, Types.VARCHAR, Types.TIMESTAMP, Types.TIMESTAMP});
+    }
+
+    private void insertFlipbookArtifact(UUID artifactId, String gifUrl, String firstImageUrl) {
+        jdbcTemplate.update("INSERT INTO flipbook_artifact (artifact_id, gif_url, first_image) VALUES (?, ?, ?)",
+            artifactId, gifUrl, firstImageUrl);
     }
 
     private void insertGallery(UUID galleryId, UUID userUuid, UUID artifactId, LocalDateTime deletedAt) {
@@ -1555,15 +1627,20 @@ class CommunityMemoControllerIntegrationTest {
                 created_at, updated_at
             )
             VALUES (?, ?, ?, 120.5, 80.0, ?, -4.5, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, memoId, userUuid, artifactId, zIndex, bodyImageUrl, thumbnailImageUrl, attachedAt, hidden, deletedAt,
-            decoration, reportCount, moderationStatus, createdAt, updatedAt);
+            """,
+            new Object[]{memoId, userUuid, artifactId, zIndex, bodyImageUrl, thumbnailImageUrl, attachedAt, hidden,
+                deletedAt, decoration, reportCount, moderationStatus, createdAt, updatedAt},
+            new int[]{Types.OTHER, Types.OTHER, Types.OTHER, Types.INTEGER, Types.VARCHAR, Types.VARCHAR,
+                Types.TIMESTAMP, Types.BOOLEAN, Types.TIMESTAMP, Types.VARCHAR, Types.INTEGER, Types.OTHER,
+                Types.TIMESTAMP, Types.TIMESTAMP});
     }
 
     private void insertMemoReport(UUID memoId, UUID userUuid, String reason, LocalDateTime createdAt) {
         jdbcTemplate.update("""
             INSERT INTO community_memo_report (memo_id, user_id, reason, reason_detail, created_at)
             VALUES (?, ?, ?, NULL, ?)
-            """, memoId, userUuid, reason, createdAt);
+            """, new Object[]{memoId, userUuid, reason, createdAt},
+            new int[]{Types.OTHER, Types.OTHER, Types.OTHER, Types.TIMESTAMP});
     }
 
     private MockHttpServletRequestBuilder createRequest(UUID userUuid, String originalFileIdValue,

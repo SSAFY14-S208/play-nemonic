@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-14
+Last updated: 2026-05-15
 
 ## Current Focus
 
@@ -557,6 +557,7 @@ Recent community logging work reused the shared structured event logger for comm
 - COMMUNITY-purpose file uploads now emit presign, confirm, and pending-delete events without affecting other file purposes.
 - Admin community list/detail/report-history views emit audit events, while existing hide/restore audit logs keep the operator-provided review reason in metadata.
 - `backend/docs/product-spec/08-observability.md` includes the community event names in the backend event allow-list.
+- Community memo list/detail responses now include `memoPlaybackImageUrl`. Visible GALLERY memos backed by `artifact.kind=flipbook` expose the resolved public `flipbook_artifact.gif_url` to any viewer, while DIRECT and non-flipbook memos return `null`; `GET /api/v1/artifacts/{artifactId}/image-urls` remains owner-scoped.
 
 ## Next Suggested Steps
 

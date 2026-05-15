@@ -32,6 +32,7 @@ public class CommunityMemoRepository {
         FROM community_memo cm
         LEFT JOIN app_user au ON au.id = cm.user_id
         LEFT JOIN artifact a ON a.id = cm.artifact_id
+        LEFT JOIN flipbook_artifact fba ON fba.artifact_id = cm.artifact_id
         WHERE cm.deleted_at IS NULL
           AND cm.is_hidden = FALSE
         """;
@@ -42,8 +43,10 @@ public class CommunityMemoRepository {
             cm.user_id AS user_id,
             au.nickname AS author_nickname,
             cm.artifact_id AS artifact_id,
+            CAST(a.kind AS VARCHAR) AS artifact_kind,
             cm.body_image_url AS original_image_reference,
             cm.thumbnail_image_url AS thumbnail_image_reference,
+            fba.gif_url AS playback_image_reference,
             cm.position_x AS position_x,
             cm.position_y AS position_y,
             cm.z_index AS z_index,
@@ -64,6 +67,7 @@ public class CommunityMemoRepository {
             CAST(a.kind AS VARCHAR) AS artifact_kind,
             cm.body_image_url AS original_image_reference,
             cm.thumbnail_image_url AS thumbnail_image_reference,
+            fba.gif_url AS playback_image_reference,
             cm.position_x AS position_x,
             cm.position_y AS position_y,
             cm.z_index AS z_index,
@@ -474,8 +478,9 @@ public class CommunityMemoRepository {
     private CommunityMemoRow mapRow(ResultSet resultSet, int rowNumber) throws SQLException {
         return new CommunityMemoRow(resultSet.getObject("memo_id", UUID.class),
             resultSet.getObject("user_id", UUID.class), resultSet.getString("author_nickname"),
-            resultSet.getObject("artifact_id", UUID.class), resultSet.getString("original_image_reference"),
-            resultSet.getString("thumbnail_image_reference"), resultSet.getDouble("position_x"),
+            resultSet.getObject("artifact_id", UUID.class), resultSet.getString("artifact_kind"),
+            resultSet.getString("original_image_reference"), resultSet.getString("thumbnail_image_reference"),
+            resultSet.getString("playback_image_reference"), resultSet.getDouble("position_x"),
             resultSet.getDouble("position_y"), resultSet.getInt("z_index"), resultSet.getFloat("rotation_deg"),
             resultSet.getString("decoration"), resultSet.getTimestamp("attached_at").toLocalDateTime());
     }
@@ -488,8 +493,9 @@ public class CommunityMemoRepository {
             resultSet.getObject("user_id", UUID.class), resultSet.getString("author_nickname"),
             resultSet.getObject("artifact_id", UUID.class), resultSet.getString("artifact_kind"),
             resultSet.getString("original_image_reference"), resultSet.getString("thumbnail_image_reference"),
-            resultSet.getDouble("position_x"), resultSet.getDouble("position_y"), resultSet.getInt("z_index"),
-            resultSet.getFloat("rotation_deg"), resultSet.getString("decoration"), resultSet.getInt("report_count"),
+            resultSet.getString("playback_image_reference"), resultSet.getDouble("position_x"),
+            resultSet.getDouble("position_y"), resultSet.getInt("z_index"), resultSet.getFloat("rotation_deg"),
+            resultSet.getString("decoration"), resultSet.getInt("report_count"),
             resultSet.getString("moderation_status"), resultSet.getTimestamp("attached_at").toLocalDateTime(),
             resultSet.getTimestamp("created_at").toLocalDateTime(),
             resultSet.getTimestamp("updated_at").toLocalDateTime());
