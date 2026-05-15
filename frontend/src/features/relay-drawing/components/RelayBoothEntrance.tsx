@@ -471,17 +471,6 @@ function RelayBoothEntranceFinalState({
   onReveal,
   className,
 }: RelayBoothEntranceFinalStateProps) {
-  // lg 미만에서는 카드 크기를 줄여 모바일 레이아웃이 깨지지 않도록 한다.
-  const [partSize, setPartSize] = useState(PART_SIZE_LG);
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      setPartSize(
-        window.innerWidth >= FAN_BREAKPOINT_PX ? PART_SIZE_LG : PART_SIZE_SM,
-      );
-    });
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
   // 자연 완료 / 스킵 / reduced-motion 어느 경로든 결국 이 컴포넌트가 마운트되며,
   // 부모의 좌측 페이드 인 트리거를 1회만 발화하도록 ref 플래그로 가드.
   const hasRevealedRef = useRef(false);
@@ -493,15 +482,16 @@ function RelayBoothEntranceFinalState({
 
   return (
     <div className={cn("relative", className)}>
-      {/* 모바일/태블릿(< lg)은 30°, 데스크탑은 45°. ChoreographyTree의 fanAngle 분기와 동일 1024px. */}
+      {/* 모바일/태블릿(< lg)은 30°, 데스크탑은 45°. ChoreographyTree의 fanAngle 분기와 동일 1024px.
+          size prop을 생략해 RelayLabelCard의 Tailwind 반응형(100px / lg:150px)이 적용됨. */}
       <div className="absolute inset-0 z-10 origin-bottom rotate-30 lg:rotate-45">
-        <RelayArtworkCard size={partSize} />
+        <RelayArtworkCard />
       </div>
       <div className="absolute inset-0 z-20 origin-bottom rotate-[-30deg] lg:-rotate-45">
-        <RelayArtworkCard size={partSize} />
+        <RelayArtworkCard />
       </div>
       <div className="relative z-30">
-        <RelayArtworkCard size={partSize} />
+        <RelayArtworkCard />
       </div>
     </div>
   );

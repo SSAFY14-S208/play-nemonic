@@ -12,6 +12,8 @@ export {
   TopStatusBar,
 } from './DrawingWorkspaceControls'
 export { BrowserExtensionErrorGuard } from './BrowserExtensionErrorGuard'
+export { HowToPlayModal } from './HowToPlayModal'
+export type { HowToPlayPanel } from './HowToPlayModal'
 export { PostItNote } from './PostItNote'
 export { UserBootstrap, UserBootstrapLoader } from './UserBootstrap'
 export { LogBootstrap, LogBootstrapLoader } from './LogBootstrap'

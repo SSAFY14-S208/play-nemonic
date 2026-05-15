@@ -1,15 +1,25 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, Clock3, Crown, UsersRound, X } from "lucide-react";
+import { useState } from "react";
+import {
+  ArrowLeft,
+  Clock3,
+  Crown,
+  HelpCircle,
+  UsersRound,
+  X,
+} from "lucide-react";
 import { motion } from "motion/react";
 
+import { HowToPlayModal } from "@/shared/components";
 import { cn } from "@/shared/libs";
 import { useUserStore } from "@/shared/stores";
 import type { RelayRoomParticipantResponse } from "@/shared/types";
 
 import relayDrawingTitle from "../assets/relay-drawing-title.png";
 import {
+  RELAY_HOW_TO_PLAY_PANELS,
   RELAY_QR_ACTION,
   RELAY_ROOM_CODE,
   RELAY_SHARE_ACTIONS,
@@ -37,9 +47,7 @@ export default function RelayLobbyView() {
   );
   const currentUserUuid = useUserStore((state) => state.userUuid);
 
-  const gameStartPhase = useRelayDrawingStore(
-    (state) => state.gameStartPhase,
-  );
+  const gameStartPhase = useRelayDrawingStore((state) => state.gameStartPhase);
   const isExiting = gameStartPhase === "animating";
 
   const {
@@ -55,6 +63,8 @@ export default function RelayLobbyView() {
     leaveRoom,
   } = useRelayLobby();
 
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false);
+
   const waitingSlotCount = Math.max(0, maxParticipants - participants.length);
   const startButtonLabel = isStarting
     ? "시작 중…"
@@ -68,8 +78,8 @@ export default function RelayLobbyView() {
         animate={isExiting ? { opacity: 0, y: 40 } : { opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.65, 0, 0.35, 1] }}
       >
-        {/* 나가기 */}
-        <header className="flex items-center">
+        {/* 나가기 + 게임 설명 */}
+        <header className="flex items-center justify-between">
           <button
             type="button"
             onClick={leaveRoom}
@@ -77,6 +87,14 @@ export default function RelayLobbyView() {
           >
             <ArrowLeft className="size-5" aria-hidden />
             나가기
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsHowToPlayModalOpen(true)}
+            aria-label="게임 설명"
+            className="grid size-9 cursor-pointer place-items-center rounded-full border border-relay-line bg-relay-paper text-relay-ink shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95"
+          >
+            <HelpCircle className="size-5" aria-hidden />
           </button>
         </header>
 
@@ -220,9 +238,9 @@ export default function RelayLobbyView() {
 
       {/* ─── 데스크탑 레이아웃 (lg+) ─── */}
       <motion.div className="relative z-10 hidden w-full min-h-screen flex-col lg:flex">
-        {/* 나가기 — 데스크탑 좌상단 */}
+        {/* 나가기 + 게임 설명 — 데스크탑 상단 */}
         <motion.header
-          className="shrink-0 px-8 pt-6"
+          className="flex shrink-0 items-center justify-between px-8 pt-6"
           animate={isExiting ? { opacity: 0, y: -20 } : { opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
@@ -234,6 +252,17 @@ export default function RelayLobbyView() {
             <ArrowLeft className="size-5" aria-hidden />
             나가기
           </button>
+          <button
+            type="button"
+            onClick={() => setIsHowToPlayModalOpen(true)}
+            aria-label="게임 설명"
+            className="grid size-10 cursor-pointer place-items-center rounded-full border border-relay-line bg-relay-paper text-relay-ink shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95"
+          >
+            <HelpCircle
+              className="size-5 text-relay-accent-strong"
+              aria-hidden
+            />
+          </button>
         </motion.header>
 
         <main className="mx-auto grid w-full max-w-[1400px] flex-1 items-center gap-10 px-8 pb-8 lg:grid-cols-[2fr_3fr] xl:gap-14">
@@ -241,9 +270,7 @@ export default function RelayLobbyView() {
           <motion.aside
             className="flex w-full flex-col items-center"
             animate={
-              isExiting
-                ? { x: "-100%", opacity: 0 }
-                : { x: 0, opacity: 1 }
+              isExiting ? { x: "-100%", opacity: 0 } : { x: 0, opacity: 1 }
             }
             transition={{ duration: 0.5, ease: [0.65, 0, 0.35, 1] }}
           >
@@ -307,9 +334,7 @@ export default function RelayLobbyView() {
           <motion.section
             className="rounded-[32px] border border-relay-line bg-white/68 p-8 shadow-[0_18px_44px_rgba(184,121,22,0.14),inset_0_1px_0_rgb(255_255_255_/_86%)] backdrop-blur-sm"
             animate={
-              isExiting
-                ? { x: "100%", opacity: 0 }
-                : { x: 0, opacity: 1 }
+              isExiting ? { x: "100%", opacity: 0 } : { x: 0, opacity: 1 }
             }
             transition={{ duration: 0.5, ease: [0.65, 0, 0.35, 1] }}
           >
@@ -422,6 +447,13 @@ export default function RelayLobbyView() {
           </motion.section>
         </main>
       </motion.div>
+
+      <HowToPlayModal
+        open={isHowToPlayModalOpen}
+        onOpenChange={setIsHowToPlayModalOpen}
+        panels={RELAY_HOW_TO_PLAY_PANELS}
+        accentColor="var(--color-relay-accent)"
+      />
     </section>
   );
 }

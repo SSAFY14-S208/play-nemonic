@@ -182,10 +182,11 @@ export default function RelayDrawingView() {
           onStrokeWidthChange={setStrokeWidth}
         />
 
-        <div className="rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+        <div className="min-w-0 rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
           <div
-            className="relative w-full overflow-hidden rounded-[8px] bg-white"
+            className="relative mx-auto w-full overflow-hidden rounded-[8px] bg-white"
             style={{
+              maxWidth: RELAY_STAGE_SIZE.width,
               aspectRatio: `${RELAY_STAGE_SIZE.width} / ${RELAY_STAGE_SIZE.height}`,
             }}
           >

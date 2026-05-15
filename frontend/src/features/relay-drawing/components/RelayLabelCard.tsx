@@ -5,7 +5,8 @@ import { cn } from "@/shared/libs";
 interface RelayLabelCardProps {
   imageSrc: StaticImageData;
   imageAlt: string;
-  // px 단위. 부스 인트로 choreography에선 200(시각 임팩트), 최종 상태에선 100.
+  // px 단위. 인트로 choreography처럼 애니메이션 수치 계산이 필요한 곳에서만 명시.
+  // 생략하면 Tailwind 반응형 클래스(100px / lg:150px)로 렌더링.
   size?: number;
   className?: string;
 }
@@ -13,16 +14,22 @@ interface RelayLabelCardProps {
 export default function RelayLabelCard({
   imageSrc,
   imageAlt,
-  size = 200,
+  size,
   className,
 }: RelayLabelCardProps) {
   return (
     <div
       className={cn(
         "relative bg-relay-paper shadow-[0_8px_24px_rgba(184,121,22,0.12)]",
+        size === undefined &&
+          "size-25 rounded-sm lg:size-37.5 lg:rounded-md",
         className,
       )}
-      style={{ width: size, height: size, borderRadius: size * 0.04 }}
+      style={
+        size !== undefined
+          ? { width: size, height: size, borderRadius: size * 0.04 }
+          : undefined
+      }
     >
       <div className="relative h-full w-full">
         <Image
