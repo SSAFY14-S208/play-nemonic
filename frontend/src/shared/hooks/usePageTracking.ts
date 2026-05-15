@@ -21,8 +21,8 @@ export function usePageTracking() {
 
       // 이전 경로가 있으면 page_leave 먼저
       if (prevPathRef.current !== null && prevPathRef.current !== currentPath) {
-        const enteredAt = enteredAtRef.current ?? Date.now()
-        const timeOnPage = Date.now() - enteredAt
+        const enteredAt = enteredAtRef.current
+        const timeOnPage = enteredAt === null ? 0 : Date.now() - enteredAt
         logEvent('page_leave', {
           path: prevPathRef.current,
           metadata: {

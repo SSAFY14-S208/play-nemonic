@@ -18,11 +18,12 @@ export function useClientAlive() {
 
     function sendHeartbeat() {
       if (cancelled) return
+      const sessionStart = sessionStartRef.current ?? Date.now()
       touchSession()
       logEvent('client_alive', {
         path: window.location.pathname,
         metadata: {
-          time_in_session_ms: Date.now() - (sessionStartRef.current ?? Date.now()),
+          time_in_session_ms: Date.now() - sessionStart,
         },
       })
     }

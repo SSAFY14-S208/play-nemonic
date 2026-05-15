@@ -36,25 +36,14 @@ export function useRelayAbandonmentTracking(): void {
   })
 
   useEffect(() => {
-    let cancelled = false
-
-    void (async () => {
-      await Promise.resolve()
-      if (cancelled) return
-
-      latestRef.current = {
-        roomStatus,
-        roomCode,
-        participantCount: participants.length,
-        dismissalReason,
-        isSubmitted,
-      }
-    })()
-
-    return () => {
-      cancelled = true
+    latestRef.current = {
+      roomStatus,
+      roomCode,
+      participantCount: participants.length,
+      dismissalReason,
+      isSubmitted,
     }
-  }, [roomStatus, roomCode, participants.length, dismissalReason, isSubmitted])
+  }, [dismissalReason, isSubmitted, participants.length, roomCode, roomStatus])
 
   // 각 페이즈 진입 시각 — wait_time_ms, elapsed_ms, time_on_result_ms 계산용.
   const lobbyEnteredAtRef = useRef<number | null>(null)
