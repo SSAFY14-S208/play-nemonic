@@ -2,6 +2,8 @@ package com.nemonicworld.infinitecanvas.websocket;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventResponse;
@@ -19,6 +21,7 @@ public class InfiniteCanvasEventPublisher {
     private static final String CANVAS_TOPIC_PREFIX = "/topic/infinite-canvas/canvases/";
     private static final String CANVAS_USER_QUEUE_PREFIX = "/queue/infinite-canvas/canvases/";
     private static final String DUPLICATE_SESSION_CLOSED_MESSAGE = "다른 곳에서 접속되어 연결이 종료되었습니다.";
+    private static final String PONG_MESSAGE = "pong";
     private static final String DEFAULT_ERROR_MESSAGE = "무한 캔버스 요청을 처리할 수 없습니다.";
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -42,6 +45,18 @@ public class InfiniteCanvasEventPublisher {
         publishCanvasEvent(InfiniteCanvasEventType.SNAPSHOT_UPDATED, response.canvasId(), response);
     }
 
+    public void publishCursorUpdated(InfiniteCanvasCursorResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.CURSOR_UPDATED, response.canvasId(), response);
+    }
+
+    public void publishLockAcquired(InfiniteCanvasLockResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.LOCK_ACQUIRED, response.canvasId(), response);
+    }
+
+    public void publishLockReleased(InfiniteCanvasLockResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.LOCK_RELEASED, response.canvasId(), response);
+    }
+
     public void publishParticipantDisconnected(InfiniteCanvasStateResponse response) {
         publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response.canvasId(), response);
     }
@@ -50,6 +65,14 @@ public class InfiniteCanvasEventPublisher {
         InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(
             InfiniteCanvasEventType.DUPLICATE_SESSION_CLOSED, canvasId,
             new InfiniteCanvasSimpleMessageResponse(DUPLICATE_SESSION_CLOSED_MESSAGE));
+
+        messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + canvasId, event,
+            createSessionHeaders(sessionId));
+    }
+
+    public void publishPong(String sessionId, String canvasId) {
+        InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(InfiniteCanvasEventType.PONG, canvasId,
+            new InfiniteCanvasSimpleMessageResponse(PONG_MESSAGE));
 
         messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + canvasId, event,
             createSessionHeaders(sessionId));

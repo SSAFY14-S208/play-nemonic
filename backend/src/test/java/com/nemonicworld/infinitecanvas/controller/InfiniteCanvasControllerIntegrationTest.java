@@ -19,9 +19,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCursorRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasLockRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOperationRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperationType;
@@ -413,6 +417,48 @@ class InfiniteCanvasControllerIntegrationTest {
         assertThat(storedCanvas.path("elements")).hasSize(1);
         assertThat(storedCanvas.path("elements").get(0).path("id").asText()).isEqualTo("snapshot-note");
         assertThat(storedCanvas.path("viewport").path("x").asInt()).isEqualTo(120);
+    }
+
+    @Test
+    void updateInfiniteCanvasCursorStoresCursorWithoutRevisionChange() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
+        redisValues.put(canvasKey(state.canvasId()), serialize(state));
+
+        InfiniteCanvasCursorResponse response = infiniteCanvasService.updateCursor(ownerUuid.toString(),
+            state.canvasId(),
+            new InfiniteCanvasCursorRequest(15.0, -30.0, 1.5, objectMapper.createObjectNode().put("tool", "brush")));
+
+        JsonNode storedCanvas = readStoredJson(canvasKey(state.canvasId()));
+        assertThat(response.canvasId()).isEqualTo(state.canvasId());
+        assertThat(response.cursor().userUuid()).isEqualTo(ownerUuid.toString());
+        assertThat(storedCanvas.path("revision").asLong()).isZero();
+        assertThat(storedCanvas.path("cursors").path(ownerUuid.toString()).path("x").asDouble()).isEqualTo(15.0);
+        assertThat(storedCanvas.path("cursors").path(ownerUuid.toString()).path("payload").path("tool").asText())
+            .isEqualTo("brush");
+    }
+
+    @Test
+    void acquireAndReleaseInfiniteCanvasLockStoresLockState() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
+        redisValues.put(canvasKey(state.canvasId()), serialize(state));
+
+        InfiniteCanvasLockResponse acquired = infiniteCanvasService.acquireLock(ownerUuid.toString(), state.canvasId(),
+            new InfiniteCanvasLockRequest("shape-1"));
+
+        JsonNode lockedCanvas = readStoredJson(canvasKey(state.canvasId()));
+        assertThat(acquired.lock()).isNotNull();
+        assertThat(acquired.lock().userUuid()).isEqualTo(ownerUuid.toString());
+        assertThat(lockedCanvas.path("locks").path("shape-1").path("userUuid").asText())
+            .isEqualTo(ownerUuid.toString());
+
+        InfiniteCanvasLockResponse released = infiniteCanvasService.releaseLock(ownerUuid.toString(), state.canvasId(),
+            new InfiniteCanvasLockRequest("shape-1"));
+
+        JsonNode releasedCanvas = readStoredJson(canvasKey(state.canvasId()));
+        assertThat(released.lock()).isNull();
+        assertThat(releasedCanvas.path("locks").has("shape-1")).isFalse();
     }
 
     private void prepareBackofficeSettingTables() {
