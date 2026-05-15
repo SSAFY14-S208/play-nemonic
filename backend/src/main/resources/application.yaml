@@ -105,6 +105,11 @@ nemonic:
     rate-limit-events-per-second: ${CLIENT_LOG_RATE_LIMIT_EVENTS_PER_SECOND:100}
     rate-limit-events-per-minute: ${CLIENT_LOG_RATE_LIMIT_EVENTS_PER_MINUTE:1000}
 
+  admin-logs:
+    opensearch-url: ${OPENSEARCH_URL:http://opensearch:9200}
+    max-size: ${ADMIN_LOGS_MAX_SIZE:200}
+    query-timeout-ms: ${ADMIN_LOGS_QUERY_TIMEOUT_MS:15000}
+
   community:
     moderation:
       enabled: ${COMMUNITY_MODERATION_ENABLED:true}
