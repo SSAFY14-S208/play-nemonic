@@ -1,16 +1,22 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useThree, type ThreeEvent } from '@react-three/fiber'
-import type * as THREE from 'three'
+import { useThree } from '@react-three/fiber'
 import { HUB_GAMES } from '@/shared/constants'
 import { useHubGameStore, useHubRoomStore } from '@/shared/stores'
 import { trackHubInvalidate } from '@/shared/utils'
 
 export type MonitorGameAction = 'previous' | 'next' | 'start'
 
-function setDocumentCursor(cursor: string) {
-  if (typeof document === 'undefined') return
-  document.body.style.cursor = cursor
+function isKeyboardInputTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+
+  const tagName = target.tagName.toLowerCase()
+  return (
+    target.isContentEditable ||
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select'
+  )
 }
 
 export function useMonitorGameSelector() {
@@ -39,76 +45,47 @@ export function useMonitorGameSelector() {
     router.push(selectedGame.route)
   }, [invalidate, router, selectedGame.route])
 
-  const handleScreenPointerEnter = useCallback(() => {
-    setDocumentCursor('pointer')
-  }, [])
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isKeyboardInputTarget(event.target)) return
 
-  const handleScreenPointerLeave = useCallback(() => {
-    setDocumentCursor('')
-  }, [])
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        selectPreviousGame()
+        trackHubInvalidate('monitor.keyboard.previous')
+        invalidate()
+        return
+      }
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        selectNextGame()
+        trackHubInvalidate('monitor.keyboard.next')
+        invalidate()
+        return
+      }
+
+      if (event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar') {
+        event.preventDefault()
+        trackHubInvalidate('monitor.keyboard.start')
+        startSelectedGame()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [invalidate, selectNextGame, selectPreviousGame, startSelectedGame])
 
   return {
     focusMonitor,
     gameCount: HUB_GAMES.length,
-    handleScreenPointerEnter,
-    handleScreenPointerLeave,
     selectedGame,
     selectedGameIndex,
     selectNextGame,
     selectPreviousGame,
     startSelectedGame,
-  }
-}
-
-export function useMonitorButtonMaterial(
-  action: MonitorGameAction,
-  color: string,
-) {
-  const materialRef = useRef<THREE.MeshBasicMaterial>(null)
-  const invalidate = useThree((state) => state.invalidate)
-
-  const applyHoverState = useCallback(
-    (isHovered: boolean) => {
-      const material = materialRef.current
-
-      if (material) {
-        material.color.set(isHovered ? '#ffffff' : color)
-        material.opacity = isHovered ? 0.95 : 0.84
-        material.needsUpdate = true
-      }
-
-      setDocumentCursor(isHovered ? 'pointer' : '')
-      trackHubInvalidate(`monitor.${action}.hover`)
-      invalidate()
-    },
-    [action, color, invalidate],
-  )
-
-  const handlePointerEnter = useCallback(
-    (event: ThreeEvent<PointerEvent>) => {
-      event.stopPropagation()
-      applyHoverState(true)
-    },
-    [applyHoverState],
-  )
-
-  const handlePointerLeave = useCallback(
-    (event: ThreeEvent<PointerEvent>) => {
-      event.stopPropagation()
-      applyHoverState(false)
-    },
-    [applyHoverState],
-  )
-
-  const notifyClick = useCallback(() => {
-    trackHubInvalidate(`monitor.${action}.click`)
-    invalidate()
-  }, [action, invalidate])
-
-  return {
-    handlePointerEnter,
-    handlePointerLeave,
-    materialRef,
-    notifyClick,
   }
 }
