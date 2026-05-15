@@ -125,16 +125,16 @@ def search_source(query="", filters=None):
     })
 
 
-def section_header_markdown(heading, subtitle, accent=ACCENT_VIOLET):
-    """섹션 헤더용 markdown — h2 제목 + 부제 두 줄.
+def section_header_markdown(heading, subtitle=None, accent=ACCENT_VIOLET):
+    """섹션 헤더용 markdown — h2 제목 한 줄.
 
     OSD 2.x 의 markdown_vis 는 markdown-it 을 html:false 로 초기화하므로 inline HTML
     (style 속성, <div>, <span> 등) 은 escape 되어 텍스트로 그대로 표시된다.
     그라데이션 바·색상 등 시각 장식은 markdown vis 에서 불가 — plain markdown 만 사용.
-    accent 인자는 호출부 시그니처 호환용으로 받지만 무시.
+    subtitle / accent 인자는 호출부 시그니처 호환용으로 받지만 무시 — 큰 제목만 표시.
     """
-    del accent
-    return f"## {heading}\n\n{subtitle}"
+    del subtitle, accent
+    return f"## {heading}"
 
 
 def viz_markdown(viz_id, title, markdown):
@@ -150,8 +150,8 @@ def viz_markdown(viz_id, title, markdown):
                 "aggs": [],
                 "params": {
                     # fontSize 는 markdown 본문(p) 기준 px. h2 는 약 1.5x 로 scale.
-                    # 13 → 부제 13px / 제목 ~20px — 사이드바 디자인 의도와 근접.
-                    "fontSize": 13,
+                    # 18 → h2 ~27px — 단일 제목 한 줄을 큰 섹션 헤더로 prominent 하게.
+                    "fontSize": 18,
                     "openLinksInNewTab": False,
                     "markdown": markdown,
                 },
@@ -1654,46 +1654,31 @@ I13 = viz_vega(
 HEADER_OVERVIEW = viz_markdown(
     viz_id="vis-marketing-header-overview",
     title="섹션 헤더 — 총량",
-    markdown=section_header_markdown(
-        heading="오늘의 KPI",
-        subtitle="오늘 들어온 사용자와 핵심 행동의 완료·이탈 현황",
-    ),
+    markdown=section_header_markdown(heading="오늘의 KPI"),
 )
 
 HEADER_CHANNEL = viz_markdown(
     viz_id="vis-marketing-header-channel",
     title="섹션 헤더 — 채널",
-    markdown=section_header_markdown(
-        heading="유입 채널",
-        subtitle="어떤 경로로 들어오는지 — 직접·검색·SNS·공유·QR·캠페인",
-    ),
+    markdown=section_header_markdown(heading="유입 채널"),
 )
 
 HEADER_CONTENT = viz_markdown(
     viz_id="vis-marketing-header-content",
     title="섹션 헤더 — 컨텐츠",
-    markdown=section_header_markdown(
-        heading="컨텐츠",
-        subtitle="컨텐츠별 완주율과 시간대별 진입 추이",
-    ),
+    markdown=section_header_markdown(heading="컨텐츠"),
 )
 
 HEADER_FLOW = viz_markdown(
     viz_id="vis-marketing-header-flow",
     title="섹션 헤더 — 단계·흐름",
-    markdown=section_header_markdown(
-        heading="단계 · 화면 흐름",
-        subtitle="어느 단계에서 사용자가 빠지고, 한 화면 다음에 어디로 가는가",
-    ),
+    markdown=section_header_markdown(heading="단계 · 화면 흐름"),
 )
 
 HEADER_RETENTION = viz_markdown(
     viz_id="vis-marketing-header-retention",
     title="섹션 헤더 — 만족도·이탈",
-    markdown=section_header_markdown(
-        heading="체류 · 이탈",
-        subtitle="얼마나 오래 머물고, 어느 단계에서 얼마나 빨리 떠나는가",
-    ),
+    markdown=section_header_markdown(heading="체류 · 이탈"),
 )
 
 
@@ -1727,51 +1712,51 @@ HEADER_RETENTION = viz_markdown(
 #     [I9 체류시간 ──────────][I12 결과 체류 분포 ──]
 #     [I13 이탈 직전 체류 ───────────────────────]
 PANELS = [
-    # 섹션 1: 오늘의 KPI
+    # 섹션 1: 오늘의 KPI — 헤더 h=2 (단일 제목)
     {"vis_id": HEADER_OVERVIEW["id"], "panel_id": "h1",
-     "grid": {"x": 0, "y": 0, "w": 48, "h": 4}},
+     "grid": {"x": 0, "y": 0, "w": 48, "h": 2}},
     {"vis_id": I1["id"],  "panel_id": "1",
-     "grid": {"x": 0,  "y": 4,  "w": 24, "h": 10}},
+     "grid": {"x": 0,  "y": 2,  "w": 24, "h": 10}},
     {"vis_id": I11["id"], "panel_id": "2",
-     "grid": {"x": 24, "y": 4,  "w": 24, "h": 10}},
+     "grid": {"x": 24, "y": 2,  "w": 24, "h": 10}},
 
     # 섹션 2: 유입 채널 (도넛 row 높이 ↑ — legend 자리 + 시각적 숨통)
     {"vis_id": HEADER_CHANNEL["id"], "panel_id": "h2",
-     "grid": {"x": 0, "y": 14, "w": 48, "h": 4}},
+     "grid": {"x": 0, "y": 12, "w": 48, "h": 2}},
     {"vis_id": I7["id"],  "panel_id": "3",
-     "grid": {"x": 0,  "y": 18, "w": 24, "h": 18}},
+     "grid": {"x": 0,  "y": 14, "w": 24, "h": 18}},
     {"vis_id": I10["id"], "panel_id": "4",
-     "grid": {"x": 24, "y": 18, "w": 24, "h": 18}},
+     "grid": {"x": 24, "y": 14, "w": 24, "h": 18}},
     {"vis_id": I8["id"],  "panel_id": "5",
-     "grid": {"x": 0,  "y": 36, "w": 24, "h": 18}},
+     "grid": {"x": 0,  "y": 32, "w": 24, "h": 18}},
     {"vis_id": I6["id"],  "panel_id": "6",
-     "grid": {"x": 24, "y": 36, "w": 24, "h": 18}},
+     "grid": {"x": 24, "y": 32, "w": 24, "h": 18}},
 
     # 섹션 3: 컨텐츠
     {"vis_id": HEADER_CONTENT["id"], "panel_id": "h3",
-     "grid": {"x": 0, "y": 54, "w": 48, "h": 4}},
+     "grid": {"x": 0, "y": 50, "w": 48, "h": 2}},
     {"vis_id": I2["id"],  "panel_id": "7",
-     "grid": {"x": 0,  "y": 58, "w": 24, "h": 16}},
+     "grid": {"x": 0,  "y": 52, "w": 24, "h": 16}},
     {"vis_id": I5["id"],  "panel_id": "8",
-     "grid": {"x": 24, "y": 58, "w": 24, "h": 16}},
+     "grid": {"x": 24, "y": 52, "w": 24, "h": 16}},
 
     # 섹션 4: 단계·화면 흐름
     {"vis_id": HEADER_FLOW["id"], "panel_id": "h4",
-     "grid": {"x": 0, "y": 74, "w": 48, "h": 4}},
+     "grid": {"x": 0, "y": 68, "w": 48, "h": 2}},
     {"vis_id": I3["id"],  "panel_id": "9",
-     "grid": {"x": 0,  "y": 78, "w": 48, "h": 24}},
+     "grid": {"x": 0,  "y": 70, "w": 48, "h": 24}},
     {"vis_id": I4["id"],  "panel_id": "10",
-     "grid": {"x": 0,  "y": 102, "w": 48, "h": 22}},
+     "grid": {"x": 0,  "y": 94, "w": 48, "h": 22}},
 
     # 섹션 5: 체류·이탈
     {"vis_id": HEADER_RETENTION["id"], "panel_id": "h5",
-     "grid": {"x": 0, "y": 124, "w": 48, "h": 4}},
+     "grid": {"x": 0, "y": 116, "w": 48, "h": 2}},
     {"vis_id": I9["id"],  "panel_id": "11",
-     "grid": {"x": 0,  "y": 128, "w": 24, "h": 18}},
+     "grid": {"x": 0,  "y": 118, "w": 24, "h": 18}},
     {"vis_id": I12["id"], "panel_id": "12",
-     "grid": {"x": 24, "y": 128, "w": 24, "h": 18}},
+     "grid": {"x": 24, "y": 118, "w": 24, "h": 18}},
     {"vis_id": I13["id"], "panel_id": "13",
-     "grid": {"x": 0,  "y": 146, "w": 48, "h": 14}},
+     "grid": {"x": 0,  "y": 136, "w": 48, "h": 14}},
 ]
 
 
