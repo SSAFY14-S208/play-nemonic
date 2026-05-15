@@ -7,6 +7,8 @@ public enum InfiniteCanvasEventType {
     SNAPSHOT_UPDATED,
     /** Canvas edit operations were accepted. */
     OPS_APPLIED,
+    /** Participant cursor was updated. */
+    CURSOR_UPDATED,
     /** A participant connected through WebSocket. */
     PARTICIPANT_CONNECTED,
     /** A participant disconnected from WebSocket. */

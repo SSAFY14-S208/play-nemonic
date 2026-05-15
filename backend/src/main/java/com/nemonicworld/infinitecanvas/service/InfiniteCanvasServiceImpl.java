@@ -6,10 +6,12 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCursorRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOperationRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasParticipantUpdateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
@@ -46,6 +48,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final String CANVAS_NOT_FOUND_MESSAGE = "활성 무한 캔버스를 찾을 수 없습니다.";
     private static final String CANVAS_FULL_MESSAGE = "무한 캔버스 최대 참여자 수를 초과했습니다.";
     private static final String NOT_PARTICIPANT_MESSAGE = "무한 캔버스 참여자가 아닙니다.";
+    private static final String INVALID_CURSOR_MESSAGE = "커서 좌표 형식이 올바르지 않습니다.";
     private static final String INVALID_ELEMENTS_MESSAGE = "캔버스 요소 목록 형식이 올바르지 않습니다.";
     private static final String INVALID_OPERATIONS_MESSAGE = "캔버스 편집 연산 목록 형식이 올바르지 않습니다.";
     private static final String BASE_REVISION_REQUIRED_MESSAGE = "baseRevision을 지정해주세요.";
@@ -153,6 +156,38 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
 
             if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
                 return InfiniteCanvasStateResponse.from(updatedState, userUuid);
+            }
+        }
+
+        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InfiniteCanvasCursorResponse updateCursor(String userUuidValue, String canvasId,
+        InfiniteCanvasCursorRequest request) {
+        AppUser user = anonymousUserResolver.resolve(userUuidValue);
+        String userUuid = user.getId().toString();
+        String normalizedCanvasId = normalizeCanvasId(canvasId);
+        if (request == null || request.x() == null || request.y() == null || !isFinite(request.x())
+            || !isFinite(request.y()) || (request.zoom() != null && !isFinite(request.zoom()))) {
+            throw new BadRequestException(INVALID_CURSOR_MESSAGE);
+        }
+
+        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
+            InfiniteCanvasState state = findActiveState(normalizedCanvasId);
+            requireParticipant(state, userUuid);
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            InfiniteCanvasCursor cursor = new InfiniteCanvasCursor(userUuid, request.x(), request.y(), request.zoom(),
+                request.payload(), now);
+            Map<String, InfiniteCanvasCursor> cursors = new LinkedHashMap<>(state.cursors());
+            cursors.put(userUuid, cursor);
+            InfiniteCanvasState updatedState = copyState(state, state.participants(), state.elements(),
+                state.operations(), removeExpiredLocks(state.locks(), now), cursors, state.viewport(), state.revision(),
+                now, state.closedAt());
+
+            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
+                return new InfiniteCanvasCursorResponse(normalizedCanvasId, cursor);
             }
         }
 
@@ -588,6 +623,10 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         }
 
         return operations.subList(operations.size() - RECENT_OPERATION_LIMIT, operations.size());
+    }
+
+    private boolean isFinite(Double value) {
+        return value != null && !value.isNaN() && !value.isInfinite();
     }
 
     private InfiniteCanvasState copyState(InfiniteCanvasState state, List<InfiniteCanvasParticipant> participants,

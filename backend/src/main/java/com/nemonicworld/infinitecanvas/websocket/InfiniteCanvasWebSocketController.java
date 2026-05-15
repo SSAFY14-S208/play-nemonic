@@ -3,8 +3,10 @@ package com.nemonicworld.infinitecanvas.websocket;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCursorRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
@@ -51,6 +53,20 @@ public class InfiniteCanvasWebSocketController {
                 InfiniteCanvasOpsAppliedResponse response = infiniteCanvasService.applyOperations(session.userUuid(),
                     session.connectionKey(), request);
                 infiniteCanvasEventPublisher.publishOperationsApplied(response);
+            } catch (RuntimeException e) {
+                infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage());
+            }
+        });
+    }
+
+    @MessageMapping("/infinite-canvas/canvases/{canvasId}/cursor")
+    public void updateCursor(@DestinationVariable("canvasId") String canvasId,
+        @Payload InfiniteCanvasCursorRequest request, SimpMessageHeaderAccessor headerAccessor) {
+        currentCanvasSession(canvasId, headerAccessor).ifPresent(session -> {
+            try {
+                InfiniteCanvasCursorResponse response = infiniteCanvasService.updateCursor(session.userUuid(),
+                    session.connectionKey(), request);
+                infiniteCanvasEventPublisher.publishCursorUpdated(response);
             } catch (RuntimeException e) {
                 infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage());
             }
