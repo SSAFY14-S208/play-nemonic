@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { motion } from "motion/react";
 
 import { HowToPlayModal } from "../HowToPlayModal";
@@ -40,6 +41,8 @@ export function GameLobbyLayout({
   nonHostMessage = "방장이 게임을 시작할 때까지 기다려주세요",
   onLeave,
   isExiting = false,
+  backgroundImage,
+  backgroundOverlay,
   howToPlayPanels,
   howToPlayAccentColor,
 }: GameLobbyLayoutProps) {
@@ -57,6 +60,25 @@ export function GameLobbyLayout({
       className="relative min-h-screen overflow-x-hidden overflow-y-auto"
       style={{ color: theme.ink }}
     >
+      {backgroundImage && (
+        <Image
+          src={backgroundImage}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="pointer-events-none object-cover"
+          aria-hidden
+        />
+      )}
+      {backgroundOverlay && (
+        <div
+          className="absolute inset-0"
+          style={{ background: backgroundOverlay }}
+          aria-hidden
+        />
+      )}
+
       {/* ─── 모바일 레이아웃 (lg 미만) ─── */}
       <motion.div
         className="relative z-10 grid w-full gap-4 px-4 pb-8 pt-6 lg:hidden"
@@ -129,7 +151,7 @@ export function GameLobbyLayout({
       {/* ─── 데스크탑 레이아웃 (lg+) ─── */}
       <motion.div className="relative z-10 hidden min-h-screen w-full flex-col lg:flex">
         <motion.div
-          className="flex w-full px-8 pt-6"
+          className="mx-auto flex w-full max-w-300 px-8 pt-6"
           animate={isExiting ? { opacity: 0, y: -20 } : { opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
@@ -142,7 +164,7 @@ export function GameLobbyLayout({
           />
         </motion.div>
 
-        <main className="mx-auto grid w-full max-w-[1400px] flex-1 items-center gap-10 px-8 pb-8 lg:grid-cols-[2fr_3fr] xl:gap-14">
+        <main className="mx-auto grid w-full max-w-300 flex-1 items-center gap-10 px-8 pb-8 lg:grid-cols-[2fr_3fr] xl:gap-14">
           {/* 좌측: 타이틀 + 입장 코드 + 공유 */}
           <motion.aside
             className="flex w-full flex-col items-center"

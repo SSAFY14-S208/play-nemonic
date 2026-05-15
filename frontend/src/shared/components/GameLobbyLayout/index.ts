@@ -4,3 +4,4 @@ export type {
   GameLobbyTheme,
   LobbyParticipant,
 } from './GameLobbyLayout.types'
+export { createLobbyToast } from './lobbyToast'

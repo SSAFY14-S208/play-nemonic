@@ -8,7 +8,7 @@ import { LobbyShareButtons } from './LobbyShareButtons'
 
 interface LobbyTitlePanelProps {
   theme: GameLobbyTheme
-  titleImage: StaticImageData
+  titleImage: StaticImageData | string
   titleImageAlt: string
   subtitle?: string
   roomCode: string
@@ -40,7 +40,7 @@ export function LobbyTitlePanel({
           alt={titleImageAlt}
           width={240}
           height={60}
-          className="mx-auto h-auto w-[180px]"
+          className="mx-auto h-auto w-45"
         />
         {subtitle && (
           <p className="body-b mt-2" style={{ color: theme.muted }}>
@@ -71,13 +71,13 @@ export function LobbyTitlePanel({
 
   // ── 데스크탑 ──
   return (
-    <div className="w-full max-w-[400px] text-center">
+    <div className="w-full max-w-100 text-center">
       <Image
         src={titleImage}
         alt={titleImageAlt}
         width={480}
         height={120}
-        className="mx-auto h-auto w-full max-w-[280px]"
+        className="mx-auto h-auto w-full max-w-70"
       />
       {subtitle && (
         <div

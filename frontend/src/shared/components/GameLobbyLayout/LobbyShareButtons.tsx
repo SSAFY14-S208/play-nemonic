@@ -7,6 +7,7 @@ import { Copy, Link2, QrCode } from 'lucide-react'
 import QRCodeLib from 'qrcode'
 
 import type { GameLobbyTheme } from './GameLobbyLayout.types'
+import { createLobbyToast } from './lobbyToast'
 
 interface LobbyShareButtonsProps {
   theme: GameLobbyTheme
@@ -68,6 +69,13 @@ export function LobbyShareButtons({ theme, roomCode }: LobbyShareButtonsProps) {
           actionKey === 'copyRoomCode' ? roomCode : shareUrl
         await copyTextWithFallback(textToCopy)
         setFeedbackKey(actionKey)
+
+        const lobbyToast = createLobbyToast(theme)
+        const toastMessage =
+          actionKey === 'copyRoomCode'
+            ? `입장 코드 ${roomCode}를 복사했어요`
+            : '초대 링크를 복사했어요'
+        lobbyToast.success(toastMessage, { position: 'bottom-center' })
 
         if (resetTimerRef.current !== null) {
           window.clearTimeout(resetTimerRef.current)

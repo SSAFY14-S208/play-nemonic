@@ -92,7 +92,7 @@ export function LobbyParticipantSection({
           (_, waitingSlotIndex) => (
             <div
               key={`waiting-${waitingSlotIndex}`}
-              className="caption-b grid min-h-11 place-items-center rounded-[14px] border border-dashed px-5 py-3"
+              className="body-l grid min-h-11 place-items-center rounded-2xl border border-dashed px-5 py-3"
               style={{
                 borderColor: theme.accent,
                 color: theme.dash ?? theme.muted,

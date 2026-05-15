@@ -13,6 +13,7 @@ export {
 } from './DrawingWorkspaceControls'
 export { BrowserExtensionErrorGuard } from './BrowserExtensionErrorGuard'
 export { GameLobbyLayout } from './GameLobbyLayout'
+export { createLobbyToast } from './GameLobbyLayout'
 export type {
   GameLobbyLayoutProps,
   GameLobbyTheme,

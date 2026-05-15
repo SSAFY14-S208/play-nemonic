@@ -39,7 +39,7 @@ export interface GameLobbyLayoutProps {
   theme: GameLobbyTheme
 
   // ── 타이틀 ──
-  titleImage: StaticImageData
+  titleImage: StaticImageData | string
   titleImageAlt: string
   subtitle?: string
 
@@ -83,6 +83,12 @@ export interface GameLobbyLayoutProps {
 
   // ── 애니메이션 ──
   isExiting?: boolean
+
+  // ── 배경 이미지 (선택) ──
+  /** 전체 배경으로 깔리는 이미지. fill + object-cover로 렌더 */
+  backgroundImage?: StaticImageData | string
+  /** 배경 이미지 위에 덧씌우는 CSS gradient. 예: "radial-gradient(...)" */
+  backgroundOverlay?: string
 
   // ── 게임 설명 모달 (선택) ──
   howToPlayPanels?: HowToPlayPanel[]
