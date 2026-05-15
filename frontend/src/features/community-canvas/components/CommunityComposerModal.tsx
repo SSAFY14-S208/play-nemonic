@@ -63,6 +63,7 @@ const COMPOSER_BOARD_SURFACE_CLASS = 'h-[540px] w-[720px] max-h-full max-w-full'
 const COMPOSER_MODAL_WIDTH = 1600
 const COMPOSER_MODAL_HEIGHT = 980
 const COMPOSER_MODAL_MAX_WIDTH = 1600
+const COMPOSER_COMPACT_BOARD_MAX_WIDTH = 656
 
 function getContainedImageFrame({
   imageWidth,
@@ -340,8 +341,8 @@ function CommunityComposerCompactModal({
   const boardScale = useCommunityModalFitScale({
     designWidth: COMMUNITY_COMPOSER_BOARD_SIZE.width,
     designHeight: COMMUNITY_COMPOSER_BOARD_SIZE.height,
-    maxWidth: COMMUNITY_COMPOSER_BOARD_SIZE.width,
-    viewportPadding: 48,
+    maxWidth: COMPOSER_COMPACT_BOARD_MAX_WIDTH,
+    viewportPadding: 112,
   })
 
   return (
@@ -376,7 +377,7 @@ function CommunityComposerCompactModal({
           />
         </div>
 
-        <div className="rounded-[1rem] bg-white/70 p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)]">
+        <div className="overflow-hidden rounded-[1rem] bg-white/70 p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)]">
           <div
             className="relative mx-auto"
             style={{
