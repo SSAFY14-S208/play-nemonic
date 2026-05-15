@@ -858,10 +858,7 @@ I5 = viz_classic(
 # ============================================================
 I6_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "title": {
-        "text": "결과 도달 후 공유 비율",
-        "subtitle": "컨텐츠별 결과 도달 대비 공유 없이 이탈하지 않은 비율 (근사치).",
-    },
+    # 내부 title 제거 (panel header 와 중복, scroll 유발).
     "data": {
         "url": {
             "%context%": True,
@@ -959,9 +956,9 @@ I6_SPEC = {
             {"field": "abandoned", "type": "quantitative", "title": "공유 없이 이탈"},
         ],
     },
-    # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
-    "width": 240,
-    "height": 200,
+    # 중복 width/height 선언 제거 — 이전엔 'container' + 240 둘 다 선언했지만
+    # Python dict 가 240 만 남겨 wrap_single_as_multiview 가 wrap → autosize 죽음 →
+    # title/legend 가 SVG 밖으로 삐져나가 scroll. container 만 두면 wrap skip + fit 정상.
     "config": VEGA_CHROME,
 }
 I6 = viz_vega(
@@ -979,10 +976,7 @@ I6 = viz_vega(
 # ============================================================
 I7_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "title": {
-        "text": "유입 경로 비율",
-        "subtitle": "랜딩 시점의 entry_type 분포 — 어디서 들어오는 사용자가 많은가.",
-    },
+    # 내부 title 제거 (panel header 와 중복, scroll 유발).
     "data": {
         "url": {
             "%context%": True,
@@ -1073,9 +1067,7 @@ I7_SPEC = {
             {"field": "count", "type": "quantitative", "title": "세션 수"},
         ],
     },
-    # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
-    "width": 240,
-    "height": 200,
+    # 중복 width/height 제거 — I6 와 동일. container 단독 → wrap skip → autosize fit 정상.
     "config": VEGA_CHROME,
 }
 I7 = viz_vega(
@@ -1093,10 +1085,7 @@ I7 = viz_vega(
 # ============================================================
 I8_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "title": {
-        "text": "SNS 유입 비율",
-        "subtitle": "entry_type=social 세션의 referrer host 분포 — 어느 SNS 가 강한가.",
-    },
+    # 내부 title 제거 (panel header 와 중복, scroll 유발).
     "data": {
         "url": {
             "%context%": True,
@@ -1181,9 +1170,7 @@ I8_SPEC = {
             {"field": "count", "type": "quantitative", "title": "세션 수"},
         ],
     },
-    # panel grid 16/48 (1/3 폭) 에 맞게 mark 영역 + bottom legend 공간 모두 확보.
-    "width": 240,
-    "height": 200,
+    # 중복 width/height 제거 — I6 와 동일. container 단독 → wrap skip → autosize fit 정상.
     "config": VEGA_CHROME,
 }
 I8 = viz_vega(
