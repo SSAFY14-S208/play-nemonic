@@ -4,11 +4,14 @@ import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 
 import Image from 'next/image'
 import { KeyRound, Sparkles, X } from 'lucide-react'
 import { motion } from 'motion/react'
+import { HowToPlayModal } from '@/shared/components'
 import {
+  useFlipbookEntranceBgm,
   useFlipbookEntranceIntro,
   useFlipbookEntrancePreload,
   useFlipbookEntranceWheelFrames,
 } from '../hooks'
+import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../constants'
 
 interface FlipbookEntranceViewProps {
   roomCodeDraft: string
@@ -43,6 +46,9 @@ const FLIPBOOK_SCENE_IMAGES = {
   titleLogoSprite: '/images/flipbook-entrance-scene/title-logo-sprite.png',
   actionButtonsSprite: '/images/flipbook-entrance-scene/action-buttons-sprite.png',
   sketchbook: '/images/flipbook-entrance-scene/sketchbook.png',
+  howToPlayButton: '/images/flipbook-entrance-scene/how-to-play-button.png',
+  soundOnButton: '/images/flipbook-entrance-scene/sound-on-button.png',
+  soundMutedButton: '/images/flipbook-entrance-scene/sound-muted-button.png',
 }
 const FLIPBOOK_SCENE_IMAGE_SOURCES = Object.values(FLIPBOOK_SCENE_IMAGES)
 const FLIPBOOK_PRELOAD_IMAGE_SOURCES = [
@@ -109,8 +115,13 @@ export default function FlipbookEntranceView({
 }: FlipbookEntranceViewProps) {
   const roomCodeInputRef = useRef<HTMLInputElement>(null)
   const scrollZoneRef = useRef<HTMLDivElement>(null)
+  const [isEntranceMounted, setIsEntranceMounted] = useState(false)
   const [isRoomCodeModalOpen, setIsRoomCodeModalOpen] = useState(false)
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false)
   const { isActionVisible, isIntroComplete, wasIntroSkipped } = useFlipbookEntranceIntro()
+  const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
+    shouldStart: isEntranceMounted && isIntroComplete,
+  })
   const shouldInstantCompleteIntro = isIntroComplete && wasIntroSkipped
   const { activeFrameIndex, handleScroll, handleWheel } = useFlipbookEntranceWheelFrames(
     scrollZoneRef,
@@ -122,6 +133,22 @@ export default function FlipbookEntranceView({
     'create-room': onCreateRoom,
     'enter-room': () => setIsRoomCodeModalOpen(true),
   }
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      await Promise.resolve()
+
+      if (!cancelled) {
+        setIsEntranceMounted(true)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!isRoomCodeModalOpen) return
@@ -150,47 +177,56 @@ export default function FlipbookEntranceView({
       className="relative h-[100svh] overflow-hidden bg-flipbook-room-base text-flipbook-ink"
       onWheelCapture={handleWheel}
     >
-      <div
-        suppressHydrationWarning
-        className="absolute left-1/2 top-1/2 aspect-[16/9] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
-        style={{
-          '--flipbook-entrance-stage-width': `max(100vw, calc(100svh * ${DESIGN_WIDTH} / ${DESIGN_HEIGHT}))`,
-          width: 'var(--flipbook-entrance-stage-width)',
-          height: `max(100svh, calc(100vw * ${DESIGN_HEIGHT} / ${DESIGN_WIDTH}))`,
-          backgroundColor: '#f8d38d',
-          backgroundImage: `url(${FLIPBOOK_SCENE_IMAGES.background})`,
-          backgroundPosition: 'center',
-          backgroundSize: 'cover',
-        } as CSSProperties}
-      >
-        <Image
-          src={FLIPBOOK_SCENE_IMAGES.background}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-        />
+      <audio ref={audioRef} src={FLIPBOOK_SOUND_PATHS.entranceBgm} preload="auto" loop aria-hidden />
 
-        <FlipbookEntranceDropScene shouldInstantCompleteIntro={shouldInstantCompleteIntro} />
+      {isEntranceMounted && (
+        <div
+          className="absolute left-1/2 top-1/2 aspect-[16/9] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+          style={{
+            '--flipbook-entrance-stage-width': `max(100vw, calc(100svh * ${DESIGN_WIDTH} / ${DESIGN_HEIGHT}))`,
+            width: 'var(--flipbook-entrance-stage-width)',
+            height: `max(100svh, calc(100vw * ${DESIGN_HEIGHT} / ${DESIGN_WIDTH}))`,
+            backgroundColor: '#f8d38d',
+            backgroundImage: `url(${FLIPBOOK_SCENE_IMAGES.background})`,
+            backgroundPosition: 'center',
+            backgroundSize: 'cover',
+          } as CSSProperties}
+        >
+          <Image
+            src={FLIPBOOK_SCENE_IMAGES.background}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
 
-        <FlipbookEntranceSketchbook
-          scrollZoneRef={scrollZoneRef}
-          activeFrameIndex={activeFrameIndex}
-          onScroll={handleScroll}
-          isInteractive={isIntroComplete}
-          shouldInstantCompleteIntro={shouldInstantCompleteIntro}
-        />
+          <FlipbookEntranceDropScene shouldInstantCompleteIntro={shouldInstantCompleteIntro} />
 
-        <FlipbookEntranceActions
-          visible={isActionVisible}
-          interactive={isIntroComplete}
-          shouldInstantCompleteIntro={shouldInstantCompleteIntro}
-          isBusy={isBusy}
-          errorMessage={!isRoomCodeModalOpen ? errorMessage : null}
-          actionHandlers={actionHandlers}
-        />
-      </div>
+          <FlipbookEntranceSketchbook
+            scrollZoneRef={scrollZoneRef}
+            activeFrameIndex={activeFrameIndex}
+            onScroll={handleScroll}
+            isInteractive={isIntroComplete}
+            shouldInstantCompleteIntro={shouldInstantCompleteIntro}
+          />
+
+          <FlipbookEntranceActions
+            visible={isActionVisible}
+            interactive={isIntroComplete}
+            shouldInstantCompleteIntro={shouldInstantCompleteIntro}
+            isBusy={isBusy}
+            errorMessage={!isRoomCodeModalOpen ? errorMessage : null}
+            actionHandlers={actionHandlers}
+          />
+
+          <FlipbookEntranceTopControls
+            isBgmMuted={isBgmMuted}
+            onOpenHowToPlay={() => setIsHowToPlayModalOpen(true)}
+            onToggleBgmMuted={toggleFlipbookEntranceBgmMuted}
+          />
+        </div>
+      )}
 
       <FlipbookRoomCodeModal
         open={isRoomCodeModalOpen}
@@ -202,7 +238,87 @@ export default function FlipbookEntranceView({
         onClose={closeRoomCodeModal}
         onSubmit={submitRoomCode}
       />
+
+      <HowToPlayModal
+        open={isHowToPlayModalOpen}
+        onOpenChange={setIsHowToPlayModalOpen}
+        panels={FLIPBOOK_HOW_TO_PLAY_PANELS}
+        accentColor="#ff7182"
+      />
     </section>
+  )
+}
+
+function FlipbookEntranceTopControls({
+  isBgmMuted,
+  onOpenHowToPlay,
+  onToggleBgmMuted,
+}: {
+  isBgmMuted: boolean
+  onOpenHowToPlay: () => void
+  onToggleBgmMuted: () => void
+}) {
+  return (
+    <div className="absolute right-[3.02%] top-[8.15%] z-30 flex items-center gap-[0.63vw]">
+      <FlipbookEntranceIconButton
+        imageSrc={FLIPBOOK_SCENE_IMAGES.howToPlayButton}
+        imageWidth={63}
+        imageHeight={70}
+        label="게임 설명"
+        onClick={onOpenHowToPlay}
+      />
+      <FlipbookEntranceIconButton
+        imageSrc={
+          isBgmMuted
+            ? FLIPBOOK_SCENE_IMAGES.soundMutedButton
+            : FLIPBOOK_SCENE_IMAGES.soundOnButton
+        }
+        imageWidth={67}
+        imageHeight={70}
+        label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+        pressed={isBgmMuted}
+        onClick={onToggleBgmMuted}
+      />
+    </div>
+  )
+}
+
+function FlipbookEntranceIconButton({
+  imageSrc,
+  imageWidth,
+  imageHeight,
+  label,
+  pressed,
+  onClick,
+}: {
+  imageSrc: string
+  imageWidth: number
+  imageHeight: number
+  label: string
+  pressed?: boolean
+  onClick: () => void
+}) {
+  return (
+    <motion.button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      whileHover={{ y: -3, scale: 1.035 }}
+      whileTap={{ y: 1, scale: 0.97 }}
+      className="relative grid size-[clamp(48px,4.6vw,70px)] place-items-center focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary"
+      onClick={onClick}
+    >
+      <Image
+        src={imageSrc}
+        alt=""
+        width={imageWidth}
+        height={imageHeight}
+        sizes="70px"
+        className="h-full w-auto object-contain"
+      />
+      <span className="sr-only">{label}</span>
+    </motion.button>
   )
 }
 
