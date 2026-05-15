@@ -639,13 +639,12 @@ I3 = viz_vega(
 # indexof(str, sub) === 0 → 해당 prefix 로 시작. 첫 매칭이 우선.
 #
 # fe/dev 의 실제 public 라우트 기준으로 매핑:
-#   /                          → 홈
-#   /hub                       → 허브
-#   /relay-drawing*            → 릴레이드로잉
-#   /flipbook*                 → 플립북
-#   /community-canvas          → 커뮤니티
-#   /fortune                   → 오늘의 운세
-#   그 외                       → 기타 (404 / 봇 / 옛 코드 잔존 데이터)
+#   /, /hub, /main, /home       → 홈 (랜딩 + 허브 통합 — 같은 진입점 영역)
+#   /relay-drawing*             → 릴레이드로잉
+#   /flipbook*                  → 플립북
+#   /community-canvas           → 커뮤니티
+#   /fortune                    → 오늘의 운세
+#   그 외                        → 기타 (404 / 봇 / 옛 코드 잔존 데이터)
 #
 # 제거된 분기:
 #   /gallery — fe/dev 에 라우트 없음. logSanitizer 의 룰만 defensive 로 있음.
@@ -655,12 +654,11 @@ PATH_TO_CONTENT_EXPR = (
     "indexof({src}, '/flipbook') === 0 ? '플립북' : "
     "indexof({src}, '/community') === 0 ? '커뮤니티' : "
     "indexof({src}, '/fortune') === 0 ? '오늘의 운세' : "
-    "indexof({src}, '/hub') === 0 ? '허브' : "
-    "({src} === '/' || {src} === '/main' || {src} === '/home') ? '홈' : "
+    "(indexof({src}, '/hub') === 0 || {src} === '/' || {src} === '/main' || {src} === '/home') ? '홈' : "
     "'기타'"
 )
 CONTENT_ORDER = [
-    "홈", "허브", "릴레이드로잉", "플립북",
+    "홈", "릴레이드로잉", "플립북",
     "커뮤니티", "오늘의 운세", "기타",
 ]
 
