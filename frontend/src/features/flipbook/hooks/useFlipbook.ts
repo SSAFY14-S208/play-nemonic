@@ -238,6 +238,52 @@ export function useFlipbook({
   })
   const resetResultPlaybackFrameIndex = resultPlayback.resetResultFrameIndex
 
+  const showReadyResult = useCallback(
+    ({
+      resultItems: readyResultItems,
+      resultParticipantCount,
+      targetRoomCode,
+      shouldSyncRoute = true,
+      shouldTrackGoal = true,
+    }: {
+      resultItems: FlipbookResultItemResponse[]
+      resultParticipantCount: number
+      targetRoomCode: string | null
+      shouldSyncRoute?: boolean
+      shouldTrackGoal?: boolean
+    }) => {
+      const visibleResultItems = getNormalizedResultItems(
+        readyResultItems,
+        resultParticipantCount,
+      )
+
+      setResultItems(visibleResultItems)
+      setActiveResultIndex((currentIndex) =>
+        Math.min(currentIndex, Math.max(0, visibleResultItems.length - 1)),
+      )
+      setResultCount(visibleResultItems.length)
+
+      if (shouldTrackGoal && targetRoomCode && !resultGoalFiredRef.current) {
+        resultGoalFiredRef.current = true
+        reachFunnelGoal('result_viewed', {
+          content_type: 'flipbook',
+          room_id: targetRoomCode,
+        })
+      }
+
+      setIsResultReady(true)
+      if (shouldSyncRoute && targetRoomCode) {
+        setCurrentStep('result', { roomCode: targetRoomCode })
+      } else {
+        setCurrentStepState('result')
+      }
+      resetResultPlaybackFrameIndex()
+
+      return visibleResultItems
+    },
+    [resetResultPlaybackFrameIndex, setCurrentStep],
+  )
+
   useEffect(() => {
     let cancelled = false
 
@@ -263,19 +309,20 @@ export function useFlipbook({
       setSubmittedAssignmentKeys(new Set())
       setAssignment(null)
       setPreviousFrameLines([])
-      setResultItems(dummyResultItems)
-      setActiveResultIndex(0)
-      setIsResultReady(true)
-      setResultCount(dummyResultItems.length)
       setErrorMessage(null)
-      setCurrentStepState('result')
-      resetResultPlaybackFrameIndex()
+      showReadyResult({
+        resultItems: dummyResultItems,
+        resultParticipantCount: dummyResultItems.length,
+        targetRoomCode: null,
+        shouldSyncRoute: false,
+        shouldTrackGoal: false,
+      })
     })()
 
     return () => {
       cancelled = true
     }
-  }, [resetResultPlaybackFrameIndex, routeStep])
+  }, [routeStep, showReadyResult])
 
   const resetDrawingRound = useCallback(() => {
     drawingBoard.replaceLines([])
@@ -436,31 +483,21 @@ export function useFlipbook({
     async (targetRoomCode = roomCode, resultParticipantCount = participantCount) => {
       if (!targetRoomCode) return null
       const nextResult = await getFlipbookRoomResult(targetRoomCode)
-      const visibleResultItems = getNormalizedResultItems(nextResult.results, resultParticipantCount)
-      setResultCount(nextResult.ready ? visibleResultItems.length : nextResult.resultCount)
 
       if (nextResult.ready) {
-        setResultItems(visibleResultItems)
-        setActiveResultIndex((currentIndex) =>
-          Math.min(currentIndex, Math.max(0, visibleResultItems.length - 1)),
-        )
-        if (!resultGoalFiredRef.current) {
-          resultGoalFiredRef.current = true
-          reachFunnelGoal('result_viewed', {
-            content_type: 'flipbook',
-            room_id: targetRoomCode,
-          })
-        }
-        setIsResultReady(true)
-        setCurrentStep('result', { roomCode: targetRoomCode })
-        resultPlayback.resetResultFrameIndex()
+        showReadyResult({
+          resultItems: nextResult.results,
+          resultParticipantCount,
+          targetRoomCode,
+        })
       } else {
+        setResultCount(nextResult.resultCount)
         setIsResultReady(false)
       }
 
       return nextResult
     },
-    [participantCount, resultPlayback, roomCode, setCurrentStep],
+    [participantCount, roomCode, showReadyResult],
   )
 
   const refreshPlayingRound = useCallback(

@@ -20,15 +20,6 @@ export async function createCanvasBlobFromLines(lines: DrawingLine[]) {
     rasterCanvas.width = FLIPBOOK_BOARD_SIZE.width
     rasterCanvas.height = FLIPBOOK_BOARD_SIZE.height
   }
-  const context = rasterCanvas.getContext('2d')
-
-  if (context) {
-    context.save()
-    context.globalCompositeOperation = 'destination-over'
-    context.fillStyle = FLIPBOOK_BACKGROUND_COLOR
-    context.fillRect(0, 0, rasterCanvas.width, rasterCanvas.height)
-    context.restore()
-  }
 
   return new Promise<Blob>((resolve, reject) => {
     rasterCanvas.toBlob((blob) => {
