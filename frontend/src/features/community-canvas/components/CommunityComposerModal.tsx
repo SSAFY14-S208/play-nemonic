@@ -273,7 +273,7 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
               type="button"
               disabled={isPosting}
               onClick={handlePreparePlacement}
-              className="body-b mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-primary-1 text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="body-b mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {sourceType === 'DIRECT' ? <Send className="size-5" /> : <ImagePlus className="size-5" />}
               {isPosting ? '메모지 준비 중' : '메모지 들기'}

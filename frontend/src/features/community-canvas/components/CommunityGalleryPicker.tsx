@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { Check, ImageIcon, RefreshCw } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type { GalleryItemResponse } from '@/shared/types'
@@ -78,6 +77,7 @@ export function CommunityGalleryPicker({
       <div className="grid grid-cols-3 gap-2">
         {items.map((item) => {
           const isSelected = selectedGalleryId === item.galleryId
+          const previewUrl = item.contentUrl || item.thumbnailUrl
 
           return (
             <button
@@ -92,15 +92,19 @@ export function CommunityGalleryPicker({
                   : 'border-border-default',
               )}
             >
-              <span className="relative block aspect-[4/3] overflow-hidden rounded-[0.35rem] bg-surface-subtle">
-                {item.thumbnailUrl ? (
-                  <Image
-                    src={item.thumbnailUrl}
-                    alt={`${item.kind} 갤러리 항목`}
-                    fill
-                    sizes="(min-width: 1024px) 86px, 30vw"
-                    unoptimized
-                    className="object-cover transition duration-200 group-hover:scale-[1.03]"
+              <span
+                className="relative block overflow-hidden rounded-[0.35rem] bg-white"
+                style={{ aspectRatio: '1 / 1' }}
+              >
+                {previewUrl ? (
+                  <span
+                    role="img"
+                    aria-label={`${item.kind} 갤러리 항목`}
+                    className="absolute inset-0 block bg-center bg-no-repeat"
+                    style={{
+                      backgroundImage: `url("${previewUrl}")`,
+                      backgroundSize: 'contain',
+                    }}
                   />
                 ) : (
                   <span className="grid h-full place-items-center text-fg-secondary">

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { HTTPError } from 'ky'
 import { toast } from 'sonner'
 import {
   ApiError,
@@ -38,6 +39,8 @@ export const COMMUNITY_COMPOSER_BOARD_SIZE = {
 
 const COMMUNITY_DRAWING_BACKGROUND = '#fffdf7'
 const GALLERY_PAGE_SIZE = 12
+const MODERATION_BLOCKED_TOAST_MESSAGE =
+  '부적절한 내용이 감지되어 메모 게시를 취소했어요.'
 
 interface UseCommunityComposerOptions {
   onCreated: (createdMemo: CommunityMemoDetailResponse) => Promise<void>
@@ -55,8 +58,49 @@ export interface CommunityPendingMemoPlacement {
 
 function toErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message || fallback
+  if (error instanceof HTTPError) return fallback
   if (error instanceof Error) return error.message || fallback
   return fallback
+}
+
+function includesModerationBlockedMessage(value: unknown): boolean {
+  if (typeof value === 'string') {
+    return (
+      value.includes('부적절') ||
+      value.includes('모더레이션') ||
+      value.toLowerCase().includes('moderation')
+    )
+  }
+
+  if (Array.isArray(value)) {
+    return value.some(includesModerationBlockedMessage)
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.values(value).some(includesModerationBlockedMessage)
+  }
+
+  return false
+}
+
+async function isCommunityMemoModerationBlockedError(error: unknown) {
+  if (error instanceof ApiError) {
+    return includesModerationBlockedMessage(error.message)
+  }
+
+  if (!(error instanceof HTTPError)) return false
+  if (error.response.status !== 400) return false
+  if (!error.response.url.includes('/community/memos')) return false
+
+  try {
+    const body = (await error.response.clone().json()) as unknown
+    if (includesModerationBlockedMessage(body)) return true
+  } catch {
+    // A moderation rejection can arrive as an empty/plain 400 response depending on
+    // the gateway, so the create endpoint still gets the moderation toast.
+  }
+
+  return true
 }
 
 async function uploadCommunityImage(blob: Blob, fileName: string) {
@@ -337,6 +381,13 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
         setPostStatus('success')
         toast.success('커뮤니티 벽에 메모를 붙였어요.')
       } catch (error) {
+        if (await isCommunityMemoModerationBlockedError(error)) {
+          setPendingPlacement(null)
+          setPostStatus('idle')
+          toast.error(MODERATION_BLOCKED_TOAST_MESSAGE)
+          return
+        }
+
         setPostStatus('error')
         toast.error(toErrorMessage(error, '메모 게시에 실패했어요.'))
       }
