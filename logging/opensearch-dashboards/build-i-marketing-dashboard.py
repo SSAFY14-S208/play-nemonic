@@ -1550,37 +1550,61 @@ I13_SPEC = {
         # 세 개의 named filter aggregation 결과를 row 로 풀어내기.
         {"calculate": "[{ "
             "'label': '로비 대기 후 이탈', "
+            "'order': 1, "
             "'avg_sec': datum.lobby_avg && datum.lobby_avg.avg_ms && datum.lobby_avg.avg_ms.value ? datum.lobby_avg.avg_ms.value / 1000 : 0, "
             "'n': datum.lobby_avg && datum.lobby_avg.doc_count ? datum.lobby_avg.doc_count : 0"
             "}, { "
             "'label': '그리는 도중 이탈', "
+            "'order': 2, "
             "'avg_sec': datum.creation_avg && datum.creation_avg.avg_ms && datum.creation_avg.avg_ms.value ? datum.creation_avg.avg_ms.value / 1000 : 0, "
             "'n': datum.creation_avg && datum.creation_avg.doc_count ? datum.creation_avg.doc_count : 0"
             "}, { "
             "'label': '결과 보고 이탈', "
+            "'order': 3, "
             "'avg_sec': datum.result_avg && datum.result_avg.avg_ms && datum.result_avg.avg_ms.value ? datum.result_avg.avg_ms.value / 1000 : 0, "
             "'n': datum.result_avg && datum.result_avg.doc_count ? datum.result_avg.doc_count : 0"
             "}]",
          "as": "rows"},
         {"flatten": ["rows"], "as": ["row"]},
         {"calculate": "datum.row.label", "as": "label"},
+        {"calculate": "datum.row.order", "as": "order"},
         {"calculate": "datum.row.avg_sec", "as": "avg_sec"},
         {"calculate": "datum.row.n", "as": "n"},
         {"filter": "datum.n > 0"},
-        # 막대 끝 라벨용 — "평균 X.X초 · N건".
-        {"calculate":
-            "format(datum.avg_sec, '.1f') + '초 · ' + datum.n + '건'",
-         "as": "value_label"},
+        # stat 카드 라벨용.
+        {"calculate": "format(datum.avg_sec, '.1f') + '초'", "as": "avg_label"},
+        {"calculate": "'' + datum.n + '건 이탈'", "as": "count_label"},
     ],
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "width": "container",
     "height": "container",
-    "padding": {"top": 30, "right": 80, "bottom": 30, "left": 160},
+    "padding": {"top": 30, "right": 20, "bottom": 30, "left": 20},
+    # 막대 없는 stat 카드 — 가로 3 칸. 각 칸에 페이즈명 / 큰 평균 / 작은 건수.
+    # 보이지 않는 base bar (opacity 0) 로 y 범위 확보, 텍스트는 layered + dy 로 수직 배치.
     "layer": [
-        # 막대 — 페이즈별 색상.
+        # base — 좌표계 확보용. 안 보임.
         {
-            "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
+            "mark": {"type": "bar", "opacity": 0},
             "encoding": {
+                "y": {"datum": 1, "type": "quantitative", "axis": None,
+                      "scale": {"domain": [0, 1]}},
+            },
+        },
+        # 1) 페이즈 라벨 (위)
+        {
+            "mark": {"type": "text", "fontSize": 13, "fontWeight": 500,
+                     "color": "#94A3B8", "align": "center", "baseline": "middle",
+                     "dy": -36},
+            "encoding": {
+                "text": {"field": "label", "type": "nominal"},
+            },
+        },
+        # 2) 큰 평균 숫자 — 페이즈별 색.
+        {
+            "mark": {"type": "text", "fontSize": 38, "fontWeight": 700,
+                     "align": "center", "baseline": "middle"},
+            "encoding": {
+                "text": {"field": "avg_label", "type": "nominal"},
                 "color": {
                     "field": "label",
                     "type": "nominal",
@@ -1591,33 +1615,25 @@ I13_SPEC = {
                     },
                     "legend": None,
                 },
-                "tooltip": [
-                    {"field": "label", "type": "nominal", "title": "이탈 유형"},
-                    {"field": "avg_sec", "type": "quantitative", "title": "평균 (초)", "format": ".1f"},
-                    {"field": "n", "type": "quantitative", "title": "이탈 건수"},
-                ],
             },
         },
-        # 막대 끝 텍스트 라벨 — "X.X초 · N건". hover 없이도 정확한 값 보이도록.
+        # 3) 건수 (아래)
         {
-            "mark": {"type": "text", "align": "left", "baseline": "middle",
-                     "dx": 6, "fontSize": 12, "fontWeight": 600, "color": "#F1F5F9"},
+            "mark": {"type": "text", "fontSize": 13, "color": "#94A3B8",
+                     "align": "center", "baseline": "middle", "dy": 34},
             "encoding": {
-                "text": {"field": "value_label", "type": "nominal"},
+                "text": {"field": "count_label", "type": "nominal"},
             },
         },
     ],
+    # 공통 encoding — 모든 layer 가 x 위치 공유 (3 칸으로 균등 분할).
     "encoding": {
-        "y": {
-            "field": "label",
-            "type": "nominal",
-            "sort": "-x",
-            "axis": {"title": None, "labelFontSize": 13, "labelLimit": 200},
-        },
         "x": {
-            "field": "avg_sec",
-            "type": "quantitative",
-            "axis": {"title": "평균 (초)"},
+            "field": "label",
+            "type": "ordinal",
+            "sort": {"field": "order", "order": "ascending"},
+            "axis": None,
+            "scale": {"padding": 0.3},
         },
     },
     "config": VEGA_CHROME,
