@@ -32,6 +32,10 @@ public class InfiniteCanvasEventPublisher {
         publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_CONNECTED, response.canvasId(), response);
     }
 
+    public void publishParticipantDisconnected(InfiniteCanvasStateResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response.canvasId(), response);
+    }
+
     public void publishDuplicateSessionClosed(String sessionId, String canvasId) {
         InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(
             InfiniteCanvasEventType.DUPLICATE_SESSION_CLOSED, canvasId,

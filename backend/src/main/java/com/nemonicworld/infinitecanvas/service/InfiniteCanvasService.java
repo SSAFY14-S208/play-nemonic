@@ -14,6 +14,8 @@ public interface InfiniteCanvasService {
 
     InfiniteCanvasStateResponse connectCanvas(String userUuidValue, String canvasId);
 
+    InfiniteCanvasStateResponse disconnectCanvas(String userUuidValue, String canvasId);
+
     InfiniteCanvasParticipantResponse updateMyParticipant(String userUuidValue, String canvasId,
         InfiniteCanvasParticipantUpdateRequest request);
 
