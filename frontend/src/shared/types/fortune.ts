@@ -44,10 +44,10 @@ export interface FortuneCreateSajuSection {
 }
 
 export interface FortuneCreateDesignSection {
-  cardTheme: string
-  bgColor: string
-  accentColor: string
-  iconKey: string
+  cardTheme: string | null
+  bgColor: string | null
+  accentColor: string | null
+  iconKey: string | null
 }
 
 export interface FortuneCreateResponse {

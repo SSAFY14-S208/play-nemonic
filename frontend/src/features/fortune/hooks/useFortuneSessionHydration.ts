@@ -18,6 +18,7 @@ import {
   getKoreanDateKey,
   getTodayFortuneResult,
   readStoredFortune,
+  resolveFortuneErrorMessage,
 } from '../utils'
 
 const USER_STORE_HYDRATION_FALLBACK_DELAY_MS = 1500
@@ -40,6 +41,7 @@ export function useFortuneSessionHydration() {
     setHasUserStoreHydrated,
     setHasHydrated,
     setHasServerBirthInfo,
+    setErrorMessage,
   } = useFortuneSessionStore.getState()
 
   useEffect(() => {
@@ -148,6 +150,8 @@ export function useFortuneSessionHydration() {
           }
 
           if (!canUseLocalFortuneFallback(error)) {
+            setErrorMessage(resolveFortuneErrorMessage(error))
+            setStep('error')
             shouldUseStoredFortune = false
           }
         }
@@ -173,6 +177,7 @@ export function useFortuneSessionHydration() {
     hasHydrated,
     hasUserStoreHydrated,
     setBirthInfo,
+    setErrorMessage,
     setHasHydrated,
     setHasServerBirthInfo,
     setResult,

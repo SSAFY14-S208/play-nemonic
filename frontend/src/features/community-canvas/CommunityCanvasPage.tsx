@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from 'react'
 import { WorldHomeLink } from '@/shared/components/WorldHomeLink'
+import { cn } from '@/shared/libs'
 import { consumeCommunityCanvasHandoffDraft } from '@/shared/utils'
 import {
   CommunityComposerModal,
@@ -60,6 +61,8 @@ export function CommunityCanvasPage() {
     composer.pendingPlacement !== null && composer.postStatus === 'loading'
   const isSavingLayout =
     communityCanvas.editingMemo !== null && communityCanvas.mutationStatus === 'loading'
+  const isHeaderActionsDisabled =
+    composer.isComposerOpen || communityCanvas.selectedMemoUuid !== null || isReportOpen
 
   const handleDeleteSelectedMemo = () => {
     if (typeof window !== 'undefined') {
@@ -81,16 +84,28 @@ export function CommunityCanvasPage() {
           <button
             type="button"
             aria-label="새로고침"
+            disabled={isHeaderActionsDisabled}
             onClick={() => void communityCanvas.loadCommunityMemos()}
             style={refreshButtonStyle}
-            className="size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 active:translate-y-0 active:brightness-95"
+            className={cn(
+              'size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5',
+              isHeaderActionsDisabled
+                ? 'invisible cursor-not-allowed'
+                : 'hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
+            )}
           />
           <button
             type="button"
             aria-label="새 메모 붙이기"
+            disabled={isHeaderActionsDisabled}
             onClick={composer.openComposer}
             style={memoButtonStyle}
-            className="size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 active:translate-y-0 active:brightness-95"
+            className={cn(
+              'size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5',
+              isHeaderActionsDisabled
+                ? 'invisible cursor-not-allowed'
+                : 'hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
+            )}
           />
         </div>
       </header>
@@ -121,6 +136,7 @@ export function CommunityCanvasPage() {
       <CommunityMemoDetailModal
         isOpen={communityCanvas.selectedMemoUuid !== null}
         detail={communityCanvas.selectedMemoDetail}
+        playbackImageUrl={communityCanvas.selectedMemoPlaybackImageUrl}
         detailStatus={communityCanvas.detailStatus}
         detailError={communityCanvas.detailError}
         mutationStatus={communityCanvas.mutationStatus}
