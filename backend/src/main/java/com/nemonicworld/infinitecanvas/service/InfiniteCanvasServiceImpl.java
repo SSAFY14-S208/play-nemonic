@@ -1,5 +1,8 @@
 package com.nemonicworld.infinitecanvas.service;
 
+import com.nemonicworld.common.exception.BadRequestException;
+import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
@@ -14,6 +17,7 @@ import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -23,6 +27,11 @@ import org.springframework.util.StringUtils;
 @Service
 public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
 
+    private static final String INVALID_CANVAS_ID_MESSAGE = "유효하지 않은 캔버스 ID 형식입니다.";
+    private static final String CANVAS_NOT_FOUND_MESSAGE = "활성 무한 캔버스를 찾을 수 없습니다.";
+    private static final String CANVAS_FULL_MESSAGE = "무한 캔버스 최대 참여자 수를 초과했습니다.";
+    private static final String UPDATE_CONFLICT_MESSAGE = "무한 캔버스 상태 갱신 충돌이 발생했습니다. 다시 시도해주세요.";
+    private static final int UPDATE_MAX_RETRIES = 8;
     private static final List<String> DEFAULT_COLORS = List.of("#2F80ED", "#27AE60", "#EB5757", "#F2994A", "#9B51E0",
         "#00A3A3");
 
@@ -63,6 +72,37 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(state);
 
         return InfiniteCanvasStateResponse.from(state, ownerUserUuid);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InfiniteCanvasStateResponse getCanvas(String userUuidValue, String canvasId) {
+        AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
+        String viewerUserUuid = viewerUser.getId().toString();
+        String normalizedCanvasId = normalizeCanvasId(canvasId);
+
+        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
+            InfiniteCanvasState state = findActiveState(normalizedCanvasId);
+            if (state.hasParticipant(viewerUserUuid)) {
+                return InfiniteCanvasStateResponse.from(state, viewerUserUuid);
+            }
+
+            if (state.participantCount() >= state.maxParticipants()) {
+                throw new ConflictException(CANVAS_FULL_MESSAGE);
+            }
+
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            List<InfiniteCanvasParticipant> participants = new ArrayList<>(state.participants());
+            participants.add(createParticipant(viewerUser, null, now));
+            InfiniteCanvasState updatedState = copyState(state, participants, now);
+
+            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
+                infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(updatedState);
+                return InfiniteCanvasStateResponse.from(updatedState, viewerUserUuid);
+            }
+        }
+
+        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
     }
 
     private InfiniteCanvasParticipant createParticipant(AppUser user, InfiniteCanvasCreateRequest request,
@@ -114,5 +154,34 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private String defaultColor(String userUuid) {
         int index = Math.floorMod(userUuid.hashCode(), DEFAULT_COLORS.size());
         return DEFAULT_COLORS.get(index);
+    }
+
+    private InfiniteCanvasState findActiveState(String canvasId) {
+        InfiniteCanvasState state = infiniteCanvasRepository.findByCanvasId(canvasId)
+            .orElseThrow(() -> new NotFoundException(CANVAS_NOT_FOUND_MESSAGE));
+        if (!state.isActive()) {
+            throw new NotFoundException(CANVAS_NOT_FOUND_MESSAGE);
+        }
+
+        return state;
+    }
+
+    private String normalizeCanvasId(String canvasId) {
+        if (!StringUtils.hasText(canvasId)) {
+            throw new BadRequestException(INVALID_CANVAS_ID_MESSAGE);
+        }
+
+        try {
+            return UUID.fromString(canvasId.trim()).toString();
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(INVALID_CANVAS_ID_MESSAGE);
+        }
+    }
+
+    private InfiniteCanvasState copyState(InfiniteCanvasState state, List<InfiniteCanvasParticipant> participants,
+        LocalDateTime updatedAt) {
+        return new InfiniteCanvasState(state.canvasId(), state.inviteCode(), state.status(), state.ownerUserUuid(),
+            participants, state.elements(), state.operations(), state.locks(), state.cursors(), state.viewport(),
+            state.maxParticipants(), state.revision(), state.createdAt(), updatedAt, state.closedAt());
     }
 }

@@ -6,4 +6,6 @@ import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 public interface InfiniteCanvasService {
 
     InfiniteCanvasStateResponse createCanvas(String userUuidValue, InfiniteCanvasCreateRequest request);
+
+    InfiniteCanvasStateResponse getCanvas(String userUuidValue, String canvasId);
 }
