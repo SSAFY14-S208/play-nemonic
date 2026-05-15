@@ -73,6 +73,7 @@ const BOARD_WIDTH = '57.97%'
 const BOARD_HEIGHT = '69.44%'
 const BOARD_IMAGE_LEFT = '-5.97%'
 const BOARD_CROP_WIDTH = '112.14%'
+const PARTICIPANT_PANEL_IMAGE_SRC = '/images/flipbook-result/participant-panel.png'
 const PARTICIPANT_PANEL_LEFT = '6.67%'
 const PARTICIPANT_PANEL_TOP = '13.7%'
 const PARTICIPANT_PANEL_WIDTH = '19.43%'
@@ -97,6 +98,8 @@ const SLOT_OUTPUT_PAPER_TOP = '51.39%'
 const PRINT_RISE_DURATION_RATIO = 0.5
 const PRINT_AFTER_RISE_PAUSE_RATIO = 0.25
 const PAPER_ATTACH_DURATION_RATIO = 0.36
+const PRINTED_PAPER_SHADOW_CLASS =
+  'shadow-[0_2px_0_rgba(120,74,35,0.08),0_8px_18px_rgba(72,43,18,0.22),0_18px_36px_rgba(72,43,18,0.18)]'
 
 export default function FlipbookPrintResultStage({
   participants,
@@ -178,7 +181,7 @@ export default function FlipbookPrintResultStage({
               width: ATTACHED_PAPER_WIDTH,
             }}
           >
-            <PrintedPaper
+            <ShadowedPrintedPaper
               frame={previousFrame}
               frameIndex={activeFrameIndex - 1}
               participant={selectedParticipant}
@@ -203,7 +206,7 @@ export default function FlipbookPrintResultStage({
         <PrintOutputSlot />
 
         <aside
-          className="absolute z-60 flex flex-col rounded-[8px] border border-white/70 bg-white/72 p-3 shadow-[0_14px_36px_rgb(236_130_155_/_18%)] backdrop-blur-md"
+          className="absolute z-60 flex flex-col overflow-hidden rounded-[30px] px-5 pb-5 pt-4"
           style={{
             height: PARTICIPANT_PANEL_HEIGHT,
             left: PARTICIPANT_PANEL_LEFT,
@@ -211,10 +214,20 @@ export default function FlipbookPrintResultStage({
             width: PARTICIPANT_PANEL_WIDTH,
           }}
         >
-          <div className="flex items-start justify-between gap-3">
+          <Image
+            src={PARTICIPANT_PANEL_IMAGE_SRC}
+            alt=""
+            fill
+            sizes="20vw"
+            priority
+            unoptimized
+            className="pointer-events-none absolute inset-0 z-0 size-full object-fill"
+          />
+
+          <div className="relative z-10 flex min-h-[9%] items-start justify-between gap-3">
             <div>
-              <p className="body-b flex items-center gap-1.5 text-[#5d3b38]">
-                <Sparkles className="size-4 text-[#ffb84d]" aria-hidden />
+              <p className="h3-b flex items-center gap-2 text-[#5d3b38]">
+                <Sparkles className="size-5 text-[#ffb84d]" aria-hidden />
                 참여자 목록
               </p>
             </div>
@@ -234,7 +247,7 @@ export default function FlipbookPrintResultStage({
             </div>
           </div>
 
-          <div className="mt-3 grid flex-1 content-start gap-2 overflow-y-auto pr-1">
+          <div className="relative z-10 mt-4 grid flex-1 content-start gap-2 overflow-y-auto pr-1">
             {participants.map((participant, participantIndex) => {
               const isActive = participantIndex === normalizedSelectedParticipantIndex
               const accentColor = getParticipantAccentColor(participant, participantIndex)
@@ -463,11 +476,9 @@ function ActivePrintedPaper({
           top: SLOT_PAPER_HIDDEN_TOP,
           width: SLOT_PAPER_WIDTH,
           height: SLOT_PAPER_HEIGHT,
-          clipPath: 'inset(0% 0% 100% 0%)',
         }}
         animate={{
           top: SLOT_OUTPUT_PAPER_TOP,
-          clipPath: 'inset(0% 0% 0% 0%)',
         }}
         transition={{
           duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
@@ -475,12 +486,32 @@ function ActivePrintedPaper({
         }}
         onAnimationComplete={scheduleExpandAfterPrint}
       >
-        <PrintedPaper
-          frame={frame}
-          frameIndex={frameIndex}
-          participant={participant}
-          renderPaper={renderPaper}
+        <motion.div
+          className={cn('absolute inset-0 origin-bottom', PRINTED_PAPER_SHADOW_CLASS)}
+          initial={{ opacity: 0.18, scaleY: 0.04 }}
+          animate={{ opacity: 0.78, scaleY: 1 }}
+          transition={{
+            duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
+            ease: [0.12, 0.78, 0.16, 1],
+          }}
+          aria-hidden
         />
+        <motion.div
+          className="absolute inset-0"
+          initial={{ clipPath: 'inset(0% 0% 100% 0%)' }}
+          animate={{ clipPath: 'inset(0% 0% 0% 0%)' }}
+          transition={{
+            duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
+            ease: [0.12, 0.78, 0.16, 1],
+          }}
+        >
+          <PrintedPaper
+            frame={frame}
+            frameIndex={frameIndex}
+            participant={participant}
+            renderPaper={renderPaper}
+          />
+        </motion.div>
       </motion.div>
     )
   }
@@ -493,20 +524,28 @@ function ActivePrintedPaper({
         top: SLOT_OUTPUT_PAPER_TOP,
         width: SLOT_PAPER_WIDTH,
         height: SLOT_PAPER_HEIGHT,
-        clipPath: 'inset(0% 0% 0% 0%)',
       }}
       animate={{
         left: ATTACHED_PAPER_LEFT,
         top: ATTACHED_PAPER_TOP,
         width: ATTACHED_PAPER_WIDTH,
         height: ATTACHED_PAPER_HEIGHT,
-        clipPath: 'inset(0% 0% 0% 0%)',
       }}
       transition={{
         duration: printDurationMs * PAPER_ATTACH_DURATION_RATIO / 1000,
         ease: [0.14, 0.84, 0.18, 1],
       }}
     >
+      <motion.div
+        className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
+        initial={{ opacity: 0.78 }}
+        animate={{ opacity: 1 }}
+        transition={{
+          duration: printDurationMs * PAPER_ATTACH_DURATION_RATIO / 1000,
+          ease: [0.14, 0.84, 0.18, 1],
+        }}
+        aria-hidden
+      />
       <PrintedPaper
         frame={frame}
         frameIndex={frameIndex}
@@ -514,6 +553,37 @@ function ActivePrintedPaper({
         renderPaper={renderPaper}
       />
     </motion.div>
+  )
+}
+
+function ShadowedPrintedPaper({
+  frame,
+  frameIndex,
+  participant,
+  renderPaper,
+}: {
+  frame: FlipbookPrintFrame
+  frameIndex: number
+  participant: FlipbookPrintParticipant
+  renderPaper?: (
+    frame: FlipbookPrintFrame,
+    frameIndex: number,
+    participant: FlipbookPrintParticipant,
+  ) => ReactNode
+}) {
+  return (
+    <div className="relative h-full w-full">
+      <div
+        className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
+        aria-hidden
+      />
+      <PrintedPaper
+        frame={frame}
+        frameIndex={frameIndex}
+        participant={participant}
+        renderPaper={renderPaper}
+      />
+    </div>
   )
 }
 
@@ -533,7 +603,7 @@ function PrintedPaper({
   ) => ReactNode
 }) {
   return (
-    <article className="relative h-full w-full overflow-hidden border border-[#eadfd2]/90 bg-white shadow-[0_2px_0_rgba(120,74,35,0.08),0_8px_18px_rgba(72,43,18,0.22),0_18px_36px_rgba(72,43,18,0.18)] ring-1 ring-white/70">
+    <article className="relative h-full w-full overflow-hidden border border-[#eadfd2]/90 bg-white ring-1 ring-white/70">
       {renderPaper ? (
         renderPaper(frame, frameIndex, participant)
       ) : (
