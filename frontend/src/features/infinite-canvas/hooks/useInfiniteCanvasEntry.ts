@@ -9,8 +9,8 @@ import { useUserStore } from '@/shared/stores'
 import { INFINITE_CANVAS_COLOR_OPTIONS } from '../constants'
 import {
   buildInfiniteCanvasRoomPath,
-  isInfiniteCanvasBoothType,
   normalizeInfiniteCanvasInviteCode,
+  resolveInfiniteCanvasInviteRoomPath,
 } from '../utils'
 
 const DEFAULT_SELECTED_COLOR = INFINITE_CANVAS_COLOR_OPTIONS[4].value
@@ -36,7 +36,7 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
   const userUuid = useUserStore((state) => state.userUuid)
   const nickname = useUserStore((state) => state.nickname)
 
-  const [selectedColor, setSelectedColor] = useState(DEFAULT_SELECTED_COLOR)
+  const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_SELECTED_COLOR)
   const [inviteCodeDraft, setInviteCodeDraft] = useState('')
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -91,12 +91,13 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
     startTransition(async () => {
       try {
         const invite = await postInvite(inviteCode)
-        if (!isInfiniteCanvasBoothType(invite.boothType)) {
+        const roomPath = resolveInfiniteCanvasInviteRoomPath(invite)
+        if (!roomPath) {
           setErrorMessage('무한 캔버스 초대코드가 아니에요')
           return
         }
 
-        router.push(buildInfiniteCanvasRoomPath(invite.roomId))
+        router.push(roomPath)
       } catch (caughtError) {
         const message =
           caughtError instanceof ApiError
