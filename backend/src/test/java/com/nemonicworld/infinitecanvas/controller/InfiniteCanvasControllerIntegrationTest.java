@@ -1,6 +1,7 @@
 package com.nemonicworld.infinitecanvas.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -15,11 +16,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.util.RoomCodeGenerator;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOperationRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperationType;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
+import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
@@ -65,6 +74,9 @@ class InfiniteCanvasControllerIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private InfiniteCanvasService infiniteCanvasService;
 
     @MockitoBean
     private StringRedisTemplate stringRedisTemplate;
@@ -341,6 +353,68 @@ class InfiniteCanvasControllerIntegrationTest {
         assertThat(readStoredJson("invite:" + INVITE_CODE).path("boothType").asText()).isEqualTo("infinite_canvas");
     }
 
+    @Test
+    void applyInfiniteCanvasOperationsStoresAcceptedOperationsAndElements() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
+        redisValues.put(canvasKey(state.canvasId()), serialize(state));
+        JsonNode element = objectMapper.createObjectNode().put("id", "shape-1").put("type", "sticky-note").put("text",
+            "hello");
+
+        InfiniteCanvasOpsAppliedResponse response = infiniteCanvasService.applyOperations(ownerUuid.toString(),
+            state.canvasId(), new InfiniteCanvasOpsRequest(0L, List.of(new InfiniteCanvasOperationRequest("local-op-1",
+                "client-op-1", InfiniteCanvasOperationType.UPSERT_ELEMENT, "shape-1", element, null))));
+
+        JsonNode storedCanvas = readStoredJson(canvasKey(state.canvasId()));
+        assertThat(response.canvasId()).isEqualTo(state.canvasId());
+        assertThat(response.revision()).isEqualTo(1L);
+        assertThat(response.elementCount()).isEqualTo(1);
+        assertThat(response.operations()).hasSize(1);
+        assertThat(response.operations().getFirst().clientOperationId()).isEqualTo("client-op-1");
+        assertThat(storedCanvas.path("revision").asLong()).isEqualTo(1L);
+        assertThat(storedCanvas.path("elements")).hasSize(1);
+        assertThat(storedCanvas.path("elements").get(0).path("id").asText()).isEqualTo("shape-1");
+        assertThat(storedCanvas.path("operations")).hasSize(1);
+    }
+
+    @Test
+    void applyInfiniteCanvasOperationsRejectsStaleRevision() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6, 2L);
+        redisValues.put(canvasKey(state.canvasId()), serialize(state));
+        JsonNode element = objectMapper.createObjectNode().put("id", "shape-2").put("type", "brush");
+
+        assertThatThrownBy(() -> infiniteCanvasService.applyOperations(ownerUuid.toString(), state.canvasId(),
+            new InfiniteCanvasOpsRequest(1L,
+                List.of(new InfiniteCanvasOperationRequest("local-op-2", "client-op-2",
+                    InfiniteCanvasOperationType.UPSERT_ELEMENT, "shape-2", element, null)))))
+            .isInstanceOf(ConflictException.class).hasMessage("캔버스 revision이 최신이 아닙니다. 서버 상태를 다시 동기화해주세요.");
+
+        assertThat(readStoredJson(canvasKey(state.canvasId())).path("revision").asLong()).isEqualTo(2L);
+    }
+
+    @Test
+    void replaceInfiniteCanvasSnapshotStoresElementsAndViewport() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
+        redisValues.put(canvasKey(state.canvasId()), serialize(state));
+        JsonNode element = objectMapper.createObjectNode().put("id", "snapshot-note").put("type", "text").put("text",
+            "snapshot");
+        JsonNode viewport = objectMapper.createObjectNode().put("x", 120).put("y", -80).put("zoom", 0.75);
+
+        InfiniteCanvasStateResponse response = infiniteCanvasService.replaceSnapshot(ownerUuid.toString(),
+            state.canvasId(), new InfiniteCanvasSnapshotRequest(0L, List.of(element), viewport));
+
+        JsonNode storedCanvas = readStoredJson(canvasKey(state.canvasId()));
+        assertThat(response.revision()).isEqualTo(1L);
+        assertThat(response.elements()).hasSize(1);
+        assertThat(response.viewport().path("zoom").asDouble()).isEqualTo(0.75);
+        assertThat(storedCanvas.path("revision").asLong()).isEqualTo(1L);
+        assertThat(storedCanvas.path("elements")).hasSize(1);
+        assertThat(storedCanvas.path("elements").get(0).path("id").asText()).isEqualTo("snapshot-note");
+        assertThat(storedCanvas.path("viewport").path("x").asInt()).isEqualTo(120);
+    }
+
     private void prepareBackofficeSettingTables() {
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS admin_user (
@@ -396,16 +470,25 @@ class InfiniteCanvasControllerIntegrationTest {
     }
 
     private InfiniteCanvasState activeCanvasState(UUID ownerUuid, int maxParticipants) {
-        return activeCanvasState(maxParticipants, participant(ownerUuid, "Owner"));
+        return activeCanvasState(ownerUuid, maxParticipants, 0L);
+    }
+
+    private InfiniteCanvasState activeCanvasState(UUID ownerUuid, int maxParticipants, long revision) {
+        return activeCanvasState(maxParticipants, revision, participant(ownerUuid, "Owner"));
     }
 
     private InfiniteCanvasState activeCanvasState(int maxParticipants, InfiniteCanvasParticipant... participants) {
+        return activeCanvasState(maxParticipants, 0L, participants);
+    }
+
+    private InfiniteCanvasState activeCanvasState(int maxParticipants, long revision,
+        InfiniteCanvasParticipant... participants) {
         LocalDateTime now = LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS);
 
         return new InfiniteCanvasState(UUID.randomUUID().toString(), INVITE_CODE, InfiniteCanvasStatus.ACTIVE,
             participants[0].userUuid(), List.of(participants), List.of(), List.of(), Map.of(), Map.of(),
-            objectMapper.createObjectNode().put("x", 0).put("y", 0).put("zoom", 1.0), maxParticipants, 0L, now, now,
-            null);
+            objectMapper.createObjectNode().put("x", 0).put("y", 0).put("zoom", 1.0), maxParticipants, revision, now,
+            now, null);
     }
 
     private InfiniteCanvasParticipant participant(UUID userUuid, String nickname) {

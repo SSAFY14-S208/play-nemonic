@@ -3,6 +3,10 @@ package com.nemonicworld.infinitecanvas.dto.websocket;
 public enum InfiniteCanvasEventType {
     /** Full canvas state snapshot. */
     STATE_SNAPSHOT,
+    /** Full canvas snapshot was replaced. */
+    SNAPSHOT_UPDATED,
+    /** Canvas edit operations were accepted. */
+    OPS_APPLIED,
     /** A participant connected through WebSocket. */
     PARTICIPANT_CONNECTED,
     /** A participant disconnected from WebSocket. */
