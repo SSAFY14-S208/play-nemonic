@@ -46,7 +46,6 @@ export default function FortunePage() {
     completePrinting,
     editBirthInfo,
     retryAfterError,
-    resetTodayFortune,
     returnToIntro,
     showTodayResult,
     startBirthInfo,
@@ -164,17 +163,23 @@ export default function FortunePage() {
       />
       <section
         className={cn(
-          'fortune-stage-overlay',
+          'relative z-5 flex min-h-dvh flex-col justify-end p-[clamp(1rem,3vw,2.2rem)] pointer-events-none max-[800px]:p-[0.9rem]',
           shouldPlayEntrySpotlight && 'fortune-stage-overlay-entry',
-          step === 'birthInfo' && 'fortune-stage-overlay-center fortune-stage-overlay-birth',
+          step === 'birthInfo' && 'justify-center fortune-stage-overlay-birth',
           (step === 'intro' || step === 'limit') && 'fortune-stage-overlay-dialogue',
           step === 'draw' && 'fortune-stage-overlay-draw',
-          ((step === 'printing' && prefersReducedMotion) || step === 'error') && 'fortune-stage-overlay-panel',
-          step === 'result' && 'fortune-stage-overlay-scroll',
+          ((step === 'printing' && prefersReducedMotion) || step === 'error') && 'items-center pb-[clamp(2rem,6.4vh,4.1rem)]',
+          step === 'result' && 'items-center h-dvh justify-start overflow-y-auto py-[clamp(1.2rem,4vh,2.8rem)] pointer-events-auto overscroll-contain',
         )}
       >
         <AnimatePresence mode="sync">
           <motion.div
+            className={cn(
+              'w-full pointer-events-none *:pointer-events-auto',
+              (step === 'intro' || step === 'limit') && 'flex items-end',
+              ((step === 'printing' && prefersReducedMotion) || step === 'error') && 'max-w-[min(90vw,600px)]',
+              step === 'result' && 'max-w-[min(94vw,920px)]',
+            )}
             key={`${hasHydrated}-${step}`}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.992, transition: { duration: 0.08, ease: 'easeOut' } }}
@@ -254,7 +259,6 @@ export default function FortunePage() {
     if (step === 'limit') {
       return (
         <FortuneLimitNotice
-          onReset={resetTodayFortune}
           onShowResult={showTodayResult}
           onBackToHub={goBackToHub}
         />

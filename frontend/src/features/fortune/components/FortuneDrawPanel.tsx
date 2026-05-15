@@ -44,7 +44,7 @@ export default function FortuneDrawPanel({ onDraw, onEdit }: FortuneDrawPanelPro
     : null
 
   return (
-    <div className="fortune-draw-stage" aria-label="사주 입력 정보 확인">
+    <div className="fixed inset-0 z-5 pointer-events-none *:pointer-events-auto" aria-label="사주 입력 정보 확인">
       <img
         className="fortune-draw-speech-bubble"
         src="/images/fortune/draw/speech-bubble.png"
@@ -64,9 +64,9 @@ export default function FortuneDrawPanel({ onDraw, onEdit }: FortuneDrawPanelPro
           {calendarLabel} {birthInfo.birthDate} {timeLabel}
         </p>
         {pillarValueByKey && (
-          <ul className="fortune-draw-pillar-grid">
+          <ul className="absolute top-[57%] left-[calc(50%+4vw)] -translate-x-1/2 grid grid-cols-4 w-[64%] m-0 p-0 list-none">
             {PILLAR_KEYS.map((key) => (
-              <li key={key} className="fortune-draw-pillar-cell">
+              <li key={key} className="flex items-center justify-center">
                 <span className="fortune-draw-pillar-value">{pillarValueByKey[key]}</span>
               </li>
             ))}
@@ -74,7 +74,7 @@ export default function FortuneDrawPanel({ onDraw, onEdit }: FortuneDrawPanelPro
         )}
       </div>
 
-      <div className="fortune-draw-actions">
+      <div className="fortune-draw-actions absolute left-1/2 bottom-[clamp(3dvh,5dvh,7dvh)] -translate-x-1/2 flex items-center gap-[clamp(1rem,2vw,2.2rem)]">
         <button
           type="button"
           className="fortune-draw-action fortune-draw-action-edit"

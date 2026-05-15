@@ -2,14 +2,11 @@
 
 import { Fragment } from 'react'
 
-import { runtime } from '@/shared/config'
-
 import { useFortuneSessionStore } from '../fortuneSessionStore'
 import { useFortuneReducedMotion, useFortuneTypewriterText } from '../hooks'
 import { getNextKoreanMidnightLabel } from '../utils'
 
 interface FortuneLimitNoticeProps {
-  onReset: () => void
   onShowResult: () => void
   onBackToHub: () => void
 }
@@ -32,7 +29,7 @@ const LIMIT_DIALOGUE_LINES: LimitDialogueLine[] = [
 
 const TYPEWRITER_START_DELAY_MS = 320
 
-export default function FortuneLimitNotice({ onReset, onShowResult, onBackToHub }: FortuneLimitNoticeProps) {
+export default function FortuneLimitNotice({ onShowResult, onBackToHub }: FortuneLimitNoticeProps) {
   const result = useFortuneSessionStore((state) => state.result)
   const prefersReducedMotion = useFortuneReducedMotion()
   const characterCount = getCharacterCount(LIMIT_DIALOGUE_LINES)
@@ -43,7 +40,6 @@ export default function FortuneLimitNotice({ onReset, onShowResult, onBackToHub 
     startDelayMs: TYPEWRITER_START_DELAY_MS,
   })
   const nextResetLabel = getNextKoreanMidnightLabel()
-  const showResetAction = runtime.isDev
 
   const handleAdvance = () => {
     if (!isComplete) {
@@ -63,27 +59,18 @@ export default function FortuneLimitNotice({ onReset, onShowResult, onBackToHub 
         <button
           type="button"
           disabled={!result}
-          className="body-l-b min-h-12 w-[200px] rounded-[var(--radius-md)] bg-fortune-accent px-5 text-fortune-inverse transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:bg-fortune-disabled"
+          className="body-l-b min-h-12 flex-1 rounded-[var(--radius-md)] bg-fortune-accent px-5 text-fortune-inverse transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:bg-fortune-disabled"
           onClick={onShowResult}
         >
-          오늘의 메모지 다시 보기
+          운세 확인
         </button>
         <button
           type="button"
-          className="body-l-b min-h-12 w-[200px] rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-5 text-fortune-ink transition hover:bg-fortune-glow"
+          className="body-l-b min-h-12 flex-1 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-5 text-fortune-ink transition hover:bg-fortune-glow"
           onClick={onBackToHub}
         >
-          광장으로 돌아가기
+          종료하기
         </button>
-        {showResetAction && (
-          <button
-            type="button"
-            className="body-b min-h-12 w-[200px] rounded-[var(--radius-md)] border border-fortune-border px-5 text-fortune-muted transition hover:bg-fortune-glow"
-            onClick={onReset}
-          >
-            테스트용으로 처음부터 보기
-          </button>
-        )}
       </div>
     </section>
   )

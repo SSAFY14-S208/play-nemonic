@@ -105,7 +105,7 @@ export default function FortuneBirthForm({ onSubmit }: FortuneBirthFormProps) {
         <p>입력한 정보로 오늘의 운세 메모를 정성껏 준비할게요.</p>
       </div>
 
-      <fieldset className="fortune-birth-fieldset">
+      <fieldset className="fortune-birth-fieldset grid min-w-0 gap-[0.72rem] m-0 p-0 border-0">
         <legend>날짜 기준</legend>
         <div
           className="fortune-birth-segmented"
@@ -134,9 +134,9 @@ export default function FortuneBirthForm({ onSubmit }: FortuneBirthFormProps) {
         </div>
       </fieldset>
 
-      <fieldset className="fortune-birth-fieldset">
+      <fieldset className="fortune-birth-fieldset grid min-w-0 gap-[0.72rem] m-0 p-0 border-0">
         <legend>생년월일</legend>
-        <div className="fortune-birth-select-grid fortune-birth-date-grid">
+        <div className="fortune-birth-select-grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
           <label className={selectFieldClassName(Boolean(birthDateParts.year))}>
             <span>년</span>
             <select
@@ -188,9 +188,9 @@ export default function FortuneBirthForm({ onSubmit }: FortuneBirthFormProps) {
         </div>
       </fieldset>
 
-      <fieldset className="fortune-birth-fieldset">
+      <fieldset className="fortune-birth-fieldset grid min-w-0 gap-[0.72rem] m-0 p-0 border-0">
         <legend>태어난 시</legend>
-        <div className="fortune-birth-select-grid fortune-birth-time-grid">
+        <div className="fortune-birth-select-grid grid-cols-2">
           <label className={selectFieldClassName(Boolean(birthTimeParts.hour))}>
             <span>시</span>
             <select
@@ -239,7 +239,7 @@ export default function FortuneBirthForm({ onSubmit }: FortuneBirthFormProps) {
         <p className="fortune-birth-helper">태어난 시간을 모르면 체크해도 괜찮아요.</p>
       </fieldset>
 
-      <div className="fortune-birth-actions">
+      <div className="fortune-birth-actions grid mt-[clamp(0.2rem,1vw,0.55rem)]">
         <button
           type="submit"
           disabled={!isComplete || isSubmitting}

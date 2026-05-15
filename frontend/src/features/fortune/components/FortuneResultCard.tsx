@@ -16,7 +16,7 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
   }
 
   return (
-    <section className="fortune-result-scene grid gap-5">
+    <section className="mx-auto w-[min(92vw,760px)] max-md:w-[min(94vw,560px)] grid gap-5">
       <article className="fortune-postit-sheet" data-theme={result.cardTheme} aria-label="오늘의 운세 포스트잇">
         <div className="fortune-postit-tape" aria-hidden>
           오늘의 운세
@@ -37,8 +37,8 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
           갤러리 저장
         </div>
 
-        <header className="fortune-postit-header">
-          <p className="caption-b">네모닉 운세 메모</p>
+        <header className="fortune-postit-header grid gap-[0.35rem] max-w-md mx-auto text-center">
+          <p className="caption-b text-fortune-muted">네모닉 운세 메모</p>
           <h1>{result.title}</h1>
         </header>
 
@@ -49,21 +49,21 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
 
         <p className="fortune-postit-summary">{result.summary}</p>
 
-        <div className="fortune-sticker-grid" aria-label="운세 점수">
+        <div className="grid grid-cols-4 gap-[clamp(0.72rem,1.8vw,1rem)] mt-[clamp(1.1rem,2.5vw,1.65rem)] max-md:grid-cols-2" aria-label="운세 점수">
             {FORTUNE_SCORE_LABELS.map((scoreLabel) => (
               <div key={scoreLabel.key} className="fortune-score-sticker">
-                <div className="fortune-score-sticker-head">
-                  <span>{scoreLabel.label}</span>
-                  <strong>{result.scores[scoreLabel.key]}</strong>
+                <div className="flex items-baseline justify-between gap-[0.6rem] text-fortune-ink">
+                  <span className="text-[0.82rem] font-extrabold tracking-normal">{scoreLabel.label}</span>
+                  <strong className="font-[family-name:var(--font-fortune-serif)] text-[1.45rem] font-normal tracking-normal">{result.scores[scoreLabel.key]}</strong>
                 </div>
-                <div className="fortune-score-meter" aria-hidden>
-                  <span style={{ width: `${result.scores[scoreLabel.key]}%` }} />
+                <div className="mt-[0.82rem] h-[0.5rem] overflow-hidden rounded-full bg-[rgba(255,255,255,0.62)] shadow-[inset_0_0.08rem_0.18rem_rgba(56,37,68,0.08)]" aria-hidden>
+                  <span className="block h-full rounded-[inherit] bg-[linear-gradient(90deg,#9f82df,#ffd65d)]" style={{ width: `${result.scores[scoreLabel.key]}%` }} />
                 </div>
               </div>
             ))}
         </div>
 
-        <div className="fortune-postit-sticker-row">
+        <div className="grid grid-cols-2 gap-[clamp(0.7rem,1.7vw,1rem)] mt-[clamp(1rem,2.5vw,1.4rem)]">
           <div className="fortune-label-sticker">
             <span>행운 키워드</span>
             <strong>{result.luckyKeyword}</strong>
@@ -108,7 +108,7 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div
-          className="body-b fortune-secondary-button flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-4 text-fortune-accent-strong"
+          className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-4 text-fortune-accent-strong shadow-[inset_0_0.08rem_0_rgba(255,255,255,0.72),0_0.65rem_1.35rem_rgba(83,50,102,0.08)]"
           role="status"
         >
           <CheckCircle2 className="size-4" aria-hidden />
@@ -116,7 +116,7 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         </div>
         <button
           type="button"
-          className="body-b fortune-secondary-button flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-4 text-fortune-accent-strong"
+          className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-4 text-fortune-accent-strong shadow-[inset_0_0.08rem_0_rgba(255,255,255,0.72),0_0.65rem_1.35rem_rgba(83,50,102,0.08)]"
           onClick={onAttach}
         >
           <Pin className="size-4" aria-hidden />
