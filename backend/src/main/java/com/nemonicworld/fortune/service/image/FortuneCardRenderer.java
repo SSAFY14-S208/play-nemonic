@@ -6,11 +6,15 @@ import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.FontFormatException;
 import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
 import java.awt.RenderingHints;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import javax.imageio.ImageIO;
@@ -24,9 +28,21 @@ import org.springframework.util.StringUtils;
 public class FortuneCardRenderer {
 
     private static final String FILE_STORAGE_ERROR_MESSAGE = "파일 저장소 처리 중 오류가 발생했습니다.";
+    private static final String FONT_RESOURCE_PATH = "/fonts/NanumGothic-Regular.ttf";
+    private static final String FONT_LOAD_ERROR_MESSAGE = "운세 카드 폰트를 불러올 수 없습니다.";
     private static final int CARD_WIDTH = 900;
     private static final int CARD_HEIGHT = 1200;
     private static final int CARD_PADDING = 72;
+
+    private final Font baseFont;
+
+    public FortuneCardRenderer() {
+        this(loadBundledFont());
+    }
+
+    FortuneCardRenderer(Font baseFont) {
+        this.baseFont = baseFont;
+    }
 
     public byte[] render(FortuneGmsResult result, JsonNode saju) {
         BufferedImage image = new BufferedImage(CARD_WIDTH, CARD_HEIGHT, BufferedImage.TYPE_INT_RGB);
@@ -52,38 +68,57 @@ public class FortuneCardRenderer {
 
         graphics.setColor(accent);
         graphics.fill(new RoundRectangle2D.Double(CARD_PADDING, CARD_PADDING, 96, 18, 9, 9));
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 32));
+        graphics.setFont(cardFont(Font.BOLD, 32));
         graphics.drawString("오늘의 운세", CARD_PADDING, 150);
 
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 54));
+        graphics.setFont(cardFont(Font.BOLD, 54));
         drawWrappedText(graphics, result.title(), CARD_PADDING, 235, CARD_WIDTH - CARD_PADDING * 2, 62);
 
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 30));
+        graphics.setFont(cardFont(Font.PLAIN, 30));
         drawWrappedText(graphics, result.summary(), CARD_PADDING, 380, CARD_WIDTH - CARD_PADDING * 2, 42);
 
         graphics.setColor(accent);
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 40));
+        graphics.setFont(cardFont(Font.BOLD, 40));
         drawWrappedText(graphics, result.postitLine(), CARD_PADDING, 610, CARD_WIDTH - CARD_PADDING * 2, 50);
 
         graphics.setColor(new Color(42, 42, 42));
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 28));
+        graphics.setFont(cardFont(Font.BOLD, 28));
         graphics.drawString("종합 " + result.overallLuck(), CARD_PADDING, 760);
         graphics.drawString("애정 " + result.loveLuck(), CARD_PADDING + 190, 760);
         graphics.drawString("일/학업 " + result.workLuck(), CARD_PADDING + 380, 760);
         graphics.drawString("금전 " + result.moneyLuck(), CARD_PADDING + 610, 760);
 
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 26));
+        graphics.setFont(cardFont(Font.PLAIN, 26));
         graphics.drawString("행운의 색  " + result.luckyColor(), CARD_PADDING, 845);
         graphics.drawString("행운의 키워드  " + result.luckyKeyword(), CARD_PADDING, 890);
 
         if (StringUtils.hasText(result.caution())) {
-            graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 24));
+            graphics.setFont(cardFont(Font.PLAIN, 24));
             drawWrappedText(graphics, "주의  " + result.caution(), CARD_PADDING, 965, CARD_WIDTH - CARD_PADDING * 2, 34);
         }
 
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 22));
+        graphics.setFont(cardFont(Font.PLAIN, 22));
         graphics.setColor(new Color(90, 90, 90));
         graphics.drawString(createSajuLine(saju), CARD_PADDING, 1100);
+    }
+
+    private Font cardFont(int style, int size) {
+        return baseFont.deriveFont(style, (float) size);
+    }
+
+    static Font loadBundledFont() {
+        try (InputStream inputStream = FortuneCardRenderer.class.getResourceAsStream(FONT_RESOURCE_PATH)) {
+            if (inputStream == null) {
+                throw new IllegalStateException(FONT_LOAD_ERROR_MESSAGE + ": " + FONT_RESOURCE_PATH);
+            }
+
+            Font font = Font.createFont(Font.TRUETYPE_FONT, inputStream);
+            GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(font);
+
+            return font;
+        } catch (FontFormatException | IOException e) {
+            throw new IllegalStateException(FONT_LOAD_ERROR_MESSAGE, e);
+        }
     }
 
     private void drawWrappedText(Graphics2D graphics, String text, int x, int y, int maxWidth, int lineHeight) {
