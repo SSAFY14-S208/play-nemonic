@@ -38,6 +38,10 @@ public class InfiniteCanvasEventPublisher {
         publishCanvasEvent(InfiniteCanvasEventType.OPS_APPLIED, response.canvasId(), response);
     }
 
+    public void publishSnapshotUpdated(InfiniteCanvasStateResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.SNAPSHOT_UPDATED, response.canvasId(), response);
+    }
+
     public void publishParticipantDisconnected(InfiniteCanvasStateResponse response) {
         publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response.canvasId(), response);
     }

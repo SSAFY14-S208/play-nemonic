@@ -4,7 +4,9 @@ import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
 import java.util.Optional;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -25,6 +27,20 @@ public class InfiniteCanvasWebSocketController {
         this.infiniteCanvasService = infiniteCanvasService;
         this.infiniteCanvasEventPublisher = infiniteCanvasEventPublisher;
         this.webSocketSessionRegistry = webSocketSessionRegistry;
+    }
+
+    @MessageMapping("/infinite-canvas/canvases/{canvasId}/snapshot")
+    public void replaceSnapshot(@DestinationVariable("canvasId") String canvasId,
+        @Payload InfiniteCanvasSnapshotRequest request, SimpMessageHeaderAccessor headerAccessor) {
+        currentCanvasSession(canvasId, headerAccessor).ifPresent(session -> {
+            try {
+                InfiniteCanvasStateResponse response = infiniteCanvasService.replaceSnapshot(session.userUuid(),
+                    session.connectionKey(), request);
+                infiniteCanvasEventPublisher.publishSnapshotUpdated(response);
+            } catch (RuntimeException e) {
+                infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage());
+            }
+        });
     }
 
     @MessageMapping("/infinite-canvas/canvases/{canvasId}/ops")

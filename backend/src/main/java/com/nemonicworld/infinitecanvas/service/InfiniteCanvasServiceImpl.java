@@ -9,6 +9,7 @@ import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOperationRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasParticipantUpdateRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
@@ -45,12 +46,15 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final String CANVAS_NOT_FOUND_MESSAGE = "활성 무한 캔버스를 찾을 수 없습니다.";
     private static final String CANVAS_FULL_MESSAGE = "무한 캔버스 최대 참여자 수를 초과했습니다.";
     private static final String NOT_PARTICIPANT_MESSAGE = "무한 캔버스 참여자가 아닙니다.";
+    private static final String INVALID_ELEMENTS_MESSAGE = "캔버스 요소 목록 형식이 올바르지 않습니다.";
     private static final String INVALID_OPERATIONS_MESSAGE = "캔버스 편집 연산 목록 형식이 올바르지 않습니다.";
     private static final String BASE_REVISION_REQUIRED_MESSAGE = "baseRevision을 지정해주세요.";
     private static final String STALE_REVISION_MESSAGE = "캔버스 revision이 최신이 아닙니다. 서버 상태를 다시 동기화해주세요.";
+    private static final String SNAPSHOT_OWNER_MESSAGE = "캔버스 소유자만 전체 스냅샷을 교체할 수 있습니다.";
     private static final String LOCK_CONFLICT_MESSAGE = "다른 참여자가 해당 요소를 편집 중입니다.";
     private static final String UPDATE_CONFLICT_MESSAGE = "무한 캔버스 상태 갱신 충돌이 발생했습니다. 다시 시도해주세요.";
     private static final int UPDATE_MAX_RETRIES = 8;
+    private static final int MAX_ELEMENTS = 5000;
     private static final int MAX_OPERATIONS_PER_MESSAGE = 100;
     private static final int RECENT_OPERATION_LIMIT = 200;
     private static final List<String> DEFAULT_COLORS = List.of("#2F80ED", "#27AE60", "#EB5757", "#F2994A", "#9B51E0",
@@ -120,6 +124,35 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
                 infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(updatedState);
                 return InfiniteCanvasStateResponse.from(updatedState, viewerUserUuid);
+            }
+        }
+
+        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InfiniteCanvasStateResponse replaceSnapshot(String userUuidValue, String canvasId,
+        InfiniteCanvasSnapshotRequest request) {
+        AppUser user = anonymousUserResolver.resolve(userUuidValue);
+        String userUuid = user.getId().toString();
+        String normalizedCanvasId = normalizeCanvasId(canvasId);
+        List<JsonNode> elements = normalizeElements(request == null ? null : request.elements());
+
+        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
+            InfiniteCanvasState state = findActiveState(normalizedCanvasId);
+            requireParticipant(state, userUuid);
+            requireCanvasOwner(state, userUuid);
+            requireFreshRevision(request == null ? null : request.baseRevision(), state.revision());
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            Map<String, InfiniteCanvasLock> locks = removeExpiredLocks(state.locks(), now);
+            requireNoForeignLocks(locks, userUuid);
+            InfiniteCanvasState updatedState = copyState(state, state.participants(), elements, state.operations(),
+                locks, state.cursors(), request == null ? state.viewport() : request.viewport(), state.revision() + 1,
+                now, state.closedAt());
+
+            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
+                return InfiniteCanvasStateResponse.from(updatedState, userUuid);
             }
         }
 
@@ -367,6 +400,12 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         }
     }
 
+    private void requireCanvasOwner(InfiniteCanvasState state, String userUuid) {
+        if (!userUuid.equals(state.ownerUserUuid())) {
+            throw new ConflictException(SNAPSHOT_OWNER_MESSAGE);
+        }
+    }
+
     private String normalizeCanvasId(String canvasId) {
         if (!StringUtils.hasText(canvasId)) {
             throw new BadRequestException(INVALID_CANVAS_ID_MESSAGE);
@@ -377,6 +416,20 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(INVALID_CANVAS_ID_MESSAGE);
         }
+    }
+
+    private List<JsonNode> normalizeElements(List<JsonNode> elements) {
+        if (elements == null) {
+            return List.of();
+        }
+        if (elements.size() > MAX_ELEMENTS) {
+            throw new BadRequestException(INVALID_ELEMENTS_MESSAGE);
+        }
+        if (elements.stream().anyMatch(element -> element == null || element.isNull())) {
+            throw new BadRequestException(INVALID_ELEMENTS_MESSAGE);
+        }
+
+        return List.copyOf(elements);
     }
 
     private List<InfiniteCanvasOperationRequest> normalizeOperationRequests(InfiniteCanvasOpsRequest request) {
