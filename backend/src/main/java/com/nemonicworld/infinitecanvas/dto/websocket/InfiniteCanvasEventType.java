@@ -21,6 +21,8 @@ public enum InfiniteCanvasEventType {
     PARTICIPANT_LEFT,
     /** A participant profile changed. */
     PARTICIPANT_UPDATED,
+    /** The canvas was closed. */
+    CANVAS_CLOSED,
     /** A previous session was replaced by a new session. */
     DUPLICATE_SESSION_CLOSED,
     /** Heartbeat response. */

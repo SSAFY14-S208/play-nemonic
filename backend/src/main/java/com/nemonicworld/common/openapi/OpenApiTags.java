@@ -68,6 +68,9 @@ public final class OpenApiTags {
     public static final String BACKOFFICE_FLIPBOOK = "백오피스 - 플립북 방";
     public static final String BACKOFFICE_FLIPBOOK_DESCRIPTION = "백오피스 활성 플립북 방 조회 API";
 
+    public static final String BACKOFFICE_INFINITE_CANVAS = "백오피스 - 무한 캔버스";
+    public static final String BACKOFFICE_INFINITE_CANVAS_DESCRIPTION = "백오피스 활성 무한 캔버스 조회 API";
+
     public static final String GMS_PROMPT = "백오피스 - GMS 프롬프트";
     public static final String GMS_PROMPT_DESCRIPTION = "백오피스 GMS 프롬프트 관리 API";
 
@@ -83,7 +86,9 @@ public final class OpenApiTags {
             tag(ADMIN, ADMIN_DESCRIPTION), tag(ADMIN_COMMUNITY, ADMIN_COMMUNITY_DESCRIPTION),
             tag(ADMIN_INQUIRY, ADMIN_INQUIRY_DESCRIPTION), tag(SYSTEM_PARAMETER, SYSTEM_PARAMETER_DESCRIPTION),
             tag(BACKOFFICE_RELAY, BACKOFFICE_RELAY_DESCRIPTION),
-            tag(BACKOFFICE_FLIPBOOK, BACKOFFICE_FLIPBOOK_DESCRIPTION), tag(GMS_PROMPT, GMS_PROMPT_DESCRIPTION));
+            tag(BACKOFFICE_FLIPBOOK, BACKOFFICE_FLIPBOOK_DESCRIPTION),
+            tag(BACKOFFICE_INFINITE_CANVAS, BACKOFFICE_INFINITE_CANVAS_DESCRIPTION),
+            tag(GMS_PROMPT, GMS_PROMPT_DESCRIPTION));
     }
 
     public static List<String> orderedTagNames() {
