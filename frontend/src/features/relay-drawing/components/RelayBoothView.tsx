@@ -1,10 +1,14 @@
 "use client";
 
+import { HelpCircle } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import { useState } from "react";
 
+import { HowToPlayModal } from "@/shared/components";
+
 import relayDrawingTitle from "../assets/relay-drawing-title.png";
+import { RELAY_HOW_TO_PLAY_PANELS } from "../constants";
 import { useRelayBooth } from "../hooks";
 import RelayBoothBackground from "./RelayBoothBackground";
 import RelayBoothEntrance from "./RelayBoothEntrance";
@@ -28,6 +32,7 @@ export default function RelayBoothView() {
   } = useRelayBooth();
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false);
   // 닉네임 모달이 닫혀 store가 새 닉네임으로 갱신되면, 사용자가 원래 누르려 했던
   // 액션(방 만들기 / 방 입장 모달 열기)을 한 번만 자동으로 이어서 수행한다.
   const [pendingAction, setPendingAction] = useState<PendingBoothAction>(null);
@@ -134,6 +139,16 @@ export default function RelayBoothView() {
                 >
                   방 입장
                 </RelayButton>
+                <RelayButton
+                  onClick={() => setIsHowToPlayModalOpen(true)}
+                  variant="secondary"
+                  size="lg"
+                  shape="roundedLg"
+                  className="gap-1.5"
+                >
+                  <HelpCircle className="size-5" aria-hidden />
+                  게임 설명
+                </RelayButton>
               </div>
               {error && !isJoinModalOpen && (
                 <p role="alert" className="caption-r text-error">
@@ -161,6 +176,12 @@ export default function RelayBoothView() {
         open={isNicknameModalOpen}
         onOpenChange={handleNicknameModalChange}
         onSuccess={handleNicknameSuccess}
+      />
+      <HowToPlayModal
+        open={isHowToPlayModalOpen}
+        onOpenChange={setIsHowToPlayModalOpen}
+        panels={RELAY_HOW_TO_PLAY_PANELS}
+        accentColor="var(--color-relay-accent)"
       />
     </>
   );

@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { ArrowRight, Download, Printer, Share2, Trash2, X } from 'lucide-react'
+import { ShareSheet, useShareStore } from '@/features/share'
 import { cn } from '@/shared/libs'
 import { writeCommunityCanvasHandoffDraft } from '@/shared/utils'
 import { PHONE_COLORS, PHONE_GALLERY_ITEM_STYLES } from '../constants'
@@ -85,6 +86,12 @@ export function PhoneGalleryItemSheet({
   const clearGalleryDetail = usePhoneStore((state) => state.clearGalleryDetail)
   const deleteGalleryItem = usePhoneStore((state) => state.deleteGalleryItem)
   const setToast = usePhoneStore((state) => state.setToast)
+  const shareInfo = useShareStore((state) => state.shareInfo)
+  const shareStatus = useShareStore((state) => state.shareStatus)
+  const shareError = useShareStore((state) => state.shareError)
+  const createShare = useShareStore((state) => state.createShare)
+  const clearShare = useShareStore((state) => state.clearShare)
+  const isSharing = shareStatus === 'loading'
 
   const isLoading = galleryDetailStatus === 'loading'
   const detailImageUrl =
@@ -107,8 +114,13 @@ export function PhoneGalleryItemSheet({
     void loadGalleryDetail(item.id)
     return () => {
       clearGalleryDetail()
+      clearShare()
     }
-  }, [clearGalleryDetail, item.id, loadGalleryDetail])
+  }, [clearGalleryDetail, clearShare, item.id, loadGalleryDetail])
+
+  useEffect(() => {
+    if (shareError) setToast(shareError)
+  }, [shareError, setToast])
 
   const handleDelete = async () => {
     if (typeof window !== 'undefined') {
@@ -209,10 +221,15 @@ export function PhoneGalleryItemSheet({
           </button>
           <button
             type="button"
-            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle"
+            onClick={() => void createShare(item.id)}
+            disabled={isSharing}
+            className={cn(
+              'body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle',
+              isSharing && 'cursor-not-allowed opacity-60 hover:bg-white',
+            )}
           >
             <Share2 className="size-4" />
-            공유
+            {isSharing ? '준비 중' : '공유'}
           </button>
           <button
             type="button"
@@ -265,6 +282,7 @@ export function PhoneGalleryItemSheet({
         </p>
       </section>
       <PhonePrintFrame imageUrl={printImageUrl} title={item.title} />
+      {shareInfo && <ShareSheet shareInfo={shareInfo} onClose={clearShare} />}
     </div>
   )
 }

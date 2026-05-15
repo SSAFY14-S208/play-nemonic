@@ -69,7 +69,6 @@ export default function FlipbookPage() {
           currentParticipant={flipbook.currentParticipant}
           participants={flipbook.participants}
           roomCode={flipbook.roomCode}
-          participantCount={flipbook.participantCount}
           minParticipants={flipbook.minParticipants}
           maxParticipants={flipbook.maxParticipants}
           selectedTimeLimitSeconds={flipbook.selectedTimeLimitSeconds}
@@ -78,7 +77,6 @@ export default function FlipbookPage() {
           canStartGame={flipbook.canStartGame}
           isHost={flipbook.isHost}
           isBusy={flipbook.isBusy}
-          canLeaveRoom={flipbook.canLeaveRoom}
           errorMessage={flipbook.errorMessage}
           onSelectTimeLimit={flipbook.selectTimeLimit}
           onStartGame={flipbook.startGame}

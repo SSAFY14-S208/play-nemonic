@@ -4,4 +4,6 @@ export const runtime = {
   websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL ?? '',
   isDev: process.env.NODE_ENV === 'development',
   loggingEnabled: process.env.NEXT_PUBLIC_LOGGING_ENABLED !== 'false',
+  grafanaUrl: process.env.NEXT_PUBLIC_GRAFANA_URL ?? '',
+  opensearchDashboardsUrl: process.env.NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL ?? '',
 }

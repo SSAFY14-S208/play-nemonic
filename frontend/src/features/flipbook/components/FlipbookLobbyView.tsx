@@ -1,28 +1,37 @@
 'use client'
 
-import Image from 'next/image'
-import {
-  Clock3,
-  Copy,
-  QrCode,
-  UsersRound,
-} from 'lucide-react'
-import { cn } from '@/shared/libs'
+import { useMemo } from 'react'
+
+import { GameLobbyLayout } from '@/shared/components'
+import type { GameLobbyTheme, LobbyParticipant } from '@/shared/components'
 import type { FlipbookConnectionStatus } from '@/shared/types'
+
+import { FLIPBOOK_HOW_TO_PLAY_PANELS } from '../constants'
 import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../types'
-import FlipbookLobbyShareButton from './FlipbookLobbyShareButton'
-import {
-  FlipbookMobileLobbyLayout,
-  ParticipantNameTag,
-  WaitingParticipantSlot,
-  type FlipbookLobbyShareAction,
-} from './lobby-view'
+
+const FLIPBOOK_TITLE_IMAGE = '/images/flipbook-entrance-scene/title-logo-sprite.png'
+const FLIPBOOK_LOBBY_BACKGROUND = '/images/flipbook-lobby/background.png'
+const FLIPBOOK_LOBBY_BACKGROUND_OVERLAY =
+  'radial-gradient(circle at 52% 40%, rgb(255 255 255 / 36%), transparent 42%)'
+
+const FLIPBOOK_LOBBY_THEME: GameLobbyTheme = {
+  accent: '#ff7182',
+  accentStrong: '#ff7182',
+  ink: '#684834',
+  paper: '#fffaf3',
+  paperAlpha: 'rgba(255, 250, 243, 0.82)',
+  active: '#fff2e9',
+  line: '#efd8c7',
+  muted: '#9a7f6d',
+  dash: '#b49d91',
+  qrDark: '#684834',
+  qrLight: '#fffaf3',
+}
 
 interface FlipbookLobbyViewProps {
   currentParticipant: FlipbookParticipant
   participants: FlipbookParticipant[]
   roomCode: string | null
-  participantCount: number
   minParticipants: number
   maxParticipants: number
   selectedTimeLimitSeconds: number
@@ -31,7 +40,6 @@ interface FlipbookLobbyViewProps {
   canStartGame: boolean
   isHost: boolean
   isBusy: boolean
-  canLeaveRoom: boolean
   errorMessage: string | null
   onSelectTimeLimit: (seconds: FlipbookTimeLimitSeconds) => void
   onStartGame: () => void
@@ -39,24 +47,10 @@ interface FlipbookLobbyViewProps {
   onKickParticipant: (targetUserUuid: string) => void
 }
 
-const FLIPBOOK_LOBBY_IMAGES = {
-  background: '/images/flipbook-lobby/background.png',
-  startButton: '/images/flipbook-lobby/start-button.png',
-  copyLinkButton: '/images/flipbook-lobby/copy-link-button.png?v=2',
-  qrCodeButton: '/images/flipbook-lobby/qr-code-button.png?v=2',
-  plus: '/images/flipbook-lobby/plus.svg',
-}
-const SHARE_ACTIONS: FlipbookLobbyShareAction[] = [
-  { key: 'copyLink', label: '링크 복사', Icon: Copy },
-  { key: 'qrCode', label: 'QR 코드', Icon: QrCode },
-]
-const VISIBLE_PARTICIPANT_SLOT_LIMIT = 6
-
 export default function FlipbookLobbyView({
   currentParticipant,
   participants,
   roomCode,
-  participantCount,
   minParticipants,
   maxParticipants,
   selectedTimeLimitSeconds,
@@ -65,220 +59,74 @@ export default function FlipbookLobbyView({
   canStartGame,
   isHost,
   isBusy,
-  canLeaveRoom,
   errorMessage,
   onSelectTimeLimit,
   onStartGame,
   onLeaveRoom,
   onKickParticipant,
 }: FlipbookLobbyViewProps) {
-  const sessionParticipantName = currentParticipant.name.replace(' (나)', '')
-  const displayedParticipants = participants.slice(0, VISIBLE_PARTICIPANT_SLOT_LIMIT)
-  const visibleParticipantCount = Math.min(participantCount, maxParticipants)
-  const waitingSlots = Array.from(
-    {
-      length: Math.max(
-        0,
-        Math.min(maxParticipants, VISIBLE_PARTICIPANT_SLOT_LIMIT) - displayedParticipants.length,
-      ),
-    },
-    (_, waitingSlotIndex) => `waiting-${waitingSlotIndex}`,
+  const lobbyParticipants: LobbyParticipant[] = useMemo(
+    () =>
+      participants.map((participant) => ({
+        userUuid: participant.userUuid,
+        nickname: participant.name,
+        host: participant.isHost === true,
+        connected: participant.isConnected === true,
+      })),
+    [participants],
   )
+
   const isConnectionReady = connectionStatus === 'connected'
-  const startGameButtonDisabled = !isHost || !canStartGame || !isConnectionReady || isBusy
-  const startGameButtonLabel = !isHost ? '게임 대기중' : isBusy ? '시작 중' : '게임 시작!'
-  const timeLimitControlDisabled = !isHost || isBusy
+  const startButtonLabel = !isHost
+    ? '게임 대기중'
+    : isBusy
+      ? '시작 중…'
+      : `게임 시작 (${participants.length}명)`
 
   return (
-    <section className="relative min-h-screen overflow-y-auto bg-[#fff5ed] text-[#684834] lg:grid lg:h-screen lg:place-items-center lg:overflow-hidden">
-      <Image
-        src={FLIPBOOK_LOBBY_IMAGES.background}
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover"
-      />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_40%,rgb(255_255_255_/_36%),transparent_42%)]" />
-
-      <FlipbookMobileLobbyLayout
-        currentParticipant={currentParticipant}
-        displayedParticipants={displayedParticipants}
-        sessionParticipantName={sessionParticipantName}
-        waitingSlots={waitingSlots}
-        roomCode={roomCode}
-        visibleParticipantCount={visibleParticipantCount}
-        minParticipants={minParticipants}
+    <>
+      <GameLobbyLayout
+        theme={FLIPBOOK_LOBBY_THEME}
+        titleImage={FLIPBOOK_TITLE_IMAGE}
+        titleImageAlt="플립북"
+        subtitle="친구들이 모이면 바로 시작해요!"
+        roomCode={roomCode ?? '------'}
+        participants={lobbyParticipants}
         maxParticipants={maxParticipants}
-        selectedTimeLimitSeconds={selectedTimeLimitSeconds}
-        timeLimitOptions={timeLimitOptions}
+        minParticipants={minParticipants}
+        currentUserUuid={currentParticipant.userUuid}
+        participantListMaxHeight={220}
         isHost={isHost}
-        isBusy={isBusy}
-        canLeaveRoom={canLeaveRoom}
-        startGameButtonDisabled={startGameButtonDisabled}
-        startGameButtonLabel={startGameButtonLabel}
-        errorMessage={errorMessage}
-        shareActions={SHARE_ACTIONS}
-        images={FLIPBOOK_LOBBY_IMAGES}
-        onSelectTimeLimit={onSelectTimeLimit}
-        onStartGame={onStartGame}
-        onLeaveRoom={onLeaveRoom}
         onKickParticipant={onKickParticipant}
+        timeLimitSeconds={selectedTimeLimitSeconds}
+        timeLimitAllowedSeconds={timeLimitOptions}
+        onChangeTimeLimit={onSelectTimeLimit}
+        canStartGame={canStartGame && isConnectionReady}
+        isStarting={isBusy}
+        startButtonLabel={startButtonLabel}
+        onStartGame={onStartGame}
+        onLeave={onLeaveRoom}
+        backgroundImage={FLIPBOOK_LOBBY_BACKGROUND}
+        backgroundOverlay={FLIPBOOK_LOBBY_BACKGROUND_OVERLAY}
+        howToPlayPanels={FLIPBOOK_HOW_TO_PLAY_PANELS}
+        howToPlayAccentColor="#ff7182"
       />
 
-      <div className="relative z-10 hidden h-[720px] w-[1170px] shrink-0 lg:block">
-        <div className="absolute left-0 top-0 grid h-[1050px] w-[1720px] origin-top-left scale-[0.68] px-[80px] py-[44px]">
-          <main className="grid items-center gap-[70px] lg:grid-cols-[minmax(390px,0.82fr)_minmax(650px,1.18fr)]">
-            <aside className="relative mx-auto flex w-full max-w-[620px] flex-col items-center lg:mx-0">
-              <div className="relative w-full max-w-[480px] pb-8 text-center">
-                <p
-                  className="text-[112px] leading-[0.95] text-[#5b3e2b]"
-                  style={{ fontFamily: 'var(--font-paperlogy)' }}
-                >
-                  플립북
-                </p>
-                <div className="mx-auto mt-8 inline-flex min-h-[52px] items-center rounded-[10px] bg-[#f8b5ba]/62 px-10 text-[#684834] shadow-[inset_0_-8px_0_rgb(255_255_255_/_24%)]">
-                  <span className="body-l-b">친구들이 모이면 바로 시작해요!</span>
-                </div>
-              </div>
-
-              <section className="relative mt-[42px] w-full max-w-[560px] rounded-[34px] border border-[#e9cdb8] bg-[#fffaf3]/82 px-[52px] pb-[56px] pt-[96px] text-center shadow-[0_16px_34px_rgb(122_72_38_/_14%),inset_0_0_34px_rgb(255_244_226_/_70%)] backdrop-blur-[1px]">
-                <p className="h3-b text-[#684834]">입장 코드</p>
-              <p
-                className="mt-5 break-all text-[clamp(52px,5.5vw,84px)] font-black leading-none text-[#684834]"
-                style={{ letterSpacing: '0.04em' }}
-              >
-                {roomCode ?? '------'}
-              </p>
-              <div
-                aria-hidden
-                className="mx-auto mt-6 h-3 w-[min(72%,330px)] rounded-full bg-[repeating-linear-gradient(90deg,#ffd96d_0_16px,transparent_16px_24px)]"
-              />
-              <p className="body-l-b mt-7 text-[#b19686]">친구에게 코드를 알려주세요!</p>
-
-              <div className="mt-9 grid grid-cols-2 gap-5">
-                {SHARE_ACTIONS.map((action) => (
-                  <FlipbookLobbyShareButton
-                    key={action.key}
-                    actionKey={action.key}
-                    label={action.label}
-                    Icon={action.Icon}
-                    roomCode={roomCode}
-                    images={FLIPBOOK_LOBBY_IMAGES}
-                  />
-                ))}
-              </div>
-              </section>
-            </aside>
-
-            <section className="relative rounded-[46px] border border-[#efd8c7] bg-white/68 p-[48px] shadow-[0_18px_44px_rgb(126_74_42_/_14%),inset_0_1px_0_rgb(255_255_255_/_86%)] backdrop-blur-sm">
-            <div className="flex items-center justify-between border-b border-[#edd9c9] pb-7">
-              <h2 className="h2-b inline-flex items-center gap-4 text-[#684834]">
-                <UsersRound className="size-8" strokeWidth={2.2} aria-hidden />
-                참여자
-              </h2>
-              <span className="h1-b text-[#ff7182]">
-                {visibleParticipantCount} / {maxParticipants}
-              </span>
-            </div>
-            <p className="caption-b mt-3 text-[#9a7f6d]">
-              최소 {minParticipants}명부터 시작할 수 있어요.
-            </p>
-
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-              {displayedParticipants.map((participant) => (
-                <ParticipantNameTag
-                  key={participant.userUuid}
-                  name={
-                    participant.userUuid === currentParticipant.userUuid
-                      ? sessionParticipantName
-                      : participant.name
-                  }
-                  avatar={participant.avatar}
-                  isHost={participant.isHost === true}
-                  isConnected={participant.isConnected === true}
-                  canKick={
-                    isHost &&
-                    !isBusy &&
-                    participant.userUuid !== currentParticipant.userUuid &&
-                    participant.isHost !== true
-                  }
-                  onKick={() => onKickParticipant(participant.userUuid)}
-                />
-              ))}
-              {waitingSlots.map((waitingSlot) => (
-                <WaitingParticipantSlot key={waitingSlot} plusImageSrc={FLIPBOOK_LOBBY_IMAGES.plus} />
-              ))}
-            </div>
-
-            <div className="mt-8 grid gap-6 xl:grid-cols-2">
-              <section className="rounded-[22px] border border-[#efd8c7] bg-white/54 p-6 shadow-[inset_0_1px_0_rgb(255_255_255_/_82%)]">
-                <h3 className="h3-b inline-flex items-center gap-3 text-[#684834]">
-                  <Clock3 className="size-7 text-[#ff7182]" strokeWidth={2.2} aria-hidden />
-                  제한 시간
-                </h3>
-                <div className="mt-6 grid grid-cols-3 gap-4">
-                  {timeLimitOptions.map((seconds) => (
-                    <button
-                      key={seconds}
-                      type="button"
-                      onClick={() => onSelectTimeLimit(seconds)}
-                      disabled={timeLimitControlDisabled}
-                      className={cn(
-                        'h3-b min-h-[72px] rounded-[16px] border border-[#f2dece] bg-[#fff2e9] text-[#b79a88] shadow-[0_7px_14px_rgb(155_93_58_/_12%)] transition-colors duration-150 ease-out hover:bg-[#fff7f0] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[#fff2e9]',
-                        selectedTimeLimitSeconds === seconds &&
-                          'border-[#ff7a8c] bg-[#ff7182] text-white hover:bg-[#ff7182]',
-                      )}
-                    >
-                      {seconds}초
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-[22px] border border-[#efd8c7] bg-white/54 p-6 shadow-[inset_0_1px_0_rgb(255_255_255_/_82%)]">
-                <h3 className="h3-b text-[#684834]">참여 조건</h3>
-                <p className="body-b mt-5 text-[#9a7f6d]">
-                  현재 {visibleParticipantCount}명 참여 중 · 최소 {minParticipants}명 필요
-                </p>
-                {canLeaveRoom && (
-                  <button
-                    type="button"
-                    onClick={onLeaveRoom}
-                    disabled={isBusy}
-                    className="body-b mt-5 min-h-12 w-full rounded-[16px] border border-[#f2dece] bg-[#fff2e9] text-[#80543b] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    방 나가기
-                  </button>
-                )}
-              </section>
-            </div>
-
-            <button
-              type="button"
-              onClick={onStartGame}
-              disabled={startGameButtonDisabled}
-              aria-label={startGameButtonLabel}
-              className="relative mx-auto mt-9 block aspect-[1125/175] w-full max-w-[760px] overflow-hidden rounded-full transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Image
-                src={FLIPBOOK_LOBBY_IMAGES.startButton}
-                alt=""
-                fill
-                sizes="(max-width: 1024px) 86vw, 760px"
-                className="object-fill"
-              />
-              {startGameButtonLabel !== '게임 시작!' && (
-                <span className="body-l-b absolute inset-0 grid place-items-center bg-[#f78b99]/72 text-white backdrop-blur-[1px]">
-                  {startGameButtonLabel}
-                </span>
-              )}
-              <span className="sr-only">{startGameButtonLabel}</span>
-            </button>
-            </section>
-          </main>
+      {errorMessage && (
+        <div className="fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <p
+            className="body-b rounded-xl px-5 py-3 shadow-lg"
+            role="alert"
+            style={{
+              backgroundColor: '#fff0f1',
+              color: '#c0392b',
+              border: '1px solid #f5c6cb',
+            }}
+          >
+            {errorMessage}
+          </p>
         </div>
-      </div>
-    </section>
+      )}
+    </>
   )
 }
