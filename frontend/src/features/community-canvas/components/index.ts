@@ -1,5 +1,6 @@
 export { CommunityComposerModal } from './CommunityComposerModal'
 export { CommunityGalleryPicker } from './CommunityGalleryPicker'
+export { CommunityModalFrame } from './CommunityModalFrame'
 export { CommunityMemoCard } from './CommunityMemoCard'
 export { CommunityMemoDetailModal } from './CommunityMemoDetailModal'
 export { CommunityReportModal } from './CommunityReportModal'
