@@ -351,7 +351,7 @@ class GmsPromptControllerIntegrationTest {
                     }
                     """)))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").isNotEmpty());
+            .andExpect(jsonPath("$.message").value("만세력 결과 정보가 올바르지 않습니다."));
 
         assertThat(countRows("artifact")).isZero();
         assertThat(countRows("fortune_artifact")).isZero();
@@ -366,7 +366,8 @@ class GmsPromptControllerIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
                 .content(previewRequestBody("fortune", " ", sajuRequestJson())))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").isNotEmpty());
+            .andExpect(jsonPath("$.message").value("유효성 검사 실패"))
+            .andExpect(jsonPath("$.errors.content").value("프롬프트 본문을 입력해야 합니다."));
 
         verifyNoInteractions(fortuneGmsClient);
     }
@@ -378,7 +379,7 @@ class GmsPromptControllerIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
                 .content(previewRequestBody("sticker", "Candidate prompt body.", sajuRequestJson())))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").isNotEmpty());
+            .andExpect(jsonPath("$.message").value("지원하지 않는 GMS 프롬프트 미리보기 타입입니다."));
 
         verifyNoInteractions(fortuneGmsClient);
     }
