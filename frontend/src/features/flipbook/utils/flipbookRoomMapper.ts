@@ -60,12 +60,11 @@ export function getFlipbookTimeLimitOptions(
 
 export function toFlipbookParticipant(
   participant: FlipbookRoomParticipantResponse,
-  currentUserUuid: string | null,
 ): FlipbookParticipant {
   return {
     id: participant.userUuid,
     userUuid: participant.userUuid,
-    name: `${participant.nickname}${participant.userUuid === currentUserUuid ? ' (나)' : ''}`,
+    name: participant.nickname,
     avatar: participant.host ? '👑' : '🙂',
     isHost: participant.host,
     isConnected: participant.connected,

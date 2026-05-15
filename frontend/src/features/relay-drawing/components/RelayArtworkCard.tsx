@@ -43,7 +43,8 @@ interface RelayArtworkCardProps {
   // 각 part의 hidden → visible spring이 안착할 때 1회 호출. 부모는 이 콜백을 phase chain
   // trigger로 사용한다. revealCount가 undefined면(즉시 visible 경로) 호출되지 않는다.
   onPartReveal?: (revealedIndex: number) => void;
-  // 라벨지 한 장의 px 사이즈.
+  // 라벨지 한 장의 px 사이즈. 인트로 애니메이션처럼 수치 계산이 필요한 곳에서만 명시.
+  // 생략하면 RelayLabelCard의 Tailwind 반응형 클래스(100px / lg:150px)가 적용됨.
   size?: number;
   className?: string;
 }
@@ -51,7 +52,7 @@ interface RelayArtworkCardProps {
 export default function RelayArtworkCard({
   revealCount,
   onPartReveal,
-  size = 150,
+  size,
   className,
 }: RelayArtworkCardProps) {
   const isControlled = revealCount !== undefined;
