@@ -193,18 +193,28 @@ def viz_classic(viz_id, title, vis_state, query="", description="", colors=None)
 
 
 def wrap_single_as_multiview(spec):
-    """single chart vega-lite spec 을 vconcat 단일 항목으로 wrap.
+    """single chart vega-lite spec 을 조건부로 vconcat 단일 항목으로 wrap.
 
-    OS Dashboards Vega plugin 은 single chart spec 에 width/height 가 명시되면 autosize:"fit"
-    을 자동 주입하면서 "width/height ignored" warning 을 출력한다. 이 자동 주입은 spec 이
-    multi-view(facet/vconcat/hconcat/repeat) 일 때만 건너뛴다.
+    배경:
+    - OSD Vega plugin 은 single-view spec 에 NUMERIC width/height 가 있으면 autosize:"fit"
+      을 자동 주입하면서 "width/height ignored" warning 을 띄운다.
+    - 그 자동 주입은 spec 이 multi-view(facet/vconcat/hconcat/repeat) 면 건너뛰므로,
+      vconcat 1-item 으로 wrap 하면 warning 회피.
 
-    single chart 를 vconcat 안에 1개짜리로 wrap 하면 plugin 입장에서 multi-view 가 되어
-    width/height/autosize 가 inner spec 에서 그대로 적용되고 warning 도 사라진다.
+    핵심 trade-off (vega-lite 공식 docs):
+    - autosize 는 multi-view 에서 ignored. wrap 하면 outer autosize:fit 가 죽는다.
+    - panel container 크기에 맞춰 fit 하려면 spec 이 single-view 여야 함.
 
-    outer 에는 $schema 와 config 만 남기고, 나머지는 inner spec 으로 이동한다 — title 은
-    inner 안에 있어야 multi-view 내부 chart 의 title 로 표시된다.
+    그래서 sizing 방식에 따라 wrap 여부를 분기:
+    - "container" sizing (width/height 가 "container"): wrap 안 함. single-view 로
+      autosize:fit 가 정상 동작해 panel CSS 크기에 맞춰 그려짐. 컨테이너 사이즈는
+      numeric 이 아니라 plugin 의 auto-injection 도 발동 안 함 (warning 없음).
+    - numeric sizing: wrap 함. fit 보다 chart 가 고정 px 로 그려지길 원하는 경우.
     """
+    # container sizing 이면 wrap 안 함 — autosize:fit 가 panel container fit 하도록.
+    if spec.get("width") == "container" or spec.get("height") == "container":
+        return spec
+
     outer_keys = {"$schema", "config"}
     inner_spec = {k: v for k, v in spec.items() if k not in outer_keys}
     wrapped = {"vconcat": [inner_spec]}
