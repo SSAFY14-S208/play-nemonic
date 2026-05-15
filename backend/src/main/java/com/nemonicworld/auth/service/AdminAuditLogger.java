@@ -233,6 +233,12 @@ public class AdminAuditLogger {
             "flipbook room force closed by admin");
     }
 
+    public void logInfiniteCanvasForceClose(AdminPrincipal adminPrincipal, String canvasId, String beforeStatus,
+        AdminClientInfo clientInfo) {
+        logRoomForceClose(adminPrincipal, canvasId, beforeStatus, clientInfo, "infinite_canvas_force_close",
+            "infinite canvas force closed by admin");
+    }
+
     private Map<String, Object> baseMetadata(String actorId, String actorRole, AdminClientInfo clientInfo,
         String targetId, String action, String result) {
         return baseMetadata(actorId, actorRole, clientInfo, TARGET_TYPE_ADMIN_ACCOUNT, targetId, action, result);
