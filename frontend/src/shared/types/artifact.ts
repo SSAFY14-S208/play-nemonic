@@ -1,13 +1,23 @@
 // Artifact 도메인 (OpenAPI: tag "Artifact")
 
-export type ArtifactType = 'RELAY' | 'FLIPBOOK' | 'FORTUNE' | 'PHONE'
+export type ArtifactType =
+  | 'fortune'
+  | 'relay_drawing'
+  | 'flipbook'
+  | 'infinite_canvas'
+  | 'phone'
+  | 'community_memo'
+
+export interface ArtifactContentUrlResponse {
+  type: string
+  url: string
+}
 
 export interface ArtifactImageUrlResponse {
   artifactId: string
-  thumbnailUrl: string
-  originalUrl: string | null
-  gifUrl: string | null
-  type: ArtifactType
+  kind: ArtifactType | string
+  thumbnailUrl: string | null
+  contents: ArtifactContentUrlResponse[]
 }
 
 export interface ArtifactShareResponse {

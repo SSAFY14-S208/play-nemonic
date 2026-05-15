@@ -1,4 +1,8 @@
-export type HubGameId = 'fortune-memo' | 'flipbook' | 'relay-drawing'
+export type HubGameId =
+  | 'fortune-memo'
+  | 'flipbook'
+  | 'relay-drawing'
+  | 'community-canvas'
 
 export interface HubGame {
   accentColor: string

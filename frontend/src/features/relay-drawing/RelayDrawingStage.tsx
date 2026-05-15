@@ -97,7 +97,8 @@ export default function RelayDrawingStage() {
           onTouchMove={continueDrawing}
           onTouchEnd={endDrawing}
         >
-          <Layer>
+          {/* 배경 레이어 — destination-out 지우개가 이 레이어를 침범하지 않도록 분리. */}
+          <Layer listening={false}>
             <Rect
               x={0}
               y={0}
@@ -138,7 +139,10 @@ export default function RelayDrawingStage() {
               fontStyle="bold"
               fill="#d49b1f"
             />
+          </Layer>
 
+          {/* 드로잉 레이어 — destination-out 지우개가 이 레이어 내에서만 동작. */}
+          <Layer>
             <Group
               clipX={0}
               clipY={activeRoundRule.drawArea.y}

@@ -27,10 +27,16 @@ export { useNemonicPrinterStation } from './useNemonicPrinterStation'
 export { usePegboardArea } from './usePegboardArea'
 export { usePrintedNoteDrag } from './usePrintedNoteDrag'
 export {
-  useMonitorButtonMaterial,
   useMonitorGameSelector,
   type MonitorGameAction,
 } from './useMonitorGameSelector'
+export {
+  useMonitorEntranceSequence,
+  useMonitorLayerEntranceAnimation,
+  useMonitorLogoAnimation,
+  useMonitorStartButtonAnimation,
+  type MonitorEntranceProgressRef,
+} from './useMonitorScreenAnimations'
 export { useRelayDrawingNavigation } from './useRelayDrawingNavigation'
 export { useRoomModel } from './useRoomModel'
 export { useThreeWaterTime } from './useThreeWaterTime'

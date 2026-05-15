@@ -20,14 +20,14 @@ export default function RelayLabelCard({
   return (
     <div
       className={cn(
-        "relative bg-relay-paper shadow-[0_8px_24px_rgba(184,121,22,0.12)]",
+        "relative bg-relay-paper shadow-[0_6px_16px_rgba(0,0,0,0.25),0_2px_4px_rgba(0,0,0,0.15)]",
         size === undefined &&
-          "size-25 rounded-sm lg:size-37.5 lg:rounded-md",
+          "w-30 aspect-[3/2] rounded-sm lg:w-45 lg:rounded-sm",
         className,
       )}
       style={
         size !== undefined
-          ? { width: size, height: size, borderRadius: size * 0.04 }
+          ? { width: size, aspectRatio: "3 / 2", borderRadius: size * 0.04 }
           : undefined
       }
     >
