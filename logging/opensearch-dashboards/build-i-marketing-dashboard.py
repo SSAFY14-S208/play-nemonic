@@ -1440,8 +1440,10 @@ I12 = viz_classic(
     ),
     query=I12_QUERY,
     colors={
+        # 4-stop traffic light — red → yellow → light-green → deep-green.
+        # WARN(orange) 대신 NEUTRAL(yellow) 으로 신호등 일관성 유지.
         "즉시 이탈 (< 5초)":  STATUS_DANGER,
-        "짧음 (5-30초)":     STATUS_WARN,
+        "짧음 (5-30초)":     STATUS_NEUTRAL,
         "보통 (30-60초)":    STATUS_GOOD,
         "몰입 (60초+)":       STATUS_GREAT,
     },
@@ -1599,22 +1601,15 @@ I13_SPEC = {
                 "text": {"field": "label", "type": "nominal"},
             },
         },
-        # 2) 큰 평균 숫자 — 페이즈별 색.
+        # 2) 큰 평균 숫자 — 단일 brand violet.
+        # 페이즈별 다른 색으로 가면 STATUS scale 과 BRAND scale 이 한 칸에 섞여 컬러 시스템
+        # 일관성 깨짐. I9 와 동일하게 ACCENT_VIOLET 통일 (docstring 의 neutral 차트 규칙).
         {
             "mark": {"type": "text", "fontSize": 38, "fontWeight": 700,
+                     "color": ACCENT_VIOLET,
                      "align": "center", "baseline": "middle"},
             "encoding": {
                 "text": {"field": "avg_label", "type": "nominal"},
-                "color": {
-                    "field": "label",
-                    "type": "nominal",
-                    # 로비(대기 = amber) → 그리기(creative = violet) → 결과(끝 = rose).
-                    "scale": {
-                        "domain": ["로비 대기 후 이탈", "그리는 도중 이탈", "결과 보고 이탈"],
-                        "range": [STATUS_WARN, ACCENT_VIOLET, STATUS_DANGER],
-                    },
-                    "legend": None,
-                },
             },
         },
         # 3) 건수 (아래)
