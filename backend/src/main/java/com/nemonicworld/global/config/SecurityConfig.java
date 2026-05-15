@@ -50,6 +50,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/backoffice/relay-rooms", "/api/v1/backoffice/relay-rooms/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/backoffice/flipbook-rooms", "/api/v1/backoffice/flipbook-rooms/**")
+                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/backoffice/infinite-canvas/canvases",
+                    "/api/v1/backoffice/infinite-canvas/canvases/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN").anyRequest().permitAll())
             .addFilterBefore(adminJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
