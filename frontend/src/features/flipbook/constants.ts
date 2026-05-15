@@ -42,6 +42,10 @@ export const FLIPBOOK_ROOM_CODE = 'ABC123'
 export const FLIPBOOK_TOPIC = '동물원에 간 우주비행사'
 export const FLIPBOOK_BACKGROUND_COLOR = '#ffffff'
 
+export const FLIPBOOK_SOUND_PATHS = {
+  entranceBgm: '/sounds/flipbook/entrance-bgm.mp3',
+} as const
+
 export const FLIPBOOK_BOARD_SIZE: DrawingBoardSize = {
   width: 680,
   height: 520,
