@@ -1427,6 +1427,9 @@ I11 = viz_classic(
 #
 # 결과 path 패턴: /flipbook/result, /share/:token, /relay-drawing/:room (FINISHED 상태 path)
 # 단순화 — /result, /share, fortune /result 포함 path 만 필터.
+#
+# 5초 균등 bin (0-60초) + 60초+ overflow → 진짜 histogram 형태. 이전 5-bucket 비균등
+# (0-5/5-10/10-30/30-60/60+) 은 막대 width 가 같은데 bin 폭이 달라 분포 왜곡 보였음.
 # ============================================================
 I12_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -1474,45 +1477,41 @@ I12_SPEC = {
     },
     "transform": [
         {"calculate": "datum.key / 1000", "as": "sec_bucket"},
-        {"calculate": "datum.doc_count", "as": "count"},
+        {"calculate": "datum.doc_count", "as": "count_raw"},
+        # 60초 이상 모두 한 bucket 으로 cap. bin start 가 60 인 row 로 통합 → "60+" 표기.
+        {"calculate": "datum.sec_bucket >= 60 ? 60 : datum.sec_bucket", "as": "bin_start"},
+        {"aggregate": [{"op": "sum", "field": "count_raw", "as": "n"}], "groupby": ["bin_start"]},
+        # x축 라벨용 — overflow 만 "60+", 나머지는 정수 string.
         {"calculate":
-            "datum.sec_bucket < 5 ? '0-5초' "
-            ": datum.sec_bucket < 10 ? '5-10초' "
-            ": datum.sec_bucket < 30 ? '10-30초' "
-            ": datum.sec_bucket < 60 ? '30-60초' "
-            ": '60초+'",
-         "as": "bucket_label"},
-        {"aggregate": [{"op": "sum", "field": "count", "as": "n"}], "groupby": ["bucket_label"]},
+            "datum.bin_start >= 60 ? '60+' : '' + datum.bin_start",
+         "as": "bin_label"},
     ],
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "width": "container",
     "height": "container",
-    "padding": {"top": 30, "right": 30, "bottom": 50, "left": 50},
-    "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
+    "padding": {"top": 30, "right": 30, "bottom": 50, "left": 60},
+    "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True,
+             # 단일 violet — histogram 막대들 사이 의미 차이 없으므로 통일.
+             "color": ACCENT_VIOLET},
     "encoding": {
         "x": {
-            "field": "bucket_label",
+            "field": "bin_label",
             "type": "ordinal",
-            "sort": ["0-5초", "5-10초", "10-30초", "30-60초", "60초+"],
-            "axis": {"title": "체류 시간 구간", "labelAngle": 0},
+            # 0,5,10,...,55,60+ 순서로 정렬. sec_bucket 정수 키로 sort.
+            "sort": {"field": "bin_start", "order": "ascending"},
+            "axis": {
+                "title": "체류 시간 (초)",
+                "labelAngle": 0,
+                "labelFontSize": 11,
+            },
         },
         "y": {
             "field": "n",
             "type": "quantitative",
-            "axis": {"title": "세션 수"},
-        },
-        "color": {
-            "field": "bucket_label",
-            "type": "nominal",
-            # 3-stop muted (I2 와 동일 의미 체계) — 짧음(나쁨) → 보통 → 김(좋음).
-            "scale": {
-                "domain": ["0-5초", "5-10초", "10-30초", "30-60초", "60초+"],
-                "range": [STATUS_DANGER, STATUS_WARN, STATUS_NEUTRAL, STATUS_GOOD, STATUS_GREAT],
-            },
-            "legend": None,
+            "axis": {"title": "세션 수", "tickCount": 5},
         },
         "tooltip": [
-            {"field": "bucket_label", "type": "nominal", "title": "구간"},
+            {"field": "bin_label", "type": "nominal", "title": "구간 (초)"},
             {"field": "n", "type": "quantitative", "title": "세션 수"},
         ],
     },
@@ -1601,42 +1600,58 @@ I13_SPEC = {
         {"calculate": "datum.row.avg_sec", "as": "avg_sec"},
         {"calculate": "datum.row.n", "as": "n"},
         {"filter": "datum.n > 0"},
+        # 막대 끝 라벨용 — "평균 X.X초 · N건".
+        {"calculate":
+            "format(datum.avg_sec, '.1f') + '초 · ' + datum.n + '건'",
+         "as": "value_label"},
     ],
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "width": "container",
     "height": "container",
-    "padding": {"top": 30, "right": 30, "bottom": 30, "left": 160},
-    # rose 그라데이션 — 이탈은 위험 신호. 단일 fill 보다 그라데이션이 막대 무게감을 줌.
-    "mark": {
-        "type": "bar",
-        "cornerRadiusEnd": 4,
-        "tooltip": True,
-        "color": {
-            "x1": 0, "y1": 0, "x2": 1, "y2": 0,
-            "gradient": "linear",
-            "stops": [
-                {"offset": 0, "color": "#9F1239"},   # rose-900
-                {"offset": 1, "color": STATUS_DANGER},
-            ],
+    "padding": {"top": 30, "right": 80, "bottom": 30, "left": 160},
+    "layer": [
+        # 막대 — 페이즈별 색상.
+        {
+            "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
+            "encoding": {
+                "color": {
+                    "field": "label",
+                    "type": "nominal",
+                    # 로비(대기 = amber) → 그리기(creative = violet) → 결과(끝 = rose).
+                    "scale": {
+                        "domain": ["로비 대기 후 이탈", "그리는 도중 이탈", "결과 보고 이탈"],
+                        "range": [STATUS_WARN, ACCENT_VIOLET, STATUS_DANGER],
+                    },
+                    "legend": None,
+                },
+                "tooltip": [
+                    {"field": "label", "type": "nominal", "title": "이탈 유형"},
+                    {"field": "avg_sec", "type": "quantitative", "title": "평균 (초)", "format": ".1f"},
+                    {"field": "n", "type": "quantitative", "title": "이탈 건수"},
+                ],
+            },
         },
-    },
+        # 막대 끝 텍스트 라벨 — "X.X초 · N건". hover 없이도 정확한 값 보이도록.
+        {
+            "mark": {"type": "text", "align": "left", "baseline": "middle",
+                     "dx": 6, "fontSize": 12, "fontWeight": 600, "color": "#F1F5F9"},
+            "encoding": {
+                "text": {"field": "value_label", "type": "nominal"},
+            },
+        },
+    ],
     "encoding": {
         "y": {
             "field": "label",
             "type": "nominal",
             "sort": "-x",
-            "axis": {"title": None, "labelFontSize": 12, "labelLimit": 200},
+            "axis": {"title": None, "labelFontSize": 13, "labelLimit": 200},
         },
         "x": {
             "field": "avg_sec",
             "type": "quantitative",
             "axis": {"title": "평균 (초)"},
         },
-        "tooltip": [
-            {"field": "label", "type": "nominal", "title": "이탈 유형"},
-            {"field": "avg_sec", "type": "quantitative", "title": "평균 (초)", "format": ".1f"},
-            {"field": "n", "type": "quantitative", "title": "이탈 건수"},
-        ],
     },
     "config": VEGA_CHROME,
 }
