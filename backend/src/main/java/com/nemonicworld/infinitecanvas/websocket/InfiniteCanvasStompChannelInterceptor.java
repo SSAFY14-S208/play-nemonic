@@ -3,10 +3,12 @@ package com.nemonicworld.infinitecanvas.websocket;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
+import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
 import java.security.Principal;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -48,11 +50,14 @@ public class InfiniteCanvasStompChannelInterceptor implements ChannelInterceptor
         String userUuid = accessor.getFirstNativeHeader(AnonymousUserHeaders.ANONYMOUS_USER_UUID);
 
         try {
-            InfiniteCanvasStateResponse response = infiniteCanvasService.getCanvas(userUuid, canvasId);
+            InfiniteCanvasStateResponse response = infiniteCanvasService.connectCanvas(userUuid, canvasId);
             configureSession(accessor, sessionId, response.canvasId(), userUuid);
-            webSocketSessionRegistry.register(WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS,
-                response.canvasId(), userUuid, sessionId);
-            infiniteCanvasEventPublisherProvider.getObject().publishParticipantConnected(response);
+            Optional<ActiveWebSocketSession> replacedSession = webSocketSessionRegistry.register(
+                WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS, response.canvasId(), userUuid, sessionId);
+            InfiniteCanvasEventPublisher publisher = infiniteCanvasEventPublisherProvider.getObject();
+
+            replacedSession.ifPresent(session -> closeDuplicateSession(publisher, session));
+            publisher.publishParticipantConnected(response);
 
             return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
         } catch (RuntimeException e) {
@@ -78,5 +83,10 @@ public class InfiniteCanvasStompChannelInterceptor implements ChannelInterceptor
 
         return sessionAttributes != null && WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS
             .equals(sessionAttributes.get(WebSocketSessionAttributes.CONNECTION_TYPE));
+    }
+
+    private void closeDuplicateSession(InfiniteCanvasEventPublisher publisher, ActiveWebSocketSession session) {
+        publisher.publishDuplicateSessionClosed(session.sessionId(), session.connectionKey());
+        publisher.closeStaleSession(session);
     }
 }

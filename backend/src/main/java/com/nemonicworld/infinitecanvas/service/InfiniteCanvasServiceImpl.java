@@ -116,6 +116,36 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
 
     @Override
     @Transactional(readOnly = true)
+    public InfiniteCanvasStateResponse connectCanvas(String userUuidValue, String canvasId) {
+        AppUser user = anonymousUserResolver.resolve(userUuidValue);
+        String userUuid = user.getId().toString();
+        String normalizedCanvasId = normalizeCanvasId(canvasId);
+
+        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
+            InfiniteCanvasState state = findActiveState(normalizedCanvasId);
+            InfiniteCanvasParticipant participant = state.findParticipant(userUuid)
+                .orElseThrow(() -> new NotFoundException(NOT_PARTICIPANT_MESSAGE));
+
+            if (participant.connected()) {
+                return InfiniteCanvasStateResponse.from(state, userUuid);
+            }
+
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            InfiniteCanvasParticipant connectedParticipant = participant.connect(now);
+            InfiniteCanvasState updatedState = copyState(state,
+                replaceParticipant(state.participants(), connectedParticipant), now);
+
+            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
+                infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(updatedState);
+                return InfiniteCanvasStateResponse.from(updatedState, userUuid);
+            }
+        }
+
+        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public InfiniteCanvasParticipantResponse updateMyParticipant(String userUuidValue, String canvasId,
         InfiniteCanvasParticipantUpdateRequest request) {
         AppUser user = anonymousUserResolver.resolve(userUuidValue);
