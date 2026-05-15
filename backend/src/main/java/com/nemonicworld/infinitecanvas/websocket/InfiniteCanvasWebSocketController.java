@@ -33,6 +33,12 @@ public class InfiniteCanvasWebSocketController {
         this.webSocketSessionRegistry = webSocketSessionRegistry;
     }
 
+    @MessageMapping("/infinite-canvas/canvases/{canvasId}/ping")
+    public void ping(@DestinationVariable("canvasId") String canvasId, SimpMessageHeaderAccessor headerAccessor) {
+        currentCanvasSession(canvasId, headerAccessor).ifPresent(
+            session -> infiniteCanvasEventPublisher.publishPong(session.sessionId(), session.connectionKey()));
+    }
+
     @MessageMapping("/infinite-canvas/canvases/{canvasId}/snapshot")
     public void replaceSnapshot(@DestinationVariable("canvasId") String canvasId,
         @Payload InfiniteCanvasSnapshotRequest request, SimpMessageHeaderAccessor headerAccessor) {
