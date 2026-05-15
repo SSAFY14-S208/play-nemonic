@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   ApiError,
   deleteCommunityMemo,
+  getArtifactImageUrls,
   getCommunityMemo,
   getCommunityMemoList,
   patchCommunityMemo,
@@ -12,6 +13,7 @@ import {
 } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 import type {
+  ArtifactImageUrlResponse,
   CommunityMemoDetailResponse,
   CommunityMemoItemResponse,
   CommunityMemoLayoutRequest,
@@ -56,8 +58,32 @@ function applyMemoDetailLayout(
   }
 }
 
+function shouldResolveAnimatedDetailImage(detail: CommunityMemoDetailResponse) {
+  return detail.sourceType === 'GALLERY' && detail.artifactId !== null
+}
+
+function getArtifactGifUrl(artifactImages: ArtifactImageUrlResponse) {
+  return (
+    artifactImages.contents.find(
+      (content) => content.type.toLowerCase() === 'gif' && content.url.length > 0,
+    )?.url ?? null
+  )
+}
+
+async function getAnimatedDetailImageUrl(detail: CommunityMemoDetailResponse) {
+  if (!shouldResolveAnimatedDetailImage(detail) || !detail.artifactId) return null
+
+  try {
+    const artifactImages = await getArtifactImageUrls(detail.artifactId)
+    return getArtifactGifUrl(artifactImages)
+  } catch {
+    return null
+  }
+}
+
 export function useCommunityCanvas() {
   const userUuid = useUserStore((state) => state.userUuid)
+  const detailRequestIdRef = useRef(0)
   const [memos, setMemos] = useState<CommunityMemoItemResponse[]>([])
   const [memoStatus, setMemoStatus] = useState<AsyncStatus>('idle')
   const [memoError, setMemoError] = useState<string | null>(null)
@@ -65,6 +91,8 @@ export function useCommunityCanvas() {
   const [selectedMemoUuid, setSelectedMemoUuid] = useState<string | null>(null)
   const [selectedMemoDetail, setSelectedMemoDetail] =
     useState<CommunityMemoDetailResponse | null>(null)
+  const [selectedMemoPlaybackImageUrl, setSelectedMemoPlaybackImageUrl] =
+    useState<string | null>(null)
   const [detailStatus, setDetailStatus] = useState<AsyncStatus>('idle')
   const [detailError, setDetailError] = useState<string | null>(null)
   const [editingMemo, setEditingMemo] = useState<CommunityMemoItemResponse | null>(null)
@@ -117,35 +145,52 @@ export function useCommunityCanvas() {
   }, [loadCommunityMemos, userUuid])
 
   const openMemoDetail = useCallback(async (memoUuid: string) => {
+    const requestId = detailRequestIdRef.current + 1
+    detailRequestIdRef.current = requestId
+
     setSelectedWallMemoUuid(memoUuid)
     setSelectedMemoUuid(memoUuid)
     setDetailStatus('loading')
     setDetailError(null)
     setSelectedMemoDetail(null)
+    setSelectedMemoPlaybackImageUrl(null)
     setEditingMemo(null)
     setEditingLayoutDraft(null)
 
     try {
       const detail = await getCommunityMemo(memoUuid)
+      if (detailRequestIdRef.current !== requestId) return
+
       setSelectedMemoDetail(detail)
       setDetailStatus('success')
+
+      const animatedImageUrl = await getAnimatedDetailImageUrl(detail)
+      if (detailRequestIdRef.current !== requestId) return
+
+      setSelectedMemoPlaybackImageUrl(animatedImageUrl)
     } catch (error) {
+      if (detailRequestIdRef.current !== requestId) return
+
       setDetailError(toErrorMessage(error, '메모 상세를 불러오지 못했어요.'))
       setDetailStatus('error')
     }
   }, [])
 
   const closeMemoDetail = useCallback(() => {
+    detailRequestIdRef.current += 1
     setSelectedMemoUuid(null)
     setSelectedMemoDetail(null)
+    setSelectedMemoPlaybackImageUrl(null)
     setDetailStatus('idle')
     setDetailError(null)
   }, [])
 
   const selectWallMemo = useCallback((memo: CommunityMemoItemResponse) => {
+    detailRequestIdRef.current += 1
     setSelectedWallMemoUuid(memo.memoUuid)
     setSelectedMemoUuid(null)
     setSelectedMemoDetail(null)
+    setSelectedMemoPlaybackImageUrl(null)
     setDetailStatus('idle')
     setDetailError(null)
 
@@ -170,11 +215,13 @@ export function useCommunityCanvas() {
   const startSelectedMemoLayoutEdit = useCallback(() => {
     if (!selectedMemoDetail?.ownedByMe) return
 
+    detailRequestIdRef.current += 1
     setSelectedWallMemoUuid(selectedMemoDetail.memoUuid)
     setEditingMemo(selectedMemoDetail)
     setEditingLayoutDraft(toLayoutDraft(selectedMemoDetail))
     setSelectedMemoUuid(null)
     setSelectedMemoDetail(null)
+    setSelectedMemoPlaybackImageUrl(null)
     setDetailStatus('idle')
     setDetailError(null)
   }, [selectedMemoDetail])
@@ -281,6 +328,7 @@ export function useCommunityCanvas() {
     selectedWallMemoUuid,
     selectedMemoUuid,
     selectedMemoDetail,
+    selectedMemoPlaybackImageUrl,
     detailStatus,
     detailError,
     editingMemo,

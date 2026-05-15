@@ -8,6 +8,7 @@ import { parseServerInstant } from '@/shared/utils'
 interface CommunityMemoDetailModalProps {
   isOpen: boolean
   detail: CommunityMemoDetailResponse | null
+  playbackImageUrl: string | null
   detailStatus: 'idle' | 'loading' | 'success' | 'error'
   detailError: string | null
   mutationStatus: 'idle' | 'loading' | 'success' | 'error'
@@ -30,6 +31,7 @@ function formatAttachedAt(value: string) {
 export function CommunityMemoDetailModal({
   isOpen,
   detail,
+  playbackImageUrl,
   detailStatus,
   detailError,
   mutationStatus,
@@ -38,6 +40,10 @@ export function CommunityMemoDetailModal({
   onReportOpen,
 }: CommunityMemoDetailModalProps) {
   if (!isOpen) return null
+
+  const displayImageUrl = detail
+    ? playbackImageUrl || detail.memoOriginalImageUrl || detail.memoImageUrl
+    : null
 
   return (
     <div
@@ -78,9 +84,10 @@ export function CommunityMemoDetailModal({
             </div>
           )}
 
-          {detail && (
+          {detail && displayImageUrl && (
             <Image
-              src={detail.memoOriginalImageUrl || detail.memoImageUrl}
+              key={displayImageUrl}
+              src={displayImageUrl}
               alt={`${detail.authorNickname}의 커뮤니티 메모 원본`}
               fill
               sizes="100vw"
@@ -120,7 +127,7 @@ export function CommunityMemoDetailModal({
                   type="button"
                   onClick={onReportOpen}
                   disabled={mutationStatus === 'loading'}
-                  className="body-b inline-flex h-11 items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary px-5 text-fg-inverse transition hover:bg-fg-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                  className="body-b inline-flex h-11 items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] px-5 text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Flag className="size-4" />
                   신고하기
