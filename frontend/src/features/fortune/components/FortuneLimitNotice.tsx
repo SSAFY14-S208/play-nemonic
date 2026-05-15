@@ -6,6 +6,14 @@ import { useFortuneSessionStore } from '../fortuneSessionStore'
 import { useFortuneReducedMotion, useFortuneTypewriterText } from '../hooks'
 import { getNextKoreanMidnightLabel } from '../utils'
 
+import {
+  DIALOGUE_COPY_CLASS,
+  DIALOGUE_PANEL_CLASS,
+  DIALOGUE_SPEAKER_CLASS,
+  FORTUNE_DIALOGUE_GLYPH_CLASS,
+  FortuneDialogueCaret,
+} from './FortuneDialoguePanel'
+
 interface FortuneLimitNoticeProps {
   onShowResult: () => void
   onBackToHub: () => void
@@ -48,11 +56,11 @@ export default function FortuneLimitNotice({ onShowResult, onBackToHub }: Fortun
   }
 
   return (
-    <section className="fortune-dialogue-panel" aria-label="포포의 한도 안내">
-      <p className="fortune-dialogue-speaker">포포</p>
-      <p className="fortune-dialogue-copy" aria-label={plainText} onClick={handleAdvance}>
+    <section className={DIALOGUE_PANEL_CLASS} aria-label="포포의 한도 안내">
+      <p className={DIALOGUE_SPEAKER_CLASS}>포포</p>
+      <p className={DIALOGUE_COPY_CLASS} aria-label={plainText} onClick={handleAdvance}>
         {renderLines(LIMIT_DIALOGUE_LINES, visibleCharacterCount)}
-        {!isComplete && <span className="fortune-dialogue-caret" aria-hidden />}
+        {!isComplete && <FortuneDialogueCaret />}
       </p>
       <p className="caption-r mt-1 text-fortune-muted">{nextResetLabel}</p>
       <div className="mt-3 flex flex-wrap justify-center gap-3">
@@ -115,7 +123,7 @@ function renderLines(lines: LimitDialogueLine[], visibleCharacterCount: number) 
             return (
               <span
                 key={`${lineIndex}-${segmentIndex}-${characterIndex}`}
-                className="fortune-dialogue-glyph"
+                className={FORTUNE_DIALOGUE_GLYPH_CLASS}
               >
                 {character}
               </span>

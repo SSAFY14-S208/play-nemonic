@@ -2,10 +2,13 @@
 
 import { Fragment } from 'react'
 
+import { cn } from '@/shared/libs'
+
 import { useFortuneReducedMotion, useFortuneTypewriterText } from '../hooks'
 
 interface FortuneDialoguePanelProps {
   dialogueIndex: number
+  withEntryReveal?: boolean
   onNext: () => void
 }
 
@@ -45,7 +48,63 @@ export const FORTUNE_DIALOGUES: FortuneDialogue[] = [
   },
 ]
 
-export default function FortuneDialoguePanel({ dialogueIndex, onNext }: FortuneDialoguePanelProps) {
+export const DIALOGUE_PANEL_CLASS = cn(
+  'relative grid items-end mx-auto border-0 text-left',
+  'grid-cols-[minmax(0,1fr)_auto]',
+  'w-[min(94vw,980px)]',
+  'aspect-[1631/502]',
+  'gap-[clamp(0.35rem,1.1vw,0.75rem)]',
+  'pt-[clamp(3rem,14%,6.8rem)] pr-[clamp(1.9rem,6.4%,4.55rem)] pb-[clamp(1.05rem,4.8%,2.45rem)] pl-[clamp(3.12rem,9.7%,6.45rem)]',
+  "bg-[url('/images/fortune/stage/dialogue-panel.png')] bg-center bg-no-repeat bg-[length:100%_100%]",
+  '[filter:drop-shadow(0_-0.5rem_1.3rem_rgba(79,31,120,0.24))_drop-shadow(0_0.7rem_1.35rem_rgba(6,1,17,0.46))]',
+  // mobile overrides (max-[800px]:)
+  'max-[800px]:w-[min(94vw,34rem)] max-[800px]:max-w-none max-[800px]:gap-[0.36rem]',
+  'max-[800px]:pt-[clamp(2.65rem,13.4%,5rem)] max-[800px]:pr-[clamp(1.34rem,6.4%,2.45rem)] max-[800px]:pb-[calc(clamp(0.8rem,4.7%,1.6rem)+env(safe-area-inset-bottom))] max-[800px]:pl-[clamp(2.24rem,10.4%,3.7rem)]',
+)
+
+export const DIALOGUE_SPEAKER_CLASS = cn(
+  'absolute top-[6.3%] left-[11.1%] grid items-center justify-items-start',
+  'w-[min(29.8%,18rem)] h-[21%] min-w-[7rem]',
+  'm-0 transform-none border-0 bg-transparent text-left',
+  'pt-0 pr-[clamp(0.45rem,1.2vw,0.8rem)] pb-0 pl-[clamp(0.9rem,2.1vw,1.55rem)]',
+  'font-[var(--font-paperlogy)] font-extrabold leading-none',
+  'text-[clamp(1.12rem,2.05vw,1.58rem)] text-[rgba(255,244,216,0.96)]',
+  '[text-shadow:0_0.12rem_0.32rem_rgba(8,1,18,0.72),0_0_0.72rem_rgba(193,107,255,0.42)]',
+  // mobile overrides
+  'max-[800px]:top-[6%] max-[800px]:left-[11.2%] max-[800px]:w-[30%] max-[800px]:min-w-[5.3rem]',
+  'max-[800px]:pl-[clamp(0.72rem,3.4vw,1.2rem)] max-[800px]:text-[clamp(0.96rem,4.45vw,1.28rem)]',
+)
+
+export const DIALOGUE_COPY_CLASS = cn(
+  'm-0 self-center',
+  'font-fortune-hand font-normal leading-[1.42] tracking-normal',
+  'text-[clamp(1.14rem,2.12vw,1.72rem)] text-[rgba(255,249,228,0.98)]',
+  '[text-shadow:0_0.16rem_0.45rem_rgba(7,1,16,0.72),0_0_0.86rem_rgba(160,87,255,0.3)]',
+  'whitespace-pre-wrap break-keep',
+  // mobile overrides
+  'max-[800px]:text-[clamp(0.92rem,4vw,1.16rem)] max-[800px]:leading-[1.42]',
+)
+
+export const DIALOGUE_NEXT_CLASS = cn(
+  'relative self-center p-0 border-0 cursor-pointer text-transparent font-inherit min-h-0',
+  'w-[clamp(2.55rem,4.9vw,4.35rem)] aspect-square',
+  'mr-[clamp(0.65rem,3.1vw,2.45rem)]',
+  "bg-transparent bg-[url('/images/fortune/stage/dialogue-next-button.png')] bg-center bg-no-repeat bg-contain",
+  '[filter:drop-shadow(0_0_0.64rem_rgba(188,104,255,0.5))_drop-shadow(0_0.45rem_0.7rem_rgba(9,1,18,0.4))]',
+  '[transition:transform_180ms_ease,filter_180ms_ease]',
+  'hover:[filter:drop-shadow(0_0_0.9rem_rgba(213,144,255,0.76))_drop-shadow(0_0.48rem_0.76rem_rgba(9,1,18,0.44))_saturate(1.1)_brightness(1.06)]',
+  'hover:translate-x-[0.12rem] hover:scale-[1.04]',
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[rgba(255,235,179,0.95)] focus-visible:outline-offset-[0.2rem]',
+  // mobile overrides
+  'max-[800px]:col-auto max-[800px]:justify-self-end',
+  'max-[800px]:w-[clamp(2.05rem,9.7vw,3.15rem)] max-[800px]:mr-[clamp(0.2rem,1.8vw,0.55rem)]',
+)
+
+export default function FortuneDialoguePanel({
+  dialogueIndex,
+  withEntryReveal = false,
+  onNext,
+}: FortuneDialoguePanelProps) {
   const dialogue = FORTUNE_DIALOGUES[dialogueIndex] ?? FORTUNE_DIALOGUES[0]
   const startDelayMs =
     dialogueIndex === 0
@@ -57,6 +116,7 @@ export default function FortuneDialoguePanel({ dialogueIndex, onNext }: FortuneD
       key={dialogueIndex}
       dialogue={dialogue}
       startDelayMs={startDelayMs}
+      withEntryReveal={withEntryReveal}
       onNext={onNext}
     />
   )
@@ -65,10 +125,12 @@ export default function FortuneDialoguePanel({ dialogueIndex, onNext }: FortuneD
 function FortuneDialoguePanelContent({
   dialogue,
   startDelayMs,
+  withEntryReveal,
   onNext,
 }: {
   dialogue: FortuneDialogue
   startDelayMs: number
+  withEntryReveal: boolean
   onNext: () => void
 }) {
   const prefersReducedMotion = useFortuneReducedMotion()
@@ -91,25 +153,41 @@ function FortuneDialoguePanelContent({
   }
 
   return (
-    <section className="fortune-dialogue-panel" aria-label="포포의 안내">
-      <p className="fortune-dialogue-speaker">포포</p>
-      <p className="fortune-dialogue-copy" aria-label={plainText}>
+    <section
+      className={cn(
+        DIALOGUE_PANEL_CLASS,
+        withEntryReveal && 'animate-fortune-dialogue-entry-reveal motion-reduce:animate-none',
+      )}
+      aria-label="포포의 안내"
+    >
+      <p className={DIALOGUE_SPEAKER_CLASS}>포포</p>
+      <p className={DIALOGUE_COPY_CLASS} aria-label={plainText}>
         {renderDialogueLines(dialogue, visibleCharacterCount)}
-        {!isComplete && <span className="fortune-dialogue-caret" aria-hidden />}
+        {!isComplete && <FortuneDialogueCaret />}
       </p>
       <button
         type="button"
-        className="fortune-dialogue-next"
+        className={DIALOGUE_NEXT_CLASS}
         aria-label={buttonLabel}
         onClick={handleNext}
       >
-        <span className="fortune-dialogue-next-label" aria-hidden>
-          {buttonLabel}
-        </span>
+        <span className="sr-only">{buttonLabel}</span>
       </button>
     </section>
   )
 }
+
+export function FortuneDialogueCaret() {
+  return (
+    <span
+      aria-hidden
+      className="ml-[0.08em] inline-block h-[1em] w-[0.12em] translate-y-[0.16em] rounded-full bg-[rgba(255,242,205,0.92)] align-baseline shadow-[0_0_0.48rem_rgba(206,129,255,0.56)] animate-fortune-dialogue-caret-blink motion-reduce:animate-none"
+    />
+  )
+}
+
+export const FORTUNE_DIALOGUE_GLYPH_CLASS =
+  'inline-block animate-fortune-dialogue-glyph-tap origin-[50%_82%] motion-reduce:animate-none'
 
 function getDialogueCharacterCount(dialogue: FortuneDialogue) {
   return dialogue.lines.reduce((totalCharacterCount, line) => {
@@ -162,7 +240,7 @@ function renderDialogueLines(dialogue: FortuneDialogue, visibleCharacterCount: n
             return (
               <span
                 key={`${lineIndex}-${segmentIndex}-${characterIndex}`}
-                className="fortune-dialogue-glyph"
+                className={FORTUNE_DIALOGUE_GLYPH_CLASS}
               >
                 {character}
               </span>

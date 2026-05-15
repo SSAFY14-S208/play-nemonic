@@ -2,7 +2,6 @@
 
 import './fortune.css'
 
-import { ChevronLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
@@ -13,12 +12,16 @@ import { writeCommunityCanvasHandoffDraft } from '@/shared/utils'
 
 import {
   FORTUNE_DIALOGUES,
+  FortuneBackToggle,
+  FortuneBgmToggle,
   FortuneBirthForm,
   FortuneDialoguePanel,
   FortuneDrawPanel,
+  FortuneEntrySpotlightCover,
   FortuneErrorView,
   FortuneLimitNotice,
   FortuneLoadingView,
+  FortuneMagicBackdrop,
   FortunePrintStatus,
   FortuneResultCard,
 } from './components'
@@ -144,30 +147,30 @@ export default function FortunePage() {
 
   return (
     <main
-      className="fortune-page-shell relative min-h-dvh overflow-hidden bg-fortune-backdrop text-fortune-ink"
+      className="isolate relative min-h-dvh overflow-hidden bg-fortune-backdrop text-fortune-ink"
       onPointerDown={(event) => {
         const target = event.target as Element | null
         if (!target) return
-        const interactive = target.closest('button, [role="button"], summary, label.fortune-birth-unknown-toggle')
+        const interactive = target.closest('button, [role="button"], summary, label[data-fortune-tap-target]')
         if (interactive && !(interactive as HTMLButtonElement).disabled) {
           playTap()
         }
       }}
     >
-      <div className="fortune-magic-backdrop" aria-hidden />
+      <FortuneMagicBackdrop />
       <FortuneVisual
         playEntrySpotlight={shouldPrepareEntrySpotlight}
-        runEntrySpotlight={shouldPlayEntrySpotlight}
         onEntrySceneReady={handleEntrySceneReady}
         onPrintComplete={handlePrintComplete}
       />
       <section
         className={cn(
           'relative z-5 flex min-h-dvh flex-col justify-end p-[clamp(1rem,3vw,2.2rem)] pointer-events-none max-[800px]:p-[0.9rem]',
-          shouldPlayEntrySpotlight && 'fortune-stage-overlay-entry',
-          step === 'birthInfo' && 'justify-center fortune-stage-overlay-birth',
-          (step === 'intro' || step === 'limit') && 'fortune-stage-overlay-dialogue',
-          step === 'draw' && 'fortune-stage-overlay-draw',
+          step === 'birthInfo' &&
+            'justify-center bg-[radial-gradient(ellipse_at_50%_48%,rgba(24,8,37,0.1),rgba(24,8,37,0)_58%),linear-gradient(180deg,rgba(15,4,25,0.08),rgba(15,4,25,0.18))] backdrop-blur-[1.5px]',
+          (step === 'intro' || step === 'limit') &&
+            'justify-end px-[clamp(0.45rem,1.8vw,1.25rem)] pt-0 pb-[clamp(0.2rem,1vh,0.75rem)] max-[800px]:px-0 max-[800px]:pb-[clamp(0.2rem,1.2vh,0.55rem)]',
+          step === 'draw' && 'p-0 [&>div]:transform-none!',
           ((step === 'printing' && prefersReducedMotion) || step === 'error') && 'items-center pb-[clamp(2rem,6.4vh,4.1rem)]',
           step === 'result' && 'items-center h-dvh justify-start overflow-y-auto py-[clamp(1.2rem,4vh,2.8rem)] pointer-events-auto overscroll-contain',
         )}
@@ -195,34 +198,9 @@ export default function FortunePage() {
           </p>
         )}
       </section>
-      {shouldPrepareEntrySpotlight && (
-        <div className={cn('fortune-entry-spotlight-cover', shouldPlayEntrySpotlight && 'is-lit')} aria-hidden />
-      )}
-      {step === 'birthInfo' && (
-        <button
-          type="button"
-          aria-label="이전 화면으로 돌아가기"
-          className="fortune-page-back-toggle"
-          onClick={handleReturnToDialogue}
-        >
-          <ChevronLeft className="size-5" aria-hidden />
-          <span className="fortune-page-back-toggle-label">뒤로</span>
-        </button>
-      )}
-      <button
-        type="button"
-        aria-label={isBgmMuted ? '타로 배경음악 켜기' : '타로 배경음악 음소거'}
-        aria-pressed={isBgmMuted}
-        className={cn('fortune-bgm-toggle', isBgmMuted && 'is-muted')}
-        title={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
-        onClick={toggleFortuneBgmMuted}
-        onKeyDown={(event) => event.stopPropagation()}
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <span className="fortune-bgm-toggle-label">
-          {isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
-        </span>
-      </button>
+      {shouldPrepareEntrySpotlight && <FortuneEntrySpotlightCover isLit={shouldPlayEntrySpotlight} />}
+      {step === 'birthInfo' && <FortuneBackToggle onClick={handleReturnToDialogue} />}
+      <FortuneBgmToggle isMuted={isBgmMuted} onToggle={toggleFortuneBgmMuted} />
     </main>
   )
 
@@ -232,7 +210,13 @@ export default function FortunePage() {
     }
 
     if (step === 'intro') {
-      return <FortuneDialoguePanel dialogueIndex={dialogueIndex} onNext={handleDialogueNext} />
+      return (
+        <FortuneDialoguePanel
+          dialogueIndex={dialogueIndex}
+          withEntryReveal={shouldPlayEntrySpotlight}
+          onNext={handleDialogueNext}
+        />
+      )
     }
 
     if (step === 'birthInfo') {
