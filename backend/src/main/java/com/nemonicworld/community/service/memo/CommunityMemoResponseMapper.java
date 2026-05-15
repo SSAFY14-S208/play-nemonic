@@ -28,6 +28,7 @@ class CommunityMemoResponseMapper {
     private static final Logger log = LoggerFactory.getLogger(CommunityMemoResponseMapper.class);
     private static final TypeReference<Map<String, Object>> DECORATION_TYPE = new TypeReference<>() {
     };
+    private static final String KIND_FLIPBOOK = "flipbook";
 
     private final MinioPublicUrlResolver minioPublicUrlResolver;
     private final ObjectMapper objectMapper;
@@ -41,26 +42,30 @@ class CommunityMemoResponseMapper {
         String sourceType = resolveSourceType(row.artifactId());
         String memoOriginalImageUrl = resolveMemoImageUrl(row.originalImageReference(), row.memoId(), "original");
         String memoThumbnailImageUrl = resolveMemoImageUrl(row.thumbnailImageReference(), row.memoId(), "thumbnail");
+        String memoPlaybackImageUrl = resolveMemoPlaybackImageUrl(row.artifactKind(), row.playbackImageReference(),
+            row.memoId());
         String memoImageUrl = representativeImageUrl(memoOriginalImageUrl, memoThumbnailImageUrl);
         boolean ownedByMe = isOwnedByViewer(row.userId(), viewerUserUuid);
 
         return new CommunityMemoItemResponse(row.memoId().toString(), row.authorNickname(), sourceType, memoImageUrl,
-            memoOriginalImageUrl, memoThumbnailImageUrl, row.positionX(), row.positionY(), row.zIndex(),
-            row.rotationDeg(), ownedByMe, row.attachedAt(), parseDecoration(row.decoration()));
+            memoOriginalImageUrl, memoThumbnailImageUrl, memoPlaybackImageUrl, row.positionX(), row.positionY(),
+            row.zIndex(), row.rotationDeg(), ownedByMe, row.attachedAt(), parseDecoration(row.decoration()));
     }
 
     CommunityMemoDetailResponse toDetailResponse(CommunityMemoDetailRow row, UUID viewerUserUuid) {
         String sourceType = resolveSourceType(row.artifactId());
         String memoOriginalImageUrl = resolveMemoImageUrl(row.originalImageReference(), row.memoId(), "original");
         String memoThumbnailImageUrl = resolveMemoImageUrl(row.thumbnailImageReference(), row.memoId(), "thumbnail");
+        String memoPlaybackImageUrl = resolveMemoPlaybackImageUrl(row.artifactKind(), row.playbackImageReference(),
+            row.memoId());
         String memoImageUrl = representativeImageUrl(memoOriginalImageUrl, memoThumbnailImageUrl);
         boolean ownedByMe = isOwnedByViewer(row.userId(), viewerUserUuid);
         String artifactId = row.artifactId() == null ? null : row.artifactId().toString();
         String galleryContentKind = row.artifactId() == null ? null : row.artifactKind();
 
         return new CommunityMemoDetailResponse(row.memoId().toString(), row.authorNickname(), sourceType, memoImageUrl,
-            memoOriginalImageUrl, memoThumbnailImageUrl, row.positionX(), row.positionY(), row.zIndex(),
-            row.rotationDeg(), ownedByMe, row.attachedAt(), parseDecoration(row.decoration()), artifactId,
+            memoOriginalImageUrl, memoThumbnailImageUrl, memoPlaybackImageUrl, row.positionX(), row.positionY(),
+            row.zIndex(), row.rotationDeg(), ownedByMe, row.attachedAt(), parseDecoration(row.decoration()), artifactId,
             galleryContentKind, row.moderationStatus(), row.reportCount(), row.createdAt(), row.updatedAt());
     }
 
@@ -74,6 +79,22 @@ class CommunityMemoResponseMapper {
             CommunityMemoEventLogger.warn(
                 "community_file_url_resolve_failed", "community memo image url resolve failed", metadata("memo_id",
                     memoId, "image_role", imageRole, "object_key_hash", CommunityMemoEventLogger.hash(objectKey)),
+                null);
+        }
+
+        return imageUrl;
+    }
+
+    private String resolveMemoPlaybackImageUrl(String artifactKind, String objectKey, UUID memoId) {
+        if (!KIND_FLIPBOOK.equals(artifactKind) || !StringUtils.hasText(objectKey)) {
+            return null;
+        }
+
+        String imageUrl = minioPublicUrlResolver.resolve(objectKey);
+        if (!StringUtils.hasText(imageUrl)) {
+            CommunityMemoEventLogger.warn("community_file_url_resolve_failed",
+                "community memo playback image url resolve failed", metadata("memo_id", memoId, "image_role",
+                    "playback", "object_key_hash", CommunityMemoEventLogger.hash(objectKey)),
                 null);
         }
 
