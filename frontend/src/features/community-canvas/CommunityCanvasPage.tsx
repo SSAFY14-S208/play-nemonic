@@ -90,7 +90,7 @@ export function CommunityCanvasPage() {
             className={cn(
               'size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5',
               isHeaderActionsDisabled
-                ? 'cursor-not-allowed opacity-70 brightness-[0.45] grayscale'
+                ? 'invisible cursor-not-allowed'
                 : 'hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
             )}
           />
@@ -103,7 +103,7 @@ export function CommunityCanvasPage() {
             className={cn(
               'size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5',
               isHeaderActionsDisabled
-                ? 'cursor-not-allowed opacity-70 brightness-[0.45] grayscale'
+                ? 'invisible cursor-not-allowed'
                 : 'hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
             )}
           />
