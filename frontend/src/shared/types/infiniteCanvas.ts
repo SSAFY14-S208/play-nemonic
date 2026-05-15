@@ -158,3 +158,55 @@ export interface InfiniteCanvasOutputSaveResponse {
   contentUrl: string
   createdAt: string
 }
+
+export type InfiniteCanvasWsEventType =
+  | 'STATE_SNAPSHOT'
+  | 'SNAPSHOT_UPDATED'
+  | 'OPS_APPLIED'
+  | 'CURSOR_UPDATED'
+  | 'LOCK_ACQUIRED'
+  | 'LOCK_RELEASED'
+  | 'PARTICIPANT_CONNECTED'
+  | 'PARTICIPANT_DISCONNECTED'
+  | 'PARTICIPANT_LEFT'
+  | 'PARTICIPANT_UPDATED'
+  | 'CANVAS_CLOSED'
+  | 'DUPLICATE_SESSION_CLOSED'
+  | 'PONG'
+  | 'ERROR'
+
+export interface InfiniteCanvasSimpleMessageResponse {
+  message: string
+}
+
+export interface InfiniteCanvasWsEventPayloadMap {
+  STATE_SNAPSHOT: InfiniteCanvasStateResponse
+  SNAPSHOT_UPDATED: InfiniteCanvasStateResponse
+  OPS_APPLIED: InfiniteCanvasOpsAppliedResponse
+  CURSOR_UPDATED: InfiniteCanvasCursorResponse
+  LOCK_ACQUIRED: InfiniteCanvasLockResponse
+  LOCK_RELEASED: InfiniteCanvasLockResponse
+  PARTICIPANT_CONNECTED: InfiniteCanvasStateResponse
+  PARTICIPANT_DISCONNECTED: InfiniteCanvasStateResponse
+  PARTICIPANT_LEFT: InfiniteCanvasLeaveResponse
+  PARTICIPANT_UPDATED: InfiniteCanvasParticipantResponse
+  CANVAS_CLOSED: InfiniteCanvasSimpleMessageResponse | string
+  DUPLICATE_SESSION_CLOSED: InfiniteCanvasSimpleMessageResponse
+  PONG: InfiniteCanvasSimpleMessageResponse
+  ERROR: InfiniteCanvasSimpleMessageResponse
+}
+
+export interface InfiniteCanvasWsEnvelope<TType extends InfiniteCanvasWsEventType> {
+  type: TType
+  canvasId: string
+  data: InfiniteCanvasWsEventPayloadMap[TType]
+  occurredAt: string
+}
+
+export type InfiniteCanvasWsEvent = {
+  [TType in InfiniteCanvasWsEventType]: InfiniteCanvasWsEnvelope<TType>
+}[InfiniteCanvasWsEventType]
+
+export type InfiniteCanvasRealtimeEventType = InfiniteCanvasWsEventType
+
+export type InfiniteCanvasRealtimeEvent = InfiniteCanvasWsEvent
