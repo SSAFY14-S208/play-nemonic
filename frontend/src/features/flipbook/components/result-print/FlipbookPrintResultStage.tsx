@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { Heart, Sparkles } from 'lucide-react'
+import { Play, Sparkles } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { cn } from '@/shared/libs'
@@ -48,9 +48,9 @@ const RESULT_STAGE_BACKGROUND_IMAGE_HEIGHT = 1080
 const FURNITURE_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-furniture-left.png'
 const FURNITURE_IMAGE_WIDTH = 1536
 const FURNITURE_IMAGE_HEIGHT = 1024
-const BOARD_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-board.png'
-const BOARD_IMAGE_WIDTH = 1672
-const BOARD_IMAGE_HEIGHT = 941
+const BOARD_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-board-v2.png'
+const BOARD_IMAGE_WIDTH = 1113
+const BOARD_IMAGE_HEIGHT = 744
 const NEMONIC_DEVICE_IMAGE_SRC = '/images/flipbook-result/attached-nemonic-device-v3-hq.png'
 const NEMONIC_DEVICE_IMAGE_WIDTH = 1551
 const NEMONIC_DEVICE_IMAGE_HEIGHT = 1035
@@ -72,9 +72,9 @@ const BOARD_LEFT = '30.89%'
 const BOARD_TOP = '12.78%'
 const BOARD_WIDTH = '57.97%'
 const BOARD_HEIGHT = '69.44%'
-const BOARD_IMAGE_LEFT = '-5.97%'
-const BOARD_CROP_WIDTH = '112.14%'
-const PARTICIPANT_PANEL_IMAGE_SRC = '/images/flipbook-result/participant-panel.png'
+const BOARD_IMAGE_LEFT = '0%'
+const BOARD_CROP_WIDTH = '100%'
+const PARTICIPANT_PANEL_IMAGE_SRC = '/images/flipbook-result/participant-panel-v2.png'
 const PARTICIPANT_PANEL_LEFT = '6.67%'
 const PARTICIPANT_PANEL_TOP = '13.7%'
 const PARTICIPANT_PANEL_WIDTH = '19.43%'
@@ -118,18 +118,23 @@ export default function FlipbookPrintResultStage({
     Math.max(0, participants.length - 1),
   )
   const selectedParticipant = participants[normalizedSelectedParticipantIndex] ?? null
-  const printFrames = selectedParticipant?.frames ?? []
+  const printFrames = useMemo(
+    () => selectedParticipant?.frames ?? [],
+    [selectedParticipant],
+  )
   const {
     activeFrameIndex,
     isPlaying,
     isComplete,
     printCycleKey,
     replay,
+    showFrame,
   } = useFlipbookPrintReveal({
     frameCount: printFrames.length,
     printDurationMs,
     holdDurationMs,
   })
+  const [pendingGifParticipantIndex, setPendingGifParticipantIndex] = useState<number | null>(null)
   const activeFrame = printFrames[activeFrameIndex] ?? null
   const previousFrame = activeFrameIndex > 0 ? printFrames[activeFrameIndex - 1] : null
   const shouldPrintActiveFrame = activeFrame?.outputMode !== 'gif-playback'
@@ -149,10 +154,50 @@ export default function FlipbookPrintResultStage({
   }, [activeParticipantIndex])
 
   const selectParticipant = (participantIndex: number) => {
+    setPendingGifParticipantIndex(null)
     setSelectedParticipantIndex(participantIndex)
     onSelectParticipant?.(participantIndex)
     replay()
   }
+
+  const selectParticipantGif = (participantIndex: number) => {
+    const targetParticipant = participants[participantIndex]
+    const hasGifPlayback = targetParticipant?.frames.some(
+      (frame) => frame.outputMode === 'gif-playback',
+    )
+    if (!hasGifPlayback) return
+
+    setSelectedParticipantIndex(participantIndex)
+    onSelectParticipant?.(participantIndex)
+    setPendingGifParticipantIndex(participantIndex)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      if (pendingGifParticipantIndex !== normalizedSelectedParticipantIndex) return
+
+      const gifFrameIndex = printFrames.findIndex(
+        (frame) => frame.outputMode === 'gif-playback',
+      )
+      if (gifFrameIndex < 0) {
+        if (!cancelled) {
+          setPendingGifParticipantIndex(null)
+        }
+        return
+      }
+
+      if (!cancelled) {
+        showFrame(gifFrameIndex)
+        setPendingGifParticipantIndex(null)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [normalizedSelectedParticipantIndex, pendingGifParticipantIndex, printFrames, showFrame])
 
   return (
     <section
@@ -251,44 +296,60 @@ export default function FlipbookPrintResultStage({
               const accentColor = getParticipantAccentColor(participant, participantIndex)
               const thumbnailImageUrl = participant.frames.find((frame) => frame.imageUrl)?.imageUrl
               const printableFrameCount = getPrintableFrameCount(participant)
+              const hasGifPlayback = participant.frames.some(
+                (frame) => frame.outputMode === 'gif-playback',
+              )
 
               return (
-                <button
+                <div
                   key={participant.id}
-                  type="button"
-                  onClick={() => selectParticipant(participantIndex)}
                   className={cn(
                     'group relative grid min-h-[68px] grid-cols-[54px_1fr_auto] items-center gap-2 overflow-hidden rounded-[8px] border border-white/80 bg-white/76 px-2.5 py-2 text-left shadow-[0_8px_18px_rgb(226_128_154_/_10%)] transition',
                     'hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_22px_rgb(226_128_154_/_18%)]',
                     isActive && 'border-[#ff8aa4] bg-white shadow-[0_12px_26px_rgb(226_128_154_/_24%)]',
                   )}
                 >
-                  <span className="relative h-[48px] w-[42px]" aria-hidden>
-                    <span className="absolute left-0 top-1 size-[42px] rotate-[-8deg] rounded-[5px] border border-[#ffc1cf] bg-[#ffeef2]" />
-                    <span className="absolute left-2 top-0 size-[42px] rotate-[5deg] rounded-[5px] border border-white bg-white shadow-[0_4px_10px_rgb(120_80_80_/_12%)]">
-                      {thumbnailImageUrl ? (
-                        <Image
-                          src={thumbnailImageUrl}
-                          alt=""
-                          fill
-                          sizes="42px"
-                          unoptimized
-                          className="rounded-[5px] object-cover p-1"
-                        />
-                      ) : (
-                        <span className="absolute inset-1.5 rounded-[3px]" style={{ backgroundColor: `${accentColor}55` }} />
-                      )}
-                      <span className="absolute inset-x-2 bottom-1 h-1 rounded-full bg-white/80" />
+                  <button
+                    type="button"
+                    onClick={() => selectParticipant(participantIndex)}
+                    className="contents text-left"
+                  >
+                    <span className="relative h-[48px] w-[42px]" aria-hidden>
+                      <span className="absolute left-0 top-1 size-[42px] rotate-[-8deg] rounded-[5px] border border-[#ffc1cf] bg-[#ffeef2]" />
+                      <span className="absolute left-2 top-0 size-[42px] rotate-[5deg] rounded-[5px] border border-white bg-white shadow-[0_4px_10px_rgb(120_80_80_/_12%)]">
+                        {thumbnailImageUrl ? (
+                          <Image
+                            src={thumbnailImageUrl}
+                            alt=""
+                            fill
+                            sizes="42px"
+                            unoptimized
+                            className="rounded-[5px] object-cover p-1"
+                          />
+                        ) : (
+                          <span className="absolute inset-1.5 rounded-[3px]" style={{ backgroundColor: `${accentColor}55` }} />
+                        )}
+                        <span className="absolute inset-x-2 bottom-1 h-1 rounded-full bg-white/80" />
+                      </span>
                     </span>
-                  </span>
 
-                  <span className="min-w-0">
-                    <span className="body-b block truncate text-[#332222]">{participant.name}</span>
-                  </span>
+                    <span className="min-w-0">
+                      <span className="body-b block truncate text-[#332222]">{participant.name}</span>
+                    </span>
+                  </button>
 
-                  <span className="grid justify-items-end gap-1">
+                  <span className="relative z-10 grid justify-items-end gap-1">
                     <span className="caption-b text-[#e56883]">{printableFrameCount}장</span>
-                    {isActive && <Heart className="size-4 fill-[#ff85a0] text-[#ff85a0]" aria-hidden />}
+                    <button
+                      type="button"
+                      onClick={() => selectParticipantGif(participantIndex)}
+                      disabled={!hasGifPlayback}
+                      className="caption-b inline-flex h-6 items-center gap-1 rounded-full border border-[#ff9ab2]/70 bg-white/86 px-2 text-[#d9607a] shadow-[0_4px_8px_rgb(226_128_154_/_12%)] transition hover:bg-[#fff0f4] disabled:opacity-45"
+                      aria-label={`${participant.name} GIF만 보기`}
+                    >
+                      <Play className="size-3 fill-[#d9607a]" aria-hidden />
+                      GIF
+                    </button>
                   </span>
 
                   <span
@@ -298,7 +359,7 @@ export default function FlipbookPrintResultStage({
                     )}
                     aria-hidden
                   />
-                </button>
+                </div>
               )
             })}
           </div>
