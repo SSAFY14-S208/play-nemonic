@@ -106,12 +106,12 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-composer-title"
-      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
     >
       <section
         className="relative aspect-[1600/980] overflow-hidden bg-contain bg-center bg-no-repeat"
         style={{
-          width: 'min(96vw, 100rem, 153.47vh)',
+          width: 'min(96vw, 100rem, calc((100dvh - 2rem) * 1600 / 980))',
           backgroundImage: 'url("/images/community-canvas/ui/modal-composer-frame.svg")',
           backgroundSize: '100% 100%',
         }}

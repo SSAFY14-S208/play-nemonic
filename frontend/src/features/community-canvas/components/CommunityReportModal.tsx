@@ -39,12 +39,12 @@ export function CommunityReportModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-report-title"
-      className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center bg-[#19172a]/50 p-2 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-2 backdrop-blur-[2px]"
     >
       <section
         className="relative aspect-[760/660] bg-contain bg-center bg-no-repeat"
         style={{
-          width: 'min(98vw, 60rem, 115.15vh)',
+          width: 'min(98vw, 60rem, calc((100dvh - 1rem) * 760 / 660))',
           backgroundImage: 'url("/images/community-canvas/ui/modal-report-frame.svg")',
           backgroundSize: '100% 100%',
         }}

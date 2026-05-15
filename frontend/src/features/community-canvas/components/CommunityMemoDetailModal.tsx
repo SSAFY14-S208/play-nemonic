@@ -50,11 +50,12 @@ export function CommunityMemoDetailModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-memo-detail-title"
-      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
     >
       <section
         className="relative aspect-[1500/1040] w-full max-w-6xl bg-contain bg-center bg-no-repeat"
         style={{
+          width: 'min(96vw, 72rem, calc((100dvh - 2rem) * 1500 / 1040))',
           backgroundImage: 'url("/images/community-canvas/ui/modal-detail-frame.svg")',
           backgroundSize: '100% 100%',
         }}
