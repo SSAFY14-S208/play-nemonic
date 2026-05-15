@@ -96,6 +96,8 @@ pipeline {
                     # set -a로 export 하면 .env에 다른 시크릿까지 같이 노출되므로 명시적으로 추출
                     NEXT_PUBLIC_API_URL=$(grep -E '^NEXT_PUBLIC_API_URL=' "${ENV_FILE}" | cut -d= -f2- | tr -d '"' | tr -d "'")
                     NEXT_PUBLIC_WEBSOCKET_URL=$(grep -E '^NEXT_PUBLIC_WEBSOCKET_URL=' "${ENV_FILE}" | cut -d= -f2- | tr -d '"' | tr -d "'")
+                    NEXT_PUBLIC_GRAFANA_URL=$(grep -E '^NEXT_PUBLIC_GRAFANA_URL=' "${ENV_FILE}" | cut -d= -f2- | tr -d '"' | tr -d "'")
+                    NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL=$(grep -E '^NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL=' "${ENV_FILE}" | cut -d= -f2- | tr -d '"' | tr -d "'")
 
                     if [ -z "${NEXT_PUBLIC_API_URL}" ]; then
                       echo "[ERROR] NEXT_PUBLIC_API_URL이 ${ENV_FILE}에 없음" >&2
@@ -105,14 +107,26 @@ pipeline {
                       echo "[ERROR] NEXT_PUBLIC_WEBSOCKET_URL이 ${ENV_FILE}에 없음" >&2
                       exit 1
                     fi
+                    if [ -z "${NEXT_PUBLIC_GRAFANA_URL}" ]; then
+                      echo "[ERROR] NEXT_PUBLIC_GRAFANA_URL이 ${ENV_FILE}에 없음" >&2
+                      exit 1
+                    fi
+                    if [ -z "${NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL}" ]; then
+                      echo "[ERROR] NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL이 ${ENV_FILE}에 없음" >&2
+                      exit 1
+                    fi
 
                     echo "Building image: ${IMAGE_TAG}"
                     echo "  NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
                     echo "  NEXT_PUBLIC_WEBSOCKET_URL=${NEXT_PUBLIC_WEBSOCKET_URL}"
+                    echo "  NEXT_PUBLIC_GRAFANA_URL=${NEXT_PUBLIC_GRAFANA_URL}"
+                    echo "  NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL=${NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL}"
 
                     DOCKER_BUILDKIT=1 docker build \
                       --build-arg NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
                       --build-arg NEXT_PUBLIC_WEBSOCKET_URL="${NEXT_PUBLIC_WEBSOCKET_URL}" \
+                      --build-arg NEXT_PUBLIC_GRAFANA_URL="${NEXT_PUBLIC_GRAFANA_URL}" \
+                      --build-arg NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL="${NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL}" \
                       -t "${IMAGE_TAG}" \
                       -t "${IMAGE_LATEST}" \
                       frontend/
