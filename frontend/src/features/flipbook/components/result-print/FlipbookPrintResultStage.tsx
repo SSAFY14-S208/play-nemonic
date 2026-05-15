@@ -132,7 +132,6 @@ export default function FlipbookPrintResultStage({
   })
   const activeFrame = printFrames[activeFrameIndex] ?? null
   const previousFrame = activeFrameIndex > 0 ? printFrames[activeFrameIndex - 1] : null
-  const progressText = printFrames.length === 0 ? '0 / 0' : `${activeFrameIndex + 1} / ${printFrames.length}`
   const shouldPrintActiveFrame = activeFrame?.outputMode !== 'gif-playback'
 
   useEffect(() => {
@@ -239,27 +238,11 @@ export default function FlipbookPrintResultStage({
             className="pointer-events-none absolute inset-0 z-0 size-full object-fill"
           />
 
-          <div className="relative z-10 flex min-h-[9%] items-start justify-between gap-3">
-            <div>
-              <p className="h3-b flex items-center gap-2 text-[#5d3b38]">
-                <Sparkles className="size-5 text-[#ffb84d]" aria-hidden />
-                참여자 목록
-              </p>
-            </div>
-            <div className="grid justify-items-end gap-1">
-              <div className="flex gap-1" aria-hidden>
-                {participants.slice(0, 3).map((participant, participantDotIndex) => (
-                  <span
-                    key={participant.id}
-                    className={cn(
-                      'size-1.5 rounded-full bg-[#f8c7d1]',
-                      participantDotIndex === normalizedSelectedParticipantIndex && 'bg-[#f36f91]',
-                    )}
-                  />
-                ))}
-              </div>
-              <p className="caption-b text-[#d07186]">{progressText}</p>
-            </div>
+          <div className="relative z-10 flex min-h-[9%] items-start gap-3">
+            <p className="h3-b flex items-center gap-2 text-[#5d3b38]">
+              <Sparkles className="size-5 text-[#ffb84d]" aria-hidden />
+              참여자 목록
+            </p>
           </div>
 
           <div className="relative z-10 mt-4 grid flex-1 content-start gap-2 overflow-y-auto pr-1">
@@ -267,6 +250,7 @@ export default function FlipbookPrintResultStage({
               const isActive = participantIndex === normalizedSelectedParticipantIndex
               const accentColor = getParticipantAccentColor(participant, participantIndex)
               const thumbnailImageUrl = participant.frames.find((frame) => frame.imageUrl)?.imageUrl
+              const printableFrameCount = getPrintableFrameCount(participant)
 
               return (
                 <button
@@ -303,7 +287,7 @@ export default function FlipbookPrintResultStage({
                   </span>
 
                   <span className="grid justify-items-end gap-1">
-                    <span className="caption-b text-[#e56883]">{participant.frames.length}장</span>
+                    <span className="caption-b text-[#e56883]">{printableFrameCount}장</span>
                     {isActive && <Heart className="size-4 fill-[#ff85a0] text-[#ff85a0]" aria-hidden />}
                   </span>
 
@@ -753,6 +737,10 @@ function NemonicDeviceImage({ isPrinting }: { isPrinting: boolean }) {
 
 function getParticipantAccentColor(participant: FlipbookPrintParticipant, participantIndex: number) {
   return participant.accentColor ?? DEFAULT_ACCENT_COLORS[participantIndex % DEFAULT_ACCENT_COLORS.length]
+}
+
+function getPrintableFrameCount(participant: FlipbookPrintParticipant) {
+  return participant.frames.filter((frame) => frame.outputMode !== 'gif-playback').length
 }
 
 function getFrameAccentColor(frame: FlipbookPrintFrame, frameIndex: number, fallbackColor?: string) {
