@@ -22,4 +22,11 @@ export const HUB_GAMES: HubGame[] = [
     route: '/relay-drawing',
     title: '릴레이 드로잉',
   },
+  {
+    accentColor: '#88dfff',
+    description: '끝없이 펼쳐지는 캔버스 위에 상상을 남겨보세요.',
+    id: 'community-canvas',
+    route: '/community-canvas',
+    title: '무한 캔버스',
+  },
 ]
