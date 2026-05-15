@@ -33,20 +33,42 @@ interface CommunityWallProps {
 
 const WALL_WIDTH = 1672
 const WALL_HEIGHT = 941
-const MEMO_WIDTH = 184
-const MEMO_HEIGHT = 156
-const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg.png'
-const WALL_FOREGROUND_IMAGE = '/images/community-canvas/wall-fg.png'
+const MEMO_WIDTH = 160
+const MEMO_HEIGHT = 160
+const MEMO_VISUAL_SAFE_PADDING = 24
+const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg-studio.png'
+const BOUNDARY_EPSILON = 0.5
+const ATTACHABLE_SURFACE_BOUNDS = {
+  left: -590,
+  top: -550,
+  right: 630,
+  bottom: 550,
+}
+const MEMO_PLACEMENT_ANIMATION_DURATION_MS = 720
 
 type WallPoint = {
   x: number
   y: number
 }
 
+type WallBounds = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
 type WallInteraction =
   | { type: 'drag-edit'; pointerOffsetX: number; pointerOffsetY: number }
   | { type: 'rotate-edit' }
   | { type: 'rotate-pending' }
+
+type MemoPlacementMotion = 'attach' | 'detach' | 'lift' | 'release'
+
+type ExitingMemo = {
+  memo: CommunityMemoItemResponse
+  removalKey: string
+}
 
 function normalizeRotation(rotationDeg: number) {
   const normalized = ((((rotationDeg + 180) % 360) + 360) % 360) - 180
@@ -90,6 +112,95 @@ function getMemoTone(memo: CommunityMemoItemResponse | CommunityPendingMemoPlace
   return getCommunityMemoColor(memo)
 }
 
+function getMemoCornerPoints(layout: CommunityMemoLayoutDraft): WallPoint[] {
+  const halfMemoWidth = MEMO_WIDTH / 2 + MEMO_VISUAL_SAFE_PADDING
+  const halfMemoHeight = MEMO_HEIGHT / 2 + MEMO_VISUAL_SAFE_PADDING
+  const rotationRadian = (layout.rotationDeg * Math.PI) / 180
+  const cosRotation = Math.cos(rotationRadian)
+  const sinRotation = Math.sin(rotationRadian)
+
+  return [
+    { x: -halfMemoWidth, y: -halfMemoHeight },
+    { x: halfMemoWidth, y: -halfMemoHeight },
+    { x: halfMemoWidth, y: halfMemoHeight },
+    { x: -halfMemoWidth, y: halfMemoHeight },
+  ].map((corner) => ({
+    x: layout.positionX + corner.x * cosRotation - corner.y * sinRotation,
+    y: layout.positionY + corner.x * sinRotation + corner.y * cosRotation,
+  }))
+}
+
+function getMemoBounds(layout: CommunityMemoLayoutDraft): WallBounds {
+  const cornerPoints = getMemoCornerPoints(layout)
+
+  return {
+    left: Math.min(...cornerPoints.map((point) => point.x)),
+    top: Math.min(...cornerPoints.map((point) => point.y)),
+    right: Math.max(...cornerPoints.map((point) => point.x)),
+    bottom: Math.max(...cornerPoints.map((point) => point.y)),
+  }
+}
+
+function toMemoLayoutDraft(
+  layout: Pick<CommunityMemoLayoutDraft, 'positionX' | 'positionY' | 'zIndex' | 'rotationDeg'>,
+): CommunityMemoLayoutDraft {
+  return {
+    positionX: layout.positionX,
+    positionY: layout.positionY,
+    zIndex: layout.zIndex,
+    rotationDeg: layout.rotationDeg,
+  }
+}
+
+function isMemoLayoutInsideBounds(layout: CommunityMemoLayoutDraft, bounds: WallBounds): boolean {
+  const memoBounds = getMemoBounds(layout)
+
+  return (
+    memoBounds.left >= bounds.left + BOUNDARY_EPSILON &&
+    memoBounds.right <= bounds.right - BOUNDARY_EPSILON &&
+    memoBounds.top >= bounds.top + BOUNDARY_EPSILON &&
+    memoBounds.bottom <= bounds.bottom - BOUNDARY_EPSILON
+  )
+}
+
+function clampMemoLayoutToAttachableSurface(layout: CommunityMemoLayoutDraft) {
+  return clampMemoLayoutToBounds(layout, ATTACHABLE_SURFACE_BOUNDS)
+}
+
+function clampMemoLayoutToBounds(
+  layout: CommunityMemoLayoutDraft,
+  bounds: WallBounds,
+): CommunityMemoLayoutDraft {
+  const memoBounds = getMemoBounds(layout)
+  let correctedPositionX = layout.positionX
+  let correctedPositionY = layout.positionY
+
+  if (memoBounds.left < bounds.left + BOUNDARY_EPSILON) {
+    correctedPositionX += bounds.left + BOUNDARY_EPSILON - memoBounds.left
+  } else if (memoBounds.right > bounds.right - BOUNDARY_EPSILON) {
+    correctedPositionX += bounds.right - BOUNDARY_EPSILON - memoBounds.right
+  }
+
+  if (memoBounds.top < bounds.top + BOUNDARY_EPSILON) {
+    correctedPositionY += bounds.top + BOUNDARY_EPSILON - memoBounds.top
+  } else if (memoBounds.bottom > bounds.bottom - BOUNDARY_EPSILON) {
+    correctedPositionY += bounds.bottom - BOUNDARY_EPSILON - memoBounds.bottom
+  }
+
+  return {
+    ...layout,
+    positionX: Math.round(correctedPositionX),
+    positionY: Math.round(correctedPositionY),
+  }
+}
+
+function getDisplayMemo(memo: CommunityMemoItemResponse): CommunityMemoItemResponse {
+  return {
+    ...memo,
+    ...clampMemoLayoutToAttachableSurface(toMemoLayoutDraft(memo)),
+  }
+}
+
 export function CommunityWall({
   memos,
   selectedMemoUuid,
@@ -110,6 +221,7 @@ export function CommunityWall({
   onSaveEditingLayout,
   onRetry,
 }: CommunityWallProps) {
+  const visibleAreaRef = useRef<HTMLElement>(null)
   const wallRef = useRef<HTMLDivElement>(null)
   const memoClickTimerRef = useRef<number | null>(null)
   const interactionRef = useRef<WallInteraction | null>(null)
@@ -119,6 +231,8 @@ export function CommunityWall({
   const hasCursorPositionRef = useRef(false)
   const isSavingLayoutRef = useRef(isSavingLayout)
   const saveEditingLayoutRef = useRef(onSaveEditingLayout)
+  const previousMemoMapRef = useRef<Map<string, CommunityMemoItemResponse> | null>(null)
+  const memoPlacementAnimationTimerRefs = useRef<number[]>([])
   const [wallScale, setWallScale] = useState(1)
   const [cursorPlacement, setCursorPlacement] = useState<CommunityMemoLayoutDraft>({
     positionX: 0,
@@ -126,7 +240,11 @@ export function CommunityWall({
     zIndex: 1,
     rotationDeg: 0,
   })
+  const [isPendingPlacementInsideVisibleArea, setIsPendingPlacementInsideVisibleArea] =
+    useState(true)
   const [interaction, setInteraction] = useState<WallInteraction | null>(null)
+  const [enteringMemoUuids, setEnteringMemoUuids] = useState<Set<string>>(() => new Set())
+  const [exitingMemos, setExitingMemos] = useState<ExitingMemo[]>([])
   const isEditingLayout = editingMemo !== null && editingLayoutDraft !== null
   const isWallManipulating = pendingMemo !== null || isEditingLayout
 
@@ -164,6 +282,7 @@ export function CommunityWall({
       if (!pendingMemo) {
         cursorPlacementRef.current = null
         hasCursorPositionRef.current = false
+        setIsPendingPlacementInsideVisibleArea(true)
         return
       }
 
@@ -175,6 +294,7 @@ export function CommunityWall({
       }
       cursorPlacementRef.current = nextPlacement
       hasCursorPositionRef.current = false
+      setIsPendingPlacementInsideVisibleArea(true)
       if (!cancelled) {
         setCursorPlacement(nextPlacement)
       }
@@ -217,10 +337,103 @@ export function CommunityWall({
   }, [])
 
   useEffect(() => {
+    const memoPlacementAnimationTimers = memoPlacementAnimationTimerRefs.current
+
     return () => {
       if (memoClickTimerRef.current) window.clearTimeout(memoClickTimerRef.current)
+      memoPlacementAnimationTimers.forEach((timerId) => window.clearTimeout(timerId))
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      await Promise.resolve()
+      if (cancelled) return
+
+      const nextMemoMap = new Map(
+        memos.map((memo) => [memo.memoUuid, getDisplayMemo(memo)]),
+      )
+      const previousMemoMap = previousMemoMapRef.current
+
+      if (!previousMemoMap) {
+        previousMemoMapRef.current = nextMemoMap
+        return
+      }
+
+      const enteringMemoIds = [...nextMemoMap.keys()].filter(
+        (memoUuid) => !previousMemoMap.has(memoUuid),
+      )
+      const movedMemoIds = [...nextMemoMap.entries()]
+        .filter(([memoUuid, memo]) => {
+          const previousMemo = previousMemoMap.get(memoUuid)
+          if (!previousMemo) return false
+
+          return (
+            memo.positionX !== previousMemo.positionX ||
+            memo.positionY !== previousMemo.positionY ||
+            memo.zIndex !== previousMemo.zIndex ||
+            memo.rotationDeg !== previousMemo.rotationDeg
+          )
+        })
+        .map(([memoUuid]) => memoUuid)
+      const attachingMemoIds = [...new Set([...enteringMemoIds, ...movedMemoIds])]
+      const removedMemos = [...previousMemoMap.entries()]
+        .filter(([memoUuid]) => !nextMemoMap.has(memoUuid))
+        .map(([memoUuid, memo]) => ({
+          memo,
+          removalKey: `${memoUuid}-${Date.now()}`,
+        }))
+
+      if (attachingMemoIds.length > 0) {
+        setEnteringMemoUuids((currentMemoUuids) => {
+          const nextMemoUuids = new Set(currentMemoUuids)
+          attachingMemoIds.forEach((memoUuid) => nextMemoUuids.add(memoUuid))
+          return nextMemoUuids
+        })
+
+        const timerId = window.setTimeout(() => {
+          setEnteringMemoUuids((currentMemoUuids) => {
+            const nextMemoUuids = new Set(currentMemoUuids)
+            attachingMemoIds.forEach((memoUuid) => nextMemoUuids.delete(memoUuid))
+            return nextMemoUuids
+          })
+        }, MEMO_PLACEMENT_ANIMATION_DURATION_MS)
+        memoPlacementAnimationTimerRefs.current.push(timerId)
+      }
+
+      if (removedMemos.length > 0) {
+        setExitingMemos((currentExitingMemos) => [
+          ...currentExitingMemos.filter(
+            (exitingMemo) =>
+              !removedMemos.some(
+                (removedMemo) => removedMemo.memo.memoUuid === exitingMemo.memo.memoUuid,
+              ),
+          ),
+          ...removedMemos,
+        ])
+
+        const timerId = window.setTimeout(() => {
+          setExitingMemos((currentExitingMemos) =>
+            currentExitingMemos.filter(
+              (exitingMemo) =>
+                !removedMemos.some(
+                  (removedMemo) => removedMemo.removalKey === exitingMemo.removalKey,
+                ),
+            ),
+          )
+        }, MEMO_PLACEMENT_ANIMATION_DURATION_MS)
+        memoPlacementAnimationTimerRefs.current.push(timerId)
+      }
+
+      previousMemoMapRef.current = nextMemoMap
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [memos])
 
   const clearMemoClickTimer = () => {
     if (!memoClickTimerRef.current) return
@@ -239,15 +452,74 @@ export function CommunityWall({
     }
   }
 
+  const getCurrentAttachableBounds = (): WallBounds | null => {
+    const wallRect = wallRef.current?.getBoundingClientRect()
+    const visibleAreaRect = visibleAreaRef.current?.getBoundingClientRect()
+    if (!wallRect || !visibleAreaRect) return null
+
+    const visibleRect = {
+      left: Math.max(wallRect.left, visibleAreaRect.left),
+      top: Math.max(wallRect.top, visibleAreaRect.top),
+      right: Math.min(wallRect.right, visibleAreaRect.right),
+      bottom: Math.min(wallRect.bottom, visibleAreaRect.bottom),
+    }
+
+    if (visibleRect.left >= visibleRect.right || visibleRect.top >= visibleRect.bottom) {
+      return null
+    }
+
+    const visibleWallBounds = {
+      left: ((visibleRect.left - wallRect.left) / wallRect.width) * WALL_WIDTH - WALL_WIDTH / 2,
+      top: ((visibleRect.top - wallRect.top) / wallRect.height) * WALL_HEIGHT - WALL_HEIGHT / 2,
+      right: ((visibleRect.right - wallRect.left) / wallRect.width) * WALL_WIDTH - WALL_WIDTH / 2,
+      bottom: ((visibleRect.bottom - wallRect.top) / wallRect.height) * WALL_HEIGHT - WALL_HEIGHT / 2,
+    }
+
+    const attachableBounds = {
+      left: Math.max(ATTACHABLE_SURFACE_BOUNDS.left, visibleWallBounds.left),
+      top: Math.max(ATTACHABLE_SURFACE_BOUNDS.top, visibleWallBounds.top),
+      right: Math.min(ATTACHABLE_SURFACE_BOUNDS.right, visibleWallBounds.right),
+      bottom: Math.min(ATTACHABLE_SURFACE_BOUNDS.bottom, visibleWallBounds.bottom),
+    }
+
+    if (
+      attachableBounds.left >= attachableBounds.right ||
+      attachableBounds.top >= attachableBounds.bottom
+    ) {
+      return null
+    }
+
+    return attachableBounds
+  }
+
+  const getBoundedMemoLayout = (
+    layout: CommunityMemoLayoutDraft,
+  ): CommunityMemoLayoutDraft | null => {
+    const attachableBounds = getCurrentAttachableBounds()
+    if (!attachableBounds) return null
+    return clampMemoLayoutToBounds(layout, attachableBounds)
+  }
+
+  const isMemoLayoutInsideVisibleArea = (layout: CommunityMemoLayoutDraft) => {
+    const attachableBounds = getCurrentAttachableBounds()
+    if (!attachableBounds) return false
+    return isMemoLayoutInsideBounds(layout, attachableBounds)
+  }
+
   const updateCursorPlacement = (
     placement: CommunityMemoLayoutDraft,
     options: { hasPosition?: boolean } = {},
   ) => {
-    cursorPlacementRef.current = placement
+    const boundedPlacement = getBoundedMemoLayout(placement) ?? placement
+    cursorPlacementRef.current = boundedPlacement
+    const hasResolvedPosition = options.hasPosition ?? hasCursorPositionRef.current
     if (options.hasPosition) {
       hasCursorPositionRef.current = true
     }
-    setCursorPlacement(placement)
+    setIsPendingPlacementInsideVisibleArea(
+      !hasResolvedPosition || isMemoLayoutInsideVisibleArea(boundedPlacement),
+    )
+    setCursorPlacement(boundedPlacement)
   }
 
   const getPendingPlacementFromPoint = (point: WallPoint) => {
@@ -258,10 +530,12 @@ export function CommunityWall({
       rotationDeg: cursorPlacement.rotationDeg,
     }
 
+    const boundedPlacement = getBoundedMemoLayout(placement) ?? placement
+
     return {
-      ...placement,
+      ...boundedPlacement,
       zIndex: getStackedZIndex({
-        layout: placement,
+        layout: boundedPlacement,
         memos,
         fallbackZIndex: nextZIndex,
       }),
@@ -279,11 +553,12 @@ export function CommunityWall({
       positionX: point.x - pointerOffset.x,
       positionY: point.y - pointerOffset.y,
     }
+    const boundedPlacement = getBoundedMemoLayout(placement) ?? placement
 
     return {
-      ...placement,
+      ...boundedPlacement,
       zIndex: getStackedZIndex({
-        layout: placement,
+        layout: boundedPlacement,
         memos,
         excludeMemoUuid: editingMemo.memoUuid,
         fallbackZIndex: editingLayoutDraft.zIndex,
@@ -300,9 +575,12 @@ export function CommunityWall({
         ...editingLayoutDraft,
         rotationDeg: getRotationFromPoint(point, editingLayoutDraft),
       }
-      editingLayoutDraftRef.current = nextLayout
+      const boundedLayout = getBoundedMemoLayout(nextLayout)
+      if (!boundedLayout) return
+
+      editingLayoutDraftRef.current = boundedLayout
       interactionChangedRef.current = true
-      onEditingLayoutChange({ rotationDeg: nextLayout.rotationDeg })
+      onEditingLayoutChange(boundedLayout)
       return
     }
 
@@ -311,7 +589,7 @@ export function CommunityWall({
         x: interaction.pointerOffsetX,
         y: interaction.pointerOffsetY,
       })
-      if (nextPlacement) {
+      if (nextPlacement && isMemoLayoutInsideVisibleArea(nextPlacement)) {
         editingLayoutDraftRef.current = nextPlacement
         interactionChangedRef.current = true
         onEditingLayoutChange(nextPlacement)
@@ -340,11 +618,17 @@ export function CommunityWall({
 
     if (pendingMemo && !isAttachingMemo && !interaction) {
       const visualPlacement = cursorPlacementRef.current
-      onAttachPendingMemo(
+      const nextPlacement =
         visualPlacement && hasCursorPositionRef.current
           ? visualPlacement
-          : getPendingPlacementFromPoint(point),
-      )
+          : getPendingPlacementFromPoint(point)
+
+      if (!isMemoLayoutInsideVisibleArea(nextPlacement)) {
+        setIsPendingPlacementInsideVisibleArea(false)
+        return
+      }
+
+      onAttachPendingMemo(nextPlacement)
       return
     }
   }
@@ -377,13 +661,16 @@ export function CommunityWall({
     if (!isEditingLayout || isSavingLayout || event.button !== 0) return
     const point = getWallPoint(event.clientX, event.clientY)
     if (!point) return
+    const boundedEditingLayout = getBoundedMemoLayout(editingLayoutDraft) ?? editingLayoutDraft
 
     event.preventDefault()
     event.stopPropagation()
+    editingLayoutDraftRef.current = boundedEditingLayout
+    onEditingLayoutChange(boundedEditingLayout)
     const nextInteraction = {
       type: 'drag-edit' as const,
-      pointerOffsetX: point.x - editingLayoutDraft.positionX,
-      pointerOffsetY: point.y - editingLayoutDraft.positionY,
+      pointerOffsetX: point.x - boundedEditingLayout.positionX,
+      pointerOffsetY: point.y - boundedEditingLayout.positionY,
     }
     interactionRef.current = nextInteraction
     interactionChangedRef.current = false
@@ -391,9 +678,13 @@ export function CommunityWall({
   }
 
   const handleBeginEditingRotate = (event: MouseEvent<HTMLButtonElement>) => {
-    if (isSavingLayout || event.button !== 0) return
+    if (!isEditingLayout || isSavingLayout || event.button !== 0) return
+    const boundedEditingLayout = getBoundedMemoLayout(editingLayoutDraft) ?? editingLayoutDraft
+
     event.preventDefault()
     event.stopPropagation()
+    editingLayoutDraftRef.current = boundedEditingLayout
+    onEditingLayoutChange(boundedEditingLayout)
     interactionRef.current = { type: 'rotate-edit' }
     interactionChangedRef.current = false
     setInteraction({ type: 'rotate-edit' })
@@ -410,6 +701,7 @@ export function CommunityWall({
 
   return (
     <section
+      ref={visibleAreaRef}
       data-community-wall="true"
       onClick={handleBlankSurfaceClick}
       className="absolute inset-0 z-0 overflow-hidden bg-surface-default"
@@ -420,8 +712,11 @@ export function CommunityWall({
         onMouseMove={handleWallMouseMove}
         onClick={handleWallClick}
         className={cn(
-          'absolute left-1/2 top-1/2 overflow-hidden rounded-[0.45rem] bg-surface-default shadow-[0_24px_60px_rgb(53_45_32_/_24%)]',
-          pendingMemo && 'cursor-copy ring-4 ring-primary-5',
+          'absolute left-1/2 top-1/2 overflow-visible rounded-[0.45rem] bg-surface-default shadow-[0_24px_60px_rgb(53_45_32_/_24%)]',
+          pendingMemo &&
+            (isPendingPlacementInsideVisibleArea
+              ? 'cursor-copy ring-4 ring-primary-5'
+              : 'cursor-not-allowed ring-4 ring-primary-5'),
           isEditingLayout && 'cursor-default ring-4 ring-primary-5',
           (isAttachingMemo || isSavingLayout) && 'cursor-wait',
         )}
@@ -444,23 +739,41 @@ export function CommunityWall({
 
         {memos
           .filter((memo) => memo.memoUuid !== editingMemo?.memoUuid)
-          .map((memo) => (
-            <CommunityMemoCard
-              key={memo.memoUuid}
-              memo={memo}
-              isActive={selectedMemoUuid === memo.memoUuid}
-              isInteractionDisabled={isWallManipulating}
-              onSelect={handleMemoSelect}
-              onOpenDetail={handleMemoOpenDetail}
-            />
-          ))}
+          .map((memo) => {
+            const displayMemo = getDisplayMemo(memo)
+
+            return (
+              <CommunityMemoCard
+                key={memo.memoUuid}
+                memo={displayMemo}
+                isActive={selectedMemoUuid === memo.memoUuid}
+                placementMotion={enteringMemoUuids.has(memo.memoUuid) ? 'attach' : undefined}
+                isInteractionDisabled={isWallManipulating}
+                onSelect={handleMemoSelect}
+                onOpenDetail={handleMemoOpenDetail}
+              />
+            )
+          })}
+
+        {exitingMemos.map(({ memo, removalKey }) => (
+          <CommunityMemoCard
+            key={removalKey}
+            memo={memo}
+            isActive={false}
+            placementMotion="detach"
+            isInteractionDisabled
+            onSelect={handleMemoSelect}
+            onOpenDetail={handleMemoOpenDetail}
+          />
+        ))}
 
         {isEditingLayout && (
           <EditableMemoPreview
             memo={editingMemo}
-            layout={editingLayoutDraft}
+            layout={clampMemoLayoutToAttachableSurface(editingLayoutDraft)}
             disabled={isSavingLayout}
             isFluttering={interaction?.type === 'drag-edit' || interaction?.type === 'rotate-edit'}
+            placementMotion={isSavingLayout ? 'attach' : 'release'}
             onBeginMove={handleBeginEditingMove}
             onBeginRotate={handleBeginEditingRotate}
           />
@@ -476,20 +789,13 @@ export function CommunityWall({
               pendingMemo={pendingMemo}
               placement={cursorPlacement}
               isAttachingMemo={isAttachingMemo}
+              isPlacementInsideVisibleArea={isPendingPlacementInsideVisibleArea}
               isFluttering={interaction?.type === 'rotate-pending' || !isAttachingMemo}
+              placementMotion={isAttachingMemo ? 'attach' : undefined}
               onBeginRotate={handleBeginPendingRotate}
             />
           </>
         )}
-
-        <Image
-          src={WALL_FOREGROUND_IMAGE}
-          alt=""
-          fill
-          sizes={`${WALL_WIDTH}px`}
-          aria-hidden="true"
-          className="pointer-events-none z-[9000] select-none object-cover"
-        />
 
         {memoStatus === 'loading' && !isWallManipulating && (
           <div className="absolute inset-0 z-[11000] grid place-items-center bg-white/45 backdrop-blur-[1px]">
@@ -518,7 +824,7 @@ export function CommunityWall({
                 event.stopPropagation()
                 onRetry()
               }}
-              className="body-b mt-4 h-10 rounded-[0.45rem] bg-primary-1 px-4 text-fg-inverse"
+              className="body-b mt-4 h-10 rounded-[0.45rem] bg-primary-1 px-4 text-fg-primary"
             >
               다시 불러오기
             </button>
@@ -545,7 +851,7 @@ function PendingCancelButton({
         onCancelPendingMemo()
       }}
       disabled={isAttachingMemo}
-      className="absolute right-5 top-5 z-[10001] grid size-10 place-items-center rounded-full bg-white text-fg-secondary shadow-[0_10px_22px_rgb(61_43_22_/_16%)] disabled:cursor-not-allowed disabled:opacity-60"
+      className="absolute right-5 top-5 z-[10001] grid size-10 place-items-center rounded-full bg-white text-fg-secondary shadow-[0_10px_22px_rgb(71_68_112_/_16%)] disabled:cursor-not-allowed disabled:opacity-60"
     >
       <X className="size-5" />
     </button>
@@ -557,6 +863,7 @@ function EditableMemoPreview({
   layout,
   disabled,
   isFluttering,
+  placementMotion,
   onBeginMove,
   onBeginRotate,
 }: {
@@ -564,6 +871,7 @@ function EditableMemoPreview({
   layout: CommunityMemoLayoutDraft
   disabled: boolean
   isFluttering: boolean
+  placementMotion?: MemoPlacementMotion
   onBeginMove: (event: MouseEvent<HTMLDivElement>) => void
   onBeginRotate: (event: MouseEvent<HTMLButtonElement>) => void
 }) {
@@ -574,6 +882,7 @@ function EditableMemoPreview({
       layout={layout}
       disabled={disabled}
       isFluttering={isFluttering}
+      placementMotion={placementMotion}
       onBeginMove={onBeginMove}
       onBeginRotate={onBeginRotate}
     />
@@ -584,13 +893,17 @@ function PendingMemoPreview({
   pendingMemo,
   placement,
   isAttachingMemo,
+  isPlacementInsideVisibleArea,
   isFluttering,
+  placementMotion,
   onBeginRotate,
 }: {
   pendingMemo: CommunityPendingMemoPlacement
   placement: CommunityMemoLayoutDraft
   isAttachingMemo: boolean
+  isPlacementInsideVisibleArea: boolean
   isFluttering: boolean
+  placementMotion?: MemoPlacementMotion
   onBeginRotate: (event: MouseEvent<HTMLButtonElement>) => void
 }) {
   return (
@@ -599,7 +912,9 @@ function PendingMemoPreview({
       tone={getMemoTone(pendingMemo)}
       layout={placement}
       disabled={isAttachingMemo}
+      isPlacementInsideVisibleArea={isPlacementInsideVisibleArea}
       isFluttering={isFluttering}
+      placementMotion={placementMotion}
       onBeginRotate={onBeginRotate}
     />
   )
@@ -610,7 +925,9 @@ function MemoSurface({
   tone,
   layout,
   disabled,
+  isPlacementInsideVisibleArea = true,
   isFluttering,
+  placementMotion,
   onBeginMove,
   onBeginRotate,
 }: {
@@ -618,7 +935,9 @@ function MemoSurface({
   tone: string
   layout: CommunityMemoLayoutDraft
   disabled: boolean
+  isPlacementInsideVisibleArea?: boolean
   isFluttering: boolean
+  placementMotion?: MemoPlacementMotion
   onBeginMove?: (event: MouseEvent<HTMLDivElement>) => void
   onBeginRotate: (event: MouseEvent<HTMLButtonElement>) => void
 }) {
@@ -629,10 +948,11 @@ function MemoSurface({
       onClick={(event) => {
         if (onBeginMove) event.stopPropagation()
       }}
+      aria-invalid={!isPlacementInsideVisibleArea}
       className={cn(
-        'group absolute h-[156px] w-[184px]',
+        'group absolute h-[160px] w-[160px]',
         onBeginMove && !disabled && 'cursor-grab active:cursor-grabbing',
-        disabled && 'opacity-60',
+        (disabled || !isPlacementInsideVisibleArea) && 'opacity-60',
       )}
       style={{
         left: `calc(50% + ${layout.positionX}px)`,
@@ -641,25 +961,31 @@ function MemoSurface({
         transform: `translate(-50%, -50%) rotate(${layout.rotationDeg}deg)`,
       }}
     >
-      <PostItNote
-        motion={disabled ? 'none' : isFluttering ? 'active' : 'hover'}
-        selected={Boolean(onBeginMove)}
-        className="absolute inset-0 h-full w-full drop-shadow-[0_12px_18px_rgb(66_45_25_/_18%)]"
-        style={{ color: tone }}
-      />
       <span
-        data-post-it-art-motion={disabled ? undefined : isFluttering ? 'active' : 'hover'}
-        className="post-it-note-art absolute inset-x-5 bottom-6 top-8 overflow-hidden rounded-[0.35rem]"
+        data-community-memo-placement={placementMotion}
+        className="community-memo-placement absolute inset-0"
       >
-        <Image
-          src={imageUrl}
-          alt=""
-          fill
-          sizes="184px"
-          unoptimized
-          draggable={false}
-          className="object-contain"
+        <PostItNote
+          shape="square"
+          motion={disabled ? 'none' : isFluttering ? 'active' : 'hover'}
+          selected={Boolean(onBeginMove)}
+          className="absolute inset-0 h-full w-full drop-shadow-[0_12px_18px_rgb(66_45_25_/_18%)]"
+          style={{ color: tone }}
         />
+        <span
+          data-post-it-art-motion={disabled ? undefined : isFluttering ? 'active' : 'hover'}
+          className="post-it-note-art absolute inset-x-4 bottom-5 top-7 overflow-hidden rounded-[0.35rem]"
+        >
+          <Image
+            src={imageUrl}
+            alt=""
+            fill
+            sizes="160px"
+            unoptimized
+            draggable={false}
+            className="object-contain"
+          />
+        </span>
       </span>
       <button
         type="button"
@@ -667,7 +993,7 @@ function MemoSurface({
         onMouseDown={onBeginRotate}
         onClick={(event) => event.stopPropagation()}
         disabled={disabled}
-        className="pointer-events-auto absolute left-1/2 top-0 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border-default bg-white text-fg-secondary shadow-[0_8px_16px_rgb(61_43_22_/_18%)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="pointer-events-auto absolute left-1/2 top-0 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border-default bg-white text-fg-secondary shadow-[0_8px_16px_rgb(71_68_112_/_18%)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <RotateCw className="size-4" />
       </button>

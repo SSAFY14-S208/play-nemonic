@@ -1,7 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
+import type { AnimationAction } from 'three'
 import { HUB_PERFORMANCE_PROFILES } from '@/shared/constants'
+import { useHubPrintStore } from '@/shared/stores'
 import type { HubPerformanceMode } from '@/shared/types'
 import { logHubMaterialStats, trackHubInvalidate } from '@/shared/utils'
 
@@ -46,6 +48,11 @@ const KEEP_DOUBLE_SIDED_KEYWORDS = [
   'tape',
 ]
 
+const ROOM_PRINT_ANIMATION_NAMES = [
+  'print_head_up',
+  'print_button_click',
+  'label_up',
+] as const
 const IDLE_POSE_ANIMATION_NAMES = ['print_head_up', 'label_up'] as const
 const DISABLED_RAYCAST: THREE.Mesh['raycast'] = () => undefined
 
@@ -70,6 +77,43 @@ function isStaticPrinterPaperObject(object: THREE.Object3D) {
   return object.name.toLowerCase().includes('nemonic_cartridge_paper')
 }
 
+function isInternalPrintLabelMesh(mesh: THREE.Mesh) {
+  return isInternalPrintLabelObject(mesh)
+}
+
+function clonePrintLabelMaterial(mesh: THREE.Mesh) {
+  if (mesh.userData.nemonicPrintLabelMaterialCloned) return
+
+  mesh.material = Array.isArray(mesh.material)
+    ? mesh.material.map((material) => material.clone())
+    : mesh.material.clone()
+  mesh.userData.nemonicPrintLabelMaterialCloned = true
+}
+
+function applyPrintLabelTexture(scene: THREE.Object3D, texture: THREE.Texture) {
+  scene.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return
+    if (!isInternalPrintLabelMesh(child)) return
+
+    clonePrintLabelMaterial(child)
+
+    getMeshMaterials(child.material).forEach((material) => {
+      if (!(material instanceof THREE.MeshStandardMaterial)) return
+
+      material.color.set('#ffffff')
+      material.emissive.set('#ffffff')
+      material.emissiveIntensity = 0.16
+      material.emissiveMap = texture
+      material.map = texture
+      material.metalness = 0
+      material.roughness = Math.max(material.roughness, 0.68)
+      material.side = THREE.DoubleSide
+      material.toneMapped = false
+      material.needsUpdate = true
+    })
+  })
+}
+
 function setInternalPrintLabelVisible(scene: THREE.Object3D, isVisible: boolean) {
   scene.traverse((child) => {
     if (!isInternalPrintLabelObject(child)) return
@@ -81,6 +125,18 @@ function hideStaticPrinterPaper(scene: THREE.Object3D) {
   scene.traverse((child) => {
     if (!isStaticPrinterPaperObject(child)) return
     child.visible = false
+  })
+}
+
+function resetRoomPrintAnimations(
+  actions: Record<string, AnimationAction | null>,
+) {
+  ROOM_PRINT_ANIMATION_NAMES.forEach((animationName) => {
+    const action = actions[animationName]
+    if (!action) return
+
+    action.stop()
+    action.reset()
   })
 }
 
@@ -275,9 +331,15 @@ function configureRoomMesh(
 export function useRoomModel(
   scene: THREE.Object3D,
   animations: THREE.AnimationClip[],
+  actions: Record<string, AnimationAction | null>,
   performanceMode: HubPerformanceMode,
 ) {
+  const activeAnimationRequestIdRef = useRef<string | null>(null)
+  const printLabelTextureRef = useRef<THREE.Texture | null>(null)
+  const printLabelTextureSourceRef = useRef<string | null>(null)
   const { gl, invalidate } = useThree()
+  const currentRequest = useHubPrintStore((state) => state.currentRequest)
+  const printStatus = useHubPrintStore((state) => state.printStatus)
 
   useEffect(() => {
     const maxAnisotropy = gl.capabilities.getMaxAnisotropy()
@@ -295,4 +357,103 @@ export function useRoomModel(
     trackHubInvalidate('roomModel.materialSetup')
     invalidate()
   }, [animations, gl, invalidate, performanceMode, scene])
+
+  useEffect(() => {
+    const currentTextureSource = currentRequest?.imageDataUrl
+    if (!currentTextureSource) return
+    if (printLabelTextureSourceRef.current === currentTextureSource) return
+
+    printLabelTextureSourceRef.current = currentTextureSource
+
+    let isCancelled = false
+    const textureLoader = new THREE.TextureLoader()
+    const printLabelTexture = textureLoader.load(
+      currentTextureSource,
+      (loadedTexture) => {
+        if (isCancelled) {
+          loadedTexture.dispose()
+          return
+        }
+
+        loadedTexture.needsUpdate = true
+        trackHubInvalidate('roomModel.printLabelTextureLoaded')
+        invalidate()
+      },
+    )
+
+    printLabelTexture.colorSpace = THREE.SRGBColorSpace
+    printLabelTexture.flipY = false
+    printLabelTexture.needsUpdate = true
+
+    printLabelTextureRef.current?.dispose()
+    printLabelTextureRef.current = printLabelTexture
+
+    applyPrintLabelTexture(scene, printLabelTexture)
+    trackHubInvalidate('roomModel.printLabelTexture')
+    invalidate()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [currentRequest?.imageDataUrl, invalidate, scene])
+
+  useEffect(() => {
+    const shouldShowInternalPrintLabel =
+      Boolean(currentRequest) &&
+      (printStatus === 'requested' || printStatus === 'printing')
+
+    setInternalPrintLabelVisible(scene, shouldShowInternalPrintLabel)
+    hideStaticPrinterPaper(scene)
+
+    if (!shouldShowInternalPrintLabel) {
+      resetRoomPrintAnimations(actions)
+      restoreRoomPrintIdlePose(scene, animations)
+      activeAnimationRequestIdRef.current = null
+    }
+
+    trackHubInvalidate(
+      shouldShowInternalPrintLabel
+        ? 'roomModel.printLabelVisible'
+        : 'roomModel.printLabelHidden',
+    )
+    invalidate()
+  }, [actions, animations, currentRequest, invalidate, printStatus, scene])
+
+  useEffect(() => {
+    return () => {
+      printLabelTextureRef.current?.dispose()
+      printLabelTextureRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (
+      !currentRequest ||
+      printStatus !== 'printing' ||
+      activeAnimationRequestIdRef.current === currentRequest.id
+    ) {
+      return
+    }
+
+    activeAnimationRequestIdRef.current = currentRequest.id
+
+    ROOM_PRINT_ANIMATION_NAMES.forEach((animationName) => {
+      const action = actions[animationName]
+      if (!action) return
+
+      action.setLoop(THREE.LoopOnce, 1)
+      action.clampWhenFinished = true
+      action.timeScale = animationName === 'print_head_up' ? -1 : 1
+      action.reset()
+
+      if (animationName === 'print_head_up') {
+        action.time = action.getClip().duration
+      }
+
+      action.play()
+    })
+
+    trackHubInvalidate('roomModel.printAnimationStart')
+    invalidate()
+  }, [actions, currentRequest, invalidate, printStatus])
 }

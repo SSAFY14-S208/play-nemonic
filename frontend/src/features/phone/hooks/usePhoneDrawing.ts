@@ -143,13 +143,26 @@ export function usePhoneDrawing() {
 
   const createArtifact = useCallback(
     async (action: 'save' | 'print') => {
-      if (!hasDrawing || isSaving) return
+      if (isSaving) return
+
+      if (!hasDrawing) {
+        if (action === 'print') {
+          setToast('출력할 그림이 없어요.')
+        }
+        return
+      }
 
       const imageDataUrl = getDrawingImageDataUrl()
       if (!imageDataUrl) return
 
       setSavingDrawing(true)
       try {
+        if (action === 'print') {
+          addDrawingArtifact({ action, imageDataUrl })
+          clearDrawing()
+          return
+        }
+
         const blob = await dataUrlToBlob(imageDataUrl)
         const saveResponse = await uploadDrawingArtifact(blob)
         addDrawingArtifact({ saveResponse, imageDataUrl, action })

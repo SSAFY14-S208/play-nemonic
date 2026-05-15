@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { useGLTF } from '@react-three/drei'
+import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import {
   HUB_ROOM_MODEL_PATH,
@@ -16,8 +16,9 @@ export default function RoomModel({
 }) {
   const groupRef = useRef<THREE.Group>(null)
   const { scene, animations } = useGLTF(HUB_ROOM_MODEL_PATH)
+  const { actions } = useAnimations(animations, groupRef)
 
-  useRoomModel(scene, animations, performanceMode)
+  useRoomModel(scene, animations, actions, performanceMode)
 
   return (
     <group

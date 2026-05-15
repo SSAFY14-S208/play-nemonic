@@ -6,9 +6,14 @@ import { cn } from '@/shared/libs'
 import type { CommunityMemoItemResponse } from '@/shared/types'
 import { getCommunityMemoColor } from '../utils'
 
+const MEMO_LAYER_BASE_Z_INDEX = 9_100
+const ACTIVE_MEMO_LAYER_BASE_Z_INDEX = 9_500
+const MAX_MEMO_STACK_ORDER = 399
+
 interface CommunityMemoCardProps {
   memo: CommunityMemoItemResponse
   isActive: boolean
+  placementMotion?: 'attach' | 'detach' | 'lift' | 'release'
   isInteractionDisabled?: boolean
   onSelect: (memo: CommunityMemoItemResponse) => void
   onOpenDetail: (memoUuid: string) => void
@@ -17,10 +22,13 @@ interface CommunityMemoCardProps {
 export function CommunityMemoCard({
   memo,
   isActive,
+  placementMotion,
   isInteractionDisabled = false,
   onSelect,
   onOpenDetail,
 }: CommunityMemoCardProps) {
+  const normalizedMemoStackOrder = Math.min(Math.max(memo.zIndex, 0), MAX_MEMO_STACK_ORDER)
+
   return (
     <button
       type="button"
@@ -35,41 +43,49 @@ export function CommunityMemoCard({
         onOpenDetail(memo.memoUuid)
       }}
       className={cn(
-        'group absolute h-[156px] w-[184px] origin-center transition duration-200',
+        'group absolute h-[160px] w-[160px] origin-center transition duration-200',
         isActive && 'drop-shadow-[0_0_0.875rem_rgb(48_121_86_/_34%)]',
         isInteractionDisabled && 'pointer-events-none',
       )}
       style={{
         left: `calc(50% + ${memo.positionX}px)`,
         top: `calc(50% + ${memo.positionY}px)`,
-        zIndex: isActive ? Math.max(memo.zIndex, 9999) : memo.zIndex,
+        zIndex:
+          (isActive ? ACTIVE_MEMO_LAYER_BASE_Z_INDEX : MEMO_LAYER_BASE_Z_INDEX) +
+          normalizedMemoStackOrder,
         transform: `translate(-50%, -50%) rotate(${memo.rotationDeg}deg) scale(${isActive ? 1.04 : 1})`,
       }}
     >
-      <PostItNote
-        motion="hover"
-        selected={isActive}
-        className="absolute inset-0 h-full w-full drop-shadow-[0_12px_18px_rgb(66_45_25_/_18%)]"
-        style={{ color: getCommunityMemoColor(memo) }}
-      />
       <span
-        data-post-it-art-motion="hover"
-        className="post-it-note-art absolute inset-x-5 bottom-6 top-8 overflow-hidden rounded-[0.35rem]"
+        data-community-memo-placement={placementMotion}
+        className="community-memo-placement absolute inset-0"
       >
-        {memo.memoThumbnailImageUrl || memo.memoImageUrl ? (
-          <Image
-            src={memo.memoThumbnailImageUrl || memo.memoImageUrl}
-            alt={`${memo.authorNickname}의 커뮤니티 메모`}
-            fill
-            sizes="184px"
-            unoptimized
-            className="object-contain transition duration-200 group-hover:scale-[1.03]"
-          />
-        ) : (
-          <span className="body-r flex h-full items-center justify-center text-fg-secondary">
-            메모
-          </span>
-        )}
+        <PostItNote
+          shape="square"
+          motion={placementMotion ? 'none' : 'hover'}
+          selected={isActive}
+          className="absolute inset-0 h-full w-full drop-shadow-[0_12px_18px_rgb(66_45_25_/_18%)]"
+          style={{ color: getCommunityMemoColor(memo) }}
+        />
+        <span
+          data-post-it-art-motion={placementMotion ? undefined : 'hover'}
+          className="post-it-note-art absolute inset-x-4 bottom-5 top-7 overflow-hidden rounded-[0.35rem]"
+        >
+          {memo.memoThumbnailImageUrl || memo.memoImageUrl ? (
+            <Image
+              src={memo.memoThumbnailImageUrl || memo.memoImageUrl}
+              alt={`${memo.authorNickname}의 커뮤니티 메모`}
+              fill
+              sizes="160px"
+              unoptimized
+              className="object-contain transition duration-200 group-hover:scale-[1.03]"
+            />
+          ) : (
+            <span className="body-r flex h-full items-center justify-center text-fg-secondary">
+              메모
+            </span>
+          )}
+        </span>
       </span>
     </button>
   )

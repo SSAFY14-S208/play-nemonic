@@ -1,0 +1,26 @@
+<svg width="760" height="720" viewBox="0 0 760 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="outerFrame" x1="14" y1="8" x2="746" y2="710" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF9DC"/>
+      <stop offset="0.34" stop-color="#DDF2DB"/>
+      <stop offset="0.7" stop-color="#D8F0F8"/>
+      <stop offset="1" stop-color="#FFE5C3"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="64" y1="80" x2="696" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF2C7"/>
+      <stop offset="0.5" stop-color="#F8E4B2"/>
+      <stop offset="1" stop-color="#E9F7F5"/>
+    </linearGradient>
+    <filter id="shadow" x="-25" y="-24" width="810" height="770" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="14" flood-color="#617B6B" flood-opacity="0.26"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="10" y="10" width="740" height="700" rx="36" fill="url(#outerFrame)"/>
+    <rect x="34" y="34" width="692" height="652" rx="28" fill="url(#paper)"/>
+    <rect x="56" y="56" width="648" height="608" rx="22" stroke="#FFF8BE" stroke-opacity="0.86" stroke-width="5"/>
+    <rect x="76" y="76" width="608" height="104" rx="18" fill="#FFFCEB" fill-opacity="0.76"/>
+    <rect x="76" y="200" width="608" height="444" rx="18" fill="#FFFFFF" fill-opacity="0.34"/>
+  </g>
+</svg>

@@ -841,11 +841,13 @@ export function useFlipbook({
       setCurrentStep('booth')
     })()
   }, [
+    assignment,
     clearDrawingRound,
     clearRoundTransitionFallbackTimer,
     roomCode,
-    roomState?.status,
+    roomState,
     setCurrentStep,
+    submittedAssignmentKeys,
   ])
 
   const closeRoom = useCallback(() => {
