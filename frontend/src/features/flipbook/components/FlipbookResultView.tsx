@@ -149,6 +149,7 @@ function FlipbookPrintedArtwork({
 }) {
   const [loadFailed, setLoadFailed] = useState(false)
   const displayImageUrl = getDisplayImageUrl(frame.imageUrl)
+  const isGifPlaybackFrame = frame.outputMode === 'gif-playback'
 
   useEffect(() => {
     let cancelled = false
@@ -169,11 +170,15 @@ function FlipbookPrintedArtwork({
       {displayImageUrl && !loadFailed ? (
         <Image
           src={displayImageUrl}
-          alt={`${participant.name} ${frame.frameNumber}번째 그림`}
+          alt={
+            isGifPlaybackFrame
+              ? `${participant.name} 완성 GIF`
+              : `${participant.name} ${frame.frameNumber}번째 그림`
+          }
           fill
           sizes="(max-width: 768px) 80vw, 748px"
           unoptimized
-          className="object-contain p-[4%]"
+          className={isGifPlaybackFrame ? 'object-contain p-[2%]' : 'object-contain p-[4%]'}
           onError={() => {
             setLoadFailed(true)
             console.warn('플립북 결과 이미지 로딩에 실패했습니다.', displayImageUrl)
