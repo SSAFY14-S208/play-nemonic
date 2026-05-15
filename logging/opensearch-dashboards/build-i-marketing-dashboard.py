@@ -126,24 +126,15 @@ def search_source(query="", filters=None):
 
 
 def section_header_markdown(heading, subtitle, accent=ACCENT_VIOLET):
-    """섹션 헤더용 markdown — 좌측 accent bar + heading + subtitle 카드.
+    """섹션 헤더용 markdown — h2 제목 + 부제 두 줄.
 
-    OS Dashboards 2.x markdown_vis 는 markdown-it 기반으로 inline HTML 을 허용한다.
-    HTML 이 strip 되는 환경에서도 뒤에 plain markdown 폴백을 두면 깨지지 않게.
+    OSD 2.x 의 markdown_vis 는 markdown-it 을 html:false 로 초기화하므로 inline HTML
+    (style 속성, <div>, <span> 등) 은 escape 되어 텍스트로 그대로 표시된다.
+    그라데이션 바·색상 등 시각 장식은 markdown vis 에서 불가 — plain markdown 만 사용.
+    accent 인자는 호출부 시그니처 호환용으로 받지만 무시.
     """
-    return (
-        '<div style="display:flex;flex-direction:column;gap:6px;padding:6px 4px;">'
-        '<div style="display:flex;align-items:center;gap:12px;">'
-        f'<span style="display:inline-block;width:4px;height:22px;'
-        f'background:linear-gradient(180deg,{accent},{ACCENT_VIOLET_DEEP});'
-        'border-radius:2px;"></span>'
-        '<span style="font-size:20px;font-weight:600;color:#F1F5F9;'
-        f'letter-spacing:-0.01em;">{heading}</span>'
-        '</div>'
-        f'<div style="font-size:12px;color:#94A3B8;margin-left:16px;'
-        f'line-height:1.5;">{subtitle}</div>'
-        '</div>'
-    )
+    del accent
+    return f"## {heading}\n\n{subtitle}"
 
 
 def viz_markdown(viz_id, title, markdown):
@@ -158,9 +149,9 @@ def viz_markdown(viz_id, title, markdown):
                 "type": "markdown",
                 "aggs": [],
                 "params": {
-                    # fontSize 는 markdown 기본 본문 크기. HTML 카드 안에서는 직접 px 지정해서
-                    # 이 값에 의존 안 함 — 작게 둬서 fallback markdown 도 컴팩트.
-                    "fontSize": 12,
+                    # fontSize 는 markdown 본문(p) 기준 px. h2 는 약 1.5x 로 scale.
+                    # 13 → 부제 13px / 제목 ~20px — 사이드바 디자인 의도와 근접.
+                    "fontSize": 13,
                     "openLinksInNewTab": False,
                     "markdown": markdown,
                 },
