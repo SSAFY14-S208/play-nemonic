@@ -44,7 +44,7 @@ export function CommunityReportModal({
       <section
         className="relative aspect-[760/660] bg-contain bg-center bg-no-repeat"
         style={{
-          width: 'min(98vw, 60rem, calc((100dvh - 1rem) * 760 / 660))',
+          width: 'min(98vw, 60rem, calc(115.151515dvh - 1.151515rem))',
           backgroundImage: 'url("/images/community-canvas/ui/modal-report-frame.svg")',
           backgroundSize: '100% 100%',
         }}

@@ -55,7 +55,7 @@ export function CommunityMemoDetailModal({
       <section
         className="relative aspect-[1500/1040] w-full max-w-6xl bg-contain bg-center bg-no-repeat"
         style={{
-          width: 'min(96vw, 72rem, calc((100dvh - 2rem) * 1500 / 1040))',
+          width: 'min(96vw, 72rem, calc(144.230769dvh - 2.884615rem))',
           backgroundImage: 'url("/images/community-canvas/ui/modal-detail-frame.svg")',
           backgroundSize: '100% 100%',
         }}

@@ -111,7 +111,7 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
       <section
         className="relative aspect-[1600/980] overflow-hidden bg-contain bg-center bg-no-repeat"
         style={{
-          width: 'min(96vw, 100rem, calc((100dvh - 2rem) * 1600 / 980))',
+          width: 'min(96vw, 100rem, calc(163.265306dvh - 3.265306rem))',
           backgroundImage: 'url("/images/community-canvas/ui/modal-composer-frame.svg")',
           backgroundSize: '100% 100%',
         }}
