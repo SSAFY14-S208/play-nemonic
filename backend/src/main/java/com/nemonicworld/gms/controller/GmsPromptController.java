@@ -8,8 +8,10 @@ import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
 import com.nemonicworld.gms.dto.request.GmsPromptCreateRequest;
+import com.nemonicworld.gms.dto.request.GmsPromptPreviewRequest;
 import com.nemonicworld.gms.dto.request.GmsPromptUpdateRequest;
 import com.nemonicworld.gms.dto.response.GmsPromptListResponse;
+import com.nemonicworld.gms.dto.response.GmsPromptPreviewResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptResponse;
 import com.nemonicworld.gms.service.GmsPromptService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,6 +55,7 @@ public class GmsPromptController {
     private static final String CREATE_SUCCESS_MESSAGE = "GMS 프롬프트 생성 성공";
     private static final String DETAIL_SUCCESS_MESSAGE = "GMS 프롬프트 상세 조회 성공";
     private static final String LIST_SUCCESS_MESSAGE = "GMS 프롬프트 목록 조회 성공";
+    private static final String PREVIEW_SUCCESS_MESSAGE = "GMS 프롬프트 미리보기 성공";
     private static final String UPDATE_SUCCESS_MESSAGE = "GMS 프롬프트 수정 성공";
 
     private final GmsPromptService gmsPromptService;
@@ -61,6 +64,21 @@ public class GmsPromptController {
     public GmsPromptController(GmsPromptService gmsPromptService, AdminClientInfoResolver adminClientInfoResolver) {
         this.gmsPromptService = gmsPromptService;
         this.adminClientInfoResolver = adminClientInfoResolver;
+    }
+
+    @PostMapping("/preview")
+    @Operation(summary = "GMS 프롬프트 미리보기", description = "백오피스 관리자가 저장 전 후보 GMS 프롬프트로 운세 결과를 미리 생성합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 미리보기 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "GMS 미리보기 실패", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<GmsPromptPreviewResponse>> previewPrompt(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @Valid @RequestBody GmsPromptPreviewRequest request) {
+        GmsPromptPreviewResponse response = gmsPromptService.previewPrompt(adminPrincipal, request);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(PREVIEW_SUCCESS_MESSAGE, response));
     }
 
     @PostMapping
