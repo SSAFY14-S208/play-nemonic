@@ -61,6 +61,9 @@ services:
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
 
+      # 백오피스 iframe 임베딩 허용 (same-origin: k14s208.p.ssafy.io)
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+
       # OpenSearch datasource plugin — biz-events-* 인덱스에서 frontend heartbeat
       # 집계 (동시 접속자, 콘텐츠별 활성 사용자) 를 실시간 패널에서 직접 query.
       # 첫 기동 시 다운로드 + 설치 → /opt/nemonic/data/grafana/plugins 에 영속화.
