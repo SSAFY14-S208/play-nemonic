@@ -3,5 +3,6 @@ export const runtime = {
   apiUrl: process.env.NEXT_PUBLIC_API_URL ?? '',
   websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL ?? '',
   isDev: process.env.NODE_ENV === 'development',
+  fortuneMockEnabled: process.env.NEXT_PUBLIC_FORTUNE_MOCK_ENABLED === 'true',
   loggingEnabled: process.env.NEXT_PUBLIC_LOGGING_ENABLED !== 'false',
 }

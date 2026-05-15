@@ -9,6 +9,7 @@ import {
 
 import {
   ApiError,
+  getFortuneToday,
   getFortuneTodayAvailability,
   patchAnonymousBirthInfo,
   postAnonymousBirthInfo,
@@ -205,9 +206,9 @@ export function calculateFortuneSaju(birthInfo: FortuneBirthInfo): FortuneSaju {
 
 export function createFortuneResultFromCreateResponse(
   createdFortune: FortuneCreateResponse,
-  birthInfo: FortuneBirthInfo,
+  birthInfo: FortuneBirthInfo | null,
 ): FortuneResult {
-  const saju = calculateFortuneSaju(birthInfo)
+  const saju = createSajuFromFortuneResponse(createdFortune, birthInfo)
   const fortuneSection = createdFortune.fortune
   const luckyColor = normalizeLuckyColor(fortuneSection.luckyColor, createdFortune.fortuneId)
 
@@ -228,8 +229,73 @@ export function createFortuneResultFromCreateResponse(
     caution: fortuneSection.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
     cardTheme: pickCardTheme(createdFortune.fortuneId),
     saju,
-    sajuSummary: createSajuSummary(birthInfo, saju),
+    sajuSummary: createResponseSajuSummary(createdFortune, birthInfo, saju),
   }
+}
+
+function createSajuFromFortuneResponse(createdFortune: FortuneCreateResponse, birthInfo: FortuneBirthInfo | null) {
+  if (birthInfo) {
+    return calculateFortuneSaju(birthInfo)
+  }
+
+  const serverSaju = createdFortune.saju
+  const calendarType = serverSaju.calendarType === 'lunar' ? 'lunar' : 'solar'
+
+  return {
+    input: {
+      birthDate: '',
+      birthTime: '',
+      calendarType,
+      timeUnknown: true,
+      timePolicy: 'NOON_FALLBACK',
+      timezone: FORTUNE_TIMEZONE,
+      solarDate: '',
+      lunarDate: '',
+    },
+    sajuYear: serverSaju.yearPillar,
+    sajuMonth: serverSaju.monthPillar,
+    sajuDay: serverSaju.dayPillar,
+    sajuHour: serverSaju.hourPillar,
+    dayElemental: serverSaju.dayMasterElement,
+    dayBranchElemental: serverSaju.dayBranchElement,
+    dayYinYang: serverSaju.dayMasterYinYang as FortuneSajuYinYang,
+    dayBranchYinYang: serverSaju.dayBranchYinYang as FortuneSajuYinYang,
+    pillars: {
+      year: createServerSajuPillar(serverSaju.yearPillar),
+      month: createServerSajuPillar(serverSaju.monthPillar),
+      day: createServerSajuPillar(serverSaju.dayPillar),
+      hour: createServerSajuPillar(serverSaju.hourPillar),
+    },
+    baZiWuXing: [],
+    library: {
+      name: 'manseryeok',
+      version: MANSERYEOK_VERSION,
+    },
+  } satisfies FortuneSaju
+}
+
+function createServerSajuPillar(ganZhi: string): FortuneSajuPillar {
+  return {
+    ganZhi,
+    heavenlyStem: '',
+    earthlyBranch: '',
+    stemElemental: '',
+    branchElemental: '',
+    stemYinYang: '' as FortuneSajuYinYang,
+    branchYinYang: '' as FortuneSajuYinYang,
+  }
+}
+
+function createResponseSajuSummary(
+  createdFortune: FortuneCreateResponse,
+  birthInfo: FortuneBirthInfo | null,
+  saju: FortuneSaju,
+) {
+  if (birthInfo) {
+    return createSajuSummary(birthInfo, saju)
+  }
+
+  return `${createdFortune.date} - ${saju.sajuYear} ${saju.sajuMonth} ${saju.sajuDay} ${saju.sajuHour}`
 }
 
 export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateKey = getKoreanDateKey()) {
@@ -604,7 +670,7 @@ export function createBirthInfoFromProfile(
 }
 
 export function canUseLocalFortuneFallback(error: unknown) {
-  if (!runtime.isDev) {
+  if (!runtime.isDev || !runtime.fortuneMockEnabled) {
     return false
   }
 
@@ -691,18 +757,12 @@ export async function issueNewFortune(birthInfo: FortuneBirthInfo) {
 export async function getTodayFortuneResult(birthInfo: FortuneBirthInfo | null) {
   const availability = await getFortuneTodayAvailability()
 
-  if (availability.available || !availability.todayFortuneId || !birthInfo) {
+  if (availability.available || !availability.todayFortuneId) {
     return null
   }
 
-  // 백엔드는 GET /fortune/{id}를 아직 제공하지 않으므로 같은 디바이스 localStorage 매칭에 의존한다.
-  // 다른 기기에서 발급한 운세 본문 표시는 BE 추가 시점에 연결한다.
-  const stored = readStoredFortune()
-  if (stored && stored.result.id === availability.todayFortuneId) {
-    return stored.result
-  }
-
-  return null
+  const todayFortune = await getFortuneToday()
+  return createFortuneResultFromCreateResponse(todayFortune, birthInfo)
 }
 
 export async function resolveAlreadyIssuedResult(error: unknown, birthInfo: FortuneBirthInfo) {
