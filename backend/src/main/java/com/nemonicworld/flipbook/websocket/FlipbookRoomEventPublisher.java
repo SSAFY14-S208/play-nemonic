@@ -210,11 +210,18 @@ public class FlipbookRoomEventPublisher {
     }
 
     /**
-     * 마지막 참여자 퇴장으로 방이 종료되었음을 방 전체에 알립니다.
+     * 방이 종료되었음을 방 전체에 알립니다.
      */
     public void publishRoomClosed(String roomCode, LocalDateTime closedAt) {
+        publishRoomClosed(roomCode, closedAt, null);
+    }
+
+    /**
+     * 방 종료 사유와 함께 방이 종료되었음을 방 전체에 알립니다.
+     */
+    public void publishRoomClosed(String roomCode, LocalDateTime closedAt, String closeReason) {
         FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.ROOM_CLOSED, roomCode,
-            new FlipbookRoomClosedEventResponse(roomCode, FlipbookRoomStatus.CLOSED, closedAt));
+            new FlipbookRoomClosedEventResponse(roomCode, FlipbookRoomStatus.CLOSED, closedAt, closeReason));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
         closeRoomSessions(roomCode);

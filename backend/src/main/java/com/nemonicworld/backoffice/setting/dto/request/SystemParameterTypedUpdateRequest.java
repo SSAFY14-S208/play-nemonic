@@ -6,6 +6,8 @@ import jakarta.validation.Valid;
 @Schema(description = "명시적 필드 기반 시스템 파라미터 수정 요청. 요청에 포함된 필드만 수정됩니다.")
 public record SystemParameterTypedUpdateRequest(@Valid SystemParameterPositiveValueRequest communityMaxMemoCount,
 
+    @Valid SystemParameterPositiveValueRequest communityReportHideThreshold,
+
     @Valid SystemParameterParticipantLimitRequest relayRoomParticipantLimit,
 
     @Valid SystemParameterTimeLimitRequest relayRoomTimeLimitSeconds,
@@ -19,6 +21,8 @@ public record SystemParameterTypedUpdateRequest(@Valid SystemParameterPositiveVa
     @Valid SystemParameterPositiveValueRequest flipbookMinFramesPerFlipbook,
 
     @Valid SystemParameterPositiveValueRequest flipbookReconnectGraceSeconds,
+
+    @Valid SystemParameterParticipantLimitRequest infiniteCanvasParticipantLimit,
 
     @Valid SystemParameterPositiveValueRequest fortuneDailyLimit,
 

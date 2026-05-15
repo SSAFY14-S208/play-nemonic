@@ -19,18 +19,18 @@ import com.nemonicworld.flipbook.service.support.FlipbookMinFramesPerFlipbookSet
 import com.nemonicworld.flipbook.service.support.FlipbookReconnectGraceSettings;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomParticipantLimit;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomTimeLimitSettings;
-import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.flipbook.service.support.InvalidFlipbookMinFramesPerFlipbookSettingsException;
 import com.nemonicworld.flipbook.service.support.InvalidFlipbookReconnectGraceSettingsException;
 import com.nemonicworld.flipbook.service.support.InvalidFlipbookRoomParticipantLimitException;
 import com.nemonicworld.flipbook.service.support.InvalidFlipbookRoomTimeLimitSettingsException;
+import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasParticipantLimit;
+import com.nemonicworld.infinitecanvas.service.support.InvalidInfiniteCanvasParticipantLimitException;
 import com.nemonicworld.relay.service.support.InvalidRelayReconnectGraceSettingsException;
 import com.nemonicworld.relay.service.support.InvalidRelayRoomParticipantLimitException;
 import com.nemonicworld.relay.service.support.InvalidRelayRoomTimeLimitSettingsException;
 import com.nemonicworld.relay.service.support.RelayReconnectGraceSettings;
 import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
 import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
-import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -63,9 +63,12 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private static final String INVALID_FLIPBOOK_TIME_LIMIT_MESSAGE = "플립북 방 제한 시간 설정이 올바르지 않습니다.";
     private static final String INVALID_FLIPBOOK_MIN_FRAMES_MESSAGE = "플립북 최소 프레임 수 설정이 올바르지 않습니다.";
     private static final String INVALID_FLIPBOOK_RECONNECT_GRACE_MESSAGE = "플립북 재연결 유예 시간 설정이 올바르지 않습니다.";
+    private static final String INVALID_INFINITE_CANVAS_PARTICIPANT_LIMIT_MESSAGE = "무한 캔버스 참여 인원 설정이 올바르지 않습니다.";
     private static final String INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE = "시스템 파라미터 값이 올바르지 않습니다.";
-    private static final Set<String> POSITIVE_VALUE_SETTING_KEYS = Set.of("community.max_memo_count",
-        "fortune.daily_limit", "cs_inquiry.unresolved_alert_threshold_hours");
+    private static final Set<String> POSITIVE_VALUE_SETTING_KEYS = Set.of(
+        SystemParameterSettingKeys.COMMUNITY_MAX_MEMO_COUNT, SystemParameterSettingKeys.COMMUNITY_REPORT_HIDE_THRESHOLD,
+        SystemParameterSettingKeys.FORTUNE_DAILY_LIMIT,
+        SystemParameterSettingKeys.CS_INQUIRY_UNRESOLVED_ALERT_THRESHOLD_HOURS);
     private static final String REDACTED_VALUE = "[redacted]";
     private static final List<String> SENSITIVE_KEY_TOKENS = List.of("password", "secret", "token", "jwt",
         "authorization", "webhook", "smtp", "api_key", "apikey", "access_key", "refresh");
@@ -188,38 +191,43 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     }
 
     private void validateSystemParameterValue(String key, JsonNode value) {
-        if (RelayRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY.equals(key)) {
+        if (SystemParameterSettingKeys.RELAY_ROOM_PARTICIPANT_LIMIT.equals(key)) {
             validateRelayParticipantLimit(value);
             return;
         }
 
-        if (RelayRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY.equals(key)) {
+        if (SystemParameterSettingKeys.RELAY_ROOM_TIME_LIMIT_SECONDS.equals(key)) {
             validateRelayRoomTimeLimit(value);
             return;
         }
 
-        if (RelayRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY.equals(key)) {
+        if (SystemParameterSettingKeys.RELAY_RECONNECT_GRACE_SECONDS.equals(key)) {
             validateRelayReconnectGrace(value);
             return;
         }
 
-        if (FlipbookRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY.equals(key)) {
+        if (SystemParameterSettingKeys.FLIPBOOK_ROOM_PARTICIPANT_LIMIT.equals(key)) {
             validateFlipbookParticipantLimit(value);
             return;
         }
 
-        if (FlipbookRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY.equals(key)) {
+        if (SystemParameterSettingKeys.FLIPBOOK_ROOM_TIME_LIMIT_SECONDS.equals(key)) {
             validateFlipbookRoomTimeLimit(value);
             return;
         }
 
-        if (FlipbookRuntimeSettingsProvider.MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY.equals(key)) {
+        if (SystemParameterSettingKeys.FLIPBOOK_MIN_FRAMES_PER_FLIPBOOK.equals(key)) {
             validateFlipbookMinFramesPerFlipbook(value);
             return;
         }
 
-        if (FlipbookRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY.equals(key)) {
+        if (SystemParameterSettingKeys.FLIPBOOK_RECONNECT_GRACE_SECONDS.equals(key)) {
             validateFlipbookReconnectGrace(value);
+            return;
+        }
+
+        if (SystemParameterSettingKeys.INFINITE_CANVAS_PARTICIPANT_LIMIT.equals(key)) {
+            validateInfiniteCanvasParticipantLimit(value);
             return;
         }
 
@@ -281,6 +289,14 @@ public class SystemParameterServiceImpl implements SystemParameterService {
             FlipbookReconnectGraceSettings.fromJson(value);
         } catch (InvalidFlipbookReconnectGraceSettingsException e) {
             throw new BadRequestException(INVALID_FLIPBOOK_RECONNECT_GRACE_MESSAGE);
+        }
+    }
+
+    private void validateInfiniteCanvasParticipantLimit(JsonNode value) {
+        try {
+            InfiniteCanvasParticipantLimit.fromJson(value);
+        } catch (InvalidInfiniteCanvasParticipantLimitException e) {
+            throw new BadRequestException(INVALID_INFINITE_CANVAS_PARTICIPANT_LIMIT_MESSAGE);
         }
     }
 

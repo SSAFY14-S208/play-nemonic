@@ -48,9 +48,9 @@ class RelayResultComposerTest {
         BufferedImage original = read(result.originalPng());
         assertThat(original.getWidth()).isEqualTo(4);
         assertThat(original.getHeight()).isEqualTo(9);
-        assertThat(original.getRGB(1, 0)).isEqualTo(Color.WHITE.getRGB());
+        assertThat(alphaAt(original, 1, 0)).isZero();
         assertThat(original.getRGB(1, 3)).isEqualTo(Color.GREEN.getRGB());
-        assertThat(original.getRGB(1, 6)).isEqualTo(Color.WHITE.getRGB());
+        assertThat(alphaAt(original, 1, 6)).isZero();
     }
 
     @Test
@@ -74,7 +74,7 @@ class RelayResultComposerTest {
     }
 
     @Test
-    void composeKeepsBlankPartWhiteEvenWhenOverlapped() throws Exception {
+    void composeKeepsBlankPartTransparentEvenWhenOverlapped() throws Exception {
         RelayResultComposer overlapComposer = new RelayResultComposer(4, 10, 100, 2);
         Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
         partImages.put(RelayDrawingPart.FACE, png(4, 10, Color.RED));
@@ -84,8 +84,8 @@ class RelayResultComposerTest {
 
         BufferedImage original = read(result.originalPng());
         assertThat(original.getHeight()).isEqualTo(26);
-        assertThat(original.getRGB(1, 12)).isEqualTo(Color.WHITE.getRGB());
-        assertThat(original.getRGB(1, 16)).isEqualTo(Color.WHITE.getRGB());
+        assertThat(alphaAt(original, 1, 12)).isZero();
+        assertThat(original.getRGB(1, 16)).isEqualTo(Color.BLUE.getRGB());
         assertThat(original.getRGB(1, 18)).isEqualTo(Color.BLUE.getRGB());
     }
 
@@ -111,7 +111,32 @@ class RelayResultComposerTest {
         BufferedImage original = read(result.originalPng());
         assertThat(original.getWidth()).isEqualTo(4);
         assertThat(original.getHeight()).isEqualTo(9);
-        assertThat(original.getRGB(1, 1)).isEqualTo(Color.WHITE.getRGB());
+        assertThat(alphaAt(original, 1, 1)).isZero();
+    }
+
+    @Test
+    void composePreservesTransparentInputBackground() throws Exception {
+        Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
+        partImages.put(RelayDrawingPart.FACE, transparentPngWithPixel(4, 3, 1, 1, Color.RED));
+
+        RelayComposedImage result = composer.compose(partImages);
+
+        BufferedImage original = read(result.originalPng());
+        assertThat(alphaAt(original, 0, 0)).isZero();
+        assertThat(original.getRGB(1, 1)).isEqualTo(Color.RED.getRGB());
+    }
+
+    @Test
+    void composePreservesTransparencyWhenThumbnailIsResized() throws Exception {
+        RelayResultComposer smallThumbnailComposer = new RelayResultComposer(10, 10, 5);
+        Map<RelayDrawingPart, byte[]> partImages = new EnumMap<>(RelayDrawingPart.class);
+        partImages.put(RelayDrawingPart.FACE, transparentPngWithCenterFill(10, 10, Color.RED));
+
+        RelayComposedImage result = smallThumbnailComposer.compose(partImages);
+
+        BufferedImage thumbnail = read(result.thumbnailPng());
+        assertThat(Math.max(thumbnail.getWidth(), thumbnail.getHeight())).isEqualTo(5);
+        assertThat(alphaAt(thumbnail, 0, thumbnail.getHeight() - 1)).isZero();
     }
 
     @Test
@@ -141,7 +166,37 @@ class RelayResultComposerTest {
         }
     }
 
+    private byte[] transparentPngWithPixel(int width, int height, int pixelX, int pixelY, Color color)
+        throws Exception {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        image.setRGB(pixelX, pixelY, color.getRGB());
+
+        return pngBytes(image);
+    }
+
+    private byte[] transparentPngWithCenterFill(int width, int height, Color color) throws Exception {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 2; y < height - 2; y++) {
+            for (int x = 2; x < width - 2; x++) {
+                image.setRGB(x, y, color.getRGB());
+            }
+        }
+
+        return pngBytes(image);
+    }
+
+    private byte[] pngBytes(BufferedImage image) throws Exception {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            ImageIO.write(image, "png", outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
     private BufferedImage read(byte[] bytes) throws Exception {
         return ImageIO.read(new ByteArrayInputStream(bytes));
+    }
+
+    private int alphaAt(BufferedImage image, int x, int y) {
+        return image.getRGB(x, y) >>> 24;
     }
 }

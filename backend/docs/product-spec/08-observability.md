@@ -188,6 +188,7 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 - `join_order`
 - `is_host`
 - `disconnect_reason`
+- `close_reason`
 - `reconnect_attempt`
 - `already_joined`
 

@@ -44,7 +44,7 @@ the room does not wait for finalization to finish. The finalization scheduler
 still scans `FINALIZING` rooms every 10 seconds after a short ready delay so
 failed immediate attempts, lock-busy rooms, server restarts, and
 partial-success states are retried and recovered. Both paths compose one
-`FACE`/`BODY`/`LEGS` PNG per `canvasIndex`.
+alpha-preserving `FACE`/`BODY`/`LEGS` PNG per `canvasIndex`.
 
 `nemonic.relay.finalization.overlap-height` defaults to `120` px to match the
 frontend hint area. If this setting is `0`, the backend keeps the previous
@@ -59,6 +59,11 @@ submit drawing images that include the same overlap hint area as the backend
 `overlap-height`; if the frontend and backend values diverge, the final image
 may look misaligned.
 
+Final result composition uses ARGB images and does not paint a white
+background. Transparent PNG input alpha is preserved in both the final original
+and resized thumbnail PNGs. Empty auto-submitted or missing parts produce
+transparent blank regions instead of white regions.
+
 Finalization uploads final original and thumbnail files under:
 
 ```text
@@ -69,7 +74,7 @@ relay/results/{artifactId}/thumbnail.png
 When the composed image already fits within the thumbnail maximum size, the
 thumbnail uses the same PNG bytes as the original to avoid a second PNG encode.
 If resizing is required, the thumbnail is still encoded separately with the
-existing max-size policy.
+existing max-size policy while preserving alpha.
 
 Then persist matching PostgreSQL rows:
 
@@ -136,6 +141,8 @@ one DB/Redis lookup per object.
   MinIO calls to assignment lookup.
 - Positive: Empty auto-submitted parts compose as blank areas without requiring
   placeholder uploads.
+- Positive: Blank final-result regions remain transparent instead of receiving
+  a backend-added white background.
 - Positive: Normal final result creation can start immediately after
   `ALL_PARTS_COMPLETED` instead of waiting for the next scheduler tick.
 - Positive: The scheduler ready delay remains available for retry, server

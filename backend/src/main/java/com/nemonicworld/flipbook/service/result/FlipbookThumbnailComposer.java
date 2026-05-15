@@ -59,7 +59,7 @@ public class FlipbookThumbnailComposer {
         double scale = (double) thumbnailMaxSize / longestSide;
         int thumbnailWidth = Math.max(1, (int) Math.round(originalWidth * scale));
         int thumbnailHeight = Math.max(1, (int) Math.round(originalHeight * scale));
-        BufferedImage thumbnail = new BufferedImage(thumbnailWidth, thumbnailHeight, BufferedImage.TYPE_INT_RGB);
+        BufferedImage thumbnail = new BufferedImage(thumbnailWidth, thumbnailHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = thumbnail.createGraphics();
         try {
             applyQualityRenderingHints(graphics);

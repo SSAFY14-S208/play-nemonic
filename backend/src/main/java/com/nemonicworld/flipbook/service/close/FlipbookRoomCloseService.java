@@ -113,7 +113,7 @@ public class FlipbookRoomCloseService {
             FlipbookRoomEventLogger.apiBusiness("flipbook_room_closed",
                 metadata("room_id", closeResult.roomCode(), "close_reason", "auto_delay", "room_status_before",
                     roomState.status(), "participant_count", roomState.participantCount()));
-            flipbookRoomEventPublisher.publishRoomClosed(roomState.roomCode(), closedAt);
+            flipbookRoomEventPublisher.publishRoomClosed(roomState.roomCode(), closedAt, "auto_delay");
         }
 
         return closeResult;

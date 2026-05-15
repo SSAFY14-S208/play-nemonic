@@ -58,7 +58,7 @@
 - FIFO 갯수 검증은 메모 CREATE, 즉 부착 시점에만 실행한다.
 - 사용자 삭제, 운영자 숨김 해제, 운영자 복원 등 다른 경로에서는 별도 갯수 검증을 하지 않는다.
 - 복원 등으로 일시적으로 51개 이상이 되어도 다음 CREATE 시점에 FIFO가 자연스럽게 정리한다.
-- 부적절 콘텐츠의 최초 노출 리스크는 게시 전 AI 모더레이션 차단으로 줄이고, 게시 후 리스크는 신고 5회 자동 숨김으로 보완한다.
+- 부적절 콘텐츠의 최초 노출 리스크는 게시 전 AI 모더레이션 차단으로 줄이고, 게시 후 리스크는 신고 자동 숨김으로 보완한다. 자동 숨김 기준은 기본 5회이며 `community.report_hide_threshold` 시스템 파라미터로 변경할 수 있다.
 - 숨김 상태 메모는 벽 렌더링에서 제외되며 갯수 한도 50개 카운트에도 포함하지 않는다.
 
 ## 사용자 인증 및 소유권
@@ -105,14 +105,18 @@
 스티커, 프레임 등 편집을 적용한다. 게시 시점에는 이 편집 결과를 최종 원본 이미지와 썸네일 이미지로 export해
 기존 Files API로 업로드한다.
 
+공통 파일 업로드는 프론트가 presigned URL로 MinIO에 직접 PUT하는 구조다. 백엔드는 confirm 단계나 커뮤니티
+메모 생성 단계에서 이미지 바이트를 디코딩하거나 흰 배경을 제거하지 않는다. 직접 작성 메모에서 투명 배경이
+필요한 경우 프론트가 투명 PNG로 export해야 한다.
+
 백엔드는 편집 도구의 내부 구조를 해석하지 않는다. OCR, 커뮤니티 벽 렌더링, 상세 보기, 후속 외부 공유의
 기준은 MinIO에 저장된 커뮤니티 게시용 최종 이미지이다. `decoration`은 프론트가 다시 편집 화면을 열거나 상태를
 복원하기 위한 보조 JSON이다.
 
 | sourceType | 설명 | 요청 식별자 | 저장 방식 |
 | --- | --- | --- | --- |
-| `DIRECT` | 빈 캔버스에서 직접 작성, 드로잉, 텍스트박스, 색칠 등을 거쳐 만든 최종 게시 이미지 | `originalFileId`, `thumbnailFileId` | `community_memo.body_image_url`에 최종 원본 이미지 object key 저장, `community_memo.thumbnail_image_url`에 썸네일 object key 저장 |
-| `GALLERY` | 갤러리 결과물을 출처로 불러와 그대로 또는 추가 편집 후 만든 최종 게시 이미지 | `sourceGalleryId`, `originalFileId`, `thumbnailFileId` | `community_memo.artifact_id`에 원본 artifact 연결, 최종 게시 이미지는 `body_image_url`과 `thumbnail_image_url`에 별도 저장 |
+| `DIRECT` | 빈 캔버스에서 직접 작성, 드로잉, 텍스트박스, 색칠 등을 거쳐 만든 최종 게시 이미지 | `originalFileId`, `thumbnailFileId` | `community_memo.body_image_url`에 confirmed `COMMUNITY` 원본 업로드 object key 저장, `community_memo.thumbnail_image_url`에 썸네일 업로드 object key 저장 |
+| `GALLERY` | 갤러리 결과물을 출처로 불러와 그대로 또는 추가 편집 후 만든 최종 게시 이미지 | `sourceGalleryId`, `originalFileId`, `thumbnailFileId` | `community_memo.artifact_id`에 원본 artifact 연결, 실제 게시 이미지는 confirmed `COMMUNITY` 업로드 object key를 `body_image_url`과 `thumbnail_image_url`에 저장 |
 
 원본 URL과 썸네일 URL을 모두 응답하기 위해 `community_memo.thumbnail_image_url` 컬럼을 추가한다. 이 컬럼은
 커뮤니티 게시용 썸네일 object key를 저장하며, 원본 갤러리 artifact의 썸네일과는 별개이다.
@@ -126,6 +130,9 @@
 - GALLERY 메모는 `artifact_id`로 원본 artifact를 참조하지만, 벽에 보여주는 이미지는 별도 업로드된 최종 게시 이미지이다.
 - 갤러리 원본 artifact, subtype row, 원본 MinIO 파일은 커뮤니티 게시나 삭제로 수정하지 않는다.
 - 같은 갤러리 결과물을 여러 번 게시하면 각 게시물은 서로 다른 최종 게시 이미지와 썸네일을 가질 수 있다.
+- 백엔드는 커뮤니티 게시 시점에 white-key 흰색 배경 제거를 수행하지 않는다. 흰색 선, 흰 글씨, 흰 하이라이트,
+  흰 장식이 손실될 수 있기 때문이다.
+- 복잡한 사진 누끼나 AI segmentation은 현재 생성 흐름의 기본 동작이 아니며, 필요하면 별도 사용자 선택 기능으로 검토한다.
 
 ### 직접 작성 메모 게시 이미지 업로드
 
@@ -275,7 +282,7 @@ DB에는 커뮤니티 게시용 최종 원본 이미지 object key와 썸네일 
 - 가려진 내 메모 찾기 기능을 제공한다.
 - 타인 메모는 읽기와 터치 반응만 가능하며 수정 및 이동은 불가하다.
 - 신고 기능을 제공한다.
-- 신고 5회 누적 시 `is_hidden = true`로 자동 숨김 처리한다.
+- 신고 수가 시스템 설정 기준에 도달하면 `is_hidden = true`로 자동 숨김 처리한다. 기본 기준은 5회이며 백오피스 시스템 파라미터로 변경할 수 있다.
 - 운영자는 백오피스에서 숨김 메모를 검토해 복원하거나 `deleted_reason = admin_removed`로 소프트 삭제한다.
 
 ## 조회 응답 정책
@@ -397,7 +404,7 @@ FastAPI OCR/모더레이션 응답 시간이 사용자 경험을 해칠 정도�
 - 통과한 메모에 대해서도 OCR 원문 텍스트를 보존해야 한다면 `community_memo.ocr_text`에 평문으로 저장한다.
 - 분류 결과 라벨, 점수, 모델 메타데이터를 보존해야 한다면 `community_memo.ocr_categories`에 JSON 문자열로 저장한다.
 - 검사 완료 시각은 `moderation_checked_at`에 기록한다.
-- 신고 5회 누적 자동 숨김은 게시 후 사용자 신고 정책이므로 `moderation_status`를 변경하지 않고 `is_hidden = true`, `hidden_reason = report_threshold`로 처리한다.
+- 신고 누적 자동 숨김은 게시 후 사용자 신고 정책이므로 `moderation_status`를 변경하지 않고 `is_hidden = true`, `hidden_reason = report_threshold`로 처리한다. 자동 숨김 기준은 `community.report_hide_threshold` 설정값을 사용하며 기본값은 5회다.
 - 운영자가 게시 후 숨김 메모를 복원하면 `is_hidden = false`로 되돌리며, `moderation_status`는 기존 값을 유지한다.
 
 ### pending 미노출 대안
@@ -425,9 +432,9 @@ FastAPI 응답 시간이 길어 동기 차단이 어렵다면 다음 대안을 �
 
 ### 신고와 병행
 
-- AI 모더레이션은 게시 전 차단이고, 신고 5회 누적은 게시 후 숨김이다.
+- AI 모더레이션은 게시 전 차단이고, 신고 누적 자동 숨김은 게시 후 숨김이다.
 - 게시 전 AI 차단은 `community_memo`를 visible 상태로 만들지 않는다.
-- 게시 후 신고 5회 누적은 `is_hidden = true`, `hidden_reason = report_threshold`로 전환한다.
+- 게시 후 신고 수가 `community.report_hide_threshold` 기준에 도달하면 `is_hidden = true`, `hidden_reason = report_threshold`로 전환한다. 기본값은 5회다.
 - 백오피스 검토 큐에서 사유별 분리 조회가 가능해야 한다.
 
 ### 오탐과 운영 모니터링
@@ -462,7 +469,7 @@ FastAPI 응답 시간이 길어 동기 차단이 어렵다면 다음 대안을 �
 | 신고 방식 | 메모 터치 후 신고 버튼 노출, 신고 사유 선택 |
 | 신고 사유 | 부적절한 콘텐츠, 욕설/비방/혐오, 선정적/음란물, 폭력적/위협적 표현, 스팸/광고, 개인정보 노출, 도용/사칭, 기타 |
 | 중복 신고 방지 | 동일 UUID로 같은 메모 중복 신고 불가 |
-| 자동 숨김 기준 | 신고 5회 누적 |
+| 자동 숨김 기준 | `community.report_hide_threshold` 설정값, 기본 5회 |
 | 숨김 방식 | DB 삭제가 아니라 `is_hidden = true`로 전환 |
 | 본인 메모 신고 | 불가, 본인은 직접 삭제 가능 |
 
@@ -479,7 +486,7 @@ FastAPI 응답 시간이 길어 동기 차단이 어렵다면 다음 대안을 �
 
 | 값 | 의미 |
 | --- | --- |
-| `report_threshold` | 신고 5회 누적에 따른 자동 숨김 |
+| `report_threshold` | 신고 수가 시스템 설정 기준에 도달한 자동 숨김 |
 | `ai_moderation` | AI/모더레이션 차단에 따른 숨김 |
 | `admin_hidden` | 운영자 수동 숨김 |
 

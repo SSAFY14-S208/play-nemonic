@@ -173,6 +173,23 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
     }
 
     @Override
+    public List<FlipbookRoomState> findAbandonedPlayingRooms(LocalDateTime abandonedCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
+        List<FlipbookRoomState> abandonedRooms = new ArrayList<>();
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && abandonedRooms.size() < limit) {
+                findAbandonedPlayingRoom(roomKeys.next(), abandonedCutoff).ifPresent(abandonedRooms::add);
+            }
+        }
+
+        return abandonedRooms;
+    }
+
+    @Override
     public List<FlipbookRoomState> findEmptyWaitingRooms(int limit) {
         if (limit <= 0) {
             return List.of();
@@ -341,6 +358,29 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         return Optional.of(roomState);
     }
 
+    private Optional<FlipbookRoomState> findAbandonedPlayingRoom(String roomKey, LocalDateTime abandonedCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        FlipbookRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != FlipbookRoomStatus.PLAYING || roomState.participants().isEmpty()) {
+            return Optional.empty();
+        }
+
+        if (!allParticipantsInactiveInPlaying(roomState)) {
+            return Optional.empty();
+        }
+
+        LocalDateTime inactiveSince = latestPlayingInactiveAt(roomState);
+        if (inactiveSince == null || inactiveSince.isAfter(abandonedCutoff)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
     private Optional<FlipbookRoomState> findExpiredPlayingRoom(String roomKey, LocalDateTime roundDeadlineCutoff) {
         String roomStateValue = redisTemplate.opsForValue().get(roomKey);
         if (!StringUtils.hasText(roomStateValue)) {
@@ -424,10 +464,25 @@ public class RedisFlipbookRoomRepository implements FlipbookRoomRepository {
         return roomState.participants().stream().allMatch(participant -> !participant.connected());
     }
 
+    private boolean allParticipantsInactiveInPlaying(FlipbookRoomState roomState) {
+        return roomState.participants().stream()
+            .allMatch(participant -> participant.dropped() || !participant.connected());
+    }
+
     private LocalDateTime latestWaitingInactiveAt(FlipbookRoomState roomState) {
         LocalDateTime latest = roomState.updatedAt();
         for (FlipbookRoomParticipant participant : roomState.participants()) {
             latest = maxTime(latest, participant.disconnectedAt());
+        }
+
+        return latest;
+    }
+
+    private LocalDateTime latestPlayingInactiveAt(FlipbookRoomState roomState) {
+        LocalDateTime latest = roomState.updatedAt();
+        for (FlipbookRoomParticipant participant : roomState.participants()) {
+            latest = maxTime(latest, participant.disconnectedAt());
+            latest = maxTime(latest, participant.droppedAt());
         }
 
         return latest;

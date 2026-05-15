@@ -76,6 +76,11 @@ public class SystemParameterController {
             "unit": "count",
             "description": "커뮤니티 캔버스 표시 메모 수 제한"
           },
+          "communityReportHideThreshold": {
+            "value": 5,
+            "unit": "count",
+            "description": "커뮤니티 메모 자동 숨김 신고 기준"
+          },
           "relayRoomParticipantLimit": {
             "min": 3,
             "max": 8,
@@ -114,6 +119,12 @@ public class SystemParameterController {
             "value": 10,
             "unit": "seconds",
             "description": "플립북 진행 중 재연결 유예 시간"
+          },
+          "infiniteCanvasParticipantLimit": {
+            "min": 1,
+            "max": 6,
+            "unit": "people",
+            "description": "무한 캔버스 동시 참여 인원 제한"
           },
           "fortuneDailyLimit": {
             "value": 1,

@@ -450,7 +450,8 @@ class AdminCommunityMemoControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.message").value("커뮤니티 메모 숨김 복구 성공"))
             .andExpect(jsonPath("$.data.isHidden").value(false))
             .andExpect(jsonPath("$.data.hiddenReason").value(nullValue()))
-            .andExpect(jsonPath("$.data.reviewedBy").value(ADMIN_ID)).andExpect(jsonPath("$.data.reviewedAt").exists());
+            .andExpect(jsonPath("$.data.reportCount").value(0)).andExpect(jsonPath("$.data.reviewedBy").value(ADMIN_ID))
+            .andExpect(jsonPath("$.data.reviewedAt").exists());
 
         assertThat(jdbcTemplate.queryForObject("SELECT is_hidden FROM community_memo WHERE id = ?", Boolean.class,
             hiddenMemoId)).isFalse();
@@ -459,7 +460,7 @@ class AdminCommunityMemoControllerIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT hidden_at FROM community_memo WHERE id = ?", LocalDateTime.class,
             hiddenMemoId)).isNull();
         assertThat(jdbcTemplate.queryForObject("SELECT report_count FROM community_memo WHERE id = ?", Integer.class,
-            hiddenMemoId)).isEqualTo(5);
+            hiddenMemoId)).isZero();
         assertThat(jdbcTemplate.queryForObject("SELECT reviewed_at FROM community_memo WHERE id = ?",
             LocalDateTime.class, hiddenMemoId)).isNotNull();
         assertThat(jdbcTemplate.queryForObject("SELECT moderation_status FROM community_memo WHERE id = ?",
@@ -495,6 +496,11 @@ class AdminCommunityMemoControllerIntegrationTest {
         assertThat(metadata.path("after").path("hidden_reason").isNull()).isTrue();
         assertThat(auditLog.toString()).doesNotContain(ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, ORIGINAL_PUBLIC_URL,
             THUMBNAIL_PUBLIC_URL, "ocr");
+
+        JsonNode restoredAuditLog = findAuditLog(output, "admin_community_memo_restored");
+        JsonNode restoredMetadata = restoredAuditLog.path("metadata");
+        assertThat(restoredMetadata.path("before_report_count").asInt()).isEqualTo(5);
+        assertThat(restoredMetadata.path("after_report_count").asInt()).isZero();
 
         verifyNoInteractions(moderationClient);
     }

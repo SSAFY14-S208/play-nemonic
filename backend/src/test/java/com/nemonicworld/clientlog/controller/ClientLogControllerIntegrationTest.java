@@ -54,6 +54,25 @@ class ClientLogControllerIntegrationTest {
     }
 
     @Test
+    void ingestAcceptsSpecAllowlistedFunnelAndPerformanceEvents(CapturedOutput output) throws Exception {
+        String events = validEvent("funnel_started") + "," + validEvent("web_vitals");
+
+        mockMvc
+            .perform(post(CLIENT_LOG_ENDPOINT).header(HttpHeaders.ORIGIN, ALLOWED_ORIGIN)
+                .header("X-Forwarded-For", "203.0.113.20").contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody(events)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.acceptedCount").value(2)).andExpect(jsonPath("$.data.droppedCount").value(0))
+            .andExpect(jsonPath("$.data.systemRoutedCount").value(0));
+
+        JsonNode funnelLog = findLog(output, "funnel_started");
+        assertThat(funnelLog.path("trace_id").asText()).isEqualTo("trace-funnel-started");
+
+        JsonNode webVitalsLog = findLog(output, "web_vitals");
+        assertThat(webVitalsLog.path("trace_id").asText()).isEqualTo("trace-web-vitals");
+    }
+
+    @Test
     void ingestAcceptsClientLifecycleEventsWithoutTraceId(CapturedOutput output) throws Exception {
         String events = """
             {

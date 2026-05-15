@@ -1,4 +1,4 @@
-package com.nemonicworld.community.service;
+package com.nemonicworld.community.service.admin;
 
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.jwt.AdminPrincipal;

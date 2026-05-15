@@ -23,16 +23,19 @@ public class FlipbookRoomAbandonedCloseService {
     private final FlipbookRoomCloseCommand flipbookRoomCloseCommand;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
     private final Duration waitingIdleDuration;
+    private final Duration playingAbandonedDuration;
     private final int scanLimit;
 
     public FlipbookRoomAbandonedCloseService(FlipbookRoomRepository flipbookRoomRepository,
         FlipbookRoomCloseCommand flipbookRoomCloseCommand, FlipbookRoomEventPublisher flipbookRoomEventPublisher,
         @Value("${nemonic.flipbook.abandoned-close.waiting-idle-seconds:300}") long waitingIdleSeconds,
+        @Value("${nemonic.flipbook.abandoned-close.playing-abandoned-seconds:300}") long playingAbandonedSeconds,
         @Value("${nemonic.flipbook.abandoned-close.scan-limit:100}") int scanLimit) {
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.flipbookRoomCloseCommand = flipbookRoomCloseCommand;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
         this.waitingIdleDuration = Duration.ofSeconds(Math.max(0L, waitingIdleSeconds));
+        this.playingAbandonedDuration = Duration.ofSeconds(Math.max(0L, playingAbandonedSeconds));
         this.scanLimit = scanLimit;
     }
 
@@ -45,13 +48,17 @@ public class FlipbookRoomAbandonedCloseService {
         List<FlipbookRoomState> emptyWaitingRooms = flipbookRoomRepository.findEmptyWaitingRooms(scanLimit);
         List<FlipbookRoomState> waitingRooms = flipbookRoomRepository
             .findAbandonedWaitingRooms(closedAt.minus(waitingIdleDuration), scanLimit);
+        List<FlipbookRoomState> playingRooms = flipbookRoomRepository
+            .findAbandonedPlayingRooms(closedAt.minus(playingAbandonedDuration), scanLimit);
 
         int closedEmptyWaitingRoomCount = closeRooms(emptyWaitingRooms, closedAt, "waiting_empty", null, null);
         int closedWaitingRoomCount = closeRooms(waitingRooms, closedAt, "waiting_idle_timeout", "idle_seconds",
             waitingIdleDuration.getSeconds());
+        int closedPlayingRoomCount = closeRooms(playingRooms, closedAt, "playing_abandoned", "abandoned_seconds",
+            playingAbandonedDuration.getSeconds());
 
         return new FlipbookRoomAbandonedCloseProcessResult(emptyWaitingRooms.size() + waitingRooms.size(),
-            closedEmptyWaitingRoomCount + closedWaitingRoomCount);
+            closedEmptyWaitingRoomCount + closedWaitingRoomCount, playingRooms.size(), closedPlayingRoomCount);
     }
 
     private int closeRooms(List<FlipbookRoomState> rooms, LocalDateTime closedAt, String closeReason,
@@ -64,7 +71,7 @@ public class FlipbookRoomAbandonedCloseService {
                 if (result.closed()) {
                     closedRoomCount++;
                     logRoomClosed(roomState, result, closeReason, durationFieldName, durationSeconds);
-                    flipbookRoomEventPublisher.publishRoomClosed(roomState.roomCode(), result.closedAt());
+                    flipbookRoomEventPublisher.publishRoomClosed(roomState.roomCode(), result.closedAt(), closeReason);
                 }
             } catch (RuntimeException e) {
                 log.warn("Failed to close abandoned flipbook room. roomCode={}, closeReason={}", roomState.roomCode(),

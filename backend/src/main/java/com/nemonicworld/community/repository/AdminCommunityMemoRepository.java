@@ -107,6 +107,7 @@ public class AdminCommunityMemoRepository {
         SET is_hidden = FALSE,
             hidden_reason = NULL,
             hidden_at = NULL,
+            report_count = 0,
             reviewed_by = :adminId,
             reviewed_at = :updatedAt,
             updated_at = :updatedAt

@@ -3,13 +3,16 @@ package com.nemonicworld.flipbook.service.support;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.backoffice.setting.entity.SystemParameter;
 import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -105,6 +108,60 @@ class FlipbookRuntimeSettingsProviderTest {
                 systemParameter(FlipbookRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY, settingValue)));
 
         assertThat(provider.currentReconnectGracePeriod())
+            .isEqualTo(Duration.ofSeconds(FlipbookReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS));
+    }
+
+    @Test
+    void currentSettingsSnapshotLoadsFlipbookSettingsInSingleQuery() {
+        given(systemParameterRepository
+            .findAllByKeys(List.of(FlipbookRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY,
+                FlipbookRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                FlipbookRuntimeSettingsProvider.MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY,
+                FlipbookRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY)))
+            .willReturn(List.of(
+                systemParameter(FlipbookRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY,
+                    "{\"min\":3,\"max\":8,\"unit\":\"people\"}"),
+                systemParameter(FlipbookRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                    "{\"default\":60,\"allowed\":[45,60,90],\"unit\":\"seconds\"}"),
+                systemParameter(FlipbookRuntimeSettingsProvider.MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY,
+                    "{\"value\":10,\"unit\":\"frames\"}"),
+                systemParameter(FlipbookRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY,
+                    "{\"value\":30,\"unit\":\"seconds\"}")));
+
+        FlipbookRuntimeSettingsSnapshot snapshot = provider.currentSettingsSnapshot();
+
+        assertThat(snapshot.participantLimit()).isEqualTo(new FlipbookRoomParticipantLimit(3, 8));
+        assertThat(snapshot.roomTimeLimitSettings())
+            .isEqualTo(new FlipbookRoomTimeLimitSettings(60, Set.of(45, 60, 90)));
+        assertThat(snapshot.minFramesPerFlipbook()).isEqualTo(10);
+        assertThat(snapshot.reconnectGracePeriod()).isEqualTo(Duration.ofSeconds(30));
+        verify(systemParameterRepository)
+            .findAllByKeys(List.of(FlipbookRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY,
+                FlipbookRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                FlipbookRuntimeSettingsProvider.MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY,
+                FlipbookRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY));
+    }
+
+    @Test
+    void currentSettingsSnapshotFallsBackIndependently() {
+        given(systemParameterRepository
+            .findAllByKeys(List.of(FlipbookRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY,
+                FlipbookRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                FlipbookRuntimeSettingsProvider.MIN_FRAMES_PER_FLIPBOOK_SETTING_KEY,
+                FlipbookRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY)))
+            .willReturn(
+                List.of(systemParameter(FlipbookRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY, "not-json"),
+                    systemParameter(FlipbookRuntimeSettingsProvider.ROOM_TIME_LIMIT_SECONDS_SETTING_KEY,
+                        "{\"default\":60,\"allowed\":[45,60,90],\"unit\":\"seconds\"}")));
+
+        FlipbookRuntimeSettingsSnapshot snapshot = provider.currentSettingsSnapshot();
+
+        assertThat(snapshot.participantLimit()).isEqualTo(FlipbookRoomParticipantLimit.defaultLimit());
+        assertThat(snapshot.roomTimeLimitSettings())
+            .isEqualTo(new FlipbookRoomTimeLimitSettings(60, Set.of(45, 60, 90)));
+        assertThat(snapshot.minFramesPerFlipbook())
+            .isEqualTo(FlipbookMinFramesPerFlipbookSettings.DEFAULT_MIN_FRAMES_PER_FLIPBOOK);
+        assertThat(snapshot.reconnectGracePeriod())
             .isEqualTo(Duration.ofSeconds(FlipbookReconnectGraceSettings.DEFAULT_RECONNECT_GRACE_SECONDS));
     }
 

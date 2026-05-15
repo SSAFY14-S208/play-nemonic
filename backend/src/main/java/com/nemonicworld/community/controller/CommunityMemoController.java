@@ -10,7 +10,7 @@ import com.nemonicworld.community.dto.request.CommunityMemoReportRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoReportResponse;
-import com.nemonicworld.community.service.CommunityMemoService;
+import com.nemonicworld.community.service.memo.CommunityMemoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -202,10 +202,10 @@ public class CommunityMemoController {
     }
 
     /**
-     * visible 메모를 신고하고, 누적 신고 5회 이상이면 자동 숨김 처리합니다.
+     * visible 메모를 신고하고, 누적 신고 수가 시스템 설정 기준 이상이면 자동 숨김 처리합니다.
      */
     @PostMapping("/{memoId}/reports")
-    @Operation(summary = "커뮤니티 메모 신고", description = "표시 중인 커뮤니티 메모를 신고하고, 누적 신고 5회 이상이면 자동 숨김 처리합니다.")
+    @Operation(summary = "커뮤니티 메모 신고", description = "표시 중인 커뮤니티 메모를 신고하고, 누적 신고 수가 시스템 설정 기준 이상이면 자동 숨김 처리합니다.")
     @Parameter(name = "memoId", in = ParameterIn.PATH, required = true, description = "신고할 커뮤니티 메모 UUID")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @RequestBody(required = true, content = @Content(examples = @ExampleObject(value = """

@@ -1,4 +1,4 @@
-package com.nemonicworld.community.service;
+package com.nemonicworld.community.service.memo;
 
 import com.nemonicworld.community.dto.request.CommunityMemoCreateRequest;
 import com.nemonicworld.community.dto.request.CommunityMemoLayoutUpdateRequest;

@@ -42,6 +42,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             .addInterceptors(
                 new WebSocketConnectionTypeHandshakeInterceptor(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK))
             .setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws/infinite-canvas").addInterceptors(
+            new WebSocketConnectionTypeHandshakeInterceptor(WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS))
+            .setAllowedOriginPatterns("*");
     }
 
     // 전체 topic, 개인 queue, 클라이언트 send prefix를 애플리케이션 공통 규칙으로 설정합니다.

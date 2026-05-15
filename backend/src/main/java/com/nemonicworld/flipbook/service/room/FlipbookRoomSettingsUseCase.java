@@ -11,6 +11,8 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomViewerFactory;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsSnapshot;
+import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -32,6 +34,7 @@ public class FlipbookRoomSettingsUseCase {
     private final FlipbookRoomPolicy flipbookRoomPolicy;
     private final FlipbookRoomViewerFactory flipbookRoomViewerFactory;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
+    private final FlipbookRuntimeSettingsProvider flipbookRuntimeSettingsProvider;
 
     /**
      * 대기 중인 플립북 방의 라운드별 제한 시간을 변경합니다.
@@ -39,7 +42,8 @@ public class FlipbookRoomSettingsUseCase {
     @Transactional(readOnly = true)
     public FlipbookRoomStateResponse updateRoomSettings(String userUuidValue, String roomCodeValue,
         FlipbookRoomSettingsRequest request) {
-        int timeLimitSeconds = flipbookRoomPolicy.resolveTimeLimitSeconds(request);
+        FlipbookRuntimeSettingsSnapshot settings = flipbookRuntimeSettingsProvider.currentSettingsSnapshot();
+        int timeLimitSeconds = flipbookRoomPolicy.resolveTimeLimitSeconds(request, settings.roomTimeLimitSettings());
         AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
         flipbookRoomPolicy.validateRoomCode(roomCodeValue);
         String viewerUserUuid = viewerUser.getId().toString();
@@ -61,7 +65,7 @@ public class FlipbookRoomSettingsUseCase {
                         updatedRoomState.timeLimitSeconds(), "room_status", updatedRoomState.status()));
                 FlipbookRoomViewerResponse viewer = flipbookRoomViewerFactory.create(viewerUserUuid, updatedRoomState);
 
-                return FlipbookRoomStateResponse.from(updatedRoomState, viewer);
+                return FlipbookRoomStateResponse.from(updatedRoomState, viewer, settings.roomTimeLimitSettings());
             }
         }
 

@@ -44,7 +44,8 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(
                 jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoOriginalImageUrl").exists())
             .andExpect(
-                jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoThumbnailImageUrl").exists());
+                jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoThumbnailImageUrl").exists())
+            .andExpect(jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.decoration").exists());
     }
 
     /**

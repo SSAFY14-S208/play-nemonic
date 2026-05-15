@@ -77,7 +77,9 @@ presign -> direct PUT to MinIO -> confirm upload -> submit frame
 
 The submitted file must belong to the submitting user, must be uploaded, and
 must use `FileUploadPurpose.FLIPBOOK`. Redis assignments store the file id and
-object key; final GIF generation later downloads the stored object keys.
+object key; final GIF generation later downloads the stored object keys. The
+presign/confirm flow does not decode the uploaded image bytes or add a white
+background.
 
 Timeout processing is backend-authoritative. When the round deadline passes,
 the backend publishes one `ROUND_TIME_UP` event during the auto-submit grace
@@ -122,13 +124,25 @@ objectKey is present
 ```
 
 This encodes the product decision that timeout/disconnect empty frames are not
-rendered into the final GIF. Group valid frames by `flipbookIndex`, sort by
-`frameIndex`, compose a GIF and thumbnail, and upload them under:
+rendered into the final GIF. If no valid result frame remains at all, do not
+create an empty GIF or gallery artifact. Close the room directly with
+`close_reason=no_result_frames` and publish `ROOM_CLOSED`.
+
+When at least one valid frame remains, group valid frames by `flipbookIndex`,
+sort by `frameIndex`, compose a GIF and thumbnail, and upload them under:
 
 ```text
 flipbook/results/{artifactId}/result.gif
 flipbook/results/{artifactId}/thumbnail.png
 ```
+
+Result composition must not paint transparent frame backgrounds white. GIF
+normalization uses ARGB frames before writing while preserving the existing
+`image/gif` contract. The thumbnail PNG resize path also uses ARGB so
+transparent PNG frame alpha remains transparent in the thumbnail. GIF remains a
+palette-based format, so it does not provide PNG-style full alpha precision;
+APNG or animated WebP would be a separate contract-changing follow-up if higher
+fidelity transparency becomes necessary.
 
 Then persist:
 
@@ -142,10 +156,16 @@ exist and their flipbook indexes match the expected submitted indexes, reuse
 them and only retry the Redis transition to `FINISHED`.
 
 Finished rooms are automatically closed after
-`nemonic.flipbook.close.delay-seconds`, defaulting to 300 seconds. Waiting rooms
-are also cleaned up: empty waiting rooms close immediately, and waiting rooms
+`nemonic.flipbook.close.delay-seconds`, defaulting to 300 seconds. Abandoned
+rooms are also cleaned up: empty waiting rooms close immediately, waiting rooms
 where all participants remain disconnected past the configured idle duration
-close with `close_reason=waiting_idle_timeout`.
+close with `close_reason=waiting_idle_timeout`, and playing rooms where every
+participant is disconnected or dropped past the configured abandoned duration
+close with `close_reason=playing_abandoned`.
+
+`ROOM_CLOSED` includes additive `closeReason` metadata. Current close reasons
+include `waiting_empty`, `waiting_idle_timeout`, `playing_abandoned`,
+`auto_delay`, `finalization_failed`, and `no_result_frames`.
 
 ## Consequences
 
@@ -157,18 +177,19 @@ close with `close_reason=waiting_idle_timeout`.
 - Positive: Empty timeout/disconnect frames are excluded from final GIF output,
   matching the confirmed product policy that results may contain fewer frames
   than the configured target.
+- Positive: Rooms with zero renderable frames no longer produce empty
+  artifacts; clients receive a clear `ROOM_CLOSED.closeReason=no_result_frames`.
 - Positive: Existing result rows can recover a `FINALIZING` room without
   duplicate GIF uploads when only the Redis `FINISHED` transition failed.
+- Positive: Result generation no longer adds a backend white background to
+  transparent frames, and PNG thumbnails keep transparent backgrounds.
 - Positive: Gallery ownership is explicit and excludes dropped participants.
 - Negative: Unlike Relay, flipbook finalization does not currently track an
   attempt marker or delete newly uploaded result objects if DB persistence fails
   after upload.
-- Negative: Waiting-room abandoned cleanup exists, but a `PLAYING` room where
-  every participant is disconnected or dropped is not closed by the flipbook
-  abandoned-close scheduler today.
 - Negative: Finalization retry count and scheduler cadence are environment
   properties, not backoffice system parameters.
 - Follow-up: Add Relay-style result upload rollback/orphan cleanup for
   `flipbook/results/**` if storage drift becomes operationally visible.
-- Follow-up: Add `PLAYING` abandoned close parity if product policy requires
-  stuck in-game flipbook rooms to close automatically without finalization.
+- Follow-up: Consider APNG or animated WebP only if GIF palette transparency is
+  not sufficient for product-quality transparent animation.
