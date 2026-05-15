@@ -347,10 +347,9 @@ I2_SPEC = {
     # 두면 plugin 이 자동 주입을 건너뛰어 warning 사라짐. multi-view(facet) 인 I3 는
     # 자동 주입 대상이 아니라 명시 불필요.
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
-    "title": {
-        "text": "컨텐츠별 완주율 (%)",
-        "subtitle": "방 생성/참여 후 완료 비율. 단순 랜딩만 한 세션은 분모에서 제외.",
-    },
+    # 내부 title 제거 — autosize:fit + contains:padding 은 padding 만 contain 하고
+    # title/legend 는 SVG 위로 별도 높이 추가됨 → panel container 보다 커져 scroll 발생.
+    # OSD panel header 가 이미 attributes.title 을 표시하므로 viz 내부 title 은 중복.
     "data": {
         "url": {
             "%context%": True,
@@ -428,7 +427,7 @@ I2_SPEC = {
         },
     },
     # y축 label 자리 확보 — 좌측 padding 충분히.
-    "padding": {"left": 170, "right": 60, "top": 50, "bottom": 40},
+    "padding": {"left": 170, "right": 60, "top": 20, "bottom": 40},
     "layer": [
         # background track — 100% 기준선 (subtle하게 panel 안의 max-rail 보여줌).
         {
@@ -496,10 +495,8 @@ I2 = viz_vega(
 # ============================================================
 I3_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "title": {
-        "text": "단계별 이탈 깔때기",
-        "subtitle": "각 컨텐츠의 단계별 잔존 세션 수. 막대가 짧아질수록 그 단계에서 사용자가 빠진 것.",
-    },
+    # 내부 title 제거 — facet spec 도 title 이 SVG 상단에 추가 높이로 붙어 panel 초과 시
+    # scroll 발생. attributes.title 이 OSD panel header 에 표시됨.
     "data": {
         "url": {
             "%context%": True,
@@ -576,9 +573,10 @@ I3_SPEC = {
     "spec": {
         # facet inner spec — width:"container" 로 panel CSS 폭을 따라가게.
         # 모든 row 가 동일 container 폭을 공유하므로 facet 에서도 동작. height 는 row 당
-        # 고정 px 로 — 컨텐츠 5 개 × 120px ≈ 600px, panel grid h=24 (~600-700px) 에 fit.
+        # 고정 px 로 — 컨텐츠 5 개 × 100px = 500px + axes ~60px ≈ 560px, panel grid h=24
+        # (~600px) 안에 fit. title 제거로 추가 ~40px 도 절약.
         "width": "container",
-        "height": 120,
+        "height": 100,
         "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True},
         "encoding": {
             "y": {
@@ -657,13 +655,8 @@ CONTENT_ORDER = [
 I4_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
-    "title": {
-        "text": "컨텐츠 간 이동 흐름",
-        "subtitle": (
-            "이전 컨텐츠(가로) → 다음 컨텐츠(세로). 색 진하기 = 이동 세션 수. "
-            "같은 컨텐츠 내 이동(lobby→drawing 등)은 제외."
-        ),
-    },
+    # 내부 title 제거 — autosize:fit 가 title 을 contain 못 해 panel 초과 → scroll.
+    # OSD panel header 의 "[I4] 컨텐츠 간 이동 흐름" 으로 충분.
     "data": {
         "url": {
             "%context%": True,
@@ -722,7 +715,7 @@ I4_SPEC = {
         # 셀 안 텍스트 색 분기 기준 — 전체 max 대비 50% 이상이면 흰색, 아니면 어두운 색.
         {"joinaggregate": [{"op": "max", "field": "count", "as": "count_max"}]},
     ],
-    "padding": {"top": 50, "right": 24, "bottom": 60, "left": 110},
+    "padding": {"top": 20, "right": 24, "bottom": 60, "left": 110},
     "width": "container",
     "height": "container",
     "layer": [
@@ -756,7 +749,10 @@ I4_SPEC = {
                     "field": "count",
                     "type": "quantitative",
                     "scale": {"scheme": "purples"},
-                    "legend": {"title": "이동 세션 수"},
+                    # legend 제거 — vega-lite autosize:fit 가 legend 를 contain 못 함 (right/
+                    # bottom 어디든 SVG 영역 밖으로 추가됨 → scroll). 셀 안 숫자 + 색 진하기
+                    # 의 자명한 의미(짙음 = 이동 많음)로 legend 없이도 해석 가능.
+                    "legend": None,
                 },
                 "tooltip": [
                     {"field": "from", "type": "nominal", "title": "이전 컨텐츠"},
@@ -1205,10 +1201,7 @@ I8 = viz_vega(
 # ============================================================
 I9_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "title": {
-        "text": "체험 공간 평균 체류 시간",
-        "subtitle": "page_leave 의 time_on_page_ms 평균 (초). 막대가 길수록 더 오래 머무는 화면.",
-    },
+    # 내부 title 제거 (panel header 와 중복, scroll 유발).
     "data": {
         "url": {
             "%context%": True,
@@ -1440,10 +1433,7 @@ I11 = viz_classic(
 # ============================================================
 I12_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "title": {
-        "text": "결과 화면 체류 시간 분포",
-        "subtitle": "결과 페이지 체류 시간 (초). 짧을수록 만족도 낮음(보고 바로 닫음).",
-    },
+    # 내부 title 제거 (panel header 와 중복, scroll 유발).
     "data": {
         "url": {
             "%context%": True,
@@ -1548,10 +1538,7 @@ I12 = viz_vega(
 # ============================================================
 I13_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "title": {
-        "text": "이탈 직전 평균 체류 시간",
-        "subtitle": "이탈 유형별 평균 시간(초). 짧을수록 사용자가 빨리 지루해함.",
-    },
+    # 내부 title 제거 (panel header 와 중복, scroll 유발).
     "data": {
         "url": {
             "%context%": True,
