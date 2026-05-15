@@ -1,0 +1,246 @@
+.infinite-canvas-page {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.5rem, 4vw, 4rem);
+  background: #06193e;
+  color: #ffffff;
+}
+
+.infinite-canvas-page__background {
+  z-index: -3;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(1.04) contrast(1.02);
+  transform: scale(1.012);
+}
+
+.infinite-canvas-page__shade {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(115, 223, 255, 0.28), transparent 32%),
+    linear-gradient(180deg, rgba(2, 14, 45, 0.08), rgba(3, 12, 31, 0.28));
+  pointer-events: none;
+}
+
+.infinite-canvas-shell {
+  width: min(94vw, 58rem);
+  min-height: min(86svh, 47rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.75rem, 1.8vw, 1.4rem);
+  transform: translateY(clamp(-0.75rem, -1.2vw, -0.25rem));
+}
+
+.infinite-canvas-logo-wrap {
+  width: min(88vw, 38rem);
+  filter: drop-shadow(0 0.65rem 1.2rem rgba(0, 35, 96, 0.35));
+  animation: infinite-canvas-logo-float 5.6s ease-in-out infinite;
+}
+
+.infinite-canvas-logo {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.infinite-canvas-card {
+  position: relative;
+  width: min(92vw, 51rem);
+  border-radius: clamp(1.5rem, 3vw, 2.5rem);
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(227, 245, 255, 0.93), rgba(180, 213, 255, 0.78)),
+    rgba(255, 255, 255, 0.78);
+  box-shadow:
+    0 1.5rem 4rem rgba(3, 24, 64, 0.34),
+    inset 0 0 0 0.125rem rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(0.65rem);
+}
+
+.infinite-canvas-card__shine {
+  position: absolute;
+  inset: -35% auto auto -15%;
+  width: 65%;
+  aspect-ratio: 1;
+  border-radius: 999rem;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.72), transparent 68%);
+  pointer-events: none;
+}
+
+.infinite-canvas-card__label {
+  position: relative;
+  margin: 0 0 clamp(0.85rem, 2vw, 1.25rem);
+  text-align: center;
+  color: #234773;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-shadow: 0 0.08rem 0 rgba(255, 255, 255, 0.75);
+}
+
+.infinite-canvas-card__label::before,
+.infinite-canvas-card__label::after {
+  content: "✦";
+  display: inline-block;
+  margin: 0 0.55rem;
+  color: #fff2a8;
+  text-shadow: 0 0 0.8rem rgba(255, 205, 71, 0.75);
+}
+
+.infinite-canvas-palette-wrap {
+  position: relative;
+  margin-inline: auto;
+  width: min(100%, 45rem);
+}
+
+.infinite-canvas-palette {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 0.9rem 1.4rem rgba(13, 40, 95, 0.18));
+}
+
+.infinite-canvas-color-picker {
+  position: absolute;
+  inset: 38% 9.5% auto 9.5%;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: clamp(0.45rem, 1.5vw, 1rem);
+  align-items: center;
+}
+
+.infinite-canvas-color-swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 999rem;
+  background: var(--infinite-canvas-swatch-color);
+  box-shadow:
+    inset 0 0.12rem 0.22rem rgba(255, 255, 255, 0.82),
+    0 0.36rem 0.75rem rgba(33, 62, 109, 0.22);
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.infinite-canvas-color-swatch[data-selected="true"] {
+  transform: translateY(-0.12rem) scale(1.08);
+  box-shadow:
+    0 0 0 0.22rem rgba(255, 255, 255, 0.92),
+    0 0 0 0.4rem rgba(85, 180, 246, 0.85),
+    0 0.7rem 1.2rem rgba(29, 84, 148, 0.28);
+}
+
+.infinite-canvas-color-swatch:focus-visible,
+.infinite-canvas-action-button:focus-visible {
+  outline: 0.18rem solid rgba(255, 247, 160, 0.96);
+  outline-offset: 0.22rem;
+}
+
+.infinite-canvas-actions {
+  position: relative;
+  margin: clamp(1.1rem, 2.8vw, 1.8rem) auto 0;
+  display: grid;
+  width: min(100%, 35rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.75rem, 2vw, 1.15rem);
+}
+
+.infinite-canvas-action-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 0.72rem 1rem rgba(25, 44, 102, 0.28));
+  transition:
+    transform 180ms ease,
+    filter 180ms ease,
+    opacity 180ms ease;
+}
+
+.infinite-canvas-action-button:hover {
+  transform: translateY(-0.15rem) scale(1.02);
+  filter: drop-shadow(0 0.95rem 1.2rem rgba(25, 44, 102, 0.3));
+}
+
+.infinite-canvas-action-button:active {
+  transform: translateY(0.06rem) scale(0.985);
+}
+
+.infinite-canvas-action-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.infinite-canvas-action-button__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@keyframes infinite-canvas-logo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.42rem);
+  }
+}
+
+@media (max-width: 48rem) {
+  .infinite-canvas-page {
+    overflow-y: auto;
+    padding: 4.75rem 1rem 2rem;
+  }
+
+  .infinite-canvas-page__background {
+    object-position: 58% center;
+  }
+
+  .infinite-canvas-shell {
+    width: 100%;
+    min-height: auto;
+    transform: none;
+  }
+
+  .infinite-canvas-logo-wrap {
+    width: min(88vw, 26rem);
+  }
+
+  .infinite-canvas-card {
+    width: min(100%, 29rem);
+    padding: 1.15rem;
+    border-radius: 1.55rem;
+  }
+
+  .infinite-canvas-color-picker {
+    gap: 0.45rem;
+  }
+
+  .infinite-canvas-actions {
+    width: min(100%, 23rem);
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .infinite-canvas-logo-wrap {
+    animation: none;
+  }
+
+  .infinite-canvas-color-swatch,
+  .infinite-canvas-action-button {
+    transition: none;
+  }
+}
