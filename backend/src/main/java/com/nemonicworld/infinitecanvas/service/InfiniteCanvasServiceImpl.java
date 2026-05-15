@@ -5,6 +5,8 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasParticipantUpdateRequest;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
@@ -30,6 +32,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final String INVALID_CANVAS_ID_MESSAGE = "유효하지 않은 캔버스 ID 형식입니다.";
     private static final String CANVAS_NOT_FOUND_MESSAGE = "활성 무한 캔버스를 찾을 수 없습니다.";
     private static final String CANVAS_FULL_MESSAGE = "무한 캔버스 최대 참여자 수를 초과했습니다.";
+    private static final String NOT_PARTICIPANT_MESSAGE = "무한 캔버스 참여자가 아닙니다.";
     private static final String UPDATE_CONFLICT_MESSAGE = "무한 캔버스 상태 갱신 충돌이 발생했습니다. 다시 시도해주세요.";
     private static final int UPDATE_MAX_RETRIES = 8;
     private static final List<String> DEFAULT_COLORS = List.of("#2F80ED", "#27AE60", "#EB5757", "#F2994A", "#9B51E0",
@@ -99,6 +102,34 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
                 infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(updatedState);
                 return InfiniteCanvasStateResponse.from(updatedState, viewerUserUuid);
+            }
+        }
+
+        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InfiniteCanvasParticipantResponse updateMyParticipant(String userUuidValue, String canvasId,
+        InfiniteCanvasParticipantUpdateRequest request) {
+        AppUser user = anonymousUserResolver.resolve(userUuidValue);
+        String userUuid = user.getId().toString();
+        String normalizedCanvasId = normalizeCanvasId(canvasId);
+
+        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
+            InfiniteCanvasState state = findActiveState(normalizedCanvasId);
+            InfiniteCanvasParticipant participant = state.findParticipant(userUuid)
+                .orElseThrow(() -> new NotFoundException(NOT_PARTICIPANT_MESSAGE));
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            InfiniteCanvasParticipant updatedParticipant = participant.updateProfile(
+                normalizeNickname(request == null ? null : request.nickname(), participant.nickname()),
+                normalizeColor(request == null ? null : request.color(), participant.color()),
+                normalizeAvatarUrl(request == null ? null : request.avatarUrl(), participant.avatarUrl()), now);
+            InfiniteCanvasState updatedState = copyState(state,
+                replaceParticipant(state.participants(), updatedParticipant), now);
+
+            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
+                return InfiniteCanvasParticipantResponse.from(updatedParticipant);
             }
         }
 
@@ -183,5 +214,14 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         return new InfiniteCanvasState(state.canvasId(), state.inviteCode(), state.status(), state.ownerUserUuid(),
             participants, state.elements(), state.operations(), state.locks(), state.cursors(), state.viewport(),
             state.maxParticipants(), state.revision(), state.createdAt(), updatedAt, state.closedAt());
+    }
+
+    private List<InfiniteCanvasParticipant> replaceParticipant(List<InfiniteCanvasParticipant> participants,
+        InfiniteCanvasParticipant updatedParticipant) {
+        return participants.stream()
+            .map(participant -> participant.userUuid().equals(updatedParticipant.userUuid())
+                ? updatedParticipant
+                : participant)
+            .toList();
     }
 }
