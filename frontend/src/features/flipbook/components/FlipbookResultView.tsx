@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Download, Loader2, RotateCcw, Share2, X } from 'lucide-react'
+import { Download, Home, Loader2, Share2 } from 'lucide-react'
 
 import type { FlipbookResultItemResponse } from '@/shared/types'
 import { getDisplayImageUrl } from '@/shared/utils'
 
-import { useFlipbookGifDownload } from '../hooks'
+import { useFlipbookResultActions } from '../hooks'
 import { toFlipbookPrintParticipants } from '../utils'
 import {
   FlipbookPrintResultStage,
@@ -19,36 +19,36 @@ interface FlipbookResultViewProps {
   resultItems: FlipbookResultItemResponse[]
   resultOwnerNames: string[]
   activeResultIndex: number
-  gifUrl: string | null
   resultCount: number
   canCloseRoom: boolean
   isBusy: boolean
   errorMessage: string | null
   onSelectResult: (resultIndex: number) => void
-  onCloseRoom: () => void
-  onCreateAnother: () => void
+  onReturnToLobby: () => void
 }
 
 export default function FlipbookResultView({
   resultItems,
   resultOwnerNames,
   activeResultIndex,
-  gifUrl,
   resultCount,
   canCloseRoom,
   isBusy,
   errorMessage,
   onSelectResult,
-  onCloseRoom,
-  onCreateAnother,
+  onReturnToLobby,
 }: FlipbookResultViewProps) {
   const printParticipants = useMemo(
     () => toFlipbookPrintParticipants({ resultItems, resultOwnerNames }),
     [resultItems, resultOwnerNames],
   )
   const activeResult = resultItems[activeResultIndex] ?? resultItems[0] ?? null
-  const displayGifUrl = getDisplayImageUrl(gifUrl) ?? gifUrl
-  const gifDownload = useFlipbookGifDownload()
+  const resultActions = useFlipbookResultActions({
+    activeResult,
+    activeResultIndex,
+    resultOwnerNames,
+    onReturnToLobby,
+  })
   const isResultLoading = printParticipants.length === 0
 
   return (
@@ -81,58 +81,44 @@ export default function FlipbookResultView({
       <div className="absolute right-6 top-6 z-[120] flex flex-wrap justify-end gap-2">
         <button
           type="button"
-          onClick={() => {
-            void gifDownload.downloadGif({
-              gifUrl: displayGifUrl,
-              fileName: `flipbook-${activeResult?.artifactId ?? activeResultIndex + 1}`,
-            })
-          }}
-          disabled={!displayGifUrl || gifDownload.isDownloadingGif}
+          onClick={() => void resultActions.saveToLocalGallery()}
+          disabled={!resultActions.canSaveToLocal}
           className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md disabled:opacity-45"
         >
-          {gifDownload.isDownloadingGif ? (
+          {resultActions.isSavingToLocal ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
           ) : (
             <Download className="size-4" aria-hidden />
           )}
-          GIF 저장
+          로컬 보관함 저장
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (!displayGifUrl || !navigator.share) return
-            void navigator.share({ title: '플립북', url: displayGifUrl })
-          }}
-          disabled={!displayGifUrl}
+          onClick={resultActions.postToCommunity}
+          disabled={!resultActions.canPostCommunity}
           className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md disabled:opacity-45"
         >
           <Share2 className="size-4" aria-hidden />
-          공유
+          커뮤니티 게시
         </button>
         <button
           type="button"
-          onClick={onCreateAnother}
-          className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md"
+          onClick={resultActions.returnToLobby}
+          disabled={canCloseRoom && isBusy}
+          className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md disabled:opacity-45"
         >
-          <RotateCcw className="size-4" aria-hidden />
-          새 플립북
+          {canCloseRoom && isBusy ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Home className="size-4" aria-hidden />
+          )}
+          {canCloseRoom ? (isBusy ? '종료 중' : '방 종료') : '로비로 돌아가기'}
         </button>
-        {canCloseRoom && (
-          <button
-            type="button"
-            onClick={onCloseRoom}
-            disabled={isBusy}
-            className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ff8aa4]/70 bg-[#fff0f4]/88 px-4 text-[#b84e66] shadow-[0_8px_18px_rgb(226_128_154_/_16%)] backdrop-blur-md disabled:opacity-45"
-          >
-            <X className="size-4" aria-hidden />
-            {isBusy ? '종료 중' : '방 종료'}
-          </button>
-        )}
       </div>
 
-      {(errorMessage || gifDownload.gifDownloadError) && (
+      {(errorMessage || resultActions.actionMessage) && (
         <p className="caption-b absolute bottom-6 left-1/2 z-[120] -translate-x-1/2 rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md">
-          {errorMessage ?? gifDownload.gifDownloadError}
+          {errorMessage ?? resultActions.actionMessage}
         </p>
       )}
     </section>

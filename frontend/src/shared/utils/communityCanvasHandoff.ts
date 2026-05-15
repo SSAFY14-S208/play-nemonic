@@ -1,4 +1,4 @@
-export type CommunityCanvasHandoffSourceKind = 'GALLERY' | 'FORTUNE' | 'RELAY'
+export type CommunityCanvasHandoffSourceKind = 'GALLERY' | 'FORTUNE' | 'RELAY' | 'FLIPBOOK'
 
 export interface CommunityCanvasHandoffDraft {
   sourceKind: CommunityCanvasHandoffSourceKind
@@ -24,7 +24,8 @@ function normalizeCommunityCanvasHandoffDraft(
   if (
     candidate.sourceKind !== 'GALLERY' &&
     candidate.sourceKind !== 'FORTUNE' &&
-    candidate.sourceKind !== 'RELAY'
+    candidate.sourceKind !== 'RELAY' &&
+    candidate.sourceKind !== 'FLIPBOOK'
   ) {
     return null
   }

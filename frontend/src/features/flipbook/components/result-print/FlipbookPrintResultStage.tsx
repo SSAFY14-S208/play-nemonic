@@ -174,6 +174,8 @@ export default function FlipbookPrintResultStage({
         <FurnitureLayers />
         <BoardLayer />
 
+        {activeFrameIndex > 0 && <FixedAttachedPaperShadow />}
+
         {previousFrame && selectedParticipant && (
           <div
             className="absolute z-30"
@@ -616,6 +618,21 @@ function DirectPlaybackPaper({
   )
 }
 
+function FixedAttachedPaperShadow() {
+  return (
+    <div
+      className={cn('pointer-events-none absolute z-20', PRINTED_PAPER_SHADOW_CLASS)}
+      style={{
+        height: ATTACHED_PAPER_HEIGHT,
+        left: ATTACHED_PAPER_LEFT,
+        top: ATTACHED_PAPER_TOP,
+        width: ATTACHED_PAPER_WIDTH,
+      }}
+      aria-hidden
+    />
+  )
+}
+
 function ShadowedPrintedPaper({
   frame,
   frameIndex,
@@ -633,12 +650,6 @@ function ShadowedPrintedPaper({
 }) {
   return (
     <div className="relative h-full w-full">
-      {frameIndex === 0 && (
-        <div
-          className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
-          aria-hidden
-        />
-      )}
       <PrintedPaper
         frame={frame}
         frameIndex={frameIndex}
