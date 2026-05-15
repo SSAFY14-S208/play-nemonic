@@ -4,10 +4,19 @@ import Image from 'next/image'
 import { Flag, Trash2, X } from 'lucide-react'
 import type { CommunityMemoDetailResponse } from '@/shared/types'
 import { parseServerInstant } from '@/shared/utils'
+import {
+  useCommunityCompactViewport,
+  useCommunityModalFitScale,
+} from './useCommunityModalFitScale'
+
+const DETAIL_MODAL_WIDTH = 1500
+const DETAIL_MODAL_HEIGHT = 1040
+const DETAIL_MODAL_MAX_WIDTH = 1152
 
 interface CommunityMemoDetailModalProps {
   isOpen: boolean
   detail: CommunityMemoDetailResponse | null
+  playbackImageUrl: string | null
   detailStatus: 'idle' | 'loading' | 'success' | 'error'
   detailError: string | null
   mutationStatus: 'idle' | 'loading' | 'success' | 'error'
@@ -30,6 +39,7 @@ function formatAttachedAt(value: string) {
 export function CommunityMemoDetailModal({
   isOpen,
   detail,
+  playbackImageUrl,
   detailStatus,
   detailError,
   mutationStatus,
@@ -37,22 +47,134 @@ export function CommunityMemoDetailModal({
   onDelete,
   onReportOpen,
 }: CommunityMemoDetailModalProps) {
+  const modalScale = useCommunityModalFitScale({
+    designWidth: DETAIL_MODAL_WIDTH,
+    designHeight: DETAIL_MODAL_HEIGHT,
+    maxWidth: DETAIL_MODAL_MAX_WIDTH,
+    viewportPadding: 32,
+  })
+  const isCompactViewport = useCommunityCompactViewport()
+
   if (!isOpen) return null
+
+  const displayImageUrl = detail
+    ? playbackImageUrl || detail.memoOriginalImageUrl || detail.memoImageUrl
+    : null
+
+  if (isCompactViewport) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="community-memo-detail-title"
+        className="fixed inset-0 z-[var(--z-overlay)] overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-3 backdrop-blur-[2px]"
+      >
+        <section className="mx-auto flex min-h-full w-full max-w-[46rem] flex-col gap-4 rounded-[1.5rem] border-[0.35rem] border-[#f5d96c] bg-[#fff2b3] p-4 shadow-[0_18px_38px_rgb(25_20_40_/_24%)]">
+          <header className="flex items-start justify-between gap-3 rounded-[1rem] border border-[#f0d887] bg-[#fffdf1] p-4">
+            <div>
+              <p className="caption-b text-primary-2">{detail?.sourceType ?? 'COMMUNITY'}</p>
+              <h2 id="community-memo-detail-title" className="h3-b mt-1 text-fg-primary">
+                {detail?.authorNickname ?? '커뮤니티 메모'}
+              </h2>
+            </div>
+            <button
+              type="button"
+              aria-label="메모 상세 닫기"
+              onClick={onClose}
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
+            >
+              <X className="size-5" />
+            </button>
+          </header>
+
+          <div className="relative min-h-[18rem] overflow-hidden rounded-[1rem] border border-[#ffdf82]/80 bg-white shadow-[inset_0_1px_0_rgb(255_255_255_/_88%),0_8px_22px_rgb(71_68_112_/_10%)]">
+            {detailStatus === 'loading' && (
+              <div className="absolute inset-0 grid place-items-center">
+                <p className="body-b text-fg-secondary">메모를 여는 중</p>
+              </div>
+            )}
+
+            {detailStatus === 'error' && (
+              <div className="absolute inset-0 grid place-items-center p-8 text-center">
+                <div>
+                  <p className="h3-b text-fg-primary">메모를 열지 못했어요.</p>
+                  <p className="body-r mt-2 text-fg-secondary">{detailError}</p>
+                </div>
+              </div>
+            )}
+
+            {detail && displayImageUrl && (
+              <Image
+                key={displayImageUrl}
+                src={displayImageUrl}
+                alt={`${detail.authorNickname}의 커뮤니티 메모 원본`}
+                fill
+                sizes="100vw"
+                unoptimized
+                className="object-contain p-4"
+              />
+            )}
+          </div>
+
+          <footer className="grid gap-3 rounded-[1rem] border border-[#f0d887] bg-[#fffdf1] p-4">
+            {detail && (
+              <p className="body-r text-fg-secondary">
+                {formatAttachedAt(detail.attachedAt)}
+              </p>
+            )}
+
+            {detail?.ownedByMe ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={mutationStatus === 'loading'}
+                className="body-b inline-flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-surface-default px-5 text-error transition disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Trash2 className="size-4" />
+                삭제
+              </button>
+            ) : detail ? (
+              <button
+                type="button"
+                onClick={onReportOpen}
+                disabled={mutationStatus === 'loading'}
+                className="body-b inline-flex h-11 items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] px-5 text-fg-primary transition disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Flag className="size-4" />
+                신고하기
+              </button>
+            ) : null}
+          </footer>
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-memo-detail-title"
-      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
     >
-      <section
-        className="relative aspect-[1500/1040] w-full max-w-6xl bg-contain bg-center bg-no-repeat"
+      <div
+        className="relative shrink-0"
         style={{
-          backgroundImage: 'url("/images/community-canvas/ui/modal-detail-frame.svg")',
-          backgroundSize: '100% 100%',
+          width: DETAIL_MODAL_WIDTH * modalScale,
+          height: DETAIL_MODAL_HEIGHT * modalScale,
         }}
       >
+        <section
+          className="absolute left-0 top-0 bg-contain bg-center bg-no-repeat"
+          style={{
+            width: DETAIL_MODAL_WIDTH,
+            height: DETAIL_MODAL_HEIGHT,
+            transform: `scale(${modalScale})`,
+            transformOrigin: 'top left',
+            backgroundImage: 'url("/images/community-canvas/ui/modal-detail-frame.svg")',
+            backgroundSize: '100% 100%',
+          }}
+        >
         <button
           type="button"
           aria-label="메모 상세 닫기"
@@ -78,9 +200,10 @@ export function CommunityMemoDetailModal({
             </div>
           )}
 
-          {detail && (
+          {detail && displayImageUrl && (
             <Image
-              src={detail.memoOriginalImageUrl || detail.memoImageUrl}
+              key={displayImageUrl}
+              src={displayImageUrl}
               alt={`${detail.authorNickname}의 커뮤니티 메모 원본`}
               fill
               sizes="100vw"
@@ -120,7 +243,7 @@ export function CommunityMemoDetailModal({
                   type="button"
                   onClick={onReportOpen}
                   disabled={mutationStatus === 'loading'}
-                  className="body-b inline-flex h-11 items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary px-5 text-fg-inverse transition hover:bg-fg-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                  className="body-b inline-flex h-11 items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] px-5 text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Flag className="size-4" />
                   신고하기
@@ -129,7 +252,8 @@ export function CommunityMemoDetailModal({
             </div>
           )}
         </footer>
-      </section>
+        </section>
+      </div>
     </div>
   )
 }

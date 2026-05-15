@@ -4,6 +4,14 @@ import { useState } from 'react'
 import { Flag, X } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoReportReason } from '@/shared/types'
+import {
+  useCommunityCompactViewport,
+  useCommunityModalFitScale,
+} from './useCommunityModalFitScale'
+
+const REPORT_MODAL_WIDTH = 760
+const REPORT_MODAL_HEIGHT = 660
+const REPORT_MODAL_MAX_WIDTH = 960
 
 const REPORT_REASONS: CommunityMemoReportReason[] = [
   '부적절한 콘텐츠',
@@ -31,77 +39,166 @@ export function CommunityReportModal({
 }: CommunityReportModalProps) {
   const [reason, setReason] = useState<CommunityMemoReportReason>('부적절한 콘텐츠')
   const [reasonDetail, setReasonDetail] = useState('')
+  const isCompactViewport = useCommunityCompactViewport()
+  const modalScale = useCommunityModalFitScale({
+    designWidth: REPORT_MODAL_WIDTH,
+    designHeight: REPORT_MODAL_HEIGHT,
+    maxWidth: REPORT_MODAL_MAX_WIDTH,
+    viewportPadding: 16,
+  })
 
   if (!isOpen) return null
+
+  if (isCompactViewport) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="community-report-title"
+        className="fixed inset-0 z-[calc(var(--z-overlay)+10)] overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-3 backdrop-blur-[2px]"
+      >
+        <section className="mx-auto flex min-h-full w-full max-w-[42rem] flex-col gap-4 rounded-[1.5rem] border-[0.35rem] border-[#f5d96c] bg-[#fff2b3] p-4 shadow-[0_18px_38px_rgb(25_20_40_/_24%)]">
+          <header className="flex items-start justify-between gap-3 rounded-[1rem] border border-[#f0d887] bg-[#fffdf1] p-4">
+            <h2 id="community-report-title" className="h3-b text-fg-primary">
+              메모 신고
+            </h2>
+            <button
+              type="button"
+              aria-label="신고 닫기"
+              onClick={onClose}
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
+            >
+              <X className="size-5" />
+            </button>
+          </header>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {REPORT_REASONS.map((reportReason) => (
+              <button
+                key={reportReason}
+                type="button"
+                aria-pressed={reason === reportReason}
+                onClick={() => setReason(reportReason)}
+                className={cn(
+                  'body-b flex min-h-12 items-center rounded-[0.45rem] border px-4 py-3 text-left transition',
+                  reason === reportReason
+                    ? 'border-[#FFD95D] bg-[#FFF8E1] text-primary-2'
+                    : 'border-border-default bg-white text-fg-secondary',
+                )}
+              >
+                {reportReason}
+              </button>
+            ))}
+          </div>
+
+          <label className="body-b block text-fg-primary" htmlFor="report-detail-compact">
+            상세 사유
+          </label>
+          <textarea
+            id="report-detail-compact"
+            value={reasonDetail}
+            onChange={(event) => setReasonDetail(event.target.value)}
+            maxLength={300}
+            className="body-r min-h-44 resize-none rounded-[0.45rem] border border-[#FFD66B]/70 bg-[#fffdf1] p-4 text-fg-primary outline-none focus:border-[#FFD95D]"
+          />
+
+          <button
+            type="button"
+            onClick={() => onSubmit(reason, reasonDetail)}
+            disabled={status === 'loading'}
+            className="body-b sticky bottom-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary shadow-[0_8px_18px_rgb(78_44_20_/_14%)] transition disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Flag className="size-4" />
+            {status === 'loading' ? '접수 중' : '신고 접수'}
+          </button>
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="community-report-title"
-      className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-2 backdrop-blur-[2px]"
     >
-      <section
-        className="w-full max-w-md bg-contain bg-center bg-no-repeat px-10 pb-10 pt-9"
+      <div
+        className="relative shrink-0"
         style={{
-          backgroundImage: 'url("/images/community-canvas/ui/modal-report-frame.svg")',
-          backgroundSize: '100% 100%',
+          width: REPORT_MODAL_WIDTH * modalScale,
+          height: REPORT_MODAL_HEIGHT * modalScale,
         }}
       >
-        <header className="flex items-center justify-between px-3 py-3">
+        <section
+          className="absolute left-0 top-0 bg-contain bg-center bg-no-repeat"
+          style={{
+            width: REPORT_MODAL_WIDTH,
+            height: REPORT_MODAL_HEIGHT,
+            transform: `scale(${modalScale})`,
+            transformOrigin: 'top left',
+            backgroundImage: 'url("/images/community-canvas/ui/modal-report-frame.svg")',
+            backgroundSize: '100% 100%',
+          }}
+        >
+        <header className="absolute left-[9.8%] right-[18%] top-[3.5%] flex h-[8.5%] items-center">
           <h2 id="community-report-title" className="h3-b text-fg-primary">
             메모 신고
           </h2>
-          <button
-            type="button"
-            aria-label="신고 닫기"
-            onClick={onClose}
-            className="grid size-9 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_6px_14px_rgb(71_68_112_/_16%)]"
-          >
-            <X className="size-5" />
-          </button>
         </header>
-
-        <div className="mt-8 grid grid-cols-2 gap-2 px-2">
-          {REPORT_REASONS.map((reportReason) => (
-            <button
-              key={reportReason}
-              type="button"
-              aria-pressed={reason === reportReason}
-              onClick={() => setReason(reportReason)}
-              className={cn(
-                'caption-b rounded-[0.4rem] border px-3 py-2 text-left transition',
-                reason === reportReason
-                  ? 'border-primary-1 bg-primary-5 text-primary-2'
-                  : 'border-border-default bg-white text-fg-secondary',
-              )}
-            >
-              {reportReason}
-            </button>
-          ))}
-        </div>
-
-        <label className="body-b mt-4 block text-fg-primary" htmlFor="report-detail">
-          상세 사유
-        </label>
-        <textarea
-          id="report-detail"
-          value={reasonDetail}
-          onChange={(event) => setReasonDetail(event.target.value)}
-          maxLength={300}
-          className="body-r mt-2 min-h-24 w-full resize-none rounded-[0.45rem] border border-[#ffcf58]/70 bg-[#fff8e8]/88 p-3 text-fg-primary outline-none focus:border-primary-1"
-        />
 
         <button
           type="button"
-          onClick={() => onSubmit(reason, reasonDetail)}
-          disabled={status === 'loading'}
-          className="body-b mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary text-fg-inverse disabled:cursor-not-allowed disabled:opacity-60"
+          aria-label="신고 닫기"
+          onClick={onClose}
+          className="absolute right-[8.4%] top-[4.1%] grid size-12 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_6px_14px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
         >
-          <Flag className="size-4" />
-          {status === 'loading' ? '접수 중' : '신고 접수'}
+          <X className="size-5" />
         </button>
-      </section>
+
+        <div className="absolute bottom-[8.2%] left-[9.8%] right-[9.8%] top-[10.4%] flex flex-col">
+          <div className="grid grid-cols-2 gap-3">
+            {REPORT_REASONS.map((reportReason) => (
+              <button
+                key={reportReason}
+                type="button"
+                aria-pressed={reason === reportReason}
+                onClick={() => setReason(reportReason)}
+                className={cn(
+                  'body-b flex h-12 items-center rounded-[0.45rem] border px-4 text-left transition',
+                  reason === reportReason
+                    ? 'border-[#FFD95D] bg-[#FFF8E1] text-primary-2'
+                    : 'border-border-default bg-white text-fg-secondary',
+                )}
+              >
+                {reportReason}
+              </button>
+            ))}
+          </div>
+
+          <label className="body-b mt-6 block text-fg-primary" htmlFor="report-detail">
+            상세 사유
+          </label>
+          <textarea
+            id="report-detail"
+            value={reasonDetail}
+            onChange={(event) => setReasonDetail(event.target.value)}
+            maxLength={300}
+            className="body-r mt-3 min-h-0 flex-1 resize-none rounded-[0.45rem] border border-[#FFD66B]/70 bg-[#fffdf1] p-4 text-fg-primary outline-none focus:border-[#FFD95D]"
+          />
+
+          <button
+            type="button"
+            onClick={() => onSubmit(reason, reasonDetail)}
+            disabled={status === 'loading'}
+            className="body-b mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Flag className="size-4" />
+            {status === 'loading' ? '접수 중' : '신고 접수'}
+          </button>
+        </div>
+        </section>
+      </div>
     </div>
   )
 }

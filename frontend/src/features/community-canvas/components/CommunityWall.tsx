@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import Image from 'next/image'
 import { RotateCw, X } from 'lucide-react'
 import { PostItNote } from '@/shared/components/PostItNote'
@@ -68,6 +68,14 @@ type MemoPlacementMotion = 'attach' | 'detach' | 'lift' | 'release'
 type ExitingMemo = {
   memo: CommunityMemoItemResponse
   removalKey: string
+}
+
+type WallPanState = {
+  pointerId: number
+  startX: number
+  startY: number
+  scrollLeft: number
+  scrollTop: number
 }
 
 function normalizeRotation(rotationDeg: number) {
@@ -233,7 +241,10 @@ export function CommunityWall({
   const saveEditingLayoutRef = useRef(onSaveEditingLayout)
   const previousMemoMapRef = useRef<Map<string, CommunityMemoItemResponse> | null>(null)
   const memoPlacementAnimationTimerRefs = useRef<number[]>([])
+  const panStateRef = useRef<WallPanState | null>(null)
+  const hasCenteredWallScrollRef = useRef(false)
   const [wallScale, setWallScale] = useState(1)
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const [cursorPlacement, setCursorPlacement] = useState<CommunityMemoLayoutDraft>({
     positionX: 0,
     positionY: 0,
@@ -252,7 +263,12 @@ export function CommunityWall({
     let cancelled = false
 
     const updateWallScale = () => {
-      setWallScale(Math.max(window.innerWidth / WALL_WIDTH, window.innerHeight / WALL_HEIGHT))
+      const visualViewport = window.visualViewport
+      const viewportWidth = visualViewport?.width ?? window.innerWidth
+      const viewportHeight = visualViewport?.height ?? window.innerHeight
+
+      setViewportSize({ width: viewportWidth, height: viewportHeight })
+      setWallScale(Math.max(viewportWidth / WALL_WIDTH, viewportHeight / WALL_HEIGHT))
     }
 
     void (async () => {
@@ -261,11 +277,27 @@ export function CommunityWall({
     })()
 
     window.addEventListener('resize', updateWallScale)
+    window.visualViewport?.addEventListener('resize', updateWallScale)
     return () => {
       cancelled = true
       window.removeEventListener('resize', updateWallScale)
+      window.visualViewport?.removeEventListener('resize', updateWallScale)
     }
   }, [])
+
+  useEffect(() => {
+    const visibleArea = visibleAreaRef.current
+    if (!visibleArea || hasCenteredWallScrollRef.current) return
+    if (viewportSize.width <= 0 || viewportSize.height <= 0) return
+
+    const frameId = window.requestAnimationFrame(() => {
+      visibleArea.scrollLeft = Math.max(0, (visibleArea.scrollWidth - visibleArea.clientWidth) / 2)
+      visibleArea.scrollTop = Math.max(0, (visibleArea.scrollHeight - visibleArea.clientHeight) / 2)
+      hasCenteredWallScrollRef.current = true
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [viewportSize.height, viewportSize.width, wallScale])
 
   useEffect(() => {
     interactionRef.current = interaction
@@ -699,20 +731,74 @@ export function CommunityWall({
     setInteraction({ type: 'rotate-pending' })
   }
 
+  const handleWallViewportPointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (isWallManipulating || event.button !== 0) return
+    if (!(event.target instanceof Element)) return
+    if (event.target.closest('[data-community-memo-interactive="true"]')) return
+
+    const visibleArea = visibleAreaRef.current
+    if (!visibleArea) return
+
+    panStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      scrollLeft: visibleArea.scrollLeft,
+      scrollTop: visibleArea.scrollTop,
+    }
+    visibleArea.setPointerCapture(event.pointerId)
+  }
+
+  const handleWallViewportPointerMove = (event: PointerEvent<HTMLElement>) => {
+    const panState = panStateRef.current
+    const visibleArea = visibleAreaRef.current
+    if (!panState || !visibleArea || panState.pointerId !== event.pointerId) return
+
+    visibleArea.scrollLeft = panState.scrollLeft - (event.clientX - panState.startX)
+    visibleArea.scrollTop = panState.scrollTop - (event.clientY - panState.startY)
+  }
+
+  const handleWallViewportPointerEnd = (event: PointerEvent<HTMLElement>) => {
+    if (panStateRef.current?.pointerId === event.pointerId) {
+      panStateRef.current = null
+    }
+  }
+
+  const scaledWallWidth = WALL_WIDTH * wallScale
+  const scaledWallHeight = WALL_HEIGHT * wallScale
+  const wallViewportWidth = Math.max(scaledWallWidth, viewportSize.width)
+  const wallViewportHeight = Math.max(scaledWallHeight, viewportSize.height)
+  const wallOffsetX = (wallViewportWidth - scaledWallWidth) / 2
+  const wallOffsetY = (wallViewportHeight - scaledWallHeight) / 2
+
   return (
     <section
       ref={visibleAreaRef}
       data-community-wall="true"
       onClick={handleBlankSurfaceClick}
-      className="absolute inset-0 z-0 overflow-hidden bg-surface-default"
+      onPointerDown={handleWallViewportPointerDown}
+      onPointerMove={handleWallViewportPointerMove}
+      onPointerUp={handleWallViewportPointerEnd}
+      onPointerCancel={handleWallViewportPointerEnd}
+      className={cn(
+        'absolute inset-0 z-0 overflow-auto overscroll-contain bg-surface-default [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        !isWallManipulating && 'cursor-grab active:cursor-grabbing',
+      )}
     >
+      <div
+        className="relative"
+        style={{
+          width: wallViewportWidth,
+          height: wallViewportHeight,
+        }}
+      >
       <div
         ref={wallRef}
         role="presentation"
         onMouseMove={handleWallMouseMove}
         onClick={handleWallClick}
         className={cn(
-          'absolute left-1/2 top-1/2 overflow-visible rounded-[0.45rem] bg-surface-default shadow-[0_24px_60px_rgb(53_45_32_/_24%)]',
+          'absolute overflow-visible rounded-[0.45rem] bg-surface-default shadow-[0_24px_60px_rgb(53_45_32_/_24%)]',
           pendingMemo &&
             (isPendingPlacementInsideVisibleArea
               ? 'cursor-copy ring-4 ring-primary-5'
@@ -721,10 +807,12 @@ export function CommunityWall({
           (isAttachingMemo || isSavingLayout) && 'cursor-wait',
         )}
         style={{
+          left: wallOffsetX,
+          top: wallOffsetY,
           width: WALL_WIDTH,
           height: WALL_HEIGHT,
-          transform: `translate(-50%, -50%) scale(${wallScale})`,
-          transformOrigin: 'center',
+          transform: `scale(${wallScale})`,
+          transformOrigin: 'top left',
         }}
       >
         <Image
@@ -830,6 +918,7 @@ export function CommunityWall({
             </button>
           </div>
         )}
+      </div>
       </div>
     </section>
   )
