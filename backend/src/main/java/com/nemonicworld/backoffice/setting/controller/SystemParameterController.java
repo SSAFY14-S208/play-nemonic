@@ -120,6 +120,12 @@ public class SystemParameterController {
             "unit": "seconds",
             "description": "플립북 진행 중 재연결 유예 시간"
           },
+          "infiniteCanvasParticipantLimit": {
+            "min": 1,
+            "max": 6,
+            "unit": "people",
+            "description": "무한 캔버스 동시 참여 인원 제한"
+          },
           "fortuneDailyLimit": {
             "value": 1,
             "unit": "count",

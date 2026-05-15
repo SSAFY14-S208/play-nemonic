@@ -22,6 +22,8 @@ public record SystemParameterTypedUpdateRequest(@Valid SystemParameterPositiveVa
 
     @Valid SystemParameterPositiveValueRequest flipbookReconnectGraceSeconds,
 
+    @Valid SystemParameterParticipantLimitRequest infiniteCanvasParticipantLimit,
+
     @Valid SystemParameterPositiveValueRequest fortuneDailyLimit,
 
     @Valid SystemParameterPositiveValueRequest csInquiryUnresolvedAlertThresholdHours) {

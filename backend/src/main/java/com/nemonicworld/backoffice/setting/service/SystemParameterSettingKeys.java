@@ -2,6 +2,7 @@ package com.nemonicworld.backoffice.setting.service;
 
 import com.nemonicworld.community.service.support.CommunityRuntimeSettingsProvider;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
+import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasRuntimeSettingsProvider;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 
 final class SystemParameterSettingKeys {
@@ -15,6 +16,7 @@ final class SystemParameterSettingKeys {
     static final String FLIPBOOK_ROOM_TIME_LIMIT_SECONDS = flipbookRoomTimeLimitSeconds();
     static final String FLIPBOOK_MIN_FRAMES_PER_FLIPBOOK = flipbookMinFramesPerFlipbook();
     static final String FLIPBOOK_RECONNECT_GRACE_SECONDS = flipbookReconnectGraceSeconds();
+    static final String INFINITE_CANVAS_PARTICIPANT_LIMIT = infiniteCanvasParticipantLimit();
     static final String FORTUNE_DAILY_LIMIT = "fortune.daily_limit";
     static final String CS_INQUIRY_UNRESOLVED_ALERT_THRESHOLD_HOURS = "cs_inquiry.unresolved_alert_threshold_hours";
 
@@ -43,5 +45,9 @@ final class SystemParameterSettingKeys {
 
     private static String flipbookReconnectGraceSeconds() {
         return FlipbookRuntimeSettingsProvider.RECONNECT_GRACE_SECONDS_SETTING_KEY;
+    }
+
+    private static String infiniteCanvasParticipantLimit() {
+        return InfiniteCanvasRuntimeSettingsProvider.PARTICIPANT_LIMIT_SETTING_KEY;
     }
 }
