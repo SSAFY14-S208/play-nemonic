@@ -4,7 +4,10 @@ import { useState } from 'react'
 import { Flag, X } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoReportReason } from '@/shared/types'
-import { useCommunityModalFitScale } from './useCommunityModalFitScale'
+import {
+  useCommunityCompactViewport,
+  useCommunityModalFitScale,
+} from './useCommunityModalFitScale'
 
 const REPORT_MODAL_WIDTH = 760
 const REPORT_MODAL_HEIGHT = 660
@@ -36,6 +39,7 @@ export function CommunityReportModal({
 }: CommunityReportModalProps) {
   const [reason, setReason] = useState<CommunityMemoReportReason>('부적절한 콘텐츠')
   const [reasonDetail, setReasonDetail] = useState('')
+  const isCompactViewport = useCommunityCompactViewport()
   const modalScale = useCommunityModalFitScale({
     designWidth: REPORT_MODAL_WIDTH,
     designHeight: REPORT_MODAL_HEIGHT,
@@ -44,6 +48,73 @@ export function CommunityReportModal({
   })
 
   if (!isOpen) return null
+
+  if (isCompactViewport) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="community-report-title"
+        className="fixed inset-0 z-[calc(var(--z-overlay)+10)] overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-3 backdrop-blur-[2px]"
+      >
+        <section className="mx-auto flex min-h-full w-full max-w-[42rem] flex-col gap-4 rounded-[1.5rem] border-[0.35rem] border-[#f5d96c] bg-[#fff2b3] p-4 shadow-[0_18px_38px_rgb(25_20_40_/_24%)]">
+          <header className="flex items-start justify-between gap-3 rounded-[1rem] border border-[#f0d887] bg-[#fffdf1] p-4">
+            <h2 id="community-report-title" className="h3-b text-fg-primary">
+              메모 신고
+            </h2>
+            <button
+              type="button"
+              aria-label="신고 닫기"
+              onClick={onClose}
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
+            >
+              <X className="size-5" />
+            </button>
+          </header>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {REPORT_REASONS.map((reportReason) => (
+              <button
+                key={reportReason}
+                type="button"
+                aria-pressed={reason === reportReason}
+                onClick={() => setReason(reportReason)}
+                className={cn(
+                  'body-b flex min-h-12 items-center rounded-[0.45rem] border px-4 py-3 text-left transition',
+                  reason === reportReason
+                    ? 'border-[#FFD95D] bg-[#FFF8E1] text-primary-2'
+                    : 'border-border-default bg-white text-fg-secondary',
+                )}
+              >
+                {reportReason}
+              </button>
+            ))}
+          </div>
+
+          <label className="body-b block text-fg-primary" htmlFor="report-detail-compact">
+            상세 사유
+          </label>
+          <textarea
+            id="report-detail-compact"
+            value={reasonDetail}
+            onChange={(event) => setReasonDetail(event.target.value)}
+            maxLength={300}
+            className="body-r min-h-44 resize-none rounded-[0.45rem] border border-[#FFD66B]/70 bg-[#fffdf1] p-4 text-fg-primary outline-none focus:border-[#FFD95D]"
+          />
+
+          <button
+            type="button"
+            onClick={() => onSubmit(reason, reasonDetail)}
+            disabled={status === 'loading'}
+            className="body-b sticky bottom-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary shadow-[0_8px_18px_rgb(78_44_20_/_14%)] transition disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Flag className="size-4" />
+            {status === 'loading' ? '접수 중' : '신고 접수'}
+          </button>
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div

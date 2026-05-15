@@ -29,7 +29,10 @@ import {
   DEFAULT_COMMUNITY_MEMO_COLOR,
 } from '../utils'
 import { CommunityGalleryPicker } from './CommunityGalleryPicker'
-import { useCommunityModalFitScale } from './useCommunityModalFitScale'
+import {
+  useCommunityCompactViewport,
+  useCommunityModalFitScale,
+} from './useCommunityModalFitScale'
 
 interface CommunityComposerModalProps {
   composer: ReturnType<typeof useCommunityComposer>
@@ -92,6 +95,7 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
     maxWidth: COMPOSER_MODAL_MAX_WIDTH,
     viewportPadding: 32,
   })
+  const isCompactViewport = useCommunityCompactViewport()
 
   if (!composer.isComposerOpen) return null
 
@@ -110,6 +114,18 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
     }
 
     void composer.prepareGalleryMemoPlacement()
+  }
+
+  if (isCompactViewport) {
+    return (
+      <CommunityComposerCompactModal
+        composer={composer}
+        isPosting={isPosting}
+        selectedGalleryCanvasImageUrl={selectedGalleryCanvasImageUrl}
+        selectedGalleryPreviewUrl={selectedGalleryPreviewUrl}
+        onPreparePlacement={handlePreparePlacement}
+      />
+    )
   }
 
   return (
@@ -294,7 +310,7 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
               type="button"
               disabled={isPosting}
               onClick={handlePreparePlacement}
-              className="body-b mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="body-b sticky bottom-0 mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary shadow-[0_8px_18px_rgb(78_44_20_/_14%)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {sourceType === 'DIRECT' ? <Send className="size-5" /> : <ImagePlus className="size-5" />}
               {isPosting ? '메모지 준비 중' : '메모지 들기'}
@@ -303,6 +319,181 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
         </div>
         </section>
       </div>
+    </div>
+  )
+}
+
+function CommunityComposerCompactModal({
+  composer,
+  isPosting,
+  selectedGalleryCanvasImageUrl,
+  selectedGalleryPreviewUrl,
+  onPreparePlacement,
+}: {
+  composer: ReturnType<typeof useCommunityComposer>
+  isPosting: boolean
+  selectedGalleryCanvasImageUrl: string | null | undefined
+  selectedGalleryPreviewUrl: string | null | undefined
+  onPreparePlacement: () => void
+}) {
+  const { drawingBoard, sourceType, backgroundColor } = composer
+  const boardScale = useCommunityModalFitScale({
+    designWidth: COMMUNITY_COMPOSER_BOARD_SIZE.width,
+    designHeight: COMMUNITY_COMPOSER_BOARD_SIZE.height,
+    maxWidth: COMMUNITY_COMPOSER_BOARD_SIZE.width,
+    viewportPadding: 48,
+  })
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="community-composer-title"
+      className="fixed inset-0 z-[var(--z-overlay)] overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-3 backdrop-blur-[2px]"
+    >
+      <section className="mx-auto flex min-h-full w-full max-w-[46rem] flex-col gap-4 rounded-[1.5rem] border-[0.35rem] border-[#f5d96c] bg-[#fff2b3] p-4 shadow-[0_18px_38px_rgb(25_20_40_/_24%)]">
+        <header className="flex items-start justify-between gap-3 rounded-[1rem] border border-[#f0d887] bg-[#fffdf1] p-4">
+          <div>
+            <p className="caption-b text-primary-2">커뮤니티 캔버스</p>
+            <h2 id="community-composer-title" className="h2-b text-fg-primary">
+              새 메모 붙이기
+            </h2>
+          </div>
+          <button
+            type="button"
+            aria-label="작성 닫기"
+            onClick={composer.closeComposer}
+            className="grid size-11 shrink-0 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
+          >
+            <X className="size-5" />
+          </button>
+        </header>
+
+        <div className="h-12 w-full max-w-[22rem]">
+          <SourceTabs
+            sourceType={sourceType}
+            onSelectSourceType={composer.selectSourceType}
+          />
+        </div>
+
+        <div className="rounded-[1rem] bg-white/70 p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)]">
+          <div
+            className="relative mx-auto"
+            style={{
+              width: COMMUNITY_COMPOSER_BOARD_SIZE.width * boardScale,
+              height: COMMUNITY_COMPOSER_BOARD_SIZE.height * boardScale,
+            }}
+          >
+            <div
+              className="absolute left-0 top-0"
+              style={{
+                width: COMMUNITY_COMPOSER_BOARD_SIZE.width,
+                height: COMMUNITY_COMPOSER_BOARD_SIZE.height,
+                transform: `scale(${boardScale})`,
+                transformOrigin: 'top left',
+              }}
+            >
+              {sourceType === 'DIRECT' ? (
+                <DrawingBoard
+                  boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
+                  backgroundColor={backgroundColor}
+                  backgroundCornerRadius={18}
+                  gridColor="#ffe0a3"
+                  lines={drawingBoard.lines}
+                  onDrawStart={drawingBoard.beginDrawing}
+                  onDrawMove={drawingBoard.continueDrawing}
+                  onDrawEnd={drawingBoard.endDrawing}
+                  className="overflow-hidden rounded-[1rem] shadow-[0_10px_20px_rgb(78_44_20_/_12%)]"
+                />
+              ) : !selectedGalleryCanvasImageUrl && composer.handoffDraft ? (
+                <CommunityHandoffSourcePanel
+                  draft={composer.handoffDraft}
+                  className={COMPOSER_BOARD_SURFACE_CLASS}
+                />
+              ) : !selectedGalleryCanvasImageUrl ? (
+                <CommunityGalleryPicker
+                  className={COMPOSER_BOARD_SURFACE_CLASS}
+                  items={composer.galleryItems}
+                  status={composer.galleryStatus}
+                  error={composer.galleryError}
+                  selectedGalleryId={composer.selectedGalleryId}
+                  onLoad={composer.loadGalleryItems}
+                  onSelect={(galleryId) => void composer.selectGalleryItem(galleryId)}
+                />
+              ) : (
+                <DrawingBoard
+                  boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
+                  backgroundColor={backgroundColor}
+                  backgroundCornerRadius={18}
+                  gridColor="transparent"
+                  lines={drawingBoard.lines}
+                  onDrawStart={drawingBoard.beginDrawing}
+                  onDrawMove={drawingBoard.continueDrawing}
+                  onDrawEnd={drawingBoard.endDrawing}
+                  className="overflow-hidden rounded-[1rem] shadow-[0_10px_20px_rgb(78_44_20_/_12%)]"
+                  childrenBeforeLines={
+                    <GalleryCanvasBaseImage
+                      imageUrl={selectedGalleryCanvasImageUrl}
+                      boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
+                    />
+                  }
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        <section
+          className={cn(
+            'grid gap-3 rounded-[0.75rem] bg-surface-default p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)]',
+            isPosting && 'pointer-events-none opacity-60',
+          )}
+        >
+          <DrawingToolStrip
+            hiddenToolKeys={sourceType === 'GALLERY' ? GALLERY_HIDDEN_TOOL_ACTIONS : []}
+            selectedToolKey={drawingBoard.selectedToolKey}
+            canUndoDrawing={drawingBoard.canUndoDrawing}
+            canRedoDrawing={drawingBoard.canRedoDrawing}
+            onSelectTool={drawingBoard.setSelectedToolKey}
+            onUndoDrawing={drawingBoard.undoDrawing}
+            onRedoDrawing={drawingBoard.redoDrawing}
+            onClearDrawing={drawingBoard.clearDrawing}
+          />
+
+          <DrawingBrushPanel
+            colors={DRAWING_COLORS}
+            selectedColor={drawingBoard.selectedColor}
+            selectedOpacity={drawingBoard.selectedOpacity}
+            strokeWidth={drawingBoard.strokeWidth}
+            onSelectColor={drawingBoard.setSelectedColor}
+            onOpacityChange={drawingBoard.setSelectedOpacity}
+            onStrokeWidthChange={drawingBoard.setStrokeWidth}
+          />
+        </section>
+
+        <aside className="grid gap-4 rounded-[0.75rem] bg-surface-subtle p-4 shadow-[0_10px_20px_rgb(78_44_20_/_12%)]">
+          <MemoColorPicker
+            selectedMemoColor={composer.selectedMemoColor}
+            onSelectMemoColor={composer.setSelectedMemoColor}
+          />
+
+          <MemoPreview
+            sourceType={sourceType}
+            memoColor={composer.selectedMemoColor}
+            imageUrl={sourceType === 'GALLERY' ? selectedGalleryPreviewUrl : null}
+          />
+
+          <button
+            type="button"
+            disabled={isPosting}
+            onClick={onPreparePlacement}
+            className="body-b sticky bottom-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary shadow-[0_8px_18px_rgb(78_44_20_/_14%)] transition disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {sourceType === 'DIRECT' ? <Send className="size-5" /> : <ImagePlus className="size-5" />}
+            {isPosting ? '메모지 준비 중' : '메모지 들기'}
+          </button>
+        </aside>
+      </section>
     </div>
   )
 }
@@ -414,7 +605,7 @@ function SourceTabs({
           aria-pressed={sourceType === tab.key}
           onClick={() => onSelectSourceType(tab.key)}
           className={cn(
-            'body-b h-full rounded-[0.35rem] px-5 transition',
+            'body-b h-full whitespace-nowrap rounded-[0.35rem] px-5 transition',
             sourceType === tab.key
               ? 'bg-surface-default text-fg-primary shadow-sm'
               : 'text-fg-secondary hover:text-fg-primary',
@@ -628,7 +819,7 @@ function MemoPreview({
   return (
     <section className="mt-2 overflow-hidden rounded-[0.5rem] border border-border-default bg-surface-default p-4">
       <p className="caption-b mb-3 text-fg-secondary">미리보기</p>
-      <div className="relative mx-auto aspect-square w-[min(13rem,100%)]">
+      <div className="relative mx-auto aspect-square w-[min(clamp(9rem,18dvh,13rem),100%)]">
         <PostItNote
           shape="square"
           className="absolute inset-0 h-full w-full drop-shadow-[0_12px_18px_rgb(66_45_25_/_18%)]"

@@ -60,3 +60,19 @@ export function useCommunityModalFitScale({
 
   return scale
 }
+
+export function useCommunityCompactViewport() {
+  const [isCompact, setCompact] = useState(false)
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px), (max-height: 720px)')
+    const updateCompact = () => setCompact(mediaQuery.matches)
+
+    updateCompact()
+    mediaQuery.addEventListener('change', updateCompact)
+
+    return () => mediaQuery.removeEventListener('change', updateCompact)
+  }, [])
+
+  return isCompact
+}
