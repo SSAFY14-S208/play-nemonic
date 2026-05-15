@@ -501,16 +501,18 @@ function ActivePrintedPaper({
           }}
           onAnimationComplete={scheduleExpandAfterPrint}
         >
-          <motion.div
-            className={cn('absolute inset-0 origin-bottom', PRINTED_PAPER_SHADOW_CLASS)}
-            initial={{ opacity: 0.18, scaleY: 0.04 }}
-            animate={{ opacity: 0.78, scaleY: 1 }}
-            transition={{
-              duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
-              ease: [0.12, 0.78, 0.16, 1],
-            }}
-            aria-hidden
-          />
+          {frameIndex === 0 && (
+            <motion.div
+              className={cn('absolute inset-0 origin-bottom', PRINTED_PAPER_SHADOW_CLASS)}
+              initial={{ opacity: 0.18, scaleY: 0.04 }}
+              animate={{ opacity: 0.78, scaleY: 1 }}
+              transition={{
+                duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
+                ease: [0.12, 0.78, 0.16, 1],
+              }}
+              aria-hidden
+            />
+          )}
           <PrintedPaper
             frame={frame}
             frameIndex={frameIndex}
@@ -542,16 +544,18 @@ function ActivePrintedPaper({
         ease: [0.14, 0.84, 0.18, 1],
       }}
     >
-      <motion.div
-        className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
-        initial={{ opacity: 0.78 }}
-        animate={{ opacity: 1 }}
-        transition={{
-          duration: printDurationMs * PAPER_ATTACH_DURATION_RATIO / 1000,
-          ease: [0.14, 0.84, 0.18, 1],
-        }}
-        aria-hidden
-      />
+      {frameIndex === 0 && (
+        <motion.div
+          className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
+          initial={{ opacity: 0.78 }}
+          animate={{ opacity: 1 }}
+          transition={{
+            duration: printDurationMs * PAPER_ATTACH_DURATION_RATIO / 1000,
+            ease: [0.14, 0.84, 0.18, 1],
+          }}
+          aria-hidden
+        />
+      )}
       <PrintedPaper
         frame={frame}
         frameIndex={frameIndex}
@@ -593,13 +597,15 @@ function DirectPlaybackPaper({
         width: ATTACHED_PAPER_WIDTH,
       }}
     >
-      <motion.div
-        className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.22 }}
-        aria-hidden
-      />
+      {frameIndex === 0 && (
+        <motion.div
+          className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.22 }}
+          aria-hidden
+        />
+      )}
       <PrintedPaper
         frame={frame}
         frameIndex={frameIndex}
@@ -627,10 +633,12 @@ function ShadowedPrintedPaper({
 }) {
   return (
     <div className="relative h-full w-full">
-      <div
-        className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
-        aria-hidden
-      />
+      {frameIndex === 0 && (
+        <div
+          className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
+          aria-hidden
+        />
+      )}
       <PrintedPaper
         frame={frame}
         frameIndex={frameIndex}
