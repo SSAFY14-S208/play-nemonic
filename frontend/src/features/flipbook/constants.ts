@@ -1,4 +1,6 @@
+import type { HowToPlayPanel } from '@/shared/components'
 import type { DrawingBoardSize } from '@/shared/types'
+
 import type { FlipbookStep } from './types'
 
 export const FLIPBOOK_STEPS: { key: FlipbookStep; label: string }[] = [
@@ -44,3 +46,26 @@ export const FLIPBOOK_BOARD_SIZE: DrawingBoardSize = {
   width: 680,
   height: 520,
 }
+
+export const FLIPBOOK_HOW_TO_PLAY_PANELS: HowToPlayPanel[] = [
+  {
+    id: 'gather',
+    title: '2~12명이 모여요',
+    description: '방 코드를 친구에게 공유해 한 방에 모입니다.',
+  },
+  {
+    id: 'topic',
+    title: '주제를 확인해요',
+    description: '모두 같은 주제를 받고, 주제에 맞는 그림을 그릴 준비를 해요.',
+  },
+  {
+    id: 'draw',
+    title: '프레임을 그려요',
+    description: '제한 시간 안에 이전 프레임을 이어 그려 움직임을 만들어요.',
+  },
+  {
+    id: 'reveal',
+    title: '플립북 완성!',
+    description: '모든 프레임이 모이면 한 편의 플립북 애니메이션이 완성돼요.',
+  },
+]

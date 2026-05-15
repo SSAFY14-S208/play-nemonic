@@ -1,10 +1,14 @@
 "use client";
 
+import { HelpCircle } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import { useState } from "react";
 
+import { HowToPlayModal } from "@/shared/components";
+
 import relayDrawingTitle from "../assets/relay-drawing-title.png";
+import { RELAY_HOW_TO_PLAY_PANELS } from "../constants";
 import { useRelayBooth } from "../hooks";
 import RelayBoothBackground from "./RelayBoothBackground";
 import RelayBoothEntrance from "./RelayBoothEntrance";
@@ -28,6 +32,7 @@ export default function RelayBoothView() {
   } = useRelayBooth();
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false);
   // 닉네임 모달이 닫혀 store가 새 닉네임으로 갱신되면, 사용자가 원래 누르려 했던
   // 액션(방 만들기 / 방 입장 모달 열기)을 한 번만 자동으로 이어서 수행한다.
   const [pendingAction, setPendingAction] = useState<PendingBoothAction>(null);
@@ -88,11 +93,11 @@ export default function RelayBoothView() {
 
         {/* 컨테이너 — 모바일/태블릿: 세로 stack, lg+: 가로 row.
             높이도 lg+에서만 고정(900px), 그 이하는 viewport 높이 기준으로 자연스럽게. */}
-        <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col-reverse items-center justify-center gap-8 px-4 py-8 sm:px-6 lg:h-screen lg:min-h-0 lg:max-w-360 lg:flex-row lg:justify-between lg:gap-12 lg:px-[5%] lg:py-0">
+        <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col-reverse items-center justify-center px-4 py-8 sm:px-6 lg:h-screen lg:min-h-0 lg:max-w-360 lg:flex-row lg:justify-around lg:gap-8 lg:px-[10%] lg:py-0">
           {/* 좌측 컬럼 — 안내 콘텐츠 */}
-          <div className="flex w-full flex-1 py-8 lg:max-w-150 lg:py-12">
+          <div className="flex w-full lg:max-w-150 lg:flex-1 lg:py-12">
             <motion.div
-              className="flex w-full flex-col gap-4 px-6 py-6 sm:gap-6 sm:px-10 sm:py-8 lg:px-12"
+              className="flex w-full flex-col items-center gap-4 px-6 py-6 sm:gap-6 sm:px-10 sm:py-8 lg:items-start lg:px-12"
               initial={{ opacity: 0 }}
               animate={{ opacity: isLeftRevealed ? 1 : 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
@@ -104,17 +109,11 @@ export default function RelayBoothView() {
                   src={relayDrawingTitle}
                   alt="우당탕 릴레이 드로잉"
                   priority
-                  className="h-auto w-full max-w-70 sm:max-w-85 lg:max-w-105"
+                  className="h-auto w-full sm:max-w-85 lg:max-w-105"
                 />
               </h1>
-              <div className="body-l-r flex flex-col text-relay-ink">
-                <p>얼굴 → 몸통 → 다리, 3라운드.</p>
-                <p>캔버스가 다음 사람에게 넘어가요.</p>
-                <p>이전 사람 그림의 하단 일부 힌트만 보고</p>
-                <p>이어 그리면 결과는 우당탕 캐릭터!</p>
-              </div>
               {/* 좁은 화면에선 버튼이 column으로 stack, sm+ 부터 row로 나란히. */}
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center lg:flex-col lg:justify-start xl:flex-row">
                 <RelayButton
                   onClick={handleCreateClick}
                   disabled={isActionDisabled}
@@ -133,6 +132,16 @@ export default function RelayBoothView() {
                   className="border-2"
                 >
                   방 입장
+                </RelayButton>
+                <RelayButton
+                  onClick={() => setIsHowToPlayModalOpen(true)}
+                  variant="secondary"
+                  size="lg"
+                  shape="roundedLg"
+                  className="gap-1.5"
+                >
+                  <HelpCircle className="size-5" aria-hidden />
+                  게임 설명
                 </RelayButton>
               </div>
               {error && !isJoinModalOpen && (
@@ -161,6 +170,12 @@ export default function RelayBoothView() {
         open={isNicknameModalOpen}
         onOpenChange={handleNicknameModalChange}
         onSuccess={handleNicknameSuccess}
+      />
+      <HowToPlayModal
+        open={isHowToPlayModalOpen}
+        onOpenChange={setIsHowToPlayModalOpen}
+        panels={RELAY_HOW_TO_PLAY_PANELS}
+        accentColor="var(--color-relay-accent)"
       />
     </>
   );

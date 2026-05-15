@@ -14,18 +14,14 @@ import redNemoMoved from "../assets/red-nemo-moved.png";
 import redNemoSatisfied from "../assets/red-nemo-satisfied.png";
 import RelayArtworkCard from "./RelayArtworkCard";
 
-// 한 part(label card)의 px 크기. RelayLabelCard와 동일 단위. 슬롯의 폭/높이는 3*PART_SIZE + 2*PART_GAP.
-const PART_SIZE = 150;
+// 한 part(label card)의 px 폭. 높이는 PART_ASPECT_RATIO(3:2)로 자동 결정.
+// lg 미만(flex-col 레이아웃)에서는 작은 값을 사용해 카드가 모바일 화면을 넘치지 않도록 한다.
+const PART_WIDTH_SM = 120;
+const PART_WIDTH_LG = 180;
+// 카드 가로:세로 비율. width / height = 3/2.
+const PART_ASPECT_RATIO = 3 / 2;
 // part 간 vertical gap (RelayArtworkCard가 gap-1 = 4px로 쌓는 값과 일치).
 const PART_GAP = 4;
-// part 1칸 step. 카메라가 한 part씩 panning할 때 이동량의 base.
-const PART_STEP = PART_SIZE + PART_GAP;
-// 아트워크 카드 1장의 총 높이 (3 parts + 2 gaps). 슬롯 ref의 명시 height에 사용해,
-// 첫 렌더에서 motion 트리가 마운트되지 않아도 slot이 0×0이 아닌 정확한 사이즈를 갖게 한다.
-// — measurement 가드로 인해 slot ref가 빈 div가 되면 getBoundingClientRect의 height=0이
-// 되고, centerOffset이 slot 중심이 아닌 slot 상단을 viewport 중심으로 끌어와 ARTWORK_HEIGHT/2
-// 만큼 아래로 어긋난다 (col-reverse 레이아웃에서만 증상이 보임).
-const ARTWORK_HEIGHT = 3 * PART_SIZE + 2 * PART_GAP;
 
 // 인트로 단계에서 한 part가 viewport의 min(width, height) 기준 몇 %를 차지하도록 카메라를 줌인할지.
 // 0.85 → 한 part가 viewport 짧은 변 기준 ~85% 점유.
@@ -55,20 +51,23 @@ const SLOT_TRANSITION = {
   mass: 0.7,
 };
 
-// 사이드 카드 fan-out transition. settling 완료 후 fanning phase에서 rotate(0°→±fanAngle)와
+// 사이드 카드 fan-out transition. settling 완료 후 fanning phase에서 rotate+translate와
 // opacity(0→1)를 동시에 애니메이트. 0.34, 1.2 overshoot easing으로 살짝 튕기듯 펼쳐진다.
 const SIDE_ROTATION_TRANSITION = {
   duration: 0.5,
   ease: [0.34, 1.2, 0.5, 1] as [number, number, number, number],
 };
 
-// 사이드 카드 fan 각도. 좁은 viewport에선 ±45°일 때 회전된 카드(458px 세로)가 좌우로
-// ~302px씩 뻗어 화면 밖으로 크게 잘리므로 모바일/태블릿(< lg = 1024px)에선 30°로 좁힌다.
-// FinalState도 동일 breakpoint(Tailwind lg: 기본 1024px)로 분기되어 ChoreographyTree → FinalState
-// 전환 시 시각 점프 없음.
-const FAN_ANGLE_LG = 45;
-const FAN_ANGLE_SM = 30;
+// Fanning 최종 위치. FinalState Tailwind 클래스와 수치가 일치해야 ChoreographyTree → FinalState
+// 전환 시 시각 점프가 없다. breakpoint는 Tailwind lg(1024px).
+// 모바일/데스크탑 모두 translate+완만 rotation spread. 모바일은 데스크탑의 절반 translate.
 const FAN_BREAKPOINT_PX = 1024;
+const FAN_TARGETS = {
+  // z-10 (variant 1) — FinalState: translate-x-15 rotate-15 lg:translate-x-30
+  right: { sm: { rotate: 15, x: 60 }, lg: { rotate: 15, x: 120 } },
+  // z-20 (variant 3) — FinalState: -translate-x-25 rotate-5 lg:-translate-x-50
+  left: { sm: { rotate: 5, x: -100 }, lg: { rotate: 5, x: -200 } },
+} as const;
 
 // 좌하단(빨강)/우하단(초록) 네모 캐릭터 fixed pop-up transition. AnimatePresence + key={phase}로
 // 각 intro phase마다 enter(y:100%→0%)/exit(y:0%→100%)가 트리거되어 메타포 시퀀스마다
@@ -84,8 +83,8 @@ const NEMO_TRANSITION = {
 // AnimatePresence 기반 src swap에서 발생할 수 있는 렌더링 지연/race condition 없음.
 const NEMO_ASSETS_BY_INTRO_PHASE = {
   "intro-1": { red: redNemoMoved, green: greenNemoMoved },
-  "intro-2": { red: redNemoSatisfied, green: greenNemoSatisfied },
-  "intro-3": { red: redNemoConfused, green: greenNemoConfused },
+  "intro-2": { red: redNemoConfused, green: greenNemoConfused },
+  "intro-3": { red: redNemoSatisfied, green: greenNemoSatisfied },
 } as const;
 
 const INTRO_PHASES = ["intro-1", "intro-2", "intro-3"] as const;
@@ -117,16 +116,14 @@ const FOCUS_INDEX_BY_PHASE: Record<ChoreographyPhase, number> = {
 // 각 phase에서 다음 phase 전환을 일으킬 reveal index. null이면 더 이상 trigger 없음.
 // motion이 phase 변경 후 이미 안착한 part의 onAnimationComplete를 spurious하게 재발화해도,
 // 기대하지 않는 index는 무시되어 phase가 역행하지 않는다.
-const EXPECTED_REVEAL_INDEX_BY_PHASE: Record<
-  ChoreographyPhase,
-  number | null
-> = {
-  "intro-1": 0,
-  "intro-2": 1,
-  "intro-3": 2,
-  settling: null,
-  fanning: null,
-};
+const EXPECTED_REVEAL_INDEX_BY_PHASE: Record<ChoreographyPhase, number | null> =
+  {
+    "intro-1": 0,
+    "intro-2": 1,
+    "intro-3": 2,
+    settling: null,
+    fanning: null,
+  };
 
 interface RelayBoothEntranceProps {
   onLeftReveal: () => void;
@@ -201,10 +198,18 @@ interface ChoreographyTreeProps {
   className?: string;
 }
 
+interface FanTarget {
+  rotate: number;
+  x: number;
+}
+
 interface Measurement {
   centerOffset: { x: number; y: number };
   introScale: number;
-  fanAngle: number;
+  fanRight: FanTarget;
+  fanLeft: FanTarget;
+  partWidth: number;
+  partHeight: number;
 }
 
 function ChoreographyTree({
@@ -226,23 +231,33 @@ function ChoreographyTree({
   useEffect(() => {
     const measure = () => {
       if (!slotRef.current) return;
+      // viewport 폭에 따라 카드 폭 결정 — 모바일/태블릿(< lg)에서는 카드를 줄여
+      // flex-col 레이아웃이 깨지지 않도록 한다.
+      const partWidth =
+        window.innerWidth >= FAN_BREAKPOINT_PX ? PART_WIDTH_LG : PART_WIDTH_SM;
+      const partHeight = partWidth / PART_ASPECT_RATIO;
+      const artworkHeight = 3 * partHeight + 2 * PART_GAP;
+      // getBoundingClientRect 전에 slot 크기를 맞춰 centerOffset이 정확하도록 보장.
+      slotRef.current.style.width = `${partWidth}px`;
+      slotRef.current.style.height = `${artworkHeight}px`;
       const rect = slotRef.current.getBoundingClientRect();
       // 한 part가 viewport 짧은 변의 ~85%를 차지하도록 scale 계산.
       // height 기준과 width 기준 둘 중 작은 값을 택해 화면 밖으로 넘치지 않게 보장.
       const scaleByHeight =
-        (window.innerHeight * VIEWPORT_FILL_RATIO) / PART_SIZE;
+        (window.innerHeight * VIEWPORT_FILL_RATIO) / partHeight;
       const scaleByWidth =
-        (window.innerWidth * VIEWPORT_FILL_RATIO) / PART_SIZE;
+        (window.innerWidth * VIEWPORT_FILL_RATIO) / partWidth;
+      const isDesktop = window.innerWidth >= FAN_BREAKPOINT_PX;
       setMeasurement({
         centerOffset: {
           x: window.innerWidth / 2 - (rect.left + rect.width / 2),
           y: window.innerHeight / 2 - (rect.top + rect.height / 2),
         },
         introScale: Math.min(scaleByHeight, scaleByWidth),
-        fanAngle:
-          window.innerWidth >= FAN_BREAKPOINT_PX
-            ? FAN_ANGLE_LG
-            : FAN_ANGLE_SM,
+        fanRight: isDesktop ? FAN_TARGETS.right.lg : FAN_TARGETS.right.sm,
+        fanLeft: isDesktop ? FAN_TARGETS.left.lg : FAN_TARGETS.left.sm,
+        partWidth,
+        partHeight,
       });
     };
     // 첫 측정도 raf로 비동기화 — React Compiler가 useEffect 본문 동기 setState를 금지.
@@ -348,102 +363,113 @@ function ChoreographyTree({
       <div
         ref={slotRef}
         className={cn("relative", className)}
-      // motion 트리가 마운트되기 전에도 slot ref가 실제 아트워크 카드와 동일한 dimension을
-      // 갖도록 명시 사이즈를 부여. 빈 div(0×0) 상태에서 measurement가 일어나면 centerOffset이
-      // slot 중심이 아닌 상단을 기준으로 계산되어 카메라가 ARTWORK_HEIGHT/2(229px)만큼
-      // 아래로 어긋난다 (col-reverse 레이아웃에서만 발생: 데스크탑은 슬롯이 viewport 세로
-      // 중앙에 위치해 height=0이든 정확하든 centerOffset.y가 0으로 동일하게 떨어지기 때문).
-      style={{ width: PART_SIZE, height: ARTWORK_HEIGHT }}
-    >
-      {measurement !== null && (
-        <motion.div
-          // Layer 1 — slot-positioner: viewport center ↔ slot center translate.
-          // 인트로 동안엔 viewport center에 정지, settling/fanning에서 slot center로 spring 후 정지.
-          className="relative"
-          initial={{
-            x: measurement.centerOffset.x,
-            y: measurement.centerOffset.y,
-          }}
-          animate={
-            isSettled
-              ? { x: 0, y: 0 }
-              : {
-                  x: measurement.centerOffset.x,
-                  y: measurement.centerOffset.y,
-                }
-          }
-          transition={SLOT_TRANSITION}
-          onAnimationComplete={() => {
-            // settling 애니메이션이 안착하면 fanning phase로 전환 → 사이드 카드 rotate+opacity 시작.
-            // 동시에 onLeftReveal()로 부모의 배경+좌측 텍스트 페이드인 트리거 → 사이드 카드
-            // 펼침 애니메이션과 배경 등장이 같은 시간 창에서 진행된다.
-            // fanning phase에서는 slot-positioner target이 그대로(0,0) 유지되어 추가 애니메이션 없음.
-            if (phase === "settling") {
-              onPhaseChange("fanning");
-              onLeftReveal();
-            }
-          }}
-        >
-          {/* z-10 BACK — opacity 0으로 마운트되어 인트로/settling 동안 완전히 숨음 (z-30 카메라 카드의
-              반투명 영역으로도 비치지 않음). fanning phase에서 opacity 0→1, rotate 0°→+45°가 동시에
-              애니메이트되어 부채꼴로 펼쳐지면서 나타난다. 이 카드의 애니메이션 완료가
-              전체 시퀀스의 마지막 트리거. */}
+        // motion 트리가 마운트되기 전에도 slot ref가 실제 아트워크 카드와 동일한 dimension을
+        // 갖도록 명시 사이즈를 부여. measurement rAF에서 viewport 폭에 맞춘 정확한 크기로
+        // 다시 세팅하므로 여기서는 PART_WIDTH_LG(최대값)를 기본으로 둔다.
+        style={{
+          width: measurement?.partWidth ?? PART_WIDTH_LG,
+          height: measurement
+            ? 3 * measurement.partHeight + 2 * PART_GAP
+            : 3 * (PART_WIDTH_LG / PART_ASPECT_RATIO) + 2 * PART_GAP,
+        }}
+      >
+        {measurement !== null && (
           <motion.div
-            className="absolute inset-0 z-10 origin-bottom"
-            initial={{ rotate: 0, opacity: 0 }}
-            animate={{
-              rotate: isFanning ? measurement.fanAngle : 0,
-              opacity: isFanning ? 1 : 0,
-            }}
-            transition={SIDE_ROTATION_TRANSITION}
-            onAnimationComplete={() => {
-              if (isFanning) onComplete();
-            }}
-          >
-            <RelayArtworkCard size={PART_SIZE} />
-          </motion.div>
-
-          {/* z-20 MID — 동일 패턴, fanning에서 0° → -fanAngle. onComplete는 z-10에서 처리하므로 여기엔 없음. */}
-          <motion.div
-            className="absolute inset-0 z-20 origin-bottom"
-            initial={{ rotate: 0, opacity: 0 }}
-            animate={{
-              rotate: isFanning ? -measurement.fanAngle : 0,
-              opacity: isFanning ? 1 : 0,
-            }}
-            transition={SIDE_ROTATION_TRANSITION}
-          >
-            <RelayArtworkCard size={PART_SIZE} />
-          </motion.div>
-
-          {/* Layer 2 — 카메라: 인트로 동안 scale=introScale, translateY=focus offset.
-              settling/fanning 시 scale=1, translateY=0으로 줌아웃 후 정지. transform-origin은
-              default 50% 50%이라 스케일이 슬롯 중앙을 기준으로 적용되고, translateY로 focus part가
-              viewport 중앙에 온다. */}
-          <motion.div
-            className="relative z-30"
+            // Layer 1 — slot-positioner: viewport center ↔ slot center translate.
+            // 인트로 동안엔 viewport center에 정지, settling/fanning에서 slot center로 spring 후 정지.
+            className="relative"
             initial={{
-              scale: measurement.introScale,
-              y: PART_STEP * 1 * measurement.introScale,
+              x: measurement.centerOffset.x,
+              y: measurement.centerOffset.y,
             }}
             animate={
               isSettled
-                ? { scale: 1, y: 0 }
+                ? { x: 0, y: 0 }
                 : {
-                    scale: measurement.introScale,
-                    y: PART_STEP * (1 - focusIndex) * measurement.introScale,
+                    x: measurement.centerOffset.x,
+                    y: measurement.centerOffset.y,
                   }
             }
-            transition={CAMERA_PAN_TRANSITION}
+            transition={SLOT_TRANSITION}
+            onAnimationComplete={() => {
+              // settling 애니메이션이 안착하면 fanning phase로 전환 → 사이드 카드 rotate+opacity 시작.
+              // 동시에 onLeftReveal()로 부모의 배경+좌측 텍스트 페이드인 트리거 → 사이드 카드
+              // 펼침 애니메이션과 배경 등장이 같은 시간 창에서 진행된다.
+              // fanning phase에서는 slot-positioner target이 그대로(0,0) 유지되어 추가 애니메이션 없음.
+              if (phase === "settling") {
+                onPhaseChange("fanning");
+                onLeftReveal();
+              }
+            }}
           >
-            <RelayArtworkCard
-              revealCount={revealCount}
-              onPartReveal={handlePartReveal}
-              size={PART_SIZE}
-            />
+            {/* z-10 BACK — opacity 0으로 마운트되어 인트로/settling 동안 완전히 숨음. fanning phase에서
+              opacity 0→1 + rotate/translate가 동시에 애니메이트되어 펼쳐지면서 나타난다.
+              이 카드의 애니메이션 완료가 전체 시퀀스의 마지막 트리거. */}
+            <motion.div
+              className="absolute inset-0 z-10 origin-bottom"
+              initial={{ rotate: 0, x: 0, opacity: 0 }}
+              animate={{
+                rotate: isFanning ? measurement.fanRight.rotate : 0,
+                x: isFanning ? measurement.fanRight.x : 0,
+                opacity: isFanning ? 1 : 0,
+              }}
+              transition={SIDE_ROTATION_TRANSITION}
+              onAnimationComplete={() => {
+                if (isFanning) onComplete();
+              }}
+            >
+              <RelayArtworkCard variant={1} size={measurement.partWidth} />
+            </motion.div>
+
+            {/* z-20 MID — 동일 패턴, fanning에서 좌측으로 translate+rotate. onComplete는 z-10에서 처리. */}
+            <motion.div
+              className="absolute inset-0 z-20 origin-bottom"
+              initial={{ rotate: 0, x: 0, opacity: 0 }}
+              animate={{
+                rotate: isFanning ? measurement.fanLeft.rotate : 0,
+                x: isFanning ? measurement.fanLeft.x : 0,
+                opacity: isFanning ? 1 : 0,
+              }}
+              transition={SIDE_ROTATION_TRANSITION}
+            >
+              <RelayArtworkCard variant={3} size={measurement.partWidth} />
+            </motion.div>
+
+            {/* Layer 2 — 카메라: 인트로 동안 scale=introScale, translateY=focus offset.
+              settling/fanning 시 scale=1, translateY=0으로 줌아웃 후 정지. transform-origin은
+              default 50% 50%이라 스케일이 슬롯 중앙을 기준으로 적용되고, translateY로 focus part가
+              viewport 중앙에 온다. */}
+            <motion.div
+              className="relative z-30"
+              initial={{
+                scale: measurement.introScale,
+                y:
+                  (measurement.partHeight + PART_GAP) *
+                  1 *
+                  measurement.introScale,
+              }}
+              animate={
+                isSettled
+                  ? { scale: 1, y: 0 }
+                  : {
+                      scale: measurement.introScale,
+                      y:
+                        (measurement.partHeight + PART_GAP) *
+                        (1 - focusIndex) *
+                        measurement.introScale,
+                    }
+              }
+              transition={CAMERA_PAN_TRANSITION}
+            >
+              <RelayArtworkCard
+                variant={2}
+                revealCount={revealCount}
+                onPartReveal={handlePartReveal}
+                size={measurement.partWidth}
+              />
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
+        )}
       </div>
     </>
   );
@@ -469,15 +495,16 @@ function RelayBoothEntranceFinalState({
 
   return (
     <div className={cn("relative", className)}>
-      {/* 모바일/태블릿(< lg)은 30°, 데스크탑은 45°. ChoreographyTree의 fanAngle 분기와 동일 1024px. */}
-      <div className="absolute inset-0 z-10 origin-bottom rotate-30 lg:rotate-45">
-        <RelayArtworkCard size={PART_SIZE} />
+      {/* translate+완만 rotation spread. 모바일은 데스크탑의 절반 translate.
+          ChoreographyTree의 FAN_TARGETS와 수치 일치. size prop 생략 → Tailwind 반응형 적용. */}
+      <div className="absolute inset-0 z-10 origin-bottom translate-x-15 rotate-15 lg:translate-x-30">
+        <RelayArtworkCard variant={1} />
       </div>
-      <div className="absolute inset-0 z-20 origin-bottom rotate-[-30deg] lg:-rotate-45">
-        <RelayArtworkCard size={PART_SIZE} />
+      <div className="absolute inset-0 z-20 origin-bottom -translate-x-25 rotate-5 lg:-translate-x-50">
+        <RelayArtworkCard variant={3} />
       </div>
       <div className="relative z-30">
-        <RelayArtworkCard size={PART_SIZE} />
+        <RelayArtworkCard variant={2} />
       </div>
     </div>
   );

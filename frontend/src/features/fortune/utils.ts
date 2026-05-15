@@ -9,6 +9,7 @@ import {
 
 import {
   ApiError,
+  getFortuneToday,
   getFortuneTodayAvailability,
   patchAnonymousBirthInfo,
   postAnonymousBirthInfo,
@@ -28,6 +29,7 @@ import {
   FORTUNE_LUCKY_COLORS,
   FORTUNE_NOON_FALLBACK_BIRTH_TIME,
   FORTUNE_POSTIT_LINES,
+  FORTUNE_SCORE_LABELS,
   FORTUNE_STORAGE_KEY,
   FORTUNE_TITLES,
   FORTUNE_USER_NOT_READY_ERROR,
@@ -204,9 +206,9 @@ export function calculateFortuneSaju(birthInfo: FortuneBirthInfo): FortuneSaju {
 
 export function createFortuneResultFromCreateResponse(
   createdFortune: FortuneCreateResponse,
-  birthInfo: FortuneBirthInfo,
+  birthInfo: FortuneBirthInfo | null,
 ): FortuneResult {
-  const saju = calculateFortuneSaju(birthInfo)
+  const saju = createSajuFromFortuneResponse(createdFortune, birthInfo)
   const fortuneSection = createdFortune.fortune
   const luckyColor = normalizeLuckyColor(fortuneSection.luckyColor, createdFortune.fortuneId)
 
@@ -227,8 +229,73 @@ export function createFortuneResultFromCreateResponse(
     caution: fortuneSection.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
     cardTheme: pickCardTheme(createdFortune.fortuneId),
     saju,
-    sajuSummary: createSajuSummary(birthInfo, saju),
+    sajuSummary: createResponseSajuSummary(createdFortune, birthInfo, saju),
   }
+}
+
+function createSajuFromFortuneResponse(createdFortune: FortuneCreateResponse, birthInfo: FortuneBirthInfo | null) {
+  if (birthInfo) {
+    return calculateFortuneSaju(birthInfo)
+  }
+
+  const serverSaju = createdFortune.saju
+  const calendarType = serverSaju.calendarType === 'lunar' ? 'lunar' : 'solar'
+
+  return {
+    input: {
+      birthDate: '',
+      birthTime: '',
+      calendarType,
+      timeUnknown: true,
+      timePolicy: 'NOON_FALLBACK',
+      timezone: FORTUNE_TIMEZONE,
+      solarDate: '',
+      lunarDate: '',
+    },
+    sajuYear: serverSaju.yearPillar,
+    sajuMonth: serverSaju.monthPillar,
+    sajuDay: serverSaju.dayPillar,
+    sajuHour: serverSaju.hourPillar,
+    dayElemental: serverSaju.dayMasterElement,
+    dayBranchElemental: serverSaju.dayBranchElement,
+    dayYinYang: serverSaju.dayMasterYinYang as FortuneSajuYinYang,
+    dayBranchYinYang: serverSaju.dayBranchYinYang as FortuneSajuYinYang,
+    pillars: {
+      year: createServerSajuPillar(serverSaju.yearPillar),
+      month: createServerSajuPillar(serverSaju.monthPillar),
+      day: createServerSajuPillar(serverSaju.dayPillar),
+      hour: createServerSajuPillar(serverSaju.hourPillar),
+    },
+    baZiWuXing: [],
+    library: {
+      name: 'manseryeok',
+      version: MANSERYEOK_VERSION,
+    },
+  } satisfies FortuneSaju
+}
+
+function createServerSajuPillar(ganZhi: string): FortuneSajuPillar {
+  return {
+    ganZhi,
+    heavenlyStem: '',
+    earthlyBranch: '',
+    stemElemental: '',
+    branchElemental: '',
+    stemYinYang: '' as FortuneSajuYinYang,
+    branchYinYang: '' as FortuneSajuYinYang,
+  }
+}
+
+function createResponseSajuSummary(
+  createdFortune: FortuneCreateResponse,
+  birthInfo: FortuneBirthInfo | null,
+  saju: FortuneSaju,
+) {
+  if (birthInfo) {
+    return createSajuSummary(birthInfo, saju)
+  }
+
+  return `${createdFortune.date} - ${saju.sajuYear} ${saju.sajuMonth} ${saju.sajuDay} ${saju.sajuHour}`
 }
 
 export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateKey = getKoreanDateKey()) {
@@ -260,6 +327,146 @@ export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateK
     saju,
     sajuSummary: createSajuSummary(birthInfo, saju),
   } satisfies FortuneResult
+}
+
+export function createFortuneCommunityImageDataUrl(result: FortuneResult) {
+  if (typeof document === 'undefined') {
+    return null
+  }
+
+  const canvas = document.createElement('canvas')
+  canvas.width = 840
+  canvas.height = 630
+
+  const context = canvas.getContext('2d')
+  if (!context) {
+    return null
+  }
+
+  context.fillStyle = '#fff4b8'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+
+  context.save()
+  context.translate(34, 22)
+  context.rotate(-0.025)
+  context.fillStyle = '#fff8cf'
+  context.shadowColor = 'rgba(66, 45, 25, 0.18)'
+  context.shadowBlur = 22
+  context.shadowOffsetY = 12
+  drawRoundedRect(context, 0, 0, 772, 586, 24)
+  context.fill()
+  context.restore()
+
+  context.shadowColor = 'transparent'
+  context.fillStyle = '#3b2a1f'
+  context.font = '700 36px Pretendard, sans-serif'
+  drawWrappedCanvasText(context, result.title, 76, 92, 680, 42, 2)
+
+  context.fillStyle = '#2f7d49'
+  context.font = '700 18px Pretendard, sans-serif'
+  context.fillText('오늘의 운세', 76, 54)
+
+  context.fillStyle = '#fdf9ea'
+  drawRoundedRect(context, 76, 150, 688, 104, 18)
+  context.fill()
+  context.fillStyle = '#74543b'
+  context.font = '700 18px Pretendard, sans-serif'
+  context.fillText('포포의 한 줄', 100, 188)
+  context.fillStyle = '#3b2a1f'
+  context.font = '700 25px Pretendard, sans-serif'
+  drawWrappedCanvasText(context, result.postitLine, 100, 222, 632, 32, 2)
+
+  context.fillStyle = '#4f3c2e'
+  context.font = '500 22px Pretendard, sans-serif'
+  drawWrappedCanvasText(context, result.summary, 76, 310, 688, 34, 4)
+
+  const scoreStartY = 454
+  FORTUNE_SCORE_LABELS.forEach((scoreLabel, scoreIndex) => {
+    const scoreX = 76 + scoreIndex * 172
+    context.fillStyle = '#fdf9ea'
+    drawRoundedRect(context, scoreX, scoreStartY, 152, 78, 16)
+    context.fill()
+    context.fillStyle = '#74543b'
+    context.font = '700 16px Pretendard, sans-serif'
+    context.fillText(scoreLabel.label, scoreX + 18, scoreStartY + 30)
+    context.fillStyle = '#3b2a1f'
+    context.font = '700 28px Pretendard, sans-serif'
+    context.fillText(String(result.scores[scoreLabel.key]), scoreX + 18, scoreStartY + 62)
+  })
+
+  context.fillStyle = result.luckyColor.hex
+  context.beginPath()
+  context.arc(94, 570, 14, 0, Math.PI * 2)
+  context.fill()
+  context.fillStyle = '#3b2a1f'
+  context.font = '700 18px Pretendard, sans-serif'
+  context.fillText(`${result.luckyColor.name} · ${result.luckyKeyword}`, 120, 576)
+
+  return canvas.toDataURL('image/png')
+}
+
+function drawRoundedRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  const right = x + width
+  const bottom = y + height
+
+  context.beginPath()
+  context.moveTo(x + radius, y)
+  context.lineTo(right - radius, y)
+  context.quadraticCurveTo(right, y, right, y + radius)
+  context.lineTo(right, bottom - radius)
+  context.quadraticCurveTo(right, bottom, right - radius, bottom)
+  context.lineTo(x + radius, bottom)
+  context.quadraticCurveTo(x, bottom, x, bottom - radius)
+  context.lineTo(x, y + radius)
+  context.quadraticCurveTo(x, y, x + radius, y)
+  context.closePath()
+}
+
+function drawWrappedCanvasText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines: number,
+) {
+  const words = text.split(/\s+/)
+  const lines: string[] = []
+  let currentLine = ''
+
+  words.forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word
+    if (context.measureText(nextLine).width <= maxWidth) {
+      currentLine = nextLine
+      return
+    }
+
+    if (currentLine) {
+      lines.push(currentLine)
+    }
+    currentLine = word
+  })
+
+  if (currentLine) {
+    lines.push(currentLine)
+  }
+
+  lines.slice(0, maxLines).forEach((line, lineIndex) => {
+    const isLastVisibleLine = lineIndex === maxLines - 1 && lines.length > maxLines
+    context.fillText(
+      isLastVisibleLine ? `${line.replace(/[.。…]*$/, '')}...` : line,
+      x,
+      y + lineIndex * lineHeight,
+    )
+  })
 }
 
 function createFortuneResultId(issuedDateKey: string, seed: number) {
@@ -463,7 +670,7 @@ export function createBirthInfoFromProfile(
 }
 
 export function canUseLocalFortuneFallback(error: unknown) {
-  if (!runtime.isDev) {
+  if (!runtime.isDev || !runtime.fortuneMockEnabled) {
     return false
   }
 
@@ -550,18 +757,12 @@ export async function issueNewFortune(birthInfo: FortuneBirthInfo) {
 export async function getTodayFortuneResult(birthInfo: FortuneBirthInfo | null) {
   const availability = await getFortuneTodayAvailability()
 
-  if (availability.available || !availability.todayFortuneId || !birthInfo) {
+  if (availability.available || !availability.todayFortuneId) {
     return null
   }
 
-  // 백엔드는 GET /fortune/{id}를 아직 제공하지 않으므로 같은 디바이스 localStorage 매칭에 의존한다.
-  // 다른 기기에서 발급한 운세 본문 표시는 BE 추가 시점에 연결한다.
-  const stored = readStoredFortune()
-  if (stored && stored.result.id === availability.todayFortuneId) {
-    return stored.result
-  }
-
-  return null
+  const todayFortune = await getFortuneToday()
+  return createFortuneResultFromCreateResponse(todayFortune, birthInfo)
 }
 
 export async function resolveAlreadyIssuedResult(error: unknown, birthInfo: FortuneBirthInfo) {

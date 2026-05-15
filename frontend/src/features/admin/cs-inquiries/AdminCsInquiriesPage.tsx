@@ -8,6 +8,7 @@ import type {
   AdminInquiryReplyResponse,
   AdminInquiryStatus,
   AdminInquiryStatusUpdateResponse,
+  AdminInquiryType,
 } from '@/shared/types'
 
 import {
@@ -31,6 +32,13 @@ function formatDate(value: string | null): string {
   })
 }
 
+const INQUIRY_TYPE_LABELS: Record<AdminInquiryType, string> = {
+  error: '오류/버그',
+  feature_request: '기능 제안',
+  content_report: '콘텐츠 신고',
+  other: '기타',
+}
+
 interface PendingReply {
   inquiryId: number
   defaultSubject: string
@@ -43,6 +51,7 @@ export default function AdminCsInquiriesPage() {
     page,
     totalPages,
     filter,
+    typeFilter,
     inputKeyword,
     committedKeyword,
     isLoading,
@@ -52,6 +61,7 @@ export default function AdminCsInquiriesPage() {
     commitKeyword,
     clearKeyword,
     changeFilter,
+    changeTypeFilter,
     goToPage,
     changeStatus,
     reply,
@@ -112,8 +122,10 @@ export default function AdminCsInquiriesPage() {
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-center justify-end gap-3">
         <InquiryFilterBar
-          value={filter}
-          onChange={changeFilter}
+          statusValue={filter}
+          typeValue={typeFilter}
+          onStatusChange={changeFilter}
+          onTypeChange={changeTypeFilter}
           disabled={isMutating}
         />
       </header>
@@ -213,7 +225,7 @@ export default function AdminCsInquiriesPage() {
                     #{inquiry.id}
                   </td>
                   <td className="body-r px-4 py-3 text-fg-secondary">
-                    {inquiry.type}
+                    {INQUIRY_TYPE_LABELS[inquiry.type] ?? inquiry.type}
                   </td>
                   <td className="body-m px-4 py-3 text-fg-primary">
                     {inquiry.title}

@@ -66,6 +66,7 @@ export interface SystemParameterListResponse {
  */
 export interface SystemParameterBulkUpdateRequest {
   communityMaxMemoCount?: SystemParameterValue
+  communityReportHideThreshold?: SystemParameterValue
   relayRoomParticipantLimit?: SystemParameterValue
   relayRoomTimeLimitSeconds?: SystemParameterValue
   relayReconnectGraceSeconds?: SystemParameterValue

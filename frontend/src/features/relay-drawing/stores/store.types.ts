@@ -13,11 +13,7 @@ import type {
   RelayRoomStatus,
 } from '@/shared/types'
 
-import type {
-  RelayResultRevealStep,
-  RelayRoundKey,
-  RelayToolKey,
-} from '../constants'
+import type { RelayRoundKey, RelayToolKey } from '../constants'
 import type { RelayDrawLine, RelayDrawPoint, RelayRoundLines } from '../types'
 
 // WS 종료성 이벤트 수신 시 모달에 표시할 사유.
@@ -59,12 +55,18 @@ export interface RoomSlice {
   // 종료성 이벤트 사유 — 모달 표시 후 clearRoom + 부스 이동.
   dismissalReason: RelayDismissalReason | null
 
+  // 게임 시작 전환 애니메이션 단계.
+  // idle: 대기 상태 (로비 표시)
+  // animating: 로비 패널 슬라이드 아웃 + 게임 시작 이미지 표시 중
+  gameStartPhase: 'idle' | 'animating'
+
   hydrateRoomState: (payload: RelayRoomHydratePayload) => void
   setRoomStatus: (roomStatus: RelayRoomStatus) => void
   setParticipants: (participants: RelayRoomParticipantResponse[]) => void
   setHostUserUuid: (hostUserUuid: string) => void
   setTimeLimitSeconds: (seconds: number) => void
   setDismissalReason: (reason: RelayDismissalReason) => void
+  setGameStartPhase: (phase: 'idle' | 'animating') => void
   // clearRoom: 룸 떠나기 / 모달 확인 시. 캔버스/결과 슬라이스 필드도 같이 비움.
   clearRoom: () => void
 }
@@ -158,7 +160,6 @@ export interface CanvasSlice {
 }
 
 export interface ResultSlice {
-  resultRevealStep: RelayResultRevealStep
   completedAt: string | null
 
   // 서버 결과 — getRelayRoomResults 응답으로 채워진다.
@@ -167,8 +168,6 @@ export interface ResultSlice {
 
   setResults: (items: RelayRoomResultItemResponse[]) => void
   setActiveResultIndex: (index: number) => void
-  goToNextResultReveal: () => void
-  goToPreviousResultReveal: () => void
   // resetSession: 새 게임 시작 시 캔버스/결과 슬라이스를 초기화.
   resetSession: () => void
 }

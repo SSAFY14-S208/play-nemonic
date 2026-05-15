@@ -1,11 +1,17 @@
 'use client'
 
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { ArrowRight, Download, Share2, Trash2, X } from 'lucide-react'
+import { ArrowRight, Download, Printer, Share2, Trash2, X } from 'lucide-react'
+import { ShareSheet, useShareStore } from '@/features/share'
+import { cn } from '@/shared/libs'
+import { writeCommunityCanvasHandoffDraft } from '@/shared/utils'
 import { PHONE_COLORS, PHONE_GALLERY_ITEM_STYLES } from '../constants'
+import { useNemonicImagePrint } from '../hooks'
 import { usePhoneStore } from '../phoneStore'
 import type { PhoneGalleryItem } from '../types'
+import { PhonePrintFrame } from './PhonePrintFrame'
 
 interface PhoneGalleryItemSheetProps {
   item: PhoneGalleryItem
@@ -70,6 +76,7 @@ export function PhoneGalleryItemSheet({
   item,
   onClose,
 }: PhoneGalleryItemSheetProps) {
+  const router = useRouter()
   const itemStyle = PHONE_GALLERY_ITEM_STYLES[item.kind]
   const galleryDetail = usePhoneStore((state) => state.galleryDetail)
   const galleryDetailStatus = usePhoneStore(
@@ -78,19 +85,42 @@ export function PhoneGalleryItemSheet({
   const loadGalleryDetail = usePhoneStore((state) => state.loadGalleryDetail)
   const clearGalleryDetail = usePhoneStore((state) => state.clearGalleryDetail)
   const deleteGalleryItem = usePhoneStore((state) => state.deleteGalleryItem)
+  const setToast = usePhoneStore((state) => state.setToast)
+  const shareInfo = useShareStore((state) => state.shareInfo)
+  const shareStatus = useShareStore((state) => state.shareStatus)
+  const shareError = useShareStore((state) => state.shareError)
+  const createShare = useShareStore((state) => state.createShare)
+  const clearShare = useShareStore((state) => state.clearShare)
+  const isSharing = shareStatus === 'loading'
 
   const isLoading = galleryDetailStatus === 'loading'
   const detailImageUrl =
     galleryDetail && galleryDetail.galleryId === item.id
       ? galleryDetail.contentUrl || galleryDetail.thumbnailUrl
       : null
+  const printImageUrl = detailImageUrl ?? item.imageDataUrl ?? null
+  const {
+    isPreparingPrint,
+    isPrintDisabled,
+    printImage,
+    printMessage,
+  } = useNemonicImagePrint({
+    imageUrl: printImageUrl,
+    isImageLoading: isLoading,
+    onPrintBlocked: setToast,
+  })
 
   useEffect(() => {
     void loadGalleryDetail(item.id)
     return () => {
       clearGalleryDetail()
+      clearShare()
     }
-  }, [clearGalleryDetail, item.id, loadGalleryDetail])
+  }, [clearGalleryDetail, clearShare, item.id, loadGalleryDetail])
+
+  useEffect(() => {
+    if (shareError) setToast(shareError)
+  }, [shareError, setToast])
 
   const handleDelete = async () => {
     if (typeof window !== 'undefined') {
@@ -98,6 +128,23 @@ export function PhoneGalleryItemSheet({
       if (!confirmed) return
     }
     await deleteGalleryItem(item.id)
+  }
+
+  const handleCommunityAttach = () => {
+    if (!printImageUrl) {
+      setToast('커뮤니티에 붙일 이미지를 불러오지 못했어요.')
+      return
+    }
+
+    writeCommunityCanvasHandoffDraft({
+      sourceKind: 'GALLERY',
+      title: item.title,
+      imageUrl: printImageUrl,
+      thumbnailUrl: item.imageDataUrl ?? printImageUrl,
+      sourceGalleryId: item.id,
+      sourceContentKind: item.kind,
+    })
+    router.push('/community-canvas')
   }
 
   return (
@@ -174,10 +221,15 @@ export function PhoneGalleryItemSheet({
           </button>
           <button
             type="button"
-            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle"
+            onClick={() => void createShare(item.id)}
+            disabled={isSharing}
+            className={cn(
+              'body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle',
+              isSharing && 'cursor-not-allowed opacity-60 hover:bg-white',
+            )}
           >
             <Share2 className="size-4" />
-            공유
+            {isSharing ? '준비 중' : '공유'}
           </button>
           <button
             type="button"
@@ -191,7 +243,36 @@ export function PhoneGalleryItemSheet({
 
         <button
           type="button"
-          className="body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary text-fg-inverse transition hover:-translate-y-0.5"
+          onClick={() => void printImage()}
+          disabled={isPrintDisabled}
+          aria-describedby={printMessage ? 'phone-gallery-print-status' : undefined}
+          className={cn(
+            'body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] transition',
+            isPrintDisabled
+              ? 'cursor-not-allowed bg-surface-subtle text-fg-secondary'
+              : 'bg-primary-1 text-fg-inverse hover:-translate-y-0.5',
+          )}
+        >
+          <Printer className="size-5" />
+          {isPreparingPrint ? '인쇄창 준비 중' : '네모닉 출력'}
+        </button>
+        {printMessage && (
+          <p
+            id="phone-gallery-print-status"
+            className="caption-r mt-2 text-center text-fg-secondary"
+          >
+            {printMessage}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={handleCommunityAttach}
+          disabled={!printImageUrl}
+          className={cn(
+            'body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary text-fg-inverse transition hover:-translate-y-0.5',
+            !printImageUrl && 'cursor-not-allowed opacity-60',
+          )}
         >
           커뮤니티 캔버스에 붙이기
           <ArrowRight className="size-5" />
@@ -200,6 +281,8 @@ export function PhoneGalleryItemSheet({
           월드 캔버스에 메모지로 부착됩니다.
         </p>
       </section>
+      <PhonePrintFrame imageUrl={printImageUrl} title={item.title} />
+      {shareInfo && <ShareSheet shareInfo={shareInfo} onClose={clearShare} />}
     </div>
   )
 }

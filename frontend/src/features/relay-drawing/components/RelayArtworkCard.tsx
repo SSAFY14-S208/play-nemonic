@@ -4,19 +4,35 @@ import { motion, type Variants } from "motion/react";
 
 import { cn } from "@/shared/libs";
 
-import magicianBody from "../assets/magician-body-t.png";
-import magicianFace from "../assets/magician-face-t.png";
-import magicianLeg from "../assets/magician-leg-t.png";
+import drawing1Body from "../assets/drawing-1-body.png";
+import drawing1Face from "../assets/drawing-1-face.png";
+import drawing1Leg from "../assets/drawing-1-leg.png";
+import drawing2Body from "../assets/drawing-2-body.png";
+import drawing2Face from "../assets/drawing-2-face.png";
+import drawing2Leg from "../assets/drawing-2-leg.png";
+import drawing3Body from "../assets/drawing-3-body.png";
+import drawing3Face from "../assets/drawing-3-face.png";
+import drawing3Leg from "../assets/drawing-3-leg.png";
 
 import RelayLabelCard from "./RelayLabelCard";
 
-// TODO: 추후 face/body/leg 이미지 세트를 variant prop으로 받아 다른 캐릭터 라벨도
-// 같은 컴포넌트로 그릴 수 있도록 일반화. 현재는 마술사 단일 세트 하드코딩.
-const MAGICIAN_PARTS = [
-  { src: magicianFace, alt: "얼굴 라벨" },
-  { src: magicianBody, alt: "몸통 라벨" },
-  { src: magicianLeg, alt: "다리 라벨" },
-] as const;
+const DRAWING_SETS = {
+  1: [
+    { src: drawing1Face, alt: "얼굴 그림 1" },
+    { src: drawing1Body, alt: "몸통 그림 1" },
+    { src: drawing1Leg, alt: "다리 그림 1" },
+  ],
+  2: [
+    { src: drawing2Face, alt: "얼굴 그림 2" },
+    { src: drawing2Body, alt: "몸통 그림 2" },
+    { src: drawing2Leg, alt: "다리 그림 2" },
+  ],
+  3: [
+    { src: drawing3Face, alt: "얼굴 그림 3" },
+    { src: drawing3Body, alt: "몸통 그림 3" },
+    { src: drawing3Leg, alt: "다리 그림 3" },
+  ],
+} as const;
 
 // 위에서 살짝 큰 채로 내려와 안착하는 "챡 달라붙는" spring.
 const cardVariants: Variants = {
@@ -36,6 +52,8 @@ const cardVariants: Variants = {
 };
 
 interface RelayArtworkCardProps {
+  // 1·2·3 중 하나를 선택해 drawing-{n} 이미지 세트를 렌더. 기본값 1.
+  variant?: 1 | 2 | 3;
   // 표시할 part 개수. undefined면 모든 part를 즉시 visible 상태로 렌더 (FinalState · 사이드 사본).
   // 0..3 사이 값은 부모가 phase에 맞춰 controlled stagger로 증가시키며, 그때마다 다음 part가
   // spring으로 등장한다.
@@ -43,21 +61,25 @@ interface RelayArtworkCardProps {
   // 각 part의 hidden → visible spring이 안착할 때 1회 호출. 부모는 이 콜백을 phase chain
   // trigger로 사용한다. revealCount가 undefined면(즉시 visible 경로) 호출되지 않는다.
   onPartReveal?: (revealedIndex: number) => void;
-  // 라벨지 한 장의 px 사이즈.
+  // 라벨지 한 장의 px 폭. 높이는 3:2 비율로 자동 결정.
+  // 인트로 애니메이션처럼 수치 계산이 필요한 곳에서만 명시.
+  // 생략하면 RelayLabelCard의 Tailwind 반응형 클래스가 적용됨.
   size?: number;
   className?: string;
 }
 
 export default function RelayArtworkCard({
+  variant = 1,
   revealCount,
   onPartReveal,
-  size = 150,
+  size,
   className,
 }: RelayArtworkCardProps) {
   const isControlled = revealCount !== undefined;
+  const parts = DRAWING_SETS[variant];
   return (
     <div className={cn("relative flex flex-col gap-1 items-center", className)}>
-      {MAGICIAN_PARTS.map((part, index) => {
+      {parts.map((part, index) => {
         const isVisible = !isControlled || index < (revealCount ?? 0);
         return (
           <motion.div

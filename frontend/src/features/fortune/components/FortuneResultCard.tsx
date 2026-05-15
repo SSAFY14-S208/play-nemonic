@@ -116,11 +116,11 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         </div>
         <button
           type="button"
-          className="body-b fortune-secondary-button flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-4 text-fortune-muted"
+          className="body-b fortune-secondary-button flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-4 text-fortune-accent-strong"
           onClick={onAttach}
         >
           <Pin className="size-4" aria-hidden />
-          커뮤니티 준비 중
+          커뮤니티 게시
         </button>
         <button
           type="button"

@@ -10,8 +10,10 @@
 # - non-root user (보안)
 #
 # build-arg:
-#   NEXT_PUBLIC_API_URL        — 클라이언트 번들에 인라인되는 API URL
-#   NEXT_PUBLIC_WEBSOCKET_URL  — 클라이언트 번들에 인라인되는 WS URL
+#   NEXT_PUBLIC_API_URL                   — 클라이언트 번들에 인라인되는 API URL
+#   NEXT_PUBLIC_WEBSOCKET_URL             — 클라이언트 번들에 인라인되는 WS URL
+#   NEXT_PUBLIC_GRAFANA_URL               — 백오피스 대시보드 iframe 임베딩 URL
+#   NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL — 백오피스 통계 iframe 임베딩 URL
 # ============================================================
 
 # ===== Stage 1: Builder =====
@@ -54,8 +56,12 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # 런타임 env로는 브라우저 번들 못 바꾸므로 반드시 빌드 타임에 주입.
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_WEBSOCKET_URL
+ARG NEXT_PUBLIC_GRAFANA_URL
+ARG NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WEBSOCKET_URL=$NEXT_PUBLIC_WEBSOCKET_URL
+ENV NEXT_PUBLIC_GRAFANA_URL=$NEXT_PUBLIC_GRAFANA_URL
+ENV NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL=$NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL
 
 # 빌드 (next.config의 output: 'standalone' 필요)
 # .next/cache도 cache mount로 빼서 레이어 commit 안정화 + 빌드 캐시 재사용

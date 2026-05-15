@@ -1,3 +1,4 @@
+export { useRelayAbandonmentTracking } from './useRelayAbandonmentTracking'
 export { useRelayBooth } from './useRelayBooth'
 export { useRelayCanvas } from './useRelayCanvas'
 export { useRelayDrawingGame } from './useRelayDrawingGame'

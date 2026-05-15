@@ -50,6 +50,11 @@ export function usePhoneDrawing() {
   const brushSize = brushSizes[activeTool]
   const hasDrawing = lines.length > 0
 
+  const getDrawingImageDataUrl = useCallback(
+    () => stageRef.current?.toDataURL({ pixelRatio: 2 }) ?? null,
+    [],
+  )
+
   const setBrushSize = useCallback(
     (nextBrushSize: number) => {
       setBrushSizes((currentBrushSizes) => ({
@@ -138,13 +143,26 @@ export function usePhoneDrawing() {
 
   const createArtifact = useCallback(
     async (action: 'save' | 'print') => {
-      if (!hasDrawing || isSaving) return
+      if (isSaving) return
 
-      const imageDataUrl = stageRef.current?.toDataURL({ pixelRatio: 2 })
+      if (!hasDrawing) {
+        if (action === 'print') {
+          setToast('출력할 그림이 없어요.')
+        }
+        return
+      }
+
+      const imageDataUrl = getDrawingImageDataUrl()
       if (!imageDataUrl) return
 
       setSavingDrawing(true)
       try {
+        if (action === 'print') {
+          addDrawingArtifact({ action, imageDataUrl })
+          clearDrawing()
+          return
+        }
+
         const blob = await dataUrlToBlob(imageDataUrl)
         const saveResponse = await uploadDrawingArtifact(blob)
         addDrawingArtifact({ saveResponse, imageDataUrl, action })
@@ -162,6 +180,7 @@ export function usePhoneDrawing() {
     [
       addDrawingArtifact,
       clearDrawing,
+      getDrawingImageDataUrl,
       hasDrawing,
       isSaving,
       setSavingDrawing,
@@ -176,6 +195,7 @@ export function usePhoneDrawing() {
     createArtifact,
     draw,
     endDrawing,
+    getDrawingImageDataUrl,
     hasDrawing,
     isSaving,
     lines,

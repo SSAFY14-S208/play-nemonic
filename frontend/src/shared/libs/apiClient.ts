@@ -1,7 +1,7 @@
 import ky from 'ky'
 
 import { runtime } from '@/shared/config'
-import { useUserStore } from '@/shared/stores'
+import { useLogFlowStore, useUserStore } from '@/shared/stores'
 
 type Query = Record<string, string | number | boolean>
 
@@ -14,6 +14,17 @@ const client = ky.create({
         const userUuid = useUserStore.getState().userUuid
         if (userUuid) {
           request.headers.set('Anonymous-User-UUID', userUuid)
+        }
+      },
+      ({ request }) => {
+        // 로그 ingest 요청 자체에는 trace/flow 헤더를 넣지 않는다
+        if (request.url.includes('logs/client/ingest')) return
+
+        request.headers.set('X-Trace-Id', crypto.randomUUID())
+
+        const flowId = useLogFlowStore.getState().flowId
+        if (flowId) {
+          request.headers.set('X-Flow-Id', flowId)
         }
       },
     ],
