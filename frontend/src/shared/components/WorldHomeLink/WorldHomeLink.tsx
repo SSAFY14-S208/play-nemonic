@@ -9,7 +9,12 @@ import LeaveConfirmModal from './LeaveConfirmModal'
 const WORLD_PATH = '/hub'
 
 /** 클릭 시 진행 내용을 잃을 수 있어 떠나기 전 확인 모달을 띄우는 게임 라우트 */
-const GAME_ROUTE_PREFIXES = ['/flipbook', '/relay-drawing', '/community-canvas']
+const GAME_ROUTE_PREFIXES = [
+  '/flipbook',
+  '/relay-drawing',
+  '/community-canvas',
+  '/infinite-canvas',
+]
 
 /** 월드 홈 링크 자체를 표시하지 않는 라우트 (이동할 곳이 자기 자신이거나 인트로 화면) */
 const HIDDEN_ROUTES = new Set([WORLD_PATH, '/'])
