@@ -29,6 +29,7 @@ import {
   DEFAULT_COMMUNITY_MEMO_COLOR,
 } from '../utils'
 import { CommunityGalleryPicker } from './CommunityGalleryPicker'
+import { useCommunityModalFitScale } from './useCommunityModalFitScale'
 
 interface CommunityComposerModalProps {
   composer: ReturnType<typeof useCommunityComposer>
@@ -56,6 +57,9 @@ const TOOL_ACTIONS: Array<{
 
 const GALLERY_HIDDEN_TOOL_ACTIONS: ToolActionKey[] = []
 const COMPOSER_BOARD_SURFACE_CLASS = 'h-[540px] w-[720px] max-h-full max-w-full'
+const COMPOSER_MODAL_WIDTH = 1600
+const COMPOSER_MODAL_HEIGHT = 980
+const COMPOSER_MODAL_MAX_WIDTH = 1600
 
 function getContainedImageFrame({
   imageWidth,
@@ -82,6 +86,13 @@ function getContainedImageFrame({
 }
 
 export function CommunityComposerModal({ composer }: CommunityComposerModalProps) {
+  const modalScale = useCommunityModalFitScale({
+    designWidth: COMPOSER_MODAL_WIDTH,
+    designHeight: COMPOSER_MODAL_HEIGHT,
+    maxWidth: COMPOSER_MODAL_MAX_WIDTH,
+    viewportPadding: 32,
+  })
+
   if (!composer.isComposerOpen) return null
 
   const { drawingBoard, sourceType, postStatus, backgroundColor } = composer
@@ -108,14 +119,24 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
       aria-labelledby="community-composer-title"
       className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
     >
-      <section
-        className="relative aspect-[1600/980] overflow-hidden bg-contain bg-center bg-no-repeat"
+      <div
+        className="relative shrink-0"
         style={{
-          width: 'min(96vw, 100rem, calc(163.265306dvh - 3.265306rem))',
-          backgroundImage: 'url("/images/community-canvas/ui/modal-composer-frame.svg")',
-          backgroundSize: '100% 100%',
+          width: COMPOSER_MODAL_WIDTH * modalScale,
+          height: COMPOSER_MODAL_HEIGHT * modalScale,
         }}
       >
+        <section
+          className="absolute left-0 top-0 overflow-hidden bg-contain bg-center bg-no-repeat"
+          style={{
+            width: COMPOSER_MODAL_WIDTH,
+            height: COMPOSER_MODAL_HEIGHT,
+            transform: `scale(${modalScale})`,
+            transformOrigin: 'top left',
+            backgroundImage: 'url("/images/community-canvas/ui/modal-composer-frame.svg")',
+            backgroundSize: '100% 100%',
+          }}
+        >
         <header className="absolute left-[5.5%] right-[5.5%] top-[7.1%] flex h-[11.4%] items-center justify-between px-4">
           <div>
             <p className="caption-b text-primary-2">커뮤니티 캔버스</p>
@@ -280,7 +301,8 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
             </button>
           </aside>
         </div>
-      </section>
+        </section>
+      </div>
     </div>
   )
 }

@@ -4,6 +4,11 @@ import { useState } from 'react'
 import { Flag, X } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoReportReason } from '@/shared/types'
+import { useCommunityModalFitScale } from './useCommunityModalFitScale'
+
+const REPORT_MODAL_WIDTH = 760
+const REPORT_MODAL_HEIGHT = 660
+const REPORT_MODAL_MAX_WIDTH = 960
 
 const REPORT_REASONS: CommunityMemoReportReason[] = [
   '부적절한 콘텐츠',
@@ -31,6 +36,12 @@ export function CommunityReportModal({
 }: CommunityReportModalProps) {
   const [reason, setReason] = useState<CommunityMemoReportReason>('부적절한 콘텐츠')
   const [reasonDetail, setReasonDetail] = useState('')
+  const modalScale = useCommunityModalFitScale({
+    designWidth: REPORT_MODAL_WIDTH,
+    designHeight: REPORT_MODAL_HEIGHT,
+    maxWidth: REPORT_MODAL_MAX_WIDTH,
+    viewportPadding: 16,
+  })
 
   if (!isOpen) return null
 
@@ -41,14 +52,24 @@ export function CommunityReportModal({
       aria-labelledby="community-report-title"
       className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-2 backdrop-blur-[2px]"
     >
-      <section
-        className="relative aspect-[760/660] bg-contain bg-center bg-no-repeat"
+      <div
+        className="relative shrink-0"
         style={{
-          width: 'min(98vw, 60rem, calc(115.151515dvh - 1.151515rem))',
-          backgroundImage: 'url("/images/community-canvas/ui/modal-report-frame.svg")',
-          backgroundSize: '100% 100%',
+          width: REPORT_MODAL_WIDTH * modalScale,
+          height: REPORT_MODAL_HEIGHT * modalScale,
         }}
       >
+        <section
+          className="absolute left-0 top-0 bg-contain bg-center bg-no-repeat"
+          style={{
+            width: REPORT_MODAL_WIDTH,
+            height: REPORT_MODAL_HEIGHT,
+            transform: `scale(${modalScale})`,
+            transformOrigin: 'top left',
+            backgroundImage: 'url("/images/community-canvas/ui/modal-report-frame.svg")',
+            backgroundSize: '100% 100%',
+          }}
+        >
         <header className="absolute left-[9.8%] right-[18%] top-[3.5%] flex h-[8.5%] items-center">
           <h2 id="community-report-title" className="h3-b text-fg-primary">
             메모 신고
@@ -105,7 +126,8 @@ export function CommunityReportModal({
             {status === 'loading' ? '접수 중' : '신고 접수'}
           </button>
         </div>
-      </section>
+        </section>
+      </div>
     </div>
   )
 }

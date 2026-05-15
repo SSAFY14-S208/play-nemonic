@@ -4,6 +4,11 @@ import Image from 'next/image'
 import { Flag, Trash2, X } from 'lucide-react'
 import type { CommunityMemoDetailResponse } from '@/shared/types'
 import { parseServerInstant } from '@/shared/utils'
+import { useCommunityModalFitScale } from './useCommunityModalFitScale'
+
+const DETAIL_MODAL_WIDTH = 1500
+const DETAIL_MODAL_HEIGHT = 1040
+const DETAIL_MODAL_MAX_WIDTH = 1152
 
 interface CommunityMemoDetailModalProps {
   isOpen: boolean
@@ -39,6 +44,13 @@ export function CommunityMemoDetailModal({
   onDelete,
   onReportOpen,
 }: CommunityMemoDetailModalProps) {
+  const modalScale = useCommunityModalFitScale({
+    designWidth: DETAIL_MODAL_WIDTH,
+    designHeight: DETAIL_MODAL_HEIGHT,
+    maxWidth: DETAIL_MODAL_MAX_WIDTH,
+    viewportPadding: 32,
+  })
+
   if (!isOpen) return null
 
   const displayImageUrl = detail
@@ -52,14 +64,24 @@ export function CommunityMemoDetailModal({
       aria-labelledby="community-memo-detail-title"
       className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
     >
-      <section
-        className="relative aspect-[1500/1040] w-full max-w-6xl bg-contain bg-center bg-no-repeat"
+      <div
+        className="relative shrink-0"
         style={{
-          width: 'min(96vw, 72rem, calc(144.230769dvh - 2.884615rem))',
-          backgroundImage: 'url("/images/community-canvas/ui/modal-detail-frame.svg")',
-          backgroundSize: '100% 100%',
+          width: DETAIL_MODAL_WIDTH * modalScale,
+          height: DETAIL_MODAL_HEIGHT * modalScale,
         }}
       >
+        <section
+          className="absolute left-0 top-0 bg-contain bg-center bg-no-repeat"
+          style={{
+            width: DETAIL_MODAL_WIDTH,
+            height: DETAIL_MODAL_HEIGHT,
+            transform: `scale(${modalScale})`,
+            transformOrigin: 'top left',
+            backgroundImage: 'url("/images/community-canvas/ui/modal-detail-frame.svg")',
+            backgroundSize: '100% 100%',
+          }}
+        >
         <button
           type="button"
           aria-label="메모 상세 닫기"
@@ -137,7 +159,8 @@ export function CommunityMemoDetailModal({
             </div>
           )}
         </footer>
-      </section>
+        </section>
+      </div>
     </div>
   )
 }
