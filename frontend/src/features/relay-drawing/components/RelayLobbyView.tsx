@@ -452,6 +452,7 @@ export default function RelayLobbyView() {
         open={isHowToPlayModalOpen}
         onOpenChange={setIsHowToPlayModalOpen}
         panels={RELAY_HOW_TO_PLAY_PANELS}
+        accentColor="var(--color-relay-accent)"
       />
     </section>
   );
