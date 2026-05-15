@@ -15,6 +15,7 @@ interface UseFlipbookRealtimeEventHandlerOptions {
   assignment: FlipbookAssignmentResponse | null
   submittedAssignmentKeys: Set<string>
   userUuid: string | null
+  activeRoomCode: string | null
   clearRoundTransitionFallbackTimer: () => void
   clearDrawingRound: () => void
   fetchResult: (roomCode: string) => Promise<unknown>
@@ -55,6 +56,7 @@ export function useFlipbookRealtimeEventHandler({
   assignment,
   submittedAssignmentKeys,
   userUuid,
+  activeRoomCode,
   clearRoundTransitionFallbackTimer,
   clearDrawingRound,
   fetchResult,
@@ -106,6 +108,8 @@ export function useFlipbookRealtimeEventHandler({
   return useCallback(
     (event: FlipbookRealtimeEvent) => {
       void (async () => {
+        if (event.roomCode !== activeRoomCode) return
+
         if (event.type === 'PARTICIPANT_CONNECTED' || event.type === 'PARTICIPANT_DISCONNECTED') {
           await refreshRoom(event.roomCode, { syncStep: false })
           return
@@ -284,6 +288,7 @@ export function useFlipbookRealtimeEventHandler({
       })()
     },
     [
+      activeRoomCode,
       assignment,
       clearRoundTransitionFallbackTimer,
       fetchResult,
