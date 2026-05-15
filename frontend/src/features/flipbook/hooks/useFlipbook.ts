@@ -38,6 +38,7 @@ import type {
 } from '../types'
 import {
   createCanvasBlobFromLines,
+  createFlipbookDummyResultItems,
   createLocalFlipbookParticipant,
   createPreviousFrameLinesFromAssignment,
   FLIPBOOK_FILE_CONTENT_TYPE,
@@ -78,6 +79,14 @@ function wait(milliseconds: number) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, milliseconds)
   })
+}
+
+function isDummyResultPreviewRoute() {
+  if (typeof window === 'undefined') return false
+
+  const searchParams = new URLSearchParams(window.location.search)
+
+  return searchParams.get('dummyResult') === '1' || searchParams.get('mockResult') === '1'
 }
 
 export function useFlipbook({
@@ -143,6 +152,7 @@ export function useFlipbook({
     round: number | null
     occurredAt: string
   } | null>(null)
+  const [isDummyResultPreview, setIsDummyResultPreview] = useState(false)
   const isCompletingRoundRef = useRef(false)
   const linkRoomCodeHandledRef = useRef<string | null>(null)
   const assignmentRequestSequenceRef = useRef(0)
@@ -168,6 +178,7 @@ export function useFlipbook({
 
   const readRouteRoomCode = useCallback(() => {
     if (typeof window === 'undefined') return null
+    if (isDummyResultPreviewRoute()) return null
 
     const queryRoomCode = new URLSearchParams(window.location.search).get('roomCode')
     const normalizedRoomCode = queryRoomCode?.trim().toUpperCase() ?? ''
@@ -213,6 +224,46 @@ export function useFlipbook({
     currentStep,
     frames: resultFrames,
   })
+  const resetResultPlaybackFrameIndex = resultPlayback.resetResultFrameIndex
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const shouldUseDummyResultPreview = routeStep === 'result' && isDummyResultPreviewRoute()
+      if (!shouldUseDummyResultPreview) {
+        if (!cancelled) {
+          setIsDummyResultPreview(false)
+        }
+        return
+      }
+
+      const dummyResultItems = createFlipbookDummyResultItems()
+      if (cancelled) return
+
+      setIsDummyResultPreview(true)
+      setRoomCode(null)
+      setRoomCodeDraft('')
+      setRoomState(null)
+      setRoundCount(null)
+      setTimeLimitOptions([])
+      setStartedParticipantCount(null)
+      setSubmittedAssignmentKeys(new Set())
+      setAssignment(null)
+      setPreviousFrameLines([])
+      setResultItems(dummyResultItems)
+      setActiveResultIndex(0)
+      setIsResultReady(true)
+      setResultCount(dummyResultItems.length)
+      setErrorMessage(null)
+      setCurrentStepState('result')
+      resetResultPlaybackFrameIndex()
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [resetResultPlaybackFrameIndex, routeStep])
 
   const resetDrawingRound = useCallback(() => {
     drawingBoard.replaceLines([])
@@ -442,7 +493,7 @@ export function useFlipbook({
   })
 
   const realtime = useFlipbookRealtimeConnection({
-    enabled: currentStep !== 'booth' && Boolean(roomCode),
+    enabled: !isDummyResultPreview && currentStep !== 'booth' && Boolean(roomCode),
     roomCode,
     onEvent: handleRealtimeEvent,
   })
@@ -926,6 +977,7 @@ export function useFlipbook({
     let cancelled = false
 
     void (async () => {
+      if (isDummyResultPreviewRoute()) return
       const targetRoomCode = readRouteRoomCode()
       if (!targetRoomCode || cancelled) return
       if (!targetRoomCode) return
@@ -966,7 +1018,7 @@ export function useFlipbook({
   }, [currentStep, realtime.connectionStatus, refreshRoom, roomCode])
 
   useEffect(() => {
-    if (currentStep !== 'result' || !roomCode || isResultReady) return
+    if (isDummyResultPreview || currentStep !== 'result' || !roomCode || isResultReady) return
 
     let cancelled = false
     let pollingTimer: number | null = null
@@ -993,7 +1045,7 @@ export function useFlipbook({
         window.clearTimeout(pollingTimer)
       }
     }
-  }, [currentStep, fetchResult, isResultReady, roomCode])
+  }, [currentStep, fetchResult, isDummyResultPreview, isResultReady, roomCode])
 
   const selectResult = useCallback(
     (resultIndex: number) => {
