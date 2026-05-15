@@ -96,6 +96,7 @@ const SLOT_PAPER_WIDTH = '11.41%'
 const SLOT_PAPER_HEIGHT = '15.74%'
 const SLOT_PAPER_HIDDEN_TOP = '67.16%'
 const SLOT_OUTPUT_PAPER_TOP = '51.39%'
+const SLOT_PRINT_MASK_HEIGHT = `calc(${SLOT_PAPER_HIDDEN_TOP} - ${SLOT_OUTPUT_PAPER_TOP})`
 const PRINT_RISE_DURATION_RATIO = 0.5
 const PRINT_AFTER_RISE_PAUSE_RATIO = 0.25
 const PAPER_ATTACH_DURATION_RATIO = 0.36
@@ -481,42 +482,35 @@ function ActivePrintedPaper({
 
   if (printPhase === 'slot') {
     return (
-      <motion.div
-        className="pointer-events-none absolute z-[70]"
-        initial={{
+      <div
+        className="pointer-events-none absolute z-[70] overflow-hidden"
+        style={{
+          height: SLOT_PRINT_MASK_HEIGHT,
           left: SLOT_PAPER_LEFT,
-          top: SLOT_PAPER_HIDDEN_TOP,
-          width: SLOT_PAPER_WIDTH,
-          height: SLOT_PAPER_HEIGHT,
-        }}
-        animate={{
           top: SLOT_OUTPUT_PAPER_TOP,
+          width: SLOT_PAPER_WIDTH,
         }}
-        transition={{
-          duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
-          ease: [0.12, 0.78, 0.16, 1],
-        }}
-        onAnimationComplete={scheduleExpandAfterPrint}
       >
         <motion.div
-          className={cn('absolute inset-0 origin-bottom', PRINTED_PAPER_SHADOW_CLASS)}
-          initial={{ opacity: 0.18, scaleY: 0.04 }}
-          animate={{ opacity: 0.78, scaleY: 1 }}
+          className="absolute inset-x-0 bottom-0 h-full"
+          initial={{ y: '100%' }}
+          animate={{ y: '0%' }}
           transition={{
             duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
             ease: [0.12, 0.78, 0.16, 1],
           }}
-          aria-hidden
-        />
-        <motion.div
-          className="absolute inset-0"
-          initial={{ clipPath: 'inset(0% 0% 100% 0%)' }}
-          animate={{ clipPath: 'inset(0% 0% 0% 0%)' }}
-          transition={{
-            duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
-            ease: [0.12, 0.78, 0.16, 1],
-          }}
+          onAnimationComplete={scheduleExpandAfterPrint}
         >
+          <motion.div
+            className={cn('absolute inset-0 origin-bottom', PRINTED_PAPER_SHADOW_CLASS)}
+            initial={{ opacity: 0.18, scaleY: 0.04 }}
+            animate={{ opacity: 0.78, scaleY: 1 }}
+            transition={{
+              duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
+              ease: [0.12, 0.78, 0.16, 1],
+            }}
+            aria-hidden
+          />
           <PrintedPaper
             frame={frame}
             frameIndex={frameIndex}
@@ -524,7 +518,7 @@ function ActivePrintedPaper({
             renderPaper={renderPaper}
           />
         </motion.div>
-      </motion.div>
+      </div>
     )
   }
 
