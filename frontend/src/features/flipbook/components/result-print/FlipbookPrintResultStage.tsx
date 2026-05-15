@@ -15,6 +15,7 @@ export interface FlipbookPrintFrame {
   frameNumber: number
   imageUrl?: string | null
   accentColor?: string
+  outputMode?: 'nemonic-print' | 'gif-playback'
 }
 
 export interface FlipbookPrintParticipant {
@@ -131,6 +132,7 @@ export default function FlipbookPrintResultStage({
   const activeFrame = printFrames[activeFrameIndex] ?? null
   const previousFrame = activeFrameIndex > 0 ? printFrames[activeFrameIndex - 1] : null
   const progressText = printFrames.length === 0 ? '0 / 0' : `${activeFrameIndex + 1} / ${printFrames.length}`
+  const shouldPrintActiveFrame = activeFrame?.outputMode !== 'gif-playback'
 
   useEffect(() => {
     let cancelled = false
@@ -190,7 +192,7 @@ export default function FlipbookPrintResultStage({
           </div>
         )}
 
-        {activeFrame && selectedParticipant && (
+        {activeFrame && selectedParticipant && shouldPrintActiveFrame && (
           <ActivePrintedPaper
             key={`${selectedParticipant.id}-${activeFrame.id}-${printCycleKey}`}
             frame={activeFrame}
@@ -201,7 +203,17 @@ export default function FlipbookPrintResultStage({
           />
         )}
 
-        <NemonicDeviceImage isPrinting={isPlaying && !isComplete} />
+        {activeFrame && selectedParticipant && !shouldPrintActiveFrame && (
+          <DirectPlaybackPaper
+            key={`${selectedParticipant.id}-${activeFrame.id}-${printCycleKey}`}
+            frame={activeFrame}
+            frameIndex={activeFrameIndex}
+            participant={selectedParticipant}
+            renderPaper={renderPaper}
+          />
+        )}
+
+        <NemonicDeviceImage isPrinting={isPlaying && !isComplete && shouldPrintActiveFrame} />
 
         <PrintOutputSlot />
 
@@ -544,6 +556,54 @@ function ActivePrintedPaper({
           duration: printDurationMs * PAPER_ATTACH_DURATION_RATIO / 1000,
           ease: [0.14, 0.84, 0.18, 1],
         }}
+        aria-hidden
+      />
+      <PrintedPaper
+        frame={frame}
+        frameIndex={frameIndex}
+        participant={participant}
+        renderPaper={renderPaper}
+      />
+    </motion.div>
+  )
+}
+
+function DirectPlaybackPaper({
+  frame,
+  frameIndex,
+  participant,
+  renderPaper,
+}: {
+  frame: FlipbookPrintFrame
+  frameIndex: number
+  participant: FlipbookPrintParticipant
+  renderPaper?: (
+    frame: FlipbookPrintFrame,
+    frameIndex: number,
+    participant: FlipbookPrintParticipant,
+  ) => ReactNode
+}) {
+  return (
+    <motion.div
+      className="pointer-events-none absolute z-40"
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{
+        duration: 0.34,
+        ease: [0.14, 0.84, 0.18, 1],
+      }}
+      style={{
+        height: ATTACHED_PAPER_HEIGHT,
+        left: ATTACHED_PAPER_LEFT,
+        top: ATTACHED_PAPER_TOP,
+        width: ATTACHED_PAPER_WIDTH,
+      }}
+    >
+      <motion.div
+        className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.22 }}
         aria-hidden
       />
       <PrintedPaper
