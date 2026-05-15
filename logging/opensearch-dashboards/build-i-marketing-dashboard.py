@@ -440,14 +440,21 @@ I2_SPEC = {
         {
             "mark": {"type": "bar", "cornerRadiusEnd": 4, "tooltip": True},
             "encoding": {
+                # FUNNEL_COLORS 매핑 — I3/I5/I6 와 동일한 funnel→색 체계.
+                # 완주율의 좋음/나쁨 신호는 막대 끝의 굵은 % 텍스트가 전달하므로
+                # 색은 cross-viz 일관성 우선 (릴레이드로잉=violet, 플립북=pink, ...).
                 "color": {
-                    "field": "rate",
-                    "type": "quantitative",
-                    # 3-stop muted gradient (rose → amber → emerald). 기존 5-stop rainbow 보다
-                    # 부드럽고 modern dark 와 어울림. "위험/중간/양호" 의미만 살림.
+                    "field": "funnel_label",
+                    "type": "nominal",
                     "scale": {
-                        "domain": [0, 50, 100],
-                        "range": [STATUS_DANGER, STATUS_NEUTRAL, STATUS_GREAT],
+                        "domain": ["릴레이드로잉", "플립북", "커뮤니티 메모", "오늘의 운세", "갤러리·공유"],
+                        "range": [
+                            FUNNEL_COLORS["relay_room_creation"],
+                            FUNNEL_COLORS["flipbook_room_creation"],
+                            FUNNEL_COLORS["community_memo_posting"],
+                            FUNNEL_COLORS["fortune_creation"],
+                            FUNNEL_COLORS["gallery_save_share"],
+                        ],
                     },
                     "legend": None,
                 },
