@@ -458,10 +458,10 @@ I2_SPEC = {
             },
         },
     ],
-    # OS Dashboards Vega 가 spec.width 를 panel 폭으로 자동 inject 하지 않아서
-    # 명시 안 하면 vega-lite default(200) 로 chart 가 작게 그려진다. 명시 숫자로 둠.
-    "width": 700,
-    "height": 240,
+    # container 로 두면 vega-lite 가 panel CSS 영역 크기 그대로 사용 — 고정 px 로 두면
+    # panel 보다 클 때 horizontal scroll 발생. autosize:fit 과 함께 두 축 모두 container.
+    "width": "container",
+    "height": "container",
     "config": VEGA_CHROME,
 }
 I2 = viz_vega(
@@ -564,9 +564,11 @@ I3_SPEC = {
         },
     },
     "spec": {
-        # facet 의 inner spec — 명시 안 하면 default(200) 로 작게 그려짐.
-        "width": 1100,
-        "height": 140,
+        # facet inner spec — width:"container" 로 panel CSS 폭을 따라가게.
+        # 모든 row 가 동일 container 폭을 공유하므로 facet 에서도 동작. height 는 row 당
+        # 고정 px 로 — 컨텐츠 5 개 × 120px ≈ 600px, panel grid h=24 (~600-700px) 에 fit.
+        "width": "container",
+        "height": 120,
         "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True},
         "encoding": {
             "y": {
@@ -616,20 +618,41 @@ I3 = viz_vega(
 
 # ============================================================
 # I4: 컨텐츠 간 이동 흐름 (Vega-Lite heatmap)
-# page_view 의 prev_path × path 매트릭스를 색 강도로 시각화.
-# 진짜 sankey 는 Vega(full) 필요라 Vega-Lite 호환 heatmap 으로 흐름 표현.
+# page_view 의 prev_path × path 를 "컨텐츠 카테고리" 단위로 묶어 매트릭스로 시각화.
+# 60 개 path 매트릭스는 셀이 잘게 쪼개져 가독성 ↓ — URL 첫 segment 로 ~8 개 카테고리에
+# 합쳐 셀을 크고 굵게. 같은 카테고리 내 이동(예: /flipbook/lobby → /flipbook/drawing)은
+# 제외해서 "컨텐츠 간 이동" 만 남김.
 #
 # 마케팅 활용:
-#   - "/relay-drawing 끝나고 가장 많이 가는 곳은? → /hub 가 짙으면 OK,
-#     초기 페이지로 다시 가면 재참여 가능성"
+#   - "릴레이드로잉 끝나고 어디로 가는가 → 갤러리(공유 의도) vs 홈(이탈 직전)"
+#   - "오늘의 운세 → 플립북" 처럼 cross-content 재참여 패턴 발견.
 # ============================================================
+# path 첫 segment → 한글 컨텐츠 라벨. {src} 자리에 datum.from_raw / datum.to_raw 치환.
+# indexof(str, sub) === 0 → 해당 prefix 로 시작. 첫 매칭이 우선.
+PATH_TO_CONTENT_EXPR = (
+    "indexof({src}, '/relay-drawing') === 0 ? '릴레이드로잉' : "
+    "indexof({src}, '/flipbook') === 0 ? '플립북' : "
+    "indexof({src}, '/community') === 0 ? '커뮤니티' : "
+    "indexof({src}, '/fortune') === 0 ? '오늘의 운세' : "
+    "indexof({src}, '/gallery') === 0 ? '갤러리' : "
+    "indexof({src}, '/share') === 0 ? '공유' : "
+    "({src} === '/' || {src} === '/main' || {src} === '/home') ? '홈' : "
+    "'기타'"
+)
+CONTENT_ORDER = [
+    "홈", "릴레이드로잉", "플립북", "커뮤니티",
+    "오늘의 운세", "갤러리", "공유", "기타",
+]
+
 I4_SPEC = {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    # I2 와 같은 이유로 autosize 명시 (plugin 자동 주입 + warning 회피).
     "autosize": {"type": "fit", "contains": "padding", "resize": True},
     "title": {
-        "text": "화면 이동 흐름",
-        "subtitle": "이전 화면(가로) → 다음 화면(세로) 이동 빈도. 색이 진할수록 이동량 많음.",
+        "text": "컨텐츠 간 이동 흐름",
+        "subtitle": (
+            "이전 컨텐츠(가로) → 다음 컨텐츠(세로). 색 진하기 = 이동 세션 수. "
+            "같은 컨텐츠 내 이동(lobby→drawing 등)은 제외."
+        ),
     },
     "data": {
         "url": {
@@ -654,12 +677,12 @@ I4_SPEC = {
                                 ]
                             }
                         },
-                        # composite aggregation 으로 prev_path × path 조합을 평면 응답으로 받음.
-                        # 너무 많이 받으면 heatmap 이 잘게 쪼개져 가독성 떨어지므로 상위 60개만.
+                        # composite size 200 — raw path 가 다양해도 transform 단계에서
+                        # 8 개 카테고리로 collapse 되므로 넉넉히 받아 누락 방지.
                         "aggs": {
                             "pairs": {
                                 "composite": {
-                                    "size": 60,
+                                    "size": 200,
                                     "sources": [
                                         {"from_path": {"terms": {"field": "prev_path"}}},
                                         {"to_path": {"terms": {"field": "path"}}}
@@ -674,74 +697,87 @@ I4_SPEC = {
         "format": {"property": "aggregations.filtered.pairs.buckets"}
     },
     "transform": [
-        # composite key 객체를 bracket notation 으로 안전 추출.
         {"calculate": "datum['key']['from_path']", "as": "from_raw"},
         {"calculate": "datum['key']['to_path']", "as": "to_raw"},
         {"calculate": "datum['doc_count']", "as": "count_raw"},
-        # 동적 segment 정규화 — relay 방코드, flipbook 라우트, share 토큰, admin 동적 ID 등을
-        # 패턴으로 묶어서 같은 흐름으로 집계되도록.
-        # vega-expression 의 replace 는 regexp() 정규식을 두 번째 인자로 받는다.
-        {"calculate":
-            "replace(replace(replace(replace(replace(datum.from_raw, "
-            "regexp('/relay-drawing/[A-Z0-9]+'), '/relay-drawing/:room'), "
-            "regexp('/flipbook/lobby/[A-Z0-9]+'), '/flipbook/lobby/:room'), "
-            "regexp('/flipbook/drawing/[A-Z0-9]+'), '/flipbook/drawing/:room'), "
-            "regexp('/flipbook/result/[A-Z0-9]+'), '/flipbook/result/:room'), "
-            "regexp('/share/[A-Za-z0-9_-]+'), '/share/:token')",
-         "as": "from"},
-        {"calculate":
-            "replace(replace(replace(replace(replace(datum.to_raw, "
-            "regexp('/relay-drawing/[A-Z0-9]+'), '/relay-drawing/:room'), "
-            "regexp('/flipbook/lobby/[A-Z0-9]+'), '/flipbook/lobby/:room'), "
-            "regexp('/flipbook/drawing/[A-Z0-9]+'), '/flipbook/drawing/:room'), "
-            "regexp('/flipbook/result/[A-Z0-9]+'), '/flipbook/result/:room'), "
-            "regexp('/share/[A-Za-z0-9_-]+'), '/share/:token')",
-         "as": "to"},
+        # path → 컨텐츠 카테고리. URL 의 첫 segment 로 묶어서 ~8 개로 collapse.
+        {"calculate": PATH_TO_CONTENT_EXPR.format(src="datum.from_raw"), "as": "from"},
+        {"calculate": PATH_TO_CONTENT_EXPR.format(src="datum.to_raw"), "as": "to"},
+        # 같은 컨텐츠 내 이동(릴레이 lobby→drawing 등) 제외 → "컨텐츠 간" 흐름만.
         {"filter": "datum.from != datum.to"},
-        # 정규화로 합쳐진 같은 (from, to) 페어들을 sum 으로 다시 집계.
+        # 카테고리 매핑으로 합쳐진 페어 재집계.
         {"aggregate": [{"op": "sum", "field": "count_raw", "as": "count"}],
          "groupby": ["from", "to"]},
+        {"filter": "datum.count > 0"},
+        # 셀 안 텍스트 색 분기 기준 — 전체 max 대비 50% 이상이면 흰색, 아니면 어두운 색.
+        {"joinaggregate": [{"op": "max", "field": "count", "as": "count_max"}]},
     ],
-    "mark": {"type": "rect", "tooltip": True, "stroke": "#0F172A", "strokeWidth": 1},
-    "encoding": {
-        "x": {
-            "field": "from",
-            "type": "nominal",
-            "axis": {
-                "title": "이전 화면",
-                "labelAngle": -25,
-                "labelLimit": 200,
+    "padding": {"top": 50, "right": 24, "bottom": 60, "left": 110},
+    "width": "container",
+    "height": "container",
+    "layer": [
+        {
+            "mark": {"type": "rect", "tooltip": True, "stroke": "#0F172A", "strokeWidth": 2},
+            "encoding": {
+                "x": {
+                    "field": "from",
+                    "type": "nominal",
+                    "sort": CONTENT_ORDER,
+                    "axis": {
+                        "title": "이전 컨텐츠",
+                        "labelAngle": -15,
+                        "labelFontSize": 13,
+                        "titleFontSize": 13,
+                        "titlePadding": 12,
+                    },
+                },
+                "y": {
+                    "field": "to",
+                    "type": "nominal",
+                    "sort": CONTENT_ORDER,
+                    "axis": {
+                        "title": "다음 컨텐츠",
+                        "labelFontSize": 13,
+                        "titleFontSize": 13,
+                        "titlePadding": 12,
+                    },
+                },
+                "color": {
+                    "field": "count",
+                    "type": "quantitative",
+                    "scale": {"scheme": "purples"},
+                    "legend": {"title": "이동 세션 수"},
+                },
+                "tooltip": [
+                    {"field": "from", "type": "nominal", "title": "이전 컨텐츠"},
+                    {"field": "to", "type": "nominal", "title": "다음 컨텐츠"},
+                    {"field": "count", "type": "quantitative", "title": "이동 세션 수"},
+                ],
             },
         },
-        "y": {
-            "field": "to",
-            "type": "nominal",
-            "axis": {
-                "title": "다음 화면",
-                "labelLimit": 220,
+        # 셀 안에 숫자 — 진한 셀에는 흰색, 옅은 셀에는 어두운 색으로 contrast 확보.
+        {
+            "mark": {"type": "text", "fontSize": 14, "fontWeight": 600},
+            "encoding": {
+                "x": {"field": "from", "type": "nominal", "sort": CONTENT_ORDER},
+                "y": {"field": "to", "type": "nominal", "sort": CONTENT_ORDER},
+                "text": {"field": "count", "type": "quantitative"},
+                "color": {
+                    "condition": {
+                        "test": "datum.count > datum.count_max * 0.5",
+                        "value": "#F1F5F9",
+                    },
+                    "value": "#1E293B",
+                },
             },
         },
-        "color": {
-            "field": "count",
-            "type": "quantitative",
-            # 단일 hue(violet/purple) intensity gradient — modern dark 다크 배경 + brand accent 통일.
-            "scale": {"scheme": "purples"},
-            "legend": {"title": "세션 수"},
-        },
-        "tooltip": [
-            {"field": "from", "type": "nominal", "title": "이전"},
-            {"field": "to", "type": "nominal", "title": "다음"},
-            {"field": "count", "type": "quantitative", "title": "세션 수"},
-        ],
-    },
-    "width": 1100,
-    "height": 420,
+    ],
     "config": VEGA_CHROME,
 }
 I4 = viz_vega(
     viz_id="vis-marketing-flow-heatmap",
-    title="[I4] 화면 이동 흐름",
-    description="이전 화면 → 다음 화면 이동 빈도 히트맵. 짙은 칸 = 자주 일어나는 흐름.",
+    title="[I4] 컨텐츠 간 이동 흐름",
+    description="컨텐츠 카테고리 단위로 이전 → 다음 이동 빈도. 같은 컨텐츠 내 이동 제외, 셀 안 숫자 = 이동 세션 수.",
     spec=wrap_single_as_multiview(I4_SPEC),
 )
 
@@ -1255,8 +1291,9 @@ I9_SPEC = {
             {"field": "n", "type": "quantitative", "title": "샘플 수"},
         ],
     },
-    "width": 1100,
-    "height": 420,
+    "autosize": {"type": "fit", "contains": "padding", "resize": True},
+    "width": "container",
+    "height": "container",
     "config": VEGA_CHROME,
 }
 I9 = viz_vega(
