@@ -192,7 +192,7 @@ export function useFlipbook({
       roomState?.participants.map((participant) => toFlipbookParticipant(participant)) ?? [
         currentParticipant,
       ],
-    [currentParticipant, roomState?.participants, userUuid],
+    [currentParticipant, roomState?.participants],
   )
   const resultOwnerNames = useMemo(
     () =>
