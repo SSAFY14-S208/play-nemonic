@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
 ## Current Focus
 
@@ -436,6 +436,9 @@ Recent flipbook result work aligns room completion with the relay finalization m
   white. GIF frames are normalized through ARGB images before writing while
   keeping the existing `image/gif` contract, and thumbnail PNG resize uses ARGB
   so transparent frame backgrounds remain transparent.
+- Flipbook GIF frame metadata now uses `restoreToBackgroundColor` disposal
+  instead of `none`, so transparent submitted frames are displayed
+  independently instead of accumulating over previous frames in GIF players.
 - After finalization completes, the backend emits a `RESULT_CREATED` WebSocket event with artifact IDs and per-`flipbookIndex` object keys.
 - `GET /api/v1/flipbook/rooms/{roomCode}/result` is now a read-side API: existing artifact/gallery rows return `ready=true`; while result generation is pending or inconsistent, the API returns `ready=false` instead of lazily creating GIFs.
 - Flipbook game start uses `totalRounds=flipbook.min_frames_per_flipbook` from the runtime settings snapshot, so assignment count is `participantCount * totalRounds`.
