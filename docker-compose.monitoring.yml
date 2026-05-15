@@ -64,6 +64,17 @@ services:
       # 백오피스 iframe 임베딩 허용 (same-origin: k14s208.p.ssafy.io)
       GF_SECURITY_ALLOW_EMBEDDING: "true"
 
+      # iframe 세션 쿠키 — HTTPS + 임베딩 컨텍스트에서도 통과되도록
+      GF_SECURITY_COOKIE_SAMESITE: "none"
+      GF_SECURITY_COOKIE_SECURE:   "true"
+
+      # 백오피스 임베딩용 anonymous Viewer.
+      # nginx 단의 BasicAuth를 떼면서 노출되는 위험은 Viewer(read-only)
+      # 권한으로 한정. 편집/관리는 admin 로그인 필요.
+      GF_AUTH_ANONYMOUS_ENABLED:  "true"
+      GF_AUTH_ANONYMOUS_ORG_NAME: "Main Org."
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+
       # OpenSearch datasource plugin — biz-events-* 인덱스에서 frontend heartbeat
       # 집계 (동시 접속자, 콘텐츠별 활성 사용자) 를 실시간 패널에서 직접 query.
       # 첫 기동 시 다운로드 + 설치 → /opt/nemonic/data/grafana/plugins 에 영속화.
