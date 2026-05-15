@@ -5,3 +5,5 @@ export {
   MAX_RECENT_DRAWING_COLOR_COUNT,
 } from './drawing'
 export { DEFAULT_USER_NICKNAME } from './user'
+export * from './hubGames'
+export * from './hubRoom'

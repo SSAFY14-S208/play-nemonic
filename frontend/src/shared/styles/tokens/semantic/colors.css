@@ -26,6 +26,8 @@
   --color-primary-2: var(--p-primary-600);  /* 링크, 활성 아이콘 색 */
   --color-primary-5: var(--p-primary-50);   /* 활성 탭 배경 (연한 강조색) */
 
+  --color-hub-room-background: #0f0b22;
+
   /* ── Relay Drawing (Figma v2_07 semantic roles) ─────────────────────────── */
   --color-fortune-backdrop: oklch(94% 0.034 315);
   --color-fortune-stage: oklch(91% 0.045 312);
@@ -74,6 +76,7 @@
   /* ── Flipbook (Figma v2 Flipbook Pastel semantic roles) ─────────────────── */
   --color-flipbook-background: #fdecee;
   --color-flipbook-tint: #fff5f7;
+  --color-flipbook-room-base: #fff4df;
   --color-flipbook-paper: #ffffff;
   --color-flipbook-light: #fbbcc4;
   --color-flipbook-primary: #f58c97;

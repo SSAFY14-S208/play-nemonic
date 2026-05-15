@@ -199,7 +199,62 @@
   will-change: transform;
 }
 
+.community-memo-placement {
+  transform-origin: 14% 16%;
+  transform-style: preserve-3d;
+  will-change: transform, opacity, filter;
+}
+
+.community-memo-placement::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0.35rem;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(255 255 255 / 0.42) 0%,
+      rgb(255 255 255 / 0.18) 32%,
+      rgb(255 255 255 / 0) 58%
+    );
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-42%) skewX(-10deg);
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .community-memo-placement[data-community-memo-placement="attach"] {
+    animation: community-memo-attach 680ms cubic-bezier(0.17, 0.84, 0.28, 1) both;
+  }
+
+  .community-memo-placement[data-community-memo-placement="attach"]::after {
+    animation: community-memo-press-sweep 680ms cubic-bezier(0.2, 0.82, 0.25, 1) both;
+  }
+
+  .community-memo-placement[data-community-memo-placement="lift"] {
+    animation: community-memo-lift 320ms cubic-bezier(0.25, 0.9, 0.3, 1) both;
+  }
+
+  .community-memo-placement[data-community-memo-placement="lift"]::after {
+    animation: community-memo-lift-sheen 320ms ease-out both;
+  }
+
+  .community-memo-placement[data-community-memo-placement="release"] {
+    animation: community-memo-release-from-wall 420ms cubic-bezier(0.18, 0.9, 0.28, 1) both;
+  }
+
+  .community-memo-placement[data-community-memo-placement="release"]::after {
+    animation: community-memo-release-from-wall-sheen 420ms ease-out both;
+  }
+
+  .community-memo-placement[data-community-memo-placement="detach"] {
+    animation: community-memo-detach 560ms cubic-bezier(0.5, 0, 0.32, 1) both;
+  }
+
+  .community-memo-placement[data-community-memo-placement="detach"]::after {
+    animation: community-memo-release-sheen 560ms ease-out both;
+  }
+
   .post-it-note[data-post-it-motion="hover"]:hover .post-it-note-paper,
   .group:hover .post-it-note[data-post-it-motion="hover"] .post-it-note-paper {
     animation: post-it-note-hover-paper 760ms cubic-bezier(0.37, 0, 0.25, 1) infinite;
@@ -219,6 +274,182 @@
 
   .post-it-note-art[data-post-it-art-motion="active"] {
     animation: post-it-note-active-art 360ms cubic-bezier(0.36, 0, 0.24, 1) infinite;
+  }
+}
+
+@keyframes community-memo-attach {
+  0% {
+    opacity: 0.72;
+    filter: drop-shadow(0 28px 20px rgb(50 30 12 / 0.16));
+    transform: perspective(520px) rotateX(20deg) rotateY(-24deg) rotateZ(-2.5deg)
+      translate(-9px, -15px) scale(0.96);
+  }
+
+  34% {
+    opacity: 1;
+    filter: drop-shadow(0 20px 18px rgb(50 30 12 / 0.16));
+    transform: perspective(520px) rotateX(5deg) rotateY(-14deg) rotateZ(-1.1deg)
+      translate(-3px, -4px) scale(0.985);
+  }
+
+  62% {
+    filter: drop-shadow(0 11px 12px rgb(50 30 12 / 0.15));
+    transform: perspective(520px) rotateX(-2deg) rotateY(5deg) rotateZ(0.7deg)
+      translate(1px, 1px) scale(1.01);
+  }
+
+  82% {
+    transform: perspective(520px) rotateX(0.8deg) rotateY(-1.5deg) rotateZ(-0.25deg)
+      translate(0, 0) scale(0.998);
+  }
+
+  100% {
+    opacity: 1;
+    filter: none;
+    transform: perspective(520px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)
+      translate(0, 0) scale(1);
+  }
+}
+
+@keyframes community-memo-detach {
+  0% {
+    opacity: 1;
+    filter: none;
+    transform: perspective(520px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)
+      translate(0, 0) scale(1);
+  }
+
+  38% {
+    opacity: 1;
+    filter: drop-shadow(0 16px 14px rgb(50 30 12 / 0.15));
+    transform: perspective(520px) rotateX(3deg) rotateY(-12deg) rotateZ(-1deg)
+      translate(-3px, -7px) scale(0.99);
+  }
+
+  100% {
+    opacity: 0;
+    filter: drop-shadow(0 32px 22px rgb(50 30 12 / 0.08));
+    transform: perspective(520px) rotateX(18deg) rotateY(-30deg) rotateZ(-3deg)
+      translate(-12px, -28px) scale(0.94);
+  }
+}
+
+@keyframes community-memo-release-from-wall {
+  0% {
+    filter: none;
+    transform: perspective(520px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)
+      translate(0, 0) scale(1);
+  }
+
+  28% {
+    filter: drop-shadow(0 8px 10px rgb(50 30 12 / 0.14));
+    transform: perspective(520px) rotateX(-1.5deg) rotateY(4deg) rotateZ(0.35deg)
+      translate(0, -1px) scale(1.012);
+  }
+
+  66% {
+    filter: drop-shadow(0 27px 21px rgb(50 30 12 / 0.2));
+    transform: perspective(520px) rotateX(10deg) rotateY(-20deg) rotateZ(-1.6deg)
+      translate(-6px, -13px) scale(0.985);
+  }
+
+  100% {
+    filter: drop-shadow(0 18px 16px rgb(50 30 12 / 0.16));
+    transform: perspective(520px) rotateX(6deg) rotateY(-12deg) rotateZ(-0.8deg)
+      translate(-3px, -8px) scale(0.99);
+  }
+}
+
+@keyframes community-memo-lift {
+  0% {
+    filter: none;
+    transform: perspective(520px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)
+      translate(0, 0) scale(1);
+  }
+
+  62% {
+    filter: drop-shadow(0 24px 20px rgb(50 30 12 / 0.18));
+    transform: perspective(520px) rotateX(9deg) rotateY(-18deg) rotateZ(-1.4deg)
+      translate(-5px, -12px) scale(0.985);
+  }
+
+  100% {
+    filter: drop-shadow(0 18px 16px rgb(50 30 12 / 0.16));
+    transform: perspective(520px) rotateX(6deg) rotateY(-12deg) rotateZ(-0.8deg)
+      translate(-3px, -8px) scale(0.99);
+  }
+}
+
+@keyframes community-memo-press-sweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-52%) skewX(-10deg);
+  }
+
+  24% {
+    opacity: 0.55;
+    transform: translateX(-30%) skewX(-10deg);
+  }
+
+  58% {
+    opacity: 0.34;
+    transform: translateX(24%) skewX(-10deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(60%) skewX(-10deg);
+  }
+}
+
+@keyframes community-memo-lift-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(36%) skewX(-10deg);
+  }
+
+  58% {
+    opacity: 0.24;
+    transform: translateX(8%) skewX(-10deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-22%) skewX(-10deg);
+  }
+}
+
+@keyframes community-memo-release-from-wall-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-44%) skewX(-10deg);
+  }
+
+  36% {
+    opacity: 0.42;
+    transform: translateX(-16%) skewX(-10deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(30%) skewX(-10deg);
+  }
+}
+
+@keyframes community-memo-release-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-18%) skewX(-10deg);
+  }
+
+  38% {
+    opacity: 0.28;
+    transform: translateX(12%) skewX(-10deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(54%) skewX(-10deg);
   }
 }
 
