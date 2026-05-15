@@ -176,6 +176,32 @@ class ArtifactDownloadServiceImplTest {
         verify(artifactDownloadStorage).upload(cacheKey, composedBytes, "image/jpeg");
     }
 
+    /**
+     * 무한 캔버스 산출물은 저장된 최종 캔버스 이미지를 QR 합성 다운로드 소스로 사용합니다.
+     */
+    @Test
+    void prepareDownloadFileUsesInfiniteCanvasImage() {
+        byte[] sourceBytes = new byte[]{1, 2, 3};
+        byte[] composedBytes = new byte[]{4, 5, 6};
+        String cacheKey = "artifact-downloads/%s/result-qr.jpg".formatted(ARTIFACT_ID);
+
+        givenValidUser();
+        given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
+            .willReturn(Optional.of(infiniteCanvasRow("infinite-canvas/outputs/a/original.png")));
+        given(signedShareTokenIssuer.issueArtifactToken(ARTIFACT_ID, "infinite_canvas", "QR_DOWNLOAD"))
+            .willReturn("signed-canvas-token");
+        given(artifactDownloadStorage.exists(cacheKey)).willReturn(false);
+        given(artifactDownloadStorage.download("infinite-canvas/outputs/a/original.png")).willReturn(sourceBytes);
+        given(artifactQrComposer.compose("image/png", sourceBytes,
+            "https://nemonic.example.com/share/signed-canvas-token")).willReturn(composedBytes);
+
+        ArtifactQrAsset asset = artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString());
+
+        assertThat(asset.kind()).isEqualTo("infinite_canvas");
+        verify(artifactDownloadStorage).download("infinite-canvas/outputs/a/original.png");
+        verify(artifactDownloadStorage).upload(cacheKey, composedBytes, "image/jpeg");
+    }
+
     private void givenValidUser() {
         given(anonymousUserResolver.parseUuid(USER_UUID_VALUE)).willReturn(USER_UUID);
     }
@@ -193,5 +219,10 @@ class ArtifactDownloadServiceImplTest {
     private ArtifactImageUrlRow communityMemoRow(String originalImageUrl, String thumbnailImageUrl) {
         return new ArtifactImageUrlRow(ARTIFACT_ID, "community_memo", "community/memos/a/artifact-thumb.png", null,
             null, null, null, null, null, originalImageUrl, thumbnailImageUrl);
+    }
+
+    private ArtifactImageUrlRow infiniteCanvasRow(String canvasImageUrl) {
+        return new ArtifactImageUrlRow(ARTIFACT_ID, "infinite_canvas", "infinite-canvas/outputs/a/thumb.png", null,
+            null, null, null, canvasImageUrl, null, null, null);
     }
 }
