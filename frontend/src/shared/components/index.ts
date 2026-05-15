@@ -12,6 +12,12 @@ export {
   TopStatusBar,
 } from './DrawingWorkspaceControls'
 export { BrowserExtensionErrorGuard } from './BrowserExtensionErrorGuard'
+export { GameLobbyLayout } from './GameLobbyLayout'
+export type {
+  GameLobbyLayoutProps,
+  GameLobbyTheme,
+  LobbyParticipant,
+} from './GameLobbyLayout'
 export { HowToPlayModal } from './HowToPlayModal'
 export type { HowToPlayPanel } from './HowToPlayModal'
 export { PostItNote } from './PostItNote'
