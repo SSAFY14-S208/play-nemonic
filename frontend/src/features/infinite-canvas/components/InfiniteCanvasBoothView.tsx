@@ -1,16 +1,22 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
 
 import { INFINITE_CANVAS_COLOR_OPTIONS } from '../constants'
+import { useInfiniteCanvasEntry } from '../hooks'
 import InfiniteCanvasActionButton from './InfiniteCanvasActionButton'
 import InfiniteCanvasColorPicker from './InfiniteCanvasColorPicker'
 
-const DEFAULT_SELECTED_COLOR = INFINITE_CANVAS_COLOR_OPTIONS[4].value
-
 export default function InfiniteCanvasBoothView() {
-  const [selectedColor, setSelectedColor] = useState(DEFAULT_SELECTED_COLOR)
+  const {
+    isUserReady,
+    isPending,
+    selectedColor,
+    errorMessage,
+    setSelectedColor,
+    createCanvas,
+  } = useInfiniteCanvasEntry()
+  const isActionDisabled = !isUserReady || isPending
 
   return (
     <main className="infinite-canvas-page">
@@ -67,14 +73,21 @@ export default function InfiniteCanvasBoothView() {
             <InfiniteCanvasActionButton
               imageSrc="/images/infinite-canvas/enter-room-button.png"
               label="초대코드로 입장하기"
+              disabled={isActionDisabled}
               onClick={() => undefined}
             />
             <InfiniteCanvasActionButton
               imageSrc="/images/infinite-canvas/create-card.png"
-              label="방 만들기"
-              onClick={() => undefined}
+              label={isPending ? '방 만드는 중' : '방 만들기'}
+              disabled={isActionDisabled}
+              onClick={createCanvas}
             />
           </div>
+          {(isPending || errorMessage) && (
+            <p className="infinite-canvas-status-message" role={errorMessage ? 'alert' : 'status'}>
+              {errorMessage ?? '무한 캔버스 방을 만들고 있어요'}
+            </p>
+          )}
         </div>
       </section>
     </main>

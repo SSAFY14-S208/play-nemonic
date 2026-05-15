@@ -182,6 +182,15 @@
   opacity: 0.68;
 }
 
+.infinite-canvas-status-message {
+  position: relative;
+  margin: 0.85rem 0 0;
+  text-align: center;
+  color: #184066;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
 .infinite-canvas-action-button__image {
   display: block;
   width: 100%;
