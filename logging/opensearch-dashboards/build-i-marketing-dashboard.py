@@ -1421,107 +1421,74 @@ I11 = viz_classic(
 
 
 # ============================================================
-# I12: 결과 화면 체류 시간 분포 (Vega-Lite Histogram)
-# page_leave 이벤트 중 path 가 결과 화면인 것의 time_on_page_ms histogram.
-# 결과 보고 바로 닫는 사용자 vs 오래 머무는 사용자 비율 — 컨텐츠 만족도 proxy.
+# I12: 결과 화면 체류 시간 분포 (OSD metric viz — KPI 카드)
+# 작은 panel 에서 5개 막대 histogram 은 가독성 떨어짐 — 4 개 카드로 단순화.
+# 즉시 이탈(<5초) vs 깊은 몰입(60초+) 비율이 만족도 신호.
 #
-# 결과 path 패턴: /flipbook/result, /share/:token, /relay-drawing/:room (FINISHED 상태 path)
-# 단순화 — /result, /share, fortune /result 포함 path 만 필터.
-#
-# 5초 균등 bin (0-60초) + 60초+ overflow → 진짜 histogram 형태. 이전 5-bucket 비균등
-# (0-5/5-10/10-30/30-60/60+) 은 막대 width 가 같은데 bin 폭이 달라 분포 왜곡 보였음.
+# 결과 path 패턴: /flipbook/result, /share/:token (FINISHED 상태), /fortune.
 # ============================================================
-I12_SPEC = {
-    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    # 내부 title 제거 (panel header 와 중복, scroll 유발).
-    "data": {
-        "url": {
-            "%context%": True,
-            "%timefield%": "@timestamp",
-            "index": "biz-events-*",
-            "body": {
-                "size": 0,
-                "aggs": {
-                    "filtered": {
-                        "filter": {
-                            "bool": {
-                                "filter": [
-                                    {"term": {"service": "client-web"}},
-                                    {"term": {"event_name": "page_leave"}},
-                                    {"exists": {"field": "metadata.time_on_page_ms"}}
-                                ],
-                                # 결과 화면 path 만. 동적 segment 포함.
-                                "should": [
-                                    {"wildcard": {"path": "*/result*"}},
-                                    {"wildcard": {"path": "/share/*"}},
-                                    {"prefix": {"path": "/fortune"}}
-                                ],
-                                "minimum_should_match": 1
-                            }
-                        },
-                        "aggs": {
-                            "duration_hist": {
-                                "histogram": {
-                                    "field": "metadata.time_on_page_ms",
-                                    "interval": 5000,
-                                    "min_doc_count": 1,
-                                    "extended_bounds": {"min": 0, "max": 60000}
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "format": {"property": "aggregations.filtered.duration_hist.buckets"}
-    },
-    "transform": [
-        {"calculate": "datum.key / 1000", "as": "sec_bucket"},
-        {"calculate": "datum.doc_count", "as": "count_raw"},
-        # 60초 이상 모두 한 bucket 으로 cap. bin start 가 60 인 row 로 통합 → "60+" 표기.
-        {"calculate": "datum.sec_bucket >= 60 ? 60 : datum.sec_bucket", "as": "bin_start"},
-        {"aggregate": [{"op": "sum", "field": "count_raw", "as": "n"}], "groupby": ["bin_start"]},
-        # x축 라벨용 — overflow 만 "60+", 나머지는 정수 string.
-        {"calculate":
-            "datum.bin_start >= 60 ? '60+' : '' + datum.bin_start",
-         "as": "bin_label"},
-    ],
-    "autosize": {"type": "fit", "contains": "padding", "resize": True},
-    "width": "container",
-    "height": "container",
-    "padding": {"top": 30, "right": 30, "bottom": 50, "left": 60},
-    "mark": {"type": "bar", "cornerRadiusEnd": 3, "tooltip": True,
-             # 단일 violet — histogram 막대들 사이 의미 차이 없으므로 통일.
-             "color": ACCENT_VIOLET},
-    "encoding": {
-        "x": {
-            "field": "bin_label",
-            "type": "ordinal",
-            # 0,5,10,...,55,60+ 순서로 정렬. sec_bucket 정수 키로 sort.
-            "sort": {"field": "bin_start", "order": "ascending"},
-            "axis": {
-                "title": "체류 시간 (초)",
-                "labelAngle": 0,
-                "labelFontSize": 11,
-            },
-        },
-        "y": {
-            "field": "n",
-            "type": "quantitative",
-            "axis": {"title": "세션 수", "tickCount": 5},
-        },
-        "tooltip": [
-            {"field": "bin_label", "type": "nominal", "title": "구간 (초)"},
-            {"field": "n", "type": "quantitative", "title": "세션 수"},
-        ],
-    },
-    "config": VEGA_CHROME,
-}
-I12 = viz_vega(
+I12_QUERY = (
+    "service:client-web AND event_name:page_leave AND "
+    "(path:*\\/result* OR path:\\/share\\/* OR path:\\/fortune*)"
+)
+I12 = viz_classic(
     viz_id="vis-marketing-result-dwell-time",
     title="[I12] 결과 화면 체류 시간 분포",
-    description="결과 화면(result) 체류 시간 histogram. 만족도 proxy.",
-    spec=wrap_single_as_multiview(I12_SPEC),
+    description=(
+        "결과 화면(result) page_leave 의 time_on_page_ms 분포. "
+        "<5초 즉시 닫음 vs 60초+ 깊은 몰입 비율이 컨텐츠 만족도 proxy."
+    ),
+    query=I12_QUERY,
+    colors={
+        "즉시 이탈 (< 5초)":  STATUS_DANGER,
+        "짧음 (5-30초)":     STATUS_WARN,
+        "보통 (30-60초)":    STATUS_GOOD,
+        "몰입 (60초+)":       STATUS_GREAT,
+    },
+    vis_state={
+        "title": "[I12] 결과 화면 체류 시간 분포",
+        "type": "metric",
+        "params": {
+            "addTooltip": True,
+            "addLegend": False,
+            "type": "metric",
+            "metric": {
+                "percentageMode": False,
+                "useRanges": False,
+                "colorSchema": "Green to Red",
+                "metricColorMode": "Labels",
+                "colorsRange": [{"from": 0, "to": 10000}],
+                "labels": {"show": True},
+                "invertColors": False,
+                "style": {
+                    "bgFill": "#000",
+                    "bgColor": False,
+                    "labelColor": False,
+                    "subText": "",
+                    "fontSize": 42,
+                },
+            },
+        },
+        "aggs": [
+            {"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
+            {"id": "2", "enabled": True, "type": "filters", "schema": "group", "params": {
+                "filters": [
+                    {"input": {"query": "metadata.time_on_page_ms:[0 TO 4999]",
+                               "language": "lucene"},
+                     "label": "즉시 이탈 (< 5초)"},
+                    {"input": {"query": "metadata.time_on_page_ms:[5000 TO 29999]",
+                               "language": "lucene"},
+                     "label": "짧음 (5-30초)"},
+                    {"input": {"query": "metadata.time_on_page_ms:[30000 TO 59999]",
+                               "language": "lucene"},
+                     "label": "보통 (30-60초)"},
+                    {"input": {"query": "metadata.time_on_page_ms:[60000 TO *]",
+                               "language": "lucene"},
+                     "label": "몰입 (60초+)"},
+                ],
+            }},
+        ],
+    },
 )
 
 
