@@ -12,6 +12,11 @@ FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 
+# AWT PNG 렌더링이 런타임 fontconfig에서도 한글 폰트를 찾을 수 있도록 보강한다.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fontconfig fonts-nanum \
+    && rm -rf /var/lib/apt/lists/*
+
 # 비루트 유저
 RUN groupadd -r spring && useradd -r -g spring spring
 

@@ -480,6 +480,16 @@ Recent fortune result re-query work added `GET /api/v1/fortune/today`.
 ./gradlew spotlessCheck
 ```
 
+Recent fortune card image rendering work fixed Korean glyph fallback in gallery thumbnails.
+
+- `FortuneCardRenderer` now loads bundled `fonts/NanumGothic-Regular.ttf` with
+  `Font.createFont(...)`, registers it with AWT, and derives all card text fonts
+  from that base font instead of relying on `Font.SANS_SERIF`.
+- The runtime Docker image also installs `fontconfig` and `fonts-nanum` as a
+  container-level fallback for AWT/fontconfig.
+- New renderer tests verify the bundled font can display Korean fortune text and
+  that Korean-content cards are emitted as readable 900x1200 PNGs.
+
 `verify-migration.ps1` successfully applied the initial Flyway DDL to a real
 PostgreSQL Testcontainers database after Docker Desktop was started.
 
