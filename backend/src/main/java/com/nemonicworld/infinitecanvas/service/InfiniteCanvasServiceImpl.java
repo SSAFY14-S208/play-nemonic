@@ -6,10 +6,14 @@ import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasParticipantUpdateRequest;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasCursor;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasLock;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasRepository;
 import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasInviteMetadataSyncService;
 import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasParticipantLimit;
@@ -20,7 +24,9 @@ import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -136,6 +142,46 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public InfiniteCanvasLeaveResponse leaveCanvas(String userUuidValue, String canvasId) {
+        AppUser user = anonymousUserResolver.resolve(userUuidValue);
+        String userUuid = user.getId().toString();
+        String normalizedCanvasId = normalizeCanvasId(canvasId);
+
+        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
+            InfiniteCanvasState state = findActiveState(normalizedCanvasId);
+            if (!state.hasParticipant(userUuid)) {
+                throw new NotFoundException(NOT_PARTICIPANT_MESSAGE);
+            }
+
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            List<InfiniteCanvasParticipant> participants = state.participants().stream()
+                .filter(participant -> !participant.userUuid().equals(userUuid)).toList();
+            Map<String, InfiniteCanvasLock> locks = removeParticipantLocks(state.locks(), userUuid, now);
+            Map<String, InfiniteCanvasCursor> cursors = new LinkedHashMap<>(state.cursors());
+            cursors.remove(userUuid);
+
+            if (participants.isEmpty()) {
+                InfiniteCanvasState closedState = copyState(state, InfiniteCanvasStatus.CLOSED, participants, locks,
+                    cursors, now, now);
+                if (infiniteCanvasRepository.saveIfUnchanged(state, closedState)) {
+                    infiniteCanvasRepository.delete(normalizedCanvasId);
+                    return new InfiniteCanvasLeaveResponse(normalizedCanvasId, userUuid, true, now);
+                }
+                continue;
+            }
+
+            InfiniteCanvasState updatedState = copyState(state, state.status(), participants, locks, cursors, now,
+                state.closedAt());
+            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
+                return new InfiniteCanvasLeaveResponse(normalizedCanvasId, userUuid, false, null);
+            }
+        }
+
+        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+    }
+
     private InfiniteCanvasParticipant createParticipant(AppUser user, InfiniteCanvasCreateRequest request,
         LocalDateTime now) {
         String userUuid = user.getId().toString();
@@ -216,6 +262,14 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             state.maxParticipants(), state.revision(), state.createdAt(), updatedAt, state.closedAt());
     }
 
+    private InfiniteCanvasState copyState(InfiniteCanvasState state, InfiniteCanvasStatus status,
+        List<InfiniteCanvasParticipant> participants, Map<String, InfiniteCanvasLock> locks,
+        Map<String, InfiniteCanvasCursor> cursors, LocalDateTime updatedAt, LocalDateTime closedAt) {
+        return new InfiniteCanvasState(state.canvasId(), state.inviteCode(), status, state.ownerUserUuid(),
+            participants, state.elements(), state.operations(), locks, cursors, state.viewport(),
+            state.maxParticipants(), state.revision(), state.createdAt(), updatedAt, closedAt);
+    }
+
     private List<InfiniteCanvasParticipant> replaceParticipant(List<InfiniteCanvasParticipant> participants,
         InfiniteCanvasParticipant updatedParticipant) {
         return participants.stream()
@@ -223,5 +277,17 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
                 ? updatedParticipant
                 : participant)
             .toList();
+    }
+
+    private Map<String, InfiniteCanvasLock> removeParticipantLocks(Map<String, InfiniteCanvasLock> locks,
+        String userUuid, LocalDateTime now) {
+        Map<String, InfiniteCanvasLock> activeLocks = new LinkedHashMap<>();
+        locks.forEach((elementId, lock) -> {
+            if (lock != null && !lock.isExpired(now) && !userUuid.equals(lock.userUuid())) {
+                activeLocks.put(elementId, lock);
+            }
+        });
+
+        return activeLocks;
     }
 }
