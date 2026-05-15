@@ -1,16 +1,22 @@
 package com.nemonicworld.infinitecanvas.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOperationRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasParticipantUpdateRequest;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasCursor;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasLock;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperation;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperationType;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
@@ -39,8 +45,12 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final String CANVAS_NOT_FOUND_MESSAGE = "활성 무한 캔버스를 찾을 수 없습니다.";
     private static final String CANVAS_FULL_MESSAGE = "무한 캔버스 최대 참여자 수를 초과했습니다.";
     private static final String NOT_PARTICIPANT_MESSAGE = "무한 캔버스 참여자가 아닙니다.";
+    private static final String INVALID_OPERATIONS_MESSAGE = "캔버스 편집 연산 목록 형식이 올바르지 않습니다.";
+    private static final String LOCK_CONFLICT_MESSAGE = "다른 참여자가 해당 요소를 편집 중입니다.";
     private static final String UPDATE_CONFLICT_MESSAGE = "무한 캔버스 상태 갱신 충돌이 발생했습니다. 다시 시도해주세요.";
     private static final int UPDATE_MAX_RETRIES = 8;
+    private static final int MAX_OPERATIONS_PER_MESSAGE = 100;
+    private static final int RECENT_OPERATION_LIMIT = 200;
     private static final List<String> DEFAULT_COLORS = List.of("#2F80ED", "#27AE60", "#EB5757", "#F2994A", "#9B51E0",
         "#00A3A3");
 
@@ -203,6 +213,52 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
 
     @Override
     @Transactional(readOnly = true)
+    public InfiniteCanvasOpsAppliedResponse applyOperations(String userUuidValue, String canvasId,
+        InfiniteCanvasOpsRequest request) {
+        AppUser user = anonymousUserResolver.resolve(userUuidValue);
+        String userUuid = user.getId().toString();
+        String normalizedCanvasId = normalizeCanvasId(canvasId);
+        List<InfiniteCanvasOperationRequest> requestedOperations = normalizeOperationRequests(request);
+
+        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
+            InfiniteCanvasState state = findActiveState(normalizedCanvasId);
+            requireParticipant(state, userUuid);
+            List<InfiniteCanvasOperationRequest> pendingOperationRequests = requestedOperations.stream()
+                .filter(operationRequest -> !isAlreadyApplied(state, operationRequest, userUuid)).toList();
+            if (pendingOperationRequests.isEmpty()) {
+                return new InfiniteCanvasOpsAppliedResponse(normalizedCanvasId, state.revision(),
+                    state.elements().size(), List.of());
+            }
+
+            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            List<JsonNode> elements = new ArrayList<>(state.elements());
+            List<InfiniteCanvasOperation> acceptedOperations = new ArrayList<>();
+            Map<String, InfiniteCanvasLock> locks = removeExpiredLocks(state.locks(), now);
+            long revision = state.revision();
+
+            for (InfiniteCanvasOperationRequest operationRequest : pendingOperationRequests) {
+                validateOperationLock(locks, operationRequest, userUuid);
+                revision++;
+                InfiniteCanvasOperation operation = createOperation(operationRequest, userUuid, revision, now);
+                applyOperation(elements, locks, operation);
+                acceptedOperations.add(operation);
+            }
+
+            InfiniteCanvasState updatedState = copyState(state, state.participants(), elements,
+                appendRecentOperations(state.operations(), acceptedOperations), locks, state.cursors(),
+                state.viewport(), revision, now, state.closedAt());
+
+            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
+                return new InfiniteCanvasOpsAppliedResponse(normalizedCanvasId, revision, elements.size(),
+                    acceptedOperations);
+            }
+        }
+
+        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public InfiniteCanvasLeaveResponse leaveCanvas(String userUuidValue, String canvasId) {
         AppUser user = anonymousUserResolver.resolve(userUuidValue);
         String userUuid = user.getId().toString();
@@ -302,6 +358,12 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         return state;
     }
 
+    private void requireParticipant(InfiniteCanvasState state, String userUuid) {
+        if (!state.hasParticipant(userUuid)) {
+            throw new NotFoundException(NOT_PARTICIPANT_MESSAGE);
+        }
+    }
+
     private String normalizeCanvasId(String canvasId) {
         if (!StringUtils.hasText(canvasId)) {
             throw new BadRequestException(INVALID_CANVAS_ID_MESSAGE);
@@ -312,6 +374,155 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(INVALID_CANVAS_ID_MESSAGE);
         }
+    }
+
+    private List<InfiniteCanvasOperationRequest> normalizeOperationRequests(InfiniteCanvasOpsRequest request) {
+        List<InfiniteCanvasOperationRequest> operations = request == null ? null : request.operations();
+        if (operations == null || operations.isEmpty() || operations.size() > MAX_OPERATIONS_PER_MESSAGE
+            || operations.stream().anyMatch(operation -> operation == null || operation.operationType() == null
+                || !StringUtils.hasText(operation.clientOperationId()))) {
+            throw new BadRequestException(INVALID_OPERATIONS_MESSAGE);
+        }
+
+        return List.copyOf(operations);
+    }
+
+    private InfiniteCanvasOperation createOperation(InfiniteCanvasOperationRequest request, String userUuid,
+        long revision, LocalDateTime now) {
+        String operationId = StringUtils.hasText(request.operationId())
+            ? request.operationId().trim()
+            : UUID.randomUUID().toString();
+        JsonNode element = resolveOperationElement(request);
+        String elementId = StringUtils.hasText(request.elementId())
+            ? request.elementId().trim()
+            : extractElementId(element);
+
+        return new InfiniteCanvasOperation(operationId, request.clientOperationId().trim(), request.operationType(),
+            elementId, element, request.payload(), userUuid, revision, now);
+    }
+
+    private JsonNode resolveOperationElement(InfiniteCanvasOperationRequest request) {
+        if (request.element() != null && !request.element().isNull()) {
+            return request.element();
+        }
+        if (request.payload() != null && request.payload().has("element")) {
+            return request.payload().get("element");
+        }
+        return null;
+    }
+
+    private boolean isAlreadyApplied(InfiniteCanvasState state, InfiniteCanvasOperationRequest operationRequest,
+        String userUuid) {
+        if (operationRequest == null || !StringUtils.hasText(operationRequest.clientOperationId())) {
+            return false;
+        }
+
+        String clientOperationId = operationRequest.clientOperationId().trim();
+        return state.operations().stream().anyMatch(operation -> clientOperationId.equals(operation.clientOperationId())
+            && userUuid.equals(operation.userUuid()));
+    }
+
+    private void validateOperationLock(Map<String, InfiniteCanvasLock> locks,
+        InfiniteCanvasOperationRequest operationRequest, String userUuid) {
+        InfiniteCanvasOperationType operationType = operationRequest.operationType();
+        if (operationType == InfiniteCanvasOperationType.CLEAR_CANVAS) {
+            requireNoForeignLocks(locks, userUuid);
+            return;
+        }
+
+        JsonNode element = resolveOperationElement(operationRequest);
+        String elementId = StringUtils.hasText(operationRequest.elementId())
+            ? operationRequest.elementId().trim()
+            : extractElementId(element);
+        if (operationType == InfiniteCanvasOperationType.DELETE_ELEMENT && !StringUtils.hasText(elementId)) {
+            throw new BadRequestException(INVALID_OPERATIONS_MESSAGE);
+        }
+
+        requireElementEditable(locks, elementId, userUuid);
+    }
+
+    private void requireElementEditable(Map<String, InfiniteCanvasLock> locks, String elementId, String userUuid) {
+        if (!StringUtils.hasText(elementId)) {
+            return;
+        }
+
+        InfiniteCanvasLock lock = locks.get(elementId);
+        if (lock != null && !userUuid.equals(lock.userUuid())) {
+            throw new ConflictException(LOCK_CONFLICT_MESSAGE);
+        }
+    }
+
+    private void requireNoForeignLocks(Map<String, InfiniteCanvasLock> locks, String userUuid) {
+        boolean hasForeignLock = locks.values().stream()
+            .anyMatch(lock -> lock != null && !userUuid.equals(lock.userUuid()));
+        if (hasForeignLock) {
+            throw new ConflictException(LOCK_CONFLICT_MESSAGE);
+        }
+    }
+
+    private void applyOperation(List<JsonNode> elements, Map<String, InfiniteCanvasLock> locks,
+        InfiniteCanvasOperation operation) {
+        switch (operation.operationType()) {
+            case CLEAR_CANVAS -> {
+                elements.clear();
+                locks.clear();
+            }
+            case DELETE_ELEMENT -> {
+                removeElement(elements, operation.elementId());
+                if (StringUtils.hasText(operation.elementId())) {
+                    locks.remove(operation.elementId());
+                }
+            }
+            case CREATE_ELEMENT, UPDATE_ELEMENT, UPSERT_ELEMENT ->
+                upsertElement(elements, operation.elementId(), operation.element());
+        }
+    }
+
+    private void upsertElement(List<JsonNode> elements, String elementId, JsonNode element) {
+        if (element == null || element.isNull()) {
+            return;
+        }
+
+        String resolvedElementId = StringUtils.hasText(elementId) ? elementId : extractElementId(element);
+        if (!StringUtils.hasText(resolvedElementId)) {
+            elements.add(element);
+            return;
+        }
+
+        removeElement(elements, resolvedElementId);
+        elements.add(element);
+    }
+
+    private void removeElement(List<JsonNode> elements, String elementId) {
+        if (!StringUtils.hasText(elementId)) {
+            return;
+        }
+
+        elements.removeIf(element -> elementId.equals(extractElementId(element)));
+    }
+
+    private String extractElementId(JsonNode element) {
+        if (element == null || !element.isObject()) {
+            return null;
+        }
+        if (StringUtils.hasText(element.path("id").asText(null))) {
+            return element.path("id").asText();
+        }
+        if (StringUtils.hasText(element.path("elementId").asText(null))) {
+            return element.path("elementId").asText();
+        }
+        return null;
+    }
+
+    private List<InfiniteCanvasOperation> appendRecentOperations(List<InfiniteCanvasOperation> currentOperations,
+        List<InfiniteCanvasOperation> acceptedOperations) {
+        List<InfiniteCanvasOperation> operations = new ArrayList<>(currentOperations);
+        operations.addAll(acceptedOperations);
+        if (operations.size() <= RECENT_OPERATION_LIMIT) {
+            return operations;
+        }
+
+        return operations.subList(operations.size() - RECENT_OPERATION_LIMIT, operations.size());
     }
 
     private InfiniteCanvasState copyState(InfiniteCanvasState state, List<InfiniteCanvasParticipant> participants,
@@ -329,6 +540,15 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             state.maxParticipants(), state.revision(), state.createdAt(), updatedAt, closedAt);
     }
 
+    private InfiniteCanvasState copyState(InfiniteCanvasState state, List<InfiniteCanvasParticipant> participants,
+        List<JsonNode> elements, List<InfiniteCanvasOperation> operations, Map<String, InfiniteCanvasLock> locks,
+        Map<String, InfiniteCanvasCursor> cursors, JsonNode viewport, long revision, LocalDateTime updatedAt,
+        LocalDateTime closedAt) {
+        return new InfiniteCanvasState(state.canvasId(), state.inviteCode(), state.status(), state.ownerUserUuid(),
+            participants, elements, operations, locks, cursors, viewport, state.maxParticipants(), revision,
+            state.createdAt(), updatedAt, closedAt);
+    }
+
     private List<InfiniteCanvasParticipant> replaceParticipant(List<InfiniteCanvasParticipant> participants,
         InfiniteCanvasParticipant updatedParticipant) {
         return participants.stream()
@@ -343,6 +563,18 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         Map<String, InfiniteCanvasLock> activeLocks = new LinkedHashMap<>();
         locks.forEach((elementId, lock) -> {
             if (lock != null && !lock.isExpired(now) && !userUuid.equals(lock.userUuid())) {
+                activeLocks.put(elementId, lock);
+            }
+        });
+
+        return activeLocks;
+    }
+
+    private Map<String, InfiniteCanvasLock> removeExpiredLocks(Map<String, InfiniteCanvasLock> locks,
+        LocalDateTime now) {
+        Map<String, InfiniteCanvasLock> activeLocks = new LinkedHashMap<>();
+        locks.forEach((elementId, lock) -> {
+            if (lock != null && !lock.isExpired(now)) {
                 activeLocks.put(elementId, lock);
             }
         });
