@@ -1,5 +1,6 @@
 export { useFlipbook } from './useFlipbook'
 export { useFlipbookEntranceIntro } from './useFlipbookEntranceIntro'
+export { useFlipbookEntranceBgm } from './useFlipbookEntranceBgm'
 export { useFlipbookEntrancePreload } from './useFlipbookEntrancePreload'
 export { useFlipbookEntranceTimeline } from './useFlipbookEntranceTimeline'
 export { useFlipbookEntranceWheelFrames } from './useFlipbookEntranceWheelFrames'
