@@ -1,5 +1,7 @@
 export * from './flipbookActionError'
 export * from './flipbookCanvasExport'
+export * from './flipbookDummyResult'
+export * from './flipbookPrintResultMapper'
 export * from './flipbookResultMapper'
 export * from './flipbookRoomMapper'
 export * from './flipbookSessionMapper'
