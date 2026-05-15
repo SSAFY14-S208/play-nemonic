@@ -69,7 +69,7 @@ export default function FlipbookLobbyView({
     () =>
       participants.map((participant) => ({
         userUuid: participant.userUuid,
-        nickname: participant.name.replace(/ \(나\)$/, ''),
+        nickname: participant.name,
         host: participant.isHost === true,
         connected: participant.isConnected === true,
       })),
