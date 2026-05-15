@@ -4,9 +4,11 @@ import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCursorRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasLockRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
@@ -67,6 +69,34 @@ public class InfiniteCanvasWebSocketController {
                 InfiniteCanvasCursorResponse response = infiniteCanvasService.updateCursor(session.userUuid(),
                     session.connectionKey(), request);
                 infiniteCanvasEventPublisher.publishCursorUpdated(response);
+            } catch (RuntimeException e) {
+                infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage());
+            }
+        });
+    }
+
+    @MessageMapping("/infinite-canvas/canvases/{canvasId}/locks/acquire")
+    public void acquireLock(@DestinationVariable("canvasId") String canvasId,
+        @Payload InfiniteCanvasLockRequest request, SimpMessageHeaderAccessor headerAccessor) {
+        currentCanvasSession(canvasId, headerAccessor).ifPresent(session -> {
+            try {
+                InfiniteCanvasLockResponse response = infiniteCanvasService.acquireLock(session.userUuid(),
+                    session.connectionKey(), request);
+                infiniteCanvasEventPublisher.publishLockAcquired(response);
+            } catch (RuntimeException e) {
+                infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage());
+            }
+        });
+    }
+
+    @MessageMapping("/infinite-canvas/canvases/{canvasId}/locks/release")
+    public void releaseLock(@DestinationVariable("canvasId") String canvasId,
+        @Payload InfiniteCanvasLockRequest request, SimpMessageHeaderAccessor headerAccessor) {
+        currentCanvasSession(canvasId, headerAccessor).ifPresent(session -> {
+            try {
+                InfiniteCanvasLockResponse response = infiniteCanvasService.releaseLock(session.userUuid(),
+                    session.connectionKey(), request);
+                infiniteCanvasEventPublisher.publishLockReleased(response);
             } catch (RuntimeException e) {
                 infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage());
             }

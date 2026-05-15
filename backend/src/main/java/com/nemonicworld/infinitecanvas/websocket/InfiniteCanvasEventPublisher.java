@@ -3,6 +3,7 @@ package com.nemonicworld.infinitecanvas.websocket;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventResponse;
@@ -45,6 +46,14 @@ public class InfiniteCanvasEventPublisher {
 
     public void publishCursorUpdated(InfiniteCanvasCursorResponse response) {
         publishCanvasEvent(InfiniteCanvasEventType.CURSOR_UPDATED, response.canvasId(), response);
+    }
+
+    public void publishLockAcquired(InfiniteCanvasLockResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.LOCK_ACQUIRED, response.canvasId(), response);
+    }
+
+    public void publishLockReleased(InfiniteCanvasLockResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.LOCK_RELEASED, response.canvasId(), response);
     }
 
     public void publishParticipantDisconnected(InfiniteCanvasStateResponse response) {

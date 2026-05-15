@@ -9,6 +9,10 @@ public enum InfiniteCanvasEventType {
     OPS_APPLIED,
     /** Participant cursor was updated. */
     CURSOR_UPDATED,
+    /** Element lock was acquired. */
+    LOCK_ACQUIRED,
+    /** Element lock was released. */
+    LOCK_RELEASED,
     /** A participant connected through WebSocket. */
     PARTICIPANT_CONNECTED,
     /** A participant disconnected from WebSocket. */
