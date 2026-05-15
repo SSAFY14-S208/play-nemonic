@@ -66,6 +66,7 @@ class InfiniteCanvasControllerIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String INVITE_CODE = "IC3K9Q";
+    private static final String MINIO_PUBLIC_URL = "http://localhost:9000/nemonic-local/";
 
     @Autowired
     private MockMvc mockMvc;
@@ -95,6 +96,16 @@ class InfiniteCanvasControllerIntegrationTest {
     @BeforeEach
     void prepare() {
         prepareBackofficeSettingTables();
+        prepareOutputTables();
+        jdbcTemplate.update("DELETE FROM community_memo");
+        jdbcTemplate.update("DELETE FROM fortune_artifact");
+        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
+        jdbcTemplate.update("DELETE FROM flipbook_artifact");
+        jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
+        jdbcTemplate.update("DELETE FROM phone_artifact");
+        jdbcTemplate.update("DELETE FROM gallery");
+        jdbcTemplate.update("DELETE FROM artifact");
+        jdbcTemplate.update("DELETE FROM file_upload");
         jdbcTemplate.update("DELETE FROM backoffice_setting");
         userRepository.deleteAll();
 
@@ -328,6 +339,86 @@ class InfiniteCanvasControllerIntegrationTest {
     }
 
     @Test
+    void saveInfiniteCanvasOutputCreatesArtifactGalleryAndImageUrls() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
+        redisValues.put(canvasKey(state.canvasId()), serialize(state));
+        String imageObjectKey = "uploads/infinite-canvas/output/original.png";
+        String thumbnailObjectKey = "uploads/infinite-canvas/output/thumbnail.png";
+        UUID imageFileId = insertFileUpload(ownerUuid, "INFINITE_CANVAS", "UPLOADED", imageObjectKey, null);
+        UUID thumbnailFileId = insertFileUpload(ownerUuid, "INFINITE_CANVAS", "UPLOADED", thumbnailObjectKey, null);
+
+        MvcResult result = mockMvc
+            .perform(post("/api/v1/infinite-canvas/canvases/{canvasId}/outputs", state.canvasId())
+                .header(ANONYMOUS_USER_UUID_HEADER, ownerUuid.toString()).contentType("application/json").content("""
+                    {
+                      "imageFileId": "%s",
+                      "thumbnailFileId": "%s",
+                      "meta": {
+                        "tool": "brush",
+                        "elementCount": 12
+                      }
+                    }
+                    """.formatted(imageFileId, thumbnailFileId)))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("무한 캔버스 출력 이미지 저장 성공"))
+            .andExpect(jsonPath("$.data.kind").value("infinite_canvas"))
+            .andExpect(jsonPath("$.data.canvasId").value(state.canvasId()))
+            .andExpect(jsonPath("$.data.thumbnailUrl").value(publicUrl(thumbnailObjectKey)))
+            .andExpect(jsonPath("$.data.contentUrl").value(publicUrl(imageObjectKey)))
+            .andExpect(jsonPath("$.data.createdAt").isNotEmpty()).andReturn();
+
+        JsonNode responseData = readData(result);
+        UUID galleryId = UUID.fromString(responseData.path("galleryId").asText());
+        UUID artifactId = UUID.fromString(responseData.path("artifactId").asText());
+
+        assertThat(readString("SELECT CAST(kind AS VARCHAR) FROM artifact WHERE id = ?", artifactId))
+            .isEqualTo("infinite_canvas");
+        assertThat(readString("SELECT source_room_id FROM artifact WHERE id = ?", artifactId))
+            .isEqualTo(state.canvasId());
+        assertThat(readString("SELECT thumbnail_url FROM artifact WHERE id = ?", artifactId))
+            .isEqualTo(thumbnailObjectKey);
+        assertThat(objectMapper.readTree(readString("SELECT meta FROM artifact WHERE id = ?", artifactId)).path("tool")
+            .asText()).isEqualTo("brush");
+        assertThat(
+            readString("SELECT canvas_image_url FROM infinite_canvas_artifact WHERE artifact_id = ?", artifactId))
+            .isEqualTo(imageObjectKey);
+        assertThat(readString("SELECT CAST(artifact_id AS VARCHAR) FROM gallery WHERE id = ?", galleryId))
+            .isEqualTo(artifactId.toString());
+        assertThat(readString("SELECT CAST(user_id AS VARCHAR) FROM gallery WHERE id = ?", galleryId))
+            .isEqualTo(ownerUuid.toString());
+
+        mockMvc
+            .perform(get("/api/v1/artifacts/{artifactId}/image-urls", artifactId).header(ANONYMOUS_USER_UUID_HEADER,
+                ownerUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.artifactId").value(artifactId.toString()))
+            .andExpect(jsonPath("$.data.kind").value("infinite_canvas"))
+            .andExpect(jsonPath("$.data.thumbnailUrl").value(publicUrl(thumbnailObjectKey)))
+            .andExpect(jsonPath("$.data.contents.length()").value(1))
+            .andExpect(jsonPath("$.data.contents[0].type").value("canvas_image"))
+            .andExpect(jsonPath("$.data.contents[0].url").value(publicUrl(imageObjectKey)));
+    }
+
+    @Test
+    void saveInfiniteCanvasOutputRejectsWrongPurposeFile() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
+        redisValues.put(canvasKey(state.canvasId()), serialize(state));
+        UUID imageFileId = insertFileUpload(ownerUuid, "COMMUNITY", "UPLOADED",
+            "uploads/community/not-infinite-canvas.png", null);
+
+        mockMvc
+            .perform(post("/api/v1/infinite-canvas/canvases/{canvasId}/outputs", state.canvasId())
+                .header(ANONYMOUS_USER_UUID_HEADER, ownerUuid.toString()).contentType("application/json").content("""
+                    {
+                      "imageFileId": "%s"
+                    }
+                    """.formatted(imageFileId)))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("무한 캔버스 출력 파일만 저장할 수 있습니다."));
+    }
+
+    @Test
     void joinInviteCodeAddsInfiniteCanvasParticipant() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         UUID viewerUuid = createExistingUserWithNickname("Viewer");
@@ -488,6 +579,88 @@ class InfiniteCanvasControllerIntegrationTest {
             """);
     }
 
+    private void prepareOutputTables() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS artifact (
+                id UUID PRIMARY KEY,
+                kind VARCHAR(32) NOT NULL,
+                source_room_id VARCHAR(64) NULL,
+                thumbnail_url VARCHAR(200) NOT NULL,
+                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS gallery (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NOT NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS fortune_artifact (
+                artifact_id UUID PRIMARY KEY,
+                description VARCHAR(1000) NOT NULL DEFAULT '{}',
+                fortune_image_url VARCHAR(200) NULL,
+                user_id UUID,
+                fortune_date DATE
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
+                artifact_id UUID PRIMARY KEY,
+                combined_preview_url VARCHAR(200) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS flipbook_artifact (
+                artifact_id UUID PRIMARY KEY,
+                gif_url VARCHAR(200) NULL,
+                first_image VARCHAR(200) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS infinite_canvas_artifact (
+                artifact_id UUID PRIMARY KEY,
+                canvas_image_url VARCHAR(200) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS phone_artifact (
+                artifact_id UUID PRIMARY KEY,
+                phone_image_url VARCHAR(200) NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS community_memo (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NULL,
+                body_image_url VARCHAR(1000) NULL,
+                thumbnail_image_url VARCHAR(1000) NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS file_upload (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                purpose VARCHAR(32) NOT NULL,
+                original_file_name VARCHAR(255) NOT NULL,
+                content_type VARCHAR(100) NOT NULL,
+                byte_size BIGINT NOT NULL,
+                object_key VARCHAR(500) NOT NULL,
+                status VARCHAR(32) NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+    }
+
     private void insertInfiniteCanvasParticipantLimitSetting(String settingValue) {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
@@ -513,6 +686,33 @@ class InfiniteCanvasControllerIntegrationTest {
         userRepository.saveAndFlush(appUser);
 
         return userUuid;
+    }
+
+    private UUID insertFileUpload(UUID userUuid, String purpose, String status, String objectKey,
+        LocalDateTime deletedAt) {
+        UUID fileId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now().minusMinutes(5).truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO file_upload (
+                id,
+                user_id,
+                purpose,
+                original_file_name,
+                content_type,
+                byte_size,
+                object_key,
+                status,
+                expires_at,
+                created_at,
+                updated_at,
+                deleted_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, fileId, userUuid, purpose, "canvas.png", "image/png", 1024L, objectKey, status,
+            Timestamp.valueOf(now.plusHours(1)), Timestamp.valueOf(now), Timestamp.valueOf(now),
+            deletedAt == null ? null : Timestamp.valueOf(deletedAt));
+
+        return fileId;
     }
 
     private InfiniteCanvasState activeCanvasState(UUID ownerUuid, int maxParticipants) {
@@ -556,6 +756,14 @@ class InfiniteCanvasControllerIntegrationTest {
 
     private String serialize(InfiniteCanvasState state) throws Exception {
         return objectMapper.writeValueAsString(state);
+    }
+
+    private String readString(String sql, Object... args) {
+        return jdbcTemplate.queryForObject(sql, String.class, args);
+    }
+
+    private String publicUrl(String objectKey) {
+        return MINIO_PUBLIC_URL + objectKey;
     }
 
     private String canvasKey(String canvasId) {
