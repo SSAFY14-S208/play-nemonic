@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Flag } from 'lucide-react'
+import { Flag, X } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoReportReason } from '@/shared/types'
-import { CommunityModalFrame } from './CommunityModalFrame'
 
 const REPORT_REASONS: CommunityMemoReportReason[] = [
   '부적절한 콘텐츠',
@@ -36,28 +35,37 @@ export function CommunityReportModal({
   if (!isOpen) return null
 
   return (
-    <CommunityModalFrame
-      isOpen={isOpen}
-      titleId="community-report-title"
-      frameImageUrl="/images/community-canvas/ui/modal-report-frame.svg"
-      aspectRatio={760 / 660}
-      maxWidth="60rem"
-      overlayClassName="z-[calc(var(--z-overlay)+10)] p-3"
-      frameClassName="max-md:aspect-auto max-md:h-[calc(100dvh_-_1.5rem)]"
-      contentClassName="bottom-[7%] left-[9%] right-[9%] top-[7.4%] max-md:inset-4 max-md:pt-12"
-      closeButtonClassName="right-[7%] top-[3.8%] max-md:right-4 max-md:top-4"
-      closeButtonLabel="신고 창 닫기"
-      onClose={onClose}
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="community-report-title"
+      className="fixed inset-0 z-[calc(var(--z-overlay)+10)] grid place-items-center bg-[#19172a]/50 p-2 backdrop-blur-[2px]"
     >
-      <div className="flex h-full min-h-0 flex-col gap-3">
-        <header className="shrink-0">
+      <section
+        className="relative aspect-[760/660] bg-contain bg-center bg-no-repeat"
+        style={{
+          width: 'min(98vw, 60rem, 115.15vh)',
+          backgroundImage: 'url("/images/community-canvas/ui/modal-report-frame.svg")',
+          backgroundSize: '100% 100%',
+        }}
+      >
+        <header className="absolute left-[9.8%] right-[18%] top-[3.5%] flex h-[8.5%] items-center">
           <h2 id="community-report-title" className="h3-b text-fg-primary">
             메모 신고
           </h2>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-          <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+        <button
+          type="button"
+          aria-label="신고 닫기"
+          onClick={onClose}
+          className="absolute right-[8.4%] top-[4.1%] grid size-12 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_6px_14px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
+        >
+          <X className="size-5" />
+        </button>
+
+        <div className="absolute bottom-[8.2%] left-[9.8%] right-[9.8%] top-[10.4%] flex flex-col">
+          <div className="grid grid-cols-2 gap-3">
             {REPORT_REASONS.map((reportReason) => (
               <button
                 key={reportReason}
@@ -76,7 +84,7 @@ export function CommunityReportModal({
             ))}
           </div>
 
-          <label className="body-b mt-4 block text-fg-primary" htmlFor="report-detail">
+          <label className="body-b mt-6 block text-fg-primary" htmlFor="report-detail">
             상세 사유
           </label>
           <textarea
@@ -84,20 +92,20 @@ export function CommunityReportModal({
             value={reasonDetail}
             onChange={(event) => setReasonDetail(event.target.value)}
             maxLength={300}
-            className="body-r mt-3 h-[clamp(7rem,28dvh,16rem)] w-full resize-none rounded-[0.45rem] border border-[#FFD66B]/70 bg-[#fffdf1] p-4 text-fg-primary outline-none focus:border-[#FFD95D]"
+            className="body-r mt-3 min-h-0 flex-1 resize-none rounded-[0.45rem] border border-[#FFD66B]/70 bg-[#fffdf1] p-4 text-fg-primary outline-none focus:border-[#FFD95D]"
           />
-        </div>
 
-        <button
-          type="button"
-          onClick={() => onSubmit(reason, reasonDetail)}
-          disabled={status === 'loading'}
-          className="body-b inline-flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Flag className="size-4" />
-          {status === 'loading' ? '접수 중이에요' : '신고 접수'}
-        </button>
-      </div>
-    </CommunityModalFrame>
+          <button
+            type="button"
+            onClick={() => onSubmit(reason, reasonDetail)}
+            disabled={status === 'loading'}
+            className="body-b mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Flag className="size-4" />
+            {status === 'loading' ? '접수 중' : '신고 접수'}
+          </button>
+        </div>
+      </section>
+    </div>
   )
 }
