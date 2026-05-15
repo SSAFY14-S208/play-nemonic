@@ -35,6 +35,8 @@ final class SystemParameterTypedUpdateMapper {
             request.flipbookMinFramesPerFlipbook());
         add(updates, objectMapper, SystemParameterSettingKeys.FLIPBOOK_RECONNECT_GRACE_SECONDS,
             request.flipbookReconnectGraceSeconds());
+        add(updates, objectMapper, SystemParameterSettingKeys.INFINITE_CANVAS_PARTICIPANT_LIMIT,
+            request.infiniteCanvasParticipantLimit());
         add(updates, objectMapper, SystemParameterSettingKeys.FORTUNE_DAILY_LIMIT, request.fortuneDailyLimit());
         add(updates, objectMapper, SystemParameterSettingKeys.CS_INQUIRY_UNRESOLVED_ALERT_THRESHOLD_HOURS,
             request.csInquiryUnresolvedAlertThresholdHours());

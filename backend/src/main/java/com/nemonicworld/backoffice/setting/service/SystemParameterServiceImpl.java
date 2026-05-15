@@ -23,6 +23,8 @@ import com.nemonicworld.flipbook.service.support.InvalidFlipbookMinFramesPerFlip
 import com.nemonicworld.flipbook.service.support.InvalidFlipbookReconnectGraceSettingsException;
 import com.nemonicworld.flipbook.service.support.InvalidFlipbookRoomParticipantLimitException;
 import com.nemonicworld.flipbook.service.support.InvalidFlipbookRoomTimeLimitSettingsException;
+import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasParticipantLimit;
+import com.nemonicworld.infinitecanvas.service.support.InvalidInfiniteCanvasParticipantLimitException;
 import com.nemonicworld.relay.service.support.InvalidRelayReconnectGraceSettingsException;
 import com.nemonicworld.relay.service.support.InvalidRelayRoomParticipantLimitException;
 import com.nemonicworld.relay.service.support.InvalidRelayRoomTimeLimitSettingsException;
@@ -61,6 +63,7 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private static final String INVALID_FLIPBOOK_TIME_LIMIT_MESSAGE = "플립북 방 제한 시간 설정이 올바르지 않습니다.";
     private static final String INVALID_FLIPBOOK_MIN_FRAMES_MESSAGE = "플립북 최소 프레임 수 설정이 올바르지 않습니다.";
     private static final String INVALID_FLIPBOOK_RECONNECT_GRACE_MESSAGE = "플립북 재연결 유예 시간 설정이 올바르지 않습니다.";
+    private static final String INVALID_INFINITE_CANVAS_PARTICIPANT_LIMIT_MESSAGE = "무한 캔버스 참여 인원 설정이 올바르지 않습니다.";
     private static final String INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE = "시스템 파라미터 값이 올바르지 않습니다.";
     private static final Set<String> POSITIVE_VALUE_SETTING_KEYS = Set.of(
         SystemParameterSettingKeys.COMMUNITY_MAX_MEMO_COUNT, SystemParameterSettingKeys.COMMUNITY_REPORT_HIDE_THRESHOLD,
@@ -223,6 +226,11 @@ public class SystemParameterServiceImpl implements SystemParameterService {
             return;
         }
 
+        if (SystemParameterSettingKeys.INFINITE_CANVAS_PARTICIPANT_LIMIT.equals(key)) {
+            validateInfiniteCanvasParticipantLimit(value);
+            return;
+        }
+
         if (POSITIVE_VALUE_SETTING_KEYS.contains(key)) {
             validatePositiveValue(value);
         }
@@ -281,6 +289,14 @@ public class SystemParameterServiceImpl implements SystemParameterService {
             FlipbookReconnectGraceSettings.fromJson(value);
         } catch (InvalidFlipbookReconnectGraceSettingsException e) {
             throw new BadRequestException(INVALID_FLIPBOOK_RECONNECT_GRACE_MESSAGE);
+        }
+    }
+
+    private void validateInfiniteCanvasParticipantLimit(JsonNode value) {
+        try {
+            InfiniteCanvasParticipantLimit.fromJson(value);
+        } catch (InvalidInfiniteCanvasParticipantLimitException e) {
+            throw new BadRequestException(INVALID_INFINITE_CANVAS_PARTICIPANT_LIMIT_MESSAGE);
         }
     }
 
