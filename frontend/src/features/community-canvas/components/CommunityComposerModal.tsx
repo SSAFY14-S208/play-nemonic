@@ -12,7 +12,6 @@ import {
   Send,
   Trash2,
   Undo2,
-  X,
   type LucideIcon,
 } from 'lucide-react'
 import { DrawingBoard } from '@/shared/components/DrawingBoard'
@@ -29,6 +28,7 @@ import {
   DEFAULT_COMMUNITY_MEMO_COLOR,
 } from '../utils'
 import { CommunityGalleryPicker } from './CommunityGalleryPicker'
+import { CommunityModalFrame } from './CommunityModalFrame'
 
 interface CommunityComposerModalProps {
   composer: ReturnType<typeof useCommunityComposer>
@@ -102,158 +102,149 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="community-composer-title"
-      className="fixed inset-0 z-[var(--z-overlay)] grid place-items-center bg-[#19172a]/50 p-4 backdrop-blur-[2px]"
+    <CommunityModalFrame
+      isOpen={composer.isComposerOpen}
+      titleId="community-composer-title"
+      frameImageUrl="/images/community-canvas/ui/modal-composer-frame.svg"
+      aspectRatio={1600 / 980}
+      maxWidth="100rem"
+      frameClassName="max-xl:aspect-auto max-xl:h-[calc(100dvh_-_2rem)]"
+      contentClassName="bottom-[5.4%] left-[4.75%] right-[4.75%] top-[6.8%] max-xl:inset-4 max-xl:pt-12"
+      closeButtonClassName="right-[5.2%] top-[6.2%] max-xl:right-4 max-xl:top-4"
+      closeButtonLabel="작성 닫기"
+      onClose={composer.closeComposer}
     >
-      <section
-        className="relative aspect-[1600/980] overflow-hidden bg-contain bg-center bg-no-repeat"
-        style={{
-          width: 'min(96vw, 100rem, 153.47vh)',
-          backgroundImage: 'url("/images/community-canvas/ui/modal-composer-frame.svg")',
-          backgroundSize: '100% 100%',
-        }}
-      >
-        <header className="absolute left-[5.5%] right-[5.5%] top-[7.1%] flex h-[11.4%] items-center justify-between px-4">
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        <header className="flex shrink-0 items-start justify-between gap-4 pr-14 max-sm:pr-12">
           <div>
             <p className="caption-b text-primary-2">커뮤니티 캔버스</p>
             <h2 id="community-composer-title" className="h2-b text-fg-primary">
               새 메모 붙이기
             </h2>
           </div>
-          <button
-            type="button"
-            aria-label="작성 닫기"
-            onClick={composer.closeComposer}
-            className="grid size-11 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
-          >
-            <X className="size-5" />
-          </button>
         </header>
 
-        <div className="absolute left-[4.75%] top-[21.55%] h-[4.65%] w-[16.875%]">
+        <div className="h-11 w-[min(17rem,100%)] shrink-0">
           <SourceTabs
             sourceType={sourceType}
             onSelectSourceType={composer.selectSourceType}
           />
         </div>
 
-        <div className="absolute bottom-[8.6%] left-[4.75%] right-[4.75%] top-[29%] grid min-h-0 gap-[1.5%] overflow-hidden xl:grid-cols-[minmax(0,750fr)_320fr_330fr]">
-            {sourceType === 'DIRECT' ? (
-              <>
-                <div className="flex h-full min-w-0 items-center justify-center overflow-visible">
+        <div className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,750fr)_320fr_330fr] max-xl:overflow-y-auto max-xl:overflow-x-hidden max-xl:pr-1">
+          {sourceType === 'DIRECT' ? (
+            <>
+              <main className="flex min-h-0 min-w-0 items-center justify-center overflow-auto rounded-[0.65rem] p-1">
+                <DrawingBoard
+                  boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
+                  backgroundColor={backgroundColor}
+                  backgroundCornerRadius={18}
+                  gridColor="#ffe0a3"
+                  lines={drawingBoard.lines}
+                  onDrawStart={drawingBoard.beginDrawing}
+                  onDrawMove={drawingBoard.continueDrawing}
+                  onDrawEnd={drawingBoard.endDrawing}
+                  className="overflow-hidden rounded-[1rem] shadow-[0_10px_20px_rgb(78_44_20_/_12%)]"
+                />
+              </main>
+
+              <section
+                className={cn(
+                  'grid min-h-0 auto-rows-max content-start gap-3 overflow-y-auto rounded-[0.55rem] bg-surface-default p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] xl:h-full',
+                  isPosting && 'pointer-events-none opacity-60',
+                )}
+              >
+                <DrawingToolStrip
+                  selectedToolKey={drawingBoard.selectedToolKey}
+                  canUndoDrawing={drawingBoard.canUndoDrawing}
+                  canRedoDrawing={drawingBoard.canRedoDrawing}
+                  onSelectTool={drawingBoard.setSelectedToolKey}
+                  onUndoDrawing={drawingBoard.undoDrawing}
+                  onRedoDrawing={drawingBoard.redoDrawing}
+                  onClearDrawing={drawingBoard.clearDrawing}
+                />
+
+                <DrawingBrushPanel
+                  colors={DRAWING_COLORS}
+                  selectedColor={drawingBoard.selectedColor}
+                  selectedOpacity={drawingBoard.selectedOpacity}
+                  strokeWidth={drawingBoard.strokeWidth}
+                  onSelectColor={drawingBoard.setSelectedColor}
+                  onOpacityChange={drawingBoard.setSelectedOpacity}
+                  onStrokeWidthChange={drawingBoard.setStrokeWidth}
+                />
+              </section>
+            </>
+          ) : (
+            <>
+              <main className="flex min-h-0 min-w-0 items-center justify-center overflow-auto rounded-[0.65rem] p-1">
+                {!selectedGalleryCanvasImageUrl && composer.handoffDraft ? (
+                  <CommunityHandoffSourcePanel
+                    draft={composer.handoffDraft}
+                    className={COMPOSER_BOARD_SURFACE_CLASS}
+                  />
+                ) : !selectedGalleryCanvasImageUrl ? (
+                  <CommunityGalleryPicker
+                    className={COMPOSER_BOARD_SURFACE_CLASS}
+                    items={composer.galleryItems}
+                    status={composer.galleryStatus}
+                    error={composer.galleryError}
+                    selectedGalleryId={composer.selectedGalleryId}
+                    onLoad={composer.loadGalleryItems}
+                    onSelect={(galleryId) => void composer.selectGalleryItem(galleryId)}
+                  />
+                ) : (
                   <DrawingBoard
                     boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
                     backgroundColor={backgroundColor}
                     backgroundCornerRadius={18}
-                    gridColor="#ffe0a3"
+                    gridColor="transparent"
                     lines={drawingBoard.lines}
                     onDrawStart={drawingBoard.beginDrawing}
                     onDrawMove={drawingBoard.continueDrawing}
                     onDrawEnd={drawingBoard.endDrawing}
                     className="overflow-hidden rounded-[1rem] shadow-[0_10px_20px_rgb(78_44_20_/_12%)]"
+                    childrenBeforeLines={
+                      <GalleryCanvasBaseImage
+                        imageUrl={selectedGalleryCanvasImageUrl}
+                        boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
+                      />
+                    }
                   />
-                </div>
+                )}
+              </main>
 
-                <div
-                  className={cn(
-                    'grid min-h-0 self-center auto-rows-max content-start gap-3 overflow-y-auto rounded-[0.55rem] bg-surface-default p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] [height:min(100%,33.75rem)]',
-                    isPosting && 'pointer-events-none opacity-60',
-                  )}
-                >
-                  <DrawingToolStrip
-                    selectedToolKey={drawingBoard.selectedToolKey}
-                    canUndoDrawing={drawingBoard.canUndoDrawing}
-                    canRedoDrawing={drawingBoard.canRedoDrawing}
-                    onSelectTool={drawingBoard.setSelectedToolKey}
-                    onUndoDrawing={drawingBoard.undoDrawing}
-                    onRedoDrawing={drawingBoard.redoDrawing}
-                    onClearDrawing={drawingBoard.clearDrawing}
-                  />
+              <section
+                className={cn(
+                  'grid min-h-0 auto-rows-max content-start gap-3 overflow-y-auto rounded-[0.55rem] bg-surface-default p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] xl:h-full',
+                  isPosting && 'pointer-events-none opacity-60',
+                )}
+              >
+                <DrawingToolStrip
+                  hiddenToolKeys={GALLERY_HIDDEN_TOOL_ACTIONS}
+                  selectedToolKey={drawingBoard.selectedToolKey}
+                  canUndoDrawing={drawingBoard.canUndoDrawing}
+                  canRedoDrawing={drawingBoard.canRedoDrawing}
+                  onSelectTool={drawingBoard.setSelectedToolKey}
+                  onUndoDrawing={drawingBoard.undoDrawing}
+                  onRedoDrawing={drawingBoard.redoDrawing}
+                  onClearDrawing={drawingBoard.clearDrawing}
+                />
 
-                  <DrawingBrushPanel
-                    colors={DRAWING_COLORS}
-                    selectedColor={drawingBoard.selectedColor}
-                    selectedOpacity={drawingBoard.selectedOpacity}
-                    strokeWidth={drawingBoard.strokeWidth}
-                    onSelectColor={drawingBoard.setSelectedColor}
-                    onOpacityChange={drawingBoard.setSelectedOpacity}
-                    onStrokeWidthChange={drawingBoard.setStrokeWidth}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex h-full min-w-0 items-center justify-center overflow-visible">
-                  {!selectedGalleryCanvasImageUrl && composer.handoffDraft ? (
-                    <CommunityHandoffSourcePanel
-                      draft={composer.handoffDraft}
-                      className={COMPOSER_BOARD_SURFACE_CLASS}
-                    />
-                  ) : !selectedGalleryCanvasImageUrl ? (
-                    <CommunityGalleryPicker
-                      className={COMPOSER_BOARD_SURFACE_CLASS}
-                      items={composer.galleryItems}
-                      status={composer.galleryStatus}
-                      error={composer.galleryError}
-                      selectedGalleryId={composer.selectedGalleryId}
-                      onLoad={composer.loadGalleryItems}
-                      onSelect={(galleryId) => void composer.selectGalleryItem(galleryId)}
-                    />
-                  ) : (
-                    <DrawingBoard
-                      boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
-                      backgroundColor={backgroundColor}
-                      backgroundCornerRadius={18}
-                      gridColor="transparent"
-                      lines={drawingBoard.lines}
-                      onDrawStart={drawingBoard.beginDrawing}
-                      onDrawMove={drawingBoard.continueDrawing}
-                      onDrawEnd={drawingBoard.endDrawing}
-                      className="overflow-hidden rounded-[1rem] shadow-[0_10px_20px_rgb(78_44_20_/_12%)]"
-                      childrenBeforeLines={
-                        <GalleryCanvasBaseImage
-                          imageUrl={selectedGalleryCanvasImageUrl}
-                          boardSize={COMMUNITY_COMPOSER_BOARD_SIZE}
-                        />
-                      }
-                    />
-                  )}
-                </div>
+                <DrawingBrushPanel
+                  colors={DRAWING_COLORS}
+                  selectedColor={drawingBoard.selectedColor}
+                  selectedOpacity={drawingBoard.selectedOpacity}
+                  strokeWidth={drawingBoard.strokeWidth}
+                  onSelectColor={drawingBoard.setSelectedColor}
+                  onOpacityChange={drawingBoard.setSelectedOpacity}
+                  onStrokeWidthChange={drawingBoard.setStrokeWidth}
+                />
+              </section>
+            </>
+          )}
 
-                <div
-                  className={cn(
-                    'grid min-h-0 self-center auto-rows-max content-start gap-3 overflow-y-auto rounded-[0.55rem] bg-surface-default p-3 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] [height:min(100%,33.75rem)]',
-                    isPosting && 'pointer-events-none opacity-60',
-                  )}
-                >
-                  <DrawingToolStrip
-                    hiddenToolKeys={GALLERY_HIDDEN_TOOL_ACTIONS}
-                    selectedToolKey={drawingBoard.selectedToolKey}
-                    canUndoDrawing={drawingBoard.canUndoDrawing}
-                    canRedoDrawing={drawingBoard.canRedoDrawing}
-                    onSelectTool={drawingBoard.setSelectedToolKey}
-                    onUndoDrawing={drawingBoard.undoDrawing}
-                    onRedoDrawing={drawingBoard.redoDrawing}
-                    onClearDrawing={drawingBoard.clearDrawing}
-                  />
-
-                  <DrawingBrushPanel
-                    colors={DRAWING_COLORS}
-                    selectedColor={drawingBoard.selectedColor}
-                    selectedOpacity={drawingBoard.selectedOpacity}
-                    strokeWidth={drawingBoard.strokeWidth}
-                    onSelectColor={drawingBoard.setSelectedColor}
-                    onOpacityChange={drawingBoard.setSelectedOpacity}
-                    onStrokeWidthChange={drawingBoard.setStrokeWidth}
-                  />
-                </div>
-              </>
-            )}
-
-          <aside className="flex min-h-0 flex-col gap-4 self-center overflow-y-auto overflow-x-hidden rounded-[0.55rem] bg-surface-subtle p-4 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] [height:min(100%,33.75rem)]">
+          <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-[0.55rem] bg-surface-subtle p-4 shadow-[0_10px_20px_rgb(78_44_20_/_12%)] xl:h-full max-xl:min-h-[24rem]">
             <MemoColorPicker
               selectedMemoColor={composer.selectedMemoColor}
               onSelectMemoColor={composer.setSelectedMemoColor}
@@ -273,15 +264,15 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
               type="button"
               disabled={isPosting}
               onClick={handlePreparePlacement}
-              className="body-b mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="body-b mt-auto inline-flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {sourceType === 'DIRECT' ? <Send className="size-5" /> : <ImagePlus className="size-5" />}
               {isPosting ? '메모지 준비 중' : '메모지 들기'}
             </button>
           </aside>
         </div>
-      </section>
-    </div>
+      </div>
+    </CommunityModalFrame>
   )
 }
 
