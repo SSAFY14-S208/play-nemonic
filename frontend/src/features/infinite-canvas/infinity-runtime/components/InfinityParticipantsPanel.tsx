@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import type { InfiniteCanvasConnectionStatus, InfiniteCanvasParticipantResponse } from '@/shared/types'
 import { INFINITY_PARTICIPANT_ACCENTS } from '../constants'
 
@@ -37,15 +38,24 @@ export function InfinityParticipantsPanel({
   const participantLimit = maxParticipants || participants.length
 
   return (
-    <aside className="fixed right-5 top-1/2 z-10 flex w-72 -translate-y-1/2 flex-col gap-4 rounded-[34px] border-2 border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(223,235,255,0.9)_48%,rgba(215,205,255,0.82))] p-5 text-[#24366c] shadow-[0_20px_42px_rgba(55,82,190,0.24),0_0_0_6px_rgba(118,166,255,0.12),inset_0_1px_0_rgba(255,255,255,0.98)] backdrop-blur-md">
-      <div>
+    <aside className="fixed right-5 top-1/2 z-10 h-[min(430px,calc(100vh-40px))] w-80 -translate-y-1/2 text-[#24366c]">
+      <Image
+        src="/images/infinite-canvas/participant-panel-seamless-full.png"
+        alt=""
+        aria-hidden
+        fill
+        priority
+        sizes="320px"
+        className="object-fill drop-shadow-[0_18px_34px_rgba(55,82,190,0.2)]"
+      />
+      <div className="relative z-10 flex h-full flex-col gap-4 px-8 py-7">
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="body-b text-[#25376c]">✦ 참여자</p>
-          <span className="caption-b rounded-full border border-white/90 bg-[linear-gradient(135deg,#5dc7f2,#8f6dff)] px-4 py-1.5 text-white shadow-[0_8px_16px_rgba(93,114,255,0.24),inset_0_1px_0_rgba(255,255,255,0.48)]">
+          <span className="caption-b rounded-full border border-white/90 bg-white/84 px-4 py-1.5 text-[#31518f] shadow-[0_8px_16px_rgba(93,114,255,0.16),inset_0_1px_0_rgba(255,255,255,0.85)]">
             {participants.length}/{participantLimit}
           </span>
         </div>
-        <ul className="flex flex-col gap-2">
+        <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
           {sortedParticipants.map((participant) => {
             const isMe = participant.userUuid === me?.userUuid
             const displayNickname = `${participant.nickname}${isMe ? ' (나)' : ''}`
@@ -58,7 +68,7 @@ export function InfinityParticipantsPanel({
             return (
               <li
                 key={participant.userUuid}
-                className="flex min-w-0 items-center gap-3 rounded-[22px] border border-white/86 bg-white/78 px-4 py-3 shadow-[0_9px_18px_rgba(65,95,160,0.14),inset_0_1px_0_rgba(255,255,255,0.92)]"
+                className="flex min-w-0 items-center gap-3 rounded-[22px] border border-white/82 bg-white/70 px-4 py-3 shadow-[0_7px_16px_rgba(65,95,160,0.12),inset_0_1px_0_rgba(255,255,255,0.86)]"
               >
                 <span
                   className="size-4.5 shrink-0 rounded-full border-2 border-white"
@@ -81,11 +91,11 @@ export function InfinityParticipantsPanel({
             )
           })}
         </ul>
-      </div>
-      <div className="h-px bg-white/72" />
-      <div className="flex items-center justify-between gap-3 rounded-full border border-white/86 bg-white/72 px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
-        <span className="caption-b text-[#49679d]">상태</span>
-        <span className="caption-b text-[#31518f]">{getConnectionText(connectionStatus)}</span>
+        <div className="h-px bg-white/72" />
+        <div className="flex items-center justify-between gap-3 rounded-full border border-white/82 bg-white/64 px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]">
+          <span className="caption-b text-[#49679d]">상태</span>
+          <span className="caption-b text-[#31518f]">{getConnectionText(connectionStatus)}</span>
+        </div>
       </div>
     </aside>
   )
