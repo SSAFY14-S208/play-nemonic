@@ -28,6 +28,7 @@ import type {
   InfiniteCanvasStateResponse,
 } from '@/shared/types'
 import { takeInfiniteCanvasCreatedRoomSnapshot } from '../../utils'
+import { INFINITY_COLORS } from '../constants'
 import { useInfinityRealtimeConnection } from './useInfinityRealtimeConnection'
 
 const INFINITE_CANVAS_FILE_CONTENT_TYPE = 'image/png'
@@ -86,7 +87,7 @@ function createFallbackParticipant(
   return {
     userUuid,
     nickname: nickname?.trim() || '나',
-    color: '#2d3a55',
+    color: INFINITY_COLORS[4],
     avatarUrl: null,
     connected: true,
     joinedAt: now,

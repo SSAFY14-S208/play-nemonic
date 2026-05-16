@@ -38,24 +38,24 @@ export function InfinityParticipantsPanel({
   const participantLimit = maxParticipants || participants.length
 
   return (
-    <aside className="fixed right-5 top-1/2 z-10 h-[min(430px,calc(100vh-40px))] w-80 -translate-y-1/2 text-[#24366c]">
+    <aside className="fixed right-5 top-1/2 z-10 h-[220px] w-[288px] -translate-y-1/2 text-[#24366c]">
       <Image
         src="/images/infinite-canvas/participant-panel-seamless-full.png"
         alt=""
         aria-hidden
         fill
         priority
-        sizes="320px"
-        className="object-fill drop-shadow-[0_18px_34px_rgba(55,82,190,0.2)]"
+        sizes="288px"
+        className="object-fill drop-shadow-[0_16px_28px_rgba(55,82,190,0.18)]"
       />
-      <div className="relative z-10 flex h-full flex-col gap-4 px-8 py-7">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="body-b text-[#25376c]">✦ 참여자</p>
-          <span className="caption-b rounded-full border border-white/90 bg-white/84 px-4 py-1.5 text-[#31518f] shadow-[0_8px_16px_rgba(93,114,255,0.16),inset_0_1px_0_rgba(255,255,255,0.85)]">
+      <div className="relative z-10 flex h-full flex-col px-7 py-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="body-b text-[#25376c]">참여자</p>
+          <span className="caption-b rounded-full border border-white/90 bg-white/88 px-3.5 py-1.5 text-[#31518f] shadow-[0_8px_16px_rgba(93,114,255,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]">
             {participants.length}/{participantLimit}
           </span>
         </div>
-        <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+        <ul className="mt-3 flex max-h-[82px] min-h-0 flex-col gap-2 overflow-y-auto pr-1">
           {sortedParticipants.map((participant) => {
             const isMe = participant.userUuid === me?.userUuid
             const displayNickname = `${participant.nickname}${isMe ? ' (나)' : ''}`
@@ -68,7 +68,7 @@ export function InfinityParticipantsPanel({
             return (
               <li
                 key={participant.userUuid}
-                className="flex min-w-0 items-center gap-3 rounded-[22px] border border-white/82 bg-white/70 px-4 py-3 shadow-[0_7px_16px_rgba(65,95,160,0.12),inset_0_1px_0_rgba(255,255,255,0.86)]"
+                className="flex min-w-0 items-center gap-3 rounded-full border border-white/82 bg-white/76 px-3.5 py-2.5 shadow-[0_7px_14px_rgba(65,95,160,0.11),inset_0_1px_0_rgba(255,255,255,0.9)]"
               >
                 <span
                   className="size-4.5 shrink-0 rounded-full border-2 border-white"
@@ -83,17 +83,15 @@ export function InfinityParticipantsPanel({
                 >
                   {displayNickname}
                 </span>
-                <span
-                  className="ml-auto size-3 shrink-0 rounded-full shadow-[0_0_0_4px_rgba(255,255,255,0.78),0_0_12px_rgba(93,199,242,0.72)]"
-                  style={{ backgroundColor: participant.connected ? '#5dc7f2' : '#b3ccec' }}
-                />
+                <span className="caption-b shrink-0 rounded-full bg-[#eef6ff] px-2.5 py-1 text-[#4873b5]">
+                  {participant.connected ? '접속' : '오프'}
+                </span>
               </li>
             )
           })}
         </ul>
-        <div className="h-px bg-white/72" />
-        <div className="flex items-center justify-between gap-3 rounded-full border border-white/82 bg-white/64 px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]">
-          <span className="caption-b text-[#49679d]">상태</span>
+        <div className="mt-auto flex items-center justify-between gap-3 rounded-full border border-white/82 bg-white/68 px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
+          <span className="caption-b text-[#49679d]">연결 상태</span>
           <span className="caption-b text-[#31518f]">{getConnectionText(connectionStatus)}</span>
         </div>
       </div>
