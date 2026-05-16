@@ -57,7 +57,7 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
   }
 
   const openInviteModal = () => {
-    if (!isUserReady || isPending) return
+    if (isPending) return
     setErrorMessage(null)
     setIsInviteModalOpen(true)
   }
@@ -68,7 +68,11 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
   }
 
   const createCanvas = () => {
-    if (!isUserReady || isPending) return
+    if (isPending) return
+    if (!isUserReady) {
+      setErrorMessage('사용자 정보를 준비하는 중이에요. 잠시 후 다시 눌러주세요')
+      return
+    }
 
     setErrorMessage(null)
     startTransition(async () => {
@@ -89,7 +93,11 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
   }
 
   const joinByInviteCode = () => {
-    if (!isUserReady || isPending) return
+    if (isPending) return
+    if (!isUserReady) {
+      setErrorMessage('사용자 정보를 준비하는 중이에요. 잠시 후 다시 눌러주세요')
+      return
+    }
 
     const inviteCode = normalizeInfiniteCanvasInviteCode(inviteCodeDraft)
     if (!inviteCode) {

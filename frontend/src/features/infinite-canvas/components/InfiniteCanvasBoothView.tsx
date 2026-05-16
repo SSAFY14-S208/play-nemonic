@@ -23,7 +23,7 @@ export default function InfiniteCanvasBoothView() {
     closeInviteModal,
     joinByInviteCode,
   } = useInfiniteCanvasEntry()
-  const isActionDisabled = !isUserReady || isPending
+  const isActionDisabled = isPending
 
   return (
     <>
@@ -85,6 +85,11 @@ export default function InfiniteCanvasBoothView() {
                 role={errorMessage ? 'alert' : 'status'}
               >
                 {errorMessage ?? '무한 캔버스 방을 만들고 있어요'}
+              </p>
+            )}
+            {!isUserReady && !isPending && !errorMessage && (
+              <p className="infinite-canvas-status-message" role="status">
+                사용자 정보를 준비하고 있어요
               </p>
             )}
           </div>
