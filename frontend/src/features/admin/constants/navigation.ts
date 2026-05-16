@@ -44,7 +44,8 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         href: "/admin/dashboard",
         icon: LayoutDashboard,
         pageTitle: "대시보드",
-        pageDescription: "네모닉 월드의 다양한 데이터를 한눈에 조회합니다.",
+        pageDescription:
+          "오늘의 KPI · 유입 채널 · 컨텐츠 · 단계별 흐름 · 체류 시간을 한 화면에서 조회합니다.",
       },
     ],
   },
@@ -139,7 +140,8 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         href: "/admin/analytics",
         icon: BarChart3,
         pageTitle: "통계 및 분석",
-        pageDescription: "서비스 운영 현황과 사용자 행동을 분석합니다.",
+        pageDescription:
+          "Grafana 기반 raw observability — 시스템 메트릭과 트래픽 차트를 임베드로 제공합니다.",
       },
     ],
   },
