@@ -7,16 +7,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Schema(description = "무한 캔버스 생성 응답")
-public record InfiniteCanvasCreateResponse(@Schema(description = "캔버스 ID") String canvasId,
-    @Schema(description = "공유 초대 코드") String inviteCode, @Schema(description = "캔버스 상태") InfiniteCanvasStatus status,
-    @Schema(description = "소유자 UUID") String ownerUserUuid, @Schema(description = "최대 참여자 수") int maxParticipants,
-    @Schema(description = "현재 참여자 수") int participantCount,
+public record InfiniteCanvasCreateResponse(@Schema(description = "공유 방코드") String roomCode,
+    @Schema(description = "캔버스 상태") InfiniteCanvasStatus status, @Schema(description = "소유자 UUID") String ownerUserUuid,
+    @Schema(description = "최대 참여자 수") int maxParticipants, @Schema(description = "현재 참여자 수") int participantCount,
     @Schema(description = "현재 참여자 목록") List<InfiniteCanvasParticipantResponse> participants,
     @Schema(description = "생성 시각") LocalDateTime createdAt) {
 
     public static InfiniteCanvasCreateResponse from(InfiniteCanvasState state) {
-        return new InfiniteCanvasCreateResponse(state.canvasId(), state.inviteCode(), state.status(),
-            state.ownerUserUuid(), state.maxParticipants(), state.participantCount(),
+        return new InfiniteCanvasCreateResponse(state.roomCode(), state.status(), state.ownerUserUuid(),
+            state.maxParticipants(), state.participantCount(),
             state.participants().stream().map(InfiniteCanvasParticipantResponse::from).toList(), state.createdAt());
     }
 }

@@ -67,18 +67,18 @@ public class BackofficeInfiniteCanvasController {
             .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));
     }
 
-    @DeleteMapping("/{canvasId}")
+    @DeleteMapping("/{roomCode}")
     @Operation(summary = "활성 무한 캔버스 강제 종료", description = "관리자가 활성 무한 캔버스를 CLOSED 상태로 강제 전환합니다.")
-    @Parameter(name = "canvasId", in = ParameterIn.PATH, required = true, description = "강제 종료할 캔버스 ID")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = "강제 종료할 공유 방코드")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "무한 캔버스 강제 종료 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF)})
     public ResponseEntity<ApiResponse<BackofficeInfiniteCanvasCloseResponse>> closeActiveCanvas(
-        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("canvasId") String canvasId,
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("roomCode") String roomCode,
         HttpServletRequest servletRequest) {
         AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
         BackofficeInfiniteCanvasCloseResponse response = backofficeInfiniteCanvasService
-            .closeActiveCanvas(adminPrincipal, canvasId, clientInfo);
+            .closeActiveCanvas(adminPrincipal, roomCode, clientInfo);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(CLOSE_SUCCESS_MESSAGE, response));

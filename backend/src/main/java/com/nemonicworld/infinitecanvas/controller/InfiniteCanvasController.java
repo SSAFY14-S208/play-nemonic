@@ -64,33 +64,33 @@ public class InfiniteCanvasController {
             .body(ApiResponse.success(CREATE_SUCCESS_MESSAGE, response));
     }
 
-    @DeleteMapping("/{canvasId}/participants/me")
+    @DeleteMapping("/{roomCode}/participants/me")
     @Operation(summary = "무한 캔버스 나가기", description = "요청자를 활성 캔버스에서 제거하고 마지막 참여자라면 Redis 상태를 즉시 삭제합니다.")
-    @Parameter(name = "canvasId", in = ParameterIn.PATH, required = true, description = "캔버스 ID")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = "공유 방코드")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "무한 캔버스 퇴장 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<InfiniteCanvasLeaveResponse>> leaveCanvas(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
-        @PathVariable("canvasId") String canvasId) {
-        InfiniteCanvasLeaveResponse response = infiniteCanvasService.leaveCanvas(userUuid, canvasId);
+        @PathVariable("roomCode") String roomCode) {
+        InfiniteCanvasLeaveResponse response = infiniteCanvasService.leaveCanvas(userUuid, roomCode);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(LEAVE_SUCCESS_MESSAGE, response));
     }
 
-    @PostMapping("/{canvasId}/outputs")
+    @PostMapping("/{roomCode}/outputs")
     @Operation(summary = "무한 캔버스 출력 이미지 저장", description = "업로드 완료된 INFINITE_CANVAS 파일을 무한 캔버스 산출물과 갤러리 항목으로 저장합니다.")
-    @Parameter(name = "canvasId", in = ParameterIn.PATH, required = true, description = "캔버스 ID")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = "공유 방코드")
     @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "무한 캔버스 출력 이미지 저장 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<InfiniteCanvasOutputSaveResponse>> saveOutput(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
-        @PathVariable("canvasId") String canvasId, @RequestBody InfiniteCanvasOutputSaveRequest request) {
-        InfiniteCanvasOutputSaveResponse response = infiniteCanvasService.saveOutput(userUuid, canvasId, request);
+        @PathVariable("roomCode") String roomCode, @RequestBody InfiniteCanvasOutputSaveRequest request) {
+        InfiniteCanvasOutputSaveResponse response = infiniteCanvasService.saveOutput(userUuid, roomCode, request);
 
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(OUTPUT_SAVE_SUCCESS_MESSAGE, response));

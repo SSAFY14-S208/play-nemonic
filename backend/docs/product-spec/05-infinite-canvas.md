@@ -134,8 +134,8 @@ AI 기능은 기본 드로잉/협업 기능과 독립적으로 동작한다. AI 
 
 ### 재접속 식별
 
-- WebSocket 연결에 `canvasId + UUID`를 매핑한다.
-- 캔버스 URL에 `canvasId`가 포함된다.
+- WebSocket 연결에 `roomCode + UUID`를 매핑한다.
+- 캔버스 URL에 `roomCode`가 포함된다.
 - UUID는 `localStorage + cookie`에서 복구한다.
 - 같은 브라우저이면 동일 UUID를 재전송한다.
 - 유예 시간 제한은 없다.

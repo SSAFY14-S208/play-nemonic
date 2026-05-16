@@ -50,7 +50,7 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
         String userUuid = user.getId().toString();
 
         for (int attempt = 0; attempt < CANVAS_UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = infiniteCanvasRepository.findByCanvasId(invite.roomId())
+            InfiniteCanvasState state = infiniteCanvasRepository.findByRoomCode(invite.roomId())
                 .orElseThrow(() -> new ConflictException(CANVAS_CLOSED_MESSAGE));
             if (!state.isActive()) {
                 throw new ConflictException(CANVAS_CLOSED_MESSAGE);
@@ -87,7 +87,7 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
             : hostNickname + DEFAULT_CANVAS_NAME_SUFFIX;
         String role = state.ownerUserUuid().equals(userUuid) ? ROLE_HOST : ROLE_PARTICIPANT;
 
-        return new InviteJoinResponse(infiniteCanvasBoothType(), state.canvasId(), roomName, hostNickname,
+        return new InviteJoinResponse(infiniteCanvasBoothType(), state.roomCode(), roomName, hostNickname,
             state.participantCount(), state.maxParticipants(), role, alreadyJoined);
     }
 
@@ -119,8 +119,8 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
 
     private InfiniteCanvasState copyState(InfiniteCanvasState state, List<InfiniteCanvasParticipant> participants,
         LocalDateTime updatedAt) {
-        return new InfiniteCanvasState(state.canvasId(), state.inviteCode(), state.status(), state.ownerUserUuid(),
-            participants, state.elements(), state.operations(), state.locks(), state.cursors(), state.viewport(),
+        return new InfiniteCanvasState(state.roomCode(), state.status(), state.ownerUserUuid(), participants,
+            state.elements(), state.operations(), state.locks(), state.cursors(), state.viewport(),
             state.maxParticipants(), state.revision(), state.createdAt(), updatedAt, state.closedAt());
     }
 }

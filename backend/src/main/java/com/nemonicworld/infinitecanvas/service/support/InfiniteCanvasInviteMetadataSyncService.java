@@ -25,20 +25,20 @@ public class InfiniteCanvasInviteMetadataSyncService {
     }
 
     public void syncWithCanvasState(InfiniteCanvasState state) {
-        if (!StringUtils.hasText(state.inviteCode())) {
+        if (!StringUtils.hasText(state.roomCode())) {
             return;
         }
 
         LocalDateTime expiresAt = resolveExpiresAt(state);
-        Optional<InviteMetadata> inviteMetadata = inviteRepository.findByInviteCode(state.inviteCode())
+        Optional<InviteMetadata> inviteMetadata = inviteRepository.findByInviteCode(state.roomCode())
             .map(invite -> invite.withExpiresAt(expiresAt)).or(() -> createRestoredInvite(state, expiresAt));
 
         inviteMetadata.ifPresent(invite -> inviteRepository.save(invite, InfiniteCanvasRepository.CANVAS_STATE_TTL));
     }
 
     private Optional<InviteMetadata> createRestoredInvite(InfiniteCanvasState state, LocalDateTime expiresAt) {
-        return findOwnerNickname(state).map(ownerNickname -> new InviteMetadata(state.inviteCode(),
-            BOOTH_TYPE_INFINITE_CANVAS, state.canvasId(), ownerNickname + DEFAULT_CANVAS_NAME_SUFFIX, expiresAt));
+        return findOwnerNickname(state).map(ownerNickname -> new InviteMetadata(state.roomCode(),
+            BOOTH_TYPE_INFINITE_CANVAS, state.roomCode(), ownerNickname + DEFAULT_CANVAS_NAME_SUFFIX, expiresAt));
     }
 
     private Optional<String> findOwnerNickname(InfiniteCanvasState state) {

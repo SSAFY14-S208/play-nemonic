@@ -21,7 +21,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 
 class InfiniteCanvasWebSocketControllerTest {
 
-    private static final String CANVAS_ID = "canvas-1";
+    private static final String ROOM_CODE = "AC3K9Q";
     private static final String USER_UUID = "user-uuid";
     private static final String SESSION_ID = "session-1";
 
@@ -35,22 +35,22 @@ class InfiniteCanvasWebSocketControllerTest {
     void pingPublishesPongToCurrentCanvasSession() {
         SimpMessageHeaderAccessor headerAccessor = currentCanvasHeaderAccessor();
 
-        controller.ping(CANVAS_ID, headerAccessor);
+        controller.ping(ROOM_CODE, headerAccessor);
 
-        verify(infiniteCanvasEventPublisher).publishPong(SESSION_ID, CANVAS_ID);
+        verify(infiniteCanvasEventPublisher).publishPong(SESSION_ID, ROOM_CODE);
     }
 
     @Test
     void updateCursorPublishesCursorUpdatedEvent() {
         SimpMessageHeaderAccessor headerAccessor = currentCanvasHeaderAccessor();
         InfiniteCanvasCursorRequest request = new InfiniteCanvasCursorRequest(10.0, 20.0, 1.2, null);
-        InfiniteCanvasCursorResponse response = new InfiniteCanvasCursorResponse(CANVAS_ID,
+        InfiniteCanvasCursorResponse response = new InfiniteCanvasCursorResponse(ROOM_CODE,
             new InfiniteCanvasCursor(USER_UUID, 10.0, 20.0, 1.2, null, LocalDateTime.now()));
-        given(infiniteCanvasService.updateCursor(USER_UUID, CANVAS_ID, request)).willReturn(response);
+        given(infiniteCanvasService.updateCursor(USER_UUID, ROOM_CODE, request)).willReturn(response);
 
-        controller.updateCursor(CANVAS_ID, request, headerAccessor);
+        controller.updateCursor(ROOM_CODE, request, headerAccessor);
 
-        verify(infiniteCanvasService).updateCursor(USER_UUID, CANVAS_ID, request);
+        verify(infiniteCanvasService).updateCursor(USER_UUID, ROOM_CODE, request);
         verify(infiniteCanvasEventPublisher).publishCursorUpdated(response);
     }
 
@@ -60,12 +60,12 @@ class InfiniteCanvasWebSocketControllerTest {
         InfiniteCanvasLockRequest request = new InfiniteCanvasLockRequest("shape-1");
         InfiniteCanvasLock lock = new InfiniteCanvasLock("shape-1", USER_UUID, LocalDateTime.now(),
             LocalDateTime.now().plusSeconds(30));
-        InfiniteCanvasLockResponse response = new InfiniteCanvasLockResponse(CANVAS_ID, "shape-1", lock);
-        given(infiniteCanvasService.acquireLock(USER_UUID, CANVAS_ID, request)).willReturn(response);
+        InfiniteCanvasLockResponse response = new InfiniteCanvasLockResponse(ROOM_CODE, "shape-1", lock);
+        given(infiniteCanvasService.acquireLock(USER_UUID, ROOM_CODE, request)).willReturn(response);
 
-        controller.acquireLock(CANVAS_ID, request, headerAccessor);
+        controller.acquireLock(ROOM_CODE, request, headerAccessor);
 
-        verify(infiniteCanvasService).acquireLock(USER_UUID, CANVAS_ID, request);
+        verify(infiniteCanvasService).acquireLock(USER_UUID, ROOM_CODE, request);
         verify(infiniteCanvasEventPublisher).publishLockAcquired(response);
     }
 
@@ -73,12 +73,12 @@ class InfiniteCanvasWebSocketControllerTest {
     void releaseLockPublishesLockReleasedEvent() {
         SimpMessageHeaderAccessor headerAccessor = currentCanvasHeaderAccessor();
         InfiniteCanvasLockRequest request = new InfiniteCanvasLockRequest("shape-1");
-        InfiniteCanvasLockResponse response = new InfiniteCanvasLockResponse(CANVAS_ID, "shape-1", null);
-        given(infiniteCanvasService.releaseLock(USER_UUID, CANVAS_ID, request)).willReturn(response);
+        InfiniteCanvasLockResponse response = new InfiniteCanvasLockResponse(ROOM_CODE, "shape-1", null);
+        given(infiniteCanvasService.releaseLock(USER_UUID, ROOM_CODE, request)).willReturn(response);
 
-        controller.releaseLock(CANVAS_ID, request, headerAccessor);
+        controller.releaseLock(ROOM_CODE, request, headerAccessor);
 
-        verify(infiniteCanvasService).releaseLock(USER_UUID, CANVAS_ID, request);
+        verify(infiniteCanvasService).releaseLock(USER_UUID, ROOM_CODE, request);
         verify(infiniteCanvasEventPublisher).publishLockReleased(response);
     }
 
@@ -86,9 +86,9 @@ class InfiniteCanvasWebSocketControllerTest {
         SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create();
         headerAccessor.setSessionId(SESSION_ID);
         given(webSocketSessionRegistry.findBySessionId(SESSION_ID)).willReturn(Optional.of(new ActiveWebSocketSession(
-            WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS, CANVAS_ID, USER_UUID, SESSION_ID)));
+            WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS, ROOM_CODE, USER_UUID, SESSION_ID)));
         given(webSocketSessionRegistry.isCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS,
-            CANVAS_ID, USER_UUID, SESSION_ID)).willReturn(true);
+            ROOM_CODE, USER_UUID, SESSION_ID)).willReturn(true);
 
         return headerAccessor;
     }

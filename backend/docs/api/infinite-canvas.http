@@ -1,6 +1,6 @@
 @host = http://localhost:8080
 @anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
-@canvasId = 550e8400-e29b-41d4-a716-446655440001
+@roomCode = AC3K9Q
 
 ### Create infinite canvas
 # 닉네임은 Anonymous-User-UUID에 등록된 익명 사용자 닉네임을 사용합니다.
@@ -31,5 +31,5 @@ Anonymous-User-UUID: not-a-uuid
 POST {{host}}/api/v1/infinite-canvas/canvases
 
 ### Leave infinite canvas
-DELETE {{host}}/api/v1/infinite-canvas/canvases/{{canvasId}}/participants/me
+DELETE {{host}}/api/v1/infinite-canvas/canvases/{{roomCode}}/participants/me
 Anonymous-User-UUID: {{anonymousUserUuid}}

@@ -18,25 +18,25 @@ public interface InfiniteCanvasService {
 
     InfiniteCanvasCreateResponse createCanvas(String userUuidValue, InfiniteCanvasCreateRequest request);
 
-    InfiniteCanvasStateResponse connectCanvas(String userUuidValue, String canvasId);
+    InfiniteCanvasStateResponse connectCanvas(String userUuidValue, String roomCode);
 
-    InfiniteCanvasStateResponse disconnectCanvas(String userUuidValue, String canvasId);
+    InfiniteCanvasStateResponse disconnectCanvas(String userUuidValue, String roomCode);
 
-    InfiniteCanvasOpsAppliedResponse applyOperations(String userUuidValue, String canvasId,
+    InfiniteCanvasOpsAppliedResponse applyOperations(String userUuidValue, String roomCode,
         InfiniteCanvasOpsRequest request);
 
-    InfiniteCanvasStateResponse replaceSnapshot(String userUuidValue, String canvasId,
+    InfiniteCanvasStateResponse replaceSnapshot(String userUuidValue, String roomCode,
         InfiniteCanvasSnapshotRequest request);
 
-    InfiniteCanvasCursorResponse updateCursor(String userUuidValue, String canvasId,
+    InfiniteCanvasCursorResponse updateCursor(String userUuidValue, String roomCode,
         InfiniteCanvasCursorRequest request);
 
-    InfiniteCanvasLockResponse acquireLock(String userUuidValue, String canvasId, InfiniteCanvasLockRequest request);
+    InfiniteCanvasLockResponse acquireLock(String userUuidValue, String roomCode, InfiniteCanvasLockRequest request);
 
-    InfiniteCanvasLockResponse releaseLock(String userUuidValue, String canvasId, InfiniteCanvasLockRequest request);
+    InfiniteCanvasLockResponse releaseLock(String userUuidValue, String roomCode, InfiniteCanvasLockRequest request);
 
-    InfiniteCanvasLeaveResponse leaveCanvas(String userUuidValue, String canvasId);
+    InfiniteCanvasLeaveResponse leaveCanvas(String userUuidValue, String roomCode);
 
-    InfiniteCanvasOutputSaveResponse saveOutput(String userUuidValue, String canvasId,
+    InfiniteCanvasOutputSaveResponse saveOutput(String userUuidValue, String roomCode,
         InfiniteCanvasOutputSaveRequest request);
 }

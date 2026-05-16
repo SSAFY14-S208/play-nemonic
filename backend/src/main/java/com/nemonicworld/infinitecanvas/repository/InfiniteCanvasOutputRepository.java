@@ -36,7 +36,7 @@ public class InfiniteCanvasOutputRepository {
                 """);
             preparedStatement.setObject(1, command.artifactId());
             preparedStatement.setObject(2, command.kind(), Types.OTHER);
-            preparedStatement.setString(3, command.canvasId());
+            preparedStatement.setString(3, command.roomCode());
             preparedStatement.setString(4, command.thumbnailObjectKey());
             preparedStatement.setString(5, command.meta());
             preparedStatement.setTimestamp(6, Timestamp.valueOf(command.createdAt()));

@@ -10,6 +10,7 @@ import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
@@ -23,7 +24,6 @@ import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -33,7 +33,7 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
     private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String INVALID_STATUS_MESSAGE = "조회할 수 없는 무한 캔버스 상태입니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
-    private static final String INVALID_CANVAS_ID_MESSAGE = "유효하지 않은 캔버스 ID 형식입니다.";
+    private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String CANVAS_NOT_FOUND_MESSAGE = "활성 무한 캔버스를 찾을 수 없습니다.";
     private static final String CANVAS_ALREADY_CLOSED_MESSAGE = "이미 종료된 캔버스입니다.";
     private static final String CANVAS_UPDATE_CONFLICT_MESSAGE = "무한 캔버스 상태 갱신 충돌이 발생했습니다. 다시 시도해주세요.";
@@ -48,12 +48,15 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
     private final InfiniteCanvasRepository infiniteCanvasRepository;
     private final InfiniteCanvasEventPublisher infiniteCanvasEventPublisher;
     private final AdminAuditLogger adminAuditLogger;
+    private final RoomCodeGenerator roomCodeGenerator;
 
     public BackofficeInfiniteCanvasServiceImpl(InfiniteCanvasRepository infiniteCanvasRepository,
-        InfiniteCanvasEventPublisher infiniteCanvasEventPublisher, AdminAuditLogger adminAuditLogger) {
+        InfiniteCanvasEventPublisher infiniteCanvasEventPublisher, AdminAuditLogger adminAuditLogger,
+        RoomCodeGenerator roomCodeGenerator) {
         this.infiniteCanvasRepository = infiniteCanvasRepository;
         this.infiniteCanvasEventPublisher = infiniteCanvasEventPublisher;
         this.adminAuditLogger = adminAuditLogger;
+        this.roomCodeGenerator = roomCodeGenerator;
     }
 
     @Override
@@ -70,7 +73,7 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
             .filter(canvas -> statusFilter.contains(canvas.status()))
             .sorted(
                 Comparator.comparing(InfiniteCanvasState::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                    .thenComparing(InfiniteCanvasState::canvasId, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .thenComparing(InfiniteCanvasState::roomCode, Comparator.nullsLast(Comparator.naturalOrder())))
             .toList();
 
         long totalElements = filtered.size();
@@ -83,14 +86,14 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
     }
 
     @Override
-    public BackofficeInfiniteCanvasCloseResponse closeActiveCanvas(AdminPrincipal adminPrincipal, String canvasId,
+    public BackofficeInfiniteCanvasCloseResponse closeActiveCanvas(AdminPrincipal adminPrincipal, String roomCode,
         AdminClientInfo clientInfo) {
         requireAdmin(adminPrincipal);
-        String normalizedCanvasId = normalizeCanvasId(canvasId);
+        String normalizedRoomCode = normalizeRoomCode(roomCode);
         LocalDateTime closedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         for (int attempt = 0; attempt < CANVAS_UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = infiniteCanvasRepository.findByCanvasId(normalizedCanvasId)
+            InfiniteCanvasState state = infiniteCanvasRepository.findByRoomCode(normalizedRoomCode)
                 .orElseThrow(() -> new NotFoundException(CANVAS_NOT_FOUND_MESSAGE));
             if (state.status() == InfiniteCanvasStatus.CLOSED) {
                 throw new ConflictException(CANVAS_ALREADY_CLOSED_MESSAGE);
@@ -99,13 +102,13 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
             InfiniteCanvasState closedState = closeState(state, closedAt);
             if (infiniteCanvasRepository.saveIfUnchanged(state, closedState)) {
                 StructuredEventLogger.apiBusiness("infinite_canvas_closed", "infinite_canvas", state.ownerUserUuid(),
-                    StructuredEventLogger.metadata("canvas_id", closedState.canvasId(), "close_reason", "admin_force",
+                    StructuredEventLogger.metadata("room_code", closedState.roomCode(), "close_reason", "admin_force",
                         "canvas_status_before", state.status(), "participant_count", state.participantCount(),
                         "connected_participant_count", state.connectedParticipantCount()));
-                infiniteCanvasEventPublisher.publishCanvasClosed(closedState.canvasId(), closedAt);
-                adminAuditLogger.logInfiniteCanvasForceClose(adminPrincipal, closedState.canvasId(),
+                infiniteCanvasEventPublisher.publishCanvasClosed(closedState.roomCode(), closedAt);
+                adminAuditLogger.logInfiniteCanvasForceClose(adminPrincipal, closedState.roomCode(),
                     state.status().name(), clientInfo);
-                return new BackofficeInfiniteCanvasCloseResponse(closedState.canvasId());
+                return new BackofficeInfiniteCanvasCloseResponse(closedState.roomCode());
             }
         }
 
@@ -138,22 +141,18 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
         return EnumSet.of(parsed);
     }
 
-    private String normalizeCanvasId(String canvasId) {
-        if (!StringUtils.hasText(canvasId)) {
-            throw new BadRequestException(INVALID_CANVAS_ID_MESSAGE);
+    private String normalizeRoomCode(String roomCode) {
+        if (!StringUtils.hasText(roomCode) || !roomCodeGenerator.isValid(roomCode.trim())) {
+            throw new BadRequestException(INVALID_ROOM_CODE_MESSAGE);
         }
 
-        try {
-            return UUID.fromString(canvasId.trim()).toString();
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException(INVALID_CANVAS_ID_MESSAGE);
-        }
+        return roomCode.trim();
     }
 
     private InfiniteCanvasState closeState(InfiniteCanvasState state, LocalDateTime closedAt) {
-        return new InfiniteCanvasState(state.canvasId(), state.inviteCode(), InfiniteCanvasStatus.CLOSED,
-            state.ownerUserUuid(), state.participants(), state.elements(), state.operations(), Map.of(), Map.of(),
-            state.viewport(), state.maxParticipants(), state.revision(), state.createdAt(), closedAt, closedAt);
+        return new InfiniteCanvasState(state.roomCode(), InfiniteCanvasStatus.CLOSED, state.ownerUserUuid(),
+            state.participants(), state.elements(), state.operations(), Map.of(), Map.of(), state.viewport(),
+            state.maxParticipants(), state.revision(), state.createdAt(), closedAt, closedAt);
     }
 
     private int parsePage(String value) {
