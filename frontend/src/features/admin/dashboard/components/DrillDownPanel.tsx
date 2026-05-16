@@ -10,6 +10,7 @@ import type {
   AdminLogsSearchResponse,
   AdminLogsTimeRange,
 } from '@/shared/types'
+import { formatKoreanDateTime } from '@/shared/utils'
 
 import type { AnalyticsDrillDownState } from '../types'
 
@@ -34,9 +35,7 @@ const composeQuery = (parts: Array<string | undefined>): string => {
 }
 
 const formatBucketTime = (ts: string): string => {
-  const date = new Date(ts)
-  if (Number.isNaN(date.getTime())) return ts
-  return date.toLocaleString('ko-KR', {
+  return formatKoreanDateTime(ts, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',

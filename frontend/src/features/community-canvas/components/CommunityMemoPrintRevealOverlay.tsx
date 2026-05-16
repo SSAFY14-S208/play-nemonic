@@ -56,6 +56,7 @@ type ViewportMetrics = {
   centerX: number
   centerY: number
   width: number
+  height: number
 }
 
 type PrintPhase = 'printing' | 'expanding'
@@ -141,6 +142,7 @@ function CommunityMemoPrintRevealScene({
         centerX: window.innerWidth / 2,
         centerY: window.innerHeight / 2,
         width: window.innerWidth,
+        height: window.innerHeight,
       })
     }
 
@@ -254,10 +256,40 @@ function CommunityMemoPrintRevealScene({
             />
           )}
 
+          {isPrintedMemoReady && (
+            <PrintedMemoPickupHint
+              viewportMetrics={viewportMetrics}
+              centerMemoSize={centerMemoSize}
+            />
+          )}
+
           <PrinterOutputSlot printerSlotMetrics={printerSlotMetrics} />
         </>
       )}
     </div>
+  )
+}
+
+function PrintedMemoPickupHint({
+  viewportMetrics,
+  centerMemoSize,
+}: {
+  viewportMetrics: ViewportMetrics
+  centerMemoSize: number
+}) {
+  const memoBottom = viewportMetrics.centerY + centerMemoSize / 2
+  const hintCenterY = memoBottom + (viewportMetrics.height - memoBottom) / 2
+
+  return (
+    <motion.p
+      className="body-l-b pointer-events-none absolute left-1/2 z-[65] w-[min(calc(100vw-2rem),26rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#19172a]/70 px-6 py-3.5 text-center text-white shadow-[0_14px_30px_rgb(25_20_40_/_24%)] backdrop-blur-md"
+      style={{ top: hintCenterY }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.24, ease: [0.16, 0.78, 0.18, 1] }}
+    >
+      메모지를 클릭해 집어주세요!
+    </motion.p>
   )
 }
 

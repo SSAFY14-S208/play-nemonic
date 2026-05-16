@@ -3,6 +3,7 @@
 import { Mail, X } from 'lucide-react'
 
 import { cn } from '@/shared/libs'
+import { formatKoreanDateTime } from '@/shared/utils'
 import type {
   AdminInquiryDetailResponse,
   AdminInquiryStatus,
@@ -32,10 +33,7 @@ const STATUS_LABEL: Record<AdminInquiryStatus, string> = {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR', {
+  return formatKoreanDateTime(value, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
