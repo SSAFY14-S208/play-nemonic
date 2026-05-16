@@ -74,7 +74,7 @@ const MONITOR_SCREEN_ASSETS: Record<HubGameId, MonitorScreenAsset> = {
     logoSize: [1.36, 0.78],
     startButton: `${MONITOR_ASSET_BASE_URL}/relay-start.webp`,
   },
-  'community-canvas': {
+  'infinite-canvas': {
     background: `${MONITOR_ASSET_BASE_URL}/infinite-bg.webp`,
     logo: `${MONITOR_ASSET_BASE_URL}/infinite-logo.webp`,
     logoPosition: [0, 0.15, MONITOR_LOGO_LAYER_Z],
