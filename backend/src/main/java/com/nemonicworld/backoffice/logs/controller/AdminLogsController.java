@@ -36,7 +36,7 @@ public class AdminLogsController {
         {
           "success": false,
           "code": "ADMIN_LOGS_INVALID_QUERY",
-          "message": "Invalid logs query.",
+          "message": "유효하지 않은 로그 질의입니다.",
           "timestamp": "2026-05-15T00:00:00Z"
         }
         """;
@@ -44,7 +44,7 @@ public class AdminLogsController {
         {
           "success": false,
           "code": "ADMIN_LOGS_UNAUTHORIZED",
-          "message": "Admin authentication is required.",
+          "message": "관리자 인증이 필요합니다.",
           "timestamp": "2026-05-15T00:00:00Z"
         }
         """;
@@ -52,7 +52,7 @@ public class AdminLogsController {
         {
           "success": false,
           "code": "OPENSEARCH_UPSTREAM_ERROR",
-          "message": "Log search upstream is unavailable.",
+          "message": "로그 검색 업스트림에 연결할 수 없습니다.",
           "timestamp": "2026-05-15T00:00:00Z"
         }
         """;
@@ -66,12 +66,12 @@ public class AdminLogsController {
     }
 
     @PostMapping("/search")
-    @Operation(summary = "Backoffice log search", description = "Search whitelisted OpenSearch log indexes.")
+    @Operation(summary = "백오피스 로그 검색", description = "허용된 OpenSearch 로그 인덱스를 검색합니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Log search succeeded"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid log search request", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INVALID_QUERY_EXAMPLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Admin authentication required", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UNAUTHORIZED_EXAMPLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "502", description = "OpenSearch upstream error", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UPSTREAM_ERROR_EXAMPLE)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그 검색 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 로그 검색 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INVALID_QUERY_EXAMPLE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UNAUTHORIZED_EXAMPLE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "502", description = "OpenSearch 업스트림 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UPSTREAM_ERROR_EXAMPLE)))})
     public ResponseEntity<LogsSearchResponse> search(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestBody JsonNode requestNode, HttpServletRequest servletRequest) {
         AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
@@ -81,12 +81,12 @@ public class AdminLogsController {
     }
 
     @PostMapping("/histogram")
-    @Operation(summary = "Backoffice log histogram", description = "Read log time buckets and level counts.")
+    @Operation(summary = "백오피스 로그 히스토그램", description = "로그 시간 구간별 레벨별 건수를 조회합니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Log histogram read succeeded"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid log histogram request", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INVALID_QUERY_EXAMPLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Admin authentication required", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UNAUTHORIZED_EXAMPLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "502", description = "OpenSearch upstream error", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UPSTREAM_ERROR_EXAMPLE)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그 히스토그램 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 로그 히스토그램 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INVALID_QUERY_EXAMPLE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UNAUTHORIZED_EXAMPLE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "502", description = "OpenSearch 업스트림 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UPSTREAM_ERROR_EXAMPLE)))})
     public ResponseEntity<LogsHistogramResponse> histogram(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestBody JsonNode requestNode, HttpServletRequest servletRequest) {
         AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
@@ -96,12 +96,12 @@ public class AdminLogsController {
     }
 
     @PostMapping("/field-summary")
-    @Operation(summary = "Backoffice log field summary", description = "Read top values for allowed log fields.")
+    @Operation(summary = "백오피스 로그 필드 요약", description = "허용된 로그 필드의 상위 값을 조회합니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Log field summary read succeeded"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid log field summary request", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INVALID_QUERY_EXAMPLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Admin authentication required", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UNAUTHORIZED_EXAMPLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "502", description = "OpenSearch upstream error", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UPSTREAM_ERROR_EXAMPLE)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그 필드 요약 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 로그 필드 요약 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INVALID_QUERY_EXAMPLE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UNAUTHORIZED_EXAMPLE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "502", description = "OpenSearch 업스트림 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UPSTREAM_ERROR_EXAMPLE)))})
     public ResponseEntity<LogsFieldSummaryResponse> fieldSummary(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestBody JsonNode requestNode, HttpServletRequest servletRequest) {
         AdminClientInfo clientInfo = adminClientInfoResolver.resolve(servletRequest);
