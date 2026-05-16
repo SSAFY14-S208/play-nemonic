@@ -276,7 +276,8 @@ function MonitorHotspot({
           color="#ffffff"
           font={MONITOR_FONT_URL}
           fontSize={0.16}
-          outlineColor="rgba(35, 22, 72, 0.45)"
+          outlineColor="#231648"
+          outlineOpacity={0.45}
           outlineWidth={0.004}
           position={[0, 0, 0.012]}
           textAlign="center"

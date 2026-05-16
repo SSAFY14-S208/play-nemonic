@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import {
   DEFAULT_HUB_PERFORMANCE_MODE,
+  getHubFocusKeyFromSearch,
   getHubPerformanceModeFromSearch,
 } from '@/shared/constants'
+import { useHubRoomStore } from '@/shared/stores'
 import type { HubPerformanceMode } from '@/shared/types'
 
 const HubCanvas = dynamic(() => import('./HubCanvas'), { ssr: false })
@@ -19,21 +21,39 @@ function readHubPerformanceMode(): HubPerformanceMode {
 }
 
 export default function HubLoader() {
+  const setFocus = useHubRoomStore((state) => state.setFocus)
   const [performanceMode, setPerformanceMode] = useState<HubPerformanceMode>(
     readHubPerformanceMode,
   )
 
   useEffect(() => {
-    const syncPerformanceMode = () => {
+    const syncHubRuntimeSearch = () => {
       setPerformanceMode(readHubPerformanceMode())
+
+      const nextFocusKey = getHubFocusKeyFromSearch(window.location.search)
+
+      if (nextFocusKey) {
+        setFocus(nextFocusKey)
+      }
     }
 
-    window.addEventListener('popstate', syncPerformanceMode)
+    let cancelled = false
+
+    ;(async () => {
+      await Promise.resolve()
+
+      if (!cancelled) {
+        syncHubRuntimeSearch()
+      }
+    })()
+
+    window.addEventListener('popstate', syncHubRuntimeSearch)
 
     return () => {
-      window.removeEventListener('popstate', syncPerformanceMode)
+      cancelled = true
+      window.removeEventListener('popstate', syncHubRuntimeSearch)
     }
-  }, [])
+  }, [setFocus])
 
   return <HubCanvas key={performanceMode} performanceMode={performanceMode} />
 }

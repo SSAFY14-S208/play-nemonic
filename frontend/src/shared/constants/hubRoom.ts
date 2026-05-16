@@ -4,12 +4,13 @@ import type {
   HubPerformanceProfile,
 } from '@/shared/types'
 
-export const HUB_ROOM_MODEL_PATH = '/models/isometric-girl-room.glb?v=deci-nemonic-printer-webp2048-20260514-2308'
+export const HUB_ROOM_MODEL_PATH = '/models/isometric-girl-room.glb?v=deci-current-room-look-pass-20260516-0229'
 export const HUB_ROOM_MODEL_INCLUDES_PRINTER = true
 
-export const DEFAULT_HUB_PERFORMANCE_MODE: HubPerformanceMode = 'diagnostic'
+export const DEFAULT_HUB_PERFORMANCE_MODE: HubPerformanceMode = 'balanced'
 
 export const HUB_PERFORMANCE_QUERY_KEY = 'hubPerf'
+export const HUB_FOCUS_QUERY_KEY = 'hubFocus'
 
 export const HUB_PERFORMANCE_PROFILES: Record<
   HubPerformanceMode,
@@ -30,7 +31,7 @@ export const HUB_PERFORMANCE_PROFILES: Record<
     anisotropyLimit: 8,
     cameraDraggingSmoothTime: 0.12,
     cameraSmoothTime: 0.38,
-    contactShadows: false,
+    contactShadows: true,
     dpr: [1, 1.25],
     enableButtonPulse: false,
     environment: true,
@@ -132,6 +133,27 @@ export function getHubPerformanceModeFromSearch(
   return parseHubPerformanceMode(
     new URLSearchParams(search).get(HUB_PERFORMANCE_QUERY_KEY),
   )
+}
+
+export function parseHubFocusKey(
+  value: string | null | undefined,
+): HubFocusKey | null {
+  if (
+    value === 'overview' ||
+    value === 'mainDesk' ||
+    value === 'monitor' ||
+    value === 'workspace' ||
+    value === 'printer' ||
+    value === 'pegboard'
+  ) {
+    return value
+  }
+
+  return null
+}
+
+export function getHubFocusKeyFromSearch(search: string): HubFocusKey | null {
+  return parseHubFocusKey(new URLSearchParams(search).get(HUB_FOCUS_QUERY_KEY))
 }
 
 export const HUB_ROOM_SCALE = 7
