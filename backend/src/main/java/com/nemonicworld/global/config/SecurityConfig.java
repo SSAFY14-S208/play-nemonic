@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/admin/community/memos", "/api/v1/admin/community/memos/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN").requestMatchers("/api/v1/admin/logs", "/api/v1/admin/logs/**")
+                .hasAnyRole("ADMIN", "SUPER_ADMIN").requestMatchers("/api/v1/admin/metrics", "/api/v1/admin/metrics/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/v1/backoffice/gms/prompts", "/api/v1/backoffice/gms/prompts/**")
                 .hasAnyRole("ADMIN", "SUPER_ADMIN")

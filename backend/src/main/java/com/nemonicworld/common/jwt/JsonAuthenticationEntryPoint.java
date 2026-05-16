@@ -21,6 +21,7 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
     private static final String UNAUTHORIZED_MESSAGE = "인증이 필요합니다.";
     private static final String ADMIN_PATH_PREFIX = "/api/v1/admin";
     private static final String ADMIN_LOGS_PATH_PREFIX = "/api/v1/admin/logs";
+    private static final String ADMIN_METRICS_PATH_PREFIX = "/api/v1/admin/metrics";
     private static final String BACKOFFICE_PATH_PREFIX = "/api/v1/backoffice";
 
     private final ObjectMapper objectMapper;
@@ -51,6 +52,12 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
                     OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
             return;
         }
+        if (isAdminMetricsPath(request)) {
+            objectMapper.writeValue(response.getWriter(),
+                Map.of("success", false, "code", "ADMIN_METRICS_UNAUTHORIZED", "message", UNAUTHORIZED_MESSAGE,
+                    "timestamp", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
+            return;
+        }
 
         objectMapper.writeValue(response.getWriter(), ApiResponse.fail(UNAUTHORIZED_MESSAGE, null));
     }
@@ -63,6 +70,10 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     private boolean isAdminLogsPath(HttpServletRequest request) {
         return request.getRequestURI().startsWith(ADMIN_LOGS_PATH_PREFIX);
+    }
+
+    private boolean isAdminMetricsPath(HttpServletRequest request) {
+        return request.getRequestURI().startsWith(ADMIN_METRICS_PATH_PREFIX);
     }
 
     private String resolveTraceId(HttpServletRequest request) {

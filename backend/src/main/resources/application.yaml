@@ -110,6 +110,12 @@ nemonic:
     max-size: ${ADMIN_LOGS_MAX_SIZE:200}
     query-timeout-ms: ${ADMIN_LOGS_QUERY_TIMEOUT_MS:15000}
 
+  admin:
+    metrics:
+      prometheus-base-url: ${ADMIN_METRICS_PROMETHEUS_BASE_URL:http://prometheus:9090}
+      timeout-ms: ${ADMIN_METRICS_TIMEOUT_MS:10000}
+      cache-ttl-seconds: ${ADMIN_METRICS_CACHE_TTL_SECONDS:15}
+
   community:
     moderation:
       enabled: ${COMMUNITY_MODERATION_ENABLED:true}

@@ -21,6 +21,7 @@ public class JsonAccessDeniedHandler implements AccessDeniedHandler {
     private static final String FORBIDDEN_MESSAGE = "접근 권한이 없습니다.";
     private static final String ADMIN_PATH_PREFIX = "/api/v1/admin";
     private static final String ADMIN_LOGS_PATH_PREFIX = "/api/v1/admin/logs";
+    private static final String ADMIN_METRICS_PATH_PREFIX = "/api/v1/admin/metrics";
     private static final String BACKOFFICE_PATH_PREFIX = "/api/v1/backoffice";
 
     private final ObjectMapper objectMapper;
@@ -51,6 +52,12 @@ public class JsonAccessDeniedHandler implements AccessDeniedHandler {
                 FORBIDDEN_MESSAGE, "timestamp", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
             return;
         }
+        if (isAdminMetricsPath(request)) {
+            objectMapper.writeValue(response.getWriter(),
+                Map.of("success", false, "code", "ADMIN_METRICS_FORBIDDEN", "message", FORBIDDEN_MESSAGE, "timestamp",
+                    OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
+            return;
+        }
 
         objectMapper.writeValue(response.getWriter(), ApiResponse.fail(FORBIDDEN_MESSAGE, null));
     }
@@ -63,6 +70,10 @@ public class JsonAccessDeniedHandler implements AccessDeniedHandler {
 
     private boolean isAdminLogsPath(HttpServletRequest request) {
         return request.getRequestURI().startsWith(ADMIN_LOGS_PATH_PREFIX);
+    }
+
+    private boolean isAdminMetricsPath(HttpServletRequest request) {
+        return request.getRequestURI().startsWith(ADMIN_METRICS_PATH_PREFIX);
     }
 
     private String resolveTraceId(HttpServletRequest request) {
