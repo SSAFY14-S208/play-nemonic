@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import type { Formatter } from 'recharts/types/component/DefaultTooltipContent'
 
+import { formatKoreanDateTime } from '@/shared/utils'
 import {
   CHART_ENTRY_COLORS,
   CHART_FUNNEL_COLORS,
@@ -63,9 +64,7 @@ const labelMap = (mode: ColorMode): Record<string, string> =>
   mode === 'funnel' ? FUNNEL_LABEL : ENTRY_LABEL
 
 const formatBucketTime = (ts: string): string => {
-  const date = new Date(ts)
-  if (Number.isNaN(date.getTime())) return ts
-  return date.toLocaleString('ko-KR', {
+  return formatKoreanDateTime(ts, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',

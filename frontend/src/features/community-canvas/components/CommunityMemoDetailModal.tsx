@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { Flag, Trash2, X } from 'lucide-react'
 import type { CommunityMemoDetailResponse } from '@/shared/types'
-import { parseServerInstant } from '@/shared/utils'
+import { formatKoreanDateTime } from '@/shared/utils'
 import {
   useCommunityCompactViewport,
   useCommunityModalFitScale,
@@ -26,14 +26,12 @@ interface CommunityMemoDetailModalProps {
 }
 
 function formatAttachedAt(value: string) {
-  const date = parseServerInstant(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('ko-KR', {
+  return formatKoreanDateTime(value, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(date)
+  })
 }
 
 export function CommunityMemoDetailModal({
