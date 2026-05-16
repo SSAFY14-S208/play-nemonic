@@ -63,6 +63,7 @@ import { useFlipbookTimer } from './useFlipbookTimer'
 const RESULT_POLLING_INTERVAL_MS = 1500
 const SUBMITTED_ROUND_POLLING_INTERVAL_MS = 1500
 const ASSIGNMENT_RETRY_DELAYS_MS = [1000, 2000, 3000, 5000]
+const SUBMITTED_DRAWING_LINES_STORAGE_KEY = 'flipbook-submitted-drawing-lines:v1'
 const BLOCKED_REASON_MESSAGE: Record<FlipbookBlockedReason, string> = {
   ROOM_FULL: '정원이 가득 찬 플립북 방입니다.',
   GAME_IN_PROGRESS: '이미 게임이 진행 중인 방입니다.',
@@ -79,6 +80,63 @@ function isFlipbookAssignmentSubmitted(assignment: FlipbookAssignmentResponse | 
     assignment?.assignmentStatus === 'SUBMITTED' ||
     assignment?.assignmentStatus === 'AUTO_SUBMITTED'
   )
+}
+
+function getSubmittedDrawingLinesKey({
+  assignment,
+  roomCode,
+  userUuid,
+}: {
+  assignment: FlipbookAssignmentResponse
+  roomCode: string
+  userUuid: string | null
+}) {
+  return [
+    roomCode,
+    userUuid ?? 'anonymous',
+    assignment.currentRound,
+    assignment.flipbookIndex,
+    assignment.frameIndex,
+  ].join(':')
+}
+
+function readSubmittedDrawingLines(
+  storageKey: string,
+): DrawingLine[] | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const rawStorageValue = window.localStorage.getItem(SUBMITTED_DRAWING_LINES_STORAGE_KEY)
+    if (!rawStorageValue) return null
+
+    const storedDrawingLinesByKey = JSON.parse(rawStorageValue) as Record<string, DrawingLine[]>
+    const storedDrawingLines = storedDrawingLinesByKey[storageKey]
+
+    return Array.isArray(storedDrawingLines) ? storedDrawingLines : null
+  } catch {
+    return null
+  }
+}
+
+function writeSubmittedDrawingLines(storageKey: string, lines: DrawingLine[]) {
+  if (typeof window === 'undefined') return
+
+  try {
+    const rawStorageValue = window.localStorage.getItem(SUBMITTED_DRAWING_LINES_STORAGE_KEY)
+    const storedDrawingLinesByKey = rawStorageValue
+      ? (JSON.parse(rawStorageValue) as Record<string, DrawingLine[]>)
+      : {}
+
+    window.localStorage.setItem(
+      SUBMITTED_DRAWING_LINES_STORAGE_KEY,
+      JSON.stringify({
+        ...storedDrawingLinesByKey,
+        [storageKey]: lines,
+      }),
+    )
+  } catch {
+    // Waiting preview is best-effort; upload/submission remains the source of truth.
+  }
 }
 
 interface UseFlipbookOptions {
@@ -122,6 +180,7 @@ export function useFlipbook({
     defaultColor: DRAWING_COLORS[0],
     defaultStrokeWidth: DEFAULT_DRAWING_STROKE_WIDTH,
   })
+  const replaceDrawingLines = drawingBoard.replaceLines
   // FlipbookPage가 booth + session 라우트에 양쪽으로 마운트되므로(layout.tsx 공유),
   // 진입 step이 booth일 때만 funnel을 시작한다. lobby/drawing/result로 직접 진입한
   // 경우(예: 새로고침)는 funnel을 새로 시작하지 않는다 — 진행 중 funnel 정합성
@@ -472,6 +531,14 @@ export function useFlipbook({
           const nextAssignmentKey = getAssignmentKey(nextAssignment)
           const currentAssignmentKey = assignment ? getAssignmentKey(assignment) : null
           const isSameAssignment = currentAssignmentKey === nextAssignmentKey
+          const submittedDrawingLinesKey = getSubmittedDrawingLinesKey({
+            assignment: nextAssignment,
+            roomCode: targetRoomCode,
+            userUuid,
+          })
+          const storedSubmittedLines = isFlipbookAssignmentSubmitted(nextAssignment)
+            ? readSubmittedDrawingLines(submittedDrawingLinesKey)
+            : null
 
           setAssignment(nextAssignment)
           setSelectedTimeLimitSeconds(toFlipbookTimeLimitSeconds(nextAssignment.timeLimitSeconds))
@@ -488,7 +555,7 @@ export function useFlipbook({
             setTimeUpSubmitRequest(null)
           }
           if (!isSameAssignment) {
-            resetDrawingRound()
+            replaceDrawingLines(storedSubmittedLines ?? [])
             setPreviousFrameLines(createPreviousFrameLinesFromAssignment(nextAssignment))
           }
 
@@ -502,7 +569,7 @@ export function useFlipbook({
 
       return null
     },
-    [assignment, resetDrawingRound, roomCode, roomState?.totalRounds],
+    [assignment, replaceDrawingLines, roomCode, roomState?.totalRounds, userUuid],
   )
 
   const fetchResult = useCallback(
@@ -1087,6 +1154,14 @@ export function useFlipbook({
         frameIndex: assignment.frameIndex,
         fileId,
       })
+      writeSubmittedDrawingLines(
+        getSubmittedDrawingLinesKey({
+          assignment,
+          roomCode,
+          userUuid,
+        }),
+        submittedLines,
+      )
 
       setAssignment((currentAssignment) =>
         currentAssignment?.currentRound === submittedFrame.round
@@ -1141,6 +1216,7 @@ export function useFlipbook({
     scheduleRoundTransitionFallback,
     submittedAssignmentKeys,
     uploadFrame,
+    userUuid,
   ])
 
   useEffect(() => {
