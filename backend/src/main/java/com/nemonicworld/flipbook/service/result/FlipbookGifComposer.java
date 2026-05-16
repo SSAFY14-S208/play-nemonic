@@ -102,7 +102,7 @@ public class FlipbookGifComposer {
     private void configureGifMetadata(IIOMetadata metadata) throws IOException {
         IIOMetadataNode root = (IIOMetadataNode) metadata.getAsTree(GIF_METADATA_FORMAT);
         IIOMetadataNode graphicControlExtension = getNode(root, "GraphicControlExtension");
-        graphicControlExtension.setAttribute("disposalMethod", "none");
+        graphicControlExtension.setAttribute("disposalMethod", "restoreToBackgroundColor");
         graphicControlExtension.setAttribute("userInputFlag", "FALSE");
         graphicControlExtension.setAttribute("transparentColorFlag", "FALSE");
         graphicControlExtension.setAttribute("delayTime", Integer.toString(frameDelayCentiseconds));

@@ -21,6 +21,7 @@ public class InfiniteCanvasEventPublisher {
     private static final String CANVAS_TOPIC_PREFIX = "/topic/infinite-canvas/canvases/";
     private static final String CANVAS_USER_QUEUE_PREFIX = "/queue/infinite-canvas/canvases/";
     private static final String DUPLICATE_SESSION_CLOSED_MESSAGE = "다른 곳에서 접속되어 연결이 종료되었습니다.";
+    private static final String CANVAS_CLOSED_MESSAGE = "무한 캔버스가 종료되었습니다.";
     private static final String PONG_MESSAGE = "pong";
     private static final String DEFAULT_ERROR_MESSAGE = "무한 캔버스 요청을 처리할 수 없습니다.";
 
@@ -59,6 +60,11 @@ public class InfiniteCanvasEventPublisher {
 
     public void publishParticipantDisconnected(InfiniteCanvasStateResponse response) {
         publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response.canvasId(), response);
+    }
+
+    public void publishCanvasClosed(String canvasId, Object data) {
+        Object payload = data == null ? new InfiniteCanvasSimpleMessageResponse(CANVAS_CLOSED_MESSAGE) : data;
+        publishCanvasEvent(InfiniteCanvasEventType.CANVAS_CLOSED, canvasId, payload);
     }
 
     public void publishDuplicateSessionClosed(String sessionId, String canvasId) {

@@ -45,6 +45,8 @@ class CommunityMemoOpenApiIntegrationTest {
                 jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoOriginalImageUrl").exists())
             .andExpect(
                 jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoThumbnailImageUrl").exists())
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoPlaybackImageUrl").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.decoration").exists());
     }
 
@@ -71,7 +73,9 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(
                 jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoOriginalImageUrl").exists())
             .andExpect(
-                jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoThumbnailImageUrl").exists());
+                jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoThumbnailImageUrl").exists())
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoPlaybackImageUrl").exists());
     }
 
     @Test

@@ -8,8 +8,10 @@ import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.gms.dto.request.GmsPromptCreateRequest;
+import com.nemonicworld.gms.dto.request.GmsPromptPreviewRequest;
 import com.nemonicworld.gms.dto.request.GmsPromptUpdateRequest;
 import com.nemonicworld.gms.dto.response.GmsPromptListResponse;
+import com.nemonicworld.gms.dto.response.GmsPromptPreviewResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptResponse;
 import com.nemonicworld.gms.entity.GmsPrompt;
 import com.nemonicworld.gms.repository.GmsPromptInsertCommand;
@@ -48,10 +50,13 @@ public class GmsPromptServiceImpl implements GmsPromptService {
 
     private final GmsPromptRepository gmsPromptRepository;
     private final AdminAuditLogger adminAuditLogger;
+    private final GmsPromptPreviewService gmsPromptPreviewService;
 
-    public GmsPromptServiceImpl(GmsPromptRepository gmsPromptRepository, AdminAuditLogger adminAuditLogger) {
+    public GmsPromptServiceImpl(GmsPromptRepository gmsPromptRepository, AdminAuditLogger adminAuditLogger,
+        GmsPromptPreviewService gmsPromptPreviewService) {
         this.gmsPromptRepository = gmsPromptRepository;
         this.adminAuditLogger = adminAuditLogger;
+        this.gmsPromptPreviewService = gmsPromptPreviewService;
     }
 
     @Override
@@ -108,6 +113,13 @@ public class GmsPromptServiceImpl implements GmsPromptService {
 
         return GmsPromptResponse.from(gmsPromptRepository.findActiveById(promptId)
             .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE)));
+    }
+
+    @Override
+    public GmsPromptPreviewResponse previewPrompt(AdminPrincipal adminPrincipal, GmsPromptPreviewRequest request) {
+        requireAdmin(adminPrincipal);
+
+        return gmsPromptPreviewService.preview(request);
     }
 
     @Override

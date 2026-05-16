@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
 ## Current Focus
 
@@ -129,6 +129,12 @@ Last updated: 2026-05-15
   `featureType`, `page`, and `size`, returns the local pagination DTO shape
   (`items`, `page`, `size`, `totalElements`, `hasNext`), and reads only
   `deleted_at IS NULL` rows from the existing `gms_prompt_template` table.
+- Backoffice admins can preview candidate fortune GMS prompt templates through
+  `POST /api/v1/backoffice/gms/prompts/preview`; the API calls GMS with the
+  unsaved prompt body and sample saju, validates the same fortune result shape
+  used by public fortune creation, renders a PNG card as a base64 data URL, and
+  does not write `gms_prompt_template`, `artifact`, `fortune_artifact`,
+  `gallery`, or MinIO objects.
 - Backoffice admins can now list system parameters through
   `GET /api/v1/backoffice/system-parameters`; the API requires an admin JWT,
   reads existing `backoffice_setting` rows sorted by `setting_key ASC`,
@@ -442,6 +448,9 @@ Recent flipbook result work aligns room completion with the relay finalization m
   white. GIF frames are normalized through ARGB images before writing while
   keeping the existing `image/gif` contract, and thumbnail PNG resize uses ARGB
   so transparent frame backgrounds remain transparent.
+- Flipbook GIF frame metadata now uses `restoreToBackgroundColor` disposal
+  instead of `none`, so transparent submitted frames are displayed
+  independently instead of accumulating over previous frames in GIF players.
 - After finalization completes, the backend emits a `RESULT_CREATED` WebSocket event with artifact IDs and per-`flipbookIndex` object keys.
 - `GET /api/v1/flipbook/rooms/{roomCode}/result` is now a read-side API: existing artifact/gallery rows return `ready=true`; while result generation is pending or inconsistent, the API returns `ready=false` instead of lazily creating GIFs.
 - Flipbook game start uses `totalRounds=flipbook.min_frames_per_flipbook` from the runtime settings snapshot, so assignment count is `participantCount * totalRounds`.
@@ -563,6 +572,7 @@ Recent community logging work reused the shared structured event logger for comm
 - COMMUNITY-purpose file uploads now emit presign, confirm, and pending-delete events without affecting other file purposes.
 - Admin community list/detail/report-history views emit audit events, while existing hide/restore audit logs keep the operator-provided review reason in metadata.
 - `backend/docs/product-spec/08-observability.md` includes the community event names in the backend event allow-list.
+- Community memo list/detail responses now include `memoPlaybackImageUrl`. Visible GALLERY memos backed by `artifact.kind=flipbook` expose the resolved public `flipbook_artifact.gif_url` to any viewer, while DIRECT and non-flipbook memos return `null`; `GET /api/v1/artifacts/{artifactId}/image-urls` remains owner-scoped.
 
 ## Next Suggested Steps
 

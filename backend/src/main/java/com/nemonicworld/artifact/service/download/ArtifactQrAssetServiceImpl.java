@@ -25,10 +25,11 @@ public class ArtifactQrAssetServiceImpl implements ArtifactQrAssetService {
     private static final String KIND_FORTUNE = "fortune";
     private static final String KIND_RELAY_DRAWING = "relay_drawing";
     private static final String KIND_FLIPBOOK = "flipbook";
+    private static final String KIND_INFINITE_CANVAS = "infinite_canvas";
     private static final String KIND_COMMUNITY_MEMO = "community_memo";
     private static final String CHANNEL_QR_DOWNLOAD = "QR_DOWNLOAD";
     private static final Set<String> DOWNLOADABLE_KINDS = Set.of(KIND_FORTUNE, KIND_RELAY_DRAWING, KIND_FLIPBOOK,
-        KIND_COMMUNITY_MEMO);
+        KIND_INFINITE_CANVAS, KIND_COMMUNITY_MEMO);
 
     private final ArtifactImageUrlRepository artifactImageUrlRepository;
     private final AnonymousUserResolver anonymousUserResolver;
@@ -88,6 +89,9 @@ public class ArtifactQrAssetServiceImpl implements ArtifactQrAssetService {
         }
         if (KIND_FLIPBOOK.equals(row.kind())) {
             return row.flipbookGifUrl();
+        }
+        if (KIND_INFINITE_CANVAS.equals(row.kind())) {
+            return firstText(row.infiniteCanvasImageUrl(), row.thumbnailUrl());
         }
         if (KIND_COMMUNITY_MEMO.equals(row.kind())) {
             return firstText(row.communityMemoOriginalImageUrl(),
