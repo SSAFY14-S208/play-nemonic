@@ -12,24 +12,23 @@ type Props = {
 
 // I11 — 방문자 완주율 (2 KPI + 비율).
 //
-// OSD 원본은 cardinality(uuid)로 distinct 방문자 수를 측정하지만 현 백엔드 API는 total
-// hit count만 노출. 백엔드 확장(cardinality 전용 endpoint)이 머지되면 정확값으로 교체.
-// 그 전까진 세션 근사치로 표시 + 카드에 "근사치" hint 명시.
+// BE distinct-count endpoint(cardinality(uuid))로 distinct 방문자/완주 방문자 측정.
+// ES cardinality는 precisionThreshold 안에서 정확도 보장, 그 이상은 통계적 근사치.
 
 export function I11KpiCard({ state, onRetry }: Props) {
   const rate = state.data?.completionRate ?? 0
   const tiles = [
     {
-      label: '방문자 (세션 근사)',
+      label: '방문자',
       value: state.data?.visitors ?? 0,
       accentColor: CHART_STATUS_COLORS.accent,
-      hint: 'distinct uuid은 백엔드 확장 후',
+      hint: 'distinct uuid',
     },
     {
       label: '완주 방문자',
       value: state.data?.completedVisitors ?? 0,
       accentColor: CHART_STATUS_COLORS.great,
-      hint: 'event_name:funnel_goal_reached',
+      hint: 'distinct uuid · funnel_goal_reached',
     },
     {
       label: '완주율',
