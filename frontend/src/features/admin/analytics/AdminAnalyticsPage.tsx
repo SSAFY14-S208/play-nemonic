@@ -1,72 +1,153 @@
 'use client'
 
-import { useState } from 'react'
-import { ExternalLink } from 'lucide-react'
+import { useMemo } from 'react'
 
 import { runtime } from '@/shared/config'
-import { cn } from '@/shared/libs'
 
-type IframeStatus = 'loading' | 'loaded' | 'error'
+import {
+  AnalyticsFilterBar,
+  AnalyticsSection,
+  DrillDownPanel,
+  I11KpiCard,
+  I12KpiCard,
+  I1KpiCard,
+  PendingVizCard,
+  VizCard,
+} from './components'
+import { SECTION_META, VIZ_META } from './constants'
+import {
+  useAnalyticsAutoRefresh,
+  useAnalyticsDrillDown,
+  useAnalyticsFilters,
+  useI11Kpi,
+  useI12Kpi,
+  useI1Kpi,
+} from './hooks'
+import type { VizId, VizSection } from './types'
 
-// 마케팅 인사이트 대시보드 직접 진입 + embed 모드 (크롬 nav 제거)
-const EMBED_URL = `${runtime.opensearchDashboardsUrl}/app/dashboards?embed=true#/view/dashboard-marketing`
-// 새 탭에서 열 때는 embed 없이 전체 UI 제공
-const NEW_TAB_URL = `${runtime.opensearchDashboardsUrl}/app/dashboards#/view/dashboard-marketing`
+// 백오피스 분석 페이지 — OSD iframe 대체본.
+//
+// 현 PR 범위:
+//   - 페이지 골격 + 필터 바 + 30초 자동 갱신.
+//   - I1·I11·I12 KPI 시리즈 실데이터 (search size:0 병렬).
+//   - 나머지 10개 viz는 PendingVizCard placeholder.
+//   - 드릴다운 패널 인프라 + 개발용 mock 트리거.
+//
+// 백엔드 확장(field-summary 화이트리스트, histogram byField, terms+avg, composite)이
+// 머지되면 후속 PR에서 placeholder를 실제 recharts 차트로 교체.
+
+const SECTION_GRID: Record<VizSection, { span: 4 | 6 | 8 | 12; minHeight: number }> = {
+  overview: { span: 6, minHeight: 200 },
+  channel: { span: 6, minHeight: 260 },
+  content: { span: 6, minHeight: 280 },
+  flow: { span: 12, minHeight: 320 },
+  retention: { span: 6, minHeight: 240 },
+}
 
 export default function AdminAnalyticsPage() {
-  const [iframeStatus, setIframeStatus] = useState<IframeStatus>('loading')
+  const filters = useAnalyticsFilters()
+  const drillDown = useAnalyticsDrillDown()
+
+  useAnalyticsAutoRefresh(filters.state.autoRefresh, filters.refresh)
+
+  const kpiArgs = useMemo(
+    () => ({
+      timeRange: filters.timeRange,
+      serviceFilters: filters.serviceFilters,
+      serviceQuery: filters.serviceQuery,
+      refreshNonce: filters.state.refreshNonce,
+    }),
+    [
+      filters.timeRange,
+      filters.serviceFilters,
+      filters.serviceQuery,
+      filters.state.refreshNonce,
+    ],
+  )
+
+  const i1State = useI1Kpi(kpiArgs)
+  const i11State = useI11Kpi(kpiArgs)
+  const i12State = useI12Kpi(kpiArgs)
+
+  const renderViz = (vizId: VizId) => {
+    const meta = VIZ_META.find((entry) => entry.id === vizId)
+    if (!meta) return null
+    if (vizId === 'I1') {
+      return <I1KpiCard state={i1State} onRetry={filters.refresh} />
+    }
+    if (vizId === 'I11') {
+      return <I11KpiCard state={i11State} onRetry={filters.refresh} />
+    }
+    if (vizId === 'I12') {
+      return <I12KpiCard state={i12State} onRetry={filters.refresh} />
+    }
+    return <PendingVizCard title={meta.title} subtitle={meta.subtitle} />
+  }
+
+  // mock 드릴다운 트리거 — 개발 환경에서만 노출.
+  // 패널 슬라이드 인/아웃 + 내용 교체 인터랙션 검증용. 실제 viz가 채워지면 차트
+  // 클릭으로 trigger되므로 이 버튼은 후속 PR에서 제거.
+  const handleMockDrillDown = () => {
+    drillDown.open({
+      vizId: 'I1',
+      chartLabel: '진입 (mock 드릴다운)',
+      dimensionFilters: [],
+      extraQuery: 'event_name:funnel_started',
+      description: '실제 차트가 채워지면 막대 클릭으로 trigger됩니다.',
+    })
+  }
 
   return (
-    // -mx-8 -my-6: 부모 컨테이너(px-8 py-6) 패딩 상쇄
-    // h-[calc(100%+3rem)]: py-6(1.5rem) × 2 = 3rem 보정
     <div className="-mx-8 -my-6 flex h-[calc(100%+3rem)] flex-col">
-      <div className="flex shrink-0 items-center justify-between border-b border-border-default px-6 py-3">
-        <p className="caption-r text-fg-secondary">
-          화면이 표시되지 않으면 새 탭에서 먼저 열어 인증해 주세요.
-        </p>
-        <a
-          href={NEW_TAB_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="caption-b inline-flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default px-3 py-1.5 text-fg-primary transition-colors hover:bg-surface-subtle"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          새 탭에서 열기
-        </a>
-      </div>
+      <AnalyticsFilterBar
+        state={filters.state}
+        onPresetChange={filters.setPreset}
+        onCustomRangeChange={filters.setCustomRange}
+        onServiceToggle={filters.toggleService}
+        onAutoRefreshChange={filters.setAutoRefresh}
+        onRefresh={filters.refresh}
+      />
 
-      <div className="relative flex-1">
-        {iframeStatus !== 'loaded' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-surface-default">
-            {iframeStatus === 'loading' && (
-              <p className="body-r text-fg-secondary">대시보드를 불러오는 중…</p>
-            )}
-            {iframeStatus === 'error' && (
-              <>
-                <p className="body-r text-fg-secondary">
-                  대시보드를 불러오지 못했습니다.
-                </p>
-                <a
-                  href={NEW_TAB_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="body-b inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-primary-1 px-4 py-2 text-fg-inverse transition-opacity hover:opacity-90"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  새 탭에서 열기
-                </a>
-              </>
-            )}
+      <div className="flex flex-1 flex-col gap-8 overflow-y-auto bg-surface-subtle px-6 py-6">
+        {runtime.isDev && (
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={handleMockDrillDown}
+              className="caption-b rounded-[var(--radius-md)] border border-dashed border-border-default bg-surface-default px-3 py-1.5 text-fg-secondary transition-colors hover:bg-surface-default"
+            >
+              dev: 드릴다운 패널 mock 열기
+            </button>
           </div>
         )}
-        <iframe
-          src={EMBED_URL}
-          title="OpenSearch 대시보드"
-          className={cn('h-full w-full border-0', iframeStatus !== 'loaded' && 'invisible')}
-          onLoad={() => setIframeStatus('loaded')}
-          onError={() => setIframeStatus('error')}
-        />
+
+        {SECTION_META.map((section) => (
+          <AnalyticsSection key={section.key} title={section.title}>
+            {VIZ_META.filter((viz) => viz.section === section.key).map((viz) => {
+              const grid = SECTION_GRID[section.key as VizSection]
+              return (
+                <VizCard
+                  key={viz.id}
+                  vizId={viz.id}
+                  title={viz.title}
+                  subtitle={viz.subtitle}
+                  span={grid.span}
+                  minHeight={grid.minHeight}
+                >
+                  {renderViz(viz.id)}
+                </VizCard>
+              )
+            })}
+          </AnalyticsSection>
+        ))}
       </div>
+
+      <DrillDownPanel
+        state={drillDown.state}
+        timeRange={filters.timeRange}
+        serviceQuery={filters.serviceQuery}
+        onClose={drillDown.close}
+      />
     </div>
   )
 }
