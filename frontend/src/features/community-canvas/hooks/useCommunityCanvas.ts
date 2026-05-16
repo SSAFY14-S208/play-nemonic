@@ -19,6 +19,11 @@ import type {
   CommunityMemoLayoutRequest,
   CommunityMemoReportReason,
 } from '@/shared/types'
+import {
+  preloadCommunityMemoSounds,
+  playCommunityMemoAttachSound,
+  playCommunityMemoDetachSound,
+} from '../utils'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type MemoPlaybackImageUrlMap = Record<string, string>
@@ -162,6 +167,10 @@ export function useCommunityCanvas() {
   const [mutationStatus, setMutationStatus] = useState<AsyncStatus>('idle')
   const [reportStatus, setReportStatus] = useState<AsyncStatus>('idle')
 
+  useEffect(() => {
+    preloadCommunityMemoSounds()
+  }, [])
+
   const resolveMemoPlaybackImageUrls = useCallback(
     async (nextMemos: CommunityMemoItemResponse[], requestId: number) => {
       const playbackEntries = await Promise.all(
@@ -304,10 +313,15 @@ export function useCommunityCanvas() {
       return
     }
 
+    const isEnteringLayoutEdit = editingMemo?.memoUuid !== memo.memoUuid || !editingLayoutDraft
+    if (isEnteringLayoutEdit) {
+      playCommunityMemoDetachSound()
+    }
+
     setEditingMemo(memo)
     setEditingLayoutDraft(toLayoutDraft(memo))
     setMutationStatus('idle')
-  }, [])
+  }, [editingLayoutDraft, editingMemo])
 
   const clearWallMemoSelection = useCallback(() => {
     setSelectedWallMemoUuid(null)
@@ -323,6 +337,7 @@ export function useCommunityCanvas() {
     setSelectedWallMemoUuid(selectedMemoDetail.memoUuid)
     setEditingMemo(selectedMemoDetail)
     setEditingLayoutDraft(toLayoutDraft(selectedMemoDetail))
+    playCommunityMemoDetachSound()
     setSelectedMemoUuid(null)
     setSelectedMemoDetail(null)
     setSelectedMemoPlaybackImageUrl(null)
@@ -370,6 +385,7 @@ export function useCommunityCanvas() {
       setEditingMemo(null)
       setEditingLayoutDraft(null)
       setMutationStatus('success')
+      playCommunityMemoAttachSound()
       toast.success('메모 위치를 저장했어요.')
     } catch (error) {
       setMutationStatus('error')
@@ -387,6 +403,7 @@ export function useCommunityCanvas() {
       closeMemoDetail()
       await loadCommunityMemos()
       setMutationStatus('success')
+      playCommunityMemoDetachSound()
       toast.success('메모를 벽에서 떼어냈어요.')
     } catch (error) {
       setMutationStatus('error')
