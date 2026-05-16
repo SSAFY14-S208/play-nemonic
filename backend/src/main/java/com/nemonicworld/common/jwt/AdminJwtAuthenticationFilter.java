@@ -38,6 +38,8 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String ADMIN_COMMUNITY_MEMO_API_PREFIX = "/api/v1/admin/community/memos/";
     private static final String ADMIN_LOGS_API_PATH = "/api/v1/admin/logs";
     private static final String ADMIN_LOGS_API_PREFIX = "/api/v1/admin/logs/";
+    private static final String ADMIN_METRICS_API_PATH = "/api/v1/admin/metrics";
+    private static final String ADMIN_METRICS_API_PREFIX = "/api/v1/admin/metrics/";
     private static final String GMS_PROMPT_API_PATH = "/api/v1/backoffice/gms/prompts";
     private static final String GMS_PROMPT_API_PREFIX = "/api/v1/backoffice/gms/prompts/";
     private static final String SYSTEM_PARAMETER_API_PATH = "/api/v1/backoffice/system-parameters";
@@ -71,7 +73,8 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
             && !servletPath.startsWith(ADMIN_API_PREFIX) && !ADMIN_INQUIRY_API_PATH.equals(servletPath)
             && !servletPath.startsWith(ADMIN_INQUIRY_API_PREFIX) && !ADMIN_COMMUNITY_MEMO_API_PATH.equals(servletPath)
             && !servletPath.startsWith(ADMIN_COMMUNITY_MEMO_API_PREFIX) && !ADMIN_LOGS_API_PATH.equals(servletPath)
-            && !servletPath.startsWith(ADMIN_LOGS_API_PREFIX) && !GMS_PROMPT_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(ADMIN_LOGS_API_PREFIX) && !ADMIN_METRICS_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(ADMIN_METRICS_API_PREFIX) && !GMS_PROMPT_API_PATH.equals(servletPath)
             && !servletPath.startsWith(GMS_PROMPT_API_PREFIX) && !SYSTEM_PARAMETER_API_PATH.equals(servletPath)
             && !servletPath.startsWith(SYSTEM_PARAMETER_API_PREFIX)
             && !BACKOFFICE_RELAY_ROOM_API_PATH.equals(servletPath)
@@ -150,6 +153,12 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
                     OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
             return;
         }
+        if (isAdminMetricsPath(request)) {
+            objectMapper.writeValue(response.getWriter(),
+                Map.of("success", false, "code", "ADMIN_METRICS_UNAUTHORIZED", "message", UNAUTHORIZED_MESSAGE,
+                    "timestamp", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
+            return;
+        }
 
         objectMapper.writeValue(response.getWriter(), ApiResponse.fail(UNAUTHORIZED_MESSAGE, null));
     }
@@ -158,5 +167,11 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
         String path = resolveRequestPath(request);
 
         return ADMIN_LOGS_API_PATH.equals(path) || path.startsWith(ADMIN_LOGS_API_PREFIX);
+    }
+
+    private boolean isAdminMetricsPath(HttpServletRequest request) {
+        String path = resolveRequestPath(request);
+
+        return ADMIN_METRICS_API_PATH.equals(path) || path.startsWith(ADMIN_METRICS_API_PREFIX);
     }
 }
