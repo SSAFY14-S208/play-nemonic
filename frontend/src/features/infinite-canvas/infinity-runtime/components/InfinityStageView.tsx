@@ -456,7 +456,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       <button
         type="button"
         onClick={handleCopyInviteCode}
-        className="fixed left-1/2 top-4 z-20 h-[136px] w-[min(340px,calc(100vw-32px))] -translate-x-1/2 transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
+        className="fixed left-1/2 top-4 z-20 h-[120px] w-[min(300px,calc(100vw-32px))] -translate-x-1/2 transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
         aria-label={`초대코드 ${room.inviteCode ?? '-'} 복사`}
       >
         <Image
@@ -465,11 +465,11 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           aria-hidden
           fill
           priority
-          sizes="340px"
+          sizes="300px"
           className="object-contain drop-shadow-[0_14px_24px_rgba(55,82,190,0.24)]"
         />
-        <div className="absolute inset-x-[18%] inset-y-[28%] grid place-items-center">
-          <span className="h3-b text-white drop-shadow-[0_3px_7px_rgba(33,45,126,0.46)]">
+        <div className="absolute inset-x-[18%] inset-y-[25%] grid place-items-center">
+          <span className="h2-b text-white drop-shadow-[0_3px_7px_rgba(33,45,126,0.5)]">
             {room.inviteCode ?? '-'}
           </span>
         </div>
