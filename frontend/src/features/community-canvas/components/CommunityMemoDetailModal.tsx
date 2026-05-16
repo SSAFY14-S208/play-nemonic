@@ -79,9 +79,9 @@ export function CommunityMemoDetailModal({
               type="button"
               aria-label="메모 상세 닫기"
               onClick={onClose}
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
+              className="grid size-12 shrink-0 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
             >
-              <X className="size-5" />
+              <X className="size-6" />
             </button>
           </header>
 
@@ -177,9 +177,9 @@ export function CommunityMemoDetailModal({
           type="button"
           aria-label="메모 상세 닫기"
           onClick={onClose}
-          className="absolute right-[5.3%] top-[5.3%] z-10 grid size-11 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
+          className="absolute right-[5.3%] top-[5.3%] z-10 grid size-16 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
         >
-          <X className="size-5" />
+          <X className="size-7" />
         </button>
 
         <div className="absolute left-[6.4%] right-[6.4%] top-[9.2%] bottom-[25.4%] overflow-hidden rounded-[1rem] border border-[#d5cee3]/80 bg-white shadow-[inset_0_1px_0_rgb(255_255_255_/_88%),0_8px_22px_rgb(71_68_112_/_10%)]">
