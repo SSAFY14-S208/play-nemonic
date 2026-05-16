@@ -22,8 +22,8 @@ export function InfinityNicknameModal({
   const { isPending, fieldError, generalError, submit, clearError } = useInfinityNickname({
     onSuccess: () => {
       setNickname('')
-      onOpenChange(false)
       onSuccess?.()
+      onOpenChange(false)
     },
   })
 

@@ -393,7 +393,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       try {
         const blob = await createStageBlob(stage, rect)
         const output = await room.saveOutput(blob, {
-          canvasId: room.canvasId,
+          roomCode: room.roomCode,
           revision: room.revision,
           ratio,
           rect,

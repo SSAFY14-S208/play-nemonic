@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   deleteInfiniteCanvasParticipantMe,
-  getInfiniteCanvasCanvas,
   postFileConfirm,
   postFilePresign,
   postInfiniteCanvasOutput,
@@ -41,7 +40,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isStateResponse(value: unknown): value is InfiniteCanvasStateResponse {
   return (
     isRecord(value) &&
-    typeof value.canvasId === 'string' &&
+    typeof value.roomCode === 'string' &&
     Array.isArray(value.participants) &&
     Array.isArray(value.elements) &&
     typeof value.revision === 'number'
@@ -55,18 +54,18 @@ function isParticipantResponse(value: unknown): value is InfiniteCanvasParticipa
 function isOpsAppliedResponse(value: unknown): value is InfiniteCanvasOpsAppliedResponse {
   return (
     isRecord(value) &&
-    typeof value.canvasId === 'string' &&
+    typeof value.roomCode === 'string' &&
     typeof value.revision === 'number' &&
     Array.isArray(value.operations)
   )
 }
 
 function isLockResponse(value: unknown): value is InfiniteCanvasLockResponse {
-  return isRecord(value) && typeof value.canvasId === 'string' && typeof value.elementId === 'string'
+  return isRecord(value) && typeof value.roomCode === 'string' && typeof value.elementId === 'string'
 }
 
 function isCursorResponse(value: unknown): value is InfiniteCanvasCursorResponse {
-  return isRecord(value) && typeof value.canvasId === 'string' && isRecord(value.cursor)
+  return isRecord(value) && typeof value.roomCode === 'string' && isRecord(value.cursor)
 }
 
 function isSimpleMessage(value: unknown): value is InfiniteCanvasSimpleMessageResponse {
@@ -75,6 +74,26 @@ function isSimpleMessage(value: unknown): value is InfiniteCanvasSimpleMessageRe
 
 function isStaleRevisionMessage(message: string) {
   return message.includes(STALE_REVISION_MESSAGE)
+}
+
+function createInitialRoomState(roomCode: string, userUuid: string): InfiniteCanvasStateResponse {
+  const now = new Date().toISOString()
+
+  return {
+    roomCode,
+    status: 'ACTIVE',
+    ownerUserUuid: userUuid,
+    me: null,
+    participants: [],
+    elements: [],
+    operations: [],
+    locks: {},
+    viewport: null,
+    maxParticipants: 0,
+    revision: 0,
+    createdAt: now,
+    updatedAt: now,
+  }
 }
 
 function applyOperationsToElements(
@@ -125,16 +144,16 @@ function applyOperationsToElements(
 }
 
 async function uploadInfiniteCanvasOutput({
-  canvasId,
+  roomCode,
   imageBlob,
   meta,
 }: {
-  canvasId: string
+  roomCode: string
   imageBlob: Blob
   meta: Record<string, unknown> | null
 }): Promise<InfiniteCanvasOutputSaveResponse> {
   const presigned = await postFilePresign({
-    fileName: `infinite-canvas-${canvasId}-${Date.now()}.png`,
+    fileName: `infinite-canvas-${roomCode}-${Date.now()}.png`,
     contentType: INFINITE_CANVAS_FILE_CONTENT_TYPE,
     purpose: INFINITE_CANVAS_FILE_PURPOSE,
     byteSize: imageBlob.size,
@@ -147,13 +166,13 @@ async function uploadInfiniteCanvasOutput({
   })
   await postFileConfirm(presigned.fileId)
 
-  return postInfiniteCanvasOutput(canvasId, {
+  return postInfiniteCanvasOutput(roomCode, {
     imageFileId: presigned.fileId,
     meta,
   })
 }
 
-export function useInfinityCanvasRoom(canvasId: string | null) {
+export function useInfinityCanvasRoom(roomCode: string | null) {
   const router = useRouter()
   const userUuid = useUserStore((state) => state.userUuid)
   const [roomState, setRoomState] = useState<InfiniteCanvasStateResponse | null>(null)
@@ -172,23 +191,16 @@ export function useInfinityCanvasRoom(canvasId: string | null) {
   }, [])
 
   const hydrateRoom = useCallback(async () => {
-    if (!canvasId || !userUuid) return null
+    if (!roomCode || !userUuid) return null
 
     setIsHydrating(true)
     setErrorMessage(null)
-    try {
-      const nextState = await getInfiniteCanvasCanvas(canvasId)
-      revisionRef.current = nextState.revision
-      setRoomState(nextState)
-      return nextState
-    } catch {
-      const message = '캔버스 정보를 불러오지 못했어요. 초대코드로 먼저 입장했는지 확인해주세요.'
-      setErrorMessage(message)
-      return null
-    } finally {
-      setIsHydrating(false)
-    }
-  }, [canvasId, userUuid])
+    const nextState = createInitialRoomState(roomCode, userUuid)
+    revisionRef.current = nextState.revision
+    setRoomState(nextState)
+    setIsHydrating(false)
+    return nextState
+  }, [roomCode, userUuid])
 
   const applyFullState = useCallback((nextState: InfiniteCanvasStateResponse) => {
     revisionRef.current = nextState.revision
@@ -197,7 +209,7 @@ export function useInfinityCanvasRoom(canvasId: string | null) {
 
   const handleRealtimeEvent = useCallback(
     (event: InfiniteCanvasRealtimeEvent) => {
-      if (canvasId && event.canvasId !== canvasId) return
+      if (roomCode && event.roomCode !== roomCode) return
 
       if (
         event.type === 'STATE_SNAPSHOT' ||
@@ -359,12 +371,12 @@ export function useInfinityCanvasRoom(canvasId: string | null) {
         void hydrateRoom().finally(bumpOperationQueue)
       }
     },
-    [applyFullState, bumpOperationQueue, canvasId, hydrateRoom, router, userUuid],
+    [applyFullState, bumpOperationQueue, roomCode, hydrateRoom, router, userUuid],
   )
 
   const realtime = useInfinityRealtimeConnection({
-    enabled: Boolean(roomState && canvasId && userUuid),
-    canvasId,
+    enabled: Boolean(roomState && roomCode && userUuid),
+    roomCode,
     onEvent: handleRealtimeEvent,
   })
 
@@ -372,7 +384,7 @@ export function useInfinityCanvasRoom(canvasId: string | null) {
     let cancelled = false
 
     void (async () => {
-      if (!canvasId || !userUuid) {
+      if (!roomCode || !userUuid) {
         setIsHydrating(false)
         return
       }
@@ -386,7 +398,7 @@ export function useInfinityCanvasRoom(canvasId: string | null) {
     return () => {
       cancelled = true
     }
-  }, [canvasId, hydrateRoom, userUuid])
+  }, [roomCode, hydrateRoom, userUuid])
 
   const sendOperations = useCallback(
     (operations: InfiniteCanvasOperationRequest[]) => {
@@ -420,13 +432,13 @@ export function useInfinityCanvasRoom(canvasId: string | null) {
 
   const saveOutput = useCallback(
     async (imageBlob: Blob, meta: Record<string, unknown> | null) => {
-      if (!canvasId || isSavingOutput) return null
+      if (!roomCode || isSavingOutput) return null
 
       setIsSavingOutput(true)
       setErrorMessage(null)
       try {
         const output = await uploadInfiniteCanvasOutput({
-          canvasId,
+          roomCode,
           imageBlob,
           meta,
         })
@@ -441,18 +453,18 @@ export function useInfinityCanvasRoom(canvasId: string | null) {
         setIsSavingOutput(false)
       }
     },
-    [canvasId, isSavingOutput],
+    [roomCode, isSavingOutput],
   )
 
   const leaveCanvas = useCallback(async () => {
-    if (!canvasId) return
+    if (!roomCode) return
 
     try {
-      await deleteInfiniteCanvasParticipantMe(canvasId)
+      await deleteInfiniteCanvasParticipantMe(roomCode)
     } finally {
       router.replace('/infinite-canvas')
     }
-  }, [canvasId, router])
+  }, [roomCode, router])
 
   const participantsByUserUuid = useMemo(() => {
     const entries = roomState?.participants.map((participant) => [participant.userUuid, participant]) ?? []
@@ -462,8 +474,8 @@ export function useInfinityCanvasRoom(canvasId: string | null) {
   const myUserUuid = roomState?.me?.userUuid ?? userUuid
 
   return {
-    canvasId,
-    inviteCode: roomState?.inviteCode ?? null,
+    roomCode,
+    inviteCode: roomState?.roomCode ?? roomCode,
     isHydrating,
     errorMessage,
     connectionStatus: realtime.connectionStatus,

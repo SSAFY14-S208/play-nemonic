@@ -3,8 +3,8 @@ import type { InviteJoinResponse } from '@/shared/types'
 const INFINITE_CANVAS_ROOM_BASE_PATH = '/infinite-canvas'
 const INFINITE_CANVAS_BOOTH_TYPES = new Set(['infinite_canvas', 'infinite-canvas'])
 
-export function buildInfiniteCanvasRoomPath(canvasId: string) {
-  return `${INFINITE_CANVAS_ROOM_BASE_PATH}/${encodeURIComponent(canvasId)}`
+export function buildInfiniteCanvasRoomPath(roomCode: string) {
+  return `${INFINITE_CANVAS_ROOM_BASE_PATH}/${encodeURIComponent(roomCode)}`
 }
 
 export function normalizeInfiniteCanvasInviteCode(inviteCode: string) {

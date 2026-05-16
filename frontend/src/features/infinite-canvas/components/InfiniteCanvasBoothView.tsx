@@ -1,16 +1,21 @@
 'use client'
 
 import Image from 'next/image'
+import { useState } from 'react'
 
 import { INFINITE_CANVAS_COLOR_OPTIONS } from '../constants'
 import { useInfiniteCanvasEntry } from '../hooks'
+import { InfinityNicknameModal } from '../infinity-runtime/components/InfinityNicknameModal'
 import InfiniteCanvasActionButton from './InfiniteCanvasActionButton'
 import InfiniteCanvasColorPicker from './InfiniteCanvasColorPicker'
 import InfiniteCanvasInviteModal from './InfiniteCanvasInviteModal'
 
+type PendingBoothAction = 'create' | 'openInvite' | 'submitInvite' | null
+
 export default function InfiniteCanvasBoothView() {
   const {
     isUserReady,
+    needsNicknameSetup,
     isPending,
     isInviteModalOpen,
     selectedColor,
@@ -23,7 +28,60 @@ export default function InfiniteCanvasBoothView() {
     closeInviteModal,
     joinByInviteCode,
   } = useInfiniteCanvasEntry()
-  const isActionDisabled = isPending
+  const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState<PendingBoothAction>(null)
+  const isActionDisabled = !isUserReady || isPending
+
+  const handleCreateCanvas = () => {
+    if (needsNicknameSetup) {
+      setPendingAction('create')
+      setIsNicknameModalOpen(true)
+      return
+    }
+    createCanvas()
+  }
+
+  const handleOpenInviteModal = () => {
+    if (needsNicknameSetup) {
+      setPendingAction('openInvite')
+      setIsNicknameModalOpen(true)
+      return
+    }
+    openInviteModal()
+  }
+
+  const handleJoinByInviteCode = () => {
+    if (needsNicknameSetup) {
+      setPendingAction('submitInvite')
+      setIsNicknameModalOpen(true)
+      return
+    }
+    joinByInviteCode()
+  }
+
+  const handleNicknameSuccess = () => {
+    const action = pendingAction
+    setPendingAction(null)
+
+    if (action === 'create') {
+      createCanvas()
+      return
+    }
+
+    if (action === 'openInvite') {
+      openInviteModal()
+      return
+    }
+
+    if (action === 'submitInvite') {
+      joinByInviteCode()
+    }
+  }
+
+  const handleNicknameModalChange = (open: boolean) => {
+    setIsNicknameModalOpen(open)
+    if (!open) setPendingAction(null)
+  }
 
   return (
     <>
@@ -70,13 +128,13 @@ export default function InfiniteCanvasBoothView() {
                 imageSrc="/images/infinite-canvas/create-card.png"
                 label={isPending ? '방 만드는 중' : '방 만들기'}
                 disabled={isActionDisabled}
-                onClick={createCanvas}
+                onClick={handleCreateCanvas}
               />
               <InfiniteCanvasActionButton
                 imageSrc="/images/infinite-canvas/enter-room-button.png"
                 label="입장하기"
                 disabled={isActionDisabled}
-                onClick={openInviteModal}
+                onClick={handleOpenInviteModal}
               />
             </div>
             {(isPending || (errorMessage && !isInviteModalOpen)) && (
@@ -101,8 +159,13 @@ export default function InfiniteCanvasBoothView() {
         isPending={isPending}
         errorMessage={errorMessage}
         onInviteCodeChange={setInviteCodeDraft}
-        onSubmit={joinByInviteCode}
+        onSubmit={handleJoinByInviteCode}
         onClose={closeInviteModal}
+      />
+      <InfinityNicknameModal
+        open={isNicknameModalOpen}
+        onOpenChange={handleNicknameModalChange}
+        onSuccess={handleNicknameSuccess}
       />
     </>
   )

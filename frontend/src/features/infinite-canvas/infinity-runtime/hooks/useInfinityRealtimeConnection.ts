@@ -17,7 +17,7 @@ const HEARTBEAT_INTERVAL_MS = 5000
 
 interface UseInfinityRealtimeConnectionOptions {
   enabled: boolean
-  canvasId: string | null
+  roomCode: string | null
   onEvent: (event: InfiniteCanvasRealtimeEvent) => void
 }
 
@@ -41,7 +41,7 @@ const resolveInfiniteCanvasBrokerUrl = () => {
 
 export function useInfinityRealtimeConnection({
   enabled,
-  canvasId,
+  roomCode,
   onEvent,
 }: UseInfinityRealtimeConnectionOptions) {
   const userUuid = useUserStore((state) => state.userUuid)
@@ -72,7 +72,7 @@ export function useInfinityRealtimeConnection({
     return true
   }, [])
 
-  const startPingTimer = useCallback((client: Client, activeCanvasId: string) => {
+  const startPingTimer = useCallback((client: Client, activeRoomCode: string) => {
     if (pingTimerRef.current !== null) {
       window.clearInterval(pingTimerRef.current)
     }
@@ -80,7 +80,7 @@ export function useInfinityRealtimeConnection({
     pingTimerRef.current = window.setInterval(() => {
       if (!client.connected) return
       client.publish({
-        destination: `/app/infinite-canvas/canvases/${activeCanvasId}/ping`,
+        destination: `/app/infinite-canvas/canvases/${activeRoomCode}/ping`,
         body: '{}',
       })
     }, HEARTBEAT_INTERVAL_MS)
@@ -96,7 +96,7 @@ export function useInfinityRealtimeConnection({
   }, [])
 
   useEffect(() => {
-    if (!enabled || !canvasId || !userUuid) {
+    if (!enabled || !roomCode || !userUuid) {
       clearPingTimer()
       void stompClientRef.current?.deactivate()
       stompClientRef.current = null
@@ -108,15 +108,15 @@ export function useInfinityRealtimeConnection({
     const client = new Client({
       brokerURL,
       connectHeaders: {
-        canvasId,
+        roomCode,
         'Anonymous-User-UUID': userUuid,
       },
       reconnectDelay: RECONNECT_DELAY_MS,
       onConnect: () => {
         setConnectionStatus('connected')
-        client.subscribe(`/topic/infinite-canvas/canvases/${canvasId}`, handleMessage)
-        client.subscribe(`/user/queue/infinite-canvas/canvases/${canvasId}`, handleMessage)
-        startPingTimer(client, canvasId)
+        client.subscribe(`/topic/infinite-canvas/canvases/${roomCode}`, handleMessage)
+        client.subscribe(`/user/queue/infinite-canvas/canvases/${roomCode}`, handleMessage)
+        startPingTimer(client, roomCode)
       },
       onStompError: () => {
         setConnectionStatus('rejected')
@@ -141,38 +141,38 @@ export function useInfinityRealtimeConnection({
         stompClientRef.current = null
       }
     }
-  }, [canvasId, clearPingTimer, enabled, handleMessage, startPingTimer, userUuid])
+  }, [roomCode, clearPingTimer, enabled, handleMessage, startPingTimer, userUuid])
 
   const sendOperations = useCallback(
     (payload: InfiniteCanvasOpsRequest) => {
-      if (!canvasId) return false
-      return publish(`/app/infinite-canvas/canvases/${canvasId}/ops`, payload)
+      if (!roomCode) return false
+      return publish(`/app/infinite-canvas/canvases/${roomCode}/ops`, payload)
     },
-    [canvasId, publish],
+    [roomCode, publish],
   )
 
   const sendCursor = useCallback(
     (payload: InfiniteCanvasCursorRequest) => {
-      if (!canvasId) return false
-      return publish(`/app/infinite-canvas/canvases/${canvasId}/cursor`, payload)
+      if (!roomCode) return false
+      return publish(`/app/infinite-canvas/canvases/${roomCode}/cursor`, payload)
     },
-    [canvasId, publish],
+    [roomCode, publish],
   )
 
   const acquireLock = useCallback(
     (elementId: string) => {
-      if (!canvasId) return false
-      return publish(`/app/infinite-canvas/canvases/${canvasId}/locks/acquire`, { elementId })
+      if (!roomCode) return false
+      return publish(`/app/infinite-canvas/canvases/${roomCode}/locks/acquire`, { elementId })
     },
-    [canvasId, publish],
+    [roomCode, publish],
   )
 
   const releaseLock = useCallback(
     (elementId: string) => {
-      if (!canvasId) return false
-      return publish(`/app/infinite-canvas/canvases/${canvasId}/locks/release`, { elementId })
+      if (!roomCode) return false
+      return publish(`/app/infinite-canvas/canvases/${roomCode}/locks/release`, { elementId })
     },
-    [canvasId, publish],
+    [roomCode, publish],
   )
 
   return {

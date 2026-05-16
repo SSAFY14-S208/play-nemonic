@@ -3,12 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
-import {
-  ApiError,
-  patchInfiniteCanvasParticipantMe,
-  postInfiniteCanvas,
-  postInvite,
-} from '@/shared/apis'
+import { ApiError, postInfiniteCanvas, postInvite } from '@/shared/apis'
+import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { useUserStore } from '@/shared/stores'
 
 import { INFINITE_CANVAS_COLOR_OPTIONS } from '../constants'
@@ -20,8 +16,13 @@ import {
 
 const DEFAULT_SELECTED_COLOR = INFINITE_CANVAS_COLOR_OPTIONS[4].value
 
+function hasConfiguredNickname(nickname: string | null) {
+  return Boolean(nickname?.trim()) && nickname !== DEFAULT_USER_NICKNAME
+}
+
 interface UseInfiniteCanvasEntryReturn {
   isUserReady: boolean
+  needsNicknameSetup: boolean
   isPending: boolean
   isInviteModalOpen: boolean
   selectedColor: string
@@ -48,6 +49,7 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
   const [isPending, startTransition] = useTransition()
 
   const isUserReady = userUuid !== null
+  const needsNicknameSetup = !hasConfiguredNickname(nickname)
 
   const clearError = () => setErrorMessage(null)
 
@@ -73,15 +75,15 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
       setErrorMessage('사용자 정보를 준비하는 중이에요. 잠시 후 다시 눌러주세요')
       return
     }
+    if (!hasConfiguredNickname(useUserStore.getState().nickname)) return
 
     setErrorMessage(null)
     startTransition(async () => {
       try {
-        const canvasState = await postInfiniteCanvas({
-          nickname: nickname?.trim() || null,
+        const canvas = await postInfiniteCanvas({
           color: selectedColor,
         })
-        router.push(buildInfiniteCanvasRoomPath(canvasState.canvasId))
+        router.push(buildInfiniteCanvasRoomPath(canvas.roomCode))
       } catch (caughtError) {
         const message =
           caughtError instanceof ApiError
@@ -98,6 +100,7 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
       setErrorMessage('사용자 정보를 준비하는 중이에요. 잠시 후 다시 눌러주세요')
       return
     }
+    if (!hasConfiguredNickname(useUserStore.getState().nickname)) return
 
     const inviteCode = normalizeInfiniteCanvasInviteCode(inviteCodeDraft)
     if (!inviteCode) {
@@ -115,10 +118,6 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
           return
         }
 
-        await patchInfiniteCanvasParticipantMe(invite.roomId, {
-          nickname: nickname?.trim() || null,
-          color: selectedColor,
-        })
         router.push(roomPath)
       } catch (caughtError) {
         const message =
@@ -132,6 +131,7 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
 
   return {
     isUserReady,
+    needsNicknameSetup,
     isPending,
     isInviteModalOpen,
     selectedColor,

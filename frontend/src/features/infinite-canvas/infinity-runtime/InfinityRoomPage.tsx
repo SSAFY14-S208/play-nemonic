@@ -7,8 +7,8 @@ import { InfinityStageView } from './components/InfinityStageView'
 
 export function InfinityRoomPage() {
   const router = useRouter()
-  const { canvasId } = useParams<{ canvasId: string }>()
-  const room = useInfinityCanvasRoom(canvasId ?? null)
+  const { roomCode } = useParams<{ roomCode: string }>()
+  const room = useInfinityCanvasRoom(roomCode ?? null)
 
   if (room.isHydrating) {
     return (

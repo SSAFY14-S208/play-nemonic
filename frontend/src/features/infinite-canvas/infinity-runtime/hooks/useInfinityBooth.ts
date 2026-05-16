@@ -2,12 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import {
-  ApiError,
-  patchInfiniteCanvasParticipantMe,
-  postInfiniteCanvasCanvas,
-  postInvite,
-} from '@/shared/apis'
+import { ApiError, postInfiniteCanvasCanvas, postInvite } from '@/shared/apis'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { useUserStore } from '@/shared/stores'
 import { INFINITY_COLORS } from '../constants'
@@ -44,22 +39,22 @@ export function useInfinityBooth(): UseInfinityBoothReturn {
     return currentNickname.trim()
   }
 
-  const navigateToCanvas = (canvasId: string) => {
-    router.push(`/infinite-canvas/${canvasId}`)
+  const hasConfiguredNickname = () => getConfiguredNickname() !== null
+
+  const navigateToCanvas = (roomCode: string) => {
+    router.push(`/infinite-canvas/${roomCode}`)
   }
 
   const createCanvas = () => {
-    const configuredNickname = getConfiguredNickname()
-    if (!isUserReady || isPending || !configuredNickname) return
+    if (!isUserReady || isPending || !hasConfiguredNickname()) return
 
     setError(null)
     startTransition(async () => {
       try {
         const canvas = await postInfiniteCanvasCanvas({
-          nickname: configuredNickname,
           color: selectedColor,
         })
-        navigateToCanvas(canvas.canvasId)
+        navigateToCanvas(canvas.roomCode)
       } catch (caughtError) {
         const message =
           caughtError instanceof ApiError
@@ -71,8 +66,7 @@ export function useInfinityBooth(): UseInfinityBoothReturn {
   }
 
   const joinCanvas = (rawInviteCode: string) => {
-    const configuredNickname = getConfiguredNickname()
-    if (!isUserReady || isPending || !configuredNickname) return
+    if (!isUserReady || isPending || !hasConfiguredNickname()) return
     const inviteCode = rawInviteCode.trim().toUpperCase()
 
     if (!inviteCode) {
@@ -88,10 +82,6 @@ export function useInfinityBooth(): UseInfinityBoothReturn {
           setError('무한 캔버스 초대코드가 아니에요')
           return
         }
-        await patchInfiniteCanvasParticipantMe(invite.roomId, {
-          nickname: configuredNickname,
-          color: selectedColor,
-        })
         navigateToCanvas(invite.roomId)
       } catch (caughtError) {
         const message =
