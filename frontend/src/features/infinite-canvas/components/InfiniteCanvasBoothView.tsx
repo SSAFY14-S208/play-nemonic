@@ -159,11 +159,6 @@ export default function InfiniteCanvasBoothView() {
                 {errorMessage}
               </p>
             )}
-            {!isUserReady && !isPending && !errorMessage && (
-              <p className="infinite-canvas-status-message" role="status">
-                사용자 정보를 준비하고 있어요
-              </p>
-            )}
           </div>
         </section>
       </main>
