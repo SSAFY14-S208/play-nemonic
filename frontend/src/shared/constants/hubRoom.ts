@@ -4,7 +4,7 @@ import type {
   HubPerformanceProfile,
 } from '@/shared/types'
 
-export const HUB_ROOM_MODEL_PATH = '/models/isometric-girl-room.glb?v=file1-whiteboard-kept-20260516'
+export const HUB_ROOM_MODEL_PATH = '/models/isometric-girl-room.glb?v=file1-whiteboard-named-20260517'
 export const HUB_ROOM_MODEL_INCLUDES_PRINTER = true
 
 export const DEFAULT_HUB_PERFORMANCE_MODE: HubPerformanceMode = 'balanced'

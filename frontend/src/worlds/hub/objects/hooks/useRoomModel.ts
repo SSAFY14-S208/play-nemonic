@@ -158,6 +158,7 @@ const ROOM_MATERIAL_BASELINE_KEY = 'nemonicRoomMaterialBaseline'
 const COMMUNITY_CANVAS_WHITEBOARD_MESH_NAMES = new Set([
   'CommunityCanvasWhiteboard',
   'CommunityCanvasWhiteboardOutline',
+  'CommunityCanvasWhiteboarOutline',
 ])
 
 interface RoomMaterialBaseline {
