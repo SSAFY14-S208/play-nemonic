@@ -1,5 +1,9 @@
 export { apiUnwrap } from './apiUnwrap'
 export {
+  DEFAULT_COMMUNITY_MEMO_COLOR,
+  getCommunityMemoColor,
+} from './communityMemo'
+export {
   consumeCommunityCanvasHandoffDraft,
   writeCommunityCanvasHandoffDraft,
   type CommunityCanvasHandoffDraft,

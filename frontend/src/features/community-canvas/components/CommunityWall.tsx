@@ -4,6 +4,13 @@ import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 
 import Image from 'next/image'
 import { RotateCw, X } from 'lucide-react'
 import { PostItNote } from '@/shared/components/PostItNote'
+import {
+  COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS,
+  COMMUNITY_CANVAS_MEMO_HEIGHT,
+  COMMUNITY_CANVAS_MEMO_WIDTH,
+  COMMUNITY_CANVAS_WALL_HEIGHT,
+  COMMUNITY_CANVAS_WALL_WIDTH,
+} from '@/shared/constants'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoItemResponse } from '@/shared/types'
 import type { CommunityMemoLayoutDraft, CommunityPendingMemoPlacement } from '../hooks'
@@ -31,19 +38,14 @@ interface CommunityWallProps {
   onRetry: () => void
 }
 
-const WALL_WIDTH = 1672
-const WALL_HEIGHT = 941
-const MEMO_WIDTH = 160
-const MEMO_HEIGHT = 160
+const WALL_WIDTH = COMMUNITY_CANVAS_WALL_WIDTH
+const WALL_HEIGHT = COMMUNITY_CANVAS_WALL_HEIGHT
+const MEMO_WIDTH = COMMUNITY_CANVAS_MEMO_WIDTH
+const MEMO_HEIGHT = COMMUNITY_CANVAS_MEMO_HEIGHT
 const MEMO_VISUAL_SAFE_PADDING = 24
 const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg-studio.png'
 const BOUNDARY_EPSILON = 0.5
-const ATTACHABLE_SURFACE_BOUNDS = {
-  left: -590,
-  top: -550,
-  right: 630,
-  bottom: 550,
-}
+const ATTACHABLE_SURFACE_BOUNDS = COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS
 const MEMO_PLACEMENT_ANIMATION_DURATION_MS = 720
 
 type WallPoint = {
