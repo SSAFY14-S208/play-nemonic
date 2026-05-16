@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import Image from 'next/image'
 import { KeyRound, Sparkles, X } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -23,11 +23,6 @@ interface FlipbookEntranceViewProps {
 }
 
 const FLIPBOOK_ENTRANCE_FRAME_COUNT = 12
-const DESIGN_WIDTH = 1920
-const DESIGN_HEIGHT = 1080
-const MOBILE_DESIGN_WIDTH = 412
-const MOBILE_DESIGN_HEIGHT = 917
-
 const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
   { length: FLIPBOOK_ENTRANCE_FRAME_COUNT },
   (unusedValue, frameIndex) => {
@@ -95,14 +90,14 @@ const DROP_LAYERS = [
 const FLIPBOOK_ENTRANCE_ACTIONS = [
   {
     key: 'create-room',
-    buttonClassName: 'left-[11.90%] top-[62.69%] h-[11.39%] w-[15.21%]',
-    imageCropClassName: 'h-[383.52%] w-[241.89%] -left-[17.95%] -top-[150.56%]',
+    buttonClassName: 'left-[11.90%] top-[62.69%] aspect-[635/267] w-[15.21%]',
+    imageCropClassName: 'h-[383.52%] -left-[17.95%] -top-[150.56%]',
     label: '방 만들기',
   },
   {
     key: 'enter-room',
-    buttonClassName: 'left-[28.36%] top-[62.69%] h-[11.39%] w-[15.21%]',
-    imageCropClassName: 'h-[383.52%] w-[241.89%] -left-[128.98%] -top-[150.56%]',
+    buttonClassName: 'left-[28.36%] top-[62.69%] aspect-[635/267] w-[15.21%]',
+    imageCropClassName: 'h-[383.52%] -left-[128.98%] -top-[150.56%]',
     label: '입장하기',
   },
 ] as const
@@ -179,6 +174,16 @@ export default function FlipbookEntranceView({
       className="relative min-h-[100svh] overflow-hidden bg-flipbook-room-base text-flipbook-ink"
       onWheelCapture={handleWheel}
     >
+      <Image
+        src={FLIPBOOK_SCENE_IMAGES.background}
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="pointer-events-none absolute inset-0 z-0 object-cover"
+        aria-hidden
+      />
+
       <audio ref={audioRef} src={FLIPBOOK_SOUND_PATHS.entranceBgm} preload="auto" loop aria-hidden />
 
       {isEntranceMounted && (
@@ -196,26 +201,8 @@ export default function FlipbookEntranceView({
 
       {isEntranceMounted && (
         <div
-          className="absolute left-1/2 top-1/2 hidden aspect-[16/9] -translate-x-1/2 -translate-y-1/2 overflow-hidden sm:block"
-          style={{
-            '--flipbook-entrance-stage-width': `min(100vw, calc(100svh * ${DESIGN_WIDTH} / ${DESIGN_HEIGHT}))`,
-            width: 'var(--flipbook-entrance-stage-width)',
-            height: `min(100svh, calc(100vw * ${DESIGN_HEIGHT} / ${DESIGN_WIDTH}))`,
-            backgroundColor: '#f8d38d',
-            backgroundImage: `url(${FLIPBOOK_SCENE_IMAGES.background})`,
-            backgroundPosition: 'center',
-            backgroundSize: 'cover',
-          } as CSSProperties}
+          className="absolute inset-0 z-10 hidden overflow-hidden sm:block"
         >
-          <Image
-            src={FLIPBOOK_SCENE_IMAGES.background}
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-          />
-
           <FlipbookEntranceDropScene shouldInstantCompleteIntro={shouldInstantCompleteIntro} />
 
           <FlipbookEntranceSketchbook
@@ -318,26 +305,7 @@ function FlipbookEntranceMobileScene({
   onToggleBgmMuted: () => void
 }) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center overflow-hidden sm:hidden">
-      <div
-        className="relative overflow-hidden"
-        style={{
-          aspectRatio: `${MOBILE_DESIGN_WIDTH} / ${MOBILE_DESIGN_HEIGHT}`,
-          width: `min(100vw, calc(100svh * ${MOBILE_DESIGN_WIDTH} / ${MOBILE_DESIGN_HEIGHT}))`,
-          height: `min(100svh, calc(100vw * ${MOBILE_DESIGN_HEIGHT} / ${MOBILE_DESIGN_WIDTH}))`,
-        }}
-      >
-        <Image
-          src={FLIPBOOK_SCENE_IMAGES.background}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-          style={{ objectPosition: 'left top' }}
-          aria-hidden
-        />
-
+    <div className="absolute inset-0 z-10 overflow-hidden sm:hidden">
         <div
           aria-hidden
           className="pointer-events-none absolute overflow-hidden"
@@ -382,72 +350,71 @@ function FlipbookEntranceMobileScene({
           />
         </div>
 
-        <motion.div
-          className="absolute left-1/2 top-[5.34%] z-20 w-[86.17%] -translate-x-1/2"
-          initial={false}
-          animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
-          transition={{ duration: 0.42, ease: [0.22, 0.8, 0.22, 1] }}
-        >
-          <div className="flex justify-end gap-[4.5%]">
-            <FlipbookEntranceMobileIconButton
-              imageSrc={FLIPBOOK_SCENE_IMAGES.howToPlayButton}
-              imageWidth={63}
-              imageHeight={70}
-              label="게임 설명"
-              className="h-[54px] w-[49px]"
-              onClick={onOpenHowToPlay}
-            />
-            <FlipbookEntranceMobileIconButton
-              imageSrc={
-                isBgmMuted
-                  ? FLIPBOOK_SCENE_IMAGES.soundMutedButton
-                  : FLIPBOOK_SCENE_IMAGES.soundOnButton
-              }
-              imageWidth={67}
-              imageHeight={70}
-              label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
-              pressed={isBgmMuted}
-              className="h-[54px] w-[51px]"
-              onClick={onToggleBgmMuted}
+      <motion.div
+        className="absolute inset-0 z-20"
+        initial={false}
+        animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: '1.96%' }}
+        transition={{ duration: 0.42, ease: [0.22, 0.8, 0.22, 1] }}
+      >
+        <div className="absolute right-[7.52%] top-[5.34%] flex w-[28.16%] justify-end gap-[14.16%]">
+          <FlipbookEntranceMobileIconButton
+            imageSrc={FLIPBOOK_SCENE_IMAGES.howToPlayButton}
+            imageWidth={63}
+            imageHeight={70}
+            label="게임 설명"
+            className="aspect-[49/54] w-[42.24%]"
+            onClick={onOpenHowToPlay}
+          />
+          <FlipbookEntranceMobileIconButton
+            imageSrc={
+              isBgmMuted
+                ? FLIPBOOK_SCENE_IMAGES.soundMutedButton
+                : FLIPBOOK_SCENE_IMAGES.soundOnButton
+            }
+            imageWidth={67}
+            imageHeight={70}
+            label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+            pressed={isBgmMuted}
+            className="aspect-[51/54] w-[43.97%]"
+            onClick={onToggleBgmMuted}
+          />
+        </div>
+
+        <div className="absolute left-1/2 top-[24.54%] w-[86.17%] -translate-x-1/2">
+          <div className="relative aspect-[486/238] w-full overflow-hidden">
+            <Image
+              src={FLIPBOOK_SCENE_IMAGES.titleLogoSprite}
+              alt="플립북"
+              width={1536}
+              height={1024}
+              priority
+              sizes="86vw"
+              className="absolute h-[184.45%] w-auto max-w-none -left-[17.95%] -top-[56.72%]"
             />
           </div>
+        </div>
 
-          <div className="mt-[122px] flex flex-col items-center">
-            <div className="relative aspect-[486/238] w-full overflow-hidden">
-              <Image
-                src={FLIPBOOK_SCENE_IMAGES.titleLogoSprite}
-                alt="플립북"
-                width={1536}
-                height={1024}
-                priority
-                sizes="86vw"
-                className="absolute h-[184.45%] w-[135.49%] max-w-none -left-[17.95%] -top-[56.72%]"
-              />
-            </div>
+        <div className="absolute left-1/2 top-[58.43%] flex w-[41.5%] -translate-x-1/2 flex-col items-center gap-[2.18svh]">
+          <FlipbookEntranceMobileActionButton
+            imageCropClassName="h-[383.52%] w-auto -left-[17.95%] -top-[150.56%]"
+            label={isBusy ? '처리 중' : '방 만들기'}
+            disabled={isBusy}
+            onClick={onCreateRoom}
+          />
+          <FlipbookEntranceMobileActionButton
+            imageCropClassName="h-[383.52%] w-auto -left-[128.98%] -top-[150.56%]"
+            label={isBusy ? '처리 중' : '입장하기'}
+            disabled={isBusy}
+            onClick={onOpenRoomCodeModal}
+          />
+        </div>
 
-            <div className="mt-[137px] flex w-[48.17%] flex-col items-center gap-5">
-              <FlipbookEntranceMobileActionButton
-                imageCropClassName="h-[383.52%] w-[241.89%] -left-[17.95%] -top-[150.56%]"
-                label={isBusy ? '처리 중' : '방 만들기'}
-                disabled={isBusy}
-                onClick={onCreateRoom}
-              />
-              <FlipbookEntranceMobileActionButton
-                imageCropClassName="h-[383.52%] w-[241.89%] -left-[128.98%] -top-[150.56%]"
-                label={isBusy ? '처리 중' : '입장하기'}
-                disabled={isBusy}
-                onClick={onOpenRoomCodeModal}
-              />
-            </div>
-
-            {errorMessage && (
-              <p className="caption-b mt-5 w-full rounded-full border border-flipbook-light bg-flipbook-paper/88 px-4 py-3 text-center text-flipbook-deep shadow-[0_8px_18px_var(--color-flipbook-shadow)]">
-                {errorMessage}
-              </p>
-            )}
-          </div>
-        </motion.div>
-      </div>
+        {errorMessage && (
+          <p className="caption-b absolute left-1/2 top-[76%] w-[86.17%] -translate-x-1/2 rounded-full border border-flipbook-light bg-flipbook-paper/88 px-4 py-3 text-center text-flipbook-deep shadow-[0_8px_18px_var(--color-flipbook-shadow)]">
+            {errorMessage}
+          </p>
+        )}
+      </motion.div>
     </div>
   )
 }
@@ -519,7 +486,7 @@ function FlipbookEntranceMobileActionButton({
           width={1536}
           height={1024}
           sizes="48vw"
-          className={`absolute max-w-none ${imageCropClassName}`}
+          className={`absolute w-auto max-w-none ${imageCropClassName}`}
         />
       </span>
       <span className="sr-only">{label}</span>
@@ -778,7 +745,7 @@ function FlipbookEntranceActions({
             }
       }
     >
-      <div className="absolute left-[13.49%] top-[31.76%] h-[24.81%] w-[28.49%] overflow-hidden">
+      <div className="absolute left-[13.49%] top-[31.76%] aspect-[486/238] w-[28.49%] overflow-hidden">
         <Image
           src={FLIPBOOK_SCENE_IMAGES.titleLogoSprite}
           alt="플립북"
@@ -786,7 +753,7 @@ function FlipbookEntranceActions({
           height={1024}
           priority
           sizes="30vw"
-          className="absolute h-[184.45%] w-[135.49%] max-w-none -left-[17.95%] -top-[56.72%]"
+          className="absolute h-[184.45%] w-auto max-w-none -left-[17.95%] -top-[56.72%]"
         />
       </div>
 
@@ -840,7 +807,7 @@ function FlipbookEntranceImageButton({
           width={1536}
           height={1024}
           sizes="18vw"
-          className={`absolute max-w-none ${imageCropClassName}`}
+          className={`absolute w-auto max-w-none ${imageCropClassName}`}
         />
       </span>
       <span className="sr-only">{label}</span>
