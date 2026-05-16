@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Download, Home, Loader2, Share2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 import type { FlipbookResultItemResponse } from '@/shared/types'
 import { getDisplayImageUrl } from '@/shared/utils'
@@ -14,6 +14,8 @@ import {
   type FlipbookPrintFrame,
   type FlipbookPrintParticipant,
 } from './result-print'
+
+const RESULT_ACTION_BUTTONS_IMAGE_SRC = '/images/flipbook-result/result-action-buttons.png'
 
 interface FlipbookResultViewProps {
   resultItems: FlipbookResultItemResponse[]
@@ -50,6 +52,34 @@ export default function FlipbookResultView({
     onReturnToLobby,
   })
   const isResultLoading = printParticipants.length === 0
+  const resultActionButtons = [
+    {
+      id: 'local-gallery',
+      label: '로컬 보관함 저장',
+      left: '0%',
+      width: '33.45%',
+      disabled: !resultActions.canSaveToLocal,
+      onClick: () => {
+        void resultActions.saveToLocalGallery()
+      },
+    },
+    {
+      id: 'community-post',
+      label: '커뮤니티 게시',
+      left: '33.45%',
+      width: '32.56%',
+      disabled: !resultActions.canPostCommunity,
+      onClick: resultActions.postToCommunity,
+    },
+    {
+      id: 'return-to-lobby',
+      label: '로비로 돌아가기',
+      left: '66.01%',
+      width: '33.99%',
+      disabled: canCloseRoom && isBusy,
+      onClick: resultActions.returnToLobby,
+    },
+  ]
 
   return (
     <section className="relative min-h-screen overflow-hidden bg-[#fff7ed]">
@@ -78,42 +108,33 @@ export default function FlipbookResultView({
         </div>
       )}
 
-      <div className="absolute left-4 right-4 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] flex flex-wrap justify-center gap-2 sm:left-auto sm:right-6 sm:top-6 sm:justify-end">
-        <button
-          type="button"
-          onClick={() => void resultActions.saveToLocalGallery()}
-          disabled={!resultActions.canSaveToLocal}
-          className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md disabled:opacity-45"
-        >
-          {resultActions.isSavingToLocal ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Download className="size-4" aria-hidden />
-          )}
-          로컬 보관함 저장
-        </button>
-        <button
-          type="button"
-          onClick={resultActions.postToCommunity}
-          disabled={!resultActions.canPostCommunity}
-          className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md disabled:opacity-45"
-        >
-          <Share2 className="size-4" aria-hidden />
-          커뮤니티 게시
-        </button>
-        <button
-          type="button"
-          onClick={resultActions.returnToLobby}
-          disabled={canCloseRoom && isBusy}
-          className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md disabled:opacity-45"
-        >
-          {canCloseRoom && isBusy ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Home className="size-4" aria-hidden />
-          )}
-          {canCloseRoom ? (isBusy ? '종료 중' : '방 종료') : '로비로 돌아가기'}
-        </button>
+      <div className="absolute left-1/2 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] w-[min(559px,calc(100vw-2rem))] -translate-x-1/2 sm:left-auto sm:right-6 sm:top-6 sm:translate-x-0">
+        <div className="relative aspect-[559/70] w-full">
+          <Image
+            src={RESULT_ACTION_BUTTONS_IMAGE_SRC}
+            alt=""
+            fill
+            priority
+            draggable={false}
+            sizes="(max-width: 640px) calc(100vw - 2rem), 559px"
+            className="select-none object-contain"
+            aria-hidden
+          />
+          {resultActionButtons.map((actionButton) => (
+            <button
+              key={actionButton.id}
+              type="button"
+              aria-label={actionButton.label}
+              title={actionButton.label}
+              onClick={actionButton.onClick}
+              disabled={actionButton.disabled}
+              className="absolute top-0 h-full rounded-full text-transparent transition hover:bg-white/10 active:bg-black/5 disabled:cursor-not-allowed disabled:bg-white/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#ff3f7e]"
+              style={{ left: actionButton.left, width: actionButton.width }}
+            >
+              <span className="sr-only">{actionButton.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {(errorMessage || resultActions.actionMessage) && (
