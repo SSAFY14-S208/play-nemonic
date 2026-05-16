@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import Image from 'next/image'
 
 import type { InfiniteCanvasColorOption } from '../constants'
 
@@ -17,22 +17,28 @@ export default function InfiniteCanvasColorPicker({
     <div className="infinite-canvas-color-picker" role="radiogroup" aria-label="색 고르기">
       {options.map((option) => {
         const isSelected = option.value === selectedColor
-        const swatchStyle = {
-          '--infinite-canvas-swatch-color': option.value,
-        } as CSSProperties
 
         return (
           <button
             key={option.id}
             type="button"
             className="infinite-canvas-color-swatch"
-            style={swatchStyle}
             role="radio"
             aria-checked={isSelected}
             aria-label={option.label}
             data-selected={isSelected}
             onClick={() => onSelectColor(option.value)}
-          />
+          >
+            <Image
+              src={option.assetSrc}
+              alt=""
+              aria-hidden
+              width={288}
+              height={288}
+              draggable={false}
+              className="infinite-canvas-color-swatch__image"
+            />
+          </button>
         )
       })}
     </div>
