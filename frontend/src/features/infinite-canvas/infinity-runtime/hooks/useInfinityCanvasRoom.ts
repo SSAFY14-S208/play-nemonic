@@ -12,6 +12,7 @@ import {
 } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 import type {
+  InfiniteCanvasCreateResponse,
   InfiniteCanvasCursor,
   InfiniteCanvasCursorResponse,
   InfiniteCanvasJsonObject,
@@ -26,6 +27,7 @@ import type {
   InfiniteCanvasSimpleMessageResponse,
   InfiniteCanvasStateResponse,
 } from '@/shared/types'
+import { takeInfiniteCanvasCreatedRoomSnapshot } from '../../utils'
 import { useInfinityRealtimeConnection } from './useInfinityRealtimeConnection'
 
 const INFINITE_CANVAS_FILE_CONTENT_TYPE = 'image/png'
@@ -76,22 +78,57 @@ function isStaleRevisionMessage(message: string) {
   return message.includes(STALE_REVISION_MESSAGE)
 }
 
-function createInitialRoomState(roomCode: string, userUuid: string): InfiniteCanvasStateResponse {
+function createFallbackParticipant(
+  userUuid: string,
+  nickname: string | null,
+  now: string,
+): InfiniteCanvasParticipantResponse {
+  return {
+    userUuid,
+    nickname: nickname?.trim() || '나',
+    color: '#2d3a55',
+    avatarUrl: null,
+    connected: true,
+    joinedAt: now,
+    lastConnectedAt: now,
+  }
+}
+
+function createInitialRoomState({
+  roomCode,
+  userUuid,
+  nickname,
+  snapshot,
+}: {
+  roomCode: string
+  userUuid: string
+  nickname: string | null
+  snapshot: InfiniteCanvasCreateResponse | null
+}): InfiniteCanvasStateResponse {
   const now = new Date().toISOString()
+  const participants =
+    snapshot?.participants.length
+      ? snapshot.participants
+      : [createFallbackParticipant(userUuid, nickname, now)]
+  const me =
+    participants.find((participant) => participant.userUuid === userUuid) ??
+    createFallbackParticipant(userUuid, nickname, now)
 
   return {
     roomCode,
-    status: 'ACTIVE',
-    ownerUserUuid: userUuid,
-    me: null,
-    participants: [],
+    status: snapshot?.status ?? 'ACTIVE',
+    ownerUserUuid: snapshot?.ownerUserUuid ?? userUuid,
+    me,
+    participants: participants.some((participant) => participant.userUuid === me.userUuid)
+      ? participants
+      : [me, ...participants],
     elements: [],
     operations: [],
     locks: {},
     viewport: null,
-    maxParticipants: 0,
+    maxParticipants: snapshot?.maxParticipants ?? 0,
     revision: 0,
-    createdAt: now,
+    createdAt: snapshot?.createdAt ?? now,
     updatedAt: now,
   }
 }
@@ -175,6 +212,7 @@ async function uploadInfiniteCanvasOutput({
 export function useInfinityCanvasRoom(roomCode: string | null) {
   const router = useRouter()
   const userUuid = useUserStore((state) => state.userUuid)
+  const nickname = useUserStore((state) => state.nickname)
   const [roomState, setRoomState] = useState<InfiniteCanvasStateResponse | null>(null)
   const [remoteCursors, setRemoteCursors] = useState<Record<string, InfiniteCanvasCursor>>({})
   const [isHydrating, setIsHydrating] = useState(true)
@@ -195,12 +233,17 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
 
     setIsHydrating(true)
     setErrorMessage(null)
-    const nextState = createInitialRoomState(roomCode, userUuid)
+    const nextState = createInitialRoomState({
+      roomCode,
+      userUuid,
+      nickname,
+      snapshot: takeInfiniteCanvasCreatedRoomSnapshot(roomCode),
+    })
     revisionRef.current = nextState.revision
     setRoomState(nextState)
     setIsHydrating(false)
     return nextState
-  }, [roomCode, userUuid])
+  }, [nickname, roomCode, userUuid])
 
   const applyFullState = useCallback((nextState: InfiniteCanvasStateResponse) => {
     revisionRef.current = nextState.revision

@@ -30,9 +30,13 @@ export default function InfiniteCanvasBoothView() {
   } = useInfiniteCanvasEntry()
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingBoothAction>(null)
-  const isActionDisabled = !isUserReady || isPending
+  const isActionDisabled = isPending
 
   const handleCreateCanvas = () => {
+    if (!isUserReady) {
+      createCanvas()
+      return
+    }
     if (needsNicknameSetup) {
       setPendingAction('create')
       setIsNicknameModalOpen(true)
@@ -42,6 +46,10 @@ export default function InfiniteCanvasBoothView() {
   }
 
   const handleOpenInviteModal = () => {
+    if (!isUserReady) {
+      openInviteModal()
+      return
+    }
     if (needsNicknameSetup) {
       setPendingAction('openInvite')
       setIsNicknameModalOpen(true)
@@ -51,6 +59,10 @@ export default function InfiniteCanvasBoothView() {
   }
 
   const handleJoinByInviteCode = () => {
+    if (!isUserReady) {
+      joinByInviteCode()
+      return
+    }
     if (needsNicknameSetup) {
       setPendingAction('submitInvite')
       setIsNicknameModalOpen(true)
@@ -82,6 +94,8 @@ export default function InfiniteCanvasBoothView() {
     setIsNicknameModalOpen(open)
     if (!open) setPendingAction(null)
   }
+
+  if (isPending) return <InfiniteCanvasLoadingView />
 
   return (
     <>
@@ -137,12 +151,12 @@ export default function InfiniteCanvasBoothView() {
                 onClick={handleOpenInviteModal}
               />
             </div>
-            {(isPending || (errorMessage && !isInviteModalOpen)) && (
+            {errorMessage && !isInviteModalOpen && (
               <p
                 className="infinite-canvas-status-message"
                 role={errorMessage ? 'alert' : 'status'}
               >
-                {errorMessage ?? '무한 캔버스 방을 만들고 있어요'}
+                {errorMessage}
               </p>
             )}
             {!isUserReady && !isPending && !errorMessage && (
@@ -168,5 +182,16 @@ export default function InfiniteCanvasBoothView() {
         onSuccess={handleNicknameSuccess}
       />
     </>
+  )
+}
+
+function InfiniteCanvasLoadingView() {
+  return (
+    <main className="infinite-canvas-loading-page" aria-busy="true">
+      <div className="infinite-canvas-loading-page__panel">
+        <span className="infinite-canvas-loading-page__spinner" aria-hidden />
+        <p className="infinite-canvas-loading-page__text">무한 캔버스로 이동하고 있어요</p>
+      </div>
+    </main>
   )
 }

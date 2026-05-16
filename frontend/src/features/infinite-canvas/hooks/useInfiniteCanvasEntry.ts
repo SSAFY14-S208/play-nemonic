@@ -12,6 +12,7 @@ import {
   buildInfiniteCanvasRoomPath,
   normalizeInfiniteCanvasInviteCode,
   resolveInfiniteCanvasInviteRoomPath,
+  saveInfiniteCanvasCreatedRoomSnapshot,
 } from '../utils'
 
 const DEFAULT_SELECTED_COLOR = INFINITE_CANVAS_COLOR_OPTIONS[4].value
@@ -49,7 +50,7 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
   const [isPending, startTransition] = useTransition()
 
   const isUserReady = userUuid !== null
-  const needsNicknameSetup = !hasConfiguredNickname(nickname)
+  const needsNicknameSetup = isUserReady && !hasConfiguredNickname(nickname)
 
   const clearError = () => setErrorMessage(null)
 
@@ -60,6 +61,10 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
 
   const openInviteModal = () => {
     if (isPending) return
+    if (!isUserReady) {
+      setErrorMessage('사용자 정보를 준비하는 중이에요. 잠시 후 다시 눌러주세요')
+      return
+    }
     setErrorMessage(null)
     setIsInviteModalOpen(true)
   }
@@ -83,6 +88,7 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
         const canvas = await postInfiniteCanvas({
           color: selectedColor,
         })
+        saveInfiniteCanvasCreatedRoomSnapshot(canvas)
         router.push(buildInfiniteCanvasRoomPath(canvas.roomCode))
       } catch (caughtError) {
         const message =

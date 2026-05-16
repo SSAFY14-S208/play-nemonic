@@ -6,6 +6,7 @@ import { ApiError, postInfiniteCanvasCanvas, postInvite } from '@/shared/apis'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { useUserStore } from '@/shared/stores'
 import { INFINITY_COLORS } from '../constants'
+import { saveInfiniteCanvasCreatedRoomSnapshot } from '../../utils'
 
 interface UseInfinityBoothReturn {
   isUserReady: boolean
@@ -54,6 +55,7 @@ export function useInfinityBooth(): UseInfinityBoothReturn {
         const canvas = await postInfiniteCanvasCanvas({
           color: selectedColor,
         })
+        saveInfiniteCanvasCreatedRoomSnapshot(canvas)
         navigateToCanvas(canvas.roomCode)
       } catch (caughtError) {
         const message =
