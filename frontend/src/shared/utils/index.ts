@@ -1,4 +1,5 @@
 export { apiUnwrap } from './apiUnwrap'
+export { playBrowserAudio, preloadBrowserAudio } from './browserAudio'
 export {
   consumeCommunityCanvasHandoffDraft,
   writeCommunityCanvasHandoffDraft,
