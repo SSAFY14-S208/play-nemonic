@@ -631,9 +631,16 @@ export function useFlipbook({
   const handleCompletedRounds = useCallback(
     async (targetRoomCode: string) => {
       const nextRoomState = await refreshRoom(targetRoomCode)
-      await enterResultMode(targetRoomCode, nextRoomState?.participantCount ?? participantCount)
+      if (nextRoomState?.status === 'FINALIZING' || nextRoomState?.status === 'FINISHED') {
+        await enterResultMode(targetRoomCode, nextRoomState.participantCount)
+        return
+      }
+
+      if (nextRoomState?.status === 'PLAYING') {
+        setCurrentStep('drawing', { roomCode: targetRoomCode })
+      }
     },
-    [enterResultMode, participantCount, refreshRoom],
+    [enterResultMode, refreshRoom, setCurrentStep],
   )
 
   const syncActiveRoomProgress = useCallback(
@@ -652,23 +659,12 @@ export function useFlipbook({
 
       if (nextRoomState?.status === 'PLAYING') {
         const nextRound = nextRoomState.currentRound ?? undefined
-        const submittedAssignment = isFlipbookAssignmentSubmitted(observedAssignment)
-        const isSubmittedFinalRound =
-          submittedAssignment &&
-          observedAssignment !== null &&
-          observedAssignment.currentRound >=
-            (nextRoomState.totalRounds ?? observedAssignment.totalRounds)
         const shouldFetchAssignment =
           !observedAssignment ||
           (nextRound !== undefined && observedAssignment.currentRound !== nextRound)
 
         if (shouldFetchAssignment) {
           await fetchAssignment(targetRoomCode, nextRound)
-        }
-
-        if (!shouldFetchAssignment && isSubmittedFinalRound) {
-          await enterResultMode(targetRoomCode, nextRoomState.participantCount)
-          return nextRoomState
         }
 
         setCurrentStep('drawing', { roomCode: targetRoomCode })
