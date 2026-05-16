@@ -7,6 +7,7 @@ import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOutputSaveRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCreateResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
@@ -15,7 +16,7 @@ import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 
 public interface InfiniteCanvasService {
 
-    InfiniteCanvasStateResponse createCanvas(String userUuidValue, InfiniteCanvasCreateRequest request);
+    InfiniteCanvasCreateResponse createCanvas(String userUuidValue, InfiniteCanvasCreateRequest request);
 
     InfiniteCanvasStateResponse connectCanvas(String userUuidValue, String canvasId);
 

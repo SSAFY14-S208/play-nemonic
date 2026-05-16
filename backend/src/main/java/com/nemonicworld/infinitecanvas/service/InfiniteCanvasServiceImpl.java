@@ -20,6 +20,7 @@ import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOutputSaveRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCreateResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
@@ -119,7 +120,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
 
     @Override
     @Transactional(readOnly = true)
-    public InfiniteCanvasStateResponse createCanvas(String userUuidValue, InfiniteCanvasCreateRequest request) {
+    public InfiniteCanvasCreateResponse createCanvas(String userUuidValue, InfiniteCanvasCreateRequest request) {
         AppUser ownerUser = anonymousUserResolver.resolve(userUuidValue);
         validateNicknameRegistered(ownerUser);
         String ownerUserUuid = ownerUser.getId().toString();
@@ -135,7 +136,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         infiniteCanvasRepository.save(state);
         infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(state);
 
-        return InfiniteCanvasStateResponse.from(state, ownerUserUuid);
+        return InfiniteCanvasCreateResponse.from(state);
     }
 
     @Override
