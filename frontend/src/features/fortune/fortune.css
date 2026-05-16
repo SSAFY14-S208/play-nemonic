@@ -482,7 +482,7 @@
 @keyframes fortune-draw-actions-rise {
   0% {
     opacity: 0;
-    transform: translateX(-50%) translateY(0.6rem);
+    transform: translateY(0.6rem);
     filter: blur(2.5px);
   }
   60% {
@@ -490,7 +490,7 @@
   }
   100% {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
     filter: blur(0);
   }
 }

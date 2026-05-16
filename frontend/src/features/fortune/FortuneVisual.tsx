@@ -598,8 +598,12 @@ export default function FortuneVisual({
     <div
       data-fortune-stage-root
       className={cn(
-        // Root container: combines fortune-stage-visual + fortune-2d-visual
+        // Root container: combines fortune-stage-visual + fortune-2d-visual.
+        // tarot-background을 cover로 깔아서 stage가 viewport보다 작아져 빈 공간이
+        // 생겨도 같은 배경 이미지로 자연스럽게 이어지도록 함 (검은 letterbox 방지).
         'absolute inset-0 z-[1] overflow-hidden bg-[#05010d]',
+        "bg-[url('/images/fortune/stage/tarot-background.png')] bg-no-repeat bg-cover bg-center",
+        '[filter:saturate(1.04)]',
       )}
     >
       <div
@@ -771,8 +775,8 @@ export default function FortuneVisual({
         <img
           className={cn(
             LAYER_BASE_CLASS,
-            // .fortune-2d-cube
-            'top-[67.4%] left-1/2 z-[9] w-[19.8%]',
+            // .fortune-2d-cube — tighter asset, no built-in padding
+            'top-[68%] left-1/2 z-[9] w-[13%]',
             '[transform:translate3d(-50%,-50%,0)]',
             '[filter:drop-shadow(0_0.65rem_1.1rem_rgba(13,3,27,0.3))]',
             '[transition:filter_240ms_ease,transform_240ms_ease]',

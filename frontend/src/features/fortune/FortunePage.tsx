@@ -201,8 +201,9 @@ export default function FortunePage() {
         )}
       </section>
       {shouldPrepareEntrySpotlight && <FortuneEntrySpotlightCover isLit={shouldPlayEntrySpotlight} />}
-      {step === 'birthInfo' && <FortuneBackToggle onClick={handleReturnToDialogue} />}
-      <FortuneBgmToggle isMuted={isBgmMuted} onToggle={toggleFortuneBgmMuted} />
+      {step !== 'birthInfo' && (
+        <FortuneBgmToggle isMuted={isBgmMuted} onToggle={toggleFortuneBgmMuted} />
+      )}
     </main>
   )
 
@@ -222,7 +223,15 @@ export default function FortunePage() {
     }
 
     if (step === 'birthInfo') {
-      return <FortuneBirthForm onSubmit={submitBirthInfo} />
+      return (
+        <div className="mx-auto grid w-[min(91vw,46rem)] gap-4 max-[800px]:w-[min(94vw,33.5rem)]">
+          <div className="flex w-full items-center justify-between gap-3">
+            <FortuneBackToggle onClick={handleReturnToDialogue} inline />
+            <FortuneBgmToggle isMuted={isBgmMuted} onToggle={toggleFortuneBgmMuted} inline />
+          </div>
+          <FortuneBirthForm onSubmit={submitBirthInfo} />
+        </div>
+      )
     }
 
     if (step === 'draw') {

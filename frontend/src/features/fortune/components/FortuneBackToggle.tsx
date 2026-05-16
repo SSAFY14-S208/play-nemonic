@@ -7,18 +7,17 @@ import { cn } from '@/shared/libs'
 
 interface FortuneBackToggleProps {
   onClick: MouseEventHandler<HTMLButtonElement>
+  inline?: boolean
 }
 
-const POSITION =
+const FIXED_POSITION =
   'fixed top-[calc(env(safe-area-inset-top)+clamp(1.4rem,2.8vw,2.2rem))] left-[calc(env(safe-area-inset-left)+clamp(1.4rem,2.8vw,2.2rem))] z-20'
 
 const BASE = cn(
-  POSITION,
   'inline-flex items-center justify-center gap-[0.32rem] cursor-pointer border-0',
-  'min-w-[clamp(5.6rem,9.5vw,7.4rem)] min-h-[clamp(2.6rem,4.2vw,3.1rem)]',
-  'pt-[0.4rem] pr-[1.15rem] pb-[0.45rem] pl-[0.85rem]',
+  'aspect-[500/300] h-[clamp(2.6rem,4.2vw,3.1rem)] p-0',
   "bg-transparent bg-no-repeat bg-center bg-[length:100%_100%] bg-[url('/images/fortune/form/birth-label-plaque.png')]",
-  'text-[rgba(255,244,214,0.96)] font-fortune-serif text-[clamp(0.92rem,1.7vw,1.08rem)] font-extrabold',
+  'text-[rgba(255,244,214,0.96)] font-fortune-serif text-[clamp(0.58rem,1.1vw,0.78rem)] font-extrabold',
   '[text-shadow:0_0.12rem_0.24rem_rgba(9,1,20,0.8),0_0_0.45rem_rgba(215,130,255,0.48)]',
   '[filter:drop-shadow(0_0_0.76rem_rgba(157,80,255,0.34))_drop-shadow(0_0.48rem_0.92rem_rgba(4,1,12,0.46))]',
   '[transition:filter_180ms_ease,transform_180ms_ease]',
@@ -29,10 +28,15 @@ const BASE = cn(
   'motion-reduce:transition-none',
 )
 
-export default function FortuneBackToggle({ onClick }: FortuneBackToggleProps) {
+export default function FortuneBackToggle({ onClick, inline = false }: FortuneBackToggleProps) {
   return (
-    <button type="button" aria-label="이전 화면으로 돌아가기" className={cn(BASE)} onClick={onClick}>
-      <ChevronLeft className="size-5" aria-hidden />
+    <button
+      type="button"
+      aria-label="이전 화면으로 돌아가기"
+      className={cn(BASE, !inline && FIXED_POSITION)}
+      onClick={onClick}
+    >
+      <ChevronLeft className="size-3" aria-hidden />
       <span className="relative z-1">뒤로</span>
     </button>
   )

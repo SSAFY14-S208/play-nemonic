@@ -1,6 +1,9 @@
 'use client'
 
+import { LogOut, Sparkles } from 'lucide-react'
 import { Fragment } from 'react'
+
+import { cn } from '@/shared/libs'
 
 import { useFortuneSessionStore } from '../fortuneSessionStore'
 import { useFortuneReducedMotion, useFortuneTypewriterText } from '../hooks'
@@ -13,6 +16,7 @@ import {
   FORTUNE_DIALOGUE_GLYPH_CLASS,
   FortuneDialogueCaret,
 } from './FortuneDialoguePanel'
+import FortuneDrawAction from './FortuneDrawAction'
 
 interface FortuneLimitNoticeProps {
   onShowResult: () => void
@@ -56,33 +60,81 @@ export default function FortuneLimitNotice({ onShowResult, onBackToHub }: Fortun
   }
 
   return (
-    <section className={DIALOGUE_PANEL_CLASS} aria-label="포포의 한도 안내">
+    <section
+      // DIALOGUE_PANEL_CLASS의 `grid items-end`는 기본 align-content가 stretch라
+      // 행이 늘어나서 빈 공간이 행 안에 생김. auto-rows-min + content-center로
+      // 행을 콘텐츠 크기에 맞추고 전체 콘텐츠를 패널 가운데로 모음.
+      className={cn(DIALOGUE_PANEL_CLASS, "gap-0 auto-rows-min content-center")}
+      aria-label="포포의 한도 안내"
+    >
       <p className={DIALOGUE_SPEAKER_CLASS}>포포</p>
-      <p className={DIALOGUE_COPY_CLASS} aria-label={plainText} onClick={handleAdvance}>
+      {/* 대사 — col-span-full로 그리드 2컬럼을 가로지르게 함 + 폰트 축소 */}
+      <p
+        className={cn(
+          DIALOGUE_COPY_CLASS,
+          "col-span-full text-center",
+          LIMIT_COPY_CLASS,
+        )}
+        aria-label={plainText}
+        onClick={handleAdvance}
+      >
         {renderLines(LIMIT_DIALOGUE_LINES, visibleCharacterCount)}
         {!isComplete && <FortuneDialogueCaret />}
       </p>
-      <p className="caption-r mt-1 text-fortune-muted">{nextResetLabel}</p>
-      <div className="mt-3 flex flex-wrap justify-center gap-3">
-        <button
-          type="button"
+      {/* 자정 안내 캡션 — 대사 바로 아래, 가운데 정렬 */}
+      <p className="col-span-full caption-r mt-1 text-center text-fortune-muted">
+        {nextResetLabel}
+      </p>
+      {/* 액션 버튼 두 개 — col-span-full로 그리드 풀고 flex 중앙 정렬 */}
+      <div
+        className={cn(
+          "col-span-full mt-3 flex items-center justify-center",
+          "gap-[clamp(0.6rem,1.4vw,1.8rem)]",
+        )}
+      >
+        <FortuneDrawAction
+          tone="edit"
+          className={LIMIT_ACTION_CLASS}
+          icon={<Sparkles className={LIMIT_ACTION_ICON_CLASS} aria-hidden />}
           disabled={!result}
-          className="body-l-b min-h-12 flex-1 rounded-[var(--radius-md)] bg-fortune-accent px-5 text-fortune-inverse transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:bg-fortune-disabled"
           onClick={onShowResult}
         >
           운세 확인
-        </button>
-        <button
-          type="button"
-          className="body-l-b min-h-12 flex-1 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-5 text-fortune-ink transition hover:bg-fortune-glow"
+        </FortuneDrawAction>
+        <FortuneDrawAction
+          tone="edit"
+          className={LIMIT_ACTION_CLASS}
+          icon={<LogOut className={LIMIT_ACTION_ICON_CLASS} aria-hidden />}
           onClick={onBackToHub}
         >
           종료하기
-        </button>
+        </FortuneDrawAction>
       </div>
     </section>
   )
 }
+
+// 한도 안내 패널 안에서 사용할 작은 사이즈 override.
+// 대사 폰트는 다이얼로그 패널의 기본보다 한 단계 축소 — 두 줄 + caption + 버튼이
+// 한 박스에 같이 들어가야 해서 공간 확보가 필요.
+const LIMIT_COPY_CLASS = cn(
+  "text-[clamp(0.9rem,1.5vw,1.25rem)]",
+  "max-[800px]:text-[clamp(0.78rem,3.4vw,1rem)]",
+)
+
+// 액션 버튼 사이즈 override — 기본 FortuneDrawAction(w-[clamp(9rem,30vw,22rem)])
+// 보다 작게 잡아 패널 가로 폭 안에 두 개가 여유 있게 들어오도록.
+const LIMIT_ACTION_CLASS = cn(
+  "w-[clamp(7rem,20vw,15rem)] px-[clamp(0.5rem,1.5vw,1.2rem)]",
+  "text-[clamp(0.62rem,1.2vw,0.95rem)]",
+  "max-[767px]:portrait:w-[36vw] max-[767px]:portrait:px-[0.7rem]",
+  "max-[767px]:portrait:text-[clamp(0.7rem,2.6vw,0.95rem)]",
+)
+
+const LIMIT_ACTION_ICON_CLASS = cn(
+  "w-[clamp(0.85rem,1.4vw,1.3rem)] h-[clamp(0.85rem,1.4vw,1.3rem)]",
+  "max-[767px]:portrait:w-[clamp(1rem,3.4vw,1.25rem)] max-[767px]:portrait:h-[clamp(1rem,3.4vw,1.25rem)]",
+)
 
 function getCharacterCount(lines: LimitDialogueLine[]) {
   return lines.reduce((total, line) => {
