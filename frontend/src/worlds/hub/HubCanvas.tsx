@@ -48,7 +48,7 @@ export default function HubCanvas({
         )
         gl.outputColorSpace = THREE.SRGBColorSpace
         gl.toneMapping = THREE.ACESFilmicToneMapping
-        gl.toneMappingExposure = 0.98
+        gl.toneMappingExposure = 0.96
         gl.shadowMap.enabled = performanceProfile.shadows
         gl.shadowMap.type = THREE.PCFShadowMap
       }}
