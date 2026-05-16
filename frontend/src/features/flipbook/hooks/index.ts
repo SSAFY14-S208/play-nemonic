@@ -7,6 +7,7 @@ export { useFlipbookEntranceWheelFrames } from './useFlipbookEntranceWheelFrames
 export { useFlipbookGifDownload } from './useFlipbookGifDownload'
 export { useFlipbookNickname } from './useFlipbookNickname'
 export { useFlipbookPrintReveal } from './useFlipbookPrintReveal'
+export { useResponsiveElementScale } from './useResponsiveElementScale'
 export { useFlipbookRealtimeActions } from './useFlipbookRealtimeActions'
 export { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
 export { useFlipbookRealtimeEventHandler } from './useFlipbookRealtimeEventHandler'

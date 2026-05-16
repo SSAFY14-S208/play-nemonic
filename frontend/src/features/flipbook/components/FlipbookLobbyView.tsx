@@ -113,9 +113,9 @@ export default function FlipbookLobbyView({
       />
 
       {errorMessage && (
-        <div className="fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+        <div className="fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 flex justify-center px-4">
           <p
-            className="body-b rounded-xl px-5 py-3 shadow-lg"
+            className="body-b max-w-[calc(100vw-2rem)] break-words rounded-xl px-5 py-3 shadow-lg"
             role="alert"
             style={{
               backgroundColor: '#fff0f1',
