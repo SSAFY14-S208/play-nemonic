@@ -61,7 +61,7 @@ export default function FlipbookNicknameModal({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-black/30" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-[var(--z-modal)] w-[min(420px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[16px] border border-flipbook-light bg-flipbook-paper shadow-[0_16px_32px_var(--color-flipbook-shadow)]">
+        <Dialog.Popup className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+1rem)] z-[var(--z-modal)] max-h-[calc(100dvh-2rem)] w-[min(420px,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto rounded-[16px] border border-flipbook-light bg-flipbook-paper shadow-[0_16px_32px_var(--color-flipbook-shadow)] sm:top-1/2 sm:-translate-y-1/2">
           <header className="flex items-center justify-between border-b border-flipbook-light px-5 py-4">
             <Dialog.Title className="h4-b text-flipbook-ink">닉네임 설정</Dialog.Title>
             <Dialog.Close

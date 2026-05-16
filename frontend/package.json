@@ -5,6 +5,7 @@
   "scripts": {
     "audit:room-glb": "node tools/gltf/audit_room_glb.mjs public/models/isometric-girl-room.glb",
     "patch:room-glb-materials": "node tools/gltf/patch_room_fallback_materials.mjs public/models/isometric-girl-room.glb",
+    "patch:room-glb-retired-props": "node tools/gltf/patch_room_retired_props.mjs public/models/isometric-girl-room.glb",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -14,6 +15,7 @@
     "@base-ui/react": "^1.4.1",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.0",
+    "@react-three/postprocessing": "^3.0.4",
     "@react-three/rapier": "^2.2.0",
     "@stomp/stompjs": "^7.3.0",
     "class-variance-authority": "^0.7.1",
@@ -24,6 +26,7 @@
     "manseryeok": "^1.0.1",
     "motion": "^12.38.0",
     "next": "16.2.4",
+    "postprocessing": "^6.39.1",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
