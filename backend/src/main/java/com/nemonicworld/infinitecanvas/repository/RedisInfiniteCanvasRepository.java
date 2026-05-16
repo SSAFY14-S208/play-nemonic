@@ -25,7 +25,7 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
 
     private static final Logger log = LoggerFactory.getLogger(RedisInfiniteCanvasRepository.class);
 
-    private static final String CANVAS_KEY_PREFIX = "infinite-canvas:canvas:";
+    private static final String ROOM_KEY_PREFIX = "infinite-canvas:room:";
     private static final String SERIALIZATION_ERROR_MESSAGE = "무한 캔버스 상태를 저장할 수 없습니다.";
     private static final String DESERIALIZATION_ERROR_MESSAGE = "무한 캔버스 상태를 읽을 수 없습니다.";
 
@@ -39,13 +39,13 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
 
     @Override
     public void save(InfiniteCanvasState canvasState) {
-        redisTemplate.opsForValue().set(createCanvasKey(canvasState.roomCode()), serialize(canvasState),
+        redisTemplate.opsForValue().set(createRoomKey(canvasState.roomCode()), serialize(canvasState),
             InfiniteCanvasRepository.CANVAS_STATE_TTL);
     }
 
     @Override
     public boolean saveIfUnchanged(InfiniteCanvasState expectedCanvasState, InfiniteCanvasState updatedCanvasState) {
-        String canvasKey = createCanvasKey(expectedCanvasState.roomCode());
+        String roomKey = createRoomKey(expectedCanvasState.roomCode());
 
         Boolean updated = redisTemplate.execute(new SessionCallback<>() {
 
@@ -53,8 +53,8 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
             public <K, V> Boolean execute(RedisOperations<K, V> operations) throws DataAccessException {
                 RedisOperations<String, String> stringOperations = castToStringOperations(operations);
 
-                stringOperations.watch(canvasKey);
-                String currentCanvasStateValue = stringOperations.opsForValue().get(canvasKey);
+                stringOperations.watch(roomKey);
+                String currentCanvasStateValue = stringOperations.opsForValue().get(roomKey);
 
                 if (!StringUtils.hasText(currentCanvasStateValue)) {
                     stringOperations.unwatch();
@@ -68,7 +68,7 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
                 }
 
                 stringOperations.multi();
-                stringOperations.opsForValue().set(canvasKey, serialize(updatedCanvasState),
+                stringOperations.opsForValue().set(roomKey, serialize(updatedCanvasState),
                     InfiniteCanvasRepository.CANVAS_STATE_TTL);
                 List<Object> results = stringOperations.exec();
 
@@ -81,7 +81,7 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
 
     @Override
     public Optional<InfiniteCanvasState> findByRoomCode(String roomCode) {
-        String canvasStateValue = redisTemplate.opsForValue().get(createCanvasKey(roomCode));
+        String canvasStateValue = redisTemplate.opsForValue().get(createRoomKey(roomCode));
         if (!StringUtils.hasText(canvasStateValue)) {
             return Optional.empty();
         }
@@ -94,7 +94,7 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
         long startedNanos = System.nanoTime();
         int scannedKeyCount = 0;
         List<InfiniteCanvasState> canvases = new ArrayList<>();
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(CANVAS_KEY_PREFIX + "*").count(200).build();
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(200).build();
 
         try (Cursor<String> canvasKeys = redisTemplate.scan(scanOptions)) {
             while (canvasKeys.hasNext()) {
@@ -118,7 +118,7 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
 
     @Override
     public void delete(String roomCode) {
-        redisTemplate.delete(createCanvasKey(roomCode));
+        redisTemplate.delete(createRoomKey(roomCode));
     }
 
     @SuppressWarnings("unchecked")
@@ -126,8 +126,8 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
         return (RedisOperations<String, String>) operations;
     }
 
-    private String createCanvasKey(String roomCode) {
-        return CANVAS_KEY_PREFIX + roomCode;
+    private String createRoomKey(String roomCode) {
+        return ROOM_KEY_PREFIX + roomCode;
     }
 
     private String serialize(InfiniteCanvasState canvasState) {

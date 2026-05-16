@@ -166,7 +166,7 @@ class InfiniteCanvasControllerIntegrationTest {
 
         JsonNode responseData = readData(result);
         String roomCode = responseData.path("roomCode").asText();
-        JsonNode storedCanvas = readStoredJson(canvasKey(roomCode));
+        JsonNode storedCanvas = readStoredJson(roomKey(roomCode));
         JsonNode storedInvite = readStoredJson("invite:" + INVITE_CODE);
 
         assertThat(storedCanvas.path("roomCode").asText()).isEqualTo(roomCode);
@@ -227,7 +227,7 @@ class InfiniteCanvasControllerIntegrationTest {
             .andExpect(status().isCreated()).andExpect(jsonPath("$.data.maxParticipants").value(8)).andReturn();
 
         String roomCode = readData(result).path("roomCode").asText();
-        assertThat(readStoredJson(canvasKey(roomCode)).path("maxParticipants").asInt()).isEqualTo(8);
+        assertThat(readStoredJson(roomKey(roomCode)).path("maxParticipants").asInt()).isEqualTo(8);
     }
 
     @Test
@@ -237,7 +237,7 @@ class InfiniteCanvasControllerIntegrationTest {
         InfiniteCanvasParticipant owner = participant(ownerUuid, "Owner");
         InfiniteCanvasParticipant viewer = participant(viewerUuid, "Viewer");
         InfiniteCanvasState state = activeCanvasState(6, owner, viewer);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
 
         mockMvc
             .perform(delete("/api/v1/infinite-canvas/canvases/{roomCode}/participants/me", state.roomCode())
@@ -248,7 +248,7 @@ class InfiniteCanvasControllerIntegrationTest {
             .andExpect(jsonPath("$.data.userUuid").value(viewerUuid.toString()))
             .andExpect(jsonPath("$.data.closed").value(false));
 
-        JsonNode storedParticipants = readStoredJson(canvasKey(state.roomCode())).path("participants");
+        JsonNode storedParticipants = readStoredJson(roomKey(state.roomCode())).path("participants");
         assertThat(storedParticipants).hasSize(1);
         assertThat(storedParticipants.get(0).path("userUuid").asText()).isEqualTo(ownerUuid.toString());
     }
@@ -257,7 +257,7 @@ class InfiniteCanvasControllerIntegrationTest {
     void leaveInfiniteCanvasDeletesCanvasWhenLastParticipantLeaves() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
 
         mockMvc
             .perform(delete("/api/v1/infinite-canvas/canvases/{roomCode}/participants/me", state.roomCode())
@@ -267,14 +267,14 @@ class InfiniteCanvasControllerIntegrationTest {
             .andExpect(jsonPath("$.data.userUuid").value(ownerUuid.toString()))
             .andExpect(jsonPath("$.data.closed").value(true)).andExpect(jsonPath("$.data.closedAt").isNotEmpty());
 
-        assertThat(redisValues).doesNotContainKey(canvasKey(state.roomCode()));
+        assertThat(redisValues).doesNotContainKey(roomKey(state.roomCode()));
     }
 
     @Test
     void saveInfiniteCanvasOutputCreatesArtifactGalleryAndImageUrls() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
         String imageObjectKey = "uploads/infinite-canvas/output/original.png";
         String thumbnailObjectKey = "uploads/infinite-canvas/output/thumbnail.png";
         UUID imageFileId = insertFileUpload(ownerUuid, "INFINITE_CANVAS", "UPLOADED", imageObjectKey, null);
@@ -335,7 +335,7 @@ class InfiniteCanvasControllerIntegrationTest {
     void saveInfiniteCanvasOutputRejectsWrongPurposeFile() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
         UUID imageFileId = insertFileUpload(ownerUuid, "COMMUNITY", "UPLOADED",
             "uploads/community/not-infinite-canvas.png", null);
 
@@ -355,7 +355,7 @@ class InfiniteCanvasControllerIntegrationTest {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         UUID viewerUuid = createExistingUserWithNickname("Viewer");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
         redisValues.put("invite:" + INVITE_CODE, objectMapper.writeValueAsString(new InviteMetadata(INVITE_CODE,
             "infinite_canvas", state.roomCode(), "Owner의 무한 캔버스", LocalDateTime.now().plusHours(1))));
 
@@ -373,7 +373,7 @@ class InfiniteCanvasControllerIntegrationTest {
             .andExpect(jsonPath("$.data.yourRole").value("participant"))
             .andExpect(jsonPath("$.data.alreadyJoined").value(false));
 
-        JsonNode storedParticipants = readStoredJson(canvasKey(state.roomCode())).path("participants");
+        JsonNode storedParticipants = readStoredJson(roomKey(state.roomCode())).path("participants");
         assertThat(storedParticipants).hasSize(2);
         assertThat(storedParticipants.get(1).path("userUuid").asText()).isEqualTo(viewerUuid.toString());
         assertThat(storedParticipants.get(1).path("nickname").asText()).isEqualTo("Viewer");
@@ -385,7 +385,7 @@ class InfiniteCanvasControllerIntegrationTest {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         UUID viewerUuid = createExistingUserWithDefaultNickname();
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
         redisValues.put("invite:" + INVITE_CODE, objectMapper.writeValueAsString(new InviteMetadata(INVITE_CODE,
             "infinite_canvas", state.roomCode(), "Owner의 무한 캔버스", LocalDateTime.now().plusHours(1))));
 
@@ -395,7 +395,7 @@ class InfiniteCanvasControllerIntegrationTest {
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("닉네임을 먼저 설정해주세요."));
 
-        JsonNode storedParticipants = readStoredJson(canvasKey(state.roomCode())).path("participants");
+        JsonNode storedParticipants = readStoredJson(roomKey(state.roomCode())).path("participants");
         assertThat(storedParticipants).hasSize(1);
     }
 
@@ -403,7 +403,7 @@ class InfiniteCanvasControllerIntegrationTest {
     void applyInfiniteCanvasOperationsStoresAcceptedOperationsAndElements() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
         JsonNode element = objectMapper.createObjectNode().put("id", "shape-1").put("type", "sticky-note").put("text",
             "hello");
 
@@ -411,7 +411,7 @@ class InfiniteCanvasControllerIntegrationTest {
             state.roomCode(), new InfiniteCanvasOpsRequest(0L, List.of(new InfiniteCanvasOperationRequest("local-op-1",
                 "client-op-1", InfiniteCanvasOperationType.UPSERT_ELEMENT, "shape-1", element, null))));
 
-        JsonNode storedCanvas = readStoredJson(canvasKey(state.roomCode()));
+        JsonNode storedCanvas = readStoredJson(roomKey(state.roomCode()));
         assertThat(response.roomCode()).isEqualTo(state.roomCode());
         assertThat(response.revision()).isEqualTo(1L);
         assertThat(response.elementCount()).isEqualTo(1);
@@ -427,7 +427,7 @@ class InfiniteCanvasControllerIntegrationTest {
     void applyInfiniteCanvasOperationsRejectsStaleRevision() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6, 2L);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
         JsonNode element = objectMapper.createObjectNode().put("id", "shape-2").put("type", "brush");
 
         assertThatThrownBy(() -> infiniteCanvasService.applyOperations(ownerUuid.toString(), state.roomCode(),
@@ -436,14 +436,14 @@ class InfiniteCanvasControllerIntegrationTest {
                     InfiniteCanvasOperationType.UPSERT_ELEMENT, "shape-2", element, null)))))
             .isInstanceOf(ConflictException.class).hasMessage("캔버스 revision이 최신이 아닙니다. 서버 상태를 다시 동기화해주세요.");
 
-        assertThat(readStoredJson(canvasKey(state.roomCode())).path("revision").asLong()).isEqualTo(2L);
+        assertThat(readStoredJson(roomKey(state.roomCode())).path("revision").asLong()).isEqualTo(2L);
     }
 
     @Test
     void replaceInfiniteCanvasSnapshotStoresElementsAndViewport() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
         JsonNode element = objectMapper.createObjectNode().put("id", "snapshot-note").put("type", "text").put("text",
             "snapshot");
         JsonNode viewport = objectMapper.createObjectNode().put("x", 120).put("y", -80).put("zoom", 0.75);
@@ -451,7 +451,7 @@ class InfiniteCanvasControllerIntegrationTest {
         InfiniteCanvasStateResponse response = infiniteCanvasService.replaceSnapshot(ownerUuid.toString(),
             state.roomCode(), new InfiniteCanvasSnapshotRequest(0L, List.of(element), viewport));
 
-        JsonNode storedCanvas = readStoredJson(canvasKey(state.roomCode()));
+        JsonNode storedCanvas = readStoredJson(roomKey(state.roomCode()));
         assertThat(response.revision()).isEqualTo(1L);
         assertThat(response.elements()).hasSize(1);
         assertThat(response.viewport().path("zoom").asDouble()).isEqualTo(0.75);
@@ -465,13 +465,13 @@ class InfiniteCanvasControllerIntegrationTest {
     void updateInfiniteCanvasCursorStoresCursorWithoutRevisionChange() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
 
         InfiniteCanvasCursorResponse response = infiniteCanvasService.updateCursor(ownerUuid.toString(),
             state.roomCode(),
             new InfiniteCanvasCursorRequest(15.0, -30.0, 1.5, objectMapper.createObjectNode().put("tool", "brush")));
 
-        JsonNode storedCanvas = readStoredJson(canvasKey(state.roomCode()));
+        JsonNode storedCanvas = readStoredJson(roomKey(state.roomCode()));
         assertThat(response.roomCode()).isEqualTo(state.roomCode());
         assertThat(response.cursor().userUuid()).isEqualTo(ownerUuid.toString());
         assertThat(storedCanvas.path("revision").asLong()).isZero();
@@ -484,12 +484,12 @@ class InfiniteCanvasControllerIntegrationTest {
     void acquireAndReleaseInfiniteCanvasLockStoresLockState() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.roomCode()), serialize(state));
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
 
         InfiniteCanvasLockResponse acquired = infiniteCanvasService.acquireLock(ownerUuid.toString(), state.roomCode(),
             new InfiniteCanvasLockRequest("shape-1"));
 
-        JsonNode lockedCanvas = readStoredJson(canvasKey(state.roomCode()));
+        JsonNode lockedCanvas = readStoredJson(roomKey(state.roomCode()));
         assertThat(acquired.lock()).isNotNull();
         assertThat(acquired.lock().userUuid()).isEqualTo(ownerUuid.toString());
         assertThat(lockedCanvas.path("locks").path("shape-1").path("userUuid").asText())
@@ -498,7 +498,7 @@ class InfiniteCanvasControllerIntegrationTest {
         InfiniteCanvasLockResponse released = infiniteCanvasService.releaseLock(ownerUuid.toString(), state.roomCode(),
             new InfiniteCanvasLockRequest("shape-1"));
 
-        JsonNode releasedCanvas = readStoredJson(canvasKey(state.roomCode()));
+        JsonNode releasedCanvas = readStoredJson(roomKey(state.roomCode()));
         assertThat(released.lock()).isNull();
         assertThat(releasedCanvas.path("locks").has("shape-1")).isFalse();
     }
@@ -725,8 +725,8 @@ class InfiniteCanvasControllerIntegrationTest {
         return MINIO_PUBLIC_URL + objectKey;
     }
 
-    private String canvasKey(String roomCode) {
-        return "infinite-canvas:canvas:" + roomCode;
+    private String roomKey(String roomCode) {
+        return "infinite-canvas:room:" + roomCode;
     }
 
     private RedisOperations<String, String> createRedisOperationsMock() {
