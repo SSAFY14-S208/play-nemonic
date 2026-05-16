@@ -453,29 +453,27 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         )}
       </div>
 
-      <div className="fixed left-1/2 top-4 z-20 h-[112px] w-[min(560px,calc(100vw-32px))] -translate-x-1/2">
+      <button
+        type="button"
+        onClick={handleCopyInviteCode}
+        className="fixed left-1/2 top-4 z-20 h-[136px] w-[min(340px,calc(100vw-32px))] -translate-x-1/2 transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
+        aria-label={`초대코드 ${room.inviteCode ?? '-'} 복사`}
+      >
         <Image
           src="/images/infinite-canvas/invite-code.png"
           alt=""
           aria-hidden
           fill
           priority
-          sizes="560px"
+          sizes="340px"
           className="object-contain drop-shadow-[0_14px_24px_rgba(55,82,190,0.24)]"
         />
-        <div className="absolute inset-x-[17%] inset-y-[21%] flex items-center justify-center gap-5">
-          <p className="body-b text-white drop-shadow-[0_2px_4px_rgba(38,45,126,0.36)]">
-            초대코드
-          </p>
-          <button
-            type="button"
-            onClick={handleCopyInviteCode}
-            className="body-b min-w-36 rounded-full border border-white/86 bg-white/94 px-6 py-3 text-[#25376c] shadow-[0_8px_18px_rgba(35,71,164,0.2),inset_0_1px_0_rgba(255,255,255,0.98)] transition-transform hover:-translate-y-0.5 hover:scale-105 hover:bg-white"
-          >
+        <div className="absolute inset-x-[18%] inset-y-[28%] grid place-items-center">
+          <span className="h3-b text-white drop-shadow-[0_3px_7px_rgba(33,45,126,0.46)]">
             {room.inviteCode ?? '-'}
-          </button>
+          </span>
         </div>
-      </div>
+      </button>
 
       <InfinityParticipantsPanel
         connectionStatus={room.connectionStatus}
