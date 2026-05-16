@@ -515,3 +515,13 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* Resize freeze — drop expensive filters/animations while the viewport is actively resizing.
+   useResizeFreeze toggles body.is-resizing; effects come back ~200ms after the last resize event.
+   Scope is the stage root so non-stage UI (modals, forms) keep their filters during resize. */
+body.is-resizing [data-fortune-stage-root] *,
+body.is-resizing [data-fortune-stage-root] {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  animation-play-state: paused !important;
+}

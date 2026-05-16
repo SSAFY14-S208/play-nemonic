@@ -37,14 +37,14 @@ const CURTAIN_PIECE_BASE_CLASS = cn(
 
 const CURTAIN_ACTIVE_CLASS = cn(
   'animate-fortune-2d-curtain-tap-ripple',
-  '[filter:saturate(1.055)_brightness(1.018)_drop-shadow(0_0.88rem_1.42rem_rgba(0,0,0,0.4))_drop-shadow(0_0_0.3rem_rgba(202,121,255,0.08))]',
+  '[filter:drop-shadow(0_0.88rem_1.42rem_rgba(0,0,0,0.4))]',
   '[transform:translate3d(var(--fortune-curtain-rest-x),var(--fortune-curtain-rest-y),0)_rotate(var(--fortune-curtain-rest-rotate))_skewX(0deg)_scaleX(1)_scaleY(1)]',
   '[transition-duration:220ms]',
 )
 
 const CURTAIN_SOFT_ACTIVE_CLASS = cn(
   'animate-fortune-2d-curtain-soft-tap-ripple',
-  '[filter:saturate(1.025)_brightness(1.008)_drop-shadow(0_0.86rem_1.42rem_rgba(0,0,0,0.38))_drop-shadow(0_0_0.16rem_rgba(202,121,255,0.04))]',
+  '[filter:drop-shadow(0_0.86rem_1.42rem_rgba(0,0,0,0.38))]',
   '[transform:translate3d(var(--fortune-curtain-rest-x),var(--fortune-curtain-rest-y),0)_rotate(var(--fortune-curtain-rest-rotate))_skewX(0deg)_scaleX(1)_scaleY(1)]',
   '[transition-duration:320ms]',
 )
@@ -123,7 +123,7 @@ const FORTUNE_CURTAIN_LAYERS: readonly CurtainLayerConfig[] = [
       '--fortune-curtain-soft-idle-rotate': '0deg',
       '--fortune-curtain-soft-idle-skew-x': '0deg',
       filter:
-        'saturate(1.04) brightness(0.98) drop-shadow(0 0.85rem 1.5rem rgba(0, 0, 0, 0.42))',
+        'drop-shadow(0 0.85rem 1.5rem rgba(0, 0, 0, 0.42))',
       transformOrigin: '16% 4%',
     } as CSSProperties,
   },
@@ -165,7 +165,7 @@ const FORTUNE_CURTAIN_LAYERS: readonly CurtainLayerConfig[] = [
       '--fortune-curtain-soft-idle-rotate': '0deg',
       '--fortune-curtain-soft-idle-skew-x': '0deg',
       filter:
-        'saturate(1.04) brightness(0.98) drop-shadow(0 0.85rem 1.5rem rgba(0, 0, 0, 0.42))',
+        'drop-shadow(0 0.85rem 1.5rem rgba(0, 0, 0, 0.42))',
       transformOrigin: '84% 4%',
     } as CSSProperties,
   },
@@ -207,7 +207,7 @@ const FORTUNE_CURTAIN_LAYERS: readonly CurtainLayerConfig[] = [
       '--fortune-curtain-soft-idle-rotate': '0deg',
       '--fortune-curtain-soft-idle-skew-x': '0deg',
       filter:
-        'saturate(1.05) brightness(0.98) drop-shadow(0 0.72rem 1.25rem rgba(0, 0, 0, 0.38))',
+        'drop-shadow(0 0.72rem 1.25rem rgba(0, 0, 0, 0.38))',
       transformOrigin: '86% 6%',
     } as CSSProperties,
   },
@@ -249,7 +249,7 @@ const FORTUNE_CURTAIN_LAYERS: readonly CurtainLayerConfig[] = [
       '--fortune-curtain-soft-idle-rotate': '0deg',
       '--fortune-curtain-soft-idle-skew-x': '0deg',
       filter:
-        'saturate(1.05) brightness(0.98) drop-shadow(0 0.72rem 1.25rem rgba(0, 0, 0, 0.38))',
+        'drop-shadow(0 0.72rem 1.25rem rgba(0, 0, 0, 0.38))',
       transformOrigin: '14% 6%',
     } as CSSProperties,
   },
@@ -291,7 +291,7 @@ const FORTUNE_CURTAIN_LAYERS: readonly CurtainLayerConfig[] = [
       '--fortune-curtain-soft-idle-rotate': '0deg',
       '--fortune-curtain-soft-idle-skew-x': '0deg',
       filter:
-        'saturate(1.06) brightness(1.01) drop-shadow(0 0.5rem 1rem rgba(0, 0, 0, 0.34))',
+        'drop-shadow(0 0.5rem 1rem rgba(0, 0, 0, 0.34))',
       transformOrigin: '82% 5%',
     } as CSSProperties,
   },
@@ -333,7 +333,7 @@ const FORTUNE_CURTAIN_LAYERS: readonly CurtainLayerConfig[] = [
       '--fortune-curtain-soft-idle-rotate': '0deg',
       '--fortune-curtain-soft-idle-skew-x': '0deg',
       filter:
-        'saturate(1.06) brightness(1.01) drop-shadow(0 0.5rem 1rem rgba(0, 0, 0, 0.34))',
+        'drop-shadow(0 0.5rem 1rem rgba(0, 0, 0, 0.34))',
       transformOrigin: '18% 5%',
     } as CSSProperties,
   },
@@ -596,6 +596,7 @@ export default function FortuneVisual({
 
   return (
     <div
+      data-fortune-stage-root
       className={cn(
         // Root container: combines fortune-stage-visual + fortune-2d-visual
         'absolute inset-0 z-[1] overflow-hidden bg-[#05010d]',
@@ -720,7 +721,7 @@ export default function FortuneVisual({
             LAYER_BASE_CLASS,
             // .fortune-2d-arm base
             'z-[8] w-[18.8%]',
-            '[filter:drop-shadow(0_0.8rem_1.2rem_rgba(14,3,29,0.32))_drop-shadow(0_0_0.58rem_rgba(201,126,255,0.16))]',
+            '[filter:drop-shadow(0_0.8rem_1.2rem_rgba(14,3,29,0.32))]',
             'animate-fortune-2d-arm-breathe motion-reduce:animate-none',
             '[transform-origin:62%_19%]',
             // .fortune-2d-arm-right
@@ -746,7 +747,7 @@ export default function FortuneVisual({
             LAYER_BASE_CLASS,
             // .fortune-2d-arm base
             'z-[8]',
-            '[filter:drop-shadow(0_0.8rem_1.2rem_rgba(14,3,29,0.32))_drop-shadow(0_0_0.58rem_rgba(201,126,255,0.16))]',
+            '[filter:drop-shadow(0_0.8rem_1.2rem_rgba(14,3,29,0.32))]',
             'animate-fortune-2d-arm-breathe motion-reduce:animate-none',
             '[transform-origin:39%_18%]',
             // .fortune-2d-arm-left overrides
@@ -773,7 +774,7 @@ export default function FortuneVisual({
             // .fortune-2d-cube
             'top-[67.4%] left-1/2 z-[9] w-[19.8%]',
             '[transform:translate3d(-50%,-50%,0)]',
-            '[filter:drop-shadow(0_0.65rem_1.1rem_rgba(13,3,27,0.3))_drop-shadow(0_0_0.4rem_rgba(171,86,255,0.14))]',
+            '[filter:drop-shadow(0_0.65rem_1.1rem_rgba(13,3,27,0.3))]',
             '[transition:filter_240ms_ease,transform_240ms_ease]',
             'motion-reduce:animate-none',
             '[-webkit-user-drag:none]',

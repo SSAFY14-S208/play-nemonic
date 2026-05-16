@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
+import { useResizeFreeze } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 import { writeCommunityCanvasHandoffDraft } from '@/shared/utils'
 
@@ -45,6 +46,7 @@ export default function FortunePage() {
   const [isEntrySceneReady, setIsEntrySceneReady] = useState(false)
 
   useFortuneSessionHydration()
+  useResizeFreeze()
   const {
     completePrinting,
     editBirthInfo,

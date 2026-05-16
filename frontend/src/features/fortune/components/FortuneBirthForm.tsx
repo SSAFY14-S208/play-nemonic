@@ -121,9 +121,10 @@ const SEGMENTED_CLASS = cn(
 const SELECT_FIELD_BASE_CLASS = cn(
   'relative grid min-w-0 max-w-full box-border',
   'min-h-[clamp(3.45rem,5.2vw,4.08rem)]',
-  // purple frame decoration via ::before
-  "before:content-[''] before:absolute before:pointer-events-none",
-  'before:inset-[-0.34rem_-0.48rem]',
+  // 프레임이 셀을 벗어나지 않도록 padding으로 시각 여백 확보 후 ::before는 inset:0
+  'p-[0.34rem_0.48rem] max-[800px]:p-[0.27rem_0.36rem]',
+  // purple frame decoration via ::before (셀 박스 안에 fit)
+  "before:content-[''] before:absolute before:inset-0 before:pointer-events-none",
   "before:bg-[url('/images/fortune/form/birth-select-frame.png')] before:bg-center before:bg-[length:100%_100%] before:bg-no-repeat",
   'before:[filter:drop-shadow(0_0.22rem_0.36rem_rgba(8,1,18,0.28))]',
   // yellow chevron decoration via ::after
@@ -134,7 +135,6 @@ const SELECT_FIELD_BASE_CLASS = cn(
   'after:[filter:drop-shadow(0_0_0.22rem_rgba(255,216,117,0.55))_drop-shadow(0_0_0.6rem_rgba(255,176,68,0.32))]',
   // mobile overrides
   'max-[800px]:min-h-[2.76rem]',
-  'max-[800px]:before:inset-[-0.27rem_-0.36rem]',
 )
 
 const SELECT_FIELD_LABEL_CLASS = cn(
