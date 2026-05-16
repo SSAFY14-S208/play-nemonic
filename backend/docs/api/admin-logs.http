@@ -263,3 +263,206 @@ Authorization: Bearer {{adminAccessToken}}
   },
   "fields": ["password"]
 }
+
+### Admin logs field-summary - 확장 화이트리스트 + size 50
+POST {{host}}/api/v1/admin/logs/field-summary
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "fields": ["metadata.funnel_name", "metadata.step_name", "metadata.entry_type", "path"],
+  "size": 50
+}
+
+### Admin logs histogram - groupBy 추가(metadata.funnel_name 분포)
+POST {{host}}/api/v1/admin/logs/histogram
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "groupBy": "metadata.funnel_name"
+}
+
+### Admin logs terms-with-subs - 깔때기 시작/완료 분기 카운트
+POST {{host}}/api/v1/admin/logs/terms-with-subs
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "groupBy": "metadata.funnel_name",
+  "size": 10,
+  "subFilters": [
+    { "name": "started", "query": "event_name:funnel_step_completed AND metadata.step_name:(settings OR birth_info)" },
+    { "name": "completed", "query": "event_name:funnel_goal_reached" }
+  ]
+}
+
+### Admin logs terms-with-metric - 경로별 평균 체류 시간
+POST {{host}}/api/v1/admin/logs/terms-with-metric
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "event_name:page_view_completed",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "groupBy": "path",
+  "size": 30,
+  "metrics": [
+    { "type": "avg", "field": "metadata.time_on_page_ms", "name": "avgMs" }
+  ]
+}
+
+### Admin logs composite-buckets - 첫 페이지(funnel_name + step_name)
+POST {{host}}/api/v1/admin/logs/composite-buckets
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "sources": ["metadata.funnel_name", "metadata.step_name"],
+  "size": 200,
+  "subAggs": [
+    { "type": "min", "field": "metadata.step_index", "name": "minStepIndex" }
+  ]
+}
+
+### Admin logs composite-buckets - afterKey 페이지네이션
+POST {{host}}/api/v1/admin/logs/composite-buckets
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "sources": ["metadata.funnel_name", "metadata.step_name"],
+  "size": 200,
+  "after": {
+    "metadata.funnel_name": "relay_room_creation",
+    "metadata.step_name": "settings"
+  }
+}
+
+### Admin logs filtered-metrics - 이탈 단계별 평균 대기/소요 시간
+POST {{host}}/api/v1/admin/logs/filtered-metrics
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "groups": [
+    { "name": "lobby",    "query": "event_name:room_lobby_abandoned",   "metric": { "type": "avg", "field": "metadata.wait_time_ms" } },
+    { "name": "creation", "query": "event_name:creation_abandoned",     "metric": { "type": "avg", "field": "metadata.elapsed_ms" } },
+    { "name": "result",   "query": "event_name:result_share_abandoned", "metric": { "type": "avg", "field": "metadata.time_on_result_ms" } }
+  ]
+}
+
+### Admin logs filtered-metrics - 메트릭 없이 카운트만
+POST {{host}}/api/v1/admin/logs/filtered-metrics
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "groups": [
+    { "name": "page_view",      "query": "event_name:page_view_started" },
+    { "name": "page_completed", "query": "event_name:page_view_completed" }
+  ]
+}
+
+### Admin logs distinct-count - 활성 uuid 수
+POST {{host}}/api/v1/admin/logs/distinct-count
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "field": "uuid",
+  "precisionThreshold": 3000
+}
+
+### Admin logs distinct-count - 세션 수
+POST {{host}}/api/v1/admin/logs/distinct-count
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "field": "session_id"
+}
+
+### Admin logs distinct-count - 허용되지 않은 field(400, ADMIN_LOGS_INVALID_FIELD)
+POST {{host}}/api/v1/admin/logs/distinct-count
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "field": "service"
+}

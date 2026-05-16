@@ -53,13 +53,13 @@ public class AdminLogsException extends RuntimeException {
     }
 
     public static AdminLogsException timeout(Throwable cause) {
-        return new AdminLogsException(OPENSEARCH_TIMEOUT, HttpStatus.GATEWAY_TIMEOUT,
-            "로그 검색 업스트림 응답 시간이 초과되었습니다.", cause);
+        return new AdminLogsException(OPENSEARCH_TIMEOUT, HttpStatus.GATEWAY_TIMEOUT, "로그 검색 업스트림 응답 시간이 초과되었습니다.",
+            cause);
     }
 
     public static AdminLogsException upstream(Throwable cause) {
-        return new AdminLogsException(OPENSEARCH_UPSTREAM_ERROR, HttpStatus.BAD_GATEWAY,
-            "로그 검색 업스트림에 연결할 수 없습니다.", cause);
+        return new AdminLogsException(OPENSEARCH_UPSTREAM_ERROR, HttpStatus.BAD_GATEWAY, "로그 검색 업스트림에 연결할 수 없습니다.",
+            cause);
     }
 
     public String code() {

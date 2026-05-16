@@ -57,6 +57,12 @@ class AdminLogsControllerIntegrationTest {
     private static final String ADMIN_NICKNAME = "Logs Admin";
     private static final String ADMIN_EMAIL = "logs-admin@example.com";
     private static final String SEARCH_PATH = "/api/v1/admin/logs/search";
+    private static final String HISTOGRAM_PATH = "/api/v1/admin/logs/histogram";
+    private static final String TERMS_WITH_SUBS_PATH = "/api/v1/admin/logs/terms-with-subs";
+    private static final String TERMS_WITH_METRIC_PATH = "/api/v1/admin/logs/terms-with-metric";
+    private static final String COMPOSITE_BUCKETS_PATH = "/api/v1/admin/logs/composite-buckets";
+    private static final String FILTERED_METRICS_PATH = "/api/v1/admin/logs/filtered-metrics";
+    private static final String DISTINCT_COUNT_PATH = "/api/v1/admin/logs/distinct-count";
 
     @Autowired
     private MockMvc mockMvc;
@@ -160,6 +166,271 @@ class AdminLogsControllerIntegrationTest {
             .perform(post(SEARCH_PATH).header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
                 .contentType(MediaType.APPLICATION_JSON).content(validSearchBody()))
             .andExpect(status().isGatewayTimeout()).andExpect(jsonPath("$.code").value("OPENSEARCH_TIMEOUT"));
+    }
+
+    @Test
+    void histogramWithGroupByReturnsByFieldPerBucket(CapturedOutput output) throws Exception {
+        given(openSearchClient.search(eq("biz-events-*"), any(JsonNode.class))).willReturn(objectMapper.readTree("""
+            {
+              "took": 12,
+              "hits": {"total": {"value": 234}, "hits": []},
+              "aggregations": {
+                "ts": {
+                  "buckets": [
+                    {
+                      "key_as_string": "2026-05-14T00:00:00Z",
+                      "key": 1747094400000,
+                      "doc_count": 234,
+                      "level": {"buckets": [{"key": "INFO", "doc_count": 100}]},
+                      "by_field": {
+                        "buckets": [
+                          {"key": "relay_room_creation", "doc_count": 100},
+                          {"key": "infinite_canvas_join", "doc_count": 50}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """));
+
+        mockMvc
+            .perform(post(HISTOGRAM_PATH).header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .header("X-Trace-Id", "logs-histogram-trace").contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "index": "biz-events",
+                      "query": "",
+                      "filters": [],
+                      "timeRange": {"from": "2026-05-14T00:00:00Z", "to": "2026-05-15T00:00:00Z"},
+                      "groupBy": "metadata.funnel_name"
+                    }
+                    """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.buckets[0].total").value(234))
+            .andExpect(jsonPath("$.buckets[0].byLevel.INFO").value(100))
+            .andExpect(jsonPath("$.buckets[0].byField.relay_room_creation").value(100))
+            .andExpect(jsonPath("$.buckets[0].byField.infinite_canvas_join").value(50));
+
+        JsonNode auditLog = findAuditLog(output, "admin_logs_query");
+        assertThat(auditLog.path("metadata").path("endpoint").asText()).isEqualTo("histogram");
+    }
+
+    @Test
+    void termsWithSubsReturnsBucketsSortedByTotalDesc(CapturedOutput output) throws Exception {
+        given(openSearchClient.search(eq("biz-events-*"), any(JsonNode.class))).willReturn(objectMapper.readTree("""
+            {
+              "took": 33,
+              "hits": {"total": {"value": 220}, "hits": []},
+              "aggregations": {
+                "groups": {
+                  "buckets": [
+                    {"key": "small", "doc_count": 80,
+                      "started": {"doc_count": 70}, "completed": {"doc_count": 50}},
+                    {"key": "large", "doc_count": 140,
+                      "started": {"doc_count": 130}, "completed": {"doc_count": 78}}
+                  ]
+                }
+              }
+            }
+            """));
+
+        mockMvc
+            .perform(post(TERMS_WITH_SUBS_PATH).header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .header("X-Trace-Id", "logs-terms-subs-trace").contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "index": "biz-events",
+                      "query": "",
+                      "filters": [],
+                      "timeRange": {"from": "2026-05-14T00:00:00Z", "to": "2026-05-15T00:00:00Z"},
+                      "groupBy": "metadata.funnel_name",
+                      "size": 10,
+                      "subFilters": [
+                        {"name": "started", "query": "event_name:funnel_step_completed"},
+                        {"name": "completed", "query": "event_name:funnel_goal_reached"}
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.buckets[0].value").value("large"))
+            .andExpect(jsonPath("$.buckets[0].total").value(140))
+            .andExpect(jsonPath("$.buckets[0].sub.started").value(130))
+            .andExpect(jsonPath("$.buckets[0].sub.completed").value(78))
+            .andExpect(jsonPath("$.buckets[1].value").value("small"));
+
+        JsonNode auditLog = findAuditLog(output, "admin_logs_query");
+        assertThat(auditLog.path("metadata").path("endpoint").asText()).isEqualTo("terms-with-subs");
+    }
+
+    @Test
+    void termsWithMetricReturnsBucketsSortedByFirstMetric(CapturedOutput output) throws Exception {
+        given(openSearchClient.search(eq("biz-events-*"), any(JsonNode.class))).willReturn(objectMapper.readTree("""
+            {
+              "took": 21,
+              "hits": {"total": {"value": 1200}, "hits": []},
+              "aggregations": {
+                "groups": {
+                  "buckets": [
+                    {"key": "/relay-drawing/r1", "doc_count": 600,
+                      "avgMs": {"value": 32000.0}},
+                    {"key": "/relay-drawing/r2", "doc_count": 600,
+                      "avgMs": {"value": 45120.5}}
+                  ]
+                }
+              }
+            }
+            """));
+
+        mockMvc
+            .perform(post(TERMS_WITH_METRIC_PATH).header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "index": "biz-events",
+                      "query": "",
+                      "filters": [],
+                      "timeRange": {"from": "2026-05-14T00:00:00Z", "to": "2026-05-15T00:00:00Z"},
+                      "groupBy": "path",
+                      "size": 30,
+                      "metrics": [
+                        {"type": "avg", "field": "metadata.time_on_page_ms", "name": "avgMs"}
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.buckets[0].value").value("/relay-drawing/r2"))
+            .andExpect(jsonPath("$.buckets[0].metrics.avgMs").value(45120.5));
+
+        JsonNode auditLog = findAuditLog(output, "admin_logs_query");
+        assertThat(auditLog.path("metadata").path("endpoint").asText()).isEqualTo("terms-with-metric");
+    }
+
+    @Test
+    void compositeBucketsReturnsBucketsAndAfterKey(CapturedOutput output) throws Exception {
+        given(openSearchClient.search(eq("biz-events-*"), any(JsonNode.class))).willReturn(objectMapper.readTree("""
+            {
+              "took": 47,
+              "hits": {"total": {"value": 500}, "hits": []},
+              "aggregations": {
+                "composite_buckets": {
+                  "after_key": {
+                    "metadata.funnel_name": "relay_room_creation",
+                    "metadata.step_name": "review"
+                  },
+                  "buckets": [
+                    {
+                      "key": {"metadata.funnel_name": "relay_room_creation", "metadata.step_name": "settings"},
+                      "doc_count": 142,
+                      "minStepIndex": {"value": 0.0}
+                    }
+                  ]
+                }
+              }
+            }
+            """));
+
+        mockMvc
+            .perform(post(COMPOSITE_BUCKETS_PATH).header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "index": "biz-events",
+                      "query": "",
+                      "filters": [],
+                      "timeRange": {"from": "2026-05-14T00:00:00Z", "to": "2026-05-15T00:00:00Z"},
+                      "sources": ["metadata.funnel_name", "metadata.step_name"],
+                      "size": 200,
+                      "subAggs": [
+                        {"type": "min", "field": "metadata.step_index", "name": "minStepIndex"}
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.buckets[0].keys['metadata.funnel_name']").value("relay_room_creation"))
+            .andExpect(jsonPath("$.buckets[0].count").value(142))
+            .andExpect(jsonPath("$.buckets[0].sub.minStepIndex").value(0.0))
+            .andExpect(jsonPath("$.afterKey['metadata.step_name']").value("review"));
+
+        JsonNode auditLog = findAuditLog(output, "admin_logs_query");
+        assertThat(auditLog.path("metadata").path("endpoint").asText()).isEqualTo("composite-buckets");
+    }
+
+    @Test
+    void filteredMetricsReturnsCountAndOptionalMetricPerGroup(CapturedOutput output) throws Exception {
+        given(openSearchClient.search(eq("biz-events-*"), any(JsonNode.class))).willReturn(objectMapper.readTree("""
+            {
+              "took": 19,
+              "hits": {"total": {"value": 288}, "hits": []},
+              "aggregations": {
+                "lobby": {"doc_count": 142, "metric": {"value": 18230.5}},
+                "creation": {"doc_count": 90, "metric": {"value": 41200.0}},
+                "noMetric": {"doc_count": 56}
+              }
+            }
+            """));
+
+        mockMvc
+            .perform(post(FILTERED_METRICS_PATH).header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "index": "biz-events",
+                      "query": "",
+                      "filters": [],
+                      "timeRange": {"from": "2026-05-14T00:00:00Z", "to": "2026-05-15T00:00:00Z"},
+                      "groups": [
+                        {"name": "lobby", "query": "event_name:room_lobby_abandoned",
+                          "metric": {"type": "avg", "field": "metadata.wait_time_ms"}},
+                        {"name": "creation", "query": "event_name:creation_abandoned",
+                          "metric": {"type": "avg", "field": "metadata.elapsed_ms"}},
+                        {"name": "noMetric", "query": "event_name:result_share_abandoned"}
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.groups.lobby.count").value(142))
+            .andExpect(jsonPath("$.groups.lobby.metric").value(18230.5))
+            .andExpect(jsonPath("$.groups.creation.metric").value(41200.0))
+            .andExpect(jsonPath("$.groups.noMetric.count").value(56))
+            .andExpect(jsonPath("$.groups.noMetric.metric").doesNotExist());
+
+        JsonNode auditLog = findAuditLog(output, "admin_logs_query");
+        assertThat(auditLog.path("metadata").path("endpoint").asText()).isEqualTo("filtered-metrics");
+    }
+
+    @Test
+    void distinctCountReturnsCardinalityValue(CapturedOutput output) throws Exception {
+        given(openSearchClient.search(eq("biz-events-*"), any(JsonNode.class))).willReturn(objectMapper.readTree("""
+            {
+              "took": 8,
+              "hits": {"total": {"value": 9999}, "hits": []},
+              "aggregations": {"distinct": {"value": 1247}}
+            }
+            """));
+
+        mockMvc.perform(post(DISTINCT_COUNT_PATH).header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+            .contentType(MediaType.APPLICATION_JSON).content("""
+                {
+                  "index": "biz-events",
+                  "query": "",
+                  "filters": [],
+                  "timeRange": {"from": "2026-05-14T00:00:00Z", "to": "2026-05-15T00:00:00Z"},
+                  "field": "uuid",
+                  "precisionThreshold": 3000
+                }
+                """)).andExpect(status().isOk()).andExpect(jsonPath("$.value").value(1247));
+
+        JsonNode auditLog = findAuditLog(output, "admin_logs_query");
+        assertThat(auditLog.path("metadata").path("endpoint").asText()).isEqualTo("distinct-count");
+    }
+
+    @Test
+    void distinctCountRejectsFieldOutsideWhitelist() throws Exception {
+        mockMvc
+            .perform(post(DISTINCT_COUNT_PATH).header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "index": "biz-events",
+                      "query": "",
+                      "filters": [],
+                      "timeRange": {"from": "2026-05-14T00:00:00Z", "to": "2026-05-15T00:00:00Z"},
+                      "field": "service"
+                    }
+                    """))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("ADMIN_LOGS_INVALID_FIELD"));
     }
 
     @Test
