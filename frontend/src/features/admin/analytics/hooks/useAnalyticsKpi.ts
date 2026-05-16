@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { postAdminLogsSearch } from '@/shared/apis'
+import { postAdminLogsDistinctCount, postAdminLogsSearch } from '@/shared/apis'
 import type { AdminLogsFilter, AdminLogsTimeRange } from '@/shared/types'
 
 import type {
@@ -138,15 +138,32 @@ export function useI11Kpi(args: KpiFetcherArgs): AnalyticsKpiState<I11KpiData> {
         setState((previous) => ({ ...previous, isLoading: true, errorMessage: null }))
       }
       try {
-        const [visitors, completedVisitors] = await Promise.all([
-          fetchCount(composeQuery([serviceQuery]), timeRange, serviceFilters),
-          fetchCount(
-            composeQuery([serviceQuery, 'event_name:funnel_goal_reached']),
+        // BE 확장(distinct-count) 머지 이후: cardinality(uuid)로 정확값 사용.
+        // visitors = 기간 내 distinct uuid, completedVisitors = funnel_goal_reached
+        // 이벤트를 발생시킨 distinct uuid.
+        const baseQuery = composeQuery([serviceQuery]) || undefined
+        const completedQuery =
+          composeQuery([serviceQuery, 'event_name:funnel_goal_reached']) || undefined
+        const filters = serviceFilters.length > 0 ? serviceFilters : undefined
+        const [visitorsResponse, completedResponse] = await Promise.all([
+          postAdminLogsDistinctCount({
+            index: 'biz-events',
+            query: baseQuery,
+            filters,
             timeRange,
-            serviceFilters,
-          ),
+            field: 'uuid',
+          }),
+          postAdminLogsDistinctCount({
+            index: 'biz-events',
+            query: completedQuery,
+            filters,
+            timeRange,
+            field: 'uuid',
+          }),
         ])
         if (cancelled) return
+        const visitors = visitorsResponse.value
+        const completedVisitors = completedResponse.value
         const completionRate = visitors > 0 ? (completedVisitors / visitors) * 100 : 0
         setState({
           data: { visitors, completedVisitors, completionRate },
@@ -183,9 +200,11 @@ export function useI12Kpi(args: KpiFetcherArgs): AnalyticsKpiState<I12KpiData> {
   useEffect(() => {
     let cancelled = false
 
-    // 결과 화면 path glob — OSD I12와 동일 Lucene 패턴.
-    // path:*\\/result* 는 ky/JSON 직렬화 시 path:*\/result*로 전달됨.
-    const RESULT_PATH_QUERY = String.raw`(path:*\/result* OR path:\/share\/* OR path:\/fortune*)`
+    // 결과 화면 path glob. 백엔드 LogsQueryBuilder는 `\` 포함 시 400 거부하므로
+    // OSD 원본의 `\/` 이스케이프 대신 wildcard substring 매칭으로 우회.
+    // result/share/fortune 키워드는 결과 도달 화면 path에만 등장하는 substring이라
+    // 의도치 않은 over-match는 무시 가능 (admin 라우트는 별도 filter로 제외됨).
+    const RESULT_PATH_QUERY = '(path:*result* OR path:*share* OR path:*fortune*)'
     const baseQuery = composeQuery([
       serviceQuery,
       'event_name:page_leave',
