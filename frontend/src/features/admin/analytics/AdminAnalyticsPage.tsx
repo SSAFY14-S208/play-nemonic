@@ -1,71 +1,75 @@
 'use client'
 
-import { useState } from 'react'
-import { ExternalLink } from 'lucide-react'
+import { useMemo } from 'react'
 
-import { runtime } from '@/shared/config'
-import { cn } from '@/shared/libs'
+import {
+  AnalyticsSection,
+  MetricsFilterBar,
+  RowContentActivity,
+  RowHostResources,
+  RowRequestResponse,
+  RowServiceStatus,
+  RowUserActivity,
+} from './components'
+import { ROW_META } from './constants'
+import {
+  useMetricsAutoRefresh,
+  useMetricsFilters,
+  type MetricsVizArgs,
+} from './hooks'
 
-type IframeStatus = 'loading' | 'loaded' | 'error'
-
-// 특정 대시보드 직접 진입 + kiosk 모드 (상단 nav·사이드바 제거)
-const EMBED_URL = `${runtime.grafanaUrl}d/nemonic-overview?kiosk`
-// 새 탭에서 열 때는 kiosk 없이 전체 UI 제공
-const NEW_TAB_URL = `${runtime.grafanaUrl}d/nemonic-overview`
+// 백오피스 통계 및 분석 페이지 — Grafana iframe 대체본.
+//
+// 23 panel을 5 row 섹션으로 묶어 직접 렌더. 데이터 소스 hybrid:
+//   - `/admin/metrics/*` (Prometheus 프록시): 서비스 up, HTTP, host 리소스, WS gauge
+//   - `/admin/logs/*` (OSD): 활성 uuid/session, funnel/entry timeline, top event
+// 15초 주기 자동 갱신, 페이지 가시성 hidden 시 호출 스킵.
 
 export default function AdminAnalyticsPage() {
-  const [iframeStatus, setIframeStatus] = useState<IframeStatus>('loading')
+  const filters = useMetricsFilters()
+  useMetricsAutoRefresh(filters.state.autoRefresh, filters.refresh)
+
+  const args = useMemo<MetricsVizArgs>(
+    () => ({
+      timeRange: filters.timeRange,
+      preset: filters.state.preset,
+      refreshNonce: filters.state.refreshNonce,
+    }),
+    [filters.timeRange, filters.state.preset, filters.state.refreshNonce],
+  )
+
+  const renderRow = (rowKey: (typeof ROW_META)[number]['key']) => {
+    switch (rowKey) {
+      case 'service-status':
+        return <RowServiceStatus args={args} />
+      case 'request-response':
+        return <RowRequestResponse args={args} onRetry={filters.refresh} />
+      case 'user-activity':
+        return <RowUserActivity args={args} onRetry={filters.refresh} />
+      case 'content-activity':
+        return <RowContentActivity args={args} onRetry={filters.refresh} />
+      case 'host-resources':
+        return <RowHostResources args={args} onRetry={filters.refresh} />
+      default:
+        return null
+    }
+  }
 
   return (
-    // -mx-8 -my-6: 부모 컨테이너(px-8 py-6) 패딩 상쇄
-    // h-[calc(100%+3rem)]: py-6(1.5rem) × 2 = 3rem 보정
     <div className="-mx-8 -my-6 flex h-[calc(100%+3rem)] flex-col">
-      <div className="flex shrink-0 items-center justify-between border-b border-border-default px-6 py-3">
-        <p className="caption-r text-fg-secondary">
-          화면이 표시되지 않으면 새 탭에서 먼저 열어 인증해 주세요.
-        </p>
-        <a
-          href={NEW_TAB_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="caption-b inline-flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default px-3 py-1.5 text-fg-primary transition-colors hover:bg-surface-subtle"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          새 탭에서 열기
-        </a>
-      </div>
-
-      <div className="relative flex-1">
-        {iframeStatus !== 'loaded' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-surface-default">
-            {iframeStatus === 'loading' && (
-              <p className="body-r text-fg-secondary">대시보드를 불러오는 중…</p>
-            )}
-            {iframeStatus === 'error' && (
-              <>
-                <p className="body-r text-fg-secondary">
-                  대시보드를 불러오지 못했습니다.
-                </p>
-                <a
-                  href={NEW_TAB_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="body-b inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-primary-1 px-4 py-2 text-fg-inverse transition-opacity hover:opacity-90"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  새 탭에서 열기
-                </a>
-              </>
-            )}
-          </div>
-        )}
-        <iframe
-          src={EMBED_URL}
-          title="Grafana 대시보드"
-          className={cn('h-full w-full border-0', iframeStatus !== 'loaded' && 'invisible')}
-          onLoad={() => setIframeStatus('loaded')}
-          onError={() => setIframeStatus('error')}
-        />
+      <MetricsFilterBar
+        state={filters.state}
+        onPresetChange={filters.setPreset}
+        onCustomRangeChange={filters.setCustomRange}
+        onAutoRefreshChange={filters.setAutoRefresh}
+        onRefresh={filters.refresh}
+      />
+      <div className="flex flex-1 flex-col gap-8 overflow-y-auto bg-surface-subtle px-6 py-6">
+        {ROW_META.map((row) => (
+          <AnalyticsSection key={row.key} title={row.title}>
+            {renderRow(row.key)}
+          </AnalyticsSection>
+        ))}
       </div>
     </div>
   )
