@@ -78,7 +78,7 @@ export function HowToPlayModal({
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             />
           }
-          className="fixed left-1/2 top-1/2 z-[var(--z-modal)] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[var(--radius-xl)] bg-surface-default shadow-lg"
+          className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+1rem)] z-[var(--z-modal)] max-h-[calc(100dvh-2rem)] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto rounded-[var(--radius-xl)] bg-surface-default shadow-lg sm:top-1/2 sm:-translate-y-1/2"
         >
           <header className="flex items-center justify-between border-b border-border-default px-5 py-4">
             <Dialog.Title className="h4-b text-fg-primary">{title}</Dialog.Title>
