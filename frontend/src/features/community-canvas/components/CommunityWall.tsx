@@ -369,6 +369,22 @@ export function CommunityWall({
   }, [onSaveEditingLayout])
 
   useEffect(() => {
+    const visibleArea = visibleAreaRef.current
+    if (!visibleArea || !isWallManipulating) return
+
+    const preventNativeTouchScroll = (event: TouchEvent) => {
+      if (event.cancelable) {
+        event.preventDefault()
+      }
+    }
+
+    visibleArea.addEventListener('touchmove', preventNativeTouchScroll, { passive: false })
+    return () => {
+      visibleArea.removeEventListener('touchmove', preventNativeTouchScroll)
+    }
+  }, [isWallManipulating])
+
+  useEffect(() => {
     const handleMouseUp = () => {
       const currentInteraction = interactionRef.current
       if (!currentInteraction) return
@@ -621,7 +637,11 @@ export function CommunityWall({
     }
   }
 
-  const handleWallMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+  const handleWallPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (isWallManipulating && event.cancelable) {
+      event.preventDefault()
+    }
+
     const point = getWallPoint(event.clientX, event.clientY)
     if (!point) return
 
@@ -806,6 +826,7 @@ export function CommunityWall({
       className={cn(
         'absolute inset-0 z-0 overflow-auto overscroll-contain bg-surface-default [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         !isWallManipulating && 'cursor-grab active:cursor-grabbing',
+        isWallManipulating && 'touch-none',
       )}
     >
       <div
@@ -818,7 +839,7 @@ export function CommunityWall({
       <div
         ref={wallRef}
         role="presentation"
-        onMouseMove={handleWallMouseMove}
+        onPointerMove={handleWallPointerMove}
         onClick={handleWallClick}
         className={cn(
           'absolute overflow-visible rounded-[0.45rem] bg-surface-default shadow-[0_24px_60px_rgb(53_45_32_/_24%)]',
@@ -1079,7 +1100,7 @@ function MemoSurface({
       }}
       aria-invalid={!isPlacementInsideVisibleArea}
       className={cn(
-        'group absolute h-[160px] w-[160px]',
+        'group absolute h-[160px] w-[160px] touch-none select-none',
         onBeginMove && !disabled && 'cursor-grab active:cursor-grabbing',
         (disabled || !isPlacementInsideVisibleArea) && 'opacity-60',
       )}
@@ -1122,7 +1143,7 @@ function MemoSurface({
         onMouseDown={onBeginRotate}
         onClick={(event) => event.stopPropagation()}
         disabled={disabled}
-        className="pointer-events-auto absolute left-1/2 top-0 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border-default bg-white text-fg-secondary shadow-[0_8px_16px_rgb(71_68_112_/_18%)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="pointer-events-auto absolute left-1/2 top-0 grid size-8 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-full border border-border-default bg-white text-fg-secondary shadow-[0_8px_16px_rgb(71_68_112_/_18%)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <RotateCw className="size-4" />
       </button>
