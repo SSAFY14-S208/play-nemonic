@@ -158,6 +158,12 @@ Last updated: 2026-05-16
   admin JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`,
   rejects already CLOSED rooms with 409, syncs invite metadata, emits
   `ROOM_CLOSED`, and leaves MinIO, artifact, gallery, and DB rows untouched.
+- Backoffice admins can now query OpenSearch logs through
+  `POST /api/v1/admin/logs/search`, `/histogram`, and `/field-summary`.
+  The backend maps whitelisted logical indexes to OpenSearch index patterns,
+  rejects unsafe query/body/field/time-range inputs, calls OpenSearch through
+  WebClient, returns log-search DTOs directly, and emits `admin_logs_query`
+  stdout audit events with `service=backoffice-api` and `metadata.actor_id`.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.

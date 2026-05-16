@@ -1,0 +1,265 @@
+@host = http://localhost:8080
+@adminAccessToken = replace-with-admin-access-token
+
+### Admin logs search - 기본 검색 (biz-events, level=ERROR)
+POST {{host}}/api/v1/admin/logs/search
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "level:ERROR AND service:api-server",
+  "filters": [
+    { "field": "service", "value": "api-server", "negate": false }
+  ],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "size": 50
+}
+
+### Admin logs search - 필터 없이 전체 시간 범위 조회
+POST {{host}}/api/v1/admin/logs/search
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "all",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "size": 20
+}
+
+### Admin logs search - 다중 필터 + negate 사용
+POST {{host}}/api/v1/admin/logs/search
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "error-logs",
+  "query": "level:(ERROR OR WARN)",
+  "filters": [
+    { "field": "service", "value": "api-server", "negate": false },
+    { "field": "event_name", "value": "health_check", "negate": true }
+  ],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "size": 100
+}
+
+### Admin logs search - 트레이스 ID 단건 추적
+POST {{host}}/api/v1/admin/logs/search
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "all",
+  "query": "",
+  "filters": [
+    { "field": "trace_id", "value": "00-1a2b3c4d5e6f7890abcdef0123456789-1234567890abcdef-01", "negate": false }
+  ],
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "size": 200
+}
+
+### Admin logs search - searchAfter 페이지네이션 (2페이지)
+POST {{host}}/api/v1/admin/logs/search
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "level:ERROR",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "size": 50,
+  "searchAfter": ["2026-05-14T23:59:59Z", "doc-50"]
+}
+
+### Admin logs histogram - 1시간 구간(자동 30s 버킷)
+POST {{host}}/api/v1/admin/logs/histogram
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  }
+}
+
+### Admin logs histogram - 24시간 구간(자동 5m 버킷)
+POST {{host}}/api/v1/admin/logs/histogram
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "error-logs",
+  "query": "level:ERROR",
+  "filters": [
+    { "field": "service", "value": "api-server", "negate": false }
+  ],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  }
+}
+
+### Admin logs histogram - 7일 구간(자동 1h 버킷)
+POST {{host}}/api/v1/admin/logs/histogram
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "all",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-08T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  }
+}
+
+### Admin logs field-summary - 단일 필드(service)
+POST {{host}}/api/v1/admin/logs/field-summary
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "fields": ["service"]
+}
+
+### Admin logs field-summary - 다중 필드(service, level, event_name)
+POST {{host}}/api/v1/admin/logs/field-summary
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "all",
+  "query": "level:ERROR",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "fields": ["service", "level", "event_name", "error.type"]
+}
+
+### Admin logs field-summary - room_id, trace_id 집계
+POST {{host}}/api/v1/admin/logs/field-summary
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "event_name:relay_*",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "fields": ["room_id", "trace_id"]
+}
+
+### Admin logs search - 인증 누락(401, ADMIN_LOGS_UNAUTHORIZED)
+POST {{host}}/api/v1/admin/logs/search
+Content-Type: application/json
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "size": 10
+}
+
+### Admin logs search - 허용되지 않은 index(400, ADMIN_LOGS_INVALID_INDEX)
+POST {{host}}/api/v1/admin/logs/search
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "unknown-logs",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "size": 10
+}
+
+### Admin logs search - 금지된 DSL 키(400, ADMIN_LOGS_INVALID_QUERY)
+POST {{host}}/api/v1/admin/logs/search
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "script": { "source": "ctx._source.level='ERROR'" },
+  "size": 10
+}
+
+### Admin logs search - 시간 범위 30일 초과(400, ADMIN_LOGS_INVALID_TIME_RANGE)
+POST {{host}}/api/v1/admin/logs/search
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-04-01T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "size": 10
+}
+
+### Admin logs field-summary - 허용되지 않은 field(400, ADMIN_LOGS_INVALID_FIELD)
+POST {{host}}/api/v1/admin/logs/field-summary
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "fields": ["password"]
+}
