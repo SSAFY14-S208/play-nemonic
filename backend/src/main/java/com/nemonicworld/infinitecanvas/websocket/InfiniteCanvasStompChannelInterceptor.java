@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class InfiniteCanvasStompChannelInterceptor implements ChannelInterceptor {
 
-    private static final String CANVAS_ID_CONNECT_HEADER = "canvasId";
+    private static final String ROOM_CODE_CONNECT_HEADER = "roomCode";
     private static final String CONNECTION_REJECTED_MESSAGE = "무한 캔버스 웹소켓 연결을 허용할 수 없습니다.";
 
     private final InfiniteCanvasService infiniteCanvasService;
@@ -46,14 +46,14 @@ public class InfiniteCanvasStompChannelInterceptor implements ChannelInterceptor
         }
 
         String sessionId = accessor.getSessionId();
-        String canvasId = accessor.getFirstNativeHeader(CANVAS_ID_CONNECT_HEADER);
+        String roomCode = accessor.getFirstNativeHeader(ROOM_CODE_CONNECT_HEADER);
         String userUuid = accessor.getFirstNativeHeader(AnonymousUserHeaders.ANONYMOUS_USER_UUID);
 
         try {
-            InfiniteCanvasStateResponse response = infiniteCanvasService.connectCanvas(userUuid, canvasId);
-            configureSession(accessor, sessionId, response.canvasId(), userUuid);
+            InfiniteCanvasStateResponse response = infiniteCanvasService.connectCanvas(userUuid, roomCode);
+            configureSession(accessor, sessionId, response.roomCode(), userUuid);
             Optional<ActiveWebSocketSession> replacedSession = webSocketSessionRegistry.register(
-                WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS, response.canvasId(), userUuid, sessionId);
+                WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS, response.roomCode(), userUuid, sessionId);
             InfiniteCanvasEventPublisher publisher = infiniteCanvasEventPublisherProvider.getObject();
 
             replacedSession.ifPresent(session -> closeDuplicateSession(publisher, session));
@@ -66,11 +66,11 @@ public class InfiniteCanvasStompChannelInterceptor implements ChannelInterceptor
         }
     }
 
-    private void configureSession(StompHeaderAccessor accessor, String sessionId, String canvasId, String userUuid) {
+    private void configureSession(StompHeaderAccessor accessor, String sessionId, String roomCode, String userUuid) {
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
 
         if (sessionAttributes != null) {
-            sessionAttributes.put(WebSocketSessionAttributes.CONNECTION_KEY, canvasId);
+            sessionAttributes.put(WebSocketSessionAttributes.CONNECTION_KEY, roomCode);
             sessionAttributes.put(WebSocketSessionAttributes.USER_UUID, userUuid);
         }
 

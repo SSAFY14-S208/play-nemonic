@@ -1,5 +1,6 @@
 package com.nemonicworld.invite.service;
 
+import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
@@ -23,6 +24,7 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
     private static final String ROLE_PARTICIPANT = "participant";
     private static final String CANVAS_CLOSED_MESSAGE = "이미 종료된 캔버스입니다.";
     private static final String CANVAS_FULL_MESSAGE = "정원이 가득 찬 캔버스입니다.";
+    private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String CANVAS_UPDATE_CONFLICT_MESSAGE = "동시 입장 요청이 많아 캔버스 입장 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
     private static final String DEFAULT_CANVAS_NAME_SUFFIX = "의 무한 캔버스";
     private static final int CANVAS_UPDATE_MAX_RETRIES = 8;
@@ -48,7 +50,7 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
         String userUuid = user.getId().toString();
 
         for (int attempt = 0; attempt < CANVAS_UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = infiniteCanvasRepository.findByCanvasId(invite.roomId())
+            InfiniteCanvasState state = infiniteCanvasRepository.findByRoomCode(invite.roomId())
                 .orElseThrow(() -> new ConflictException(CANVAS_CLOSED_MESSAGE));
             if (!state.isActive()) {
                 throw new ConflictException(CANVAS_CLOSED_MESSAGE);
@@ -63,6 +65,7 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
             }
 
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            validateNicknameRegistered(user);
             List<InfiniteCanvasParticipant> participants = new ArrayList<>(state.participants());
             participants.add(createParticipant(user, now));
             InfiniteCanvasState updatedState = copyState(state, participants, now);
@@ -84,7 +87,7 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
             : hostNickname + DEFAULT_CANVAS_NAME_SUFFIX;
         String role = state.ownerUserUuid().equals(userUuid) ? ROLE_HOST : ROLE_PARTICIPANT;
 
-        return new InviteJoinResponse(infiniteCanvasBoothType(), state.canvasId(), roomName, hostNickname,
+        return new InviteJoinResponse(infiniteCanvasBoothType(), state.roomCode(), roomName, hostNickname,
             state.participantCount(), state.maxParticipants(), role, alreadyJoined);
     }
 
@@ -94,11 +97,15 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
 
     private InfiniteCanvasParticipant createParticipant(AppUser user, LocalDateTime now) {
         String userUuid = user.getId().toString();
-        String fallbackNickname = "참여자-" + userUuid.replace("-", "").substring(0, 6);
-        String nickname = StringUtils.hasText(user.getNickname())
-            && !AppUser.ANONYMOUS_NICKNAME.equals(user.getNickname()) ? user.getNickname() : fallbackNickname;
 
-        return new InfiniteCanvasParticipant(userUuid, nickname, defaultColor(userUuid), null, false, now, null, now);
+        return new InfiniteCanvasParticipant(userUuid, user.getNickname(), defaultColor(userUuid), null, false, now,
+            null, now);
+    }
+
+    private void validateNicknameRegistered(AppUser appUser) {
+        if (!StringUtils.hasText(appUser.getNickname()) || AppUser.ANONYMOUS_NICKNAME.equals(appUser.getNickname())) {
+            throw new BadRequestException(NICKNAME_REQUIRED_MESSAGE);
+        }
     }
 
     private String findHostNickname(InfiniteCanvasState state) {
@@ -112,8 +119,8 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
 
     private InfiniteCanvasState copyState(InfiniteCanvasState state, List<InfiniteCanvasParticipant> participants,
         LocalDateTime updatedAt) {
-        return new InfiniteCanvasState(state.canvasId(), state.inviteCode(), state.status(), state.ownerUserUuid(),
-            participants, state.elements(), state.operations(), state.locks(), state.cursors(), state.viewport(),
+        return new InfiniteCanvasState(state.roomCode(), state.status(), state.ownerUserUuid(), participants,
+            state.elements(), state.operations(), state.locks(), state.cursors(), state.viewport(),
             state.maxParticipants(), state.revision(), state.createdAt(), updatedAt, state.closedAt());
     }
 }

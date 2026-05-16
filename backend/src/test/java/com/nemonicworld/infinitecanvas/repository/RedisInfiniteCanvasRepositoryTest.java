@@ -31,8 +31,8 @@ import org.springframework.data.redis.core.ValueOperations;
 @SuppressWarnings({"unchecked", "rawtypes"})
 class RedisInfiniteCanvasRepositoryTest {
 
-    private static final String CANVAS_ID = "canvas-001";
-    private static final String CANVAS_KEY = "infinite-canvas:canvas:" + CANVAS_ID;
+    private static final String ROOM_CODE = "AC3K9Q";
+    private static final String ROOM_KEY = "infinite-canvas:room:" + ROOM_CODE;
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -60,81 +60,79 @@ class RedisInfiniteCanvasRepositoryTest {
 
     @Test
     void saveStoresCanvasStateWithTtl() throws Exception {
-        InfiniteCanvasState canvasState = canvasState(CANVAS_ID, InfiniteCanvasStatus.ACTIVE, 0L,
+        InfiniteCanvasState canvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.ACTIVE, 0L,
             participant(UUID.randomUUID(), "Mango"));
 
         repository.save(canvasState);
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).set(eq(CANVAS_KEY), jsonCaptor.capture(),
-            eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
+        verify(valueOperations).set(eq(ROOM_KEY), jsonCaptor.capture(), eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
         assertThat(deserialize(jsonCaptor.getValue())).isEqualTo(canvasState);
     }
 
     @Test
     void saveIfUnchangedStoresUpdatedCanvasWhenCurrentStateMatchesExpectedState() throws Exception {
-        InfiniteCanvasState expectedCanvasState = canvasState(CANVAS_ID, InfiniteCanvasStatus.ACTIVE, 0L,
+        InfiniteCanvasState expectedCanvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.ACTIVE, 0L,
             participant(UUID.randomUUID(), "Mango"));
-        InfiniteCanvasState updatedCanvasState = canvasState(CANVAS_ID, InfiniteCanvasStatus.ACTIVE, 1L,
+        InfiniteCanvasState updatedCanvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.ACTIVE, 1L,
             expectedCanvasState.participants().getFirst(), participant(UUID.randomUUID(), "Peach"));
-        given(valueOperations.get(CANVAS_KEY)).willReturn(serialize(expectedCanvasState));
+        given(valueOperations.get(ROOM_KEY)).willReturn(serialize(expectedCanvasState));
 
         boolean saved = repository.saveIfUnchanged(expectedCanvasState, updatedCanvasState);
 
         assertThat(saved).isTrue();
-        verify(redisOperations).watch(CANVAS_KEY);
+        verify(redisOperations).watch(ROOM_KEY);
         verify(redisOperations).multi();
         verify(redisOperations).exec();
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).set(eq(CANVAS_KEY), jsonCaptor.capture(),
-            eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
+        verify(valueOperations).set(eq(ROOM_KEY), jsonCaptor.capture(), eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
         assertThat(deserialize(jsonCaptor.getValue())).isEqualTo(updatedCanvasState);
     }
 
     @Test
     void saveIfUnchangedReturnsFalseWithoutSavingWhenCurrentStateDiffersFromExpectedState() throws Exception {
-        InfiniteCanvasState expectedCanvasState = canvasState(CANVAS_ID, InfiniteCanvasStatus.ACTIVE, 0L,
+        InfiniteCanvasState expectedCanvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.ACTIVE, 0L,
             participant(UUID.randomUUID(), "Mango"));
-        InfiniteCanvasState changedCanvasState = canvasState(CANVAS_ID, InfiniteCanvasStatus.ACTIVE, 1L,
+        InfiniteCanvasState changedCanvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.ACTIVE, 1L,
             expectedCanvasState.participants().getFirst(), participant(UUID.randomUUID(), "Grape"));
-        InfiniteCanvasState updatedCanvasState = canvasState(CANVAS_ID, InfiniteCanvasStatus.ACTIVE, 2L,
+        InfiniteCanvasState updatedCanvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.ACTIVE, 2L,
             expectedCanvasState.participants().getFirst(), participant(UUID.randomUUID(), "Peach"));
-        given(valueOperations.get(CANVAS_KEY)).willReturn(serialize(changedCanvasState));
+        given(valueOperations.get(ROOM_KEY)).willReturn(serialize(changedCanvasState));
 
         boolean saved = repository.saveIfUnchanged(expectedCanvasState, updatedCanvasState);
 
         assertThat(saved).isFalse();
-        verify(redisOperations).watch(CANVAS_KEY);
+        verify(redisOperations).watch(ROOM_KEY);
         verify(redisOperations).unwatch();
         verify(redisOperations, never()).multi();
-        verify(valueOperations, never()).set(eq(CANVAS_KEY), any(String.class),
+        verify(valueOperations, never()).set(eq(ROOM_KEY), any(String.class),
             eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
     }
 
     @Test
-    void findByCanvasIdRestoresSerializedState() throws Exception {
-        InfiniteCanvasState canvasState = canvasState(CANVAS_ID, InfiniteCanvasStatus.ACTIVE, 3L,
+    void findByRoomCodeRestoresSerializedState() throws Exception {
+        InfiniteCanvasState canvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.ACTIVE, 3L,
             participant(UUID.randomUUID(), "Mango"));
-        given(valueOperations.get(CANVAS_KEY)).willReturn(serialize(canvasState));
+        given(valueOperations.get(ROOM_KEY)).willReturn(serialize(canvasState));
 
-        InfiniteCanvasState restoredState = repository.findByCanvasId(CANVAS_ID).orElseThrow();
+        InfiniteCanvasState restoredState = repository.findByRoomCode(ROOM_CODE).orElseThrow();
 
         assertThat(restoredState).isEqualTo(canvasState);
     }
 
     @Test
     void findAllActiveCanvasesScansCanvasKeysAndFiltersClosedCanvases() throws Exception {
-        InfiniteCanvasState activeCanvas = canvasState("canvas-active", InfiniteCanvasStatus.ACTIVE, 1L,
+        InfiniteCanvasState activeCanvas = canvasState("AC3K9N", InfiniteCanvasStatus.ACTIVE, 1L,
             participant(UUID.randomUUID(), "Mango"));
-        InfiniteCanvasState closedCanvas = canvasState("canvas-closed", InfiniteCanvasStatus.CLOSED, 2L,
+        InfiniteCanvasState closedCanvas = canvasState("AC3K9P", InfiniteCanvasStatus.CLOSED, 2L,
             participant(UUID.randomUUID(), "Peach"));
         Cursor<String> cursor = createCursorMock();
         given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
         given(cursor.hasNext()).willReturn(true, true, false);
-        given(cursor.next()).willReturn("infinite-canvas:canvas:canvas-active", "infinite-canvas:canvas:canvas-closed");
-        given(valueOperations.get("infinite-canvas:canvas:canvas-active")).willReturn(serialize(activeCanvas));
-        given(valueOperations.get("infinite-canvas:canvas:canvas-closed")).willReturn(serialize(closedCanvas));
+        given(cursor.next()).willReturn("infinite-canvas:room:AC3K9N", "infinite-canvas:room:AC3K9P");
+        given(valueOperations.get("infinite-canvas:room:AC3K9N")).willReturn(serialize(activeCanvas));
+        given(valueOperations.get("infinite-canvas:room:AC3K9P")).willReturn(serialize(closedCanvas));
 
         List<InfiniteCanvasState> activeCanvases = repository.findAllActiveCanvases();
 
@@ -142,11 +140,11 @@ class RedisInfiniteCanvasRepositoryTest {
         verify(cursor).close();
     }
 
-    private InfiniteCanvasState canvasState(String canvasId, InfiniteCanvasStatus status, long revision,
+    private InfiniteCanvasState canvasState(String roomCode, InfiniteCanvasStatus status, long revision,
         InfiniteCanvasParticipant... participants) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
-        return new InfiniteCanvasState(canvasId, "A1B2C3", status, participants[0].userUuid(), List.of(participants),
+        return new InfiniteCanvasState(roomCode, status, participants[0].userUuid(), List.of(participants),
             List.of(element()), List.of(), Map.of(), Map.of(), viewport(), 6, revision, now.minusMinutes(1), now,
             status == InfiniteCanvasStatus.CLOSED ? now : null);
     }

@@ -42,18 +42,18 @@ public class InfiniteCanvasWebSocketEventListener {
             return;
         }
 
-        String canvasId = session.connectionKey();
+        String roomCode = session.connectionKey();
         if (!webSocketSessionRegistry.isCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS,
-            canvasId, session.userUuid(), sessionId)) {
+            roomCode, session.userUuid(), sessionId)) {
             webSocketSessionRegistry.removeStaleSession(sessionId);
             return;
         }
 
         try {
-            InfiniteCanvasStateResponse response = infiniteCanvasService.disconnectCanvas(session.userUuid(), canvasId);
+            InfiniteCanvasStateResponse response = infiniteCanvasService.disconnectCanvas(session.userUuid(), roomCode);
             infiniteCanvasEventPublisher.publishParticipantDisconnected(response);
         } catch (RuntimeException e) {
-            log.warn("Failed to update infinite canvas websocket disconnect state. canvasId={}, sessionId={}", canvasId,
+            log.warn("Failed to update infinite canvas websocket disconnect state. roomCode={}, sessionId={}", roomCode,
                 sessionId, e);
         } finally {
             webSocketSessionRegistry.removeIfCurrent(sessionId);

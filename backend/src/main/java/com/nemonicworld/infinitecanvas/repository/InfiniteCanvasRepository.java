@@ -13,9 +13,9 @@ public interface InfiniteCanvasRepository {
 
     boolean saveIfUnchanged(InfiniteCanvasState expectedCanvasState, InfiniteCanvasState updatedCanvasState);
 
-    Optional<InfiniteCanvasState> findByCanvasId(String canvasId);
+    Optional<InfiniteCanvasState> findByRoomCode(String roomCode);
 
     List<InfiniteCanvasState> findAllActiveCanvases();
 
-    void delete(String canvasId);
+    void delete(String roomCode);
 }

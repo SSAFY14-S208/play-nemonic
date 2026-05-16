@@ -35,61 +35,61 @@ public class InfiniteCanvasEventPublisher {
     }
 
     public void publishParticipantConnected(InfiniteCanvasStateResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_CONNECTED, response.canvasId(), response);
+        publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_CONNECTED, response.roomCode(), response);
     }
 
     public void publishOperationsApplied(InfiniteCanvasOpsAppliedResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.OPS_APPLIED, response.canvasId(), response);
+        publishCanvasEvent(InfiniteCanvasEventType.OPS_APPLIED, response.roomCode(), response);
     }
 
     public void publishSnapshotUpdated(InfiniteCanvasStateResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.SNAPSHOT_UPDATED, response.canvasId(), response);
+        publishCanvasEvent(InfiniteCanvasEventType.SNAPSHOT_UPDATED, response.roomCode(), response);
     }
 
     public void publishCursorUpdated(InfiniteCanvasCursorResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.CURSOR_UPDATED, response.canvasId(), response);
+        publishCanvasEvent(InfiniteCanvasEventType.CURSOR_UPDATED, response.roomCode(), response);
     }
 
     public void publishLockAcquired(InfiniteCanvasLockResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.LOCK_ACQUIRED, response.canvasId(), response);
+        publishCanvasEvent(InfiniteCanvasEventType.LOCK_ACQUIRED, response.roomCode(), response);
     }
 
     public void publishLockReleased(InfiniteCanvasLockResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.LOCK_RELEASED, response.canvasId(), response);
+        publishCanvasEvent(InfiniteCanvasEventType.LOCK_RELEASED, response.roomCode(), response);
     }
 
     public void publishParticipantDisconnected(InfiniteCanvasStateResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response.canvasId(), response);
+        publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response.roomCode(), response);
     }
 
-    public void publishCanvasClosed(String canvasId, Object data) {
+    public void publishCanvasClosed(String roomCode, Object data) {
         Object payload = data == null ? new InfiniteCanvasSimpleMessageResponse(CANVAS_CLOSED_MESSAGE) : data;
-        publishCanvasEvent(InfiniteCanvasEventType.CANVAS_CLOSED, canvasId, payload);
+        publishCanvasEvent(InfiniteCanvasEventType.CANVAS_CLOSED, roomCode, payload);
     }
 
-    public void publishDuplicateSessionClosed(String sessionId, String canvasId) {
+    public void publishDuplicateSessionClosed(String sessionId, String roomCode) {
         InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(
-            InfiniteCanvasEventType.DUPLICATE_SESSION_CLOSED, canvasId,
+            InfiniteCanvasEventType.DUPLICATE_SESSION_CLOSED, roomCode,
             new InfiniteCanvasSimpleMessageResponse(DUPLICATE_SESSION_CLOSED_MESSAGE));
 
-        messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + canvasId, event,
+        messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + roomCode, event,
             createSessionHeaders(sessionId));
     }
 
-    public void publishPong(String sessionId, String canvasId) {
-        InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(InfiniteCanvasEventType.PONG, canvasId,
+    public void publishPong(String sessionId, String roomCode) {
+        InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(InfiniteCanvasEventType.PONG, roomCode,
             new InfiniteCanvasSimpleMessageResponse(PONG_MESSAGE));
 
-        messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + canvasId, event,
+        messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + roomCode, event,
             createSessionHeaders(sessionId));
     }
 
-    public void publishError(String sessionId, String canvasId, String message) {
+    public void publishError(String sessionId, String roomCode, String message) {
         String safeMessage = org.springframework.util.StringUtils.hasText(message) ? message : DEFAULT_ERROR_MESSAGE;
-        InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(InfiniteCanvasEventType.ERROR, canvasId,
+        InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(InfiniteCanvasEventType.ERROR, roomCode,
             new InfiniteCanvasSimpleMessageResponse(safeMessage));
 
-        messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + canvasId, event,
+        messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + roomCode, event,
             createSessionHeaders(sessionId));
     }
 
@@ -98,10 +98,10 @@ public class InfiniteCanvasEventPublisher {
         webSocketSessionRegistry.removeStaleSession(session.sessionId());
     }
 
-    private void publishCanvasEvent(InfiniteCanvasEventType type, String canvasId, Object data) {
-        InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(type, canvasId, data);
+    private void publishCanvasEvent(InfiniteCanvasEventType type, String roomCode, Object data) {
+        InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(type, roomCode, data);
 
-        messagingTemplate.convertAndSend(CANVAS_TOPIC_PREFIX + canvasId, event);
+        messagingTemplate.convertAndSend(CANVAS_TOPIC_PREFIX + roomCode, event);
     }
 
     private MessageHeaders createSessionHeaders(String sessionId) {

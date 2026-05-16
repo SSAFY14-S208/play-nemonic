@@ -1,0 +1,35 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@roomCode = AC3K9Q
+
+### Create infinite canvas
+# 닉네임은 Anonymous-User-UUID에 등록된 익명 사용자 닉네임을 사용합니다.
+# 요청 body에는 선택적으로 참여자 색상만 전달합니다.
+POST {{host}}/api/v1/infinite-canvas/canvases
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "color": "#2F80ED"
+}
+
+### Create infinite canvas - no body
+# 색상을 생략하면 UUID 기반 기본 색상을 사용합니다.
+POST {{host}}/api/v1/infinite-canvas/canvases
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create infinite canvas - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/infinite-canvas/canvases
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create infinite canvas - invalid UUID
+POST {{host}}/api/v1/infinite-canvas/canvases
+Anonymous-User-UUID: not-a-uuid
+
+### Create infinite canvas - missing UUID
+POST {{host}}/api/v1/infinite-canvas/canvases
+
+### Leave infinite canvas
+DELETE {{host}}/api/v1/infinite-canvas/canvases/{{roomCode}}/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}

@@ -6,9 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 @Schema(description = "백오피스 활성 무한 캔버스 응답")
-public record BackofficeInfiniteCanvasResponse(@Schema(description = "캔버스 ID") String canvasId,
-
-    @Schema(description = "초대코드", example = "IC3K9Q") String inviteCode,
+public record BackofficeInfiniteCanvasResponse(@Schema(description = "공유 방코드", example = "AC3K9Q") String roomCode,
 
     @Schema(description = "캔버스 상태", example = "ACTIVE") InfiniteCanvasStatus status,
 
@@ -27,8 +25,8 @@ public record BackofficeInfiniteCanvasResponse(@Schema(description = "캔버스 
     @Schema(description = "마지막 갱신 시각") LocalDateTime updatedAt) {
 
     public static BackofficeInfiniteCanvasResponse from(InfiniteCanvasState state) {
-        return new BackofficeInfiniteCanvasResponse(state.canvasId(), state.inviteCode(), state.status(),
-            state.ownerUserUuid(), state.participantCount(), state.connectedParticipantCount(), state.elements().size(),
-            state.revision(), state.createdAt(), state.updatedAt());
+        return new BackofficeInfiniteCanvasResponse(state.roomCode(), state.status(), state.ownerUserUuid(),
+            state.participantCount(), state.connectedParticipantCount(), state.elements().size(), state.revision(),
+            state.createdAt(), state.updatedAt());
     }
 }

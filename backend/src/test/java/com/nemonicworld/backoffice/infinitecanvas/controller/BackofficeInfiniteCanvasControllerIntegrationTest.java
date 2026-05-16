@@ -115,12 +115,11 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
     @Test
     void adminGetsActiveInfiniteCanvasList() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 15, 12, 0, 0);
-        InfiniteCanvasState oldCanvas = canvasState("00000000-0000-0000-0000-000000000001", InfiniteCanvasStatus.ACTIVE,
-            1, 1, 2, 3L, base.minusMinutes(10));
-        InfiniteCanvasState newCanvas = canvasState("00000000-0000-0000-0000-000000000002", InfiniteCanvasStatus.ACTIVE,
-            3, 2, 5, 7L, base);
-        InfiniteCanvasState closedCanvas = canvasState("00000000-0000-0000-0000-000000000003",
-            InfiniteCanvasStatus.CLOSED, 2, 0, 1, 8L, base.plusMinutes(1));
+        InfiniteCanvasState oldCanvas = canvasState("AC3K9A", InfiniteCanvasStatus.ACTIVE, 1, 1, 2, 3L,
+            base.minusMinutes(10));
+        InfiniteCanvasState newCanvas = canvasState("AC3K9B", InfiniteCanvasStatus.ACTIVE, 3, 2, 5, 7L, base);
+        InfiniteCanvasState closedCanvas = canvasState("AC3K9C", InfiniteCanvasStatus.CLOSED, 2, 0, 1, 8L,
+            base.plusMinutes(1));
         given(infiniteCanvasRepository.findAllActiveCanvases()).willReturn(List.of(oldCanvas, newCanvas, closedCanvas));
 
         mockMvc
@@ -130,27 +129,27 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
             .andExpect(jsonPath("$.message").value("활성 무한 캔버스 목록 조회 성공"))
             .andExpect(jsonPath("$.data.items.length()").value(2)).andExpect(jsonPath("$.data.totalElements").value(2))
             .andExpect(jsonPath("$.data.page").value(0)).andExpect(jsonPath("$.data.size").value(20))
-            .andExpect(jsonPath("$.data.items[0].canvasId").value(newCanvas.canvasId()))
-            .andExpect(jsonPath("$.data.items[0].inviteCode").value(newCanvas.inviteCode()))
+            .andExpect(jsonPath("$.data.items[0].roomCode").value(newCanvas.roomCode()))
+            .andExpect(jsonPath("$.data.items[0].inviteCode").doesNotExist())
             .andExpect(jsonPath("$.data.items[0].status").value("ACTIVE"))
             .andExpect(jsonPath("$.data.items[0].participantCount").value(3))
             .andExpect(jsonPath("$.data.items[0].connectedParticipantCount").value(2))
             .andExpect(jsonPath("$.data.items[0].elementCount").value(5))
             .andExpect(jsonPath("$.data.items[0].revision").value(7))
-            .andExpect(jsonPath("$.data.items[1].canvasId").value(oldCanvas.canvasId()));
+            .andExpect(jsonPath("$.data.items[1].roomCode").value(oldCanvas.roomCode()));
     }
 
     @Test
     void filtersByActiveStatus() throws Exception {
-        InfiniteCanvasState canvas = canvasState("00000000-0000-0000-0000-000000000004", InfiniteCanvasStatus.ACTIVE, 1,
-            1, 0, 0L, LocalDateTime.of(2026, 5, 15, 12, 0, 0));
+        InfiniteCanvasState canvas = canvasState("AC3K9D", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
+            LocalDateTime.of(2026, 5, 15, 12, 0, 0));
         given(infiniteCanvasRepository.findAllActiveCanvases()).willReturn(List.of(canvas));
 
         mockMvc
             .perform(get("/api/v1/backoffice/infinite-canvas/canvases")
                 .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).queryParam("status", "ACTIVE"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
-            .andExpect(jsonPath("$.data.items[0].canvasId").value(canvas.canvasId()));
+            .andExpect(jsonPath("$.data.items[0].roomCode").value(canvas.roomCode()));
     }
 
     @Test
@@ -171,12 +170,10 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
     @Test
     void paginatesResultsAndClampsSize() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 15, 12, 0, 0);
-        given(infiniteCanvasRepository.findAllActiveCanvases()).willReturn(
-            List.of(canvasState("00000000-0000-0000-0000-000000000001", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L, base),
-                canvasState("00000000-0000-0000-0000-000000000002", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
-                    base.minusSeconds(1)),
-                canvasState("00000000-0000-0000-0000-000000000003", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
-                    base.minusSeconds(2))));
+        given(infiniteCanvasRepository.findAllActiveCanvases())
+            .willReturn(List.of(canvasState("AC3K9A", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L, base),
+                canvasState("AC3K9B", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L, base.minusSeconds(1)),
+                canvasState("AC3K9C", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L, base.minusSeconds(2))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/infinite-canvas/canvases")
@@ -184,7 +181,7 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
             .andExpect(jsonPath("$.data.totalElements").value(3)).andExpect(jsonPath("$.data.page").value(1))
             .andExpect(jsonPath("$.data.size").value(2))
-            .andExpect(jsonPath("$.data.items[0].canvasId").value("00000000-0000-0000-0000-000000000003"));
+            .andExpect(jsonPath("$.data.items[0].roomCode").value("AC3K9C"));
 
         mockMvc
             .perform(get("/api/v1/backoffice/infinite-canvas/canvases")
@@ -220,8 +217,8 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
 
     @Test
     void superAdminGetsActiveInfiniteCanvasList() throws Exception {
-        InfiniteCanvasState canvas = canvasState("00000000-0000-0000-0000-000000000005", InfiniteCanvasStatus.ACTIVE, 1,
-            1, 0, 0L, LocalDateTime.of(2026, 5, 15, 12, 0, 0));
+        InfiniteCanvasState canvas = canvasState("AC3K9E", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
+            LocalDateTime.of(2026, 5, 15, 12, 0, 0));
         given(infiniteCanvasRepository.findAllActiveCanvases()).willReturn(List.of(canvas));
 
         mockMvc
@@ -229,29 +226,29 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
                 bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
                     AdminRole.SUPER_ADMIN)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
-            .andExpect(jsonPath("$.data.items[0].canvasId").value(canvas.canvasId()));
+            .andExpect(jsonPath("$.data.items[0].roomCode").value(canvas.roomCode()));
     }
 
     @Test
     void adminClosesActiveInfiniteCanvas(CapturedOutput output) throws Exception {
-        String canvasId = "00000000-0000-0000-0000-000000000006";
-        InfiniteCanvasState state = canvasState(canvasId, InfiniteCanvasStatus.ACTIVE, 3, 2, 4, 9L,
+        String roomCode = "AC3K9F";
+        InfiniteCanvasState state = canvasState(roomCode, InfiniteCanvasStatus.ACTIVE, 3, 2, 4, 9L,
             LocalDateTime.of(2026, 5, 15, 12, 0, 0), true);
-        given(infiniteCanvasRepository.findByCanvasId(canvasId)).willReturn(Optional.of(state));
+        given(infiniteCanvasRepository.findByRoomCode(roomCode)).willReturn(Optional.of(state));
         given(infiniteCanvasRepository.saveIfUnchanged(eq(state), any(InfiniteCanvasState.class))).willReturn(true);
 
         mockMvc
-            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{canvasId}", canvasId)
+            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{roomCode}", roomCode)
                 .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).header("X-Trace-Id", "canvas-force-close")
                 .header("X-Real-IP", "10.10.80.12"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("무한 캔버스 강제 종료 성공"))
-            .andExpect(jsonPath("$.data.canvasId").value(canvasId));
+            .andExpect(jsonPath("$.data.roomCode").value(roomCode));
 
         ArgumentCaptor<InfiniteCanvasState> closedStateCaptor = ArgumentCaptor.forClass(InfiniteCanvasState.class);
         then(infiniteCanvasRepository).should().saveIfUnchanged(eq(state), closedStateCaptor.capture());
         InfiniteCanvasState closedState = closedStateCaptor.getValue();
-        assertThat(closedState.canvasId()).isEqualTo(canvasId);
+        assertThat(closedState.roomCode()).isEqualTo(roomCode);
         assertThat(closedState.status()).isEqualTo(InfiniteCanvasStatus.CLOSED);
         assertThat(closedState.closedAt()).isNotNull();
         assertThat(closedState.updatedAt()).isEqualTo(closedState.closedAt());
@@ -259,11 +256,11 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
         assertThat(closedState.elements()).isEqualTo(state.elements());
         assertThat(closedState.locks()).isEmpty();
         assertThat(closedState.cursors()).isEmpty();
-        then(infiniteCanvasEventPublisher).should().publishCanvasClosed(eq(canvasId), eq(closedState.closedAt()));
+        then(infiniteCanvasEventPublisher).should().publishCanvasClosed(eq(roomCode), eq(closedState.closedAt()));
 
         JsonNode canvasClosedLog = findLog(output, "infinite_canvas_closed");
         JsonNode canvasClosedMetadata = canvasClosedLog.path("metadata");
-        assertThat(canvasClosedMetadata.path("canvas_id").asText()).isEqualTo(canvasId);
+        assertThat(canvasClosedMetadata.path("room_code").asText()).isEqualTo(roomCode);
         assertThat(canvasClosedMetadata.path("close_reason").asText()).isEqualTo("admin_force");
         assertThat(canvasClosedMetadata.path("canvas_status_before").asText()).isEqualTo("ACTIVE");
         assertThat(canvasClosedMetadata.path("participant_count").asInt()).isEqualTo(3);
@@ -276,7 +273,7 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
         assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
         assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.80.12");
         assertThat(metadata.path("target_type").asText()).isEqualTo("room");
-        assertThat(metadata.path("target_id").asText()).isEqualTo(canvasId);
+        assertThat(metadata.path("target_id").asText()).isEqualTo(roomCode);
         assertThat(metadata.path("action").asText()).isEqualTo("force_close");
         assertThat(metadata.path("result").asText()).isEqualTo("success");
         assertThat(metadata.path("before").path("status").asText()).isEqualTo("ACTIVE");
@@ -285,47 +282,45 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
 
     @Test
     void superAdminClosesActiveInfiniteCanvas() throws Exception {
-        String canvasId = "00000000-0000-0000-0000-000000000007";
-        InfiniteCanvasState state = canvasState(canvasId, InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
+        String roomCode = "AC3K9G";
+        InfiniteCanvasState state = canvasState(roomCode, InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
             LocalDateTime.of(2026, 5, 15, 12, 0, 0));
-        given(infiniteCanvasRepository.findByCanvasId(canvasId)).willReturn(Optional.of(state));
+        given(infiniteCanvasRepository.findByRoomCode(roomCode)).willReturn(Optional.of(state));
         given(infiniteCanvasRepository.saveIfUnchanged(eq(state), any(InfiniteCanvasState.class))).willReturn(true);
 
         mockMvc
-            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{canvasId}", canvasId).header(
+            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{roomCode}", roomCode).header(
                 HttpHeaders.AUTHORIZATION,
                 bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
                     AdminRole.SUPER_ADMIN)))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.data.canvasId").value(canvasId));
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.roomCode").value(roomCode));
     }
 
     @Test
-    void rejectsInvalidCanvasIdOnClose() throws Exception {
+    void rejectsInvalidRoomCodeOnClose() throws Exception {
         mockMvc
-            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{canvasId}", "not-a-uuid")
+            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{roomCode}", "not-a-uuid")
                 .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("유효하지 않은 캔버스 ID 형식입니다."));
+            .andExpect(jsonPath("$.message").value("유효하지 않은 방코드입니다."));
 
-        then(infiniteCanvasRepository).should(never()).findByCanvasId(any());
+        then(infiniteCanvasRepository).should(never()).findByRoomCode(any());
         then(infiniteCanvasRepository).should(never()).saveIfUnchanged(any(), any());
     }
 
     @Test
     void rejectsUnauthenticatedCloseRequest() throws Exception {
-        mockMvc
-            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{canvasId}",
-                "00000000-0000-0000-0000-000000000008"))
+        mockMvc.perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{roomCode}", "AC3K9H"))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
     void closeReturnsNotFoundWhenCanvasDoesNotExist() throws Exception {
-        String canvasId = "00000000-0000-0000-0000-000000000009";
-        given(infiniteCanvasRepository.findByCanvasId(canvasId)).willReturn(Optional.empty());
+        String roomCode = "AC3K9J";
+        given(infiniteCanvasRepository.findByRoomCode(roomCode)).willReturn(Optional.empty());
 
         mockMvc
-            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{canvasId}", canvasId)
+            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{roomCode}", roomCode)
                 .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("활성 무한 캔버스를 찾을 수 없습니다."));
@@ -336,13 +331,13 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
 
     @Test
     void closeClosedCanvasReturnsConflict() throws Exception {
-        String canvasId = "00000000-0000-0000-0000-000000000010";
-        InfiniteCanvasState state = canvasState(canvasId, InfiniteCanvasStatus.CLOSED, 1, 0, 0, 0L,
+        String roomCode = "AC3K9K";
+        InfiniteCanvasState state = canvasState(roomCode, InfiniteCanvasStatus.CLOSED, 1, 0, 0, 0L,
             LocalDateTime.of(2026, 5, 15, 12, 0, 0));
-        given(infiniteCanvasRepository.findByCanvasId(canvasId)).willReturn(Optional.of(state));
+        given(infiniteCanvasRepository.findByRoomCode(roomCode)).willReturn(Optional.of(state));
 
         mockMvc
-            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{canvasId}", canvasId)
+            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{roomCode}", roomCode)
                 .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("이미 종료된 캔버스입니다."));
@@ -353,14 +348,14 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
 
     @Test
     void closeReturnsConflictWhenCasRetryFails() throws Exception {
-        String canvasId = "00000000-0000-0000-0000-000000000011";
-        InfiniteCanvasState state = canvasState(canvasId, InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
+        String roomCode = "AC3K9M";
+        InfiniteCanvasState state = canvasState(roomCode, InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
             LocalDateTime.of(2026, 5, 15, 12, 0, 0));
-        given(infiniteCanvasRepository.findByCanvasId(canvasId)).willReturn(Optional.of(state));
+        given(infiniteCanvasRepository.findByRoomCode(roomCode)).willReturn(Optional.of(state));
         given(infiniteCanvasRepository.saveIfUnchanged(eq(state), any(InfiniteCanvasState.class))).willReturn(false);
 
         mockMvc
-            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{canvasId}", canvasId)
+            .perform(delete("/api/v1/backoffice/infinite-canvas/canvases/{roomCode}", roomCode)
                 .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("무한 캔버스 상태 갱신 충돌이 발생했습니다. 다시 시도해주세요."));
@@ -369,13 +364,13 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
         then(infiniteCanvasEventPublisher).should(never()).publishCanvasClosed(any(), any());
     }
 
-    private InfiniteCanvasState canvasState(String canvasId, InfiniteCanvasStatus status, int participantCount,
+    private InfiniteCanvasState canvasState(String roomCode, InfiniteCanvasStatus status, int participantCount,
         int connectedCount, int elementCount, long revision, LocalDateTime createdAt) {
-        return canvasState(canvasId, status, participantCount, connectedCount, elementCount, revision, createdAt,
+        return canvasState(roomCode, status, participantCount, connectedCount, elementCount, revision, createdAt,
             false);
     }
 
-    private InfiniteCanvasState canvasState(String canvasId, InfiniteCanvasStatus status, int participantCount,
+    private InfiniteCanvasState canvasState(String roomCode, InfiniteCanvasStatus status, int participantCount,
         int connectedCount, int elementCount, long revision, LocalDateTime createdAt, boolean withRealtimeState) {
         List<InfiniteCanvasParticipant> participants = participants(participantCount, connectedCount, createdAt);
         List<JsonNode> elements = java.util.stream.IntStream.range(0, elementCount)
@@ -391,9 +386,9 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
                 new InfiniteCanvasCursor(participants.getFirst().userUuid(), 1.0, 2.0, 1.0, null, createdAt))
             : Map.of();
 
-        return new InfiniteCanvasState(canvasId, "IC3K9Q", status, participants.getFirst().userUuid(), participants,
-            elements, List.of(), locks, cursors, objectMapper.createObjectNode().put("x", 0).put("y", 0).put("zoom", 1),
-            6, revision, createdAt, createdAt, status == InfiniteCanvasStatus.CLOSED ? createdAt : null);
+        return new InfiniteCanvasState(roomCode, status, participants.getFirst().userUuid(), participants, elements,
+            List.of(), locks, cursors, objectMapper.createObjectNode().put("x", 0).put("y", 0).put("zoom", 1), 6,
+            revision, createdAt, createdAt, status == InfiniteCanvasStatus.CLOSED ? createdAt : null);
     }
 
     private List<InfiniteCanvasParticipant> participants(int count, int connectedCount, LocalDateTime joinedAt) {

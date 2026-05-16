@@ -10,6 +10,6 @@ public interface BackofficeInfiniteCanvasService {
     BackofficeInfiniteCanvasListResponse getActiveCanvases(AdminPrincipal adminPrincipal, String status, String page,
         String size);
 
-    BackofficeInfiniteCanvasCloseResponse closeActiveCanvas(AdminPrincipal adminPrincipal, String canvasId,
+    BackofficeInfiniteCanvasCloseResponse closeActiveCanvas(AdminPrincipal adminPrincipal, String roomCode,
         AdminClientInfo clientInfo);
 }

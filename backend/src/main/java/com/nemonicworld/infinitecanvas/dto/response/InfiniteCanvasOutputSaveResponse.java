@@ -7,6 +7,6 @@ import java.time.LocalDateTime;
 public record InfiniteCanvasOutputSaveResponse(@Schema(description = "갤러리 항목 ID") String galleryId,
     @Schema(description = "산출물 ID") String artifactId,
     @Schema(description = "산출물 종류", example = "infinite_canvas") String kind,
-    @Schema(description = "원본 캔버스 ID") String canvasId, @Schema(description = "썸네일 이미지 URL") String thumbnailUrl,
+    @Schema(description = "원본 방코드") String roomCode, @Schema(description = "썸네일 이미지 URL") String thumbnailUrl,
     @Schema(description = "원본 이미지 URL") String contentUrl, @Schema(description = "생성 시각") LocalDateTime createdAt) {
 }

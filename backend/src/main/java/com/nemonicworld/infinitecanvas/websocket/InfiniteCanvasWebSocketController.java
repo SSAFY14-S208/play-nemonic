@@ -33,16 +33,16 @@ public class InfiniteCanvasWebSocketController {
         this.webSocketSessionRegistry = webSocketSessionRegistry;
     }
 
-    @MessageMapping("/infinite-canvas/canvases/{canvasId}/ping")
-    public void ping(@DestinationVariable("canvasId") String canvasId, SimpMessageHeaderAccessor headerAccessor) {
-        currentCanvasSession(canvasId, headerAccessor).ifPresent(
+    @MessageMapping("/infinite-canvas/canvases/{roomCode}/ping")
+    public void ping(@DestinationVariable("roomCode") String roomCode, SimpMessageHeaderAccessor headerAccessor) {
+        currentCanvasSession(roomCode, headerAccessor).ifPresent(
             session -> infiniteCanvasEventPublisher.publishPong(session.sessionId(), session.connectionKey()));
     }
 
-    @MessageMapping("/infinite-canvas/canvases/{canvasId}/snapshot")
-    public void replaceSnapshot(@DestinationVariable("canvasId") String canvasId,
+    @MessageMapping("/infinite-canvas/canvases/{roomCode}/snapshot")
+    public void replaceSnapshot(@DestinationVariable("roomCode") String roomCode,
         @Payload InfiniteCanvasSnapshotRequest request, SimpMessageHeaderAccessor headerAccessor) {
-        currentCanvasSession(canvasId, headerAccessor).ifPresent(session -> {
+        currentCanvasSession(roomCode, headerAccessor).ifPresent(session -> {
             try {
                 InfiniteCanvasStateResponse response = infiniteCanvasService.replaceSnapshot(session.userUuid(),
                     session.connectionKey(), request);
@@ -53,10 +53,10 @@ public class InfiniteCanvasWebSocketController {
         });
     }
 
-    @MessageMapping("/infinite-canvas/canvases/{canvasId}/ops")
-    public void applyOperations(@DestinationVariable("canvasId") String canvasId,
+    @MessageMapping("/infinite-canvas/canvases/{roomCode}/ops")
+    public void applyOperations(@DestinationVariable("roomCode") String roomCode,
         @Payload InfiniteCanvasOpsRequest request, SimpMessageHeaderAccessor headerAccessor) {
-        currentCanvasSession(canvasId, headerAccessor).ifPresent(session -> {
+        currentCanvasSession(roomCode, headerAccessor).ifPresent(session -> {
             try {
                 InfiniteCanvasOpsAppliedResponse response = infiniteCanvasService.applyOperations(session.userUuid(),
                     session.connectionKey(), request);
@@ -67,10 +67,10 @@ public class InfiniteCanvasWebSocketController {
         });
     }
 
-    @MessageMapping("/infinite-canvas/canvases/{canvasId}/cursor")
-    public void updateCursor(@DestinationVariable("canvasId") String canvasId,
+    @MessageMapping("/infinite-canvas/canvases/{roomCode}/cursor")
+    public void updateCursor(@DestinationVariable("roomCode") String roomCode,
         @Payload InfiniteCanvasCursorRequest request, SimpMessageHeaderAccessor headerAccessor) {
-        currentCanvasSession(canvasId, headerAccessor).ifPresent(session -> {
+        currentCanvasSession(roomCode, headerAccessor).ifPresent(session -> {
             try {
                 InfiniteCanvasCursorResponse response = infiniteCanvasService.updateCursor(session.userUuid(),
                     session.connectionKey(), request);
@@ -81,10 +81,10 @@ public class InfiniteCanvasWebSocketController {
         });
     }
 
-    @MessageMapping("/infinite-canvas/canvases/{canvasId}/locks/acquire")
-    public void acquireLock(@DestinationVariable("canvasId") String canvasId,
+    @MessageMapping("/infinite-canvas/canvases/{roomCode}/locks/acquire")
+    public void acquireLock(@DestinationVariable("roomCode") String roomCode,
         @Payload InfiniteCanvasLockRequest request, SimpMessageHeaderAccessor headerAccessor) {
-        currentCanvasSession(canvasId, headerAccessor).ifPresent(session -> {
+        currentCanvasSession(roomCode, headerAccessor).ifPresent(session -> {
             try {
                 InfiniteCanvasLockResponse response = infiniteCanvasService.acquireLock(session.userUuid(),
                     session.connectionKey(), request);
@@ -95,10 +95,10 @@ public class InfiniteCanvasWebSocketController {
         });
     }
 
-    @MessageMapping("/infinite-canvas/canvases/{canvasId}/locks/release")
-    public void releaseLock(@DestinationVariable("canvasId") String canvasId,
+    @MessageMapping("/infinite-canvas/canvases/{roomCode}/locks/release")
+    public void releaseLock(@DestinationVariable("roomCode") String roomCode,
         @Payload InfiniteCanvasLockRequest request, SimpMessageHeaderAccessor headerAccessor) {
-        currentCanvasSession(canvasId, headerAccessor).ifPresent(session -> {
+        currentCanvasSession(roomCode, headerAccessor).ifPresent(session -> {
             try {
                 InfiniteCanvasLockResponse response = infiniteCanvasService.releaseLock(session.userUuid(),
                     session.connectionKey(), request);
@@ -109,20 +109,20 @@ public class InfiniteCanvasWebSocketController {
         });
     }
 
-    private Optional<ActiveWebSocketSession> currentCanvasSession(String canvasId,
+    private Optional<ActiveWebSocketSession> currentCanvasSession(String roomCode,
         SimpMessageHeaderAccessor headerAccessor) {
         String sessionId = headerAccessor.getSessionId();
         Optional<ActiveWebSocketSession> activeSession = webSocketSessionRegistry.findBySessionId(sessionId);
-        if (activeSession.isEmpty() || !isCurrentCanvasSession(canvasId, activeSession.get(), sessionId)) {
+        if (activeSession.isEmpty() || !isCurrentCanvasSession(roomCode, activeSession.get(), sessionId)) {
             return Optional.empty();
         }
 
         return activeSession;
     }
 
-    private boolean isCurrentCanvasSession(String canvasId, ActiveWebSocketSession activeSession, String sessionId) {
+    private boolean isCurrentCanvasSession(String roomCode, ActiveWebSocketSession activeSession, String sessionId) {
         return WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS.equals(activeSession.connectionType())
-            && canvasId.equals(activeSession.connectionKey())
+            && roomCode.equals(activeSession.connectionKey())
             && webSocketSessionRegistry.isCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS,
                 activeSession.connectionKey(), activeSession.userUuid(), sessionId);
     }
