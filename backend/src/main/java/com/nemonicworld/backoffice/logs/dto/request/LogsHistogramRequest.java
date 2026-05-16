@@ -2,5 +2,6 @@ package com.nemonicworld.backoffice.logs.dto.request;
 
 import java.util.List;
 
-public record LogsHistogramRequest(String index, String query, List<LogsFilter> filters, LogsTimeRange timeRange) {
+public record LogsHistogramRequest(String index, String query, List<LogsFilter> filters, LogsTimeRange timeRange,
+    String groupBy) {
 }
