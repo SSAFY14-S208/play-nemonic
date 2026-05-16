@@ -90,6 +90,7 @@ export default function DrawingBoard({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       <Layer listening={false}>
         <Rect
