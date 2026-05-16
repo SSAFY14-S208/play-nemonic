@@ -12,8 +12,10 @@ import { startHubPerformanceDiagnostics } from '@/shared/utils'
 import HubScene from './HubScene'
 
 export default function HubCanvas({
+  onCanvasReady,
   performanceMode,
 }: {
+  onCanvasReady?: () => void
   performanceMode: HubPerformanceMode
 }) {
   const overviewCamera = HUB_CAMERA_PRESETS.overview
@@ -51,6 +53,7 @@ export default function HubCanvas({
         gl.toneMappingExposure = performanceProfile.toneMappingExposure
         gl.shadowMap.enabled = performanceProfile.shadows
         gl.shadowMap.type = THREE.PCFSoftShadowMap
+        onCanvasReady?.()
       }}
     >
       <HubScene performanceMode={performanceMode} />

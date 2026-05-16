@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import {
   DEFAULT_HUB_PERFORMANCE_MODE,
@@ -9,6 +9,7 @@ import {
 } from '@/shared/constants'
 import { useHubRoomStore } from '@/shared/stores'
 import type { HubPerformanceMode } from '@/shared/types'
+import HubLoadingOverlay from './HubLoadingOverlay'
 
 const HubCanvas = dynamic(() => import('./HubCanvas'), { ssr: false })
 
@@ -22,9 +23,34 @@ function readHubPerformanceMode(): HubPerformanceMode {
 
 export default function HubLoader() {
   const setFocus = useHubRoomStore((state) => state.setFocus)
+  const [isCanvasReady, setIsCanvasReady] = useState(false)
+  const [shouldMountCanvas, setShouldMountCanvas] = useState(false)
   const [performanceMode, setPerformanceMode] = useState<HubPerformanceMode>(
     readHubPerformanceMode,
   )
+  const handleCanvasReady = useCallback(() => {
+    setIsCanvasReady(true)
+  }, [])
+
+  useEffect(() => {
+    let firstPaintFrameId = 0
+    let secondPaintFrameId = 0
+    let cancelled = false
+
+    firstPaintFrameId = window.requestAnimationFrame(() => {
+      secondPaintFrameId = window.requestAnimationFrame(() => {
+        if (!cancelled) {
+          setShouldMountCanvas(true)
+        }
+      })
+    })
+
+    return () => {
+      cancelled = true
+      window.cancelAnimationFrame(firstPaintFrameId)
+      window.cancelAnimationFrame(secondPaintFrameId)
+    }
+  }, [])
 
   useEffect(() => {
     const syncHubRuntimeSearch = () => {
@@ -55,5 +81,16 @@ export default function HubLoader() {
     }
   }, [setFocus])
 
-  return <HubCanvas key={performanceMode} performanceMode={performanceMode} />
+  return (
+    <>
+      {shouldMountCanvas && (
+        <HubCanvas
+          key={performanceMode}
+          onCanvasReady={handleCanvasReady}
+          performanceMode={performanceMode}
+        />
+      )}
+      <HubLoadingOverlay isCanvasReady={isCanvasReady} />
+    </>
+  )
 }

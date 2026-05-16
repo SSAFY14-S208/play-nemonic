@@ -4,7 +4,7 @@ import type {
   HubPerformanceProfile,
 } from '@/shared/types'
 
-export const HUB_ROOM_MODEL_PATH = '/models/isometric-girl-room.glb?v=file1-whiteboard-kept-20260516'
+export const HUB_ROOM_MODEL_PATH = '/models/isometric-girl-room.glb?v=file1-whiteboard-named-20260517'
 export const HUB_ROOM_MODEL_INCLUDES_PRINTER = true
 
 export const DEFAULT_HUB_PERFORMANCE_MODE: HubPerformanceMode = 'balanced'
@@ -60,13 +60,13 @@ export const HUB_PERFORMANCE_PROFILES: Record<
     dpr: [1, 1.25],
     enableButtonPulse: false,
     environment: true,
-    environmentBackground: true,
-    environmentBackgroundBlurriness: 0.08,
-    environmentBackgroundIntensity: 0.58,
-    environmentBackgroundRotation: [0, Math.PI * 0.16, 0],
+    environmentBackground: false,
+    environmentBackgroundBlurriness: 0,
+    environmentBackgroundIntensity: 0,
+    environmentBackgroundRotation: [0, 0, 0],
     environmentIntensity: 0.2,
-    environmentPreset: 'forest',
-    environmentRotation: [0, Math.PI * 0.16, 0],
+    environmentPreset: 'apartment',
+    environmentRotation: [0, 0, 0],
     postProcessing: {
       ambientOcclusion: {
         aoRadius: 0.9,
@@ -113,13 +113,13 @@ export const HUB_PERFORMANCE_PROFILES: Record<
     dpr: [1, 1.25],
     enableButtonPulse: true,
     environment: true,
-    environmentBackground: true,
-    environmentBackgroundBlurriness: 0.06,
-    environmentBackgroundIntensity: 0.52,
-    environmentBackgroundRotation: [0, Math.PI * 0.16, 0],
+    environmentBackground: false,
+    environmentBackgroundBlurriness: 0,
+    environmentBackgroundIntensity: 0,
+    environmentBackgroundRotation: [0, 0, 0],
     environmentIntensity: 0.18,
-    environmentPreset: 'forest',
-    environmentRotation: [0, Math.PI * 0.16, 0],
+    environmentPreset: 'apartment',
+    environmentRotation: [0, 0, 0],
     postProcessing: {
       ambientOcclusion: {
         aoRadius: 1.1,
@@ -205,17 +205,6 @@ export const HUB_WORKSPACE_DROP_CENTER: [number, number, number] = [
 export const HUB_WORKSPACE_DROP_SIZE: [number, number] = [
   HUB_WORKSPACE_SURFACE.maximumX - HUB_WORKSPACE_SURFACE.minimumX,
   HUB_WORKSPACE_SURFACE.maximumZ - HUB_WORKSPACE_SURFACE.minimumZ,
-]
-
-export const HUB_PEGBOARD_DROP_CENTER: [number, number, number] = [
-  (HUB_PEGBOARD_SURFACE.minimumX + HUB_PEGBOARD_SURFACE.maximumX) / 2,
-  (HUB_PEGBOARD_SURFACE.minimumY + HUB_PEGBOARD_SURFACE.maximumY) / 2,
-  HUB_PEGBOARD_SURFACE.z + HUB_PEGBOARD_SURFACE.zOffset,
-]
-
-export const HUB_PEGBOARD_DROP_SIZE: [number, number] = [
-  HUB_PEGBOARD_SURFACE.maximumX - HUB_PEGBOARD_SURFACE.minimumX,
-  HUB_PEGBOARD_SURFACE.maximumY - HUB_PEGBOARD_SURFACE.minimumY,
 ]
 
 export function parseHubPerformanceMode(

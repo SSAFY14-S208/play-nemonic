@@ -11,6 +11,13 @@ import {
 import Image from 'next/image'
 import { RotateCw, X } from 'lucide-react'
 import { PostItNote } from '@/shared/components/PostItNote'
+import {
+  COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS,
+  COMMUNITY_CANVAS_MEMO_HEIGHT,
+  COMMUNITY_CANVAS_MEMO_WIDTH,
+  COMMUNITY_CANVAS_WALL_HEIGHT,
+  COMMUNITY_CANVAS_WALL_WIDTH,
+} from '@/shared/constants'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoItemResponse } from '@/shared/types'
 import type { CommunityMemoLayoutDraft, CommunityPendingMemoPlacement } from '../hooks'
@@ -39,19 +46,14 @@ interface CommunityWallProps {
   onRetry: () => void
 }
 
-const WALL_WIDTH = 1672
-const WALL_HEIGHT = 941
-const MEMO_WIDTH = 160
-const MEMO_HEIGHT = 160
+const WALL_WIDTH = COMMUNITY_CANVAS_WALL_WIDTH
+const WALL_HEIGHT = COMMUNITY_CANVAS_WALL_HEIGHT
+const MEMO_WIDTH = COMMUNITY_CANVAS_MEMO_WIDTH
+const MEMO_HEIGHT = COMMUNITY_CANVAS_MEMO_HEIGHT
 const MEMO_VISUAL_SAFE_PADDING = 24
 const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg-studio-nemonic-board-large-v8.png'
 const BOUNDARY_EPSILON = 0.5
-const ATTACHABLE_SURFACE_BOUNDS = {
-  left: -660,
-  top: -405,
-  right: 690,
-  bottom: 340,
-}
+const ATTACHABLE_SURFACE_BOUNDS = COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS
 const ATTACHABLE_SURFACE_LEFT = WALL_WIDTH / 2 + ATTACHABLE_SURFACE_BOUNDS.left
 const ATTACHABLE_SURFACE_TOP = WALL_HEIGHT / 2 + ATTACHABLE_SURFACE_BOUNDS.top
 const ATTACHABLE_SURFACE_STYLE = {
