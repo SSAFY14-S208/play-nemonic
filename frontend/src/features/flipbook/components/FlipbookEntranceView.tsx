@@ -659,19 +659,19 @@ function FlipbookEntranceSketchbook({
           fill
           priority
           sizes="50vw"
-          className="object-contain"
+          className="pointer-events-none object-contain"
         />
         <div
           ref={scrollZoneRef}
           aria-label="플립북애니메이션재생구역"
-          className={`absolute z-10 overflow-hidden rounded-[18px] ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}
+          className={`absolute z-10 overflow-hidden rounded-[8px] ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}
           role="region"
           tabIndex={isInteractive ? 0 : -1}
           style={{
-            left: '16.26%',
-            top: '18.27%',
-            width: '63.57%',
-            height: '55.22%',
+            left: '20.2%',
+            top: '27.8%',
+            width: '57.6%',
+            height: '43.8%',
             rotate: '5.9deg',
           }}
         >
