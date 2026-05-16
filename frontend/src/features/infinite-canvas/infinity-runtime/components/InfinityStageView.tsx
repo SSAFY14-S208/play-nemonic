@@ -452,12 +452,12 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         )}
       </div>
 
-      <div className="fixed left-1/2 top-5 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-canvas-border bg-canvas-panel px-4 py-2 shadow-md">
-        <p className="caption-b text-canvas-muted">초대코드</p>
+      <div className="fixed left-1/2 top-5 z-20 flex -translate-x-1/2 items-center gap-4 rounded-full border-2 border-white/78 bg-[linear-gradient(135deg,#3f80ff,#8c5bff_58%,#b46dff)] px-5 py-3 text-white shadow-[0_16px_34px_rgba(55,82,190,0.32),0_0_0_6px_rgba(118,166,255,0.13),inset_0_1px_0_rgba(255,255,255,0.5)]">
+        <p className="body-b text-white/92">초대코드</p>
         <button
           type="button"
           onClick={handleCopyInviteCode}
-          className="body-b rounded-full bg-white px-4 py-2 text-canvas-ink transition-colors hover:bg-canvas-active"
+          className="body-b min-w-31 rounded-full border border-white/80 bg-white/94 px-5 py-2.5 text-[#25376c] shadow-[0_8px_18px_rgba(35,71,164,0.2),inset_0_1px_0_rgba(255,255,255,0.98)] transition-transform hover:-translate-y-0.5 hover:scale-105 hover:bg-white"
         >
           {room.inviteCode ?? '-'}
         </button>
