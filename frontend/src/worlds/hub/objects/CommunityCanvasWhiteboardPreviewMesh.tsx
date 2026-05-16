@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Html } from '@react-three/drei'
+import { ArrowRight } from 'lucide-react'
 import Image from 'next/image'
 import { PostItNote } from '@/shared/components/PostItNote'
 import { cn } from '@/shared/libs'
@@ -147,7 +148,7 @@ export default function CommunityCanvasWhiteboardPreviewMesh({
         {hiddenMemoCount > 0 && (
           <div
             className={cn(
-              'caption-b absolute right-[16px] top-[14px] rounded-full bg-white/72 px-[9px] py-[4px] text-[#66547f] shadow-[0_5px_11px_rgb(70_51_88_/_14%)] transition duration-300',
+              'caption-b absolute right-[16px] top-[14px] z-[1100] rounded-full bg-white/72 px-[9px] py-[4px] text-[#66547f] shadow-[0_5px_11px_rgb(70_51_88_/_14%)] transition duration-300',
               isExpanded ? 'opacity-100' : 'opacity-0',
             )}
             style={{ fontSize: 22, lineHeight: '26px' }}
@@ -157,14 +158,21 @@ export default function CommunityCanvasWhiteboardPreviewMesh({
         )}
         <div
           className={cn(
-            'caption-b absolute inset-x-[54px] bottom-[13px] rounded-full bg-white/78 px-[12px] py-[6px] text-center text-[#66547f] shadow-[0_8px_16px_rgb(76_54_92_/_16%)] transition duration-300',
+            'absolute inset-x-[40px] bottom-[13px] z-[1100] flex items-center justify-center gap-[10px] rounded-full bg-white/82 px-[18px] py-[8px] text-center text-[#66547f] shadow-[0_8px_16px_rgb(76_54_92_/_16%)] transition duration-300',
             isExpanded
               ? 'translate-y-0 opacity-100'
               : 'translate-y-[8px] opacity-0',
           )}
-          style={{ fontSize: 28, lineHeight: '32px' }}
+          style={{
+            fontFamily: 'var(--font-paperlogy)',
+            fontSize: 28,
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+            lineHeight: '32px',
+          }}
         >
-          커뮤니티 캔버스 보기
+          <span>커뮤니티 캔버스로</span>
+          <ArrowRight aria-hidden size={24} strokeWidth={2.4} />
         </div>
       </div>
     </Html>
