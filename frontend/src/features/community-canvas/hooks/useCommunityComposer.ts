@@ -20,13 +20,18 @@ import type {
   GalleryItemResponse,
   MemoSourceType,
 } from '@/shared/types'
-import type { CommunityCanvasHandoffDraft } from '@/shared/utils'
+import {
+  playBrowserAudio,
+  preloadBrowserAudio,
+  type CommunityCanvasHandoffDraft,
+} from '@/shared/utils'
 import {
   DEFAULT_COMMUNITY_MEMO_COLOR,
   COMMUNITY_SNAPSHOT_CONTENT_TYPE,
   exportDirectCommunitySnapshot,
   exportGalleryCommunitySnapshot,
   hasDirectSnapshotContent,
+  playCommunityMemoAttachSound,
 } from '../utils'
 import type { CommunityMemoLayoutDraft } from './useCommunityCanvas'
 
@@ -37,8 +42,11 @@ export const COMMUNITY_COMPOSER_BOARD_SIZE = {
   height: 540,
 }
 
-const COMMUNITY_DRAWING_BACKGROUND = '#fffdf7'
+const COMMUNITY_DRAWING_BACKGROUND = '#fbfaff'
 const GALLERY_PAGE_SIZE = 12
+const COMMUNITY_MEMO_PRINT_START_SOUND_PATH = '/sounds/print_label.mp3'
+const COMMUNITY_MEMO_PRINT_START_SOUND_VOLUME = 0.36
+const COMMUNITY_MEMO_PRINT_START_SOUND_OFFSET_SECONDS = 0.2
 const MODERATION_BLOCKED_TOAST_MESSAGE =
   '부적절한 내용이 감지되어 메모 게시를 취소했어요.'
 
@@ -81,6 +89,26 @@ function includesModerationBlockedMessage(value: unknown): boolean {
   }
 
   return false
+}
+
+function isGifImageUrl(imageUrl: string | null | undefined) {
+  if (!imageUrl) return false
+  return /\.gif(?:[?#].*)?$/i.test(imageUrl)
+}
+
+function getGalleryPlaybackImageUrl({
+  imageUrl,
+  sourceContentKind,
+}: {
+  imageUrl: string
+  sourceContentKind: string | null | undefined
+}) {
+  const normalizedContentKind = sourceContentKind?.toLowerCase()
+  if (isGifImageUrl(imageUrl) || normalizedContentKind === 'flipbook') {
+    return imageUrl
+  }
+
+  return null
 }
 
 async function isCommunityMemoModerationBlockedError(error: unknown) {
@@ -139,6 +167,8 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
   const [sourceType, setSourceType] = useState<MemoSourceType>('DIRECT')
   const [pendingPlacement, setPendingPlacement] =
     useState<CommunityPendingMemoPlacement | null>(null)
+  const [printRevealPlacement, setPrintRevealPlacement] =
+    useState<CommunityPendingMemoPlacement | null>(null)
   const [galleryItems, setGalleryItems] = useState<GalleryItemResponse[]>([])
   const [galleryStatus, setGalleryStatus] = useState<AsyncStatus>('idle')
   const [galleryError, setGalleryError] = useState<string | null>(null)
@@ -158,6 +188,15 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
       }
     },
     [pendingPlacement],
+  )
+
+  useEffect(
+    () => () => {
+      if (printRevealPlacement) {
+        URL.revokeObjectURL(printRevealPlacement.previewUrl)
+      }
+    },
+    [printRevealPlacement],
   )
 
   const loadGalleryItems = useCallback(async () => {
@@ -184,6 +223,11 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
       setPostStatus('idle')
       setSelectedMemoColor(DEFAULT_COMMUNITY_MEMO_COLOR)
       setPendingPlacement(null)
+      setPrintRevealPlacement(null)
+      preloadBrowserAudio(
+        COMMUNITY_MEMO_PRINT_START_SOUND_PATH,
+        COMMUNITY_MEMO_PRINT_START_SOUND_VOLUME,
+      )
       drawingBoard.replaceLines([])
       setComposerOpen(true)
     },
@@ -200,6 +244,11 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
       setPostStatus('idle')
       setSelectedMemoColor(DEFAULT_COMMUNITY_MEMO_COLOR)
       setPendingPlacement(null)
+      setPrintRevealPlacement(null)
+      preloadBrowserAudio(
+        COMMUNITY_MEMO_PRINT_START_SOUND_PATH,
+        COMMUNITY_MEMO_PRINT_START_SOUND_VOLUME,
+      )
       drawingBoard.replaceLines([])
       if (drawingBoard.selectedToolKey === 'bucket') {
         drawingBoard.setSelectedToolKey('pencil')
@@ -265,7 +314,12 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
         backgroundColor: COMMUNITY_DRAWING_BACKGROUND,
       })
 
-      setPendingPlacement({
+      playBrowserAudio(
+        COMMUNITY_MEMO_PRINT_START_SOUND_PATH,
+        COMMUNITY_MEMO_PRINT_START_SOUND_VOLUME,
+        COMMUNITY_MEMO_PRINT_START_SOUND_OFFSET_SECONDS,
+      )
+      setPrintRevealPlacement({
         sourceType: 'DIRECT',
         originalBlob: snapshot.originalBlob,
         thumbnailBlob: snapshot.thumbnailBlob,
@@ -279,7 +333,6 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
       })
       setComposerOpen(false)
       setPostStatus('success')
-      toast.success('벽에서 붙일 자리를 골라주세요.')
     } catch (error) {
       setPostStatus('error')
       toast.error(toErrorMessage(error, '메모지 준비에 실패했어요.'))
@@ -292,6 +345,8 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
       selectedGalleryDetail?.contentUrl ||
       selectedGalleryDetail?.thumbnailUrl
     const sourceGalleryId = handoffDraft?.sourceGalleryId ?? selectedGalleryId
+    const sourceContentKind =
+      handoffDraft?.sourceContentKind ?? selectedGalleryDetail?.kind ?? null
 
     if (!handoffDraft && (!selectedGalleryId || !selectedGalleryDetail)) {
       toast.error('붙일 갤러리 항목을 선택해주세요.')
@@ -312,7 +367,12 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
         backgroundColor: COMMUNITY_DRAWING_BACKGROUND,
       })
 
-      setPendingPlacement({
+      playBrowserAudio(
+        COMMUNITY_MEMO_PRINT_START_SOUND_PATH,
+        COMMUNITY_MEMO_PRINT_START_SOUND_VOLUME,
+        COMMUNITY_MEMO_PRINT_START_SOUND_OFFSET_SECONDS,
+      )
+      setPrintRevealPlacement({
         sourceType: sourceGalleryId ? 'GALLERY' : 'DIRECT',
         originalBlob: snapshot.originalBlob,
         thumbnailBlob: snapshot.thumbnailBlob,
@@ -325,14 +385,16 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
           sourceGalleryId: sourceGalleryId ?? null,
           sourceKind: handoffDraft?.sourceKind ?? 'GALLERY',
           sourceTitle: handoffDraft?.title ?? null,
-          sourceContentKind:
-            handoffDraft?.sourceContentKind ?? selectedGalleryDetail?.kind ?? null,
+          sourceContentKind,
+          sourcePlaybackImageUrl: getGalleryPlaybackImageUrl({
+            imageUrl,
+            sourceContentKind,
+          }),
           lines: drawingBoard.lines,
         },
       })
       setComposerOpen(false)
       setPostStatus('success')
-      toast.success('벽에서 붙일 자리를 골라주세요.')
     } catch (error) {
       setPostStatus('error')
       toast.error(toErrorMessage(error, '갤러리 메모지 준비에 실패했어요.'))
@@ -377,6 +439,7 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
 
         const createdMemo = await postCommunityMemo(payload)
         await onCreated(createdMemo)
+        playCommunityMemoAttachSound()
         setPendingPlacement(null)
         setPostStatus('success')
         toast.success('커뮤니티 벽에 메모를 붙였어요.')
@@ -395,6 +458,23 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
     [onCreated, pendingPlacement],
   )
 
+  const acceptPrintedMemoPlacement = useCallback(() => {
+    if (!printRevealPlacement) return
+
+    setPendingPlacement({
+      ...printRevealPlacement,
+      previewUrl: URL.createObjectURL(printRevealPlacement.thumbnailBlob),
+    })
+    setPrintRevealPlacement(null)
+    setPostStatus('success')
+    toast.success('벽에서 붙일 자리를 골라주세요.')
+  }, [printRevealPlacement])
+
+  const cancelPrintedMemoPlacement = useCallback(() => {
+    setPrintRevealPlacement(null)
+    setPostStatus('idle')
+  }, [])
+
   const cancelPendingPlacement = useCallback(() => {
     setPendingPlacement(null)
     setPostStatus('idle')
@@ -404,6 +484,7 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
     isComposerOpen,
     sourceType,
     pendingPlacement,
+    printRevealPlacement,
     drawingBoard,
     galleryItems,
     galleryStatus,
@@ -424,6 +505,8 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
     setSelectedMemoColor,
     prepareDirectMemoPlacement,
     prepareGalleryMemoPlacement,
+    acceptPrintedMemoPlacement,
+    cancelPrintedMemoPlacement,
     attachPendingMemo,
     cancelPendingPlacement,
   }

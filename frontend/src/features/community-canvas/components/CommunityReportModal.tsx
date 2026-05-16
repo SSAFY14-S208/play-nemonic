@@ -57,8 +57,8 @@ export function CommunityReportModal({
         aria-labelledby="community-report-title"
         className="fixed inset-0 z-[calc(var(--z-overlay)+10)] overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-3 backdrop-blur-[2px]"
       >
-        <section className="mx-auto flex min-h-full w-full max-w-[42rem] flex-col gap-4 rounded-[1.5rem] border-[0.35rem] border-[#f5d96c] bg-[#fff2b3] p-4 shadow-[0_18px_38px_rgb(25_20_40_/_24%)]">
-          <header className="flex items-start justify-between gap-3 rounded-[1rem] border border-[#f0d887] bg-[#fffdf1] p-4">
+        <section className="mx-auto flex min-h-full w-full max-w-[42rem] flex-col gap-4 rounded-[1.5rem] border-[0.35rem] border-[#b9b1ce] bg-[#eeeaf7] p-4 shadow-[0_18px_38px_rgb(25_20_40_/_24%)]">
+          <header className="flex items-center justify-between gap-3 rounded-[1rem] border border-[#d5cee3] bg-[#fbfaff] p-4">
             <h2 id="community-report-title" className="h3-b text-fg-primary">
               메모 신고
             </h2>
@@ -66,9 +66,9 @@ export function CommunityReportModal({
               type="button"
               aria-label="신고 닫기"
               onClick={onClose}
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
+              className="grid size-10 shrink-0 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
             >
-              <X className="size-5" />
+              <X className="size-4" />
             </button>
           </header>
 
@@ -82,7 +82,7 @@ export function CommunityReportModal({
                 className={cn(
                   'body-b flex min-h-12 items-center rounded-[0.45rem] border px-4 py-3 text-left transition',
                   reason === reportReason
-                    ? 'border-[#FFD95D] bg-[#FFF8E1] text-primary-2'
+                    ? 'border-[#b9b1ce] bg-[#f0ecfa] text-primary-2'
                     : 'border-border-default bg-white text-fg-secondary',
                 )}
               >
@@ -99,14 +99,14 @@ export function CommunityReportModal({
             value={reasonDetail}
             onChange={(event) => setReasonDetail(event.target.value)}
             maxLength={300}
-            className="body-r min-h-44 resize-none rounded-[0.45rem] border border-[#FFD66B]/70 bg-[#fffdf1] p-4 text-fg-primary outline-none focus:border-[#FFD95D]"
+            className="body-r min-h-44 resize-none rounded-[0.45rem] border border-[#c8c0d8]/70 bg-[#fbfaff] p-4 text-fg-primary outline-none focus:border-[#b9b1ce]"
           />
 
           <button
             type="button"
             onClick={() => onSubmit(reason, reasonDetail)}
             disabled={status === 'loading'}
-            className="body-b sticky bottom-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary shadow-[0_8px_18px_rgb(78_44_20_/_14%)] transition disabled:cursor-not-allowed disabled:opacity-60"
+            className="body-b sticky bottom-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#d9d2ea] text-fg-primary shadow-[0_8px_18px_rgb(73_55_93_/_14%)] transition disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Flag className="size-4" />
             {status === 'loading' ? '접수 중' : '신고 접수'}
@@ -141,7 +141,7 @@ export function CommunityReportModal({
             backgroundSize: '100% 100%',
           }}
         >
-        <header className="absolute left-[9.8%] right-[18%] top-[3.5%] flex h-[8.5%] items-center">
+        <header className="absolute left-[9.8%] right-[18%] top-[7%] flex h-[7.4%] items-center">
           <h2 id="community-report-title" className="h3-b text-fg-primary">
             메모 신고
           </h2>
@@ -151,13 +151,13 @@ export function CommunityReportModal({
           type="button"
           aria-label="신고 닫기"
           onClick={onClose}
-          className="absolute right-[8.4%] top-[4.1%] grid size-12 place-items-center rounded-full border border-[#ffd66b] bg-[#fff8e1] text-fg-secondary shadow-[0_6px_14px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
+          className="absolute right-[5.3%] top-[5.3%] grid size-9 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_6px_14px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
         >
-          <X className="size-5" />
+          <X className="size-4" />
         </button>
 
-        <div className="absolute bottom-[8.2%] left-[9.8%] right-[9.8%] top-[10.4%] flex flex-col">
-          <div className="grid grid-cols-2 gap-3">
+        <div className="absolute bottom-[8.8%] left-[9.8%] right-[9.8%] top-[14.3%] flex flex-col">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
             {REPORT_REASONS.map((reportReason) => (
               <button
                 key={reportReason}
@@ -165,9 +165,9 @@ export function CommunityReportModal({
                 aria-pressed={reason === reportReason}
                 onClick={() => setReason(reportReason)}
                 className={cn(
-                  'body-b flex h-12 items-center rounded-[0.45rem] border px-4 text-left transition',
+                  'body-b flex h-11 items-center rounded-[0.45rem] border px-4 text-left transition',
                   reason === reportReason
-                    ? 'border-[#FFD95D] bg-[#FFF8E1] text-primary-2'
+                    ? 'border-[#b9b1ce] bg-[#f0ecfa] text-primary-2'
                     : 'border-border-default bg-white text-fg-secondary',
                 )}
               >
@@ -176,7 +176,7 @@ export function CommunityReportModal({
             ))}
           </div>
 
-          <label className="body-b mt-6 block text-fg-primary" htmlFor="report-detail">
+          <label className="body-b mt-5 block text-fg-primary" htmlFor="report-detail">
             상세 사유
           </label>
           <textarea
@@ -184,14 +184,14 @@ export function CommunityReportModal({
             value={reasonDetail}
             onChange={(event) => setReasonDetail(event.target.value)}
             maxLength={300}
-            className="body-r mt-3 min-h-0 flex-1 resize-none rounded-[0.45rem] border border-[#FFD66B]/70 bg-[#fffdf1] p-4 text-fg-primary outline-none focus:border-[#FFD95D]"
+            className="body-r mt-2.5 min-h-0 flex-1 resize-none rounded-[0.45rem] border border-[#c8c0d8]/70 bg-[#fbfaff] p-4 text-fg-primary outline-none focus:border-[#b9b1ce]"
           />
 
           <button
             type="button"
             onClick={() => onSubmit(reason, reasonDetail)}
             disabled={status === 'loading'}
-            className="body-b mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#FFD95D] text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            className="body-b mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-[#d9d2ea] text-fg-primary transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Flag className="size-4" />
             {status === 'loading' ? '접수 중' : '신고 접수'}

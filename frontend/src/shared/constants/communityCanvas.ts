@@ -4,8 +4,8 @@ export const COMMUNITY_CANVAS_MEMO_WIDTH = 160
 export const COMMUNITY_CANVAS_MEMO_HEIGHT = 160
 
 export const COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS = {
-  left: -590,
-  top: -550,
-  right: 630,
-  bottom: 550,
+  left: -660,
+  top: -405,
+  right: 690,
+  bottom: 340,
 } as const

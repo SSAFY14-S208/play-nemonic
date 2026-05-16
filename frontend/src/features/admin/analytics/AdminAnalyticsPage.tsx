@@ -8,10 +8,10 @@ import { cn } from '@/shared/libs'
 
 type IframeStatus = 'loading' | 'loaded' | 'error'
 
-// 마케팅 인사이트 대시보드 직접 진입 + embed 모드 (크롬 nav 제거)
-const EMBED_URL = `${runtime.opensearchDashboardsUrl}/app/dashboards?embed=true#/view/dashboard-marketing`
-// 새 탭에서 열 때는 embed 없이 전체 UI 제공
-const NEW_TAB_URL = `${runtime.opensearchDashboardsUrl}/app/dashboards#/view/dashboard-marketing`
+// 특정 대시보드 직접 진입 + kiosk 모드 (상단 nav·사이드바 제거)
+const EMBED_URL = `${runtime.grafanaUrl}d/nemonic-overview?kiosk`
+// 새 탭에서 열 때는 kiosk 없이 전체 UI 제공
+const NEW_TAB_URL = `${runtime.grafanaUrl}d/nemonic-overview`
 
 export default function AdminAnalyticsPage() {
   const [iframeStatus, setIframeStatus] = useState<IframeStatus>('loading')
@@ -61,7 +61,7 @@ export default function AdminAnalyticsPage() {
         )}
         <iframe
           src={EMBED_URL}
-          title="OpenSearch 대시보드"
+          title="Grafana 대시보드"
           className={cn('h-full w-full border-0', iframeStatus !== 'loaded' && 'invisible')}
           onLoad={() => setIframeStatus('loaded')}
           onError={() => setIframeStatus('error')}

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { EyeOff, FileSearch, RotateCcw, Search, X } from 'lucide-react'
 
 import type { AdminCommunityMemoDetailResponse } from '@/shared/types'
+import { formatKoreanDateTime } from '@/shared/utils'
 
 import {
   MemoDetailModal,
@@ -22,10 +23,7 @@ const SOURCE_LABEL: Record<string, string> = {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR', {
+  return formatKoreanDateTime(value, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',

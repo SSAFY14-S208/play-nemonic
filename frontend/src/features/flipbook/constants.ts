@@ -44,6 +44,8 @@ export const FLIPBOOK_BACKGROUND_COLOR = '#ffffff'
 
 export const FLIPBOOK_SOUND_PATHS = {
   entranceBgm: '/sounds/flipbook/entrance-bgm.mp3',
+  print: '/sounds/print_label.mp3',
+  cut: '/sounds/cut_label.mp3',
 } as const
 
 export const FLIPBOOK_BOARD_SIZE: DrawingBoardSize = {

@@ -41,13 +41,13 @@ function getDeadlineRemainingSeconds({
   selectedTimeLimitSeconds: FlipbookTimeLimitSeconds
 }) {
   const maximumExpectedSeconds = selectedTimeLimitSeconds + TIMER_DRIFT_GRACE_SECONDS
-  const utcRemainingSeconds = Math.max(
+  const serverRemainingSeconds = Math.max(
     0,
     Math.ceil((parseServerInstant(deadlineAt).getTime() - Date.now()) / 1000),
   )
 
-  if (utcRemainingSeconds <= maximumExpectedSeconds) {
-    return utcRemainingSeconds
+  if (serverRemainingSeconds <= maximumExpectedSeconds) {
+    return serverRemainingSeconds
   }
 
   if (!HAS_TIMEZONE_SUFFIX.test(deadlineAt)) {
@@ -160,9 +160,10 @@ export function useFlipbookTimer({
       }
 
       const roundExpirationKey = `${activeRoundIndex}:${deadlineAt ?? 'local'}`
+      const hasServerDeadline = Boolean(deadlineAt)
       if (
         remainingSeconds === 0 &&
-        positiveCountdownRoundKeyRef.current === roundExpirationKey &&
+        (hasServerDeadline || positiveCountdownRoundKeyRef.current === roundExpirationKey) &&
         expiredRoundKeyRef.current !== roundExpirationKey &&
         !cancelled
       ) {
