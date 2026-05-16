@@ -10,6 +10,7 @@ export default function LightingSetup({
   performanceMode: HubPerformanceMode
 }) {
   const performanceProfile = HUB_PERFORMANCE_PROFILES[performanceMode]
+  const isQualityMode = performanceMode === 'quality'
 
   if (!performanceProfile.environment) {
     return (
@@ -27,20 +28,30 @@ export default function LightingSetup({
   return (
     <>
       <Suspense fallback={null}>
-        <Environment preset="apartment" environmentIntensity={0.16} />
+        <Environment
+          preset="apartment"
+          environmentIntensity={isQualityMode ? 0.2 : 0.16}
+        />
       </Suspense>
-      <hemisphereLight args={['#fff0ff', '#b8e5ff', 0.28]} />
-      <ambientLight color="#ccb5ff" intensity={0.07} />
+      <hemisphereLight
+        args={['#fff4ff', '#d8e4ff', isQualityMode ? 0.28 : 0.22]}
+      />
+      <ambientLight
+        color="#f1e8ff"
+        intensity={isQualityMode ? 0.075 : 0.06}
+      />
       <directionalLight
         castShadow={performanceProfile.shadows}
         color="#fff6ec"
-        intensity={performanceProfile.shadows ? 0.48 : 0.72}
+        intensity={performanceProfile.shadows ? 0.5 : 0.72}
         position={[4.6, 7.2, 5.4]}
         shadow-bias={-0.00018}
         shadow-mapSize-height={1024}
         shadow-mapSize-width={1024}
       />
-      {performanceMode === 'quality' && <BlenderRoomLights />}
+      <BlenderRoomLights
+        mode={performanceMode === 'quality' ? 'quality' : 'balanced'}
+      />
     </>
   )
 }

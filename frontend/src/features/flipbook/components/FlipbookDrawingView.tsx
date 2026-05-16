@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Eye, EyeOff, Timer } from 'lucide-react'
 import {
   ColorPanel,
@@ -23,7 +23,9 @@ import type {
   DrawingToolKey,
   FlipbookConnectionStatus,
 } from '@/shared/types'
+import { FLIPBOOK_BOARD_SIZE } from '../constants'
 import type { FlipbookDrawingSubmissionState, FlipbookParticipant } from '../types'
+import { useResponsiveElementScale } from '../hooks'
 
 const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
   ssr: false,
@@ -187,29 +189,20 @@ export default function FlipbookDrawingView({
     }
   }, [activeRoundIndex, previousFrameLines.length])
 
-  // 데스크탑 레이아웃 동적 스케일 — 부모 크기를 측정해 1536×1024 디자인이
-  // 정확히 들어맞는 scale을 계산. 측정 전 0이면 인너가 사라져 클리핑을 방지한다.
-  const desktopWrapperRef = useRef<HTMLDivElement>(null)
-  const [desktopScale, setDesktopScale] = useState(0)
-
-  useEffect(() => {
-    const wrapper = desktopWrapperRef.current
-    if (!wrapper) return
-    const updateScale = () => {
-      const rect = wrapper.getBoundingClientRect()
-      if (rect.width === 0 || rect.height === 0) return
-      const widthRatio = rect.width / DESKTOP_DESIGN_WIDTH
-      const heightRatio = rect.height / DESKTOP_DESIGN_HEIGHT
-      setDesktopScale(Math.min(widthRatio, heightRatio, 1))
-    }
-    const raf = requestAnimationFrame(updateScale)
-    const observer = new ResizeObserver(updateScale)
-    observer.observe(wrapper)
-    return () => {
-      cancelAnimationFrame(raf)
-      observer.disconnect()
-    }
-  }, [])
+  const {
+    containerRef: mobileBoardContainerRef,
+    elementScale: mobileBoardScale,
+  } = useResponsiveElementScale({
+    sourceWidth: FLIPBOOK_BOARD_SIZE.width,
+    sourceHeight: FLIPBOOK_BOARD_SIZE.height,
+  })
+  const {
+    containerRef: desktopWrapperRef,
+    elementScale: desktopScale,
+  } = useResponsiveElementScale({
+    sourceWidth: DESKTOP_DESIGN_WIDTH,
+    sourceHeight: DESKTOP_DESIGN_HEIGHT,
+  })
 
   const handleCompleteRound = () => {
     if (isDrawingLocked) return
@@ -233,8 +226,8 @@ export default function FlipbookDrawingView({
         aria-hidden
       />
 
-      <div className="relative z-10 grid w-full gap-4 px-3 py-4 lg:hidden">
-        <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+      <div className="relative z-10 grid w-full gap-4 px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 lg:hidden">
+        <div className="sticky top-3 z-20 rounded-[22px] border border-[#ead7c9] bg-white/92 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)] backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <p className="h2-b text-[#f45d8d]">
               {activeRoundIndex + 1}/{displayRoundCount}
@@ -290,16 +283,31 @@ export default function FlipbookDrawingView({
           onStrokeWidthChange={onStrokeWidthChange}
         />
 
-        <div className="overflow-x-auto rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
-          <div className="relative h-[520px] w-[680px] overflow-hidden rounded-[8px] bg-white">
-            <FlipbookStage
-              lines={lines}
-              previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
-              disabled={isDrawingLocked}
-              onDrawStart={onDrawStart}
-              onDrawMove={onDrawMove}
-              onDrawEnd={onDrawEnd}
-            />
+        <div className="rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div
+            ref={mobileBoardContainerRef}
+            className="relative mx-auto w-full max-w-[680px] overflow-hidden rounded-[8px] bg-white"
+            style={{
+              aspectRatio: `${FLIPBOOK_BOARD_SIZE.width} / ${FLIPBOOK_BOARD_SIZE.height}`,
+            }}
+          >
+            <div
+              className="absolute left-1/2 top-1/2 origin-center"
+              style={{
+                width: FLIPBOOK_BOARD_SIZE.width,
+                height: FLIPBOOK_BOARD_SIZE.height,
+                transform: `translate(-50%, -50%) scale(${mobileBoardScale})`,
+              }}
+            >
+              <FlipbookStage
+                lines={lines}
+                previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
+                disabled={isDrawingLocked}
+                onDrawStart={onDrawStart}
+                onDrawMove={onDrawMove}
+                onDrawEnd={onDrawEnd}
+              />
+            </div>
             {(overlayMessage || isConnectionUnstable) && (
               <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-flipbook-deep">
                 {isConnectionUnstable ? '연결 끊김 — 재연결 중...' : overlayMessage}
@@ -312,7 +320,7 @@ export default function FlipbookDrawingView({
           onComplete={handleCompleteRound}
           disabled={isDrawingLocked}
           className={cn(
-            'min-h-14 rounded-[16px]',
+            'sticky bottom-3 z-20 min-h-14 rounded-[16px]',
           )}
           label={submitButtonText === '완료!' ? '완료하기' : submitButtonText}
         />

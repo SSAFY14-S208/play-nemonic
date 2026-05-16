@@ -78,7 +78,7 @@ export default function FlipbookResultView({
         </div>
       )}
 
-      <div className="absolute right-6 top-6 z-[120] flex flex-wrap justify-end gap-2">
+      <div className="absolute left-4 right-4 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] flex flex-wrap justify-center gap-2 sm:left-auto sm:right-6 sm:top-6 sm:justify-end">
         <button
           type="button"
           onClick={() => void resultActions.saveToLocalGallery()}
@@ -117,9 +117,35 @@ export default function FlipbookResultView({
       </div>
 
       {(errorMessage || resultActions.actionMessage) && (
-        <p className="caption-b absolute bottom-6 left-1/2 z-[120] -translate-x-1/2 rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md">
+        <p className="caption-b absolute bottom-28 left-4 right-4 z-[120] rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
           {errorMessage ?? resultActions.actionMessage}
         </p>
+      )}
+
+      {printParticipants.length > 0 && (
+        <div className="absolute inset-x-3 bottom-3 z-[120] grid gap-2 rounded-[18px] border border-white/80 bg-white/86 p-3 shadow-[0_14px_30px_rgb(120_80_80_/_16%)] backdrop-blur-md md:hidden">
+          <p className="caption-b text-[#b84e66]">작품 선택</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {printParticipants.map((participant, participantIndex) => {
+              const isActiveParticipant = participantIndex === activeResultIndex
+
+              return (
+                <button
+                  key={participant.id}
+                  type="button"
+                  onClick={() => onSelectResult(participantIndex)}
+                  className={`caption-b min-h-10 shrink-0 rounded-full border px-4 ${
+                    isActiveParticipant
+                      ? 'border-[#ff8aa4] bg-[#fff0f4] text-[#b84e66]'
+                      : 'border-[#eadfd2] bg-white text-[#5d3b38]'
+                  }`}
+                >
+                  {participant.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       )}
     </section>
   )

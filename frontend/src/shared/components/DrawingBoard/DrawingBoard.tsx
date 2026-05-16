@@ -74,6 +74,7 @@ export default function DrawingBoard({
       onTouchStart={onDrawStart}
       onTouchMove={onDrawMove}
       onTouchEnd={onDrawEnd}
+      onTouchCancel={onDrawEnd}
     >
       <Layer listening={false}>
         <Rect

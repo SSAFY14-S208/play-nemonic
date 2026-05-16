@@ -7,6 +7,7 @@ import {
   HUB_ROOM_SCALE,
 } from '@/shared/constants'
 import type { HubPerformanceMode } from '@/shared/types'
+import CarpetFurMesh from './CarpetFurMesh'
 import { useRoomModel } from './hooks'
 
 export default function RoomModel({
@@ -30,6 +31,7 @@ export default function RoomModel({
         object={scene}
         dispose={null}
       />
+      <CarpetFurMesh performanceMode={performanceMode} />
     </group>
   )
 }

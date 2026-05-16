@@ -1,16 +1,16 @@
-<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="1600" height="860" viewBox="0 0 1600 860" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <filter id="drop" x="-35" y="-30" width="1670" height="1045" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="24" stdDeviation="18" flood-color="#7B7690" flood-opacity="0.22"/>
+    <filter id="drop" x="-35" y="-30" width="1670" height="925" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="18" flood-color="#655874" flood-opacity="0.24"/>
     </filter>
   </defs>
 
   <g filter="url(#drop)">
-    <rect x="10" y="10" width="1580" height="960" rx="42" fill="#FFD95D"/>
-    <rect x="32" y="32" width="1536" height="916" rx="32" fill="#FFE7A8"/>
-    <rect x="54" y="54" width="1492" height="872" rx="26" stroke="#FFF8C6" stroke-opacity="0.92" stroke-width="6"/>
+    <rect x="10" y="10" width="1580" height="840" rx="42" fill="#B9B1CE"/>
+    <rect x="32" y="32" width="1536" height="796" rx="32" fill="#EEEAF7"/>
+    <rect x="54" y="54" width="1492" height="752" rx="26" stroke="#FBFAFF" stroke-opacity="0.94" stroke-width="6"/>
 
-    <rect x="76" y="70" width="1448" height="112" rx="20" fill="#FFF8E1"/>
-    <rect x="76" y="70" width="1448" height="112" rx="20" stroke="#FFD66B" stroke-opacity="0.72" stroke-width="4"/>
+    <rect x="76" y="70" width="1448" height="112" rx="20" fill="#FBFAFF"/>
+    <rect x="76" y="70" width="1448" height="112" rx="20" stroke="#C8C0D8" stroke-opacity="0.78" stroke-width="4"/>
   </g>
 </svg>

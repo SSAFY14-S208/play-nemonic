@@ -3,6 +3,7 @@ import { ContactShadows } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import CameraRig from './CameraRig'
 import LightingSetup from './LightingSetup'
+import HubSkyDome from './objects/HubSkyDome'
 import MonitorGameSelector from './objects/MonitorGameSelector'
 import NemonicPrinterStation from './objects/NemonicPrinterStation'
 import PegboardAreaMesh from './objects/PegboardAreaMesh'
@@ -31,11 +32,19 @@ export default function HubScene({
 }) {
   const notes = useHubPrintStore((state) => state.notes)
   const performanceProfile = HUB_PERFORMANCE_PROFILES[performanceMode]
+  const isQualityMode = performanceMode === 'quality'
+  const sceneBackgroundColor = performanceProfile.environment ? '#eee7f5' : '#17112c'
+  const sceneFogColor = performanceProfile.environment ? '#eee7f5' : '#17112c'
 
   return (
     <>
-      <color attach="background" args={['#17112c']} />
-      <fog attach="fog" args={['#17112c', 17, 36]} />
+      <color attach="background" args={[sceneBackgroundColor]} />
+      <fog attach="fog" args={[sceneFogColor, 17, 36]} />
+      {performanceProfile.environment && (
+        <Suspense fallback={null}>
+          <HubSkyDome />
+        </Suspense>
+      )}
       <CameraRig performanceMode={performanceMode} />
       {isHubPerformanceDiagnosticsEnabled(performanceMode) && (
         <HubRenderDiagnostics />
@@ -60,13 +69,13 @@ export default function HubScene({
       {performanceProfile.contactShadows && (
         <Suspense fallback={null}>
           <ContactShadows
-            blur={2.6}
-            color="#9e88cc"
+            blur={isQualityMode ? 2.6 : 2.2}
+            color="#a995cc"
             far={6.5}
             frames={1}
-            opacity={0.18}
+            opacity={isQualityMode ? 0.2 : 0.14}
             position={[-1.05, -0.08, -1.95]}
-            resolution={768}
+            resolution={isQualityMode ? 768 : 512}
             scale={9.5}
           />
         </Suspense>

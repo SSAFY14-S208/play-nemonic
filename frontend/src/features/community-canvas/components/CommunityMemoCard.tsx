@@ -13,6 +13,7 @@ const MAX_MEMO_STACK_ORDER = 399
 interface CommunityMemoCardProps {
   memo: CommunityMemoItemResponse
   isActive: boolean
+  playbackImageUrl?: string | null
   placementMotion?: 'attach' | 'detach' | 'lift' | 'release'
   isInteractionDisabled?: boolean
   onSelect: (memo: CommunityMemoItemResponse) => void
@@ -22,12 +23,14 @@ interface CommunityMemoCardProps {
 export function CommunityMemoCard({
   memo,
   isActive,
+  playbackImageUrl,
   placementMotion,
   isInteractionDisabled = false,
   onSelect,
   onOpenDetail,
 }: CommunityMemoCardProps) {
   const normalizedMemoStackOrder = Math.min(Math.max(memo.zIndex, 0), MAX_MEMO_STACK_ORDER)
+  const displayImageUrl = playbackImageUrl || memo.memoThumbnailImageUrl || memo.memoImageUrl
 
   return (
     <button
@@ -71,9 +74,9 @@ export function CommunityMemoCard({
           data-post-it-art-motion={placementMotion ? undefined : 'hover'}
           className="post-it-note-art absolute inset-x-4 bottom-5 top-7 overflow-hidden rounded-[0.35rem]"
         >
-          {memo.memoThumbnailImageUrl || memo.memoImageUrl ? (
+          {displayImageUrl ? (
             <Image
-              src={memo.memoThumbnailImageUrl || memo.memoImageUrl}
+              src={displayImageUrl}
               alt={`${memo.authorNickname}의 커뮤니티 메모`}
               fill
               sizes="160px"
