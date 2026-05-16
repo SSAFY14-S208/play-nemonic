@@ -43,11 +43,17 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     : isCanvasReady
       ? progress
       : Math.min(progress, 92)
-  targetProgressRef.current = Math.max(targetProgressRef.current, targetProgress)
 
   useEffect(() => {
     visibleStartedAtRef.current = performance.now()
   }, [])
+
+  useEffect(() => {
+    targetProgressRef.current = Math.max(
+      targetProgressRef.current,
+      targetProgress,
+    )
+  }, [targetProgress])
 
   useEffect(() => {
     if (!active) return
