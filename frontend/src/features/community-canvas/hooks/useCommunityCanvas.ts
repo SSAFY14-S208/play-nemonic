@@ -21,6 +21,8 @@ import type {
 } from '@/shared/types'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
+type MemoPlaybackImageUrlMap = Record<string, string>
+type MemoWithDecoration = Pick<CommunityMemoItemResponse, 'decoration'>
 
 export interface CommunityMemoLayoutDraft {
   positionX: number
@@ -70,7 +72,47 @@ function getArtifactGifUrl(artifactImages: ArtifactImageUrlResponse) {
   )
 }
 
+function isGifImageUrl(imageUrl: string | null | undefined) {
+  if (!imageUrl) return false
+  return /\.gif(?:[?#].*)?$/i.test(imageUrl)
+}
+
+function getDecorationString(decoration: unknown, key: string) {
+  if (!decoration || typeof decoration !== 'object') return null
+  const value = (decoration as Record<string, unknown>)[key]
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+function getDecorationPlaybackImageUrl(memo: MemoWithDecoration) {
+  const sourceContentKind = getDecorationString(memo.decoration, 'sourceContentKind')
+  const playbackImageUrl =
+    getDecorationString(memo.decoration, 'sourcePlaybackImageUrl') ||
+    getDecorationString(memo.decoration, 'playbackImageUrl') ||
+    getDecorationString(memo.decoration, 'sourceImageUrl')
+
+  if (!playbackImageUrl) return null
+
+  if (isGifImageUrl(playbackImageUrl) || sourceContentKind?.toLowerCase() === 'flipbook') {
+    return playbackImageUrl
+  }
+
+  return null
+}
+
+function getMemoGifImageUrl(memo: CommunityMemoItemResponse) {
+  const gifImageUrl = [
+    memo.memoOriginalImageUrl,
+    memo.memoImageUrl,
+    memo.memoThumbnailImageUrl,
+  ].find(isGifImageUrl)
+
+  return gifImageUrl ?? null
+}
+
 async function getAnimatedDetailImageUrl(detail: CommunityMemoDetailResponse) {
+  if (detail.memoPlaybackImageUrl) return detail.memoPlaybackImageUrl
+  const decorationPlaybackImageUrl = getDecorationPlaybackImageUrl(detail)
+  if (decorationPlaybackImageUrl) return decorationPlaybackImageUrl
   if (!shouldResolveAnimatedDetailImage(detail) || !detail.artifactId) return null
 
   try {
@@ -81,10 +123,29 @@ async function getAnimatedDetailImageUrl(detail: CommunityMemoDetailResponse) {
   }
 }
 
+async function getAnimatedMemoImageUrl(memo: CommunityMemoItemResponse) {
+  if (memo.memoPlaybackImageUrl) return memo.memoPlaybackImageUrl
+  const decorationPlaybackImageUrl = getDecorationPlaybackImageUrl(memo)
+  if (decorationPlaybackImageUrl) return decorationPlaybackImageUrl
+  const memoGifImageUrl = getMemoGifImageUrl(memo)
+  if (memoGifImageUrl) return memoGifImageUrl
+  if (memo.sourceType !== 'GALLERY') return null
+
+  try {
+    const detail = await getCommunityMemo(memo.memoUuid)
+    return getAnimatedDetailImageUrl(detail)
+  } catch {
+    return null
+  }
+}
+
 export function useCommunityCanvas() {
   const userUuid = useUserStore((state) => state.userUuid)
   const detailRequestIdRef = useRef(0)
+  const memoPlaybackRequestIdRef = useRef(0)
   const [memos, setMemos] = useState<CommunityMemoItemResponse[]>([])
+  const [memoPlaybackImageUrls, setMemoPlaybackImageUrls] =
+    useState<MemoPlaybackImageUrlMap>({})
   const [memoStatus, setMemoStatus] = useState<AsyncStatus>('idle')
   const [memoError, setMemoError] = useState<string | null>(null)
   const [selectedWallMemoUuid, setSelectedWallMemoUuid] = useState<string | null>(null)
@@ -101,19 +162,62 @@ export function useCommunityCanvas() {
   const [mutationStatus, setMutationStatus] = useState<AsyncStatus>('idle')
   const [reportStatus, setReportStatus] = useState<AsyncStatus>('idle')
 
+  const resolveMemoPlaybackImageUrls = useCallback(
+    async (nextMemos: CommunityMemoItemResponse[], requestId: number) => {
+      const playbackEntries = await Promise.all(
+        nextMemos.map(async (memo) => {
+          const animatedImageUrl = await getAnimatedMemoImageUrl(memo)
+          return animatedImageUrl ? ([memo.memoUuid, animatedImageUrl] as const) : null
+        }),
+      )
+
+      if (memoPlaybackRequestIdRef.current !== requestId) return
+
+      setMemoPlaybackImageUrls((currentPlaybackImageUrls) => {
+        const nextPlaybackImageUrls = { ...currentPlaybackImageUrls }
+
+        playbackEntries.forEach((entry) => {
+          if (!entry) return
+          const [memoUuid, animatedImageUrl] = entry
+          nextPlaybackImageUrls[memoUuid] = animatedImageUrl
+        })
+
+        return nextPlaybackImageUrls
+      })
+    },
+    [],
+  )
+
   const loadCommunityMemos = useCallback(async () => {
+    const requestId = memoPlaybackRequestIdRef.current + 1
+    memoPlaybackRequestIdRef.current = requestId
     setMemoStatus('loading')
     setMemoError(null)
 
     try {
       const response = await getCommunityMemoList()
       setMemos(response.items)
+      setMemoPlaybackImageUrls((currentPlaybackImageUrls) => {
+        const nextPlaybackImageUrls: MemoPlaybackImageUrlMap = {}
+
+        response.items.forEach((memo) => {
+          const playbackImageUrl =
+            memo.memoPlaybackImageUrl || currentPlaybackImageUrls[memo.memoUuid]
+
+          if (playbackImageUrl) {
+            nextPlaybackImageUrls[memo.memoUuid] = playbackImageUrl
+          }
+        })
+
+        return nextPlaybackImageUrls
+      })
       setMemoStatus('success')
+      void resolveMemoPlaybackImageUrls(response.items, requestId)
     } catch (error) {
       setMemoError(toErrorMessage(error, '커뮤니티 메모를 불러오지 못했어요.'))
       setMemoStatus('error')
     }
-  }, [])
+  }, [resolveMemoPlaybackImageUrls])
 
   const loadCommunityMemosWithCreatedMemo = useCallback(
     async (createdMemo: CommunityMemoDetailResponse) => {
@@ -323,6 +427,7 @@ export function useCommunityCanvas() {
 
   return {
     memos,
+    memoPlaybackImageUrls,
     memoStatus,
     memoError,
     selectedWallMemoUuid,

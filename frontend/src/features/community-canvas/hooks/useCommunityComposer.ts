@@ -37,7 +37,7 @@ export const COMMUNITY_COMPOSER_BOARD_SIZE = {
   height: 540,
 }
 
-const COMMUNITY_DRAWING_BACKGROUND = '#fffdf7'
+const COMMUNITY_DRAWING_BACKGROUND = '#fbfaff'
 const GALLERY_PAGE_SIZE = 12
 const MODERATION_BLOCKED_TOAST_MESSAGE =
   '부적절한 내용이 감지되어 메모 게시를 취소했어요.'
@@ -81,6 +81,26 @@ function includesModerationBlockedMessage(value: unknown): boolean {
   }
 
   return false
+}
+
+function isGifImageUrl(imageUrl: string | null | undefined) {
+  if (!imageUrl) return false
+  return /\.gif(?:[?#].*)?$/i.test(imageUrl)
+}
+
+function getGalleryPlaybackImageUrl({
+  imageUrl,
+  sourceContentKind,
+}: {
+  imageUrl: string
+  sourceContentKind: string | null | undefined
+}) {
+  const normalizedContentKind = sourceContentKind?.toLowerCase()
+  if (isGifImageUrl(imageUrl) || normalizedContentKind === 'flipbook') {
+    return imageUrl
+  }
+
+  return null
 }
 
 async function isCommunityMemoModerationBlockedError(error: unknown) {
@@ -292,6 +312,8 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
       selectedGalleryDetail?.contentUrl ||
       selectedGalleryDetail?.thumbnailUrl
     const sourceGalleryId = handoffDraft?.sourceGalleryId ?? selectedGalleryId
+    const sourceContentKind =
+      handoffDraft?.sourceContentKind ?? selectedGalleryDetail?.kind ?? null
 
     if (!handoffDraft && (!selectedGalleryId || !selectedGalleryDetail)) {
       toast.error('붙일 갤러리 항목을 선택해주세요.')
@@ -325,8 +347,11 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
           sourceGalleryId: sourceGalleryId ?? null,
           sourceKind: handoffDraft?.sourceKind ?? 'GALLERY',
           sourceTitle: handoffDraft?.title ?? null,
-          sourceContentKind:
-            handoffDraft?.sourceContentKind ?? selectedGalleryDetail?.kind ?? null,
+          sourceContentKind,
+          sourcePlaybackImageUrl: getGalleryPlaybackImageUrl({
+            imageUrl,
+            sourceContentKind,
+          }),
           lines: drawingBoard.lines,
         },
       })

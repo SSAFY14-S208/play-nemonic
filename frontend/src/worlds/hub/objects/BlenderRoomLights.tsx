@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { HUB_ROOM_POSITION, HUB_ROOM_SCALE } from '@/shared/constants'
 
 type BlenderAreaLight = {
+  balanced: boolean
   name: string
   position: [number, number, number]
   rotation: [number, number, number]
@@ -16,14 +17,38 @@ type BlenderAreaLight = {
 }
 
 type BlenderPointLight = {
+  balanced: boolean
   name: string
   position: [number, number, number]
   color: string
   energy: number
 }
 
+type BlenderRoomLightMode = 'balanced' | 'quality'
+
+const BLENDER_ROOM_LIGHT_STRENGTH: Record<
+  BlenderRoomLightMode,
+  {
+    area: number
+    point: number
+    spill: number
+  }
+> = {
+  balanced: {
+    area: 0.46,
+    point: 0.18,
+    spill: 0.32,
+  },
+  quality: {
+    area: 1,
+    point: 1,
+    spill: 1,
+  },
+}
+
 const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
   {
+    balanced: true,
     name: 'Table Backlight',
     position: [0.086, 0.7473, 0.307],
     rotation: [7.8273, 0, 0],
@@ -35,6 +60,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 1,
   },
   {
+    balanced: false,
     name: 'Keyboard light',
     position: [-0.1972, 0.4748, 0.3307],
     rotation: [3.2172, 0, 0],
@@ -46,6 +72,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 1,
   },
   {
+    balanced: true,
     name: 'Corner Light',
     position: [-0.6085, -0.1441, 0.0507],
     rotation: [3.1416, -0.2588, -0.6494],
@@ -57,6 +84,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 0.25,
   },
   {
+    balanced: true,
     name: 'Cube Shelf Backlight',
     position: [-0.6049, 0.3224, 0.285],
     rotation: [8.3703, 0, 1.5708],
@@ -68,6 +96,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 1,
   },
   {
+    balanced: true,
     name: 'Top Room Light',
     position: [-0.01, 0.7598, 1.0465],
     rotation: [0, 0, 0],
@@ -79,6 +108,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 0.25,
   },
   {
+    balanced: false,
     name: 'Top Corner Room light',
     position: [-0.593, 0.1959, 1.0465],
     rotation: [0, 0, 1.5708],
@@ -90,6 +120,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 0.25,
   },
   {
+    balanced: false,
     name: 'Blue Ambient Room light',
     position: [0.7388, 0.7569, 0.4983],
     rotation: [0, 0.9811, 1.5708],
@@ -101,6 +132,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 0.25,
   },
   {
+    balanced: true,
     name: 'Orange Ambient Room light',
     position: [0.197, -0.5875, 0.2969],
     rotation: [1.5708, 0, 0],
@@ -112,6 +144,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 0.25,
   },
   {
+    balanced: true,
     name: 'Cube TopShelf Bottom light',
     position: [-0.6333, 0.0761, 0.622],
     rotation: [0, 0, 0],
@@ -123,6 +156,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 1,
   },
   {
+    balanced: false,
     name: 'Cube TopShelf Light',
     position: [-0.6405, 0.0801, 0.736],
     rotation: [0, -0.9105, 0],
@@ -134,6 +168,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 1,
   },
   {
+    balanced: false,
     name: 'Frame light',
     position: [-0.616, 0.0653, 0.9602],
     rotation: [0, 0, 0],
@@ -145,6 +180,7 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
     sizeY: 1,
   },
   {
+    balanced: true,
     name: 'Monitor Backlight',
     position: [-0.2431, 0.6928, 0.4969],
     rotation: [1.5708, 0, 0.0022],
@@ -159,18 +195,21 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
 
 const BLENDER_POINT_LIGHTS: BlenderPointLight[] = [
   {
+    balanced: false,
     name: 'Side Table Ambient.002',
     position: [0.4888, 0.359, 0.4219],
     color: '#636bff',
     energy: 0.2,
   },
   {
+    balanced: false,
     name: 'Side Table Ambient',
     position: [0.4888, 0.043, 0.4219],
     color: '#636bff',
     energy: 0.2,
   },
   {
+    balanced: false,
     name: 'Side Table Ambient.001',
     position: [0.664, -0.1074, 0.4219],
     color: '#3f57ff',
@@ -201,18 +240,25 @@ function toThreeQuaternion(rotation: [number, number, number]) {
   return new THREE.Quaternion().setFromRotationMatrix(threeRotation)
 }
 
-function BlenderAreaLightMesh({ light }: { light: BlenderAreaLight }) {
+function BlenderAreaLightMesh({
+  light,
+  mode,
+}: {
+  light: BlenderAreaLight
+  mode: BlenderRoomLightMode
+}) {
   const position = useMemo(() => toThreePosition(light.position), [light.position])
   const quaternion = useMemo(() => toThreeQuaternion(light.rotation), [light.rotation])
   const width = light.size * HUB_ROOM_SCALE
   const height = light.sizeY * HUB_ROOM_SCALE
+  const strength = BLENDER_ROOM_LIGHT_STRENGTH[mode]
 
   return (
     <>
       <rectAreaLight
         color={light.color}
         height={height}
-        intensity={light.energy * light.intensityScale}
+        intensity={light.energy * light.intensityScale * strength.area}
         position={position}
         quaternion={quaternion}
         width={width}
@@ -220,38 +266,56 @@ function BlenderAreaLightMesh({ light }: { light: BlenderAreaLight }) {
       <pointLight
         color={light.color}
         distance={Math.max(width, height) * 1.8}
-        intensity={light.energy * light.spillScale}
+        intensity={light.energy * light.spillScale * strength.spill}
         position={position}
       />
     </>
   )
 }
 
-function BlenderPointLightMesh({ light }: { light: BlenderPointLight }) {
+function BlenderPointLightMesh({
+  light,
+  mode,
+}: {
+  light: BlenderPointLight
+  mode: BlenderRoomLightMode
+}) {
   const position = useMemo(() => toThreePosition(light.position), [light.position])
+  const strength = BLENDER_ROOM_LIGHT_STRENGTH[mode]
 
   return (
     <pointLight
       color={light.color}
       distance={3.6}
-      intensity={light.energy * 2.1}
+      intensity={light.energy * 2.1 * strength.point}
       position={position}
     />
   )
 }
 
-export default function BlenderRoomLights() {
+export default function BlenderRoomLights({
+  mode = 'quality',
+}: {
+  mode?: BlenderRoomLightMode
+}) {
   useEffect(() => {
     RectAreaLightUniformsLib.init()
   }, [])
 
+  const areaLights = BLENDER_AREA_LIGHTS.filter(
+    (light) => mode === 'quality' || light.balanced,
+  )
+  const pointLights = BLENDER_POINT_LIGHTS.filter(
+    (light) => mode === 'quality' || light.balanced,
+  )
+
   return (
     <>
-      {BLENDER_AREA_LIGHTS.map((light) => (
-        <BlenderAreaLightMesh key={light.name} light={light} />
+      {areaLights.map((light) => (
+        <BlenderAreaLightMesh key={light.name} light={light} mode={mode} />
       ))}
-      {BLENDER_POINT_LIGHTS.map((light) => (
-        <BlenderPointLightMesh key={light.name} light={light} />
+      {pointLights.map((light) => (
+        <BlenderPointLightMesh key={light.name} light={light} mode={mode} />
       ))}
     </>
   )

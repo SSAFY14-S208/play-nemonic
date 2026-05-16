@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type CSSProperties } from 'react'
+import { Plus, RefreshCw } from 'lucide-react'
 import { WorldHomeLink } from '@/shared/components/WorldHomeLink'
 import { cn } from '@/shared/libs'
 import { consumeCommunityCanvasHandoffDraft } from '@/shared/utils'
@@ -12,24 +13,18 @@ import {
 } from './components'
 import { useCommunityCanvas, useCommunityComposer } from './hooks'
 
-const refreshButtonStyle = {
-  backgroundImage: 'url("/images/community-canvas/ui/button-refresh-token.png")',
-} satisfies CSSProperties
-
-const memoButtonStyle = {
-  backgroundImage: 'url("/images/community-canvas/ui/button-add-token.png")',
-} satisfies CSSProperties
-
 type CommunityCanvasThemeStyle = CSSProperties & Record<`--${string}`, string>
 
 const communityCanvasThemeStyle: CommunityCanvasThemeStyle = {
-  '--color-primary-1': '#FFB72C',
-  '--color-primary-2': '#E88900',
-  '--color-primary-5': '#FFF0B8',
+  '--color-primary-1': '#B8AED3',
+  '--color-primary-2': '#6A5F82',
+  '--color-primary-5': '#ECE7F7',
   '--color-fg-primary': '#2D2638',
   '--color-fg-secondary': '#6F6681',
   '--color-fg-disabled': '#B4ACBF',
-  '--color-border-default': '#E7DAB8',
+  '--color-border-default': '#D7D0E4',
+  '--community-action-button-border': '#B7AEC9',
+  '--community-action-button-ring': 'rgb(255 255 255 / 0.78)',
 }
 
 export function CommunityCanvasPage() {
@@ -86,32 +81,35 @@ export function CommunityCanvasPage() {
             aria-label="새로고침"
             disabled={isHeaderActionsDisabled}
             onClick={() => void communityCanvas.loadCommunityMemos()}
-            style={refreshButtonStyle}
             className={cn(
-              'size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5',
+              'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
               isHeaderActionsDisabled
                 ? 'invisible cursor-not-allowed'
-                : 'hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
+                : 'hover:-translate-y-0.5 hover:bg-white hover:text-fg-primary active:translate-y-0 active:bg-white/90',
             )}
-          />
+          >
+            <RefreshCw className="size-7 sm:size-8" strokeWidth={2.5} />
+          </button>
           <button
             type="button"
             aria-label="새 메모 붙이기"
             disabled={isHeaderActionsDisabled}
             onClick={composer.openComposer}
-            style={memoButtonStyle}
             className={cn(
-              'size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5',
+              'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
               isHeaderActionsDisabled
                 ? 'invisible cursor-not-allowed'
-                : 'hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
+                : 'hover:-translate-y-0.5 hover:bg-white hover:text-fg-primary active:translate-y-0 active:bg-white/90',
             )}
-          />
+          >
+            <Plus className="size-8 sm:size-9" strokeWidth={2.5} />
+          </button>
         </div>
       </header>
 
       <CommunityWall
         memos={communityCanvas.memos}
+        memoPlaybackImageUrls={communityCanvas.memoPlaybackImageUrls}
         selectedMemoUuid={communityCanvas.selectedWallMemoUuid}
         memoStatus={communityCanvas.memoStatus}
         memoError={communityCanvas.memoError}
