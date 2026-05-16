@@ -268,7 +268,7 @@ export default function FlipbookPrintResultStage({
         <PrintOutputSlot />
 
         <aside
-          className="absolute z-60 flex flex-col overflow-hidden rounded-[30px] px-5 pb-5 pt-4"
+          className="absolute z-60 flex flex-col overflow-hidden rounded-[30px] px-5 pb-5 pt-[26px]"
           style={{
             height: PARTICIPANT_PANEL_HEIGHT,
             left: PARTICIPANT_PANEL_LEFT,
@@ -286,89 +286,150 @@ export default function FlipbookPrintResultStage({
             className="pointer-events-none absolute inset-0 z-0 size-full object-fill"
           />
 
-          <div className="relative z-10 flex min-h-[9%] items-start gap-3">
-            <p className="h3-b flex items-center gap-2 text-[#5d3b38]">
-              <Sparkles className="size-5 text-[#ffb84d]" aria-hidden />
-              참여자 목록
-            </p>
-          </div>
-
-          <div className="relative z-10 mt-4 grid flex-1 content-start gap-2 overflow-y-auto pr-1">
-            {participants.map((participant, participantIndex) => {
-              const isActive = participantIndex === normalizedSelectedParticipantIndex
-              const accentColor = getParticipantAccentColor(participant, participantIndex)
-              const thumbnailImageUrl = participant.frames.find((frame) => frame.imageUrl)?.imageUrl
-              const printableFrameCount = getPrintableFrameCount(participant)
-              const hasGifPlayback = participant.frames.some(
-                (frame) => frame.outputMode === 'gif-playback',
-              )
-
-              return (
-                <div
-                  key={participant.id}
-                  className={cn(
-                    'group relative grid min-h-[68px] grid-cols-[54px_1fr_auto] items-center gap-2 overflow-hidden rounded-[8px] border border-white/80 bg-white/76 px-2.5 py-2 text-left shadow-[0_8px_18px_rgb(226_128_154_/_10%)] transition',
-                    'hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_22px_rgb(226_128_154_/_18%)]',
-                    isActive && 'border-[#ff8aa4] bg-white shadow-[0_12px_26px_rgb(226_128_154_/_24%)]',
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => selectParticipant(participantIndex)}
-                    className="contents text-left"
-                  >
-                    <span className="relative h-[48px] w-[42px]" aria-hidden>
-                      <span className="absolute left-0 top-1 size-[42px] rotate-[-8deg] rounded-[5px] border border-[#ffc1cf] bg-[#ffeef2]" />
-                      <span className="absolute left-2 top-0 size-[42px] rotate-[5deg] rounded-[5px] border border-white bg-white shadow-[0_4px_10px_rgb(120_80_80_/_12%)]">
-                        {thumbnailImageUrl ? (
-                          <Image
-                            src={thumbnailImageUrl}
-                            alt=""
-                            fill
-                            sizes="42px"
-                            unoptimized
-                            className="rounded-[5px] object-cover p-1"
-                          />
-                        ) : (
-                          <span className="absolute inset-1.5 rounded-[3px]" style={{ backgroundColor: `${accentColor}55` }} />
-                        )}
-                        <span className="absolute inset-x-2 bottom-1 h-1 rounded-full bg-white/80" />
-                      </span>
-                    </span>
-
-                    <span className="min-w-0">
-                      <span className="body-b block truncate text-[#332222]">{participant.name}</span>
-                    </span>
-                  </button>
-
-                  <span className="relative z-10 grid justify-items-end gap-1">
-                    <span className="caption-b text-[#e56883]">{printableFrameCount}장</span>
-                    <button
-                      type="button"
-                      onClick={() => selectParticipantGif(participantIndex)}
-                      disabled={!hasGifPlayback}
-                      className="caption-b inline-flex h-6 items-center gap-1 rounded-full border border-[#ff9ab2]/70 bg-white/86 px-2 text-[#d9607a] shadow-[0_4px_8px_rgb(226_128_154_/_12%)] transition hover:bg-[#fff0f4] disabled:opacity-45"
-                      aria-label={`${participant.name} GIF만 보기`}
-                    >
-                      <Play className="size-3 fill-[#d9607a]" aria-hidden />
-                      GIF
-                    </button>
-                  </span>
-
-                  <span
-                    className={cn(
-                      'pointer-events-none absolute inset-0 rounded-[8px] opacity-0 ring-2 ring-[#ff8aa4] transition',
-                      isActive && 'opacity-100',
-                    )}
-                    aria-hidden
-                  />
-                </div>
-              )
-            })}
-          </div>
+          <ParticipantListPanel
+            participants={participants}
+            selectedParticipantIndex={normalizedSelectedParticipantIndex}
+            onSelectParticipant={selectParticipant}
+            onSelectParticipantGif={selectParticipantGif}
+          />
         </aside>
       </div>
     </section>
+  )
+}
+
+function ParticipantListPanel({
+  participants,
+  selectedParticipantIndex,
+  onSelectParticipant,
+  onSelectParticipantGif,
+}: {
+  participants: FlipbookPrintParticipant[]
+  selectedParticipantIndex: number
+  onSelectParticipant: (participantIndex: number) => void
+  onSelectParticipantGif: (participantIndex: number) => void
+}) {
+  return (
+    <>
+      <div className="relative z-10 flex h-[72px] items-start gap-2 pl-1">
+        <Sparkles className="mt-0.5 size-6 stroke-[2.5] text-[#ffb84d]" aria-hidden />
+        <p className="h2-b text-[#5d3b38]">
+          참여자 목록
+        </p>
+      </div>
+
+      <div className="relative z-10 grid flex-1 content-start gap-2 overflow-y-auto pr-1 [scrollbar-color:#ff9ab2_transparent] [scrollbar-width:thin]">
+        {participants.map((participant, participantIndex) => (
+          <ParticipantListItem
+            key={participant.id}
+            participant={participant}
+            participantIndex={participantIndex}
+            isActive={participantIndex === selectedParticipantIndex}
+            onSelectParticipant={onSelectParticipant}
+            onSelectParticipantGif={onSelectParticipantGif}
+          />
+        ))}
+      </div>
+    </>
+  )
+}
+
+function ParticipantListItem({
+  participant,
+  participantIndex,
+  isActive,
+  onSelectParticipant,
+  onSelectParticipantGif,
+}: {
+  participant: FlipbookPrintParticipant
+  participantIndex: number
+  isActive: boolean
+  onSelectParticipant: (participantIndex: number) => void
+  onSelectParticipantGif: (participantIndex: number) => void
+}) {
+  const accentColor = getParticipantAccentColor(participant, participantIndex)
+  const thumbnailImageUrl = participant.frames.find((frame) => frame.imageUrl)?.imageUrl
+  const printableFrameCount = getPrintableFrameCount(participant)
+  const hasGifPlayback = participant.frames.some(
+    (frame) => frame.outputMode === 'gif-playback',
+  )
+
+  return (
+    <div
+      className={cn(
+        'group relative grid min-h-[100px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-[8px] border border-white/80 bg-white/86 px-3 py-3 text-left transition',
+        'hover:bg-white',
+        isActive && 'border-[#ff8aa4] bg-white',
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onSelectParticipant(participantIndex)}
+        className="relative z-10 grid min-w-0 grid-cols-[76px_minmax(0,1fr)] items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8aa4] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        aria-label={`${participant.name} 결과 보기`}
+        aria-pressed={isActive}
+      >
+        <ParticipantPaperThumbnail
+          accentColor={accentColor}
+          imageUrl={thumbnailImageUrl}
+        />
+
+        <span className="min-w-0">
+          <span className="h3-b block truncate text-[#332222]">{participant.name}</span>
+        </span>
+      </button>
+
+      <span className="relative z-10 grid justify-items-end gap-2">
+        <span className="h4-b text-[#e56883]">{printableFrameCount}장</span>
+        <button
+          type="button"
+          onClick={() => onSelectParticipantGif(participantIndex)}
+          disabled={!hasGifPlayback}
+          className={cn(
+            'body-b inline-flex h-10 min-w-[84px] items-center justify-center gap-1.5 rounded-full border px-3 text-[#e5a1ad] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8aa4] focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+            hasGifPlayback
+              ? 'border-[#ffd2dc] bg-white/72 hover:bg-[#fff0f4] hover:text-[#d9607a]'
+              : 'cursor-not-allowed border-[#ffd2dc]/70 bg-white/50 opacity-55',
+          )}
+          aria-label={`${participant.name} GIF만 보기`}
+        >
+          <Play className="size-4 fill-current" aria-hidden />
+          GIF
+        </button>
+      </span>
+    </div>
+  )
+}
+
+function ParticipantPaperThumbnail({
+  accentColor,
+  imageUrl,
+}: {
+  accentColor: string
+  imageUrl?: string | null
+}) {
+  return (
+    <span className="relative h-[64px] w-[70px]" aria-hidden>
+      <span className="absolute left-1 top-2 h-[54px] w-[48px] rotate-[-7deg] rounded-[6px] border border-[#ffc5d3] bg-[#ffe9ef]" />
+      <span className="absolute left-4 top-0 h-[58px] w-[50px] rotate-[4deg] overflow-hidden rounded-[6px] border border-white bg-white shadow-[0_5px_12px_rgb(120_80_80_/_12%)]">
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt=""
+            fill
+            sizes="50px"
+            unoptimized
+            className="rounded-[6px] object-contain p-1"
+          />
+        ) : (
+          <span
+            className="absolute inset-1.5 rounded-[4px]"
+            style={{ backgroundColor: `${accentColor}55` }}
+          />
+        )}
+        <span className="absolute inset-x-2 bottom-1.5 h-1 rounded-full bg-[#f2dca8]/80" />
+      </span>
+    </span>
   )
 }
 
