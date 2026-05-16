@@ -27,6 +27,7 @@ import {
   exportDirectCommunitySnapshot,
   exportGalleryCommunitySnapshot,
   hasDirectSnapshotContent,
+  playCommunityMemoAttachSound,
 } from '../utils'
 import type { CommunityMemoLayoutDraft } from './useCommunityCanvas'
 
@@ -402,6 +403,7 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
 
         const createdMemo = await postCommunityMemo(payload)
         await onCreated(createdMemo)
+        playCommunityMemoAttachSound()
         setPendingPlacement(null)
         setPostStatus('success')
         toast.success('커뮤니티 벽에 메모를 붙였어요.')
