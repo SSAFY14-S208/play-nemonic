@@ -44,7 +44,7 @@ export default function HubSkyDome() {
         depthWrite={false}
         fog={false}
         map={skyTexture}
-        opacity={0.34}
+        opacity={0.18}
         side={THREE.BackSide}
         toneMapped={false}
         transparent
