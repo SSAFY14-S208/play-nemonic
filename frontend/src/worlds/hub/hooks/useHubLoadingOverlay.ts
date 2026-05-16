@@ -18,27 +18,19 @@ function getRemainingMinimumVisibleMs(startedAt: number) {
   )
 }
 
-function getHubLoadingStatusText({
-  active,
-  isCanvasReady,
-  item,
-}: {
-  active: boolean
-  isCanvasReady: boolean
-  item: string
-}) {
-  if (!isCanvasReady) return '허브 입장 준비 중'
-  if (!active) return '허브 정리 중'
-  if (item.includes('/models/')) return '방 모델을 불러오는 중'
-  if (item.includes('/textures/') || item.includes('/images/')) {
-    return '공간의 색과 빛을 준비하는 중'
-  }
+function getHubLoadingStatusText(displayProgress: number) {
+  if (displayProgress < 30) return '네모닉 룸의 불을 켜고 있어요'
+  if (displayProgress < 60) return '메모지들이 하나둘 깨어나는 중이에요'
+  if (displayProgress < 90) return '오늘의 놀이를 방 안에 배치하고 있어요'
 
-  return '허브를 불러오는 중'
+  return '거의 다 왔어요, 마지막 스티커를 붙이는 중이에요'
 }
 
+const HUB_LOADING_SUBTITLE_PENDING = '오늘은 어떤 놀이가 기다릴까요?'
+const HUB_LOADING_SUBTITLE_READY = '재미있는 것들이 가득해요'
+
 export function useHubLoadingOverlay(isCanvasReady: boolean) {
-  const { active, item, progress } = useProgress()
+  const { active, progress } = useProgress()
   const [displayProgress, setDisplayProgress] = useState(0)
   const [isReady, setIsReady] = useState(false)
   const [isVisible, setIsVisible] = useState(true)
@@ -67,22 +59,27 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     let cancelled = false
     let animationFrameHandle = 0
     let lastTimestamp: number | null = null
+    let internalProgress = 0
 
     const animate = (timestamp: number) => {
       if (cancelled) return
 
       if (lastTimestamp !== null) {
         const deltaSeconds = (timestamp - lastTimestamp) / 1000
+        const target = targetProgressRef.current
 
-        setDisplayProgress((current) => {
-          const target = targetProgressRef.current
-          if (current >= target) return current
-
-          const remaining = target - current
+        if (internalProgress < target) {
+          const remaining = target - internalProgress
           const speed = Math.max(remaining * 2, 12)
           const step = Math.min(speed * deltaSeconds, remaining)
-          return current + step
-        })
+          internalProgress += step
+
+          setDisplayProgress((current) =>
+            Math.round(current) === Math.round(internalProgress)
+              ? current
+              : internalProgress,
+          )
+        }
       }
 
       lastTimestamp = timestamp
@@ -157,10 +154,9 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     displayProgress: Math.round(displayProgress),
     isReady,
     isVisible,
-    statusText: getHubLoadingStatusText({
-      active,
-      isCanvasReady,
-      item,
-    }),
+    statusText: getHubLoadingStatusText(displayProgress),
+    subtitleText: isReady
+      ? HUB_LOADING_SUBTITLE_READY
+      : HUB_LOADING_SUBTITLE_PENDING,
   }
 }

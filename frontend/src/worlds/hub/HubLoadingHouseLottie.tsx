@@ -8,9 +8,8 @@ function HubLoadingHouseLottie() {
       animationData={pinkHouseAnimation}
       aria-hidden
       autoplay
-      className="pointer-events-none h-28 w-28"
+      className="pointer-events-none h-28 w-28 [transform:translateZ(0)] [will-change:transform]"
       loop
-      rendererSettings={{ progressiveLoad: true }}
     />
   )
 }
