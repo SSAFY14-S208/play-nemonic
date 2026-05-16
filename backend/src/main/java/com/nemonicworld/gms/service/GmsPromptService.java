@@ -3,8 +3,10 @@ package com.nemonicworld.gms.service;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.gms.dto.request.GmsPromptCreateRequest;
+import com.nemonicworld.gms.dto.request.GmsPromptPreviewRequest;
 import com.nemonicworld.gms.dto.request.GmsPromptUpdateRequest;
 import com.nemonicworld.gms.dto.response.GmsPromptListResponse;
+import com.nemonicworld.gms.dto.response.GmsPromptPreviewResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptResponse;
 
 public interface GmsPromptService {
@@ -16,6 +18,8 @@ public interface GmsPromptService {
         String size);
 
     GmsPromptResponse getPrompt(AdminPrincipal adminPrincipal, Long promptId);
+
+    GmsPromptPreviewResponse previewPrompt(AdminPrincipal adminPrincipal, GmsPromptPreviewRequest request);
 
     void deletePrompt(AdminPrincipal adminPrincipal, Long promptId, AdminClientInfo clientInfo);
 

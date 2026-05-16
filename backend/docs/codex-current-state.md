@@ -129,6 +129,12 @@ Last updated: 2026-05-16
   `featureType`, `page`, and `size`, returns the local pagination DTO shape
   (`items`, `page`, `size`, `totalElements`, `hasNext`), and reads only
   `deleted_at IS NULL` rows from the existing `gms_prompt_template` table.
+- Backoffice admins can preview candidate fortune GMS prompt templates through
+  `POST /api/v1/backoffice/gms/prompts/preview`; the API calls GMS with the
+  unsaved prompt body and sample saju, validates the same fortune result shape
+  used by public fortune creation, renders a PNG card as a base64 data URL, and
+  does not write `gms_prompt_template`, `artifact`, `fortune_artifact`,
+  `gallery`, or MinIO objects.
 - Backoffice admins can now list system parameters through
   `GET /api/v1/backoffice/system-parameters`; the API requires an admin JWT,
   reads existing `backoffice_setting` rows sorted by `setting_key ASC`,
