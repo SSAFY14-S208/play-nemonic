@@ -9,7 +9,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -135,21 +134,14 @@ class InfiniteCanvasControllerIntegrationTest {
     }
 
     @Test
-    void createInfiniteCanvasReturnsCreatedResponseAndStoresCanvasAndInvite() throws Exception {
+    void createInfiniteCanvasUsesRegisteredNicknameAndColorOnly() throws Exception {
         UUID userUuid = createExistingUserWithNickname("다현");
 
         MvcResult result = mockMvc
             .perform(post("/api/v1/infinite-canvas/canvases").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
                 .contentType("application/json").content("""
                     {
-                      "nickname": "햇살",
-                      "color": "#72DDF7",
-                      "avatarUrl": "https://example.com/avatar.png",
-                      "viewport": {
-                        "x": 10,
-                        "y": 20,
-                        "zoom": 0.8
-                      }
+                      "color": "#72DDF7"
                     }
                     """))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
@@ -158,8 +150,9 @@ class InfiniteCanvasControllerIntegrationTest {
             .andExpect(jsonPath("$.data.status").value("ACTIVE"))
             .andExpect(jsonPath("$.data.ownerUserUuid").value(userUuid.toString()))
             .andExpect(jsonPath("$.data.me.userUuid").value(userUuid.toString()))
-            .andExpect(jsonPath("$.data.me.nickname").value("햇살"))
+            .andExpect(jsonPath("$.data.me.nickname").value("다현"))
             .andExpect(jsonPath("$.data.me.color").value("#72DDF7"))
+            .andExpect(jsonPath("$.data.me.avatarUrl").isEmpty())
             .andExpect(jsonPath("$.data.me.connected").value(false))
             .andExpect(jsonPath("$.data.participants.length()").value(1))
             .andExpect(jsonPath("$.data.elements.length()").value(0))
@@ -175,14 +168,45 @@ class InfiniteCanvasControllerIntegrationTest {
         assertThat(storedCanvas.path("inviteCode").asText()).isEqualTo(INVITE_CODE);
         assertThat(storedCanvas.path("status").asText()).isEqualTo("ACTIVE");
         assertThat(storedCanvas.path("participants")).hasSize(1);
-        assertThat(storedCanvas.path("participants").get(0).path("nickname").asText()).isEqualTo("햇살");
+        assertThat(storedCanvas.path("participants").get(0).path("nickname").asText()).isEqualTo("다현");
+        assertThat(storedCanvas.path("participants").get(0).path("color").asText()).isEqualTo("#72DDF7");
+        assertThat(storedCanvas.path("participants").get(0).path("avatarUrl").isNull()).isTrue();
         assertThat(storedCanvas.path("participants").get(0).path("connected").asBoolean()).isFalse();
-        assertThat(storedCanvas.path("viewport").path("zoom").asDouble()).isEqualTo(0.8);
+        assertThat(storedCanvas.path("viewport").isNull()).isTrue();
         assertThat(storedInvite.path("inviteCode").asText()).isEqualTo(INVITE_CODE);
         assertThat(storedInvite.path("boothType").asText()).isEqualTo("infinite_canvas");
         assertThat(storedInvite.path("roomId").asText()).isEqualTo(canvasId);
-        assertThat(storedInvite.path("roomName").asText()).isEqualTo("햇살의 무한 캔버스");
+        assertThat(storedInvite.path("roomName").asText()).isEqualTo("다현의 무한 캔버스");
         assertThat(storedInvite.path("expiresAt").asText()).isNotBlank();
+    }
+
+    @Test
+    void createInfiniteCanvasRejectsDefaultNicknameAndDoesNotStoreCanvas() throws Exception {
+        UUID userUuid = createExistingUserWithDefaultNickname();
+
+        mockMvc
+            .perform(post("/api/v1/infinite-canvas/canvases").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType("application/json").content("""
+                    {
+                      "color": "#72DDF7"
+                    }
+                    """))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("닉네임을 먼저 설정해주세요."));
+
+        assertThat(redisValues).isEmpty();
+    }
+
+    @Test
+    void createInfiniteCanvasRejectsBlankNicknameAndDoesNotStoreCanvas() throws Exception {
+        UUID userUuid = createExistingUserWithNickname("   ");
+
+        mockMvc
+            .perform(post("/api/v1/infinite-canvas/canvases").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("닉네임을 먼저 설정해주세요."));
+
+        assertThat(redisValues).isEmpty();
     }
 
     @Test
@@ -198,104 +222,6 @@ class InfiniteCanvasControllerIntegrationTest {
 
         String canvasId = readData(result).path("canvasId").asText();
         assertThat(readStoredJson(canvasKey(canvasId)).path("maxParticipants").asInt()).isEqualTo(8);
-    }
-
-    @Test
-    void getInfiniteCanvasAutoAddsRequesterWhenNotParticipant() throws Exception {
-        UUID ownerUuid = createExistingUserWithNickname("Owner");
-        UUID viewerUuid = createExistingUserWithNickname("Viewer");
-        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.canvasId()), serialize(state));
-
-        mockMvc
-            .perform(get("/api/v1/infinite-canvas/canvases/{canvasId}", state.canvasId())
-                .header(ANONYMOUS_USER_UUID_HEADER, viewerUuid.toString()))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("무한 캔버스 조회 성공"))
-            .andExpect(jsonPath("$.data.canvasId").value(state.canvasId()))
-            .andExpect(jsonPath("$.data.me.userUuid").value(viewerUuid.toString()))
-            .andExpect(jsonPath("$.data.me.nickname").value("Viewer"))
-            .andExpect(jsonPath("$.data.participants.length()").value(2));
-
-        JsonNode storedCanvas = readStoredJson(canvasKey(state.canvasId()));
-        JsonNode storedInvite = readStoredJson("invite:" + state.inviteCode());
-        assertThat(storedCanvas.path("participants")).hasSize(2);
-        assertThat(storedCanvas.path("participants").get(1).path("userUuid").asText()).isEqualTo(viewerUuid.toString());
-        assertThat(storedCanvas.path("participants").get(1).path("connected").asBoolean()).isFalse();
-        assertThat(storedInvite.path("boothType").asText()).isEqualTo("infinite_canvas");
-        assertThat(storedInvite.path("roomId").asText()).isEqualTo(state.canvasId());
-    }
-
-    @Test
-    void getInfiniteCanvasDoesNotDuplicateExistingParticipant() throws Exception {
-        UUID ownerUuid = createExistingUserWithNickname("Owner");
-        UUID viewerUuid = createExistingUserWithNickname("Viewer");
-        InfiniteCanvasParticipant owner = participant(ownerUuid, "Owner");
-        InfiniteCanvasParticipant viewer = participant(viewerUuid, "Viewer");
-        InfiniteCanvasState state = activeCanvasState(6, owner, viewer);
-        redisValues.put(canvasKey(state.canvasId()), serialize(state));
-
-        mockMvc
-            .perform(get("/api/v1/infinite-canvas/canvases/{canvasId}", state.canvasId())
-                .header(ANONYMOUS_USER_UUID_HEADER, viewerUuid.toString()))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.data.me.userUuid").value(viewerUuid.toString()))
-            .andExpect(jsonPath("$.data.participants.length()").value(2));
-
-        assertThat(readStoredJson(canvasKey(state.canvasId())).path("participants")).hasSize(2);
-    }
-
-    @Test
-    void getInfiniteCanvasRejectsFullCanvas() throws Exception {
-        UUID ownerUuid = createExistingUserWithNickname("Owner");
-        UUID viewerUuid = createExistingUserWithNickname("Viewer");
-        InfiniteCanvasState state = activeCanvasState(ownerUuid, 1);
-        redisValues.put(canvasKey(state.canvasId()), serialize(state));
-
-        mockMvc
-            .perform(get("/api/v1/infinite-canvas/canvases/{canvasId}", state.canvasId())
-                .header(ANONYMOUS_USER_UUID_HEADER, viewerUuid.toString()))
-            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("무한 캔버스 최대 참여자 수를 초과했습니다."));
-
-        assertThat(readStoredJson(canvasKey(state.canvasId())).path("participants")).hasSize(1);
-    }
-
-    @Test
-    void getInfiniteCanvasRejectsInvalidCanvasId() throws Exception {
-        UUID userUuid = createExistingUserWithNickname("Viewer");
-
-        mockMvc
-            .perform(get("/api/v1/infinite-canvas/canvases/{canvasId}", "not-a-uuid").header(ANONYMOUS_USER_UUID_HEADER,
-                userUuid.toString()))
-            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("유효하지 않은 캔버스 ID 형식입니다."));
-    }
-
-    @Test
-    void updateInfiniteCanvasParticipantProfile() throws Exception {
-        UUID ownerUuid = createExistingUserWithNickname("Owner");
-        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
-        redisValues.put(canvasKey(state.canvasId()), serialize(state));
-
-        mockMvc
-            .perform(patch("/api/v1/infinite-canvas/canvases/{canvasId}/participants/me", state.canvasId())
-                .header(ANONYMOUS_USER_UUID_HEADER, ownerUuid.toString()).contentType("application/json").content("""
-                    {
-                      "nickname": "새로운 붓",
-                      "color": "#F472B6",
-                      "avatarUrl": "https://example.com/new-avatar.png"
-                    }
-                    """))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.message").value("무한 캔버스 참여자 정보 수정 성공"))
-            .andExpect(jsonPath("$.data.userUuid").value(ownerUuid.toString()))
-            .andExpect(jsonPath("$.data.nickname").value("새로운 붓")).andExpect(jsonPath("$.data.color").value("#F472B6"))
-            .andExpect(jsonPath("$.data.avatarUrl").value("https://example.com/new-avatar.png"));
-
-        JsonNode storedParticipant = readStoredJson(canvasKey(state.canvasId())).path("participants").get(0);
-        assertThat(storedParticipant.path("nickname").asText()).isEqualTo("새로운 붓");
-        assertThat(storedParticipant.path("color").asText()).isEqualTo("#F472B6");
-        assertThat(storedParticipant.path("avatarUrl").asText()).isEqualTo("https://example.com/new-avatar.png");
     }
 
     @Test
@@ -446,6 +372,25 @@ class InfiniteCanvasControllerIntegrationTest {
         assertThat(storedParticipants.get(1).path("userUuid").asText()).isEqualTo(viewerUuid.toString());
         assertThat(storedParticipants.get(1).path("nickname").asText()).isEqualTo("Viewer");
         assertThat(readStoredJson("invite:" + INVITE_CODE).path("boothType").asText()).isEqualTo("infinite_canvas");
+    }
+
+    @Test
+    void joinInviteCodeRejectsDefaultNicknameAndDoesNotStoreParticipant() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        UUID viewerUuid = createExistingUserWithDefaultNickname();
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
+        redisValues.put(canvasKey(state.canvasId()), serialize(state));
+        redisValues.put("invite:" + INVITE_CODE, objectMapper.writeValueAsString(new InviteMetadata(INVITE_CODE,
+            "infinite_canvas", state.canvasId(), "Owner의 무한 캔버스", LocalDateTime.now().plusHours(1))));
+
+        mockMvc
+            .perform(post("/api/v1/invites/{inviteCode}", INVITE_CODE).header(ANONYMOUS_USER_UUID_HEADER,
+                viewerUuid.toString()))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("닉네임을 먼저 설정해주세요."));
+
+        JsonNode storedParticipants = readStoredJson(canvasKey(state.canvasId())).path("participants");
+        assertThat(storedParticipants).hasSize(1);
     }
 
     @Test
@@ -684,6 +629,14 @@ class InfiniteCanvasControllerIntegrationTest {
         AppUser appUser = AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt);
         appUser.updateNickname(nickname, updatedAt);
         userRepository.saveAndFlush(appUser);
+
+        return userUuid;
+    }
+
+    private UUID createExistingUserWithDefaultNickname() {
+        UUID userUuid = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        userRepository.saveAndFlush(AppUser.createAnonymous(userUuid, "MangoApp/1.0", createdAt));
 
         return userUuid;
     }

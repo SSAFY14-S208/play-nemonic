@@ -18,14 +18,12 @@ import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasLockRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOperationRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOutputSaveRequest;
-import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasParticipantUpdateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasSnapshotRequest;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOutputSaveResponse;
-import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasCursor;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasLock;
@@ -60,8 +58,8 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
 
     private static final String INVALID_CANVAS_ID_MESSAGE = "유효하지 않은 캔버스 ID 형식입니다.";
     private static final String CANVAS_NOT_FOUND_MESSAGE = "활성 무한 캔버스를 찾을 수 없습니다.";
-    private static final String CANVAS_FULL_MESSAGE = "무한 캔버스 최대 참여자 수를 초과했습니다.";
     private static final String NOT_PARTICIPANT_MESSAGE = "무한 캔버스 참여자가 아닙니다.";
+    private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_CURSOR_MESSAGE = "커서 좌표 형식이 올바르지 않습니다.";
     private static final String INVALID_LOCK_MESSAGE = "요소 lock 요청 형식이 올바르지 않습니다.";
     private static final String INVALID_ELEMENTS_MESSAGE = "캔버스 요소 목록 형식이 올바르지 않습니다.";
@@ -123,6 +121,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     @Transactional(readOnly = true)
     public InfiniteCanvasStateResponse createCanvas(String userUuidValue, InfiniteCanvasCreateRequest request) {
         AppUser ownerUser = anonymousUserResolver.resolve(userUuidValue);
+        validateNicknameRegistered(ownerUser);
         String ownerUserUuid = ownerUser.getId().toString();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         String canvasId = UUID.randomUUID().toString();
@@ -131,43 +130,12 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             .currentParticipantLimit();
         InfiniteCanvasParticipant ownerParticipant = createParticipant(ownerUser, request, now);
         InfiniteCanvasState state = InfiniteCanvasState.create(canvasId, inviteCode, ownerUserUuid, ownerParticipant,
-            request == null ? null : request.viewport(), participantLimit.maxParticipants(), now);
+            null, participantLimit.maxParticipants(), now);
 
         infiniteCanvasRepository.save(state);
         infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(state);
 
         return InfiniteCanvasStateResponse.from(state, ownerUserUuid);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public InfiniteCanvasStateResponse getCanvas(String userUuidValue, String canvasId) {
-        AppUser viewerUser = anonymousUserResolver.resolve(userUuidValue);
-        String viewerUserUuid = viewerUser.getId().toString();
-        String normalizedCanvasId = normalizeCanvasId(canvasId);
-
-        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = findActiveState(normalizedCanvasId);
-            if (state.hasParticipant(viewerUserUuid)) {
-                return InfiniteCanvasStateResponse.from(state, viewerUserUuid);
-            }
-
-            if (state.participantCount() >= state.maxParticipants()) {
-                throw new ConflictException(CANVAS_FULL_MESSAGE);
-            }
-
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            List<InfiniteCanvasParticipant> participants = new ArrayList<>(state.participants());
-            participants.add(createParticipant(viewerUser, null, now));
-            InfiniteCanvasState updatedState = copyState(state, participants, now);
-
-            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
-                infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(updatedState);
-                return InfiniteCanvasStateResponse.from(updatedState, viewerUserUuid);
-            }
-        }
-
-        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
     }
 
     @Override
@@ -355,34 +323,6 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
 
     @Override
     @Transactional(readOnly = true)
-    public InfiniteCanvasParticipantResponse updateMyParticipant(String userUuidValue, String canvasId,
-        InfiniteCanvasParticipantUpdateRequest request) {
-        AppUser user = anonymousUserResolver.resolve(userUuidValue);
-        String userUuid = user.getId().toString();
-        String normalizedCanvasId = normalizeCanvasId(canvasId);
-
-        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = findActiveState(normalizedCanvasId);
-            InfiniteCanvasParticipant participant = state.findParticipant(userUuid)
-                .orElseThrow(() -> new NotFoundException(NOT_PARTICIPANT_MESSAGE));
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            InfiniteCanvasParticipant updatedParticipant = participant.updateProfile(
-                normalizeNickname(request == null ? null : request.nickname(), participant.nickname()),
-                normalizeColor(request == null ? null : request.color(), participant.color()),
-                normalizeAvatarUrl(request == null ? null : request.avatarUrl(), participant.avatarUrl()), now);
-            InfiniteCanvasState updatedState = copyState(state,
-                replaceParticipant(state.participants(), updatedParticipant), now);
-
-            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
-                return InfiniteCanvasParticipantResponse.from(updatedParticipant);
-            }
-        }
-
-        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public InfiniteCanvasOpsAppliedResponse applyOperations(String userUuidValue, String canvasId,
         InfiniteCanvasOpsRequest request) {
         AppUser user = anonymousUserResolver.resolve(userUuidValue);
@@ -510,29 +450,16 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private InfiniteCanvasParticipant createParticipant(AppUser user, InfiniteCanvasCreateRequest request,
         LocalDateTime now) {
         String userUuid = user.getId().toString();
-        String fallbackNickname = resolveFallbackNickname(user, userUuid);
 
-        return new InfiniteCanvasParticipant(userUuid,
-            normalizeNickname(request == null ? null : request.nickname(), fallbackNickname),
-            normalizeColor(request == null ? null : request.color(), defaultColor(userUuid)),
-            normalizeAvatarUrl(request == null ? null : request.avatarUrl(), null), false, now, null, now);
+        return new InfiniteCanvasParticipant(userUuid, user.getNickname(),
+            normalizeColor(request == null ? null : request.color(), defaultColor(userUuid)), null, false, now, null,
+            now);
     }
 
-    private String resolveFallbackNickname(AppUser user, String userUuid) {
-        if (StringUtils.hasText(user.getNickname()) && !AppUser.ANONYMOUS_NICKNAME.equals(user.getNickname())) {
-            return user.getNickname();
+    private void validateNicknameRegistered(AppUser appUser) {
+        if (!StringUtils.hasText(appUser.getNickname()) || AppUser.ANONYMOUS_NICKNAME.equals(appUser.getNickname())) {
+            throw new BadRequestException(NICKNAME_REQUIRED_MESSAGE);
         }
-
-        return "참여자-" + userUuid.replace("-", "").substring(0, 6);
-    }
-
-    private String normalizeNickname(String value, String fallback) {
-        if (!StringUtils.hasText(value)) {
-            return fallback;
-        }
-
-        String trimmed = value.trim();
-        return trimmed.length() > 30 ? trimmed.substring(0, 30) : trimmed;
     }
 
     private String normalizeColor(String value, String fallback) {
@@ -542,15 +469,6 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
 
         String trimmed = value.trim();
         return trimmed.length() > 32 ? fallback : trimmed;
-    }
-
-    private String normalizeAvatarUrl(String value, String fallback) {
-        if (!StringUtils.hasText(value)) {
-            return fallback;
-        }
-
-        String trimmed = value.trim();
-        return trimmed.length() > 500 ? trimmed.substring(0, 500) : trimmed;
     }
 
     private String defaultColor(String userUuid) {
