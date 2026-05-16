@@ -155,14 +155,12 @@ export function useCommunityCanvasWhiteboardPreviewMemos() {
   const [communityMemos, setCommunityMemos] = useState<CommunityMemoItemResponse[]>([])
   const [totalElements, setTotalElements] = useState(0)
   const [status, setStatus] =
-    useState<CommunityCanvasWhiteboardPreviewStatus>('idle')
+    useState<CommunityCanvasWhiteboardPreviewStatus>('loading')
 
   useEffect(() => {
     let isCancelled = false
 
     ;(async () => {
-      setStatus('loading')
-
       try {
         const response = await getCommunityMemoList()
         if (isCancelled) return

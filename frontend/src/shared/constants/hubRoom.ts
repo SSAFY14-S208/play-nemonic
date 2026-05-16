@@ -207,17 +207,6 @@ export const HUB_WORKSPACE_DROP_SIZE: [number, number] = [
   HUB_WORKSPACE_SURFACE.maximumZ - HUB_WORKSPACE_SURFACE.minimumZ,
 ]
 
-export const HUB_PEGBOARD_DROP_CENTER: [number, number, number] = [
-  (HUB_PEGBOARD_SURFACE.minimumX + HUB_PEGBOARD_SURFACE.maximumX) / 2,
-  (HUB_PEGBOARD_SURFACE.minimumY + HUB_PEGBOARD_SURFACE.maximumY) / 2,
-  HUB_PEGBOARD_SURFACE.z + HUB_PEGBOARD_SURFACE.zOffset,
-]
-
-export const HUB_PEGBOARD_DROP_SIZE: [number, number] = [
-  HUB_PEGBOARD_SURFACE.maximumX - HUB_PEGBOARD_SURFACE.minimumX,
-  HUB_PEGBOARD_SURFACE.maximumY - HUB_PEGBOARD_SURFACE.minimumY,
-]
-
 export function parseHubPerformanceMode(
   value: string | null | undefined,
 ): HubPerformanceMode {

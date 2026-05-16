@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { HUB_COMMUNITY_CANVAS_PATH } from '../../constants'
@@ -22,6 +23,7 @@ function getCanvasPointer(
 }
 
 export function useCommunityCanvasWhiteboardAssetNavigation(scene: THREE.Object3D) {
+  const router = useRouter()
   const { camera, gl, invalidate } = useThree()
   const [isWhiteboardHovered, setIsWhiteboardHovered] = useState(false)
   const isHoveringWhiteboardRef = useRef(false)
@@ -35,8 +37,6 @@ export function useCommunityCanvasWhiteboardAssetNavigation(scene: THREE.Object3
     scene.traverse((child) => {
       if (!isCommunityCanvasWhiteboardMesh(child)) return
 
-      child.raycast = THREE.Mesh.prototype.raycast
-      child.userData.hubNavigation = 'community-canvas-whiteboard'
       whiteboardMeshes.push(child)
     })
 
@@ -77,7 +77,7 @@ export function useCommunityCanvasWhiteboardAssetNavigation(scene: THREE.Object3
       event.preventDefault()
       event.stopPropagation()
       setWhiteboardHovered(false)
-      window.location.href = HUB_COMMUNITY_CANVAS_PATH
+      router.push(HUB_COMMUNITY_CANVAS_PATH)
     }
 
     const handlePointerLeave = () => {
@@ -95,7 +95,7 @@ export function useCommunityCanvasWhiteboardAssetNavigation(scene: THREE.Object3
       canvasElement.removeEventListener('pointerleave', handlePointerLeave)
       window.removeEventListener('click', handleClick, true)
     }
-  }, [camera, gl, invalidate, pointer, raycaster, scene])
+  }, [camera, gl, invalidate, pointer, raycaster, router, scene])
 
   return isWhiteboardHovered
 }
