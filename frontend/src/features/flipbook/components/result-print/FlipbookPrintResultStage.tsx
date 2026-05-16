@@ -59,8 +59,8 @@ const NEMONIC_DEVICE_IMAGE_WIDTH = 1551
 const NEMONIC_DEVICE_IMAGE_HEIGHT = 1035
 const NEMONIC_OUTPUT_SLOT_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-output-slot.svg'
 const STAGE_ASPECT_RATIO = '1920/1080'
-const STAGE_HEIGHT_BY_VIEWPORT = 'min(100dvh,calc(100vw*9/16))'
-const STAGE_WIDTH_BY_VIEWPORT = 'min(100vw,calc(100dvh*16/9))'
+const STAGE_HEIGHT_BY_VIEWPORT = 'max(100dvh,calc(100vw*9/16))'
+const STAGE_WIDTH_BY_VIEWPORT = 'max(100vw,calc(100dvh*16/9))'
 const BACKGROUND_IMAGE_WIDTH = '100%'
 const BACKGROUND_IMAGE_HEIGHT = '100%'
 const TOP_FURNITURE_LEFT = '17.43%'
@@ -205,7 +205,7 @@ export default function FlipbookPrintResultStage({
   return (
     <section
       className={cn(
-        'relative min-h-screen overflow-hidden bg-[#fff7ed] text-[#1f2b1f]',
+        'relative min-h-[100svh] overflow-hidden bg-[#fff7ed] text-[#1f2b1f]',
         className,
       )}
     >
@@ -268,7 +268,7 @@ export default function FlipbookPrintResultStage({
         <PrintOutputSlot />
 
         <aside
-          className="absolute z-60 flex flex-col overflow-hidden rounded-[30px] px-5 pb-5 pt-[26px]"
+          className="absolute z-60 hidden flex-col overflow-hidden rounded-[30px] px-5 pb-5 pt-[26px] md:flex"
           style={{
             height: PARTICIPANT_PANEL_HEIGHT,
             left: PARTICIPANT_PANEL_LEFT,

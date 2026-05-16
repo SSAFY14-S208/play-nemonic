@@ -82,7 +82,7 @@ export default function FlipbookResultView({
   ]
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#fff7ed]">
+    <section className="relative min-h-[100svh] overflow-hidden bg-[#fff7ed]">
       <FlipbookPrintResultStage
         participants={printParticipants}
         activeParticipantIndex={activeResultIndex}
