@@ -160,9 +160,10 @@ export function useFlipbookTimer({
       }
 
       const roundExpirationKey = `${activeRoundIndex}:${deadlineAt ?? 'local'}`
+      const hasServerDeadline = Boolean(deadlineAt)
       if (
         remainingSeconds === 0 &&
-        positiveCountdownRoundKeyRef.current === roundExpirationKey &&
+        (hasServerDeadline || positiveCountdownRoundKeyRef.current === roundExpirationKey) &&
         expiredRoundKeyRef.current !== roundExpirationKey &&
         !cancelled
       ) {

@@ -27,9 +27,9 @@ export default function PegboardAreaMesh() {
       >
         <planeGeometry args={HUB_WORKSPACE_DROP_SIZE} />
         <meshBasicMaterial
-          color="#d9c9ff"
+          colorWrite={false}
           depthWrite={false}
-          opacity={0.035}
+          opacity={0}
           side={THREE.DoubleSide}
           transparent
         />
@@ -47,9 +47,9 @@ export default function PegboardAreaMesh() {
       >
         <planeGeometry args={HUB_PEGBOARD_DROP_SIZE} />
         <meshBasicMaterial
-          color="#bfe8ff"
+          colorWrite={false}
           depthWrite={false}
-          opacity={0.055}
+          opacity={0}
           side={THREE.DoubleSide}
           transparent
         />
