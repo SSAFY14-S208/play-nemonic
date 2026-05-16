@@ -44,6 +44,14 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
   const [isVisible, setIsVisible] = useState(true)
   const hasStartedLoadingRef = useRef(false)
   const visibleStartedAtRef = useRef(0)
+  const targetProgressRef = useRef(0)
+
+  const targetProgress = isReady
+    ? 100
+    : isCanvasReady
+      ? progress
+      : Math.min(progress, 92)
+  targetProgressRef.current = Math.max(targetProgressRef.current, targetProgress)
 
   useEffect(() => {
     visibleStartedAtRef.current = performance.now()
@@ -57,25 +65,37 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
 
   useEffect(() => {
     let cancelled = false
+    let animationFrameHandle = 0
+    let lastTimestamp: number | null = null
 
-    ;(async () => {
-      const nextProgress = isReady
-        ? 100
-        : isCanvasReady
-          ? progress
-          : Math.min(progress, 92)
+    const animate = (timestamp: number) => {
+      if (cancelled) return
 
-      if (!cancelled) {
-        setDisplayProgress((currentProgress) =>
-          Math.max(currentProgress, nextProgress),
-        )
+      if (lastTimestamp !== null) {
+        const deltaSeconds = (timestamp - lastTimestamp) / 1000
+
+        setDisplayProgress((current) => {
+          const target = targetProgressRef.current
+          if (current >= target) return current
+
+          const remaining = target - current
+          const speed = Math.max(remaining * 2, 12)
+          const step = Math.min(speed * deltaSeconds, remaining)
+          return current + step
+        })
       }
-    })()
+
+      lastTimestamp = timestamp
+      animationFrameHandle = requestAnimationFrame(animate)
+    }
+
+    animationFrameHandle = requestAnimationFrame(animate)
 
     return () => {
       cancelled = true
+      cancelAnimationFrame(animationFrameHandle)
     }
-  }, [isCanvasReady, isReady, progress])
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -90,7 +110,6 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
       )
       if (cancelled) return
 
-      setDisplayProgress(100)
       setIsReady(true)
     })()
 
@@ -114,7 +133,6 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
         return
       }
 
-      setDisplayProgress(100)
       setIsReady(true)
     })()
 

@@ -156,10 +156,8 @@ const ENABLED_MESH_RAYCAST = THREE.Mesh.prototype.raycast
 const DISABLED_RAYCAST: THREE.Mesh['raycast'] = () => undefined
 const ROOM_MATERIAL_BASELINE_KEY = 'nemonicRoomMaterialBaseline'
 const COMMUNITY_CANVAS_WHITEBOARD_MESH_NAMES = new Set([
-  'Plane.001',
-  'Plane.002',
-  'Plane001',
-  'Plane002',
+  'CommunityCanvasWhiteboard',
+  'CommunityCanvasWhiteboardOutline',
 ])
 
 interface RoomMaterialBaseline {

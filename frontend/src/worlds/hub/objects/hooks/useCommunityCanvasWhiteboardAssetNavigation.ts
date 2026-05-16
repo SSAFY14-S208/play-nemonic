@@ -84,16 +84,16 @@ export function useCommunityCanvasWhiteboardAssetNavigation(scene: THREE.Object3
       setWhiteboardHovered(false)
     }
 
-    window.addEventListener('pointermove', handlePointerMove, true)
+    canvasElement.addEventListener('pointermove', handlePointerMove, true)
     canvasElement.addEventListener('pointerleave', handlePointerLeave)
-    window.addEventListener('click', handleClick, true)
+    canvasElement.addEventListener('click', handleClick, true)
 
     return () => {
       isHoveringWhiteboardRef.current = false
       setDocumentCursor('')
-      window.removeEventListener('pointermove', handlePointerMove, true)
+      canvasElement.removeEventListener('pointermove', handlePointerMove, true)
       canvasElement.removeEventListener('pointerleave', handlePointerLeave)
-      window.removeEventListener('click', handleClick, true)
+      canvasElement.removeEventListener('click', handleClick, true)
     }
   }, [camera, gl, invalidate, pointer, raycaster, router, scene])
 
