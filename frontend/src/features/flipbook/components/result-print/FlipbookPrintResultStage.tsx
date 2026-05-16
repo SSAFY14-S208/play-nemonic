@@ -43,6 +43,9 @@ interface FlipbookPrintResultStageProps {
 
 const DEFAULT_ACCENT_COLORS = ['#f58c97', '#7ec6ad', '#f3c66f', '#96a8ee', '#c99be8', '#ef9a72']
 const RESULT_STAGE_BACKGROUND_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-background-render.png'
+// const RESULT_STAGE_BACKGROUND_IMAGE_SRC = '/images/flipbook-lobby/background.png'
+
+
 const RESULT_STAGE_BACKGROUND_IMAGE_WIDTH = 1920
 const RESULT_STAGE_BACKGROUND_IMAGE_HEIGHT = 1080
 const FURNITURE_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-furniture-left.png'
