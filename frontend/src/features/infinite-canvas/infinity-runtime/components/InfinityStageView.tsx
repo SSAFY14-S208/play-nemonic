@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { LogOut, Printer } from 'lucide-react'
+import Image from 'next/image'
 import { toast } from 'sonner'
 import { Button } from '@/shared/components'
 import type { InfiniteCanvasOperationRequest } from '@/shared/types'
@@ -452,15 +453,28 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         )}
       </div>
 
-      <div className="fixed left-1/2 top-5 z-20 flex -translate-x-1/2 items-center gap-4 rounded-full border-2 border-white/78 bg-[linear-gradient(135deg,#3f80ff,#8c5bff_58%,#b46dff)] px-5 py-3 text-white shadow-[0_16px_34px_rgba(55,82,190,0.32),0_0_0_6px_rgba(118,166,255,0.13),inset_0_1px_0_rgba(255,255,255,0.5)]">
-        <p className="body-b text-white/92">초대코드</p>
-        <button
-          type="button"
-          onClick={handleCopyInviteCode}
-          className="body-b min-w-31 rounded-full border border-white/80 bg-white/94 px-5 py-2.5 text-[#25376c] shadow-[0_8px_18px_rgba(35,71,164,0.2),inset_0_1px_0_rgba(255,255,255,0.98)] transition-transform hover:-translate-y-0.5 hover:scale-105 hover:bg-white"
-        >
-          {room.inviteCode ?? '-'}
-        </button>
+      <div className="fixed left-1/2 top-4 z-20 h-[112px] w-[min(560px,calc(100vw-32px))] -translate-x-1/2">
+        <Image
+          src="/images/infinite-canvas/invite-code.png"
+          alt=""
+          aria-hidden
+          fill
+          priority
+          sizes="560px"
+          className="object-contain drop-shadow-[0_14px_24px_rgba(55,82,190,0.24)]"
+        />
+        <div className="absolute inset-x-[17%] inset-y-[21%] flex items-center justify-center gap-5">
+          <p className="body-b text-white drop-shadow-[0_2px_4px_rgba(38,45,126,0.36)]">
+            초대코드
+          </p>
+          <button
+            type="button"
+            onClick={handleCopyInviteCode}
+            className="body-b min-w-36 rounded-full border border-white/86 bg-white/94 px-6 py-3 text-[#25376c] shadow-[0_8px_18px_rgba(35,71,164,0.2),inset_0_1px_0_rgba(255,255,255,0.98)] transition-transform hover:-translate-y-0.5 hover:scale-105 hover:bg-white"
+          >
+            {room.inviteCode ?? '-'}
+          </button>
+        </div>
       </div>
 
       <InfinityParticipantsPanel
