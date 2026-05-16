@@ -2,16 +2,23 @@
 
 import { useMemo } from 'react'
 
-import { runtime } from '@/shared/config'
-
 import {
+  AbandonElapsedCards,
   AnalyticsFilterBar,
   AnalyticsSection,
+  ContentCompletionChart,
+  ContentTransitionHeatmap,
   DrillDownPanel,
+  DwellTimeBar,
+  EntryChannelDonut,
+  EntryTimelineChart,
+  FunnelAbandonChart,
   I11KpiCard,
   I12KpiCard,
   I1KpiCard,
   PendingVizCard,
+  ShareRateDonut,
+  SnsEntryDonut,
   VizCard,
 } from './components'
 import { SECTION_META, VIZ_META } from './constants'
@@ -19,29 +26,42 @@ import {
   useAnalyticsAutoRefresh,
   useAnalyticsDrillDown,
   useAnalyticsFilters,
+  useI10EntryChannelTimeline,
   useI11Kpi,
   useI12Kpi,
+  useI13AbandonElapsed,
   useI1Kpi,
+  useI2ContentCompletion,
+  useI3FunnelAbandon,
+  useI4ContentTransition,
+  useI5EntryTimeline,
+  useI6ShareRate,
+  useI7EntryChannel,
+  useI8SnsEntry,
+  useI9DwellTime,
 } from './hooks'
 import type { VizId, VizSection } from './types'
 
 // 백오피스 분석 페이지 — OSD iframe 대체본.
 //
-// 현 PR 범위:
-//   - 페이지 골격 + 필터 바 + 30초 자동 갱신.
-//   - I1·I11·I12 KPI 시리즈 실데이터 (search size:0 병렬).
-//   - 나머지 10개 viz는 PendingVizCard placeholder.
-//   - 드릴다운 패널 인프라 + 개발용 mock 트리거.
+// 13개 viz 모두 BE 로그 집계 API 직접 호출로 채워짐.
+//   - KPI 카드 3종 (I1·I11·I12) — search/distinct-count
+//   - donut 3종 (I6·I7·I8) — field-summary / terms-with-subs
+//   - 가로 막대 2종 (I2·I9) — terms-with-subs / terms-with-metric
+//   - stacked area 2종 (I5·I10) — histogram byField
+//   - faceted bar 1종 (I3) — composite-buckets
+//   - heatmap 1종 (I4) — composite-buckets
+//   - 3-phase 카드 1종 (I13) — filtered-metrics
 //
-// 백엔드 확장(field-summary 화이트리스트, histogram byField, terms+avg, composite)이
-// 머지되면 후속 PR에서 placeholder를 실제 recharts 차트로 교체.
+// 모든 차트는 클릭 시 우측 드릴다운 패널을 열어 해당 dimension의 raw 이벤트 50건 +
+// 시계열을 표시한다.
 
 const SECTION_GRID: Record<VizSection, { span: 4 | 6 | 8 | 12; minHeight: number }> = {
   overview: { span: 6, minHeight: 200 },
-  channel: { span: 6, minHeight: 260 },
-  content: { span: 6, minHeight: 280 },
-  flow: { span: 12, minHeight: 320 },
-  retention: { span: 6, minHeight: 240 },
+  channel: { span: 6, minHeight: 280 },
+  content: { span: 6, minHeight: 300 },
+  flow: { span: 12, minHeight: 360 },
+  retention: { span: 6, minHeight: 260 },
 }
 
 export default function AdminAnalyticsPage() {
@@ -50,7 +70,7 @@ export default function AdminAnalyticsPage() {
 
   useAnalyticsAutoRefresh(filters.state.autoRefresh, filters.refresh)
 
-  const kpiArgs = useMemo(
+  const vizArgs = useMemo(
     () => ({
       timeRange: filters.timeRange,
       serviceFilters: filters.serviceFilters,
@@ -65,36 +85,126 @@ export default function AdminAnalyticsPage() {
     ],
   )
 
-  const i1State = useI1Kpi(kpiArgs)
-  const i11State = useI11Kpi(kpiArgs)
-  const i12State = useI12Kpi(kpiArgs)
+  // KPI
+  const i1State = useI1Kpi(vizArgs)
+  const i11State = useI11Kpi(vizArgs)
+  const i12State = useI12Kpi(vizArgs)
+  // 채널
+  const i7State = useI7EntryChannel(vizArgs)
+  const i10State = useI10EntryChannelTimeline(vizArgs)
+  const i8State = useI8SnsEntry(vizArgs)
+  const i6State = useI6ShareRate(vizArgs)
+  // 컨텐츠
+  const i2State = useI2ContentCompletion(vizArgs)
+  const i5State = useI5EntryTimeline(vizArgs)
+  // 흐름
+  const i3State = useI3FunnelAbandon(vizArgs)
+  const i4State = useI4ContentTransition(vizArgs)
+  // 체류
+  const i9State = useI9DwellTime(vizArgs)
+  const i13State = useI13AbandonElapsed(vizArgs)
 
   const renderViz = (vizId: VizId) => {
     const meta = VIZ_META.find((entry) => entry.id === vizId)
     if (!meta) return null
-    if (vizId === 'I1') {
-      return <I1KpiCard state={i1State} onRetry={filters.refresh} />
+    switch (vizId) {
+      case 'I1':
+        return <I1KpiCard state={i1State} onRetry={filters.refresh} />
+      case 'I11':
+        return <I11KpiCard state={i11State} onRetry={filters.refresh} />
+      case 'I12':
+        return <I12KpiCard state={i12State} onRetry={filters.refresh} />
+      case 'I7':
+        return (
+          <EntryChannelDonut
+            state={i7State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+          />
+        )
+      case 'I10':
+        return (
+          <EntryTimelineChart
+            vizId="I10"
+            state={i10State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+            colorMode="entry"
+            dimensionField="metadata.entry_type"
+            baseEventQuery="event_name:landing_source_detected"
+          />
+        )
+      case 'I8':
+        return (
+          <SnsEntryDonut
+            state={i8State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+          />
+        )
+      case 'I6':
+        return (
+          <ShareRateDonut
+            state={i6State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+          />
+        )
+      case 'I2':
+        return (
+          <ContentCompletionChart
+            state={i2State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+          />
+        )
+      case 'I5':
+        return (
+          <EntryTimelineChart
+            vizId="I5"
+            state={i5State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+            colorMode="funnel"
+            dimensionField="metadata.funnel_name"
+            baseEventQuery="event_name:funnel_started"
+          />
+        )
+      case 'I3':
+        return (
+          <FunnelAbandonChart
+            state={i3State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+          />
+        )
+      case 'I4':
+        return (
+          <ContentTransitionHeatmap
+            state={i4State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+          />
+        )
+      case 'I9':
+        return (
+          <DwellTimeBar
+            state={i9State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+          />
+        )
+      case 'I13':
+        return (
+          <AbandonElapsedCards
+            state={i13State}
+            onRetry={filters.refresh}
+            onDrillDown={drillDown.open}
+          />
+        )
+      default:
+        return <PendingVizCard title={meta.title} subtitle={meta.subtitle} />
     }
-    if (vizId === 'I11') {
-      return <I11KpiCard state={i11State} onRetry={filters.refresh} />
-    }
-    if (vizId === 'I12') {
-      return <I12KpiCard state={i12State} onRetry={filters.refresh} />
-    }
-    return <PendingVizCard title={meta.title} subtitle={meta.subtitle} />
-  }
-
-  // mock 드릴다운 트리거 — 개발 환경에서만 노출.
-  // 패널 슬라이드 인/아웃 + 내용 교체 인터랙션 검증용. 실제 viz가 채워지면 차트
-  // 클릭으로 trigger되므로 이 버튼은 후속 PR에서 제거.
-  const handleMockDrillDown = () => {
-    drillDown.open({
-      vizId: 'I1',
-      chartLabel: '진입 (mock 드릴다운)',
-      dimensionFilters: [],
-      extraQuery: 'event_name:funnel_started',
-      description: '실제 차트가 채워지면 막대 클릭으로 trigger됩니다.',
-    })
   }
 
   return (
@@ -109,18 +219,6 @@ export default function AdminAnalyticsPage() {
       />
 
       <div className="flex flex-1 flex-col gap-8 overflow-y-auto bg-surface-subtle px-6 py-6">
-        {runtime.isDev && (
-          <div className="flex items-center justify-end">
-            <button
-              type="button"
-              onClick={handleMockDrillDown}
-              className="caption-b rounded-[var(--radius-md)] border border-dashed border-border-default bg-surface-default px-3 py-1.5 text-fg-secondary transition-colors hover:bg-surface-default"
-            >
-              dev: 드릴다운 패널 mock 열기
-            </button>
-          </div>
-        )}
-
         {SECTION_META.map((section) => (
           <AnalyticsSection key={section.key} title={section.title}>
             {VIZ_META.filter((viz) => viz.section === section.key).map((viz) => {
