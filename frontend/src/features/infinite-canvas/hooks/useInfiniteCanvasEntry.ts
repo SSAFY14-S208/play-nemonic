@@ -3,7 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
-import { ApiError, postInfiniteCanvas, postInvite } from '@/shared/apis'
+import {
+  ApiError,
+  patchInfiniteCanvasParticipantMe,
+  postInfiniteCanvas,
+  postInvite,
+} from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 
 import { INFINITE_CANVAS_COLOR_OPTIONS } from '../constants'
@@ -37,7 +42,7 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
   const nickname = useUserStore((state) => state.nickname)
 
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_SELECTED_COLOR)
-  const [inviteCodeDraft, setInviteCodeDraft] = useState('')
+  const [inviteCodeDraft, setInviteCodeDraftValue] = useState('')
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -45,6 +50,11 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
   const isUserReady = userUuid !== null
 
   const clearError = () => setErrorMessage(null)
+
+  const setInviteCodeDraft = (nextInviteCode: string) => {
+    setInviteCodeDraftValue(nextInviteCode)
+    setErrorMessage(null)
+  }
 
   const openInviteModal = () => {
     if (!isUserReady || isPending) return
@@ -97,6 +107,10 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
           return
         }
 
+        await patchInfiniteCanvasParticipantMe(invite.roomId, {
+          nickname: nickname?.trim() || null,
+          color: selectedColor,
+        })
         router.push(roomPath)
       } catch (caughtError) {
         const message =

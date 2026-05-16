@@ -1,7 +1,8 @@
+'use client'
+
+import { InfinityRoomPage } from './infinity-runtime/InfinityRoomPage'
+import './infinity-runtime/infinity-canvas.css'
+
 export default function InfiniteCanvasRoomPage() {
-  return (
-    <main className="min-h-screen bg-surface-default text-fg-primary">
-      <h1 className="sr-only">무한 캔버스 방</h1>
-    </main>
-  )
+  return <InfinityRoomPage />
 }

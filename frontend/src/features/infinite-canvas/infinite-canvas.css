@@ -1,11 +1,13 @@
 .infinite-canvas-page {
+  --infinite-canvas-safe-gap: clamp(0.35rem, 0.85vmin, 0.8rem);
+
   position: relative;
   isolation: isolate;
   min-height: 100svh;
   overflow: hidden;
   display: grid;
   place-items: center;
-  padding: 0;
+  padding: var(--infinite-canvas-safe-gap);
   background: #06193e;
   color: #ffffff;
 }
@@ -13,15 +15,19 @@
 .infinite-canvas-scene {
   position: relative;
   isolation: isolate;
-  width: min(100vw, calc(100svh * 1672 / 941));
+  container-type: inline-size;
+  width: min(
+    calc(100vw - (var(--infinite-canvas-safe-gap) * 2)),
+    calc((100svh - (var(--infinite-canvas-safe-gap) * 2)) * 1672 / 941)
+  );
   aspect-ratio: 1672 / 941;
-  max-height: 100svh;
+  max-height: calc(100svh - (var(--infinite-canvas-safe-gap) * 2));
   overflow: hidden;
 }
 
 .infinite-canvas-scene__background {
   z-index: 0;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   filter: saturate(1.04) contrast(1.02);
 }
@@ -38,10 +44,10 @@
 
 .infinite-canvas-logo-wrap {
   position: absolute;
-  top: 3.6%;
+  top: 2.9%;
   left: 50%;
   z-index: 2;
-  width: clamp(22rem, 51.5%, 48rem);
+  width: clamp(22rem, 58cqw, 62rem);
   filter: drop-shadow(0 0.65rem 1.2rem rgba(0, 35, 96, 0.35));
   transform: translateX(-50%);
   animation: infinite-canvas-logo-float 5.6s ease-in-out infinite;
@@ -55,19 +61,19 @@
 
 .infinite-canvas-card {
   position: absolute;
-  top: 36.2%;
+  top: 35.2%;
   left: 50%;
   z-index: 2;
-  width: clamp(21rem, 42.5%, 39rem);
+  width: clamp(26rem, 58cqw, 64rem);
   transform: translateX(-50%);
 }
 
 .infinite-canvas-card__label {
   position: relative;
-  margin: 0 0 clamp(0.45rem, 1vw, 0.8rem);
+  margin: 0 0 clamp(0.65rem, 1.08cqw, 1.15rem);
   text-align: center;
   color: #25376c;
-  font-size: clamp(0.95rem, 1.35vw, 1.45rem);
+  font-size: clamp(1.15rem, 1.65cqw, 1.85rem);
   font-weight: 900;
   letter-spacing: 0;
   text-shadow:
@@ -88,12 +94,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(0.28rem, 0.72vw, 0.72rem);
+  gap: clamp(0.3rem, 0.9cqw, 1rem);
   width: 100%;
 }
 
 .infinite-canvas-color-swatch {
-  width: clamp(2.75rem, 4vw, 4.4rem);
+  width: clamp(2.8rem, 6.05cqw, 6.75rem);
   aspect-ratio: 1;
   border: 0;
   border-radius: 999rem;
@@ -128,11 +134,11 @@
 
 .infinite-canvas-actions {
   position: relative;
-  margin: clamp(0.85rem, 1.6vw, 1.35rem) auto 0;
+  margin: clamp(1.2rem, 2cqw, 2rem) auto 0;
   display: grid;
-  width: min(100%, 30rem);
+  width: min(88%, 52rem);
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(0.9rem, 2.4vw, 1.8rem);
+  gap: clamp(1rem, 2.5cqw, 2.35rem);
 }
 
 .infinite-canvas-action-button {
@@ -158,7 +164,7 @@
 
 .infinite-canvas-action-button:disabled {
   cursor: wait;
-  opacity: 0.68;
+  filter: drop-shadow(0 0.72rem 1rem rgba(25, 44, 102, 0.28));
 }
 
 .infinite-canvas-status-message {
@@ -295,36 +301,42 @@
 
 @media (max-width: 48rem) {
   .infinite-canvas-page {
+    --infinite-canvas-safe-gap: clamp(0.35rem, 2vmin, 0.7rem);
+
     overflow-y: auto;
-    padding: 4.25rem 0 1.5rem;
+    padding: 4.25rem var(--infinite-canvas-safe-gap) 1.5rem;
   }
 
   .infinite-canvas-scene {
-    width: min(100vw, calc((100svh - 5rem) * 1672 / 941));
+    width: min(
+      calc(100vw - (var(--infinite-canvas-safe-gap) * 2)),
+      calc((100svh - 5rem) * 1672 / 941)
+    );
+    max-height: calc(100svh - 5rem);
   }
 
   .infinite-canvas-logo-wrap {
-    width: 58%;
+    width: 62cqw;
     min-width: 14.5rem;
   }
 
   .infinite-canvas-card {
-    top: 38%;
-    width: 60%;
-    min-width: 18.5rem;
+    top: 35.8%;
+    width: 76cqw;
+    min-width: 17.5rem;
   }
 
   .infinite-canvas-color-swatch {
-    width: clamp(2rem, 7vw, 3rem);
+    width: clamp(2rem, 7.2cqw, 3.25rem);
   }
 
   .infinite-canvas-color-picker {
-    gap: 0.18rem;
+    gap: clamp(0.16rem, 0.75cqw, 0.34rem);
   }
 
   .infinite-canvas-actions {
-    width: min(100%, 18rem);
-    gap: 0.45rem;
+    width: min(96%, 24rem);
+    gap: clamp(0.45rem, 1.6cqw, 0.8rem);
   }
 }
 

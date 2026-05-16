@@ -67,16 +67,16 @@ export default function InfiniteCanvasBoothView() {
 
             <div className="infinite-canvas-actions">
               <InfiniteCanvasActionButton
-                imageSrc="/images/infinite-canvas/enter-room-button.png"
-                label="초대코드로 입장하기"
-                disabled={isActionDisabled}
-                onClick={openInviteModal}
-              />
-              <InfiniteCanvasActionButton
                 imageSrc="/images/infinite-canvas/create-card.png"
                 label={isPending ? '방 만드는 중' : '방 만들기'}
                 disabled={isActionDisabled}
                 onClick={createCanvas}
+              />
+              <InfiniteCanvasActionButton
+                imageSrc="/images/infinite-canvas/enter-room-button.png"
+                label="입장하기"
+                disabled={isActionDisabled}
+                onClick={openInviteModal}
               />
             </div>
             {(isPending || (errorMessage && !isInviteModalOpen)) && (

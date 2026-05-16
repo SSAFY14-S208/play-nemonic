@@ -1,6 +1,8 @@
 export {
   ColorPanel,
+  DrawingColorSwatch,
   DrawingCompleteButton,
+  DrawingStrokeWidthPicker,
   HintToggleButton,
   MobileColorGrid,
   MobileToolGrid,
