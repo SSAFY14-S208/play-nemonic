@@ -1,6 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type PointerEvent,
+} from 'react'
 import Image from 'next/image'
 import { RotateCw, X } from 'lucide-react'
 import { PostItNote } from '@/shared/components/PostItNote'
@@ -12,6 +19,7 @@ import { CommunityMemoCard } from './CommunityMemoCard'
 
 interface CommunityWallProps {
   memos: CommunityMemoItemResponse[]
+  memoPlaybackImageUrls: Record<string, string>
   selectedMemoUuid: string | null
   memoStatus: 'idle' | 'loading' | 'success' | 'error'
   memoError: string | null
@@ -36,14 +44,28 @@ const WALL_HEIGHT = 941
 const MEMO_WIDTH = 160
 const MEMO_HEIGHT = 160
 const MEMO_VISUAL_SAFE_PADDING = 24
-const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg-studio.png'
+const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg-studio-nemonic-board-large-v8.png'
 const BOUNDARY_EPSILON = 0.5
 const ATTACHABLE_SURFACE_BOUNDS = {
-  left: -590,
-  top: -550,
-  right: 630,
-  bottom: 550,
+  left: -660,
+  top: -405,
+  right: 690,
+  bottom: 340,
 }
+const ATTACHABLE_SURFACE_LEFT = WALL_WIDTH / 2 + ATTACHABLE_SURFACE_BOUNDS.left
+const ATTACHABLE_SURFACE_TOP = WALL_HEIGHT / 2 + ATTACHABLE_SURFACE_BOUNDS.top
+const ATTACHABLE_SURFACE_STYLE = {
+  left: ATTACHABLE_SURFACE_LEFT,
+  top: ATTACHABLE_SURFACE_TOP,
+  width: ATTACHABLE_SURFACE_BOUNDS.right - ATTACHABLE_SURFACE_BOUNDS.left,
+  height: ATTACHABLE_SURFACE_BOUNDS.bottom - ATTACHABLE_SURFACE_BOUNDS.top,
+} satisfies CSSProperties
+const ATTACHABLE_MEMO_LAYER_STYLE = {
+  left: -ATTACHABLE_SURFACE_LEFT,
+  top: -ATTACHABLE_SURFACE_TOP,
+  width: WALL_WIDTH,
+  height: WALL_HEIGHT,
+} satisfies CSSProperties
 const MEMO_PLACEMENT_ANIMATION_DURATION_MS = 720
 
 type WallPoint = {
@@ -211,6 +233,7 @@ function getDisplayMemo(memo: CommunityMemoItemResponse): CommunityMemoItemRespo
 
 export function CommunityWall({
   memos,
+  memoPlaybackImageUrls,
   selectedMemoUuid,
   memoStatus,
   memoError,
@@ -820,69 +843,84 @@ export function CommunityWall({
           alt=""
           fill
           priority
+          unoptimized
           sizes={`${WALL_WIDTH}px`}
           aria-hidden="true"
           className="pointer-events-none z-0 select-none object-cover"
         />
 
-        {memos
-          .filter((memo) => memo.memoUuid !== editingMemo?.memoUuid)
-          .map((memo) => {
-            const displayMemo = getDisplayMemo(memo)
+        <div
+          aria-hidden={memoStatus === 'loading'}
+          className="absolute overflow-hidden"
+          style={ATTACHABLE_SURFACE_STYLE}
+        >
+          <div className="absolute" style={ATTACHABLE_MEMO_LAYER_STYLE}>
+            {memos
+              .filter((memo) => memo.memoUuid !== editingMemo?.memoUuid)
+              .map((memo) => {
+                const displayMemo = getDisplayMemo(memo)
 
-            return (
+                return (
+                  <CommunityMemoCard
+                    key={memo.memoUuid}
+                    memo={displayMemo}
+                    isActive={selectedMemoUuid === memo.memoUuid}
+                    playbackImageUrl={memoPlaybackImageUrls[memo.memoUuid]}
+                    placementMotion={enteringMemoUuids.has(memo.memoUuid) ? 'attach' : undefined}
+                    isInteractionDisabled={isWallManipulating}
+                    onSelect={handleMemoSelect}
+                    onOpenDetail={handleMemoOpenDetail}
+                  />
+                )
+              })}
+
+            {exitingMemos.map(({ memo, removalKey }) => (
               <CommunityMemoCard
-                key={memo.memoUuid}
-                memo={displayMemo}
-                isActive={selectedMemoUuid === memo.memoUuid}
-                placementMotion={enteringMemoUuids.has(memo.memoUuid) ? 'attach' : undefined}
-                isInteractionDisabled={isWallManipulating}
+                key={removalKey}
+                memo={getDisplayMemo(memo)}
+                isActive={false}
+                playbackImageUrl={memoPlaybackImageUrls[memo.memoUuid]}
+                placementMotion="detach"
+                isInteractionDisabled
                 onSelect={handleMemoSelect}
                 onOpenDetail={handleMemoOpenDetail}
               />
-            )
-          })}
+            ))}
 
-        {exitingMemos.map(({ memo, removalKey }) => (
-          <CommunityMemoCard
-            key={removalKey}
-            memo={memo}
-            isActive={false}
-            placementMotion="detach"
-            isInteractionDisabled
-            onSelect={handleMemoSelect}
-            onOpenDetail={handleMemoOpenDetail}
-          />
-        ))}
+            {isEditingLayout && (
+              <EditableMemoPreview
+                memo={editingMemo}
+                playbackImageUrl={memoPlaybackImageUrls[editingMemo.memoUuid]}
+                layout={clampMemoLayoutToAttachableSurface(editingLayoutDraft)}
+                disabled={isSavingLayout}
+                isFluttering={
+                  interaction?.type === 'drag-edit' || interaction?.type === 'rotate-edit'
+                }
+                placementMotion={isSavingLayout ? 'attach' : 'release'}
+                onBeginMove={handleBeginEditingMove}
+                onBeginRotate={handleBeginEditingRotate}
+              />
+            )}
 
-        {isEditingLayout && (
-          <EditableMemoPreview
-            memo={editingMemo}
-            layout={clampMemoLayoutToAttachableSurface(editingLayoutDraft)}
-            disabled={isSavingLayout}
-            isFluttering={interaction?.type === 'drag-edit' || interaction?.type === 'rotate-edit'}
-            placementMotion={isSavingLayout ? 'attach' : 'release'}
-            onBeginMove={handleBeginEditingMove}
-            onBeginRotate={handleBeginEditingRotate}
-          />
-        )}
+            {pendingMemo && (
+              <PendingMemoPreview
+                pendingMemo={pendingMemo}
+                placement={cursorPlacement}
+                isAttachingMemo={isAttachingMemo}
+                isPlacementInsideVisibleArea={isPendingPlacementInsideVisibleArea}
+                isFluttering={interaction?.type === 'rotate-pending' || !isAttachingMemo}
+                placementMotion={isAttachingMemo ? 'attach' : undefined}
+                onBeginRotate={handleBeginPendingRotate}
+              />
+            )}
+          </div>
+        </div>
 
         {pendingMemo && (
-          <>
-            <PendingCancelButton
-              isAttachingMemo={isAttachingMemo}
-              onCancelPendingMemo={onCancelPendingMemo}
-            />
-            <PendingMemoPreview
-              pendingMemo={pendingMemo}
-              placement={cursorPlacement}
-              isAttachingMemo={isAttachingMemo}
-              isPlacementInsideVisibleArea={isPendingPlacementInsideVisibleArea}
-              isFluttering={interaction?.type === 'rotate-pending' || !isAttachingMemo}
-              placementMotion={isAttachingMemo ? 'attach' : undefined}
-              onBeginRotate={handleBeginPendingRotate}
-            />
-          </>
+          <PendingCancelButton
+            isAttachingMemo={isAttachingMemo}
+            onCancelPendingMemo={onCancelPendingMemo}
+          />
         )}
 
         {memoStatus === 'loading' && !isWallManipulating && (
@@ -949,6 +987,7 @@ function PendingCancelButton({
 
 function EditableMemoPreview({
   memo,
+  playbackImageUrl,
   layout,
   disabled,
   isFluttering,
@@ -957,6 +996,7 @@ function EditableMemoPreview({
   onBeginRotate,
 }: {
   memo: CommunityMemoItemResponse
+  playbackImageUrl?: string | null
   layout: CommunityMemoLayoutDraft
   disabled: boolean
   isFluttering: boolean
@@ -966,7 +1006,7 @@ function EditableMemoPreview({
 }) {
   return (
     <MemoSurface
-      imageUrl={memo.memoThumbnailImageUrl || memo.memoImageUrl}
+      imageUrl={playbackImageUrl || memo.memoThumbnailImageUrl || memo.memoImageUrl}
       tone={getMemoTone(memo)}
       layout={layout}
       disabled={disabled}
