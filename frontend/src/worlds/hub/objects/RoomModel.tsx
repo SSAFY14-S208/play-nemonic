@@ -8,6 +8,7 @@ import {
 } from '@/shared/constants'
 import type { HubPerformanceMode } from '@/shared/types'
 import CarpetFurMesh from './CarpetFurMesh'
+import TabletopSheenMesh from './TabletopSheenMesh'
 import { useRoomModel } from './hooks'
 
 export default function RoomModel({
@@ -31,6 +32,7 @@ export default function RoomModel({
         object={scene}
         dispose={null}
       />
+      <TabletopSheenMesh performanceMode={performanceMode} />
       <CarpetFurMesh performanceMode={performanceMode} />
     </group>
   )

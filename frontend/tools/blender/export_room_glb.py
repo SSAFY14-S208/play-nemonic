@@ -14,6 +14,23 @@ HELPER_KEYWORDS = (
     "volumetric",
 )
 
+RETIRED_ROOM_PROP_OBJECT_NAMES = {
+    "cube top shelf",
+    "cube topshelf",
+    "frame.001",
+    "large frame",
+    "peg",
+    "picture.001",
+}
+RETIRED_ROOM_PROP_OBJECT_KEYWORDS = (
+    "cube top shelf",
+    "cube topshelf",
+    "large frame",
+)
+RETIRED_ROOM_PROP_COLLECTION_KEYWORDS = (
+    "pegboards",
+)
+
 EXPORTABLE_OBJECT_TYPES = {"MESH", "FONT", "CURVE"}
 REQUIRED_EXPORT_OBJECT_GROUPS = {
     "room shell": ("room isometric", "turn on for world lighting"),
@@ -101,6 +118,21 @@ def is_helper_object(obj: bpy.types.Object) -> bool:
     return any(keyword in text for keyword in HELPER_KEYWORDS)
 
 
+def is_retired_room_prop(obj: bpy.types.Object) -> bool:
+    object_name = obj.name.lower()
+    collection_names = [collection.name.lower() for collection in obj.users_collection]
+
+    return (
+        object_name in RETIRED_ROOM_PROP_OBJECT_NAMES
+        or any(keyword in object_name for keyword in RETIRED_ROOM_PROP_OBJECT_KEYWORDS)
+        or any(
+            collection_keyword in collection_name
+            for collection_name in collection_names
+            for collection_keyword in RETIRED_ROOM_PROP_COLLECTION_KEYWORDS
+        )
+    )
+
+
 def matches_required_object_group(obj: bpy.types.Object, keywords: tuple[str, ...]) -> bool:
     text = object_text(obj)
     return all(keyword in text for keyword in keywords)
@@ -120,6 +152,7 @@ def is_exportable_mesh(obj: bpy.types.Object) -> bool:
         and not obj.hide_viewport
         and (not obj.hide_render or is_required_export_object(obj))
         and not is_helper_object(obj)
+        and not is_retired_room_prop(obj)
     )
 
 
@@ -145,7 +178,7 @@ def collect_export_meshes() -> list[bpy.types.Object]:
             obj.hide_render = False
             obj.hide_viewport = False
             obj.hide_set(False)
-        elif is_helper_object(obj):
+        elif is_helper_object(obj) or is_retired_room_prop(obj):
             obj.hide_render = True
             obj.hide_viewport = True
 
@@ -226,6 +259,9 @@ def print_analysis(meshes: list[bpy.types.Object]) -> None:
         "meshCount": len(meshes),
         "materialCount": len(bpy.data.materials),
         "lightCount": sum(1 for obj in bpy.context.scene.objects if obj.type == "LIGHT"),
+        "retiredSkippedObjects": sorted(
+            obj.name for obj in bpy.context.scene.objects if is_retired_room_prop(obj)
+        ),
         "exportTriangleCount": sum(triangle_count(obj) for obj in meshes),
         "topMeshes": sorted(
             [
