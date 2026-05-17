@@ -23,19 +23,75 @@
   backdrop-filter: blur(16px);
 }
 
+.musicButton {
+  position: fixed;
+  top: 1.4rem;
+  right: 1.4rem;
+  z-index: 30;
+  display: inline-flex;
+  height: 2.72rem;
+  width: 4.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+  border: 1px solid rgb(255 255 255 / 58%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 68%);
+  box-shadow: 0 1rem 2.4rem rgb(87 74 122 / 13%);
+  color: #64509a;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.musicButton[data-muted='true'] {
+  background: rgb(255 255 255 / 58%);
+  color: #766e88;
+  opacity: 0.82;
+}
+
+.musicButton:hover {
+  background: rgb(255 255 255 / 78%);
+  transform: translateY(-1px);
+}
+
+.musicButton:active {
+  transform: scale(0.96);
+}
+
+.musicSignal {
+  height: 1rem;
+  width: 1rem;
+  flex: 0 0 auto;
+  color: #7d63bc;
+}
+
+.musicButton[data-playing='true'] .musicSignal {
+  animation: hubMusicPulse 1.45s ease-in-out infinite;
+}
+
 .focusControls {
   position: fixed;
-  right: 1.4rem;
-  top: 1.4rem;
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 1.4rem;
   z-index: 30;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  max-width: calc(100vw - 8rem);
+  overflow-x: auto;
   border: 1px solid rgb(255 255 255 / 58%);
   border-radius: 999px;
   background: rgb(255 255 255 / 70%);
   box-shadow: 0 1.1rem 2.8rem rgb(87 74 122 / 15%);
   padding: 0.48rem;
+  transform: translateX(-50%);
   backdrop-filter: blur(18px);
 }
 
@@ -71,24 +127,49 @@
   box-shadow: 0 0.55rem 1.5rem rgb(146 118 219 / 24%);
 }
 
+@keyframes hubMusicPulse {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
 @media (max-width: 860px) {
   .brandPanel {
     top: 1rem;
     left: 1rem;
   }
 
+  .musicButton {
+    top: 1rem;
+    right: 1rem;
+    height: 2.55rem;
+    width: 3.9rem;
+  }
+
   .focusControls {
-    left: 50%;
-    right: auto;
-    top: auto;
     bottom: 1rem;
-    transform: translateX(-50%);
-    max-width: calc(100vw - 2rem);
-    overflow-x: auto;
+    max-width: calc(100vw - 6.5rem);
     border-radius: 1rem;
   }
 
   .focusButton span {
     display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .brandMark {
+    padding: 0.56rem 0.78rem;
+  }
+
+  .focusButton {
+    padding: 0 0.68rem;
   }
 }
