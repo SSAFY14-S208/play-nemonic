@@ -1,8 +1,28 @@
-<svg width="271" height="270" viewBox="0 0 271 270" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="270" height="270" rx="120" fill="#F4A261" style="fill:#F4A261;fill:color(display-p3 0.9569 0.6353 0.3804);fill-opacity:1;"/>
-<path d="M88 120C88 92 108 68 136 68C164 68 184 92 184 120" stroke="white" style="stroke:white;stroke-opacity:1;" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M80 124C80 118 84 114 90 114H96V152H90C84 152 80 148 80 142V124Z" fill="white" style="fill:white;fill-opacity:1;"/>
-<path d="M176 114H182C188 114 192 118 192 124V142C192 148 188 152 182 152H176V114Z" fill="white" style="fill:white;fill-opacity:1;"/>
-<path d="M184 152C184 172 164 186 136 186" stroke="white" style="stroke:white;stroke-opacity:1;" stroke-width="12" stroke-linecap="round"/>
-<circle cx="136" cy="198" r="10" fill="white" style="fill:white;fill-opacity:1;"/>
+<svg width="270" height="270" viewBox="0 0 270 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="270" height="270" rx="120" fill="#8FD6E5" />
+  <path
+    d="M74 138C74 88.847 100.826 48 136 48C171.174 48 198 88.847 198 138"
+    stroke="white"
+    stroke-width="11"
+    stroke-linecap="round"
+  />
+  <path
+    d="M53 125C53 111.193 64.1929 100 78 100H87V169H78C64.1929 169 53 157.807 53 144V125Z"
+    fill="white"
+  />
+  <path
+    d="M183 100H192C205.807 100 217 111.193 217 125V144C217 157.807 205.807 169 192 169H183V100Z"
+    fill="white"
+  />
+  <circle cx="136" cy="134" r="56" fill="white" />
+  <circle cx="109" cy="134" r="10" fill="#4EAFC4" />
+  <circle cx="136" cy="134" r="10" fill="#4EAFC4" />
+  <circle cx="163" cy="134" r="10" fill="#4EAFC4" />
+  <path
+    d="M88 169C88 195.51 109.49 217 136 217H145"
+    stroke="white"
+    stroke-width="11"
+    stroke-linecap="round"
+  />
+  <rect x="143" y="200" width="39" height="25" rx="12.5" fill="white" />
 </svg>
