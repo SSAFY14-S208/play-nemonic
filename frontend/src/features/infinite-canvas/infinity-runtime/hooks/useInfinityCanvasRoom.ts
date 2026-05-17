@@ -23,8 +23,8 @@ import type {
   InfiniteCanvasLeaveResponse,
   InfiniteCanvasLock,
   InfiniteCanvasLockResponse,
-  InfiniteCanvasOperation,
   InfiniteCanvasOperationRequest,
+  InfiniteCanvasOperationType,
   InfiniteCanvasOpsAppliedResponse,
   InfiniteCanvasOutputSaveResponse,
   InfiniteCanvasParticipantEventResponse,
@@ -176,9 +176,15 @@ function createInitialRoomState({
   }
 }
 
+interface CanvasElementMutation {
+  operationType: InfiniteCanvasOperationType
+  elementId?: string | null
+  element?: InfiniteCanvasJsonObject | null
+}
+
 function applyOperationsToElements(
   currentElements: InfiniteCanvasJsonObject[],
-  operations: InfiniteCanvasOperation[],
+  operations: CanvasElementMutation[],
 ) {
   let nextElements = [...currentElements]
 
@@ -221,6 +227,17 @@ function applyOperationsToElements(
   }
 
   return nextElements
+}
+
+function applyOptimisticOperationsToState(
+  state: InfiniteCanvasStateResponse,
+  operations: InfiniteCanvasOperationRequest[],
+): InfiniteCanvasStateResponse {
+  if (operations.length === 0) return state
+  return {
+    ...state,
+    elements: applyOperationsToElements(state.elements, operations),
+  }
 }
 
 async function uploadInfiniteCanvasOutput({
@@ -323,11 +340,15 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         await postInvite(roomCode)
         nextState = await getInfiniteCanvasState(roomCode)
       }
+      const optimisticOperations = isResolvingRevisionConflictRef.current
+        ? pendingOperationsRef.current
+        : []
+      const hydratedState = applyOptimisticOperationsToState(nextState, optimisticOperations)
       revisionRef.current = nextState.revision
       appliedElementsRevisionRef.current = nextState.revision
-      setRoomState(nextState)
+      setRoomState(hydratedState)
       setIsHydrating(false)
-      return nextState
+      return hydratedState
     } catch (caughtError) {
       const snapshot = takeInfiniteCanvasCreatedRoomSnapshot(roomCode)
       if (snapshot) {
