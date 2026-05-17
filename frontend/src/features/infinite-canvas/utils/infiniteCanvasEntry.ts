@@ -44,8 +44,6 @@ export function takeInfiniteCanvasCreatedRoomSnapshot(roomCode: string) {
   const rawSnapshot = window.sessionStorage.getItem(storageKey)
   if (!rawSnapshot) return null
 
-  window.sessionStorage.removeItem(storageKey)
-
   try {
     const snapshot = JSON.parse(rawSnapshot) as Partial<InfiniteCanvasCreateResponse>
     if (
@@ -61,7 +59,7 @@ export function takeInfiniteCanvasCreatedRoomSnapshot(roomCode: string) {
       roomCode: snapshot.roomCode,
       status: snapshot.status ?? 'ACTIVE',
       ownerUserUuid: snapshot.ownerUserUuid,
-      maxParticipants: Number(snapshot.maxParticipants) || snapshot.participants.length,
+      maxParticipants: Number(snapshot.maxParticipants) || 0,
       participantCount: Number(snapshot.participantCount) || snapshot.participants.length,
       participants: snapshot.participants as InfiniteCanvasParticipantResponse[],
       createdAt: snapshot.createdAt ?? new Date().toISOString(),

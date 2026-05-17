@@ -377,7 +377,7 @@ export function InfinityCaptureOverlay({
         )}
       </div>
 
-      <div className="pointer-events-auto absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-2 rounded-full border border-canvas-border bg-canvas-panel px-3 py-2 shadow-lg">
+      <div className="pointer-events-auto absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/70 bg-[#2e73f2]/95 px-3 py-2 text-white shadow-[0_12px_28px_rgba(46,115,242,0.28),inset_0_1px_0_rgba(255,255,255,0.42)]">
         {hasBaseRect && (
           <>
             {CAPTURE_RATIOS.map((captureRatio) => (
@@ -386,8 +386,8 @@ export function InfinityCaptureOverlay({
                 type="button"
                 onClick={() => selectRatio(captureRatio.key)}
                 className={cn(
-                  'caption-b min-h-9 rounded-full px-3 text-canvas-muted transition-colors',
-                  ratio === captureRatio.key && 'bg-canvas-accent text-white',
+                  'caption-b min-h-9 rounded-full px-3 text-white/82 transition-colors hover:bg-white/18 hover:text-white',
+                  ratio === captureRatio.key && 'bg-white text-[#2e73f2]',
                 )}
               >
                 {captureRatio.label}
@@ -410,7 +410,7 @@ export function InfinityCaptureOverlay({
               aria-label="출력 영역 다시 선택"
               title="출력 영역 다시 선택"
               onClick={resetSelection}
-              className="grid size-9 place-items-center rounded-full text-canvas-muted transition-colors hover:bg-canvas-active"
+              className="grid size-9 place-items-center rounded-full bg-white/16 text-white transition-colors hover:bg-white/28"
             >
               <RefreshCw className="size-4" aria-hidden />
             </button>
@@ -420,9 +420,9 @@ export function InfinityCaptureOverlay({
           type="button"
           aria-label="출력 선택 취소"
           onClick={onCancel}
-          className="grid size-9 place-items-center rounded-full text-canvas-muted transition-colors hover:bg-canvas-active"
+          className="grid size-12 place-items-center rounded-full bg-relay-blue text-relay-ink shadow-none outline-none transition-colors hover:opacity-90 focus-visible:outline-none"
         >
-          <X className="size-4" aria-hidden />
+          <X className="size-5" aria-hidden />
         </button>
       </div>
     </div>

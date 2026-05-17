@@ -19,6 +19,15 @@ function getConnectionText(connectionStatus: InfiniteCanvasConnectionStatus) {
   return '오프라인'
 }
 
+function isCurrentUserConnected(
+  participant: InfiniteCanvasParticipantResponse,
+  me: InfiniteCanvasParticipantResponse | null,
+  connectionStatus: InfiniteCanvasConnectionStatus,
+) {
+  if (participant.connected) return true
+  return participant.userUuid === me?.userUuid && connectionStatus === 'connected'
+}
+
 export function InfinityParticipantsPanel({
   connectionStatus,
   maxParticipants,
@@ -35,29 +44,33 @@ export function InfinityParticipantsPanel({
       .sort((first, second) => first.joinedAt.localeCompare(second.joinedAt))
       .map((participant, participantIndex) => [participant.userUuid, participantIndex]),
   )
-  const participantLimit = maxParticipants || participants.length
+  const connectedParticipantCount = participants.filter((participant) => participant.connected).length
+  const displayedConnectedCount =
+    connectedParticipantCount > 0 ? connectedParticipantCount : participants.length
+  const capacityText =
+    maxParticipants > 0 ? `${displayedConnectedCount}명 접속 / 최대 ${maxParticipants}명` : '접속 정보 확인 중'
 
   return (
-    <aside className="fixed right-5 top-1/2 z-10 h-[176px] w-[300px] -translate-y-1/2 text-[#24366c]">
+    <aside className="fixed right-5 top-1/2 z-10 h-[196px] w-[334px] -translate-y-1/2 text-[#24366c]">
       <Image
         src="/images/infinite-canvas/participant-panel-stretch-clean-full.png"
         alt=""
         aria-hidden
         fill
         priority
-        sizes="300px"
+        sizes="334px"
         className="object-fill drop-shadow-[0_16px_28px_rgba(55,82,190,0.18)]"
       />
-      <div className="relative z-10 flex h-full flex-col px-7 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="body-b text-[#25376c]">참여자</p>
-          <span className="caption-b rounded-full border border-white/90 bg-white/88 px-3.5 py-1.5 text-[#31518f] shadow-[0_8px_16px_rgba(93,114,255,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]">
-            {participants.length}/{participantLimit}
+      <div className="relative z-10 flex h-full flex-col px-8 py-4.5">
+        <div className="flex justify-end">
+          <span className="caption-b rounded-full border border-white/90 bg-white/88 px-4 py-1.5 text-[#31518f] shadow-[0_8px_16px_rgba(93,114,255,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]">
+            {capacityText}
           </span>
         </div>
-        <ul className="mt-2.5 flex max-h-[58px] min-h-0 flex-col gap-1.5 overflow-y-auto pr-1">
+        <ul className="mt-3 flex max-h-[68px] min-h-0 flex-col gap-1.5 overflow-y-auto pr-1">
           {sortedParticipants.map((participant) => {
             const isMe = participant.userUuid === me?.userUuid
+            const isConnected = isCurrentUserConnected(participant, me, connectionStatus)
             const displayNickname = `${participant.nickname}${isMe ? ' (나)' : ''}`
             const identityIndex = participantIdentityIndexes.get(participant.userUuid) ?? 0
             const accentColor =
@@ -84,7 +97,7 @@ export function InfinityParticipantsPanel({
                   {displayNickname}
                 </span>
                 <span className="caption-b shrink-0 rounded-full bg-[#eef6ff] px-2.5 py-1 text-[#4873b5]">
-                  {participant.connected ? '접속' : '오프'}
+                  {isConnected ? '접속' : '오프'}
                 </span>
               </li>
             )

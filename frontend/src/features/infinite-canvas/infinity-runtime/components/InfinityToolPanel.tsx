@@ -81,9 +81,6 @@ export function InfinityToolPanel({ drawing }: InfinityToolPanelProps) {
     redo,
     clearAll,
   } = drawing;
-  const paletteColors = DRAWING_COLORS.includes(color)
-    ? DRAWING_COLORS
-    : [color, ...DRAWING_COLORS];
 
   return (
     <aside className="fixed left-4 top-1/2 z-10 flex w-[206px] -translate-y-1/2 flex-col gap-3 rounded-[24px] border border-canvas-border bg-white/92 p-4 shadow-[0_12px_28px_rgb(67_102_148_/_18%)] backdrop-blur">
@@ -149,7 +146,7 @@ export function InfinityToolPanel({ drawing }: InfinityToolPanelProps) {
 
       {/* 색상 선택 */}
       <div className="grid grid-cols-4 gap-2 p-1">
-        {paletteColors.map((swatch) => (
+        {DRAWING_COLORS.map((swatch) => (
           <DrawingColorSwatch
             key={swatch}
             color={swatch}

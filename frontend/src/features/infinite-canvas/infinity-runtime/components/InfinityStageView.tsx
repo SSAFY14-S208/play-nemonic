@@ -107,6 +107,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const selectionBoxRef = useRef<Konva.Rect>(null)
   const previousObjectsRef = useRef(createObjectMap([]))
   const isApplyingRemoteRef = useRef(false)
+  const appliedServerRevisionRef = useRef<number | null>(null)
   const lastCursorSentAtRef = useRef(0)
   const latestCursorRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
   const draftObjectRef = useRef<InfinityObject | null>(null)
@@ -269,13 +270,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   )
 
   useEffect(() => {
-    if (!room.me?.color) return
-    drawing.setColor(room.me.color)
-    // 색상 초기 동기화 용도라 drawing 전체 의존성을 열지 않는다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room.me?.color])
-
-  useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
@@ -290,14 +284,22 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   }, [])
 
   useEffect(() => {
+    const serverRevision = room.revision
+    const isSameServerRevision = appliedServerRevisionRef.current === serverRevision
+    const isStaleEmptySnapshot =
+      isSameServerRevision && serverObjects.length === 0 && drawing.objects.length > 0
+
+    if (isStaleEmptySnapshot) return
+
     const selectedIds = drawing.selectedIds.filter((selectedId) =>
       serverObjects.some((object) => object.id === selectedId),
     )
     isApplyingRemoteRef.current = true
+    appliedServerRevisionRef.current = serverRevision
     previousObjectsRef.current = createObjectMap(serverObjects)
     drawing.replaceObjectsFromServer(serverObjects, selectedIds)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serverObjects])
+  }, [room.revision, serverObjects])
 
   useEffect(() => {
     if (isApplyingRemoteRef.current) {
