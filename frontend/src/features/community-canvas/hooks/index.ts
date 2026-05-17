@@ -1,4 +1,5 @@
 export { useCommunityCanvas } from './useCommunityCanvas'
+export { useCommunityMemoExternalShare } from './useCommunityMemoExternalShare'
 export {
   COMMUNITY_COMPOSER_BOARD_SIZE,
   useCommunityComposer,
