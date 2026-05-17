@@ -369,6 +369,10 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       serverObjects.some((object) => object.id === selectedId),
     )
     const isInitialServerApply = appliedServerRevisionRef.current === null
+    if (room.hasPendingOperations && !isInitialServerApply) {
+      return
+    }
+
     isApplyingRemoteRef.current = true
     appliedServerRevisionRef.current = serverRevision
     previousObjectsRef.current = nextServerObjectMap
@@ -378,7 +382,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       drawing.syncObjectsFromServer(serverObjects, selectedIds)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room.revision, serverObjects])
+  }, [room.hasPendingOperations, room.revision, serverObjects])
 
   useEffect(() => {
     if (isApplyingRemoteRef.current) {

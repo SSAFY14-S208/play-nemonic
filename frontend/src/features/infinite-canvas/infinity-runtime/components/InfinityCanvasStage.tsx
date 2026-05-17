@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactElement, RefObject } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path } from 'react-konva'
 import type Konva from 'konva'
 
@@ -10,6 +11,7 @@ import type { useInfinityDrawing } from '../hooks'
 import {
   CursorPreview,
   DotGridShape,
+  KonvaFill,
   KonvaEllipse,
   KonvaLine,
   KonvaRect,
@@ -83,6 +85,14 @@ const IDENTITY_DASHES = [
   [8, 2, 2, 2],
   [1, 3],
 ] as const
+
+const ImperativeEllipse = Ellipse as unknown as (props: {
+  ref: RefObject<Konva.Ellipse | null>
+  stroke: string
+  strokeWidth: number
+  fill: string
+  dash: number[]
+}) => ReactElement
 
 function getParticipantAccent(identityIndex: number) {
   return INFINITY_PARTICIPANT_ACCENTS[Math.abs(identityIndex) % INFINITY_PARTICIPANT_ACCENTS.length]
@@ -516,6 +526,13 @@ export function InfinityCanvasStage({
     [objects, lockedElementIds, isSelectTool, editingId, handleObjectClick],
   );
 
+  const renderFill = (obj: InfinityObject) => {
+    if (obj.type !== "fill") return null;
+    return <KonvaFill key={obj.id} fill={obj} />;
+  };
+
+  const fillNodes = useMemo(() => objects.map(renderFill), [objects]);
+
   const lineNodes = useMemo(() => objects.map(renderLine), [objects]);
 
   const remoteDraftNodes = useMemo(
@@ -670,12 +687,11 @@ export function InfinityCanvasStage({
       {/* Layer 2 — 라인(완성) + 진행 중 eraser line.
           픽셀 지우개 destination-out scope가 이 Layer로 한정 — 도형/텍스트는 영향 X. */}
       <Layer>
+        {fillNodes}
         {lineNodes}
 
         <Line
           ref={currentEraserLineRef}
-          points={[]}
-          visible={false}
           stroke="rgba(0,0,0,1)"
           strokeWidth={5}
           lineCap="round"
@@ -695,8 +711,6 @@ export function InfinityCanvasStage({
       <Layer listening={false}>
         <Line
           ref={currentPenLineRef}
-          points={[]}
-          visible={false}
           stroke="#000"
           strokeWidth={5}
           lineCap="round"
@@ -705,17 +719,13 @@ export function InfinityCanvasStage({
         />
         <Rect
           ref={previewRectRef}
-          visible={false}
           stroke="#000"
           strokeWidth={5}
           fill="transparent"
           dash={[6, 4]}
         />
-        <Ellipse
+        <ImperativeEllipse
           ref={previewEllipseRef}
-          visible={false}
-          radiusX={0}
-          radiusY={0}
           stroke="#000"
           strokeWidth={5}
           fill="transparent"

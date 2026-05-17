@@ -10,11 +10,6 @@ export function SelectionBox({ boxRef }: SelectionBoxProps) {
   return (
     <Rect
       ref={boxRef}
-      x={0}
-      y={0}
-      width={0}
-      height={0}
-      visible={false}
       fill="rgba(56, 132, 255, 0.12)"
       stroke="rgba(56, 132, 255, 0.7)"
       strokeWidth={1}
