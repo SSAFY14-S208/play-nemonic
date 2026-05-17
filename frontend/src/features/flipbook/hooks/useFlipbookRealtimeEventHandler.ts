@@ -18,6 +18,25 @@ function isFlipbookAssignmentSubmitted(assignment: FlipbookAssignmentResponse | 
   )
 }
 
+function hasStartEligibleParticipants({
+  minParticipants,
+  participantCount,
+  participants,
+}: {
+  minParticipants: number
+  participantCount: number
+  participants: FlipbookRoomStateResponse['participants']
+}) {
+  const allKnownParticipantsConnected =
+    participants.length > 0 && participants.every((participant) => participant.connected)
+
+  return (
+    participantCount >= minParticipants &&
+    participants.length >= minParticipants &&
+    allKnownParticipantsConnected
+  )
+}
+
 interface UseFlipbookRealtimeEventHandlerOptions {
   assignment: FlipbookAssignmentResponse | null
   submittedAssignmentKeys: Set<string>
@@ -120,24 +139,48 @@ export function useFlipbookRealtimeEventHandler({
             const roomSnapshot = event.data as Partial<FlipbookRoomStateResponse>
             setRoomState((currentRoomState) => {
               if (!currentRoomState) return currentRoomState
+              const nextStatus = roomSnapshot.status ?? currentRoomState.status
+              const nextHostUserUuid = roomSnapshot.hostUserUuid ?? currentRoomState.hostUserUuid
+              const nextMinParticipants =
+                roomSnapshot.minParticipants ?? currentRoomState.minParticipants
+              const nextParticipants = roomSnapshot.participants ?? currentRoomState.participants
+              const nextParticipantCount =
+                roomSnapshot.participantCount ??
+                roomSnapshot.participants?.length ??
+                currentRoomState.participantCount
+              const nextViewerHost =
+                roomSnapshot.viewer?.host ??
+                nextHostUserUuid === currentRoomState.viewer.userUuid
+              const nextViewerCanStart =
+                roomSnapshot.viewer?.canStart ??
+                (nextStatus === 'WAITING' &&
+                  nextViewerHost &&
+                  hasStartEligibleParticipants({
+                    minParticipants: nextMinParticipants,
+                    participantCount: nextParticipantCount,
+                    participants: nextParticipants,
+                  }))
 
               return {
                 ...currentRoomState,
-                status: roomSnapshot.status ?? currentRoomState.status,
-                hostUserUuid: roomSnapshot.hostUserUuid ?? currentRoomState.hostUserUuid,
+                status: nextStatus,
+                hostUserUuid: nextHostUserUuid,
                 timeLimitSeconds: roomSnapshot.timeLimitSeconds ?? currentRoomState.timeLimitSeconds,
-                minParticipants: roomSnapshot.minParticipants ?? currentRoomState.minParticipants,
+                minParticipants: nextMinParticipants,
                 maxParticipants: roomSnapshot.maxParticipants ?? currentRoomState.maxParticipants,
-                participantCount:
-                  roomSnapshot.participantCount ??
-                  roomSnapshot.participants?.length ??
-                  currentRoomState.participantCount,
+                participantCount: nextParticipantCount,
                 currentRound: roomSnapshot.currentRound ?? currentRoomState.currentRound,
                 totalRounds: roomSnapshot.totalRounds ?? currentRoomState.totalRounds,
                 roundStartedAt: roomSnapshot.roundStartedAt ?? currentRoomState.roundStartedAt,
                 roundDeadlineAt: roomSnapshot.roundDeadlineAt ?? currentRoomState.roundDeadlineAt,
                 gameStartedAt: roomSnapshot.gameStartedAt ?? currentRoomState.gameStartedAt,
-                participants: roomSnapshot.participants ?? currentRoomState.participants,
+                participants: nextParticipants,
+                viewer: {
+                  ...currentRoomState.viewer,
+                  ...roomSnapshot.viewer,
+                  host: nextViewerHost,
+                  canStart: nextViewerCanStart,
+                },
                 updatedAt: roomSnapshot.updatedAt ?? currentRoomState.updatedAt,
               }
             })
