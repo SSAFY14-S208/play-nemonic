@@ -95,8 +95,6 @@ export default function InfiniteCanvasBoothView() {
     if (!open) setPendingAction(null)
   }
 
-  if (isPending) return <InfiniteCanvasLoadingView />
-
   return (
     <>
       <main className="infinite-canvas-page">
@@ -177,16 +175,5 @@ export default function InfiniteCanvasBoothView() {
         onSuccess={handleNicknameSuccess}
       />
     </>
-  )
-}
-
-function InfiniteCanvasLoadingView() {
-  return (
-    <main className="infinite-canvas-loading-page" aria-busy="true">
-      <div className="infinite-canvas-loading-page__panel">
-        <span className="infinite-canvas-loading-page__spinner" aria-hidden />
-        <p className="infinite-canvas-loading-page__text">무한 캔버스로 이동하고 있어요</p>
-      </div>
-    </main>
   )
 }
