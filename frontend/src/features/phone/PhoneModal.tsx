@@ -36,7 +36,13 @@ export default function PhoneModal() {
     >
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-black/20 backdrop-blur-[2px]" />
-        <Dialog.Popup className="fixed inset-0 z-[var(--z-modal)] grid place-items-center p-4">
+        <Dialog.Popup
+          className="fixed inset-x-0 top-0 z-[var(--z-modal)] grid place-items-center overflow-y-auto overscroll-contain px-4 [height:100dvh]"
+          style={{
+            paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+            paddingTop: 'max(1rem, env(safe-area-inset-top))',
+          }}
+        >
           <Dialog.Title className="sr-only">
             Play! Nemonic 핸드폰
           </Dialog.Title>
