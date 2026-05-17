@@ -106,6 +106,8 @@ function getReadableTextColor(backgroundColor: string) {
 
 function useSmoothRemoteCursors(remoteCursors: InfinityRemoteCursorView[]) {
   const targetCursorsRef = useRef(remoteCursors)
+  const animationFrameRef = useRef<number | null>(null)
+  const scheduleTickRef = useRef<() => void>(() => undefined)
   const [smoothCursors, setSmoothCursors] = useState<SmoothRemoteCursorView[]>(() =>
     remoteCursors.map((cursor) => ({
       ...cursor,
@@ -114,71 +116,93 @@ function useSmoothRemoteCursors(remoteCursors: InfinityRemoteCursorView[]) {
     })),
   )
 
-  useEffect(() => {
-    targetCursorsRef.current = remoteCursors
-  }, [remoteCursors])
+  const tick = useCallback(() => {
+    animationFrameRef.current = null
+    let shouldKeepAnimating = false
 
-  useEffect(() => {
-    let animationFrameId = 0
+    setSmoothCursors((currentCursors) => {
+      const targetCursors = targetCursorsRef.current
+      if (currentCursors.length === 0 && targetCursors.length === 0) {
+        return currentCursors
+      }
 
-    const tick = () => {
-      setSmoothCursors((currentCursors) => {
-        const targetCursors = targetCursorsRef.current
-        if (currentCursors.length === 0 && targetCursors.length === 0) {
-          return currentCursors
-        }
-
-        const currentCursorMap = new Map(currentCursors.map((cursor) => [cursor.userUuid, cursor]))
-        let changed = currentCursors.length !== targetCursors.length
-        const nextCursors = targetCursors.map((targetCursor) => {
-          const currentCursor = currentCursorMap.get(targetCursor.userUuid)
-          if (!currentCursor) {
-            changed = true
-            return {
-              ...targetCursor,
-              targetX: targetCursor.x,
-              targetY: targetCursor.y,
-            }
-          }
-
-          const deltaX = targetCursor.x - currentCursor.x
-          const deltaY = targetCursor.y - currentCursor.y
-          const nextX =
-            Math.abs(deltaX) < REMOTE_CURSOR_SETTLE_DISTANCE
-              ? targetCursor.x
-              : currentCursor.x + deltaX * REMOTE_CURSOR_SMOOTHING
-          const nextY =
-            Math.abs(deltaY) < REMOTE_CURSOR_SETTLE_DISTANCE
-              ? targetCursor.y
-              : currentCursor.y + deltaY * REMOTE_CURSOR_SMOOTHING
-
-          if (
-            nextX !== currentCursor.x ||
-            nextY !== currentCursor.y ||
-            targetCursor.nickname !== currentCursor.nickname ||
-            targetCursor.color !== currentCursor.color ||
-            targetCursor.identityIndex !== currentCursor.identityIndex
-          ) {
-            changed = true
-          }
-
+      const currentCursorMap = new Map(currentCursors.map((cursor) => [cursor.userUuid, cursor]))
+      let changed = currentCursors.length !== targetCursors.length
+      const nextCursors = targetCursors.map((targetCursor) => {
+        const currentCursor = currentCursorMap.get(targetCursor.userUuid)
+        if (!currentCursor) {
+          changed = true
+          shouldKeepAnimating = true
           return {
             ...targetCursor,
-            x: nextX,
-            y: nextY,
             targetX: targetCursor.x,
             targetY: targetCursor.y,
           }
-        })
+        }
 
-        return changed ? nextCursors : currentCursors
+        const deltaX = targetCursor.x - currentCursor.x
+        const deltaY = targetCursor.y - currentCursor.y
+        const isSettled =
+          Math.abs(deltaX) < REMOTE_CURSOR_SETTLE_DISTANCE &&
+          Math.abs(deltaY) < REMOTE_CURSOR_SETTLE_DISTANCE
+        const nextX = isSettled ? targetCursor.x : currentCursor.x + deltaX * REMOTE_CURSOR_SMOOTHING
+        const nextY = isSettled ? targetCursor.y : currentCursor.y + deltaY * REMOTE_CURSOR_SMOOTHING
+
+        if (!isSettled) {
+          shouldKeepAnimating = true
+        }
+
+        if (
+          nextX !== currentCursor.x ||
+          nextY !== currentCursor.y ||
+          targetCursor.nickname !== currentCursor.nickname ||
+          targetCursor.color !== currentCursor.color ||
+          targetCursor.identityIndex !== currentCursor.identityIndex
+        ) {
+          changed = true
+        }
+
+        return {
+          ...targetCursor,
+          x: nextX,
+          y: nextY,
+          targetX: targetCursor.x,
+          targetY: targetCursor.y,
+        }
       })
-      animationFrameId = window.requestAnimationFrame(tick)
-    }
 
-    animationFrameId = window.requestAnimationFrame(tick)
-    return () => window.cancelAnimationFrame(animationFrameId)
+      return changed ? nextCursors : currentCursors
+    })
+
+    if (shouldKeepAnimating) {
+      scheduleTickRef.current()
+    }
   }, [])
+
+  const scheduleTick = useCallback(() => {
+    if (animationFrameRef.current !== null) return
+    animationFrameRef.current = window.requestAnimationFrame(tick)
+  }, [tick])
+
+  useEffect(() => {
+    scheduleTickRef.current = scheduleTick
+  }, [scheduleTick])
+
+  useEffect(() => {
+    targetCursorsRef.current = remoteCursors
+    if (remoteCursors.length > 0 || smoothCursors.length > 0) {
+      scheduleTick()
+    }
+  }, [remoteCursors, scheduleTick, smoothCursors.length])
+
+  useEffect(
+    () => () => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current)
+      }
+    },
+    [],
+  )
 
   return smoothCursors
 }

@@ -111,6 +111,11 @@ async function createStageBlob(stage: Konva.Stage, rect: InfinityCaptureRect): P
 }
 
 export function InfinityStageView({ room }: InfinityStageViewProps) {
+  const acquireLock = room.acquireLock
+  const releaseLock = room.releaseLock
+  const saveOutput = room.saveOutput
+  const sendRoomCursor = room.sendCursor
+  const sendRoomOperations = room.sendOperations
   const stageRef = useRef<Konva.Stage>(null)
   const currentPenLineRef = useRef<Konva.Line>(null)
   const currentEraserLineRef = useRef<Konva.Line>(null)
@@ -182,14 +187,14 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       if (draftObject) {
         lastDraftCursorSentAtRef.current = now
       }
-      room.sendCursor({
+      sendRoomCursor({
         x: cursor.x,
         y: cursor.y,
         zoom: cursor.zoom,
         payload: createCursorPayload(draftObject),
       })
     },
-    [createCursorPayload, room],
+    [createCursorPayload, sendRoomCursor],
   )
 
   const handleDraftObjectChange = useCallback(
@@ -419,11 +424,11 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     previousObjectsRef.current = currentObjects
     if (operations.length === 0) return
 
-    const sent = room.sendOperations(operations)
+    const sent = sendRoomOperations(operations)
     if (!sent) {
       toast.error('서버 연결 후 편집할 수 있어요.')
     }
-  }, [drawing.objects, room])
+  }, [drawing.objects, sendRoomOperations])
 
   useEffect(() => {
     const previousSelectedIds = previousSelectedIdsRef.current
@@ -434,19 +439,19 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     for (const elementId of addedIds) {
       const lock = room.locks[elementId]
       if (!lock || lock.userUuid === room.myUserUuid) {
-        room.acquireLock(elementId)
+        acquireLock(elementId)
       }
     }
 
     for (const elementId of removedIds) {
       const lock = room.locks[elementId]
       if (lock?.userUuid === room.myUserUuid) {
-        room.releaseLock(elementId)
+        releaseLock(elementId)
       }
     }
 
     previousSelectedIdsRef.current = nextSelectedIds
-  }, [drawing.selectedIds, room])
+  }, [acquireLock, drawing.selectedIds, releaseLock, room.locks, room.myUserUuid])
 
   const handleCursorMove = useCallback(
     (cursor: { x: number; y: number; zoom: number }) => {
@@ -481,7 +486,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
       try {
         const blob = await createStageBlob(stage, rect)
-        const output = await room.saveOutput(blob, {
+        const output = await saveOutput(blob, {
           roomCode: room.roomCode,
           revision: room.revision,
           ratio,
@@ -494,7 +499,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         toast.error('선택한 영역을 이미지로 만들지 못했어요.')
       }
     },
-    [room],
+    [room.revision, room.roomCode, saveOutput],
   )
 
   return (
