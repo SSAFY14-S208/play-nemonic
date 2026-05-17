@@ -5,12 +5,16 @@ import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasColorUpdateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOutputSaveRequest;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCreateResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOutputSaveResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
+import com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -22,6 +26,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,13 +42,18 @@ public class InfiniteCanvasController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String CREATE_SUCCESS_MESSAGE = "무한 캔버스 방 생성 성공";
+    private static final String STATE_FOUND_SUCCESS_MESSAGE = "무한 캔버스 방 상태 조회 성공";
     private static final String LEAVE_SUCCESS_MESSAGE = "무한 캔버스 퇴장 성공";
+    private static final String COLOR_UPDATE_SUCCESS_MESSAGE = "무한 캔버스 참여자 색상 수정 성공";
     private static final String OUTPUT_SAVE_SUCCESS_MESSAGE = "무한 캔버스 출력 이미지 저장 성공";
 
     private final InfiniteCanvasService infiniteCanvasService;
+    private final InfiniteCanvasEventPublisher infiniteCanvasEventPublisher;
 
-    public InfiniteCanvasController(InfiniteCanvasService infiniteCanvasService) {
+    public InfiniteCanvasController(InfiniteCanvasService infiniteCanvasService,
+        InfiniteCanvasEventPublisher infiniteCanvasEventPublisher) {
         this.infiniteCanvasService = infiniteCanvasService;
+        this.infiniteCanvasEventPublisher = infiniteCanvasEventPublisher;
     }
 
     @PostMapping
@@ -64,6 +75,22 @@ public class InfiniteCanvasController {
             .body(ApiResponse.success(CREATE_SUCCESS_MESSAGE, response));
     }
 
+    @GetMapping("/{roomCode}")
+    @Operation(summary = "무한 캔버스 방 상태 조회", description = "공유 링크 진입, 새로고침, WebSocket 연결 전 초기 화면 구성에 필요한 현재 무한 캔버스 방 상태를 조회합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = "공유 방코드")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "무한 캔버스 방 상태 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
+    public ResponseEntity<ApiResponse<InfiniteCanvasStateResponse>> getCanvasState(
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @PathVariable("roomCode") String roomCode) {
+        InfiniteCanvasStateResponse response = infiniteCanvasService.getCanvasState(userUuid, roomCode);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(STATE_FOUND_SUCCESS_MESSAGE, response));
+    }
+
     @DeleteMapping("/{roomCode}/participants/me")
     @Operation(summary = "무한 캔버스 나가기", description = "요청자를 활성 캔버스에서 제거하고 마지막 참여자라면 Redis 상태를 즉시 삭제합니다.")
     @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = "공유 방코드")
@@ -75,9 +102,35 @@ public class InfiniteCanvasController {
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
         @PathVariable("roomCode") String roomCode) {
         InfiniteCanvasLeaveResponse response = infiniteCanvasService.leaveCanvas(userUuid, roomCode);
+        infiniteCanvasEventPublisher.publishParticipantLeft(response);
+        if (response.hostChanged()) {
+            infiniteCanvasEventPublisher.publishHostChanged(response);
+        }
+        if (response.closed()) {
+            infiniteCanvasEventPublisher.publishCanvasClosed(response.roomCode(), response.closedAt());
+        }
+        infiniteCanvasEventPublisher.closeLeftCanvasSession(response.roomCode(), response.userUuid());
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(LEAVE_SUCCESS_MESSAGE, response));
+    }
+
+    @PatchMapping("/{roomCode}/participants/me/color")
+    @Operation(summary = "내 무한 캔버스 색상 수정", description = "현재 참여자의 색상만 수정합니다. 닉네임과 방장 여부는 변경하지 않습니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = "공유 방코드")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "무한 캔버스 참여자 색상 수정 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
+    public ResponseEntity<ApiResponse<InfiniteCanvasParticipantResponse>> updateMyColor(
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @PathVariable("roomCode") String roomCode,
+        @RequestBody(required = false) InfiniteCanvasColorUpdateRequest request) {
+        InfiniteCanvasParticipantResponse response = infiniteCanvasService.updateMyColor(userUuid, roomCode, request);
+        infiniteCanvasEventPublisher.publishParticipantUpdated(roomCode, response);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(COLOR_UPDATE_SUCCESS_MESSAGE, response));
     }
 
     @PostMapping("/{roomCode}/outputs")

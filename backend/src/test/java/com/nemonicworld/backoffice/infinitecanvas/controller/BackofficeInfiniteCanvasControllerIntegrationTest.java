@@ -27,6 +27,7 @@ import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasRepository;
+import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasInviteMetadataSyncService;
 import com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
 import java.sql.Timestamp;
@@ -87,6 +88,9 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
     private InfiniteCanvasRepository infiniteCanvasRepository;
 
     @MockitoBean
+    private InfiniteCanvasInviteMetadataSyncService infiniteCanvasInviteMetadataSyncService;
+
+    @MockitoBean
     private InfiniteCanvasEventPublisher infiniteCanvasEventPublisher;
 
     @BeforeEach
@@ -133,6 +137,7 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[0].inviteCode").doesNotExist())
             .andExpect(jsonPath("$.data.items[0].status").value("ACTIVE"))
             .andExpect(jsonPath("$.data.items[0].participantCount").value(3))
+            .andExpect(jsonPath("$.data.items[0].maxParticipants").value(6))
             .andExpect(jsonPath("$.data.items[0].connectedParticipantCount").value(2))
             .andExpect(jsonPath("$.data.items[0].elementCount").value(5))
             .andExpect(jsonPath("$.data.items[0].revision").value(7))
@@ -256,6 +261,7 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
         assertThat(closedState.elements()).isEqualTo(state.elements());
         assertThat(closedState.locks()).isEmpty();
         assertThat(closedState.cursors()).isEmpty();
+        then(infiniteCanvasInviteMetadataSyncService).should().syncWithCanvasState(closedState);
         then(infiniteCanvasEventPublisher).should().publishCanvasClosed(eq(roomCode), eq(closedState.closedAt()));
 
         JsonNode canvasClosedLog = findLog(output, "infinite_canvas_closed");
@@ -394,7 +400,7 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
     private List<InfiniteCanvasParticipant> participants(int count, int connectedCount, LocalDateTime joinedAt) {
         return java.util.stream.IntStream.range(0, count)
             .mapToObj(index -> new InfiniteCanvasParticipant(UUID.randomUUID().toString(), "참여자" + index, "#72DDF7",
-                null, index < connectedCount, joinedAt, index < connectedCount ? joinedAt : null, joinedAt))
+                null, index == 0, index < connectedCount, joinedAt, index < connectedCount ? joinedAt : null, joinedAt))
             .toList();
     }
 

@@ -2,9 +2,12 @@ package com.nemonicworld.infinitecanvas.websocket;
 
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
+import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventType;
@@ -14,6 +17,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
 
 @Component
 public class InfiniteCanvasEventPublisher {
@@ -22,6 +26,7 @@ public class InfiniteCanvasEventPublisher {
     private static final String CANVAS_USER_QUEUE_PREFIX = "/queue/infinite-canvas/canvases/";
     private static final String DUPLICATE_SESSION_CLOSED_MESSAGE = "다른 곳에서 접속되어 연결이 종료되었습니다.";
     private static final String CANVAS_CLOSED_MESSAGE = "무한 캔버스가 종료되었습니다.";
+    private static final CloseStatus LEFT_CANVAS_CLOSE_STATUS = CloseStatus.NORMAL.withReason("LEFT_CANVAS");
     private static final String PONG_MESSAGE = "pong";
     private static final String DEFAULT_ERROR_MESSAGE = "무한 캔버스 요청을 처리할 수 없습니다.";
 
@@ -62,6 +67,18 @@ public class InfiniteCanvasEventPublisher {
         publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response.roomCode(), response);
     }
 
+    public void publishParticipantLeft(InfiniteCanvasLeaveResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_LEFT, response.roomCode(), response);
+    }
+
+    public void publishHostChanged(InfiniteCanvasLeaveResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.HOST_CHANGED, response.roomCode(), response);
+    }
+
+    public void publishParticipantUpdated(String roomCode, InfiniteCanvasParticipantResponse response) {
+        publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_UPDATED, roomCode, response);
+    }
+
     public void publishCanvasClosed(String roomCode, Object data) {
         Object payload = data == null ? new InfiniteCanvasSimpleMessageResponse(CANVAS_CLOSED_MESSAGE) : data;
         publishCanvasEvent(InfiniteCanvasEventType.CANVAS_CLOSED, roomCode, payload);
@@ -98,6 +115,12 @@ public class InfiniteCanvasEventPublisher {
         webSocketSessionRegistry.removeStaleSession(session.sessionId());
     }
 
+    public void closeLeftCanvasSession(String roomCode, String leftUserUuid) {
+        webSocketSessionRegistry
+            .findCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS, roomCode, leftUserUuid)
+            .ifPresent(this::closeLeftCanvasSession);
+    }
+
     private void publishCanvasEvent(InfiniteCanvasEventType type, String roomCode, Object data) {
         InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(type, roomCode, data);
 
@@ -110,5 +133,10 @@ public class InfiniteCanvasEventPublisher {
         headerAccessor.setLeaveMutable(true);
 
         return headerAccessor.getMessageHeaders();
+    }
+
+    private void closeLeftCanvasSession(ActiveWebSocketSession session) {
+        webSocketSessionRegistry.removeStaleSession(session.sessionId());
+        webSocketSessionRegistry.closeWebSocketSession(session.sessionId(), LEFT_CANVAS_CLOSE_STATUS);
     }
 }

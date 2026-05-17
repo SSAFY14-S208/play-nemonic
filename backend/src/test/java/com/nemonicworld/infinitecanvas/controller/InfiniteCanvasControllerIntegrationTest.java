@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -32,6 +33,7 @@ import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
+import com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisher;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
@@ -87,6 +89,9 @@ class InfiniteCanvasControllerIntegrationTest {
 
     @MockitoBean
     private RoomCodeGenerator roomCodeGenerator;
+
+    @MockitoBean
+    private InfiniteCanvasEventPublisher infiniteCanvasEventPublisher;
 
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
@@ -150,12 +155,14 @@ class InfiniteCanvasControllerIntegrationTest {
             .andExpect(jsonPath("$.data.roomCode").value(INVITE_CODE))
             .andExpect(jsonPath("$.data.inviteCode").doesNotExist())
             .andExpect(jsonPath("$.data.status").value("ACTIVE"))
-            .andExpect(jsonPath("$.data.ownerUserUuid").value(userUuid.toString()))
+            .andExpect(jsonPath("$.data.hostUserUuid").value(userUuid.toString()))
+            .andExpect(jsonPath("$.data.ownerUserUuid").doesNotExist())
             .andExpect(jsonPath("$.data.participantCount").value(1))
             .andExpect(jsonPath("$.data.participants[0].userUuid").value(userUuid.toString()))
             .andExpect(jsonPath("$.data.participants[0].nickname").value("다현"))
             .andExpect(jsonPath("$.data.participants[0].color").value("#72DDF7"))
             .andExpect(jsonPath("$.data.participants[0].avatarUrl").isEmpty())
+            .andExpect(jsonPath("$.data.participants[0].host").value(true))
             .andExpect(jsonPath("$.data.participants[0].connected").value(false))
             .andExpect(jsonPath("$.data.participants.length()").value(1))
             .andExpect(jsonPath("$.data.maxParticipants").value(6))
@@ -172,11 +179,14 @@ class InfiniteCanvasControllerIntegrationTest {
         assertThat(storedCanvas.path("roomCode").asText()).isEqualTo(roomCode);
         assertThat(storedCanvas.has("canvasId")).isFalse();
         assertThat(storedCanvas.has("inviteCode")).isFalse();
+        assertThat(storedCanvas.path("hostUserUuid").asText()).isEqualTo(userUuid.toString());
+        assertThat(storedCanvas.has("ownerUserUuid")).isFalse();
         assertThat(storedCanvas.path("status").asText()).isEqualTo("ACTIVE");
         assertThat(storedCanvas.path("participants")).hasSize(1);
         assertThat(storedCanvas.path("participants").get(0).path("nickname").asText()).isEqualTo("다현");
         assertThat(storedCanvas.path("participants").get(0).path("color").asText()).isEqualTo("#72DDF7");
         assertThat(storedCanvas.path("participants").get(0).path("avatarUrl").isNull()).isTrue();
+        assertThat(storedCanvas.path("participants").get(0).path("host").asBoolean()).isTrue();
         assertThat(storedCanvas.path("participants").get(0).path("connected").asBoolean()).isFalse();
         assertThat(storedCanvas.path("viewport").isNull()).isTrue();
         assertThat(storedInvite.path("inviteCode").asText()).isEqualTo(INVITE_CODE);
@@ -231,6 +241,29 @@ class InfiniteCanvasControllerIntegrationTest {
     }
 
     @Test
+    void getInfiniteCanvasStateReturnsCurrentRoomSnapshot() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        UUID viewerUuid = createExistingUserWithNickname("Viewer");
+        InfiniteCanvasParticipant owner = participant(ownerUuid, "Owner", true);
+        InfiniteCanvasParticipant viewer = participant(viewerUuid, "Viewer", false);
+        InfiniteCanvasState state = activeCanvasState(6, owner, viewer);
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
+
+        mockMvc
+            .perform(get("/api/v1/infinite-canvas/canvases/{roomCode}", state.roomCode())
+                .header(ANONYMOUS_USER_UUID_HEADER, viewerUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("무한 캔버스 방 상태 조회 성공"))
+            .andExpect(jsonPath("$.data.roomCode").value(state.roomCode()))
+            .andExpect(jsonPath("$.data.hostUserUuid").value(ownerUuid.toString()))
+            .andExpect(jsonPath("$.data.me.userUuid").value(viewerUuid.toString()))
+            .andExpect(jsonPath("$.data.me.host").value(false))
+            .andExpect(jsonPath("$.data.participants[0].host").value(true))
+            .andExpect(jsonPath("$.data.participants[1].host").value(false))
+            .andExpect(jsonPath("$.data.maxParticipants").value(6));
+    }
+
+    @Test
     void leaveInfiniteCanvasRemovesParticipantWhenOthersRemain() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         UUID viewerUuid = createExistingUserWithNickname("Viewer");
@@ -246,11 +279,47 @@ class InfiniteCanvasControllerIntegrationTest {
             .andExpect(jsonPath("$.message").value("무한 캔버스 퇴장 성공"))
             .andExpect(jsonPath("$.data.roomCode").value(state.roomCode()))
             .andExpect(jsonPath("$.data.userUuid").value(viewerUuid.toString()))
-            .andExpect(jsonPath("$.data.closed").value(false));
+            .andExpect(jsonPath("$.data.nickname").value("Viewer"))
+            .andExpect(jsonPath("$.data.participantCount").value(1))
+            .andExpect(jsonPath("$.data.hostChanged").value(false)).andExpect(jsonPath("$.data.closed").value(false));
 
         JsonNode storedParticipants = readStoredJson(roomKey(state.roomCode())).path("participants");
         assertThat(storedParticipants).hasSize(1);
         assertThat(storedParticipants.get(0).path("userUuid").asText()).isEqualTo(ownerUuid.toString());
+        assertThat(storedParticipants.get(0).path("host").asBoolean()).isTrue();
+    }
+
+    @Test
+    void leaveInfiniteCanvasTransfersHostWhenHostLeaves() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        UUID viewerUuid = createExistingUserWithNickname("Viewer");
+        InfiniteCanvasParticipant owner = participant(ownerUuid, "Owner", true);
+        InfiniteCanvasParticipant viewer = participant(viewerUuid, "Viewer", false);
+        InfiniteCanvasState state = activeCanvasState(6, owner, viewer);
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
+        redisValues.put("invite:" + INVITE_CODE, objectMapper.writeValueAsString(new InviteMetadata(INVITE_CODE,
+            "infinite_canvas", state.roomCode(), "Owner의 무한 캔버스", LocalDateTime.now().plusHours(1))));
+
+        mockMvc
+            .perform(delete("/api/v1/infinite-canvas/canvases/{roomCode}/participants/me", state.roomCode())
+                .header(ANONYMOUS_USER_UUID_HEADER, ownerUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.roomCode").value(state.roomCode()))
+            .andExpect(jsonPath("$.data.userUuid").value(ownerUuid.toString()))
+            .andExpect(jsonPath("$.data.nickname").value("Owner"))
+            .andExpect(jsonPath("$.data.participantCount").value(1))
+            .andExpect(jsonPath("$.data.hostChanged").value(true))
+            .andExpect(jsonPath("$.data.newHostUserUuid").value(viewerUuid.toString()))
+            .andExpect(jsonPath("$.data.newHostNickname").value("Viewer"))
+            .andExpect(jsonPath("$.data.closed").value(false));
+
+        JsonNode storedCanvas = readStoredJson(roomKey(state.roomCode()));
+        JsonNode storedParticipants = storedCanvas.path("participants");
+        assertThat(storedCanvas.path("hostUserUuid").asText()).isEqualTo(viewerUuid.toString());
+        assertThat(storedParticipants).hasSize(1);
+        assertThat(storedParticipants.get(0).path("userUuid").asText()).isEqualTo(viewerUuid.toString());
+        assertThat(storedParticipants.get(0).path("host").asBoolean()).isTrue();
+        assertThat(readStoredJson("invite:" + INVITE_CODE).path("roomName").asText()).isEqualTo("Viewer의 무한 캔버스");
     }
 
     @Test
@@ -265,9 +334,58 @@ class InfiniteCanvasControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.roomCode").value(state.roomCode()))
             .andExpect(jsonPath("$.data.userUuid").value(ownerUuid.toString()))
-            .andExpect(jsonPath("$.data.closed").value(true)).andExpect(jsonPath("$.data.closedAt").isNotEmpty());
+            .andExpect(jsonPath("$.data.nickname").value("Owner"))
+            .andExpect(jsonPath("$.data.participantCount").value(0))
+            .andExpect(jsonPath("$.data.hostChanged").value(false)).andExpect(jsonPath("$.data.closed").value(true))
+            .andExpect(jsonPath("$.data.closedAt").isNotEmpty());
 
         assertThat(redisValues).doesNotContainKey(roomKey(state.roomCode()));
+    }
+
+    @Test
+    void updateInfiniteCanvasParticipantColorUpdatesOnlyMyColor() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        UUID viewerUuid = createExistingUserWithNickname("Viewer");
+        InfiniteCanvasParticipant owner = participant(ownerUuid, "Owner", true);
+        InfiniteCanvasParticipant viewer = participant(viewerUuid, "Viewer", false);
+        InfiniteCanvasState state = activeCanvasState(6, owner, viewer);
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
+
+        mockMvc
+            .perform(patch("/api/v1/infinite-canvas/canvases/{roomCode}/participants/me/color", state.roomCode())
+                .header(ANONYMOUS_USER_UUID_HEADER, viewerUuid.toString()).contentType("application/json").content("""
+                    {
+                      "color": "#FF82C0"
+                    }
+                    """))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("무한 캔버스 참여자 색상 수정 성공"))
+            .andExpect(jsonPath("$.data.userUuid").value(viewerUuid.toString()))
+            .andExpect(jsonPath("$.data.nickname").value("Viewer")).andExpect(jsonPath("$.data.color").value("#FF82C0"))
+            .andExpect(jsonPath("$.data.host").value(false));
+
+        JsonNode storedParticipants = readStoredJson(roomKey(state.roomCode())).path("participants");
+        assertThat(storedParticipants.get(0).path("color").asText()).isEqualTo("#72DDF7");
+        assertThat(storedParticipants.get(0).path("host").asBoolean()).isTrue();
+        assertThat(storedParticipants.get(1).path("color").asText()).isEqualTo("#FF82C0");
+        assertThat(storedParticipants.get(1).path("host").asBoolean()).isFalse();
+    }
+
+    @Test
+    void updateInfiniteCanvasParticipantColorRejectsBlankColor() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
+
+        mockMvc
+            .perform(patch("/api/v1/infinite-canvas/canvases/{roomCode}/participants/me/color", state.roomCode())
+                .header(ANONYMOUS_USER_UUID_HEADER, ownerUuid.toString()).contentType("application/json").content("""
+                    {
+                      "color": " "
+                    }
+                    """))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("색상 값이 올바르지 않습니다."));
     }
 
     @Test
@@ -377,6 +495,7 @@ class InfiniteCanvasControllerIntegrationTest {
         assertThat(storedParticipants).hasSize(2);
         assertThat(storedParticipants.get(1).path("userUuid").asText()).isEqualTo(viewerUuid.toString());
         assertThat(storedParticipants.get(1).path("nickname").asText()).isEqualTo("Viewer");
+        assertThat(storedParticipants.get(1).path("host").asBoolean()).isFalse();
         assertThat(readStoredJson("invite:" + INVITE_CODE).path("boothType").asText()).isEqualTo("infinite_canvas");
     }
 
@@ -697,9 +816,14 @@ class InfiniteCanvasControllerIntegrationTest {
     }
 
     private InfiniteCanvasParticipant participant(UUID userUuid, String nickname) {
+        return participant(userUuid, nickname, true);
+    }
+
+    private InfiniteCanvasParticipant participant(UUID userUuid, String nickname, boolean host) {
         LocalDateTime now = LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS);
 
-        return new InfiniteCanvasParticipant(userUuid.toString(), nickname, "#72DDF7", null, false, now, null, now);
+        return new InfiniteCanvasParticipant(userUuid.toString(), nickname, "#72DDF7", null, host, false, now, null,
+            now);
     }
 
     private JsonNode readData(MvcResult result) throws Exception {

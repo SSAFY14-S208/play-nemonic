@@ -85,7 +85,7 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
         String roomName = StringUtils.hasText(invite.roomName())
             ? invite.roomName()
             : hostNickname + DEFAULT_CANVAS_NAME_SUFFIX;
-        String role = state.ownerUserUuid().equals(userUuid) ? ROLE_HOST : ROLE_PARTICIPANT;
+        String role = state.hostUserUuid().equals(userUuid) ? ROLE_HOST : ROLE_PARTICIPANT;
 
         return new InviteJoinResponse(infiniteCanvasBoothType(), state.roomCode(), roomName, hostNickname,
             state.participantCount(), state.maxParticipants(), role, alreadyJoined);
@@ -98,8 +98,8 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
     private InfiniteCanvasParticipant createParticipant(AppUser user, LocalDateTime now) {
         String userUuid = user.getId().toString();
 
-        return new InfiniteCanvasParticipant(userUuid, user.getNickname(), defaultColor(userUuid), null, false, now,
-            null, now);
+        return new InfiniteCanvasParticipant(userUuid, user.getNickname(), defaultColor(userUuid), null, false, false,
+            now, null, now);
     }
 
     private void validateNicknameRegistered(AppUser appUser) {
@@ -109,7 +109,7 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
     }
 
     private String findHostNickname(InfiniteCanvasState state) {
-        return state.findParticipant(state.ownerUserUuid()).map(InfiniteCanvasParticipant::nickname).orElse("방장");
+        return state.findParticipant(state.hostUserUuid()).map(InfiniteCanvasParticipant::nickname).orElse("방장");
     }
 
     private String defaultColor(String userUuid) {
@@ -119,7 +119,7 @@ public class InfiniteCanvasInviteJoinHandler implements InviteJoinHandler {
 
     private InfiniteCanvasState copyState(InfiniteCanvasState state, List<InfiniteCanvasParticipant> participants,
         LocalDateTime updatedAt) {
-        return new InfiniteCanvasState(state.roomCode(), state.status(), state.ownerUserUuid(), participants,
+        return new InfiniteCanvasState(state.roomCode(), state.status(), state.hostUserUuid(), participants,
             state.elements(), state.operations(), state.locks(), state.cursors(), state.viewport(),
             state.maxParticipants(), state.revision(), state.createdAt(), updatedAt, state.closedAt());
     }
