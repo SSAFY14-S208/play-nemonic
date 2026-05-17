@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Camera, Copy, Loader2, MessageCircle, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
-import type { FlipbookResultItemResponse, ShareCreateResponse } from '@/shared/types'
+import type { FlipbookResultItemResponse } from '@/shared/types'
 import { getDisplayImageUrl } from '@/shared/utils'
 
 import { useFlipbookResultActions } from '../hooks'
@@ -165,18 +165,6 @@ export default function FlipbookResultView({
         </p>
       )}
 
-      {resultActions.externalShareInfo && (
-        <FlipbookExternalShareSheet
-          shareInfo={resultActions.externalShareInfo}
-          onClose={resultActions.closeExternalShare}
-          onOpenKakao={resultActions.openKakaoExternalShare}
-          onOpenInstagram={resultActions.openInstagramExternalShare}
-          onCopyLink={() => {
-            void resultActions.copyExternalShareLink()
-          }}
-        />
-      )}
-
       {printParticipants.length > 0 && (
         <div className="absolute inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-[120] grid max-h-[28svh] gap-2 rounded-[18px] border border-white/80 bg-white/86 px-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_14px_30px_rgb(120_80_80_/_16%)] backdrop-blur-md md:hidden">
           <p className="caption-b text-[#b84e66]">작품 선택</p>
@@ -203,92 +191,6 @@ export default function FlipbookResultView({
         </div>
       )}
     </section>
-  )
-}
-
-function FlipbookExternalShareSheet({
-  shareInfo,
-  onClose,
-  onOpenKakao,
-  onOpenInstagram,
-  onCopyLink,
-}: {
-  shareInfo: ShareCreateResponse
-  onClose: () => void
-  onOpenKakao: () => void
-  onOpenInstagram: () => void
-  onCopyLink: () => void
-}) {
-  const hasKakaoUrl = Boolean(shareInfo.kakaoUrl?.trim())
-  const hasInstagramUrl = Boolean(shareInfo.instagramUrl?.trim())
-  const hasSiteUrl = Boolean(shareInfo.siteUrl?.trim())
-
-  return (
-    <div className="fixed inset-0 z-[180] flex items-end justify-center bg-[#332222]/38 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:items-center sm:pb-0">
-      <button
-        type="button"
-        aria-label="외부 공유 닫기"
-        className="absolute inset-0 cursor-default"
-        onClick={onClose}
-      />
-
-      <section className="relative w-full max-w-[430px] overflow-hidden rounded-[18px] border border-white/80 bg-[#fff7ed]/96 p-4 shadow-[0_20px_48px_rgb(80_40_54_/_26%)]">
-        <header className="mb-4 flex items-center justify-between">
-          <h3 className="h3-b text-[#332222]">외부 공유</h3>
-          <button
-            type="button"
-            aria-label="닫기"
-            onClick={onClose}
-            className="grid size-9 place-items-center rounded-[8px] text-[#b84e66] transition hover:bg-white/70"
-          >
-            <X className="size-5" aria-hidden />
-          </button>
-        </header>
-
-        {shareInfo.imageUrl && (
-          <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[8px] border border-[#ffd0dc] bg-white">
-            <Image
-              src={shareInfo.imageUrl}
-              alt="외부 공유 이미지 미리보기"
-              fill
-              unoptimized
-              sizes="430px"
-              className="object-contain p-3"
-            />
-          </div>
-        )}
-
-        <div className="grid gap-2">
-          <button
-            type="button"
-            disabled={!hasKakaoUrl}
-            onClick={onOpenKakao}
-            className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[8px] border border-[#ff9ab2] bg-[#ffe553] px-4 text-[#332222] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <MessageCircle className="size-5" aria-hidden />
-            카카오톡
-          </button>
-          <button
-            type="button"
-            disabled={!hasInstagramUrl}
-            onClick={onOpenInstagram}
-            className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[8px] border border-[#ff9ab2] bg-[#ff4f91] px-4 text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <Camera className="size-5" aria-hidden />
-            인스타그램
-          </button>
-          <button
-            type="button"
-            disabled={!hasSiteUrl && !hasKakaoUrl && !hasInstagramUrl}
-            onClick={onCopyLink}
-            className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[8px] border border-[#ffd0dc] bg-white px-4 text-[#b84e66] transition hover:bg-[#fff0f4] disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <Copy className="size-5" aria-hidden />
-            링크 복사
-          </button>
-        </div>
-      </section>
-    </div>
   )
 }
 
