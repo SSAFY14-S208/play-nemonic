@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+const IMMUTABLE_ASSET_CACHE_CONTROL =
+  "public, max-age=31536000, immutable";
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   output: "standalone",
@@ -17,6 +20,29 @@ const nextConfig: NextConfig = {
         pathname: "/nemonic/**",
       },
     ],
+  },
+  // 3D 자산은 한 번 받으면 다시 변하지 않는다(이름이 바뀌면 새 경로). 영구 캐싱.
+  async headers() {
+    return [
+      {
+        source: "/models/:path*",
+        headers: [
+          { key: "Cache-Control", value: IMMUTABLE_ASSET_CACHE_CONTROL },
+        ],
+      },
+      {
+        source: "/sounds/:path*",
+        headers: [
+          { key: "Cache-Control", value: IMMUTABLE_ASSET_CACHE_CONTROL },
+        ],
+      },
+      {
+        source: "/videos/:path*",
+        headers: [
+          { key: "Cache-Control", value: IMMUTABLE_ASSET_CACHE_CONTROL },
+        ],
+      },
+    ];
   },
 };
 
