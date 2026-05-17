@@ -6,7 +6,8 @@ import { toast } from 'sonner'
 import {
   ApiError,
   deleteInfiniteCanvasParticipantMe,
-  patchInfiniteCanvasParticipantProfile,
+  getInfiniteCanvasState,
+  patchInfiniteCanvasParticipantColor,
   postFileConfirm,
   postFilePresign,
   postInfiniteCanvasOutput,
@@ -18,6 +19,7 @@ import type {
   InfiniteCanvasCursor,
   InfiniteCanvasCursorResponse,
   InfiniteCanvasJsonObject,
+  InfiniteCanvasLeaveResponse,
   InfiniteCanvasLock,
   InfiniteCanvasLockResponse,
   InfiniteCanvasOperation,
@@ -56,6 +58,10 @@ function isParticipantResponse(value: unknown): value is InfiniteCanvasParticipa
   return isRecord(value) && typeof value.userUuid === 'string'
 }
 
+function isLeaveResponse(value: unknown): value is InfiniteCanvasLeaveResponse {
+  return isRecord(value) && typeof value.roomCode === 'string' && typeof value.userUuid === 'string'
+}
+
 function isOpsAppliedResponse(value: unknown): value is InfiniteCanvasOpsAppliedResponse {
   return (
     isRecord(value) &&
@@ -85,12 +91,14 @@ function createFallbackParticipant(
   userUuid: string,
   nickname: string | null,
   now: string,
+  host = false,
 ): InfiniteCanvasParticipantResponse {
   return {
     userUuid,
     nickname: nickname?.trim() || '나',
     color: INFINITY_COLORS[4],
     avatarUrl: null,
+    host,
     connected: true,
     joinedAt: now,
     lastConnectedAt: now,
@@ -109,10 +117,14 @@ function createInitialRoomState({
   snapshot: InfiniteCanvasCreateResponse | null
 }): InfiniteCanvasStateResponse {
   const now = new Date().toISOString()
+  const hostUserUuid = snapshot?.hostUserUuid ?? userUuid
   const participants =
     snapshot?.participants.length
-      ? snapshot.participants
-      : [createFallbackParticipant(userUuid, nickname, now)]
+      ? snapshot.participants.map((participant) => ({
+          ...participant,
+          host: participant.userUuid === hostUserUuid,
+        }))
+      : [createFallbackParticipant(userUuid, nickname, now, true)]
   const me =
     participants.find((participant) => participant.userUuid === userUuid) ??
     createFallbackParticipant(userUuid, nickname, now)
@@ -120,7 +132,7 @@ function createInitialRoomState({
   return {
     roomCode,
     status: snapshot?.status ?? 'ACTIVE',
-    ownerUserUuid: snapshot?.ownerUserUuid ?? userUuid,
+    hostUserUuid,
     me,
     participants: participants.some((participant) => participant.userUuid === me.userUuid)
       ? participants
@@ -237,23 +249,37 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
 
     setIsHydrating(true)
     setErrorMessage(null)
-    const snapshot = takeInfiniteCanvasCreatedRoomSnapshot(roomCode)
-    if (!snapshot) {
+
+    try {
+      const nextState = await getInfiniteCanvasState(roomCode)
+      revisionRef.current = nextState.revision
+      setRoomState(nextState)
+      return nextState
+    } catch (caughtError) {
+      const snapshot = takeInfiniteCanvasCreatedRoomSnapshot(roomCode)
+      if (snapshot) {
+        const fallbackState = createInitialRoomState({
+          roomCode,
+          userUuid,
+          nickname,
+          snapshot,
+        })
+        revisionRef.current = fallbackState.revision
+        setRoomState(fallbackState)
+        return fallbackState
+      }
+
+      const message =
+        caughtError instanceof ApiError
+          ? caughtError.message
+          : '무한 캔버스 방 상태를 불러오지 못했어요.'
       setRoomState(null)
       revisionRef.current = 0
+      setErrorMessage(message)
       return null
+    } finally {
+      setIsHydrating(false)
     }
-
-    const nextState = createInitialRoomState({
-      roomCode,
-      userUuid,
-      nickname,
-      snapshot,
-    })
-    revisionRef.current = nextState.revision
-    setRoomState(nextState)
-    setIsHydrating(false)
-    return nextState
   }, [nickname, roomCode, userUuid])
 
   const applyFullState = useCallback((nextState: InfiniteCanvasStateResponse) => {
@@ -269,6 +295,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       if (
         event.type === 'STATE_SNAPSHOT' ||
         event.type === 'PARTICIPANT_CONNECTED' ||
+        event.type === 'PARTICIPANT_DISCONNECTED' ||
         event.type === 'SNAPSHOT_UPDATED'
       ) {
         if (isStateResponse(event.data)) {
@@ -283,21 +310,59 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
           return
         }
 
-        const leftUserUuid = isSimpleMessage(event.data) ? event.data.userUuid : null
-        if (!leftUserUuid) return
+        if (!isLeaveResponse(event.data)) return
+        const leaveResponse = event.data
         setRoomState((currentState) => {
           if (!currentState) return currentState
+          const nextHostUserUuid = leaveResponse.newHostUserUuid ?? currentState.hostUserUuid
+          const remainingParticipants = currentState.participants
+            .filter((participant) => participant.userUuid !== leaveResponse.userUuid)
+            .map((participant) => ({
+              ...participant,
+              host: participant.userUuid === nextHostUserUuid,
+            }))
+          const nextMe = currentState.me
+            ? remainingParticipants.find(
+                (participant) => participant.userUuid === currentState.me?.userUuid,
+              ) ?? null
+            : null
+
           return {
             ...currentState,
-            participants: currentState.participants.filter(
-              (participant) => participant.userUuid !== leftUserUuid,
-            ),
+            hostUserUuid: nextHostUserUuid,
+            me: nextMe,
+            participants: remainingParticipants,
+            updatedAt: event.occurredAt,
           }
         })
         setRemoteCursors((currentCursors) => {
           const nextCursors = { ...currentCursors }
-          delete nextCursors[leftUserUuid]
+          delete nextCursors[leaveResponse.userUuid]
           return nextCursors
+        })
+        return
+      }
+
+      if (event.type === 'HOST_CHANGED') {
+        if (!isLeaveResponse(event.data) || !event.data.newHostUserUuid) return
+        const newHostUserUuid = event.data.newHostUserUuid
+        setRoomState((currentState) => {
+          if (!currentState) return currentState
+          const participants = currentState.participants.map((participant) => ({
+            ...participant,
+            host: participant.userUuid === newHostUserUuid,
+          }))
+
+          return {
+            ...currentState,
+            hostUserUuid: newHostUserUuid,
+            me: currentState.me
+              ? participants.find((participant) => participant.userUuid === currentState.me?.userUuid) ??
+                currentState.me
+              : null,
+            participants,
+            updatedAt: event.occurredAt,
+          }
         })
         return
       }
@@ -533,7 +598,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       setIsUpdatingProfile(true)
       setErrorMessage(null)
       try {
-        const updatedParticipant = await patchInfiniteCanvasParticipantProfile(roomCode, {
+        const updatedParticipant = await patchInfiniteCanvasParticipantColor(roomCode, {
           color: normalizedColor,
         })
         setRoomState((currentState) => {

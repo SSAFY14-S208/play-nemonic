@@ -152,6 +152,11 @@ export function InfinityParticipantsPanel({
                 >
                   {displayNickname}
                 </span>
+                {participant.host && (
+                  <span className="caption-b shrink-0 rounded-full bg-[#fff0ba] px-2 py-1 text-[#936019]">
+                    방장
+                  </span>
+                )}
                 <span className="caption-b shrink-0 rounded-full bg-[#eef6ff] px-2.5 py-1 text-[#4873b5]">
                   {isConnected ? '접속' : '오프'}
                 </span>
