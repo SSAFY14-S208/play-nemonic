@@ -15,6 +15,11 @@ Last updated: 2026-05-17
   `body_image_url`을 우선 사용하고 없으면 `thumbnail_image_url`로 fallback 하며,
   QR 합성 대상은 MinIO 오브젝트 키 기반 이미지로 제한한다.
 - The first real backend feature API now includes anonymous user UUID issuance through `POST /api/v1/users/anonymous`.
+- Community memo sharing now preserves flipbook animation: visible memos with
+  `artifact.kind=flipbook` or `playback_image_reference` use the flipbook GIF as
+  the QR composition source, cache the result under
+  `community-memo-shares/{memoUuid}/result-qr.gif`, and return the public GIF URL
+  in the existing `ShareCreateResponse` shape.
 - Backend runtime now sets the JVM default timezone from `nemonic.time-zone`
   (`APP_TIME_ZONE`, default `Asia/Seoul`) during application startup so
   `LocalDateTime.now()` based DB writes and API responses follow the Korean
