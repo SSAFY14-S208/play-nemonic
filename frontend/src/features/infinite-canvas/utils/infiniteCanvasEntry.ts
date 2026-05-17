@@ -45,23 +45,39 @@ export function takeInfiniteCanvasCreatedRoomSnapshot(roomCode: string) {
   if (!rawSnapshot) return null
 
   try {
-    const snapshot = JSON.parse(rawSnapshot) as Partial<InfiniteCanvasCreateResponse>
+    const snapshot = JSON.parse(rawSnapshot) as Partial<InfiniteCanvasCreateResponse> & {
+      ownerUserUuid?: unknown
+    }
+    const hostUserUuid =
+      typeof snapshot.hostUserUuid === 'string'
+        ? snapshot.hostUserUuid
+        : typeof snapshot.ownerUserUuid === 'string'
+          ? snapshot.ownerUserUuid
+          : null
+
     if (
       typeof snapshot.roomCode !== 'string' ||
       snapshot.roomCode !== roomCode ||
-      typeof snapshot.ownerUserUuid !== 'string' ||
+      hostUserUuid === null ||
       !Array.isArray(snapshot.participants)
     ) {
       return null
     }
 
+    const participants = (snapshot.participants as InfiniteCanvasParticipantResponse[]).map(
+      (participant) => ({
+        ...participant,
+        host: participant.userUuid === hostUserUuid,
+      }),
+    )
+
     return {
       roomCode: snapshot.roomCode,
       status: snapshot.status ?? 'ACTIVE',
-      ownerUserUuid: snapshot.ownerUserUuid,
+      hostUserUuid,
       maxParticipants: Number(snapshot.maxParticipants) || 0,
-      participantCount: Number(snapshot.participantCount) || snapshot.participants.length,
-      participants: snapshot.participants as InfiniteCanvasParticipantResponse[],
+      participantCount: Number(snapshot.participantCount) || participants.length,
+      participants,
       createdAt: snapshot.createdAt ?? new Date().toISOString(),
     } satisfies InfiniteCanvasCreateResponse
   } catch {

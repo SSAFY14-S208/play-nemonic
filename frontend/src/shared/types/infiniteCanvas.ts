@@ -24,6 +24,7 @@ export interface InfiniteCanvasParticipantResponse {
   nickname: string
   color: string
   avatarUrl: string | null
+  host: boolean
   connected: boolean
   joinedAt: string
   lastConnectedAt: string | null
@@ -60,7 +61,7 @@ export interface InfiniteCanvasOperation {
 export interface InfiniteCanvasStateResponse {
   roomCode: string
   status: InfiniteCanvasStatus
-  ownerUserUuid: string
+  hostUserUuid: string
   me: InfiniteCanvasParticipantResponse | null
   participants: InfiniteCanvasParticipantResponse[]
   elements: InfiniteCanvasJsonObject[]
@@ -77,10 +78,14 @@ export interface InfiniteCanvasCreateRequest {
   color?: string | null
 }
 
+export interface InfiniteCanvasParticipantColorUpdateRequest {
+  color: string
+}
+
 export interface InfiniteCanvasCreateResponse {
   roomCode: string
   status: InfiniteCanvasStatus
-  ownerUserUuid: string
+  hostUserUuid: string
   maxParticipants: number
   participantCount: number
   participants: InfiniteCanvasParticipantResponse[]
@@ -121,6 +126,11 @@ export interface InfiniteCanvasLockRequest {
 export interface InfiniteCanvasLeaveResponse {
   roomCode: string
   userUuid: string
+  nickname: string | null
+  participantCount: number
+  hostChanged: boolean
+  newHostUserUuid: string | null
+  newHostNickname: string | null
   closed: boolean
   closedAt: string | null
 }
@@ -169,6 +179,7 @@ export type InfiniteCanvasWsEventType =
   | 'PARTICIPANT_CONNECTED'
   | 'PARTICIPANT_DISCONNECTED'
   | 'PARTICIPANT_LEFT'
+  | 'HOST_CHANGED'
   | 'PARTICIPANT_UPDATED'
   | 'CANVAS_CLOSED'
   | 'DUPLICATE_SESSION_CLOSED'
@@ -189,6 +200,7 @@ export interface InfiniteCanvasWsEventPayloadMap {
   PARTICIPANT_CONNECTED: InfiniteCanvasStateResponse
   PARTICIPANT_DISCONNECTED: InfiniteCanvasStateResponse
   PARTICIPANT_LEFT: InfiniteCanvasLeaveResponse
+  HOST_CHANGED: InfiniteCanvasLeaveResponse
   PARTICIPANT_UPDATED: InfiniteCanvasParticipantResponse
   CANVAS_CLOSED: InfiniteCanvasSimpleMessageResponse | string
   DUPLICATE_SESSION_CLOSED: InfiniteCanvasSimpleMessageResponse
