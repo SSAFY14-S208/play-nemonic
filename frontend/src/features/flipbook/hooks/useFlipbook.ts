@@ -61,9 +61,10 @@ import { useFlipbookResultPlayback } from './useFlipbookResultPlayback'
 import { useFlipbookTimer } from './useFlipbookTimer'
 
 const RESULT_POLLING_INTERVAL_MS = 1500
-const SUBMITTED_ROUND_POLLING_INTERVAL_MS = 1500
+const SUBMITTED_ROUND_POLLING_INTERVAL_MS = 5000
 const ASSIGNMENT_RETRY_DELAYS_MS = [1000, 2000, 3000, 5000]
 const SUBMITTED_DRAWING_LINES_STORAGE_KEY = 'flipbook-submitted-drawing-lines:v1'
+const handledRouteRoomCodes = new Set<string>()
 const BLOCKED_REASON_MESSAGE: Record<FlipbookBlockedReason, string> = {
   ROOM_FULL: '정원이 가득 찬 플립북 방입니다.',
   GAME_IN_PROGRESS: '이미 게임이 진행 중인 방입니다.',
@@ -164,6 +165,19 @@ function isDummyResultPreviewRoute() {
   return searchParams.get('dummyResult') === '1' || searchParams.get('mockResult') === '1'
 }
 
+function markRouteRoomCodesHandled(...roomCodes: Array<string | null | undefined>) {
+  roomCodes.forEach((roomCode) => {
+    const normalizedRoomCode = roomCode?.trim().toUpperCase()
+    if (normalizedRoomCode) {
+      handledRouteRoomCodes.add(normalizedRoomCode)
+    }
+  })
+}
+
+function hasRouteRoomCodeHandled(roomCode: string | null) {
+  return roomCode !== null && handledRouteRoomCodes.has(roomCode)
+}
+
 export function useFlipbook({
   routeStep = 'booth',
   onStepChange,
@@ -237,6 +251,11 @@ export function useFlipbook({
   const roundTransitionFallbackTimerRef = useRef<number | null>(null)
   const pendingNicknameActionRef = useRef<FlipbookNicknamePendingAction | null>(null)
   const pendingTimeLimitSecondsRef = useRef<FlipbookTimeLimitSeconds | null>(null)
+  const connectedRoomProgressSyncRef = useRef<string | null>(null)
+  const activeRoomProgressSyncRequestRef = useRef<{
+    roomCode: string
+    request: Promise<FlipbookRoomStateResponse | null>
+  } | null>(null)
   // result goal은 fetchResult polling이 ready=true를 처음 만나는 시점에만 1회 발사.
   const resultGoalFiredRef = useRef(false)
 
@@ -649,40 +668,58 @@ export function useFlipbook({
       observedAssignment: FlipbookAssignmentResponse | null = assignment,
     ) => {
       if (!targetRoomCode) return null
-
-      const nextRoomState = await refreshRoom(targetRoomCode, { syncStep: false })
-
-      if (nextRoomState?.status === 'WAITING') {
-        setCurrentStep('lobby', { roomCode: targetRoomCode })
-        return nextRoomState
+      if (activeRoomProgressSyncRequestRef.current?.roomCode === targetRoomCode) {
+        return activeRoomProgressSyncRequestRef.current.request
       }
 
-      if (nextRoomState?.status === 'PLAYING') {
-        const nextRound = nextRoomState.currentRound ?? undefined
-        const shouldFetchAssignment =
-          !observedAssignment ||
-          (nextRound !== undefined && observedAssignment.currentRound !== nextRound)
+      const syncRequest = (async () => {
+        const nextRoomState = await refreshRoom(targetRoomCode, { syncStep: false })
 
-        if (shouldFetchAssignment) {
-          await fetchAssignment(targetRoomCode, nextRound)
+        if (nextRoomState?.status === 'WAITING') {
+          setCurrentStep('lobby', { roomCode: targetRoomCode })
+          return nextRoomState
         }
 
-        setCurrentStep('drawing', { roomCode: targetRoomCode })
+        if (nextRoomState?.status === 'PLAYING') {
+          const nextRound = nextRoomState.currentRound ?? undefined
+          const shouldFetchAssignment =
+            !observedAssignment ||
+            (nextRound !== undefined && observedAssignment.currentRound !== nextRound)
+
+          if (shouldFetchAssignment) {
+            await fetchAssignment(targetRoomCode, nextRound)
+          }
+
+          setCurrentStep('drawing', { roomCode: targetRoomCode })
+          return nextRoomState
+        }
+
+        if (nextRoomState?.status === 'FINALIZING' || nextRoomState?.status === 'FINISHED') {
+          await enterResultMode(targetRoomCode, nextRoomState.participantCount)
+          return nextRoomState
+        }
+
+        if (nextRoomState?.status === 'CLOSED') {
+          resetRoomSession({ clearResult: true })
+          setCurrentStep('booth')
+          setErrorMessage('종료된 플립북 방입니다.')
+        }
+
         return nextRoomState
+      })()
+
+      activeRoomProgressSyncRequestRef.current = {
+        roomCode: targetRoomCode,
+        request: syncRequest,
       }
 
-      if (nextRoomState?.status === 'FINALIZING' || nextRoomState?.status === 'FINISHED') {
-        await enterResultMode(targetRoomCode, nextRoomState.participantCount)
-        return nextRoomState
+      try {
+        return await syncRequest
+      } finally {
+        if (activeRoomProgressSyncRequestRef.current?.request === syncRequest) {
+          activeRoomProgressSyncRequestRef.current = null
+        }
       }
-
-      if (nextRoomState?.status === 'CLOSED') {
-        resetRoomSession({ clearResult: true })
-        setCurrentStep('booth')
-        setErrorMessage('종료된 플립북 방입니다.')
-      }
-
-      return nextRoomState
     },
     [
       assignment,
@@ -919,6 +956,7 @@ export function useFlipbook({
         return
       }
 
+      markRouteRoomCodesHandled(targetRoomCode, joinedRoom.roomId)
       setRoomCode(joinedRoom.roomId)
       linkRoomCodeHandledRef.current = joinedRoom.roomId
       const joinedRoomState = await refreshRoom(joinedRoom.roomId, {
@@ -1010,6 +1048,7 @@ export function useFlipbook({
         if (!isCurrentActionRequest(requestSequence)) return
 
         if (!routeRoom.viewer.participant && !routeRoom.viewer.canJoin) {
+          markRouteRoomCodesHandled(targetRoomCode, routeRoom.roomCode)
           linkRoomCodeHandledRef.current = targetRoomCode
           resetRoomSession({ clearResult: true })
           setCurrentStep('booth', { replace: true })
@@ -1024,7 +1063,8 @@ export function useFlipbook({
         if (
           routeRoom.status === 'WAITING' &&
           routeRoom.viewer.canJoin &&
-          !routeRoom.viewer.participant
+          !routeRoom.viewer.participant &&
+          !hasRouteRoomCodeHandled(targetRoomCode)
         ) {
           const joinedRoom = await postInvite(targetRoomCode)
           if (!isCurrentActionRequest(requestSequence)) return
@@ -1034,6 +1074,7 @@ export function useFlipbook({
             return
           }
 
+          markRouteRoomCodesHandled(targetRoomCode, joinedRoom.roomId)
           setRoomCode(joinedRoom.roomId)
           linkRoomCodeHandledRef.current = joinedRoom.roomId
           const joinedRoomState = await refreshRoom(joinedRoom.roomId, {
@@ -1053,6 +1094,7 @@ export function useFlipbook({
           return
         }
 
+        markRouteRoomCodesHandled(targetRoomCode, routeRoom.roomCode)
         setRoomCode(routeRoom.roomCode)
         linkRoomCodeHandledRef.current = routeRoom.roomCode
         const nextRoomState = await refreshRoom(routeRoom.roomCode, {
@@ -1435,7 +1477,14 @@ export function useFlipbook({
 
       setRoomCodeDraft(targetRoomCode)
 
-      if (!userUuid || linkRoomCodeHandledRef.current === targetRoomCode || cancelled) return
+      if (
+        !userUuid ||
+        roomCode === targetRoomCode ||
+        linkRoomCodeHandledRef.current === targetRoomCode ||
+        cancelled
+      ) {
+        return
+      }
 
       linkRoomCodeHandledRef.current = targetRoomCode
 
@@ -1455,21 +1504,34 @@ export function useFlipbook({
     openNicknameModal,
     hydrateRouteRoom,
     readRouteRoomCode,
+    roomCode,
     userUuid,
   ])
 
   useEffect(() => {
     void (async () => {
-      if (realtime.connectionStatus !== 'connected' || !roomCode || currentStep === 'booth') {
+      if (realtime.connectionStatus !== 'connected' || !roomCode) {
+        connectedRoomProgressSyncRef.current = null
         return
       }
 
-      await syncActiveRoomProgress(roomCode)
+      if (currentStep === 'booth' || connectedRoomProgressSyncRef.current === roomCode) {
+        return
+      }
+
+      connectedRoomProgressSyncRef.current = roomCode
+      try {
+        await syncActiveRoomProgress(roomCode)
+      } catch (error) {
+        connectedRoomProgressSyncRef.current = null
+        setErrorMessage(error instanceof Error ? error.message : '방 상태를 동기화하지 못했습니다.')
+      }
     })()
   }, [currentStep, realtime.connectionStatus, roomCode, syncActiveRoomProgress])
 
   useEffect(() => {
     if (!roomCode || currentStep !== 'drawing' || !isRoundSubmitted) return
+    if (realtime.connectionStatus === 'connected') return
 
     let cancelled = false
     let pollingTimer: number | null = null
@@ -1509,6 +1571,7 @@ export function useFlipbook({
     assignment,
     currentStep,
     isRoundSubmitted,
+    realtime.connectionStatus,
     roomCode,
     syncActiveRoomProgress,
   ])
