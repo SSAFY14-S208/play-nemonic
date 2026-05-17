@@ -2,14 +2,11 @@
 
 import { useCallback } from 'react'
 
-import { runtime } from '@/shared/config'
 import { completeFunnelStep, reachFunnelGoal } from '@/shared/libs'
 
-import { FORTUNE_EMPTY_BIRTH_INFO } from '../constants'
 import { useFortuneSessionStore } from '../fortuneSessionStore'
 import {
   canUseLocalFortuneFallback,
-  clearStoredFortune,
   createMockFortuneResult,
   isBirthInfoComplete,
   isFortuneConflictError,
@@ -152,23 +149,9 @@ export function useFortuneActions() {
     setStep(isBirthInfoComplete(birthInfo) ? 'draw' : 'birthInfo')
   }, [])
 
-  const resetTodayFortune = useCallback(() => {
-    if (!runtime.isDev) {
-      return
-    }
-
-    const { setBirthInfo, setResult, setErrorMessage, setStep } = useFortuneSessionStore.getState()
-    clearStoredFortune()
-    setBirthInfo(FORTUNE_EMPTY_BIRTH_INFO)
-    setResult(null)
-    setErrorMessage('')
-    setStep('intro')
-  }, [])
-
   return {
     completePrinting,
     editBirthInfo,
-    resetTodayFortune,
     retryAfterError,
     returnToIntro,
     showTodayResult,

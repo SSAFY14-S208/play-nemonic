@@ -6,4 +6,40 @@
   /* ── Shadow (커스텀) ─────────────────────────────────────────────────────── */
   /* shadow-sm / shadow-md / shadow-lg 는 Tailwind 기본 제공 */
   --shadow-soft-lg: 0 8px 32px oklch(0% 0 0 / 0.08);  /* 네비게이션 바 등 */
+
+  /* ── Fortune feature (closed visual system — ADR 0003) ──────────────────
+     @font-face + @keyframes definitions stay in features/fortune/fortune.css.
+     These tokens live here so Tailwind's main bundle generates the
+     `font-fortune-*` / `animate-fortune-*` utilities. */
+  --font-fortune-serif: "GraceSerif", var(--font-paperlogy);
+  --font-fortune-hand: "LeeSeoyun", var(--font-paperlogy);
+  --font-fortune-eulyoo: "Eulyoo1945", var(--font-paperlogy);
+
+  --animate-fortune-sparkle-drift: fortune-sparkle-drift 3.8s ease-in-out infinite;
+  --animate-fortune-sigil-glow: fortune-sigil-glow 1.8s ease-in-out infinite;
+  --animate-fortune-entry-blackout: fortune-entry-blackout 1.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fortune-dialogue-entry-reveal: fortune-dialogue-entry-reveal 1.82s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fortune-dialogue-glyph-tap: fortune-dialogue-glyph-tap 92ms ease-out both;
+  --animate-fortune-dialogue-caret-blink: fortune-dialogue-caret-blink 720ms steps(1, end) infinite;
+  --animate-fortune-2d-stage-drift: fortune-2d-stage-drift 16s ease-in-out infinite;
+  --animate-fortune-2d-moon-drift: fortune-2d-moon-drift 34s ease-in-out infinite;
+  --animate-fortune-2d-popo-breathe: fortune-2d-popo-breathe 7.6s ease-in-out infinite;
+  --animate-fortune-2d-arm-breathe: fortune-2d-arm-breathe 7.6s ease-in-out infinite;
+  --animate-fortune-2d-hanging-sway: fortune-2d-hanging-sway 9.4s ease-in-out infinite;
+  --animate-fortune-2d-curtain-tap-ripple: fortune-2d-curtain-tap-ripple 780ms cubic-bezier(0.2, 0.86, 0.24, 1) both;
+  --animate-fortune-2d-curtain-soft-tap-ripple: fortune-2d-curtain-soft-tap-ripple 980ms cubic-bezier(0.2, 0.86, 0.24, 1) both;
+  --animate-fortune-2d-cube-pulse: fortune-2d-cube-pulse 2.6s ease-in-out infinite;
+  --animate-fortune-2d-print-cube: fortune-2d-print-cube var(--fortune-print-duration, 4.2s) cubic-bezier(0.18, 0.78, 0.3, 1) both;
+  --animate-fortune-2d-flare-pulse: fortune-2d-flare-pulse 0.82s ease-in-out infinite;
+  --animate-fortune-2d-note-print: fortune-2d-note-print var(--fortune-print-duration, 4.2s) cubic-bezier(0.18, 0.78, 0.3, 1) both;
+  --animate-fortune-2d-eye-open: fortune-2d-eye-open 5.8s linear infinite;
+  --animate-fortune-2d-eye-closed: fortune-2d-eye-closed 5.8s linear infinite;
+  --animate-fortune-2d-sparkle-twinkle: fortune-2d-sparkle-twinkle 2.8s ease-in-out infinite;
+  --animate-fortune-2d-print-video-fade: fortune-2d-print-video-fade 1100ms ease-out forwards;
+  --animate-fortune-postit-land: fortune-postit-land 520ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+  --animate-fortune-sticker-pop: fortune-sticker-pop 420ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+  --animate-fortune-stamp-press: fortune-stamp-press 560ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+  --animate-fortune-draw-rise: fortune-draw-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  --animate-fortune-draw-actions-rise: fortune-draw-actions-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  --animate-fortune-birth-element-rise: fortune-birth-element-rise 720ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
