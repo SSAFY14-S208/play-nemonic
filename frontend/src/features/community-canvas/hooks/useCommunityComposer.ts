@@ -23,6 +23,8 @@ import type {
 import {
   playBrowserAudio,
   preloadBrowserAudio,
+  startNemonicPrintVibration,
+  stopNemonicPrintVibration,
   type CommunityCanvasHandoffDraft,
 } from '@/shared/utils'
 import {
@@ -307,6 +309,10 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
     }
 
     setPostStatus('loading')
+    // Chrome Android는 navigator.vibrate에 user activation을 요구하므로 클릭
+    // 핸들러의 동기 구간(아래 await 전)에 진동을 시작해야 한다. 오버레이 mount
+    // 후 useEffect에서 호출하면 await로 인해 activation이 끊겨 silent fail.
+    startNemonicPrintVibration()
     try {
       const snapshot = await exportDirectCommunitySnapshot({
         boardSize: COMMUNITY_COMPOSER_BOARD_SIZE,
@@ -334,6 +340,9 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
       setComposerOpen(false)
       setPostStatus('success')
     } catch (error) {
+      // 진동은 동기 구간에서 시작됐는데 snapshot 생성이 실패해 오버레이가 안
+      // 떠도 진동만 계속 도는 orphan 상태가 되지 않도록 catch에서 정지.
+      stopNemonicPrintVibration()
       setPostStatus('error')
       toast.error(toErrorMessage(error, '메모지 준비에 실패했어요.'))
     }
@@ -359,6 +368,8 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
     }
 
     setPostStatus('loading')
+    // 동기 구간에서 진동 시작 — prepareDirectMemoPlacement와 동일한 이유.
+    startNemonicPrintVibration()
     try {
       const snapshot = await exportGalleryCommunitySnapshot({
         imageUrl,
@@ -396,6 +407,8 @@ export function useCommunityComposer({ onCreated }: UseCommunityComposerOptions)
       setComposerOpen(false)
       setPostStatus('success')
     } catch (error) {
+      // 동기 구간에서 시작한 진동이 orphan 되지 않도록 정지.
+      stopNemonicPrintVibration()
       setPostStatus('error')
       toast.error(toErrorMessage(error, '갤러리 메모지 준비에 실패했어요.'))
     }

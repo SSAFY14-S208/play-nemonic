@@ -25,6 +25,8 @@ export default function RelayResultView() {
     segments,
     isHost,
     closeRoom,
+    isDownloading,
+    downloadActiveArtifact,
   } = useRelayResult();
 
   useRelayResultAutoCycle({
@@ -103,6 +105,9 @@ export default function RelayResultView() {
               onReturnToLobby={handleReturnToLobby}
               onCommunityPost={handleCommunityPost}
               canPostCommunity={Boolean(resultImageUrl)}
+              onDownloadArtifact={downloadActiveArtifact}
+              isDownloading={isDownloading}
+              canDownload={Boolean(activeResultItem)}
             />
           </div>
         </main>

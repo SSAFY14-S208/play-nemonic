@@ -13,7 +13,7 @@ export interface RelayResultAction {
 }
 
 export const RELAY_RESULT_ACTIONS: RelayResultAction[] = [
-  { label: '보관함에', Icon: Download },
+  { label: '다운로드', Icon: Download },
   { label: '커뮤니티 게시', Icon: Share2 },
 ]
 

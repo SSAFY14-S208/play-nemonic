@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 
 const HUB_LOADING_MIN_VISIBLE_MS = 700
@@ -32,6 +32,7 @@ const HUB_LOADING_SUBTITLE_READY = '재미있는 것들이 가득해요'
 export function useHubLoadingOverlay(isCanvasReady: boolean) {
   const { active, progress } = useProgress()
   const [displayProgress, setDisplayProgress] = useState(0)
+  const [hasEnteredHub, setHasEnteredHub] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [isVisible, setIsVisible] = useState(true)
   const hasStartedLoadingRef = useRef(false)
@@ -145,7 +146,7 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
   }, [isCanvasReady, isReady])
 
   useEffect(() => {
-    if (!isReady) return
+    if (!isReady || !hasEnteredHub) return
 
     const hideTimerId = window.setTimeout(() => {
       setIsVisible(false)
@@ -154,10 +155,18 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     return () => {
       window.clearTimeout(hideTimerId)
     }
+  }, [hasEnteredHub, isReady])
+
+  const enterHub = useCallback(() => {
+    if (!isReady) return
+
+    setHasEnteredHub(true)
   }, [isReady])
 
   return {
     displayProgress: Math.round(displayProgress),
+    enterHub,
+    hasEnteredHub,
     isReady,
     isVisible,
     statusText: getHubLoadingStatusText(displayProgress),
