@@ -325,6 +325,10 @@ export function useInfinityEvents({
     onDraftObjectChange?.(null)
   }
 
+  const cleanupAfterNextPaint = (cleanup: () => void) => {
+    window.requestAnimationFrame(cleanup)
+  }
+
   // ── AABB 교차 헬퍼 — 드래그 박스 vs 객체 ──────────────────────────────────
   const intersects = (
     a: { x: number; y: number; width: number; height: number },
@@ -477,7 +481,7 @@ export function useInfinityEvents({
       }
       currentLineRef.current = null
       onDraftObjectChange?.(null)
-      hideCurrentLines()
+      cleanupAfterNextPaint(hideCurrentLines)
     } else if (toolSnapshot === 'select-eraser') {
       const idsToRemove = hoveredObjectIdsRef.current
       if (idsToRemove.size > 0) {
@@ -504,7 +508,7 @@ export function useInfinityEvents({
       }
       previewShapeRef.current = null
       onDraftObjectChange?.(null)
-      hidePreviewShapes()
+      cleanupAfterNextPaint(hidePreviewShapes)
     } else if (toolSnapshot === 'select') {
       const dragStart = dragSelectStartRef.current
       const stage = stageRef.current

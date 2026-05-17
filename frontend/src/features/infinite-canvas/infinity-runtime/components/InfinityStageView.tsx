@@ -38,6 +38,10 @@ function createObjectMap(objects: ReturnType<typeof toInfinityObjects>) {
   return new Map(objects.map((object) => [object.id, object]))
 }
 
+function objectMapValues(objectMap: Map<string, InfinityObject>) {
+  return [...objectMap.values()]
+}
+
 function areInfinityObjectListsEqual(firstObjects: InfinityObject[], secondObjects: InfinityObject[]) {
   if (firstObjects.length !== secondObjects.length) return false
 
@@ -341,6 +345,15 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     if (isStaleEmptySnapshot) return
 
     const nextServerObjectMap = createObjectMap(serverObjects)
+    const isSameServerObjects = areInfinityObjectListsEqual(
+      objectMapValues(previousObjectsRef.current),
+      serverObjects,
+    )
+    if (isSameServerObjects) {
+      appliedServerRevisionRef.current = serverRevision
+      return
+    }
+
     if (areInfinityObjectListsEqual(drawing.objects, serverObjects)) {
       appliedServerRevisionRef.current = serverRevision
       previousObjectsRef.current = nextServerObjectMap
