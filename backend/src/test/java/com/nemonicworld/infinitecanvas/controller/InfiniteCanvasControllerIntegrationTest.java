@@ -53,6 +53,7 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -95,6 +96,7 @@ class InfiniteCanvasControllerIntegrationTest {
 
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
+    private ZSetOperations<String, String> zSetOperations;
     private Map<String, String> redisValues;
 
     @BeforeEach
@@ -116,9 +118,12 @@ class InfiniteCanvasControllerIntegrationTest {
         redisValues = new LinkedHashMap<>();
         redisOperations = createRedisOperationsMock();
         valueOperations = createValueOperationsMock();
+        zSetOperations = mock(ZSetOperations.class);
 
         given(stringRedisTemplate.opsForValue()).willReturn(valueOperations);
+        given(stringRedisTemplate.opsForZSet()).willReturn(zSetOperations);
         given(redisOperations.opsForValue()).willReturn(valueOperations);
+        given(redisOperations.opsForZSet()).willReturn(zSetOperations);
         given(redisOperations.exec()).willReturn(List.of("OK"));
         given(stringRedisTemplate.execute(any(SessionCallback.class))).willAnswer(invocation -> {
             SessionCallback<?> callback = invocation.getArgument(0);
