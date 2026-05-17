@@ -29,8 +29,10 @@ class CommunityMemoShareUseCase {
     private static final String INSTAGRAM_SOURCE = "instagram";
     private static final String KAKAO_MEDIUM = "social";
     private static final String INSTAGRAM_MEDIUM = "story";
+    private static final String KIND_FLIPBOOK = "flipbook";
     private static final String STATIC_IMAGE_CONTENT_TYPE = "image/png";
     private static final String STATIC_SHARE_CONTENT_TYPE = "image/jpeg";
+    private static final String GIF_CONTENT_TYPE = "image/gif";
 
     private final CommunityMemoSupport communityMemoSupport;
     private final ArtifactDownloadStorage artifactDownloadStorage;
@@ -72,14 +74,14 @@ class CommunityMemoShareUseCase {
             COMMUNITY_MEMO_SHARE_NOT_FOUND_EVENT);
         validateShareable(row);
 
-        String objectKey = selectSourceObjectKey(row).trim();
+        ShareSource shareSource = selectShareSource(row);
         String shareToken = signedShareTokenIssuer.issueCommunityMemoToken(memoId, CHANNEL_QR_SHARE);
-        String cacheObjectKey = cacheObjectKey(memoId);
+        String cacheObjectKey = cacheObjectKey(memoId, shareSource.extension());
         if (!artifactDownloadStorage.exists(cacheObjectKey)) {
-            byte[] sourceBytes = artifactDownloadStorage.download(objectKey);
-            byte[] composedBytes = artifactQrComposer.compose(STATIC_IMAGE_CONTENT_TYPE, sourceBytes,
+            byte[] sourceBytes = artifactDownloadStorage.download(shareSource.objectKey());
+            byte[] composedBytes = artifactQrComposer.compose(shareSource.sourceContentType(), sourceBytes,
                 qrUrl(shareToken));
-            artifactDownloadStorage.upload(cacheObjectKey, composedBytes, STATIC_SHARE_CONTENT_TYPE);
+            artifactDownloadStorage.upload(cacheObjectKey, composedBytes, shareSource.resultContentType());
         }
 
         String imageUrl = minioPublicUrlResolver.resolve(cacheObjectKey);
@@ -102,16 +104,33 @@ class CommunityMemoShareUseCase {
         }
     }
 
-    private String selectSourceObjectKey(CommunityMemoDetailRow row) {
-        String objectKey = firstText(row.originalImageReference(), row.thumbnailImageReference());
+    private ShareSource selectShareSource(CommunityMemoDetailRow row) {
+        if (isGifShare(row)) {
+            String objectKey = validateSourceObjectKey(row.playbackImageReference());
+
+            return new ShareSource(objectKey, GIF_CONTENT_TYPE, GIF_CONTENT_TYPE, "gif");
+        }
+
+        String objectKey = validateSourceObjectKey(
+            firstText(row.originalImageReference(), row.thumbnailImageReference()));
+
+        return new ShareSource(objectKey, STATIC_IMAGE_CONTENT_TYPE, STATIC_SHARE_CONTENT_TYPE, "jpg");
+    }
+
+    private String validateSourceObjectKey(String objectKey) {
         if (!StringUtils.hasText(objectKey)) {
             throw new BadRequestException(COMMUNITY_MEMO_SHARE_IMAGE_REQUIRED_MESSAGE);
         }
-        if (isAbsoluteUrl(objectKey.trim())) {
+        String trimmedObjectKey = objectKey.trim();
+        if (isAbsoluteUrl(trimmedObjectKey)) {
             throw new BadRequestException(EXTERNAL_OBJECT_REFERENCE_MESSAGE);
         }
 
-        return objectKey;
+        return trimmedObjectKey;
+    }
+
+    private boolean isGifShare(CommunityMemoDetailRow row) {
+        return KIND_FLIPBOOK.equals(row.artifactKind()) || StringUtils.hasText(row.playbackImageReference());
     }
 
     private String qrUrl(String shareToken) {
@@ -119,8 +138,8 @@ class CommunityMemoShareUseCase {
             .path("/share/{shareToken}").build(shareToken).toString();
     }
 
-    private String cacheObjectKey(UUID memoId) {
-        return "community-memo-shares/%s/result-qr.jpg".formatted(memoId);
+    private String cacheObjectKey(UUID memoId, String extension) {
+        return "community-memo-shares/%s/result-qr.%s".formatted(memoId, extension);
     }
 
     private String firstText(String primary, String fallback) {
@@ -139,5 +158,8 @@ class CommunityMemoShareUseCase {
 
     private boolean isAbsoluteUrl(String value) {
         return value.startsWith("http://") || value.startsWith("https://");
+    }
+
+    private record ShareSource(String objectKey, String sourceContentType, String resultContentType, String extension) {
     }
 }
