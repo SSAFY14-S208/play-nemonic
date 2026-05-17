@@ -1,0 +1,15 @@
+[Unit]
+Description=Docker cleanup — unused images / containers / build cache (7d retention)
+Documentation=https://lab.ssafy.com/s14-final/S14P31S208/-/tree/infra/dev/deploy/host-maintenance
+Wants=docker.service
+After=docker.service
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+# 7일 이상 안 쓴 이미지·컨테이너·네트워크·빌드 캐시 정리.
+# --volumes는 의도적으로 빼서 운영 데이터 안전.
+ExecStart=/usr/bin/docker system prune -af --filter "until=168h"
+ExecStart=/usr/bin/docker builder prune -af --filter "until=168h"
+# 실패해도 다음 실행은 시도. 일시적 docker daemon 응답 불가 대응.
+SuccessExitStatus=0 1

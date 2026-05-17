@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily docker cleanup (04:00 KST)
+Documentation=https://lab.ssafy.com/s14-final/S14P31S208/-/tree/infra/dev/deploy/host-maintenance
+
+[Timer]
+# KST 04:00 — Jenkins 빌드/사용자 트래픽이 가장 낮은 시간대.
+# 호스트 timezone에 의존: timedatectl로 Asia/Seoul인지 확인 필요.
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+# 여러 호스트 동시 운영 시 부하 분산을 위해 최대 15분 랜덤 지연.
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target
