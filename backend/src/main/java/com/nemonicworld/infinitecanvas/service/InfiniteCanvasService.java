@@ -1,6 +1,7 @@
 package com.nemonicworld.infinitecanvas.service;
 
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasColorUpdateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCursorRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasLockRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOpsRequest;
@@ -12,11 +13,14 @@ import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOutputSaveResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 
 public interface InfiniteCanvasService {
 
     InfiniteCanvasCreateResponse createCanvas(String userUuidValue, InfiniteCanvasCreateRequest request);
+
+    InfiniteCanvasStateResponse getCanvasState(String userUuidValue, String roomCode);
 
     InfiniteCanvasStateResponse connectCanvas(String userUuidValue, String roomCode);
 
@@ -36,6 +40,9 @@ public interface InfiniteCanvasService {
     InfiniteCanvasLockResponse releaseLock(String userUuidValue, String roomCode, InfiniteCanvasLockRequest request);
 
     InfiniteCanvasLeaveResponse leaveCanvas(String userUuidValue, String roomCode);
+
+    InfiniteCanvasParticipantResponse updateMyColor(String userUuidValue, String roomCode,
+        InfiniteCanvasColorUpdateRequest request);
 
     InfiniteCanvasOutputSaveResponse saveOutput(String userUuidValue, String roomCode,
         InfiniteCanvasOutputSaveRequest request);

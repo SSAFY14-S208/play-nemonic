@@ -15,6 +15,7 @@ import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasRepository;
+import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasInviteMetadataSyncService;
 import com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisher;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -46,14 +47,17 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
     private static final int CANVAS_UPDATE_MAX_RETRIES = 8;
 
     private final InfiniteCanvasRepository infiniteCanvasRepository;
+    private final InfiniteCanvasInviteMetadataSyncService infiniteCanvasInviteMetadataSyncService;
     private final InfiniteCanvasEventPublisher infiniteCanvasEventPublisher;
     private final AdminAuditLogger adminAuditLogger;
     private final RoomCodeGenerator roomCodeGenerator;
 
     public BackofficeInfiniteCanvasServiceImpl(InfiniteCanvasRepository infiniteCanvasRepository,
+        InfiniteCanvasInviteMetadataSyncService infiniteCanvasInviteMetadataSyncService,
         InfiniteCanvasEventPublisher infiniteCanvasEventPublisher, AdminAuditLogger adminAuditLogger,
         RoomCodeGenerator roomCodeGenerator) {
         this.infiniteCanvasRepository = infiniteCanvasRepository;
+        this.infiniteCanvasInviteMetadataSyncService = infiniteCanvasInviteMetadataSyncService;
         this.infiniteCanvasEventPublisher = infiniteCanvasEventPublisher;
         this.adminAuditLogger = adminAuditLogger;
         this.roomCodeGenerator = roomCodeGenerator;
@@ -101,7 +105,8 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
 
             InfiniteCanvasState closedState = closeState(state, closedAt);
             if (infiniteCanvasRepository.saveIfUnchanged(state, closedState)) {
-                StructuredEventLogger.apiBusiness("infinite_canvas_closed", "infinite_canvas", state.ownerUserUuid(),
+                infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(closedState);
+                StructuredEventLogger.apiBusiness("infinite_canvas_closed", "infinite_canvas", state.hostUserUuid(),
                     StructuredEventLogger.metadata("room_code", closedState.roomCode(), "close_reason", "admin_force",
                         "canvas_status_before", state.status(), "participant_count", state.participantCount(),
                         "connected_participant_count", state.connectedParticipantCount()));
@@ -150,7 +155,7 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
     }
 
     private InfiniteCanvasState closeState(InfiniteCanvasState state, LocalDateTime closedAt) {
-        return new InfiniteCanvasState(state.roomCode(), InfiniteCanvasStatus.CLOSED, state.ownerUserUuid(),
+        return new InfiniteCanvasState(state.roomCode(), InfiniteCanvasStatus.CLOSED, state.hostUserUuid(),
             state.participants(), state.elements(), state.operations(), Map.of(), Map.of(), state.viewport(),
             state.maxParticipants(), state.revision(), state.createdAt(), closedAt, closedAt);
     }

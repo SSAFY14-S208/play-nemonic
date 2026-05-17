@@ -19,6 +19,8 @@ public enum InfiniteCanvasEventType {
     PARTICIPANT_DISCONNECTED,
     /** A participant left the canvas. */
     PARTICIPANT_LEFT,
+    /** Host role was transferred to another participant. */
+    HOST_CHANGED,
     /** A participant profile changed. */
     PARTICIPANT_UPDATED,
     /** The canvas was closed. */

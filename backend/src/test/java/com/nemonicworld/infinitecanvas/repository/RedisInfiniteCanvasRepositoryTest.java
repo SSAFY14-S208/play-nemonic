@@ -152,8 +152,8 @@ class RedisInfiniteCanvasRepositoryTest {
     private InfiniteCanvasParticipant participant(UUID userUuid, String nickname) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
-        return new InfiniteCanvasParticipant(userUuid.toString(), nickname, "#72DDF7", null, true, now.minusMinutes(1),
-            now, now);
+        return new InfiniteCanvasParticipant(userUuid.toString(), nickname, "#72DDF7", null, true, true,
+            now.minusMinutes(1), now, now);
     }
 
     private JsonNode viewport() {
