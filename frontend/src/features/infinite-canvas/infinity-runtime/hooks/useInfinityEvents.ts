@@ -2,6 +2,7 @@
 
 import { useRef } from 'react'
 import type Konva from 'konva'
+import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 
 import {
   type InfinityFill,
@@ -432,8 +433,14 @@ interface TextEditorRequest {
   editingId: string | null
 }
 
+type LocalOperationDescriptor = Omit<InfiniteCanvasOperationRequest, 'clientOperationId'>
+
 interface UseInfinityEventsParams {
-  saveSnapshot: (newObjects: InfinityObject[], selectedIds: string[]) => void
+  commitLocalChange: (
+    newObjects: InfinityObject[],
+    selectedIds: string[],
+    operations: LocalOperationDescriptor[],
+  ) => void
   silentClearSelection: () => void
   silentSetSelection: (newSelectedIds: string[]) => void
   recordSelection: (newSelectedIds: string[]) => void
@@ -459,7 +466,7 @@ interface UseInfinityEventsParams {
 }
 
 export function useInfinityEvents({
-  saveSnapshot,
+  commitLocalChange,
   silentClearSelection,
   silentSetSelection,
   recordSelection,
@@ -484,6 +491,7 @@ export function useInfinityEvents({
   const currentLineRef = useRef<InfinityLine | null>(null)
   const previewShapeRef = useRef<InfinityShape | null>(null)
   const hoveredObjectIdsRef = useRef<Set<string>>(new Set())
+  const eraserTargetIdsRef = useRef<Set<string>>(new Set())
   const isDrawingRef = useRef<boolean>(false)
   const startPosRef = useRef<{ x: number; y: number } | null>(null)
   const dragSelectStartRef = useRef<DragSelectStart | null>(null)
@@ -650,6 +658,7 @@ export function useInfinityEvents({
     previewShapeRef.current = null
     dragSelectStartRef.current = null
     dragPreviewSelectedIdsRef.current = []
+    eraserTargetIdsRef.current = new Set()
     hideCurrentLines()
     hidePreviewShapes()
     hideCursor()
@@ -723,6 +732,9 @@ export function useInfinityEvents({
         isEraser: toolSnapshot === 'eraser',
       }
       currentLineRef.current = newLine
+      if (toolSnapshot === 'eraser') {
+        eraserTargetIdsRef.current = new Set()
+      }
       onDraftObjectChange?.(toolSnapshot === 'eraser' ? null : newLine)
     } else if (toolSnapshot === 'bucket') {
       isDrawingRef.current = false
@@ -784,6 +796,17 @@ export function useInfinityEvents({
       prev.points.push(pos)
       prev.points = limitLinePoints(prev.points, MAX_LINE_POINTS_PER_OBJECT)
       showCurrentLine(prev)
+      if (prev.isEraser) {
+        const pointer = stage.getPointerPosition()
+        if (pointer) {
+          const intersections = stage.getAllIntersections(pointer)
+          for (const node of intersections) {
+            const id = node.id()
+            if (!id || !objectsRef.current.some((object) => object.id === id)) continue
+            eraserTargetIdsRef.current.add(id)
+          }
+        }
+      }
       onDraftObjectChange?.(prev.isEraser ? null : createDraftLine(prev))
     } else if (toolSnapshot === 'select-eraser') {
       const pointer = stage.getPointerPosition()
@@ -838,10 +861,37 @@ export function useInfinityEvents({
 
     if (toolSnapshot === 'pen' || toolSnapshot === 'eraser') {
       const line = currentLineRef.current
-      if (line && line.points.length > 1) {
-        saveSnapshot([...objectsRef.current, createPersistedLine(line)], selectedIdsRef.current)
+      if (line && line.points.length > 1 && !line.isEraser) {
+        const persistedLine = createPersistedLine(line)
+        commitLocalChange([...objectsRef.current, persistedLine], selectedIdsRef.current, [
+          {
+            operationType: 'UPSERT_ELEMENT',
+            elementId: persistedLine.id,
+            element: { ...persistedLine },
+          },
+        ])
+      } else if (line?.isEraser) {
+        const idsToRemove = eraserTargetIdsRef.current
+        if (idsToRemove.size > 0) {
+          const blockedId = [...idsToRemove].find((id) => !canEdit(id))
+          if (blockedId) {
+            blockEdit(blockedId)
+          } else {
+            const newObjects = objectsRef.current.filter((object) => !idsToRemove.has(object.id))
+            const newSelectedIds = selectedIdsRef.current.filter((id) => !idsToRemove.has(id))
+            commitLocalChange(
+              newObjects,
+              newSelectedIds,
+              [...idsToRemove].map((elementId) => ({
+                operationType: 'DELETE_ELEMENT',
+                elementId,
+              })),
+            )
+          }
+        }
       }
       currentLineRef.current = null
+      eraserTargetIdsRef.current = new Set()
       onDraftObjectChange?.(null)
       cleanupAfterNextPaint(hideCurrentLines)
     } else if (toolSnapshot === 'select-eraser') {
@@ -860,13 +910,26 @@ export function useInfinityEvents({
         const newSelected = selectedIdsRef.current.filter(
           (id) => !idsToRemove.has(id),
         )
-        saveSnapshot(newObjects, newSelected)
+        commitLocalChange(
+          newObjects,
+          newSelected,
+          [...idsToRemove].map((elementId) => ({
+            operationType: 'DELETE_ELEMENT',
+            elementId,
+          })),
+        )
       }
       applyHoverOpacity(new Set())
     } else if (isShapeTool(toolSnapshot)) {
       const shape = previewShapeRef.current
       if (shape && (Math.abs(shape.width) > 5 || Math.abs(shape.height) > 5)) {
-        saveSnapshot([...objectsRef.current, shape], selectedIdsRef.current)
+        commitLocalChange([...objectsRef.current, shape], selectedIdsRef.current, [
+          {
+            operationType: 'UPSERT_ELEMENT',
+            elementId: shape.id,
+            element: { ...shape },
+          },
+        ])
       }
       previewShapeRef.current = null
       onDraftObjectChange?.(null)
@@ -929,7 +992,13 @@ export function useInfinityEvents({
         color,
       })
       if (fillObject) {
-        saveSnapshot([...objectsRef.current, fillObject], selectedIdsRef.current)
+        commitLocalChange([...objectsRef.current, fillObject], selectedIdsRef.current, [
+          {
+            operationType: 'UPSERT_ELEMENT',
+            elementId: fillObject.id,
+            element: { ...fillObject },
+          },
+        ])
       }
       return
     }
@@ -965,7 +1034,15 @@ export function useInfinityEvents({
         object.id === id ? recolorObject(object, color) : object,
       )
       const nextSelectedIds = selectedIdsRef.current.includes(id) ? selectedIdsRef.current : [id]
-      saveSnapshot(nextObjects, nextSelectedIds)
+      const updatedObject = nextObjects.find((object) => object.id === id)
+      if (!updatedObject) return
+      commitLocalChange(nextObjects, nextSelectedIds, [
+        {
+          operationType: 'UPSERT_ELEMENT',
+          elementId: updatedObject.id,
+          element: { ...updatedObject },
+        },
+      ])
       return
     }
 
@@ -992,7 +1069,15 @@ export function useInfinityEvents({
       if (obj.type === 'line') return obj
       return { ...obj, x, y }
     })
-    saveSnapshot(newObjects, selectedIdsRef.current)
+    const updatedObject = newObjects.find((object) => object.id === id)
+    if (!updatedObject) return
+    commitLocalChange(newObjects, selectedIdsRef.current, [
+      {
+        operationType: 'UPSERT_ELEMENT',
+        elementId: updatedObject.id,
+        element: { ...updatedObject },
+      },
+    ])
   }
 
   const onShapeTransformEnd = (
@@ -1014,7 +1099,15 @@ export function useInfinityEvents({
       }
       return obj
     })
-    saveSnapshot(newObjects, selectedIdsRef.current)
+    const updatedObject = newObjects.find((object) => object.id === id)
+    if (!updatedObject) return
+    commitLocalChange(newObjects, selectedIdsRef.current, [
+      {
+        operationType: 'UPSERT_ELEMENT',
+        elementId: updatedObject.id,
+        element: { ...updatedObject },
+      },
+    ])
   }
 
   const onTextTransformEnd = (
@@ -1034,7 +1127,15 @@ export function useInfinityEvents({
       }
       return obj
     })
-    saveSnapshot(newObjects, selectedIdsRef.current)
+    const updatedObject = newObjects.find((object) => object.id === id)
+    if (!updatedObject) return
+    commitLocalChange(newObjects, selectedIdsRef.current, [
+      {
+        operationType: 'UPSERT_ELEMENT',
+        elementId: updatedObject.id,
+        element: { ...updatedObject },
+      },
+    ])
   }
 
   // 텍스트 객체 더블 클릭 → 편집 모드 진입.
@@ -1080,7 +1181,20 @@ export function useInfinityEvents({
       ;[objects[i], objects[swapWith]] = [objects[swapWith], objects[i]]
       changed = true
     }
-    if (changed) saveSnapshot(objects, ids)
+    if (changed) {
+      commitLocalChange(
+        objects,
+        ids,
+        ids
+          .map((id) => objects.find((object) => object.id === id))
+          .filter((object): object is InfinityObject => Boolean(object))
+          .map((object) => ({
+            operationType: 'UPSERT_ELEMENT',
+            elementId: object.id,
+            element: { ...object },
+          })),
+      )
+    }
   }
 
   return {
