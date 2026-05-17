@@ -132,39 +132,50 @@ export function InfinityParticipantsPanel({
                     }`}
                   />
                 </span>
-                {isMe && isColorPickerOpen && onUpdateMyColor && (
-                  <div className="absolute left-2 top-[48px] z-20 grid grid-cols-4 gap-2 rounded-[18px] border border-white/80 bg-white/92 p-3 shadow-[0_16px_26px_rgba(60,82,160,0.22)] backdrop-blur">
-                    {INFINITE_CANVAS_COLOR_OPTIONS.map(({ value: color, label }) => {
-                      const selected = color.toLowerCase() === participant.color.toLowerCase()
-                      return (
-                        <button
-                          key={color}
-                          type="button"
-                          title={`${label}로 변경`}
-                          disabled={isUpdatingProfile}
-                          onClick={async () => {
-                            const updated = await onUpdateMyColor(color)
-                            if (updated) setIsColorPickerOpen(false)
-                          }}
-                          className="size-7 rounded-full border-2 border-white transition-transform hover:scale-110 disabled:opacity-60"
-                          style={{
-                            backgroundColor: color,
-                            boxShadow: selected
-                              ? '0 0 0 3px #ff5f9a, 0 6px 12px rgba(70,80,160,0.22)'
-                              : '0 0 0 1px rgba(60,80,140,0.12), 0 5px 10px rgba(70,80,160,0.14)',
-                          }}
-                        >
-                          <span className="sr-only">{color} 선택</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
               </li>
             )
           })}
         </ul>
       </div>
+      {isColorPickerOpen && me && onUpdateMyColor && (
+        <>
+          <button
+            type="button"
+            aria-label="색상 선택 닫기"
+            className="fixed inset-0 z-20 cursor-default bg-transparent"
+            onClick={() => setIsColorPickerOpen(false)}
+          />
+          <div className="absolute bottom-full right-0 z-30 mb-3 min-w-[236px] rounded-[24px] border border-white/80 bg-white/94 p-4 shadow-[0_18px_34px_rgba(48,76,160,0.24)] backdrop-blur-md">
+            <p className="body-b mb-3 text-[#25376c]">내 색상 선택</p>
+            <div className="grid grid-cols-6 gap-2.5">
+              {INFINITE_CANVAS_COLOR_OPTIONS.map(({ value: color, label }) => {
+                const selected = color.toLowerCase() === me.color.toLowerCase()
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    title={`${label}로 변경`}
+                    disabled={isUpdatingProfile}
+                    onClick={async () => {
+                      const updated = await onUpdateMyColor(color)
+                      if (updated) setIsColorPickerOpen(false)
+                    }}
+                    className="size-8 rounded-full border-2 border-white transition-transform hover:scale-110 disabled:opacity-60"
+                    style={{
+                      backgroundColor: color,
+                      boxShadow: selected
+                        ? '0 0 0 3px #ff5f9a, 0 8px 14px rgba(70,80,160,0.24)'
+                        : '0 0 0 1px rgba(60,80,140,0.12), 0 6px 12px rgba(70,80,160,0.14)',
+                    }}
+                  >
+                    <span className="sr-only">{color} 선택</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </aside>
   )
 }

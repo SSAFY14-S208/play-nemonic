@@ -22,9 +22,9 @@ function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((p) => [p.x, p.y])
 }
 
-const MIN_LINE_POINT_DISTANCE = 3
-const MAX_LINE_POINTS_PER_OBJECT = 640
-const MAX_DRAFT_LINE_POINTS = 180
+const MIN_LINE_POINT_DISTANCE = 1.2
+const MAX_LINE_POINTS_PER_OBJECT = 2400
+const MAX_DRAFT_LINE_POINTS = 900
 const BUCKET_FILL_PADDING = 96
 const BUCKET_FILL_MAX_SIZE = 1600
 const BUCKET_FILL_ALPHA_TOLERANCE = 16
@@ -444,7 +444,7 @@ interface UseInfinityEventsParams {
   silentClearSelection: () => void
   silentSetSelection: (newSelectedIds: string[]) => void
   recordSelection: (newSelectedIds: string[]) => void
-  onDraftObjectChange?: (draftObject: InfinityObject | null) => void
+  onDraftObjectChange?: (draftObject: InfinityObject | InfinityObject[] | null) => void
   objectsRef: { readonly current: InfinityObject[] }
   selectedIdsRef: { readonly current: string[] }
   color: string
@@ -721,6 +721,7 @@ export function useInfinityEvents({
     startPosRef.current = pos
 
     if (toolSnapshot === 'pen' || toolSnapshot === 'eraser') {
+      hideCursor()
       const newLine: InfinityLine = {
         id: generateId(),
         type: 'line',
@@ -1102,6 +1103,29 @@ export function useInfinityEvents({
     ])
   }
 
+  const onObjectsTransformEnd = (updatedObjects: InfinityObject[]) => {
+    if (updatedObjects.length === 0) return
+    const blockedId = updatedObjects.find((object) => !canEdit(object.id))?.id
+    if (blockedId) {
+      blockEdit(blockedId)
+      return
+    }
+
+    const updatedObjectMap = new Map(updatedObjects.map((object) => [object.id, object]))
+    const newObjects = objectsRef.current.map((object) =>
+      updatedObjectMap.get(object.id) ?? object,
+    )
+    commitLocalChange(
+      newObjects,
+      selectedIdsRef.current,
+      updatedObjects.map((object) => ({
+        operationType: 'UPSERT_ELEMENT',
+        elementId: object.id,
+        element: { ...object },
+      })),
+    )
+  }
+
   // 텍스트 객체 더블 클릭 → 편집 모드 진입.
   const onTextDblClick = (id: string) => {
     if (!canEdit(id)) {
@@ -1173,6 +1197,7 @@ export function useInfinityEvents({
     onObjectDragEnd,
     onShapeTransformEnd,
     onTextTransformEnd,
+    onObjectsTransformEnd,
     onTextDblClick,
     shiftSelectedZIndex,
   } as const

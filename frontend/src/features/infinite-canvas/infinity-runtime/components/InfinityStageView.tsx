@@ -23,15 +23,22 @@ import {
   type InfinityCaptureRect,
 } from './InfinityCaptureOverlay'
 import { InfinityParticipantsPanel } from './InfinityParticipantsPanel'
+import { InfinityPrintRevealOverlay } from './InfinityPrintRevealOverlay'
 import { InfinityTextEditor } from './InfinityTextEditor'
 import { InfinityToolPanel } from './InfinityToolPanel'
 
 type InfinityCanvasRoom = ReturnType<typeof useInfinityCanvasRoom>
 const CURSOR_SEND_INTERVAL_MS = 50
 const DRAFT_SEND_INTERVAL_MS = 33
+const REMOTE_DRAFT_RETENTION_MS = 2200
 
 interface InfinityStageViewProps {
   room: InfinityCanvasRoom
+}
+
+interface RetainedRemoteDraft {
+  draft: InfinityRemoteDraftObjectView
+  expiresAt: number
 }
 
 function createObjectMap(objects: ReturnType<typeof toInfinityObjects>) {
@@ -145,9 +152,14 @@ function getDisplayNickname(
   return payloadNickname ?? participantNickname ?? '참여자'
 }
 
-function getPayloadDraftObject(payload: Record<string, unknown> | null) {
+function getPayloadDraftObjects(payload: Record<string, unknown> | null) {
+  const draftObjects = payload?.draftObjects
+  if (Array.isArray(draftObjects)) {
+    return draftObjects.filter(isInfinityObject)
+  }
+
   const draftObject = payload?.draftObject
-  return isInfinityObject(draftObject) ? draftObject : null
+  return isInfinityObject(draftObject) ? [draftObject] : []
 }
 
 function hashUserUuid(userUuid: string) {
@@ -193,13 +205,15 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const lastCursorSentAtRef = useRef(0)
   const lastDraftCursorSentAtRef = useRef(0)
   const latestCursorRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
-  const draftObjectRef = useRef<InfinityObject | null>(null)
-  const lastFinishedDraftRef = useRef<InfinityObject | null>(null)
+  const draftObjectsRef = useRef<InfinityObject[]>([])
+  const lastFinishedDraftsRef = useRef<InfinityObject[]>([])
   const draftClearTimeoutRef = useRef<number | null>(null)
   const previousSelectedIdsRef = useRef<string[]>([])
   const [isCaptureMode, setIsCaptureMode] = useState(false)
   const [copiedInviteTarget, setCopiedInviteTarget] = useState<'link' | 'code' | null>(null)
   const [layerMenu, setLayerMenu] = useState<{ x: number; y: number } | null>(null)
+  const [retainedRemoteDrafts, setRetainedRemoteDrafts] = useState<Record<string, RetainedRemoteDraft>>({})
+  const [printRevealPreviewUrl, setPrintRevealPreviewUrl] = useState<string | null>(null)
 
   const nodeRefs = useMemo(
     () => ({
@@ -232,10 +246,11 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   )
 
   const createCursorPayload = useCallback(
-    (draftObject: InfinityObject | null) => ({
+    (draftObjects: InfinityObject[]) => ({
       color: room.me?.color ?? '#5b8fd8',
       nickname: room.me?.nickname ?? null,
-      draftObject,
+      draftObject: draftObjects[0] ?? null,
+      draftObjects,
     }),
     [room.me?.color, room.me?.nickname],
   )
@@ -243,20 +258,21 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const sendCursor = useCallback(
     (cursor: { x: number; y: number; zoom: number }, options: { force?: boolean } = {}) => {
       const now = Date.now()
-      const draftObject = draftObjectRef.current
-      const minInterval = draftObject ? DRAFT_SEND_INTERVAL_MS : CURSOR_SEND_INTERVAL_MS
+      const draftObjects = draftObjectsRef.current
+      const hasDraftObjects = draftObjects.length > 0
+      const minInterval = hasDraftObjects ? DRAFT_SEND_INTERVAL_MS : CURSOR_SEND_INTERVAL_MS
       if (!options.force && now - lastCursorSentAtRef.current < minInterval) return
-      if (draftObject && !options.force && now - lastDraftCursorSentAtRef.current < DRAFT_SEND_INTERVAL_MS) return
+      if (hasDraftObjects && !options.force && now - lastDraftCursorSentAtRef.current < DRAFT_SEND_INTERVAL_MS) return
 
       lastCursorSentAtRef.current = now
-      if (draftObject) {
+      if (hasDraftObjects) {
         lastDraftCursorSentAtRef.current = now
       }
       sendRoomCursor({
         x: cursor.x,
         y: cursor.y,
         zoom: cursor.zoom,
-        payload: createCursorPayload(draftObject),
+        payload: createCursorPayload(draftObjects),
       })
     },
     [createCursorPayload, sendRoomCursor],
@@ -273,23 +289,24 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   )
 
   const handleDraftObjectChange = useCallback(
-    (draftObject: InfinityObject | null) => {
+    (draftObject: InfinityObject | InfinityObject[] | null) => {
       if (draftClearTimeoutRef.current) {
         window.clearTimeout(draftClearTimeoutRef.current)
         draftClearTimeoutRef.current = null
       }
       if (draftObject !== null) {
-        draftObjectRef.current = draftObject
-        lastFinishedDraftRef.current = draftObject
+        const draftObjects = Array.isArray(draftObject) ? draftObject : [draftObject]
+        draftObjectsRef.current = draftObjects
+        lastFinishedDraftsRef.current = draftObjects
         return
       }
-      draftObjectRef.current = lastFinishedDraftRef.current
+      draftObjectsRef.current = lastFinishedDraftsRef.current
       const latestCursor = latestCursorRef.current
       if (!latestCursor) return
       draftClearTimeoutRef.current = window.setTimeout(() => {
         draftClearTimeoutRef.current = null
-        draftObjectRef.current = null
-        lastFinishedDraftRef.current = null
+        draftObjectsRef.current = []
+        lastFinishedDraftsRef.current = []
         sendCursor(latestCursor, { force: true })
       }, 1800)
     },
@@ -303,6 +320,15 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       }
     },
     [],
+  )
+
+  useEffect(
+    () => () => {
+      if (printRevealPreviewUrl) {
+        URL.revokeObjectURL(printRevealPreviewUrl)
+      }
+    },
+    [printRevealPreviewUrl],
   )
 
   const drawing = useInfinityDrawing(stageRef, nodeRefs, {
@@ -386,25 +412,109 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [drawing.objects],
   )
 
-  const remoteDraftObjects: InfinityRemoteDraftObjectView[] = useMemo(
+  const liveRemoteDraftObjects: InfinityRemoteDraftObjectView[] = useMemo(
     () =>
       remoteCursorValues
         .filter((cursor) => cursor.userUuid !== room.myUserUuid)
         .map((cursor) => {
-          const draftObject = getPayloadDraftObject(cursor.payload)
-          if (!draftObject) return null
-          if (visibleObjectIds.has(draftObject.id)) return null
+          const draftObjects = getPayloadDraftObjects(cursor.payload)
+          if (draftObjects.length === 0) return null
           const participant = room.participantsByUserUuid[cursor.userUuid]
-          return {
-            userUuid: cursor.userUuid,
-            nickname: getDisplayNickname(participant, cursor.payload),
-            color: participant?.color ?? getPayloadColor(cursor.payload) ?? '#5b8fd8',
-            identityIndex: getParticipantIdentityIndex(cursor.userUuid),
-            object: draftObject,
-          }
+          return draftObjects
+            .filter((draftObject) => !visibleObjectIds.has(draftObject.id))
+            .map((draftObject) => ({
+              userUuid: cursor.userUuid,
+              nickname: getDisplayNickname(participant, cursor.payload),
+              color: participant?.color ?? getPayloadColor(cursor.payload) ?? '#5b8fd8',
+              identityIndex: getParticipantIdentityIndex(cursor.userUuid),
+              object: draftObject,
+            }))
         })
+        .flat()
         .filter((draftObject): draftObject is InfinityRemoteDraftObjectView => draftObject !== null),
-    [getParticipantIdentityIndex, remoteCursorValues, room.myUserUuid, room.participantsByUserUuid, visibleObjectIds],
+    [
+      getParticipantIdentityIndex,
+      remoteCursorValues,
+      room.myUserUuid,
+      room.participantsByUserUuid,
+      visibleObjectIds,
+    ],
+  )
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const now = Date.now()
+      setRetainedRemoteDrafts((currentDrafts) => {
+        const nextDrafts: Record<string, RetainedRemoteDraft> = {}
+
+        for (const [key, retainedDraft] of Object.entries(currentDrafts)) {
+          if (
+            retainedDraft.expiresAt > now &&
+            !visibleObjectIds.has(retainedDraft.draft.object.id)
+          ) {
+            nextDrafts[key] = retainedDraft
+          }
+        }
+
+        for (const draft of liveRemoteDraftObjects) {
+          nextDrafts[`${draft.userUuid}:${draft.object.id}`] = {
+            draft,
+            expiresAt: now + REMOTE_DRAFT_RETENTION_MS,
+          }
+        }
+
+        const currentKeys = Object.keys(currentDrafts)
+        const nextKeys = Object.keys(nextDrafts)
+        const changed =
+          currentKeys.length !== nextKeys.length ||
+          nextKeys.some((key) => {
+            const currentDraft = currentDrafts[key]
+            const nextDraft = nextDrafts[key]
+            return (
+              !currentDraft ||
+              !nextDraft ||
+              currentDraft.expiresAt !== nextDraft.expiresAt ||
+              stringifyInfinityObject(currentDraft.draft.object) !== stringifyInfinityObject(nextDraft.draft.object)
+            )
+          })
+
+        return changed ? nextDrafts : currentDrafts
+      })
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [liveRemoteDraftObjects, visibleObjectIds])
+
+  useEffect(() => {
+    const retainedDrafts = Object.values(retainedRemoteDrafts)
+    if (retainedDrafts.length === 0) return
+    const now = Date.now()
+    const nextExpiry = Math.min(...retainedDrafts.map((retainedDraft) => retainedDraft.expiresAt))
+    const timeoutId = window.setTimeout(() => {
+      setRetainedRemoteDrafts((currentDrafts) => {
+        const currentTime = Date.now()
+        const nextDrafts = Object.fromEntries(
+          Object.entries(currentDrafts).filter(
+            ([, retainedDraft]) =>
+              retainedDraft.expiresAt > currentTime &&
+              !visibleObjectIds.has(retainedDraft.draft.object.id),
+          ),
+        )
+        return Object.keys(nextDrafts).length === Object.keys(currentDrafts).length
+          ? currentDrafts
+          : nextDrafts
+      })
+    }, Math.max(nextExpiry - now, 0))
+
+    return () => window.clearTimeout(timeoutId)
+  }, [retainedRemoteDrafts, visibleObjectIds])
+
+  const remoteDraftObjects: InfinityRemoteDraftObjectView[] = useMemo(
+    () =>
+      Object.values(retainedRemoteDrafts)
+        .filter((retainedDraft) => !visibleObjectIds.has(retainedDraft.draft.object.id))
+        .map((retainedDraft) => retainedDraft.draft),
+    [retainedRemoteDrafts, visibleObjectIds],
   )
 
   useEffect(() => {
@@ -533,14 +643,23 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
       try {
         const blob = await createStageBlob(stage, rect)
+        const previewUrl = URL.createObjectURL(blob)
+        setPrintRevealPreviewUrl((previousPreviewUrl) => {
+          if (previousPreviewUrl) URL.revokeObjectURL(previousPreviewUrl)
+          return previewUrl
+        })
+        setIsCaptureMode(false)
         const output = await saveOutput(blob, {
           roomCode: room.roomCode,
           revision: room.revision,
           ratio,
           rect,
         })
-        if (output) {
-          setIsCaptureMode(false)
+        if (!output) {
+          setPrintRevealPreviewUrl((currentPreviewUrl) => {
+            if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl)
+            return null
+          })
         }
       } catch {
         toast.error('선택한 영역을 이미지로 만들지 못했어요.')
@@ -569,6 +688,15 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       setLayerMenu(null)
     },
     [drawing],
+  )
+
+  const releaseSelectedLocks = useCallback(
+    (elementIds: string[]) => {
+      elementIds.forEach((elementId) => {
+        releaseLock(elementId)
+      })
+    },
+    [releaseLock],
   )
 
   useEffect(() => {
@@ -605,6 +733,8 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           remoteCursors={remoteCursors}
           onCursorMove={handleCursorMove}
           onLayerMenuRequest={handleLayerMenuRequest}
+          onSelectionInteractionEnd={releaseSelectedLocks}
+          onDraftObjectsChange={handleDraftObjectChange}
         />
 
         {drawing.textEditor && (
@@ -625,6 +755,17 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
             onCapture={handleCapture}
           />
         )}
+
+        <InfinityPrintRevealOverlay
+          previewUrl={printRevealPreviewUrl}
+          isSaving={room.isSavingOutput}
+          onDone={() => {
+            setPrintRevealPreviewUrl((currentPreviewUrl) => {
+              if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl)
+              return null
+            })
+          }}
+        />
 
         {layerMenu && drawing.selectedIds.length > 0 && (
           <div

@@ -5,11 +5,19 @@ import type { InfinityFill } from "../../constants";
 
 interface KonvaFillProps {
   fill: InfinityFill;
+  isSelectTool?: boolean;
+  isLocked?: boolean;
+  onFillClick?: (id: string, isShift: boolean) => void;
 }
 
 const fillImageCache = new Map<string, HTMLImageElement>();
 
-export function KonvaFill({ fill }: KonvaFillProps) {
+export function KonvaFill({
+  fill,
+  isSelectTool = false,
+  isLocked = false,
+  onFillClick,
+}: KonvaFillProps) {
   const [loadedImage, setLoadedImage] = useState<{
     imageDataUrl: string;
     element: HTMLImageElement;
@@ -50,8 +58,15 @@ export function KonvaFill({ fill }: KonvaFillProps) {
       width={fill.width}
       height={fill.height}
       image={imageElement}
-      listening={false}
+      listening={isSelectTool}
       perfectDrawEnabled={false}
+      draggable={isSelectTool && !isLocked}
+      onClick={
+        isSelectTool
+          ? (e) => onFillClick?.(fill.id, e.evt.shiftKey)
+          : undefined
+      }
+      onTap={isSelectTool ? () => onFillClick?.(fill.id, false) : undefined}
     />
   );
 }

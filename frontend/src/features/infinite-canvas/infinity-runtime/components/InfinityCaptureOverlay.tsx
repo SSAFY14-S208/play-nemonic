@@ -435,22 +435,21 @@ export function InfinityCaptureOverlay({
           <Button
             type="button"
             size="sm"
-            color="blue"
             disabled={!canCapture || isSaving}
             onClick={() => {
               if (!captureRect) return
               onCapture(captureRect, ratio)
             }}
-            className="body-l-b min-h-14 px-7"
+            className="h4-b min-h-14 bg-[#6d5df6] px-7 text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] hover:bg-[#5847e8]"
           >
-            {isSaving ? '저장 중' : '저장'}
+            {isSaving ? '출력 중' : '출력'}
           </Button>
           <button
             type="button"
             aria-label="출력 영역 다시 선택"
             title="출력 영역 다시 선택"
             onClick={resetSelection}
-            className="grid size-14 place-items-center rounded-full bg-white/18 text-white transition-colors hover:bg-white/30"
+            className="grid size-14 place-items-center rounded-full bg-[#6d5df6] text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] transition-colors hover:bg-[#5847e8]"
           >
             <RefreshCw className="size-6" aria-hidden />
           </button>
