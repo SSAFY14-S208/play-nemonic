@@ -27,6 +27,7 @@ import type {
   FlipbookAssignmentResponse,
   FlipbookBlockedReason,
   FlipbookFrameSubmitResponse,
+  FlipbookRoomCreateResponse,
   FlipbookResultItemResponse,
   FlipbookRoomStateResponse,
 } from '@/shared/types'
@@ -171,6 +172,16 @@ function writeSubmittedDrawingLines(storageKey: string, lines: DrawingLine[]) {
   }
 }
 
+function clearSubmittedDrawingLinesStorage() {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.removeItem(SUBMITTED_DRAWING_LINES_STORAGE_KEY)
+  } catch {
+    // Local drawing backup is disposable; ignore restricted storage failures.
+  }
+}
+
 interface UseFlipbookOptions {
   routeStep?: FlipbookStep
   onStepChange?: (
@@ -246,6 +257,50 @@ function shouldIgnoreInactiveFlipbookRoom(roomCode: string) {
   const isDifferentActiveRoom = activeRoomCode !== null && activeRoomCode !== roomCode
 
   return isDismissedInactiveRoom || isDifferentActiveRoom
+}
+
+function createRoomStateFromCreateResponse({
+  createdRoom,
+  userUuid,
+}: {
+  createdRoom: FlipbookRoomCreateResponse
+  userUuid: string | null
+}): FlipbookRoomStateResponse {
+  const viewerUserUuid = userUuid ?? createdRoom.hostUserUuid
+  const isViewerHost = createdRoom.hostUserUuid === viewerUserUuid
+  const canStart =
+    createdRoom.status === 'WAITING' &&
+    isViewerHost &&
+    createdRoom.participantCount >= createdRoom.minParticipants
+
+  return {
+    roomCode: createdRoom.roomCode,
+    status: createdRoom.status,
+    hostUserUuid: createdRoom.hostUserUuid,
+    timeLimitSeconds: createdRoom.timeLimitSeconds,
+    allowedTimeLimitSeconds: createdRoom.allowedTimeLimitSeconds,
+    timeLimitOptions: createdRoom.timeLimitOptions,
+    timeLimitSecondsOptions: createdRoom.timeLimitSecondsOptions,
+    minParticipants: createdRoom.minParticipants,
+    maxParticipants: createdRoom.maxParticipants,
+    participantCount: createdRoom.participantCount,
+    currentRound: null,
+    totalRounds: null,
+    roundStartedAt: null,
+    roundDeadlineAt: null,
+    gameStartedAt: null,
+    participants: createdRoom.participants,
+    viewer: {
+      userUuid: viewerUserUuid,
+      participant: true,
+      host: isViewerHost,
+      canJoin: false,
+      canStart,
+      blockedReason: null,
+    },
+    createdAt: createdRoom.createdAt,
+    updatedAt: createdRoom.createdAt,
+  }
 }
 
 export function useFlipbook({
@@ -539,6 +594,7 @@ export function useFlipbook({
       clearResult?: boolean
       clearError?: boolean
     } = {}) => {
+      clearSubmittedDrawingLinesStorage()
       setRoomCode(null)
       if (clearRoomCodeDraft) {
         setRoomCodeDraft('')
@@ -1093,11 +1149,19 @@ export function useFlipbook({
       const createdRoom = await postFlipbookRoom()
       if (!isCurrentActionRequest(requestSequence)) return
 
+      const createdRoomState = createRoomStateFromCreateResponse({ createdRoom, userUuid })
       setRoomCode(createdRoom.roomCode)
       setRoomCodeDraft(createdRoom.roomCode)
+      setRoomState(createdRoomState)
+      setSelectedTimeLimitSeconds(toFlipbookTimeLimitSeconds(createdRoomState.timeLimitSeconds))
+      setTimeLimitOptions(getFlipbookTimeLimitOptions(createdRoomState))
+      setRoundCount(createdRoomState.totalRounds)
+      setStartedParticipantCount(null)
       linkRoomCodeHandledRef.current = createdRoom.roomCode
-      await refreshRoom(createdRoom.roomCode, { actionRequestSequence: requestSequence })
-      if (!isCurrentActionRequest(requestSequence)) return
+      void refreshRoom(createdRoom.roomCode, {
+        actionRequestSequence: requestSequence,
+        syncStep: false,
+      })
 
       completeFunnelStep('nickname', 1, { content_type: 'flipbook' })
       completeFunnelStep('settings', 2, {
