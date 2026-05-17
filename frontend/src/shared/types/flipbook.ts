@@ -276,6 +276,16 @@ export interface FlipbookWsRoundTimeUpData {
   roundDeadlineAt: string
   submitGraceDeadlineAt: string
   autoSubmitGraceMillis: number
+  pendingCount?: number
+  pendingSubmissions?: FlipbookWsRoundTimeUpPendingSubmission[]
+}
+
+export interface FlipbookWsRoundTimeUpPendingSubmission {
+  flipbookIndex: number
+  frameIndex: number
+  userUuid: string
+  nickname: string
+  connected: boolean
 }
 
 export interface FlipbookWsAllRoundsCompletedData {
