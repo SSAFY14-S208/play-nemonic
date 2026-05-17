@@ -137,6 +137,7 @@ export default function FlipbookResultView({
             fill
             priority
             draggable={false}
+            unoptimized
             sizes={`(max-width: 640px) calc(100vw - 2rem), ${RESULT_ACTION_BUTTONS_IMAGE_WIDTH}px`}
             className="select-none object-contain"
             aria-hidden
