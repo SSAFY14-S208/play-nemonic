@@ -35,6 +35,20 @@ class ArtifactQrComposerTest {
         assertThat(composed.getHeight()).isEqualTo(240);
     }
 
+    @Test
+    void composeStillImageFlattensTransparentSourceOnWhiteBackground() throws Exception {
+        byte[] sourceBytes = transparentImageBytes("png");
+
+        byte[] composedBytes = artifactQrComposer.compose("image/png", sourceBytes,
+            "https://nemonic.example.com/artifacts/1");
+
+        BufferedImage composed = ImageIO.read(new ByteArrayInputStream(composedBytes));
+        Color background = new Color(composed.getRGB(10, 10));
+        assertThat(background.getRed()).isGreaterThan(240);
+        assertThat(background.getGreen()).isGreaterThan(240);
+        assertThat(background.getBlue()).isGreaterThan(240);
+    }
+
     /**
      * GIF 원본은 QR 합성 후 다시 GIF로 반환됩니다.
      */
@@ -56,12 +70,49 @@ class ArtifactQrComposerTest {
         }
     }
 
+    @Test
+    void composeGifFlattensTransparentFramesOnWhiteBackground() throws Exception {
+        byte[] sourceBytes = transparentImageBytes("gif");
+
+        byte[] composedBytes = artifactQrComposer.compose("image/gif", sourceBytes,
+            "https://nemonic.example.com/artifacts/1");
+
+        ImageReader reader = ImageIO.getImageReadersByFormatName("gif").next();
+        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(composedBytes))) {
+            reader.setInput(input);
+
+            BufferedImage frame = reader.read(0);
+            Color background = new Color(frame.getRGB(10, 10));
+            assertThat(background.getRed()).isEqualTo(255);
+            assertThat(background.getGreen()).isEqualTo(255);
+            assertThat(background.getBlue()).isEqualTo(255);
+        } finally {
+            reader.dispose();
+        }
+    }
+
     private byte[] imageBytes(String format) throws Exception {
         BufferedImage image = new BufferedImage(360, 240, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         try {
             graphics.setColor(Color.WHITE);
             graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
+            graphics.setColor(Color.BLUE);
+            graphics.fillRect(40, 40, 120, 80);
+        } finally {
+            graphics.dispose();
+        }
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ImageIO.write(image, format, output);
+
+        return output.toByteArray();
+    }
+
+    private byte[] transparentImageBytes(String format) throws Exception {
+        BufferedImage image = new BufferedImage(360, 240, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
             graphics.setColor(Color.BLUE);
             graphics.fillRect(40, 40, 120, 80);
         } finally {
