@@ -277,8 +277,6 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       revisionRef.current = 0
       setErrorMessage(message)
       return null
-    } finally {
-      setIsHydrating(false)
     }
   }, [nickname, roomCode, userUuid])
 
