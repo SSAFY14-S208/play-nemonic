@@ -17,6 +17,11 @@ export const RELAY_RESULT_ACTIONS: RelayResultAction[] = [
   { label: '커뮤니티 게시', Icon: Share2 },
 ]
 
+// 결과 화면에서 작품 자동 전환 간격 (ms).
+// 리빌 시퀀스(메모지 stagger → 정렬 → overlay → final)가 약 3~3.5초 내에 끝나므로,
+// 7초면 final phase에서 잠시 머무른 뒤 다음 작품으로 자연스럽게 넘어간다.
+export const RELAY_RESULT_AUTO_ADVANCE_MS = 7000
+
 // ── 결과 세그먼트 (얼굴/몸통/다리 카드·태그 메타) ─────────────────────
 export interface RelayResultSegment {
   key: RelayRoundKey
