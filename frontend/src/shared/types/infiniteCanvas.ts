@@ -74,6 +74,17 @@ export interface InfiniteCanvasStateResponse {
   updatedAt: string
 }
 
+export interface InfiniteCanvasParticipantEventResponse {
+  roomCode: string
+  status: InfiniteCanvasStatus
+  hostUserUuid: string
+  participants: InfiniteCanvasParticipantResponse[]
+  changedParticipant: InfiniteCanvasParticipantResponse | null
+  maxParticipants: number
+  revision: number
+  updatedAt: string
+}
+
 export interface InfiniteCanvasCreateRequest {
   color?: string | null
 }
@@ -197,8 +208,8 @@ export interface InfiniteCanvasWsEventPayloadMap {
   CURSOR_UPDATED: InfiniteCanvasCursorResponse
   LOCK_ACQUIRED: InfiniteCanvasLockResponse
   LOCK_RELEASED: InfiniteCanvasLockResponse
-  PARTICIPANT_CONNECTED: InfiniteCanvasStateResponse
-  PARTICIPANT_DISCONNECTED: InfiniteCanvasStateResponse
+  PARTICIPANT_CONNECTED: InfiniteCanvasParticipantEventResponse
+  PARTICIPANT_DISCONNECTED: InfiniteCanvasParticipantEventResponse
   PARTICIPANT_LEFT: InfiniteCanvasLeaveResponse
   HOST_CHANGED: InfiniteCanvasLeaveResponse
   PARTICIPANT_UPDATED: InfiniteCanvasParticipantResponse

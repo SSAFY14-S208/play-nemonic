@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
-import Image from 'next/image'
+import { Copy, Link2, LogOut, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 import { useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
@@ -36,6 +36,10 @@ interface InfinityStageViewProps {
 
 function createObjectMap(objects: ReturnType<typeof toInfinityObjects>) {
   return new Map(objects.map((object) => [object.id, object]))
+}
+
+function objectMapValues(objectMap: Map<string, InfinityObject>) {
+  return [...objectMap.values()]
 }
 
 function areInfinityObjectListsEqual(firstObjects: InfinityObject[], secondObjects: InfinityObject[]) {
@@ -107,6 +111,11 @@ async function createStageBlob(stage: Konva.Stage, rect: InfinityCaptureRect): P
 }
 
 export function InfinityStageView({ room }: InfinityStageViewProps) {
+  const acquireLock = room.acquireLock
+  const releaseLock = room.releaseLock
+  const saveOutput = room.saveOutput
+  const sendRoomCursor = room.sendCursor
+  const sendRoomOperations = room.sendOperations
   const stageRef = useRef<Konva.Stage>(null)
   const currentPenLineRef = useRef<Konva.Line>(null)
   const currentEraserLineRef = useRef<Konva.Line>(null)
@@ -118,10 +127,14 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const isApplyingRemoteRef = useRef(false)
   const appliedServerRevisionRef = useRef<number | null>(null)
   const lastCursorSentAtRef = useRef(0)
+  const lastDraftCursorSentAtRef = useRef(0)
   const latestCursorRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
   const draftObjectRef = useRef<InfinityObject | null>(null)
+  const lastFinishedDraftRef = useRef<InfinityObject | null>(null)
+  const draftClearTimeoutRef = useRef<number | null>(null)
   const previousSelectedIdsRef = useRef<string[]>([])
   const [isCaptureMode, setIsCaptureMode] = useState(false)
+  const [copiedInviteTarget, setCopiedInviteTarget] = useState<'link' | 'code' | null>(null)
 
   const nodeRefs = useMemo(
     () => ({
@@ -165,27 +178,56 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const sendCursor = useCallback(
     (cursor: { x: number; y: number; zoom: number }, options: { force?: boolean } = {}) => {
       const now = Date.now()
-      if (!options.force && now - lastCursorSentAtRef.current < 24) return
+      const draftObject = draftObjectRef.current
+      const minInterval = draftObject ? 24 : 45
+      if (!options.force && now - lastCursorSentAtRef.current < minInterval) return
+      if (draftObject && !options.force && now - lastDraftCursorSentAtRef.current < 24) return
+
       lastCursorSentAtRef.current = now
-      room.sendCursor({
+      if (draftObject) {
+        lastDraftCursorSentAtRef.current = now
+      }
+      sendRoomCursor({
         x: cursor.x,
         y: cursor.y,
         zoom: cursor.zoom,
-        payload: createCursorPayload(draftObjectRef.current),
+        payload: createCursorPayload(draftObject),
       })
     },
-    [createCursorPayload, room],
+    [createCursorPayload, sendRoomCursor],
   )
 
   const handleDraftObjectChange = useCallback(
     (draftObject: InfinityObject | null) => {
-      draftObjectRef.current = draftObject
-      if (draftObject !== null) return
+      if (draftClearTimeoutRef.current) {
+        window.clearTimeout(draftClearTimeoutRef.current)
+        draftClearTimeoutRef.current = null
+      }
+      if (draftObject !== null) {
+        draftObjectRef.current = draftObject
+        lastFinishedDraftRef.current = draftObject
+        return
+      }
+      draftObjectRef.current = lastFinishedDraftRef.current
       const latestCursor = latestCursorRef.current
       if (!latestCursor) return
-      sendCursor(latestCursor, { force: true })
+      draftClearTimeoutRef.current = window.setTimeout(() => {
+        draftClearTimeoutRef.current = null
+        draftObjectRef.current = null
+        lastFinishedDraftRef.current = null
+        sendCursor(latestCursor, { force: true })
+      }, 1800)
     },
     [sendCursor],
+  )
+
+  useEffect(
+    () => () => {
+      if (draftClearTimeoutRef.current) {
+        window.clearTimeout(draftClearTimeoutRef.current)
+      }
+    },
+    [],
   )
 
   const drawing = useInfinityDrawing(stageRef, nodeRefs, {
@@ -258,6 +300,11 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors],
   )
 
+  const visibleObjectIds = useMemo(
+    () => new Set(drawing.objects.map((object) => object.id)),
+    [drawing.objects],
+  )
+
   const remoteDraftObjects: InfinityRemoteDraftObjectView[] = useMemo(
     () =>
       Object.values(room.remoteCursors)
@@ -265,6 +312,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         .map((cursor) => {
           const draftObject = getPayloadDraftObject(cursor.payload)
           if (!draftObject) return null
+          if (visibleObjectIds.has(draftObject.id)) return null
           const participant = room.participantsByUserUuid[cursor.userUuid]
           return {
             userUuid: cursor.userUuid,
@@ -275,7 +323,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           }
         })
         .filter((draftObject): draftObject is InfinityRemoteDraftObjectView => draftObject !== null),
-    [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors],
+    [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors, visibleObjectIds],
   )
 
   useEffect(() => {
@@ -302,6 +350,15 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     if (isStaleEmptySnapshot) return
 
     const nextServerObjectMap = createObjectMap(serverObjects)
+    const isSameServerObjects = areInfinityObjectListsEqual(
+      objectMapValues(previousObjectsRef.current),
+      serverObjects,
+    )
+    if (isSameServerObjects) {
+      appliedServerRevisionRef.current = serverRevision
+      return
+    }
+
     if (areInfinityObjectListsEqual(drawing.objects, serverObjects)) {
       appliedServerRevisionRef.current = serverRevision
       previousObjectsRef.current = nextServerObjectMap
@@ -311,12 +368,21 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     const selectedIds = drawing.selectedIds.filter((selectedId) =>
       serverObjects.some((object) => object.id === selectedId),
     )
+    const isInitialServerApply = appliedServerRevisionRef.current === null
+    if (room.hasPendingOperations && !isInitialServerApply) {
+      return
+    }
+
     isApplyingRemoteRef.current = true
     appliedServerRevisionRef.current = serverRevision
     previousObjectsRef.current = nextServerObjectMap
-    drawing.replaceObjectsFromServer(serverObjects, selectedIds)
+    if (isInitialServerApply) {
+      drawing.replaceObjectsFromServer(serverObjects, selectedIds)
+    } else {
+      drawing.syncObjectsFromServer(serverObjects, selectedIds)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room.revision, serverObjects])
+  }, [room.hasPendingOperations, room.revision, serverObjects])
 
   useEffect(() => {
     if (isApplyingRemoteRef.current) {
@@ -362,11 +428,11 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     previousObjectsRef.current = currentObjects
     if (operations.length === 0) return
 
-    const sent = room.sendOperations(operations)
+    const sent = sendRoomOperations(operations)
     if (!sent) {
       toast.error('서버 연결 후 편집할 수 있어요.')
     }
-  }, [drawing.objects, room])
+  }, [drawing.objects, sendRoomOperations])
 
   useEffect(() => {
     const previousSelectedIds = previousSelectedIdsRef.current
@@ -377,19 +443,19 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     for (const elementId of addedIds) {
       const lock = room.locks[elementId]
       if (!lock || lock.userUuid === room.myUserUuid) {
-        room.acquireLock(elementId)
+        acquireLock(elementId)
       }
     }
 
     for (const elementId of removedIds) {
       const lock = room.locks[elementId]
       if (lock?.userUuid === room.myUserUuid) {
-        room.releaseLock(elementId)
+        releaseLock(elementId)
       }
     }
 
     previousSelectedIdsRef.current = nextSelectedIds
-  }, [drawing.selectedIds, room])
+  }, [acquireLock, drawing.selectedIds, releaseLock, room.locks, room.myUserUuid])
 
   const handleCursorMove = useCallback(
     (cursor: { x: number; y: number; zoom: number }) => {
@@ -399,11 +465,23 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [sendCursor],
   )
 
+  const copyInviteText = useCallback((target: 'link' | 'code', text: string) => {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopiedInviteTarget(target)
+      window.setTimeout(() => setCopiedInviteTarget(null), 1400)
+      toast.success(target === 'link' ? '초대 링크를 복사했어요.' : '초대코드를 복사했어요.')
+    })
+  }, [])
+
   const handleCopyInviteCode = useCallback(() => {
     if (!room.inviteCode) return
-    void navigator.clipboard.writeText(room.inviteCode)
-    toast.success('초대코드를 복사했어요.')
-  }, [room.inviteCode])
+    copyInviteText('code', room.inviteCode)
+  }, [copyInviteText, room.inviteCode])
+
+  const handleCopyInviteLink = useCallback(() => {
+    if (typeof window === 'undefined') return
+    copyInviteText('link', window.location.href)
+  }, [copyInviteText])
 
   const handleCapture = useCallback(
     async (rect: InfinityCaptureRect, ratio: InfinityCaptureRatio) => {
@@ -412,7 +490,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
       try {
         const blob = await createStageBlob(stage, rect)
-        const output = await room.saveOutput(blob, {
+        const output = await saveOutput(blob, {
           roomCode: room.roomCode,
           revision: room.revision,
           ratio,
@@ -425,7 +503,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         toast.error('선택한 영역을 이미지로 만들지 못했어요.')
       }
     },
-    [room],
+    [room.revision, room.roomCode, saveOutput],
   )
 
   return (
@@ -472,33 +550,46 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={handleCopyInviteCode}
-        className="fixed left-1/2 top-4 z-20 h-[120px] w-[min(300px,calc(100vw-32px))] -translate-x-1/2 transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
-        aria-label={`초대코드 ${room.inviteCode ?? '-'} 복사`}
+      <section
+        className="fixed left-1/2 top-4 z-20 w-[min(326px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-[26px] border border-white/72 bg-[#3aa7f4] p-2.5 text-white shadow-[0_14px_30px_rgba(46,95,210,0.24),inset_0_1px_0_rgba(255,255,255,0.42)]"
+        aria-label="무한 캔버스 초대 공유"
       >
-        <Image
-          src="/images/infinite-canvas/invite-code.png"
-          alt=""
-          aria-hidden
-          fill
-          priority
-          sizes="300px"
-          className="object-contain drop-shadow-[0_14px_24px_rgba(55,82,190,0.24)]"
-        />
-        <div className="absolute inset-x-[18%] inset-y-[25%] grid place-items-center">
-          <span className="h2-b text-white drop-shadow-[0_3px_7px_rgba(33,45,126,0.5)]">
-            {room.inviteCode ?? '-'}
-          </span>
+        <div className="pointer-events-none absolute inset-0 bg-white/8" />
+        <div className="pointer-events-none absolute -left-8 -top-8 size-24 rounded-full bg-white/18 blur-xl" />
+        <div className="relative flex items-center justify-center gap-4">
+          <div className="min-w-0 shrink-0 text-left">
+            <p className="caption-b text-white/82">초대코드</p>
+            <p className="h3-b tracking-[0.08em] drop-shadow-[0_2px_6px_rgba(18,38,130,0.42)]">
+              {room.inviteCode ?? '-'}
+            </p>
+          </div>
+          <div className="grid shrink-0 grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={handleCopyInviteLink}
+              className="caption-b inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-white/92 px-2.5 text-[#2860c8] shadow-[0_6px_14px_rgba(36,72,170,0.16)] transition-transform hover:-translate-y-0.5"
+            >
+              <Link2 className="size-3.5" aria-hidden />
+              {copiedInviteTarget === 'link' ? '복사됨' : '링크'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyInviteCode}
+              className="caption-b inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-white/92 px-2.5 text-[#2860c8] shadow-[0_6px_14px_rgba(36,72,170,0.16)] transition-transform hover:-translate-y-0.5"
+            >
+              <Copy className="size-3.5" aria-hidden />
+              {copiedInviteTarget === 'code' ? '복사됨' : '코드'}
+            </button>
+          </div>
         </div>
-      </button>
+      </section>
 
       <InfinityParticipantsPanel
         connectionStatus={room.connectionStatus}
         isUpdatingProfile={room.isUpdatingProfile}
         maxParticipants={room.maxParticipants}
         me={room.me}
+        myUserUuid={room.myUserUuid}
         onUpdateMyColor={room.updateMyColor}
         participants={room.participants}
       />
@@ -508,34 +599,20 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           type="button"
           onClick={() => setIsCaptureMode(true)}
           disabled={room.isSavingOutput}
-          className="relative h-[56px] w-[116px] transition-transform hover:-translate-y-0.5 hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-55"
+          className="body-b inline-flex h-12 min-w-[96px] items-center justify-center gap-2 rounded-full border border-white/72 bg-[#3aa7f4] px-5 text-white shadow-[0_10px_22px_rgba(46,95,210,0.22),inset_0_1px_0_rgba(255,255,255,0.42)] transition-transform hover:-translate-y-0.5 hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-55"
           aria-label="출력"
         >
-          <Image
-            src="/images/infinite-canvas/print-button.png"
-            alt=""
-            aria-hidden
-            fill
-            priority
-            sizes="116px"
-            className="object-contain drop-shadow-[0_10px_18px_rgba(55,82,190,0.22)]"
-          />
+          <Printer className="size-4" aria-hidden />
+          출력
         </button>
         <button
           type="button"
           onClick={room.leaveCanvas}
-          className="relative h-[56px] w-[145px] transition-transform hover:-translate-y-0.5 hover:scale-[1.03]"
+          className="body-b inline-flex h-12 min-w-[106px] items-center justify-center gap-2 rounded-full border border-white/72 bg-[#3aa7f4] px-5 text-white shadow-[0_10px_22px_rgba(46,95,210,0.22),inset_0_1px_0_rgba(255,255,255,0.42)] transition-transform hover:-translate-y-0.5 hover:scale-[1.03]"
           aria-label="나가기"
         >
-          <Image
-            src="/images/infinite-canvas/exit-button.png"
-            alt=""
-            aria-hidden
-            fill
-            priority
-            sizes="145px"
-            className="object-contain drop-shadow-[0_10px_18px_rgba(55,82,190,0.22)]"
-          />
+          <LogOut className="size-4" aria-hidden />
+          나가기
         </button>
       </div>
     </div>

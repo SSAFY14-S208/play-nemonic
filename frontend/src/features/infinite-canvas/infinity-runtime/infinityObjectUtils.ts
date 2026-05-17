@@ -1,4 +1,4 @@
-import type { InfinityLine, InfinityObject, InfinityShape, InfinityText } from './constants'
+import type { InfinityFill, InfinityLine, InfinityObject, InfinityShape, InfinityText } from './constants'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -17,6 +17,20 @@ function isLine(value: unknown): value is InfinityLine {
     typeof value.strokeWidth === 'number' &&
     Array.isArray(value.points) &&
     value.points.every(isPoint)
+  )
+}
+
+function isFill(value: unknown): value is InfinityFill {
+  if (!isRecord(value)) return false
+  return (
+    value.type === 'fill' &&
+    typeof value.id === 'string' &&
+    typeof value.x === 'number' &&
+    typeof value.y === 'number' &&
+    typeof value.width === 'number' &&
+    typeof value.height === 'number' &&
+    typeof value.color === 'string' &&
+    typeof value.imageDataUrl === 'string'
   )
 }
 
@@ -48,7 +62,7 @@ function isText(value: unknown): value is InfinityText {
 }
 
 export function isInfinityObject(value: unknown): value is InfinityObject {
-  return isLine(value) || isShape(value) || isText(value)
+  return isLine(value) || isFill(value) || isShape(value) || isText(value)
 }
 
 export function toInfinityObjects(elements: unknown[]): InfinityObject[] {

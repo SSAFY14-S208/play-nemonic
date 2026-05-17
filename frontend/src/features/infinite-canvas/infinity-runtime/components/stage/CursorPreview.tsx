@@ -11,10 +11,6 @@ export function CursorPreview({ cursorRef }: CursorPreviewProps) {
   return (
     <Circle
       ref={cursorRef}
-      x={0}
-      y={0}
-      radius={0}
-      visible={false}
       fill="white"
       stroke="black"
       strokeWidth={1}

@@ -6,6 +6,7 @@ import {
   Hand,
   Lasso,
   MousePointer2,
+  PaintBucket,
   Pencil,
   Redo2,
   Square,
@@ -59,6 +60,7 @@ const TOOLS: {
 }[] = [
   { key: "pen", label: "펜", Icon: Pencil },
   { key: "eraser", label: "픽셀 지우개", Icon: Eraser },
+  { key: "bucket", label: "채우기", Icon: PaintBucket },
   { key: "select", label: "객체 선택 (V)", Icon: MousePointer2 },
   { key: "hand", label: "캔버스 이동 (H)", Icon: Hand },
   { key: "select-eraser", label: "선택 지우개", Icon: Lasso },

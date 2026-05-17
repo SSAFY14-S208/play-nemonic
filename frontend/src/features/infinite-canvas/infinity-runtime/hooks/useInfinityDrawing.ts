@@ -281,6 +281,7 @@ export function useInfinityDrawing(
     clearAll,
     clearSelection: history.silentClearSelection,
     replaceObjectsFromServer: history.replaceObjectsFromServer,
+    syncObjectsFromServer: history.syncObjectsFromServer,
 
     isShiftDown,
 
