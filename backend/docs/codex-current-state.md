@@ -1,12 +1,18 @@
 # Codex Current State
 
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 ## Current Focus
 
 - Backend agent harness has been prepared for the `backend/` Spring Boot module.
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
+- Community memo detail sharing now uses `POST /api/v1/community/memos/{memoUuid}/share`
+  to create a `ShareCreateResponse` with a QR-composed image cached under
+  `community-memo-shares/{memoUuid}/result-qr.jpg`. The flow checks
+  `Anonymous-User-UUID`, allows any existing user to share visible public memos,
+  rejects hidden/deleted/blocked memos, prefers `body_image_url` over
+  `thumbnail_image_url`, and only composes MinIO object-key based images.
 - The first real backend feature API now includes anonymous user UUID issuance through `POST /api/v1/users/anonymous`.
 - Backend runtime now sets the JVM default timezone from `nemonic.time-zone`
   (`APP_TIME_ZONE`, default `Asia/Seoul`) during application startup so

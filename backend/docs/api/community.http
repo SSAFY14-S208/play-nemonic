@@ -30,6 +30,10 @@ GET {{host}}/api/v1/community/memos/{{memoId}}
 GET {{host}}/api/v1/community/memos/{{memoId}}
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+### Create community memo share
+POST {{host}}/api/v1/community/memos/{{memoId}}/share
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Get community memo detail - invalid memo UUID
 GET {{host}}/api/v1/community/memos/not-a-uuid
 
