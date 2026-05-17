@@ -38,24 +38,24 @@ export function InfinityParticipantsPanel({
   const participantLimit = maxParticipants || participants.length
 
   return (
-    <aside className="fixed right-5 top-1/2 z-10 h-[220px] w-[288px] -translate-y-1/2 text-[#24366c]">
+    <aside className="fixed right-5 top-1/2 z-10 h-[176px] w-[300px] -translate-y-1/2 text-[#24366c]">
       <Image
-        src="/images/infinite-canvas/participant-panel-seamless-full.png"
+        src="/images/infinite-canvas/participant-panel-stretch-clean-full.png"
         alt=""
         aria-hidden
         fill
         priority
-        sizes="288px"
+        sizes="300px"
         className="object-fill drop-shadow-[0_16px_28px_rgba(55,82,190,0.18)]"
       />
-      <div className="relative z-10 flex h-full flex-col px-7 py-5">
+      <div className="relative z-10 flex h-full flex-col px-7 py-4">
         <div className="flex items-center justify-between gap-3">
           <p className="body-b text-[#25376c]">참여자</p>
           <span className="caption-b rounded-full border border-white/90 bg-white/88 px-3.5 py-1.5 text-[#31518f] shadow-[0_8px_16px_rgba(93,114,255,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]">
             {participants.length}/{participantLimit}
           </span>
         </div>
-        <ul className="mt-3 flex max-h-[82px] min-h-0 flex-col gap-2 overflow-y-auto pr-1">
+        <ul className="mt-2.5 flex max-h-[58px] min-h-0 flex-col gap-1.5 overflow-y-auto pr-1">
           {sortedParticipants.map((participant) => {
             const isMe = participant.userUuid === me?.userUuid
             const displayNickname = `${participant.nickname}${isMe ? ' (나)' : ''}`
@@ -68,7 +68,7 @@ export function InfinityParticipantsPanel({
             return (
               <li
                 key={participant.userUuid}
-                className="flex min-w-0 items-center gap-3 rounded-full border border-white/82 bg-white/76 px-3.5 py-2.5 shadow-[0_7px_14px_rgba(65,95,160,0.11),inset_0_1px_0_rgba(255,255,255,0.9)]"
+                className="flex min-w-0 items-center gap-3 rounded-full border border-white/82 bg-white/76 px-3.5 py-2 shadow-[0_7px_14px_rgba(65,95,160,0.11),inset_0_1px_0_rgba(255,255,255,0.9)]"
               >
                 <span
                   className="size-4.5 shrink-0 rounded-full border-2 border-white"
@@ -90,7 +90,7 @@ export function InfinityParticipantsPanel({
             )
           })}
         </ul>
-        <div className="mt-auto flex items-center justify-between gap-3 rounded-full border border-white/82 bg-white/68 px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
+        <div className="mt-auto flex items-center justify-between gap-3 rounded-full border border-white/82 bg-white/68 px-4 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
           <span className="caption-b text-[#49679d]">연결 상태</span>
           <span className="caption-b text-[#31518f]">{getConnectionText(connectionStatus)}</span>
         </div>
