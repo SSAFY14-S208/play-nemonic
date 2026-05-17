@@ -234,7 +234,8 @@ export function parseHubFocusKey(
     value === 'monitor' ||
     value === 'workspace' ||
     value === 'printer' ||
-    value === 'pegboard'
+    value === 'pegboard' ||
+    value === 'communityBoard'
   ) {
     return value
   }
@@ -258,7 +259,7 @@ export const HUB_CAMERA_PRESETS: Record<
   }
 > = {
   overview: {
-    position: [2.45, 5.05, 4.75],
+    position: [0.10, 3.81, 1.19],
     target: [-2.55, 2.42, -2.82],
   },
   mainDesk: {
@@ -280,5 +281,9 @@ export const HUB_CAMERA_PRESETS: Record<
   pegboard: {
     position: [-2.95, 4.42, 1.36],
     target: [-4.78, 3.62, -1.03],
+  },
+  communityBoard: {
+    position: [-1.87, 3.79, -0.42],
+    target: [-5.37, 3.79, -0.42],
   },
 }

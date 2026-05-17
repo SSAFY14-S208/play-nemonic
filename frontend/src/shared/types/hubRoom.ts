@@ -5,6 +5,7 @@ export type HubFocusKey =
   | 'workspace'
   | 'printer'
   | 'pegboard'
+  | 'communityBoard'
 
 export type HubPerformanceMode = 'diagnostic' | 'balanced' | 'quality'
 
