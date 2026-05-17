@@ -74,6 +74,7 @@ interface UseFlipbookRealtimeEventHandlerOptions {
       syncStep?: boolean
     },
   ) => Promise<FlipbookRoomStateResponse | null>
+  markRoomDismissed: (roomCode: string) => void
   scheduleRoundTransitionFallback: (
     roomCode: string,
     submittedFrame: Partial<FlipbookFrameSubmitResponse>,
@@ -113,6 +114,7 @@ export function useFlipbookRealtimeEventHandler({
   handleCompletedRounds,
   refreshPlayingRound,
   refreshRoom,
+  markRoomDismissed,
   scheduleRoundTransitionFallback,
   setAssignment,
   setCurrentStep,
@@ -418,16 +420,19 @@ export function useFlipbookRealtimeEventHandler({
         }
 
         if (event.type === 'ROOM_CLOSED') {
+          markRoomDismissed(event.roomCode)
           resetRoomToBooth('방이 종료되었습니다.')
           return
         }
 
         if (event.type === 'KICKED_FROM_ROOM') {
+          markRoomDismissed(event.roomCode)
           resetRoomToBooth('방에서 내보내졌습니다.')
           return
         }
 
         if (event.type === 'DUPLICATE_SESSION_CLOSED') {
+          markRoomDismissed(event.roomCode)
           setErrorMessage('다른 탭에서 같은 계정으로 접속해 현재 연결이 종료되었습니다.')
           return
         }
@@ -449,6 +454,7 @@ export function useFlipbookRealtimeEventHandler({
       clearRoundTransitionFallbackTimer,
       fetchResult,
       handleCompletedRounds,
+      markRoomDismissed,
       refreshPlayingRound,
       refreshRoom,
       resetRoomToBooth,

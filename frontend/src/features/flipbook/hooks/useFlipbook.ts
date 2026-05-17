@@ -129,7 +129,6 @@ function replaceBrowserFlipbookUrl(step: FlipbookStep, roomCode?: string | null)
   const currentHref = currentQuery ? `${currentPath}?${currentQuery}` : currentPath
 
   if (currentHref !== nextHref) {
-    debugFlipbook('replaceBrowserFlipbookUrl', { currentHref, nextHref })
     window.history.replaceState(null, '', nextHref)
   }
 }
@@ -137,7 +136,6 @@ function replaceBrowserFlipbookUrl(step: FlipbookStep, roomCode?: string | null)
 function scheduleBrowserFlipbookUrlCorrection(step: FlipbookStep, roomCode?: string | null) {
   if (typeof window === 'undefined') return
 
-  debugFlipbook('scheduleBrowserFlipbookUrlCorrection', { step, roomCode })
   window.setTimeout(() => replaceBrowserFlipbookUrl(step, roomCode), 800)
   window.setTimeout(() => replaceBrowserFlipbookUrl(step, roomCode), 1600)
 }
@@ -312,10 +310,6 @@ function setActiveFlipbookRoomCode(roomCode: string | null) {
   activeFlipbookRoomCode = roomCode
 }
 
-function debugFlipbook(label: string, data: Record<string, unknown> = {}) {
-  console.info(`[flipbook-debug] ${label} ${JSON.stringify(data)}`)
-}
-
 export function useFlipbook({
   routeStep = 'booth',
   onStepChange,
@@ -348,12 +342,6 @@ export function useFlipbook({
         replace?: boolean
       },
     ) => {
-      debugFlipbook('setCurrentStep', {
-        step,
-        options,
-        activeRoomCode: getActiveFlipbookRoomCode(),
-        path: typeof window === 'undefined' ? null : window.location.href,
-      })
       setCurrentStepState(step)
       onStepChange?.(step, options)
       scheduleBrowserFlipbookUrlCorrection(step, options?.roomCode ?? null)
@@ -439,11 +427,6 @@ export function useFlipbook({
 
   const startActionRequest = useCallback(() => {
     actionRequestSequenceRef.current += 1
-    debugFlipbook('startActionRequest', {
-      actionRequestSequence: actionRequestSequenceRef.current,
-      activeRoomCode: getActiveFlipbookRoomCode(),
-      path: typeof window === 'undefined' ? null : window.location.href,
-    })
 
     return actionRequestSequenceRef.current
   }, [])
@@ -663,11 +646,6 @@ export function useFlipbook({
       linkRoomCodeHandledRef.current = leavingRoomCode
       markRouteRoomCodesHandled(leavingRoomCode)
       markFlipbookRoomDismissed(leavingRoomCode)
-      debugFlipbook('detachActiveRoom', {
-        roomCode: leavingRoomCode,
-        status: roomState?.status,
-        activeRoomCode: getActiveFlipbookRoomCode(),
-      })
       setActiveFlipbookRoomCode(null)
       connectedRoomProgressSyncRef.current = null
       activeRoomProgressSyncRequestRef.current = null
@@ -756,29 +734,12 @@ export function useFlipbook({
       } = {},
     ) => {
       if (!targetRoomCode) return null
-      debugFlipbook('refreshRoom:start', {
-        targetRoomCode,
-        activeRoomCode: getActiveFlipbookRoomCode(),
-        options,
-        path: typeof window === 'undefined' ? null : window.location.href,
-      })
       const nextRoomState = await getFlipbookRoom(targetRoomCode)
-      debugFlipbook('refreshRoom:fetched', {
-        targetRoomCode,
-        activeRoomCode: getActiveFlipbookRoomCode(),
-        status: nextRoomState.status,
-        hasParticipant: Boolean(nextRoomState.viewer.participant),
-        path: typeof window === 'undefined' ? null : window.location.href,
-      })
       const activeRoomCode = getActiveFlipbookRoomCode()
       if (
         hasFlipbookRoomDismissed(targetRoomCode) ||
         (activeRoomCode !== null && activeRoomCode !== targetRoomCode)
       ) {
-        debugFlipbook('refreshRoom:staleSkip', {
-          targetRoomCode,
-          activeRoomCode,
-        })
         return null
       }
 
@@ -971,23 +932,12 @@ export function useFlipbook({
       observedAssignment: FlipbookAssignmentResponse | null = assignment,
     ) => {
       if (!targetRoomCode) return null
-      debugFlipbook('syncActiveRoomProgress:start', {
-        targetRoomCode,
-        activeRoomCode: getActiveFlipbookRoomCode(),
-        path: typeof window === 'undefined' ? null : window.location.href,
-      })
       if (activeRoomProgressSyncRequestRef.current?.roomCode === targetRoomCode) {
         return activeRoomProgressSyncRequestRef.current.request
       }
 
       const syncRequest = (async () => {
         const nextRoomState = await refreshRoom(targetRoomCode, { syncStep: false })
-        debugFlipbook('syncActiveRoomProgress:refreshed', {
-          targetRoomCode,
-          activeRoomCode: getActiveFlipbookRoomCode(),
-          status: nextRoomState?.status ?? null,
-          path: typeof window === 'undefined' ? null : window.location.href,
-        })
         const activeRoomCode = getActiveFlipbookRoomCode()
         if (
           !nextRoomState ||
@@ -1099,6 +1049,7 @@ export function useFlipbook({
     fetchResult,
     refreshPlayingRound,
     refreshRoom,
+    markRoomDismissed: markFlipbookRoomDismissed,
     scheduleRoundTransitionFallback,
     setAssignment,
     setCurrentStep,
@@ -1172,13 +1123,6 @@ export function useFlipbook({
   )
 
   const performCreateRoom = useCallback(async () => {
-    debugFlipbook('performCreateRoom:entry', {
-      userUuid: Boolean(userUuid),
-      createRoomRequestInFlight: createRoomRequestInFlightRef.current,
-      activeRoomCode: getActiveFlipbookRoomCode(),
-      roomCode,
-      path: typeof window === 'undefined' ? null : window.location.href,
-    })
     if (!userUuid || createRoomRequestInFlightRef.current) return
     if (getActiveFlipbookRoomCode() ?? roomCode) {
       await detachActiveRoom()
@@ -1186,11 +1130,6 @@ export function useFlipbook({
 
     const requestSequence = startActionRequest()
     const routeRoomCode = readRouteRoomCode()
-    debugFlipbook('performCreateRoom:start', {
-      requestSequence,
-      routeRoomCode,
-      activeRoomCode: getActiveFlipbookRoomCode(),
-    })
     if (routeRoomCode) {
       linkRoomCodeHandledRef.current = routeRoomCode
     }
@@ -1201,23 +1140,12 @@ export function useFlipbook({
 
     try {
       const createdRoom = await postFlipbookRoom()
-      debugFlipbook('performCreateRoom:created', {
-        requestSequence,
-        createdRoomCode: createdRoom.roomCode,
-        currentActionRequestSequence: actionRequestSequenceRef.current,
-      })
       if (!isCurrentActionRequest(requestSequence)) return
 
       setRoomCode(createdRoom.roomCode)
       setRoomCodeDraft(createdRoom.roomCode)
       linkRoomCodeHandledRef.current = createdRoom.roomCode
       await refreshRoom(createdRoom.roomCode, { actionRequestSequence: requestSequence })
-      debugFlipbook('performCreateRoom:refreshed', {
-        requestSequence,
-        createdRoomCode: createdRoom.roomCode,
-        activeRoomCode: getActiveFlipbookRoomCode(),
-        currentActionRequestSequence: actionRequestSequenceRef.current,
-      })
       if (!isCurrentActionRequest(requestSequence)) return
 
       completeFunnelStep('nickname', 1, { content_type: 'flipbook' })
@@ -1237,11 +1165,6 @@ export function useFlipbook({
 
       setErrorMessage(actionError.message || '방 생성에 실패했습니다.')
     } finally {
-      debugFlipbook('performCreateRoom:finally', {
-        requestSequence,
-        activeRoomCode: getActiveFlipbookRoomCode(),
-        currentActionRequestSequence: actionRequestSequenceRef.current,
-      })
       createRoomRequestInFlightRef.current = false
       if (isCurrentActionRequest(requestSequence)) {
         setIsBusy(false)
@@ -1789,15 +1712,6 @@ export function useFlipbook({
       if (!targetRoomCode || cancelled) return
       if (!targetRoomCode) return
       const activeRoomCode = getActiveFlipbookRoomCode()
-      debugFlipbook('routeRoomEffect:start', {
-        targetRoomCode,
-        activeRoomCode,
-        handled: hasRouteRoomCodeHandled(targetRoomCode),
-        createRoomRequestInFlight: createRoomRequestInFlightRef.current,
-        roomCode,
-        linkHandled: linkRoomCodeHandledRef.current,
-        path: typeof window === 'undefined' ? null : window.location.href,
-      })
       if (hasRouteRoomCodeHandled(targetRoomCode) && activeRoomCode !== targetRoomCode) return
       if (createRoomRequestInFlightRef.current) return
       if (activeRoomCode && activeRoomCode !== targetRoomCode) return
