@@ -31,9 +31,10 @@ export default function FlipbookPage() {
       const nextPath = getFlipbookStepPath(step)
       const roomCodeQuery = options.roomCode ? `?roomCode=${options.roomCode}` : ''
       const nextHref = `${nextPath}${roomCodeQuery}`
+      const currentPath = typeof window === 'undefined' ? pathname : window.location.pathname
       const currentQuery =
         typeof window === 'undefined' ? '' : window.location.search.replace(/^\?/, '')
-      const currentHref = currentQuery ? `${pathname}?${currentQuery}` : pathname
+      const currentHref = currentQuery ? `${currentPath}?${currentQuery}` : currentPath
 
       if (currentHref !== nextHref) {
         if (options.replace) {

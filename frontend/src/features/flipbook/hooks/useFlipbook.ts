@@ -33,6 +33,7 @@ import type {
 import {
   FLIPBOOK_BACKGROUND_COLOR,
   FLIPBOOK_BOARD_SIZE,
+  getFlipbookStepPath,
 } from '../constants'
 import type {
   FlipbookStep,
@@ -65,7 +66,82 @@ const RESULT_POLLING_INTERVAL_MS = 1500
 const SUBMITTED_ROUND_POLLING_INTERVAL_MS = 5000
 const ASSIGNMENT_RETRY_DELAYS_MS = [1000, 2000, 3000, 5000]
 const SUBMITTED_DRAWING_LINES_STORAGE_KEY = 'flipbook-submitted-drawing-lines:v1'
+const HANDLED_ROUTE_ROOM_CODES_STORAGE_KEY = 'flipbook-handled-route-room-codes:v1'
 const handledRouteRoomCodes = new Set<string>()
+const dismissedFlipbookRoomCodes = new Set<string>()
+let activeFlipbookRoomCode: string | null = null
+
+type FlipbookHandledRouteRoomCodeWindow = Window & {
+  __flipbookHandledRouteRoomCodes?: Set<string>
+}
+
+function getHandledRouteRoomCodes() {
+  if (typeof window === 'undefined') return handledRouteRoomCodes
+
+  const browserWindow = window as FlipbookHandledRouteRoomCodeWindow
+  browserWindow.__flipbookHandledRouteRoomCodes ??= new Set<string>()
+
+  return browserWindow.__flipbookHandledRouteRoomCodes
+}
+
+function readStoredHandledRouteRoomCodes() {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const storedRoomCodes = window.sessionStorage.getItem(HANDLED_ROUTE_ROOM_CODES_STORAGE_KEY)
+    const parsedRoomCodes: unknown = storedRoomCodes ? JSON.parse(storedRoomCodes) : []
+
+    if (!Array.isArray(parsedRoomCodes)) return []
+
+    return parsedRoomCodes.filter(
+      (roomCode): roomCode is string => typeof roomCode === 'string' && roomCode !== '',
+    )
+  } catch {
+    return []
+  }
+}
+
+function writeStoredHandledRouteRoomCodes(roomCodes: string[]) {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.sessionStorage.setItem(
+      HANDLED_ROUTE_ROOM_CODES_STORAGE_KEY,
+      JSON.stringify(Array.from(new Set(roomCodes))),
+    )
+  } catch {
+    // sessionStorage can be unavailable in restricted browser modes.
+  }
+}
+
+function getFlipbookStepHref(step: FlipbookStep, roomCode?: string | null) {
+  const roomCodeQuery = roomCode ? `?roomCode=${roomCode}` : ''
+
+  return `${getFlipbookStepPath(step)}${roomCodeQuery}`
+}
+
+function replaceBrowserFlipbookUrl(step: FlipbookStep, roomCode?: string | null) {
+  if (typeof window === 'undefined') return
+
+  const nextHref = getFlipbookStepHref(step, roomCode)
+  const currentPath = window.location.pathname
+  const currentQuery = window.location.search.replace(/^\?/, '')
+  const currentHref = currentQuery ? `${currentPath}?${currentQuery}` : currentPath
+
+  if (currentHref !== nextHref) {
+    debugFlipbook('replaceBrowserFlipbookUrl', { currentHref, nextHref })
+    window.history.replaceState(null, '', nextHref)
+  }
+}
+
+function scheduleBrowserFlipbookUrlCorrection(step: FlipbookStep, roomCode?: string | null) {
+  if (typeof window === 'undefined') return
+
+  debugFlipbook('scheduleBrowserFlipbookUrlCorrection', { step, roomCode })
+  window.setTimeout(() => replaceBrowserFlipbookUrl(step, roomCode), 800)
+  window.setTimeout(() => replaceBrowserFlipbookUrl(step, roomCode), 1600)
+}
+
 const BLOCKED_REASON_MESSAGE: Record<FlipbookBlockedReason, string> = {
   ROOM_FULL: '정원이 가득 찬 플립북 방입니다.',
   GAME_IN_PROGRESS: '이미 게임이 진행 중인 방입니다.',
@@ -181,16 +257,63 @@ function isDummyResultPreviewRoute() {
 }
 
 function markRouteRoomCodesHandled(...roomCodes: Array<string | null | undefined>) {
+  const storedRoomCodes = readStoredHandledRouteRoomCodes()
+  let shouldWriteStoredRoomCodes = false
+
   roomCodes.forEach((roomCode) => {
     const normalizedRoomCode = roomCode?.trim().toUpperCase()
     if (normalizedRoomCode) {
-      handledRouteRoomCodes.add(normalizedRoomCode)
+      getHandledRouteRoomCodes().add(normalizedRoomCode)
+      storedRoomCodes.push(normalizedRoomCode)
+      shouldWriteStoredRoomCodes = true
     }
   })
+
+  if (shouldWriteStoredRoomCodes) {
+    writeStoredHandledRouteRoomCodes(storedRoomCodes)
+  }
 }
 
 function hasRouteRoomCodeHandled(roomCode: string | null) {
-  return roomCode !== null && handledRouteRoomCodes.has(roomCode)
+  const normalizedRoomCode = roomCode?.trim().toUpperCase() ?? ''
+
+  return (
+    normalizedRoomCode !== '' &&
+    (getHandledRouteRoomCodes().has(normalizedRoomCode) ||
+      readStoredHandledRouteRoomCodes().includes(normalizedRoomCode))
+  )
+}
+
+function markFlipbookRoomDismissed(roomCode: string | null) {
+  const normalizedRoomCode = roomCode?.trim().toUpperCase()
+  if (!normalizedRoomCode) return
+
+  dismissedFlipbookRoomCodes.add(normalizedRoomCode)
+}
+
+function hasFlipbookRoomDismissed(roomCode: string | null) {
+  const normalizedRoomCode = roomCode?.trim().toUpperCase() ?? ''
+
+  return normalizedRoomCode !== '' && dismissedFlipbookRoomCodes.has(normalizedRoomCode)
+}
+
+function resetFlipbookRoomDismissed(roomCode: string | null) {
+  const normalizedRoomCode = roomCode?.trim().toUpperCase()
+  if (!normalizedRoomCode) return
+
+  dismissedFlipbookRoomCodes.delete(normalizedRoomCode)
+}
+
+function getActiveFlipbookRoomCode() {
+  return activeFlipbookRoomCode
+}
+
+function setActiveFlipbookRoomCode(roomCode: string | null) {
+  activeFlipbookRoomCode = roomCode
+}
+
+function debugFlipbook(label: string, data: Record<string, unknown> = {}) {
+  console.info(`[flipbook-debug] ${label} ${JSON.stringify(data)}`)
 }
 
 export function useFlipbook({
@@ -210,7 +333,7 @@ export function useFlipbook({
     defaultStrokeWidth: DEFAULT_DRAWING_STROKE_WIDTH,
   })
   const replaceDrawingLines = drawingBoard.replaceLines
-  // FlipbookPage가 booth + session 라우트에 양쪽으로 마운트되므로(layout.tsx 공유),
+  // FlipbookPage는 flipbook/layout.tsx에서 한 번만 마운트된다.
   // 진입 step이 booth일 때만 funnel을 시작한다. lobby/drawing/result로 직접 진입한
   // 경우(예: 새로고침)는 funnel을 새로 시작하지 않는다 — 진행 중 funnel 정합성
   // 보존이 우선.
@@ -225,12 +348,23 @@ export function useFlipbook({
         replace?: boolean
       },
     ) => {
+      debugFlipbook('setCurrentStep', {
+        step,
+        options,
+        activeRoomCode: getActiveFlipbookRoomCode(),
+        path: typeof window === 'undefined' ? null : window.location.href,
+      })
       setCurrentStepState(step)
       onStepChange?.(step, options)
+      scheduleBrowserFlipbookUrlCorrection(step, options?.roomCode ?? null)
     },
     [onStepChange],
   )
-  const [roomCode, setRoomCode] = useState<string | null>(null)
+  const [roomCode, setRoomCodeState] = useState<string | null>(null)
+  const setRoomCode = useCallback((nextRoomCode: string | null) => {
+    setActiveFlipbookRoomCode(nextRoomCode)
+    setRoomCodeState(nextRoomCode)
+  }, [])
   const [roomCodeDraft, setRoomCodeDraft] = useState('')
   const [roomState, setRoomState] = useState<FlipbookRoomStateResponse | null>(null)
   const [assignment, setAssignment] = useState<FlipbookAssignmentResponse | null>(null)
@@ -270,6 +404,7 @@ export function useFlipbook({
   const roundTransitionFallbackTimerRef = useRef<number | null>(null)
   const pendingNicknameActionRef = useRef<FlipbookNicknamePendingAction | null>(null)
   const pendingTimeLimitSecondsRef = useRef<FlipbookTimeLimitSeconds | null>(null)
+  const previousRouteStepRef = useRef(routeStep)
   const connectedRoomProgressSyncRef = useRef<string | null>(null)
   const activeRoomProgressSyncRequestRef = useRef<{
     roomCode: string
@@ -304,6 +439,11 @@ export function useFlipbook({
 
   const startActionRequest = useCallback(() => {
     actionRequestSequenceRef.current += 1
+    debugFlipbook('startActionRequest', {
+      actionRequestSequence: actionRequestSequenceRef.current,
+      activeRoomCode: getActiveFlipbookRoomCode(),
+      path: typeof window === 'undefined' ? null : window.location.href,
+    })
 
     return actionRequestSequenceRef.current
   }, [])
@@ -442,7 +582,7 @@ export function useFlipbook({
     return () => {
       cancelled = true
     }
-  }, [routeStep, showReadyResult])
+  }, [routeStep, setRoomCode, showReadyResult])
 
   const resetDrawingRound = useCallback(() => {
     drawingBoard.replaceLines([])
@@ -485,6 +625,8 @@ export function useFlipbook({
       setTimeUpSubmitRequest(null)
       setIsSubmitting(false)
       pendingTimeLimitSecondsRef.current = null
+      connectedRoomProgressSyncRef.current = null
+      activeRoomProgressSyncRequestRef.current = null
       clearRoundTransitionFallbackTimer()
       clearDrawingRound()
 
@@ -500,8 +642,110 @@ export function useFlipbook({
         setErrorMessage(null)
       }
     },
-    [clearDrawingRound, clearRoundTransitionFallbackTimer],
+    [clearDrawingRound, clearRoundTransitionFallbackTimer, setRoomCode],
   )
+
+  const detachActiveRoom = useCallback(
+    async ({
+      clearError = true,
+      shouldLogAbandonment = true,
+    }: {
+      clearError?: boolean
+      shouldLogAbandonment?: boolean
+    } = {}) => {
+      const leavingRoomCode = getActiveFlipbookRoomCode() ?? roomCode
+
+      if (!leavingRoomCode) {
+        resetRoomSession({ clearResult: true, clearError })
+        return
+      }
+
+      linkRoomCodeHandledRef.current = leavingRoomCode
+      markRouteRoomCodesHandled(leavingRoomCode)
+      markFlipbookRoomDismissed(leavingRoomCode)
+      debugFlipbook('detachActiveRoom', {
+        roomCode: leavingRoomCode,
+        status: roomState?.status,
+        activeRoomCode: getActiveFlipbookRoomCode(),
+      })
+      setActiveFlipbookRoomCode(null)
+      connectedRoomProgressSyncRef.current = null
+      activeRoomProgressSyncRequestRef.current = null
+
+      if (shouldLogAbandonment) {
+        const status = roomState?.status
+        if (status === 'WAITING') {
+          logEvent('room_lobby_abandoned', {
+            contentType: 'flipbook',
+            roomId: leavingRoomCode,
+            metadata: {
+              content_type: 'flipbook',
+              room_id: leavingRoomCode,
+              participant_count: roomState ? getRoomParticipantCount(roomState) : undefined,
+            },
+          })
+        } else if (status === 'PLAYING' || status === 'FINALIZING') {
+          const assignmentKey = assignment ? getAssignmentKey(assignment) : null
+          const submitted = assignmentKey
+            ? submittedAssignmentKeys.has(assignmentKey) ||
+              isFlipbookAssignmentSubmitted(assignment)
+            : false
+          if (!submitted) {
+            logEvent('creation_abandoned', {
+              contentType: 'flipbook',
+              roomId: leavingRoomCode,
+              metadata: {
+                content_type: 'flipbook',
+                funnel_name: 'flipbook_room_creation',
+                step_name: 'drawing',
+              },
+            })
+          }
+        } else if (status === 'FINISHED') {
+          logEvent('result_share_abandoned', {
+            contentType: 'flipbook',
+            roomId: leavingRoomCode,
+            metadata: {
+              content_type: 'flipbook',
+            },
+          })
+        }
+      }
+
+      resetRoomSession({ clearResult: true, clearError })
+
+      try {
+        await deleteFlipbookRoomParticipantMe(leavingRoomCode)
+      } catch {
+        // The room can already be closed/kicked/expired; local exit should still complete.
+      }
+    },
+    [assignment, resetRoomSession, roomCode, roomState, submittedAssignmentKeys],
+  )
+
+  useEffect(() => {
+    if (!roomCode) return
+    resetFlipbookRoomDismissed(roomCode)
+
+    return () => {
+      if (!hasFlipbookRoomDismissed(roomCode)) {
+        void deleteFlipbookRoomParticipantMe(roomCode).catch(() => {})
+      }
+      if (getActiveFlipbookRoomCode() === roomCode) {
+        setActiveFlipbookRoomCode(null)
+      }
+      resetFlipbookRoomDismissed(roomCode)
+    }
+  }, [roomCode])
+
+  useEffect(() => {
+    const previousRouteStep = previousRouteStepRef.current
+    previousRouteStepRef.current = routeStep
+
+    if (routeStep !== 'booth' || previousRouteStep === 'booth' || !roomCode) return
+
+    void detachActiveRoom()
+  }, [detachActiveRoom, roomCode, routeStep])
 
   const refreshRoom = useCallback(
     async (
@@ -512,7 +756,32 @@ export function useFlipbook({
       } = {},
     ) => {
       if (!targetRoomCode) return null
+      debugFlipbook('refreshRoom:start', {
+        targetRoomCode,
+        activeRoomCode: getActiveFlipbookRoomCode(),
+        options,
+        path: typeof window === 'undefined' ? null : window.location.href,
+      })
       const nextRoomState = await getFlipbookRoom(targetRoomCode)
+      debugFlipbook('refreshRoom:fetched', {
+        targetRoomCode,
+        activeRoomCode: getActiveFlipbookRoomCode(),
+        status: nextRoomState.status,
+        hasParticipant: Boolean(nextRoomState.viewer.participant),
+        path: typeof window === 'undefined' ? null : window.location.href,
+      })
+      const activeRoomCode = getActiveFlipbookRoomCode()
+      if (
+        hasFlipbookRoomDismissed(targetRoomCode) ||
+        (activeRoomCode !== null && activeRoomCode !== targetRoomCode)
+      ) {
+        debugFlipbook('refreshRoom:staleSkip', {
+          targetRoomCode,
+          activeRoomCode,
+        })
+        return null
+      }
+
       if (
         options.actionRequestSequence !== undefined &&
         !isCurrentActionRequest(options.actionRequestSequence)
@@ -702,12 +971,31 @@ export function useFlipbook({
       observedAssignment: FlipbookAssignmentResponse | null = assignment,
     ) => {
       if (!targetRoomCode) return null
+      debugFlipbook('syncActiveRoomProgress:start', {
+        targetRoomCode,
+        activeRoomCode: getActiveFlipbookRoomCode(),
+        path: typeof window === 'undefined' ? null : window.location.href,
+      })
       if (activeRoomProgressSyncRequestRef.current?.roomCode === targetRoomCode) {
         return activeRoomProgressSyncRequestRef.current.request
       }
 
       const syncRequest = (async () => {
         const nextRoomState = await refreshRoom(targetRoomCode, { syncStep: false })
+        debugFlipbook('syncActiveRoomProgress:refreshed', {
+          targetRoomCode,
+          activeRoomCode: getActiveFlipbookRoomCode(),
+          status: nextRoomState?.status ?? null,
+          path: typeof window === 'undefined' ? null : window.location.href,
+        })
+        const activeRoomCode = getActiveFlipbookRoomCode()
+        if (
+          !nextRoomState ||
+          hasFlipbookRoomDismissed(targetRoomCode) ||
+          (activeRoomCode !== null && activeRoomCode !== targetRoomCode)
+        ) {
+          return nextRoomState
+        }
 
         if (nextRoomState?.status === 'WAITING') {
           setCurrentStep('lobby', { roomCode: targetRoomCode })
@@ -884,27 +1172,52 @@ export function useFlipbook({
   )
 
   const performCreateRoom = useCallback(async () => {
+    debugFlipbook('performCreateRoom:entry', {
+      userUuid: Boolean(userUuid),
+      createRoomRequestInFlight: createRoomRequestInFlightRef.current,
+      activeRoomCode: getActiveFlipbookRoomCode(),
+      roomCode,
+      path: typeof window === 'undefined' ? null : window.location.href,
+    })
     if (!userUuid || createRoomRequestInFlightRef.current) return
+    if (getActiveFlipbookRoomCode() ?? roomCode) {
+      await detachActiveRoom()
+    }
 
     const requestSequence = startActionRequest()
     const routeRoomCode = readRouteRoomCode()
+    debugFlipbook('performCreateRoom:start', {
+      requestSequence,
+      routeRoomCode,
+      activeRoomCode: getActiveFlipbookRoomCode(),
+    })
     if (routeRoomCode) {
       linkRoomCodeHandledRef.current = routeRoomCode
     }
     createRoomRequestInFlightRef.current = true
     resetRoomSession({ clearRoomCodeDraft: true, clearResult: true, clearError: true })
-    setCurrentStep('booth', { replace: true })
     setIsBusy(true)
     setErrorMessage(null)
 
     try {
       const createdRoom = await postFlipbookRoom()
+      debugFlipbook('performCreateRoom:created', {
+        requestSequence,
+        createdRoomCode: createdRoom.roomCode,
+        currentActionRequestSequence: actionRequestSequenceRef.current,
+      })
       if (!isCurrentActionRequest(requestSequence)) return
 
       setRoomCode(createdRoom.roomCode)
       setRoomCodeDraft(createdRoom.roomCode)
       linkRoomCodeHandledRef.current = createdRoom.roomCode
       await refreshRoom(createdRoom.roomCode, { actionRequestSequence: requestSequence })
+      debugFlipbook('performCreateRoom:refreshed', {
+        requestSequence,
+        createdRoomCode: createdRoom.roomCode,
+        activeRoomCode: getActiveFlipbookRoomCode(),
+        currentActionRequestSequence: actionRequestSequenceRef.current,
+      })
       if (!isCurrentActionRequest(requestSequence)) return
 
       completeFunnelStep('nickname', 1, { content_type: 'flipbook' })
@@ -924,6 +1237,11 @@ export function useFlipbook({
 
       setErrorMessage(actionError.message || '방 생성에 실패했습니다.')
     } finally {
+      debugFlipbook('performCreateRoom:finally', {
+        requestSequence,
+        activeRoomCode: getActiveFlipbookRoomCode(),
+        currentActionRequestSequence: actionRequestSequenceRef.current,
+      })
       createRoomRequestInFlightRef.current = false
       if (isCurrentActionRequest(requestSequence)) {
         setIsBusy(false)
@@ -931,10 +1249,13 @@ export function useFlipbook({
     }
   }, [
     isCurrentActionRequest,
+    detachActiveRoom,
     openNicknameModal,
     readRouteRoomCode,
     refreshRoom,
     resetRoomSession,
+    roomCode,
+    setRoomCode,
     setCurrentStep,
     startActionRequest,
     userUuid,
@@ -952,6 +1273,10 @@ export function useFlipbook({
     if (!targetRoomCode) {
       setErrorMessage('입장 코드를 입력해주세요.')
       return
+    }
+
+    if (getActiveFlipbookRoomCode() ?? roomCode) {
+      await detachActiveRoom()
     }
 
     const requestSequence = startActionRequest()
@@ -1009,12 +1334,15 @@ export function useFlipbook({
       }
     }
   }, [
+    detachActiveRoom,
     isBusy,
     isCurrentActionRequest,
     fetchAssignment,
     openNicknameModal,
     refreshRoom,
+    roomCode,
     roomCodeDraft,
+    setRoomCode,
     startActionRequest,
     syncActiveRoomProgress,
     userUuid,
@@ -1060,6 +1388,9 @@ export function useFlipbook({
       try {
         const routeRoom = await getFlipbookRoom(targetRoomCode)
         if (!isCurrentActionRequest(requestSequence)) return
+        const activeRoomCode = getActiveFlipbookRoomCode()
+        if (hasRouteRoomCodeHandled(targetRoomCode) && activeRoomCode !== routeRoom.roomCode) return
+        if (activeRoomCode && activeRoomCode !== routeRoom.roomCode) return
 
         if (!routeRoom.viewer.participant && !routeRoom.viewer.canJoin) {
           markRouteRoomCodesHandled(targetRoomCode, routeRoom.roomCode)
@@ -1144,6 +1475,7 @@ export function useFlipbook({
       openNicknameModal,
       refreshRoom,
       resetRoomSession,
+      setRoomCode,
       setCurrentStep,
       startActionRequest,
       syncActiveRoomProgress,
@@ -1377,73 +1709,10 @@ export function useFlipbook({
   const leaveRoom = useCallback(() => {
     void (async () => {
       startActionRequest()
-
-      if (!roomCode) {
-        resetRoomSession({ clearResult: true })
-        setCurrentStep('booth')
-        return
-      }
-      linkRoomCodeHandledRef.current = roomCode
-
-      // 명시적 나가기 — 현재 step에 따른 이탈 이벤트 1종 발사.
-      const status = roomState?.status
-      if (status === 'WAITING') {
-        logEvent('room_lobby_abandoned', {
-          contentType: 'flipbook',
-          roomId: roomCode,
-          metadata: {
-            content_type: 'flipbook',
-            room_id: roomCode,
-            participant_count: roomState ? getRoomParticipantCount(roomState) : undefined,
-          },
-        })
-      } else if (status === 'PLAYING' || status === 'FINALIZING') {
-        const assignmentKey = assignment ? getAssignmentKey(assignment) : null
-        const submitted = assignmentKey
-          ? submittedAssignmentKeys.has(assignmentKey) ||
-            isFlipbookAssignmentSubmitted(assignment)
-          : false
-        if (!submitted) {
-          logEvent('creation_abandoned', {
-            contentType: 'flipbook',
-            roomId: roomCode,
-            metadata: {
-              content_type: 'flipbook',
-              funnel_name: 'flipbook_room_creation',
-              step_name: 'drawing',
-            },
-          })
-        }
-      } else if (status === 'FINISHED') {
-        logEvent('result_share_abandoned', {
-          contentType: 'flipbook',
-          roomId: roomCode,
-          metadata: {
-            content_type: 'flipbook',
-          },
-        })
-      }
-
-      if (status === 'WAITING') {
-        try {
-          await deleteFlipbookRoomParticipantMe(roomCode)
-        } catch {
-          // 이미 방이 닫혔거나 참여 상태가 아닐 수 있으므로 화면 이탈은 계속 진행한다.
-        }
-      }
-
-      resetRoomSession({ clearResult: true })
+      await detachActiveRoom()
       setCurrentStep('booth')
     })()
-  }, [
-    assignment,
-    resetRoomSession,
-    roomCode,
-    roomState,
-    setCurrentStep,
-    startActionRequest,
-    submittedAssignmentKeys,
-  ])
+  }, [detachActiveRoom, setCurrentStep, startActionRequest])
 
   const closeRoom = useCallback(() => {
     if (!roomCode || !isHost || roomState?.status !== 'FINISHED') return
@@ -1458,6 +1727,8 @@ export function useFlipbook({
         if (!isCurrentActionRequest(requestSequence)) return
 
         linkRoomCodeHandledRef.current = roomCode
+        markRouteRoomCodesHandled(roomCode)
+        markFlipbookRoomDismissed(roomCode)
         resetRoomSession({ clearResult: true })
         setCurrentStep('booth')
         setErrorMessage('플립북 방을 종료했습니다.')
@@ -1484,11 +1755,10 @@ export function useFlipbook({
   const selectStep = useCallback(
     (step: FlipbookStep) => {
       if (step === 'booth') {
-        if (roomCode) {
-          linkRoomCodeHandledRef.current = roomCode
-        }
         startActionRequest()
-        resetRoomSession({ clearResult: true })
+        void detachActiveRoom()
+        setCurrentStep(step)
+        return
       }
 
       if (step === 'drawing') {
@@ -1502,10 +1772,9 @@ export function useFlipbook({
       setCurrentStep(step)
     },
     [
+      detachActiveRoom,
       resetDrawingRound,
-      resetRoomSession,
       resultPlayback,
-      roomCode,
       setCurrentStep,
       startActionRequest,
     ],
@@ -1519,6 +1788,19 @@ export function useFlipbook({
       const targetRoomCode = readRouteRoomCode()
       if (!targetRoomCode || cancelled) return
       if (!targetRoomCode) return
+      const activeRoomCode = getActiveFlipbookRoomCode()
+      debugFlipbook('routeRoomEffect:start', {
+        targetRoomCode,
+        activeRoomCode,
+        handled: hasRouteRoomCodeHandled(targetRoomCode),
+        createRoomRequestInFlight: createRoomRequestInFlightRef.current,
+        roomCode,
+        linkHandled: linkRoomCodeHandledRef.current,
+        path: typeof window === 'undefined' ? null : window.location.href,
+      })
+      if (hasRouteRoomCodeHandled(targetRoomCode) && activeRoomCode !== targetRoomCode) return
+      if (createRoomRequestInFlightRef.current) return
+      if (activeRoomCode && activeRoomCode !== targetRoomCode) return
 
       setRoomCodeDraft(targetRoomCode)
 
