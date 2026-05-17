@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path } from 'react-konva'
 import type Konva from 'konva'
 
@@ -237,6 +237,66 @@ function getObjectBounds(object: InfinityObject) {
   };
 }
 
+const RemoteCursorLayer = memo(function RemoteCursorLayer({
+  remoteCursors,
+}: {
+  remoteCursors: InfinityRemoteCursorView[]
+}) {
+  const smoothRemoteCursors = useSmoothRemoteCursors(remoteCursors);
+
+  const renderRemoteCursor = (cursor: SmoothRemoteCursorView) => {
+    const accentColor = getParticipantAccent(cursor.identityIndex);
+    const identityDash = getParticipantDash(cursor.identityIndex);
+
+    return (
+      <Fragment key={cursor.userUuid}>
+        <Path
+          x={cursor.x}
+          y={cursor.y}
+          data={REMOTE_CURSOR_PATH}
+          fill={cursor.color}
+          stroke="#ffffff"
+          strokeWidth={2.4}
+          shadowColor="rgba(45,58,85,0.2)"
+          shadowBlur={8}
+          shadowOffset={{ x: 0, y: 3 }}
+          listening={false}
+        />
+        <Circle
+          x={cursor.x}
+          y={cursor.y}
+          radius={4}
+          fill="#ffffff"
+          stroke={accentColor}
+          strokeWidth={2}
+          dash={identityDash}
+          listening={false}
+        />
+        <Label x={cursor.x + 18} y={cursor.y + 24} listening={false}>
+          <Tag
+            fill={cursor.color}
+            stroke={accentColor}
+            strokeWidth={2}
+            cornerRadius={10}
+            shadowColor="rgba(45,58,85,0.22)"
+            shadowBlur={8}
+            shadowOffset={{ x: 0, y: 3 }}
+          />
+          <Text
+            text={cursor.nickname}
+            fill={getReadableTextColor(cursor.color)}
+            fontSize={12}
+            fontStyle="bold"
+            padding={8}
+          />
+        </Label>
+      </Fragment>
+    );
+  };
+
+  return <>{smoothRemoteCursors.map(renderRemoteCursor)}</>;
+})
+
 export function InfinityCanvasStage({
   width,
   height,
@@ -283,7 +343,6 @@ export function InfinityCanvasStage({
   }, [tool]);
 
   const transformerRef = useRef<Konva.Transformer>(null);
-  const smoothRemoteCursors = useSmoothRemoteCursors(remoteCursors);
 
   // 다중 선택 Transformer: stage.findOne으로 nodes 배열 매핑.
   useEffect(() => {
@@ -304,9 +363,9 @@ export function InfinityCanvasStage({
 
   const isSelectTool = tool === "select";
   const editingId = textEditor?.editingId ?? null;
-  const handleObjectClick = (id: string, isShift: boolean) => {
+  const handleObjectClick = useCallback((id: string, isShift: boolean) => {
     onObjectClick(id, isShift, toolRef.current);
-  };
+  }, [onObjectClick]);
 
   const renderShapeOrText = (obj: InfinityObject) => {
     const isLocked = lockedElementIds.has(obj.id);
@@ -426,6 +485,20 @@ export function InfinityCanvasStage({
     return null;
   };
 
+  const shapeAndTextNodes = useMemo(
+    () => objects.map(renderShapeOrText),
+    // renderShapeOrText reads the current tool/lock/edit callbacks and should only refresh when those change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [objects, lockedElementIds, isSelectTool, editingId, handleObjectClick],
+  );
+
+  const lineNodes = useMemo(() => objects.map(renderLine), [objects]);
+
+  const remoteDraftNodes = useMemo(
+    () => remoteDraftObjects.map(renderRemoteDraftObject),
+    [remoteDraftObjects],
+  );
+
   // 텍스트가 단일 선택일 때 Transformer 핸들 정책 — 사이즈 조절 X, 회전 O.
   const onlyTextSelected =
     selectedIds.length > 0 &&
@@ -474,56 +547,6 @@ export function InfinityCanvasStage({
             fontSize={12}
             fontStyle="bold"
             padding={7}
-          />
-        </Label>
-      </Fragment>
-    );
-  };
-
-  const renderRemoteCursor = (cursor: SmoothRemoteCursorView) => {
-    const accentColor = getParticipantAccent(cursor.identityIndex);
-    const identityDash = getParticipantDash(cursor.identityIndex);
-
-    return (
-      <Fragment key={cursor.userUuid}>
-        <Path
-          x={cursor.x}
-          y={cursor.y}
-          data={REMOTE_CURSOR_PATH}
-          fill={cursor.color}
-          stroke="#ffffff"
-          strokeWidth={2.4}
-          shadowColor="rgba(45,58,85,0.2)"
-          shadowBlur={8}
-          shadowOffset={{ x: 0, y: 3 }}
-          listening={false}
-        />
-        <Circle
-          x={cursor.x}
-          y={cursor.y}
-          radius={4}
-          fill="#ffffff"
-          stroke={accentColor}
-          strokeWidth={2}
-          dash={identityDash}
-          listening={false}
-        />
-        <Label x={cursor.x + 18} y={cursor.y + 24} listening={false}>
-          <Tag
-            fill={cursor.color}
-            stroke={accentColor}
-            strokeWidth={2}
-            cornerRadius={10}
-            shadowColor="rgba(45,58,85,0.22)"
-            shadowBlur={8}
-            shadowOffset={{ x: 0, y: 3 }}
-          />
-          <Text
-            text={cursor.nickname}
-            fill={getReadableTextColor(cursor.color)}
-            fontSize={12}
-            fontStyle="bold"
-            padding={8}
           />
         </Label>
       </Fragment>
@@ -584,7 +607,7 @@ export function InfinityCanvasStage({
 
       {/* Layer 1 — 도형 + 텍스트 + Transformer (라인보다 아래에 배치) */}
       <Layer>
-        {objects.map(renderShapeOrText)}
+        {shapeAndTextNodes}
 
         <Transformer
           ref={transformerRef}
@@ -623,7 +646,7 @@ export function InfinityCanvasStage({
       {/* Layer 2 — 라인(완성) + 진행 중 eraser line.
           픽셀 지우개 destination-out scope가 이 Layer로 한정 — 도형/텍스트는 영향 X. */}
       <Layer>
-        {objects.map(renderLine)}
+        {lineNodes}
 
         <Line
           ref={currentEraserLineRef}
@@ -641,7 +664,7 @@ export function InfinityCanvasStage({
 
       {/* Layer 2.5 — 다른 참여자가 그리고 있는 임시 선/도형 */}
       <Layer listening={false}>
-        {remoteDraftObjects.map(renderRemoteDraftObject)}
+        {remoteDraftNodes}
       </Layer>
 
       {/* Layer 3 — 진행 중 pen line + preview + cursor + 다중 선택 박스 */}
@@ -677,7 +700,7 @@ export function InfinityCanvasStage({
         <SelectionBox boxRef={selectionBoxRef} />
         <CursorPreview cursorRef={cursorPreviewRef} />
         {lockedElements.map(renderLockOverlay)}
-        {smoothRemoteCursors.map(renderRemoteCursor)}
+        <RemoteCursorLayer remoteCursors={remoteCursors} />
       </Layer>
     </Stage>
   );
