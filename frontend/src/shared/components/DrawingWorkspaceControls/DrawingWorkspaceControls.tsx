@@ -137,6 +137,89 @@ export function ToolPanel({
   )
 }
 
+// 캔버스 옆에 세로로 붙는 스크롤 가능한 색상 레일. 모바일 게임 화면에서 캔버스를
+// 가리지 않으면서 색상 선택을 빠르게 할 수 있도록 디자인됨. 부모는 flex/grid
+// 컨테이너로 캔버스와 나란히 배치하면 align-stretch가 캔버스 카드 높이에 맞춰
+// 레일 높이를 잡아주고, 내부 overflow-y-auto가 색상 목록을 스크롤한다.
+export function MobileColorRail({
+  className,
+  colors,
+  selectedColor,
+  isDrawingLocked,
+  onSelectColor,
+}: {
+  className?: string
+  colors: string[]
+  selectedColor: string
+  isDrawingLocked: boolean
+  onSelectColor: (color: string) => void
+}) {
+  return (
+    <section
+      aria-label="색상 선택"
+      className={cn(
+        'flex w-14 shrink-0 flex-col items-center gap-2 overflow-y-auto rounded-[18px] border border-[#ead7c9] bg-white/90 p-2 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]',
+        isDrawingLocked && 'pointer-events-none opacity-60',
+        className,
+      )}
+    >
+      {colors.map((color) => (
+        <ColorSwatch
+          key={color}
+          color={color}
+          selected={selectedColor === color}
+          shape="square"
+          onSelectColor={onSelectColor}
+        />
+      ))}
+    </section>
+  )
+}
+
+// 모바일에서 브러시 굵기와 투명도를 한 줄로 나열하는 가로 컨트롤 바.
+// MobileColorRail이 색상만 담당하도록 분리되면서, 굵기·투명도는 캔버스 아래에
+// 위치하도록 별도 컴포넌트로 분리됨.
+export function MobileBrushOpacityBar({
+  className,
+  strokeWidth,
+  strokeWidthOptions = DRAWING_STROKE_WIDTH_OPTIONS,
+  selectedOpacity,
+  isDrawingLocked,
+  onStrokeWidthChange,
+  onOpacityChange,
+}: {
+  className?: string
+  strokeWidth: number
+  strokeWidthOptions?: number[]
+  selectedOpacity: number
+  isDrawingLocked: boolean
+  onStrokeWidthChange: (strokeWidth: number) => void
+  onOpacityChange: (opacity: number) => void
+}) {
+  return (
+    <section
+      className={cn(
+        'flex items-center gap-4 rounded-[18px] border border-[#ead7c9] bg-white/90 px-4 py-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]',
+        isDrawingLocked && 'pointer-events-none opacity-60',
+        className,
+      )}
+    >
+      <StrokeWidthPicker
+        className="flex shrink-0 items-center gap-2"
+        selectedStrokeWidth={strokeWidth}
+        strokeWidthOptions={strokeWidthOptions}
+        onStrokeWidthChange={onStrokeWidthChange}
+      />
+      <span aria-hidden className="h-6 w-px shrink-0 bg-[#ead7c9]" />
+      <OpacitySlider
+        className="flex-1"
+        selectedOpacity={selectedOpacity}
+        onOpacityChange={onOpacityChange}
+      />
+    </section>
+  )
+}
+
 export function MobileColorGrid({
   colors,
   selectedColor,
