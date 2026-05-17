@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -259,6 +260,39 @@ class CommunityMemoControllerIntegrationTest {
         verify(artifactDownloadStorage).download(ORIGINAL_OBJECT_KEY);
         verify(artifactDownloadStorage).upload(cacheObjectKey, composedBytes, "image/jpeg");
         verify(artifactQrComposer).compose(anyString(), any(), anyString());
+    }
+
+    @Test
+    void createCommunityMemoShareReturnsQrGifUrlForFlipbookMemo() throws Exception {
+        UUID ownerUuid = createExistingUser("gif-owner");
+        UUID viewerUuid = createExistingUser("gif-viewer");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID artifactId = UUID.randomUUID();
+        UUID memoId = UUID.randomUUID();
+        byte[] sourceBytes = new byte[]{1, 2, 3};
+        byte[] composedBytes = new byte[]{4, 5, 6};
+        String gifObjectKey = "flipbook/results/%s/result.gif".formatted(artifactId);
+        String cacheObjectKey = "community-memo-shares/%s/result-qr.gif".formatted(memoId);
+
+        insertArtifact(artifactId, "flipbook", "flipbook-thumbnail.png", now);
+        insertFlipbookArtifact(artifactId, gifObjectKey, "flipbook/results/%s/first.png".formatted(artifactId));
+        insertCommunityMemo(memoId, ownerUuid, artifactId, OBJECT_KEY_PREFIX + "flipbook-original.png",
+            OBJECT_KEY_PREFIX + "flipbook-thumbnail.png", 1, now, null, false, "{}", 0, "allowed", now, now);
+        when(artifactDownloadStorage.exists(cacheObjectKey)).thenReturn(false);
+        when(artifactDownloadStorage.download(gifObjectKey)).thenReturn(sourceBytes);
+        when(artifactQrComposer.compose(eq("image/gif"), eq(sourceBytes), anyString())).thenReturn(composedBytes);
+
+        mockMvc
+            .perform(post("/api/v1/community/memos/{memoUuid}/share", memoId).header(ANONYMOUS_USER_UUID_HEADER,
+                viewerUuid.toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.imageUrl")
+                .value("http://localhost:9000/nemonic-local/community-memo-shares/%s/result-qr.gif".formatted(memoId)))
+            .andExpect(jsonPath("$.data.kakaoUrl").value(containsString("utm_campaign=community_memo_result")));
+
+        verify(artifactDownloadStorage).download(gifObjectKey);
+        verify(artifactDownloadStorage).upload(cacheObjectKey, composedBytes, "image/gif");
+        verify(artifactQrComposer).compose(eq("image/gif"), eq(sourceBytes), anyString());
     }
 
     @Test
