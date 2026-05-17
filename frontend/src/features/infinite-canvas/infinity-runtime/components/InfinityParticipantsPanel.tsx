@@ -44,7 +44,9 @@ export function InfinityParticipantsPanel({
     if (second.userUuid === currentUserUuid) return 1
     return first.joinedAt.localeCompare(second.joinedAt)
   })
-  const connectedParticipantCount = participants.filter((participant) => participant.connected).length
+  const connectedParticipantCount = participants.filter((participant) =>
+    isCurrentUserConnected(participant, me, connectionStatus),
+  ).length
   const displayedConnectedCount =
     connectedParticipantCount > 0 ? connectedParticipantCount : participants.length
   const capacityText =
@@ -74,6 +76,7 @@ export function InfinityParticipantsPanel({
             const isMe = participant.userUuid === currentUserUuid
             const isConnected = isCurrentUserConnected(participant, me, connectionStatus)
             const displayNickname = `${participant.nickname}${isMe ? ' (나)' : ''}`
+            const statusLabel = isConnected ? '접속 중' : '오프라인'
 
             return (
               <li
@@ -116,8 +119,18 @@ export function InfinityParticipantsPanel({
                     방장
                   </span>
                 )}
-                <span className="caption-b shrink-0 rounded-full bg-[#eef6ff] px-2.5 py-1 text-[#4873b5]">
-                  {isConnected ? '접속' : '오프'}
+                <span
+                  className="grid size-3 shrink-0 place-items-center rounded-full bg-white/85"
+                  title={statusLabel}
+                  aria-label={statusLabel}
+                >
+                  <span
+                    className={`size-2 rounded-full ${
+                      isConnected
+                        ? 'bg-[#28d86c] shadow-[0_0_0_2px_rgba(40,216,108,0.16),0_0_10px_rgba(40,216,108,0.72)]'
+                        : 'bg-[#b9c4d6]'
+                    }`}
+                  />
                 </span>
                 {isMe && isColorPickerOpen && onUpdateMyColor && (
                   <div className="absolute left-2 top-[48px] z-20 grid grid-cols-4 gap-2 rounded-[18px] border border-white/80 bg-white/92 p-3 shadow-[0_16px_26px_rgba(60,82,160,0.22)] backdrop-blur">

@@ -86,6 +86,11 @@ export function useInfinityHistory() {
     setSelectedIds([])
   }
 
+  const silentSetSelection = (newSelectedIds: string[]) => {
+    selectedIdsRef.current = newSelectedIds
+    setSelectedIds(newSelectedIds)
+  }
+
   // 도형 클릭 등으로 selection만 변경할 때 사용 — history 기록 O.
   const recordSelection = (newSelectedIds: string[]) => {
     saveSnapshot(objectsRef.current, newSelectedIds)
@@ -129,6 +134,7 @@ export function useInfinityHistory() {
     replaceObjectsFromServer,
     syncObjectsFromServer,
     silentClearSelection,
+    silentSetSelection,
     recordSelection,
     undo,
     redo,

@@ -30,6 +30,7 @@ import type {
   InfiniteCanvasParticipantEventResponse,
   InfiniteCanvasParticipantResponse,
   InfiniteCanvasRealtimeEvent,
+  InfiniteCanvasRevisionConflictResponse,
   InfiniteCanvasSimpleMessageResponse,
   InfiniteCanvasStateResponse,
 } from '@/shared/types'
@@ -82,6 +83,17 @@ function isOpsAppliedResponse(value: unknown): value is InfiniteCanvasOpsApplied
   )
 }
 
+function isRevisionConflictResponse(value: unknown): value is InfiniteCanvasRevisionConflictResponse {
+  return (
+    isRecord(value) &&
+    typeof value.roomCode === 'string' &&
+    typeof value.baseRevision === 'number' &&
+    typeof value.latestRevision === 'number' &&
+    Array.isArray(value.missingOperations) &&
+    typeof value.fullStateRequired === 'boolean'
+  )
+}
+
 function isLockResponse(value: unknown): value is InfiniteCanvasLockResponse {
   return isRecord(value) && typeof value.roomCode === 'string' && typeof value.elementId === 'string'
 }
@@ -92,6 +104,11 @@ function isCursorResponse(value: unknown): value is InfiniteCanvasCursorResponse
 
 function isSimpleMessage(value: unknown): value is InfiniteCanvasSimpleMessageResponse {
   return isRecord(value)
+}
+
+function getRevisionConflictDetails(value: unknown) {
+  if (!isRecord(value)) return null
+  return isRevisionConflictResponse(value.details) ? value.details : null
 }
 
 function isStaleRevisionMessage(message: string) {
@@ -248,6 +265,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
   const [operationQueueVersion, setOperationQueueVersion] = useState(0)
   const [hasPendingOperations, setHasPendingOperations] = useState(false)
   const revisionRef = useRef(0)
+  const appliedElementsRevisionRef = useRef(0)
   const pendingOperationsRef = useRef<InfiniteCanvasOperationRequest[]>([])
   const inFlightOperationsRef = useRef<InfiniteCanvasOperationRequest[] | null>(null)
   const isResolvingRevisionConflictRef = useRef(false)
@@ -306,6 +324,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         nextState = await getInfiniteCanvasState(roomCode)
       }
       revisionRef.current = nextState.revision
+      appliedElementsRevisionRef.current = nextState.revision
       setRoomState(nextState)
       setIsHydrating(false)
       return nextState
@@ -319,6 +338,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
           snapshot,
         })
         revisionRef.current = fallbackState.revision
+        appliedElementsRevisionRef.current = fallbackState.revision
         setRoomState(fallbackState)
         setIsHydrating(false)
         return fallbackState
@@ -330,6 +350,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
           : '무한 캔버스 방 상태를 불러오지 못했어요.'
       setRoomState(null)
       revisionRef.current = 0
+      appliedElementsRevisionRef.current = 0
       setErrorMessage(message)
       return null
     }
@@ -337,9 +358,53 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
 
   const applyFullState = useCallback((nextState: InfiniteCanvasStateResponse) => {
     revisionRef.current = nextState.revision
+    appliedElementsRevisionRef.current = nextState.revision
     setRoomState(nextState)
     setIsHydrating(false)
   }, [])
+
+  const applyRevisionConflictDelta = useCallback((details: InfiniteCanvasRevisionConflictResponse) => {
+    revisionRef.current = details.latestRevision
+    appliedElementsRevisionRef.current = details.latestRevision
+    setRoomState((currentState) => {
+      if (!currentState) return currentState
+      return {
+        ...currentState,
+        elements: applyOperationsToElements(currentState.elements, details.missingOperations),
+        operations: details.missingOperations,
+        revision: details.latestRevision,
+        updatedAt: new Date().toISOString(),
+      }
+    })
+  }, [])
+
+  const resolveRevisionConflict = useCallback(
+    (details: InfiniteCanvasRevisionConflictResponse | null, inFlightOperations: InfiniteCanvasOperationRequest[] | null) => {
+      if (inFlightOperations) {
+        pendingOperationsRef.current = [
+          ...inFlightOperations,
+          ...pendingOperationsRef.current,
+        ]
+      }
+
+      if (details && !details.fullStateRequired) {
+        applyRevisionConflictDelta(details)
+        isResolvingRevisionConflictRef.current = false
+        syncPendingOperationState()
+        bumpOperationQueue()
+        return
+      }
+
+      isResolvingRevisionConflictRef.current = true
+      syncPendingOperationState()
+      void hydrateRoom({ showLoading: false }).finally(() => {
+        isResolvingRevisionConflictRef.current = false
+        syncPendingOperationState()
+        bumpOperationQueue()
+      })
+    },
+    [applyRevisionConflictDelta, bumpOperationQueue, hydrateRoom, syncPendingOperationState],
+  )
 
   const handleRealtimeEvent = useCallback(
     (event: InfiniteCanvasRealtimeEvent) => {
@@ -486,6 +551,12 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
             bumpOperationQueue()
           }
         }
+
+        if (appliedOperations.revision <= appliedElementsRevisionRef.current) {
+          return
+        }
+
+        appliedElementsRevisionRef.current = appliedOperations.revision
         setRoomState((currentState) => {
           if (!currentState) return currentState
           return {
@@ -544,23 +615,12 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         const message = isSimpleMessage(event.data)
           ? event.data.message ?? '무한 캔버스 동기화 중 문제가 생겼어요.'
           : '무한 캔버스 동기화 중 문제가 생겼어요.'
+        const revisionConflictDetails = getRevisionConflictDetails(event.data)
         const inFlightOperations = inFlightOperationsRef.current
         inFlightOperationsRef.current = null
 
         if (isStaleRevisionMessage(message)) {
-          if (inFlightOperations) {
-            pendingOperationsRef.current = [
-              ...inFlightOperations,
-              ...pendingOperationsRef.current,
-            ]
-          }
-          isResolvingRevisionConflictRef.current = true
-          syncPendingOperationState()
-          void hydrateRoom({ showLoading: false }).finally(() => {
-            isResolvingRevisionConflictRef.current = false
-            syncPendingOperationState()
-            bumpOperationQueue()
-          })
+          resolveRevisionConflict(revisionConflictDetails, inFlightOperations)
           return
         }
 
@@ -572,7 +632,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         void hydrateRoom({ showLoading: false }).finally(bumpOperationQueue)
       }
     },
-    [applyFullState, bumpOperationQueue, roomCode, hydrateRoom, router, scheduleRemoteCursorUpdate, syncPendingOperationState, userUuid],
+    [applyFullState, bumpOperationQueue, roomCode, hydrateRoom, resolveRevisionConflict, router, scheduleRemoteCursorUpdate, syncPendingOperationState, userUuid],
   )
 
   const realtime = useInfinityRealtimeConnection({

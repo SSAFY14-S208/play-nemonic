@@ -127,14 +127,16 @@ export default function FlipbookPage() {
           resultItems={flipbook.resultItems}
           resultOwnerNames={flipbook.resultOwnerNames}
           activeResultIndex={flipbook.activeResultIndex}
-          gifUrl={flipbook.gifUrl}
           resultCount={flipbook.resultCount}
           canCloseRoom={flipbook.canCloseRoom}
           isBusy={flipbook.isBusy}
           errorMessage={flipbook.errorMessage}
           onSelectResult={flipbook.selectResult}
-          onCloseRoom={flipbook.closeRoom}
-          onCreateAnother={() => flipbook.selectStep('booth')}
+          onReturnToLobby={
+            flipbook.canCloseRoom
+              ? flipbook.closeRoom
+              : () => flipbook.selectStep('booth')
+          }
         />
       )}
 

@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { Copy, Link2, LogOut, Printer } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpToLine, Copy, Link2, LogOut, Printer } from 'lucide-react'
 import { toast } from 'sonner'
-import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 import { useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
 import type { InfinityObject } from '../constants'
 import {
-  createClientOperationId,
   isInfinityObject,
   stringifyInfinityObject,
   toInfinityObjects,
@@ -51,6 +49,41 @@ function areInfinityObjectListsEqual(firstObjects: InfinityObject[], secondObjec
     if (!secondObject) return false
     return stringifyInfinityObject(firstObject) === stringifyInfinityObject(secondObject)
   })
+}
+
+function mergeServerObjectsWithLocalPending({
+  previousServerObjects,
+  serverObjects,
+  localObjects,
+}: {
+  previousServerObjects: Map<string, InfinityObject>
+  serverObjects: InfinityObject[]
+  localObjects: InfinityObject[]
+}) {
+  const serverObjectMap = createObjectMap(serverObjects)
+  const mergedObjectMap = createObjectMap(serverObjects)
+
+  for (const localObject of localObjects) {
+    const serverObject = serverObjectMap.get(localObject.id)
+    if (!serverObject) {
+      mergedObjectMap.set(localObject.id, localObject)
+      continue
+    }
+
+    const previousServerObject = previousServerObjects.get(localObject.id)
+    const localObjectChangedFromPreviousServer =
+      !previousServerObject ||
+      stringifyInfinityObject(previousServerObject) !== stringifyInfinityObject(localObject)
+
+    if (
+      localObjectChangedFromPreviousServer &&
+      stringifyInfinityObject(serverObject) !== stringifyInfinityObject(localObject)
+    ) {
+      mergedObjectMap.set(localObject.id, localObject)
+    }
+  }
+
+  return objectMapValues(mergedObjectMap)
 }
 
 function getPayloadNickname(payload: Record<string, unknown> | null) {
@@ -123,8 +156,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const previewEllipseRef = useRef<Konva.Ellipse>(null)
   const cursorPreviewRef = useRef<Konva.Circle>(null)
   const selectionBoxRef = useRef<Konva.Rect>(null)
-  const previousObjectsRef = useRef(createObjectMap([]))
-  const isApplyingRemoteRef = useRef(false)
+  const previousServerObjectsRef = useRef(createObjectMap([]))
   const appliedServerRevisionRef = useRef<number | null>(null)
   const lastCursorSentAtRef = useRef(0)
   const lastDraftCursorSentAtRef = useRef(0)
@@ -135,6 +167,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const previousSelectedIdsRef = useRef<string[]>([])
   const [isCaptureMode, setIsCaptureMode] = useState(false)
   const [copiedInviteTarget, setCopiedInviteTarget] = useState<'link' | 'code' | null>(null)
+  const [layerMenu, setLayerMenu] = useState<{ x: number; y: number } | null>(null)
 
   const nodeRefs = useMemo(
     () => ({
@@ -197,6 +230,16 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [createCursorPayload, sendRoomCursor],
   )
 
+  const handleLocalOperations = useCallback(
+    (operations: Parameters<typeof sendRoomOperations>[0]) => {
+      const sent = sendRoomOperations(operations)
+      if (!sent) {
+        toast.error('서버 연결 후 편집할 수 있어요.')
+      }
+    },
+    [sendRoomOperations],
+  )
+
   const handleDraftObjectChange = useCallback(
     (draftObject: InfinityObject | null) => {
       if (draftClearTimeoutRef.current) {
@@ -234,6 +277,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     canEditObject: (elementId) => getForeignLock(elementId) === null,
     onBlockedObjectEdit: handleBlockedObjectEdit,
     onDraftObjectChange: handleDraftObjectChange,
+    onLocalOperations: handleLocalOperations,
   })
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -282,9 +326,14 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [getParticipantIdentityIndex, room.locks, room.myUserUuid, room.participantsByUserUuid],
   )
 
+  const remoteCursorValues = useMemo(
+    () => Object.values(room.remoteCursors),
+    [room.remoteCursors],
+  )
+
   const remoteCursors: InfinityRemoteCursorView[] = useMemo(
     () =>
-      Object.values(room.remoteCursors)
+      remoteCursorValues
         .filter((cursor) => cursor.userUuid !== room.myUserUuid && cursor.x !== null && cursor.y !== null)
         .map((cursor) => {
           const participant = room.participantsByUserUuid[cursor.userUuid]
@@ -297,7 +346,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
             identityIndex: getParticipantIdentityIndex(cursor.userUuid),
           }
         }),
-    [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors],
+    [getParticipantIdentityIndex, remoteCursorValues, room.myUserUuid, room.participantsByUserUuid],
   )
 
   const visibleObjectIds = useMemo(
@@ -307,7 +356,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
   const remoteDraftObjects: InfinityRemoteDraftObjectView[] = useMemo(
     () =>
-      Object.values(room.remoteCursors)
+      remoteCursorValues
         .filter((cursor) => cursor.userUuid !== room.myUserUuid)
         .map((cursor) => {
           const draftObject = getPayloadDraftObject(cursor.payload)
@@ -323,7 +372,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           }
         })
         .filter((draftObject): draftObject is InfinityRemoteDraftObjectView => draftObject !== null),
-    [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors, visibleObjectIds],
+    [getParticipantIdentityIndex, remoteCursorValues, room.myUserUuid, room.participantsByUserUuid, visibleObjectIds],
   )
 
   useEffect(() => {
@@ -349,9 +398,10 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
     if (isStaleEmptySnapshot) return
 
+    const previousServerObjects = previousServerObjectsRef.current
     const nextServerObjectMap = createObjectMap(serverObjects)
     const isSameServerObjects = areInfinityObjectListsEqual(
-      objectMapValues(previousObjectsRef.current),
+      objectMapValues(previousServerObjects),
       serverObjects,
     )
     if (isSameServerObjects) {
@@ -361,78 +411,32 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
     if (areInfinityObjectListsEqual(drawing.objects, serverObjects)) {
       appliedServerRevisionRef.current = serverRevision
-      previousObjectsRef.current = nextServerObjectMap
+      previousServerObjectsRef.current = nextServerObjectMap
       return
     }
 
-    const selectedIds = drawing.selectedIds.filter((selectedId) =>
-      serverObjects.some((object) => object.id === selectedId),
-    )
     const isInitialServerApply = appliedServerRevisionRef.current === null
-    if (room.hasPendingOperations && !isInitialServerApply) {
-      return
-    }
+    const nextObjects =
+      room.hasPendingOperations && !isInitialServerApply
+        ? mergeServerObjectsWithLocalPending({
+            previousServerObjects,
+            serverObjects,
+            localObjects: drawing.objects,
+          })
+        : serverObjects
+    const selectedIds = drawing.selectedIds.filter((selectedId) =>
+      nextObjects.some((object) => object.id === selectedId),
+    )
 
-    isApplyingRemoteRef.current = true
     appliedServerRevisionRef.current = serverRevision
-    previousObjectsRef.current = nextServerObjectMap
+    previousServerObjectsRef.current = nextServerObjectMap
     if (isInitialServerApply) {
-      drawing.replaceObjectsFromServer(serverObjects, selectedIds)
+      drawing.replaceObjectsFromServer(nextObjects, selectedIds)
     } else {
-      drawing.syncObjectsFromServer(serverObjects, selectedIds)
+      drawing.syncObjectsFromServer(nextObjects, selectedIds)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.hasPendingOperations, room.revision, serverObjects])
-
-  useEffect(() => {
-    if (isApplyingRemoteRef.current) {
-      isApplyingRemoteRef.current = false
-      previousObjectsRef.current = createObjectMap(drawing.objects)
-      return
-    }
-
-    const previousObjects = previousObjectsRef.current
-    const currentObjects = createObjectMap(drawing.objects)
-    const operations: InfiniteCanvasOperationRequest[] = []
-
-    if (drawing.objects.length === 0 && previousObjects.size > 0) {
-      operations.push({
-        clientOperationId: createClientOperationId(),
-        operationType: 'CLEAR_CANVAS',
-      })
-    } else {
-      for (const currentObject of drawing.objects) {
-        const previousObject = previousObjects.get(currentObject.id)
-        if (previousObject && stringifyInfinityObject(previousObject) === stringifyInfinityObject(currentObject)) {
-          continue
-        }
-
-        operations.push({
-          clientOperationId: createClientOperationId(),
-          operationType: previousObject ? 'UPDATE_ELEMENT' : 'CREATE_ELEMENT',
-          elementId: currentObject.id,
-          element: { ...currentObject },
-        })
-      }
-
-      for (const previousObject of previousObjects.values()) {
-        if (currentObjects.has(previousObject.id)) continue
-        operations.push({
-          clientOperationId: createClientOperationId(),
-          operationType: 'DELETE_ELEMENT',
-          elementId: previousObject.id,
-        })
-      }
-    }
-
-    previousObjectsRef.current = currentObjects
-    if (operations.length === 0) return
-
-    const sent = sendRoomOperations(operations)
-    if (!sent) {
-      toast.error('서버 연결 후 편집할 수 있어요.')
-    }
-  }, [drawing.objects, sendRoomOperations])
 
   useEffect(() => {
     const previousSelectedIds = previousSelectedIdsRef.current
@@ -506,6 +510,39 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [room.revision, room.roomCode, saveOutput],
   )
 
+  const handleLayerMenuRequest = useCallback(
+    (request: { elementId: string; x: number; y: number }) => {
+      if (getForeignLock(request.elementId)) {
+        handleBlockedObjectEdit(request.elementId)
+        return
+      }
+      setLayerMenu({
+        x: Math.min(Math.max(request.x, 12), window.innerWidth - 172),
+        y: Math.min(Math.max(request.y, 12), window.innerHeight - 112),
+      })
+    },
+    [getForeignLock, handleBlockedObjectEdit],
+  )
+
+  const shiftSelectedLayer = useCallback(
+    (direction: 1 | -1) => {
+      drawing.shiftSelectedZIndex(direction)
+      setLayerMenu(null)
+    },
+    [drawing],
+  )
+
+  useEffect(() => {
+    if (!layerMenu) return
+    const closeLayerMenu = () => setLayerMenu(null)
+    window.addEventListener('pointerdown', closeLayerMenu)
+    window.addEventListener('keydown', closeLayerMenu)
+    return () => {
+      window.removeEventListener('pointerdown', closeLayerMenu)
+      window.removeEventListener('keydown', closeLayerMenu)
+    }
+  }, [layerMenu])
+
   return (
     <div className="fixed inset-0 h-dvh w-dvw overflow-hidden bg-canvas-background">
       <InfinityToolPanel drawing={drawing} />
@@ -528,6 +565,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           remoteDraftObjects={remoteDraftObjects}
           remoteCursors={remoteCursors}
           onCursorMove={handleCursorMove}
+          onLayerMenuRequest={handleLayerMenuRequest}
         />
 
         {drawing.textEditor && (
@@ -547,6 +585,31 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
             onCancel={() => setIsCaptureMode(false)}
             onCapture={handleCapture}
           />
+        )}
+
+        {layerMenu && drawing.selectedIds.length > 0 && (
+          <div
+            className="fixed z-30 grid min-w-40 gap-1 rounded-[18px] border border-white/75 bg-white/95 p-2 shadow-[0_16px_32px_rgba(35,64,140,0.22)] backdrop-blur"
+            style={{ left: layerMenu.x, top: layerMenu.y }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => shiftSelectedLayer(1)}
+              className="body-b inline-flex h-10 items-center gap-2 rounded-full px-3 text-[#25376c] transition-colors hover:bg-[#eaf6ff]"
+            >
+              <ArrowUpToLine className="size-4" aria-hidden />
+              앞으로 가져오기
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftSelectedLayer(-1)}
+              className="body-b inline-flex h-10 items-center gap-2 rounded-full px-3 text-[#25376c] transition-colors hover:bg-[#eaf6ff]"
+            >
+              <ArrowDownToLine className="size-4" aria-hidden />
+              뒤로 보내기
+            </button>
+          </div>
         )}
       </div>
 
