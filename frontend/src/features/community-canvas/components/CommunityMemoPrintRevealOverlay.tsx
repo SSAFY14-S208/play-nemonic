@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { PostItNote } from '@/shared/components/PostItNote'
+import { useNemonicPrintVibration } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 import type { CommunityPendingMemoPlacement } from '../hooks'
@@ -93,6 +94,9 @@ function CommunityMemoPrintRevealScene({
   const [isPrintedMemoReady, setPrintedMemoReady] = useState(false)
   const [printerSlotMetrics, setPrinterSlotMetrics] = useState<PrinterSlotMetrics | null>(null)
   const [viewportMetrics, setViewportMetrics] = useState<ViewportMetrics | null>(null)
+
+  // 인쇄 단계 동안 디바이스 진동. 'expanding' 단계로 넘어가면 자동 정지.
+  useNemonicPrintVibration(printPhase === 'printing')
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {

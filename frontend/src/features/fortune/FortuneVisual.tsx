@@ -6,6 +6,7 @@ import type { CSSProperties } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
+import { useNemonicPrintVibration } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 
 import {
@@ -417,6 +418,9 @@ export default function FortuneVisual({
     })),
   )
   const prefersReducedMotion = useFortuneReducedMotion()
+  // 운세 인쇄 애니메이션 동안 디바이스 진동. reduced-motion 환경에서도
+  // 햅틱은 시각 모션과 별개로 활성화한다 (접근성 측면에서 햅틱은 보조 피드백).
+  useNemonicPrintVibration(isPrinting)
   const curtainFrameRef = useRef<HTMLDivElement>(null)
   const printVideoRef = useRef<HTMLVideoElement>(null)
   const printCompleteFiredRef = useRef(false)
