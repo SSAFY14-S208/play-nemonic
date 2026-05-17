@@ -2,6 +2,7 @@ export { default as CountdownTimer } from "./CountdownTimer";
 export { default as RelayArtworkCard } from "./RelayArtworkCard";
 export { default as RelayBoothBackground } from "./RelayBoothBackground";
 export { default as RelayBoothEntrance } from "./RelayBoothEntrance";
+export { default as RelayBgmToggle } from "./RelayBgmToggle";
 export { default as RelayBoothView } from "./RelayBoothView";
 export { default as RelayButton, relayButtonVariants } from "./RelayButton";
 export type { RelayButtonProps } from "./RelayButton";

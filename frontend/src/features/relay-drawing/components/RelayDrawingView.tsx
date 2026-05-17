@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   ColorPanel,
   DrawingCompleteButton,
-  MobileColorGrid,
-  MobileToolGrid,
+  MobileBrushOpacityBar,
+  MobileColorBar,
+  MobileToolBar,
   ProgressRail,
   ToolPanel,
   TopStatusBar,
@@ -159,7 +160,7 @@ export default function RelayDrawingView() {
           <p className="body-b mt-3 text-[#30343b]">{activeRound.helperText}</p>
         </div>
 
-        <MobileToolGrid
+        <MobileToolBar
           selectedToolKey={selectedToolKey}
           canUndoDrawing={canUndoDrawing}
           canRedoDrawing={canRedoDrawing}
@@ -168,18 +169,6 @@ export default function RelayDrawingView() {
           onUndoDrawing={undoLine}
           onRedoDrawing={redoLine}
           onClearDrawing={clearRoundLines}
-        />
-
-        <MobileColorGrid
-          colors={DRAWING_COLORS}
-          selectedColor={selectedColor}
-          selectedOpacity={selectedOpacity}
-          strokeWidth={strokeWidth}
-          strokeWidthOptions={DRAWING_STROKE_WIDTH_OPTIONS}
-          isDrawingLocked={isDrawingLocked}
-          onSelectColor={setSelectedColor}
-          onOpacityChange={setSelectedOpacity}
-          onStrokeWidthChange={setStrokeWidth}
         />
 
         <div className="min-w-0 rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
@@ -198,6 +187,22 @@ export default function RelayDrawingView() {
             )}
           </div>
         </div>
+
+        <MobileColorBar
+          colors={DRAWING_COLORS}
+          selectedColor={selectedColor}
+          isDrawingLocked={isDrawingLocked}
+          onSelectColor={setSelectedColor}
+        />
+
+        <MobileBrushOpacityBar
+          strokeWidth={strokeWidth}
+          strokeWidthOptions={DRAWING_STROKE_WIDTH_OPTIONS}
+          selectedOpacity={selectedOpacity}
+          isDrawingLocked={isDrawingLocked}
+          onStrokeWidthChange={setStrokeWidth}
+          onOpacityChange={setSelectedOpacity}
+        />
 
         <DrawingCompleteButton
           onComplete={handleSubmitClick}

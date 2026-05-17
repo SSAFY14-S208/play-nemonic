@@ -1,6 +1,7 @@
 'use client'
 
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactElement, RefObject } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path } from 'react-konva'
 import type Konva from 'konva'
 
@@ -10,6 +11,7 @@ import type { useInfinityDrawing } from '../hooks'
 import {
   CursorPreview,
   DotGridShape,
+  KonvaFill,
   KonvaEllipse,
   KonvaLine,
   KonvaRect,
@@ -84,6 +86,14 @@ const IDENTITY_DASHES = [
   [1, 3],
 ] as const
 
+const ImperativeEllipse = Ellipse as unknown as (props: {
+  ref: RefObject<Konva.Ellipse | null>
+  stroke: string
+  strokeWidth: number
+  fill: string
+  dash: number[]
+}) => ReactElement
+
 function getParticipantAccent(identityIndex: number) {
   return INFINITY_PARTICIPANT_ACCENTS[Math.abs(identityIndex) % INFINITY_PARTICIPANT_ACCENTS.length]
 }
@@ -106,6 +116,8 @@ function getReadableTextColor(backgroundColor: string) {
 
 function useSmoothRemoteCursors(remoteCursors: InfinityRemoteCursorView[]) {
   const targetCursorsRef = useRef(remoteCursors)
+  const animationFrameRef = useRef<number | null>(null)
+  const scheduleTickRef = useRef<() => void>(() => undefined)
   const [smoothCursors, setSmoothCursors] = useState<SmoothRemoteCursorView[]>(() =>
     remoteCursors.map((cursor) => ({
       ...cursor,
@@ -114,76 +126,99 @@ function useSmoothRemoteCursors(remoteCursors: InfinityRemoteCursorView[]) {
     })),
   )
 
-  useEffect(() => {
-    targetCursorsRef.current = remoteCursors
-  }, [remoteCursors])
+  const tick = useCallback(() => {
+    animationFrameRef.current = null
+    let shouldKeepAnimating = false
 
-  useEffect(() => {
-    let animationFrameId = 0
+    setSmoothCursors((currentCursors) => {
+      const targetCursors = targetCursorsRef.current
+      if (currentCursors.length === 0 && targetCursors.length === 0) {
+        return currentCursors
+      }
 
-    const tick = () => {
-      setSmoothCursors((currentCursors) => {
-        const targetCursors = targetCursorsRef.current
-        if (currentCursors.length === 0 && targetCursors.length === 0) {
-          return currentCursors
-        }
-
-        const currentCursorMap = new Map(currentCursors.map((cursor) => [cursor.userUuid, cursor]))
-        let changed = currentCursors.length !== targetCursors.length
-        const nextCursors = targetCursors.map((targetCursor) => {
-          const currentCursor = currentCursorMap.get(targetCursor.userUuid)
-          if (!currentCursor) {
-            changed = true
-            return {
-              ...targetCursor,
-              targetX: targetCursor.x,
-              targetY: targetCursor.y,
-            }
-          }
-
-          const deltaX = targetCursor.x - currentCursor.x
-          const deltaY = targetCursor.y - currentCursor.y
-          const nextX =
-            Math.abs(deltaX) < REMOTE_CURSOR_SETTLE_DISTANCE
-              ? targetCursor.x
-              : currentCursor.x + deltaX * REMOTE_CURSOR_SMOOTHING
-          const nextY =
-            Math.abs(deltaY) < REMOTE_CURSOR_SETTLE_DISTANCE
-              ? targetCursor.y
-              : currentCursor.y + deltaY * REMOTE_CURSOR_SMOOTHING
-
-          if (
-            nextX !== currentCursor.x ||
-            nextY !== currentCursor.y ||
-            targetCursor.nickname !== currentCursor.nickname ||
-            targetCursor.color !== currentCursor.color ||
-            targetCursor.identityIndex !== currentCursor.identityIndex
-          ) {
-            changed = true
-          }
-
+      const currentCursorMap = new Map(currentCursors.map((cursor) => [cursor.userUuid, cursor]))
+      let changed = currentCursors.length !== targetCursors.length
+      const nextCursors = targetCursors.map((targetCursor) => {
+        const currentCursor = currentCursorMap.get(targetCursor.userUuid)
+        if (!currentCursor) {
+          changed = true
+          shouldKeepAnimating = true
           return {
             ...targetCursor,
-            x: nextX,
-            y: nextY,
             targetX: targetCursor.x,
             targetY: targetCursor.y,
           }
-        })
+        }
 
-        return changed ? nextCursors : currentCursors
+        const deltaX = targetCursor.x - currentCursor.x
+        const deltaY = targetCursor.y - currentCursor.y
+        const isSettled =
+          Math.abs(deltaX) < REMOTE_CURSOR_SETTLE_DISTANCE &&
+          Math.abs(deltaY) < REMOTE_CURSOR_SETTLE_DISTANCE
+        const nextX = isSettled ? targetCursor.x : currentCursor.x + deltaX * REMOTE_CURSOR_SMOOTHING
+        const nextY = isSettled ? targetCursor.y : currentCursor.y + deltaY * REMOTE_CURSOR_SMOOTHING
+
+        if (!isSettled) {
+          shouldKeepAnimating = true
+        }
+
+        if (
+          nextX !== currentCursor.x ||
+          nextY !== currentCursor.y ||
+          targetCursor.nickname !== currentCursor.nickname ||
+          targetCursor.color !== currentCursor.color ||
+          targetCursor.identityIndex !== currentCursor.identityIndex
+        ) {
+          changed = true
+        }
+
+        return {
+          ...targetCursor,
+          x: nextX,
+          y: nextY,
+          targetX: targetCursor.x,
+          targetY: targetCursor.y,
+        }
       })
-      animationFrameId = window.requestAnimationFrame(tick)
-    }
 
-    animationFrameId = window.requestAnimationFrame(tick)
-    return () => window.cancelAnimationFrame(animationFrameId)
+      return changed ? nextCursors : currentCursors
+    })
+
+    if (shouldKeepAnimating) {
+      scheduleTickRef.current()
+    }
   }, [])
+
+  const scheduleTick = useCallback(() => {
+    if (animationFrameRef.current !== null) return
+    animationFrameRef.current = window.requestAnimationFrame(tick)
+  }, [tick])
+
+  useEffect(() => {
+    scheduleTickRef.current = scheduleTick
+  }, [scheduleTick])
+
+  useEffect(() => {
+    targetCursorsRef.current = remoteCursors
+    if (remoteCursors.length > 0 || smoothCursors.length > 0) {
+      scheduleTick()
+    }
+  }, [remoteCursors, scheduleTick, smoothCursors.length])
+
+  useEffect(
+    () => () => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current)
+      }
+    },
+    [],
+  )
 
   return smoothCursors
 }
 
 function getCursorStyle(tool: InfinityToolKey): string {
+  if (tool === "bucket") return "crosshair";
   if (
     tool === "shape-rect" ||
     tool === "shape-ellipse" ||
@@ -236,6 +271,66 @@ function getObjectBounds(object: InfinityObject) {
   };
 }
 
+const RemoteCursorLayer = memo(function RemoteCursorLayer({
+  remoteCursors,
+}: {
+  remoteCursors: InfinityRemoteCursorView[]
+}) {
+  const smoothRemoteCursors = useSmoothRemoteCursors(remoteCursors);
+
+  const renderRemoteCursor = (cursor: SmoothRemoteCursorView) => {
+    const accentColor = getParticipantAccent(cursor.identityIndex);
+    const identityDash = getParticipantDash(cursor.identityIndex);
+
+    return (
+      <Fragment key={cursor.userUuid}>
+        <Path
+          x={cursor.x}
+          y={cursor.y}
+          data={REMOTE_CURSOR_PATH}
+          fill={cursor.color}
+          stroke="#ffffff"
+          strokeWidth={2.4}
+          shadowColor="rgba(45,58,85,0.2)"
+          shadowBlur={8}
+          shadowOffset={{ x: 0, y: 3 }}
+          listening={false}
+        />
+        <Circle
+          x={cursor.x}
+          y={cursor.y}
+          radius={4}
+          fill="#ffffff"
+          stroke={accentColor}
+          strokeWidth={2}
+          dash={identityDash}
+          listening={false}
+        />
+        <Label x={cursor.x + 18} y={cursor.y + 24} listening={false}>
+          <Tag
+            fill={cursor.color}
+            stroke={accentColor}
+            strokeWidth={2}
+            cornerRadius={10}
+            shadowColor="rgba(45,58,85,0.22)"
+            shadowBlur={8}
+            shadowOffset={{ x: 0, y: 3 }}
+          />
+          <Text
+            text={cursor.nickname}
+            fill={getReadableTextColor(cursor.color)}
+            fontSize={12}
+            fontStyle="bold"
+            padding={8}
+          />
+        </Label>
+      </Fragment>
+    );
+  };
+
+  return <>{smoothRemoteCursors.map(renderRemoteCursor)}</>;
+})
+
 export function InfinityCanvasStage({
   width,
   height,
@@ -282,7 +377,6 @@ export function InfinityCanvasStage({
   }, [tool]);
 
   const transformerRef = useRef<Konva.Transformer>(null);
-  const smoothRemoteCursors = useSmoothRemoteCursors(remoteCursors);
 
   // 다중 선택 Transformer: stage.findOne으로 nodes 배열 매핑.
   useEffect(() => {
@@ -303,6 +397,9 @@ export function InfinityCanvasStage({
 
   const isSelectTool = tool === "select";
   const editingId = textEditor?.editingId ?? null;
+  const handleObjectClick = useCallback((id: string, isShift: boolean) => {
+    onObjectClick(id, isShift, toolRef.current);
+  }, [onObjectClick]);
 
   const renderShapeOrText = (obj: InfinityObject) => {
     const isLocked = lockedElementIds.has(obj.id);
@@ -314,7 +411,7 @@ export function InfinityCanvasStage({
           shape={rectObject}
           isSelectTool={isSelectTool}
           isLocked={isLocked}
-          onShapeClick={onObjectClick}
+          onShapeClick={handleObjectClick}
           onShapeDragEnd={onObjectDragEnd}
           onShapeTransformEnd={onShapeTransformEnd}
         />
@@ -328,7 +425,7 @@ export function InfinityCanvasStage({
           shape={ellipseObject}
           isSelectTool={isSelectTool}
           isLocked={isLocked}
-          onShapeClick={onObjectClick}
+          onShapeClick={handleObjectClick}
           onShapeDragEnd={onObjectDragEnd}
           onShapeTransformEnd={onShapeTransformEnd}
         />
@@ -343,7 +440,7 @@ export function InfinityCanvasStage({
           isSelectTool={isSelectTool}
           isEditing={editingId === textObject.id}
           isLocked={isLocked}
-          onTextClick={onObjectClick}
+          onTextClick={handleObjectClick}
           onTextDblClick={onTextDblClick}
           onTextDragEnd={onObjectDragEnd}
           onTextTransformEnd={onTextTransformEnd}
@@ -360,69 +457,41 @@ export function InfinityCanvasStage({
 
   const renderRemoteDraftObject = (draft: InfinityRemoteDraftObjectView) => {
     const obj = draft.object
-    const accentColor = getParticipantAccent(draft.identityIndex)
-    const identityDash = getParticipantDash(draft.identityIndex)
 
     if (obj.type === "line") {
       if (obj.isEraser) return null;
       const points = obj.points.flatMap((point) => [point.x, point.y])
       return (
-        <Fragment key={`remote-draft-${draft.userUuid}-${obj.id}`}>
-          <Line
-            points={points}
-            stroke={accentColor}
-            strokeWidth={obj.strokeWidth + 4}
-            lineCap="round"
-            lineJoin="round"
-            tension={0.3}
-            opacity={0.32}
-            dash={identityDash}
-            listening={false}
-          />
-          <Line
-            points={points}
-            stroke={obj.color}
-            strokeWidth={obj.strokeWidth}
-            lineCap="round"
-            lineJoin="round"
-            tension={0.3}
-            opacity={0.68}
-            listening={false}
-          />
-        </Fragment>
+        <Line
+          key={`remote-draft-${draft.userUuid}-${obj.id}`}
+          points={points}
+          stroke={obj.color}
+          strokeWidth={obj.strokeWidth}
+          lineCap="round"
+          lineJoin="round"
+          tension={0.3}
+          opacity={1}
+          listening={false}
+        />
       );
     }
 
     if (obj.type === "rect") {
       const isFilled = Boolean(obj.fill);
       return (
-        <Fragment key={`remote-draft-${draft.userUuid}-${obj.id}`}>
-          <Rect
-            x={obj.x - 3}
-            y={obj.y - 3}
-            width={obj.width + 6}
-            height={obj.height + 6}
-            rotation={obj.rotation ?? 0}
-            stroke={accentColor}
-            strokeWidth={2}
-            opacity={0.5}
-            dash={identityDash}
-            listening={false}
-          />
-          <Rect
-            x={obj.x}
-            y={obj.y}
-            width={obj.width}
-            height={obj.height}
-            rotation={obj.rotation ?? 0}
-            stroke={isFilled ? accentColor : obj.color}
-            strokeWidth={isFilled ? 2 : obj.strokeWidth}
-            fill={obj.fill ?? "transparent"}
-            opacity={isFilled ? 0.36 : 0.58}
-            dash={isFilled ? identityDash : [8, 5]}
-            listening={false}
-          />
-        </Fragment>
+        <Rect
+          key={`remote-draft-${draft.userUuid}-${obj.id}`}
+          x={obj.x}
+          y={obj.y}
+          width={obj.width}
+          height={obj.height}
+          rotation={obj.rotation ?? 0}
+          stroke={isFilled ? undefined : obj.color}
+          strokeWidth={isFilled ? 0 : obj.strokeWidth}
+          fill={obj.fill ?? "transparent"}
+          opacity={1}
+          listening={false}
+        />
       );
     }
 
@@ -431,38 +500,45 @@ export function InfinityCanvasStage({
       const radiusY = Math.abs(obj.height / 2);
       const isFilled = Boolean(obj.fill);
       return (
-        <Fragment key={`remote-draft-${draft.userUuid}-${obj.id}`}>
-          <Ellipse
-            x={obj.x + obj.width / 2}
-            y={obj.y + obj.height / 2}
-            radiusX={radiusX + 3}
-            radiusY={radiusY + 3}
-            rotation={obj.rotation ?? 0}
-            stroke={accentColor}
-            strokeWidth={2}
-            opacity={0.5}
-            dash={identityDash}
-            listening={false}
-          />
-          <Ellipse
-            x={obj.x + obj.width / 2}
-            y={obj.y + obj.height / 2}
-            radiusX={radiusX}
-            radiusY={radiusY}
-            rotation={obj.rotation ?? 0}
-            stroke={isFilled ? accentColor : obj.color}
-            strokeWidth={isFilled ? 2 : obj.strokeWidth}
-            fill={obj.fill ?? "transparent"}
-            opacity={isFilled ? 0.36 : 0.58}
-            dash={isFilled ? identityDash : [8, 5]}
-            listening={false}
-          />
-        </Fragment>
+        <Ellipse
+          key={`remote-draft-${draft.userUuid}-${obj.id}`}
+          x={obj.x + obj.width / 2}
+          y={obj.y + obj.height / 2}
+          radiusX={radiusX}
+          radiusY={radiusY}
+          rotation={obj.rotation ?? 0}
+          stroke={isFilled ? undefined : obj.color}
+          strokeWidth={isFilled ? 0 : obj.strokeWidth}
+          fill={obj.fill ?? "transparent"}
+          opacity={1}
+          listening={false}
+        />
       );
     }
 
     return null;
   };
+
+  const shapeAndTextNodes = useMemo(
+    () => objects.map(renderShapeOrText),
+    // renderShapeOrText reads the current tool/lock/edit callbacks and should only refresh when those change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [objects, lockedElementIds, isSelectTool, editingId, handleObjectClick],
+  );
+
+  const renderFill = (obj: InfinityObject) => {
+    if (obj.type !== "fill") return null;
+    return <KonvaFill key={obj.id} fill={obj} />;
+  };
+
+  const fillNodes = useMemo(() => objects.map(renderFill), [objects]);
+
+  const lineNodes = useMemo(() => objects.map(renderLine), [objects]);
+
+  const remoteDraftNodes = useMemo(
+    () => remoteDraftObjects.map(renderRemoteDraftObject),
+    [remoteDraftObjects],
+  );
 
   // 텍스트가 단일 선택일 때 Transformer 핸들 정책 — 사이즈 조절 X, 회전 O.
   const onlyTextSelected =
@@ -512,56 +588,6 @@ export function InfinityCanvasStage({
             fontSize={12}
             fontStyle="bold"
             padding={7}
-          />
-        </Label>
-      </Fragment>
-    );
-  };
-
-  const renderRemoteCursor = (cursor: SmoothRemoteCursorView) => {
-    const accentColor = getParticipantAccent(cursor.identityIndex);
-    const identityDash = getParticipantDash(cursor.identityIndex);
-
-    return (
-      <Fragment key={cursor.userUuid}>
-        <Path
-          x={cursor.x}
-          y={cursor.y}
-          data={REMOTE_CURSOR_PATH}
-          fill={cursor.color}
-          stroke="#ffffff"
-          strokeWidth={2.4}
-          shadowColor="rgba(45,58,85,0.2)"
-          shadowBlur={8}
-          shadowOffset={{ x: 0, y: 3 }}
-          listening={false}
-        />
-        <Circle
-          x={cursor.x}
-          y={cursor.y}
-          radius={4}
-          fill="#ffffff"
-          stroke={accentColor}
-          strokeWidth={2}
-          dash={identityDash}
-          listening={false}
-        />
-        <Label x={cursor.x + 18} y={cursor.y + 24} listening={false}>
-          <Tag
-            fill={cursor.color}
-            stroke={accentColor}
-            strokeWidth={2}
-            cornerRadius={10}
-            shadowColor="rgba(45,58,85,0.22)"
-            shadowBlur={8}
-            shadowOffset={{ x: 0, y: 3 }}
-          />
-          <Text
-            text={cursor.nickname}
-            fill={getReadableTextColor(cursor.color)}
-            fontSize={12}
-            fontStyle="bold"
-            padding={8}
           />
         </Label>
       </Fragment>
@@ -622,7 +648,7 @@ export function InfinityCanvasStage({
 
       {/* Layer 1 — 도형 + 텍스트 + Transformer (라인보다 아래에 배치) */}
       <Layer>
-        {objects.map(renderShapeOrText)}
+        {shapeAndTextNodes}
 
         <Transformer
           ref={transformerRef}
@@ -661,12 +687,11 @@ export function InfinityCanvasStage({
       {/* Layer 2 — 라인(완성) + 진행 중 eraser line.
           픽셀 지우개 destination-out scope가 이 Layer로 한정 — 도형/텍스트는 영향 X. */}
       <Layer>
-        {objects.map(renderLine)}
+        {fillNodes}
+        {lineNodes}
 
         <Line
           ref={currentEraserLineRef}
-          points={[]}
-          visible={false}
           stroke="rgba(0,0,0,1)"
           strokeWidth={5}
           lineCap="round"
@@ -679,15 +704,13 @@ export function InfinityCanvasStage({
 
       {/* Layer 2.5 — 다른 참여자가 그리고 있는 임시 선/도형 */}
       <Layer listening={false}>
-        {remoteDraftObjects.map(renderRemoteDraftObject)}
+        {remoteDraftNodes}
       </Layer>
 
       {/* Layer 3 — 진행 중 pen line + preview + cursor + 다중 선택 박스 */}
       <Layer listening={false}>
         <Line
           ref={currentPenLineRef}
-          points={[]}
-          visible={false}
           stroke="#000"
           strokeWidth={5}
           lineCap="round"
@@ -696,17 +719,13 @@ export function InfinityCanvasStage({
         />
         <Rect
           ref={previewRectRef}
-          visible={false}
           stroke="#000"
           strokeWidth={5}
           fill="transparent"
           dash={[6, 4]}
         />
-        <Ellipse
+        <ImperativeEllipse
           ref={previewEllipseRef}
-          visible={false}
-          radiusX={0}
-          radiusY={0}
           stroke="#000"
           strokeWidth={5}
           fill="transparent"
@@ -715,7 +734,7 @@ export function InfinityCanvasStage({
         <SelectionBox boxRef={selectionBoxRef} />
         <CursorPreview cursorRef={cursorPreviewRef} />
         {lockedElements.map(renderLockOverlay)}
-        {smoothRemoteCursors.map(renderRemoteCursor)}
+        <RemoteCursorLayer remoteCursors={remoteCursors} />
       </Layer>
     </Stage>
   );
