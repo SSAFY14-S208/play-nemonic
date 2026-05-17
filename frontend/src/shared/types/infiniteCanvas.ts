@@ -77,6 +77,10 @@ export interface InfiniteCanvasCreateRequest {
   color?: string | null
 }
 
+export interface InfiniteCanvasParticipantProfileUpdateRequest {
+  color: string
+}
+
 export interface InfiniteCanvasCreateResponse {
   roomCode: string
   status: InfiniteCanvasStatus

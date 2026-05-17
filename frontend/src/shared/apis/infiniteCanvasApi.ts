@@ -6,6 +6,8 @@ import type {
   InfiniteCanvasLeaveResponse,
   InfiniteCanvasOutputSaveRequest,
   InfiniteCanvasOutputSaveResponse,
+  InfiniteCanvasParticipantProfileUpdateRequest,
+  InfiniteCanvasParticipantResponse,
 } from '@/shared/types'
 
 import { apiUnwrap } from '@/shared/utils'
@@ -15,6 +17,18 @@ export const postInfiniteCanvas = (payload?: InfiniteCanvasCreateRequest) =>
   apiUnwrap(api.post<ApiResponse<InfiniteCanvasCreateResponse>>('infinite-canvas/canvases', payload))
 
 export const postInfiniteCanvasCanvas = postInfiniteCanvas
+
+// PATCH /infinite-canvas/canvases/{roomCode}/participants/me — 무한 캔버스 내 참여자 색상 수정
+export const patchInfiniteCanvasParticipantProfile = (
+  roomCode: string,
+  payload: InfiniteCanvasParticipantProfileUpdateRequest,
+) =>
+  apiUnwrap(
+    api.patch<ApiResponse<InfiniteCanvasParticipantResponse>>(
+      `infinite-canvas/canvases/${roomCode}/participants/me`,
+      payload,
+    ),
+  )
 
 // DELETE /infinite-canvas/canvases/{roomCode}/participants/me — 무한 캔버스 퇴장
 export const deleteInfiniteCanvasParticipantMe = (roomCode: string) =>

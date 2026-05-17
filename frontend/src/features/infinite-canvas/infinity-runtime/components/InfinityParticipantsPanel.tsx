@@ -1,8 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import type { InfiniteCanvasConnectionStatus, InfiniteCanvasParticipantResponse } from '@/shared/types'
-import { INFINITY_PARTICIPANT_ACCENTS } from '../constants'
+import { INFINITY_COLORS, INFINITY_PARTICIPANT_ACCENTS } from '../constants'
 
 const PANEL_WIDTH = 334
 const PANEL_TOP_HEIGHT = 58
@@ -17,6 +18,8 @@ interface InfinityParticipantsPanelProps {
   maxParticipants: number
   me: InfiniteCanvasParticipantResponse | null
   participants: InfiniteCanvasParticipantResponse[]
+  isUpdatingProfile?: boolean
+  onUpdateMyColor?: (color: string) => Promise<boolean>
 }
 
 function isCurrentUserConnected(
@@ -33,7 +36,10 @@ export function InfinityParticipantsPanel({
   maxParticipants,
   me,
   participants,
+  isUpdatingProfile = false,
+  onUpdateMyColor,
 }: InfinityParticipantsPanelProps) {
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false)
   const sortedParticipants = [...participants].sort((first, second) => {
     if (first.userUuid === me?.userUuid) return -1
     if (second.userUuid === me?.userUuid) return 1
@@ -115,15 +121,31 @@ export function InfinityParticipantsPanel({
             return (
               <li
                 key={participant.userUuid}
-                className="flex h-[42px] min-w-0 shrink-0 items-center gap-3 rounded-full border border-white/82 bg-white/76 px-3.5 py-2 shadow-[0_7px_14px_rgba(65,95,160,0.11),inset_0_1px_0_rgba(255,255,255,0.9)]"
+                className="relative flex h-[42px] min-w-0 shrink-0 items-center gap-3 rounded-full border border-white/82 bg-white/76 px-3.5 py-2 shadow-[0_7px_14px_rgba(65,95,160,0.11),inset_0_1px_0_rgba(255,255,255,0.9)]"
               >
-                <span
-                  className="size-4.5 shrink-0 rounded-full border-2 border-white"
-                  style={{
-                    backgroundColor: participant.color,
-                    boxShadow: `0 0 0 3px ${accentColor}, 0 5px 12px rgba(93, 114, 255, 0.22)`,
-                  }}
-                />
+                {isMe && onUpdateMyColor ? (
+                  <button
+                    type="button"
+                    title="내 색상 변경"
+                    disabled={isUpdatingProfile}
+                    onClick={() => setIsColorPickerOpen((open) => !open)}
+                    className="grid size-5 shrink-0 place-items-center rounded-full border-2 border-white transition-transform hover:scale-110 disabled:opacity-60"
+                    style={{
+                      backgroundColor: participant.color,
+                      boxShadow: `0 0 0 3px ${accentColor}, 0 5px 12px rgba(93, 114, 255, 0.22)`,
+                    }}
+                  >
+                    <span className="sr-only">내 색상 변경</span>
+                  </button>
+                ) : (
+                  <span
+                    className="size-4.5 shrink-0 rounded-full border-2 border-white"
+                    style={{
+                      backgroundColor: participant.color,
+                      boxShadow: `0 0 0 3px ${accentColor}, 0 5px 12px rgba(93, 114, 255, 0.22)`,
+                    }}
+                  />
+                )}
                 <span
                   className="body-b min-w-0 flex-1 truncate text-[#25376c]"
                   title={displayNickname}
@@ -133,6 +155,34 @@ export function InfinityParticipantsPanel({
                 <span className="caption-b shrink-0 rounded-full bg-[#eef6ff] px-2.5 py-1 text-[#4873b5]">
                   {isConnected ? '접속' : '오프'}
                 </span>
+                {isMe && isColorPickerOpen && onUpdateMyColor && (
+                  <div className="absolute left-2 top-[48px] z-20 grid grid-cols-3 gap-2 rounded-[18px] border border-white/80 bg-white/92 p-3 shadow-[0_16px_26px_rgba(60,82,160,0.22)] backdrop-blur">
+                    {INFINITY_COLORS.map((color) => {
+                      const selected = color.toLowerCase() === participant.color.toLowerCase()
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          title={`${color}로 변경`}
+                          disabled={isUpdatingProfile}
+                          onClick={async () => {
+                            const updated = await onUpdateMyColor(color)
+                            if (updated) setIsColorPickerOpen(false)
+                          }}
+                          className="size-7 rounded-full border-2 border-white transition-transform hover:scale-110 disabled:opacity-60"
+                          style={{
+                            backgroundColor: color,
+                            boxShadow: selected
+                              ? '0 0 0 3px #ff5f9a, 0 6px 12px rgba(70,80,160,0.22)'
+                              : '0 0 0 1px rgba(60,80,140,0.12), 0 5px 10px rgba(70,80,160,0.14)',
+                          }}
+                        >
+                          <span className="sr-only">{color} 선택</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </li>
             )
           })}

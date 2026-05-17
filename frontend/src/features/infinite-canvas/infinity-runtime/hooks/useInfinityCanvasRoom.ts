@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
+  ApiError,
   deleteInfiniteCanvasParticipantMe,
+  patchInfiniteCanvasParticipantProfile,
   postFileConfirm,
   postFilePresign,
   postInfiniteCanvasOutput,
@@ -218,6 +220,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
   const [remoteCursors, setRemoteCursors] = useState<Record<string, InfiniteCanvasCursor>>({})
   const [isHydrating, setIsHydrating] = useState(true)
   const [isSavingOutput, setIsSavingOutput] = useState(false)
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [operationQueueVersion, setOperationQueueVersion] = useState(0)
   const revisionRef = useRef(0)
@@ -234,11 +237,18 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
 
     setIsHydrating(true)
     setErrorMessage(null)
+    const snapshot = takeInfiniteCanvasCreatedRoomSnapshot(roomCode)
+    if (!snapshot) {
+      setRoomState(null)
+      revisionRef.current = 0
+      return null
+    }
+
     const nextState = createInitialRoomState({
       roomCode,
       userUuid,
       nickname,
-      snapshot: takeInfiniteCanvasCreatedRoomSnapshot(roomCode),
+      snapshot,
     })
     revisionRef.current = nextState.revision
     setRoomState(nextState)
@@ -249,6 +259,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
   const applyFullState = useCallback((nextState: InfiniteCanvasStateResponse) => {
     revisionRef.current = nextState.revision
     setRoomState(nextState)
+    setIsHydrating(false)
   }, [])
 
   const handleRealtimeEvent = useCallback(
@@ -419,7 +430,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
   )
 
   const realtime = useInfinityRealtimeConnection({
-    enabled: Boolean(roomState && roomCode && userUuid),
+    enabled: Boolean(roomCode && userUuid),
     roomCode,
     onEvent: handleRealtimeEvent,
   })
@@ -443,6 +454,20 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       cancelled = true
     }
   }, [roomCode, hydrateRoom, userUuid])
+
+  useEffect(() => {
+    if (!roomCode || !userUuid) return
+    if (roomState) return
+    if (realtime.connectionStatus === 'idle' || realtime.connectionStatus === 'connecting') return
+
+    if (realtime.connectionStatus === 'connected' || realtime.connectionStatus === 'reconnecting') return
+
+    const message = '무한 캔버스 방 상태를 불러오지 못했어요.'
+    window.setTimeout(() => {
+      setErrorMessage(message)
+      setIsHydrating(false)
+    }, 0)
+  }, [realtime.connectionStatus, roomCode, roomState, userUuid])
 
   const sendOperations = useCallback(
     (operations: InfiniteCanvasOperationRequest[]) => {
@@ -500,6 +525,50 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     [roomCode, isSavingOutput],
   )
 
+  const updateMyColor = useCallback(
+    async (color: string) => {
+      const normalizedColor = color.trim()
+      if (!roomCode || !normalizedColor || isUpdatingProfile) return false
+
+      setIsUpdatingProfile(true)
+      setErrorMessage(null)
+      try {
+        const updatedParticipant = await patchInfiniteCanvasParticipantProfile(roomCode, {
+          color: normalizedColor,
+        })
+        setRoomState((currentState) => {
+          if (!currentState) return currentState
+          return {
+            ...currentState,
+            me:
+              currentState.me?.userUuid === updatedParticipant.userUuid
+                ? updatedParticipant
+                : currentState.me,
+            participants: currentState.participants.map((participant) =>
+              participant.userUuid === updatedParticipant.userUuid
+                ? updatedParticipant
+                : participant,
+            ),
+            updatedAt: new Date().toISOString(),
+          }
+        })
+        toast.success('참여자 색상을 변경했어요.')
+        return true
+      } catch (caughtError) {
+        const message =
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : '참여자 색상 변경에 실패했어요.'
+        setErrorMessage(message)
+        toast.error(message)
+        return false
+      } finally {
+        setIsUpdatingProfile(false)
+      }
+    },
+    [isUpdatingProfile, roomCode],
+  )
+
   const leaveCanvas = useCallback(async () => {
     if (!roomCode) return
 
@@ -524,6 +593,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     errorMessage,
     connectionStatus: realtime.connectionStatus,
     isSavingOutput,
+    isUpdatingProfile,
     me: roomState?.me ?? null,
     participants: roomState?.participants ?? [],
     participantsByUserUuid,
@@ -540,5 +610,6 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     releaseLock: realtime.releaseLock,
     saveOutput,
     leaveCanvas,
+    updateMyColor,
   } as const
 }

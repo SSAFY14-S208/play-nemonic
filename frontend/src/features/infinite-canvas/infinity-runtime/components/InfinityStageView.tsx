@@ -44,7 +44,8 @@ function areInfinityObjectListsEqual(firstObjects: InfinityObject[], secondObjec
   const secondObjectMap = createObjectMap(secondObjects)
   return firstObjects.every((firstObject) => {
     const secondObject = secondObjectMap.get(firstObject.id)
-    return Boolean(secondObject) && stringifyInfinityObject(firstObject) === stringifyInfinityObject(secondObject)
+    if (!secondObject) return false
+    return stringifyInfinityObject(firstObject) === stringifyInfinityObject(secondObject)
   })
 }
 
@@ -495,8 +496,10 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
       <InfinityParticipantsPanel
         connectionStatus={room.connectionStatus}
+        isUpdatingProfile={room.isUpdatingProfile}
         maxParticipants={room.maxParticipants}
         me={room.me}
+        onUpdateMyColor={room.updateMyColor}
         participants={room.participants}
       />
 
