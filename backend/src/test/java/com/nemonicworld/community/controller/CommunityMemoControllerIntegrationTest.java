@@ -230,8 +230,8 @@ class CommunityMemoControllerIntegrationTest {
 
     @Test
     void createCommunityMemoShareReturnsQrImageUrlForVisibleMemoOwnedByAnotherUser() throws Exception {
-        UUID ownerUuid = createExistingUser("share-owner");
-        UUID viewerUuid = createExistingUser("share-viewer");
+        UUID ownerUuid = createExistingUser("share-own");
+        UUID viewerUuid = createExistingUser("share-view");
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         UUID memoId = UUID.randomUUID();
         byte[] sourceBytes = new byte[]{1, 2, 3};
@@ -263,7 +263,7 @@ class CommunityMemoControllerIntegrationTest {
 
     @Test
     void createCommunityMemoShareFallsBackToThumbnailImage() throws Exception {
-        UUID userUuid = createExistingUser("share-thumbnail");
+        UUID userUuid = createExistingUser("share-thum");
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         UUID memoId = UUID.randomUUID();
         byte[] sourceBytes = new byte[]{1, 2, 3};
@@ -287,8 +287,8 @@ class CommunityMemoControllerIntegrationTest {
 
     @Test
     void createCommunityMemoShareRejectsHiddenDeletedAndBlockedMemos() throws Exception {
-        UUID ownerUuid = createExistingUser("share-unavailable");
-        UUID viewerUuid = createExistingUser("share-viewer");
+        UUID ownerUuid = createExistingUser("share-off");
+        UUID viewerUuid = createExistingUser("share-view");
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         UUID deletedMemoId = UUID.randomUUID();
         UUID hiddenMemoId = UUID.randomUUID();
