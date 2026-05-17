@@ -27,7 +27,9 @@ import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOutputSaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasRevisionConflictResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
+import com.nemonicworld.infinitecanvas.exception.InfiniteCanvasRevisionConflictException;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasCursor;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasLock;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperation;
@@ -228,7 +230,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             InfiniteCanvasState state = findActiveState(normalizedRoomCode);
             requireParticipant(state, userUuid);
             requireCanvasHost(state, userUuid);
-            requireFreshRevision(request == null ? null : request.baseRevision(), state.revision());
+            requireFreshRevision(request == null ? null : request.baseRevision(), state);
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             Map<String, InfiniteCanvasLock> locks = removeExpiredLocks(state.locks(), now);
             requireNoForeignLocks(locks, userUuid);
@@ -353,7 +355,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
                 return new InfiniteCanvasOpsAppliedResponse(normalizedRoomCode, state.revision(),
                     state.elements().size(), List.of());
             }
-            requireFreshRevision(request == null ? null : request.baseRevision(), state.revision());
+            requireFreshRevision(request == null ? null : request.baseRevision(), state);
 
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             CanvasElementBatch elements = new CanvasElementBatch(state.elements());
@@ -599,13 +601,53 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         return List.copyOf(operations);
     }
 
-    private void requireFreshRevision(Long baseRevision, long currentRevision) {
+    private void requireFreshRevision(Long baseRevision, InfiniteCanvasState state) {
         if (baseRevision == null) {
             throw new BadRequestException(BASE_REVISION_REQUIRED_MESSAGE);
         }
-        if (baseRevision.longValue() != currentRevision) {
-            throw new ConflictException(STALE_REVISION_MESSAGE);
+        if (baseRevision.longValue() != state.revision()) {
+            throw new InfiniteCanvasRevisionConflictException(STALE_REVISION_MESSAGE,
+                revisionConflictResponse(baseRevision, state));
         }
+    }
+
+    private InfiniteCanvasRevisionConflictResponse revisionConflictResponse(long baseRevision,
+        InfiniteCanvasState state) {
+        List<InfiniteCanvasOperation> missingOperations = missingOperations(baseRevision, state);
+        boolean fullStateRequired = !canRecoverWithDelta(baseRevision, state.revision(), missingOperations);
+
+        return new InfiniteCanvasRevisionConflictResponse(state.roomCode(), baseRevision, state.revision(),
+            fullStateRequired ? List.of() : missingOperations, fullStateRequired);
+    }
+
+    private List<InfiniteCanvasOperation> missingOperations(long baseRevision, InfiniteCanvasState state) {
+        if (baseRevision >= state.revision()) {
+            return List.of();
+        }
+
+        return state.operations().stream()
+            .filter(operation -> operation.revision() > baseRevision && operation.revision() <= state.revision())
+            .toList();
+    }
+
+    private boolean canRecoverWithDelta(long baseRevision, long latestRevision,
+        List<InfiniteCanvasOperation> missingOperations) {
+        if (baseRevision >= latestRevision) {
+            return false;
+        }
+        if (missingOperations.size() != latestRevision - baseRevision) {
+            return false;
+        }
+
+        long expectedRevision = baseRevision + 1;
+        for (InfiniteCanvasOperation operation : missingOperations) {
+            if (operation.revision() != expectedRevision) {
+                return false;
+            }
+            expectedRevision++;
+        }
+
+        return true;
     }
 
     private InfiniteCanvasOperation createOperation(InfiniteCanvasOperationRequest request, String userUuid,

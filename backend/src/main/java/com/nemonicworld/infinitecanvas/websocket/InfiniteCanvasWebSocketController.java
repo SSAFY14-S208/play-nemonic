@@ -11,6 +11,7 @@ import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
+import com.nemonicworld.infinitecanvas.exception.InfiniteCanvasRevisionConflictException;
 import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
 import java.util.Optional;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -47,6 +48,9 @@ public class InfiniteCanvasWebSocketController {
                 InfiniteCanvasStateResponse response = infiniteCanvasService.replaceSnapshot(session.userUuid(),
                     session.connectionKey(), request);
                 infiniteCanvasEventPublisher.publishSnapshotUpdated(response);
+            } catch (InfiniteCanvasRevisionConflictException e) {
+                infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage(),
+                    e.response());
             } catch (RuntimeException e) {
                 infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage());
             }
@@ -61,6 +65,9 @@ public class InfiniteCanvasWebSocketController {
                 InfiniteCanvasOpsAppliedResponse response = infiniteCanvasService.applyOperations(session.userUuid(),
                     session.connectionKey(), request);
                 infiniteCanvasEventPublisher.publishOperationsApplied(response);
+            } catch (InfiniteCanvasRevisionConflictException e) {
+                infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage(),
+                    e.response());
             } catch (RuntimeException e) {
                 infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage());
             }

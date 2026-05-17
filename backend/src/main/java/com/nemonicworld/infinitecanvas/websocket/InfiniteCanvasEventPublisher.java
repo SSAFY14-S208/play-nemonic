@@ -12,6 +12,7 @@ import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventType;
+import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasErrorResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasParticipantEventResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasSimpleMessageResponse;
 import org.springframework.messaging.MessageHeaders;
@@ -109,6 +110,15 @@ public class InfiniteCanvasEventPublisher {
         String safeMessage = org.springframework.util.StringUtils.hasText(message) ? message : DEFAULT_ERROR_MESSAGE;
         InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(InfiniteCanvasEventType.ERROR, roomCode,
             new InfiniteCanvasSimpleMessageResponse(safeMessage));
+
+        messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + roomCode, event,
+            createSessionHeaders(sessionId));
+    }
+
+    public void publishError(String sessionId, String roomCode, String message, Object details) {
+        String safeMessage = org.springframework.util.StringUtils.hasText(message) ? message : DEFAULT_ERROR_MESSAGE;
+        InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(InfiniteCanvasEventType.ERROR, roomCode,
+            new InfiniteCanvasErrorResponse(safeMessage, details));
 
         messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + roomCode, event,
             createSessionHeaders(sessionId));
