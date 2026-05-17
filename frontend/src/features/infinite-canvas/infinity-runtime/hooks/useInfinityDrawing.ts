@@ -138,6 +138,7 @@ export function useInfinityDrawing(
   const events = useInfinityEvents({
     saveSnapshot: history.saveSnapshot,
     silentClearSelection: history.silentClearSelection,
+    silentSetSelection: history.silentSetSelection,
     recordSelection: history.recordSelection,
     onDraftObjectChange: options.onDraftObjectChange,
     objectsRef: history.objectsRef,
@@ -282,6 +283,7 @@ export function useInfinityDrawing(
     clearSelection: history.silentClearSelection,
     replaceObjectsFromServer: history.replaceObjectsFromServer,
     syncObjectsFromServer: history.syncObjectsFromServer,
+    shiftSelectedZIndex: events.shiftSelectedZIndex,
 
     isShiftDown,
 

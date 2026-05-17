@@ -68,6 +68,7 @@ interface InfinityCanvasStageProps {
   remoteDraftObjects: InfinityRemoteDraftObjectView[]
   remoteCursors: InfinityRemoteCursorView[]
   onCursorMove: (cursor: { x: number; y: number; zoom: number }) => void
+  onLayerMenuRequest: (request: { elementId: string; x: number; y: number }) => void
 }
 
 const REMOTE_CURSOR_SMOOTHING = 0.28
@@ -348,6 +349,7 @@ export function InfinityCanvasStage({
   remoteDraftObjects,
   remoteCursors,
   onCursorMove,
+  onLayerMenuRequest,
 }: InfinityCanvasStageProps) {
   const {
     objects,
@@ -377,6 +379,15 @@ export function InfinityCanvasStage({
   }, [tool]);
 
   const transformerRef = useRef<Konva.Transformer>(null);
+  const layerMenuLongPressTimerRef = useRef<number | null>(null);
+
+  const clearLayerMenuLongPress = useCallback(() => {
+    if (layerMenuLongPressTimerRef.current === null) return;
+    window.clearTimeout(layerMenuLongPressTimerRef.current);
+    layerMenuLongPressTimerRef.current = null;
+  }, []);
+
+  useEffect(() => clearLayerMenuLongPress, [clearLayerMenuLongPress]);
 
   // 다중 선택 Transformer: stage.findOne으로 nodes 배열 매핑.
   useEffect(() => {
@@ -400,6 +411,14 @@ export function InfinityCanvasStage({
   const handleObjectClick = useCallback((id: string, isShift: boolean) => {
     onObjectClick(id, isShift, toolRef.current);
   }, [onObjectClick]);
+
+  const requestLayerMenu = useCallback(
+    (elementId: string, x: number, y: number) => {
+      onObjectClick(elementId, false, "select");
+      onLayerMenuRequest({ elementId, x, y });
+    },
+    [onLayerMenuRequest, onObjectClick],
+  );
 
   const renderShapeOrText = (obj: InfinityObject) => {
     const isLocked = lockedElementIds.has(obj.id);
@@ -625,6 +644,26 @@ export function InfinityCanvasStage({
       }}
       onMouseUp={() => onStageMouseUp(toolRef.current)}
       onMouseLeave={() => onStageMouseLeave(toolRef.current)}
+      onContextMenu={(e) => {
+        e.evt.preventDefault();
+        const targetId = e.target.id();
+        if (!targetId || toolRef.current !== "select") return;
+        requestLayerMenu(targetId, e.evt.clientX, e.evt.clientY);
+      }}
+      onTouchStart={(e) => {
+        clearLayerMenuLongPress();
+        const targetId = e.target.id();
+        if (!targetId || toolRef.current !== "select") return;
+        const touch = e.evt.touches[0];
+        if (!touch) return;
+        layerMenuLongPressTimerRef.current = window.setTimeout(() => {
+          layerMenuLongPressTimerRef.current = null;
+          requestLayerMenu(targetId, touch.clientX, touch.clientY);
+        }, 520);
+      }}
+      onTouchMove={clearLayerMenuLongPress}
+      onTouchEnd={clearLayerMenuLongPress}
+      onTouchCancel={clearLayerMenuLongPress}
       onWheel={onStageWheel}
       onClick={(e) => onStageClick(e, toolRef.current)}
     >
