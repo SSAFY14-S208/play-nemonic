@@ -63,7 +63,7 @@ export default function WorldHomeLink({
       <motion.button
         type="button"
         onClick={handleClick}
-        aria-label="네모닉 월드로 돌아가기"
+        aria-label="네모닉 룸으로 돌아가기"
         className="fixed left-4 top-4 z-[var(--z-sticky)] flex items-center justify-center p-1 sm:left-6 sm:top-6"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -73,7 +73,7 @@ export default function WorldHomeLink({
       >
         <Image
           src="/images/play-nemonic-logo.png"
-          alt="Play! nemonic"
+          alt="Play! Nemonic"
           width={1672}
           height={941}
           priority
