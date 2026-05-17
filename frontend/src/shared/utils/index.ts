@@ -12,6 +12,10 @@ export {
 } from './communityCanvasHandoff'
 export { createBucketFillLine } from './drawingBucketFill'
 export { getDisplayImageUrl } from './displayImageUrl'
+export {
+  shareExternalImage,
+  type ExternalImageShareResult,
+} from './externalImageShare'
 export { isPointInsideDrawingArea } from './drawingGeometry'
 export {
   createRasterizedDrawingLine,

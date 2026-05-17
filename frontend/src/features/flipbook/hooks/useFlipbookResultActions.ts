@@ -2,9 +2,24 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
+import { ApiError, postShare } from '@/shared/apis'
 import type { FlipbookResultItemResponse } from '@/shared/types'
-import { getDisplayImageUrl, writeCommunityCanvasHandoffDraft } from '@/shared/utils'
+import {
+  getDisplayImageUrl,
+  shareExternalImage,
+  type ExternalImageShareResult,
+  writeCommunityCanvasHandoffDraft,
+} from '@/shared/utils'
+
+const FLIPBOOK_SHARE_TEXT = '네모닉 플립북 결과를 공유해요.'
+const FLIPBOOK_SHARE_GIF_LINK_COPIED_MESSAGE =
+  '플립북 QR GIF 공유 링크를 복사했어요.'
+const FLIPBOOK_SHARE_IMAGE_COPIED_MESSAGE =
+  '플립북 QR 공유 이미지를 복사했어요. 채팅창에 붙여넣어 주세요.'
+const FLIPBOOK_SHARE_IMAGE_LINK_COPIED_MESSAGE =
+  '플립북 QR 공유 이미지 링크를 복사했어요.'
 
 function hasUsableImageUrl(imageUrl: string | null | undefined) {
   return Boolean(imageUrl?.trim())
@@ -81,6 +96,21 @@ function isRealGalleryId(galleryId: string | null | undefined) {
   return Boolean(galleryId && !galleryId.startsWith('dummy-'))
 }
 
+function toExternalShareErrorMessage(error: unknown) {
+  if (error instanceof ApiError) return error.message || '외부 공유 정보를 만들 수 없어요.'
+  if (error instanceof Error) return error.message || '외부 공유 정보를 만들 수 없어요.'
+
+  return '외부 공유 정보를 만들 수 없어요.'
+}
+
+function getExternalShareSuccessMessage(shareResult: ExternalImageShareResult) {
+  if (shareResult === 'copied-gif-link') return FLIPBOOK_SHARE_GIF_LINK_COPIED_MESSAGE
+  if (shareResult === 'copied-image') return FLIPBOOK_SHARE_IMAGE_COPIED_MESSAGE
+  if (shareResult === 'copied-image-link') return FLIPBOOK_SHARE_IMAGE_LINK_COPIED_MESSAGE
+
+  return null
+}
+
 export function useFlipbookResultActions({
   activeResult,
   activeResultIndex,
@@ -94,6 +124,7 @@ export function useFlipbookResultActions({
 }) {
   const router = useRouter()
   const [isSavingToLocal, setIsSavingToLocal] = useState(false)
+  const [isSharingExternal, setIsSharingExternal] = useState(false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const ownerName = useMemo(
     () =>
@@ -108,6 +139,8 @@ export function useFlipbookResultActions({
   const communityImageUrl = useMemo(() => getCommunityImageUrl(activeResult), [activeResult])
   const canSaveToLocal = Boolean(resultImageUrl) && !isSavingToLocal
   const canPostCommunity = Boolean(communityImageUrl)
+  const canShareExternal =
+    Boolean(activeResult && isRealGalleryId(activeResult.galleryId)) && !isSharingExternal
 
   const saveToLocalGallery = useCallback(async () => {
     if (!resultImageUrl || isSavingToLocal) return
@@ -161,13 +194,51 @@ export function useFlipbookResultActions({
     router.push('/community-canvas')
   }, [activeResult, communityImageUrl, ownerName, router])
 
+  const shareExternal = useCallback(async () => {
+    if (!activeResult || !isRealGalleryId(activeResult.galleryId) || isSharingExternal) {
+      setActionMessage('외부 공유는 저장된 결과에서만 사용할 수 있어요.')
+      return
+    }
+
+    setIsSharingExternal(true)
+    setActionMessage(null)
+
+    try {
+      const shareInfo = await postShare({
+        galleryId: activeResult.galleryId,
+        campaign: 'flipbook_result',
+      })
+      if (!shareInfo.imageUrl?.trim()) {
+        throw new Error('외부 공유 이미지를 찾지 못했어요.')
+      }
+
+      const shareResult = await shareExternalImage({
+        title: `${ownerName}의 플립북`,
+        text: FLIPBOOK_SHARE_TEXT,
+        imageUrl: shareInfo.imageUrl,
+        fileNameBase: 'flipbook-result-qr',
+      })
+      const successMessage = getExternalShareSuccessMessage(shareResult)
+      if (successMessage) toast.success(successMessage)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+
+      toast.error(toExternalShareErrorMessage(error))
+    } finally {
+      setIsSharingExternal(false)
+    }
+  }, [activeResult, isSharingExternal, ownerName])
+
   return {
     actionMessage,
     canPostCommunity,
     canSaveToLocal,
+    canShareExternal,
     isSavingToLocal,
+    isSharingExternal,
     postToCommunity,
     saveToLocalGallery,
+    shareExternal,
     returnToLobby: onReturnToLobby,
   }
 }

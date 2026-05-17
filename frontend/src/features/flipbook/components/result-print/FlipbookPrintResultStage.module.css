@@ -49,6 +49,10 @@
   z-index: 10;
   width: min(92vw, 640px);
   aspect-ratio: 1113 / 744;
+  --result-side-control-max-width: 116px;
+  --result-side-control-min-width: 74px;
+  --result-side-control-right: 4%;
+  --result-side-control-width: 11.4%;
 }
 
 .boardImage {
@@ -145,35 +149,50 @@
 
 .skipPlaybackButton {
   position: absolute;
-  right: 4.7%;
-  top: 11.2%;
+  right: var(--result-side-control-right);
+  top: 9.8%;
   z-index: 70;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 8.8%;
-  min-width: 54px;
-  max-width: 84px;
-  aspect-ratio: 2.35 / 1;
-  border: 2px solid #ff86aa;
+  width: var(--result-side-control-width);
+  min-width: var(--result-side-control-min-width);
+  max-width: var(--result-side-control-max-width);
+  aspect-ratio: 186 / 90;
+  border: 0;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgb(255 245 184 / 98%), rgb(255 203 222 / 95%));
+  background: transparent;
+  padding: 0;
   color: #c83f6b;
-  font-size: clamp(11px, 1.05vw, 14px);
-  font-weight: 800;
+  font-family: var(--font-paperlogy);
+  font-size: clamp(12px, 1.12vw, 15px);
+  font-weight: 600;
   line-height: 1;
   text-transform: lowercase;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 85%),
-    0 6px 12px rgb(200 63 107 / 18%);
   transition:
-    background 160ms ease,
     transform 160ms ease,
     opacity 160ms ease;
 }
 
+.skipPlaybackButtonImage {
+  pointer-events: none;
+  object-fit: contain;
+  user-select: none;
+}
+
+.skipPlaybackButtonText {
+  position: relative;
+  z-index: 1;
+  display: block;
+  max-width: 76%;
+  overflow: hidden;
+  padding-bottom: 3%;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .skipPlaybackButton:hover:not(:disabled) {
-  background: linear-gradient(180deg, #ffef9d, #ffbdd4);
   transform: translateY(-1px);
 }
 
@@ -191,16 +210,90 @@
   outline-offset: 2px;
 }
 
+.frameArtistBadge {
+  position: absolute;
+  right: var(--result-side-control-right);
+  top: 18%;
+  z-index: 69;
+  display: grid;
+  width: var(--result-side-control-width);
+  min-width: var(--result-side-control-min-width);
+  max-width: var(--result-side-control-max-width);
+  aspect-ratio: 186 / 248;
+  align-content: center;
+  box-sizing: border-box;
+  justify-items: center;
+  gap: 6px;
+  overflow: hidden;
+  padding: clamp(8px, 1.1vw, 13px) clamp(7px, 0.85vw, 11px);
+  color: #5d3b38;
+  font-family: var(--font-paperlogy);
+}
+
+.frameArtistBadgeImage {
+  pointer-events: none;
+  z-index: 0;
+  object-fit: contain;
+  user-select: none;
+}
+
+.frameArtistBadgeLabel {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  overflow: hidden;
+  color: #c83f6b;
+  font-size: clamp(13px, 1.28vw, 18px);
+  font-weight: 600;
+  line-height: 1.05;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.frameArtistBadgeName {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  overflow: hidden;
+  color: #332222;
+  font-size: clamp(18px, 1.55vw, 23px);
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 767px) {
+  .boardLayer {
+    --result-side-control-max-width: 64px;
+    --result-side-control-min-width: 58px;
+    --result-side-control-right: 2.4%;
+    --result-side-control-width: 16.5%;
+  }
+
   .skipPlaybackButton {
-    right: auto;
-    left: min(72%, 76vw);
-    top: 3.2%;
-    width: 13.5%;
-    min-width: 42px;
-    max-width: 52px;
-    border-width: 1.5px;
-    font-size: clamp(10px, 3vw, 12px);
+    right: var(--result-side-control-right);
+    left: auto;
+    top: 2.5%;
+    font-size: clamp(10px, 3.2vw, 12px);
+  }
+
+  .frameArtistBadge {
+    right: var(--result-side-control-right);
+    left: auto;
+    top: 10.6%;
+    gap: 3px;
+    padding: 6px 5px;
+  }
+
+  .frameArtistBadgeLabel {
+    font-size: clamp(9px, 2.7vw, 11px);
+  }
+
+  .frameArtistBadgeName {
+    font-size: clamp(13px, 3.6vw, 15px);
   }
 }
 
@@ -310,9 +403,13 @@
   }
 
   .skipPlaybackButton {
-    right: 4.8%;
-    top: 11.3%;
-    width: 8.6%;
+    right: var(--result-side-control-right);
+    top: 10%;
+  }
+
+  .frameArtistBadge {
+    right: var(--result-side-control-right);
+    top: 18.2%;
   }
 }
 

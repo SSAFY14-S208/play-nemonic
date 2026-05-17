@@ -16,6 +16,9 @@ import {
 } from './result-print'
 
 const RESULT_ACTION_BUTTONS_IMAGE_SRC = '/images/flipbook-result/result-action-buttons.png'
+const RESULT_ACTION_BUTTONS_IMAGE_WIDTH = 733
+const RESULT_ACTION_BUTTONS_IMAGE_HEIGHT = 70
+const RESULT_ACTION_BUTTONS_ASPECT_RATIO = `${RESULT_ACTION_BUTTONS_IMAGE_WIDTH} / ${RESULT_ACTION_BUTTONS_IMAGE_HEIGHT}`
 
 interface FlipbookResultViewProps {
   resultItems: FlipbookResultItemResponse[]
@@ -59,9 +62,9 @@ export default function FlipbookResultView({
   const resultActionButtons = [
     {
       id: 'local-gallery',
-      label: '로컬 보관함 저장',
-      left: '0%',
-      width: '33.45%',
+      label: '저장하기',
+      left: '1.77%',
+      width: '22.78%',
       disabled: !resultActions.canSaveToLocal,
       onClick: () => {
         void resultActions.saveToLocalGallery()
@@ -70,16 +73,26 @@ export default function FlipbookResultView({
     {
       id: 'community-post',
       label: '커뮤니티 게시',
-      left: '33.45%',
-      width: '32.56%',
+      left: '25.92%',
+      width: '24.15%',
       disabled: !resultActions.canPostCommunity,
       onClick: resultActions.postToCommunity,
     },
     {
+      id: 'external-share',
+      label: '외부 공유',
+      left: '51.43%',
+      width: '21.69%',
+      disabled: !resultActions.canShareExternal,
+      onClick: () => {
+        void resultActions.shareExternal()
+      },
+    },
+    {
       id: 'return-to-lobby',
       label: '로비로 돌아가기',
-      left: '66.01%',
-      width: '33.99%',
+      left: '74.62%',
+      width: '23.47%',
       disabled: canCloseRoom && isBusy,
       onClick: resultActions.returnToLobby,
     },
@@ -113,15 +126,19 @@ export default function FlipbookResultView({
         </div>
       )}
 
-      <div className="absolute left-1/2 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] w-[min(559px,calc(100vw-2rem))] -translate-x-1/2 sm:left-auto sm:right-6 sm:top-6 sm:translate-x-0">
-        <div className="relative aspect-[559/70] w-full">
+      <div className="absolute left-1/2 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] w-[min(733px,calc(100vw-2rem))] -translate-x-1/2 sm:left-auto sm:right-6 sm:top-6 sm:translate-x-0">
+        <div
+          className="relative w-full"
+          style={{ aspectRatio: RESULT_ACTION_BUTTONS_ASPECT_RATIO }}
+        >
           <Image
             src={RESULT_ACTION_BUTTONS_IMAGE_SRC}
             alt=""
             fill
             priority
             draggable={false}
-            sizes="(max-width: 640px) calc(100vw - 2rem), 559px"
+            unoptimized
+            sizes={`(max-width: 640px) calc(100vw - 2rem), ${RESULT_ACTION_BUTTONS_IMAGE_WIDTH}px`}
             className="select-none object-contain"
             aria-hidden
           />
