@@ -850,30 +850,31 @@ export default function FortuneVisual({
             />
           ))}
         </div>
-        {shouldShowPrintVideo && (
-          <video
-            ref={printVideoRef}
-            className={cn(
-              LAYER_BASE_CLASS,
-              // .fortune-2d-print-video
-              'inset-0 z-[11] w-full h-full object-cover',
-              'pointer-events-none bg-transparent opacity-0',
-              '[transform:translateZ(0)] [will-change:opacity] [contain:strict]',
-              'animate-fortune-2d-print-video-fade',
-            )}
-            src={FORTUNE_PRINT_VIDEO_PATH}
-            autoPlay
-            muted
-            playsInline
-            preload="auto"
-            controls={false}
-            disablePictureInPicture
-            onEnded={firePrintCompleteOnce}
-            onError={firePrintCompleteOnce}
-            aria-hidden
-          />
-        )}
       </div>
+      {/* Print video는 stage 박스가 viewport보다 작아질 수 있는 모바일에서도
+          화면 전체를 덮어야 하므로 stage 밖, root 직속으로 빼서 viewport 전체를
+          object-cover로 채우게 함. */}
+      {shouldShowPrintVideo && (
+        <video
+          ref={printVideoRef}
+          className={cn(
+            'absolute inset-0 z-[11] block h-full w-full max-w-none select-none object-cover',
+            'pointer-events-none bg-transparent opacity-0',
+            '[transform:translateZ(0)] [will-change:opacity,transform] [contain:strict]',
+            'animate-fortune-2d-print-video-fade',
+          )}
+          src={FORTUNE_PRINT_VIDEO_PATH}
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          controls={false}
+          disablePictureInPicture
+          onEnded={firePrintCompleteOnce}
+          onError={firePrintCompleteOnce}
+          aria-hidden
+        />
+      )}
       <div
         ref={curtainFrameRef}
         className={cn(
