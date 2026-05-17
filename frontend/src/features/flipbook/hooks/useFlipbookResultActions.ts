@@ -2,10 +2,24 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 import { ApiError, postShare } from '@/shared/apis'
-import type { FlipbookResultItemResponse, ShareCreateResponse } from '@/shared/types'
-import { getDisplayImageUrl, writeCommunityCanvasHandoffDraft } from '@/shared/utils'
+import type { FlipbookResultItemResponse } from '@/shared/types'
+import {
+  getDisplayImageUrl,
+  shareExternalImage,
+  type ExternalImageShareResult,
+  writeCommunityCanvasHandoffDraft,
+} from '@/shared/utils'
+
+const FLIPBOOK_SHARE_TEXT = '네모닉 플립북 결과를 공유해요.'
+const FLIPBOOK_SHARE_GIF_LINK_COPIED_MESSAGE =
+  '플립북 QR GIF 공유 링크를 복사했어요.'
+const FLIPBOOK_SHARE_IMAGE_COPIED_MESSAGE =
+  '플립북 QR 공유 이미지를 복사했어요. 채팅창에 붙여넣어 주세요.'
+const FLIPBOOK_SHARE_IMAGE_LINK_COPIED_MESSAGE =
+  '플립북 QR 공유 이미지 링크를 복사했어요.'
 
 function hasUsableImageUrl(imageUrl: string | null | undefined) {
   return Boolean(imageUrl?.trim())
@@ -82,70 +96,19 @@ function isRealGalleryId(galleryId: string | null | undefined) {
   return Boolean(galleryId && !galleryId.startsWith('dummy-'))
 }
 
-function hasUsableShareUrl(shareUrl: string | null | undefined) {
-  return Boolean(shareUrl?.trim())
-}
-
 function toExternalShareErrorMessage(error: unknown) {
   if (error instanceof ApiError) return error.message || '외부 공유 정보를 만들 수 없어요.'
-  if (error instanceof Error && error.message.includes('클립보드')) {
-    return '외부 공유 링크를 복사하지 못했어요.'
-  }
+  if (error instanceof Error) return error.message || '외부 공유 정보를 만들 수 없어요.'
 
   return '외부 공유 정보를 만들 수 없어요.'
 }
 
-function getDefaultShareUrl(shareInfo: ShareCreateResponse) {
-  return (
-    [shareInfo.siteUrl, shareInfo.kakaoUrl, shareInfo.instagramUrl]
-      .find(hasUsableShareUrl) ?? null
-  )
-}
+function getExternalShareSuccessMessage(shareResult: ExternalImageShareResult) {
+  if (shareResult === 'copied-gif-link') return FLIPBOOK_SHARE_GIF_LINK_COPIED_MESSAGE
+  if (shareResult === 'copied-image') return FLIPBOOK_SHARE_IMAGE_COPIED_MESSAGE
+  if (shareResult === 'copied-image-link') return FLIPBOOK_SHARE_IMAGE_LINK_COPIED_MESSAGE
 
-function toAbsoluteShareUrl(shareUrl: string) {
-  if (typeof window === 'undefined') return shareUrl
-
-  return new URL(shareUrl, window.location.origin).toString()
-}
-
-function openExternalShareUrl(shareUrl: string) {
-  const openedWindow = window.open(
-    toAbsoluteShareUrl(shareUrl),
-    '_blank',
-    'noopener,noreferrer',
-  )
-
-  if (!openedWindow) {
-    window.location.assign(toAbsoluteShareUrl(shareUrl))
-  }
-}
-
-async function copyTextWithFallback(text: string) {
-  if (window.navigator.clipboard?.writeText) {
-    try {
-      await window.navigator.clipboard.writeText(text)
-      return
-    } catch {
-      // Clipboard API 차단 시 DOM fallback으로 이어간다.
-    }
-  }
-
-  const textarea = document.createElement('textarea')
-  textarea.value = text
-  textarea.setAttribute('readonly', '')
-  textarea.style.position = 'fixed'
-  textarea.style.top = '-9999px'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.focus()
-  textarea.select()
-  textarea.setSelectionRange(0, text.length)
-  const copied = document.execCommand('copy')
-  document.body.removeChild(textarea)
-
-  if (!copied) {
-    throw new Error('클립보드 복사에 실패했습니다.')
-  }
+  return null
 }
 
 export function useFlipbookResultActions({
@@ -162,10 +125,6 @@ export function useFlipbookResultActions({
   const router = useRouter()
   const [isSavingToLocal, setIsSavingToLocal] = useState(false)
   const [isSharingExternal, setIsSharingExternal] = useState(false)
-  const [externalShareState, setExternalShareState] = useState<{
-    galleryId: string
-    shareInfo: ShareCreateResponse
-  } | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const ownerName = useMemo(
     () =>
@@ -182,10 +141,6 @@ export function useFlipbookResultActions({
   const canPostCommunity = Boolean(communityImageUrl)
   const canShareExternal =
     Boolean(activeResult && isRealGalleryId(activeResult.galleryId)) && !isSharingExternal
-  const externalShareInfo =
-    externalShareState !== null && activeResult?.galleryId === externalShareState.galleryId
-      ? externalShareState.shareInfo
-      : null
 
   const saveToLocalGallery = useCallback(async () => {
     if (!resultImageUrl || isSavingToLocal) return
@@ -253,74 +208,34 @@ export function useFlipbookResultActions({
         galleryId: activeResult.galleryId,
         campaign: 'flipbook_result',
       })
-      if (!getDefaultShareUrl(shareInfo)) {
-        throw new Error('share-url-missing')
+      if (!shareInfo.imageUrl?.trim()) {
+        throw new Error('외부 공유 이미지를 찾지 못했어요.')
       }
 
-      setExternalShareState({
-        galleryId: activeResult.galleryId,
-        shareInfo,
+      const shareResult = await shareExternalImage({
+        title: `${ownerName}의 플립북`,
+        text: FLIPBOOK_SHARE_TEXT,
+        imageUrl: shareInfo.imageUrl,
+        fileNameBase: 'flipbook-result-qr',
       })
+      const successMessage = getExternalShareSuccessMessage(shareResult)
+      if (successMessage) toast.success(successMessage)
     } catch (error) {
-      setActionMessage(toExternalShareErrorMessage(error))
+      if (error instanceof DOMException && error.name === 'AbortError') return
+
+      toast.error(toExternalShareErrorMessage(error))
     } finally {
       setIsSharingExternal(false)
     }
-  }, [activeResult, isSharingExternal])
-
-  const closeExternalShare = useCallback(() => {
-    setExternalShareState(null)
-  }, [])
-
-  const openKakaoExternalShare = useCallback(() => {
-    if (!externalShareInfo || !hasUsableShareUrl(externalShareInfo.kakaoUrl)) {
-      setActionMessage('카카오톡 공유 링크를 찾지 못했어요.')
-      return
-    }
-
-    openExternalShareUrl(externalShareInfo.kakaoUrl)
-    setActionMessage('카카오톡 공유를 열었어요.')
-  }, [externalShareInfo])
-
-  const openInstagramExternalShare = useCallback(() => {
-    if (!externalShareInfo || !hasUsableShareUrl(externalShareInfo.instagramUrl)) {
-      setActionMessage('인스타그램 공유 링크를 찾지 못했어요.')
-      return
-    }
-
-    openExternalShareUrl(externalShareInfo.instagramUrl)
-    setActionMessage('인스타그램 공유를 열었어요.')
-  }, [externalShareInfo])
-
-  const copyExternalShareLink = useCallback(async () => {
-    if (!externalShareInfo) return
-
-    const shareUrl = getDefaultShareUrl(externalShareInfo)
-    if (!shareUrl) {
-      setActionMessage('외부 공유 링크를 찾지 못했어요.')
-      return
-    }
-
-    try {
-      await copyTextWithFallback(toAbsoluteShareUrl(shareUrl))
-      setActionMessage('외부 공유 링크를 복사했어요.')
-    } catch (error) {
-      setActionMessage(toExternalShareErrorMessage(error))
-    }
-  }, [externalShareInfo])
+  }, [activeResult, isSharingExternal, ownerName])
 
   return {
     actionMessage,
     canPostCommunity,
     canSaveToLocal,
     canShareExternal,
-    closeExternalShare,
-    copyExternalShareLink,
-    externalShareInfo,
     isSavingToLocal,
     isSharingExternal,
-    openInstagramExternalShare,
-    openKakaoExternalShare,
     postToCommunity,
     saveToLocalGallery,
     shareExternal,
