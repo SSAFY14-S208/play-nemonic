@@ -4,11 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { ArrowDownToLine, ArrowUpToLine, Copy, Link2, LogOut, Printer } from 'lucide-react'
 import { toast } from 'sonner'
-import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 import { useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
 import type { InfinityObject } from '../constants'
 import {
-  createClientOperationId,
   isInfinityObject,
   stringifyInfinityObject,
   toInfinityObjects,
@@ -158,8 +156,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const previewEllipseRef = useRef<Konva.Ellipse>(null)
   const cursorPreviewRef = useRef<Konva.Circle>(null)
   const selectionBoxRef = useRef<Konva.Rect>(null)
-  const previousObjectsRef = useRef(createObjectMap([]))
-  const isApplyingRemoteRef = useRef(false)
+  const previousServerObjectsRef = useRef(createObjectMap([]))
   const appliedServerRevisionRef = useRef<number | null>(null)
   const lastCursorSentAtRef = useRef(0)
   const lastDraftCursorSentAtRef = useRef(0)
@@ -233,6 +230,16 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [createCursorPayload, sendRoomCursor],
   )
 
+  const handleLocalOperations = useCallback(
+    (operations: Parameters<typeof sendRoomOperations>[0]) => {
+      const sent = sendRoomOperations(operations)
+      if (!sent) {
+        toast.error('서버 연결 후 편집할 수 있어요.')
+      }
+    },
+    [sendRoomOperations],
+  )
+
   const handleDraftObjectChange = useCallback(
     (draftObject: InfinityObject | null) => {
       if (draftClearTimeoutRef.current) {
@@ -270,6 +277,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     canEditObject: (elementId) => getForeignLock(elementId) === null,
     onBlockedObjectEdit: handleBlockedObjectEdit,
     onDraftObjectChange: handleDraftObjectChange,
+    onLocalOperations: handleLocalOperations,
   })
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -390,9 +398,10 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
     if (isStaleEmptySnapshot) return
 
+    const previousServerObjects = previousServerObjectsRef.current
     const nextServerObjectMap = createObjectMap(serverObjects)
     const isSameServerObjects = areInfinityObjectListsEqual(
-      objectMapValues(previousObjectsRef.current),
+      objectMapValues(previousServerObjects),
       serverObjects,
     )
     if (isSameServerObjects) {
@@ -402,7 +411,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
     if (areInfinityObjectListsEqual(drawing.objects, serverObjects)) {
       appliedServerRevisionRef.current = serverRevision
-      previousObjectsRef.current = nextServerObjectMap
+      previousServerObjectsRef.current = nextServerObjectMap
       return
     }
 
@@ -410,7 +419,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     const nextObjects =
       room.hasPendingOperations && !isInitialServerApply
         ? mergeServerObjectsWithLocalPending({
-            previousServerObjects: previousObjectsRef.current,
+            previousServerObjects,
             serverObjects,
             localObjects: drawing.objects,
           })
@@ -419,9 +428,8 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       nextObjects.some((object) => object.id === selectedId),
     )
 
-    isApplyingRemoteRef.current = true
     appliedServerRevisionRef.current = serverRevision
-    previousObjectsRef.current = nextServerObjectMap
+    previousServerObjectsRef.current = nextServerObjectMap
     if (isInitialServerApply) {
       drawing.replaceObjectsFromServer(nextObjects, selectedIds)
     } else {
@@ -429,56 +437,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.hasPendingOperations, room.revision, serverObjects])
-
-  useEffect(() => {
-    if (isApplyingRemoteRef.current) {
-      isApplyingRemoteRef.current = false
-      previousObjectsRef.current = createObjectMap(drawing.objects)
-      return
-    }
-
-    const previousObjects = previousObjectsRef.current
-    const currentObjects = createObjectMap(drawing.objects)
-    const operations: InfiniteCanvasOperationRequest[] = []
-
-    if (drawing.objects.length === 0 && previousObjects.size > 0) {
-      operations.push({
-        clientOperationId: createClientOperationId(),
-        operationType: 'CLEAR_CANVAS',
-      })
-    } else {
-      for (const currentObject of drawing.objects) {
-        const previousObject = previousObjects.get(currentObject.id)
-        if (previousObject && stringifyInfinityObject(previousObject) === stringifyInfinityObject(currentObject)) {
-          continue
-        }
-
-        operations.push({
-          clientOperationId: createClientOperationId(),
-          operationType: previousObject ? 'UPDATE_ELEMENT' : 'CREATE_ELEMENT',
-          elementId: currentObject.id,
-          element: { ...currentObject },
-        })
-      }
-
-      for (const previousObject of previousObjects.values()) {
-        if (currentObjects.has(previousObject.id)) continue
-        operations.push({
-          clientOperationId: createClientOperationId(),
-          operationType: 'DELETE_ELEMENT',
-          elementId: previousObject.id,
-        })
-      }
-    }
-
-    previousObjectsRef.current = currentObjects
-    if (operations.length === 0) return
-
-    const sent = sendRoomOperations(operations)
-    if (!sent) {
-      toast.error('서버 연결 후 편집할 수 있어요.')
-    }
-  }, [drawing.objects, sendRoomOperations])
 
   useEffect(() => {
     const previousSelectedIds = previousSelectedIdsRef.current
