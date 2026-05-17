@@ -491,7 +491,6 @@ export function useInfinityEvents({
   const currentLineRef = useRef<InfinityLine | null>(null)
   const previewShapeRef = useRef<InfinityShape | null>(null)
   const hoveredObjectIdsRef = useRef<Set<string>>(new Set())
-  const eraserTargetIdsRef = useRef<Set<string>>(new Set())
   const isDrawingRef = useRef<boolean>(false)
   const startPosRef = useRef<{ x: number; y: number } | null>(null)
   const dragSelectStartRef = useRef<DragSelectStart | null>(null)
@@ -658,7 +657,6 @@ export function useInfinityEvents({
     previewShapeRef.current = null
     dragSelectStartRef.current = null
     dragPreviewSelectedIdsRef.current = []
-    eraserTargetIdsRef.current = new Set()
     hideCurrentLines()
     hidePreviewShapes()
     hideCursor()
@@ -732,9 +730,6 @@ export function useInfinityEvents({
         isEraser: toolSnapshot === 'eraser',
       }
       currentLineRef.current = newLine
-      if (toolSnapshot === 'eraser') {
-        eraserTargetIdsRef.current = new Set()
-      }
       onDraftObjectChange?.(toolSnapshot === 'eraser' ? null : newLine)
     } else if (toolSnapshot === 'bucket') {
       isDrawingRef.current = false
@@ -796,17 +791,6 @@ export function useInfinityEvents({
       prev.points.push(pos)
       prev.points = limitLinePoints(prev.points, MAX_LINE_POINTS_PER_OBJECT)
       showCurrentLine(prev)
-      if (prev.isEraser) {
-        const pointer = stage.getPointerPosition()
-        if (pointer) {
-          const intersections = stage.getAllIntersections(pointer)
-          for (const node of intersections) {
-            const id = node.id()
-            if (!id || !objectsRef.current.some((object) => object.id === id)) continue
-            eraserTargetIdsRef.current.add(id)
-          }
-        }
-      }
       onDraftObjectChange?.(prev.isEraser ? null : createDraftLine(prev))
     } else if (toolSnapshot === 'select-eraser') {
       const pointer = stage.getPointerPosition()
@@ -861,7 +845,7 @@ export function useInfinityEvents({
 
     if (toolSnapshot === 'pen' || toolSnapshot === 'eraser') {
       const line = currentLineRef.current
-      if (line && line.points.length > 1 && !line.isEraser) {
+      if (line && line.points.length > 1) {
         const persistedLine = createPersistedLine(line)
         commitLocalChange([...objectsRef.current, persistedLine], selectedIdsRef.current, [
           {
@@ -870,28 +854,8 @@ export function useInfinityEvents({
             element: { ...persistedLine },
           },
         ])
-      } else if (line?.isEraser) {
-        const idsToRemove = eraserTargetIdsRef.current
-        if (idsToRemove.size > 0) {
-          const blockedId = [...idsToRemove].find((id) => !canEdit(id))
-          if (blockedId) {
-            blockEdit(blockedId)
-          } else {
-            const newObjects = objectsRef.current.filter((object) => !idsToRemove.has(object.id))
-            const newSelectedIds = selectedIdsRef.current.filter((id) => !idsToRemove.has(id))
-            commitLocalChange(
-              newObjects,
-              newSelectedIds,
-              [...idsToRemove].map((elementId) => ({
-                operationType: 'DELETE_ELEMENT',
-                elementId,
-              })),
-            )
-          }
-        }
       }
       currentLineRef.current = null
-      eraserTargetIdsRef.current = new Set()
       onDraftObjectChange?.(null)
       cleanupAfterNextPaint(hideCurrentLines)
     } else if (toolSnapshot === 'select-eraser') {
