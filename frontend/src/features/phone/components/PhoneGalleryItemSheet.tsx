@@ -85,6 +85,8 @@ export function PhoneGalleryItemSheet({
   const loadGalleryDetail = usePhoneStore((state) => state.loadGalleryDetail)
   const clearGalleryDetail = usePhoneStore((state) => state.clearGalleryDetail)
   const deleteGalleryItem = usePhoneStore((state) => state.deleteGalleryItem)
+  const downloadGalleryItem = usePhoneStore((state) => state.downloadGalleryItem)
+  const galleryDownloadingId = usePhoneStore((state) => state.galleryDownloadingId)
   const setToast = usePhoneStore((state) => state.setToast)
   const shareInfo = useShareStore((state) => state.shareInfo)
   const shareStatus = useShareStore((state) => state.shareStatus)
@@ -94,6 +96,10 @@ export function PhoneGalleryItemSheet({
   const isSharing = shareStatus === 'loading'
 
   const isLoading = galleryDetailStatus === 'loading'
+  const isDownloading = galleryDownloadingId === item.id
+  // detail이 로드되지 않았어도 액션 내부에서 재조회하지만, UX상 detail 로딩 중에는
+  // 다운로드 시도를 막아 사용자 혼란을 줄인다.
+  const canDownload = !isLoading && !isDownloading
   const detailImageUrl =
     galleryDetail && galleryDetail.galleryId === item.id
       ? galleryDetail.contentUrl || galleryDetail.thumbnailUrl
@@ -214,10 +220,15 @@ export function PhoneGalleryItemSheet({
         <div className="mt-5 grid grid-cols-3 gap-3">
           <button
             type="button"
-            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle"
+            onClick={() => void downloadGalleryItem(item.id)}
+            disabled={!canDownload}
+            className={cn(
+              'body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle',
+              !canDownload && 'cursor-not-allowed opacity-60 hover:bg-white',
+            )}
           >
             <Download className="size-4" />
-            저장
+            {isDownloading ? '저장 중' : '저장'}
           </button>
           <button
             type="button"
