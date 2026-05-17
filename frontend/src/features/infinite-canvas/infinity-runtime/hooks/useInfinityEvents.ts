@@ -342,6 +342,7 @@ interface TextEditorRequest {
 interface UseInfinityEventsParams {
   saveSnapshot: (newObjects: InfinityObject[], selectedIds: string[]) => void
   silentClearSelection: () => void
+  silentSetSelection: (newSelectedIds: string[]) => void
   recordSelection: (newSelectedIds: string[]) => void
   onDraftObjectChange?: (draftObject: InfinityObject | null) => void
   objectsRef: { readonly current: InfinityObject[] }
@@ -367,6 +368,7 @@ interface UseInfinityEventsParams {
 export function useInfinityEvents({
   saveSnapshot,
   silentClearSelection,
+  silentSetSelection,
   recordSelection,
   onDraftObjectChange,
   objectsRef,
@@ -392,6 +394,7 @@ export function useInfinityEvents({
   const isDrawingRef = useRef<boolean>(false)
   const startPosRef = useRef<{ x: number; y: number } | null>(null)
   const dragSelectStartRef = useRef<DragSelectStart | null>(null)
+  const dragPreviewSelectedIdsRef = useRef<string[]>([])
 
   const canEdit = (id: string) => canEditObject?.(id) ?? true
 
@@ -553,6 +556,7 @@ export function useInfinityEvents({
     currentLineRef.current = null
     previewShapeRef.current = null
     dragSelectStartRef.current = null
+    dragPreviewSelectedIdsRef.current = []
     hideCurrentLines()
     hidePreviewShapes()
     hideCursor()
@@ -566,18 +570,36 @@ export function useInfinityEvents({
     window.requestAnimationFrame(cleanup)
   }
 
-  // ── AABB 교차 헬퍼 — 드래그 박스 vs 객체 ──────────────────────────────────
-  const intersects = (
-    a: { x: number; y: number; width: number; height: number },
-    b: { x: number; y: number; width: number; height: number },
-  ): boolean => {
-    return (
-      a.x < b.x + b.width &&
-      a.x + a.width > b.x &&
-      a.y < b.y + b.height &&
-      a.y + a.height > b.y
-    )
+  const containsRect = (
+    outerRect: { x: number; y: number; width: number; height: number },
+    innerRect: { x: number; y: number; width: number; height: number },
+  ): boolean =>
+    innerRect.x >= outerRect.x &&
+    innerRect.y >= outerRect.y &&
+    innerRect.x + innerRect.width <= outerRect.x + outerRect.width &&
+    innerRect.y + innerRect.height <= outerRect.y + outerRect.height
+
+  const getContainedSelectableIds = (
+    stage: Konva.Stage,
+    box: { x: number; y: number; width: number; height: number },
+    baseSelection: string[],
+  ) => {
+    const baseSet = new Set(baseSelection)
+    const hitIds: string[] = [...baseSelection]
+    for (const object of objectsRef.current) {
+      if (!canEdit(object.id)) continue
+      const objectNode = stage.findOne(`#${object.id}`)
+      if (!objectNode) continue
+      const rect = objectNode.getClientRect({ relativeTo: stage })
+      if (containsRect(box, rect) && !baseSet.has(object.id)) {
+        hitIds.push(object.id)
+      }
+    }
+    return hitIds
   }
+
+  const isSameSelection = (firstIds: string[], secondIds: string[]) =>
+    firstIds.length === secondIds.length && firstIds.every((id, index) => id === secondIds[index])
 
   // ── Stage 이벤트 핸들러 ──────────────────────────────────────────────────────
 
@@ -638,6 +660,7 @@ export function useInfinityEvents({
             ? [...selectedIdsRef.current]
             : [],
         }
+        dragPreviewSelectedIdsRef.current = dragSelectStartRef.current.baseSelection
       } else {
         // 객체 위에서 mousedown → drag select 비활성. 이동/선택은 객체 핸들러에서.
         isDrawingRef.current = false
@@ -652,8 +675,10 @@ export function useInfinityEvents({
   ) => {
     const pos = stage.getRelativePointerPosition()
 
-    // 커서 미리보기 위치 갱신은 isDrawing 무관하게 항상.
-    updateCursorForTool(pos, toolSnapshot)
+    const isStrokeDrawing = isDrawingRef.current && (toolSnapshot === 'pen' || toolSnapshot === 'eraser')
+    if (!isStrokeDrawing) {
+      updateCursorForTool(pos, toolSnapshot)
+    }
 
     if (!isDrawingRef.current) return
     if (isSpaceDownRef.current) return
@@ -703,7 +728,14 @@ export function useInfinityEvents({
       const y = Math.min(dragStart.y, pos.y)
       const width = Math.abs(pos.x - dragStart.x)
       const height = Math.abs(pos.y - dragStart.y)
-      showSelectionBox({ x, y, width, height })
+      const box = { x, y, width, height }
+      showSelectionBox(box)
+      if (width < 3 || height < 3) return
+      const nextSelectedIds = getContainedSelectableIds(stage, box, dragStart.baseSelection)
+      if (!isSameSelection(dragPreviewSelectedIdsRef.current, nextSelectedIds)) {
+        dragPreviewSelectedIdsRef.current = nextSelectedIds
+        silentSetSelection(nextSelectedIds)
+      }
     }
   }
 
@@ -761,23 +793,14 @@ export function useInfinityEvents({
           }
           // 박스가 너무 작으면 클릭으로 간주 — 선택 변경 없이 hide만.
           if (box.width >= 3 && box.height >= 3) {
-            const baseSet = new Set(dragStart.baseSelection)
-            const hitIds: string[] = [...dragStart.baseSelection]
-            for (const obj of objectsRef.current) {
-              if (!canEdit(obj.id)) continue
-              const objNode = stage.findOne(`#${obj.id}`)
-              if (!objNode) continue
-              const rect = objNode.getClientRect({ relativeTo: stage })
-              if (intersects(box, rect) && !baseSet.has(obj.id)) {
-                hitIds.push(obj.id)
-              }
-            }
-            saveSnapshot(objectsRef.current, hitIds)
+            const hitIds = getContainedSelectableIds(stage, box, dragStart.baseSelection)
+            recordSelection(hitIds)
           }
         }
         hideSelectionBox()
       }
       dragSelectStartRef.current = null
+      dragPreviewSelectedIdsRef.current = []
     }
 
     startPosRef.current = null
