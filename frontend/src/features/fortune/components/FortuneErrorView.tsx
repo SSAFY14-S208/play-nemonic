@@ -6,8 +6,11 @@ interface FortuneErrorViewProps {
   onRetry: () => void
 }
 
+// background-color와 background-image를 분리합니다. 한 클래스 안에 gradient와
+// 색상 var를 콤마로 같이 적으면 background-image에 색상이 들어왔다며
+// lightningcss가 빌드를 거부합니다.
 const PRIMARY_BUTTON_BG =
-  'bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0)),var(--color-fortune-accent)]'
+  'bg-fortune-accent bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0))]'
 
 const PRIMARY_BUTTON_SHADOW =
   'shadow-[0_0.8rem_1.7rem_rgba(88,52,129,0.24),0_0_0_0.2rem_rgba(255,234,160,0.2),inset_0_0.1rem_0_rgba(255,255,255,0.3)]'

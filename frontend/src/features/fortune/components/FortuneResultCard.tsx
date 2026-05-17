@@ -8,46 +8,51 @@ import { useFortuneSessionStore } from '../fortuneSessionStore'
 const POSTIT_SHEET_CLASS = cn(
   'relative isolate w-full',
   'min-h-[min(72dvh,690px)] max-[800px]:min-h-auto',
-  'px-[clamp(1.25rem,4.8vw,3.6rem)] pt-[clamp(4.9rem,7vw,5.9rem)] pb-[clamp(1.45rem,3.5vw,2.4rem)]',
-  'max-[800px]:px-4 max-[800px]:pt-[4.8rem] max-[800px]:pb-[1.25rem]',
+  'px-[3rem] pt-[1.2rem] pb-[2rem]',
+  'max-[800px]:px-4 max-[800px]:pt-[0.95rem] max-[800px]:pb-[1.25rem]',
   'rotate-[-0.55deg] max-[800px]:rotate-0 origin-[50%_16%]',
   'border-[0.12rem] border-[rgba(255,246,212,0.95)]',
   'rounded-[1.05rem_1.2rem_0.9rem_1.1rem] max-[800px]:rounded-[0.95rem]',
-  'bg-[radial-gradient(circle_at_16%_14%,rgba(255,255,255,0.92),rgba(255,255,255,0)_17rem),radial-gradient(circle_at_86%_14%,rgba(222,205,255,0.42),rgba(222,205,255,0)_13rem),linear-gradient(180deg,rgba(255,255,255,0.88),rgba(255,248,214,0.98)),var(--color-fortune-paper)]',
-  'data-[theme=soft-star]:bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.94),rgba(255,255,255,0)_17rem),radial-gradient(circle_at_88%_16%,rgba(255,214,232,0.44),rgba(255,214,232,0)_13rem),linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,248,218,0.98)),var(--color-fortune-paper)]',
+  // 배경: solid cream paper color + 그 위에 살짝 그라데이션 액센트.
+  // arbitrary property로 background-color와 background-image를 분리해서
+  // Tailwind 파서 혼선 없이 카드 안쪽이 항상 불투명 cream으로 깔리도록 보장.
+  '[background-color:var(--color-fortune-paper)]',
+  '[background-image:radial-gradient(circle_at_16%_14%,rgba(255,255,255,0.92),rgba(255,255,255,0)_17rem),radial-gradient(circle_at_86%_14%,rgba(222,205,255,0.42),rgba(222,205,255,0)_13rem),linear-gradient(180deg,rgba(255,255,255,0.88),rgba(255,248,214,0.98))]',
+  'data-[theme=soft-star]:[background-image:radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.94),rgba(255,255,255,0)_17rem),radial-gradient(circle_at_88%_16%,rgba(255,214,232,0.44),rgba(255,214,232,0)_13rem),linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,248,218,0.98))]',
   'text-fortune-ink',
   '[box-shadow:0_1.9rem_3.8rem_rgba(42,17,60,0.24),0_0.45rem_0_rgba(255,232,139,0.42),inset_0_0.18rem_0_rgba(255,255,255,0.88)]',
   'animate-fortune-postit-land motion-reduce:animate-none',
-  // direct children are stacked above ::before/::after
-  '[&>*]:relative [&>*]:z-[2]',
   // dotted decoration overlay
   "before:content-[''] before:absolute before:inset-[0.45rem] before:z-0 before:rounded-[inherit]",
   'before:bg-[repeating-linear-gradient(0deg,rgba(139,102,177,0.05)_0_1px,rgba(255,255,255,0)_1px_1.8rem),radial-gradient(circle,rgba(138,104,183,0.08)_0_1px,rgba(255,255,255,0)_1.4px)]',
   'before:bg-[length:100%_1.8rem,1.9rem_1.9rem] before:opacity-[0.72] before:pointer-events-none',
   // fold corner triangle
   "after:content-[''] after:absolute after:right-[0.42rem] after:bottom-[0.42rem] after:z-[1]",
-  'after:w-[clamp(2.7rem,7vw,4.3rem)] after:h-[clamp(2.7rem,7vw,4.3rem)]',
+  'after:w-[4rem] after:h-[4rem] max-[800px]:after:w-[2.7rem] max-[800px]:after:h-[2.7rem]',
   'after:rounded-[0.25rem_0_0.75rem] after:pointer-events-none',
   'after:bg-[linear-gradient(135deg,rgba(255,255,255,0)_0_49%,rgba(239,217,147,0.52)_50%,rgba(255,246,204,0.94)_100%)]',
   'after:[box-shadow:-0.35rem_-0.35rem_0.75rem_rgba(82,46,96,0.08)]',
 )
 
+// 테이프 라벨 — 기존엔 absolute(top:-1.05rem)로 카드 위로 빠져 있었지만,
+// 헤더와 자연스러운 흐름으로 묶기 위해 normal flow의 첫 자식으로 배치.
+// mx-auto + w-fit 으로 가운데 정렬, rotate는 유지해서 포스트잇 테이프 느낌은 살림.
 const POSTIT_TAPE_CLASS = cn(
-  'absolute top-[-1.05rem] left-1/2 z-[5]',
+  'relative z-[5] mx-auto block w-fit',
   'min-w-[10.2rem] max-[800px]:min-w-[8.8rem]',
   'px-[1.8rem] py-[0.62rem] pb-[0.7rem] max-[800px]:px-[1.25rem]',
-  '-translate-x-1/2 rotate-[-2.4deg]',
+  'rotate-[-2.4deg]',
   'border-2 border-[rgba(255,255,255,0.55)] rounded-[0.55rem]',
   'bg-[linear-gradient(90deg,rgba(255,255,255,0.24),rgba(255,255,255,0)),rgba(196,174,255,0.86)]',
   'text-[#5d4b78] [font-family:var(--font-fortune-serif)]',
-  'text-[clamp(1.15rem,2.2vw,1.5rem)] tracking-normal leading-none text-center',
+  'text-[1.4rem] max-[800px]:text-[1.15rem] tracking-normal leading-none text-center',
   '[box-shadow:0_0.75rem_1.35rem_rgba(75,42,102,0.16),inset_0_0.12rem_0_rgba(255,255,255,0.6)]',
   'animate-fortune-sticker-pop [animation-delay:180ms] motion-reduce:animate-none',
 )
 
 const POPO_STICKER_CLASS = cn(
   'absolute z-[5] pointer-events-none',
-  'top-[1.05rem] left-[clamp(0.95rem,4vw,2.1rem)]',
+  'top-[1.05rem] left-[1.75rem]',
   'max-[800px]:top-[1.15rem] max-[800px]:left-[0.85rem]',
   'inline-flex items-center gap-[0.28rem]',
   'px-[0.82rem] py-[0.54rem] pb-[0.58rem]',
@@ -84,7 +89,7 @@ const STAR_STICKER_RIGHT_CLASS = cn(
 
 const MOON_STICKER_CLASS = cn(
   'absolute z-[5] pointer-events-none',
-  'right-[clamp(1.05rem,5vw,3.4rem)] bottom-[clamp(1rem,4vw,2.2rem)]',
+  'right-[2.5rem] bottom-[1.75rem]',
   'max-[800px]:right-[0.8rem] max-[800px]:bottom-[0.85rem]',
   'w-[2.9rem] h-[2.9rem] max-[800px]:w-[2.25rem] max-[800px]:h-[2.25rem]',
   'rotate-[14deg]',
@@ -98,7 +103,7 @@ const MOON_STICKER_CLASS = cn(
 
 const SAVE_STAMP_CLASS = cn(
   'absolute z-[5] pointer-events-none',
-  'top-[1.18rem] right-[clamp(0.9rem,4vw,2.2rem)]',
+  'top-[1.18rem] right-[1.75rem]',
   'max-[800px]:top-[1.22rem] max-[800px]:right-[0.82rem]',
   'inline-flex items-center gap-[0.32rem]',
   'px-[0.7rem] py-[0.52rem] pb-[0.55rem]',
@@ -113,13 +118,13 @@ const SAVE_STAMP_CLASS = cn(
 
 const POSTIT_HEADER_TITLE_CLASS = cn(
   'm-0 text-fortune-ink [font-family:var(--font-fortune-serif)]',
-  'text-[clamp(1.95rem,4.2vw,3.15rem)] max-[800px]:text-[clamp(1.62rem,7vw,2.1rem)]',
+  'text-[2.6rem] max-[800px]:text-[1.85rem]',
   'font-normal tracking-normal leading-[1.12] [word-break:keep-all]',
 )
 
 const POSTIT_LINE_BLOCK_CLASS = cn(
-  'mx-auto mt-[clamp(1.35rem,3vw,2rem)] p-[clamp(1.15rem,3vw,1.55rem)]',
-  'max-[800px]:p-[1.05rem_0.85rem]',
+  'mx-auto mt-7 p-6',
+  'max-[800px]:mt-5 max-[800px]:p-[1.05rem_0.85rem]',
   'rotate-[0.45deg]',
   'border-2 border-dashed border-[rgba(151,116,198,0.36)]',
   'rounded-[1rem]',
@@ -132,16 +137,16 @@ const POSTIT_LINE_BLOCK_CLASS = cn(
   '[&_p:last-child]:m-0 [&_p:last-child]:mt-[0.45rem]',
   '[&_p:last-child]:text-fortune-accent-strong',
   '[&_p:last-child]:[font-family:var(--font-fortune-serif)]',
-  '[&_p:last-child]:text-[clamp(1.72rem,4vw,2.75rem)]',
-  '[&_p:last-child]:max-[800px]:text-[clamp(1.38rem,6.4vw,1.78rem)]',
+  '[&_p:last-child]:text-[2.25rem]',
+  '[&_p:last-child]:max-[800px]:text-[1.55rem]',
   '[&_p:last-child]:font-normal [&_p:last-child]:tracking-normal',
   '[&_p:last-child]:leading-[1.16] [&_p:last-child]:[word-break:keep-all]',
 )
 
 const POSTIT_SUMMARY_CLASS = cn(
-  'max-w-[36rem] mx-auto mt-[clamp(1rem,2.4vw,1.35rem)]',
+  'max-w-[36rem] mx-auto mt-5',
   'text-[rgba(61,47,73,0.88)]',
-  'text-[clamp(0.98rem,1.7vw,1.08rem)] max-[800px]:text-[0.92rem]',
+  'text-[1.05rem] max-[800px]:text-[0.92rem]',
   'font-semibold tracking-normal leading-[1.68] max-[800px]:leading-[1.58]',
   'text-center [word-break:keep-all]',
 )
@@ -182,7 +187,7 @@ const LABEL_STICKER_CLASS = cn(
   // strong: serif accent
   '[&>strong]:block [&>strong]:mt-[0.12rem] [&>strong]:text-fortune-ink',
   '[&>strong]:[font-family:var(--font-fortune-serif)]',
-  '[&>strong]:text-[clamp(1.12rem,2.5vw,1.42rem)]',
+  '[&>strong]:text-[1.3rem]',
   '[&>strong]:font-normal [&>strong]:tracking-normal [&>strong]:leading-[1.05]',
 )
 
@@ -196,7 +201,7 @@ const COLOR_STICKER_CLASS = cn(
   '[&_span:not([data-fortune-swatch])]:tracking-normal',
   '[&_strong]:block [&_strong]:mt-[0.12rem] [&_strong]:text-fortune-ink',
   '[&_strong]:[font-family:var(--font-fortune-serif)]',
-  '[&_strong]:text-[clamp(1.12rem,2.5vw,1.42rem)]',
+  '[&_strong]:text-[1.3rem]',
   '[&_strong]:font-normal [&_strong]:tracking-normal [&_strong]:leading-[1.05]',
 )
 
@@ -207,7 +212,7 @@ const COLOR_SWATCH_CLASS = cn(
 )
 
 const CAUTION_STICKER_CLASS = cn(
-  'mt-[clamp(0.95rem,2vw,1.2rem)] mb-0',
+  'mt-5 mb-0',
   'px-4 pt-[0.9rem] pb-[0.95rem]',
   'rotate-[-0.45deg]',
   'border-2 border-[rgba(255,255,255,0.78)] rounded-[0.82rem]',
@@ -221,7 +226,7 @@ const CAUTION_STICKER_CLASS = cn(
 )
 
 const SAJU_RECEIPT_CLASS = cn(
-  'mt-[clamp(0.8rem,2vw,1rem)] pt-[clamp(0.85rem,2vw,1.05rem)]',
+  'mt-4 pt-4',
   'border-t-2 border-dashed border-[rgba(151,116,198,0.22)]',
   '[&>summary]:w-fit [&>summary]:cursor-pointer',
   '[&>summary]:text-fortune-accent-strong',
@@ -256,9 +261,6 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
   return (
     <section className="mx-auto w-[min(92vw,760px)] max-md:w-[min(94vw,560px)] grid gap-5">
       <article className={POSTIT_SHEET_CLASS} data-theme={result.cardTheme} aria-label="오늘의 운세 포스트잇">
-        <div className={POSTIT_TAPE_CLASS} aria-hidden>
-          오늘의 운세
-        </div>
         <div className={POPO_STICKER_CLASS} aria-hidden>
           <Sparkles className="size-4" />
           <span>포포</span>
@@ -275,6 +277,15 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
           갤러리 저장
         </div>
 
+        {/* 테이프 + 본문을 한 묶음으로 묶고, 테이프 아래로 20px(=mt-5) 간격을 둡니다.
+            relative z-[2]: 카드 ::before 도트 패턴(z-0) 위로 올리되,
+            absolute 스티커들(z-[5])보다는 아래 레이어. */}
+        <div className="relative z-2 grid">
+          <div className={POSTIT_TAPE_CLASS} aria-hidden>
+            오늘의 운세
+          </div>
+          <div className="mt-5">
+
         <header className="grid gap-[0.35rem] max-w-md mx-auto text-center">
           <p className="caption-b text-fortune-muted">네모닉 운세 메모</p>
           <h1 className={POSTIT_HEADER_TITLE_CLASS}>{result.title}</h1>
@@ -287,7 +298,7 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
 
         <p className={POSTIT_SUMMARY_CLASS}>{result.summary}</p>
 
-        <div className="grid grid-cols-4 gap-[clamp(0.72rem,1.8vw,1rem)] mt-[clamp(1.1rem,2.5vw,1.65rem)] max-md:grid-cols-2" aria-label="운세 점수">
+        <div className="grid grid-cols-4 gap-4 mt-6 max-md:grid-cols-2" aria-label="운세 점수">
             {FORTUNE_SCORE_LABELS.map((scoreLabel) => (
               <div key={scoreLabel.key} className={SCORE_STICKER_CLASS}>
                 <div className="flex items-baseline justify-between gap-[0.6rem] text-fortune-ink">
@@ -301,7 +312,7 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
             ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-[clamp(0.7rem,1.7vw,1rem)] mt-[clamp(1rem,2.5vw,1.4rem)]">
+        <div className="grid grid-cols-2 gap-4 mt-5">
           <div className={LABEL_STICKER_CLASS}>
             <span>행운 키워드</span>
             <strong>{result.luckyKeyword}</strong>
@@ -342,6 +353,8 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
             {result.saju.dayBranchElemental}/{result.saju.dayBranchYinYang}
           </p>
         </details>
+          </div>
+        </div>
       </article>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -364,7 +377,10 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
           type="button"
           className={[
             'body-b relative overflow-hidden flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border-0 px-4 text-fortune-inverse',
-            'bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0)),var(--color-fortune-accent)]',
+            // background-color와 background-image를 분리합니다. 한 클래스 안에
+            // gradient와 색상 var를 콤마로 같이 적으면 background-image에 색상이
+            // 들어왔다며 lightningcss가 빌드를 거부합니다.
+            'bg-fortune-accent bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0))]',
             'shadow-[0_0.8rem_1.7rem_rgba(88,52,129,0.24),0_0_0_0.2rem_rgba(255,234,160,0.2),inset_0_0.1rem_0_rgba(255,255,255,0.3)]',
             "after:content-[''] after:absolute after:inset-0 after:-translate-x-[120%] after:skew-x-[-18deg]",
             'after:bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.35),rgba(255,255,255,0))]',

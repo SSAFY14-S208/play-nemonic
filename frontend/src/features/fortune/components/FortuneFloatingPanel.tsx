@@ -4,8 +4,11 @@ import { cn } from '@/shared/libs'
 
 type FortuneFloatingPanelProps = HTMLAttributes<HTMLElement>
 
+// background-color와 background-image를 분리합니다. 한 클래스 안에 gradient와
+// 색상 var를 콤마로 같이 적으면 background-image에 색상이 들어왔다며
+// lightningcss가 빌드를 거부합니다.
 const PANEL_BACKGROUND =
-  'bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,250,234,0.94)),var(--color-fortune-panel)]'
+  'bg-fortune-panel bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,250,234,0.94))]'
 
 const PANEL_SHADOW =
   'shadow-[0_1.1rem_2.7rem_rgba(64,26,83,0.2),0_0_0_0.34rem_rgba(214,190,255,0.14),inset_0_0.1rem_0_rgba(255,255,255,0.88)]'

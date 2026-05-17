@@ -8,26 +8,37 @@ import LeaveConfirmModal from './LeaveConfirmModal'
 
 const WORLD_PATH = '/hub'
 
-/** 클릭 시 진행 내용을 잃을 수 있어 떠나기 전 확인 모달을 띄우는 게임 라우트 */
-const GAME_ROUTE_PREFIXES = ['/flipbook', '/relay-drawing', '/community-canvas']
+/** 클릭 시 진행 내용을 잃을 수 있어 떠나기 전 확인 모달을 띄우는 라우트 */
+const CONFIRM_BEFORE_LEAVE_ROUTES = ['/flipbook', '/relay-drawing', '/community-canvas', '/fortune']
 
 /** 월드 홈 링크 자체를 표시하지 않는 라우트 (이동할 곳이 자기 자신이거나 인트로 화면) */
 const HIDDEN_ROUTES = new Set([WORLD_PATH, '/'])
 
-export default function WorldHomeLink() {
+interface WorldHomeLinkProps {
+  /** confirm 모달의 취소/확인 버튼 색상을 페이지 테마에 맞게 덮어쓰고 싶을 때 전달합니다. */
+  leaveConfirmCancelButtonClassName?: string
+  leaveConfirmConfirmButtonClassName?: string
+}
+
+export default function WorldHomeLink({
+  leaveConfirmCancelButtonClassName,
+  leaveConfirmConfirmButtonClassName,
+}: WorldHomeLinkProps = {}) {
   const router = useRouter()
   const pathname = usePathname()
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const isInGame = GAME_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  const shouldConfirmBeforeLeave = CONFIRM_BEFORE_LEAVE_ROUTES.some((prefix) =>
+    pathname.startsWith(prefix),
+  )
 
   const handleClick = useCallback(() => {
-    if (isInGame) {
+    if (shouldConfirmBeforeLeave) {
       setConfirmOpen(true)
       return
     }
     router.push(WORLD_PATH)
-  }, [isInGame, router])
+  }, [shouldConfirmBeforeLeave, router])
 
   const handleConfirm = useCallback(() => {
     setConfirmOpen(false)
@@ -69,6 +80,8 @@ export default function WorldHomeLink() {
         open={confirmOpen}
         onCancel={handleCancel}
         onConfirm={handleConfirm}
+        cancelButtonClassName={leaveConfirmCancelButtonClassName}
+        confirmButtonClassName={leaveConfirmConfirmButtonClassName}
       />
     </>
   )
