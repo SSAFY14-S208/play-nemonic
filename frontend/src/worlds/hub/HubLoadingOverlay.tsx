@@ -52,7 +52,7 @@ export default function HubLoadingOverlay({
         />
       )}
       <div className="relative flex w-[min(21rem,calc(100vw-3rem))] flex-col items-center gap-5 text-center">
-        <HubLoadingHouseLottie />
+        {isVisible && <HubLoadingHouseLottie />}
         <div className="flex flex-col items-center gap-3">
           <p className="h3-b text-fg-primary">
             {isReady ? '준비 완료. 이제 놀러 들어가요!' : statusText}

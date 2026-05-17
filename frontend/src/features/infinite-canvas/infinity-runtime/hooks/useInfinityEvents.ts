@@ -2,8 +2,10 @@
 
 import { useRef } from 'react'
 import type Konva from 'konva'
+import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 
 import {
+  type InfinityFill,
   type InfinityLine,
   type InfinityObject,
   type InfinityShape,
@@ -20,9 +22,16 @@ function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((p) => [p.x, p.y])
 }
 
-const MIN_LINE_POINT_DISTANCE = 2.5
-const MAX_LINE_POINTS_PER_OBJECT = 800
-const MAX_DRAFT_LINE_POINTS = 120
+const MIN_LINE_POINT_DISTANCE = 3
+const MAX_LINE_POINTS_PER_OBJECT = 640
+const MAX_DRAFT_LINE_POINTS = 180
+const BUCKET_FILL_PADDING = 96
+const BUCKET_FILL_MAX_SIZE = 1600
+const BUCKET_FILL_ALPHA_TOLERANCE = 16
+const BUCKET_FILL_COLOR_TOLERANCE = 12
+const BUCKET_FILL_BARRIER_DILATION_PASSES = 2
+const BUCKET_FILL_DILATION_PASSES = 6
+const BUCKET_FILL_DILATION_COLOR_TOLERANCE = 96
 
 function shouldAppendLinePoint(
   previousPoint: { x: number; y: number } | undefined,
@@ -79,6 +88,336 @@ function isFillTool(tool: InfinityToolKey): boolean {
   return tool === 'shape-rect-fill' || tool === 'shape-ellipse-fill'
 }
 
+function recolorObject(object: InfinityObject, color: string): InfinityObject {
+  if (object.type === 'fill') {
+    return { ...object, color }
+  }
+  if (object.type === 'rect' || object.type === 'ellipse') {
+    return { ...object, fill: color, color }
+  }
+
+  return { ...object, color }
+}
+
+function getObjectBounds(object: InfinityObject) {
+  if (object.type === 'fill' || object.type === 'rect' || object.type === 'ellipse') {
+    return {
+      x: object.x,
+      y: object.y,
+      width: Math.abs(object.width),
+      height: Math.abs(object.height),
+    }
+  }
+
+  if (object.type === 'text') {
+    return {
+      x: object.x,
+      y: object.y,
+      width: Math.max(object.text.length * object.fontSize * 0.58, object.fontSize),
+      height: object.fontSize * 1.35,
+    }
+  }
+
+  if (object.type !== 'line' || object.points.length === 0) return null
+  const xValues = object.points.map((point) => point.x)
+  const yValues = object.points.map((point) => point.y)
+  const minX = Math.min(...xValues)
+  const maxX = Math.max(...xValues)
+  const minY = Math.min(...yValues)
+  const maxY = Math.max(...yValues)
+  const padding = Math.max(object.strokeWidth, 8)
+
+  return {
+    x: minX - padding,
+    y: minY - padding,
+    width: Math.max(maxX - minX + padding * 2, padding * 2),
+    height: Math.max(maxY - minY + padding * 2, padding * 2),
+  }
+}
+
+function parseHexColor(hexColor: string) {
+  const normalizedHex = hexColor.replace('#', '')
+  return {
+    red: Number.parseInt(normalizedHex.slice(0, 2), 16),
+    green: Number.parseInt(normalizedHex.slice(2, 4), 16),
+    blue: Number.parseInt(normalizedHex.slice(4, 6), 16),
+    alpha: 255,
+  }
+}
+
+function isPixelMatchingTarget(
+  pixels: Uint8ClampedArray,
+  pixelOffset: number,
+  target: { red: number; green: number; blue: number; alpha: number },
+) {
+  const alpha = pixels[pixelOffset + 3]
+  if (target.alpha <= BUCKET_FILL_ALPHA_TOLERANCE) {
+    return alpha <= BUCKET_FILL_ALPHA_TOLERANCE
+  }
+
+  return (
+    Math.abs(pixels[pixelOffset] - target.red) <= BUCKET_FILL_COLOR_TOLERANCE &&
+    Math.abs(pixels[pixelOffset + 1] - target.green) <= BUCKET_FILL_COLOR_TOLERANCE &&
+    Math.abs(pixels[pixelOffset + 2] - target.blue) <= BUCKET_FILL_COLOR_TOLERANCE &&
+    Math.abs(alpha - target.alpha) <= BUCKET_FILL_COLOR_TOLERANCE
+  )
+}
+
+function createDilatedBarrierPixels(pixels: Uint8ClampedArray, width: number, height: number) {
+  let barrierPixels = new Uint8Array(width * height)
+
+  for (let pixelIndex = 0; pixelIndex < width * height; pixelIndex++) {
+    const alpha = pixels[pixelIndex * 4 + 3]
+    if (alpha > BUCKET_FILL_ALPHA_TOLERANCE) {
+      barrierPixels[pixelIndex] = 1
+    }
+  }
+
+  for (let dilationPass = 0; dilationPass < BUCKET_FILL_BARRIER_DILATION_PASSES; dilationPass++) {
+    const nextBarrierPixels = new Uint8Array(barrierPixels)
+
+    for (let pixelIndex = 0; pixelIndex < width * height; pixelIndex++) {
+      if (barrierPixels[pixelIndex] === 1) continue
+
+      const x = pixelIndex % width
+      const y = Math.floor(pixelIndex / width)
+      const hasBarrierNeighbor =
+        (x > 0 && barrierPixels[pixelIndex - 1] === 1) ||
+        (x < width - 1 && barrierPixels[pixelIndex + 1] === 1) ||
+        (y > 0 && barrierPixels[pixelIndex - width] === 1) ||
+        (y < height - 1 && barrierPixels[pixelIndex + width] === 1)
+
+      if (hasBarrierNeighbor) {
+        nextBarrierPixels[pixelIndex] = 1
+      }
+    }
+
+    barrierPixels = nextBarrierPixels
+  }
+
+  return barrierPixels
+}
+
+function drawObjectForBucketFill(
+  context: CanvasRenderingContext2D,
+  object: InfinityObject,
+  origin: { x: number; y: number },
+) {
+  context.save()
+  context.translate(-origin.x, -origin.y)
+
+  if (object.type === 'line') {
+    if (object.points.length > 0 && !object.isEraser) {
+      const firstPoint = object.points[0]
+      context.lineCap = 'round'
+      context.lineJoin = 'round'
+      context.lineWidth = object.strokeWidth
+      context.strokeStyle = object.color
+      context.beginPath()
+      context.moveTo(firstPoint.x, firstPoint.y)
+      object.points.slice(1).forEach((point) => context.lineTo(point.x, point.y))
+      context.stroke()
+    }
+    context.restore()
+    return
+  }
+
+  if (object.type === 'rect') {
+    context.translate(object.x + object.width / 2, object.y + object.height / 2)
+    context.rotate(((object.rotation ?? 0) * Math.PI) / 180)
+    const x = -object.width / 2
+    const y = -object.height / 2
+    if (object.fill) {
+      context.fillStyle = object.fill
+      context.fillRect(x, y, object.width, object.height)
+    } else {
+      context.strokeStyle = object.color
+      context.lineWidth = object.strokeWidth
+      context.strokeRect(x, y, object.width, object.height)
+    }
+    context.restore()
+    return
+  }
+
+  if (object.type === 'ellipse') {
+    context.translate(object.x + object.width / 2, object.y + object.height / 2)
+    context.rotate(((object.rotation ?? 0) * Math.PI) / 180)
+    context.beginPath()
+    context.ellipse(0, 0, Math.abs(object.width / 2), Math.abs(object.height / 2), 0, 0, Math.PI * 2)
+    if (object.fill) {
+      context.fillStyle = object.fill
+      context.fill()
+    } else {
+      context.strokeStyle = object.color
+      context.lineWidth = object.strokeWidth
+      context.stroke()
+    }
+    context.restore()
+    return
+  }
+
+  context.restore()
+}
+
+function createBucketFillObject({
+  objects,
+  pointerPosition,
+  color,
+}: {
+  objects: InfinityObject[]
+  pointerPosition: { x: number; y: number }
+  color: string
+}): InfinityFill | null {
+  const bounds = objects
+    .filter((object) => object.type !== 'fill' && object.type !== 'text')
+    .map(getObjectBounds)
+    .filter((bounds): bounds is { x: number; y: number; width: number; height: number } => Boolean(bounds))
+
+  if (bounds.length === 0) return null
+
+  const minX = Math.floor(Math.min(pointerPosition.x, ...bounds.map((bound) => bound.x)) - BUCKET_FILL_PADDING)
+  const minY = Math.floor(Math.min(pointerPosition.y, ...bounds.map((bound) => bound.y)) - BUCKET_FILL_PADDING)
+  const maxX = Math.ceil(Math.max(pointerPosition.x, ...bounds.map((bound) => bound.x + bound.width)) + BUCKET_FILL_PADDING)
+  const maxY = Math.ceil(Math.max(pointerPosition.y, ...bounds.map((bound) => bound.y + bound.height)) + BUCKET_FILL_PADDING)
+  const rawWidth = maxX - minX
+  const rawHeight = maxY - minY
+  if (rawWidth <= 0 || rawHeight <= 0 || rawWidth > BUCKET_FILL_MAX_SIZE || rawHeight > BUCKET_FILL_MAX_SIZE) {
+    return null
+  }
+
+  const canvas = document.createElement('canvas')
+  canvas.width = rawWidth
+  canvas.height = rawHeight
+  const context = canvas.getContext('2d')
+  if (!context) return null
+
+  objects.forEach((object) => drawObjectForBucketFill(context, object, { x: minX, y: minY }))
+
+  const seedX = Math.floor(pointerPosition.x - minX)
+  const seedY = Math.floor(pointerPosition.y - minY)
+  if (seedX < 0 || seedX >= rawWidth || seedY < 0 || seedY >= rawHeight) return null
+
+  const sourceImageData = context.getImageData(0, 0, rawWidth, rawHeight)
+  const sourcePixels = sourceImageData.data
+  const seedPixelIndex = seedY * rawWidth + seedX
+  const seedPixelOffset = seedPixelIndex * 4
+  const targetColor = {
+    red: sourcePixels[seedPixelOffset],
+    green: sourcePixels[seedPixelOffset + 1],
+    blue: sourcePixels[seedPixelOffset + 2],
+    alpha: sourcePixels[seedPixelOffset + 3],
+  }
+  const isTransparentTarget = targetColor.alpha <= BUCKET_FILL_ALPHA_TOLERANCE
+  const barrierPixels = isTransparentTarget
+    ? createDilatedBarrierPixels(sourcePixels, rawWidth, rawHeight)
+    : null
+  const fillColor = parseHexColor(color)
+  const fillCanvas = document.createElement('canvas')
+  fillCanvas.width = rawWidth
+  fillCanvas.height = rawHeight
+  const fillContext = fillCanvas.getContext('2d')
+  if (!fillContext) return null
+
+  const fillImageData = fillContext.createImageData(rawWidth, rawHeight)
+  const fillPixels = fillImageData.data
+  const visited = new Uint8Array(rawWidth * rawHeight)
+  const pending = [seedPixelIndex]
+  let filledPixelCount = 0
+  let touchesBoundary = false
+
+  while (pending.length > 0) {
+    const currentPixelIndex = pending.pop()
+    if (currentPixelIndex === undefined || visited[currentPixelIndex] === 1) continue
+    visited[currentPixelIndex] = 1
+
+    const pixelOffset = currentPixelIndex * 4
+    if (barrierPixels?.[currentPixelIndex] === 1) continue
+    if (!isPixelMatchingTarget(sourcePixels, pixelOffset, targetColor)) continue
+
+    const x = currentPixelIndex % rawWidth
+    const y = Math.floor(currentPixelIndex / rawWidth)
+    if (x === 0 || y === 0 || x === rawWidth - 1 || y === rawHeight - 1) {
+      touchesBoundary = true
+    }
+
+    fillPixels[pixelOffset] = fillColor.red
+    fillPixels[pixelOffset + 1] = fillColor.green
+    fillPixels[pixelOffset + 2] = fillColor.blue
+    fillPixels[pixelOffset + 3] = 255
+    filledPixelCount += 1
+
+    if (x > 0) pending.push(currentPixelIndex - 1)
+    if (x < rawWidth - 1) pending.push(currentPixelIndex + 1)
+    if (y > 0) pending.push(currentPixelIndex - rawWidth)
+    if (y < rawHeight - 1) pending.push(currentPixelIndex + rawWidth)
+  }
+
+  if (filledPixelCount === 0 || touchesBoundary) return null
+
+  for (let dilationPass = 0; dilationPass < BUCKET_FILL_DILATION_PASSES; dilationPass++) {
+    const newlyFilledIndexes: number[] = []
+
+    for (let pixelIndex = 0; pixelIndex < rawWidth * rawHeight; pixelIndex++) {
+      const pixelOffset = pixelIndex * 4
+      if (fillPixels[pixelOffset + 3] === 255) continue
+
+      const x = pixelIndex % rawWidth
+      const y = Math.floor(pixelIndex / rawWidth)
+      let filledNeighborCount = 0
+
+      if (x > 0 && fillPixels[(pixelIndex - 1) * 4 + 3] === 255) {
+        filledNeighborCount += 1
+      }
+      if (x < rawWidth - 1 && fillPixels[(pixelIndex + 1) * 4 + 3] === 255) {
+        filledNeighborCount += 1
+      }
+      if (y > 0 && fillPixels[(pixelIndex - rawWidth) * 4 + 3] === 255) {
+        filledNeighborCount += 1
+      }
+      if (y < rawHeight - 1 && fillPixels[(pixelIndex + rawWidth) * 4 + 3] === 255) {
+        filledNeighborCount += 1
+      }
+
+      if (filledNeighborCount === 0) continue
+
+      const sourceAlpha = sourcePixels[pixelOffset + 3]
+      const isHaloCandidate = isTransparentTarget
+        ? sourceAlpha < 255 || filledNeighborCount >= 3
+        : Math.abs(sourcePixels[pixelOffset] - targetColor.red) <= BUCKET_FILL_DILATION_COLOR_TOLERANCE &&
+          Math.abs(sourcePixels[pixelOffset + 1] - targetColor.green) <= BUCKET_FILL_DILATION_COLOR_TOLERANCE &&
+          Math.abs(sourcePixels[pixelOffset + 2] - targetColor.blue) <= BUCKET_FILL_DILATION_COLOR_TOLERANCE
+
+      if (isHaloCandidate && barrierPixels?.[pixelIndex] !== 1) {
+        newlyFilledIndexes.push(pixelIndex)
+      }
+    }
+
+    if (newlyFilledIndexes.length === 0) break
+
+    for (const dilatedPixelIndex of newlyFilledIndexes) {
+      const dilatedPixelOffset = dilatedPixelIndex * 4
+      fillPixels[dilatedPixelOffset] = fillColor.red
+      fillPixels[dilatedPixelOffset + 1] = fillColor.green
+      fillPixels[dilatedPixelOffset + 2] = fillColor.blue
+      fillPixels[dilatedPixelOffset + 3] = 255
+      filledPixelCount += 1
+    }
+  }
+
+  fillContext.putImageData(fillImageData, 0, 0)
+
+  return {
+    id: generateId(),
+    type: 'fill',
+    x: minX,
+    y: minY,
+    width: rawWidth,
+    height: rawHeight,
+    color,
+    imageDataUrl: fillCanvas.toDataURL('image/png'),
+  }
+}
+
 interface DragSelectStart {
   x: number
   y: number
@@ -94,9 +433,16 @@ interface TextEditorRequest {
   editingId: string | null
 }
 
+type LocalOperationDescriptor = Omit<InfiniteCanvasOperationRequest, 'clientOperationId'>
+
 interface UseInfinityEventsParams {
-  saveSnapshot: (newObjects: InfinityObject[], selectedIds: string[]) => void
+  commitLocalChange: (
+    newObjects: InfinityObject[],
+    selectedIds: string[],
+    operations: LocalOperationDescriptor[],
+  ) => void
   silentClearSelection: () => void
+  silentSetSelection: (newSelectedIds: string[]) => void
   recordSelection: (newSelectedIds: string[]) => void
   onDraftObjectChange?: (draftObject: InfinityObject | null) => void
   objectsRef: { readonly current: InfinityObject[] }
@@ -120,8 +466,9 @@ interface UseInfinityEventsParams {
 }
 
 export function useInfinityEvents({
-  saveSnapshot,
+  commitLocalChange,
   silentClearSelection,
+  silentSetSelection,
   recordSelection,
   onDraftObjectChange,
   objectsRef,
@@ -147,6 +494,7 @@ export function useInfinityEvents({
   const isDrawingRef = useRef<boolean>(false)
   const startPosRef = useRef<{ x: number; y: number } | null>(null)
   const dragSelectStartRef = useRef<DragSelectStart | null>(null)
+  const dragPreviewSelectedIdsRef = useRef<string[]>([])
 
   const canEdit = (id: string) => canEditObject?.(id) ?? true
 
@@ -308,6 +656,7 @@ export function useInfinityEvents({
     currentLineRef.current = null
     previewShapeRef.current = null
     dragSelectStartRef.current = null
+    dragPreviewSelectedIdsRef.current = []
     hideCurrentLines()
     hidePreviewShapes()
     hideCursor()
@@ -317,18 +666,40 @@ export function useInfinityEvents({
     onDraftObjectChange?.(null)
   }
 
-  // ── AABB 교차 헬퍼 — 드래그 박스 vs 객체 ──────────────────────────────────
-  const intersects = (
-    a: { x: number; y: number; width: number; height: number },
-    b: { x: number; y: number; width: number; height: number },
-  ): boolean => {
-    return (
-      a.x < b.x + b.width &&
-      a.x + a.width > b.x &&
-      a.y < b.y + b.height &&
-      a.y + a.height > b.y
-    )
+  const cleanupAfterNextPaint = (cleanup: () => void) => {
+    window.requestAnimationFrame(cleanup)
   }
+
+  const containsRect = (
+    outerRect: { x: number; y: number; width: number; height: number },
+    innerRect: { x: number; y: number; width: number; height: number },
+  ): boolean =>
+    innerRect.x >= outerRect.x &&
+    innerRect.y >= outerRect.y &&
+    innerRect.x + innerRect.width <= outerRect.x + outerRect.width &&
+    innerRect.y + innerRect.height <= outerRect.y + outerRect.height
+
+  const getContainedSelectableIds = (
+    stage: Konva.Stage,
+    box: { x: number; y: number; width: number; height: number },
+    baseSelection: string[],
+  ) => {
+    const baseSet = new Set(baseSelection)
+    const hitIds: string[] = [...baseSelection]
+    for (const object of objectsRef.current) {
+      if (!canEdit(object.id)) continue
+      const objectNode = stage.findOne(`#${object.id}`)
+      if (!objectNode) continue
+      const rect = objectNode.getClientRect({ relativeTo: stage })
+      if (containsRect(box, rect) && !baseSet.has(object.id)) {
+        hitIds.push(object.id)
+      }
+    }
+    return hitIds
+  }
+
+  const isSameSelection = (firstIds: string[], secondIds: string[]) =>
+    firstIds.length === secondIds.length && firstIds.every((id, index) => id === secondIds[index])
 
   // ── Stage 이벤트 핸들러 ──────────────────────────────────────────────────────
 
@@ -360,6 +731,8 @@ export function useInfinityEvents({
       }
       currentLineRef.current = newLine
       onDraftObjectChange?.(toolSnapshot === 'eraser' ? null : newLine)
+    } else if (toolSnapshot === 'bucket') {
+      isDrawingRef.current = false
     } else if (toolSnapshot === 'select-eraser') {
       applyHoverOpacity(new Set())
     } else if (isShapeTool(toolSnapshot)) {
@@ -387,6 +760,7 @@ export function useInfinityEvents({
             ? [...selectedIdsRef.current]
             : [],
         }
+        dragPreviewSelectedIdsRef.current = dragSelectStartRef.current.baseSelection
       } else {
         // 객체 위에서 mousedown → drag select 비활성. 이동/선택은 객체 핸들러에서.
         isDrawingRef.current = false
@@ -401,8 +775,10 @@ export function useInfinityEvents({
   ) => {
     const pos = stage.getRelativePointerPosition()
 
-    // 커서 미리보기 위치 갱신은 isDrawing 무관하게 항상.
-    updateCursorForTool(pos, toolSnapshot)
+    const isStrokeDrawing = isDrawingRef.current && (toolSnapshot === 'pen' || toolSnapshot === 'eraser')
+    if (!isStrokeDrawing) {
+      updateCursorForTool(pos, toolSnapshot)
+    }
 
     if (!isDrawingRef.current) return
     if (isSpaceDownRef.current) return
@@ -452,7 +828,14 @@ export function useInfinityEvents({
       const y = Math.min(dragStart.y, pos.y)
       const width = Math.abs(pos.x - dragStart.x)
       const height = Math.abs(pos.y - dragStart.y)
-      showSelectionBox({ x, y, width, height })
+      const box = { x, y, width, height }
+      showSelectionBox(box)
+      if (width < 3 || height < 3) return
+      const nextSelectedIds = getContainedSelectableIds(stage, box, dragStart.baseSelection)
+      if (!isSameSelection(dragPreviewSelectedIdsRef.current, nextSelectedIds)) {
+        dragPreviewSelectedIdsRef.current = nextSelectedIds
+        silentSetSelection(nextSelectedIds)
+      }
     }
   }
 
@@ -463,11 +846,18 @@ export function useInfinityEvents({
     if (toolSnapshot === 'pen' || toolSnapshot === 'eraser') {
       const line = currentLineRef.current
       if (line && line.points.length > 1) {
-        saveSnapshot([...objectsRef.current, createPersistedLine(line)], selectedIdsRef.current)
+        const persistedLine = createPersistedLine(line)
+        commitLocalChange([...objectsRef.current, persistedLine], selectedIdsRef.current, [
+          {
+            operationType: 'UPSERT_ELEMENT',
+            elementId: persistedLine.id,
+            element: { ...persistedLine },
+          },
+        ])
       }
       currentLineRef.current = null
       onDraftObjectChange?.(null)
-      hideCurrentLines()
+      cleanupAfterNextPaint(hideCurrentLines)
     } else if (toolSnapshot === 'select-eraser') {
       const idsToRemove = hoveredObjectIdsRef.current
       if (idsToRemove.size > 0) {
@@ -484,17 +874,30 @@ export function useInfinityEvents({
         const newSelected = selectedIdsRef.current.filter(
           (id) => !idsToRemove.has(id),
         )
-        saveSnapshot(newObjects, newSelected)
+        commitLocalChange(
+          newObjects,
+          newSelected,
+          [...idsToRemove].map((elementId) => ({
+            operationType: 'DELETE_ELEMENT',
+            elementId,
+          })),
+        )
       }
       applyHoverOpacity(new Set())
     } else if (isShapeTool(toolSnapshot)) {
       const shape = previewShapeRef.current
       if (shape && (Math.abs(shape.width) > 5 || Math.abs(shape.height) > 5)) {
-        saveSnapshot([...objectsRef.current, shape], [shape.id])
+        commitLocalChange([...objectsRef.current, shape], selectedIdsRef.current, [
+          {
+            operationType: 'UPSERT_ELEMENT',
+            elementId: shape.id,
+            element: { ...shape },
+          },
+        ])
       }
       previewShapeRef.current = null
       onDraftObjectChange?.(null)
-      hidePreviewShapes()
+      cleanupAfterNextPaint(hidePreviewShapes)
     } else if (toolSnapshot === 'select') {
       const dragStart = dragSelectStartRef.current
       const stage = stageRef.current
@@ -510,23 +913,14 @@ export function useInfinityEvents({
           }
           // 박스가 너무 작으면 클릭으로 간주 — 선택 변경 없이 hide만.
           if (box.width >= 3 && box.height >= 3) {
-            const baseSet = new Set(dragStart.baseSelection)
-            const hitIds: string[] = [...dragStart.baseSelection]
-            for (const obj of objectsRef.current) {
-              if (!canEdit(obj.id)) continue
-              const objNode = stage.findOne(`#${obj.id}`)
-              if (!objNode) continue
-              const rect = objNode.getClientRect({ relativeTo: stage })
-              if (intersects(box, rect) && !baseSet.has(obj.id)) {
-                hitIds.push(obj.id)
-              }
-            }
-            saveSnapshot(objectsRef.current, hitIds)
+            const hitIds = getContainedSelectableIds(stage, box, dragStart.baseSelection)
+            recordSelection(hitIds)
           }
         }
         hideSelectionBox()
       }
       dragSelectStartRef.current = null
+      dragPreviewSelectedIdsRef.current = []
     }
 
     startPosRef.current = null
@@ -546,6 +940,32 @@ export function useInfinityEvents({
     const stage = e.target.getStage()
     if (!stage) return
     const targetIsStage = e.target === stage
+
+    if (toolSnapshot === 'bucket') {
+      const targetId = e.target.id()
+      if (!targetIsStage && targetId) {
+        onObjectClick(targetId, false, toolSnapshot)
+        return
+      }
+
+      const pos = stage.getRelativePointerPosition()
+      if (!pos) return
+      const fillObject = createBucketFillObject({
+        objects: objectsRef.current,
+        pointerPosition: pos,
+        color,
+      })
+      if (fillObject) {
+        commitLocalChange([...objectsRef.current, fillObject], selectedIdsRef.current, [
+          {
+            operationType: 'UPSERT_ELEMENT',
+            elementId: fillObject.id,
+            element: { ...fillObject },
+          },
+        ])
+      }
+      return
+    }
 
     if (toolSnapshot === 'text' && targetIsStage) {
       const pos = stage.getRelativePointerPosition()
@@ -567,11 +987,29 @@ export function useInfinityEvents({
   }
 
   // 도형/텍스트 클릭 → 단일/다중 선택 토글, history 기록.
-  const onObjectClick = (id: string, isShift: boolean) => {
+  const onObjectClick = (id: string, isShift: boolean, toolSnapshot: InfinityToolKey = 'select') => {
     if (!canEdit(id)) {
       blockEdit(id)
       return
     }
+
+    if (toolSnapshot === 'bucket') {
+      const nextObjects = objectsRef.current.map((object) =>
+        object.id === id ? recolorObject(object, color) : object,
+      )
+      const nextSelectedIds = selectedIdsRef.current.includes(id) ? selectedIdsRef.current : [id]
+      const updatedObject = nextObjects.find((object) => object.id === id)
+      if (!updatedObject) return
+      commitLocalChange(nextObjects, nextSelectedIds, [
+        {
+          operationType: 'UPSERT_ELEMENT',
+          elementId: updatedObject.id,
+          element: { ...updatedObject },
+        },
+      ])
+      return
+    }
+
     const current = selectedIdsRef.current
     let next: string[]
     if (isShift) {
@@ -595,7 +1033,15 @@ export function useInfinityEvents({
       if (obj.type === 'line') return obj
       return { ...obj, x, y }
     })
-    saveSnapshot(newObjects, selectedIdsRef.current)
+    const updatedObject = newObjects.find((object) => object.id === id)
+    if (!updatedObject) return
+    commitLocalChange(newObjects, selectedIdsRef.current, [
+      {
+        operationType: 'UPSERT_ELEMENT',
+        elementId: updatedObject.id,
+        element: { ...updatedObject },
+      },
+    ])
   }
 
   const onShapeTransformEnd = (
@@ -617,7 +1063,15 @@ export function useInfinityEvents({
       }
       return obj
     })
-    saveSnapshot(newObjects, selectedIdsRef.current)
+    const updatedObject = newObjects.find((object) => object.id === id)
+    if (!updatedObject) return
+    commitLocalChange(newObjects, selectedIdsRef.current, [
+      {
+        operationType: 'UPSERT_ELEMENT',
+        elementId: updatedObject.id,
+        element: { ...updatedObject },
+      },
+    ])
   }
 
   const onTextTransformEnd = (
@@ -637,7 +1091,15 @@ export function useInfinityEvents({
       }
       return obj
     })
-    saveSnapshot(newObjects, selectedIdsRef.current)
+    const updatedObject = newObjects.find((object) => object.id === id)
+    if (!updatedObject) return
+    commitLocalChange(newObjects, selectedIdsRef.current, [
+      {
+        operationType: 'UPSERT_ELEMENT',
+        elementId: updatedObject.id,
+        element: { ...updatedObject },
+      },
+    ])
   }
 
   // 텍스트 객체 더블 클릭 → 편집 모드 진입.
@@ -683,7 +1145,20 @@ export function useInfinityEvents({
       ;[objects[i], objects[swapWith]] = [objects[swapWith], objects[i]]
       changed = true
     }
-    if (changed) saveSnapshot(objects, ids)
+    if (changed) {
+      commitLocalChange(
+        objects,
+        ids,
+        ids
+          .map((id) => objects.find((object) => object.id === id))
+          .filter((object): object is InfinityObject => Boolean(object))
+          .map((object) => ({
+            operationType: 'UPSERT_ELEMENT',
+            elementId: object.id,
+            element: { ...object },
+          })),
+      )
+    }
   }
 
   return {

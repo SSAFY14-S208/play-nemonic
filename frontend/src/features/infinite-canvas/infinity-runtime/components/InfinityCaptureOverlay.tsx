@@ -1,8 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
-import Image from 'next/image'
+import { RefreshCw, X } from 'lucide-react'
 import { Button } from '@/shared/components'
 import { cn } from '@/shared/libs'
 
@@ -462,17 +461,9 @@ export function InfinityCaptureOverlay({
         type="button"
         aria-label="출력 선택 취소"
         onClick={onCancel}
-        className="pointer-events-auto absolute bottom-14 left-1/2 size-16 -translate-x-1/2 transition-transform hover:scale-105 focus-visible:outline-none"
+        className="pointer-events-auto absolute bottom-14 left-1/2 grid size-16 -translate-x-1/2 place-items-center rounded-full border border-white/72 bg-[#3aa7f4] text-white shadow-[0_12px_24px_rgba(46,95,210,0.26),inset_0_1px_0_rgba(255,255,255,0.44)] transition-transform hover:scale-105 focus-visible:outline-none"
       >
-        <Image
-          src="/images/infinite-canvas/close-button-hq.png"
-          alt=""
-          aria-hidden
-          fill
-          priority
-          sizes="64px"
-          className="object-contain"
-        />
+        <X className="size-7" aria-hidden />
       </button>
     </div>
   )

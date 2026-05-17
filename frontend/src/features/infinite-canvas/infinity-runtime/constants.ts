@@ -3,6 +3,7 @@ export type InfinityPhase = 'lobby' | 'stage' | 'result'
 export type InfinityToolKey =
   | 'pen'
   | 'eraser'
+  | 'bucket'
   | 'select'
   | 'hand'
   | 'select-eraser'
@@ -56,6 +57,17 @@ export interface InfinityLine {
   isEraser?: boolean
 }
 
+export interface InfinityFill {
+  id: string
+  type: 'fill'
+  x: number
+  y: number
+  width: number
+  height: number
+  color: string
+  imageDataUrl: string
+}
+
 export interface InfinityShape {
   id: string
   type: 'rect' | 'ellipse'
@@ -86,4 +98,4 @@ export interface InfinityText {
 export const INFINITY_TEXT_FONT_SIZES = [12, 16, 20, 24, 32, 48, 64] as const
 export const INFINITY_TEXT_DEFAULT_FONT_SIZE = 24
 
-export type InfinityObject = InfinityLine | InfinityShape | InfinityText
+export type InfinityObject = InfinityLine | InfinityFill | InfinityShape | InfinityText
