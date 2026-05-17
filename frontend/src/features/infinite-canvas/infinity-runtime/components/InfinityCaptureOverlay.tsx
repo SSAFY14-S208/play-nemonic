@@ -103,6 +103,48 @@ function fitRatioInsideRect(rect: InfinityCaptureRect, ratio: number | null) {
   }
 }
 
+function fitRatioAroundRect(
+  rect: InfinityCaptureRect,
+  ratio: number | null,
+  bounds: InfinityCaptureRect,
+) {
+  if (ratio === null) return moveRectInsideBounds(rect, bounds)
+
+  const center = {
+    x: rect.x + rect.width / 2,
+    y: rect.y + rect.height / 2,
+  }
+  const currentRatio = rect.width / Math.max(rect.height, 1)
+  let width = rect.width
+  let height = rect.height
+
+  if (currentRatio > ratio) {
+    width = height * ratio
+  } else {
+    height = width / ratio
+  }
+
+  const maxRect = fitRatioInsideRect(bounds, ratio)
+  if (width > maxRect.width) {
+    width = maxRect.width
+    height = width / ratio
+  }
+  if (height > maxRect.height) {
+    height = maxRect.height
+    width = height * ratio
+  }
+
+  return moveRectInsideBounds(
+    {
+      x: center.x - width / 2,
+      y: center.y - height / 2,
+      width,
+      height,
+    },
+    bounds,
+  )
+}
+
 function moveRectInsideBounds(rect: InfinityCaptureRect, bounds: InfinityCaptureRect) {
   return {
     ...rect,
@@ -182,6 +224,16 @@ function getOppositeCorner(rect: InfinityCaptureRect, handle: CaptureHandle) {
   return { x: rect.x, y: rect.y }
 }
 
+function getElementBoundsRect(target: HTMLDivElement): InfinityCaptureRect {
+  const bounds = target.getBoundingClientRect()
+  return {
+    x: 0,
+    y: 0,
+    width: bounds.width,
+    height: bounds.height,
+  }
+}
+
 export function InfinityCaptureOverlay({
   isSaving,
   onCancel,
@@ -190,21 +242,28 @@ export function InfinityCaptureOverlay({
   const [ratio, setRatio] = useState<InfinityCaptureRatio>('free')
   const [baseRect, setBaseRect] = useState<InfinityCaptureRect | null>(null)
   const [captureRect, setCaptureRect] = useState<InfinityCaptureRect | null>(null)
+  const interactionLayerRef = useRef<HTMLDivElement>(null)
   const dragStateRef = useRef<CaptureDragState | null>(null)
 
   const ratioValue = useMemo(
     () => CAPTURE_RATIOS.find((captureRatio) => captureRatio.key === ratio)?.value ?? null,
     [ratio],
   )
-  const hasBaseRect = isUsableRect(baseRect)
-  const canCapture = hasBaseRect && isUsableRect(captureRect)
+  const hasCaptureRect = isUsableRect(captureRect)
+  const canCapture = hasCaptureRect
 
   const selectRatio = (nextRatio: InfinityCaptureRatio) => {
     const nextRatioValue =
       CAPTURE_RATIOS.find((captureRatio) => captureRatio.key === nextRatio)?.value ?? null
     setRatio(nextRatio)
-    if (!baseRect) return
-    setCaptureRect(fitRatioInsideRect(baseRect, nextRatioValue))
+    if (!captureRect || !interactionLayerRef.current) return
+    setCaptureRect(
+      fitRatioAroundRect(
+        captureRect,
+        nextRatioValue,
+        getElementBoundsRect(interactionLayerRef.current),
+      ),
+    )
   }
 
   const resetSelection = () => {
@@ -234,7 +293,8 @@ export function InfinityCaptureOverlay({
       return
     }
 
-    if (!baseRect || !captureRect) return
+    if (!captureRect) return
+    const dragBounds = getElementBoundsRect(target)
 
     if (dragState.kind === 'move-crop') {
       setCaptureRect(
@@ -244,14 +304,14 @@ export function InfinityCaptureOverlay({
             x: pointer.x - dragState.offset.x,
             y: pointer.y - dragState.offset.y,
           },
-          baseRect,
+          dragBounds,
         ),
       )
       return
     }
 
     setCaptureRect(
-      normalizeRatioRectInsideBounds(dragState.anchor, pointer, ratioValue, baseRect),
+      normalizeRatioRectInsideBounds(dragState.anchor, pointer, ratioValue, dragBounds),
     )
   }
 
@@ -287,23 +347,12 @@ export function InfinityCaptureOverlay({
       return
     }
 
-    if (baseRect && captureRect && containsPoint(baseRect, pointer)) {
-      const nextCaptureRect = containsPoint(captureRect, pointer)
-        ? captureRect
-        : moveRectInsideBounds(
-            {
-              ...captureRect,
-              x: pointer.x - captureRect.width / 2,
-              y: pointer.y - captureRect.height / 2,
-            },
-            baseRect,
-          )
-      setCaptureRect(nextCaptureRect)
+    if (captureRect && containsPoint(captureRect, pointer)) {
       dragStateRef.current = {
         kind: 'move-crop',
         offset: {
-          x: pointer.x - nextCaptureRect.x,
-          y: pointer.y - nextCaptureRect.y,
+          x: pointer.x - captureRect.x,
+          y: pointer.y - captureRect.y,
         },
       }
       return
@@ -327,35 +376,25 @@ export function InfinityCaptureOverlay({
   }
 
   const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    if (!baseRect || !captureRect) return
+    if (!captureRect) return
     event.preventDefault()
     const scale = event.deltaY < 0 ? 1.08 : 0.92
-    setCaptureRect(resizeRectFromCenter(captureRect, baseRect, scale, ratioValue))
+    setCaptureRect(resizeRectFromCenter(captureRect, getElementBoundsRect(event.currentTarget), scale, ratioValue))
   }
 
   return (
     <div className="absolute inset-0 z-30">
       <div
+        ref={interactionLayerRef}
         className="absolute inset-0 cursor-crosshair bg-slate-950/34"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onWheel={handleWheel}
       >
-        {baseRect && isUsableRect(baseRect) && (
-          <div
-            className="pointer-events-none absolute border border-white/45 bg-white/5"
-            style={{
-              left: baseRect.x,
-              top: baseRect.y,
-              width: baseRect.width,
-              height: baseRect.height,
-            }}
-          />
-        )}
         {captureRect && (
           <div
-            className="absolute border-2 border-white bg-white/10 shadow-[0_0_0_9999px_rgb(15_23_42_/_38%)]"
+            className="absolute cursor-move border-2 border-white bg-white/10 shadow-[0_0_0_9999px_rgb(15_23_42_/_38%)]"
             style={{
               left: captureRect.x,
               top: captureRect.y,
@@ -378,16 +417,17 @@ export function InfinityCaptureOverlay({
         )}
       </div>
 
-      {hasBaseRect && (
-        <div className="pointer-events-auto absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/70 bg-[#2e73f2]/95 px-3 py-2 text-white shadow-[0_12px_28px_rgba(46,115,242,0.28),inset_0_1px_0_rgba(255,255,255,0.42)]">
+      {hasCaptureRect && (
+        <div className="pointer-events-auto absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/70 bg-[linear-gradient(135deg,#7c61ff_0%,#2e73f2_48%,#5dc7f2_100%)] px-4 py-3 text-white shadow-[0_16px_34px_rgba(64,95,220,0.34),inset_0_1px_0_rgba(255,255,255,0.5)]">
           {CAPTURE_RATIOS.map((captureRatio) => (
             <button
               key={captureRatio.key}
               type="button"
               onClick={() => selectRatio(captureRatio.key)}
               className={cn(
-                'caption-b min-h-9 rounded-full px-3 text-white/82 transition-colors hover:bg-white/18 hover:text-white',
-                ratio === captureRatio.key && 'bg-white text-[#2e73f2]',
+                'body-l-b min-h-14 rounded-full px-5 text-white/88 transition-colors hover:bg-white/18 hover:text-white',
+                ratio === captureRatio.key &&
+                  'bg-white text-[#285ed8] shadow-[0_8px_18px_rgba(22,58,160,0.2)]',
               )}
             >
               {captureRatio.label}
@@ -402,6 +442,7 @@ export function InfinityCaptureOverlay({
               if (!captureRect) return
               onCapture(captureRect, ratio)
             }}
+            className="body-l-b min-h-14 px-7"
           >
             {isSaving ? '저장 중' : '저장'}
           </Button>
@@ -410,9 +451,9 @@ export function InfinityCaptureOverlay({
             aria-label="출력 영역 다시 선택"
             title="출력 영역 다시 선택"
             onClick={resetSelection}
-            className="grid size-9 place-items-center rounded-full bg-white/16 text-white transition-colors hover:bg-white/28"
+            className="grid size-14 place-items-center rounded-full bg-white/18 text-white transition-colors hover:bg-white/30"
           >
-            <RefreshCw className="size-4" aria-hidden />
+            <RefreshCw className="size-6" aria-hidden />
           </button>
         </div>
       )}

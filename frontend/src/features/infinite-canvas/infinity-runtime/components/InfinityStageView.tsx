@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { LogOut, Printer } from 'lucide-react'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { Button } from '@/shared/components'
 import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 import { useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
 import type { InfinityObject } from '../constants'
@@ -429,10 +427,10 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   )
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-canvas-background">
+    <div className="fixed inset-0 h-dvh w-dvw overflow-hidden bg-canvas-background">
       <InfinityToolPanel drawing={drawing} />
 
-      <div ref={containerRef} className="relative h-full w-full">
+      <div ref={containerRef} className="absolute inset-0 min-w-0 overflow-hidden">
         <InfinityCanvasStage
           width={stageSize.width}
           height={stageSize.height}
@@ -501,21 +499,40 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         participants={room.participants}
       />
 
-      <div className="fixed bottom-8 right-8 z-20 flex items-center gap-3">
-        <Button
+      <div className="fixed bottom-8 right-8 z-20 flex items-center gap-4">
+        <button
           type="button"
-          color="blue"
-          size="md"
           onClick={() => setIsCaptureMode(true)}
           disabled={room.isSavingOutput}
+          className="relative h-[56px] w-[123px] transition-transform hover:-translate-y-0.5 hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-55"
+          aria-label="출력"
         >
-          <Printer className="size-4" aria-hidden />
-          출력
-        </Button>
-        <Button type="button" color="dark" size="md" onClick={room.leaveCanvas}>
-          <LogOut className="size-4" aria-hidden />
-          나가기
-        </Button>
+          <Image
+            src="/images/infinite-canvas/print-button-compact-hq.png"
+            alt=""
+            aria-hidden
+            fill
+            priority
+            sizes="123px"
+            className="object-contain drop-shadow-[0_10px_18px_rgba(55,82,190,0.22)]"
+          />
+        </button>
+        <button
+          type="button"
+          onClick={room.leaveCanvas}
+          className="relative h-[56px] w-[145px] transition-transform hover:-translate-y-0.5 hover:scale-[1.03]"
+          aria-label="나가기"
+        >
+          <Image
+            src="/images/infinite-canvas/exit-button-compact-hq.png"
+            alt=""
+            aria-hidden
+            fill
+            priority
+            sizes="145px"
+            className="object-contain drop-shadow-[0_10px_18px_rgba(55,82,190,0.22)]"
+          />
+        </button>
       </div>
     </div>
   )

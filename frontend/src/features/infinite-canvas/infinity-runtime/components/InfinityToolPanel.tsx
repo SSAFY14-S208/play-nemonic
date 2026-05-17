@@ -123,7 +123,7 @@ export function InfinityToolPanel({ drawing }: InfinityToolPanelProps) {
             className={cn(
               "mx-auto flex h-11 w-full items-center justify-center rounded-[14px] transition-colors",
               tool === key
-                ? "bg-canvas-accent text-white"
+                ? "bg-[#eaf3ff] text-[#1f57c8] ring-2 ring-[#5dc7f2] ring-offset-1 ring-offset-white shadow-[0_6px_14px_rgba(46,115,242,0.18)]"
                 : "hover:bg-canvas-active text-canvas-ink",
             )}
           >
