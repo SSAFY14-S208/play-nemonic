@@ -20,6 +20,21 @@ const REQUIRED_EXTENSIONS = [
   'EXT_texture_webp',
 ]
 
+const RETIRED_ROOM_NODE_NAMES = new Set([
+  'cube top shelf',
+  'cube topshelf',
+  'frame.001',
+  'large frame',
+  'peg',
+  'picture.001',
+])
+
+const RETIRED_ROOM_NODE_KEYWORDS = [
+  'cube top shelf',
+  'cube topshelf',
+  'large frame',
+]
+
 const GLB_CHUNK_TYPES = {
   BIN: 0x004e4942,
   JSON: 0x4e4f534a,
@@ -107,6 +122,18 @@ function getMeshoptBufferViewCount(document) {
   ).length
 }
 
+function getRenderedRetiredNodes(document) {
+  return (document.nodes ?? []).filter((node) => {
+    const nodeName = (node.name ?? '').toLowerCase()
+
+    const isRetiredNode =
+      RETIRED_ROOM_NODE_NAMES.has(nodeName) ||
+      RETIRED_ROOM_NODE_KEYWORDS.some((keyword) => nodeName.includes(keyword))
+
+    return isRetiredNode && node.mesh !== undefined
+  })
+}
+
 function getRenderedTriangleCount(document) {
   return (document.nodes ?? []).reduce((triangleCount, node) => {
     if (node.mesh === undefined) return triangleCount
@@ -133,6 +160,7 @@ function createAudit(glbPath) {
   const missingRequiredExtensions = REQUIRED_EXTENSIONS.filter(
     (extensionName) => !extensionsUsed.includes(extensionName),
   )
+  const renderedRetiredNodes = getRenderedRetiredNodes(document)
   const renderedTriangleCount = getRenderedTriangleCount(document)
 
   const audit = {
@@ -158,6 +186,7 @@ function createAudit(glbPath) {
     glbPath,
     meshoptCompressedBufferViews: getMeshoptBufferViewCount(document),
     missingRequiredExtensions,
+    renderedRetiredNodes: renderedRetiredNodes.map((node) => node.name),
   }
 
   const failures = []
@@ -191,6 +220,14 @@ function createAudit(glbPath) {
   if (missingRequiredExtensions.length > 0) {
     failures.push(
       `missing required extension(s): ${missingRequiredExtensions.join(', ')}`,
+    )
+  }
+
+  if (renderedRetiredNodes.length > 0) {
+    failures.push(
+      `retired room prop node(s) still render: ${renderedRetiredNodes
+        .map((node) => node.name)
+        .join(', ')}`,
     )
   }
 

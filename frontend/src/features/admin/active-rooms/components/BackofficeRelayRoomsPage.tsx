@@ -2,6 +2,7 @@
 
 import { Search } from 'lucide-react'
 
+import { formatKoreanDateTime } from '@/shared/utils'
 import { useBackofficeRelayRooms } from '../hooks'
 import type { RelayRoomStatusFilter } from '../hooks'
 
@@ -18,11 +19,7 @@ const STATUS_OPTIONS: RoomFilterOption<RelayRoomStatusFilter>[] = [
 ]
 
 function formatGameStartedAt(value: string | null): string {
-  if (!value) return '—'
-  // 백엔드는 timezone 정보 없는 LocalDateTime 문자열 — 서버 시간대 표시로 충분.
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleTimeString('ko-KR', {
+  return formatKoreanDateTime(value, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',

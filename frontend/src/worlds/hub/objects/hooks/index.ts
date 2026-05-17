@@ -21,6 +21,12 @@ export {
   useHubPlatformModel,
 } from './useHubPlatformModel'
 export { useCommunityCanvasNavigation } from './useCommunityCanvasNavigation'
+export { useCommunityCanvasWhiteboardAssetNavigation } from './useCommunityCanvasWhiteboardAssetNavigation'
+export {
+  useCommunityCanvasWhiteboardPreviewMemos,
+  type CommunityCanvasWhiteboardPreviewMemo,
+  type CommunityCanvasWhiteboardPreviewStatus,
+} from './useCommunityCanvasWhiteboardPreviewMemos'
 export { useFlipbookNavigation } from './useFlipbookNavigation'
 export { useNightStarField } from './useNightStarField'
 export { useNemonicPrinterStation } from './useNemonicPrinterStation'
@@ -38,7 +44,10 @@ export {
   type MonitorEntranceProgressRef,
 } from './useMonitorScreenAnimations'
 export { useRelayDrawingNavigation } from './useRelayDrawingNavigation'
-export { useRoomModel } from './useRoomModel'
+export {
+  isCommunityCanvasWhiteboardMesh,
+  useRoomModel,
+} from './useRoomModel'
 export { useThreeWaterTime } from './useThreeWaterTime'
 export { useWitchHoverMotion } from './useWitchHoverMotion'
 export { useWitchInteraction } from './useWitchInteraction'

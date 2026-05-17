@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import { Heart, Sparkles } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { cn } from '@/shared/libs'
+import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 
+import { FLIPBOOK_SOUND_PATHS } from '../../constants'
 import { useFlipbookPrintReveal } from '../../hooks'
 
 export interface FlipbookPrintFrame {
@@ -99,6 +101,11 @@ const SLOT_OUTPUT_PAPER_TOP = '51.39%'
 const PRINT_RISE_DURATION_RATIO = 0.5
 const PRINT_AFTER_RISE_PAUSE_RATIO = 0.25
 const PAPER_ATTACH_DURATION_RATIO = 0.36
+const PRINT_START_SOUND_VOLUME = 0.36
+const PRINT_COMPLETE_SOUND_VOLUME = 0.42
+const PRINT_START_SOUND_OFFSET_SECONDS = 0.2
+const PRINT_COMPLETE_SOUND_OFFSET_SECONDS = 0.08
+const PRINT_COMPLETE_SOUND_LEAD_MS = 120
 const PRINTED_PAPER_SHADOW_CLASS =
   'shadow-[0_2px_0_rgba(120,74,35,0.08),0_8px_18px_rgba(72,43,18,0.22),0_18px_36px_rgba(72,43,18,0.18)]'
 
@@ -460,14 +467,45 @@ function ActivePrintedPaper({
 }) {
   const [printPhase, setPrintPhase] = useState<'slot' | 'expand'>('slot')
   const expandTimerRef = useRef<number | null>(null)
+  const printCompleteSoundTimerRef = useRef<number | null>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    preloadBrowserAudio(FLIPBOOK_SOUND_PATHS.print, PRINT_START_SOUND_VOLUME)
+    preloadBrowserAudio(FLIPBOOK_SOUND_PATHS.cut, PRINT_COMPLETE_SOUND_VOLUME)
+    playBrowserAudio(
+      FLIPBOOK_SOUND_PATHS.print,
+      PRINT_START_SOUND_VOLUME,
+      PRINT_START_SOUND_OFFSET_SECONDS,
+    )
+
+    if (printCompleteSoundTimerRef.current !== null) {
+      window.clearTimeout(printCompleteSoundTimerRef.current)
+    }
+
+    printCompleteSoundTimerRef.current = window.setTimeout(
+      () => {
+        playBrowserAudio(
+          FLIPBOOK_SOUND_PATHS.cut,
+          PRINT_COMPLETE_SOUND_VOLUME,
+          PRINT_COMPLETE_SOUND_OFFSET_SECONDS,
+        )
+      },
+      Math.max(
+        printDurationMs * PRINT_RISE_DURATION_RATIO - PRINT_COMPLETE_SOUND_LEAD_MS,
+        0,
+      ),
+    )
+
     return () => {
       if (expandTimerRef.current !== null) {
         window.clearTimeout(expandTimerRef.current)
       }
+
+      if (printCompleteSoundTimerRef.current !== null) {
+        window.clearTimeout(printCompleteSoundTimerRef.current)
+      }
     }
-  }, [])
+  }, [printDurationMs])
 
   const scheduleExpandAfterPrint = () => {
     if (expandTimerRef.current !== null) {

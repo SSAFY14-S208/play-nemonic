@@ -30,3 +30,6 @@ id_rsa*
 .next-dev-*.log
 frontend/tmp-*.log
 frontend/tmp-*.png
+
+# Python 캐시 (blender 스크립트)
+__pycache__/

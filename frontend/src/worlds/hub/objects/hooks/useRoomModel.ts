@@ -26,11 +26,7 @@ const CAST_SHADOW_KEYWORDS = [
   'mouse',
   'speaker',
   'shelf',
-  'panel',
-  'wall',
-  'acoustic',
   'plant',
-  'carpet',
   'pc',
 ]
 
@@ -42,7 +38,18 @@ const BRIGHT_ROOM_SURFACE_KEYWORDS = [
   'shelf 1',
 ]
 const CARPET_KEYWORDS = ['carpet', 'urso carpet']
-const ROOM_GLASS_OBJECT_NAMES = ['case', 'glass panel', 'glass.001']
+const ROOM_GLASS_OBJECT_NAMES = ['glass panel']
+const RETIRED_ROOM_PROP_OBJECT_NAMES = new Set([
+  'cubetopshelf',
+  'frame001',
+  'largeframe',
+  'peg',
+  'picture001',
+])
+const RETIRED_ROOM_PROP_OBJECT_KEYWORDS = [
+  'cubetopshelf',
+  'largeframe',
+]
 
 const KEEP_DOUBLE_SIDED_KEYWORDS = [
   'curtain',
@@ -76,6 +83,8 @@ const ROOM_MATERIAL_TUNING: Record<
     panelRoughness: number
     wallColorLerp: number
     wallEmissiveIntensity: number
+    wallEnvMapIntensity: number
+    wallRoughness: number
   }
 > = {
   diagnostic: {
@@ -94,40 +103,46 @@ const ROOM_MATERIAL_TUNING: Record<
     panelRoughness: 0.56,
     wallColorLerp: 0.28,
     wallEmissiveIntensity: 0,
+    wallEnvMapIntensity: 0.18,
+    wallRoughness: 0.68,
   },
   balanced: {
-    brightSurfaceColorLerp: 1,
-    brightSurfaceEmissiveIntensity: 0.11,
+    brightSurfaceColorLerp: 0.62,
+    brightSurfaceEmissiveIntensity: 0.045,
     disableBrightSurfaceMap: true,
-    brightSurfaceEnvMapIntensity: 0.52,
-    brightSurfaceRoughness: 0.4,
-    carpetColorLerp: 0.9,
-    carpetEmissiveIntensity: 0.11,
-    emissiveFallbackScale: 0.82,
+    brightSurfaceEnvMapIntensity: 0.42,
+    brightSurfaceRoughness: 0.46,
+    carpetColorLerp: 0.72,
+    carpetEmissiveIntensity: 0.018,
+    emissiveFallbackScale: 0.68,
     exportedEmissiveIntensityFloor: 0.34,
-    maxEnvMapIntensity: 0.42,
-    panelColorLerp: 0.22,
-    panelEnvMapIntensity: 0.34,
-    panelRoughness: 0.5,
-    wallColorLerp: 0.72,
-    wallEmissiveIntensity: 0,
+    maxEnvMapIntensity: 0.38,
+    panelColorLerp: 0.26,
+    panelEnvMapIntensity: 0.26,
+    panelRoughness: 0.56,
+    wallColorLerp: 0.45,
+    wallEmissiveIntensity: 0.015,
+    wallEnvMapIntensity: 0.28,
+    wallRoughness: 0.64,
   },
   quality: {
-    brightSurfaceColorLerp: 0.94,
-    brightSurfaceEmissiveIntensity: 0.14,
+    brightSurfaceColorLerp: 0.68,
+    brightSurfaceEmissiveIntensity: 0.06,
     disableBrightSurfaceMap: true,
-    brightSurfaceEnvMapIntensity: 0.62,
-    brightSurfaceRoughness: 0.38,
-    carpetColorLerp: 0.82,
-    carpetEmissiveIntensity: 0.13,
-    emissiveFallbackScale: 0.9,
+    brightSurfaceEnvMapIntensity: 0.5,
+    brightSurfaceRoughness: 0.42,
+    carpetColorLerp: 0.78,
+    carpetEmissiveIntensity: 0.025,
+    emissiveFallbackScale: 0.76,
     exportedEmissiveIntensityFloor: 0.4,
-    maxEnvMapIntensity: 0.55,
-    panelColorLerp: 0.18,
-    panelEnvMapIntensity: 0.42,
-    panelRoughness: 0.46,
-    wallColorLerp: 0.58,
-    wallEmissiveIntensity: 0,
+    maxEnvMapIntensity: 0.46,
+    panelColorLerp: 0.3,
+    panelEnvMapIntensity: 0.34,
+    panelRoughness: 0.52,
+    wallColorLerp: 0.5,
+    wallEmissiveIntensity: 0.02,
+    wallEnvMapIntensity: 0.34,
+    wallRoughness: 0.6,
   },
 }
 
@@ -137,16 +152,37 @@ const ROOM_PRINT_ANIMATION_NAMES = [
   'label_up',
 ] as const
 const IDLE_POSE_ANIMATION_NAMES = ['print_head_up', 'label_up'] as const
+const ENABLED_MESH_RAYCAST = THREE.Mesh.prototype.raycast
 const DISABLED_RAYCAST: THREE.Mesh['raycast'] = () => undefined
 const ROOM_MATERIAL_BASELINE_KEY = 'nemonicRoomMaterialBaseline'
+const COMMUNITY_CANVAS_WHITEBOARD_MESH_NAMES = new Set([
+  'CommunityCanvasWhiteboard',
+  'CommunityCanvasWhiteboardOutline',
+  'CommunityCanvasWhiteboarOutline',
+])
 
 interface RoomMaterialBaseline {
   color: THREE.Color
   emissive: THREE.Color
+  emissiveMap: THREE.Texture | null
   emissiveIntensity: number
   envMapIntensity: number
+  depthWrite: boolean
+  map: THREE.Texture | null
+  metalnessMap: THREE.Texture | null
   metalness: number
+  normalMap: THREE.Texture | null
+  opacity: number
   roughness: number
+  roughnessMap: THREE.Texture | null
+  side: THREE.Side
+  toneMapped: boolean
+  transparent: boolean
+  clearcoat: number | null
+  clearcoatRoughness: number | null
+  transmission: number | null
+  thickness: number | null
+  ior: number | null
 }
 
 function includesAnyKeyword(value: string, keywords: string[]) {
@@ -155,8 +191,32 @@ function includesAnyKeyword(value: string, keywords: string[]) {
   return keywords.some((keyword) => normalizedValue.includes(keyword))
 }
 
+export function isCommunityCanvasWhiteboardMesh(
+  object: THREE.Object3D,
+): object is THREE.Mesh {
+  return (
+    object instanceof THREE.Mesh &&
+    COMMUNITY_CANVAS_WHITEBOARD_MESH_NAMES.has(object.name)
+  )
+}
+
+function normalizeRoomIdentifier(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9가-힣]/g, '')
+}
+
 function getMeshMaterials(material: THREE.Material | THREE.Material[]) {
   return Array.isArray(material) ? material : [material]
+}
+
+function isRetiredRoomPropMesh(mesh: THREE.Mesh) {
+  const objectName = normalizeRoomIdentifier(mesh.name)
+
+  return (
+    RETIRED_ROOM_PROP_OBJECT_NAMES.has(objectName) ||
+    RETIRED_ROOM_PROP_OBJECT_KEYWORDS.some((keyword) =>
+      objectName.includes(keyword),
+    )
+  )
 }
 
 function shouldUseMeshScopedMaterial(mesh: THREE.Mesh) {
@@ -181,6 +241,37 @@ function cloneMeshMaterial(mesh: THREE.Mesh) {
   mesh.userData.nemonicRoomMaterialCloned = true
 }
 
+function createBrightPhysicalMaterial(material: THREE.MeshStandardMaterial) {
+  if (material instanceof THREE.MeshPhysicalMaterial) return material
+
+  const physicalMaterial = new THREE.MeshPhysicalMaterial()
+
+  physicalMaterial.copy(material as THREE.MeshPhysicalMaterial)
+  physicalMaterial.name = material.name
+  physicalMaterial.userData = { ...material.userData }
+  physicalMaterial.defines = { ...material.defines }
+  material.dispose()
+
+  return physicalMaterial
+}
+
+function upgradeBrightSurfaceMaterial(mesh: THREE.Mesh) {
+  if (mesh.userData.nemonicBrightSurfaceMaterialUpgraded) return
+  if (!includesAnyKeyword(mesh.name, BRIGHT_ROOM_SURFACE_KEYWORDS)) return
+
+  mesh.material = Array.isArray(mesh.material)
+    ? mesh.material.map((material) =>
+        material instanceof THREE.MeshStandardMaterial
+          ? createBrightPhysicalMaterial(material)
+          : material,
+      )
+    : mesh.material instanceof THREE.MeshStandardMaterial
+      ? createBrightPhysicalMaterial(mesh.material)
+      : mesh.material
+
+  mesh.userData.nemonicBrightSurfaceMaterialUpgraded = true
+}
+
 function getRoomMaterialBaseline(material: THREE.MeshStandardMaterial) {
   const existingBaseline = material.userData[
     ROOM_MATERIAL_BASELINE_KEY
@@ -191,10 +282,31 @@ function getRoomMaterialBaseline(material: THREE.MeshStandardMaterial) {
   const baseline: RoomMaterialBaseline = {
     color: material.color.clone(),
     emissive: material.emissive.clone(),
+    emissiveMap: material.emissiveMap,
     emissiveIntensity: material.emissiveIntensity,
     envMapIntensity: material.envMapIntensity,
+    depthWrite: material.depthWrite,
+    map: material.map,
+    metalnessMap: material.metalnessMap,
     metalness: material.metalness,
+    normalMap: material.normalMap,
+    opacity: material.opacity,
     roughness: material.roughness,
+    roughnessMap: material.roughnessMap,
+    side: material.side,
+    toneMapped: material.toneMapped,
+    transparent: material.transparent,
+    clearcoat:
+      material instanceof THREE.MeshPhysicalMaterial ? material.clearcoat : null,
+    clearcoatRoughness:
+      material instanceof THREE.MeshPhysicalMaterial
+        ? material.clearcoatRoughness
+        : null,
+    transmission:
+      material instanceof THREE.MeshPhysicalMaterial ? material.transmission : null,
+    thickness:
+      material instanceof THREE.MeshPhysicalMaterial ? material.thickness : null,
+    ior: material instanceof THREE.MeshPhysicalMaterial ? material.ior : null,
   }
 
   material.userData[ROOM_MATERIAL_BASELINE_KEY] = baseline
@@ -207,10 +319,29 @@ function restoreRoomMaterialBaseline(material: THREE.MeshStandardMaterial) {
 
   material.color.copy(baseline.color)
   material.emissive.copy(baseline.emissive)
+  material.emissiveMap = baseline.emissiveMap
   material.emissiveIntensity = baseline.emissiveIntensity
   material.envMapIntensity = baseline.envMapIntensity
+  material.depthWrite = baseline.depthWrite
+  material.map = baseline.map
+  material.metalnessMap = baseline.metalnessMap
   material.metalness = baseline.metalness
+  material.normalMap = baseline.normalMap
+  material.opacity = baseline.opacity
   material.roughness = baseline.roughness
+  material.roughnessMap = baseline.roughnessMap
+  material.side = baseline.side
+  material.toneMapped = baseline.toneMapped
+  material.transparent = baseline.transparent
+
+  if (material instanceof THREE.MeshPhysicalMaterial) {
+    material.clearcoat = baseline.clearcoat ?? material.clearcoat
+    material.clearcoatRoughness =
+      baseline.clearcoatRoughness ?? material.clearcoatRoughness
+    material.transmission = baseline.transmission ?? material.transmission
+    material.thickness = baseline.thickness ?? material.thickness
+    material.ior = baseline.ior ?? material.ior
+  }
 }
 
 function isInternalPrintLabelObject(object: THREE.Object3D) {
@@ -441,24 +572,35 @@ function configureRoomMaterial(
     material.side = THREE.FrontSide
   }
 
+  if (isBrightRoomSurface || isCarpet || (isWallDetail && !isGlassSurface)) {
+    material.opacity = 1
+    material.transparent = false
+    material.depthWrite = true
+  }
+
   material.envMapIntensity = Math.min(
     material.envMapIntensity,
     materialTuning.maxEnvMapIntensity,
   )
 
   if (isGlassSurface) {
-    material.color.lerp(new THREE.Color('#dff4ff'), 0.82)
+    material.color.lerp(new THREE.Color('#d7f0ff'), 0.88)
+    material.emissive.set('#6f8ed0')
+    material.emissiveIntensity = performanceMode === 'quality' ? 0.055 : 0.035
+    material.emissiveMap = null
+    material.map = null
     material.metalness = 0
-    material.roughness = Math.min(material.roughness, 0.2)
-    material.opacity = 0.42
+    material.roughness = Math.min(material.roughness, 0.22)
+    material.opacity = performanceMode === 'quality' ? 0.42 : 0.46
     material.transparent = true
     material.depthWrite = false
     material.side = THREE.DoubleSide
-    material.envMapIntensity = performanceMode === 'quality' ? 0.86 : 0.68
+    material.toneMapped = true
+    material.envMapIntensity = performanceMode === 'quality' ? 0.96 : 0.76
 
     if (material instanceof THREE.MeshPhysicalMaterial) {
-      material.transmission = performanceProfile.environment ? 0.68 : 0
-      material.thickness = 0.055
+      material.transmission = performanceProfile.environment ? 0.66 : 0
+      material.thickness = 0.038
       material.ior = 1.36
     }
   }
@@ -469,7 +611,7 @@ function configureRoomMaterial(
     }
 
     material.color.lerp(
-      new THREE.Color('#fffaff'),
+      new THREE.Color('#f6f1fa'),
       materialTuning.brightSurfaceColorLerp,
     )
     material.metalness = 0
@@ -477,19 +619,26 @@ function configureRoomMaterial(
       material.roughness,
       materialTuning.brightSurfaceRoughness,
     )
-    material.emissive.lerp(new THREE.Color('#f8f1ff'), 1)
+    material.emissive.lerp(new THREE.Color('#eadcf5'), 1)
     material.emissiveIntensity = Math.max(
       material.emissiveIntensity,
       materialTuning.brightSurfaceEmissiveIntensity,
     )
     material.envMapIntensity = materialTuning.brightSurfaceEnvMapIntensity
+    material.toneMapped = true
+
+    if (material instanceof THREE.MeshPhysicalMaterial) {
+      material.clearcoat = performanceMode === 'quality' ? 0.54 : 0.42
+      material.clearcoatRoughness = performanceMode === 'quality' ? 0.26 : 0.3
+      material.ior = 1.45
+    }
   }
 
   if (isCarpet) {
-    material.color.lerp(new THREE.Color('#fbf6ff'), materialTuning.carpetColorLerp)
+    material.color.lerp(new THREE.Color('#f1e7f1'), materialTuning.carpetColorLerp)
     material.metalness = 0
     material.roughness = 1
-    material.emissive.lerp(new THREE.Color('#f7efff'), 1)
+    material.emissive.lerp(new THREE.Color('#ead8ee'), 1)
     material.emissiveIntensity = Math.max(
       material.emissiveIntensity,
       materialTuning.carpetEmissiveIntensity,
@@ -497,13 +646,13 @@ function configureRoomMaterial(
     material.envMapIntensity = Math.min(material.envMapIntensity, 0.08)
   }
 
-  if (isWallDetail) {
+  if (isWallDetail && !isGlassSurface) {
     if (includesAnyKeyword(materialIdentity, ['room isometric'])) {
       material.map = null
     }
 
     if (isMainWallPanel) {
-      material.color.lerp(new THREE.Color('#f0e9ff'), materialTuning.panelColorLerp)
+      material.color.lerp(new THREE.Color('#f1eaf9'), materialTuning.panelColorLerp)
       material.metalness = 0
       material.roughness = materialTuning.panelRoughness
       material.emissive.set('#000000')
@@ -513,14 +662,17 @@ function configureRoomMaterial(
         materialTuning.maxEnvMapIntensity,
       )
     } else {
-      material.color.lerp(new THREE.Color('#f3ecff'), materialTuning.wallColorLerp)
-      material.roughness = Math.max(material.roughness, 0.68)
-      material.emissive.lerp(new THREE.Color('#f3ecff'), 1)
+      material.color.lerp(new THREE.Color('#f3edf7'), materialTuning.wallColorLerp)
+      material.roughness = Math.min(material.roughness, materialTuning.wallRoughness)
+      material.emissive.lerp(new THREE.Color('#eadff2'), 1)
       material.emissiveIntensity = Math.max(
         material.emissiveIntensity,
         materialTuning.wallEmissiveIntensity,
       )
-      material.envMapIntensity = Math.min(material.envMapIntensity, 0.28)
+      material.envMapIntensity = Math.min(
+        materialTuning.wallEnvMapIntensity,
+        materialTuning.maxEnvMapIntensity,
+      )
     }
   }
 
@@ -547,16 +699,30 @@ function configureRoomMesh(
   performanceMode: HubPerformanceMode,
 ) {
   const performanceProfile = HUB_PERFORMANCE_PROFILES[performanceMode]
+  const isGlassSurface = isRoomGlassSurface(child)
 
   child.raycast = DISABLED_RAYCAST
+
+  if (isRetiredRoomPropMesh(child)) {
+    child.visible = false
+    child.castShadow = false
+    child.receiveShadow = false
+    return
+  }
 
   if (includesAnyKeyword(child.name, ['volumetric'])) {
     child.visible = false
     return
   }
 
+  if (isCommunityCanvasWhiteboardMesh(child)) {
+    child.raycast = ENABLED_MESH_RAYCAST
+    child.userData.hubNavigation = 'community-canvas-whiteboard'
+  }
+
   const shouldCastShadow =
     performanceProfile.shadows &&
+    !isGlassSurface &&
     includesAnyKeyword(child.name, CAST_SHADOW_KEYWORDS)
 
   child.castShadow = shouldCastShadow
@@ -565,6 +731,7 @@ function configureRoomMesh(
   if (shouldUseMeshScopedMaterial(child)) {
     cloneMeshMaterial(child)
   }
+  upgradeBrightSurfaceMaterial(child)
 
   getMeshMaterials(child.material).forEach((material) => {
     if (!(material instanceof THREE.MeshStandardMaterial)) return

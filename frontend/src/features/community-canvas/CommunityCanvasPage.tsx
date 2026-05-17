@@ -8,6 +8,7 @@ import { consumeCommunityCanvasHandoffDraft } from '@/shared/utils'
 import {
   CommunityComposerModal,
   CommunityMemoDetailModal,
+  CommunityMemoPrintRevealOverlay,
   CommunityReportModal,
   CommunityWall,
 } from './components'
@@ -57,7 +58,10 @@ export function CommunityCanvasPage() {
   const isSavingLayout =
     communityCanvas.editingMemo !== null && communityCanvas.mutationStatus === 'loading'
   const isHeaderActionsDisabled =
-    composer.isComposerOpen || communityCanvas.selectedMemoUuid !== null || isReportOpen
+    composer.isComposerOpen ||
+    composer.printRevealPlacement !== null ||
+    communityCanvas.selectedMemoUuid !== null ||
+    isReportOpen
 
   const handleDeleteSelectedMemo = () => {
     if (typeof window !== 'undefined') {
@@ -130,6 +134,12 @@ export function CommunityCanvasPage() {
       />
 
       <CommunityComposerModal composer={composer} />
+
+      <CommunityMemoPrintRevealOverlay
+        placement={composer.printRevealPlacement}
+        onAccept={composer.acceptPrintedMemoPlacement}
+        onCancel={composer.cancelPrintedMemoPlacement}
+      />
 
       <CommunityMemoDetailModal
         isOpen={communityCanvas.selectedMemoUuid !== null}

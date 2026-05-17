@@ -4,6 +4,7 @@ export {
   DRAWING_STROKE_WIDTH_OPTIONS,
   MAX_RECENT_DRAWING_COLOR_COUNT,
 } from './drawing'
+export * from './communityCanvas'
 export { DEFAULT_USER_NICKNAME } from './user'
 export * from './hubGames'
 export * from './hubRoom'

@@ -18,14 +18,6 @@ export function usePegboardArea() {
     [setFocus],
   )
 
-  const focusPegboard = useCallback(
-    (event: ThreeEvent<MouseEvent>) => {
-      event.stopPropagation()
-      setFocus('pegboard')
-    },
-    [setFocus],
-  )
-
   const handlePointerEnter = useCallback(() => {
     setDocumentCursor('pointer')
   }, [])
@@ -35,7 +27,6 @@ export function usePegboardArea() {
   }, [])
 
   return {
-    focusPegboard,
     focusWorkspace,
     handlePointerEnter,
     handlePointerLeave,

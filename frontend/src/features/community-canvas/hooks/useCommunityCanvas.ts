@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import {
   ApiError,
   deleteCommunityMemo,
-  getArtifactImageUrls,
   getCommunityMemo,
   getCommunityMemoList,
   patchCommunityMemo,
@@ -13,12 +12,16 @@ import {
 } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 import type {
-  ArtifactImageUrlResponse,
   CommunityMemoDetailResponse,
   CommunityMemoItemResponse,
   CommunityMemoLayoutRequest,
   CommunityMemoReportReason,
 } from '@/shared/types'
+import {
+  preloadCommunityMemoSounds,
+  playCommunityMemoAttachSound,
+  playCommunityMemoDetachSound,
+} from '../utils'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type MemoPlaybackImageUrlMap = Record<string, string>
@@ -60,18 +63,6 @@ function applyMemoDetailLayout(
   }
 }
 
-function shouldResolveAnimatedDetailImage(detail: CommunityMemoDetailResponse) {
-  return detail.sourceType === 'GALLERY' && detail.artifactId !== null
-}
-
-function getArtifactGifUrl(artifactImages: ArtifactImageUrlResponse) {
-  return (
-    artifactImages.contents.find(
-      (content) => content.type.toLowerCase() === 'gif' && content.url.length > 0,
-    )?.url ?? null
-  )
-}
-
 function isGifImageUrl(imageUrl: string | null | undefined) {
   if (!imageUrl) return false
   return /\.gif(?:[?#].*)?$/i.test(imageUrl)
@@ -109,34 +100,18 @@ function getMemoGifImageUrl(memo: CommunityMemoItemResponse) {
   return gifImageUrl ?? null
 }
 
-async function getAnimatedDetailImageUrl(detail: CommunityMemoDetailResponse) {
+function getAnimatedDetailImageUrl(detail: CommunityMemoDetailResponse) {
   if (detail.memoPlaybackImageUrl) return detail.memoPlaybackImageUrl
   const decorationPlaybackImageUrl = getDecorationPlaybackImageUrl(detail)
   if (decorationPlaybackImageUrl) return decorationPlaybackImageUrl
-  if (!shouldResolveAnimatedDetailImage(detail) || !detail.artifactId) return null
-
-  try {
-    const artifactImages = await getArtifactImageUrls(detail.artifactId)
-    return getArtifactGifUrl(artifactImages)
-  } catch {
-    return null
-  }
+  return getMemoGifImageUrl(detail)
 }
 
-async function getAnimatedMemoImageUrl(memo: CommunityMemoItemResponse) {
+function getAnimatedMemoImageUrl(memo: CommunityMemoItemResponse) {
   if (memo.memoPlaybackImageUrl) return memo.memoPlaybackImageUrl
   const decorationPlaybackImageUrl = getDecorationPlaybackImageUrl(memo)
   if (decorationPlaybackImageUrl) return decorationPlaybackImageUrl
-  const memoGifImageUrl = getMemoGifImageUrl(memo)
-  if (memoGifImageUrl) return memoGifImageUrl
-  if (memo.sourceType !== 'GALLERY') return null
-
-  try {
-    const detail = await getCommunityMemo(memo.memoUuid)
-    return getAnimatedDetailImageUrl(detail)
-  } catch {
-    return null
-  }
+  return getMemoGifImageUrl(memo)
 }
 
 export function useCommunityCanvas() {
@@ -162,14 +137,16 @@ export function useCommunityCanvas() {
   const [mutationStatus, setMutationStatus] = useState<AsyncStatus>('idle')
   const [reportStatus, setReportStatus] = useState<AsyncStatus>('idle')
 
+  useEffect(() => {
+    preloadCommunityMemoSounds()
+  }, [])
+
   const resolveMemoPlaybackImageUrls = useCallback(
-    async (nextMemos: CommunityMemoItemResponse[], requestId: number) => {
-      const playbackEntries = await Promise.all(
-        nextMemos.map(async (memo) => {
-          const animatedImageUrl = await getAnimatedMemoImageUrl(memo)
-          return animatedImageUrl ? ([memo.memoUuid, animatedImageUrl] as const) : null
-        }),
-      )
+    (nextMemos: CommunityMemoItemResponse[], requestId: number) => {
+      const playbackEntries = nextMemos.map((memo) => {
+        const animatedImageUrl = getAnimatedMemoImageUrl(memo)
+        return animatedImageUrl ? ([memo.memoUuid, animatedImageUrl] as const) : null
+      })
 
       if (memoPlaybackRequestIdRef.current !== requestId) return
 
@@ -268,7 +245,7 @@ export function useCommunityCanvas() {
       setSelectedMemoDetail(detail)
       setDetailStatus('success')
 
-      const animatedImageUrl = await getAnimatedDetailImageUrl(detail)
+      const animatedImageUrl = getAnimatedDetailImageUrl(detail)
       if (detailRequestIdRef.current !== requestId) return
 
       setSelectedMemoPlaybackImageUrl(animatedImageUrl)
@@ -304,10 +281,15 @@ export function useCommunityCanvas() {
       return
     }
 
+    const isEnteringLayoutEdit = editingMemo?.memoUuid !== memo.memoUuid || !editingLayoutDraft
+    if (isEnteringLayoutEdit) {
+      playCommunityMemoDetachSound()
+    }
+
     setEditingMemo(memo)
     setEditingLayoutDraft(toLayoutDraft(memo))
     setMutationStatus('idle')
-  }, [])
+  }, [editingLayoutDraft, editingMemo])
 
   const clearWallMemoSelection = useCallback(() => {
     setSelectedWallMemoUuid(null)
@@ -323,6 +305,7 @@ export function useCommunityCanvas() {
     setSelectedWallMemoUuid(selectedMemoDetail.memoUuid)
     setEditingMemo(selectedMemoDetail)
     setEditingLayoutDraft(toLayoutDraft(selectedMemoDetail))
+    playCommunityMemoDetachSound()
     setSelectedMemoUuid(null)
     setSelectedMemoDetail(null)
     setSelectedMemoPlaybackImageUrl(null)
@@ -370,6 +353,7 @@ export function useCommunityCanvas() {
       setEditingMemo(null)
       setEditingLayoutDraft(null)
       setMutationStatus('success')
+      playCommunityMemoAttachSound()
       toast.success('메모 위치를 저장했어요.')
     } catch (error) {
       setMutationStatus('error')
@@ -387,6 +371,7 @@ export function useCommunityCanvas() {
       closeMemoDetail()
       await loadCommunityMemos()
       setMutationStatus('success')
+      playCommunityMemoDetachSound()
       toast.success('메모를 벽에서 떼어냈어요.')
     } catch (error) {
       setMutationStatus('error')
