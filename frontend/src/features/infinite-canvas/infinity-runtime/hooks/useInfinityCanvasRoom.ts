@@ -38,7 +38,7 @@ import { useInfinityRealtimeConnection } from './useInfinityRealtimeConnection'
 const INFINITE_CANVAS_FILE_CONTENT_TYPE = 'image/png'
 const INFINITE_CANVAS_FILE_PURPOSE = 'INFINITE_CANVAS'
 const STALE_REVISION_MESSAGE = '캔버스 revision이 최신이 아닙니다.'
-const MAX_OPERATIONS_PER_BATCH = 3
+const MAX_OPERATIONS_PER_BATCH = 20
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -244,10 +244,13 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     setOperationQueueVersion((currentVersion) => currentVersion + 1)
   }, [])
 
-  const hydrateRoom = useCallback(async () => {
+  const hydrateRoom = useCallback(async (options: { showLoading?: boolean } = {}) => {
     if (!roomCode || !userUuid) return null
+    const showLoading = options.showLoading ?? true
 
-    setIsHydrating(true)
+    if (showLoading) {
+      setIsHydrating(true)
+    }
     setErrorMessage(null)
 
     try {
@@ -477,7 +480,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
             ]
           }
           isResolvingRevisionConflictRef.current = true
-          void hydrateRoom().finally(() => {
+          void hydrateRoom({ showLoading: false }).finally(() => {
             isResolvingRevisionConflictRef.current = false
             bumpOperationQueue()
           })
@@ -488,7 +491,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         isResolvingRevisionConflictRef.current = false
         setErrorMessage(message)
         toast.error(message)
-        void hydrateRoom().finally(bumpOperationQueue)
+        void hydrateRoom({ showLoading: false }).finally(bumpOperationQueue)
       }
     },
     [applyFullState, bumpOperationQueue, roomCode, hydrateRoom, router, userUuid],
@@ -509,7 +512,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         return
       }
 
-      const nextState = await hydrateRoom()
+      const nextState = await hydrateRoom({ showLoading: true })
       if (!cancelled && nextState) {
         revisionRef.current = nextState.revision
       }

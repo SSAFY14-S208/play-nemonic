@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import type { InfiniteCanvasConnectionStatus, InfiniteCanvasParticipantResponse } from '@/shared/types'
-import { INFINITY_COLORS, INFINITY_PARTICIPANT_ACCENTS } from '../constants'
+
+import { INFINITE_CANVAS_COLOR_OPTIONS } from '../../constants'
+import { INFINITY_PARTICIPANT_ACCENTS } from '../constants'
 
 const PANEL_WIDTH = 334
 const PANEL_TOP_HEIGHT = 58
@@ -161,14 +163,14 @@ export function InfinityParticipantsPanel({
                   {isConnected ? '접속' : '오프'}
                 </span>
                 {isMe && isColorPickerOpen && onUpdateMyColor && (
-                  <div className="absolute left-2 top-[48px] z-20 grid grid-cols-3 gap-2 rounded-[18px] border border-white/80 bg-white/92 p-3 shadow-[0_16px_26px_rgba(60,82,160,0.22)] backdrop-blur">
-                    {INFINITY_COLORS.map((color) => {
+                  <div className="absolute left-2 top-[48px] z-20 grid grid-cols-4 gap-2 rounded-[18px] border border-white/80 bg-white/92 p-3 shadow-[0_16px_26px_rgba(60,82,160,0.22)] backdrop-blur">
+                    {INFINITE_CANVAS_COLOR_OPTIONS.map(({ value: color, label }) => {
                       const selected = color.toLowerCase() === participant.color.toLowerCase()
                       return (
                         <button
                           key={color}
                           type="button"
-                          title={`${color}로 변경`}
+                          title={`${label}로 변경`}
                           disabled={isUpdatingProfile}
                           onClick={async () => {
                             const updated = await onUpdateMyColor(color)
