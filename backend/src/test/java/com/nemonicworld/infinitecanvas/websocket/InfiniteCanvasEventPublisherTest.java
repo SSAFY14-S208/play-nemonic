@@ -10,9 +10,11 @@ import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasRevisionConflictResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventType;
+import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasErrorResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasParticipantEventResponse;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import java.time.LocalDateTime;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.socket.CloseStatus;
 
@@ -79,6 +82,30 @@ class InfiniteCanvasEventPublisherTest {
 
         verify(webSocketSessionRegistry).closeWebSocketSession(eq(SESSION_ID), closeStatusCaptor.capture());
         assertThat(closeStatusCaptor.getValue().getReason()).isEqualTo("CANVAS_CLOSED");
+    }
+
+    @Test
+    void publishErrorCanIncludeRevisionConflictDetailsForCurrentSession() {
+        ArgumentCaptor<InfiniteCanvasEventResponse> eventCaptor = ArgumentCaptor
+            .forClass(InfiniteCanvasEventResponse.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> headersCaptor = ArgumentCaptor.forClass(Map.class);
+        InfiniteCanvasRevisionConflictResponse details = new InfiniteCanvasRevisionConflictResponse(ROOM_CODE, 3L, 5L,
+            List.of(), true);
+
+        publisher.publishError(SESSION_ID, ROOM_CODE, "캔버스 revision이 최신이 아닙니다. 서버 상태를 다시 동기화해주세요.", details);
+
+        verify(messagingTemplate).convertAndSendToUser(eq(SESSION_ID),
+            eq("/queue/infinite-canvas/canvases/" + ROOM_CODE), eventCaptor.capture(), headersCaptor.capture());
+        InfiniteCanvasEventResponse event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(InfiniteCanvasEventType.ERROR);
+        assertThat(event.roomCode()).isEqualTo(ROOM_CODE);
+        assertThat(event.data()).isInstanceOf(InfiniteCanvasErrorResponse.class);
+
+        InfiniteCanvasErrorResponse data = (InfiniteCanvasErrorResponse) event.data();
+        assertThat(data.message()).isEqualTo("캔버스 revision이 최신이 아닙니다. 서버 상태를 다시 동기화해주세요.");
+        assertThat(data.details()).isSameAs(details);
+        assertThat(headersCaptor.getValue()).containsEntry(SimpMessageHeaderAccessor.SESSION_ID_HEADER, SESSION_ID);
     }
 
     private InfiniteCanvasStateResponse stateResponse(boolean connected) {

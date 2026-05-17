@@ -16,7 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCursorRequest;
@@ -28,6 +27,8 @@ import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCursorResponse
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLockResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
+import com.nemonicworld.infinitecanvas.exception.InfiniteCanvasRevisionConflictException;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperation;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperationType;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
@@ -618,17 +619,52 @@ class InfiniteCanvasControllerIntegrationTest {
     @Test
     void applyInfiniteCanvasOperationsRejectsStaleRevision() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
-        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6, 2L);
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        InfiniteCanvasOperation firstOperation = operation("op-1", "client-op-1", "shape-1", ownerUuid, 1L, now);
+        InfiniteCanvasOperation secondOperation = operation("op-2", "client-op-2", "shape-2", ownerUuid, 2L, now);
+        InfiniteCanvasState state = activeCanvasStateWithOperations(ownerUuid, 6,
+            List.of(firstOperation, secondOperation), 2L);
         redisValues.put(roomKey(state.roomCode()), serialize(state));
         JsonNode element = objectMapper.createObjectNode().put("id", "shape-2").put("type", "brush");
 
         assertThatThrownBy(() -> infiniteCanvasService.applyOperations(ownerUuid.toString(), state.roomCode(),
             new InfiniteCanvasOpsRequest(1L,
-                List.of(new InfiniteCanvasOperationRequest("local-op-2", "client-op-2",
+                List.of(new InfiniteCanvasOperationRequest("local-op-3", "client-op-3",
                     InfiniteCanvasOperationType.UPSERT_ELEMENT, "shape-2", element, null)))))
-            .isInstanceOf(ConflictException.class).hasMessage("캔버스 revision이 최신이 아닙니다. 서버 상태를 다시 동기화해주세요.");
+            .isInstanceOf(InfiniteCanvasRevisionConflictException.class)
+            .hasMessage("캔버스 revision이 최신이 아닙니다. 서버 상태를 다시 동기화해주세요.").satisfies(error -> {
+                InfiniteCanvasRevisionConflictException conflict = (InfiniteCanvasRevisionConflictException) error;
+                assertThat(conflict.response().roomCode()).isEqualTo(state.roomCode());
+                assertThat(conflict.response().baseRevision()).isEqualTo(1L);
+                assertThat(conflict.response().latestRevision()).isEqualTo(2L);
+                assertThat(conflict.response().fullStateRequired()).isFalse();
+                assertThat(conflict.response().missingOperations()).extracting(InfiniteCanvasOperation::revision)
+                    .containsExactly(2L);
+            });
 
         assertThat(readStoredJson(roomKey(state.roomCode())).path("revision").asLong()).isEqualTo(2L);
+    }
+
+    @Test
+    void applyInfiniteCanvasOperationsRequiresFullStateWhenMissingOperationsCannotBridgeRevision() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        InfiniteCanvasOperation secondOperation = operation("op-2", "client-op-2", "shape-2", ownerUuid, 2L, now);
+        InfiniteCanvasState state = activeCanvasStateWithOperations(ownerUuid, 6, List.of(secondOperation), 2L);
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
+        JsonNode element = objectMapper.createObjectNode().put("id", "shape-3").put("type", "brush");
+
+        assertThatThrownBy(() -> infiniteCanvasService.applyOperations(ownerUuid.toString(), state.roomCode(),
+            new InfiniteCanvasOpsRequest(0L,
+                List.of(new InfiniteCanvasOperationRequest("local-op-3", "client-op-3",
+                    InfiniteCanvasOperationType.UPSERT_ELEMENT, "shape-3", element, null)))))
+            .isInstanceOf(InfiniteCanvasRevisionConflictException.class).satisfies(error -> {
+                InfiniteCanvasRevisionConflictException conflict = (InfiniteCanvasRevisionConflictException) error;
+                assertThat(conflict.response().baseRevision()).isEqualTo(0L);
+                assertThat(conflict.response().latestRevision()).isEqualTo(2L);
+                assertThat(conflict.response().fullStateRequired()).isTrue();
+                assertThat(conflict.response().missingOperations()).isEmpty();
+            });
     }
 
     @Test
@@ -881,6 +917,24 @@ class InfiniteCanvasControllerIntegrationTest {
         return new InfiniteCanvasState(state.roomCode(), state.status(), state.hostUserUuid(), state.participants(),
             List.copyOf(elements), state.operations(), state.locks(), state.cursors(), state.viewport(),
             state.maxParticipants(), state.revision(), state.createdAt(), state.updatedAt(), state.closedAt());
+    }
+
+    private InfiniteCanvasState activeCanvasStateWithOperations(UUID ownerUuid, int maxParticipants,
+        List<InfiniteCanvasOperation> operations, long revision) {
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, maxParticipants, revision);
+
+        return new InfiniteCanvasState(state.roomCode(), state.status(), state.hostUserUuid(), state.participants(),
+            state.elements(), List.copyOf(operations), state.locks(), state.cursors(), state.viewport(),
+            state.maxParticipants(), state.revision(), state.createdAt(), state.updatedAt(), state.closedAt());
+    }
+
+    private InfiniteCanvasOperation operation(String operationId, String clientOperationId, String elementId,
+        UUID userUuid, long revision, LocalDateTime occurredAt) {
+        JsonNode element = objectMapper.createObjectNode().put("id", elementId).put("type", "sticky-note").put("text",
+            "operation-" + revision);
+
+        return new InfiniteCanvasOperation(operationId, clientOperationId, InfiniteCanvasOperationType.UPSERT_ELEMENT,
+            elementId, element, null, userUuid.toString(), revision, occurredAt);
     }
 
     private InfiniteCanvasState activeCanvasState(int maxParticipants, InfiniteCanvasParticipant... participants) {
