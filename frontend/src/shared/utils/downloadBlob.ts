@@ -8,13 +8,12 @@ export function sanitizeDownloadFilename(name: string): string {
   return sanitized || 'download'
 }
 
-// Blob의 MIME 타입에서 일반적인 이미지 확장자를 추론. 알 수 없으면 fallback.
+// Blob의 MIME 타입에서 이미지 확장자를 추론. 기본값은 png — 백엔드가 Content-Type을
+// 설정하지 않거나 jpeg로 내려보내는 경우라도 정적 이미지는 png로 저장한다.
+// 플립북 같은 애니메이션만 gif로 구분.
 export function inferImageExtensionFromBlob(blob: Blob, fallback = 'png'): string {
   const mimeType = blob.type.toLowerCase()
   if (mimeType.includes('gif')) return 'gif'
-  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg'
-  if (mimeType.includes('webp')) return 'webp'
-  if (mimeType.includes('png')) return 'png'
   return fallback
 }
 
