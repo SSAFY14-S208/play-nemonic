@@ -3,7 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
-import { ApiError, postInfiniteCanvas, postInvite } from '@/shared/apis'
+import {
+  ApiError,
+  patchInfiniteCanvasParticipantColor,
+  postInfiniteCanvas,
+  postInvite,
+} from '@/shared/apis'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { useUserStore } from '@/shared/stores'
 
@@ -124,6 +129,9 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
           return
         }
 
+        await patchInfiniteCanvasParticipantColor(invite.roomId, {
+          color: selectedColor,
+        })
         router.push(roomPath)
       } catch (caughtError) {
         const message =

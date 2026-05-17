@@ -37,6 +37,7 @@ const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
 const FLIPBOOK_ENTRANCE_FRAME_SOURCES = FLIPBOOK_ENTRANCE_FRAMES.map(
   (entranceFrame) => entranceFrame.src,
 )
+const FLIPBOOK_DEFERRED_PRELOAD_IMAGE_SOURCES = FLIPBOOK_ENTRANCE_FRAME_SOURCES.slice(1)
 const FLIPBOOK_SCENE_IMAGES = {
   background: '/images/flipbook-entrance-scene/room-background.png',
   furnitureSprite: '/images/flipbook-entrance-scene/furniture-sprite.png',
@@ -47,11 +48,8 @@ const FLIPBOOK_SCENE_IMAGES = {
   soundOnButton: '/images/flipbook-entrance-scene/sound-on-button.png',
   soundMutedButton: '/images/flipbook-entrance-scene/sound-muted-button.png',
 }
-const FLIPBOOK_SCENE_IMAGE_SOURCES = Object.values(FLIPBOOK_SCENE_IMAGES)
-const FLIPBOOK_PRELOAD_IMAGE_SOURCES = [
-  ...FLIPBOOK_SCENE_IMAGE_SOURCES,
-  ...FLIPBOOK_ENTRANCE_FRAME_SOURCES,
-]
+const FLIPBOOK_ACTION_BUTTON_IMAGE_QUALITY = 92
+const FLIPBOOK_ACTION_BUTTON_IMAGE_SIZES = '(max-width: 639px) 100vw, 40vw'
 
 const DROP_SPRING_TRANSITION = {
   type: 'spring',
@@ -125,7 +123,7 @@ export default function FlipbookEntranceView({
     FLIPBOOK_ENTRANCE_FRAMES.length,
     isIntroComplete,
   )
-  useFlipbookEntrancePreload(FLIPBOOK_PRELOAD_IMAGE_SOURCES)
+  useFlipbookEntrancePreload(FLIPBOOK_DEFERRED_PRELOAD_IMAGE_SOURCES)
   const actionHandlers = {
     'create-room': onCreateRoom,
     'enter-room': () => setIsRoomCodeModalOpen(true),
@@ -485,7 +483,9 @@ function FlipbookEntranceMobileActionButton({
           alt=""
           width={1536}
           height={1024}
-          sizes="48vw"
+          loading="eager"
+          quality={FLIPBOOK_ACTION_BUTTON_IMAGE_QUALITY}
+          sizes={FLIPBOOK_ACTION_BUTTON_IMAGE_SIZES}
           className={`absolute w-auto max-w-none ${imageCropClassName}`}
         />
       </span>
@@ -613,6 +613,9 @@ function FlipbookEntranceSketchbook({
   isInteractive: boolean
   shouldInstantCompleteIntro: boolean
 }) {
+  const activeEntranceFrame =
+    FLIPBOOK_ENTRANCE_FRAMES[activeFrameIndex] ?? FLIPBOOK_ENTRANCE_FRAMES[0]
+
   return (
     <motion.div
       key={shouldInstantCompleteIntro ? 'sketchbook-done' : 'sketchbook-drop'}
@@ -675,25 +678,17 @@ function FlipbookEntranceSketchbook({
             rotate: '5.9deg',
           }}
         >
-          {FLIPBOOK_ENTRANCE_FRAMES.map((entranceFrame, entranceFrameIndex) => {
-            const isActiveEntranceFrame = entranceFrameIndex === activeFrameIndex
-
-            return (
-              <Image
-                key={entranceFrame.src}
-                src={entranceFrame.src}
-                alt={isActiveEntranceFrame ? entranceFrame.alt : ''}
-                fill
-                priority={entranceFrameIndex === 0}
-                loading={entranceFrameIndex === 0 ? undefined : 'eager'}
-                unoptimized
-                aria-hidden={!isActiveEntranceFrame}
-                sizes="35vw"
-                className="object-contain transition-opacity duration-100"
-                style={{ opacity: isActiveEntranceFrame ? 1 : 0 }}
-              />
-            )
-          })}
+          <Image
+            key={activeEntranceFrame.src}
+            src={activeEntranceFrame.src}
+            alt={activeEntranceFrame.alt}
+            fill
+            priority={activeFrameIndex === 0}
+            loading={activeFrameIndex === 0 ? undefined : 'eager'}
+            unoptimized
+            sizes="35vw"
+            className="object-contain"
+          />
           <div
             aria-label="스케치북 프레임 스크롤"
             className="absolute inset-0 z-10 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -791,14 +786,12 @@ function FlipbookEntranceImageButton({
   onClick: () => void
 }) {
   return (
-    <motion.button
+    <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      whileHover={{ y: -4, scale: 1.025 }}
-      whileTap={{ y: 1, scale: 0.985 }}
-      className={`absolute overflow-visible transition-transform focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary disabled:cursor-not-allowed disabled:opacity-70 ${buttonClassName}`}
+      className={`absolute overflow-visible transform-gpu transition-transform duration-150 ease-out will-change-transform hover:-translate-y-1 active:translate-y-px active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:active:translate-y-0 disabled:active:scale-100 ${buttonClassName}`}
     >
       <span className="absolute inset-0 overflow-hidden" aria-hidden>
         <Image
@@ -806,12 +799,14 @@ function FlipbookEntranceImageButton({
           alt=""
           width={1536}
           height={1024}
-          sizes="18vw"
+          loading="eager"
+          quality={FLIPBOOK_ACTION_BUTTON_IMAGE_QUALITY}
+          sizes={FLIPBOOK_ACTION_BUTTON_IMAGE_SIZES}
           className={`absolute w-auto max-w-none ${imageCropClassName}`}
         />
       </span>
       <span className="sr-only">{label}</span>
-    </motion.button>
+    </button>
   )
 }
 

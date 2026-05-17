@@ -94,6 +94,8 @@ export default function FlipbookPage() {
           isSubmitting={flipbook.isSubmitting}
           isRoundSubmitted={flipbook.isRoundSubmitted}
           isAssignmentReady={flipbook.isAssignmentReady}
+          submittedCount={flipbook.submittedCount}
+          totalCount={flipbook.totalCount}
           connectionStatus={flipbook.connectionStatus}
           errorMessage={flipbook.errorMessage}
           lines={flipbook.drawingBoard.lines}

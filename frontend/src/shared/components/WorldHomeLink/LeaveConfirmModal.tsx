@@ -2,16 +2,24 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 
+import { cn } from '@/shared/libs'
+
 interface LeaveConfirmModalProps {
   open: boolean
   onCancel: () => void
   onConfirm: () => void
+  /** 취소 버튼에 덧붙일 클래스. 기본 색상/배경/테두리를 덮어쓸 수 있습니다. */
+  cancelButtonClassName?: string
+  /** 확인 버튼에 덧붙일 클래스. 기본 색상/배경을 덮어쓸 수 있습니다. */
+  confirmButtonClassName?: string
 }
 
 export default function LeaveConfirmModal({
   open,
   onCancel,
   onConfirm,
+  cancelButtonClassName,
+  confirmButtonClassName,
 }: LeaveConfirmModalProps) {
   return (
     <AnimatePresence>
@@ -51,14 +59,20 @@ export default function LeaveConfirmModal({
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <button
                 type="button"
-                className="body-l-b min-h-[2.75rem] flex-1 rounded-[var(--radius-md)] border border-border-default bg-surface-subtle px-4 text-fg-primary transition-colors hover:bg-surface-default sm:flex-none sm:px-6"
+                className={cn(
+                  'body-l-b min-h-[2.75rem] flex-1 rounded-[var(--radius-md)] border border-border-default bg-surface-subtle px-4 text-fg-primary transition-colors hover:bg-surface-default sm:flex-none sm:px-6',
+                  cancelButtonClassName,
+                )}
                 onClick={onCancel}
               >
                 계속 머물기
               </button>
               <button
                 type="button"
-                className="body-l-b min-h-[2.75rem] flex-1 rounded-[var(--radius-md)] bg-primary-1 px-4 text-fg-inverse transition-transform hover:scale-[1.02] sm:flex-none sm:px-6"
+                className={cn(
+                  'body-l-b min-h-[2.75rem] flex-1 rounded-[var(--radius-md)] bg-primary-1 px-4 text-fg-inverse transition-transform hover:scale-[1.02] sm:flex-none sm:px-6',
+                  confirmButtonClassName,
+                )}
                 onClick={onConfirm}
               >
                 월드로 돌아가기

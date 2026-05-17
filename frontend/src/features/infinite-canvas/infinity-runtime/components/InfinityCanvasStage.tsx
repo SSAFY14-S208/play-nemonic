@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle } from 'react-konva'
+import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path } from 'react-konva'
 import type Konva from 'konva'
 
 import type { InfinityLine, InfinityObject, InfinityShape, InfinityText as InfinityTextObject, InfinityToolKey } from '../constants'
@@ -70,6 +70,7 @@ interface InfinityCanvasStageProps {
 
 const REMOTE_CURSOR_SMOOTHING = 0.28
 const REMOTE_CURSOR_SETTLE_DISTANCE = 0.35
+const REMOTE_CURSOR_PATH = 'M0 0 L0 22 L6 16 L10 26 L14 24 L10 15 L19 15 Z'
 const IDENTITY_DASHES = [
   undefined,
   [8, 4],
@@ -523,27 +524,33 @@ export function InfinityCanvasStage({
 
     return (
       <Fragment key={cursor.userUuid}>
+        <Path
+          x={cursor.x}
+          y={cursor.y}
+          data={REMOTE_CURSOR_PATH}
+          fill={cursor.color}
+          stroke="#ffffff"
+          strokeWidth={2.4}
+          shadowColor="rgba(45,58,85,0.2)"
+          shadowBlur={8}
+          shadowOffset={{ x: 0, y: 3 }}
+          listening={false}
+        />
         <Circle
           x={cursor.x}
           y={cursor.y}
-          radius={7}
-          fill={cursor.color}
+          radius={4}
+          fill="#ffffff"
           stroke={accentColor}
-          strokeWidth={3}
+          strokeWidth={2}
           dash={identityDash}
-          shadowColor="rgba(45,58,85,0.2)"
-          shadowBlur={8}
-          shadowOffset={{ x: 0, y: 2 }}
           listening={false}
         />
-        <Label x={cursor.x + 12} y={cursor.y + 14} listening={false}>
+        <Label x={cursor.x + 18} y={cursor.y + 24} listening={false}>
           <Tag
             fill={cursor.color}
             stroke={accentColor}
             strokeWidth={2}
-            pointerDirection="up"
-            pointerWidth={10}
-            pointerHeight={8}
             cornerRadius={10}
             shadowColor="rgba(45,58,85,0.22)"
             shadowBlur={8}
