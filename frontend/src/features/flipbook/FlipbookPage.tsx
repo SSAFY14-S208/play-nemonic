@@ -55,7 +55,6 @@ export default function FlipbookPage() {
     enabled: flipbook.currentStep === 'result',
     resultCount: flipbook.resultItems.length,
     activeResultIndex: flipbook.activeResultIndex,
-    currentFrameCount: flipbook.frames.length,
     onSelectResult: flipbook.selectResult,
   })
 

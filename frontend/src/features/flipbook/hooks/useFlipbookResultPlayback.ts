@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FlipbookFrame, FlipbookStep } from '../types'
 
-// 프레임당 표시 시간 (ms). useFlipbookResultAutoCycle도 이 값을 이용해 작품당
-// 전체 재생 시간을 계산하므로, 상수화해서 단일 출처에서 관리한다.
-export const FLIPBOOK_RESULT_FRAME_DURATION_MS = 520
+// 프레임당 표시 시간 (ms).
+const FRAME_DURATION_MS = 520
 
 export function useFlipbookResultPlayback({
   currentStep,
@@ -57,7 +56,7 @@ export function useFlipbookResultPlayback({
       if (nextFrameIndex >= frames.length - 1) {
         setIsGifPlaying(false)
       }
-    }, FLIPBOOK_RESULT_FRAME_DURATION_MS)
+    }, FRAME_DURATION_MS)
 
     return () => window.clearTimeout(timeoutId)
   }, [currentStep, frames.length, isGifPlaying, resultFrameIndex])
