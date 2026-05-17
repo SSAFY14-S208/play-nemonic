@@ -478,18 +478,18 @@ export function InfinityCanvasStage({
     const obj = draft.object
 
     if (obj.type === "line") {
-      if (obj.isEraser) return null;
       const points = obj.points.flatMap((point) => [point.x, point.y])
       return (
         <Line
           key={`remote-draft-${draft.userUuid}-${obj.id}`}
           points={points}
-          stroke={obj.color}
+          stroke={obj.isEraser ? "rgba(0,0,0,1)" : obj.color}
           strokeWidth={obj.strokeWidth}
           lineCap="round"
           lineJoin="round"
           tension={0.3}
           opacity={1}
+          globalCompositeOperation={obj.isEraser ? "destination-out" : "source-over"}
           listening={false}
         />
       );
@@ -555,7 +555,18 @@ export function InfinityCanvasStage({
   const lineNodes = useMemo(() => objects.map(renderLine), [objects]);
 
   const remoteDraftNodes = useMemo(
-    () => remoteDraftObjects.map(renderRemoteDraftObject),
+    () =>
+      remoteDraftObjects
+        .filter((draft) => draft.object.type !== "line" || !draft.object.isEraser)
+        .map(renderRemoteDraftObject),
+    [remoteDraftObjects],
+  );
+
+  const remoteEraserDraftNodes = useMemo(
+    () =>
+      remoteDraftObjects
+        .filter((draft) => draft.object.type === "line" && draft.object.isEraser)
+        .map(renderRemoteDraftObject),
     [remoteDraftObjects],
   );
 
@@ -728,6 +739,7 @@ export function InfinityCanvasStage({
       <Layer>
         {fillNodes}
         {lineNodes}
+        {remoteEraserDraftNodes}
 
         <Line
           ref={currentEraserLineRef}

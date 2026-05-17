@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { HTTPError } from 'ky'
 import { toast } from 'sonner'
 import {
   ApiError,
@@ -959,6 +960,10 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
 
     try {
       await deleteInfiniteCanvasParticipantMe(roomCode)
+    } catch (caughtError) {
+      if (!(caughtError instanceof HTTPError) || caughtError.response.status !== 404) {
+        throw caughtError
+      }
     } finally {
       router.replace('/infinite-canvas')
     }
@@ -983,6 +988,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     participants: roomState?.participants ?? [],
     participantsByUserUuid,
     elements: roomState?.elements ?? [],
+    operations: roomState?.operations ?? [],
     locks: roomState?.locks ?? {},
     remoteCursors,
     hasPendingOperations,

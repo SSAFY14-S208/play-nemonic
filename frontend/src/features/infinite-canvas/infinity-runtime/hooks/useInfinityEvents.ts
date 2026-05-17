@@ -730,7 +730,7 @@ export function useInfinityEvents({
         isEraser: toolSnapshot === 'eraser',
       }
       currentLineRef.current = newLine
-      onDraftObjectChange?.(toolSnapshot === 'eraser' ? null : newLine)
+      onDraftObjectChange?.(newLine)
     } else if (toolSnapshot === 'bucket') {
       isDrawingRef.current = false
     } else if (toolSnapshot === 'select-eraser') {
@@ -791,7 +791,7 @@ export function useInfinityEvents({
       prev.points.push(pos)
       prev.points = limitLinePoints(prev.points, MAX_LINE_POINTS_PER_OBJECT)
       showCurrentLine(prev)
-      onDraftObjectChange?.(prev.isEraser ? null : createDraftLine(prev))
+      onDraftObjectChange?.(createDraftLine(prev))
     } else if (toolSnapshot === 'select-eraser') {
       const pointer = stage.getPointerPosition()
       if (!pointer) return
