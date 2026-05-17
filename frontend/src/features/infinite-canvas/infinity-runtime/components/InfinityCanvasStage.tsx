@@ -3,7 +3,7 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement, RefObject } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path } from 'react-konva'
-import type Konva from 'konva'
+import Konva from 'konva'
 
 import type { InfinityLine, InfinityObject, InfinityShape, InfinityText as InfinityTextObject, InfinityToolKey } from '../constants'
 import { INFINITY_PARTICIPANT_ACCENTS } from '../constants'
@@ -94,6 +94,163 @@ const ImperativeEllipse = Ellipse as unknown as (props: {
   fill: string
   dash: number[]
 }) => ReactElement
+
+function createRemoteDraftNode(draft: InfinityRemoteDraftObjectView) {
+  const object = draft.object
+
+  if (object.type === "line") {
+    return new Konva.Line({
+      points: object.points.flatMap((point) => [point.x, point.y]),
+      stroke: object.color,
+      strokeWidth: object.strokeWidth,
+      lineCap: "round",
+      lineJoin: "round",
+      tension: 0.3,
+      perfectDrawEnabled: false,
+      listening: false,
+      globalCompositeOperation: "source-over",
+    });
+  }
+
+  if (object.type === "rect") {
+    const isFilled = Boolean(object.fill);
+    return new Konva.Rect({
+      x: object.x,
+      y: object.y,
+      width: object.width,
+      height: object.height,
+      rotation: object.rotation ?? 0,
+      stroke: isFilled ? undefined : object.color,
+      strokeWidth: isFilled ? 0 : object.strokeWidth,
+      fill: object.fill ?? "transparent",
+      listening: false,
+    });
+  }
+
+  if (object.type === "ellipse") {
+    const isFilled = Boolean(object.fill);
+    return new Konva.Ellipse({
+      x: object.x + object.width / 2,
+      y: object.y + object.height / 2,
+      radiusX: Math.abs(object.width / 2),
+      radiusY: Math.abs(object.height / 2),
+      rotation: object.rotation ?? 0,
+      stroke: isFilled ? undefined : object.color,
+      strokeWidth: isFilled ? 0 : object.strokeWidth,
+      fill: object.fill ?? "transparent",
+      listening: false,
+    });
+  }
+
+  return null;
+}
+
+function updateRemoteDraftNode(node: Konva.Node, draft: InfinityRemoteDraftObjectView) {
+  const object = draft.object
+
+  if (object.type === "line" && node instanceof Konva.Line) {
+    node.setAttrs({
+      points: object.points.flatMap((point) => [point.x, point.y]),
+      stroke: object.color,
+      strokeWidth: object.strokeWidth,
+    });
+    return;
+  }
+
+  if (object.type === "rect" && node instanceof Konva.Rect) {
+    const isFilled = Boolean(object.fill);
+    node.setAttrs({
+      x: object.x,
+      y: object.y,
+      width: object.width,
+      height: object.height,
+      rotation: object.rotation ?? 0,
+      stroke: isFilled ? undefined : object.color,
+      strokeWidth: isFilled ? 0 : object.strokeWidth,
+      fill: object.fill ?? "transparent",
+    });
+    return;
+  }
+
+  if (object.type === "ellipse" && node instanceof Konva.Ellipse) {
+    const isFilled = Boolean(object.fill);
+    node.setAttrs({
+      x: object.x + object.width / 2,
+      y: object.y + object.height / 2,
+      radiusX: Math.abs(object.width / 2),
+      radiusY: Math.abs(object.height / 2),
+      rotation: object.rotation ?? 0,
+      stroke: isFilled ? undefined : object.color,
+      strokeWidth: isFilled ? 0 : object.strokeWidth,
+      fill: object.fill ?? "transparent",
+    });
+  }
+}
+
+const ImperativeRemoteDraftLayer = memo(function ImperativeRemoteDraftLayer({
+  remoteDraftObjects,
+}: {
+  remoteDraftObjects: InfinityRemoteDraftObjectView[]
+}) {
+  const layerRef = useRef<Konva.Layer>(null)
+  const draftObjectsRef = useRef(remoteDraftObjects)
+  const nodeMapRef = useRef<Map<string, Konva.Node>>(new Map())
+  const animationFrameRef = useRef<number | null>(null)
+
+  const flushDraftNodes = useCallback(() => {
+    animationFrameRef.current = null
+    const layer = layerRef.current
+    if (!layer) return
+
+    const nextKeys = new Set<string>()
+    for (const draft of draftObjectsRef.current) {
+      const object = draft.object
+      if (object.type === "line" && object.isEraser) continue
+      const key = `${draft.userUuid}:${object.id}`
+      nextKeys.add(key)
+
+      const existingNode = nodeMapRef.current.get(key)
+      if (existingNode) {
+        updateRemoteDraftNode(existingNode, draft)
+        continue
+      }
+
+      const nextNode = createRemoteDraftNode(draft)
+      if (!nextNode) continue
+      nodeMapRef.current.set(key, nextNode)
+      layer.add(nextNode)
+    }
+
+    for (const [key, node] of nodeMapRef.current) {
+      if (nextKeys.has(key)) continue
+      node.destroy()
+      nodeMapRef.current.delete(key)
+    }
+
+    layer.batchDraw()
+  }, [])
+
+  useEffect(() => {
+    draftObjectsRef.current = remoteDraftObjects
+    if (animationFrameRef.current !== null) return
+    animationFrameRef.current = window.requestAnimationFrame(flushDraftNodes)
+  }, [flushDraftNodes, remoteDraftObjects])
+
+  useEffect(
+    () => () => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current)
+      }
+      for (const node of nodeMapRef.current.values()) {
+        node.destroy()
+      }
+      nodeMapRef.current.clear()
+    },
+    [],
+  )
+
+  return <Layer ref={layerRef} listening={false} />
+})
 
 function getParticipantAccent(identityIndex: number) {
   return INFINITY_PARTICIPANT_ACCENTS[Math.abs(identityIndex) % INFINITY_PARTICIPANT_ACCENTS.length]
@@ -488,6 +645,7 @@ export function InfinityCanvasStage({
           lineCap="round"
           lineJoin="round"
           tension={0.3}
+          perfectDrawEnabled={false}
           opacity={1}
           globalCompositeOperation={obj.isEraser ? "destination-out" : "source-over"}
           listening={false}
@@ -553,14 +711,6 @@ export function InfinityCanvasStage({
   const fillNodes = useMemo(() => objects.map(renderFill), [objects]);
 
   const lineNodes = useMemo(() => objects.map(renderLine), [objects]);
-
-  const remoteDraftNodes = useMemo(
-    () =>
-      remoteDraftObjects
-        .filter((draft) => draft.object.type !== "line" || !draft.object.isEraser)
-        .map(renderRemoteDraftObject),
-    [remoteDraftObjects],
-  );
 
   const remoteEraserDraftNodes = useMemo(
     () =>
@@ -754,9 +904,7 @@ export function InfinityCanvasStage({
       </Layer>
 
       {/* Layer 2.5 — 다른 참여자가 그리고 있는 임시 선/도형 */}
-      <Layer listening={false}>
-        {remoteDraftNodes}
-      </Layer>
+      <ImperativeRemoteDraftLayer remoteDraftObjects={remoteDraftObjects} />
 
       {/* Layer 3 — 진행 중 pen line + preview + cursor + 다중 선택 박스 */}
       <Layer listening={false}>

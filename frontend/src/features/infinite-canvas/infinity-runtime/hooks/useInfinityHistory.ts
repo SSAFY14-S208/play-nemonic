@@ -11,6 +11,14 @@ interface InfinitySnapshot {
 
 const INITIAL_SNAPSHOT: InfinitySnapshot = { objects: [], selectedIds: [] }
 
+function createObjectMap(objects: InfinityObject[]) {
+  return new Map(objects.map((object) => [object.id, object]))
+}
+
+function objectMapValues(objectMap: Map<string, InfinityObject>) {
+  return [...objectMap.values()]
+}
+
 export function useInfinityHistory() {
   const [objects, setObjects] = useState<InfinityObject[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -21,7 +29,22 @@ export function useInfinityHistory() {
     index: 0,
   })
   const objectsRef = useRef<InfinityObject[]>([])
+  const objectMapRef = useRef<Map<string, InfinityObject>>(new Map())
   const selectedIdsRef = useRef<string[]>([])
+
+  const commitObjects = (
+    newObjects: InfinityObject[],
+    newSelectedIds: string[],
+  ) => {
+    const nextObjectMap = createObjectMap(newObjects)
+    const nextObjects = objectMapValues(nextObjectMap)
+    objectMapRef.current = nextObjectMap
+    objectsRef.current = nextObjects
+    selectedIdsRef.current = newSelectedIds
+    setObjects(nextObjects)
+    setSelectedIds(newSelectedIds)
+    return nextObjects
+  }
 
   const saveSnapshot = (
     newObjects: InfinityObject[],
@@ -29,15 +52,13 @@ export function useInfinityHistory() {
   ) => {
     const { snapshots, index } = historyRef.current
     const trimmed = snapshots.slice(0, index + 1)
+    const nextObjects = objectMapValues(createObjectMap(newObjects))
     trimmed.push({
-      objects: [...newObjects],
+      objects: [...nextObjects],
       selectedIds: [...newSelectedIds],
     })
     historyRef.current = { snapshots: trimmed, index: trimmed.length - 1 }
-    objectsRef.current = newObjects
-    selectedIdsRef.current = newSelectedIds
-    setObjects(newObjects)
-    setSelectedIds(newSelectedIds)
+    commitObjects(nextObjects, newSelectedIds)
     setHistoryCursor({ index: trimmed.length - 1, length: trimmed.length })
   }
 
@@ -53,10 +74,7 @@ export function useInfinityHistory() {
       snapshots: [snapshot],
       index: 0,
     }
-    objectsRef.current = newObjects
-    selectedIdsRef.current = newSelectedIds
-    setObjects(newObjects)
-    setSelectedIds(newSelectedIds)
+    commitObjects(newObjects, newSelectedIds)
     setHistoryCursor({ index: 0, length: 1 })
   }
 
@@ -74,10 +92,7 @@ export function useInfinityHistory() {
         : snapshot,
     )
     historyRef.current = { snapshots: nextSnapshots, index }
-    objectsRef.current = newObjects
-    selectedIdsRef.current = newSelectedIds
-    setObjects(newObjects)
-    setSelectedIds(newSelectedIds)
+    commitObjects(newObjects, newSelectedIds)
   }
 
   // 선택 해제를 history에 기록하지 않고 selection만 비움.
@@ -102,10 +117,7 @@ export function useInfinityHistory() {
     const newIndex = index - 1
     historyRef.current = { ...historyRef.current, index: newIndex }
     const snapshot = snapshots[newIndex]
-    objectsRef.current = [...snapshot.objects]
-    selectedIdsRef.current = [...snapshot.selectedIds]
-    setObjects([...snapshot.objects])
-    setSelectedIds([...snapshot.selectedIds])
+    commitObjects([...snapshot.objects], [...snapshot.selectedIds])
     setHistoryCursor({ index: newIndex, length: snapshots.length })
   }
 
@@ -115,10 +127,7 @@ export function useInfinityHistory() {
     const newIndex = index + 1
     historyRef.current = { ...historyRef.current, index: newIndex }
     const snapshot = snapshots[newIndex]
-    objectsRef.current = [...snapshot.objects]
-    selectedIdsRef.current = [...snapshot.selectedIds]
-    setObjects([...snapshot.objects])
-    setSelectedIds([...snapshot.selectedIds])
+    commitObjects([...snapshot.objects], [...snapshot.selectedIds])
     setHistoryCursor({ index: newIndex, length: snapshots.length })
   }
 
@@ -128,6 +137,7 @@ export function useInfinityHistory() {
   return {
     objects,
     objectsRef,
+    objectMapRef,
     selectedIds,
     selectedIdsRef,
     saveSnapshot,

@@ -27,6 +27,8 @@ import { InfinityTextEditor } from './InfinityTextEditor'
 import { InfinityToolPanel } from './InfinityToolPanel'
 
 type InfinityCanvasRoom = ReturnType<typeof useInfinityCanvasRoom>
+const CURSOR_SEND_INTERVAL_MS = 50
+const DRAFT_SEND_INTERVAL_MS = 33
 
 interface InfinityStageViewProps {
   room: InfinityCanvasRoom
@@ -242,9 +244,9 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     (cursor: { x: number; y: number; zoom: number }, options: { force?: boolean } = {}) => {
       const now = Date.now()
       const draftObject = draftObjectRef.current
-      const minInterval = draftObject ? 24 : 45
+      const minInterval = draftObject ? DRAFT_SEND_INTERVAL_MS : CURSOR_SEND_INTERVAL_MS
       if (!options.force && now - lastCursorSentAtRef.current < minInterval) return
-      if (draftObject && !options.force && now - lastDraftCursorSentAtRef.current < 24) return
+      if (draftObject && !options.force && now - lastDraftCursorSentAtRef.current < DRAFT_SEND_INTERVAL_MS) return
 
       lastCursorSentAtRef.current = now
       if (draftObject) {
