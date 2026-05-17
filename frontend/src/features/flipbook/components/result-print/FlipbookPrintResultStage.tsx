@@ -69,6 +69,8 @@ const NEMONIC_DEVICE_IMAGE_WIDTH = 1551
 const NEMONIC_DEVICE_IMAGE_HEIGHT = 1035
 const NEMONIC_OUTPUT_SLOT_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-output-slot.svg'
 const PARTICIPANT_PANEL_IMAGE_SRC = '/images/flipbook-result/participant-panel-v2.png'
+const SKIP_BUTTON_IMAGE_SRC = '/images/flipbook-result/skip-button.png'
+const ARTIST_BADGE_IMAGE_SRC = '/images/flipbook-result/artist-badge.png'
 const PRINT_RISE_DURATION_RATIO = 0.5
 const PRINT_AFTER_RISE_PAUSE_RATIO = 0.25
 const PRINT_START_SOUND_VOLUME = 0.36
@@ -112,15 +114,26 @@ export default function FlipbookPrintResultStage({
     holdDurationMs,
   })
   const [pendingGifParticipantIndex, setPendingGifParticipantIndex] = useState<number | null>(null)
-  const [printPhase, setPrintPhase] = useState<'slot' | 'attach'>('slot')
+  const [printPhaseState, setPrintPhaseState] = useState<{
+    activePrintKey: string | null
+    phase: 'slot' | 'attach'
+  }>({
+    activePrintKey: null,
+    phase: 'slot',
+  })
   const expandTimerRef = useRef<number | null>(null)
   const activeFrame = printFrames[activeFrameIndex] ?? null
   const previousFrame = activeFrameIndex > 0 ? printFrames[activeFrameIndex - 1] : null
   const shouldPrintActiveFrame = activeFrame?.outputMode !== 'gif-playback'
-  const displayedBoardFrame =
+  const activePrintKey = activeFrame && selectedParticipant
+    ? `${selectedParticipant.id}-${activeFrame.id}-${printCycleKey}`
+    : null
+  const effectivePrintPhase =
+    printPhaseState.activePrintKey === activePrintKey ? printPhaseState.phase : 'slot'
+  const attachedBoardFrame =
     activeFrame && !shouldPrintActiveFrame
       ? activeFrame
-      : activeFrame && printPhase === 'attach'
+      : activeFrame && effectivePrintPhase === 'attach'
         ? activeFrame
         : previousFrame
   // 인쇄 애니메이션 진행 중에만 디바이스 진동을 활성. NemonicDeviceImage의
@@ -129,9 +142,6 @@ export default function FlipbookPrintResultStage({
   const selectedParticipantHasGifPlayback = selectedParticipant?.frames.some(
     (frame) => frame.outputMode === 'gif-playback',
   ) ?? false
-  const activePrintKey = activeFrame && selectedParticipant
-    ? `${selectedParticipant.id}-${activeFrame.id}-${printCycleKey}`
-    : null
 
   useEffect(() => {
     let cancelled = false
@@ -239,7 +249,10 @@ export default function FlipbookPrintResultStage({
       }
 
       if (!cancelled) {
-        setPrintPhase('slot')
+        setPrintPhaseState({
+          activePrintKey,
+          phase: 'slot',
+        })
       }
     })()
 
@@ -262,7 +275,10 @@ export default function FlipbookPrintResultStage({
     }
 
     expandTimerRef.current = window.setTimeout(() => {
-      setPrintPhase('attach')
+      setPrintPhaseState({
+        activePrintKey,
+        phase: 'attach',
+      })
     }, printDurationMs * PRINT_AFTER_RISE_PAUSE_RATIO)
   }
 
@@ -289,7 +305,7 @@ export default function FlipbookPrintResultStage({
             />
           )}
 
-          {activeFrame && selectedParticipant && shouldPrintActiveFrame && printPhase === 'attach' && (
+          {activeFrame && selectedParticipant && shouldPrintActiveFrame && effectivePrintPhase === 'attach' && (
             <AttachedPrintedPaper
               key={`${activePrintKey}-attach`}
               frame={activeFrame}
@@ -314,16 +330,16 @@ export default function FlipbookPrintResultStage({
             onClick={() => selectParticipantGif(normalizedSelectedParticipantIndex)}
           />
 
-          {displayedBoardFrame && selectedParticipant && (
+          {attachedBoardFrame && selectedParticipant && (
             <FrameArtistBadge
-              frame={displayedBoardFrame}
+              frame={attachedBoardFrame}
               participant={selectedParticipant}
             />
           )}
         </BoardLayer>
 
         <NemonicDeviceImage isPrinting={isPlaying && !isComplete && shouldPrintActiveFrame}>
-          {activeFrame && selectedParticipant && shouldPrintActiveFrame && printPhase === 'slot' && (
+          {activeFrame && selectedParticipant && shouldPrintActiveFrame && effectivePrintPhase === 'slot' && (
             <SlotPrintedPaper
               key={`${activePrintKey}-slot`}
               frame={activeFrame}
@@ -464,7 +480,19 @@ function SkipPlaybackButton({
       title="skip"
       onClick={onClick}
     >
+      <Image
+        src={SKIP_BUTTON_IMAGE_SRC}
+        alt=""
+        fill
+        sizes="86px"
+        unoptimized
+        draggable={false}
+        className={styles.skipPlaybackButtonImage}
+        aria-hidden
+      />
+      <span className={styles.skipPlaybackButtonText}>
       skip
+      </span>
     </button>
   )
 }
@@ -484,6 +512,16 @@ function FrameArtistBadge({
 
   return (
     <div className={styles.frameArtistBadge} aria-live="polite">
+      <Image
+        src={ARTIST_BADGE_IMAGE_SRC}
+        alt=""
+        fill
+        sizes="150px"
+        unoptimized
+        draggable={false}
+        className={styles.frameArtistBadgeImage}
+        aria-hidden
+      />
       <span className={styles.frameArtistBadgeLabel}>{labelText}</span>
       <span className={styles.frameArtistBadgeName}>{artistName}</span>
     </div>
