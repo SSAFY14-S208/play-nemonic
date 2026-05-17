@@ -265,6 +265,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
   const [operationQueueVersion, setOperationQueueVersion] = useState(0)
   const [hasPendingOperations, setHasPendingOperations] = useState(false)
   const revisionRef = useRef(0)
+  const appliedElementsRevisionRef = useRef(0)
   const pendingOperationsRef = useRef<InfiniteCanvasOperationRequest[]>([])
   const inFlightOperationsRef = useRef<InfiniteCanvasOperationRequest[] | null>(null)
   const isResolvingRevisionConflictRef = useRef(false)
@@ -323,6 +324,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         nextState = await getInfiniteCanvasState(roomCode)
       }
       revisionRef.current = nextState.revision
+      appliedElementsRevisionRef.current = nextState.revision
       setRoomState(nextState)
       setIsHydrating(false)
       return nextState
@@ -336,6 +338,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
           snapshot,
         })
         revisionRef.current = fallbackState.revision
+        appliedElementsRevisionRef.current = fallbackState.revision
         setRoomState(fallbackState)
         setIsHydrating(false)
         return fallbackState
@@ -347,6 +350,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
           : '무한 캔버스 방 상태를 불러오지 못했어요.'
       setRoomState(null)
       revisionRef.current = 0
+      appliedElementsRevisionRef.current = 0
       setErrorMessage(message)
       return null
     }
@@ -354,12 +358,14 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
 
   const applyFullState = useCallback((nextState: InfiniteCanvasStateResponse) => {
     revisionRef.current = nextState.revision
+    appliedElementsRevisionRef.current = nextState.revision
     setRoomState(nextState)
     setIsHydrating(false)
   }, [])
 
   const applyRevisionConflictDelta = useCallback((details: InfiniteCanvasRevisionConflictResponse) => {
     revisionRef.current = details.latestRevision
+    appliedElementsRevisionRef.current = details.latestRevision
     setRoomState((currentState) => {
       if (!currentState) return currentState
       return {
@@ -545,6 +551,12 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
             bumpOperationQueue()
           }
         }
+
+        if (appliedOperations.revision <= appliedElementsRevisionRef.current) {
+          return
+        }
+
+        appliedElementsRevisionRef.current = appliedOperations.revision
         setRoomState((currentState) => {
           if (!currentState) return currentState
           return {

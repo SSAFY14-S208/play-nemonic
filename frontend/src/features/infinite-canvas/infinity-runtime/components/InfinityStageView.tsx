@@ -159,6 +159,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const cursorPreviewRef = useRef<Konva.Circle>(null)
   const selectionBoxRef = useRef<Konva.Rect>(null)
   const previousObjectsRef = useRef(createObjectMap([]))
+  const previousServerObjectsRef = useRef(createObjectMap([]))
   const isApplyingRemoteRef = useRef(false)
   const appliedServerRevisionRef = useRef<number | null>(null)
   const lastCursorSentAtRef = useRef(0)
@@ -390,9 +391,10 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
     if (isStaleEmptySnapshot) return
 
+    const previousServerObjects = previousServerObjectsRef.current
     const nextServerObjectMap = createObjectMap(serverObjects)
     const isSameServerObjects = areInfinityObjectListsEqual(
-      objectMapValues(previousObjectsRef.current),
+      objectMapValues(previousServerObjects),
       serverObjects,
     )
     if (isSameServerObjects) {
@@ -402,6 +404,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
     if (areInfinityObjectListsEqual(drawing.objects, serverObjects)) {
       appliedServerRevisionRef.current = serverRevision
+      previousServerObjectsRef.current = nextServerObjectMap
       previousObjectsRef.current = nextServerObjectMap
       return
     }
@@ -410,7 +413,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     const nextObjects =
       room.hasPendingOperations && !isInitialServerApply
         ? mergeServerObjectsWithLocalPending({
-            previousServerObjects: previousObjectsRef.current,
+            previousServerObjects,
             serverObjects,
             localObjects: drawing.objects,
           })
@@ -421,7 +424,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
     isApplyingRemoteRef.current = true
     appliedServerRevisionRef.current = serverRevision
-    previousObjectsRef.current = nextServerObjectMap
+    previousServerObjectsRef.current = nextServerObjectMap
     if (isInitialServerApply) {
       drawing.replaceObjectsFromServer(nextObjects, selectedIds)
     } else {
