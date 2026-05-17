@@ -505,16 +505,16 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           type="button"
           onClick={() => setIsCaptureMode(true)}
           disabled={room.isSavingOutput}
-          className="relative h-[56px] w-[123px] transition-transform hover:-translate-y-0.5 hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-55"
+          className="relative h-[56px] w-[116px] transition-transform hover:-translate-y-0.5 hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-55"
           aria-label="출력"
         >
           <Image
-            src="/images/infinite-canvas/print-button-compact-hq.png"
+            src="/images/infinite-canvas/print-button.png"
             alt=""
             aria-hidden
             fill
             priority
-            sizes="123px"
+            sizes="116px"
             className="object-contain drop-shadow-[0_10px_18px_rgba(55,82,190,0.22)]"
           />
         </button>
@@ -525,7 +525,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           aria-label="나가기"
         >
           <Image
-            src="/images/infinite-canvas/exit-button-compact-hq.png"
+            src="/images/infinite-canvas/exit-button.png"
             alt=""
             aria-hidden
             fill
