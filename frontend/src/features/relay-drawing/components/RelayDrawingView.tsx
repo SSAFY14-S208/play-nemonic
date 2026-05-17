@@ -6,8 +6,8 @@ import {
   ColorPanel,
   DrawingCompleteButton,
   MobileBrushOpacityBar,
-  MobileColorRail,
-  MobileToolGrid,
+  MobileColorBar,
+  MobileToolBar,
   ProgressRail,
   ToolPanel,
   TopStatusBar,
@@ -160,7 +160,7 @@ export default function RelayDrawingView() {
           <p className="body-b mt-3 text-[#30343b]">{activeRound.helperText}</p>
         </div>
 
-        <MobileToolGrid
+        <MobileToolBar
           selectedToolKey={selectedToolKey}
           canUndoDrawing={canUndoDrawing}
           canRedoDrawing={canRedoDrawing}
@@ -171,36 +171,29 @@ export default function RelayDrawingView() {
           onClearDrawing={clearRoundLines}
         />
 
-        {/* 캔버스 + 색상 레일 — 레일은 absolute로 띄워 캔버스 카드 자연 높이에
-            맞추도록 한다. flex/items-stretch로 두면 레일 콘텐츠(긴 색상 목록)가
-            row 높이를 끌어올려 캔버스가 비정상적으로 늘어남.
-            pr-[100px] = 레일 너비 88px + 갭 12px */}
-        <div className="relative pr-[100px]">
-          <div className="min-w-0 rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
-            <div
-              className="relative mx-auto w-full overflow-hidden rounded-[8px] bg-white"
-              style={{
-                maxWidth: RELAY_STAGE_SIZE.width,
-                aspectRatio: `${RELAY_STAGE_SIZE.width} / ${RELAY_STAGE_SIZE.height}`,
-              }}
-            >
-              <RelayDrawingStage />
-              {overlayMessage && (
-                <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-[#30343b]">
-                  {overlayMessage}
-                </div>
-              )}
-            </div>
+        <div className="min-w-0 rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div
+            className="relative mx-auto w-full overflow-hidden rounded-[8px] bg-white"
+            style={{
+              maxWidth: RELAY_STAGE_SIZE.width,
+              aspectRatio: `${RELAY_STAGE_SIZE.width} / ${RELAY_STAGE_SIZE.height}`,
+            }}
+          >
+            <RelayDrawingStage />
+            {overlayMessage && (
+              <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-[#30343b]">
+                {overlayMessage}
+              </div>
+            )}
           </div>
-
-          <MobileColorRail
-            className="absolute inset-y-0 right-0"
-            colors={DRAWING_COLORS}
-            selectedColor={selectedColor}
-            isDrawingLocked={isDrawingLocked}
-            onSelectColor={setSelectedColor}
-          />
         </div>
+
+        <MobileColorBar
+          colors={DRAWING_COLORS}
+          selectedColor={selectedColor}
+          isDrawingLocked={isDrawingLocked}
+          onSelectColor={setSelectedColor}
+        />
 
         <MobileBrushOpacityBar
           strokeWidth={strokeWidth}
