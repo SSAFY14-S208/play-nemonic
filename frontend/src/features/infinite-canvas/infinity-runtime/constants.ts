@@ -3,6 +3,7 @@ export type InfinityPhase = 'lobby' | 'stage' | 'result'
 export type InfinityToolKey =
   | 'pen'
   | 'eraser'
+  | 'bucket'
   | 'select'
   | 'hand'
   | 'select-eraser'

@@ -184,6 +184,7 @@ function useSmoothRemoteCursors(remoteCursors: InfinityRemoteCursorView[]) {
 }
 
 function getCursorStyle(tool: InfinityToolKey): string {
+  if (tool === "bucket") return "crosshair";
   if (
     tool === "shape-rect" ||
     tool === "shape-ellipse" ||
@@ -303,6 +304,9 @@ export function InfinityCanvasStage({
 
   const isSelectTool = tool === "select";
   const editingId = textEditor?.editingId ?? null;
+  const handleObjectClick = (id: string, isShift: boolean) => {
+    onObjectClick(id, isShift, toolRef.current);
+  };
 
   const renderShapeOrText = (obj: InfinityObject) => {
     const isLocked = lockedElementIds.has(obj.id);
@@ -314,7 +318,7 @@ export function InfinityCanvasStage({
           shape={rectObject}
           isSelectTool={isSelectTool}
           isLocked={isLocked}
-          onShapeClick={onObjectClick}
+          onShapeClick={handleObjectClick}
           onShapeDragEnd={onObjectDragEnd}
           onShapeTransformEnd={onShapeTransformEnd}
         />
@@ -328,7 +332,7 @@ export function InfinityCanvasStage({
           shape={ellipseObject}
           isSelectTool={isSelectTool}
           isLocked={isLocked}
-          onShapeClick={onObjectClick}
+          onShapeClick={handleObjectClick}
           onShapeDragEnd={onObjectDragEnd}
           onShapeTransformEnd={onShapeTransformEnd}
         />
@@ -343,7 +347,7 @@ export function InfinityCanvasStage({
           isSelectTool={isSelectTool}
           isEditing={editingId === textObject.id}
           isLocked={isLocked}
-          onTextClick={onObjectClick}
+          onTextClick={handleObjectClick}
           onTextDblClick={onTextDblClick}
           onTextDragEnd={onObjectDragEnd}
           onTextTransformEnd={onTextTransformEnd}
@@ -370,13 +374,12 @@ export function InfinityCanvasStage({
         <Fragment key={`remote-draft-${draft.userUuid}-${obj.id}`}>
           <Line
             points={points}
-            stroke={accentColor}
-            strokeWidth={obj.strokeWidth + 4}
+            stroke="#ffffff"
+            strokeWidth={obj.strokeWidth + 3}
             lineCap="round"
             lineJoin="round"
             tension={0.3}
-            opacity={0.32}
-            dash={identityDash}
+            opacity={0.72}
             listening={false}
           />
           <Line
@@ -386,7 +389,7 @@ export function InfinityCanvasStage({
             lineCap="round"
             lineJoin="round"
             tension={0.3}
-            opacity={0.68}
+            opacity={0.96}
             listening={false}
           />
         </Fragment>
@@ -405,7 +408,7 @@ export function InfinityCanvasStage({
             rotation={obj.rotation ?? 0}
             stroke={accentColor}
             strokeWidth={2}
-            opacity={0.5}
+            opacity={0.78}
             dash={identityDash}
             listening={false}
           />
@@ -418,7 +421,7 @@ export function InfinityCanvasStage({
             stroke={isFilled ? accentColor : obj.color}
             strokeWidth={isFilled ? 2 : obj.strokeWidth}
             fill={obj.fill ?? "transparent"}
-            opacity={isFilled ? 0.36 : 0.58}
+            opacity={isFilled ? 0.82 : 0.88}
             dash={isFilled ? identityDash : [8, 5]}
             listening={false}
           />
@@ -440,7 +443,7 @@ export function InfinityCanvasStage({
             rotation={obj.rotation ?? 0}
             stroke={accentColor}
             strokeWidth={2}
-            opacity={0.5}
+            opacity={0.78}
             dash={identityDash}
             listening={false}
           />
@@ -453,7 +456,7 @@ export function InfinityCanvasStage({
             stroke={isFilled ? accentColor : obj.color}
             strokeWidth={isFilled ? 2 : obj.strokeWidth}
             fill={obj.fill ?? "transparent"}
-            opacity={isFilled ? 0.36 : 0.58}
+            opacity={isFilled ? 0.82 : 0.88}
             dash={isFilled ? identityDash : [8, 5]}
             listening={false}
           />

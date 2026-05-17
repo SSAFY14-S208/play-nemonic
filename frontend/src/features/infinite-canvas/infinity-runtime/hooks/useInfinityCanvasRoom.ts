@@ -10,6 +10,7 @@ import {
   patchInfiniteCanvasParticipantColor,
   postFileConfirm,
   postFilePresign,
+  postInvite,
   postInfiniteCanvasOutput,
   putFileToPresignedUrl,
 } from '@/shared/apis'
@@ -254,7 +255,11 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     setErrorMessage(null)
 
     try {
-      const nextState = await getInfiniteCanvasState(roomCode)
+      let nextState = await getInfiniteCanvasState(roomCode)
+      if (!nextState.me) {
+        await postInvite(roomCode)
+        nextState = await getInfiniteCanvasState(roomCode)
+      }
       revisionRef.current = nextState.revision
       setRoomState(nextState)
       setIsHydrating(false)

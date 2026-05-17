@@ -20,9 +20,9 @@ function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((p) => [p.x, p.y])
 }
 
-const MIN_LINE_POINT_DISTANCE = 4
-const MAX_LINE_POINTS_PER_OBJECT = 420
-const MAX_DRAFT_LINE_POINTS = 72
+const MIN_LINE_POINT_DISTANCE = 3
+const MAX_LINE_POINTS_PER_OBJECT = 640
+const MAX_DRAFT_LINE_POINTS = 180
 
 function shouldAppendLinePoint(
   previousPoint: { x: number; y: number } | undefined,
@@ -77,6 +77,14 @@ function shapeTypeOfTool(tool: InfinityToolKey): 'rect' | 'ellipse' {
 
 function isFillTool(tool: InfinityToolKey): boolean {
   return tool === 'shape-rect-fill' || tool === 'shape-ellipse-fill'
+}
+
+function recolorObject(object: InfinityObject, color: string): InfinityObject {
+  if (object.type === 'rect' || object.type === 'ellipse') {
+    return { ...object, fill: color, color }
+  }
+
+  return { ...object, color }
 }
 
 interface DragSelectStart {
@@ -360,6 +368,8 @@ export function useInfinityEvents({
       }
       currentLineRef.current = newLine
       onDraftObjectChange?.(toolSnapshot === 'eraser' ? null : newLine)
+    } else if (toolSnapshot === 'bucket') {
+      isDrawingRef.current = false
     } else if (toolSnapshot === 'select-eraser') {
       applyHoverOpacity(new Set())
     } else if (isShapeTool(toolSnapshot)) {
@@ -547,6 +557,14 @@ export function useInfinityEvents({
     if (!stage) return
     const targetIsStage = e.target === stage
 
+    if (toolSnapshot === 'bucket') {
+      const targetId = e.target.id()
+      if (!targetIsStage && targetId) {
+        onObjectClick(targetId, false, toolSnapshot)
+      }
+      return
+    }
+
     if (toolSnapshot === 'text' && targetIsStage) {
       const pos = stage.getRelativePointerPosition()
       if (!pos) return
@@ -567,11 +585,21 @@ export function useInfinityEvents({
   }
 
   // 도형/텍스트 클릭 → 단일/다중 선택 토글, history 기록.
-  const onObjectClick = (id: string, isShift: boolean) => {
+  const onObjectClick = (id: string, isShift: boolean, toolSnapshot: InfinityToolKey = 'select') => {
     if (!canEdit(id)) {
       blockEdit(id)
       return
     }
+
+    if (toolSnapshot === 'bucket') {
+      const nextObjects = objectsRef.current.map((object) =>
+        object.id === id ? recolorObject(object, color) : object,
+      )
+      const nextSelectedIds = selectedIdsRef.current.includes(id) ? selectedIdsRef.current : [id]
+      saveSnapshot(nextObjects, nextSelectedIds)
+      return
+    }
+
     const current = selectedIdsRef.current
     let next: string[]
     if (isShift) {
