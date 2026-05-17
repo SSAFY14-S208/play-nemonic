@@ -240,6 +240,8 @@ export function useFlipbook({
   const [timeLimitOptions, setTimeLimitOptions] = useState<FlipbookTimeLimitSeconds[]>([])
   const [roundCount, setRoundCount] = useState<number | null>(null)
   const [, setStartedParticipantCount] = useState<number | null>(null)
+  const [submittedFrameCount, setSubmittedFrameCount] = useState(0)
+  const [submissionTotalCount, setSubmissionTotalCount] = useState(0)
   const [submittedAssignmentKeys, setSubmittedAssignmentKeys] = useState<Set<string>>(
     () => new Set(),
   )
@@ -311,6 +313,11 @@ export function useFlipbook({
   }, [])
 
   const participantCount = getRoomParticipantCount(roomState)
+  const displayedSubmissionTotalCount = submissionTotalCount
+  const displayedSubmittedFrameCount = Math.min(
+    submittedFrameCount,
+    displayedSubmissionTotalCount,
+  )
   const participants = useMemo(
     () =>
       roomState?.participants.map((participant) => toFlipbookParticipant(participant)) ?? [
@@ -472,6 +479,8 @@ export function useFlipbook({
       setRoundCount(null)
       setTimeLimitOptions([])
       setStartedParticipantCount(null)
+      setSubmittedFrameCount(0)
+      setSubmissionTotalCount(0)
       setSubmittedAssignmentKeys(new Set())
       setTimeUpSubmitRequest(null)
       setIsSubmitting(false)
@@ -597,6 +606,8 @@ export function useFlipbook({
             setTimeUpSubmitRequest(null)
           }
           if (!isSameAssignment) {
+            setSubmittedFrameCount(0)
+            setSubmissionTotalCount(0)
             replaceDrawingLines(storedSubmittedLines ?? [])
             setPreviousFrameLines(createPreviousFrameLinesFromAssignment(nextAssignment))
           }
@@ -811,6 +822,8 @@ export function useFlipbook({
     setRoundCount,
     setSelectedTimeLimitSeconds,
     setStartedParticipantCount,
+    setSubmittedFrameCount,
+    setSubmissionTotalCount,
     setSubmittedAssignmentKeys,
     setTimeUpSubmitRequest,
   })
@@ -1150,6 +1163,8 @@ export function useFlipbook({
       setTimeLimitOptions(getFlipbookTimeLimitOptions(startedRoom))
       setRoundCount(startedRoom.totalRounds)
       setStartedParticipantCount(getRoomParticipantCount(startedRoom))
+      setSubmittedFrameCount(0)
+      setSubmissionTotalCount(0)
       setSubmittedAssignmentKeys(new Set())
       await fetchAssignment(roomCode, startedRoom.currentRound ?? undefined)
       completeFunnelStep('lobby', 3, {
@@ -1203,6 +1218,8 @@ export function useFlipbook({
         submittedLines,
       )
 
+      setSubmittedFrameCount(submittedFrame.submittedCount)
+      setSubmissionTotalCount(submittedFrame.totalCount)
       setAssignment((currentAssignment) =>
         currentAssignment && isSubmittedFrameForAssignment({
           assignment: currentAssignment,
@@ -1656,6 +1673,8 @@ export function useFlipbook({
     currentParticipant: displayedParticipant,
     participants,
     participantCount,
+    submittedCount: displayedSubmittedFrameCount,
+    totalCount: displayedSubmissionTotalCount,
     maxParticipants: roomState?.maxParticipants ?? 12,
     minParticipants: roomState?.minParticipants ?? 2,
     roomStatus: roomState?.status ?? null,

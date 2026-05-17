@@ -49,6 +49,8 @@ interface FlipbookDrawingViewProps {
   isSubmitting: boolean
   isRoundSubmitted: boolean
   isAssignmentReady: boolean
+  submittedCount: number
+  totalCount: number
   connectionStatus: FlipbookConnectionStatus
   errorMessage: string | null
   lines: DrawingLine[]
@@ -81,6 +83,8 @@ export default function FlipbookDrawingView({
   isSubmitting,
   isRoundSubmitted,
   isAssignmentReady,
+  submittedCount,
+  totalCount,
   connectionStatus,
   errorMessage,
   lines,
@@ -316,14 +320,18 @@ export default function FlipbookDrawingView({
           </div>
         </div>
 
-        <DrawingCompleteButton
-          onComplete={handleCompleteRound}
-          disabled={isDrawingLocked}
-          className={cn(
-            'sticky bottom-3 z-20 min-h-14 rounded-[16px]',
-          )}
-          label={submitButtonText === '완료!' ? '완료하기' : submitButtonText}
-        />
+        <div className="sticky bottom-3 z-20 grid gap-2">
+          <SubmissionProgressBadge
+            submittedCount={submittedCount}
+            totalCount={totalCount}
+          />
+          <DrawingCompleteButton
+            onComplete={handleCompleteRound}
+            disabled={isDrawingLocked}
+            className="min-h-14 rounded-[16px]"
+            label={submitButtonText === '완료!' ? '완료하기' : submitButtonText}
+          />
+        </div>
         {errorMessage && (
           <p className="caption-b rounded-[14px] bg-white/90 px-4 py-3 text-center text-flipbook-deep">
             {errorMessage}
@@ -413,6 +421,11 @@ export default function FlipbookDrawingView({
 
           <ProgressRail activeRoundIndex={activeRoundIndex} roundCount={displayRoundCount} />
 
+          <SubmissionProgressBadge
+            className="absolute left-[1254px] top-[884px] h-9 w-[222px]"
+            submittedCount={submittedCount}
+            totalCount={totalCount}
+          />
           <DrawingCompleteButton
             onComplete={handleCompleteRound}
             disabled={isDrawingLocked}
@@ -429,5 +442,29 @@ export default function FlipbookDrawingView({
         </div>
       </div>
     </section>
+  )
+}
+
+function SubmissionProgressBadge({
+  className,
+  submittedCount,
+  totalCount,
+}: {
+  className?: string
+  submittedCount: number
+  totalCount: number
+}) {
+  if (totalCount <= 0) return null
+
+  return (
+    <p
+      aria-live="polite"
+      className={cn(
+        'body-b mx-auto inline-flex min-h-9 items-center justify-center rounded-full border border-[#ffd2df] bg-white/92 px-4 text-[#db4d82] shadow-[0_8px_18px_rgb(129_89_54_/_12%)]',
+        className,
+      )}
+    >
+      제출 {submittedCount}/{totalCount}명
+    </p>
   )
 }
