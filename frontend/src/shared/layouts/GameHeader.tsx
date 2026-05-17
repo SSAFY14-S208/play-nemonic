@@ -41,7 +41,7 @@ export default function GameHeader() {
           <span className="grid size-8 place-items-center rounded-[var(--radius-md)] bg-relay-blue text-fg-inverse shadow-sm">
             N
           </span>
-          <span className="body-b">네모닉 월드</span>
+          <span className="body-b">Play! Nemonic</span>
         </Link>
 
         <nav className="hidden items-center gap-5 md:flex">

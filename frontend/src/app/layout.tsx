@@ -5,8 +5,8 @@ import { BrowserExtensionErrorGuard, LogBootstrapLoader, UserBootstrapLoader } f
 import "@/shared/styles/index.css";
 
 export const metadata: Metadata = {
-  title: "네모닉 월드",
-  description: "네모닉 월드",
+  title: "Play! Nemonic",
+  description: "Play! Nemonic",
 };
 
 export default function RootLayout({
