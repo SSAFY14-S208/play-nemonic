@@ -138,15 +138,15 @@ export default function FlipbookResultView({
       </div>
 
       {(errorMessage || resultActions.actionMessage) && (
-        <p className="caption-b absolute bottom-28 left-4 right-4 z-[120] rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
+        <p className="caption-b absolute bottom-[calc(7.75rem+env(safe-area-inset-bottom))] left-4 right-4 z-[120] rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
           {errorMessage ?? resultActions.actionMessage}
         </p>
       )}
 
       {printParticipants.length > 0 && (
-        <div className="absolute inset-x-3 bottom-3 z-[120] grid gap-2 rounded-[18px] border border-white/80 bg-white/86 p-3 shadow-[0_14px_30px_rgb(120_80_80_/_16%)] backdrop-blur-md md:hidden">
+        <div className="absolute inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-[120] grid max-h-[28svh] gap-2 rounded-[18px] border border-white/80 bg-white/86 px-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_14px_30px_rgb(120_80_80_/_16%)] backdrop-blur-md md:hidden">
           <p className="caption-b text-[#b84e66]">작품 선택</p>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
             {printParticipants.map((participant, participantIndex) => {
               const isActiveParticipant = participantIndex === activeResultIndex
 
@@ -155,7 +155,7 @@ export default function FlipbookResultView({
                   key={participant.id}
                   type="button"
                   onClick={() => onSelectResult(participantIndex)}
-                  className={`caption-b min-h-10 shrink-0 rounded-full border px-4 ${
+                  className={`caption-b min-h-11 max-w-48 shrink-0 snap-start truncate rounded-full border px-4 ${
                     isActiveParticipant
                       ? 'border-[#ff8aa4] bg-[#fff0f4] text-[#b84e66]'
                       : 'border-[#eadfd2] bg-white text-[#5d3b38]'

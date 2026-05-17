@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { Play, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { cn } from '@/shared/libs'
 
 import { useFlipbookPrintReveal } from '../../hooks'
+import styles from './FlipbookPrintResultStage.module.css'
 
 export interface FlipbookPrintFrame {
   id: string
@@ -58,51 +59,9 @@ const NEMONIC_DEVICE_IMAGE_SRC = '/images/flipbook-result/attached-nemonic-devic
 const NEMONIC_DEVICE_IMAGE_WIDTH = 1551
 const NEMONIC_DEVICE_IMAGE_HEIGHT = 1035
 const NEMONIC_OUTPUT_SLOT_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-output-slot.svg'
-const STAGE_ASPECT_RATIO = '1920/1080'
-const STAGE_HEIGHT_BY_VIEWPORT = 'max(100dvh,calc(100vw*9/16))'
-const STAGE_WIDTH_BY_VIEWPORT = 'max(100vw,calc(100dvh*16/9))'
-const BACKGROUND_IMAGE_WIDTH = '100%'
-const BACKGROUND_IMAGE_HEIGHT = '100%'
-const TOP_FURNITURE_LEFT = '17.43%'
-const TOP_FURNITURE_TOP = '-5.33%'
-const TOP_FURNITURE_WIDTH = '58.36%'
-const TOP_FURNITURE_HEIGHT = '27.74%'
-const LEFT_FURNITURE_LEFT = '-5.05%'
-const LEFT_FURNITURE_TOP = '44.91%'
-const LEFT_FURNITURE_WIDTH = '47.97%'
-const LEFT_FURNITURE_HEIGHT = '62.5%'
-const BOARD_LEFT = '30.89%'
-const BOARD_TOP = '12.78%'
-const BOARD_WIDTH = '57.97%'
-const BOARD_HEIGHT = '69.44%'
-const BOARD_IMAGE_LEFT = '0%'
-const BOARD_CROP_WIDTH = '100%'
 const PARTICIPANT_PANEL_IMAGE_SRC = '/images/flipbook-result/participant-panel-v2.png'
-const PARTICIPANT_PANEL_LEFT = '6.67%'
-const PARTICIPANT_PANEL_TOP = '13.7%'
-const PARTICIPANT_PANEL_WIDTH = '19.43%'
-const PARTICIPANT_PANEL_HEIGHT = '68.24%'
-const ATTACHED_PAPER_LEFT = '35.05%'
-const ATTACHED_PAPER_TOP = '19.44%'
-const ATTACHED_PAPER_WIDTH = '44.27%'
-const ATTACHED_PAPER_HEIGHT = '56.76%'
-const OUTPUT_SLOT_LEFT = '82.42%'
-const OUTPUT_SLOT_TOP = '67.16%'
-const OUTPUT_SLOT_WIDTH = '11.54%'
-const OUTPUT_SLOT_HEIGHT = '0.94%'
-const NEMONIC_DEVICE_LEFT = '75.36%'
-const NEMONIC_DEVICE_TOP = '61.02%'
-const NEMONIC_DEVICE_WIDTH = '26.93%'
-const NEMONIC_DEVICE_HEIGHT = '31.91%'
-const SLOT_PAPER_LEFT = '82.55%'
-const SLOT_PAPER_WIDTH = '11.41%'
-const SLOT_PAPER_HEIGHT = '15.74%'
-const SLOT_PAPER_HIDDEN_TOP = '67.16%'
-const SLOT_OUTPUT_PAPER_TOP = '51.39%'
-const SLOT_PRINT_MASK_HEIGHT = `calc(${SLOT_PAPER_HIDDEN_TOP} - ${SLOT_OUTPUT_PAPER_TOP})`
 const PRINT_RISE_DURATION_RATIO = 0.5
 const PRINT_AFTER_RISE_PAUSE_RATIO = 0.25
-const PAPER_ATTACH_DURATION_RATIO = 0.36
 const PRINTED_PAPER_SHADOW_CLASS =
   'shadow-[0_2px_0_rgba(120,74,35,0.08),0_8px_18px_rgba(72,43,18,0.22),0_18px_36px_rgba(72,43,18,0.18)]'
 
@@ -138,9 +97,17 @@ export default function FlipbookPrintResultStage({
     holdDurationMs,
   })
   const [pendingGifParticipantIndex, setPendingGifParticipantIndex] = useState<number | null>(null)
+  const [printPhase, setPrintPhase] = useState<'slot' | 'attach'>('slot')
+  const expandTimerRef = useRef<number | null>(null)
   const activeFrame = printFrames[activeFrameIndex] ?? null
   const previousFrame = activeFrameIndex > 0 ? printFrames[activeFrameIndex - 1] : null
   const shouldPrintActiveFrame = activeFrame?.outputMode !== 'gif-playback'
+  const selectedParticipantHasGifPlayback = selectedParticipant?.frames.some(
+    (frame) => frame.outputMode === 'gif-playback',
+  ) ?? false
+  const activePrintKey = activeFrame && selectedParticipant
+    ? `${selectedParticipant.id}-${activeFrame.id}-${printCycleKey}`
+    : null
 
   useEffect(() => {
     let cancelled = false
@@ -202,80 +169,107 @@ export default function FlipbookPrintResultStage({
     }
   }, [normalizedSelectedParticipantIndex, pendingGifParticipantIndex, printFrames, showFrame])
 
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      if (expandTimerRef.current !== null) {
+        window.clearTimeout(expandTimerRef.current)
+        expandTimerRef.current = null
+      }
+
+      if (!cancelled) {
+        setPrintPhase('slot')
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activePrintKey])
+
+  useEffect(() => {
+    return () => {
+      if (expandTimerRef.current !== null) {
+        window.clearTimeout(expandTimerRef.current)
+      }
+    }
+  }, [])
+
+  const scheduleAttachAfterPrint = () => {
+    if (expandTimerRef.current !== null) {
+      window.clearTimeout(expandTimerRef.current)
+    }
+
+    expandTimerRef.current = window.setTimeout(() => {
+      setPrintPhase('attach')
+    }, printDurationMs * PRINT_AFTER_RISE_PAUSE_RATIO)
+  }
+
   return (
     <section
       className={cn(
-        'relative min-h-[100svh] overflow-hidden bg-[#fff7ed] text-[#1f2b1f]',
+        styles.stage,
         className,
       )}
     >
-      <div
-        className="absolute left-1/2 top-1/2 overflow-hidden -translate-x-1/2 -translate-y-1/2"
-        style={{
-          aspectRatio: STAGE_ASPECT_RATIO,
-          height: STAGE_HEIGHT_BY_VIEWPORT,
-          width: STAGE_WIDTH_BY_VIEWPORT,
-        }}
-      >
+      <div className={styles.scene}>
         <StageBackground />
         <FurnitureLayers />
-        <BoardLayer />
 
-        {activeFrameIndex > 0 && <FixedAttachedPaperShadow />}
+        <BoardLayer>
+          {activeFrameIndex > 0 && <FixedAttachedPaperShadow />}
 
-        {previousFrame && selectedParticipant && (
-          <div
-            className="absolute z-30"
-            style={{
-              height: ATTACHED_PAPER_HEIGHT,
-              left: ATTACHED_PAPER_LEFT,
-              top: ATTACHED_PAPER_TOP,
-              width: ATTACHED_PAPER_WIDTH,
-            }}
-          >
+          {previousFrame && selectedParticipant && (
             <ShadowedPrintedPaper
               frame={previousFrame}
               frameIndex={activeFrameIndex - 1}
               participant={selectedParticipant}
               renderPaper={renderPaper}
             />
-          </div>
-        )}
+          )}
 
-        {activeFrame && selectedParticipant && shouldPrintActiveFrame && (
-          <ActivePrintedPaper
-            key={`${selectedParticipant.id}-${activeFrame.id}-${printCycleKey}`}
-            frame={activeFrame}
-            frameIndex={activeFrameIndex}
-            participant={selectedParticipant}
-            printDurationMs={printDurationMs}
-            renderPaper={renderPaper}
+          {activeFrame && selectedParticipant && shouldPrintActiveFrame && printPhase === 'attach' && (
+            <AttachedPrintedPaper
+              key={`${activePrintKey}-attach`}
+              frame={activeFrame}
+              frameIndex={activeFrameIndex}
+              participant={selectedParticipant}
+              renderPaper={renderPaper}
+            />
+          )}
+
+          {activeFrame && selectedParticipant && !shouldPrintActiveFrame && (
+            <DirectPlaybackPaper
+              key={`${selectedParticipant.id}-${activeFrame.id}-${printCycleKey}`}
+              frame={activeFrame}
+              frameIndex={activeFrameIndex}
+              participant={selectedParticipant}
+              renderPaper={renderPaper}
+            />
+          )}
+
+          <SkipPlaybackButton
+            disabled={!selectedParticipantHasGifPlayback}
+            onClick={() => selectParticipantGif(normalizedSelectedParticipantIndex)}
           />
-        )}
+        </BoardLayer>
 
-        {activeFrame && selectedParticipant && !shouldPrintActiveFrame && (
-          <DirectPlaybackPaper
-            key={`${selectedParticipant.id}-${activeFrame.id}-${printCycleKey}`}
-            frame={activeFrame}
-            frameIndex={activeFrameIndex}
-            participant={selectedParticipant}
-            renderPaper={renderPaper}
-          />
-        )}
+        <NemonicDeviceImage isPrinting={isPlaying && !isComplete && shouldPrintActiveFrame}>
+          {activeFrame && selectedParticipant && shouldPrintActiveFrame && printPhase === 'slot' && (
+            <SlotPrintedPaper
+              key={`${activePrintKey}-slot`}
+              frame={activeFrame}
+              frameIndex={activeFrameIndex}
+              participant={selectedParticipant}
+              printDurationMs={printDurationMs}
+              renderPaper={renderPaper}
+              onPrintRiseComplete={scheduleAttachAfterPrint}
+            />
+          )}
+        </NemonicDeviceImage>
 
-        <NemonicDeviceImage isPrinting={isPlaying && !isComplete && shouldPrintActiveFrame} />
-
-        <PrintOutputSlot />
-
-        <aside
-          className="absolute z-60 hidden flex-col overflow-hidden rounded-[30px] px-5 pb-5 pt-[26px] md:flex"
-          style={{
-            height: PARTICIPANT_PANEL_HEIGHT,
-            left: PARTICIPANT_PANEL_LEFT,
-            top: PARTICIPANT_PANEL_TOP,
-            width: PARTICIPANT_PANEL_WIDTH,
-          }}
-        >
+        <aside className={styles.participantPanel}>
           <Image
             src={PARTICIPANT_PANEL_IMAGE_SRC}
             alt=""
@@ -283,14 +277,16 @@ export default function FlipbookPrintResultStage({
             sizes="20vw"
             priority
             unoptimized
-            className="pointer-events-none absolute inset-0 z-0 size-full object-fill"
+            className={cn(
+              styles.participantPanelImage,
+              'pointer-events-none absolute inset-0 z-0 size-full object-fill',
+            )}
           />
 
           <ParticipantListPanel
             participants={participants}
             selectedParticipantIndex={normalizedSelectedParticipantIndex}
             onSelectParticipant={selectParticipant}
-            onSelectParticipantGif={selectParticipantGif}
           />
         </aside>
       </div>
@@ -302,23 +298,24 @@ function ParticipantListPanel({
   participants,
   selectedParticipantIndex,
   onSelectParticipant,
-  onSelectParticipantGif,
 }: {
   participants: FlipbookPrintParticipant[]
   selectedParticipantIndex: number
   onSelectParticipant: (participantIndex: number) => void
-  onSelectParticipantGif: (participantIndex: number) => void
 }) {
   return (
     <>
-      <div className="relative z-10 flex h-[72px] items-start gap-2 pl-1">
+      <div className={cn(styles.participantPanelHeader, 'relative z-10 flex h-[72px] items-start gap-2 pl-1')}>
         <Sparkles className="mt-0.5 size-6 stroke-[2.5] text-[#ffb84d]" aria-hidden />
         <p className="h2-b text-[#5d3b38]">
           참여자 목록
         </p>
       </div>
 
-      <div className="relative z-10 grid flex-1 content-start gap-2 overflow-y-auto pr-1 [scrollbar-color:#ff9ab2_transparent] [scrollbar-width:thin]">
+      <div className={cn(
+        styles.participantListViewport,
+        'relative z-10 grid flex-1 content-start gap-2 overflow-y-auto pr-1 [scrollbar-color:#ff9ab2_transparent] [scrollbar-width:thin]',
+      )}>
         {participants.map((participant, participantIndex) => (
           <ParticipantListItem
             key={participant.id}
@@ -326,7 +323,6 @@ function ParticipantListPanel({
             participantIndex={participantIndex}
             isActive={participantIndex === selectedParticipantIndex}
             onSelectParticipant={onSelectParticipant}
-            onSelectParticipantGif={onSelectParticipantGif}
           />
         ))}
       </div>
@@ -339,24 +335,20 @@ function ParticipantListItem({
   participantIndex,
   isActive,
   onSelectParticipant,
-  onSelectParticipantGif,
 }: {
   participant: FlipbookPrintParticipant
   participantIndex: number
   isActive: boolean
   onSelectParticipant: (participantIndex: number) => void
-  onSelectParticipantGif: (participantIndex: number) => void
 }) {
   const accentColor = getParticipantAccentColor(participant, participantIndex)
   const thumbnailImageUrl = participant.frames.find((frame) => frame.imageUrl)?.imageUrl
   const printableFrameCount = getPrintableFrameCount(participant)
-  const hasGifPlayback = participant.frames.some(
-    (frame) => frame.outputMode === 'gif-playback',
-  )
 
   return (
     <div
       className={cn(
+        styles.participantListItem,
         'group relative grid min-h-[100px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-[8px] border border-white/80 bg-white/86 px-3 py-3 text-left transition',
         'hover:bg-white',
         isActive && 'border-[#ff8aa4] bg-white',
@@ -365,7 +357,10 @@ function ParticipantListItem({
       <button
         type="button"
         onClick={() => onSelectParticipant(participantIndex)}
-        className="relative z-10 grid min-w-0 grid-cols-[76px_minmax(0,1fr)] items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8aa4] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        className={cn(
+          styles.participantSelectButton,
+          'relative z-10 grid min-w-0 grid-cols-[76px_minmax(0,1fr)] items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8aa4] focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+        )}
         aria-label={`${participant.name} 결과 보기`}
         aria-pressed={isActive}
       >
@@ -381,23 +376,29 @@ function ParticipantListItem({
 
       <span className="relative z-10 grid justify-items-end gap-2">
         <span className="h4-b text-[#e56883]">{printableFrameCount}장</span>
-        <button
-          type="button"
-          onClick={() => onSelectParticipantGif(participantIndex)}
-          disabled={!hasGifPlayback}
-          className={cn(
-            'body-b inline-flex h-10 min-w-[84px] items-center justify-center gap-1.5 rounded-full border px-3 text-[#e5a1ad] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8aa4] focus-visible:ring-offset-2 focus-visible:ring-offset-white',
-            hasGifPlayback
-              ? 'border-[#ffd2dc] bg-white/72 hover:bg-[#fff0f4] hover:text-[#d9607a]'
-              : 'cursor-not-allowed border-[#ffd2dc]/70 bg-white/50 opacity-55',
-          )}
-          aria-label={`${participant.name} GIF만 보기`}
-        >
-          <Play className="size-4 fill-current" aria-hidden />
-          GIF
-        </button>
       </span>
     </div>
+  )
+}
+
+function SkipPlaybackButton({
+  disabled,
+  onClick,
+}: {
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      className={styles.skipPlaybackButton}
+      aria-label="현재 플립북 GIF 장면으로 건너뛰기"
+      title="skip"
+      onClick={onClick}
+    >
+      skip
+    </button>
   )
 }
 
@@ -436,15 +437,7 @@ function ParticipantPaperThumbnail({
 function FurnitureLayers() {
   return (
     <>
-      <div
-        className="pointer-events-none absolute z-[1] flex items-center justify-center"
-        style={{
-          height: TOP_FURNITURE_HEIGHT,
-          left: TOP_FURNITURE_LEFT,
-          top: TOP_FURNITURE_TOP,
-          width: TOP_FURNITURE_WIDTH,
-        }}
-      >
+      <div className={styles.topFurniture}>
         <div className="relative h-[79.46%] w-[98.97%] rotate-[3.2deg] overflow-hidden">
           <Image
             src={FURNITURE_IMAGE_SRC}
@@ -457,15 +450,7 @@ function FurnitureLayers() {
           />
         </div>
       </div>
-      <div
-        className="pointer-events-none absolute z-[1] overflow-hidden"
-        style={{
-          height: LEFT_FURNITURE_HEIGHT,
-          left: LEFT_FURNITURE_LEFT,
-          top: LEFT_FURNITURE_TOP,
-          width: LEFT_FURNITURE_WIDTH,
-        }}
-      >
+      <div className={styles.leftFurniture}>
         <Image
           src={FURNITURE_IMAGE_SRC}
           alt=""
@@ -480,17 +465,9 @@ function FurnitureLayers() {
   )
 }
 
-function BoardLayer() {
+function BoardLayer({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="pointer-events-none absolute z-10 overflow-hidden"
-      style={{
-        height: BOARD_HEIGHT,
-        left: BOARD_LEFT,
-        top: BOARD_TOP,
-        width: BOARD_WIDTH,
-      }}
-    >
+    <div className={styles.boardLayer}>
       <Image
         src={BOARD_IMAGE_SRC}
         alt=""
@@ -498,25 +475,16 @@ function BoardLayer() {
         height={BOARD_IMAGE_HEIGHT}
         priority
         unoptimized
-        className="absolute top-0 h-full max-w-none object-fill"
-        style={{
-          left: BOARD_IMAGE_LEFT,
-          width: BOARD_CROP_WIDTH,
-        }}
+        className={styles.boardImage}
       />
+      {children}
     </div>
   )
 }
 
 function StageBackground() {
   return (
-    <div
-      className="pointer-events-none absolute left-0 top-0 z-0 overflow-hidden"
-      style={{
-        height: BACKGROUND_IMAGE_HEIGHT,
-        width: BACKGROUND_IMAGE_WIDTH,
-      }}
-    >
+    <div className={styles.background}>
       <Image
         src={RESULT_STAGE_BACKGROUND_IMAGE_SRC}
         alt=""
@@ -532,15 +500,7 @@ function StageBackground() {
 
 function PrintOutputSlot() {
   return (
-    <div
-      className="pointer-events-none absolute z-[90] rotate-[1.75deg] overflow-hidden"
-      style={{
-        height: OUTPUT_SLOT_HEIGHT,
-        left: OUTPUT_SLOT_LEFT,
-        top: OUTPUT_SLOT_TOP,
-        width: OUTPUT_SLOT_WIDTH,
-      }}
-    >
+    <div className={styles.outputSlot}>
       <Image
         src={NEMONIC_OUTPUT_SLOT_IMAGE_SRC}
         alt=""
@@ -553,12 +513,13 @@ function PrintOutputSlot() {
   )
 }
 
-function ActivePrintedPaper({
+function SlotPrintedPaper({
   frame,
   frameIndex,
   participant,
   printDurationMs,
   renderPaper,
+  onPrintRiseComplete,
 }: {
   frame: FlipbookPrintFrame
   frameIndex: number
@@ -569,101 +530,74 @@ function ActivePrintedPaper({
     frameIndex: number,
     participant: FlipbookPrintParticipant,
   ) => ReactNode
+  onPrintRiseComplete: () => void
 }) {
-  const [printPhase, setPrintPhase] = useState<'slot' | 'expand'>('slot')
-  const expandTimerRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (expandTimerRef.current !== null) {
-        window.clearTimeout(expandTimerRef.current)
-      }
-    }
-  }, [])
-
-  const scheduleExpandAfterPrint = () => {
-    if (expandTimerRef.current !== null) {
-      window.clearTimeout(expandTimerRef.current)
-    }
-
-    expandTimerRef.current = window.setTimeout(() => {
-      setPrintPhase('expand')
-    }, printDurationMs * PRINT_AFTER_RISE_PAUSE_RATIO)
-  }
-
-  if (printPhase === 'slot') {
-    return (
-      <div
-        className="pointer-events-none absolute z-[70] overflow-hidden"
-        style={{
-          height: SLOT_PRINT_MASK_HEIGHT,
-          left: SLOT_PAPER_LEFT,
-          top: SLOT_OUTPUT_PAPER_TOP,
-          width: SLOT_PAPER_WIDTH,
+  return (
+    <div className={styles.slotPrintMask}>
+      <motion.div
+        className="absolute inset-x-0 bottom-0 h-full"
+        initial={{ y: '100%' }}
+        animate={{ y: '0%' }}
+        transition={{
+          duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
+          ease: [0.12, 0.78, 0.16, 1],
         }}
+        onAnimationComplete={onPrintRiseComplete}
       >
-        <motion.div
-          className="absolute inset-x-0 bottom-0 h-full"
-          initial={{ y: '100%' }}
-          animate={{ y: '0%' }}
-          transition={{
-            duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
-            ease: [0.12, 0.78, 0.16, 1],
-          }}
-          onAnimationComplete={scheduleExpandAfterPrint}
-        >
-          {frameIndex === 0 && (
-            <motion.div
-              className={cn('absolute inset-0 origin-bottom', PRINTED_PAPER_SHADOW_CLASS)}
-              initial={{ opacity: 0.18, scaleY: 0.04 }}
-              animate={{ opacity: 0.78, scaleY: 1 }}
-              transition={{
-                duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
-                ease: [0.12, 0.78, 0.16, 1],
-              }}
-              aria-hidden
-            />
-          )}
-          <PrintedPaper
-            frame={frame}
-            frameIndex={frameIndex}
-            participant={participant}
-            renderPaper={renderPaper}
+        {frameIndex === 0 && (
+          <motion.div
+            className={cn('absolute inset-0 origin-bottom', PRINTED_PAPER_SHADOW_CLASS)}
+            initial={{ opacity: 0.18, scaleY: 0.04 }}
+            animate={{ opacity: 0.78, scaleY: 1 }}
+            transition={{
+              duration: printDurationMs * PRINT_RISE_DURATION_RATIO / 1000,
+              ease: [0.12, 0.78, 0.16, 1],
+            }}
+            aria-hidden
           />
-        </motion.div>
-      </div>
-    )
-  }
+        )}
+        <PrintedPaper
+          frame={frame}
+          frameIndex={frameIndex}
+          participant={participant}
+          renderPaper={renderPaper}
+        />
+      </motion.div>
+    </div>
+  )
+}
 
+function AttachedPrintedPaper({
+  frame,
+  frameIndex,
+  participant,
+  renderPaper,
+}: {
+  frame: FlipbookPrintFrame
+  frameIndex: number
+  participant: FlipbookPrintParticipant
+  renderPaper?: (
+    frame: FlipbookPrintFrame,
+    frameIndex: number,
+    participant: FlipbookPrintParticipant,
+  ) => ReactNode
+}) {
   return (
     <motion.div
-      className="pointer-events-none absolute z-40"
-      initial={{
-        left: SLOT_PAPER_LEFT,
-        top: SLOT_OUTPUT_PAPER_TOP,
-        width: SLOT_PAPER_WIDTH,
-        height: SLOT_PAPER_HEIGHT,
-      }}
-      animate={{
-        left: ATTACHED_PAPER_LEFT,
-        top: ATTACHED_PAPER_TOP,
-        width: ATTACHED_PAPER_WIDTH,
-        height: ATTACHED_PAPER_HEIGHT,
-      }}
+      className={cn(styles.attachedPaperFrame, 'pointer-events-none')}
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
       transition={{
-        duration: printDurationMs * PAPER_ATTACH_DURATION_RATIO / 1000,
+        duration: 0.34,
         ease: [0.14, 0.84, 0.18, 1],
       }}
     >
       {frameIndex === 0 && (
         <motion.div
           className={cn('absolute inset-0', PRINTED_PAPER_SHADOW_CLASS)}
-          initial={{ opacity: 0.78 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{
-            duration: printDurationMs * PAPER_ATTACH_DURATION_RATIO / 1000,
-            ease: [0.14, 0.84, 0.18, 1],
-          }}
+          transition={{ duration: 0.22 }}
           aria-hidden
         />
       )}
@@ -694,18 +628,12 @@ function DirectPlaybackPaper({
 }) {
   return (
     <motion.div
-      className="pointer-events-none absolute z-40"
+      className={cn(styles.attachedPaperFrame, 'pointer-events-none')}
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{
         duration: 0.34,
         ease: [0.14, 0.84, 0.18, 1],
-      }}
-      style={{
-        height: ATTACHED_PAPER_HEIGHT,
-        left: ATTACHED_PAPER_LEFT,
-        top: ATTACHED_PAPER_TOP,
-        width: ATTACHED_PAPER_WIDTH,
       }}
     >
       {frameIndex === 0 && (
@@ -730,13 +658,7 @@ function DirectPlaybackPaper({
 function FixedAttachedPaperShadow() {
   return (
     <div
-      className={cn('pointer-events-none absolute z-20', PRINTED_PAPER_SHADOW_CLASS)}
-      style={{
-        height: ATTACHED_PAPER_HEIGHT,
-        left: ATTACHED_PAPER_LEFT,
-        top: ATTACHED_PAPER_TOP,
-        width: ATTACHED_PAPER_WIDTH,
-      }}
+      className={cn(styles.attachedPaperFrame, 'pointer-events-none z-20', PRINTED_PAPER_SHADOW_CLASS)}
       aria-hidden
     />
   )
@@ -758,7 +680,7 @@ function ShadowedPrintedPaper({
   ) => ReactNode
 }) {
   return (
-    <div className="relative h-full w-full">
+    <div className={cn(styles.attachedPaperFrame, 'z-30')}>
       <PrintedPaper
         frame={frame}
         frameIndex={frameIndex}
@@ -832,21 +754,22 @@ function BlankPaperPreview({
   )
 }
 
-function NemonicDeviceImage({ isPrinting }: { isPrinting: boolean }) {
+function NemonicDeviceImage({
+  children,
+  isPrinting,
+}: {
+  children?: ReactNode
+  isPrinting: boolean
+}) {
   return (
     <div
       className={cn(
-        'absolute z-50',
+        styles.printerLayer,
         isPrinting && 'animate-[nemonic-device-hum_180ms_linear_infinite]',
       )}
-      style={{
-        height: NEMONIC_DEVICE_HEIGHT,
-        left: NEMONIC_DEVICE_LEFT,
-        top: NEMONIC_DEVICE_TOP,
-        width: NEMONIC_DEVICE_WIDTH,
-      }}
       aria-hidden
     >
+      {children}
       <Image
         src={NEMONIC_DEVICE_IMAGE_SRC}
         alt=""
@@ -854,8 +777,9 @@ function NemonicDeviceImage({ isPrinting }: { isPrinting: boolean }) {
         height={NEMONIC_DEVICE_IMAGE_HEIGHT}
         priority
         unoptimized
-        className="size-full max-w-none object-cover"
+        className={styles.deviceImage}
       />
+      <PrintOutputSlot />
     </div>
   )
 }
