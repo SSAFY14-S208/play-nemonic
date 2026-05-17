@@ -42,6 +42,11 @@ interface FlipbookPrintResultStageProps {
     participant: FlipbookPrintParticipant,
   ) => ReactNode
   onSelectParticipant?: (participantIndex: number) => void
+  // 참여자의 출력(print) 시퀀스가 끝나고 사용자가 결과(보통 GIF)를 보고 있는
+  // 시점에 참여자당 1회 발사. 부모에서 자동 전환 타이머의 시작점으로 사용한다.
+  // - gif-playback 프레임이 있는 경우: active frame이 gif-playback이 되는 즉시
+  // - 없는 경우: 모든 print 프레임 출력이 완전히 끝난 시점
+  onParticipantRevealComplete?: (participantIndex: number) => void
 }
 
 const DEFAULT_ACCENT_COLORS = ['#f58c97', '#7ec6ad', '#f3c66f', '#96a8ee', '#c99be8', '#ef9a72']
@@ -78,6 +83,7 @@ export default function FlipbookPrintResultStage({
   className,
   printDurationMs = 1700,
   holdDurationMs = 850,
+  onParticipantRevealComplete,
   renderPaper,
   onSelectParticipant,
 }: FlipbookPrintResultStageProps) {
@@ -129,6 +135,42 @@ export default function FlipbookPrintResultStage({
       cancelled = true
     }
   }, [activeParticipantIndex])
+
+  // 참여자별 reveal 완료 콜백 — 자동 전환을 위해 부모(FlipbookPage)에 신호.
+  // 같은 참여자에 대해 중복 발사되지 않도록 lastFiredRevealIndexRef로 가드한다.
+  // 참여자 인덱스가 바뀌면 ref를 null로 리셋해 새 참여자에 대해 다시 발사 가능.
+  const lastFiredRevealIndexRef = useRef<number | null>(null)
+  useEffect(() => {
+    lastFiredRevealIndexRef.current = null
+  }, [normalizedSelectedParticipantIndex])
+
+  useEffect(() => {
+    if (!onParticipantRevealComplete) return
+    // 두 가지 reveal 완료 조건 중 빠른 것을 사용:
+    // 1) 활성 프레임이 gif-playback (출력 시퀀스가 GIF로 전환된 순간)
+    // 2) gif-playback 프레임이 없는 결과의 경우 print 시퀀스 자체가 모두 끝난
+    //    시점 (isComplete + !isPlaying)
+    const isShowingGifPlaybackFrame =
+      activeFrame !== null && activeFrame.outputMode === 'gif-playback'
+    const isPrintSequenceFullyDone = isComplete && !isPlaying
+    if (!isShowingGifPlaybackFrame && !isPrintSequenceFullyDone) return
+    if (lastFiredRevealIndexRef.current === normalizedSelectedParticipantIndex) return
+    lastFiredRevealIndexRef.current = normalizedSelectedParticipantIndex
+
+    let cancelled = false
+    void (async () => {
+      if (!cancelled) onParticipantRevealComplete(normalizedSelectedParticipantIndex)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    activeFrame,
+    isComplete,
+    isPlaying,
+    normalizedSelectedParticipantIndex,
+    onParticipantRevealComplete,
+  ])
 
   const selectParticipant = (participantIndex: number) => {
     setPendingGifParticipantIndex(null)
