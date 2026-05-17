@@ -318,9 +318,14 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [getParticipantIdentityIndex, room.locks, room.myUserUuid, room.participantsByUserUuid],
   )
 
+  const remoteCursorValues = useMemo(
+    () => Object.values(room.remoteCursors),
+    [room.remoteCursors],
+  )
+
   const remoteCursors: InfinityRemoteCursorView[] = useMemo(
     () =>
-      Object.values(room.remoteCursors)
+      remoteCursorValues
         .filter((cursor) => cursor.userUuid !== room.myUserUuid && cursor.x !== null && cursor.y !== null)
         .map((cursor) => {
           const participant = room.participantsByUserUuid[cursor.userUuid]
@@ -333,7 +338,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
             identityIndex: getParticipantIdentityIndex(cursor.userUuid),
           }
         }),
-    [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors],
+    [getParticipantIdentityIndex, remoteCursorValues, room.myUserUuid, room.participantsByUserUuid],
   )
 
   const visibleObjectIds = useMemo(
@@ -343,7 +348,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
   const remoteDraftObjects: InfinityRemoteDraftObjectView[] = useMemo(
     () =>
-      Object.values(room.remoteCursors)
+      remoteCursorValues
         .filter((cursor) => cursor.userUuid !== room.myUserUuid)
         .map((cursor) => {
           const draftObject = getPayloadDraftObject(cursor.payload)
@@ -359,7 +364,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           }
         })
         .filter((draftObject): draftObject is InfinityRemoteDraftObjectView => draftObject !== null),
-    [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors, visibleObjectIds],
+    [getParticipantIdentityIndex, remoteCursorValues, room.myUserUuid, room.participantsByUserUuid, visibleObjectIds],
   )
 
   useEffect(() => {

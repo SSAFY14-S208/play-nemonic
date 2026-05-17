@@ -153,6 +153,14 @@ export interface InfiniteCanvasOpsAppliedResponse {
   operations: InfiniteCanvasOperation[]
 }
 
+export interface InfiniteCanvasRevisionConflictResponse {
+  roomCode: string
+  baseRevision: number
+  latestRevision: number
+  missingOperations: InfiniteCanvasOperation[]
+  fullStateRequired: boolean
+}
+
 export interface InfiniteCanvasLockResponse {
   roomCode: string
   elementId: string
@@ -199,6 +207,7 @@ export type InfiniteCanvasWsEventType =
 
 export interface InfiniteCanvasSimpleMessageResponse {
   message: string
+  details?: InfiniteCanvasRevisionConflictResponse | null
 }
 
 export interface InfiniteCanvasWsEventPayloadMap {

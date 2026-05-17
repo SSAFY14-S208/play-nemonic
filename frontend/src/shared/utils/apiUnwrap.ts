@@ -36,6 +36,6 @@ import type { ApiResponse } from '@/shared/types'
  */
 export async function apiUnwrap<T>(promise: Promise<ApiResponse<T>>): Promise<T> {
   const response = await promise
-  if (!response.success) throw new ApiError(response.message, response.errors)
+  if (!response.success) throw new ApiError(response.message, response.errors, response.data)
   return response.data
 }
