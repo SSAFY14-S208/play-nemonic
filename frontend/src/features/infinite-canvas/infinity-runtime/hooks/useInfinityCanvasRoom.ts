@@ -10,6 +10,7 @@ import {
   patchInfiniteCanvasParticipantColor,
   postFileConfirm,
   postFilePresign,
+  postInvite,
   postInfiniteCanvasOutput,
   putFileToPresignedUrl,
 } from '@/shared/apis'
@@ -26,6 +27,7 @@ import type {
   InfiniteCanvasOperationRequest,
   InfiniteCanvasOpsAppliedResponse,
   InfiniteCanvasOutputSaveResponse,
+  InfiniteCanvasParticipantEventResponse,
   InfiniteCanvasParticipantResponse,
   InfiniteCanvasRealtimeEvent,
   InfiniteCanvasSimpleMessageResponse,
@@ -50,6 +52,15 @@ function isStateResponse(value: unknown): value is InfiniteCanvasStateResponse {
     typeof value.roomCode === 'string' &&
     Array.isArray(value.participants) &&
     Array.isArray(value.elements) &&
+    typeof value.revision === 'number'
+  )
+}
+
+function isParticipantEventResponse(value: unknown): value is InfiniteCanvasParticipantEventResponse {
+  return (
+    isRecord(value) &&
+    typeof value.roomCode === 'string' &&
+    Array.isArray(value.participants) &&
     typeof value.revision === 'number'
   )
 }
@@ -235,14 +246,49 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [operationQueueVersion, setOperationQueueVersion] = useState(0)
+  const [hasPendingOperations, setHasPendingOperations] = useState(false)
   const revisionRef = useRef(0)
   const pendingOperationsRef = useRef<InfiniteCanvasOperationRequest[]>([])
   const inFlightOperationsRef = useRef<InfiniteCanvasOperationRequest[] | null>(null)
   const isResolvingRevisionConflictRef = useRef(false)
+  const pendingRemoteCursorUpdatesRef = useRef<Record<string, InfiniteCanvasCursor>>({})
+  const remoteCursorFrameRef = useRef<number | null>(null)
 
   const bumpOperationQueue = useCallback(() => {
     setOperationQueueVersion((currentVersion) => currentVersion + 1)
   }, [])
+
+  const syncPendingOperationState = useCallback(() => {
+    setHasPendingOperations(
+      pendingOperationsRef.current.length > 0 ||
+        inFlightOperationsRef.current !== null ||
+        isResolvingRevisionConflictRef.current,
+    )
+  }, [])
+
+  const scheduleRemoteCursorUpdate = useCallback((cursor: InfiniteCanvasCursor) => {
+    pendingRemoteCursorUpdatesRef.current[cursor.userUuid] = cursor
+    if (remoteCursorFrameRef.current !== null) return
+
+    remoteCursorFrameRef.current = window.requestAnimationFrame(() => {
+      remoteCursorFrameRef.current = null
+      const pendingUpdates = pendingRemoteCursorUpdatesRef.current
+      pendingRemoteCursorUpdatesRef.current = {}
+      setRemoteCursors((currentCursors) => ({
+        ...currentCursors,
+        ...pendingUpdates,
+      }))
+    })
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (remoteCursorFrameRef.current !== null) {
+        window.cancelAnimationFrame(remoteCursorFrameRef.current)
+      }
+    },
+    [],
+  )
 
   const hydrateRoom = useCallback(async (options: { showLoading?: boolean } = {}) => {
     if (!roomCode || !userUuid) return null
@@ -254,7 +300,11 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     setErrorMessage(null)
 
     try {
-      const nextState = await getInfiniteCanvasState(roomCode)
+      let nextState = await getInfiniteCanvasState(roomCode)
+      if (!nextState.me) {
+        await postInvite(roomCode)
+        nextState = await getInfiniteCanvasState(roomCode)
+      }
       revisionRef.current = nextState.revision
       setRoomState(nextState)
       setIsHydrating(false)
@@ -295,14 +345,41 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     (event: InfiniteCanvasRealtimeEvent) => {
       if (roomCode && event.roomCode !== roomCode) return
 
-      if (
-        event.type === 'STATE_SNAPSHOT' ||
-        event.type === 'PARTICIPANT_CONNECTED' ||
-        event.type === 'PARTICIPANT_DISCONNECTED' ||
-        event.type === 'SNAPSHOT_UPDATED'
-      ) {
+      if (event.type === 'STATE_SNAPSHOT' || event.type === 'SNAPSHOT_UPDATED') {
         if (isStateResponse(event.data)) {
           applyFullState(event.data)
+        }
+        return
+      }
+
+      if (event.type === 'PARTICIPANT_CONNECTED' || event.type === 'PARTICIPANT_DISCONNECTED') {
+        if (!isParticipantEventResponse(event.data)) return
+        const participantEvent = event.data
+        setRoomState((currentState) => {
+          if (!currentState) return currentState
+          const nextMe = currentState.me
+            ? participantEvent.participants.find(
+                (participant) => participant.userUuid === currentState.me?.userUuid,
+              ) ?? currentState.me
+            : null
+
+          return {
+            ...currentState,
+            hostUserUuid: participantEvent.hostUserUuid,
+            me: nextMe,
+            participants: participantEvent.participants,
+            maxParticipants: participantEvent.maxParticipants,
+            revision: participantEvent.revision,
+            updatedAt: participantEvent.updatedAt,
+          }
+        })
+        const changedParticipantUserUuid = participantEvent.changedParticipant?.userUuid
+        if (event.type === 'PARTICIPANT_DISCONNECTED' && changedParticipantUserUuid) {
+          setRemoteCursors((currentCursors) => {
+            const nextCursors = { ...currentCursors }
+            delete nextCursors[changedParticipantUserUuid]
+            return nextCursors
+          })
         }
         return
       }
@@ -405,6 +482,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
           )
           if (acceptedInFlightOperation || appliedOperations.operations.length === 0) {
             inFlightOperationsRef.current = null
+            syncPendingOperationState()
             bumpOperationQueue()
           }
         }
@@ -446,10 +524,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         if (!isCursorResponse(event.data)) return
         const cursor = event.data.cursor
         if (cursor.userUuid === userUuid) return
-        setRemoteCursors((currentCursors) => ({
-          ...currentCursors,
-          [cursor.userUuid]: cursor,
-        }))
+        scheduleRemoteCursorUpdate(cursor)
         return
       }
 
@@ -480,8 +555,10 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
             ]
           }
           isResolvingRevisionConflictRef.current = true
+          syncPendingOperationState()
           void hydrateRoom({ showLoading: false }).finally(() => {
             isResolvingRevisionConflictRef.current = false
+            syncPendingOperationState()
             bumpOperationQueue()
           })
           return
@@ -489,12 +566,13 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
 
         pendingOperationsRef.current = []
         isResolvingRevisionConflictRef.current = false
+        syncPendingOperationState()
         setErrorMessage(message)
         toast.error(message)
         void hydrateRoom({ showLoading: false }).finally(bumpOperationQueue)
       }
     },
-    [applyFullState, bumpOperationQueue, roomCode, hydrateRoom, router, userUuid],
+    [applyFullState, bumpOperationQueue, roomCode, hydrateRoom, router, scheduleRemoteCursorUpdate, syncPendingOperationState, userUuid],
   )
 
   const realtime = useInfinityRealtimeConnection({
@@ -542,10 +620,11 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       if (operations.length === 0) return false
 
       pendingOperationsRef.current = [...pendingOperationsRef.current, ...operations]
+      syncPendingOperationState()
       bumpOperationQueue()
       return true
     },
-    [bumpOperationQueue],
+    [bumpOperationQueue, syncPendingOperationState],
   )
 
   useEffect(() => {
@@ -562,10 +641,13 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     })
     if (!sent) {
       pendingOperationsRef.current = [...pendingOperations, ...pendingOperationsRef.current]
+      syncPendingOperationState()
       return
     }
     inFlightOperationsRef.current = pendingOperations
-  }, [bumpOperationQueue, operationQueueVersion, realtime])
+    syncPendingOperationState()
+    bumpOperationQueue()
+  }, [bumpOperationQueue, operationQueueVersion, realtime, syncPendingOperationState])
 
   const saveOutput = useCallback(
     async (imageBlob: Blob, meta: Record<string, unknown> | null) => {
@@ -668,6 +750,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     elements: roomState?.elements ?? [],
     locks: roomState?.locks ?? {},
     remoteCursors,
+    hasPendingOperations,
     maxParticipants: roomState?.maxParticipants ?? 0,
     revision: roomState?.revision ?? 0,
     myUserUuid,

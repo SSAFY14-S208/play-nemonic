@@ -1,7 +1,8 @@
 export { default as RelayDrawingPage } from './RelayDrawingPage'
 export { default as RelayRoomPage } from './RelayRoomPage'
-export { useRelayDrawingStore } from './stores'
-export { useRelayCanvas, useRelayResult } from './hooks'
+export { RelayBgmToggle } from './components'
+export { useRelayDrawingStore, useRelayBgmStore } from './stores'
+export { useRelayBgm, useRelayCanvas, useRelayResult } from './hooks'
 export type {
   RelayDrawPoint,
   RelayDrawLine,

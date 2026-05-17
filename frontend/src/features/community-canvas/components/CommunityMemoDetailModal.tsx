@@ -1,7 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { Flag, Trash2, X } from 'lucide-react'
+import { Flag, Share2, Trash2, X } from 'lucide-react'
+import { toast } from 'sonner'
 import type { CommunityMemoDetailResponse } from '@/shared/types'
 import { formatKoreanDateTime } from '@/shared/utils'
 import {
@@ -34,6 +35,69 @@ function formatAttachedAt(value: string) {
   })
 }
 
+function toAbsoluteShareUrl(imageUrl: string) {
+  if (typeof window === 'undefined') return imageUrl
+  return new URL(imageUrl, window.location.origin).toString()
+}
+
+function getShareImageExtension(mimeType: string, imageUrl: string) {
+  if (mimeType === 'image/gif') return 'gif'
+  if (mimeType === 'image/jpeg') return 'jpg'
+  if (mimeType === 'image/webp') return 'webp'
+  if (mimeType === 'image/png') return 'png'
+
+  const pathExtension = imageUrl
+    .split(/[?#]/)[0]
+    ?.match(/\.([a-z0-9]+)$/i)?.[1]
+    ?.toLowerCase()
+
+  return pathExtension || 'png'
+}
+
+function isLikelyMobileShareEnvironment() {
+  if (typeof navigator === 'undefined') return false
+
+  const userAgent = navigator.userAgent.toLowerCase()
+  return (
+    /android|iphone|ipad|ipod/.test(userAgent) ||
+    (navigator.maxTouchPoints > 1 && /macintosh/.test(userAgent))
+  )
+}
+
+async function createShareImageFile(imageUrl: string) {
+  const response = await fetch(imageUrl)
+  if (!response.ok) {
+    throw new Error('image-fetch-failed')
+  }
+
+  const blob = await response.blob()
+  const mimeType = blob.type || 'image/png'
+  const extension = getShareImageExtension(mimeType, imageUrl)
+
+  return new File([blob], `community-memo.${extension}`, { type: mimeType })
+}
+
+async function copyShareUrl(text: string) {
+  if (window.navigator.clipboard?.writeText) {
+    await window.navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+
+  try {
+    document.execCommand('copy')
+  } finally {
+    document.body.removeChild(textarea)
+  }
+}
+
 export function CommunityMemoDetailModal({
   isOpen,
   detail,
@@ -58,6 +122,59 @@ export function CommunityMemoDetailModal({
   const displayImageUrl = detail
     ? playbackImageUrl || detail.memoOriginalImageUrl || detail.memoImageUrl
     : null
+  const shareButtonLabel = '공유하기'
+  const isShareDisabled = !displayImageUrl
+
+  const handleExternalShare = async () => {
+    if (!displayImageUrl || !detail) return
+
+    const shareUrl = toAbsoluteShareUrl(displayImageUrl)
+    const title = `${detail.authorNickname || '커뮤니티'}의 메모`
+    const text = '네모닉 커뮤니티 캔버스 메모를 공유해요.'
+
+    try {
+      if (navigator.share) {
+        if (isLikelyMobileShareEnvironment()) {
+          try {
+            const imageFile = await createShareImageFile(shareUrl)
+            if (navigator.canShare?.({ files: [imageFile] })) {
+              await navigator.share({
+                title,
+                text,
+                files: [imageFile],
+              })
+              return
+            }
+          } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+              return
+            }
+          }
+        }
+
+        if (isLikelyMobileShareEnvironment()) {
+          await navigator.share({
+            title,
+            text,
+            url: shareUrl,
+          })
+          return
+        }
+      }
+
+      await copyShareUrl(shareUrl)
+      toast.success('공유 링크를 복사했어요.')
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+
+      try {
+        await copyShareUrl(shareUrl)
+        toast.success('공유 링크를 복사했어요.')
+      } catch {
+        toast.error('공유 링크를 복사하지 못했어요.')
+      }
+    }
+  }
 
   if (isCompactViewport) {
     return (
@@ -121,27 +238,40 @@ export function CommunityMemoDetailModal({
               </p>
             )}
 
-            {detail?.ownedByMe ? (
-              <button
-                type="button"
-                onClick={onDelete}
-                disabled={mutationStatus === 'loading'}
-                className="body-l-b inline-flex h-12 items-center justify-center gap-3 rounded-[0.45rem] border border-border-default bg-surface-default px-6 text-error transition disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Trash2 className="size-5" />
-                삭제
-              </button>
-            ) : detail ? (
-              <button
-                type="button"
-                onClick={onReportOpen}
-                disabled={mutationStatus === 'loading'}
-                className="body-l-b inline-flex h-12 items-center justify-center gap-3 rounded-[0.45rem] bg-[#d9d2ea] px-6 text-fg-primary transition disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Flag className="size-5" />
-                신고하기
-              </button>
-            ) : null}
+            {detail && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {detail.ownedByMe ? (
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    disabled={mutationStatus === 'loading'}
+                    className="body-l-b inline-flex h-12 items-center justify-center gap-3 rounded-[0.45rem] border border-border-default bg-surface-default px-6 text-error transition disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Trash2 className="size-5" />
+                    삭제
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onReportOpen}
+                    disabled={mutationStatus === 'loading'}
+                    className="body-l-b inline-flex h-12 items-center justify-center gap-3 rounded-[0.45rem] bg-[#d9d2ea] px-6 text-fg-primary transition disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Flag className="size-5" />
+                    신고하기
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleExternalShare()}
+                  disabled={isShareDisabled}
+                  className="body-l-b inline-flex h-12 items-center justify-center gap-3 rounded-[0.45rem] bg-primary-1 px-6 text-fg-inverse transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Share2 className="size-5" />
+                  {shareButtonLabel}
+                </button>
+              </div>
+            )}
           </footer>
         </section>
       </div>
@@ -225,7 +355,7 @@ export function CommunityMemoDetailModal({
           </div>
 
           {detail && (
-            <div className="flex min-w-[13.5rem] self-center justify-end">
+            <div className="flex min-w-[26rem] self-center justify-end gap-3">
               {detail.ownedByMe ? (
                 <button
                   type="button"
@@ -247,6 +377,15 @@ export function CommunityMemoDetailModal({
                   신고하기
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => void handleExternalShare()}
+                disabled={isShareDisabled}
+                className="body-l-b inline-flex h-14 items-center justify-center gap-3 rounded-[0.45rem] bg-primary-1 px-7 text-fg-inverse transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Share2 className="size-5" />
+                {shareButtonLabel}
+              </button>
             </div>
           )}
         </footer>

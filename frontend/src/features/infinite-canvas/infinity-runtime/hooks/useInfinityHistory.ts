@@ -60,6 +60,26 @@ export function useInfinityHistory() {
     setHistoryCursor({ index: 0, length: 1 })
   }
 
+  const syncObjectsFromServer = (
+    newObjects: InfinityObject[],
+    newSelectedIds: string[] = selectedIdsRef.current,
+  ) => {
+    const { snapshots, index } = historyRef.current
+    const nextSnapshots = snapshots.map((snapshot, snapshotIndex) =>
+      snapshotIndex === index
+        ? {
+            objects: [...newObjects],
+            selectedIds: [...newSelectedIds],
+          }
+        : snapshot,
+    )
+    historyRef.current = { snapshots: nextSnapshots, index }
+    objectsRef.current = newObjects
+    selectedIdsRef.current = newSelectedIds
+    setObjects(newObjects)
+    setSelectedIds(newSelectedIds)
+  }
+
   // 선택 해제를 history에 기록하지 않고 selection만 비움.
   const silentClearSelection = () => {
     selectedIdsRef.current = []
@@ -107,6 +127,7 @@ export function useInfinityHistory() {
     selectedIdsRef,
     saveSnapshot,
     replaceObjectsFromServer,
+    syncObjectsFromServer,
     silentClearSelection,
     recordSelection,
     undo,
