@@ -20,9 +20,9 @@ function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((p) => [p.x, p.y])
 }
 
-const MIN_LINE_POINT_DISTANCE = 2.5
-const MAX_LINE_POINTS_PER_OBJECT = 800
-const MAX_DRAFT_LINE_POINTS = 120
+const MIN_LINE_POINT_DISTANCE = 4
+const MAX_LINE_POINTS_PER_OBJECT = 420
+const MAX_DRAFT_LINE_POINTS = 72
 
 function shouldAppendLinePoint(
   previousPoint: { x: number; y: number } | undefined,

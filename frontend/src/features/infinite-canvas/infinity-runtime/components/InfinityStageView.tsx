@@ -118,6 +118,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const isApplyingRemoteRef = useRef(false)
   const appliedServerRevisionRef = useRef<number | null>(null)
   const lastCursorSentAtRef = useRef(0)
+  const lastDraftCursorSentAtRef = useRef(0)
   const latestCursorRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
   const draftObjectRef = useRef<InfinityObject | null>(null)
   const previousSelectedIdsRef = useRef<string[]>([])
@@ -165,13 +166,20 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const sendCursor = useCallback(
     (cursor: { x: number; y: number; zoom: number }, options: { force?: boolean } = {}) => {
       const now = Date.now()
-      if (!options.force && now - lastCursorSentAtRef.current < 24) return
+      const draftObject = draftObjectRef.current
+      const minInterval = draftObject ? 90 : 45
+      if (!options.force && now - lastCursorSentAtRef.current < minInterval) return
+      if (draftObject && !options.force && now - lastDraftCursorSentAtRef.current < 90) return
+
       lastCursorSentAtRef.current = now
+      if (draftObject) {
+        lastDraftCursorSentAtRef.current = now
+      }
       room.sendCursor({
         x: cursor.x,
         y: cursor.y,
         zoom: cursor.zoom,
-        payload: createCursorPayload(draftObjectRef.current),
+        payload: createCursorPayload(draftObject),
       })
     },
     [createCursorPayload, room],

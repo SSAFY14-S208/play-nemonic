@@ -5,7 +5,6 @@ import Image from 'next/image'
 import type { InfiniteCanvasConnectionStatus, InfiniteCanvasParticipantResponse } from '@/shared/types'
 
 import { INFINITE_CANVAS_COLOR_OPTIONS } from '../../constants'
-import { INFINITY_PARTICIPANT_ACCENTS } from '../constants'
 
 const PANEL_WIDTH = 334
 const PANEL_TOP_HEIGHT = 58
@@ -47,11 +46,6 @@ export function InfinityParticipantsPanel({
     if (second.userUuid === me?.userUuid) return 1
     return first.joinedAt.localeCompare(second.joinedAt)
   })
-  const participantIdentityIndexes = new Map(
-    [...participants]
-      .sort((first, second) => first.joinedAt.localeCompare(second.joinedAt))
-      .map((participant, participantIndex) => [participant.userUuid, participantIndex]),
-  )
   const connectedParticipantCount = participants.filter((participant) => participant.connected).length
   const displayedConnectedCount =
     connectedParticipantCount > 0 ? connectedParticipantCount : participants.length
@@ -114,11 +108,6 @@ export function InfinityParticipantsPanel({
             const isMe = participant.userUuid === me?.userUuid
             const isConnected = isCurrentUserConnected(participant, me, connectionStatus)
             const displayNickname = `${participant.nickname}${isMe ? ' (나)' : ''}`
-            const identityIndex = participantIdentityIndexes.get(participant.userUuid) ?? 0
-            const accentColor =
-              INFINITY_PARTICIPANT_ACCENTS[
-                identityIndex % INFINITY_PARTICIPANT_ACCENTS.length
-              ]
 
             return (
               <li
@@ -131,10 +120,11 @@ export function InfinityParticipantsPanel({
                     title="내 색상 변경"
                     disabled={isUpdatingProfile}
                     onClick={() => setIsColorPickerOpen((open) => !open)}
-                    className="grid size-5 shrink-0 place-items-center rounded-full border-2 border-white transition-transform hover:scale-110 disabled:opacity-60"
+                    className="grid size-6 shrink-0 place-items-center rounded-full border-2 border-white transition-transform hover:scale-110 disabled:opacity-60"
                     style={{
                       backgroundColor: participant.color,
-                      boxShadow: `0 0 0 3px ${accentColor}, 0 5px 12px rgba(93, 114, 255, 0.22)`,
+                      boxShadow:
+                        '0 0 0 3px #25376c, 0 0 0 6px rgba(255,242,160,0.78), 0 6px 14px rgba(93,114,255,0.26)',
                     }}
                   >
                     <span className="sr-only">내 색상 변경</span>
@@ -144,7 +134,8 @@ export function InfinityParticipantsPanel({
                     className="size-4.5 shrink-0 rounded-full border-2 border-white"
                     style={{
                       backgroundColor: participant.color,
-                      boxShadow: `0 0 0 3px ${accentColor}, 0 5px 12px rgba(93, 114, 255, 0.22)`,
+                      boxShadow:
+                        '0 0 0 1px rgba(75,105,170,0.18), 0 5px 12px rgba(93,114,255,0.18)',
                     }}
                   />
                 )}
