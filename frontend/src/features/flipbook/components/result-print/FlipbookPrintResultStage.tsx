@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Sparkles } from 'lucide-react'
 import { motion } from 'motion/react'
 
+import { useNemonicPrintVibration } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 
@@ -115,6 +116,9 @@ export default function FlipbookPrintResultStage({
   const activeFrame = printFrames[activeFrameIndex] ?? null
   const previousFrame = activeFrameIndex > 0 ? printFrames[activeFrameIndex - 1] : null
   const shouldPrintActiveFrame = activeFrame?.outputMode !== 'gif-playback'
+  // 인쇄 애니메이션 진행 중에만 디바이스 진동을 활성. NemonicDeviceImage의
+  // isPrinting과 동일 조건을 유지.
+  useNemonicPrintVibration(isPlaying && !isComplete && shouldPrintActiveFrame)
   const selectedParticipantHasGifPlayback = selectedParticipant?.frames.some(
     (frame) => frame.outputMode === 'gif-playback',
   ) ?? false

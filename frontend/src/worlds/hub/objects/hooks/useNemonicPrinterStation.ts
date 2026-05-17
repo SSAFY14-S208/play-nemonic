@@ -3,6 +3,7 @@ import type { MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { AnimationAction } from 'three'
+import { useNemonicPrintVibration } from '@/shared/hooks'
 import { useHubPrintStore } from '@/shared/stores'
 import { trackHubInvalidate } from '@/shared/utils'
 
@@ -42,6 +43,10 @@ export function useNemonicPrinterStation(
   const printStatus = useHubPrintStore((state) => state.printStatus)
   const startPrinting = useHubPrintStore((state) => state.startPrinting)
   const invalidate = useThree((state) => state.invalidate)
+
+  // 3D 프린터 인쇄 애니메이션 진행 중에만 디바이스 진동. printStatus가 'printing'
+  // 일 때 활성, 'complete'/'idle'로 바뀌면 자동 정지.
+  useNemonicPrintVibration(printStatus === 'printing')
 
   useEffect(() => {
     if (!currentRequest || printStatus !== 'requested') return
