@@ -2,10 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { ApiError, postRelayRoomClose } from '@/shared/apis'
+import { ApiError, getArtifactDownload, postRelayRoomClose } from '@/shared/apis'
 import { reachFunnelGoal } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import type { RelayPart } from '@/shared/types'
+import {
+  downloadBlob,
+  inferImageExtensionFromBlob,
+  sanitizeDownloadFilename,
+} from '@/shared/utils'
 
 import {
   RELAY_ROUND_RULES,
@@ -54,6 +59,42 @@ export function useRelayResult() {
         setCloseRoomError(message)
       } finally {
         setIsClosingRoom(false)
+      }
+    })()
+  }
+
+  // 현재 활성 작품을 디바이스에 다운로드. GET /artifacts/{artifactId}/download가
+  // raw Blob을 반환하므로 브라우저 a[download] 트리거로 OS 저장 다이얼로그를 띄움.
+  // 중복 클릭 방지를 위해 isDownloading 상태로 가드.
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  const downloadActiveArtifact = () => {
+    if (isDownloading) return
+    const currentActiveResult = resultItems[activeResultIndex] ?? null
+    if (!currentActiveResult) return
+    setDownloadError(null)
+    setIsDownloading(true)
+    void (async () => {
+      try {
+        const blob = await getArtifactDownload(currentActiveResult.artifactId)
+        const faceDrawerNickname =
+          currentActiveResult.parts.find((partItem) => partItem.part === 'FACE')?.drawerNickname
+        const baseFilename = sanitizeDownloadFilename(
+          faceDrawerNickname
+            ? `${faceDrawerNickname}의 릴레이 드로잉`
+            : `릴레이 드로잉 ${currentActiveResult.canvasIndex + 1}`,
+        )
+        const extension = inferImageExtensionFromBlob(blob)
+        downloadBlob(blob, `${baseFilename}.${extension}`)
+      } catch (caughtError) {
+        const message =
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : '다운로드에 실패했어요'
+        setDownloadError(message)
+      } finally {
+        setIsDownloading(false)
       }
     })()
   }
@@ -120,5 +161,10 @@ export function useRelayResult() {
     isClosingRoom,
     closeRoomError,
     closeRoom,
+
+    // Download action
+    isDownloading,
+    downloadError,
+    downloadActiveArtifact,
   }
 }
