@@ -19,9 +19,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service
 class CommunityMemoShareUseCase {
 
-    private static final String COMMUNITY_MEMO_SHARE_IMAGE_REQUIRED_MESSAGE = "Community memo share image is required.";
-    private static final String COMMUNITY_MEMO_SHARE_BLOCKED_MESSAGE = "Community memo cannot be shared.";
-    private static final String EXTERNAL_OBJECT_REFERENCE_MESSAGE = "MinIO object key is required.";
+    private static final String COMMUNITY_MEMO_SHARE_IMAGE_REQUIRED_MESSAGE = "커뮤니티 메모 공유 이미지가 없습니다.";
+    private static final String COMMUNITY_MEMO_SHARE_BLOCKED_MESSAGE = "공유할 수 없는 커뮤니티 메모입니다.";
+    private static final String EXTERNAL_OBJECT_REFERENCE_MESSAGE = "QR 합성 공유는 MinIO 오브젝트 키 기반 이미지만 지원합니다.";
     private static final String COMMUNITY_MEMO_SHARE_NOT_FOUND_EVENT = "community_memo_share_not_found";
     private static final String COMMUNITY_MEMO_RESULT_CAMPAIGN = "community_memo_result";
     private static final String CHANNEL_QR_SHARE = "QR_SHARE";
