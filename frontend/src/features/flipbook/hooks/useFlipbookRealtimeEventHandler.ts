@@ -27,7 +27,6 @@ interface UseFlipbookRealtimeEventHandlerOptions {
   clearDrawingRound: () => void
   fetchResult: (roomCode: string) => Promise<unknown>
   handleCompletedRounds: (roomCode: string) => Promise<void>
-  handleSubmittedFrameProgress: (roomCode: string) => Promise<FlipbookRoomStateResponse | null>
   refreshPlayingRound: (roomCode: string, expectedRound?: number) => Promise<void>
   refreshRoom: (
     roomCode: string,
@@ -35,7 +34,6 @@ interface UseFlipbookRealtimeEventHandlerOptions {
       syncStep?: boolean
     },
   ) => Promise<FlipbookRoomStateResponse | null>
-  syncActiveRoomProgress: (roomCode: string) => Promise<FlipbookRoomStateResponse | null>
   scheduleRoundTransitionFallback: (
     roomCode: string,
     submittedFrame: Partial<FlipbookFrameSubmitResponse>,
@@ -69,10 +67,8 @@ export function useFlipbookRealtimeEventHandler({
   clearDrawingRound,
   fetchResult,
   handleCompletedRounds,
-  handleSubmittedFrameProgress,
   refreshPlayingRound,
   refreshRoom,
-  syncActiveRoomProgress,
   scheduleRoundTransitionFallback,
   setAssignment,
   setCurrentStep,
@@ -121,7 +117,30 @@ export function useFlipbookRealtimeEventHandler({
           if (event.roomCode !== activeRoomCode) return
 
           if (event.type === 'PARTICIPANT_CONNECTED' || event.type === 'PARTICIPANT_DISCONNECTED') {
-            await syncActiveRoomProgress(event.roomCode)
+            const roomSnapshot = event.data as Partial<FlipbookRoomStateResponse>
+            setRoomState((currentRoomState) => {
+              if (!currentRoomState) return currentRoomState
+
+              return {
+                ...currentRoomState,
+                status: roomSnapshot.status ?? currentRoomState.status,
+                hostUserUuid: roomSnapshot.hostUserUuid ?? currentRoomState.hostUserUuid,
+                timeLimitSeconds: roomSnapshot.timeLimitSeconds ?? currentRoomState.timeLimitSeconds,
+                minParticipants: roomSnapshot.minParticipants ?? currentRoomState.minParticipants,
+                maxParticipants: roomSnapshot.maxParticipants ?? currentRoomState.maxParticipants,
+                participantCount:
+                  roomSnapshot.participantCount ??
+                  roomSnapshot.participants?.length ??
+                  currentRoomState.participantCount,
+                currentRound: roomSnapshot.currentRound ?? currentRoomState.currentRound,
+                totalRounds: roomSnapshot.totalRounds ?? currentRoomState.totalRounds,
+                roundStartedAt: roomSnapshot.roundStartedAt ?? currentRoomState.roundStartedAt,
+                roundDeadlineAt: roomSnapshot.roundDeadlineAt ?? currentRoomState.roundDeadlineAt,
+                gameStartedAt: roomSnapshot.gameStartedAt ?? currentRoomState.gameStartedAt,
+                participants: roomSnapshot.participants ?? currentRoomState.participants,
+                updatedAt: roomSnapshot.updatedAt ?? currentRoomState.updatedAt,
+              }
+            })
             return
           }
 
@@ -197,23 +216,20 @@ export function useFlipbookRealtimeEventHandler({
 
         if (event.type === 'FRAME_SUBMITTED') {
           const submittedFrame = event.data as Partial<FlipbookFrameSubmitResponse>
-          const nextRoomState = await handleSubmittedFrameProgress(event.roomCode)
-          if (nextRoomState?.status === 'FINALIZING' || nextRoomState?.status === 'FINISHED') {
+          if (
+            submittedFrame.allRoundsCompleted ||
+            submittedFrame.roomStatus === 'FINALIZING' ||
+            submittedFrame.roomStatus === 'FINISHED'
+          ) {
             await handleCompletedRounds(event.roomCode)
             return
           }
 
-          if (
-            assignment &&
-            nextRoomState?.status === 'PLAYING' &&
-            nextRoomState.currentRound !== null &&
-            nextRoomState.currentRound > assignment.currentRound
-          ) {
-            await refreshPlayingRound(event.roomCode, nextRoomState.currentRound)
+          if (submittedFrame.advanced || submittedFrame.currentRoundCompleted) {
+            scheduleRoundTransitionFallback(event.roomCode, submittedFrame)
             return
           }
 
-          scheduleRoundTransitionFallback(event.roomCode, submittedFrame)
           return
         }
 
@@ -244,7 +260,6 @@ export function useFlipbookRealtimeEventHandler({
               }
             })
           }
-          await refreshRoom(event.roomCode, { syncStep: false })
           return
         }
 
@@ -311,12 +326,10 @@ export function useFlipbookRealtimeEventHandler({
       clearRoundTransitionFallbackTimer,
       fetchResult,
       handleCompletedRounds,
-      handleSubmittedFrameProgress,
       refreshPlayingRound,
       refreshRoom,
       resetRoomToBooth,
       scheduleRoundTransitionFallback,
-      syncActiveRoomProgress,
       setAssignment,
       setCurrentStep,
       setErrorMessage,
