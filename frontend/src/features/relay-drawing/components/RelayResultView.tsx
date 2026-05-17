@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/shared/libs";
 import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
 
-import { useRelayResult } from "../hooks";
+import { useRelayResult, useRelayResultAutoCycle } from "../hooks";
 import { useRelayDrawingStore } from "../stores";
 import { ResultRevealAnimation, ResultRightPanel } from "./result-view";
 
@@ -26,6 +26,12 @@ export default function RelayResultView() {
     isHost,
     closeRoom,
   } = useRelayResult();
+
+  useRelayResultAutoCycle({
+    resultCount: resultItems.length,
+    activeResultIndex,
+    setActiveResultIndex,
+  });
 
   const activeResultItem = resultItems[activeResultIndex] ?? null;
   const faceDrawerNickname =

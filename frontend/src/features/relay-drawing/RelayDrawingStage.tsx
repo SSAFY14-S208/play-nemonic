@@ -80,7 +80,7 @@ export default function RelayDrawingStage() {
   return (
     <div
       ref={containerRef}
-      className="grid h-full w-full place-items-center"
+      className="grid h-full w-full place-items-center touch-none"
       style={{ aspectRatio: stageAspectRatio }}
     >
       {stageDimensions !== null && (
@@ -89,6 +89,7 @@ export default function RelayDrawingStage() {
           height={stageDimensions.height}
           scaleX={stageDimensions.scale}
           scaleY={stageDimensions.scale}
+          style={{ touchAction: 'none' }}
           onMouseDown={beginDrawing}
           onMouseMove={continueDrawing}
           onMouseUp={endDrawing}

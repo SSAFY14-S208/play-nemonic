@@ -6,6 +6,7 @@ import type {
   FlipbookAssignmentResponse,
   FlipbookFrameSubmitResponse,
   FlipbookRealtimeEvent,
+  FlipbookWsRoundTimeUpData,
   FlipbookRoomStateResponse,
 } from '@/shared/types'
 import type { FlipbookStep, FlipbookTimeLimitSeconds } from '../types'
@@ -15,6 +16,45 @@ function isFlipbookAssignmentSubmitted(assignment: FlipbookAssignmentResponse | 
   return (
     assignment?.assignmentStatus === 'SUBMITTED' ||
     assignment?.assignmentStatus === 'AUTO_SUBMITTED'
+  )
+}
+
+function hasStartEligibleParticipants({
+  minParticipants,
+  participantCount,
+  participants,
+}: {
+  minParticipants: number
+  participantCount: number
+  participants: FlipbookRoomStateResponse['participants']
+}) {
+  const allKnownParticipantsConnected =
+    participants.length > 0 && participants.every((participant) => participant.connected)
+
+  return (
+    participantCount >= minParticipants &&
+    participants.length >= minParticipants &&
+    allKnownParticipantsConnected
+  )
+}
+
+function isCurrentUserPendingAutoSubmission({
+  assignment,
+  roundTimeUpData,
+  userUuid,
+}: {
+  assignment: FlipbookAssignmentResponse
+  roundTimeUpData: FlipbookWsRoundTimeUpData
+  userUuid: string | null
+}) {
+  if (!roundTimeUpData.pendingSubmissions) return true
+  if (!userUuid) return false
+
+  return roundTimeUpData.pendingSubmissions.some(
+    (pendingSubmission) =>
+      pendingSubmission.userUuid === userUuid &&
+      pendingSubmission.flipbookIndex === assignment.flipbookIndex &&
+      pendingSubmission.frameIndex === assignment.frameIndex,
   )
 }
 
@@ -48,11 +88,15 @@ interface UseFlipbookRealtimeEventHandlerOptions {
   setRoundCount: Dispatch<SetStateAction<number | null>>
   setSelectedTimeLimitSeconds: Dispatch<SetStateAction<FlipbookTimeLimitSeconds>>
   setStartedParticipantCount: Dispatch<SetStateAction<number | null>>
+  setSubmittedFrameCount: Dispatch<SetStateAction<number>>
+  setSubmissionTotalCount: Dispatch<SetStateAction<number>>
   setSubmittedAssignmentKeys: Dispatch<SetStateAction<Set<string>>>
   setTimeUpSubmitRequest: Dispatch<
     SetStateAction<{
       roomCode: string
-      round: number | null
+      round: number
+      assignmentKey: string
+      roundDeadlineAt: string
       occurredAt: string
     } | null>
   >
@@ -80,6 +124,8 @@ export function useFlipbookRealtimeEventHandler({
   setRoundCount,
   setSelectedTimeLimitSeconds,
   setStartedParticipantCount,
+  setSubmittedFrameCount,
+  setSubmissionTotalCount,
   setSubmittedAssignmentKeys,
   setTimeUpSubmitRequest,
 }: UseFlipbookRealtimeEventHandlerOptions) {
@@ -90,6 +136,8 @@ export function useFlipbookRealtimeEventHandler({
       setRoomCode(null)
       setRoundCount(null)
       setStartedParticipantCount(null)
+      setSubmittedFrameCount(0)
+      setSubmissionTotalCount(0)
       setSubmittedAssignmentKeys(new Set())
       setPreviousFrameLines([])
       clearDrawingRound()
@@ -106,6 +154,8 @@ export function useFlipbookRealtimeEventHandler({
       setRoomState,
       setRoundCount,
       setStartedParticipantCount,
+      setSubmittedFrameCount,
+      setSubmissionTotalCount,
       setSubmittedAssignmentKeys,
     ],
   )
@@ -120,24 +170,48 @@ export function useFlipbookRealtimeEventHandler({
             const roomSnapshot = event.data as Partial<FlipbookRoomStateResponse>
             setRoomState((currentRoomState) => {
               if (!currentRoomState) return currentRoomState
+              const nextStatus = roomSnapshot.status ?? currentRoomState.status
+              const nextHostUserUuid = roomSnapshot.hostUserUuid ?? currentRoomState.hostUserUuid
+              const nextMinParticipants =
+                roomSnapshot.minParticipants ?? currentRoomState.minParticipants
+              const nextParticipants = roomSnapshot.participants ?? currentRoomState.participants
+              const nextParticipantCount =
+                roomSnapshot.participantCount ??
+                roomSnapshot.participants?.length ??
+                currentRoomState.participantCount
+              const nextViewerHost =
+                roomSnapshot.viewer?.host ??
+                nextHostUserUuid === currentRoomState.viewer.userUuid
+              const nextViewerCanStart =
+                roomSnapshot.viewer?.canStart ??
+                (nextStatus === 'WAITING' &&
+                  nextViewerHost &&
+                  hasStartEligibleParticipants({
+                    minParticipants: nextMinParticipants,
+                    participantCount: nextParticipantCount,
+                    participants: nextParticipants,
+                  }))
 
               return {
                 ...currentRoomState,
-                status: roomSnapshot.status ?? currentRoomState.status,
-                hostUserUuid: roomSnapshot.hostUserUuid ?? currentRoomState.hostUserUuid,
+                status: nextStatus,
+                hostUserUuid: nextHostUserUuid,
                 timeLimitSeconds: roomSnapshot.timeLimitSeconds ?? currentRoomState.timeLimitSeconds,
-                minParticipants: roomSnapshot.minParticipants ?? currentRoomState.minParticipants,
+                minParticipants: nextMinParticipants,
                 maxParticipants: roomSnapshot.maxParticipants ?? currentRoomState.maxParticipants,
-                participantCount:
-                  roomSnapshot.participantCount ??
-                  roomSnapshot.participants?.length ??
-                  currentRoomState.participantCount,
+                participantCount: nextParticipantCount,
                 currentRound: roomSnapshot.currentRound ?? currentRoomState.currentRound,
                 totalRounds: roomSnapshot.totalRounds ?? currentRoomState.totalRounds,
                 roundStartedAt: roomSnapshot.roundStartedAt ?? currentRoomState.roundStartedAt,
                 roundDeadlineAt: roomSnapshot.roundDeadlineAt ?? currentRoomState.roundDeadlineAt,
                 gameStartedAt: roomSnapshot.gameStartedAt ?? currentRoomState.gameStartedAt,
-                participants: roomSnapshot.participants ?? currentRoomState.participants,
+                participants: nextParticipants,
+                viewer: {
+                  ...currentRoomState.viewer,
+                  ...roomSnapshot.viewer,
+                  host: nextViewerHost,
+                  canStart: nextViewerCanStart,
+                },
                 updatedAt: roomSnapshot.updatedAt ?? currentRoomState.updatedAt,
               }
             })
@@ -185,7 +259,7 @@ export function useFlipbookRealtimeEventHandler({
           }
 
         if (event.type === 'ROUND_TIME_UP') {
-          const roundTimeUpData = event.data as { round?: number }
+          const roundTimeUpData = event.data as FlipbookWsRoundTimeUpData
           const currentAssignmentSubmitted =
             assignment !== null &&
             (submittedAssignmentKeys.has(getAssignmentKey(assignment)) ||
@@ -199,8 +273,22 @@ export function useFlipbookRealtimeEventHandler({
 
           if (
             assignment &&
-            roundTimeUpData.round !== undefined &&
             assignment.currentRound !== roundTimeUpData.round
+          ) {
+            return
+          }
+
+          if (assignment && assignment.roundDeadlineAt !== roundTimeUpData.roundDeadlineAt) {
+            return
+          }
+
+          if (
+            !assignment ||
+            !isCurrentUserPendingAutoSubmission({
+              assignment,
+              roundTimeUpData,
+              userUuid,
+            })
           ) {
             return
           }
@@ -208,7 +296,9 @@ export function useFlipbookRealtimeEventHandler({
           setIsSubmitting(true)
           setTimeUpSubmitRequest({
             roomCode: event.roomCode,
-            round: roundTimeUpData.round ?? null,
+            round: roundTimeUpData.round,
+            assignmentKey: getAssignmentKey(assignment),
+            roundDeadlineAt: roundTimeUpData.roundDeadlineAt,
             occurredAt: event.occurredAt,
           })
           return
@@ -216,6 +306,16 @@ export function useFlipbookRealtimeEventHandler({
 
         if (event.type === 'FRAME_SUBMITTED') {
           const submittedFrame = event.data as Partial<FlipbookFrameSubmitResponse>
+          if (
+            assignment &&
+            submittedFrame.round === assignment.currentRound &&
+            typeof submittedFrame.submittedCount === 'number' &&
+            typeof submittedFrame.totalCount === 'number'
+          ) {
+            setSubmittedFrameCount(submittedFrame.submittedCount)
+            setSubmissionTotalCount(submittedFrame.totalCount)
+          }
+
           if (
             submittedFrame.allRoundsCompleted ||
             submittedFrame.roomStatus === 'FINALIZING' ||
@@ -237,20 +337,28 @@ export function useFlipbookRealtimeEventHandler({
           const autoSubmittedFrame = event.data as {
             userUuid?: string
             round?: number
+            flipbookIndex?: number
+            frameIndex?: number
             assignmentStatus?: FlipbookAssignmentResponse['assignmentStatus']
           }
-          if (autoSubmittedFrame.userUuid === userUuid) {
-            setSubmittedAssignmentKeys((currentKeys) => {
-              if (!assignment || assignment.currentRound !== autoSubmittedFrame.round) {
-                return currentKeys
-              }
+          const isCurrentAssignmentAutoSubmitted =
+            assignment !== null &&
+            autoSubmittedFrame.userUuid === userUuid &&
+            autoSubmittedFrame.round === assignment.currentRound &&
+            autoSubmittedFrame.flipbookIndex === assignment.flipbookIndex &&
+            autoSubmittedFrame.frameIndex === assignment.frameIndex
 
+          if (isCurrentAssignmentAutoSubmitted) {
+            setSubmittedAssignmentKeys((currentKeys) => {
               const nextKeys = new Set(currentKeys)
               nextKeys.add(getAssignmentKey(assignment))
               return nextKeys
             })
             setAssignment((currentAssignment) => {
-              if (!currentAssignment || currentAssignment.currentRound !== autoSubmittedFrame.round) {
+              if (
+                !currentAssignment ||
+                getAssignmentKey(currentAssignment) !== getAssignmentKey(assignment)
+              ) {
                 return currentAssignment
               }
 
@@ -259,6 +367,21 @@ export function useFlipbookRealtimeEventHandler({
                 assignmentStatus: autoSubmittedFrame.assignmentStatus ?? 'AUTO_SUBMITTED',
               }
             })
+
+            const nextRoomState = await refreshRoom(event.roomCode, { syncStep: false })
+            if (nextRoomState?.status === 'FINALIZING' || nextRoomState?.status === 'FINISHED') {
+              await handleCompletedRounds(event.roomCode)
+              return
+            }
+
+            if (
+              nextRoomState?.status === 'PLAYING' &&
+              autoSubmittedFrame.round !== undefined &&
+              nextRoomState.currentRound !== null &&
+              nextRoomState.currentRound > autoSubmittedFrame.round
+            ) {
+              await refreshPlayingRound(event.roomCode, nextRoomState.currentRound)
+            }
           }
           return
         }
@@ -336,6 +459,8 @@ export function useFlipbookRealtimeEventHandler({
       setIsSubmitting,
       setSelectedTimeLimitSeconds,
       setRoomState,
+      setSubmittedFrameCount,
+      setSubmissionTotalCount,
       setSubmittedAssignmentKeys,
       setTimeUpSubmitRequest,
       submittedAssignmentKeys,
