@@ -22,9 +22,9 @@ function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((p) => [p.x, p.y])
 }
 
-const MIN_LINE_POINT_DISTANCE = 1.2
-const MAX_LINE_POINTS_PER_OBJECT = 2400
-const MAX_DRAFT_LINE_POINTS = 900
+const MIN_LINE_POINT_DISTANCE = 0.45
+const MAX_LINE_POINTS_PER_OBJECT = 5200
+const MAX_DRAFT_LINE_POINTS = 1800
 const BUCKET_FILL_PADDING = 96
 const BUCKET_FILL_MAX_SIZE = 1600
 const BUCKET_FILL_ALPHA_TOLERANCE = 16

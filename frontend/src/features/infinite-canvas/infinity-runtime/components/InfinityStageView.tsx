@@ -11,7 +11,7 @@ import {
   stringifyInfinityObject,
   toInfinityObjects,
 } from '../infinityObjectUtils'
-import { InfinityCanvasStage } from './InfinityCanvasStage'
+import { INFINITY_CANVAS_BACKGROUND_LAYER_ID, InfinityCanvasStage } from './InfinityCanvasStage'
 import type {
   InfinityLockedElementView,
   InfinityRemoteDraftObjectView,
@@ -171,14 +171,30 @@ function hashUserUuid(userUuid: string) {
 }
 
 async function createStageBlob(stage: Konva.Stage, rect: InfinityCaptureRect): Promise<Blob> {
-  const blob = (await stage.toBlob({
-    x: rect.x,
-    y: rect.y,
-    width: rect.width,
-    height: rect.height,
-    pixelRatio: 2,
-    mimeType: 'image/png',
-  })) as Blob | null
+  const backgroundLayer = stage.findOne(`#${INFINITY_CANVAS_BACKGROUND_LAYER_ID}`)
+  const wasBackgroundVisible = backgroundLayer?.visible() ?? false
+
+  if (backgroundLayer) {
+    backgroundLayer.visible(false)
+    backgroundLayer.getLayer()?.batchDraw()
+  }
+
+  let blob: Blob | null = null
+  try {
+    blob = (await stage.toBlob({
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      pixelRatio: 2,
+      mimeType: 'image/png',
+    })) as Blob | null
+  } finally {
+    if (backgroundLayer) {
+      backgroundLayer.visible(wasBackgroundVisible)
+      backgroundLayer.getLayer()?.batchDraw()
+    }
+  }
 
   if (!blob) {
     throw new Error('empty-canvas-export')

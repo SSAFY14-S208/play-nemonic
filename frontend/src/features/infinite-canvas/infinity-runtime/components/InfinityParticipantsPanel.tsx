@@ -145,9 +145,9 @@ export function InfinityParticipantsPanel({
             className="fixed inset-0 z-20 cursor-default bg-transparent"
             onClick={() => setIsColorPickerOpen(false)}
           />
-          <div className="absolute bottom-full right-0 z-30 mb-3 min-w-[236px] rounded-[24px] border border-white/80 bg-white/94 p-4 shadow-[0_18px_34px_rgba(48,76,160,0.24)] backdrop-blur-md">
+          <div className="absolute bottom-full right-0 z-30 mb-3 min-w-[292px] rounded-[24px] border border-white/80 bg-white/94 p-4 shadow-[0_18px_34px_rgba(48,76,160,0.24)] backdrop-blur-md">
             <p className="body-b mb-3 text-[#25376c]">내 색상 선택</p>
-            <div className="grid grid-cols-6 gap-2.5">
+            <div className="grid grid-cols-7 gap-2.5">
               {INFINITE_CANVAS_COLOR_OPTIONS.map(({ value: color, label }) => {
                 const selected = color.toLowerCase() === me.color.toLowerCase()
                 return (

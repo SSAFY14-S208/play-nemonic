@@ -5,6 +5,7 @@ import type { ReactElement, RefObject } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path } from 'react-konva'
 import Konva from 'konva'
 
+import { INFINITY_LINE_TENSION } from '../constants'
 import type { InfinityLine, InfinityObject, InfinityShape, InfinityText as InfinityTextObject, InfinityToolKey } from '../constants'
 import type { useInfinityDrawing } from '../hooks'
 import {
@@ -75,7 +76,7 @@ interface InfinityCanvasStageProps {
 const REMOTE_CURSOR_SMOOTHING = 0.28
 const REMOTE_CURSOR_SETTLE_DISTANCE = 0.35
 const REMOTE_CURSOR_PATH = 'M0 0 L0 22 L6 16 L10 26 L14 24 L10 15 L19 15 Z'
-const LINE_TENSION = 0.48
+export const INFINITY_CANVAS_BACKGROUND_LAYER_ID = 'infinity-canvas-background-layer'
 const ImperativeEllipse = Ellipse as unknown as (props: {
   ref: RefObject<Konva.Ellipse | null>
   stroke: string
@@ -94,7 +95,7 @@ function createRemoteDraftNode(draft: InfinityRemoteDraftObjectView) {
       strokeWidth: object.strokeWidth,
       lineCap: "round",
       lineJoin: "round",
-      tension: LINE_TENSION,
+      tension: INFINITY_LINE_TENSION,
       perfectDrawEnabled: false,
       listening: false,
       globalCompositeOperation: "source-over",
@@ -765,7 +766,7 @@ export function InfinityCanvasStage({
           strokeWidth={obj.strokeWidth}
           lineCap="round"
           lineJoin="round"
-          tension={LINE_TENSION}
+          tension={INFINITY_LINE_TENSION}
           perfectDrawEnabled={false}
           opacity={1}
           globalCompositeOperation={obj.isEraser ? "destination-out" : "source-over"}
@@ -992,7 +993,7 @@ export function InfinityCanvasStage({
       onClick={(e) => onStageClick(e, toolRef.current)}
     >
       {/* Layer 0 — 캔버스 배경 */}
-      <Layer listening={false}>
+      <Layer id={INFINITY_CANVAS_BACKGROUND_LAYER_ID} listening={false}>
         <Rect
           x={-50000}
           y={-50000}
@@ -1066,7 +1067,7 @@ export function InfinityCanvasStage({
           lineCap="round"
           lineJoin="round"
           globalCompositeOperation="destination-out"
-          tension={LINE_TENSION}
+          tension={INFINITY_LINE_TENSION}
           listening={false}
         />
       </Layer>
@@ -1082,7 +1083,7 @@ export function InfinityCanvasStage({
           strokeWidth={5}
           lineCap="round"
           lineJoin="round"
-          tension={LINE_TENSION}
+          tension={INFINITY_LINE_TENSION}
         />
         <Rect
           ref={previewRectRef}

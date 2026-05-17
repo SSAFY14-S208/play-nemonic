@@ -1,6 +1,6 @@
 import { Line } from "react-konva";
 
-import type { InfinityLine } from "../../constants";
+import { INFINITY_LINE_TENSION, type InfinityLine } from "../../constants";
 import { flattenPoints } from "./shapes.types";
 
 interface KonvaLineProps {
@@ -28,7 +28,7 @@ export function KonvaLine({
       globalCompositeOperation={
         line.isEraser ? "destination-out" : "source-over"
       }
-      tension={0.3}
+      tension={INFINITY_LINE_TENSION}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool

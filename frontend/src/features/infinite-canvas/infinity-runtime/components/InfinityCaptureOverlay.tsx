@@ -440,7 +440,7 @@ export function InfinityCaptureOverlay({
               if (!captureRect) return
               onCapture(captureRect, ratio)
             }}
-            className="h4-b min-h-14 bg-[#6d5df6] px-7 text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] hover:bg-[#5847e8]"
+            className="h3-b min-h-16 px-9 bg-[#6d5df6] text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] hover:bg-[#5847e8]"
           >
             {isSaving ? '출력 중' : '출력'}
           </Button>
