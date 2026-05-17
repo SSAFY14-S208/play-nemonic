@@ -83,7 +83,7 @@ interface UseFlipbookRealtimeEventHandlerOptions {
   setErrorMessage: Dispatch<SetStateAction<string | null>>
   setIsSubmitting: Dispatch<SetStateAction<boolean>>
   setPreviousFrameLines: Dispatch<SetStateAction<DrawingLine[]>>
-  setRoomCode: Dispatch<SetStateAction<string | null>>
+  setRoomCode: (roomCode: string | null) => void
   setRoomState: Dispatch<SetStateAction<FlipbookRoomStateResponse | null>>
   setRoundCount: Dispatch<SetStateAction<number | null>>
   setSelectedTimeLimitSeconds: Dispatch<SetStateAction<FlipbookTimeLimitSeconds>>
