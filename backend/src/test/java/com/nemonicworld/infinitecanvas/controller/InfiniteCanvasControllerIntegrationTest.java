@@ -500,6 +500,33 @@ class InfiniteCanvasControllerIntegrationTest {
     }
 
     @Test
+    void joinInviteCodeReturnsAlreadyJoinedForExistingInfiniteCanvasParticipant() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        UUID viewerUuid = createExistingUserWithNickname("Viewer");
+        InfiniteCanvasParticipant viewer = participant(viewerUuid, "Viewer", false);
+        InfiniteCanvasState state = activeCanvasState(6, participant(ownerUuid, "Owner"), viewer);
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
+        redisValues.put("invite:" + INVITE_CODE, objectMapper.writeValueAsString(new InviteMetadata(INVITE_CODE,
+            "infinite_canvas", state.roomCode(), "Owner의 무한 캔버스", LocalDateTime.now().plusHours(1))));
+
+        mockMvc
+            .perform(post("/api/v1/invites/{inviteCode}", INVITE_CODE).header(ANONYMOUS_USER_UUID_HEADER,
+                viewerUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("방 입장 성공"))
+            .andExpect(jsonPath("$.data.boothType").value("infinite_canvas"))
+            .andExpect(jsonPath("$.data.roomId").value(state.roomCode()))
+            .andExpect(jsonPath("$.data.currentParticipants").value(2))
+            .andExpect(jsonPath("$.data.maxParticipants").value(6))
+            .andExpect(jsonPath("$.data.yourRole").value("participant"))
+            .andExpect(jsonPath("$.data.alreadyJoined").value(true));
+
+        JsonNode storedParticipants = readStoredJson(roomKey(state.roomCode())).path("participants");
+        assertThat(storedParticipants).hasSize(2);
+        assertThat(storedParticipants.get(1).path("userUuid").asText()).isEqualTo(viewerUuid.toString());
+    }
+
+    @Test
     void joinInviteCodeRejectsDefaultNicknameAndDoesNotStoreParticipant() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         UUID viewerUuid = createExistingUserWithDefaultNickname();
