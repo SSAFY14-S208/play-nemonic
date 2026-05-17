@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { RefreshCw, X } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@/shared/components'
 import { cn } from '@/shared/libs'
 
@@ -377,54 +378,61 @@ export function InfinityCaptureOverlay({
         )}
       </div>
 
-      <div className="pointer-events-auto absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/70 bg-[#2e73f2]/95 px-3 py-2 text-white shadow-[0_12px_28px_rgba(46,115,242,0.28),inset_0_1px_0_rgba(255,255,255,0.42)]">
-        {hasBaseRect && (
-          <>
-            {CAPTURE_RATIOS.map((captureRatio) => (
-              <button
-                key={captureRatio.key}
-                type="button"
-                onClick={() => selectRatio(captureRatio.key)}
-                className={cn(
-                  'caption-b min-h-9 rounded-full px-3 text-white/82 transition-colors hover:bg-white/18 hover:text-white',
-                  ratio === captureRatio.key && 'bg-white text-[#2e73f2]',
-                )}
-              >
-                {captureRatio.label}
-              </button>
-            ))}
-            <Button
-              type="button"
-              size="sm"
-              color="blue"
-              disabled={!canCapture || isSaving}
-              onClick={() => {
-                if (!captureRect) return
-                onCapture(captureRect, ratio)
-              }}
-            >
-              {isSaving ? '저장 중' : '저장'}
-            </Button>
+      {hasBaseRect && (
+        <div className="pointer-events-auto absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/70 bg-[#2e73f2]/95 px-3 py-2 text-white shadow-[0_12px_28px_rgba(46,115,242,0.28),inset_0_1px_0_rgba(255,255,255,0.42)]">
+          {CAPTURE_RATIOS.map((captureRatio) => (
             <button
+              key={captureRatio.key}
               type="button"
-              aria-label="출력 영역 다시 선택"
-              title="출력 영역 다시 선택"
-              onClick={resetSelection}
-              className="grid size-9 place-items-center rounded-full bg-white/16 text-white transition-colors hover:bg-white/28"
+              onClick={() => selectRatio(captureRatio.key)}
+              className={cn(
+                'caption-b min-h-9 rounded-full px-3 text-white/82 transition-colors hover:bg-white/18 hover:text-white',
+                ratio === captureRatio.key && 'bg-white text-[#2e73f2]',
+              )}
             >
-              <RefreshCw className="size-4" aria-hidden />
+              {captureRatio.label}
             </button>
-          </>
-        )}
-        <button
-          type="button"
-          aria-label="출력 선택 취소"
-          onClick={onCancel}
-          className="grid size-12 place-items-center rounded-full bg-relay-blue text-relay-ink shadow-none outline-none transition-colors hover:opacity-90 focus-visible:outline-none"
-        >
-          <X className="size-5" aria-hidden />
-        </button>
-      </div>
+          ))}
+          <Button
+            type="button"
+            size="sm"
+            color="blue"
+            disabled={!canCapture || isSaving}
+            onClick={() => {
+              if (!captureRect) return
+              onCapture(captureRect, ratio)
+            }}
+          >
+            {isSaving ? '저장 중' : '저장'}
+          </Button>
+          <button
+            type="button"
+            aria-label="출력 영역 다시 선택"
+            title="출력 영역 다시 선택"
+            onClick={resetSelection}
+            className="grid size-9 place-items-center rounded-full bg-white/16 text-white transition-colors hover:bg-white/28"
+          >
+            <RefreshCw className="size-4" aria-hidden />
+          </button>
+        </div>
+      )}
+
+      <button
+        type="button"
+        aria-label="출력 선택 취소"
+        onClick={onCancel}
+        className="pointer-events-auto absolute bottom-14 left-1/2 size-16 -translate-x-1/2 transition-transform hover:scale-105 focus-visible:outline-none"
+      >
+        <Image
+          src="/images/infinite-canvas/close-button-hq.png"
+          alt=""
+          aria-hidden
+          fill
+          priority
+          sizes="64px"
+          className="object-contain"
+        />
+      </button>
     </div>
   )
 }

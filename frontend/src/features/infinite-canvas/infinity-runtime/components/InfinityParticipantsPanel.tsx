@@ -4,19 +4,19 @@ import Image from 'next/image'
 import type { InfiniteCanvasConnectionStatus, InfiniteCanvasParticipantResponse } from '@/shared/types'
 import { INFINITY_PARTICIPANT_ACCENTS } from '../constants'
 
+const PANEL_WIDTH = 334
+const PANEL_TOP_HEIGHT = 58
+const PANEL_BOTTOM_HEIGHT = 48
+const PANEL_MIN_MIDDLE_HEIGHT = 68
+const PARTICIPANT_ROW_HEIGHT = 42
+const PARTICIPANT_ROW_GAP = 6
+const PARTICIPANT_LIST_VERTICAL_PADDING = 16
+
 interface InfinityParticipantsPanelProps {
   connectionStatus: InfiniteCanvasConnectionStatus
   maxParticipants: number
   me: InfiniteCanvasParticipantResponse | null
   participants: InfiniteCanvasParticipantResponse[]
-}
-
-function getConnectionText(connectionStatus: InfiniteCanvasConnectionStatus) {
-  if (connectionStatus === 'connected') return '연결됨'
-  if (connectionStatus === 'connecting') return '연결 중'
-  if (connectionStatus === 'reconnecting') return '재연결 중'
-  if (connectionStatus === 'rejected') return '연결 거부'
-  return '오프라인'
 }
 
 function isCurrentUserConnected(
@@ -49,25 +49,59 @@ export function InfinityParticipantsPanel({
     connectedParticipantCount > 0 ? connectedParticipantCount : participants.length
   const capacityText =
     maxParticipants > 0 ? `${displayedConnectedCount}명 접속 / 최대 ${maxParticipants}명` : '접속 정보 확인 중'
+  const participantRowCount = Math.max(sortedParticipants.length, 1)
+  const participantListHeight =
+    participantRowCount * PARTICIPANT_ROW_HEIGHT +
+    Math.max(0, participantRowCount - 1) * PARTICIPANT_ROW_GAP +
+    PARTICIPANT_LIST_VERTICAL_PADDING
+  const panelMiddleHeight = Math.max(PANEL_MIN_MIDDLE_HEIGHT, participantListHeight)
+  const panelHeight = PANEL_TOP_HEIGHT + panelMiddleHeight + PANEL_BOTTOM_HEIGHT
 
   return (
-    <aside className="fixed right-5 top-1/2 z-10 h-[196px] w-[334px] -translate-y-1/2 text-[#24366c]">
-      <Image
-        src="/images/infinite-canvas/participant-panel-stretch-clean-full.png"
-        alt=""
-        aria-hidden
-        fill
-        priority
-        sizes="334px"
-        className="object-fill drop-shadow-[0_16px_28px_rgba(55,82,190,0.18)]"
-      />
-      <div className="relative z-10 flex h-full flex-col px-8 py-4.5">
-        <div className="flex justify-end">
-          <span className="caption-b rounded-full border border-white/90 bg-white/88 px-4 py-1.5 text-[#31518f] shadow-[0_8px_16px_rgba(93,114,255,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]">
-            {capacityText}
-          </span>
+    <aside
+      className="fixed right-5 top-1/2 z-10 -translate-y-1/2 text-[#24366c]"
+      style={{ width: PANEL_WIDTH, height: panelHeight }}
+    >
+      <div className="absolute inset-0 flex flex-col drop-shadow-[0_16px_28px_rgba(55,82,190,0.18)]">
+        <div className="relative shrink-0" style={{ height: PANEL_TOP_HEIGHT }}>
+          <Image
+            src="/images/infinite-canvas/participant-panel-top-clean.png"
+            alt=""
+            aria-hidden
+            fill
+            priority
+            sizes={`${PANEL_WIDTH}px`}
+            className="object-fill"
+          />
         </div>
-        <ul className="mt-3 flex max-h-[68px] min-h-0 flex-col gap-1.5 overflow-y-auto pr-1">
+        <div className="relative shrink-0" style={{ height: panelMiddleHeight }}>
+          <Image
+            src="/images/infinite-canvas/participant-panel-middle-clean.png"
+            alt=""
+            aria-hidden
+            fill
+            priority
+            sizes={`${PANEL_WIDTH}px`}
+            className="object-fill"
+          />
+        </div>
+        <div className="relative shrink-0" style={{ height: PANEL_BOTTOM_HEIGHT }}>
+          <Image
+            src="/images/infinite-canvas/participant-panel-bottom-clean.png"
+            alt=""
+            aria-hidden
+            fill
+            priority
+            sizes={`${PANEL_WIDTH}px`}
+            className="object-fill"
+          />
+        </div>
+      </div>
+      <div className="relative z-10 h-full px-8">
+        <span className="body-b absolute right-8 top-8 px-1.5 py-1 text-white drop-shadow-[0_2px_6px_rgba(29,48,135,0.55)]">
+          {capacityText}
+        </span>
+        <ul className="absolute inset-x-8 bottom-9 top-[74px] flex min-h-0 flex-col gap-1.5 overflow-y-auto pr-1">
           {sortedParticipants.map((participant) => {
             const isMe = participant.userUuid === me?.userUuid
             const isConnected = isCurrentUserConnected(participant, me, connectionStatus)
@@ -81,7 +115,7 @@ export function InfinityParticipantsPanel({
             return (
               <li
                 key={participant.userUuid}
-                className="flex min-w-0 items-center gap-3 rounded-full border border-white/82 bg-white/76 px-3.5 py-2 shadow-[0_7px_14px_rgba(65,95,160,0.11),inset_0_1px_0_rgba(255,255,255,0.9)]"
+                className="flex h-[42px] min-w-0 shrink-0 items-center gap-3 rounded-full border border-white/82 bg-white/76 px-3.5 py-2 shadow-[0_7px_14px_rgba(65,95,160,0.11),inset_0_1px_0_rgba(255,255,255,0.9)]"
               >
                 <span
                   className="size-4.5 shrink-0 rounded-full border-2 border-white"
@@ -103,10 +137,6 @@ export function InfinityParticipantsPanel({
             )
           })}
         </ul>
-        <div className="mt-auto flex items-center justify-between gap-3 rounded-full border border-white/82 bg-white/68 px-4 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
-          <span className="caption-b text-[#49679d]">연결 상태</span>
-          <span className="caption-b text-[#31518f]">{getConnectionText(connectionStatus)}</span>
-        </div>
       </div>
     </aside>
   )

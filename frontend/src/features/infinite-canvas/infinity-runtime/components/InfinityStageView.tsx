@@ -40,6 +40,16 @@ function createObjectMap(objects: ReturnType<typeof toInfinityObjects>) {
   return new Map(objects.map((object) => [object.id, object]))
 }
 
+function areInfinityObjectListsEqual(firstObjects: InfinityObject[], secondObjects: InfinityObject[]) {
+  if (firstObjects.length !== secondObjects.length) return false
+
+  const secondObjectMap = createObjectMap(secondObjects)
+  return firstObjects.every((firstObject) => {
+    const secondObject = secondObjectMap.get(firstObject.id)
+    return Boolean(secondObject) && stringifyInfinityObject(firstObject) === stringifyInfinityObject(secondObject)
+  })
+}
+
 function getPayloadNickname(payload: Record<string, unknown> | null) {
   const nickname = payload?.nickname
   if (typeof nickname !== 'string') return null
@@ -291,12 +301,19 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
     if (isStaleEmptySnapshot) return
 
+    const nextServerObjectMap = createObjectMap(serverObjects)
+    if (areInfinityObjectListsEqual(drawing.objects, serverObjects)) {
+      appliedServerRevisionRef.current = serverRevision
+      previousObjectsRef.current = nextServerObjectMap
+      return
+    }
+
     const selectedIds = drawing.selectedIds.filter((selectedId) =>
       serverObjects.some((object) => object.id === selectedId),
     )
     isApplyingRemoteRef.current = true
     appliedServerRevisionRef.current = serverRevision
-    previousObjectsRef.current = createObjectMap(serverObjects)
+    previousObjectsRef.current = nextServerObjectMap
     drawing.replaceObjectsFromServer(serverObjects, selectedIds)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.revision, serverObjects])
