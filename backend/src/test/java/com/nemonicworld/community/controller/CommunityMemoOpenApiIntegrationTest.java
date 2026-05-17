@@ -79,6 +79,25 @@ class CommunityMemoOpenApiIntegrationTest {
     }
 
     @Test
+    void communityMemoShareApiIsExposedInOpenApiDocs() throws Exception {
+        String parametersPath = "$.paths['/api/v1/community/memos/{memoUuid}/share'].post.parameters";
+
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post.parameters[*].name")
+                .value(hasItems("memoUuid", "Anonymous-User-UUID")))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoUuid')].required").value(hasItems(true)))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post.responses['200']").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post.responses['404']").exists())
+            .andExpect(jsonPath("$.components.schemas.ShareCreateResponse.properties.shareToken").exists())
+            .andExpect(jsonPath("$.components.schemas.ShareCreateResponse.properties.imageUrl").exists())
+            .andExpect(jsonPath("$.components.schemas.ShareCreateResponse.properties.kakaoUrl").exists())
+            .andExpect(jsonPath("$.components.schemas.ShareCreateResponse.properties.instagramUrl").exists());
+    }
+
+    @Test
     void communityMemoCreateApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/community/memos'].post.summary").value("커뮤니티 메모 생성"))

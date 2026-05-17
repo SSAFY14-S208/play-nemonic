@@ -11,6 +11,7 @@ import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoReportResponse;
 import com.nemonicworld.community.service.memo.CommunityMemoService;
+import com.nemonicworld.share.dto.response.ShareCreateResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -47,6 +48,8 @@ public class CommunityMemoController {
     private static final String COMMUNITY_MEMO_UPDATED_MESSAGE = "커뮤니티 메모 위치 수정 성공";
     private static final String COMMUNITY_MEMO_DELETED_MESSAGE = "커뮤니티 메모 삭제 성공";
     private static final String COMMUNITY_MEMO_REPORTED_MESSAGE = "커뮤니티 메모 신고 성공";
+
+    private static final String COMMUNITY_MEMO_SHARE_CREATED_MESSAGE = "커뮤니티 메모 공유 정보 생성 성공";
 
     private final CommunityMemoService communityMemoService;
 
@@ -142,6 +145,25 @@ public class CommunityMemoController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(COMMUNITY_MEMO_FOUND_MESSAGE, response));
+    }
+
+    @PostMapping("/{memoUuid}/share")
+    @Operation(summary = "커뮤니티 메모 공유 정보 생성", description = "공개 visible 커뮤니티 메모의 QR 합성 공유 이미지 URL을 생성합니다.")
+    @Parameter(name = "memoUuid", in = ParameterIn.PATH, required = true, description = "공유할 커뮤니티 메모 UUID")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "커뮤니티 메모 공유 정보 생성 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "?섎せ???붿껌", content = @Content(mediaType = "application/json", examples = @ExampleObject(name = "UUID ?뺤떇 ?ㅻ쪟", value = OpenApiErrorExamples.INVALID_UUID))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "?ъ슜???먮뒗 而ㅻ??덊떚 硫붾え ?놁쓬", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "?ъ슜???놁쓬", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "硫붾え ?놁쓬", value = OpenApiErrorExamples.COMMUNITY_MEMO_NOT_FOUND)}))})
+    public ResponseEntity<ApiResponse<ShareCreateResponse>> createCommunityMemoShare(
+        @PathVariable("memoUuid") String memoUuid,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        ShareCreateResponse response = communityMemoService.createCommunityMemoShare(memoUuid, userUuid);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(COMMUNITY_MEMO_SHARE_CREATED_MESSAGE, response));
     }
 
     /**

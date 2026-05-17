@@ -100,7 +100,7 @@ public class ArtifactQrComposer {
     }
 
     private BufferedImage overlayQr(BufferedImage source, String qrUrl) throws WriterException {
-        BufferedImage base = toArgb(source);
+        BufferedImage base = toWhiteBackgroundArgb(source);
         int qrSize = calculateQrSize(base.getWidth(), base.getHeight());
         BufferedImage qrImage = createQrImage(qrUrl, qrSize);
         int x = Math.max(QR_PADDING, base.getWidth() - qrSize - QR_PADDING);
@@ -118,10 +118,14 @@ public class ArtifactQrComposer {
         return base;
     }
 
-    private BufferedImage toArgb(BufferedImage source) {
+    private BufferedImage toWhiteBackgroundArgb(BufferedImage source) {
         BufferedImage converted = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = converted.createGraphics();
         try {
+            graphics.setComposite(AlphaComposite.Src);
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, converted.getWidth(), converted.getHeight());
+            graphics.setComposite(AlphaComposite.SrcOver);
             graphics.drawImage(source, 0, 0, null);
         } finally {
             graphics.dispose();

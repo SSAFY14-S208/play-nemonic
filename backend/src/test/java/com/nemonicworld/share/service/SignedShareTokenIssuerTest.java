@@ -38,4 +38,22 @@ class SignedShareTokenIssuerTest {
         assertThat(payload.path("artifactKind").asText()).isEqualTo("flipbook");
         assertThat(payload.path("channel").asText()).isEqualTo("QR_DOWNLOAD");
     }
+
+    @Test
+    void issueCommunityMemoTokenReturnsDeterministicPayloadToken() throws Exception {
+        UUID memoId = UUID.fromString("770e8400-e29b-41d4-a716-446655440000");
+
+        String token = issuer.issueCommunityMemoToken(memoId, "QR_SHARE");
+
+        assertThat(token).isEqualTo(issuer.issueCommunityMemoToken(memoId, "QR_SHARE"));
+        String[] parts = token.split("\\.");
+        assertThat(parts).hasSize(2);
+
+        JsonNode payload = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
+        assertThat(payload.path("purpose").asText()).isEqualTo("community_memo_share");
+        assertThat(payload.path("memoId").asText()).isEqualTo(memoId.toString());
+        assertThat(payload.has("ownerUserId")).isFalse();
+        assertThat(payload.path("artifactKind").asText()).isEqualTo("community_memo");
+        assertThat(payload.path("channel").asText()).isEqualTo("QR_SHARE");
+    }
 }

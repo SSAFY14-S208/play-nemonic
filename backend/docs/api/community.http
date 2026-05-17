@@ -30,6 +30,10 @@ GET {{host}}/api/v1/community/memos/{{memoId}}
 GET {{host}}/api/v1/community/memos/{{memoId}}
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+### 커뮤니티 메모 QR 공유 이미지 생성
+POST {{host}}/api/v1/community/memos/{{memoId}}/share
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Get community memo detail - invalid memo UUID
 GET {{host}}/api/v1/community/memos/not-a-uuid
 

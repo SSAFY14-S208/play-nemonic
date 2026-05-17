@@ -2,9 +2,11 @@ package com.nemonicworld.community.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.anEmptyMap;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -18,6 +20,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.artifact.service.download.ArtifactDownloadStorage;
+import com.nemonicworld.artifact.service.download.ArtifactQrComposer;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationException;
@@ -79,6 +83,12 @@ class CommunityMemoControllerIntegrationTest {
 
     @MockitoBean
     private CommunityMemoModerationClient moderationClient;
+
+    @MockitoBean
+    private ArtifactDownloadStorage artifactDownloadStorage;
+
+    @MockitoBean
+    private ArtifactQrComposer artifactQrComposer;
 
     @BeforeEach
     void prepareCommunityTables() {
@@ -216,6 +226,86 @@ class CommunityMemoControllerIntegrationTest {
                 jsonPath("$.data.memoPlaybackImageUrl").value("http://localhost:9000/nemonic-local/" + gifObjectKey))
             .andExpect(jsonPath("$.data.memoOriginalImageUrl").value(PUBLIC_URL_PREFIX + "detail-original.png"))
             .andExpect(jsonPath("$.data.memoThumbnailImageUrl").value(PUBLIC_URL_PREFIX + "detail-thumbnail.png"));
+    }
+
+    @Test
+    void createCommunityMemoShareReturnsQrImageUrlForVisibleMemoOwnedByAnotherUser() throws Exception {
+        UUID ownerUuid = createExistingUser("share-owner");
+        UUID viewerUuid = createExistingUser("share-viewer");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID memoId = UUID.randomUUID();
+        byte[] sourceBytes = new byte[]{1, 2, 3};
+        byte[] composedBytes = new byte[]{4, 5, 6};
+        String cacheObjectKey = "community-memo-shares/%s/result-qr.jpg".formatted(memoId);
+
+        insertCommunityMemo(memoId, ownerUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 1, now, null, false,
+            "{}", 0, "allowed", now, now);
+        when(artifactDownloadStorage.exists(cacheObjectKey)).thenReturn(false);
+        when(artifactDownloadStorage.download(ORIGINAL_OBJECT_KEY)).thenReturn(sourceBytes);
+        when(artifactQrComposer.compose(anyString(), any(), anyString())).thenReturn(composedBytes);
+
+        mockMvc
+            .perform(post("/api/v1/community/memos/{memoUuid}/share", memoId).header(ANONYMOUS_USER_UUID_HEADER,
+                viewerUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("커뮤니티 메모 공유 정보 생성 성공"))
+            .andExpect(jsonPath("$.data.shareToken").isNotEmpty())
+            .andExpect(jsonPath("$.data.imageUrl")
+                .value("http://localhost:9000/nemonic-local/community-memo-shares/%s/result-qr.jpg".formatted(memoId)))
+            .andExpect(jsonPath("$.data.siteUrl").value("http://localhost:3000"))
+            .andExpect(jsonPath("$.data.kakaoUrl").value(containsString("utm_campaign=community_memo_result")))
+            .andExpect(jsonPath("$.data.instagramUrl").value(containsString("utm_medium=story")));
+
+        verify(artifactDownloadStorage).download(ORIGINAL_OBJECT_KEY);
+        verify(artifactDownloadStorage).upload(cacheObjectKey, composedBytes, "image/jpeg");
+        verify(artifactQrComposer).compose(anyString(), any(), anyString());
+    }
+
+    @Test
+    void createCommunityMemoShareFallsBackToThumbnailImage() throws Exception {
+        UUID userUuid = createExistingUser("share-thumbnail");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID memoId = UUID.randomUUID();
+        byte[] sourceBytes = new byte[]{1, 2, 3};
+        byte[] composedBytes = new byte[]{4, 5, 6};
+        String cacheObjectKey = "community-memo-shares/%s/result-qr.jpg".formatted(memoId);
+
+        insertCommunityMemo(memoId, userUuid, null, null, THUMBNAIL_OBJECT_KEY, 1, now, null, false, "{}", 0, "allowed",
+            now, now);
+        when(artifactDownloadStorage.exists(cacheObjectKey)).thenReturn(false);
+        when(artifactDownloadStorage.download(THUMBNAIL_OBJECT_KEY)).thenReturn(sourceBytes);
+        when(artifactQrComposer.compose(anyString(), any(), anyString())).thenReturn(composedBytes);
+
+        mockMvc
+            .perform(post("/api/v1/community/memos/{memoUuid}/share", memoId).header(ANONYMOUS_USER_UUID_HEADER,
+                userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.imageUrl")
+                .value("http://localhost:9000/nemonic-local/community-memo-shares/%s/result-qr.jpg".formatted(memoId)));
+
+        verify(artifactDownloadStorage).download(THUMBNAIL_OBJECT_KEY);
+    }
+
+    @Test
+    void createCommunityMemoShareRejectsHiddenDeletedAndBlockedMemos() throws Exception {
+        UUID ownerUuid = createExistingUser("share-unavailable");
+        UUID viewerUuid = createExistingUser("share-viewer");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        UUID deletedMemoId = UUID.randomUUID();
+        UUID hiddenMemoId = UUID.randomUUID();
+        UUID blockedMemoId = UUID.randomUUID();
+
+        insertCommunityMemo(deletedMemoId, ownerUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 1, now, now,
+            false, "{}", 0, "allowed", now, now);
+        insertCommunityMemo(hiddenMemoId, ownerUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 2, now, null,
+            true, "{}", 0, "allowed", now, now);
+        insertCommunityMemo(blockedMemoId, ownerUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 3, now, null,
+            false, "{}", 0, "blocked", now, now);
+
+        mockMvc.perform(shareRequest(deletedMemoId, viewerUuid)).andExpect(status().isNotFound());
+        mockMvc.perform(shareRequest(hiddenMemoId, viewerUuid)).andExpect(status().isNotFound());
+        mockMvc.perform(shareRequest(blockedMemoId, viewerUuid)).andExpect(status().isBadRequest());
+
+        verifyNoInteractions(artifactDownloadStorage, artifactQrComposer);
     }
 
     @Test
@@ -1697,6 +1787,11 @@ class CommunityMemoControllerIntegrationTest {
         }
 
         return request;
+    }
+
+    private MockHttpServletRequestBuilder shareRequest(UUID memoId, UUID userUuid) {
+        return post("/api/v1/community/memos/{memoUuid}/share", memoId).header(ANONYMOUS_USER_UUID_HEADER,
+            userUuid.toString());
     }
 
     private String publicUrl(String objectKey) {

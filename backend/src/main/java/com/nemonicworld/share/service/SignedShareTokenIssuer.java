@@ -22,6 +22,8 @@ public class SignedShareTokenIssuer {
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final String TOKEN_VERSION = "v1";
     private static final String PURPOSE_ARTIFACT_SHARE = "artifact_share";
+    private static final String PURPOSE_COMMUNITY_MEMO_SHARE = "community_memo_share";
+    private static final String ARTIFACT_KIND_COMMUNITY_MEMO = "community_memo";
 
     private final ObjectMapper objectMapper;
     private final ShareProperties shareProperties;
@@ -38,6 +40,20 @@ public class SignedShareTokenIssuer {
         payload.put("purpose", PURPOSE_ARTIFACT_SHARE);
         payload.put("artifactId", artifactId.toString());
         payload.put("artifactKind", artifactKind);
+        payload.put("channel", channel);
+
+        String encodedPayload = encodePayload(payload);
+        String signature = sign(encodedPayload);
+
+        return "%s.%s".formatted(encodedPayload, signature);
+    }
+
+    public String issueCommunityMemoToken(UUID memoId, String channel) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("version", TOKEN_VERSION);
+        payload.put("purpose", PURPOSE_COMMUNITY_MEMO_SHARE);
+        payload.put("memoId", memoId.toString());
+        payload.put("artifactKind", ARTIFACT_KIND_COMMUNITY_MEMO);
         payload.put("channel", channel);
 
         String encodedPayload = encodePayload(payload);
