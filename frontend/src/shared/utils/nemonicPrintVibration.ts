@@ -37,13 +37,18 @@ function isVibrationSupported(): boolean {
   )
 }
 
-// 연속 진동 시작. 이미 활성 진동이 있으면 정리 후 새로 시작한다. 활성 진동이
-// 없는 첫 호출에서는 불필요한 navigator.vibrate(0) (user activation 소비)을
-// 건너뛴다. 반환되는 함수를 호출해 직접 정지하거나, stopNemonicPrintVibration()
-// 을 사용.
+// 연속 진동 시작. 이미 활성 진동이 있으면 그대로 두고 새로 시작하지 않는다(멱등).
+// Chrome Android는 vibrate 호출마다 "transient user activation"을 요구하므로,
+// 이 함수는 반드시 사용자 클릭 핸들러의 동기 구간에서 한 번 호출되어야 한다.
+// useEffect 등 async 컨텍스트에서 (사용자 제스처 task가 지난 뒤) 다시 호출되면
+// 그 vibrate은 묵살되므로, 이미 활성된 진동을 중단하지 않고 그대로 둔다.
+//
+// 반환되는 함수를 호출해 직접 정지하거나, stopNemonicPrintVibration()을 사용.
 export function startNemonicPrintVibration(): () => void {
+  // 이미 진행 중이면 그대로 둠 — 재호출로 인한 vibrate(0) → vibrate(pattern) 시퀀스가
+  // 두 번째 호출에서 user activation 부재로 묵살되어 진동이 영구 정지되는 것을 방지.
   if (activeIntervalId !== null) {
-    stopNemonicPrintVibration()
+    return stopNemonicPrintVibration
   }
   if (!isVibrationSupported()) return stopNemonicPrintVibration
 
