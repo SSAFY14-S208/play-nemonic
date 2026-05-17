@@ -617,12 +617,14 @@ export default function FortuneVisual({
           '[transform:translate3d(-50%,-50%,0)_scale(1.018)]',
           'animate-fortune-2d-stage-drift motion-reduce:animate-none',
           'pointer-events-none [transform-style:preserve-3d]',
-          // Mobile portrait override
+          // Mobile portrait override — w/h는 기본 공식
+          // (w: max(100vw, 100dvh*aspect) / h: max(100dvh, 100vw/aspect))을 그대로
+          // 사용합니다. portrait에서도 100dvh*aspect > 100vw가 항상 성립하므로
+          // h는 100dvh로 viewport 전체를 채우고 w는 100dvh*aspect로 가로 overflow가
+          // 발생하지만 overflow-hidden으로 잘립니다. 이전엔 w-[220vw] + h-dvh로
+          // 두 차원을 모두 강제해 aspect-ratio가 무시되고 stage가 정사각형에
+          // 가까워지면서 캐릭터 본체와 팔의 위치가 어긋나는 문제가 있었습니다.
           'max-[767px]:portrait:top-[48%]',
-          'max-[767px]:portrait:w-[220vw]',
-          'max-[767px]:portrait:h-auto',
-          'max-[767px]:portrait:min-w-0 max-[767px]:portrait:min-h-0',
-          'max-[767px]:portrait:[aspect-ratio:var(--fortune-stage-aspect)]',
         )}
         aria-hidden
       >
