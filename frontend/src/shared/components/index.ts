@@ -27,6 +27,7 @@ export type {
 } from './GameLobbyLayout'
 export { HowToPlayModal } from './HowToPlayModal'
 export type { HowToPlayPanel } from './HowToPlayModal'
+export { InvalidRouteRedirect } from './InvalidRouteRedirect'
 export { PostItNote } from './PostItNote'
 export { UserBootstrap, UserBootstrapLoader } from './UserBootstrap'
 export { LogBootstrap, LogBootstrapLoader } from './LogBootstrap'

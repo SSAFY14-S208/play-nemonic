@@ -48,7 +48,7 @@ export default function LeaveConfirmModal({
               id="leave-confirm-title"
               className="h3-b text-fg-primary"
             >
-              네모닉 월드로 돌아갈까요?
+              네모닉 룸으로 돌아갈까요?
             </h2>
             <p
               id="leave-confirm-description"
@@ -75,7 +75,7 @@ export default function LeaveConfirmModal({
                 )}
                 onClick={onConfirm}
               >
-                월드로 돌아가기
+                네모닉 룸으로 돌아가기
               </button>
             </div>
           </motion.div>

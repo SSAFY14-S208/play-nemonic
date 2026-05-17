@@ -22,9 +22,9 @@ export const HUB_OVERVIEW_VIEW: HubContentView = {
   platform: 'coral',
   angle: 0.51,
   zoom: 13.9,
-  eyebrow: '망고슬래브 월드 입구',
-  title: '네모닉 월드',
-  description: '네모닉 월드에 도착했어요. 오늘은 어떤 상상이 출력될까요?',
+  eyebrow: '망고슬래브 플레이 입구',
+  title: 'Play! Nemonic',
+  description: 'Play! Nemonic에 도착했어요. 오늘은 어떤 상상이 출력될까요?',
 }
 
 export const HUB_CONTENT_VIEWS: Record<HubContentKey, HubContentView> = {

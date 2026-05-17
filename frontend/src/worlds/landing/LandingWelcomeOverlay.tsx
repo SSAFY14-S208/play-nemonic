@@ -44,8 +44,8 @@ export default function LandingWelcomeOverlay() {
           >
             <p className="h2-b text-fg-inverse">
               {phase === "ready"
-                ? "Nemonic이 준비되었습니다!"
-                : `Nemonic을 준비중입니다${".".repeat(dotCount)}`}
+                ? "Play! Nemonic이 준비되었습니다!"
+                : `Play! Nemonic을 준비중입니다${".".repeat(dotCount)}`}
             </p>
 
             <div className="flex w-72 flex-col items-center gap-3">
@@ -139,7 +139,7 @@ export default function LandingWelcomeOverlay() {
               "hover:opacity-90 transition-opacity",
             )}
           >
-            네모닉 월드 입장
+            Play! Nemonic 입장
           </Link>
         </motion.div>
       )}

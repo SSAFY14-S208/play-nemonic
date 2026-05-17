@@ -1,7 +1,11 @@
+import type { CSSProperties } from 'react'
 import { motion } from 'motion/react'
 import { cn } from '@/shared/libs'
 import HubLoadingHouseLottie from './HubLoadingHouseLottie'
 import { useHubLoadingOverlay } from './hooks'
+
+const HUB_LOADING_PRIMARY_COLOR = '#f49cc8'
+const HUB_LOADING_PRIMARY_HOVER_COLOR = '#ed86bd'
 
 const HUB_LOADING_GRADIENT = [
   'radial-gradient(circle at 28% 32%, rgba(255, 220, 232, 0.9) 0%, transparent 55%)',
@@ -16,6 +20,8 @@ export default function HubLoadingOverlay({
 }) {
   const {
     displayProgress,
+    enterHub,
+    hasEnteredHub,
     isReady,
     isVisible,
     statusText,
@@ -32,7 +38,9 @@ export default function HubLoadingOverlay({
       style={{
         opacity: isVisible ? 1 : 0,
         visibility: isVisible ? 'visible' : 'hidden',
-      }}
+        '--hub-loading-primary': HUB_LOADING_PRIMARY_COLOR,
+        '--hub-loading-primary-hover': HUB_LOADING_PRIMARY_HOVER_COLOR,
+      } as CSSProperties}
       aria-hidden={!isVisible}
     >
       {isVisible && (
@@ -61,11 +69,26 @@ export default function HubLoadingOverlay({
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-surface-subtle shadow-[inset_0_1px_4px_rgb(91_72_118_/_12%)]">
           <div
-            className="h-full w-full origin-left rounded-full bg-primary-1 transition-transform duration-300 ease-out"
+            className="h-full w-full origin-left rounded-full bg-[var(--hub-loading-primary)] transition-transform duration-300 ease-out"
             style={{ transform: `scaleX(${displayProgress / 100})` }}
           />
         </div>
         <span className="caption-b text-fg-primary">{displayProgress}%</span>
+        {isReady && (
+          <motion.button
+            type="button"
+            className="body-l-b inline-flex min-h-12 min-w-32 items-center justify-center rounded-[var(--radius-full)] bg-[var(--hub-loading-primary)] px-8 text-fg-inverse shadow-[0_12px_28px_rgb(244_156_200_/_28%)] transition-colors hover:bg-[var(--hub-loading-primary-hover)] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[var(--hub-loading-primary)] disabled:pointer-events-none disabled:opacity-60"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={enterHub}
+            disabled={hasEnteredHub}
+            aria-label="Play!"
+          >
+            Play!
+          </motion.button>
+        )}
       </div>
     </div>
   )
