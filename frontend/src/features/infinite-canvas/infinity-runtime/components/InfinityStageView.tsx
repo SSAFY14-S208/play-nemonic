@@ -170,9 +170,9 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     (cursor: { x: number; y: number; zoom: number }, options: { force?: boolean } = {}) => {
       const now = Date.now()
       const draftObject = draftObjectRef.current
-      const minInterval = draftObject ? 48 : 45
+      const minInterval = draftObject ? 24 : 45
       if (!options.force && now - lastCursorSentAtRef.current < minInterval) return
-      if (draftObject && !options.force && now - lastDraftCursorSentAtRef.current < 48) return
+      if (draftObject && !options.force && now - lastDraftCursorSentAtRef.current < 24) return
 
       lastCursorSentAtRef.current = now
       if (draftObject) {
