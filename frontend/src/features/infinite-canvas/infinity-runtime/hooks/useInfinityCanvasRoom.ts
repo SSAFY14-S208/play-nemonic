@@ -245,8 +245,19 @@ function getCanvasElementId(element: InfiniteCanvasJsonObject) {
 function mergeCanvasElementsPreservingVisible(
   visibleElements: InfiniteCanvasJsonObject[],
   nextElements: InfiniteCanvasJsonObject[],
+  operations: CanvasElementMutation[],
 ) {
   if (visibleElements.length === 0) return nextElements
+  if (operations.some((operation) => operation.operationType === 'CLEAR_CANVAS')) {
+    return nextElements
+  }
+
+  const explicitlyDeletedElementIds = new Set(
+    operations
+      .filter((operation) => operation.operationType === 'DELETE_ELEMENT')
+      .map((operation) => operation.elementId)
+      .filter((elementId): elementId is string => typeof elementId === 'string' && elementId.length > 0),
+  )
 
   const nextElementIds = new Set(
     nextElements
@@ -259,6 +270,7 @@ function mergeCanvasElementsPreservingVisible(
     const visibleElementId = getCanvasElementId(visibleElement)
     if (!visibleElementId) continue
     if (nextElementIds.has(visibleElementId)) continue
+    if (explicitlyDeletedElementIds.has(visibleElementId)) continue
     nextElementIds.add(visibleElementId)
     mergedElements.push(visibleElement)
   }
@@ -284,7 +296,7 @@ function preserveVisibleElementsInState(
   if (visibleElements.length === 0) return state
   return {
     ...state,
-    elements: mergeCanvasElementsPreservingVisible(visibleElements, state.elements),
+    elements: mergeCanvasElementsPreservingVisible(visibleElements, state.elements, state.operations),
   }
 }
 
@@ -445,7 +457,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       revisionRef.current = nextState.revision
       appliedElementsRevisionRef.current = nextState.revision
       setRoomState((currentState) => {
-        if (!isResolvingRevisionConflictRef.current || !currentState) return hydratedState
+        if (!currentState) return hydratedState
         return preserveVisibleElementsInState(hydratedState, currentState.elements)
       })
       setIsHydrating(false)
@@ -487,7 +499,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     revisionRef.current = nextState.revision
     appliedElementsRevisionRef.current = nextState.revision
     setRoomState((currentState) => {
-      if (!currentState || unconfirmedOperations.length === 0) return stateWithLocalOperations
+      if (!currentState) return stateWithLocalOperations
       return preserveVisibleElementsInState(stateWithLocalOperations, currentState.elements)
     })
     setIsHydrating(false)
