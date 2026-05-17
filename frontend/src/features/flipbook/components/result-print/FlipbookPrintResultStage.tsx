@@ -17,6 +17,7 @@ export interface FlipbookPrintFrame {
   id: string
   title: string
   frameNumber: number
+  drawnByName?: string | null
   imageUrl?: string | null
   accentColor?: string
   outputMode?: 'nemonic-print' | 'gif-playback'
@@ -116,6 +117,12 @@ export default function FlipbookPrintResultStage({
   const activeFrame = printFrames[activeFrameIndex] ?? null
   const previousFrame = activeFrameIndex > 0 ? printFrames[activeFrameIndex - 1] : null
   const shouldPrintActiveFrame = activeFrame?.outputMode !== 'gif-playback'
+  const displayedBoardFrame =
+    activeFrame && !shouldPrintActiveFrame
+      ? activeFrame
+      : activeFrame && printPhase === 'attach'
+        ? activeFrame
+        : previousFrame
   // 인쇄 애니메이션 진행 중에만 디바이스 진동을 활성. NemonicDeviceImage의
   // isPrinting과 동일 조건을 유지.
   useNemonicPrintVibration(isPlaying && !isComplete && shouldPrintActiveFrame)
@@ -306,6 +313,13 @@ export default function FlipbookPrintResultStage({
             disabled={!selectedParticipantHasGifPlayback}
             onClick={() => selectParticipantGif(normalizedSelectedParticipantIndex)}
           />
+
+          {displayedBoardFrame && selectedParticipant && (
+            <FrameArtistBadge
+              frame={displayedBoardFrame}
+              participant={selectedParticipant}
+            />
+          )}
         </BoardLayer>
 
         <NemonicDeviceImage isPrinting={isPlaying && !isComplete && shouldPrintActiveFrame}>
@@ -452,6 +466,27 @@ function SkipPlaybackButton({
     >
       skip
     </button>
+  )
+}
+
+function FrameArtistBadge({
+  frame,
+  participant,
+}: {
+  frame: FlipbookPrintFrame
+  participant: FlipbookPrintParticipant
+}) {
+  const isGifPlaybackFrame = frame.outputMode === 'gif-playback'
+  const artistName = isGifPlaybackFrame
+    ? participant.name
+    : frame.drawnByName?.trim() || participant.name
+  const labelText = isGifPlaybackFrame ? '완성본' : '그린 사람'
+
+  return (
+    <div className={styles.frameArtistBadge} aria-live="polite">
+      <span className={styles.frameArtistBadgeLabel}>{labelText}</span>
+      <span className={styles.frameArtistBadgeName}>{artistName}</span>
+    </div>
   )
 }
 

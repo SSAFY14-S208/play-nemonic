@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Loader2 } from 'lucide-react'
+import { Camera, Copy, Loader2, MessageCircle, X } from 'lucide-react'
 
-import type { FlipbookResultItemResponse } from '@/shared/types'
+import type { FlipbookResultItemResponse, ShareCreateResponse } from '@/shared/types'
 import { getDisplayImageUrl } from '@/shared/utils'
 
 import { useFlipbookResultActions } from '../hooks'
@@ -16,6 +16,9 @@ import {
 } from './result-print'
 
 const RESULT_ACTION_BUTTONS_IMAGE_SRC = '/images/flipbook-result/result-action-buttons.png'
+const RESULT_ACTION_BUTTONS_IMAGE_WIDTH = 733
+const RESULT_ACTION_BUTTONS_IMAGE_HEIGHT = 70
+const RESULT_ACTION_BUTTONS_ASPECT_RATIO = `${RESULT_ACTION_BUTTONS_IMAGE_WIDTH} / ${RESULT_ACTION_BUTTONS_IMAGE_HEIGHT}`
 
 interface FlipbookResultViewProps {
   resultItems: FlipbookResultItemResponse[]
@@ -59,9 +62,9 @@ export default function FlipbookResultView({
   const resultActionButtons = [
     {
       id: 'local-gallery',
-      label: '로컬 보관함 저장',
-      left: '0%',
-      width: '33.45%',
+      label: '저장하기',
+      left: '1.77%',
+      width: '22.78%',
       disabled: !resultActions.canSaveToLocal,
       onClick: () => {
         void resultActions.saveToLocalGallery()
@@ -70,16 +73,26 @@ export default function FlipbookResultView({
     {
       id: 'community-post',
       label: '커뮤니티 게시',
-      left: '33.45%',
-      width: '32.56%',
+      left: '25.92%',
+      width: '24.15%',
       disabled: !resultActions.canPostCommunity,
       onClick: resultActions.postToCommunity,
     },
     {
+      id: 'external-share',
+      label: '외부 공유',
+      left: '51.43%',
+      width: '21.69%',
+      disabled: !resultActions.canShareExternal,
+      onClick: () => {
+        void resultActions.shareExternal()
+      },
+    },
+    {
       id: 'return-to-lobby',
       label: '로비로 돌아가기',
-      left: '66.01%',
-      width: '33.99%',
+      left: '74.62%',
+      width: '23.47%',
       disabled: canCloseRoom && isBusy,
       onClick: resultActions.returnToLobby,
     },
@@ -113,15 +126,18 @@ export default function FlipbookResultView({
         </div>
       )}
 
-      <div className="absolute left-1/2 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] w-[min(559px,calc(100vw-2rem))] -translate-x-1/2 sm:left-auto sm:right-6 sm:top-6 sm:translate-x-0">
-        <div className="relative aspect-[559/70] w-full">
+      <div className="absolute left-1/2 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] w-[min(733px,calc(100vw-2rem))] -translate-x-1/2 sm:left-auto sm:right-6 sm:top-6 sm:translate-x-0">
+        <div
+          className="relative w-full"
+          style={{ aspectRatio: RESULT_ACTION_BUTTONS_ASPECT_RATIO }}
+        >
           <Image
             src={RESULT_ACTION_BUTTONS_IMAGE_SRC}
             alt=""
             fill
             priority
             draggable={false}
-            sizes="(max-width: 640px) calc(100vw - 2rem), 559px"
+            sizes={`(max-width: 640px) calc(100vw - 2rem), ${RESULT_ACTION_BUTTONS_IMAGE_WIDTH}px`}
             className="select-none object-contain"
             aria-hidden
           />
@@ -146,6 +162,18 @@ export default function FlipbookResultView({
         <p className="caption-b absolute bottom-[calc(7.75rem+env(safe-area-inset-bottom))] left-4 right-4 z-[120] rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
           {errorMessage ?? resultActions.actionMessage}
         </p>
+      )}
+
+      {resultActions.externalShareInfo && (
+        <FlipbookExternalShareSheet
+          shareInfo={resultActions.externalShareInfo}
+          onClose={resultActions.closeExternalShare}
+          onOpenKakao={resultActions.openKakaoExternalShare}
+          onOpenInstagram={resultActions.openInstagramExternalShare}
+          onCopyLink={() => {
+            void resultActions.copyExternalShareLink()
+          }}
+        />
       )}
 
       {printParticipants.length > 0 && (
@@ -174,6 +202,92 @@ export default function FlipbookResultView({
         </div>
       )}
     </section>
+  )
+}
+
+function FlipbookExternalShareSheet({
+  shareInfo,
+  onClose,
+  onOpenKakao,
+  onOpenInstagram,
+  onCopyLink,
+}: {
+  shareInfo: ShareCreateResponse
+  onClose: () => void
+  onOpenKakao: () => void
+  onOpenInstagram: () => void
+  onCopyLink: () => void
+}) {
+  const hasKakaoUrl = Boolean(shareInfo.kakaoUrl?.trim())
+  const hasInstagramUrl = Boolean(shareInfo.instagramUrl?.trim())
+  const hasSiteUrl = Boolean(shareInfo.siteUrl?.trim())
+
+  return (
+    <div className="fixed inset-0 z-[180] flex items-end justify-center bg-[#332222]/38 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:items-center sm:pb-0">
+      <button
+        type="button"
+        aria-label="외부 공유 닫기"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
+
+      <section className="relative w-full max-w-[430px] overflow-hidden rounded-[18px] border border-white/80 bg-[#fff7ed]/96 p-4 shadow-[0_20px_48px_rgb(80_40_54_/_26%)]">
+        <header className="mb-4 flex items-center justify-between">
+          <h3 className="h3-b text-[#332222]">외부 공유</h3>
+          <button
+            type="button"
+            aria-label="닫기"
+            onClick={onClose}
+            className="grid size-9 place-items-center rounded-[8px] text-[#b84e66] transition hover:bg-white/70"
+          >
+            <X className="size-5" aria-hidden />
+          </button>
+        </header>
+
+        {shareInfo.imageUrl && (
+          <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[8px] border border-[#ffd0dc] bg-white">
+            <Image
+              src={shareInfo.imageUrl}
+              alt="외부 공유 이미지 미리보기"
+              fill
+              unoptimized
+              sizes="430px"
+              className="object-contain p-3"
+            />
+          </div>
+        )}
+
+        <div className="grid gap-2">
+          <button
+            type="button"
+            disabled={!hasKakaoUrl}
+            onClick={onOpenKakao}
+            className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[8px] border border-[#ff9ab2] bg-[#ffe553] px-4 text-[#332222] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <MessageCircle className="size-5" aria-hidden />
+            카카오톡
+          </button>
+          <button
+            type="button"
+            disabled={!hasInstagramUrl}
+            onClick={onOpenInstagram}
+            className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[8px] border border-[#ff9ab2] bg-[#ff4f91] px-4 text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <Camera className="size-5" aria-hidden />
+            인스타그램
+          </button>
+          <button
+            type="button"
+            disabled={!hasSiteUrl && !hasKakaoUrl && !hasInstagramUrl}
+            onClick={onCopyLink}
+            className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[8px] border border-[#ffd0dc] bg-white px-4 text-[#b84e66] transition hover:bg-[#fff0f4] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <Copy className="size-5" aria-hidden />
+            링크 복사
+          </button>
+        </div>
+      </section>
+    </div>
   )
 }
 
