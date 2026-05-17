@@ -254,6 +254,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       const nextState = await getInfiniteCanvasState(roomCode)
       revisionRef.current = nextState.revision
       setRoomState(nextState)
+      setIsHydrating(false)
       return nextState
     } catch (caughtError) {
       const snapshot = takeInfiniteCanvasCreatedRoomSnapshot(roomCode)
@@ -266,6 +267,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         })
         revisionRef.current = fallbackState.revision
         setRoomState(fallbackState)
+        setIsHydrating(false)
         return fallbackState
       }
 
