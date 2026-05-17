@@ -88,6 +88,8 @@ interface UseFlipbookRealtimeEventHandlerOptions {
   setRoundCount: Dispatch<SetStateAction<number | null>>
   setSelectedTimeLimitSeconds: Dispatch<SetStateAction<FlipbookTimeLimitSeconds>>
   setStartedParticipantCount: Dispatch<SetStateAction<number | null>>
+  setSubmittedFrameCount: Dispatch<SetStateAction<number>>
+  setSubmissionTotalCount: Dispatch<SetStateAction<number>>
   setSubmittedAssignmentKeys: Dispatch<SetStateAction<Set<string>>>
   setTimeUpSubmitRequest: Dispatch<
     SetStateAction<{
@@ -122,6 +124,8 @@ export function useFlipbookRealtimeEventHandler({
   setRoundCount,
   setSelectedTimeLimitSeconds,
   setStartedParticipantCount,
+  setSubmittedFrameCount,
+  setSubmissionTotalCount,
   setSubmittedAssignmentKeys,
   setTimeUpSubmitRequest,
 }: UseFlipbookRealtimeEventHandlerOptions) {
@@ -132,6 +136,8 @@ export function useFlipbookRealtimeEventHandler({
       setRoomCode(null)
       setRoundCount(null)
       setStartedParticipantCount(null)
+      setSubmittedFrameCount(0)
+      setSubmissionTotalCount(0)
       setSubmittedAssignmentKeys(new Set())
       setPreviousFrameLines([])
       clearDrawingRound()
@@ -148,6 +154,8 @@ export function useFlipbookRealtimeEventHandler({
       setRoomState,
       setRoundCount,
       setStartedParticipantCount,
+      setSubmittedFrameCount,
+      setSubmissionTotalCount,
       setSubmittedAssignmentKeys,
     ],
   )
@@ -299,6 +307,16 @@ export function useFlipbookRealtimeEventHandler({
         if (event.type === 'FRAME_SUBMITTED') {
           const submittedFrame = event.data as Partial<FlipbookFrameSubmitResponse>
           if (
+            assignment &&
+            submittedFrame.round === assignment.currentRound &&
+            typeof submittedFrame.submittedCount === 'number' &&
+            typeof submittedFrame.totalCount === 'number'
+          ) {
+            setSubmittedFrameCount(submittedFrame.submittedCount)
+            setSubmissionTotalCount(submittedFrame.totalCount)
+          }
+
+          if (
             submittedFrame.allRoundsCompleted ||
             submittedFrame.roomStatus === 'FINALIZING' ||
             submittedFrame.roomStatus === 'FINISHED'
@@ -441,6 +459,8 @@ export function useFlipbookRealtimeEventHandler({
       setIsSubmitting,
       setSelectedTimeLimitSeconds,
       setRoomState,
+      setSubmittedFrameCount,
+      setSubmissionTotalCount,
       setSubmittedAssignmentKeys,
       setTimeUpSubmitRequest,
       submittedAssignmentKeys,
