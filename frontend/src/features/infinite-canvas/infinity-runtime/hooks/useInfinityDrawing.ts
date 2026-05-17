@@ -169,14 +169,21 @@ export function useInfinityDrawing(
   const undoRef = useRef(history.undo)
   const redoRef = useRef(history.redo)
   const setSpacePanningRef = useRef(viewport.setSpacePanning)
+  const setToolPanningRef = useRef(viewport.setToolPanning)
   const shiftSelectedZIndexRef = useRef(events.shiftSelectedZIndex)
 
   useEffect(() => {
     undoRef.current = history.undo
     redoRef.current = history.redo
     setSpacePanningRef.current = viewport.setSpacePanning
+    setToolPanningRef.current = viewport.setToolPanning
     shiftSelectedZIndexRef.current = events.shiftSelectedZIndex
   })
+
+  useEffect(() => {
+    setToolPanningRef.current(tool === 'hand')
+    return () => setToolPanningRef.current(false)
+  }, [tool])
 
   // ── Keyboard / Space / Shift / 도구 / z-index 단축키 ────────────────────────
   useEffect(() => {
@@ -211,6 +218,9 @@ export function useInfinityDrawing(
       } else if (e.key === 'v') {
         e.preventDefault()
         setToolState('select')
+      } else if (e.key === 'h') {
+        e.preventDefault()
+        setToolState('hand')
       } else if (e.key === '[') {
         e.preventDefault()
         shiftSelectedZIndexRef.current(-1)
@@ -281,6 +291,7 @@ export function useInfinityDrawing(
     viewport: {
       scaleRef: viewport.scaleRef,
       stagePosRef: viewport.stagePosRef,
+      centerInitialViewport: viewport.centerInitialViewport,
     },
 
     handlers: {

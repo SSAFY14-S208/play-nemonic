@@ -193,6 +193,7 @@ function getCursorStyle(tool: InfinityToolKey): string {
   }
   if (tool === "text") return "text";
   if (tool === "select") return "default";
+  if (tool === "hand") return "grab";
   // pen / eraser / select-eraser는 Konva CursorPreview로 대체 → CSS 커서 숨김.
   return "none";
 }

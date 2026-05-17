@@ -286,10 +286,11 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       if (!entry) return
       const { width, height } = entry.contentRect
       setStageSize({ width, height })
+      drawing.viewport.centerInitialViewport(width, height)
     })
     observer.observe(container)
     return () => observer.disconnect()
-  }, [])
+  }, [drawing.viewport])
 
   useEffect(() => {
     const serverRevision = room.revision

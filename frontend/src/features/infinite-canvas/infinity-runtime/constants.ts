@@ -4,6 +4,7 @@ export type InfinityToolKey =
   | 'pen'
   | 'eraser'
   | 'select'
+  | 'hand'
   | 'select-eraser'
   | 'shape-rect'
   | 'shape-ellipse'

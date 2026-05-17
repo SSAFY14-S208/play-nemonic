@@ -338,6 +338,7 @@ export function useInfinityEvents({
     targetIsStage: boolean,
   ) => {
     if (isSpaceDownRef.current) return
+    if (toolSnapshot === 'hand') return
 
     const pos = stage.getRelativePointerPosition()
     if (!pos) return
@@ -345,7 +346,9 @@ export function useInfinityEvents({
     isDrawingRef.current = true
     startPosRef.current = pos
 
-    if (toolSnapshot === 'pen' || toolSnapshot === 'eraser') {
+    if (toolSnapshot === 'hand') {
+      hideCursor()
+    } else if (toolSnapshot === 'pen' || toolSnapshot === 'eraser') {
       const newLine: InfinityLine = {
         id: generateId(),
         type: 'line',

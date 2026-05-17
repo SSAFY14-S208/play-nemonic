@@ -17,7 +17,9 @@ export function useInfinityViewport(
   const scaleRef = useRef<number>(1)
   const stagePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const isSpacePanningRef = useRef<boolean>(false)
+  const isToolPanningRef = useRef<boolean>(false)
   const isSpaceDownRef = useRef<boolean>(false)
+  const isInitialViewportCenteredRef = useRef<boolean>(false)
 
   // RAF throttle 게이트 — wheel이 frame 안에 N번 와도 batchDraw는 1번만 호출.
   // 트랙패드/매직마우스의 wheel 폭증(초당 100~200회)으로 메인 스레드가 막히는 걸 방지.
@@ -40,6 +42,17 @@ export function useInfinityViewport(
       rafScheduledRef.current = false
       applyViewport()
     })
+  }
+
+  const centerInitialViewport = (width: number, height: number) => {
+    if (isInitialViewportCenteredRef.current) return
+    if (width <= 0 || height <= 0) return
+    isInitialViewportCenteredRef.current = true
+    stagePosRef.current = {
+      x: width / 2,
+      y: height / 2,
+    }
+    applyViewport()
   }
 
   // wheel 핸들러: 계산과 ref 갱신은 매번 즉시(누적 정확도 + 포인터 위치 정확도 보장),
@@ -74,14 +87,24 @@ export function useInfinityViewport(
     scheduleApplyViewport()
   }
 
+  const applyPanningState = () => {
+    const stage = stageRef.current
+    if (!stage) return
+    const isPanning = isSpacePanningRef.current || isToolPanningRef.current
+    stage.draggable(isPanning)
+    stage.container().style.cursor = isPanning ? 'grab' : ''
+  }
+
   // Space 키 패닝 토글 — Konva Stage의 draggable + container 커서를 직접 갱신.
   // React state를 거치지 않으므로 키 입력 시 리렌더가 발생하지 않는다.
   const setSpacePanning = (panning: boolean) => {
     isSpacePanningRef.current = panning
-    const stage = stageRef.current
-    if (!stage) return
-    stage.draggable(panning)
-    stage.container().style.cursor = panning ? 'grab' : ''
+    applyPanningState()
+  }
+
+  const setToolPanning = (panning: boolean) => {
+    isToolPanningRef.current = panning
+    applyPanningState()
   }
 
   // Stage가 드래그 종료된 결과를 ref에만 동기화 (state setter 호출 없음).
@@ -98,6 +121,8 @@ export function useInfinityViewport(
     isSpacePanningRef,
     onStageWheel,
     setSpacePanning,
+    setToolPanning,
     onStageDragEnd,
+    centerInitialViewport,
   } as const
 }
