@@ -53,6 +53,7 @@ services:
       until mc alias set local http://minio:9000 '${MINIO_ACCESS_KEY}' '${MINIO_SECRET_KEY}'; do sleep 1; done;
       mc mb --ignore-existing 'local/${MINIO_BUCKET}';
       mc anonymous set download 'local/${MINIO_BUCKET}/uploads/community';
+      mc anonymous set download 'local/${MINIO_BUCKET}/community-memo-shares';
       "
 
 volumes:
