@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 PAGE_SIZE = 20
 ROOM_COUNTS = (100, 1_000, 5_000, 10_000)
 ELEMENT_COUNTS = (100, 1_000, 5_000)
+OPERATION_SCENARIOS = ((1_000, 10), (3_000, 50), (5_000, 100))
 CHART_WIDTH = 960
 CHART_HEIGHT = 540
 
@@ -235,6 +236,104 @@ def run_payload_benchmark(iterations: int) -> list[dict]:
     return rows
 
 
+def build_operation_dataset(element_count: int, operation_count: int) -> tuple[list[dict], list[dict]]:
+    elements = [
+        {"id": f"element-{index}", "type": "sticky-note", "text": f"before-{index}"}
+        for index in range(element_count)
+    ]
+    operations = [
+        {
+            "operationType": "UPDATE_ELEMENT",
+            "elementId": f"element-{element_count - operation_count + index}",
+            "element": {
+                "id": f"element-{element_count - operation_count + index}",
+                "type": "sticky-note",
+                "text": f"after-{index}",
+            },
+        }
+        for index in range(operation_count)
+    ]
+    return elements, operations
+
+
+def before_apply_operations(elements: list[dict], operations: list[dict]) -> list[dict]:
+    applied_elements = list(elements)
+    for operation in operations:
+        operation_type = operation["operationType"]
+        element_id = operation["elementId"]
+        if operation_type == "DELETE_ELEMENT":
+            applied_elements = [element for element in applied_elements if element.get("id") != element_id]
+        elif operation_type in {"CREATE_ELEMENT", "UPDATE_ELEMENT", "UPSERT_ELEMENT"}:
+            applied_elements = [element for element in applied_elements if element.get("id") != element_id]
+            applied_elements.append(operation["element"])
+        elif operation_type == "CLEAR_CANVAS":
+            applied_elements.clear()
+    return applied_elements
+
+
+def after_apply_operations(elements: list[dict], operations: list[dict]) -> list[dict]:
+    elements_by_slot = {}
+    slot_keys_by_element_id = {}
+    next_slot_index = 0
+
+    def append(element: dict, element_id: str | None) -> None:
+        nonlocal next_slot_index
+        prefix = f"element:{element_id}" if element_id else "anonymous"
+        slot_key = f"{prefix}:{next_slot_index}"
+        next_slot_index += 1
+        elements_by_slot[slot_key] = element
+        if element_id:
+            slot_keys_by_element_id.setdefault(element_id, []).append(slot_key)
+
+    def remove(element_id: str | None) -> None:
+        if not element_id:
+            return
+        slot_keys = slot_keys_by_element_id.pop(element_id, [])
+        for slot_key in slot_keys:
+            elements_by_slot.pop(slot_key, None)
+
+    for element in elements:
+        append(element, element.get("id"))
+
+    for operation in operations:
+        operation_type = operation["operationType"]
+        element_id = operation["elementId"]
+        if operation_type == "DELETE_ELEMENT":
+            remove(element_id)
+        elif operation_type in {"CREATE_ELEMENT", "UPDATE_ELEMENT", "UPSERT_ELEMENT"}:
+            remove(element_id)
+            append(operation["element"], element_id)
+        elif operation_type == "CLEAR_CANVAS":
+            elements_by_slot.clear()
+            slot_keys_by_element_id.clear()
+
+    return list(elements_by_slot.values())
+
+
+def run_operation_benchmark(iterations: int) -> list[dict]:
+    rows = []
+    for element_count, operation_count in OPERATION_SCENARIOS:
+        elements, operations = build_operation_dataset(element_count, operation_count)
+        before_samples = measure_ms(before_apply_operations, elements, operations, iterations=iterations)
+        after_samples = measure_ms(after_apply_operations, elements, operations, iterations=iterations)
+        before_avg, before_p95 = summarize(before_samples)
+        after_avg, after_p95 = summarize(after_samples)
+        rows.append(
+            {
+                "element_count": element_count,
+                "operation_count": operation_count,
+                "before_avg_ms": before_avg,
+                "before_p95_ms": before_p95,
+                "after_avg_ms": after_avg,
+                "after_p95_ms": after_p95,
+                "improvement_ratio": before_p95 / after_p95 if after_p95 else 0,
+                "before_lookup_steps": element_count * operation_count,
+                "after_lookup_steps": element_count + operation_count,
+            }
+        )
+    return rows
+
+
 def print_markdown_table(rows: list[dict], columns: list[str]) -> None:
     print("| " + " | ".join(columns) + " |")
     print("| " + " | ".join(["---"] * len(columns)) + " |")
@@ -337,10 +436,14 @@ def nice_axis_max(value: float) -> float:
     return nice_fraction * 10**exponent
 
 
-def write_charts(output_dir: Path, lookup_rows: list[dict], payload_rows: list[dict]) -> None:
+def write_charts(output_dir: Path, lookup_rows: list[dict], payload_rows: list[dict],
+    operation_rows: list[dict]) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     lookup_labels = [f"{row['room_count']:,}" for row in lookup_rows]
     payload_labels = [f"{row['element_count']:,}" for row in payload_rows]
+    operation_labels = [
+        f"{row['element_count']:,} elements\n{row['operation_count']} ops" for row in operation_rows
+    ]
 
     (output_dir / "infinite-canvas-active-room-p95.svg").write_text(
         grouped_bar_chart_svg(
@@ -430,6 +533,54 @@ def write_charts(output_dir: Path, lookup_rows: list[dict], payload_rows: list[d
         ),
         encoding="utf-8",
     )
+    (output_dir / "infinite-canvas-operation-apply-p95.svg").write_text(
+        grouped_bar_chart_svg(
+            "Operation Apply p95 Latency",
+            operation_labels,
+            [row["before_p95_ms"] for row in operation_rows],
+            [row["after_p95_ms"] for row in operation_rows],
+            "p95 ms",
+            before_label="List scan",
+            after_label="Batch map",
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "infinite-canvas-operation-apply-p95-ko.svg").write_text(
+        grouped_bar_chart_svg(
+            "작업 적용 p95 지연 시간",
+            operation_labels,
+            [row["before_p95_ms"] for row in operation_rows],
+            [row["after_p95_ms"] for row in operation_rows],
+            "p95 ms",
+            before_label="리스트 탐색",
+            after_label="배치 Map",
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "infinite-canvas-operation-lookup-steps.svg").write_text(
+        grouped_bar_chart_svg(
+            "Element Lookup Work Per Message",
+            operation_labels,
+            [row["before_lookup_steps"] for row in operation_rows],
+            [row["after_lookup_steps"] for row in operation_rows],
+            "estimated steps",
+            before_label="List scan",
+            after_label="Batch map",
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "infinite-canvas-operation-lookup-steps-ko.svg").write_text(
+        grouped_bar_chart_svg(
+            "메시지당 요소 탐색 작업량",
+            operation_labels,
+            [row["before_lookup_steps"] for row in operation_rows],
+            [row["after_lookup_steps"] for row in operation_rows],
+            "예상 단계 수",
+            before_label="리스트 탐색",
+            after_label="배치 Map",
+        ),
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
@@ -440,8 +591,9 @@ def main() -> None:
 
     lookup_rows = run_lookup_benchmark(args.iterations)
     payload_rows = run_payload_benchmark(args.iterations)
+    operation_rows = run_operation_benchmark(args.iterations)
     if args.output_dir:
-        write_charts(args.output_dir, lookup_rows, payload_rows)
+        write_charts(args.output_dir, lookup_rows, payload_rows, operation_rows)
 
     print("## active-room-lookup")
     print_markdown_table(
@@ -469,6 +621,22 @@ def main() -> None:
             "before_parse_p95_ms",
             "after_parse_p95_ms",
             "parse_improvement_ratio",
+        ],
+    )
+    print()
+    print("## operation-apply")
+    print_markdown_table(
+        operation_rows,
+        [
+            "element_count",
+            "operation_count",
+            "before_avg_ms",
+            "before_p95_ms",
+            "after_avg_ms",
+            "after_p95_ms",
+            "improvement_ratio",
+            "before_lookup_steps",
+            "after_lookup_steps",
         ],
     )
 

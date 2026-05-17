@@ -1,0 +1,171 @@
+# 무한 캔버스 요소 적용 로직 최적화 Before / After
+
+## 요약
+
+이번 문서는 기존 무한 캔버스 성능 최적화 문서와 별도의 2차 최적화를 다룹니다.
+
+- 기존 최적화: 활성 방 목록 조회와 WebSocket 참여자 이벤트 payload 최적화
+- 이번 최적화: `applyOperations()` 내부의 요소 적용 로직 최적화
+
+기존 그래프는 Redis 활성 방 조회와 WebSocket payload 크기를 설명합니다. 이번 그래프는 사용자가 도형을 추가, 수정, 삭제할 때 서버가 `elements` 목록에 operation을 반영하는 시간을 설명합니다. 따라서 기존 before/after 그래프와 섞지 않고 별도의 before/after로 관리합니다.
+
+<br>
+
+## 최적화 대상
+
+무한 캔버스 편집 흐름은 다음 순서로 동작합니다.
+
+```text
+클라이언트가 operation 전송
+-> 서버가 현재 room state 조회
+-> 서버가 operation을 elements에 반영
+-> Redis에 최신 state 저장
+-> 다른 참여자에게 변경 이벤트 전파
+```
+
+이번 최적화는 이 중 `operation을 elements에 반영`하는 단계만 대상으로 합니다.
+
+관련 코드:
+
+- `InfiniteCanvasServiceImpl.applyOperations(...)`
+- `InfiniteCanvasServiceImpl.applyOperation(...)`
+- `InfiniteCanvasServiceImpl.CanvasElementBatch`
+
+<br>
+
+## Before: 리스트 기반 요소 갱신
+
+기존 구현은 operation 하나를 적용할 때마다 전체 요소 리스트를 다시 훑었습니다.
+
+```text
+UPSERT / UPDATE
+-> elements.removeIf(elementId matches)
+-> elements.add(updatedElement)
+
+DELETE
+-> elements.removeIf(elementId matches)
+```
+
+이 방식은 구현은 단순하지만, 요소 수와 operation 수가 함께 커질 때 비용이 빠르게 증가합니다.
+
+```text
+예상 탐색 비용 ~= elementCount * operationCount
+```
+
+예를 들어 `5000 elements + 100 operations`에서는 한 메시지를 처리하는 동안 최대 약 `500,000`번 수준의 요소 비교가 발생할 수 있습니다.
+
+<br>
+
+## After: Map 기반 batch 요소 갱신
+
+변경 후에는 현재 요소 목록을 한 번 순회해 slot index를 만들고, operation들은 이 index를 기준으로 적용합니다.
+
+```text
+초기 elements 1회 순회
+-> elementId -> slotKey 인덱스 구성
+-> operation별 remove/upsert를 Map 기반으로 처리
+-> 최종 elements list 재구성
+```
+
+예상 비용은 다음 구조로 바뀝니다.
+
+```text
+예상 탐색 비용 ~= elementCount + operationCount
+```
+
+동작 규칙은 기존과 동일하게 유지했습니다.
+
+- `UPDATE` / `UPSERT`는 기존 같은 `elementId` 요소를 제거한 뒤 새 요소를 뒤에 추가합니다.
+- `DELETE`는 같은 `elementId` 요소를 제거합니다.
+- `CLEAR_CANVAS`는 요소와 lock을 모두 비웁니다.
+- `id`가 없는 익명 요소는 기존 순서를 유지합니다.
+- 중복 `elementId`가 이미 존재할 경우 기존 `removeIf`처럼 같은 `elementId`를 모두 제거합니다.
+
+<br>
+
+## 측정 방법
+
+측정은 synthetic benchmark로 수행했습니다. Redis, 네트워크, WebSocket broadcast 비용을 제외하고 `elements`에 operation을 적용하는 순수 로직 비용만 비교합니다.
+
+```bash
+python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20 --output-dir backend/docs/performance/assets
+```
+
+측정 시나리오:
+
+- `1000 elements + 10 operations`
+- `3000 elements + 50 operations`
+- `5000 elements + 100 operations`
+
+측정 지표:
+
+- 평균 처리 시간
+- p95 처리 시간
+- 예상 요소 탐색 작업량
+
+<br>
+
+## 측정 결과
+
+| 요소 수 | operation 수 | Before avg ms | Before p95 ms | After avg ms | After p95 ms | p95 개선 배율 | Before 예상 탐색 | After 예상 탐색 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 10 | 0.56 | 0.74 | 0.51 | 0.82 | 0.90x | 10,000 | 1,010 |
+| 3,000 | 50 | 8.36 | 10.68 | 2.18 | 2.73 | 3.91x | 150,000 | 3,050 |
+| 5,000 | 100 | 41.34 | 54.58 | 3.79 | 4.39 | 12.43x | 500,000 | 5,100 |
+
+![작업 적용 p95 지연 시간](./assets/infinite-canvas-operation-apply-p95-ko.svg)
+
+![메시지당 요소 탐색 작업량](./assets/infinite-canvas-operation-lookup-steps-ko.svg)
+
+<br>
+
+## 결과 해석
+
+작은 캔버스에서는 Map index를 구성하는 고정 비용이 있어 개선폭이 거의 없거나 p95 기준으로 약간 불리할 수 있습니다. `1000 elements + 10 operations` 케이스에서는 p95가 `0.74ms -> 0.82ms`로 측정되어, 사용자가 체감할 정도의 이점은 없습니다.
+
+하지만 요소 수와 operation 수가 커질수록 결과가 뚜렷해집니다.
+
+- `3000 elements + 50 operations`: p95 `10.68ms -> 2.73ms`, 약 `3.91x` 개선
+- `5000 elements + 100 operations`: p95 `54.58ms -> 4.39ms`, 약 `12.43x` 개선
+
+즉 이번 최적화는 작은 캔버스를 빠르게 만드는 목적보다는, 큰 캔버스에서 여러 변경이 한 번에 들어올 때 서버 처리 지연이 커지는 것을 막는 목적에 가깝습니다.
+
+<br>
+
+## 사용자 체감 영향
+
+이 최적화가 직접 개선하는 것은 브라우저 FPS가 아니라 서버의 operation 적용 시간입니다.
+
+체감상 기대할 수 있는 변화:
+
+- 요소가 많은 캔버스에서 도형 이동/수정/삭제 반영 지연 감소
+- 여러 operation이 한 메시지로 들어올 때 서버 처리 대기 감소
+- 협업 중 변경 이벤트가 늦게 따라오는 현상 완화
+- p95/p99 꼬리 지연 감소
+
+다만 화면 렌더링 자체가 버벅이는 문제는 프론트엔드 렌더링, 캔버스 엔진, 네트워크, WebSocket 수신 처리도 함께 영향을 줍니다. 따라서 이번 최적화는 “화면 FPS 개선”이 아니라 “서버 반영 지연 감소”로 설명하는 것이 정확합니다.
+
+<br>
+
+## 기존 그래프와의 관계
+
+기존 before/after 그래프에는 영향을 주지 않습니다.
+
+| 문서 | Before | After | 설명 |
+| --- | --- | --- | --- |
+| 기존 Redis/WebSocket 최적화 | Redis SCAN, 전체 상태 payload | Sorted Set, delta payload | 조회와 이벤트 payload 최적화 |
+| 이번 요소 적용 최적화 | 리스트 기반 요소 갱신 | Map 기반 batch 요소 갱신 | 편집 operation 적용 로직 최적화 |
+
+따라서 발표나 포트폴리오에서는 두 최적화를 분리해서 설명하는 편이 좋습니다.
+
+<br>
+
+## 검증
+
+로직 변경 후 무한 캔버스 통합 테스트를 실행했습니다.
+
+```bash
+./gradlew --no-daemon test --tests com.nemonicworld.infinitecanvas.controller.InfiniteCanvasControllerIntegrationTest
+```
+
+결과: `BUILD SUCCESSFUL`
