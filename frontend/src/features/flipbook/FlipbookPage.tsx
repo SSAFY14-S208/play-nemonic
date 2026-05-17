@@ -9,7 +9,7 @@ import {
   FlipbookNicknameModal,
   FlipbookResultView,
 } from './components'
-import { useFlipbook } from './hooks'
+import { useFlipbook, useFlipbookResultAutoCycle } from './hooks'
 import {
   getFlipbookStepFromPathname,
   getFlipbookStepPath,
@@ -49,6 +49,13 @@ export default function FlipbookPage() {
   const flipbook = useFlipbook({
     routeStep,
     onStepChange: navigateToStep,
+  })
+
+  useFlipbookResultAutoCycle({
+    enabled: flipbook.currentStep === 'result',
+    resultCount: flipbook.resultItems.length,
+    activeResultIndex: flipbook.activeResultIndex,
+    onSelectResult: flipbook.selectResult,
   })
 
   return (
