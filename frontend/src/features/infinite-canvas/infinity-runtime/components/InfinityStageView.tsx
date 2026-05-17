@@ -30,7 +30,8 @@ import { InfinityToolPanel } from './InfinityToolPanel'
 type InfinityCanvasRoom = ReturnType<typeof useInfinityCanvasRoom>
 const CURSOR_SEND_INTERVAL_MS = 50
 const DRAFT_SEND_INTERVAL_MS = 33
-const REMOTE_DRAFT_RETENTION_MS = 2200
+const REMOTE_DRAFT_RETENTION_MS = 3500
+const REMOTE_DRAFT_CONFIRMED_RETENTION_MS = 650
 
 interface InfinityStageViewProps {
   room: InfinityCanvasRoom
@@ -39,6 +40,7 @@ interface InfinityStageViewProps {
 interface RetainedRemoteDraft {
   draft: InfinityRemoteDraftObjectView
   expiresAt: number
+  visibleSince: number | null
 }
 
 function createObjectMap(objects: ReturnType<typeof toInfinityObjects>) {
@@ -171,17 +173,21 @@ function hashUserUuid(userUuid: string) {
 }
 
 async function createStageBlob(stage: Konva.Stage, rect: InfinityCaptureRect): Promise<Blob> {
-  const backgroundLayer = stage.findOne(`#${INFINITY_CANVAS_BACKGROUND_LAYER_ID}`)
-  const wasBackgroundVisible = backgroundLayer?.visible() ?? false
+  const cloneContainer = document.createElement('div')
+  cloneContainer.style.position = 'fixed'
+  cloneContainer.style.left = '-100000px'
+  cloneContainer.style.top = '-100000px'
+  cloneContainer.style.width = `${stage.width()}px`
+  cloneContainer.style.height = `${stage.height()}px`
+  document.body.appendChild(cloneContainer)
 
-  if (backgroundLayer) {
-    backgroundLayer.visible(false)
-    backgroundLayer.getLayer()?.batchDraw()
-  }
+  const clonedStage = stage.clone({ container: cloneContainer }) as Konva.Stage
+  clonedStage.findOne(`#${INFINITY_CANVAS_BACKGROUND_LAYER_ID}`)?.destroy()
+  clonedStage.draw()
 
   let blob: Blob | null = null
   try {
-    blob = (await stage.toBlob({
+    blob = (await clonedStage.toBlob({
       x: rect.x,
       y: rect.y,
       width: rect.width,
@@ -190,10 +196,8 @@ async function createStageBlob(stage: Konva.Stage, rect: InfinityCaptureRect): P
       mimeType: 'image/png',
     })) as Blob | null
   } finally {
-    if (backgroundLayer) {
-      backgroundLayer.visible(wasBackgroundVisible)
-      backgroundLayer.getLayer()?.batchDraw()
-    }
+    clonedStage.destroy()
+    cloneContainer.remove()
   }
 
   if (!blob) {
@@ -437,7 +441,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           if (draftObjects.length === 0) return null
           const participant = room.participantsByUserUuid[cursor.userUuid]
           return draftObjects
-            .filter((draftObject) => !visibleObjectIds.has(draftObject.id))
             .map((draftObject) => ({
               userUuid: cursor.userUuid,
               nickname: getDisplayNickname(participant, cursor.payload),
@@ -453,7 +456,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       remoteCursorValues,
       room.myUserUuid,
       room.participantsByUserUuid,
-      visibleObjectIds,
     ],
   )
 
@@ -464,18 +466,26 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         const nextDrafts: Record<string, RetainedRemoteDraft> = {}
 
         for (const [key, retainedDraft] of Object.entries(currentDrafts)) {
-          if (
-            retainedDraft.expiresAt > now &&
-            !visibleObjectIds.has(retainedDraft.draft.object.id)
-          ) {
-            nextDrafts[key] = retainedDraft
+          const isVisible = visibleObjectIds.has(retainedDraft.draft.object.id)
+          const visibleSince = isVisible
+            ? retainedDraft.visibleSince ?? now
+            : null
+          const confirmedLongEnough =
+            visibleSince !== null && now - visibleSince >= REMOTE_DRAFT_CONFIRMED_RETENTION_MS
+
+          if (retainedDraft.expiresAt > now && !confirmedLongEnough) {
+            nextDrafts[key] = { ...retainedDraft, visibleSince }
           }
         }
 
         for (const draft of liveRemoteDraftObjects) {
-          nextDrafts[`${draft.userUuid}:${draft.object.id}`] = {
+          const key = `${draft.userUuid}:${draft.object.id}`
+          const isVisible = visibleObjectIds.has(draft.object.id)
+          const previousDraft = nextDrafts[key]
+          nextDrafts[key] = {
             draft,
             expiresAt: now + REMOTE_DRAFT_RETENTION_MS,
+            visibleSince: isVisible ? previousDraft?.visibleSince ?? now : null,
           }
         }
 
@@ -490,6 +500,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
               !currentDraft ||
               !nextDraft ||
               currentDraft.expiresAt !== nextDraft.expiresAt ||
+              currentDraft.visibleSince !== nextDraft.visibleSince ||
               stringifyInfinityObject(currentDraft.draft.object) !== stringifyInfinityObject(nextDraft.draft.object)
             )
           })
@@ -513,7 +524,8 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           Object.entries(currentDrafts).filter(
             ([, retainedDraft]) =>
               retainedDraft.expiresAt > currentTime &&
-              !visibleObjectIds.has(retainedDraft.draft.object.id),
+              (retainedDraft.visibleSince === null ||
+                currentTime - retainedDraft.visibleSince < REMOTE_DRAFT_CONFIRMED_RETENTION_MS),
           ),
         )
         return Object.keys(nextDrafts).length === Object.keys(currentDrafts).length
@@ -528,9 +540,8 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const remoteDraftObjects: InfinityRemoteDraftObjectView[] = useMemo(
     () =>
       Object.values(retainedRemoteDrafts)
-        .filter((retainedDraft) => !visibleObjectIds.has(retainedDraft.draft.object.id))
         .map((retainedDraft) => retainedDraft.draft),
-    [retainedRemoteDrafts, visibleObjectIds],
+    [retainedRemoteDrafts],
   )
 
   useEffect(() => {

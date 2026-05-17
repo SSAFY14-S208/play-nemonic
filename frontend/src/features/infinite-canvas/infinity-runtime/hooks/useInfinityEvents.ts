@@ -22,7 +22,7 @@ function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((p) => [p.x, p.y])
 }
 
-const MIN_LINE_POINT_DISTANCE = 0.45
+const MIN_LINE_POINT_DISTANCE = 0
 const MAX_LINE_POINTS_PER_OBJECT = 5200
 const MAX_DRAFT_LINE_POINTS = 1800
 const BUCKET_FILL_PADDING = 96
@@ -40,6 +40,8 @@ function shouldAppendLinePoint(
   if (!previousPoint) return true
   const distanceX = nextPoint.x - previousPoint.x
   const distanceY = nextPoint.y - previousPoint.y
+  if (distanceX === 0 && distanceY === 0) return false
+  if (MIN_LINE_POINT_DISTANCE <= 0) return true
   return distanceX * distanceX + distanceY * distanceY >= MIN_LINE_POINT_DISTANCE * MIN_LINE_POINT_DISTANCE
 }
 
@@ -667,7 +669,11 @@ export function useInfinityEvents({
   }
 
   const cleanupAfterNextPaint = (cleanup: () => void) => {
-    window.requestAnimationFrame(cleanup)
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(cleanup, 120)
+      })
+    })
   }
 
   const containsRect = (
