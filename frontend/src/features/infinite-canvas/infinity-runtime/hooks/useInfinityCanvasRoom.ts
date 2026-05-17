@@ -184,10 +184,25 @@ function createInitialRoomState({
 }
 
 interface CanvasElementMutation {
+  operationId?: string | null
   clientOperationId?: string | null
+  revision?: number | null
   operationType: InfiniteCanvasOperationType
   elementId?: string | null
   element?: InfiniteCanvasJsonObject | null
+}
+
+function getCanvasOperationKey(operation: CanvasElementMutation) {
+  if (operation.clientOperationId && operation.clientOperationId.trim().length > 0) {
+    return `client:${operation.clientOperationId}`
+  }
+  if (operation.operationId && operation.operationId.trim().length > 0) {
+    return `server:${operation.operationId}`
+  }
+  if (typeof operation.revision === 'number') {
+    return `revision:${operation.revision}`
+  }
+  return null
 }
 
 function applyOperationsToElements(
@@ -348,6 +363,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
   const inFlightOperationsRef = useRef<InfiniteCanvasOperationRequest[] | null>(null)
   const inFlightTimeoutRef = useRef<number | null>(null)
   const confirmedClientOperationIdsRef = useRef<Set<string>>(new Set())
+  const appliedOperationKeysRef = useRef<Set<string>>(new Set())
   const isResolvingRevisionConflictRef = useRef(false)
   const pendingRemoteCursorUpdatesRef = useRef<Record<string, InfiniteCanvasCursor>>({})
   const remoteCursorFrameRef = useRef<number | null>(null)
@@ -435,6 +451,22 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     )
   }, [])
 
+  const getUnappliedOperations = useCallback((operations: CanvasElementMutation[]) => {
+    return operations.filter((operation) => {
+      const operationKey = getCanvasOperationKey(operation)
+      return !operationKey || !appliedOperationKeysRef.current.has(operationKey)
+    })
+  }, [])
+
+  const recordAppliedOperations = useCallback((operations: CanvasElementMutation[]) => {
+    for (const operation of operations) {
+      const operationKey = getCanvasOperationKey(operation)
+      if (operationKey) {
+        appliedOperationKeysRef.current.add(operationKey)
+      }
+    }
+  }, [])
+
   const hydrateRoom = useCallback(async (options: { showLoading?: boolean } = {}) => {
     if (!roomCode || !userUuid) return null
     const showLoading = options.showLoading ?? true
@@ -507,20 +539,22 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
   }, [getUnconfirmedOperations, recordConfirmedOperations])
 
   const applyRevisionConflictDelta = useCallback((details: InfiniteCanvasRevisionConflictResponse) => {
+    const unappliedOperations = getUnappliedOperations(details.missingOperations)
     revisionRef.current = details.latestRevision
     appliedElementsRevisionRef.current = details.latestRevision
     recordConfirmedOperations(details.missingOperations)
+    recordAppliedOperations(unappliedOperations)
     setRoomState((currentState) => {
       if (!currentState) return currentState
       return {
         ...currentState,
-        elements: applyOperationsToElements(currentState.elements, details.missingOperations),
+        elements: applyOperationsToElements(currentState.elements, unappliedOperations),
         operations: details.missingOperations,
         revision: details.latestRevision,
         updatedAt: new Date().toISOString(),
       }
     })
-  }, [recordConfirmedOperations])
+  }, [getUnappliedOperations, recordAppliedOperations, recordConfirmedOperations])
 
   const resolveRevisionConflict = useCallback(
     (details: InfiniteCanvasRevisionConflictResponse | null, inFlightOperations: InfiniteCanvasOperationRequest[] | null) => {
@@ -698,6 +732,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       if (event.type === 'OPS_APPLIED') {
         if (!isOpsAppliedResponse(event.data)) return
         const appliedOperations = event.data
+        const unappliedOperations = getUnappliedOperations(appliedOperations.operations)
         revisionRef.current = appliedOperations.revision
         recordConfirmedOperations(appliedOperations.operations)
         const inFlightOperations = inFlightOperationsRef.current
@@ -718,16 +753,23 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
           }
         }
 
-        if (appliedOperations.revision <= appliedElementsRevisionRef.current) {
+        if (
+          unappliedOperations.length === 0 &&
+          appliedOperations.revision <= appliedElementsRevisionRef.current
+        ) {
           return
         }
 
-        appliedElementsRevisionRef.current = appliedOperations.revision
+        appliedElementsRevisionRef.current = Math.max(
+          appliedElementsRevisionRef.current,
+          appliedOperations.revision,
+        )
+        recordAppliedOperations(unappliedOperations)
         setRoomState((currentState) => {
           if (!currentState) return currentState
           return {
             ...currentState,
-            elements: applyOperationsToElements(currentState.elements, appliedOperations.operations),
+            elements: applyOperationsToElements(currentState.elements, unappliedOperations),
             operations: appliedOperations.operations,
             revision: appliedOperations.revision,
             updatedAt: event.occurredAt,
@@ -804,7 +846,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         void hydrateRoom({ showLoading: false }).finally(bumpOperationQueue)
       }
     },
-    [applyFullState, areOperationsConfirmed, bumpOperationQueue, clearInFlightTimeout, roomCode, hydrateRoom, recordConfirmedOperations, resolveRetryableStateConflict, resolveRevisionConflict, router, scheduleRemoteCursorUpdate, syncPendingOperationState, userUuid],
+    [applyFullState, areOperationsConfirmed, bumpOperationQueue, clearInFlightTimeout, getUnappliedOperations, roomCode, hydrateRoom, recordAppliedOperations, recordConfirmedOperations, resolveRetryableStateConflict, resolveRevisionConflict, router, scheduleRemoteCursorUpdate, syncPendingOperationState, userUuid],
   )
 
   const realtime = useInfinityRealtimeConnection({
