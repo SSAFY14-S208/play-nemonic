@@ -14,6 +14,11 @@ interface ResultRightPanelProps {
   onReturnToLobby: () => void
   onCommunityPost: () => void
   canPostCommunity: boolean
+  // 현재 활성 작품을 디바이스에 다운로드. RELAY_RESULT_ACTIONS의 첫 번째 항목
+  // ("보관함에", Download 아이콘)에 연결된다.
+  onDownloadArtifact: () => void
+  isDownloading: boolean
+  canDownload: boolean
 }
 
 // 결과 화면 우측 1컬럼 패널 — 얼굴 작성자(앨범 소유자) 닉네임 버튼 + 액션 버튼.
@@ -27,6 +32,9 @@ export default function ResultRightPanel({
   onReturnToLobby,
   onCommunityPost,
   canPostCommunity,
+  onDownloadArtifact,
+  isDownloading,
+  canDownload,
 }: ResultRightPanelProps) {
   return (
     <section className="flex flex-col gap-4">
@@ -63,15 +71,25 @@ export default function ResultRightPanel({
 
       <div className="flex flex-col gap-2">
         {RELAY_RESULT_ACTIONS.map(({ label, Icon }, index) => {
+          const isDownloadAction = index === 0
           const isCommunityPostAction = index === 1
+          const handleClick = isDownloadAction
+            ? onDownloadArtifact
+            : isCommunityPostAction
+              ? onCommunityPost
+              : undefined
+          const isDisabled =
+            (isDownloadAction && (!canDownload || isDownloading)) ||
+            (isCommunityPostAction && !canPostCommunity)
+          const buttonLabel = isDownloadAction && isDownloading ? '저장 중' : label
 
           return (
             <RelayButton
               key={label}
               variant={index === 0 ? 'secondary' : 'primary'}
               size="md"
-              onClick={isCommunityPostAction ? onCommunityPost : undefined}
-              disabled={isCommunityPostAction && !canPostCommunity}
+              onClick={handleClick}
+              disabled={isDisabled}
               className={cn(
                 'w-full gap-2 rounded-[14px] border-[1.5px]',
                 index === 0
@@ -80,7 +98,7 @@ export default function ResultRightPanel({
               )}
             >
               <Icon className="size-4" aria-hidden />
-              {label}
+              {buttonLabel}
             </RelayButton>
           )
         })}
