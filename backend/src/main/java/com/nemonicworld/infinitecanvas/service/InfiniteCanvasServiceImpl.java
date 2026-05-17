@@ -356,7 +356,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             requireFreshRevision(request == null ? null : request.baseRevision(), state.revision());
 
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            List<JsonNode> elements = new ArrayList<>(state.elements());
+            CanvasElementBatch elements = new CanvasElementBatch(state.elements());
             List<InfiniteCanvasOperation> acceptedOperations = new ArrayList<>();
             Map<String, InfiniteCanvasLock> locks = removeExpiredLocks(state.locks(), now);
             long revision = state.revision();
@@ -369,12 +369,13 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
                 acceptedOperations.add(operation);
             }
 
-            InfiniteCanvasState updatedState = copyState(state, state.participants(), elements,
+            List<JsonNode> updatedElements = elements.toList();
+            InfiniteCanvasState updatedState = copyState(state, state.participants(), updatedElements,
                 appendRecentOperations(state.operations(), acceptedOperations), locks, state.cursors(),
                 state.viewport(), revision, now, state.closedAt());
 
             if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
-                return new InfiniteCanvasOpsAppliedResponse(normalizedRoomCode, revision, elements.size(),
+                return new InfiniteCanvasOpsAppliedResponse(normalizedRoomCode, revision, updatedElements.size(),
                     acceptedOperations);
             }
         }
@@ -680,7 +681,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         }
     }
 
-    private void applyOperation(List<JsonNode> elements, Map<String, InfiniteCanvasLock> locks,
+    private void applyOperation(CanvasElementBatch elements, Map<String, InfiniteCanvasLock> locks,
         InfiniteCanvasOperation operation) {
         switch (operation.operationType()) {
             case CLEAR_CANVAS -> {
@@ -698,7 +699,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         }
     }
 
-    private void upsertElement(List<JsonNode> elements, String elementId, JsonNode element) {
+    private void upsertElement(CanvasElementBatch elements, String elementId, JsonNode element) {
         if (element == null || element.isNull()) {
             return;
         }
@@ -709,16 +710,15 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             return;
         }
 
-        removeElement(elements, resolvedElementId);
-        elements.add(element);
+        elements.upsert(resolvedElementId, element);
     }
 
-    private void removeElement(List<JsonNode> elements, String elementId) {
+    private void removeElement(CanvasElementBatch elements, String elementId) {
         if (!StringUtils.hasText(elementId)) {
             return;
         }
 
-        elements.removeIf(element -> elementId.equals(extractElementId(element)));
+        elements.remove(elementId);
     }
 
     private String extractElementId(JsonNode element) {
@@ -747,6 +747,61 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
 
     private boolean isFinite(Double value) {
         return value != null && !value.isNaN() && !value.isInfinite();
+    }
+
+    private final class CanvasElementBatch {
+
+        private final LinkedHashMap<String, JsonNode> elementsBySlot = new LinkedHashMap<>();
+        private final Map<String, List<String>> slotKeysByElementId = new LinkedHashMap<>();
+        private int nextSlotIndex;
+
+        private CanvasElementBatch(List<JsonNode> elements) {
+            for (JsonNode element : elements) {
+                add(element);
+            }
+        }
+
+        private void add(JsonNode element) {
+            append(element, extractElementId(element));
+        }
+
+        private void upsert(String elementId, JsonNode element) {
+            remove(elementId);
+            append(element, elementId);
+        }
+
+        private void remove(String elementId) {
+            List<String> slotKeys = slotKeysByElementId.remove(elementId);
+            if (slotKeys == null) {
+                return;
+            }
+
+            for (String slotKey : slotKeys) {
+                elementsBySlot.remove(slotKey);
+            }
+        }
+
+        private void clear() {
+            elementsBySlot.clear();
+            slotKeysByElementId.clear();
+        }
+
+        private List<JsonNode> toList() {
+            return List.copyOf(elementsBySlot.values());
+        }
+
+        private void append(JsonNode element, String elementId) {
+            String slotKey = nextSlotKey(elementId);
+            elementsBySlot.put(slotKey, element);
+            if (StringUtils.hasText(elementId)) {
+                slotKeysByElementId.computeIfAbsent(elementId, unused -> new ArrayList<>()).add(slotKey);
+            }
+        }
+
+        private String nextSlotKey(String elementId) {
+            String prefix = StringUtils.hasText(elementId) ? "element:" + elementId : "anonymous";
+            return prefix + ":" + nextSlotIndex++;
+        }
     }
 
     private InfiniteCanvasState copyState(InfiniteCanvasState state, List<InfiniteCanvasParticipant> participants,

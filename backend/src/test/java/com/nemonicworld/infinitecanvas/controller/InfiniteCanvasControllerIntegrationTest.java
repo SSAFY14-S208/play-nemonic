@@ -575,6 +575,47 @@ class InfiniteCanvasControllerIntegrationTest {
     }
 
     @Test
+    void applyInfiniteCanvasOperationsAppliesBatchUpdatesWithoutChangingElementOrderRules() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        JsonNode firstElement = objectMapper.createObjectNode().put("id", "shape-1").put("type", "sticky-note")
+            .put("text", "first");
+        JsonNode anonymousElement = objectMapper.createObjectNode().put("type", "freehand").put("text", "anonymous");
+        JsonNode secondElement = objectMapper.createObjectNode().put("id", "shape-2").put("type", "sticky-note")
+            .put("text", "second");
+        JsonNode thirdElement = objectMapper.createObjectNode().put("id", "shape-3").put("type", "sticky-note")
+            .put("text", "third");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6,
+            List.of(firstElement, anonymousElement, secondElement, thirdElement), 0L);
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
+
+        JsonNode updatedSecondElement = objectMapper.createObjectNode().put("id", "shape-2").put("type", "sticky-note")
+            .put("text", "second-updated");
+        JsonNode fourthElement = objectMapper.createObjectNode().put("id", "shape-4").put("type", "sticky-note")
+            .put("text", "fourth");
+
+        InfiniteCanvasOpsAppliedResponse response = infiniteCanvasService.applyOperations(ownerUuid.toString(),
+            state.roomCode(),
+            new InfiniteCanvasOpsRequest(0L,
+                List.of(
+                    new InfiniteCanvasOperationRequest("local-op-1", "client-op-1",
+                        InfiniteCanvasOperationType.UPDATE_ELEMENT, "shape-2", updatedSecondElement, null),
+                    new InfiniteCanvasOperationRequest("local-op-2", "client-op-2",
+                        InfiniteCanvasOperationType.DELETE_ELEMENT, "shape-1", null, null),
+                    new InfiniteCanvasOperationRequest("local-op-3", "client-op-3",
+                        InfiniteCanvasOperationType.UPSERT_ELEMENT, "shape-4", fourthElement, null))));
+
+        JsonNode storedElements = readStoredJson(roomKey(state.roomCode())).path("elements");
+        assertThat(response.revision()).isEqualTo(3L);
+        assertThat(response.elementCount()).isEqualTo(4);
+        assertThat(storedElements).hasSize(4);
+        assertThat(storedElements.get(0).path("id").asText(null)).isNull();
+        assertThat(storedElements.get(1).path("id").asText()).isEqualTo("shape-3");
+        assertThat(storedElements.get(2).path("id").asText()).isEqualTo("shape-2");
+        assertThat(storedElements.get(2).path("text").asText()).isEqualTo("second-updated");
+        assertThat(storedElements.get(3).path("id").asText()).isEqualTo("shape-4");
+    }
+
+    @Test
     void applyInfiniteCanvasOperationsRejectsStaleRevision() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6, 2L);
@@ -831,6 +872,15 @@ class InfiniteCanvasControllerIntegrationTest {
 
     private InfiniteCanvasState activeCanvasState(UUID ownerUuid, int maxParticipants, long revision) {
         return activeCanvasState(maxParticipants, revision, participant(ownerUuid, "Owner"));
+    }
+
+    private InfiniteCanvasState activeCanvasState(UUID ownerUuid, int maxParticipants, List<JsonNode> elements,
+        long revision) {
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, maxParticipants, revision);
+
+        return new InfiniteCanvasState(state.roomCode(), state.status(), state.hostUserUuid(), state.participants(),
+            List.copyOf(elements), state.operations(), state.locks(), state.cursors(), state.viewport(),
+            state.maxParticipants(), state.revision(), state.createdAt(), state.updatedAt(), state.closedAt());
     }
 
     private InfiniteCanvasState activeCanvasState(int maxParticipants, InfiniteCanvasParticipant... participants) {
