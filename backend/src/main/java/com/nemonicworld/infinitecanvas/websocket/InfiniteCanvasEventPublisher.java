@@ -10,6 +10,7 @@ import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOpsAppliedResp
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventResponse;
+import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventType;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasSimpleMessageResponse;
 import org.springframework.messaging.MessageHeaders;
@@ -27,6 +28,7 @@ public class InfiniteCanvasEventPublisher {
     private static final String DUPLICATE_SESSION_CLOSED_MESSAGE = "다른 곳에서 접속되어 연결이 종료되었습니다.";
     private static final String CANVAS_CLOSED_MESSAGE = "무한 캔버스가 종료되었습니다.";
     private static final CloseStatus LEFT_CANVAS_CLOSE_STATUS = CloseStatus.NORMAL.withReason("LEFT_CANVAS");
+    private static final CloseStatus CANVAS_CLOSED_CLOSE_STATUS = CloseStatus.NORMAL.withReason("CANVAS_CLOSED");
     private static final String PONG_MESSAGE = "pong";
     private static final String DEFAULT_ERROR_MESSAGE = "무한 캔버스 요청을 처리할 수 없습니다.";
 
@@ -40,7 +42,7 @@ public class InfiniteCanvasEventPublisher {
     }
 
     public void publishParticipantConnected(InfiniteCanvasStateResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_CONNECTED, response.roomCode(), response);
+        publishCanvasStateEvent(InfiniteCanvasEventType.PARTICIPANT_CONNECTED, response, currentUserUuid(response));
     }
 
     public void publishOperationsApplied(InfiniteCanvasOpsAppliedResponse response) {
@@ -48,7 +50,7 @@ public class InfiniteCanvasEventPublisher {
     }
 
     public void publishSnapshotUpdated(InfiniteCanvasStateResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.SNAPSHOT_UPDATED, response.roomCode(), response);
+        publishCanvasStateEvent(InfiniteCanvasEventType.SNAPSHOT_UPDATED, response, currentUserUuid(response));
     }
 
     public void publishCursorUpdated(InfiniteCanvasCursorResponse response) {
@@ -64,7 +66,7 @@ public class InfiniteCanvasEventPublisher {
     }
 
     public void publishParticipantDisconnected(InfiniteCanvasStateResponse response) {
-        publishCanvasEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response.roomCode(), response);
+        publishCanvasStateEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response, currentUserUuid(response));
     }
 
     public void publishParticipantLeft(InfiniteCanvasLeaveResponse response) {
@@ -82,6 +84,7 @@ public class InfiniteCanvasEventPublisher {
     public void publishCanvasClosed(String roomCode, Object data) {
         Object payload = data == null ? new InfiniteCanvasSimpleMessageResponse(CANVAS_CLOSED_MESSAGE) : data;
         publishCanvasEvent(InfiniteCanvasEventType.CANVAS_CLOSED, roomCode, payload);
+        closeCanvasSessions(roomCode);
     }
 
     public void publishDuplicateSessionClosed(String sessionId, String roomCode) {
@@ -125,6 +128,22 @@ public class InfiniteCanvasEventPublisher {
         InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(type, roomCode, data);
 
         messagingTemplate.convertAndSend(CANVAS_TOPIC_PREFIX + roomCode, event);
+    }
+
+    private void publishCanvasStateEvent(InfiniteCanvasEventType type, InfiniteCanvasStateResponse response,
+        String changedUserUuid) {
+        publishCanvasEvent(type, response.roomCode(), InfiniteCanvasEventStateResponse.from(response, changedUserUuid));
+    }
+
+    private String currentUserUuid(InfiniteCanvasStateResponse response) {
+        return response.me() == null ? null : response.me().userUuid();
+    }
+
+    private void closeCanvasSessions(String roomCode) {
+        webSocketSessionRegistry
+            .findCurrentSessions(WebSocketSessionAttributes.CONNECTION_TYPE_INFINITE_CANVAS, roomCode)
+            .forEach(session -> webSocketSessionRegistry.closeWebSocketSession(session.sessionId(),
+                CANVAS_CLOSED_CLOSE_STATUS));
     }
 
     private MessageHeaders createSessionHeaders(String sessionId) {
