@@ -16,14 +16,14 @@ const CARPET_FUR_PROFILES: Record<
     fiberRadius: 0.00055,
   },
   balanced: {
-    fiberCount: 5600,
-    fiberHeight: 0.013,
-    fiberRadius: 0.00048,
+    fiberCount: 7600,
+    fiberHeight: 0.017,
+    fiberRadius: 0.0005,
   },
   quality: {
-    fiberCount: 7600,
-    fiberHeight: 0.015,
-    fiberRadius: 0.00056,
+    fiberCount: 9200,
+    fiberHeight: 0.019,
+    fiberRadius: 0.00058,
   },
 }
 
@@ -107,14 +107,15 @@ export default function CarpetFurMesh({
       >
         <planeGeometry args={[CARPET_SIZE.width, CARPET_SIZE.depth, 1, 1]} />
         <meshStandardMaterial
-          color="#fff9ff"
-          emissive="#fbf1ff"
-          emissiveIntensity={0.16}
+          color="#eaddee"
+          emissive="#d8c1e2"
+          emissiveIntensity={0.035}
           metalness={0}
           polygonOffset
           polygonOffsetFactor={-1}
           polygonOffsetUnits={-1}
           roughness={1}
+          toneMapped
         />
       </mesh>
       <instancedMesh
@@ -132,12 +133,12 @@ export default function CarpetFurMesh({
           ]}
         />
         <meshStandardMaterial
-          color="#fffaff"
-          emissive="#fff3ff"
-          emissiveIntensity={0.24}
+          color="#f0e5f3"
+          emissive="#d9c0e4"
+          emissiveIntensity={0.045}
           metalness={0}
           roughness={1}
-          toneMapped={false}
+          toneMapped
         />
       </instancedMesh>
     </group>

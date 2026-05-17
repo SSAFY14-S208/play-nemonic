@@ -62,10 +62,10 @@ export default function CameraRig({
       azimuthRotateSpeed={0.55}
       draggingSmoothTime={performanceProfile.cameraDraggingSmoothTime}
       dollySpeed={0.52}
-      maxAzimuthAngle={Math.PI * 0.42}
-      maxDistance={12.8}
+      maxAzimuthAngle={Math.PI * 0.52}
+      maxDistance={8.2}
       maxPolarAngle={Math.PI * 0.47}
-      minAzimuthAngle={-Math.PI * 0.72}
+      minAzimuthAngle={-Math.PI * 0.04}
       minDistance={2.2}
       minPolarAngle={Math.PI * 0.17}
       polarRotateSpeed={0.42}

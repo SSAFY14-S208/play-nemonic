@@ -58,8 +58,7 @@ export interface InfiniteCanvasOperation {
 }
 
 export interface InfiniteCanvasStateResponse {
-  canvasId: string
-  inviteCode: string
+  roomCode: string
   status: InfiniteCanvasStatus
   ownerUserUuid: string
   me: InfiniteCanvasParticipantResponse | null
@@ -75,16 +74,17 @@ export interface InfiniteCanvasStateResponse {
 }
 
 export interface InfiniteCanvasCreateRequest {
-  nickname?: string | null
   color?: string | null
-  avatarUrl?: string | null
-  viewport?: InfiniteCanvasJsonObject | null
 }
 
-export interface InfiniteCanvasParticipantUpdateRequest {
-  nickname?: string | null
-  color?: string | null
-  avatarUrl?: string | null
+export interface InfiniteCanvasCreateResponse {
+  roomCode: string
+  status: InfiniteCanvasStatus
+  ownerUserUuid: string
+  maxParticipants: number
+  participantCount: number
+  participants: InfiniteCanvasParticipantResponse[]
+  createdAt: string
 }
 
 export interface InfiniteCanvasOperationRequest {
@@ -119,27 +119,27 @@ export interface InfiniteCanvasLockRequest {
 }
 
 export interface InfiniteCanvasLeaveResponse {
-  canvasId: string
+  roomCode: string
   userUuid: string
   closed: boolean
   closedAt: string | null
 }
 
 export interface InfiniteCanvasOpsAppliedResponse {
-  canvasId: string
+  roomCode: string
   revision: number
   elementCount: number
   operations: InfiniteCanvasOperation[]
 }
 
 export interface InfiniteCanvasLockResponse {
-  canvasId: string
+  roomCode: string
   elementId: string
   lock: InfiniteCanvasLock | null
 }
 
 export interface InfiniteCanvasCursorResponse {
-  canvasId: string
+  roomCode: string
   cursor: InfiniteCanvasCursor
 }
 
@@ -153,7 +153,7 @@ export interface InfiniteCanvasOutputSaveResponse {
   galleryId: string
   artifactId: string
   kind: 'infinite_canvas' | string
-  canvasId: string
+  roomCode: string
   thumbnailUrl: string
   contentUrl: string
   createdAt: string
@@ -198,7 +198,7 @@ export interface InfiniteCanvasWsEventPayloadMap {
 
 export interface InfiniteCanvasWsEnvelope<TType extends InfiniteCanvasWsEventType> {
   type: TType
-  canvasId: string
+  roomCode: string
   data: InfiniteCanvasWsEventPayloadMap[TType]
   occurredAt: string
 }

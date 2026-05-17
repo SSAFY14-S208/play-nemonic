@@ -25,8 +25,8 @@ export const HUB_GAMES: HubGame[] = [
   {
     accentColor: '#88dfff',
     description: '끝없이 펼쳐지는 캔버스 위에 상상을 남겨보세요.',
-    id: 'community-canvas',
-    route: '/community-canvas',
+    id: 'infinite-canvas',
+    route: '/infinite-canvas',
     title: '무한 캔버스',
   },
 ]

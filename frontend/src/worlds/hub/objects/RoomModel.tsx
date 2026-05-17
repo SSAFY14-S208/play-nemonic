@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { Suspense, useRef } from 'react'
 import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import {
@@ -8,7 +8,12 @@ import {
 } from '@/shared/constants'
 import type { HubPerformanceMode } from '@/shared/types'
 import CarpetFurMesh from './CarpetFurMesh'
-import { useRoomModel } from './hooks'
+import CommunityCanvasWhiteboardPreviewMesh from './CommunityCanvasWhiteboardPreviewMesh'
+import TabletopSheenMesh from './TabletopSheenMesh'
+import {
+  useCommunityCanvasWhiteboardAssetNavigation,
+  useRoomModel,
+} from './hooks'
 
 export default function RoomModel({
   performanceMode,
@@ -20,6 +25,7 @@ export default function RoomModel({
   const { actions } = useAnimations(animations, groupRef)
 
   useRoomModel(scene, animations, actions, performanceMode)
+  const isWhiteboardHovered = useCommunityCanvasWhiteboardAssetNavigation(scene)
 
   return (
     <group
@@ -31,6 +37,10 @@ export default function RoomModel({
         object={scene}
         dispose={null}
       />
+      <Suspense fallback={null}>
+        <CommunityCanvasWhiteboardPreviewMesh isExpanded={isWhiteboardHovered} />
+      </Suspense>
+      <TabletopSheenMesh performanceMode={performanceMode} />
       <CarpetFurMesh performanceMode={performanceMode} />
     </group>
   )

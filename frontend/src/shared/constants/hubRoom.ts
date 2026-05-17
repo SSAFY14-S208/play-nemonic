@@ -4,7 +4,7 @@ import type {
   HubPerformanceProfile,
 } from '@/shared/types'
 
-export const HUB_ROOM_MODEL_PATH = '/models/isometric-girl-room.glb?v=deci-current-room-look-pass-20260516-0229'
+export const HUB_ROOM_MODEL_PATH = '/models/isometric-girl-room.glb?v=file1-whiteboard-named-20260517'
 export const HUB_ROOM_MODEL_INCLUDES_PRINTER = true
 
 export const DEFAULT_HUB_PERFORMANCE_MODE: HubPerformanceMode = 'balanced'
@@ -20,34 +20,135 @@ export const HUB_PERFORMANCE_PROFILES: Record<
     anisotropyLimit: 4,
     cameraDraggingSmoothTime: 0.08,
     cameraSmoothTime: 0.12,
-    contactShadows: false,
+    contactShadow: null,
     dpr: 1,
     enableButtonPulse: false,
     environment: false,
+    environmentBackground: false,
+    environmentBackgroundBlurriness: 0,
+    environmentBackgroundIntensity: 0,
+    environmentBackgroundRotation: [0, 0, 0],
+    environmentIntensity: 0,
+    environmentPreset: 'apartment',
+    environmentRotation: [0, 0, 0],
+    postProcessing: {
+      ambientOcclusion: null,
+      bloom: null,
+      colorGrade: null,
+      enabled: false,
+      multisampling: 0,
+      resolutionScale: 1,
+    },
+    shadowMapSize: 512,
     shadows: false,
     smoothCameraTransitions: false,
+    toneMappingExposure: 0.96,
   },
   balanced: {
     anisotropyLimit: 8,
     cameraDraggingSmoothTime: 0.12,
     cameraSmoothTime: 0.38,
-    contactShadows: true,
+    contactShadow: {
+      blur: 2.2,
+      color: '#9f8cb9',
+      far: 6.8,
+      frames: Number.POSITIVE_INFINITY,
+      opacity: 0.26,
+      resolution: 1024,
+      scale: 10.6,
+    },
     dpr: [1, 1.25],
     enableButtonPulse: false,
     environment: true,
+    environmentBackground: false,
+    environmentBackgroundBlurriness: 0,
+    environmentBackgroundIntensity: 0,
+    environmentBackgroundRotation: [0, 0, 0],
+    environmentIntensity: 0.2,
+    environmentPreset: 'apartment',
+    environmentRotation: [0, 0, 0],
+    postProcessing: {
+      ambientOcclusion: {
+        aoRadius: 0.9,
+        color: '#8d78aa',
+        distanceFalloff: 0.72,
+        halfRes: true,
+        intensity: 0.42,
+        quality: 'performance',
+      },
+      bloom: {
+        intensity: 0.13,
+        luminanceSmoothing: 0.72,
+        luminanceThreshold: 0.84,
+        mipmapBlur: true,
+        radius: 0.54,
+      },
+      colorGrade: {
+        brightness: -0.01,
+        contrast: 0.018,
+        saturation: -0.05,
+      },
+      enabled: true,
+      multisampling: 0,
+      resolutionScale: 0.82,
+    },
+    shadowMapSize: 1024,
     shadows: false,
     smoothCameraTransitions: true,
+    toneMappingExposure: 0.82,
   },
   quality: {
     anisotropyLimit: null,
     cameraDraggingSmoothTime: 0.18,
     cameraSmoothTime: 0.72,
-    contactShadows: true,
-    dpr: [1, 1.5],
+    contactShadow: {
+      blur: 2.6,
+      color: '#917dad',
+      far: 7.2,
+      frames: Number.POSITIVE_INFINITY,
+      opacity: 0.32,
+      resolution: 768,
+      scale: 11,
+    },
+    dpr: [1, 1.25],
     enableButtonPulse: true,
     environment: true,
-    shadows: true,
+    environmentBackground: false,
+    environmentBackgroundBlurriness: 0,
+    environmentBackgroundIntensity: 0,
+    environmentBackgroundRotation: [0, 0, 0],
+    environmentIntensity: 0.18,
+    environmentPreset: 'apartment',
+    environmentRotation: [0, 0, 0],
+    postProcessing: {
+      ambientOcclusion: {
+        aoRadius: 1.1,
+        color: '#7f6a9d',
+        distanceFalloff: 0.76,
+        halfRes: true,
+        intensity: 0.5,
+        quality: 'performance',
+      },
+      bloom: {
+        intensity: 0.04,
+        luminanceSmoothing: 0.7,
+        luminanceThreshold: 0.93,
+        mipmapBlur: true,
+        radius: 0.5,
+      },
+      colorGrade: {
+        brightness: -0.025,
+        contrast: 0.02,
+        saturation: -0.04,
+      },
+      enabled: true,
+      multisampling: 0,
+      resolutionScale: 0.86,
+    },
+    shadowMapSize: 1024,
+    shadows: false,
     smoothCameraTransitions: true,
+    toneMappingExposure: 0.74,
   },
 }
 
@@ -106,17 +207,6 @@ export const HUB_WORKSPACE_DROP_SIZE: [number, number] = [
   HUB_WORKSPACE_SURFACE.maximumZ - HUB_WORKSPACE_SURFACE.minimumZ,
 ]
 
-export const HUB_PEGBOARD_DROP_CENTER: [number, number, number] = [
-  (HUB_PEGBOARD_SURFACE.minimumX + HUB_PEGBOARD_SURFACE.maximumX) / 2,
-  (HUB_PEGBOARD_SURFACE.minimumY + HUB_PEGBOARD_SURFACE.maximumY) / 2,
-  HUB_PEGBOARD_SURFACE.z + HUB_PEGBOARD_SURFACE.zOffset,
-]
-
-export const HUB_PEGBOARD_DROP_SIZE: [number, number] = [
-  HUB_PEGBOARD_SURFACE.maximumX - HUB_PEGBOARD_SURFACE.minimumX,
-  HUB_PEGBOARD_SURFACE.maximumY - HUB_PEGBOARD_SURFACE.minimumY,
-]
-
 export function parseHubPerformanceMode(
   value: string | null | undefined,
 ): HubPerformanceMode {
@@ -144,7 +234,8 @@ export function parseHubFocusKey(
     value === 'monitor' ||
     value === 'workspace' ||
     value === 'printer' ||
-    value === 'pegboard'
+    value === 'pegboard' ||
+    value === 'communityBoard'
   ) {
     return value
   }
@@ -168,7 +259,7 @@ export const HUB_CAMERA_PRESETS: Record<
   }
 > = {
   overview: {
-    position: [2.45, 5.05, 4.75],
+    position: [0.10, 3.81, 1.19],
     target: [-2.55, 2.42, -2.82],
   },
   mainDesk: {
@@ -190,5 +281,9 @@ export const HUB_CAMERA_PRESETS: Record<
   pegboard: {
     position: [-2.95, 4.42, 1.36],
     target: [-4.78, 3.62, -1.03],
+  },
+  communityBoard: {
+    position: [-1.87, 3.79, -0.42],
+    target: [-5.37, 3.79, -0.42],
   },
 }

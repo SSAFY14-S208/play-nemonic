@@ -10,6 +10,7 @@ import type {
   AdminInquiryStatusUpdateResponse,
   AdminInquiryType,
 } from '@/shared/types'
+import { formatKoreanDateTime } from '@/shared/utils'
 
 import {
   InquiryDetailModal,
@@ -21,10 +22,7 @@ import {
 import { useAdminInquiries, useInquiryDetail } from './hooks'
 
 function formatDate(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR', {
+  return formatKoreanDateTime(value, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',

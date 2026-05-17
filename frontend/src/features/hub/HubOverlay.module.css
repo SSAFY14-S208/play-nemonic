@@ -78,9 +78,11 @@
   }
 
   .focusControls {
-    right: 1rem;
+    left: 50%;
+    right: auto;
     top: auto;
     bottom: 1rem;
+    transform: translateX(-50%);
     max-width: calc(100vw - 2rem);
     overflow-x: auto;
     border-radius: 1rem;
