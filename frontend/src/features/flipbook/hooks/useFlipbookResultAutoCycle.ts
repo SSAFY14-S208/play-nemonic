@@ -2,33 +2,37 @@
 
 import { useEffect, useRef } from 'react'
 
-// 작품 자동 전환 간격 (ms). 실제 GIF 프레임 재생 시간이 명목치(520ms)와 다르게
-// 보이는 환경 차이를 고려해 작품당 충분한 14초로 고정. useFlipbookResultPlayback이
-// 한 번 끝까지 재생 후 마지막 프레임에서 정지하므로, 재생이 14초 안에 끝나면
-// 남은 시간만큼 마지막 프레임이 화면에 머무른다.
-const FLIPBOOK_RESULT_AUTO_ADVANCE_MS = 14000
+// GIF가 보이기 시작한 시점으로부터 다음 작품으로 넘기기 전 머무는 시간 (ms).
+// FlipbookPrintResultStage의 onParticipantRevealComplete 콜백 발사 시점을
+// 기준으로 한다.
+const FLIPBOOK_RESULT_HOLD_AFTER_REVEAL_MS = 5000
 
 interface UseFlipbookResultAutoCycleParams {
   // 결과 화면이 활성화된 동안에만 자동 전환을 동작시키기 위한 가드. false면 no-op.
   enabled: boolean
   resultCount: number
   activeResultIndex: number
+  // FlipbookPrintResultStage의 onParticipantRevealComplete가 마지막으로 신호한
+  // 참여자 인덱스. 이 값이 activeResultIndex와 일치할 때(=현재 활성 작품의 reveal
+  // 시퀀스가 끝났을 때)에만 5초 타이머를 시작한다. 일치하지 않는 동안(reveal
+  // 진행 중)에는 타이머가 걸리지 않아 mid-reveal 컷이 발생하지 않는다.
+  revealedResultIndex: number | null
   // useFlipbook.selectResult — 인덱스 업데이트와 함께 resultFrameIndex 리셋 +
-  // GIF 재생 재시작을 수행한다. 자동 전환에서도 수동 선택과 동일한 UX를 위해
-  // 직접 setActiveResultIndex가 아닌 이 selector를 사용한다.
+  // GIF 재생 재시작을 수행한다.
   onSelectResult: (resultIndex: number) => void
 }
 
-// 플립북 결과 화면에서 FLIPBOOK_RESULT_AUTO_ADVANCE_MS 간격으로 다음 작품으로
-// 자동 전환한다. 마지막 작품에서는 첫 작품으로 순환. 작품이 1개 이하이면 비활성.
+// 플립북 결과 화면에서 작품 자동 전환. 작품마다 print/reveal 시퀀스가 끝나고
+// GIF가 화면에 보인 시점부터 FLIPBOOK_RESULT_HOLD_AFTER_REVEAL_MS만큼 머무른 뒤
+// 다음 작품으로 넘긴다. (작품마다 프레임 수가 달라 print 시간이 가변적이라
+// 고정 시간 대신 reveal 완료 신호를 기준으로 카운트한다.)
 //
-// activeResultIndex가 바뀔 때마다(자동/수동 모두) effect가 재실행되어 타이머가
-// 리셋되므로, 사용자가 작품 선택 버튼으로 직접 다른 작품을 선택해도 그 시점부터
-// 다시 14초 카운트가 시작된다.
+// 마지막 작품에서는 첫 작품으로 순환. 작품이 1개 이하이면 비활성.
 export function useFlipbookResultAutoCycle({
   enabled,
   resultCount,
   activeResultIndex,
+  revealedResultIndex,
   onSelectResult,
 }: UseFlipbookResultAutoCycleParams) {
   // useFlipbook의 selectResult는 내부 의존성(resultPlayback) 때문에 매 렌더마다
@@ -42,10 +46,12 @@ export function useFlipbookResultAutoCycle({
   useEffect(() => {
     if (!enabled) return
     if (resultCount <= 1) return
+    // 현재 활성 작품의 reveal이 아직 끝나지 않았으면 대기.
+    if (revealedResultIndex !== activeResultIndex) return
 
     const timer = window.setTimeout(() => {
       onSelectResultRef.current((activeResultIndex + 1) % resultCount)
-    }, FLIPBOOK_RESULT_AUTO_ADVANCE_MS)
+    }, FLIPBOOK_RESULT_HOLD_AFTER_REVEAL_MS)
     return () => window.clearTimeout(timer)
-  }, [enabled, resultCount, activeResultIndex])
+  }, [enabled, resultCount, activeResultIndex, revealedResultIndex])
 }

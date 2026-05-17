@@ -27,6 +27,9 @@ interface FlipbookResultViewProps {
   errorMessage: string | null
   onSelectResult: (resultIndex: number) => void
   onReturnToLobby: () => void
+  // 참여자별 print/reveal 시퀀스가 끝나고 GIF가 보이는 시점에 한 번 발사.
+  // 자동 전환 hook이 이 시점을 5초 카운트의 시작점으로 사용한다.
+  onParticipantRevealComplete?: (participantIndex: number) => void
 }
 
 export default function FlipbookResultView({
@@ -39,6 +42,7 @@ export default function FlipbookResultView({
   errorMessage,
   onSelectResult,
   onReturnToLobby,
+  onParticipantRevealComplete,
 }: FlipbookResultViewProps) {
   const printParticipants = useMemo(
     () => toFlipbookPrintParticipants({ resultItems, resultOwnerNames }),
@@ -87,6 +91,7 @@ export default function FlipbookResultView({
         participants={printParticipants}
         activeParticipantIndex={activeResultIndex}
         onSelectParticipant={onSelectResult}
+        onParticipantRevealComplete={onParticipantRevealComplete}
         renderPaper={(frame, frameIndex, participant) => (
           <FlipbookPrintedArtwork
             frame={frame}

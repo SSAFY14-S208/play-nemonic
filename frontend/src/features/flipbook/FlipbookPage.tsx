@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   FlipbookDrawingView,
@@ -51,10 +51,16 @@ export default function FlipbookPage() {
     onStepChange: navigateToStep,
   })
 
+  // FlipbookPrintResultStage가 참여자의 reveal 시퀀스 완료(=GIF가 화면에 보이는
+  // 시점)를 알려주면 setState로 받아둔다. 자동 전환 hook이 이 값과
+  // activeResultIndex가 일치할 때부터 5초 카운트를 시작한다.
+  const [revealedResultIndex, setRevealedResultIndex] = useState<number | null>(null)
+
   useFlipbookResultAutoCycle({
     enabled: flipbook.currentStep === 'result',
     resultCount: flipbook.resultItems.length,
     activeResultIndex: flipbook.activeResultIndex,
+    revealedResultIndex,
     onSelectResult: flipbook.selectResult,
   })
 
@@ -143,6 +149,7 @@ export default function FlipbookPage() {
               ? flipbook.closeRoom
               : () => flipbook.selectStep('booth')
           }
+          onParticipantRevealComplete={setRevealedResultIndex}
         />
       )}
 
