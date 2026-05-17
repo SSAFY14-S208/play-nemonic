@@ -3,7 +3,9 @@ export { DrawingBoard } from './DrawingBoard'
 export { DrawingSessionControls } from './DrawingSessionControls'
 export {
   ColorPanel,
+  DrawingColorSwatch,
   DrawingCompleteButton,
+  DrawingStrokeWidthPicker,
   HintToggleButton,
   MobileColorGrid,
   MobileToolGrid,
@@ -12,6 +14,7 @@ export {
   TopStatusBar,
 } from './DrawingWorkspaceControls'
 export { BrowserExtensionErrorGuard } from './BrowserExtensionErrorGuard'
+export { Button } from './Button'
 export { GameLobbyLayout } from './GameLobbyLayout'
 export { createLobbyToast } from './GameLobbyLayout'
 export type {
