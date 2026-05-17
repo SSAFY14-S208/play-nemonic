@@ -549,9 +549,11 @@ class AdminCommunityMemoControllerIntegrationTest {
                 artifact_id UUID PRIMARY KEY,
                 room_code VARCHAR(32) NULL,
                 frame_count INT NULL,
-                gif_url VARCHAR(1000) NULL
+                gif_url VARCHAR(1000) NULL,
+                first_image VARCHAR(1000) NULL
             )
             """);
+        jdbcTemplate.execute("ALTER TABLE flipbook_artifact ADD COLUMN IF NOT EXISTS first_image VARCHAR(1000)");
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS community_memo (
                 id UUID PRIMARY KEY,
