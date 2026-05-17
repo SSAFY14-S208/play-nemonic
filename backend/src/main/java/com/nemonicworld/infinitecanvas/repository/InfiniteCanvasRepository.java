@@ -15,6 +15,8 @@ public interface InfiniteCanvasRepository {
 
     Optional<InfiniteCanvasState> findByRoomCode(String roomCode);
 
+    InfiniteCanvasActiveCanvasPage findActiveCanvases(int page, int size);
+
     List<InfiniteCanvasState> findAllActiveCanvases();
 
     void delete(String roomCode);

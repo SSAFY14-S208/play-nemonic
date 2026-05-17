@@ -26,6 +26,7 @@ import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasLock;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
+import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasActiveCanvasPage;
 import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasRepository;
 import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasInviteMetadataSyncService;
 import com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisher;
@@ -124,7 +125,8 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
         InfiniteCanvasState newCanvas = canvasState("AC3K9B", InfiniteCanvasStatus.ACTIVE, 3, 2, 5, 7L, base);
         InfiniteCanvasState closedCanvas = canvasState("AC3K9C", InfiniteCanvasStatus.CLOSED, 2, 0, 1, 8L,
             base.plusMinutes(1));
-        given(infiniteCanvasRepository.findAllActiveCanvases()).willReturn(List.of(oldCanvas, newCanvas, closedCanvas));
+        given(infiniteCanvasRepository.findActiveCanvases(0, 20))
+            .willReturn(new InfiniteCanvasActiveCanvasPage(List.of(newCanvas, oldCanvas), 2));
 
         mockMvc
             .perform(get("/api/v1/backoffice/infinite-canvas/canvases").header(HttpHeaders.AUTHORIZATION,
@@ -148,7 +150,8 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
     void filtersByActiveStatus() throws Exception {
         InfiniteCanvasState canvas = canvasState("AC3K9D", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
             LocalDateTime.of(2026, 5, 15, 12, 0, 0));
-        given(infiniteCanvasRepository.findAllActiveCanvases()).willReturn(List.of(canvas));
+        given(infiniteCanvasRepository.findActiveCanvases(0, 20))
+            .willReturn(new InfiniteCanvasActiveCanvasPage(List.of(canvas), 1));
 
         mockMvc
             .perform(get("/api/v1/backoffice/infinite-canvas/canvases")
@@ -175,10 +178,10 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
     @Test
     void paginatesResultsAndClampsSize() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 15, 12, 0, 0);
-        given(infiniteCanvasRepository.findAllActiveCanvases())
-            .willReturn(List.of(canvasState("AC3K9A", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L, base),
-                canvasState("AC3K9B", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L, base.minusSeconds(1)),
-                canvasState("AC3K9C", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L, base.minusSeconds(2))));
+        given(infiniteCanvasRepository.findActiveCanvases(1, 2)).willReturn(new InfiniteCanvasActiveCanvasPage(
+            List.of(canvasState("AC3K9C", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L, base.minusSeconds(2))), 3));
+        given(infiniteCanvasRepository.findActiveCanvases(0, 100)).willReturn(new InfiniteCanvasActiveCanvasPage(
+            List.of(canvasState("AC3K9A", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L, base)), 3));
 
         mockMvc
             .perform(get("/api/v1/backoffice/infinite-canvas/canvases")
@@ -224,7 +227,8 @@ class BackofficeInfiniteCanvasControllerIntegrationTest {
     void superAdminGetsActiveInfiniteCanvasList() throws Exception {
         InfiniteCanvasState canvas = canvasState("AC3K9E", InfiniteCanvasStatus.ACTIVE, 1, 1, 0, 0L,
             LocalDateTime.of(2026, 5, 15, 12, 0, 0));
-        given(infiniteCanvasRepository.findAllActiveCanvases()).willReturn(List.of(canvas));
+        given(infiniteCanvasRepository.findActiveCanvases(0, 20))
+            .willReturn(new InfiniteCanvasActiveCanvasPage(List.of(canvas), 1));
 
         mockMvc
             .perform(get("/api/v1/backoffice/infinite-canvas/canvases").header(HttpHeaders.AUTHORIZATION,

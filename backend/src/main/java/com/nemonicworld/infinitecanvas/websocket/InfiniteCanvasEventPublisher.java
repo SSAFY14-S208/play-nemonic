@@ -12,6 +12,7 @@ import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventType;
+import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasParticipantEventResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasSimpleMessageResponse;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -42,7 +43,7 @@ public class InfiniteCanvasEventPublisher {
     }
 
     public void publishParticipantConnected(InfiniteCanvasStateResponse response) {
-        publishCanvasStateEvent(InfiniteCanvasEventType.PARTICIPANT_CONNECTED, response, currentUserUuid(response));
+        publishParticipantEvent(InfiniteCanvasEventType.PARTICIPANT_CONNECTED, response, currentUserUuid(response));
     }
 
     public void publishOperationsApplied(InfiniteCanvasOpsAppliedResponse response) {
@@ -66,7 +67,7 @@ public class InfiniteCanvasEventPublisher {
     }
 
     public void publishParticipantDisconnected(InfiniteCanvasStateResponse response) {
-        publishCanvasStateEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response, currentUserUuid(response));
+        publishParticipantEvent(InfiniteCanvasEventType.PARTICIPANT_DISCONNECTED, response, currentUserUuid(response));
     }
 
     public void publishParticipantLeft(InfiniteCanvasLeaveResponse response) {
@@ -133,6 +134,12 @@ public class InfiniteCanvasEventPublisher {
     private void publishCanvasStateEvent(InfiniteCanvasEventType type, InfiniteCanvasStateResponse response,
         String changedUserUuid) {
         publishCanvasEvent(type, response.roomCode(), InfiniteCanvasEventStateResponse.from(response, changedUserUuid));
+    }
+
+    private void publishParticipantEvent(InfiniteCanvasEventType type, InfiniteCanvasStateResponse response,
+        String changedUserUuid) {
+        publishCanvasEvent(type, response.roomCode(),
+            InfiniteCanvasParticipantEventResponse.from(response, changedUserUuid));
     }
 
     private String currentUserUuid(InfiniteCanvasStateResponse response) {

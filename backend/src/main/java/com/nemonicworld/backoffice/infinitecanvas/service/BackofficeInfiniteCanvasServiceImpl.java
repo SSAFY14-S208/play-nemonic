@@ -12,6 +12,7 @@ import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.global.logging.StructuredEventLogger;
+import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasActiveCanvasPage;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasRepository;
@@ -19,10 +20,9 @@ import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasInviteMetad
 import com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisher;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -72,21 +72,15 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
         int pageNumber = parsePage(page);
         int pageSize = parseSize(size);
 
-        List<InfiniteCanvasState> filtered = infiniteCanvasRepository.findAllActiveCanvases().stream()
-            .filter(canvas -> canvas.status() != InfiniteCanvasStatus.CLOSED)
-            .filter(canvas -> statusFilter.contains(canvas.status()))
-            .sorted(
-                Comparator.comparing(InfiniteCanvasState::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                    .thenComparing(InfiniteCanvasState::roomCode, Comparator.nullsLast(Comparator.naturalOrder())))
-            .toList();
+        InfiniteCanvasActiveCanvasPage activeCanvasPage = infiniteCanvasRepository.findActiveCanvases(pageNumber,
+            pageSize);
+        if (!statusFilter.contains(InfiniteCanvasStatus.ACTIVE)) {
+            return new BackofficeInfiniteCanvasListResponse(List.of(), 0L, pageNumber, pageSize);
+        }
 
-        long totalElements = filtered.size();
-        int fromIndex = Math.min(pageNumber * pageSize, filtered.size());
-        int toIndex = Math.min(fromIndex + pageSize, filtered.size());
-        List<BackofficeInfiniteCanvasResponse> items = filtered.subList(fromIndex, toIndex).stream()
-            .map(BackofficeInfiniteCanvasResponse::from).toList();
-
-        return new BackofficeInfiniteCanvasListResponse(items, totalElements, pageNumber, pageSize);
+        return new BackofficeInfiniteCanvasListResponse(
+            activeCanvasPage.items().stream().map(BackofficeInfiniteCanvasResponse::from).toList(),
+            activeCanvasPage.totalElements(), pageNumber, pageSize);
     }
 
     @Override

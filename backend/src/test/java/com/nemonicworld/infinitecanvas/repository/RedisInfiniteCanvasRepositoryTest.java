@@ -27,6 +27,7 @@ import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.ZSetOperations;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 class RedisInfiniteCanvasRepositoryTest {
@@ -39,6 +40,7 @@ class RedisInfiniteCanvasRepositoryTest {
     private StringRedisTemplate redisTemplate;
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
+    private ZSetOperations<String, String> zSetOperations;
     private RedisInfiniteCanvasRepository repository;
 
     @BeforeEach
@@ -46,10 +48,13 @@ class RedisInfiniteCanvasRepositoryTest {
         redisTemplate = mock(StringRedisTemplate.class);
         redisOperations = createRedisOperationsMock();
         valueOperations = createValueOperationsMock();
+        zSetOperations = createZSetOperationsMock();
         repository = new RedisInfiniteCanvasRepository(redisTemplate, objectMapper);
 
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(redisTemplate.opsForZSet()).willReturn(zSetOperations);
         given(redisOperations.opsForValue()).willReturn(valueOperations);
+        given(redisOperations.opsForZSet()).willReturn(zSetOperations);
         given(redisOperations.exec()).willReturn(List.of("OK"));
         given(redisTemplate.execute(any(SessionCallback.class))).willAnswer(invocation -> {
             SessionCallback<?> callback = invocation.getArgument(0);
@@ -68,6 +73,7 @@ class RedisInfiniteCanvasRepositoryTest {
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq(ROOM_KEY), jsonCaptor.capture(), eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
         assertThat(deserialize(jsonCaptor.getValue())).isEqualTo(canvasState);
+        verify(zSetOperations).add(eq("infinite-canvas:rooms:active:created-at"), eq(ROOM_CODE), any(Double.class));
     }
 
     @Test
@@ -88,6 +94,21 @@ class RedisInfiniteCanvasRepositoryTest {
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq(ROOM_KEY), jsonCaptor.capture(), eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
         assertThat(deserialize(jsonCaptor.getValue())).isEqualTo(updatedCanvasState);
+        verify(zSetOperations).add(eq("infinite-canvas:rooms:active:created-at"), eq(ROOM_CODE), any(Double.class));
+    }
+
+    @Test
+    void saveIfUnchangedRemovesActiveIndexWhenCanvasIsClosed() throws Exception {
+        InfiniteCanvasState expectedCanvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.ACTIVE, 0L,
+            participant(UUID.randomUUID(), "Mango"));
+        InfiniteCanvasState closedCanvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.CLOSED, 1L,
+            expectedCanvasState.participants().getFirst());
+        given(valueOperations.get(ROOM_KEY)).willReturn(serialize(expectedCanvasState));
+
+        boolean saved = repository.saveIfUnchanged(expectedCanvasState, closedCanvasState);
+
+        assertThat(saved).isTrue();
+        verify(zSetOperations).remove("infinite-canvas:rooms:active:created-at", ROOM_CODE);
     }
 
     @Test
@@ -140,6 +161,44 @@ class RedisInfiniteCanvasRepositoryTest {
         verify(cursor).close();
     }
 
+    @Test
+    void findActiveCanvasesReadsOnlyIndexedPageAndRemovesStaleEntries() throws Exception {
+        InfiniteCanvasState activeCanvas = canvasState("AC3K9N", InfiniteCanvasStatus.ACTIVE, 1L,
+            participant(UUID.randomUUID(), "Mango"));
+        InfiniteCanvasState closedCanvas = canvasState("AC3K9P", InfiniteCanvasStatus.CLOSED, 2L,
+            participant(UUID.randomUUID(), "Peach"));
+        given(zSetOperations.zCard("infinite-canvas:rooms:active:created-at")).willReturn(2L, 1L);
+        given(zSetOperations.reverseRange("infinite-canvas:rooms:active:created-at", 0, 1))
+            .willReturn(new java.util.LinkedHashSet<>(List.of("AC3K9N", "AC3K9P")));
+        given(valueOperations.get("infinite-canvas:room:AC3K9N")).willReturn(serialize(activeCanvas));
+        given(valueOperations.get("infinite-canvas:room:AC3K9P")).willReturn(serialize(closedCanvas));
+
+        InfiniteCanvasActiveCanvasPage page = repository.findActiveCanvases(0, 2);
+
+        assertThat(page.items()).containsExactly(activeCanvas);
+        assertThat(page.totalElements()).isEqualTo(1L);
+        verify(zSetOperations).remove("infinite-canvas:rooms:active:created-at", "AC3K9P");
+    }
+
+    @Test
+    void findActiveCanvasesFallsBackToScanAndBackfillsIndexWhenIndexIsEmpty() throws Exception {
+        InfiniteCanvasState activeCanvas = canvasState("AC3K9N", InfiniteCanvasStatus.ACTIVE, 1L,
+            participant(UUID.randomUUID(), "Mango"));
+        Cursor<String> cursor = createCursorMock();
+        given(zSetOperations.zCard("infinite-canvas:rooms:active:created-at")).willReturn(0L);
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, false);
+        given(cursor.next()).willReturn("infinite-canvas:room:AC3K9N");
+        given(valueOperations.get("infinite-canvas:room:AC3K9N")).willReturn(serialize(activeCanvas));
+
+        InfiniteCanvasActiveCanvasPage page = repository.findActiveCanvases(0, 20);
+
+        assertThat(page.items()).containsExactly(activeCanvas);
+        assertThat(page.totalElements()).isEqualTo(1L);
+        verify(zSetOperations).add(eq("infinite-canvas:rooms:active:created-at"), eq(activeCanvas.roomCode()),
+            any(Double.class));
+    }
+
     private InfiniteCanvasState canvasState(String roomCode, InfiniteCanvasStatus status, long revision,
         InfiniteCanvasParticipant... participants) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -178,6 +237,10 @@ class RedisInfiniteCanvasRepositoryTest {
 
     private ValueOperations<String, String> createValueOperationsMock() {
         return (ValueOperations<String, String>) mock(ValueOperations.class);
+    }
+
+    private ZSetOperations<String, String> createZSetOperationsMock() {
+        return (ZSetOperations<String, String>) mock(ZSetOperations.class);
     }
 
     private Cursor<String> createCursorMock() {

@@ -12,8 +12,8 @@ import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.Active
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventResponse;
-import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventStateResponse;
 import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasEventType;
+import com.nemonicworld.infinitecanvas.dto.websocket.InfiniteCanvasParticipantEventResponse;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,10 +38,10 @@ class InfiniteCanvasEventPublisherTest {
         webSocketSessionRegistry);
 
     /**
-     * 참여자 연결 이벤트는 요청자별 me를 제거하고 변경 참여자만 포함한 topic payload를 보냅니다.
+     * 참여자 연결 이벤트는 캔버스 요소/연산/락을 제외한 경량 topic payload를 보냅니다.
      */
     @Test
-    void publishParticipantConnectedSendsEventStateWithoutMeToRoomTopic() {
+    void publishParticipantConnectedSendsSlimParticipantEventToRoomTopic() {
         ArgumentCaptor<InfiniteCanvasEventResponse> eventCaptor = ArgumentCaptor
             .forClass(InfiniteCanvasEventResponse.class);
         InfiniteCanvasStateResponse stateResponse = stateResponse(true);
@@ -53,15 +53,15 @@ class InfiniteCanvasEventPublisherTest {
         InfiniteCanvasEventResponse event = eventCaptor.getValue();
         assertThat(event.type()).isEqualTo(InfiniteCanvasEventType.PARTICIPANT_CONNECTED);
         assertThat(event.roomCode()).isEqualTo(ROOM_CODE);
-        assertThat(event.data()).isInstanceOf(InfiniteCanvasEventStateResponse.class);
+        assertThat(event.data()).isInstanceOf(InfiniteCanvasParticipantEventResponse.class);
 
-        InfiniteCanvasEventStateResponse data = (InfiniteCanvasEventStateResponse) event.data();
+        InfiniteCanvasParticipantEventResponse data = (InfiniteCanvasParticipantEventResponse) event.data();
         assertThat(data.roomCode()).isEqualTo(ROOM_CODE);
         assertThat(data.changedParticipant()).isNotNull();
         assertThat(data.changedParticipant().userUuid()).isEqualTo(USER_UUID);
         assertThat(data.participants()).hasSize(1);
         assertThat(data.getClass().getRecordComponents()).extracting(java.lang.reflect.RecordComponent::getName)
-            .doesNotContain("me");
+            .doesNotContain("me", "elements", "operations", "locks");
     }
 
     /**
