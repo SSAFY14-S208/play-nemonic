@@ -7,6 +7,7 @@ import {
   HUB_ROOM_SCALE,
 } from '@/shared/constants'
 import type { HubPerformanceMode } from '@/shared/types'
+import { extendRoomGltfLoader } from '../hubGltfLoader'
 import CarpetFurMesh from './CarpetFurMesh'
 import CommunityCanvasWhiteboardPreviewMesh from './CommunityCanvasWhiteboardPreviewMesh'
 import TabletopSheenMesh from './TabletopSheenMesh'
@@ -21,7 +22,12 @@ export default function RoomModel({
   performanceMode: HubPerformanceMode
 }) {
   const groupRef = useRef<THREE.Group>(null)
-  const { scene, animations } = useGLTF(HUB_ROOM_MODEL_PATH)
+  const { scene, animations } = useGLTF(
+    HUB_ROOM_MODEL_PATH,
+    true,
+    true,
+    extendRoomGltfLoader,
+  )
   const { actions } = useAnimations(animations, groupRef)
 
   useRoomModel(scene, animations, actions, performanceMode)
@@ -46,4 +52,4 @@ export default function RoomModel({
   )
 }
 
-useGLTF.preload(HUB_ROOM_MODEL_PATH)
+useGLTF.preload(HUB_ROOM_MODEL_PATH, true, true, extendRoomGltfLoader)
