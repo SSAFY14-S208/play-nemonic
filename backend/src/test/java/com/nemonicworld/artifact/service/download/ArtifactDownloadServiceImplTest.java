@@ -128,10 +128,10 @@ class ArtifactDownloadServiceImplTest {
     @Test
     void prepareDownloadFileRejectsUnsupportedKind() {
         givenValidUser();
-        ArtifactImageUrlRow phoneRow = new ArtifactImageUrlRow(ARTIFACT_ID, "phone", "phone/results/a/result.png", null,
-            null, null, null, null, "phone/results/a/result.png", null, null);
+        ArtifactImageUrlRow unsupportedRow = new ArtifactImageUrlRow(ARTIFACT_ID, "unknown",
+            "unknown/results/a/result.png", null, null, null, null, null, null, null, null);
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
-            .willReturn(Optional.of(phoneRow));
+            .willReturn(Optional.of(unsupportedRow));
 
         assertThatThrownBy(() -> artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString()))
             .isInstanceOf(BadRequestException.class).hasMessage("다운로드할 수 없는 산출물 종류입니다.");
@@ -202,6 +202,65 @@ class ArtifactDownloadServiceImplTest {
         verify(artifactDownloadStorage).upload(cacheKey, composedBytes, "image/jpeg");
     }
 
+    @Test
+    void prepareDownloadFileUsesPhoneImageUrl() {
+        byte[] sourceBytes = new byte[]{1, 2, 3};
+        byte[] composedBytes = new byte[]{4, 5, 6};
+        String cacheKey = "artifact-downloads/%s/result-qr.jpg".formatted(ARTIFACT_ID);
+
+        givenValidUser();
+        given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
+            .willReturn(Optional.of(phoneRow("phone/results/a/thumb.png", "phone/results/a/original.png")));
+        given(signedShareTokenIssuer.issueArtifactToken(ARTIFACT_ID, "phone", "QR_DOWNLOAD"))
+            .willReturn("signed-phone-token");
+        given(artifactDownloadStorage.exists(cacheKey)).willReturn(false);
+        given(artifactDownloadStorage.download("phone/results/a/original.png")).willReturn(sourceBytes);
+        given(artifactQrComposer.compose("image/png", sourceBytes,
+            "https://nemonic.example.com/share/signed-phone-token")).willReturn(composedBytes);
+
+        ArtifactQrAsset asset = artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString());
+
+        assertThat(asset.kind()).isEqualTo("phone");
+        assertThat(asset.cacheObjectKey()).isEqualTo(cacheKey);
+        assertThat(asset.fileName()).isEqualTo("nemonic-%s.jpg".formatted(ARTIFACT_ID));
+        assertThat(asset.contentType()).isEqualTo("image/jpeg");
+        verify(artifactDownloadStorage).download("phone/results/a/original.png");
+        verify(artifactDownloadStorage).upload(cacheKey, composedBytes, "image/jpeg");
+    }
+
+    @Test
+    void prepareDownloadFileFallsBackToPhoneThumbnailWhenImageMissing() {
+        byte[] sourceBytes = new byte[]{1, 2, 3};
+        byte[] composedBytes = new byte[]{4, 5, 6};
+        String cacheKey = "artifact-downloads/%s/result-qr.jpg".formatted(ARTIFACT_ID);
+
+        givenValidUser();
+        given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
+            .willReturn(Optional.of(phoneRow("phone/results/a/thumb.png", null)));
+        given(signedShareTokenIssuer.issueArtifactToken(ARTIFACT_ID, "phone", "QR_DOWNLOAD"))
+            .willReturn("signed-phone-token");
+        given(artifactDownloadStorage.exists(cacheKey)).willReturn(false);
+        given(artifactDownloadStorage.download("phone/results/a/thumb.png")).willReturn(sourceBytes);
+        given(artifactQrComposer.compose("image/png", sourceBytes,
+            "https://nemonic.example.com/share/signed-phone-token")).willReturn(composedBytes);
+
+        ArtifactQrAsset asset = artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString());
+
+        assertThat(asset.kind()).isEqualTo("phone");
+        verify(artifactDownloadStorage).download("phone/results/a/thumb.png");
+        verify(artifactDownloadStorage).upload(cacheKey, composedBytes, "image/jpeg");
+    }
+
+    @Test
+    void prepareDownloadFileRejectsAbsolutePhoneImageReference() {
+        givenValidUser();
+        given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
+            .willReturn(Optional.of(phoneRow("phone/results/a/thumb.png", "https://cdn.example.com/phone.png")));
+
+        assertThatThrownBy(() -> artifactQrAssetService.prepareQrAsset(USER_UUID_VALUE, ARTIFACT_ID.toString()))
+            .isInstanceOf(BadRequestException.class).hasMessageContaining("MinIO");
+    }
+
     private void givenValidUser() {
         given(anonymousUserResolver.parseUuid(USER_UUID_VALUE)).willReturn(USER_UUID);
     }
@@ -224,5 +283,10 @@ class ArtifactDownloadServiceImplTest {
     private ArtifactImageUrlRow infiniteCanvasRow(String canvasImageUrl) {
         return new ArtifactImageUrlRow(ARTIFACT_ID, "infinite_canvas", "infinite-canvas/outputs/a/thumb.png", null,
             null, null, null, canvasImageUrl, null, null, null);
+    }
+
+    private ArtifactImageUrlRow phoneRow(String thumbnailUrl, String phoneImageUrl) {
+        return new ArtifactImageUrlRow(ARTIFACT_ID, "phone", thumbnailUrl, null, null, null, null, null, phoneImageUrl,
+            null, null);
     }
 }

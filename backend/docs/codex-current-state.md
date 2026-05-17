@@ -49,6 +49,10 @@ Last updated: 2026-05-17
   keeping DB storage object-key based. PHONE presigned uploads use
   `phone/results/{fileId}/{fileName}` object keys to align with gallery result
   storage paths.
+- Artifact QR download/share now supports `artifact.kind=phone` gallery items by
+  using `phone_artifact.phone_image_url` first, falling back to
+  `artifact.thumbnail_url`, and producing the same JPG QR asset used by other
+  static image artifacts.
 - Gallery list/detail and relay result APIs now convert stored MinIO object keys into browser-renderable public URLs through `global.storage.minio.MinioPublicUrlResolver`, while preserving already absolute URLs as-is and keeping the database storage model object-key based.
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Files presign/confirm keeps the direct-upload contract: the frontend PUTs
@@ -440,7 +444,8 @@ Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/
 `POST /api/v1/artifacts/{artifactId}/share`.
 
 - Both APIs verify the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
-- Download/share artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, and `community_memo`; `phone` and `infinite_canvas` return unsupported-kind errors for this flow.
+- Download/share artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, `infinite_canvas`,
+  `phone`, and `community_memo`.
 - QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and `QR_DOWNLOAD` channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
 - The API creates or reuses a QR-composed MinIO cache object, then returns JPG/GIF bytes as an attachment.
 - Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr.gif` with QR overlaid on every frame.
