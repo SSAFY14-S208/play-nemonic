@@ -24,8 +24,10 @@ export default function RelayBgmToggle({ className }: { className?: string }) {
       aria-label={label}
       aria-pressed={!isMuted}
       title={label}
+      // 아이콘 PNG 자체에 원형 디자인이 들어있어 배경/그림자/blur 없이 페이지
+      // 배경 위에 그대로 얹는다. 클릭 시 미세한 시각 피드백만 hover/active로.
       className={cn(
-        'grid size-12 cursor-pointer place-items-center rounded-full bg-white/80 shadow-[0_4px_12px_rgb(129_89_54_/_14%)] backdrop-blur-sm transition hover:bg-white',
+        'inline-flex size-12 cursor-pointer items-center justify-center bg-transparent transition hover:-translate-y-0.5 hover:brightness-105 active:scale-95',
         className,
       )}
     >
@@ -33,9 +35,9 @@ export default function RelayBgmToggle({ className }: { className?: string }) {
         src={isMuted ? soundMutedIcon : soundOnIcon}
         alt=""
         aria-hidden
-        width={32}
-        height={32}
-        className="size-8 object-contain"
+        width={48}
+        height={48}
+        className="size-12 object-contain"
       />
     </button>
   )
