@@ -34,6 +34,10 @@ const client = ky.create({
 export const api = {
   get: <T>(path: string, searchParams?: Query) =>
     client.get(path, searchParams ? { searchParams } : undefined).json<T>(),
+  // 이미지/파일 등 binary 응답 — JSON 봉투(ApiResponse) 없이 raw Blob을 반환.
+  // 호출 측에서 직접 다운로드 트리거 또는 추가 처리.
+  getBlob: (path: string, searchParams?: Query) =>
+    client.get(path, searchParams ? { searchParams } : undefined).blob(),
   post: <T>(path: string, body?: unknown) =>
     client.post(path, body !== undefined ? { json: body } : undefined).json<T>(),
   put: <T>(path: string, body?: unknown) =>

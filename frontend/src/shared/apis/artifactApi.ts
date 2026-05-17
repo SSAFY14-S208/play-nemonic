@@ -18,5 +18,6 @@ export const getArtifactImageUrls = (artifactId: string) =>
   )
 
 // GET /artifacts/{artifactId}/download — 산출물 파일 다운로드 (binary)
+// JSON 봉투 없는 raw binary 응답이므로 api.getBlob을 사용한다.
 export const getArtifactDownload = (artifactId: string) =>
-  api.get<Blob>(`artifacts/${artifactId}/download`)
+  api.getBlob(`artifacts/${artifactId}/download`)
