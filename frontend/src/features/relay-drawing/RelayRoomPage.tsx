@@ -20,6 +20,10 @@ import {
   RelayNicknameModal,
   RelayResultView,
 } from './components'
+import {
+  RELAY_LEAVE_CANCEL_BUTTON_CLASS,
+  RELAY_LEAVE_CONFIRM_BUTTON_CLASS,
+} from './constants'
 import { useRelayAbandonmentTracking, useRelayRoom } from './hooks'
 import { useRelayDrawingStore } from './stores'
 import { relayToast } from './utils'
@@ -179,7 +183,12 @@ function RelayRoomPageInner() {
         aria-hidden
       />
 
-      {roomStatus === 'FINISHED' && <WorldHomeLink />}
+      {roomStatus === 'FINISHED' && (
+        <WorldHomeLink
+          leaveConfirmCancelButtonClassName={RELAY_LEAVE_CANCEL_BUTTON_CLASS}
+          leaveConfirmConfirmButtonClassName={RELAY_LEAVE_CONFIRM_BUTTON_CLASS}
+        />
+      )}
 
       <div className="mx-auto w-full max-w-300">
         <AnimatePresence mode="wait">
