@@ -152,8 +152,14 @@ const ROOM_PRINT_ANIMATION_NAMES = [
   'label_up',
 ] as const
 const IDLE_POSE_ANIMATION_NAMES = ['print_head_up', 'label_up'] as const
+const ENABLED_MESH_RAYCAST = THREE.Mesh.prototype.raycast
 const DISABLED_RAYCAST: THREE.Mesh['raycast'] = () => undefined
 const ROOM_MATERIAL_BASELINE_KEY = 'nemonicRoomMaterialBaseline'
+const COMMUNITY_CANVAS_WHITEBOARD_MESH_NAMES = new Set([
+  'CommunityCanvasWhiteboard',
+  'CommunityCanvasWhiteboardOutline',
+  'CommunityCanvasWhiteboarOutline',
+])
 
 interface RoomMaterialBaseline {
   color: THREE.Color
@@ -183,6 +189,15 @@ function includesAnyKeyword(value: string, keywords: string[]) {
   const normalizedValue = value.toLowerCase()
 
   return keywords.some((keyword) => normalizedValue.includes(keyword))
+}
+
+export function isCommunityCanvasWhiteboardMesh(
+  object: THREE.Object3D,
+): object is THREE.Mesh {
+  return (
+    object instanceof THREE.Mesh &&
+    COMMUNITY_CANVAS_WHITEBOARD_MESH_NAMES.has(object.name)
+  )
 }
 
 function normalizeRoomIdentifier(value: string) {
@@ -698,6 +713,11 @@ function configureRoomMesh(
   if (includesAnyKeyword(child.name, ['volumetric'])) {
     child.visible = false
     return
+  }
+
+  if (isCommunityCanvasWhiteboardMesh(child)) {
+    child.raycast = ENABLED_MESH_RAYCAST
+    child.userData.hubNavigation = 'community-canvas-whiteboard'
   }
 
   const shouldCastShadow =

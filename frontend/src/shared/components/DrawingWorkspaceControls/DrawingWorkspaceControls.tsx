@@ -561,3 +561,8 @@ function ColorSwatch({
     />
   )
 }
+
+export {
+  ColorSwatch as DrawingColorSwatch,
+  StrokeWidthPicker as DrawingStrokeWidthPicker,
+}

@@ -9,3 +9,8 @@ export {
   DEFAULT_COMMUNITY_MEMO_COLOR,
   getCommunityMemoColor,
 } from './memoColor'
+export {
+  preloadCommunityMemoSounds,
+  playCommunityMemoAttachSound,
+  playCommunityMemoDetachSound,
+} from './communitySound'

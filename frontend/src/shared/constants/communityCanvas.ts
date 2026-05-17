@@ -1,0 +1,11 @@
+export const COMMUNITY_CANVAS_WALL_WIDTH = 1672
+export const COMMUNITY_CANVAS_WALL_HEIGHT = 941
+export const COMMUNITY_CANVAS_MEMO_WIDTH = 160
+export const COMMUNITY_CANVAS_MEMO_HEIGHT = 160
+
+export const COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS = {
+  left: -660,
+  top: -405,
+  right: 690,
+  bottom: 340,
+} as const

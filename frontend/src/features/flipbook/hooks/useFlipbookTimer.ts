@@ -41,13 +41,13 @@ function getDeadlineRemainingSeconds({
   selectedTimeLimitSeconds: FlipbookTimeLimitSeconds
 }) {
   const maximumExpectedSeconds = selectedTimeLimitSeconds + TIMER_DRIFT_GRACE_SECONDS
-  const utcRemainingSeconds = Math.max(
+  const serverRemainingSeconds = Math.max(
     0,
     Math.ceil((parseServerInstant(deadlineAt).getTime() - Date.now()) / 1000),
   )
 
-  if (utcRemainingSeconds <= maximumExpectedSeconds) {
-    return utcRemainingSeconds
+  if (serverRemainingSeconds <= maximumExpectedSeconds) {
+    return serverRemainingSeconds
   }
 
   if (!HAS_TIMEZONE_SUFFIX.test(deadlineAt)) {

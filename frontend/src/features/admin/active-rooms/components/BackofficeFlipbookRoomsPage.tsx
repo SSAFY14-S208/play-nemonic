@@ -2,6 +2,7 @@
 
 import { Search } from 'lucide-react'
 
+import { formatKoreanDateTime } from '@/shared/utils'
 import { useBackofficeFlipbookRooms } from '../hooks'
 import type { FlipbookRoomStatusFilter } from '../hooks'
 
@@ -18,10 +19,7 @@ const STATUS_OPTIONS: RoomFilterOption<FlipbookRoomStatusFilter>[] = [
 ]
 
 function formatGameStartedAt(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleTimeString('ko-KR', {
+  return formatKoreanDateTime(value, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',

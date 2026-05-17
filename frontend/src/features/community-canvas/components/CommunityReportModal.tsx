@@ -58,7 +58,7 @@ export function CommunityReportModal({
         className="fixed inset-0 z-[calc(var(--z-overlay)+10)] overflow-y-auto overflow-x-hidden bg-[#19172a]/50 p-3 backdrop-blur-[2px]"
       >
         <section className="mx-auto flex min-h-full w-full max-w-[42rem] flex-col gap-4 rounded-[1.5rem] border-[0.35rem] border-[#b9b1ce] bg-[#eeeaf7] p-4 shadow-[0_18px_38px_rgb(25_20_40_/_24%)]">
-          <header className="flex items-start justify-between gap-3 rounded-[1rem] border border-[#d5cee3] bg-[#fbfaff] p-4">
+          <header className="flex items-center justify-between gap-3 rounded-[1rem] border border-[#d5cee3] bg-[#fbfaff] p-4">
             <h2 id="community-report-title" className="h3-b text-fg-primary">
               메모 신고
             </h2>
@@ -66,9 +66,9 @@ export function CommunityReportModal({
               type="button"
               aria-label="신고 닫기"
               onClick={onClose}
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
+              className="grid size-10 shrink-0 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_7px_16px_rgb(71_68_112_/_16%)]"
             >
-              <X className="size-5" />
+              <X className="size-4" />
             </button>
           </header>
 
@@ -141,7 +141,7 @@ export function CommunityReportModal({
             backgroundSize: '100% 100%',
           }}
         >
-        <header className="absolute left-[9.8%] right-[18%] top-[4.4%] flex h-[7.4%] items-center">
+        <header className="absolute left-[9.8%] right-[18%] top-[7%] flex h-[7.4%] items-center">
           <h2 id="community-report-title" className="h3-b text-fg-primary">
             메모 신고
           </h2>
@@ -151,9 +151,9 @@ export function CommunityReportModal({
           type="button"
           aria-label="신고 닫기"
           onClick={onClose}
-          className="absolute right-[7.1%] top-[3.3%] grid size-12 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_6px_14px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
+          className="absolute right-[5.3%] top-[5.3%] grid size-9 place-items-center rounded-full border border-[#b9b1ce] bg-[#fbfaff] text-fg-secondary shadow-[0_6px_14px_rgb(71_68_112_/_16%)] transition hover:-translate-y-0.5 hover:bg-white"
         >
-          <X className="size-5" />
+          <X className="size-4" />
         </button>
 
         <div className="absolute bottom-[8.8%] left-[9.8%] right-[9.8%] top-[14.3%] flex flex-col">

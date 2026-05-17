@@ -2,7 +2,7 @@ export type HubGameId =
   | 'fortune-memo'
   | 'flipbook'
   | 'relay-drawing'
-  | 'community-canvas'
+  | 'infinite-canvas'
 
 export interface HubGame {
   accentColor: string

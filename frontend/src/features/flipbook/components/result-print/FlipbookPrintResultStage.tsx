@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import { Sparkles } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { cn } from '@/shared/libs'
+import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 
+import { FLIPBOOK_SOUND_PATHS } from '../../constants'
 import { useFlipbookPrintReveal } from '../../hooks'
 import styles from './FlipbookPrintResultStage.module.css'
 
@@ -62,6 +64,11 @@ const NEMONIC_OUTPUT_SLOT_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-o
 const PARTICIPANT_PANEL_IMAGE_SRC = '/images/flipbook-result/participant-panel-v2.png'
 const PRINT_RISE_DURATION_RATIO = 0.5
 const PRINT_AFTER_RISE_PAUSE_RATIO = 0.25
+const PRINT_START_SOUND_VOLUME = 0.36
+const PRINT_COMPLETE_SOUND_VOLUME = 0.42
+const PRINT_START_SOUND_OFFSET_SECONDS = 0.2
+const PRINT_COMPLETE_SOUND_OFFSET_SECONDS = 0.08
+const PRINT_COMPLETE_SOUND_LEAD_MS = 120
 const PRINTED_PAPER_SHADOW_CLASS =
   'shadow-[0_2px_0_rgba(120,74,35,0.08),0_8px_18px_rgba(72,43,18,0.22),0_18px_36px_rgba(72,43,18,0.18)]'
 
@@ -532,6 +539,42 @@ function SlotPrintedPaper({
   ) => ReactNode
   onPrintRiseComplete: () => void
 }) {
+  const printCompleteSoundTimerRef = useRef<number | null>(null)
+
+  useLayoutEffect(() => {
+    preloadBrowserAudio(FLIPBOOK_SOUND_PATHS.print, PRINT_START_SOUND_VOLUME)
+    preloadBrowserAudio(FLIPBOOK_SOUND_PATHS.cut, PRINT_COMPLETE_SOUND_VOLUME)
+    playBrowserAudio(
+      FLIPBOOK_SOUND_PATHS.print,
+      PRINT_START_SOUND_VOLUME,
+      PRINT_START_SOUND_OFFSET_SECONDS,
+    )
+
+    if (printCompleteSoundTimerRef.current !== null) {
+      window.clearTimeout(printCompleteSoundTimerRef.current)
+    }
+
+    printCompleteSoundTimerRef.current = window.setTimeout(
+      () => {
+        playBrowserAudio(
+          FLIPBOOK_SOUND_PATHS.cut,
+          PRINT_COMPLETE_SOUND_VOLUME,
+          PRINT_COMPLETE_SOUND_OFFSET_SECONDS,
+        )
+      },
+      Math.max(
+        printDurationMs * PRINT_RISE_DURATION_RATIO - PRINT_COMPLETE_SOUND_LEAD_MS,
+        0,
+      ),
+    )
+
+    return () => {
+      if (printCompleteSoundTimerRef.current !== null) {
+        window.clearTimeout(printCompleteSoundTimerRef.current)
+      }
+    }
+  }, [printDurationMs])
+
   return (
     <div className={styles.slotPrintMask}>
       <motion.div
