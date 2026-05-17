@@ -158,7 +158,12 @@ export function MobileColorRail({
     <section
       aria-label="색상 선택"
       className={cn(
-        'flex w-14 shrink-0 flex-col items-center gap-2 overflow-y-auto rounded-[18px] border border-[#ead7c9] bg-white/90 p-2 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]',
+        // overscroll-contain: 레일 안쪽 스크롤이 끝에 도달해도 페이지 스크롤로
+        // 전파되지 않도록 한다. touch-pan-y: 세로 팬 제스처만 활성화해 스와이프
+        // 시 가로 방향으로 튀지 않게 한다.
+        // w-[88px]: 56px swatch + ring-offset-2 + ring-[3px] = 66px 선택 표시
+        // bounding box를 p-2(좌우 16px) 안에 안전하게 수용한다.
+        'flex w-[88px] shrink-0 touch-pan-y flex-col items-center gap-2 overflow-y-auto overflow-x-hidden overscroll-contain rounded-[18px] border border-[#ead7c9] bg-white/90 p-2 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]',
         isDrawingLocked && 'pointer-events-none opacity-60',
         className,
       )}
@@ -166,6 +171,7 @@ export function MobileColorRail({
       {colors.map((color) => (
         <ColorSwatch
           key={color}
+          className="size-14"
           color={color}
           selected={selectedColor === color}
           shape="square"
@@ -618,12 +624,14 @@ function OpacitySlider({
 }
 
 function ColorSwatch({
+  className,
   color,
   selected,
   shape,
   label = `${color} 색상`,
   onSelectColor,
 }: {
+  className?: string
   color: string
   selected: boolean
   shape: 'circle' | 'square'
@@ -634,11 +642,13 @@ function ColorSwatch({
     <button
       type="button"
       aria-label={label}
+      aria-pressed={selected}
       onClick={() => onSelectColor(color)}
       className={cn(
-        'size-10 border border-[#d9d9de]',
+        'size-10 shrink-0 border border-[#d9d9de]',
         shape === 'circle' ? 'rounded-full' : 'rounded-[8px]',
         selected && 'ring-[3px] ring-[#f45d8d] ring-offset-2 ring-offset-white',
+        className,
       )}
       style={{ backgroundColor: color }}
     />
