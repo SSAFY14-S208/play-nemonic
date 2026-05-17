@@ -1,6 +1,6 @@
 import { Text, useTexture } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import {
@@ -37,6 +37,11 @@ const MONITOR_START_BUTTON_HOTSPOT_POSITION: [number, number, number] = [
 const MONITOR_START_BUTTON_SIZE: [number, number] = [1.1, 0.36]
 const MONITOR_START_BUTTON_GLOW_SIZE: [number, number] = [1.2, 0.46]
 const MONITOR_SIDE_HOTSPOT_SIZE: [number, number] = [0.36, 1.08]
+const MONITOR_NAV_ARROW_FONT_SIZE = 0.34
+const MONITOR_NAV_ARROW_OUTLINE_WIDTH = 0.01
+const MONITOR_NAV_ARROW_BOB_DISTANCE = 0.052
+const MONITOR_NAV_ARROW_BOB_SPEED = 3.4
+const MONITOR_NAV_ARROW_PULSE_SCALE = 0.045
 
 interface MonitorScreenAsset {
   background: string
@@ -219,8 +224,28 @@ function MonitorHotspot({
   size: [number, number]
   symbol?: string
 }) {
+  const arrowElapsedTimeRef = useRef(0)
+  const arrowGroupRef = useRef<THREE.Group>(null)
   const materialRef = useRef<THREE.MeshBasicMaterial>(null)
   const invalidate = useThree((state) => state.invalidate)
+  const arrowDirection = action === 'previous' ? -1 : action === 'next' ? 1 : 0
+
+  useFrame((_, delta) => {
+    const arrowGroup = arrowGroupRef.current
+
+    if (!symbol || !arrowGroup || arrowDirection === 0) return
+
+    arrowElapsedTimeRef.current += delta
+
+    const wave = Math.sin(
+      arrowElapsedTimeRef.current * MONITOR_NAV_ARROW_BOB_SPEED,
+    )
+    const scale = 1 + ((wave + 1) / 2) * MONITOR_NAV_ARROW_PULSE_SCALE
+
+    arrowGroup.position.x = arrowDirection * wave * MONITOR_NAV_ARROW_BOB_DISTANCE
+    arrowGroup.scale.setScalar(scale)
+    invalidate()
+  })
 
   const setHovered = (isHovered: boolean) => {
     const material = materialRef.current
@@ -270,20 +295,21 @@ function MonitorHotspot({
         />
       </mesh>
       {symbol && (
-        <Text
-          anchorX="center"
-          anchorY="middle"
-          color="#ffffff"
-          font={MONITOR_FONT_URL}
-          fontSize={0.16}
-          outlineColor="#231648"
-          outlineOpacity={0.45}
-          outlineWidth={0.004}
-          position={[0, 0, 0.012]}
-          textAlign="center"
-        >
-          {symbol}
-        </Text>
+        <group ref={arrowGroupRef} position={[0, 0, 0.012]}>
+          <Text
+            anchorX="center"
+            anchorY="middle"
+            color="#ffffff"
+            font={MONITOR_FONT_URL}
+            fontSize={MONITOR_NAV_ARROW_FONT_SIZE}
+            outlineColor="#231648"
+            outlineOpacity={0.7}
+            outlineWidth={MONITOR_NAV_ARROW_OUTLINE_WIDTH}
+            textAlign="center"
+          >
+            {symbol}
+          </Text>
+        </group>
       )}
       {!symbol && (
         <Text

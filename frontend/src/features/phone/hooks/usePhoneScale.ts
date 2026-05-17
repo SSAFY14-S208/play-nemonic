@@ -2,27 +2,55 @@
 
 import { useEffect, useState } from 'react'
 
-// 폰 디자인 사이즈. 자식 요소들이 이 크기를 전제로 px/rem이 박혀 있어
-// 폰 frame을 가변으로 두면 비율이 깨진다. 디자인 사이즈는 고정하고
-// viewport에 맞춰 wrapper만 transform: scale로 비례 축소시킨다.
 const PHONE_DESIGN_WIDTH = 393
 const PHONE_DESIGN_HEIGHT = 815
-const VIEWPORT_PADDING_X = 24 // 1.5rem (좌우 여백)
-const VIEWPORT_PADDING_Y = 32 // 2rem (상하 여백)
+const VIEWPORT_PADDING_X = 32
+const VIEWPORT_PADDING_Y = 48
+
+function getVisibleViewportSize() {
+  const visualViewport = window.visualViewport
+
+  return {
+    height: visualViewport?.height ?? window.innerHeight,
+    width: visualViewport?.width ?? window.innerWidth,
+  }
+}
 
 export function usePhoneScale() {
   const [scale, setScale] = useState(1)
+
   useEffect(() => {
+    let animationFrameId = 0
+
     const recompute = () => {
-      const availW = window.innerWidth - VIEWPORT_PADDING_X
-      const availH = window.innerHeight - VIEWPORT_PADDING_Y
-      setScale(
-        Math.min(1, availW / PHONE_DESIGN_WIDTH, availH / PHONE_DESIGN_HEIGHT),
-      )
+      window.cancelAnimationFrame(animationFrameId)
+      animationFrameId = window.requestAnimationFrame(() => {
+        const { height, width } = getVisibleViewportSize()
+        const availableWidth = width - VIEWPORT_PADDING_X
+        const availableHeight = height - VIEWPORT_PADDING_Y
+
+        setScale(
+          Math.min(
+            1,
+            availableWidth / PHONE_DESIGN_WIDTH,
+            availableHeight / PHONE_DESIGN_HEIGHT,
+          ),
+        )
+      })
     }
+
     recompute()
     window.addEventListener('resize', recompute)
-    return () => window.removeEventListener('resize', recompute)
+    window.visualViewport?.addEventListener('resize', recompute)
+    window.visualViewport?.addEventListener('scroll', recompute)
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId)
+      window.removeEventListener('resize', recompute)
+      window.visualViewport?.removeEventListener('resize', recompute)
+      window.visualViewport?.removeEventListener('scroll', recompute)
+    }
   }, [])
+
   return scale
 }
