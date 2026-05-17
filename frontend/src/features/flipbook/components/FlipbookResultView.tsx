@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Download, Loader2, RotateCcw, Share2, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 import type { FlipbookResultItemResponse } from '@/shared/types'
 import { getDisplayImageUrl } from '@/shared/utils'
 
-import { useFlipbookGifDownload } from '../hooks'
+import { useFlipbookResultActions } from '../hooks'
 import { toFlipbookPrintParticipants } from '../utils'
 import {
   FlipbookPrintResultStage,
@@ -15,44 +15,74 @@ import {
   type FlipbookPrintParticipant,
 } from './result-print'
 
+const RESULT_ACTION_BUTTONS_IMAGE_SRC = '/images/flipbook-result/result-action-buttons.png'
+
 interface FlipbookResultViewProps {
   resultItems: FlipbookResultItemResponse[]
   resultOwnerNames: string[]
   activeResultIndex: number
-  gifUrl: string | null
   resultCount: number
   canCloseRoom: boolean
   isBusy: boolean
   errorMessage: string | null
   onSelectResult: (resultIndex: number) => void
-  onCloseRoom: () => void
-  onCreateAnother: () => void
+  onReturnToLobby: () => void
 }
 
 export default function FlipbookResultView({
   resultItems,
   resultOwnerNames,
   activeResultIndex,
-  gifUrl,
   resultCount,
   canCloseRoom,
   isBusy,
   errorMessage,
   onSelectResult,
-  onCloseRoom,
-  onCreateAnother,
+  onReturnToLobby,
 }: FlipbookResultViewProps) {
   const printParticipants = useMemo(
     () => toFlipbookPrintParticipants({ resultItems, resultOwnerNames }),
     [resultItems, resultOwnerNames],
   )
   const activeResult = resultItems[activeResultIndex] ?? resultItems[0] ?? null
-  const displayGifUrl = getDisplayImageUrl(gifUrl) ?? gifUrl
-  const gifDownload = useFlipbookGifDownload()
+  const resultActions = useFlipbookResultActions({
+    activeResult,
+    activeResultIndex,
+    resultOwnerNames,
+    onReturnToLobby,
+  })
   const isResultLoading = printParticipants.length === 0
+  const resultActionButtons = [
+    {
+      id: 'local-gallery',
+      label: '로컬 보관함 저장',
+      left: '0%',
+      width: '33.45%',
+      disabled: !resultActions.canSaveToLocal,
+      onClick: () => {
+        void resultActions.saveToLocalGallery()
+      },
+    },
+    {
+      id: 'community-post',
+      label: '커뮤니티 게시',
+      left: '33.45%',
+      width: '32.56%',
+      disabled: !resultActions.canPostCommunity,
+      onClick: resultActions.postToCommunity,
+    },
+    {
+      id: 'return-to-lobby',
+      label: '로비로 돌아가기',
+      left: '66.01%',
+      width: '33.99%',
+      disabled: canCloseRoom && isBusy,
+      onClick: resultActions.returnToLobby,
+    },
+  ]
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#fff7ed]">
+    <section className="relative min-h-[100svh] overflow-hidden bg-[#fff7ed]">
       <FlipbookPrintResultStage
         participants={printParticipants}
         activeParticipantIndex={activeResultIndex}
@@ -78,68 +108,45 @@ export default function FlipbookResultView({
         </div>
       )}
 
-      <div className="absolute left-4 right-4 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] flex flex-wrap justify-center gap-2 sm:left-auto sm:right-6 sm:top-6 sm:justify-end">
-        <button
-          type="button"
-          onClick={() => {
-            void gifDownload.downloadGif({
-              gifUrl: displayGifUrl,
-              fileName: `flipbook-${activeResult?.artifactId ?? activeResultIndex + 1}`,
-            })
-          }}
-          disabled={!displayGifUrl || gifDownload.isDownloadingGif}
-          className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md disabled:opacity-45"
-        >
-          {gifDownload.isDownloadingGif ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Download className="size-4" aria-hidden />
-          )}
-          GIF 저장
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (!displayGifUrl || !navigator.share) return
-            void navigator.share({ title: '플립북', url: displayGifUrl })
-          }}
-          disabled={!displayGifUrl}
-          className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md disabled:opacity-45"
-        >
-          <Share2 className="size-4" aria-hidden />
-          공유
-        </button>
-        <button
-          type="button"
-          onClick={onCreateAnother}
-          className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 text-[#5d3b38] shadow-[0_8px_18px_rgb(120_80_80_/_12%)] backdrop-blur-md"
-        >
-          <RotateCcw className="size-4" aria-hidden />
-          새 플립북
-        </button>
-        {canCloseRoom && (
-          <button
-            type="button"
-            onClick={onCloseRoom}
-            disabled={isBusy}
-            className="caption-b inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ff8aa4]/70 bg-[#fff0f4]/88 px-4 text-[#b84e66] shadow-[0_8px_18px_rgb(226_128_154_/_16%)] backdrop-blur-md disabled:opacity-45"
-          >
-            <X className="size-4" aria-hidden />
-            {isBusy ? '종료 중' : '방 종료'}
-          </button>
-        )}
+      <div className="absolute left-1/2 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] w-[min(559px,calc(100vw-2rem))] -translate-x-1/2 sm:left-auto sm:right-6 sm:top-6 sm:translate-x-0">
+        <div className="relative aspect-[559/70] w-full">
+          <Image
+            src={RESULT_ACTION_BUTTONS_IMAGE_SRC}
+            alt=""
+            fill
+            priority
+            draggable={false}
+            sizes="(max-width: 640px) calc(100vw - 2rem), 559px"
+            className="select-none object-contain"
+            aria-hidden
+          />
+          {resultActionButtons.map((actionButton) => (
+            <button
+              key={actionButton.id}
+              type="button"
+              aria-label={actionButton.label}
+              title={actionButton.label}
+              onClick={actionButton.onClick}
+              disabled={actionButton.disabled}
+              className="absolute top-0 h-full rounded-full text-transparent transition hover:bg-white/10 active:bg-black/5 disabled:cursor-not-allowed disabled:bg-white/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#ff3f7e]"
+              style={{ left: actionButton.left, width: actionButton.width }}
+            >
+              <span className="sr-only">{actionButton.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {(errorMessage || gifDownload.gifDownloadError) && (
-        <p className="caption-b absolute bottom-28 left-4 right-4 z-[120] rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
-          {errorMessage ?? gifDownload.gifDownloadError}
+      {(errorMessage || resultActions.actionMessage) && (
+        <p className="caption-b absolute bottom-[calc(7.75rem+env(safe-area-inset-bottom))] left-4 right-4 z-[120] rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
+          {errorMessage ?? resultActions.actionMessage}
         </p>
       )}
 
       {printParticipants.length > 0 && (
-        <div className="absolute inset-x-3 bottom-3 z-[120] grid gap-2 rounded-[18px] border border-white/80 bg-white/86 p-3 shadow-[0_14px_30px_rgb(120_80_80_/_16%)] backdrop-blur-md md:hidden">
+        <div className="absolute inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-[120] grid max-h-[28svh] gap-2 rounded-[18px] border border-white/80 bg-white/86 px-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_14px_30px_rgb(120_80_80_/_16%)] backdrop-blur-md md:hidden">
           <p className="caption-b text-[#b84e66]">작품 선택</p>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
             {printParticipants.map((participant, participantIndex) => {
               const isActiveParticipant = participantIndex === activeResultIndex
 
@@ -148,7 +155,7 @@ export default function FlipbookResultView({
                   key={participant.id}
                   type="button"
                   onClick={() => onSelectResult(participantIndex)}
-                  className={`caption-b min-h-10 shrink-0 rounded-full border px-4 ${
+                  className={`caption-b min-h-11 max-w-48 shrink-0 snap-start truncate rounded-full border px-4 ${
                     isActiveParticipant
                       ? 'border-[#ff8aa4] bg-[#fff0f4] text-[#b84e66]'
                       : 'border-[#eadfd2] bg-white text-[#5d3b38]'
