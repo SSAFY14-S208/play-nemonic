@@ -121,6 +121,8 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const lastDraftCursorSentAtRef = useRef(0)
   const latestCursorRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
   const draftObjectRef = useRef<InfinityObject | null>(null)
+  const lastFinishedDraftRef = useRef<InfinityObject | null>(null)
+  const draftClearTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const previousSelectedIdsRef = useRef<string[]>([])
   const [isCaptureMode, setIsCaptureMode] = useState(false)
   const [copiedInviteTarget, setCopiedInviteTarget] = useState<'link' | 'code' | null>(null)
@@ -188,13 +190,35 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
   const handleDraftObjectChange = useCallback(
     (draftObject: InfinityObject | null) => {
-      draftObjectRef.current = draftObject
-      if (draftObject !== null) return
+      if (draftClearTimeoutRef.current) {
+        window.clearTimeout(draftClearTimeoutRef.current)
+        draftClearTimeoutRef.current = null
+      }
+      if (draftObject !== null) {
+        draftObjectRef.current = draftObject
+        lastFinishedDraftRef.current = draftObject
+        return
+      }
+      draftObjectRef.current = lastFinishedDraftRef.current
       const latestCursor = latestCursorRef.current
       if (!latestCursor) return
-      sendCursor(latestCursor, { force: true })
+      draftClearTimeoutRef.current = window.setTimeout(() => {
+        draftClearTimeoutRef.current = null
+        draftObjectRef.current = null
+        lastFinishedDraftRef.current = null
+        sendCursor(latestCursor, { force: true })
+      }, 1800)
     },
     [sendCursor],
+  )
+
+  useEffect(
+    () => () => {
+      if (draftClearTimeoutRef.current) {
+        window.clearTimeout(draftClearTimeoutRef.current)
+      }
+    },
+    [],
   )
 
   const drawing = useInfinityDrawing(stageRef, nodeRefs, {
