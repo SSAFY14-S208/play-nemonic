@@ -364,10 +364,11 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
             updatedAt: participantEvent.updatedAt,
           }
         })
-        if (event.type === 'PARTICIPANT_DISCONNECTED' && participantEvent.changedParticipant) {
+        const changedParticipantUserUuid = participantEvent.changedParticipant?.userUuid
+        if (event.type === 'PARTICIPANT_DISCONNECTED' && changedParticipantUserUuid) {
           setRemoteCursors((currentCursors) => {
             const nextCursors = { ...currentCursors }
-            delete nextCursors[participantEvent.changedParticipant.userUuid]
+            delete nextCursors[changedParticipantUserUuid]
             return nextCursors
           })
         }

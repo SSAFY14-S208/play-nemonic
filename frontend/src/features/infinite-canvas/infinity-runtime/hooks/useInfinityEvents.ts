@@ -500,7 +500,7 @@ export function useInfinityEvents({
     } else if (isShapeTool(toolSnapshot)) {
       const shape = previewShapeRef.current
       if (shape && (Math.abs(shape.width) > 5 || Math.abs(shape.height) > 5)) {
-        saveSnapshot([...objectsRef.current, shape], [shape.id])
+        saveSnapshot([...objectsRef.current, shape], selectedIdsRef.current)
       }
       previewShapeRef.current = null
       onDraftObjectChange?.(null)

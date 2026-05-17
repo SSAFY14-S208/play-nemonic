@@ -364,68 +364,41 @@ export function InfinityCanvasStage({
 
   const renderRemoteDraftObject = (draft: InfinityRemoteDraftObjectView) => {
     const obj = draft.object
-    const accentColor = getParticipantAccent(draft.identityIndex)
-    const identityDash = getParticipantDash(draft.identityIndex)
 
     if (obj.type === "line") {
       if (obj.isEraser) return null;
       const points = obj.points.flatMap((point) => [point.x, point.y])
       return (
-        <Fragment key={`remote-draft-${draft.userUuid}-${obj.id}`}>
-          <Line
-            points={points}
-            stroke="#ffffff"
-            strokeWidth={obj.strokeWidth + 3}
-            lineCap="round"
-            lineJoin="round"
-            tension={0.3}
-            opacity={0.72}
-            listening={false}
-          />
-          <Line
-            points={points}
-            stroke={obj.color}
-            strokeWidth={obj.strokeWidth}
-            lineCap="round"
-            lineJoin="round"
-            tension={0.3}
-            opacity={0.96}
-            listening={false}
-          />
-        </Fragment>
+        <Line
+          key={`remote-draft-${draft.userUuid}-${obj.id}`}
+          points={points}
+          stroke={obj.color}
+          strokeWidth={obj.strokeWidth}
+          lineCap="round"
+          lineJoin="round"
+          tension={0.3}
+          opacity={1}
+          listening={false}
+        />
       );
     }
 
     if (obj.type === "rect") {
       const isFilled = Boolean(obj.fill);
       return (
-        <Fragment key={`remote-draft-${draft.userUuid}-${obj.id}`}>
-          <Rect
-            x={obj.x - 3}
-            y={obj.y - 3}
-            width={obj.width + 6}
-            height={obj.height + 6}
-            rotation={obj.rotation ?? 0}
-            stroke={accentColor}
-            strokeWidth={2}
-            opacity={0.78}
-            dash={identityDash}
-            listening={false}
-          />
-          <Rect
-            x={obj.x}
-            y={obj.y}
-            width={obj.width}
-            height={obj.height}
-            rotation={obj.rotation ?? 0}
-            stroke={isFilled ? accentColor : obj.color}
-            strokeWidth={isFilled ? 2 : obj.strokeWidth}
-            fill={obj.fill ?? "transparent"}
-            opacity={isFilled ? 0.82 : 0.88}
-            dash={isFilled ? identityDash : [8, 5]}
-            listening={false}
-          />
-        </Fragment>
+        <Rect
+          key={`remote-draft-${draft.userUuid}-${obj.id}`}
+          x={obj.x}
+          y={obj.y}
+          width={obj.width}
+          height={obj.height}
+          rotation={obj.rotation ?? 0}
+          stroke={isFilled ? undefined : obj.color}
+          strokeWidth={isFilled ? 0 : obj.strokeWidth}
+          fill={obj.fill ?? "transparent"}
+          opacity={1}
+          listening={false}
+        />
       );
     }
 
@@ -434,33 +407,19 @@ export function InfinityCanvasStage({
       const radiusY = Math.abs(obj.height / 2);
       const isFilled = Boolean(obj.fill);
       return (
-        <Fragment key={`remote-draft-${draft.userUuid}-${obj.id}`}>
-          <Ellipse
-            x={obj.x + obj.width / 2}
-            y={obj.y + obj.height / 2}
-            radiusX={radiusX + 3}
-            radiusY={radiusY + 3}
-            rotation={obj.rotation ?? 0}
-            stroke={accentColor}
-            strokeWidth={2}
-            opacity={0.78}
-            dash={identityDash}
-            listening={false}
-          />
-          <Ellipse
-            x={obj.x + obj.width / 2}
-            y={obj.y + obj.height / 2}
-            radiusX={radiusX}
-            radiusY={radiusY}
-            rotation={obj.rotation ?? 0}
-            stroke={isFilled ? accentColor : obj.color}
-            strokeWidth={isFilled ? 2 : obj.strokeWidth}
-            fill={obj.fill ?? "transparent"}
-            opacity={isFilled ? 0.82 : 0.88}
-            dash={isFilled ? identityDash : [8, 5]}
-            listening={false}
-          />
-        </Fragment>
+        <Ellipse
+          key={`remote-draft-${draft.userUuid}-${obj.id}`}
+          x={obj.x + obj.width / 2}
+          y={obj.y + obj.height / 2}
+          radiusX={radiusX}
+          radiusY={radiusY}
+          rotation={obj.rotation ?? 0}
+          stroke={isFilled ? undefined : obj.color}
+          strokeWidth={isFilled ? 0 : obj.strokeWidth}
+          fill={obj.fill ?? "transparent"}
+          opacity={1}
+          listening={false}
+        />
       );
     }
 

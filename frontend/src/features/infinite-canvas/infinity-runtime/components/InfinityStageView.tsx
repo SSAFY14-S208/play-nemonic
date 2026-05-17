@@ -122,7 +122,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const latestCursorRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
   const draftObjectRef = useRef<InfinityObject | null>(null)
   const lastFinishedDraftRef = useRef<InfinityObject | null>(null)
-  const draftClearTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const draftClearTimeoutRef = useRef<number | null>(null)
   const previousSelectedIdsRef = useRef<string[]>([])
   const [isCaptureMode, setIsCaptureMode] = useState(false)
   const [copiedInviteTarget, setCopiedInviteTarget] = useState<'link' | 'code' | null>(null)
@@ -291,6 +291,11 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors],
   )
 
+  const visibleObjectIds = useMemo(
+    () => new Set(drawing.objects.map((object) => object.id)),
+    [drawing.objects],
+  )
+
   const remoteDraftObjects: InfinityRemoteDraftObjectView[] = useMemo(
     () =>
       Object.values(room.remoteCursors)
@@ -298,7 +303,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         .map((cursor) => {
           const draftObject = getPayloadDraftObject(cursor.payload)
           if (!draftObject) return null
-          if (serverObjects.some((object) => object.id === draftObject.id)) return null
+          if (visibleObjectIds.has(draftObject.id)) return null
           const participant = room.participantsByUserUuid[cursor.userUuid]
           return {
             userUuid: cursor.userUuid,
@@ -309,7 +314,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           }
         })
         .filter((draftObject): draftObject is InfinityRemoteDraftObjectView => draftObject !== null),
-    [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors, serverObjects],
+    [getParticipantIdentityIndex, room.myUserUuid, room.participantsByUserUuid, room.remoteCursors, visibleObjectIds],
   )
 
   useEffect(() => {
@@ -345,10 +350,15 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     const selectedIds = drawing.selectedIds.filter((selectedId) =>
       serverObjects.some((object) => object.id === selectedId),
     )
+    const isInitialServerApply = appliedServerRevisionRef.current === null
     isApplyingRemoteRef.current = true
     appliedServerRevisionRef.current = serverRevision
     previousObjectsRef.current = nextServerObjectMap
-    drawing.replaceObjectsFromServer(serverObjects, selectedIds)
+    if (isInitialServerApply) {
+      drawing.replaceObjectsFromServer(serverObjects, selectedIds)
+    } else {
+      drawing.syncObjectsFromServer(serverObjects, selectedIds)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.revision, serverObjects])
 
