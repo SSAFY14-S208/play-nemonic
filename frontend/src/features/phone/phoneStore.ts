@@ -12,8 +12,6 @@ import {
 } from '@/shared/apis'
 import {
   useCanvasPauseStore,
-  useHubPrintStore,
-  useHubRoomStore,
   useUserStore,
 } from '@/shared/stores'
 import type {
@@ -112,6 +110,7 @@ interface PhoneStore {
       | {
           action: 'print'
           imageDataUrl: string
+          saveResponse: PhoneDrawingSaveResponse
         },
   ) => void
 }
@@ -406,18 +405,20 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
 
   addDrawingArtifact: (params) => {
     if (params.action === 'print') {
-      useHubPrintStore
-        .getState()
-        .requestPrint(params.imageDataUrl, '내가 그린 메모')
-      useHubRoomStore.getState().setFocus('printer')
       useCanvasPauseStore.getState().setPaused(false)
 
-      set({
+      set((state) => ({
         activeScreen: 'home',
         isPhoneOpen: false,
+        galleryItems: [
+          createSavedDrawingItem(params.saveResponse, params.imageDataUrl),
+          ...state.galleryItems,
+        ],
+        galleryTotal: state.galleryTotal + 1,
         selectedGalleryItemId: null,
-        toastMessage: '네모닉 출력 요청을 보냈어요.',
-      })
+        toastMessage: null,
+      }))
+      void get().loadGallery({ force: true })
       return
     }
 
