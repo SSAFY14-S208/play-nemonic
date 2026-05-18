@@ -32,6 +32,7 @@ import RoomPreviewPostProcessing from './RoomPreviewPostProcessing'
 
 const NEMONIC_SINGLE_ROOM_PATH = '/hub'
 const NEMONIC_DEVICE_OBJECT_NAME_PREFIX = 'NEMONIC_'
+const NEMONIC_FOCUS_KEY = 'printer'
 
 function isNemonicDeviceObject(object: THREE.Object3D) {
   return object.name.startsWith(NEMONIC_DEVICE_OBJECT_NAME_PREFIX)
@@ -167,20 +168,30 @@ function RoomPreviewCameraControls({
 }
 
 export default function RoomPreviewScene({
+  enablePostProcessing = true,
   variant = 'preview',
 }: {
+  enablePostProcessing?: boolean
   variant?: RoomPreviewVariant
 }) {
   const router = useRouter()
+  const focusKey = useHubRoomStore((state) => state.focusKey)
+  const setFocus = useHubRoomStore((state) => state.setFocus)
   const handleHubModelClick = useCallback(
     (event: ThreeEvent<MouseEvent>) => {
       if (!isNemonicDeviceObject(event.object)) return
 
       event.stopPropagation()
       document.body.style.cursor = ''
+
+      if (focusKey !== NEMONIC_FOCUS_KEY) {
+        setFocus(NEMONIC_FOCUS_KEY)
+        return
+      }
+
       router.push(NEMONIC_SINGLE_ROOM_PATH)
     },
-    [router],
+    [focusKey, router, setFocus],
   )
   const handleHubModelPointerOver = useCallback(
     (event: ThreeEvent<PointerEvent>) => {
@@ -256,7 +267,7 @@ export default function RoomPreviewScene({
         )}
       </RoomPreviewModel>
       <RoomPreviewCameraControls variant={variant} />
-      <RoomPreviewPostProcessing />
+      {enablePostProcessing && <RoomPreviewPostProcessing />}
     </>
   )
 }
