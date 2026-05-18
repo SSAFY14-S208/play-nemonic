@@ -1,5 +1,6 @@
 export { InfinityBoothView } from './InfinityBoothView'
 export { InfinityCanvasPreview } from './InfinityCanvasPreview'
+export { InfinityAiStickerModal } from './InfinityAiStickerModal'
 export { InfinityLobbyView } from './InfinityLobbyView'
 export { InfinityStageView } from './InfinityStageView'
 export { InfinityResultView } from './InfinityResultView'

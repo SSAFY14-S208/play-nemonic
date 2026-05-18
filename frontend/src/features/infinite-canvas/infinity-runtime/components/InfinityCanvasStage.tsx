@@ -6,13 +6,14 @@ import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circl
 import Konva from 'konva'
 
 import { INFINITY_LINE_TENSION } from '../constants'
-import type { InfinityLine, InfinityObject, InfinityShape, InfinityText as InfinityTextObject, InfinityToolKey } from '../constants'
+import type { InfinityImage, InfinityLine, InfinityObject, InfinityShape, InfinityText as InfinityTextObject, InfinityToolKey } from '../constants'
 import type { useInfinityDrawing } from '../hooks'
 import {
   CursorPreview,
   DotGridShape,
   KonvaFill,
   KonvaEllipse,
+  KonvaImageObject,
   KonvaLine,
   KonvaRect,
   KonvaText,
@@ -599,6 +600,19 @@ export function InfinityCanvasStage({
         };
       }
 
+      if (object.type === "image" && node instanceof Konva.Image) {
+        const scaleX = node.scaleX();
+        const scaleY = node.scaleY();
+        return {
+          ...object,
+          x: node.x(),
+          y: node.y(),
+          width: object.width * scaleX,
+          height: object.height * scaleY,
+          rotation: node.rotation(),
+        };
+      }
+
       if (object.type === "rect" && node instanceof Konva.Rect) {
         return {
           ...object,
@@ -733,6 +747,20 @@ export function InfinityCanvasStage({
           onTextDblClick={onTextDblClick}
           onTextDragEnd={onObjectDragEnd}
           onTextTransformEnd={onTextTransformEnd}
+        />
+      );
+    }
+    if (obj.type === "image") {
+      const imageObject = obj as InfinityImage;
+      return (
+        <KonvaImageObject
+          key={imageObject.id}
+          imageObject={imageObject}
+          isSelectTool={isSelectTool}
+          isLocked={isLocked}
+          onImageClick={handleObjectClick}
+          onImageDragEnd={onObjectDragEnd}
+          onImageTransformEnd={onShapeTransformEnd}
         />
       );
     }

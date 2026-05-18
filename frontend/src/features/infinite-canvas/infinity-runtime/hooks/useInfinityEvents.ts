@@ -97,12 +97,15 @@ function recolorObject(object: InfinityObject, color: string): InfinityObject {
   if (object.type === 'rect' || object.type === 'ellipse') {
     return { ...object, fill: color, color }
   }
+  if (object.type === 'image') {
+    return object
+  }
 
   return { ...object, color }
 }
 
 function getObjectBounds(object: InfinityObject) {
-  if (object.type === 'fill' || object.type === 'rect' || object.type === 'ellipse') {
+  if (object.type === 'fill' || object.type === 'rect' || object.type === 'ellipse' || object.type === 'image') {
     return {
       x: object.x,
       y: object.y,
@@ -1065,7 +1068,7 @@ export function useInfinityEvents({
     }
     const newObjects = objectsRef.current.map((obj) => {
       if (obj.id !== id) return obj
-      if (obj.type === 'rect' || obj.type === 'ellipse') {
+      if (obj.type === 'rect' || obj.type === 'ellipse' || obj.type === 'image') {
         return { ...obj, x, y, width, height, rotation }
       }
       return obj

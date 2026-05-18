@@ -96,7 +96,22 @@ export interface InfinityText {
   rotation?: number
 }
 
+export interface InfinityImage {
+  id: string
+  type: 'image'
+  x: number
+  y: number
+  width: number
+  height: number
+  src: string
+  objectKey?: string
+  naturalWidth?: number
+  naturalHeight?: number
+  rotation?: number
+  metadata?: Record<string, unknown>
+}
+
 export const INFINITY_TEXT_FONT_SIZES = [12, 16, 20, 24, 32, 48, 64] as const
 export const INFINITY_TEXT_DEFAULT_FONT_SIZE = 24
 
-export type InfinityObject = InfinityLine | InfinityFill | InfinityShape | InfinityText
+export type InfinityObject = InfinityLine | InfinityFill | InfinityShape | InfinityText | InfinityImage

@@ -1,4 +1,11 @@
-import type { InfinityFill, InfinityLine, InfinityObject, InfinityShape, InfinityText } from './constants'
+import type {
+  InfinityFill,
+  InfinityImage,
+  InfinityLine,
+  InfinityObject,
+  InfinityShape,
+  InfinityText,
+} from './constants'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -61,8 +68,21 @@ function isText(value: unknown): value is InfinityText {
   )
 }
 
+function isImage(value: unknown): value is InfinityImage {
+  if (!isRecord(value)) return false
+  return (
+    value.type === 'image' &&
+    typeof value.id === 'string' &&
+    typeof value.x === 'number' &&
+    typeof value.y === 'number' &&
+    typeof value.width === 'number' &&
+    typeof value.height === 'number' &&
+    typeof value.src === 'string'
+  )
+}
+
 export function isInfinityObject(value: unknown): value is InfinityObject {
-  return isLine(value) || isFill(value) || isShape(value) || isText(value)
+  return isLine(value) || isFill(value) || isShape(value) || isText(value) || isImage(value)
 }
 
 export function toInfinityObjects(elements: unknown[]): InfinityObject[] {
