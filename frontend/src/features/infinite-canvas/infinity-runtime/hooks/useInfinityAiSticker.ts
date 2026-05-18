@@ -24,6 +24,23 @@ function getStringValue(value: unknown, fallback: string) {
   return typeof value === 'string' && value.trim().length > 0 ? value : fallback
 }
 
+function hasResponse(value: unknown): value is { response: Response } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'response' in value &&
+    value.response instanceof Response
+  )
+}
+
+function getErrorMessage(value: unknown) {
+  if (value instanceof Error && value.message.trim().length > 0) {
+    return value.message
+  }
+
+  return null
+}
+
 async function getCreateErrorMessage(caughtError: unknown) {
   if (caughtError instanceof ApiError) {
     return caughtError.message
@@ -33,7 +50,7 @@ async function getCreateErrorMessage(caughtError: unknown) {
     return 'AI 스티커 생성 시간이 길어지고 있어요. 잠시 후 다시 시도해주세요.'
   }
 
-  if (caughtError instanceof HTTPError) {
+  if (caughtError instanceof HTTPError || hasResponse(caughtError)) {
     try {
       const response = (await caughtError.response.json()) as Partial<ApiResponse<unknown>>
       if (typeof response.message === 'string' && response.message.trim().length > 0) {
@@ -42,9 +59,11 @@ async function getCreateErrorMessage(caughtError: unknown) {
     } catch {
       // 응답 본문이 JSON이 아니면 아래 기본 메시지를 사용한다.
     }
+
+    return `AI 스티커 생성 요청에 실패했어요. (${caughtError.response.status})`
   }
 
-  return 'AI 스티커를 생성하지 못했어요.'
+  return getErrorMessage(caughtError) ?? 'AI 스티커를 생성하지 못했어요.'
 }
 
 export function useInfinityAiSticker({
