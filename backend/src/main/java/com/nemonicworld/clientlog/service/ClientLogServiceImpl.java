@@ -35,7 +35,7 @@ public class ClientLogServiceImpl implements ClientLogService {
         "page_exit_intent_detected", "room_lobby_abandoned", "creation_abandoned", "result_share_abandoned",
         // Spec §7: UI engagement
         "scroll_depth_reached", "modal_opened", "modal_closed", "tool_selected", "canvas_interaction_started",
-        "canvas_interaction_paused",
+        "canvas_interaction_paused", "phone_official_store_clicked",
         // Spec §8: performance/error
         "web_vitals", "resource_load_slow", "js_error", "unhandled_rejection", "client_network_failed"));
     private static final Set<String> ERROR_EVENT_NAMES = Set.of("js_error", "unhandled_rejection",
