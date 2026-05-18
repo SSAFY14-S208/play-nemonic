@@ -28,10 +28,16 @@ const FOCUS_BUTTONS: Array<{
   { focusKey: 'printer', icon: Printer, label: '네모닉' },
 ]
 
-export default function HubOverlay() {
+export default function HubOverlay({
+  disableBgm = false,
+}: {
+  disableBgm?: boolean
+}) {
   const focusKey = useHubRoomStore((state) => state.focusKey)
   const setFocus = useHubRoomStore((state) => state.setFocus)
-  const { isBgmEnabled, isBgmPlaying, toggleHubBgm } = useHubBgm()
+  const { isBgmEnabled, isBgmPlaying, toggleHubBgm } = useHubBgm({
+    disabled: disableBgm,
+  })
   const BgmIcon = isBgmEnabled ? Volume2 : VolumeX
   const bgmToggleLabel = isBgmEnabled ? '허브 음악 끄기' : '허브 음악 켜기'
 
@@ -51,19 +57,21 @@ export default function HubOverlay() {
         </div>
       </header>
 
-      <button
-        type="button"
-        aria-label={bgmToggleLabel}
-        aria-pressed={isBgmEnabled}
-        className={styles.musicButton}
-        data-muted={!isBgmEnabled}
-        data-playing={isBgmPlaying}
-        title={`Pastel Puzzle Room · ${bgmToggleLabel}`}
-        onClick={toggleHubBgm}
-      >
-        <Music2 className={styles.musicSignal} strokeWidth={2.35} />
-        <BgmIcon className="h-4 w-4" strokeWidth={2.35} />
-      </button>
+      {!disableBgm && (
+        <button
+          type="button"
+          aria-label={bgmToggleLabel}
+          aria-pressed={isBgmEnabled}
+          className={styles.musicButton}
+          data-muted={!isBgmEnabled}
+          data-playing={isBgmPlaying}
+          title={`Pastel Puzzle Room · ${bgmToggleLabel}`}
+          onClick={toggleHubBgm}
+        >
+          <Music2 className={styles.musicSignal} strokeWidth={2.35} />
+          <BgmIcon className="h-4 w-4" strokeWidth={2.35} />
+        </button>
+      )}
 
       <nav className={styles.focusControls} aria-label="허브 카메라 포커스">
         {FOCUS_BUTTONS.map(

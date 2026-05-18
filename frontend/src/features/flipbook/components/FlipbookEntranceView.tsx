@@ -44,7 +44,7 @@ const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
 const FLIPBOOK_ENTRANCE_FRAME_SOURCES = FLIPBOOK_ENTRANCE_FRAMES.map(
   (entranceFrame) => entranceFrame.src,
 )
-const FLIPBOOK_DEFERRED_PRELOAD_IMAGE_SOURCES = FLIPBOOK_ENTRANCE_FRAME_SOURCES.slice(1)
+const FLIPBOOK_ENTRANCE_PRELOAD_LINK_SOURCES = FLIPBOOK_ENTRANCE_FRAME_SOURCES.slice(1)
 const FLIPBOOK_SCENE_IMAGES = {
   background: '/images/flipbook-entrance-scene/room-background.png',
   furnitureSprite: '/images/flipbook-entrance-scene/furniture-sprite.png',
@@ -130,7 +130,7 @@ export default function FlipbookEntranceView({
     FLIPBOOK_ENTRANCE_FRAMES.length,
     isIntroComplete,
   )
-  useFlipbookEntrancePreload(FLIPBOOK_DEFERRED_PRELOAD_IMAGE_SOURCES)
+  useFlipbookEntrancePreload(FLIPBOOK_ENTRANCE_FRAME_SOURCES)
   const actionHandlers = {
     'create-room': onCreateRoom,
     'enter-room': () => setIsRoomCodeModalOpen(true),
@@ -179,6 +179,10 @@ export default function FlipbookEntranceView({
       className="relative min-h-[100svh] overflow-hidden bg-flipbook-room-base text-flipbook-ink"
       onWheelCapture={handleWheel}
     >
+      {FLIPBOOK_ENTRANCE_PRELOAD_LINK_SOURCES.map((imageSource) => (
+        <link key={imageSource} rel="preload" as="image" href={imageSource} type="image/webp" />
+      ))}
+
       <Image
         src={FLIPBOOK_SCENE_IMAGES.background}
         alt=""
@@ -681,7 +685,7 @@ function FlipbookEntranceSketchbook({
           tabIndex={isInteractive ? 0 : -1}
           style={{
             left: '20.2%',
-            top: '27.8%',
+            top: '25.8%',
             width: '57.6%',
             height: '43.8%',
             rotate: '5.9deg',

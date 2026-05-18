@@ -97,15 +97,6 @@ export const ROOM_PREVIEW_LIGHTING = {
     color: '#fff7ff',
     intensity: 0.52,
   },
-  contactShadow: {
-    blur: 3.5,
-    color: '#a58ca2',
-    far: 5.4,
-    opacity: 0.16,
-    position: [0, -0.045, 0] as [number, number, number],
-    resolution: 1024,
-    scale: 9,
-  },
   environment: {
     intensity: 0.2,
     preset: 'apartment' as const,

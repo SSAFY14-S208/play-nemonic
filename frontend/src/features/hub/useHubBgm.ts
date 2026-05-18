@@ -3,16 +3,24 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 const HUB_BGM_PATH = '/sounds/hub/pastel-puzzle-room.mp3'
 const HUB_BGM_VOLUME = 0.22
 
-export function useHubBgm() {
-  const [isBgmEnabled, setIsBgmEnabled] = useState(true)
+type UseHubBgmOptions = {
+  disabled?: boolean
+}
+
+export function useHubBgm({ disabled = false }: UseHubBgmOptions = {}) {
+  const [isBgmEnabled, setIsBgmEnabled] = useState(!disabled)
   const [isBgmPlaying, setIsBgmPlaying] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const hasPlaybackStartedRef = useRef(false)
-  const isBgmEnabledRef = useRef(true)
+  const isBgmEnabledRef = useRef(!disabled)
   const pauseHubBgmRef = useRef<() => void>(() => undefined)
   const tryStartHubBgmRef = useRef<() => void>(() => undefined)
 
   const toggleHubBgm = useCallback(() => {
+    if (disabled) {
+      return
+    }
+
     const nextIsBgmEnabled = !isBgmEnabledRef.current
 
     isBgmEnabledRef.current = nextIsBgmEnabled
@@ -24,10 +32,14 @@ export function useHubBgm() {
     }
 
     pauseHubBgmRef.current()
-  }, [])
+  }, [disabled])
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === 'undefined' || disabled) {
+      isBgmEnabledRef.current = false
+      pauseHubBgmRef.current = () => undefined
+      tryStartHubBgmRef.current = () => undefined
+
       return undefined
     }
 
@@ -127,11 +139,11 @@ export function useHubBgm() {
       pauseHubBgmRef.current = () => undefined
       tryStartHubBgmRef.current = () => undefined
     }
-  }, [])
+  }, [disabled])
 
   return {
-    isBgmEnabled,
-    isBgmPlaying,
+    isBgmEnabled: disabled ? false : isBgmEnabled,
+    isBgmPlaying: disabled ? false : isBgmPlaying,
     toggleHubBgm,
   }
 }
