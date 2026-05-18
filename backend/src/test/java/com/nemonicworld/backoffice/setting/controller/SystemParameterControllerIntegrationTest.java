@@ -57,6 +57,10 @@ class SystemParameterControllerIntegrationTest {
     private static final String SUPER_ADMIN_LOGIN_ID = "system-parameter-super-admin";
     private static final String SUPER_ADMIN_NICKNAME = "Super System Admin";
     private static final String SUPER_ADMIN_EMAIL = "system-super-admin@example.com";
+    private static final long VIEWER_ID = 3L;
+    private static final String VIEWER_LOGIN_ID = "system-parameter-viewer";
+    private static final String VIEWER_NICKNAME = "System Viewer";
+    private static final String VIEWER_EMAIL = "system-viewer@example.com";
 
     @Autowired
     private MockMvc mockMvc;
@@ -130,6 +134,19 @@ class SystemParameterControllerIntegrationTest {
             .perform(get("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION,
                 bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
                     AdminRole.SUPER_ADMIN)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].key").value("fortune.daily_limit"));
+    }
+
+    @Test
+    void viewerGetsSystemParameterList() throws Exception {
+        insertAdminUser(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER);
+        insertSetting(10L, "fortune.daily_limit", "{\"value\":1}", ADMIN_ID);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/system-parameters").header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.items.length()").value(1))
             .andExpect(jsonPath("$.data.items[0].key").value("fortune.daily_limit"));
@@ -282,6 +299,30 @@ class SystemParameterControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[0].updatedBy.id").value(SUPER_ADMIN_ID));
 
         assertThat(findSettingUpdatedBy(10L)).isEqualTo(SUPER_ADMIN_ID);
+    }
+
+    @Test
+    void viewerCannotUpdateSystemParameter() throws Exception {
+        insertAdminUser(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER);
+        insertSetting(10L, "fortune.daily_limit", "{\"value\":1}", ADMIN_ID);
+
+        mockMvc
+            .perform(patch("/api/v1/backoffice/system-parameters")
+                .header(HttpHeaders.AUTHORIZATION,
+                    bearerAccessToken(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER))
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "fortuneDailyLimit": {
+                        "value": 5,
+                        "unit": "count",
+                        "description": "익명 사용자별 일일 운세 생성 제한"
+                      }
+                    }
+                    """))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 작업 권한이 필요합니다."));
+
+        assertThat(findSettingValue(10L)).isEqualTo("{\"value\":1}");
     }
 
     @Test

@@ -61,6 +61,10 @@ class GmsPromptControllerIntegrationTest {
     private static final String ADMIN_LOGIN_ID = "prompt-admin";
     private static final String ADMIN_NICKNAME = "Prompt Admin";
     private static final String ADMIN_EMAIL = "prompt-admin@example.com";
+    private static final long VIEWER_ID = 2L;
+    private static final String VIEWER_LOGIN_ID = "prompt-viewer";
+    private static final String VIEWER_NICKNAME = "Prompt Viewer";
+    private static final String VIEWER_EMAIL = "prompt-viewer@example.com";
 
     @Autowired
     private MockMvc mockMvc;
@@ -209,6 +213,24 @@ class GmsPromptControllerIntegrationTest {
             .andExpect(jsonPath("$.data.items[1].id").value(10L)).andExpect(jsonPath("$.data.page").value(0))
             .andExpect(jsonPath("$.data.size").value(20)).andExpect(jsonPath("$.data.totalElements").value(2))
             .andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    @Test
+    void viewerGetsPromptListAndCurrentPrompt() throws Exception {
+        insertAdminUser(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER);
+        insertPrompt(10L, "Active fortune", "Current prompt body.", "fortune", null, true);
+
+        String viewerToken = bearerAccessToken(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL,
+            AdminRole.VIEWER);
+        mockMvc.perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, viewerToken))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.items.length()").value(1)).andExpect(jsonPath("$.data.items[0].id").value(10L));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts/current").header(HttpHeaders.AUTHORIZATION, viewerToken)
+                .queryParam("featureType", "fortune"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.source").value("database")).andExpect(jsonPath("$.data.prompt.id").value(10L));
     }
 
     @Test
@@ -361,6 +383,57 @@ class GmsPromptControllerIntegrationTest {
 
         mockMvc.perform(get("/api/v1/backoffice/gms/prompts")).andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void viewerCannotRunPromptWorkflows() throws Exception {
+        insertAdminUser(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER);
+        insertPrompt(10L, "Active fortune", "Saved prompt body.", "fortune", null, true);
+        String viewerToken = bearerAccessToken(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL,
+            AdminRole.VIEWER);
+
+        mockMvc
+            .perform(post("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, viewerToken)
+                .contentType(MediaType.APPLICATION_JSON).content(createRequestBody("Viewer create")))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 작업 권한이 필요합니다."));
+        mockMvc
+            .perform(post("/api/v1/backoffice/gms/prompts/preview").header(HttpHeaders.AUTHORIZATION, viewerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(previewRequestBody("fortune", "Candidate prompt body.", sajuRequestJson())))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 작업 권한이 필요합니다."));
+        mockMvc
+            .perform(post("/api/v1/backoffice/gms/prompts/{promptId}/test", 10L)
+                .header(HttpHeaders.AUTHORIZATION, viewerToken).contentType(MediaType.APPLICATION_JSON)
+                .content(promptTestRequestBody(sajuRequestJson())))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 작업 권한이 필요합니다."));
+        mockMvc
+            .perform(patch("/api/v1/backoffice/gms/prompts/{promptId}", 10L)
+                .header(HttpHeaders.AUTHORIZATION, viewerToken).contentType(MediaType.APPLICATION_JSON).content("""
+                    {
+                      "name": "Viewer update"
+                    }
+                    """))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 작업 권한이 필요합니다."));
+        mockMvc
+            .perform(
+                delete("/api/v1/backoffice/gms/prompts/{promptId}", 10L).header(HttpHeaders.AUTHORIZATION, viewerToken))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 작업 권한이 필요합니다."));
+        mockMvc
+            .perform(post("/api/v1/backoffice/gms/prompts/{promptId}/activate", 10L).header(HttpHeaders.AUTHORIZATION,
+                viewerToken))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 작업 권한이 필요합니다."));
+
+        assertThat(countPromptsByName("Viewer create")).isZero();
+        assertThat(findPromptName(10L)).isEqualTo("Active fortune");
+        assertThat(findPromptIsActive(10L)).isTrue();
+        assertThat(findPromptDeletedAt(10L)).isNull();
+        verifyNoInteractions(fortuneGmsClient);
     }
 
     @Test
@@ -774,6 +847,10 @@ class GmsPromptControllerIntegrationTest {
     }
 
     private void insertAdminUser() {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_NICKNAME, ADMIN_EMAIL, AdminRole.ADMIN);
+    }
+
+    private void insertAdminUser(long id, String loginId, String nickname, String email, AdminRole role) {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
             INSERT INTO admin_user (
@@ -789,7 +866,7 @@ class GmsPromptControllerIntegrationTest {
                 deleted_at
             )
             VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL)
-            """, ADMIN_ID, ADMIN_LOGIN_ID, "encoded", ADMIN_NICKNAME, ADMIN_EMAIL, "admin", Timestamp.valueOf(now),
+            """, id, loginId, "encoded", nickname, email, role.getValue(), Timestamp.valueOf(now),
             Timestamp.valueOf(now));
     }
 
@@ -887,9 +964,12 @@ class GmsPromptControllerIntegrationTest {
     }
 
     private String bearerAccessToken() {
+        return bearerAccessToken(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_NICKNAME, ADMIN_EMAIL, AdminRole.ADMIN);
+    }
+
+    private String bearerAccessToken(long id, String loginId, String nickname, String email, AdminRole role) {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        AdminUser adminUser = new AdminUser(ADMIN_ID, ADMIN_LOGIN_ID, "encoded", ADMIN_NICKNAME, ADMIN_EMAIL,
-            AdminRole.ADMIN, null, now, now, null);
+        AdminUser adminUser = new AdminUser(id, loginId, "encoded", nickname, email, role, null, now, now, null);
 
         return "Bearer %s".formatted(jwtTokenProvider.createAccessToken(adminUser).accessToken());
     }

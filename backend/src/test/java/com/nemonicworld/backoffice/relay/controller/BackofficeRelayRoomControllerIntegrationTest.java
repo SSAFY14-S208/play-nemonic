@@ -70,6 +70,10 @@ class BackofficeRelayRoomControllerIntegrationTest {
     private static final String SUPER_ADMIN_LOGIN_ID = "relay-room-super-admin";
     private static final String SUPER_ADMIN_NICKNAME = "Super Relay Admin";
     private static final String SUPER_ADMIN_EMAIL = "relay-super-admin@example.com";
+    private static final long VIEWER_ID = 3L;
+    private static final String VIEWER_LOGIN_ID = "relay-room-viewer";
+    private static final String VIEWER_NICKNAME = "Relay Viewer";
+    private static final String VIEWER_EMAIL = "relay-viewer@example.com";
 
     @Autowired
     private MockMvc mockMvc;
@@ -295,6 +299,19 @@ class BackofficeRelayRoomControllerIntegrationTest {
     }
 
     @Test
+    void viewerGetsActiveRelayRoomList() throws Exception {
+        insertAdminUser(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER);
+        given(relayRoomRepository.findAllActiveRooms())
+            .willReturn(List.of(roomState("ROOM_V", RelayRoomStatus.WAITING, 1, null, LocalDateTime.now())));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].roomCode").value("ROOM_V"));
+    }
+
+    @Test
     void returnsEmptyListWhenNoActiveRooms() throws Exception {
         given(relayRoomRepository.findAllActiveRooms()).willReturn(List.of());
 
@@ -359,6 +376,20 @@ class BackofficeRelayRoomControllerIntegrationTest {
                 bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
                     AdminRole.SUPER_ADMIN)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.roomCode").value(roomCode));
+    }
+
+    @Test
+    void viewerCannotDeleteActiveRelayRoom() throws Exception {
+        insertAdminUser(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER);
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", "AB3K9Q").header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 작업 권한이 필요합니다."));
+
+        then(relayRoomRepository).should(never()).findByRoomCode(any());
+        then(relayRoomRepository).should(never()).saveIfUnchanged(any(), any());
     }
 
     @Test
