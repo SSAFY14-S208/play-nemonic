@@ -98,10 +98,10 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
       },
       {
         key: "gms-prompts",
-        label: "GMS 프롬프트 관리",
+        label: "AI 프롬프트 관리",
         href: "/admin/gms-prompts",
         icon: FileText,
-        pageTitle: "GMS 프롬프트 관리",
+        pageTitle: "AI 프롬프트 관리",
         pageDescription: "운세 생성에 사용하는 프롬프트를 수정·관리합니다.",
       },
       {
