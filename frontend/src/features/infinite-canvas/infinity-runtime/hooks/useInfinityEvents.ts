@@ -29,9 +29,10 @@ const BUCKET_FILL_PADDING = 96
 const BUCKET_FILL_MAX_SIZE = 1600
 const BUCKET_FILL_ALPHA_TOLERANCE = 16
 const BUCKET_FILL_COLOR_TOLERANCE = 12
-const BUCKET_FILL_BARRIER_DILATION_PASSES = 2
+const BUCKET_FILL_BARRIER_DILATION_PASSES = 3
 const BUCKET_FILL_DILATION_PASSES = 6
 const BUCKET_FILL_DILATION_COLOR_TOLERANCE = 96
+const BUCKET_FILL_HIT_PADDING = 20
 
 function shouldAppendLinePoint(
   previousPoint: { x: number; y: number } | undefined,
@@ -138,6 +139,30 @@ function getObjectBounds(object: InfinityObject) {
     width: Math.max(maxX - minX + padding * 2, padding * 2),
     height: Math.max(maxY - minY + padding * 2, padding * 2),
   }
+}
+
+function expandBounds(
+  bounds: { x: number; y: number; width: number; height: number },
+  padding: number,
+) {
+  return {
+    x: bounds.x - padding,
+    y: bounds.y - padding,
+    width: bounds.width + padding * 2,
+    height: bounds.height + padding * 2,
+  }
+}
+
+function containsPoint(
+  bounds: { x: number; y: number; width: number; height: number },
+  point: { x: number; y: number },
+) {
+  return (
+    point.x >= bounds.x &&
+    point.x <= bounds.x + bounds.width &&
+    point.y >= bounds.y &&
+    point.y <= bounds.y + bounds.height
+  )
 }
 
 function parseHexColor(hexColor: string) {
@@ -273,13 +298,17 @@ function createBucketFillObject({
   pointerPosition: { x: number; y: number }
   color: string
 }): InfinityFill | null {
-  const bounds = objects
-    .filter((object) => object.type !== 'fill' && object.type !== 'text')
-    .map(getObjectBounds)
-    .filter((bounds): bounds is { x: number; y: number; width: number; height: number } => Boolean(bounds))
+  const fillableObjects = objects.filter((object) => object.type !== 'fill' && object.type !== 'text')
+  const candidateEntries = fillableObjects.flatMap((object) => {
+      const bounds = getObjectBounds(object)
+      if (!bounds) return []
+      return { object, bounds }
+    })
+    .filter((entry) => containsPoint(expandBounds(entry.bounds, BUCKET_FILL_HIT_PADDING), pointerPosition))
 
-  if (bounds.length === 0) return null
+  if (candidateEntries.length === 0) return null
 
+  const bounds = candidateEntries.map((entry) => entry.bounds)
   const minX = Math.floor(Math.min(pointerPosition.x, ...bounds.map((bound) => bound.x)) - BUCKET_FILL_PADDING)
   const minY = Math.floor(Math.min(pointerPosition.y, ...bounds.map((bound) => bound.y)) - BUCKET_FILL_PADDING)
   const maxX = Math.ceil(Math.max(pointerPosition.x, ...bounds.map((bound) => bound.x + bound.width)) + BUCKET_FILL_PADDING)
@@ -296,7 +325,7 @@ function createBucketFillObject({
   const context = canvas.getContext('2d')
   if (!context) return null
 
-  objects.forEach((object) => drawObjectForBucketFill(context, object, { x: minX, y: minY }))
+  fillableObjects.forEach((object) => drawObjectForBucketFill(context, object, { x: minX, y: minY }))
 
   const seedX = Math.floor(pointerPosition.x - minX)
   const seedY = Math.floor(pointerPosition.y - minY)
@@ -312,11 +341,20 @@ function createBucketFillObject({
     blue: sourcePixels[seedPixelOffset + 2],
     alpha: sourcePixels[seedPixelOffset + 3],
   }
+  const selectedFillColor = parseHexColor(color)
+  if (
+    targetColor.alpha > BUCKET_FILL_ALPHA_TOLERANCE &&
+    Math.abs(targetColor.red - selectedFillColor.red) <= BUCKET_FILL_COLOR_TOLERANCE &&
+    Math.abs(targetColor.green - selectedFillColor.green) <= BUCKET_FILL_COLOR_TOLERANCE &&
+    Math.abs(targetColor.blue - selectedFillColor.blue) <= BUCKET_FILL_COLOR_TOLERANCE
+  ) {
+    return null
+  }
+
   const isTransparentTarget = targetColor.alpha <= BUCKET_FILL_ALPHA_TOLERANCE
   const barrierPixels = isTransparentTarget
     ? createDilatedBarrierPixels(sourcePixels, rawWidth, rawHeight)
     : null
-  const fillColor = parseHexColor(color)
   const fillCanvas = document.createElement('canvas')
   fillCanvas.width = rawWidth
   fillCanvas.height = rawHeight
@@ -345,9 +383,9 @@ function createBucketFillObject({
       touchesBoundary = true
     }
 
-    fillPixels[pixelOffset] = fillColor.red
-    fillPixels[pixelOffset + 1] = fillColor.green
-    fillPixels[pixelOffset + 2] = fillColor.blue
+    fillPixels[pixelOffset] = selectedFillColor.red
+    fillPixels[pixelOffset + 1] = selectedFillColor.green
+    fillPixels[pixelOffset + 2] = selectedFillColor.blue
     fillPixels[pixelOffset + 3] = 255
     filledPixelCount += 1
 
@@ -401,9 +439,9 @@ function createBucketFillObject({
 
     for (const dilatedPixelIndex of newlyFilledIndexes) {
       const dilatedPixelOffset = dilatedPixelIndex * 4
-      fillPixels[dilatedPixelOffset] = fillColor.red
-      fillPixels[dilatedPixelOffset + 1] = fillColor.green
-      fillPixels[dilatedPixelOffset + 2] = fillColor.blue
+      fillPixels[dilatedPixelOffset] = selectedFillColor.red
+      fillPixels[dilatedPixelOffset + 1] = selectedFillColor.green
+      fillPixels[dilatedPixelOffset + 2] = selectedFillColor.blue
       fillPixels[dilatedPixelOffset + 3] = 255
       filledPixelCount += 1
     }
