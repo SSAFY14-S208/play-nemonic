@@ -3,10 +3,10 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement, RefObject } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path } from 'react-konva'
-import type Konva from 'konva'
+import Konva from 'konva'
 
+import { INFINITY_LINE_TENSION } from '../constants'
 import type { InfinityLine, InfinityObject, InfinityShape, InfinityText as InfinityTextObject, InfinityToolKey } from '../constants'
-import { INFINITY_PARTICIPANT_ACCENTS } from '../constants'
 import type { useInfinityDrawing } from '../hooks'
 import {
   CursorPreview,
@@ -69,24 +69,14 @@ interface InfinityCanvasStageProps {
   remoteCursors: InfinityRemoteCursorView[]
   onCursorMove: (cursor: { x: number; y: number; zoom: number }) => void
   onLayerMenuRequest: (request: { elementId: string; x: number; y: number }) => void
+  onSelectionInteractionEnd: (elementIds: string[]) => void
+  onDraftObjectsChange: (draftObjects: InfinityObject[] | null) => void
 }
 
 const REMOTE_CURSOR_SMOOTHING = 0.28
 const REMOTE_CURSOR_SETTLE_DISTANCE = 0.35
 const REMOTE_CURSOR_PATH = 'M0 0 L0 22 L6 16 L10 26 L14 24 L10 15 L19 15 Z'
-const IDENTITY_DASHES = [
-  undefined,
-  [8, 4],
-  [2, 4],
-  [10, 3, 2, 3],
-  [1, 5],
-  [6, 2, 2, 2],
-  [12, 4],
-  [3, 3],
-  [8, 2, 2, 2],
-  [1, 3],
-] as const
-
+export const INFINITY_CANVAS_BACKGROUND_LAYER_ID = 'infinity-canvas-background-layer'
 const ImperativeEllipse = Ellipse as unknown as (props: {
   ref: RefObject<Konva.Ellipse | null>
   stroke: string
@@ -95,14 +85,162 @@ const ImperativeEllipse = Ellipse as unknown as (props: {
   dash: number[]
 }) => ReactElement
 
-function getParticipantAccent(identityIndex: number) {
-  return INFINITY_PARTICIPANT_ACCENTS[Math.abs(identityIndex) % INFINITY_PARTICIPANT_ACCENTS.length]
+function createRemoteDraftNode(draft: InfinityRemoteDraftObjectView) {
+  const object = draft.object
+
+  if (object.type === "line") {
+    return new Konva.Line({
+      points: object.points.flatMap((point) => [point.x, point.y]),
+      stroke: object.color,
+      strokeWidth: object.strokeWidth,
+      lineCap: "round",
+      lineJoin: "round",
+      tension: INFINITY_LINE_TENSION,
+      perfectDrawEnabled: false,
+      listening: false,
+      globalCompositeOperation: "source-over",
+    });
+  }
+
+  if (object.type === "rect") {
+    const isFilled = Boolean(object.fill);
+    return new Konva.Rect({
+      x: object.x,
+      y: object.y,
+      width: object.width,
+      height: object.height,
+      rotation: object.rotation ?? 0,
+      stroke: isFilled ? undefined : object.color,
+      strokeWidth: isFilled ? 0 : object.strokeWidth,
+      fill: object.fill ?? "transparent",
+      listening: false,
+    });
+  }
+
+  if (object.type === "ellipse") {
+    const isFilled = Boolean(object.fill);
+    return new Konva.Ellipse({
+      x: object.x + object.width / 2,
+      y: object.y + object.height / 2,
+      radiusX: Math.abs(object.width / 2),
+      radiusY: Math.abs(object.height / 2),
+      rotation: object.rotation ?? 0,
+      stroke: isFilled ? undefined : object.color,
+      strokeWidth: isFilled ? 0 : object.strokeWidth,
+      fill: object.fill ?? "transparent",
+      listening: false,
+    });
+  }
+
+  return null;
 }
 
-function getParticipantDash(identityIndex: number) {
-  const dash = IDENTITY_DASHES[Math.abs(identityIndex) % IDENTITY_DASHES.length]
-  return dash ? [...dash] : undefined
+function updateRemoteDraftNode(node: Konva.Node, draft: InfinityRemoteDraftObjectView) {
+  const object = draft.object
+
+  if (object.type === "line" && node instanceof Konva.Line) {
+    node.setAttrs({
+      points: object.points.flatMap((point) => [point.x, point.y]),
+      stroke: object.color,
+      strokeWidth: object.strokeWidth,
+    });
+    return;
+  }
+
+  if (object.type === "rect" && node instanceof Konva.Rect) {
+    const isFilled = Boolean(object.fill);
+    node.setAttrs({
+      x: object.x,
+      y: object.y,
+      width: object.width,
+      height: object.height,
+      rotation: object.rotation ?? 0,
+      stroke: isFilled ? undefined : object.color,
+      strokeWidth: isFilled ? 0 : object.strokeWidth,
+      fill: object.fill ?? "transparent",
+    });
+    return;
+  }
+
+  if (object.type === "ellipse" && node instanceof Konva.Ellipse) {
+    const isFilled = Boolean(object.fill);
+    node.setAttrs({
+      x: object.x + object.width / 2,
+      y: object.y + object.height / 2,
+      radiusX: Math.abs(object.width / 2),
+      radiusY: Math.abs(object.height / 2),
+      rotation: object.rotation ?? 0,
+      stroke: isFilled ? undefined : object.color,
+      strokeWidth: isFilled ? 0 : object.strokeWidth,
+      fill: object.fill ?? "transparent",
+    });
+  }
 }
+
+const ImperativeRemoteDraftLayer = memo(function ImperativeRemoteDraftLayer({
+  remoteDraftObjects,
+}: {
+  remoteDraftObjects: InfinityRemoteDraftObjectView[]
+}) {
+  const layerRef = useRef<Konva.Layer>(null)
+  const draftObjectsRef = useRef(remoteDraftObjects)
+  const nodeMapRef = useRef<Map<string, Konva.Node>>(new Map())
+  const animationFrameRef = useRef<number | null>(null)
+
+  const flushDraftNodes = useCallback(() => {
+    animationFrameRef.current = null
+    const layer = layerRef.current
+    if (!layer) return
+
+    const nextKeys = new Set<string>()
+    for (const draft of draftObjectsRef.current) {
+      const object = draft.object
+      if (object.type === "line" && object.isEraser) continue
+      const key = `${draft.userUuid}:${object.id}`
+      nextKeys.add(key)
+
+      const existingNode = nodeMapRef.current.get(key)
+      if (existingNode) {
+        updateRemoteDraftNode(existingNode, draft)
+        continue
+      }
+
+      const nextNode = createRemoteDraftNode(draft)
+      if (!nextNode) continue
+      nodeMapRef.current.set(key, nextNode)
+      layer.add(nextNode)
+    }
+
+    for (const [key, node] of nodeMapRef.current) {
+      if (nextKeys.has(key)) continue
+      node.destroy()
+      nodeMapRef.current.delete(key)
+    }
+
+    layer.batchDraw()
+  }, [])
+
+  useEffect(() => {
+    draftObjectsRef.current = remoteDraftObjects
+    if (animationFrameRef.current !== null) return
+    animationFrameRef.current = window.requestAnimationFrame(flushDraftNodes)
+  }, [flushDraftNodes, remoteDraftObjects])
+
+  useEffect(
+    () => () => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current)
+      }
+      for (const node of nodeMapRef.current.values()) {
+        node.destroy()
+      }
+      nodeMapRef.current.clear()
+    },
+    [],
+  )
+
+  return <Layer ref={layerRef} listening={false} />
+})
 
 function getReadableTextColor(backgroundColor: string) {
   const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(backgroundColor)
@@ -280,9 +418,6 @@ const RemoteCursorLayer = memo(function RemoteCursorLayer({
   const smoothRemoteCursors = useSmoothRemoteCursors(remoteCursors);
 
   const renderRemoteCursor = (cursor: SmoothRemoteCursorView) => {
-    const accentColor = getParticipantAccent(cursor.identityIndex);
-    const identityDash = getParticipantDash(cursor.identityIndex);
-
     return (
       <Fragment key={cursor.userUuid}>
         <Path
@@ -290,8 +425,6 @@ const RemoteCursorLayer = memo(function RemoteCursorLayer({
           y={cursor.y}
           data={REMOTE_CURSOR_PATH}
           fill={cursor.color}
-          stroke="#ffffff"
-          strokeWidth={2.4}
           shadowColor="rgba(45,58,85,0.2)"
           shadowBlur={8}
           shadowOffset={{ x: 0, y: 3 }}
@@ -302,16 +435,11 @@ const RemoteCursorLayer = memo(function RemoteCursorLayer({
           y={cursor.y}
           radius={4}
           fill="#ffffff"
-          stroke={accentColor}
-          strokeWidth={2}
-          dash={identityDash}
           listening={false}
         />
         <Label x={cursor.x + 18} y={cursor.y + 24} listening={false}>
           <Tag
             fill={cursor.color}
-            stroke={accentColor}
-            strokeWidth={2}
             cornerRadius={10}
             shadowColor="rgba(45,58,85,0.22)"
             shadowBlur={8}
@@ -350,13 +478,15 @@ export function InfinityCanvasStage({
   remoteCursors,
   onCursorMove,
   onLayerMenuRequest,
+  onSelectionInteractionEnd,
+  onDraftObjectsChange,
 }: InfinityCanvasStageProps) {
   const {
     objects,
     selectedIds,
     tool,
     textEditor,
-    viewport: { scaleRef, stagePosRef },
+    viewport: { scaleRef, stagePosRef, setPointerPanning },
     handlers: {
       onStageMouseDown,
       onStageMouseMove,
@@ -369,6 +499,7 @@ export function InfinityCanvasStage({
       onObjectDragEnd,
       onShapeTransformEnd,
       onTextTransformEnd,
+      onObjectsTransformEnd,
       onTextDblClick,
     },
   } = drawing;
@@ -380,6 +511,7 @@ export function InfinityCanvasStage({
 
   const transformerRef = useRef<Konva.Transformer>(null);
   const layerMenuLongPressTimerRef = useRef<number | null>(null);
+  const isWheelButtonPanningRef = useRef(false);
 
   const clearLayerMenuLongPress = useCallback(() => {
     if (layerMenuLongPressTimerRef.current === null) return;
@@ -388,6 +520,25 @@ export function InfinityCanvasStage({
   }, []);
 
   useEffect(() => clearLayerMenuLongPress, [clearLayerMenuLongPress]);
+
+  const stopWheelButtonPanning = useCallback(() => {
+    if (!isWheelButtonPanningRef.current) return;
+    isWheelButtonPanningRef.current = false;
+    setPointerPanning(false);
+    const stage = stageRef.current;
+    if (stage) {
+      stage.container().style.cursor = getCursorStyle(toolRef.current);
+    }
+  }, [setPointerPanning, stageRef]);
+
+  useEffect(() => {
+    window.addEventListener("mouseup", stopWheelButtonPanning);
+    window.addEventListener("blur", stopWheelButtonPanning);
+    return () => {
+      window.removeEventListener("mouseup", stopWheelButtonPanning);
+      window.removeEventListener("blur", stopWheelButtonPanning);
+    };
+  }, [stopWheelButtonPanning]);
 
   // 다중 선택 Transformer: stage.findOne으로 nodes 배열 매핑.
   useEffect(() => {
@@ -419,6 +570,125 @@ export function InfinityCanvasStage({
     },
     [onLayerMenuRequest, onObjectClick],
   );
+
+  const objectById = useMemo(
+    () => new Map(objects.map((object) => [object.id, object])),
+    [objects],
+  );
+
+  const readObjectFromNode = useCallback(
+    (object: InfinityObject, node: Konva.Node): InfinityObject | null => {
+      if (object.type === "line" && node instanceof Konva.Line) {
+        const transform = node.getTransform().copy();
+        const points = object.points.map((point) => transform.point(point));
+        return {
+          ...object,
+          points,
+        };
+      }
+
+      if (object.type === "fill" && node instanceof Konva.Image) {
+        const scaleX = node.scaleX();
+        const scaleY = node.scaleY();
+        return {
+          ...object,
+          x: node.x(),
+          y: node.y(),
+          width: object.width * scaleX,
+          height: object.height * scaleY,
+        };
+      }
+
+      if (object.type === "rect" && node instanceof Konva.Rect) {
+        return {
+          ...object,
+          x: node.x(),
+          y: node.y(),
+          width: object.width * node.scaleX(),
+          height: object.height * node.scaleY(),
+          rotation: node.rotation(),
+        };
+      }
+
+      if (object.type === "ellipse" && node instanceof Konva.Ellipse) {
+        const radiusX = node.radiusX() * node.scaleX();
+        const radiusY = node.radiusY() * node.scaleY();
+        return {
+          ...object,
+          x: node.x() - radiusX,
+          y: node.y() - radiusY,
+          width: radiusX * 2,
+          height: radiusY * 2,
+          rotation: node.rotation(),
+        };
+      }
+
+      if (object.type === "text" && node instanceof Konva.Text) {
+        return {
+          ...object,
+          x: node.x(),
+          y: node.y(),
+          rotation: node.rotation(),
+        };
+      }
+
+      return null;
+    },
+    [],
+  );
+
+  const commitSelectedNodeTransforms = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage || selectedIds.length === 0) return;
+
+    const updatedObjects = selectedIds
+      .map((selectedId) => {
+        const object = objectById.get(selectedId);
+        const node = stage.findOne(`#${selectedId}`);
+        if (!object || !node) return null;
+        return readObjectFromNode(object, node);
+      })
+      .filter((object): object is InfinityObject => Boolean(object));
+
+    if (updatedObjects.length > 0) {
+      onObjectsTransformEnd(updatedObjects);
+    }
+    onSelectionInteractionEnd(selectedIds);
+    onDraftObjectsChange(null);
+    if (selectedIds.length > 0) {
+      transformerRef.current?.nodes([]);
+    }
+  }, [
+    objectById,
+    onDraftObjectsChange,
+    onObjectsTransformEnd,
+    onSelectionInteractionEnd,
+    readObjectFromNode,
+    selectedIds,
+    stageRef,
+  ]);
+
+  const previewSelectedNodeTransforms = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage || selectedIds.length === 0) return;
+
+    const updatedObjects = selectedIds
+      .map((selectedId) => {
+        const object = objectById.get(selectedId);
+        const node = stage.findOne(`#${selectedId}`);
+        if (!object || !node) return null;
+        return readObjectFromNode(object, node);
+      })
+      .filter((object): object is InfinityObject => Boolean(object));
+
+    onDraftObjectsChange(updatedObjects.length > 0 ? updatedObjects : null);
+  }, [
+    objectById,
+    onDraftObjectsChange,
+    readObjectFromNode,
+    selectedIds,
+    stageRef,
+  ]);
 
   const renderShapeOrText = (obj: InfinityObject) => {
     const isLocked = lockedElementIds.has(obj.id);
@@ -469,27 +739,37 @@ export function InfinityCanvasStage({
     return null;
   };
 
-  const renderLine = (obj: InfinityObject) => {
+  const renderLine = useCallback((obj: InfinityObject) => {
     if (obj.type !== "line") return null;
-    return <KonvaLine key={obj.id} line={obj} />;
-  };
+    const isLocked = lockedElementIds.has(obj.id);
+    return (
+      <KonvaLine
+        key={obj.id}
+        line={obj}
+        isSelectTool={isSelectTool}
+        isLocked={isLocked}
+        onLineClick={handleObjectClick}
+      />
+    );
+  }, [handleObjectClick, isSelectTool, lockedElementIds]);
 
   const renderRemoteDraftObject = (draft: InfinityRemoteDraftObjectView) => {
     const obj = draft.object
 
     if (obj.type === "line") {
-      if (obj.isEraser) return null;
       const points = obj.points.flatMap((point) => [point.x, point.y])
       return (
         <Line
           key={`remote-draft-${draft.userUuid}-${obj.id}`}
           points={points}
-          stroke={obj.color}
+          stroke={obj.isEraser ? "rgba(0,0,0,1)" : obj.color}
           strokeWidth={obj.strokeWidth}
           lineCap="round"
           lineJoin="round"
-          tension={0.3}
+          tension={INFINITY_LINE_TENSION}
+          perfectDrawEnabled={false}
           opacity={1}
+          globalCompositeOperation={obj.isEraser ? "destination-out" : "source-over"}
           listening={false}
         />
       );
@@ -545,17 +825,29 @@ export function InfinityCanvasStage({
     [objects, lockedElementIds, isSelectTool, editingId, handleObjectClick],
   );
 
-  const renderFill = (obj: InfinityObject) => {
+  const renderFill = useCallback((obj: InfinityObject) => {
     if (obj.type !== "fill") return null;
-    return <KonvaFill key={obj.id} fill={obj} />;
-  };
+    const isLocked = lockedElementIds.has(obj.id);
+    return (
+      <KonvaFill
+        key={obj.id}
+        fill={obj}
+        isSelectTool={isSelectTool}
+        isLocked={isLocked}
+        onFillClick={handleObjectClick}
+      />
+    );
+  }, [handleObjectClick, isSelectTool, lockedElementIds]);
 
-  const fillNodes = useMemo(() => objects.map(renderFill), [objects]);
+  const fillNodes = useMemo(() => objects.map(renderFill), [objects, renderFill]);
 
-  const lineNodes = useMemo(() => objects.map(renderLine), [objects]);
+  const lineNodes = useMemo(() => objects.map(renderLine), [objects, renderLine]);
 
-  const remoteDraftNodes = useMemo(
-    () => remoteDraftObjects.map(renderRemoteDraftObject),
+  const remoteEraserDraftNodes = useMemo(
+    () =>
+      remoteDraftObjects
+        .filter((draft) => draft.object.type === "line" && draft.object.isEraser)
+        .map(renderRemoteDraftObject),
     [remoteDraftObjects],
   );
 
@@ -567,40 +859,58 @@ export function InfinityCanvasStage({
       return obj?.type === "text";
     });
 
-  const renderLockOverlay = (lock: InfinityLockedElementView) => {
-    const object = objects.find((candidate) => candidate.id === lock.elementId);
-    if (!object) return null;
-    const bounds = getObjectBounds(object);
-    if (!bounds) return null;
-    const accentColor = getParticipantAccent(lock.identityIndex);
-    const identityDash = getParticipantDash(lock.identityIndex) ?? [8, 5];
+  const groupedLockedElements = useMemo(() => {
+    const lockMap = new Map<string, {
+      userUuid: string
+      nickname: string
+      color: string
+      bounds: { x: number; y: number; width: number; height: number }
+    }>()
 
+    for (const lock of lockedElements) {
+      const object = objects.find((candidate) => candidate.id === lock.elementId)
+      if (!object) continue
+      const bounds = getObjectBounds(object)
+      if (!bounds) continue
+
+      const existing = lockMap.get(lock.userUuid)
+      if (!existing) {
+        lockMap.set(lock.userUuid, {
+          userUuid: lock.userUuid,
+          nickname: lock.nickname,
+          color: lock.color,
+          bounds,
+        })
+        continue
+      }
+
+      const minX = Math.min(existing.bounds.x, bounds.x)
+      const minY = Math.min(existing.bounds.y, bounds.y)
+      const maxX = Math.max(
+        existing.bounds.x + existing.bounds.width,
+        bounds.x + bounds.width,
+      )
+      const maxY = Math.max(
+        existing.bounds.y + existing.bounds.height,
+        bounds.y + bounds.height,
+      )
+      existing.bounds = {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      }
+    }
+
+    return [...lockMap.values()]
+  }, [lockedElements, objects])
+
+  const renderGroupedLockOverlay = (lock: (typeof groupedLockedElements)[number]) => {
+    const bounds = lock.bounds;
     return (
-      <Fragment key={lock.elementId}>
-        <Rect
-          x={bounds.x - 8}
-          y={bounds.y - 8}
-          width={bounds.width + 16}
-          height={bounds.height + 16}
-          stroke={lock.color}
-          strokeWidth={3}
-          dash={identityDash}
-          cornerRadius={8}
-          listening={false}
-        />
-        <Rect
-          x={bounds.x - 12}
-          y={bounds.y - 12}
-          width={bounds.width + 24}
-          height={bounds.height + 24}
-          stroke={accentColor}
-          strokeWidth={2}
-          dash={identityDash}
-          cornerRadius={10}
-          listening={false}
-        />
+      <Fragment key={lock.userUuid}>
         <Label x={bounds.x - 8} y={bounds.y - 34} listening={false}>
-          <Tag fill={lock.color} stroke={accentColor} strokeWidth={2} cornerRadius={10} />
+          <Tag fill={lock.color} cornerRadius={10} />
           <Text
             text={`${lock.nickname} 편집 중`}
             fill={getReadableTextColor(lock.color)}
@@ -627,6 +937,14 @@ export function InfinityCanvasStage({
       onMouseDown={(e) => {
         const stage = e.target.getStage();
         if (!stage) return;
+        if (e.evt.button === 1) {
+          e.evt.preventDefault();
+          isWheelButtonPanningRef.current = true;
+          setPointerPanning(true);
+          stage.container().style.cursor = "grabbing";
+          stage.startDrag(e.evt);
+          return;
+        }
         const targetIsStage = e.target === stage;
         onStageMouseDown(stage, toolRef.current, targetIsStage);
       }}
@@ -642,8 +960,15 @@ export function InfinityCanvasStage({
           zoom: scaleRef.current,
         });
       }}
-      onMouseUp={() => onStageMouseUp(toolRef.current)}
-      onMouseLeave={() => onStageMouseLeave(toolRef.current)}
+      onMouseUp={() => {
+        stopWheelButtonPanning();
+        onStageMouseUp(toolRef.current);
+      }}
+      onMouseLeave={() => {
+        stopWheelButtonPanning();
+        onStageMouseLeave(toolRef.current);
+      }}
+      onAuxClick={(e: Konva.KonvaEventObject<MouseEvent>) => e.evt.preventDefault()}
       onContextMenu={(e) => {
         e.evt.preventDefault();
         const targetId = e.target.id();
@@ -668,7 +993,7 @@ export function InfinityCanvasStage({
       onClick={(e) => onStageClick(e, toolRef.current)}
     >
       {/* Layer 0 — 캔버스 배경 */}
-      <Layer listening={false}>
+      <Layer id={INFINITY_CANVAS_BACKGROUND_LAYER_ID} listening={false}>
         <Rect
           x={-50000}
           y={-50000}
@@ -692,6 +1017,11 @@ export function InfinityCanvasStage({
         <Transformer
           ref={transformerRef}
           rotateEnabled={true}
+          shouldOverdrawWholeArea={true}
+          onDragMove={previewSelectedNodeTransforms}
+          onDragEnd={commitSelectedNodeTransforms}
+          onTransform={previewSelectedNodeTransforms}
+          onTransformEnd={commitSelectedNodeTransforms}
           enabledAnchors={
             onlyTextSelected
               ? []
@@ -728,6 +1058,7 @@ export function InfinityCanvasStage({
       <Layer>
         {fillNodes}
         {lineNodes}
+        {remoteEraserDraftNodes}
 
         <Line
           ref={currentEraserLineRef}
@@ -736,15 +1067,13 @@ export function InfinityCanvasStage({
           lineCap="round"
           lineJoin="round"
           globalCompositeOperation="destination-out"
-          tension={0.3}
+          tension={INFINITY_LINE_TENSION}
           listening={false}
         />
       </Layer>
 
       {/* Layer 2.5 — 다른 참여자가 그리고 있는 임시 선/도형 */}
-      <Layer listening={false}>
-        {remoteDraftNodes}
-      </Layer>
+      <ImperativeRemoteDraftLayer remoteDraftObjects={remoteDraftObjects} />
 
       {/* Layer 3 — 진행 중 pen line + preview + cursor + 다중 선택 박스 */}
       <Layer listening={false}>
@@ -754,7 +1083,7 @@ export function InfinityCanvasStage({
           strokeWidth={5}
           lineCap="round"
           lineJoin="round"
-          tension={0.3}
+          tension={INFINITY_LINE_TENSION}
         />
         <Rect
           ref={previewRectRef}
@@ -772,7 +1101,7 @@ export function InfinityCanvasStage({
         />
         <SelectionBox boxRef={selectionBoxRef} />
         <CursorPreview cursorRef={cursorPreviewRef} />
-        {lockedElements.map(renderLockOverlay)}
+        {groupedLockedElements.map(renderGroupedLockOverlay)}
         <RemoteCursorLayer remoteCursors={remoteCursors} />
       </Layer>
     </Stage>

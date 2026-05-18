@@ -47,6 +47,7 @@ export const INFINITY_ANIMALS = [
 export type InfinityAnimal = (typeof INFINITY_ANIMALS)[number]
 
 export const INFINITY_STROKE_WIDTHS = [2, 5, 10] as const
+export const INFINITY_LINE_TENSION = 0.45
 
 export interface InfinityLine {
   id: string

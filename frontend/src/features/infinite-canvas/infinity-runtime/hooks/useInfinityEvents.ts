@@ -22,9 +22,9 @@ function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((p) => [p.x, p.y])
 }
 
-const MIN_LINE_POINT_DISTANCE = 3
-const MAX_LINE_POINTS_PER_OBJECT = 640
-const MAX_DRAFT_LINE_POINTS = 180
+const MIN_LINE_POINT_DISTANCE = 0
+const MAX_LINE_POINTS_PER_OBJECT = 5200
+const MAX_DRAFT_LINE_POINTS = 1800
 const BUCKET_FILL_PADDING = 96
 const BUCKET_FILL_MAX_SIZE = 1600
 const BUCKET_FILL_ALPHA_TOLERANCE = 16
@@ -40,6 +40,8 @@ function shouldAppendLinePoint(
   if (!previousPoint) return true
   const distanceX = nextPoint.x - previousPoint.x
   const distanceY = nextPoint.y - previousPoint.y
+  if (distanceX === 0 && distanceY === 0) return false
+  if (MIN_LINE_POINT_DISTANCE <= 0) return true
   return distanceX * distanceX + distanceY * distanceY >= MIN_LINE_POINT_DISTANCE * MIN_LINE_POINT_DISTANCE
 }
 
@@ -444,7 +446,7 @@ interface UseInfinityEventsParams {
   silentClearSelection: () => void
   silentSetSelection: (newSelectedIds: string[]) => void
   recordSelection: (newSelectedIds: string[]) => void
-  onDraftObjectChange?: (draftObject: InfinityObject | null) => void
+  onDraftObjectChange?: (draftObject: InfinityObject | InfinityObject[] | null) => void
   objectsRef: { readonly current: InfinityObject[] }
   selectedIdsRef: { readonly current: string[] }
   color: string
@@ -667,7 +669,11 @@ export function useInfinityEvents({
   }
 
   const cleanupAfterNextPaint = (cleanup: () => void) => {
-    window.requestAnimationFrame(cleanup)
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(cleanup, 120)
+      })
+    })
   }
 
   const containsRect = (
@@ -721,6 +727,7 @@ export function useInfinityEvents({
     startPosRef.current = pos
 
     if (toolSnapshot === 'pen' || toolSnapshot === 'eraser') {
+      hideCursor()
       const newLine: InfinityLine = {
         id: generateId(),
         type: 'line',
@@ -730,7 +737,7 @@ export function useInfinityEvents({
         isEraser: toolSnapshot === 'eraser',
       }
       currentLineRef.current = newLine
-      onDraftObjectChange?.(toolSnapshot === 'eraser' ? null : newLine)
+      onDraftObjectChange?.(newLine)
     } else if (toolSnapshot === 'bucket') {
       isDrawingRef.current = false
     } else if (toolSnapshot === 'select-eraser') {
@@ -791,7 +798,7 @@ export function useInfinityEvents({
       prev.points.push(pos)
       prev.points = limitLinePoints(prev.points, MAX_LINE_POINTS_PER_OBJECT)
       showCurrentLine(prev)
-      onDraftObjectChange?.(prev.isEraser ? null : createDraftLine(prev))
+      onDraftObjectChange?.(createDraftLine(prev))
     } else if (toolSnapshot === 'select-eraser') {
       const pointer = stage.getPointerPosition()
       if (!pointer) return
@@ -1102,6 +1109,29 @@ export function useInfinityEvents({
     ])
   }
 
+  const onObjectsTransformEnd = (updatedObjects: InfinityObject[]) => {
+    if (updatedObjects.length === 0) return
+    const blockedId = updatedObjects.find((object) => !canEdit(object.id))?.id
+    if (blockedId) {
+      blockEdit(blockedId)
+      return
+    }
+
+    const updatedObjectMap = new Map(updatedObjects.map((object) => [object.id, object]))
+    const newObjects = objectsRef.current.map((object) =>
+      updatedObjectMap.get(object.id) ?? object,
+    )
+    commitLocalChange(
+      newObjects,
+      selectedIdsRef.current,
+      updatedObjects.map((object) => ({
+        operationType: 'UPSERT_ELEMENT',
+        elementId: object.id,
+        element: { ...object },
+      })),
+    )
+  }
+
   // 텍스트 객체 더블 클릭 → 편집 모드 진입.
   const onTextDblClick = (id: string) => {
     if (!canEdit(id)) {
@@ -1173,6 +1203,7 @@ export function useInfinityEvents({
     onObjectDragEnd,
     onShapeTransformEnd,
     onTextTransformEnd,
+    onObjectsTransformEnd,
     onTextDblClick,
     shiftSelectedZIndex,
   } as const

@@ -27,7 +27,7 @@ interface UseInfinityDrawingNodeRefs {
 interface UseInfinityDrawingOptions {
   canEditObject?: (id: string) => boolean
   onBlockedObjectEdit?: (id: string) => void
-  onDraftObjectChange?: (draftObject: InfinityObject | null) => void
+  onDraftObjectChange?: (draftObject: InfinityObject | InfinityObject[] | null) => void
   onLocalOperations?: (operations: InfiniteCanvasOperationRequest[]) => void
 }
 
@@ -423,6 +423,7 @@ export function useInfinityDrawing(
       scaleRef: viewport.scaleRef,
       stagePosRef: viewport.stagePosRef,
       centerInitialViewport: viewport.centerInitialViewport,
+      setPointerPanning: viewport.setPointerPanning,
     },
 
     handlers: {
@@ -437,6 +438,7 @@ export function useInfinityDrawing(
       onObjectDragEnd: events.onObjectDragEnd,
       onShapeTransformEnd: events.onShapeTransformEnd,
       onTextTransformEnd: events.onTextTransformEnd,
+      onObjectsTransformEnd: events.onObjectsTransformEnd,
       onTextDblClick: events.onTextDblClick,
     },
   } as const

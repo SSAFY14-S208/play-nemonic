@@ -18,6 +18,7 @@ export function useInfinityViewport(
   const stagePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const isSpacePanningRef = useRef<boolean>(false)
   const isToolPanningRef = useRef<boolean>(false)
+  const isPointerPanningRef = useRef<boolean>(false)
   const isSpaceDownRef = useRef<boolean>(false)
   const isInitialViewportCenteredRef = useRef<boolean>(false)
 
@@ -90,7 +91,10 @@ export function useInfinityViewport(
   const applyPanningState = () => {
     const stage = stageRef.current
     if (!stage) return
-    const isPanning = isSpacePanningRef.current || isToolPanningRef.current
+    const isPanning =
+      isSpacePanningRef.current ||
+      isToolPanningRef.current ||
+      isPointerPanningRef.current
     stage.draggable(isPanning)
     stage.container().style.cursor = isPanning ? 'grab' : ''
   }
@@ -104,6 +108,11 @@ export function useInfinityViewport(
 
   const setToolPanning = (panning: boolean) => {
     isToolPanningRef.current = panning
+    applyPanningState()
+  }
+
+  const setPointerPanning = (panning: boolean) => {
+    isPointerPanningRef.current = panning
     applyPanningState()
   }
 
@@ -122,6 +131,7 @@ export function useInfinityViewport(
     onStageWheel,
     setSpacePanning,
     setToolPanning,
+    setPointerPanning,
     onStageDragEnd,
     centerInitialViewport,
   } as const

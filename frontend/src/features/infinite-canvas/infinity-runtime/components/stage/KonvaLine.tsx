@@ -1,13 +1,21 @@
 import { Line } from "react-konva";
 
-import type { InfinityLine } from "../../constants";
+import { INFINITY_LINE_TENSION, type InfinityLine } from "../../constants";
 import { flattenPoints } from "./shapes.types";
 
 interface KonvaLineProps {
   line: InfinityLine;
+  isSelectTool?: boolean;
+  isLocked?: boolean;
+  onLineClick?: (id: string, isShift: boolean) => void;
 }
 
-export function KonvaLine({ line }: KonvaLineProps) {
+export function KonvaLine({
+  line,
+  isSelectTool = false,
+  isLocked = false,
+  onLineClick,
+}: KonvaLineProps) {
   return (
     <Line
       id={line.id}
@@ -16,10 +24,18 @@ export function KonvaLine({ line }: KonvaLineProps) {
       strokeWidth={line.strokeWidth}
       lineCap="round"
       lineJoin="round"
+      perfectDrawEnabled={false}
       globalCompositeOperation={
         line.isEraser ? "destination-out" : "source-over"
       }
-      tension={0.3}
+      tension={INFINITY_LINE_TENSION}
+      draggable={isSelectTool && !isLocked}
+      onClick={
+        isSelectTool
+          ? (e) => onLineClick?.(line.id, e.evt.shiftKey)
+          : undefined
+      }
+      onTap={isSelectTool ? () => onLineClick?.(line.id, false) : undefined}
     />
   );
 }
