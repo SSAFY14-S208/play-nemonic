@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { ApiError, postShare } from '@/shared/apis'
+import { ApiError, postArtifactShare } from '@/shared/apis'
 import type { FlipbookResultItemResponse } from '@/shared/types'
 import {
   getDisplayImageUrl,
@@ -92,8 +92,8 @@ function toSafeFileName(fileName: string, extension: string) {
     : `${normalizedName}.${extension}`
 }
 
-function isRealGalleryId(galleryId: string | null | undefined) {
-  return Boolean(galleryId && !galleryId.startsWith('dummy-'))
+function isRealResourceId(resourceId: string | null | undefined) {
+  return Boolean(resourceId && !resourceId.startsWith('dummy-'))
 }
 
 function toExternalShareErrorMessage(error: unknown) {
@@ -140,7 +140,7 @@ export function useFlipbookResultActions({
   const canSaveToLocal = Boolean(resultImageUrl) && !isSavingToLocal
   const canPostCommunity = Boolean(communityImageUrl)
   const canShareExternal =
-    Boolean(activeResult && isRealGalleryId(activeResult.galleryId)) && !isSharingExternal
+    Boolean(activeResult && isRealResourceId(activeResult.artifactId)) && !isSharingExternal
 
   const saveToLocalGallery = useCallback(async () => {
     if (!resultImageUrl || isSavingToLocal) return
@@ -188,14 +188,14 @@ export function useFlipbookResultActions({
       title: `${ownerName}의 플립북`,
       imageUrl: communityImageUrl,
       thumbnailUrl: activeResult.thumbnailUrl ?? communityImageUrl,
-      sourceGalleryId: isRealGalleryId(activeResult.galleryId) ? activeResult.galleryId : null,
+      sourceGalleryId: isRealResourceId(activeResult.galleryId) ? activeResult.galleryId : null,
       sourceContentKind: 'flipbook',
     })
     router.push('/community-canvas')
   }, [activeResult, communityImageUrl, ownerName, router])
 
   const shareExternal = useCallback(async () => {
-    if (!activeResult || !isRealGalleryId(activeResult.galleryId) || isSharingExternal) {
+    if (!activeResult || !isRealResourceId(activeResult.artifactId) || isSharingExternal) {
       setActionMessage('외부 공유는 저장된 결과에서만 사용할 수 있어요.')
       return
     }
@@ -204,10 +204,7 @@ export function useFlipbookResultActions({
     setActionMessage(null)
 
     try {
-      const shareInfo = await postShare({
-        galleryId: activeResult.galleryId,
-        campaign: 'flipbook_result',
-      })
+      const shareInfo = await postArtifactShare(activeResult.artifactId)
       if (!shareInfo.imageUrl?.trim()) {
         throw new Error('외부 공유 이미지를 찾지 못했어요.')
       }

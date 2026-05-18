@@ -10,10 +10,12 @@ interface ResultRightPanelProps {
   resultItems: RelayRoomResultItemResponse[]
   activeResultIndex: number
   onSelectResult: (index: number) => void
-  isHost: boolean
   onReturnToLobby: () => void
   onCommunityPost: () => void
   canPostCommunity: boolean
+  onShareExternal: () => void
+  isSharingExternal: boolean
+  canShareExternal: boolean
   // 현재 활성 작품을 디바이스에 다운로드. RELAY_RESULT_ACTIONS의 첫 번째 항목
   // ("보관함에", Download 아이콘)에 연결된다.
   onDownloadArtifact: () => void
@@ -28,10 +30,12 @@ export default function ResultRightPanel({
   resultItems,
   activeResultIndex,
   onSelectResult,
-  isHost,
   onReturnToLobby,
   onCommunityPost,
   canPostCommunity,
+  onShareExternal,
+  isSharingExternal,
+  canShareExternal,
   onDownloadArtifact,
   isDownloading,
   canDownload,
@@ -70,22 +74,30 @@ export default function ResultRightPanel({
       </div>
 
       <div className="flex flex-col gap-2">
-        {RELAY_RESULT_ACTIONS.map(({ label, Icon }, index) => {
-          const isDownloadAction = index === 0
-          const isCommunityPostAction = index === 1
-          const handleClick = isDownloadAction
-            ? onDownloadArtifact
-            : isCommunityPostAction
-              ? onCommunityPost
-              : undefined
+        {RELAY_RESULT_ACTIONS.map(({ id, label, Icon }, index) => {
+          const isDownloadAction = id === 'download'
+          const isCommunityPostAction = id === 'community-post'
+          const isExternalShareAction = id === 'external-share'
+          const handleClick =
+            id === 'download'
+              ? onDownloadArtifact
+              : id === 'community-post'
+                ? onCommunityPost
+                : onShareExternal
           const isDisabled =
             (isDownloadAction && (!canDownload || isDownloading)) ||
-            (isCommunityPostAction && !canPostCommunity)
-          const buttonLabel = isDownloadAction && isDownloading ? '저장 중' : label
+            (isCommunityPostAction && !canPostCommunity) ||
+            (isExternalShareAction && !canShareExternal)
+          const buttonLabel =
+            isDownloadAction && isDownloading
+              ? '저장 중'
+              : isExternalShareAction && isSharingExternal
+                ? '공유 중'
+                : label
 
           return (
             <RelayButton
-              key={label}
+              key={id}
               variant={index === 0 ? 'secondary' : 'primary'}
               size="md"
               onClick={handleClick}
@@ -107,7 +119,7 @@ export default function ResultRightPanel({
           size="md"
           className="w-full rounded-[14px] border-[1.5px] border-relay-accent shadow-[0_4px_10px_rgba(212,156,31,0.18)]"
         >
-          {isHost ? '방 종료' : '로비로 돌아가기'}
+          로비로 돌아가기
         </RelayButton>
       </div>
     </section>

@@ -158,24 +158,30 @@ function FortuneDialoguePanelContent({
     <section
       className={cn(
         DIALOGUE_PANEL_CLASS,
+        "cursor-pointer",
         withEntryReveal &&
           "animate-fortune-dialogue-entry-reveal motion-reduce:animate-none",
       )}
       aria-label="포포의 안내"
+      role="button"
+      tabIndex={0}
+      onClick={handleNext}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleNext();
+        }
+      }}
     >
       <p className={DIALOGUE_SPEAKER_CLASS}>포포</p>
       <p className={DIALOGUE_COPY_CLASS} aria-label={plainText}>
         {renderDialogueLines(dialogue, visibleCharacterCount)}
         {!isComplete && <FortuneDialogueCaret />}
       </p>
-      <button
-        type="button"
+      <span
         className={DIALOGUE_NEXT_CLASS}
-        aria-label={buttonLabel}
-        onClick={handleNext}
-      >
-        <span className="sr-only">{buttonLabel}</span>
-      </button>
+        aria-hidden
+      />
     </section>
   );
 }
