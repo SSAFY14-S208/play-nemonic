@@ -492,7 +492,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   )
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
+    const animationFrameId = window.requestAnimationFrame(() => {
       const now = Date.now()
       setRetainedRemoteDrafts((currentDrafts) => {
         const nextDrafts: Record<string, RetainedRemoteDraft> = {}
@@ -539,9 +539,9 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
         return changed ? nextDrafts : currentDrafts
       })
-    }, 0)
+    })
 
-    return () => window.clearTimeout(timeoutId)
+    return () => window.cancelAnimationFrame(animationFrameId)
   }, [liveRemoteDraftObjects, visibleObjectIds])
 
   useEffect(() => {
