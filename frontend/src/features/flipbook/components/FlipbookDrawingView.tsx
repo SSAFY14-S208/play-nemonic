@@ -3,18 +3,19 @@
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
-import { Eye, EyeOff, Timer } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import {
   ColorPanel,
   DrawingCompleteButton,
   HintToggleButton,
-  MobileColorGrid,
-  MobileToolGrid,
+  MobileBrushOpacityBar,
+  MobileColorBar,
+  MobileToolBar,
   ProgressRail,
   ToolPanel,
   TopStatusBar,
 } from '@/shared/components'
-import { DRAWING_COLORS } from '@/shared/constants'
+import { DRAWING_COLORS, DRAWING_STROKE_WIDTH_OPTIONS } from '@/shared/constants'
 import { useDrawingKeyboardShortcuts } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 import type {
@@ -231,13 +232,12 @@ export default function FlipbookDrawingView({
       />
 
       <div className="relative z-10 grid w-full gap-4 px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 lg:hidden">
-        <div className="sticky top-3 z-20 rounded-[22px] border border-[#ead7c9] bg-white/92 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)] backdrop-blur">
+        <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
           <div className="flex items-center justify-between gap-3">
             <p className="h2-b text-[#f45d8d]">
               {activeRoundIndex + 1}/{displayRoundCount}
             </p>
-            <div className="body-b inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ead7c9] bg-white px-4 text-[#f45d8d]">
-              <Timer className="size-5" aria-hidden />
+            <div className="body-b inline-flex min-h-10 items-center rounded-full border border-[#ead7c9] bg-white px-4 text-[#f45d8d]">
               {remainingSeconds}초
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function FlipbookDrawingView({
             disabled={!hasOnionSkinHint}
             aria-pressed={hasOnionSkinHint ? isOnionSkinVisible : undefined}
             className={cn(
-              'body-b mt-4 inline-flex min-h-10 items-center gap-2 rounded-full border px-4 transition',
+              'body-b mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border px-4 transition',
               hasOnionSkinHint
                 ? isOnionSkinVisible
                   ? 'border-[#ff8bab] bg-[#ffecf3] text-[#db4d82]'
@@ -265,7 +265,7 @@ export default function FlipbookDrawingView({
           </button>
         </div>
 
-        <MobileToolGrid
+        <MobileToolBar
           selectedToolKey={selectedToolKey}
           canUndoDrawing={canUndoDrawing}
           canRedoDrawing={canRedoDrawing}
@@ -276,18 +276,7 @@ export default function FlipbookDrawingView({
           onClearDrawing={onClearDrawing}
         />
 
-        <MobileColorGrid
-          colors={DRAWING_COLORS}
-          selectedColor={selectedColor}
-          selectedOpacity={selectedOpacity}
-          strokeWidth={strokeWidth}
-          isDrawingLocked={isDrawingLocked}
-          onSelectColor={onSelectColor}
-          onOpacityChange={onOpacityChange}
-          onStrokeWidthChange={onStrokeWidthChange}
-        />
-
-        <div className="rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+        <div className="min-w-0 rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
           <div
             ref={mobileBoardContainerRef}
             className="relative mx-auto w-full max-w-[680px] overflow-hidden rounded-[8px] bg-white"
@@ -320,18 +309,33 @@ export default function FlipbookDrawingView({
           </div>
         </div>
 
-        <div className="sticky bottom-3 z-20 grid gap-2">
-          <SubmissionProgressBadge
-            submittedCount={submittedCount}
-            totalCount={totalCount}
-          />
-          <DrawingCompleteButton
-            onComplete={handleCompleteRound}
-            disabled={isDrawingLocked}
-            className="min-h-14 rounded-[16px]"
-            label={submitButtonText === '완료!' ? '완료하기' : submitButtonText}
-          />
-        </div>
+        <MobileColorBar
+          colors={DRAWING_COLORS}
+          selectedColor={selectedColor}
+          isDrawingLocked={isDrawingLocked}
+          onSelectColor={onSelectColor}
+        />
+
+        <MobileBrushOpacityBar
+          strokeWidth={strokeWidth}
+          strokeWidthOptions={DRAWING_STROKE_WIDTH_OPTIONS}
+          selectedOpacity={selectedOpacity}
+          isDrawingLocked={isDrawingLocked}
+          onStrokeWidthChange={onStrokeWidthChange}
+          onOpacityChange={onOpacityChange}
+        />
+
+        <SubmissionProgressBadge
+          submittedCount={submittedCount}
+          totalCount={totalCount}
+        />
+
+        <DrawingCompleteButton
+          onComplete={handleCompleteRound}
+          disabled={isDrawingLocked}
+          className="min-h-14 rounded-[16px]"
+          label={submitButtonText === '완료!' ? '완료하기' : submitButtonText}
+        />
         {errorMessage && (
           <p className="caption-b rounded-[14px] bg-white/90 px-4 py-3 text-center text-flipbook-deep">
             {errorMessage}
