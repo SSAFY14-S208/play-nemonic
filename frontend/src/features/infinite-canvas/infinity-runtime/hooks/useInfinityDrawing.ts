@@ -52,12 +52,57 @@ export interface InfinityTextEditorState {
   editingId: string | null
 }
 
+const CLIPBOARD_PASTE_OFFSET = 28
+
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
     return true
   }
   return target.isContentEditable
+}
+
+function createElementId(prefix = 'copy'): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function cloneObjectWithOffset(
+  object: InfinityObject,
+  offset: number,
+): InfinityObject {
+  const id = createElementId(object.type)
+
+  if (object.type === 'line') {
+    return {
+      ...object,
+      id,
+      points: object.points.map((point) => ({
+        x: point.x + offset,
+        y: point.y + offset,
+      })),
+    }
+  }
+
+  if (object.type === 'image') {
+    return {
+      ...object,
+      id,
+      x: object.x + offset,
+      y: object.y + offset,
+      metadata: object.metadata ? { ...object.metadata } : undefined,
+    }
+  }
+
+  return {
+    ...object,
+    id,
+    x: object.x + offset,
+    y: object.y + offset,
+  }
 }
 
 export function useInfinityDrawing(
@@ -83,6 +128,8 @@ export function useInfinityDrawing(
     index: -1,
   })
   const [localHistoryCursor, setLocalHistoryCursor] = useState({ index: -1, length: 0 })
+  const internalClipboardRef = useRef<InfinityObject[]>([])
+  const pasteCountRef = useRef(0)
 
   const emitLocalOperations = (operations: LocalOperationDescriptor[]) => {
     if (operations.length === 0) return
@@ -287,11 +334,77 @@ export function useInfinityDrawing(
   // Stable refs so the keyboard handler never goes stale.
   const undoRef = useRef(history.undo)
   const redoRef = useRef(history.redo)
+  const copySelectedRef = useRef(() => {})
+  const pasteSelectedRef = useRef(() => {})
+  const cutSelectedRef = useRef(() => {})
+  const deleteSelectedRef = useRef(() => {})
   const setSpacePanningRef = useRef(viewport.setSpacePanning)
   const setToolPanningRef = useRef(viewport.setToolPanning)
   const shiftSelectedZIndexRef = useRef(events.shiftSelectedZIndex)
 
   useEffect(() => {
+    const getEditableSelectedObjects = () => {
+      const selectedIds = history.selectedIdsRef.current
+      if (selectedIds.length === 0) return []
+
+      const selectedIdSet = new Set(selectedIds)
+      const blockedId = selectedIds.find((selectedId) => {
+        const object = history.objectsRef.current.find((currentObject) => currentObject.id === selectedId)
+        return object && options.canEditObject && !options.canEditObject(selectedId)
+      })
+      if (blockedId) {
+        options.onBlockedObjectEdit?.(blockedId)
+        return []
+      }
+
+      return history.objectsRef.current.filter((object) => selectedIdSet.has(object.id))
+    }
+
+    copySelectedRef.current = () => {
+      const selectedObjects = getEditableSelectedObjects()
+      if (selectedObjects.length === 0) return
+
+      internalClipboardRef.current = selectedObjects.map((object) => ({ ...object }))
+      pasteCountRef.current = 0
+    }
+    deleteSelectedRef.current = () => {
+      const selectedObjects = getEditableSelectedObjects()
+      if (selectedObjects.length === 0) return
+
+      const selectedIdSet = new Set(selectedObjects.map((object) => object.id))
+      const nextObjects = history.objectsRef.current.filter((object) => !selectedIdSet.has(object.id))
+      commitLocalChange(
+        nextObjects,
+        [],
+        selectedObjects.map((object) => ({
+          operationType: 'DELETE_ELEMENT',
+          elementId: object.id,
+        })),
+      )
+    }
+    cutSelectedRef.current = () => {
+      copySelectedRef.current()
+      if (internalClipboardRef.current.length === 0) return
+      deleteSelectedRef.current()
+    }
+    pasteSelectedRef.current = () => {
+      const copiedObjects = internalClipboardRef.current
+      if (copiedObjects.length === 0) return
+
+      pasteCountRef.current += 1
+      const offset = CLIPBOARD_PASTE_OFFSET * pasteCountRef.current
+      const pastedObjects = copiedObjects.map((object) => cloneObjectWithOffset(object, offset))
+      commitLocalChange(
+        [...history.objectsRef.current, ...pastedObjects],
+        pastedObjects.map((object) => object.id),
+        pastedObjects.map((object) => ({
+          operationType: 'UPSERT_ELEMENT',
+          elementId: object.id,
+          element: { ...object },
+        })),
+      )
+      setToolState('select')
+    }
     undoRef.current = () => {
       const { actions, index } = localEditHistoryRef.current
       if (index < 0) return
@@ -369,17 +482,36 @@ export function useInfinityDrawing(
         shiftSelectedZIndexRef.current(1)
       }
 
-      if (!typingTarget && e.ctrlKey && !e.shiftKey && e.key === 'z') {
+      const isShortcutKey = e.ctrlKey || e.metaKey
+      const normalizedKey = e.key.toLowerCase()
+
+      if (!typingTarget && isShortcutKey && !e.shiftKey && normalizedKey === 'z') {
         e.preventDefault()
         undoRef.current()
       }
       if (
         !typingTarget &&
-        ((e.ctrlKey && e.shiftKey && e.key === 'Z') ||
-          (e.ctrlKey && e.key === 'y'))
+        ((isShortcutKey && e.shiftKey && normalizedKey === 'z') ||
+          (isShortcutKey && normalizedKey === 'y'))
       ) {
         e.preventDefault()
         redoRef.current()
+      }
+      if (!typingTarget && isShortcutKey && normalizedKey === 'c') {
+        e.preventDefault()
+        copySelectedRef.current()
+      }
+      if (!typingTarget && isShortcutKey && normalizedKey === 'v') {
+        e.preventDefault()
+        pasteSelectedRef.current()
+      }
+      if (!typingTarget && isShortcutKey && normalizedKey === 'x') {
+        e.preventDefault()
+        cutSelectedRef.current()
+      }
+      if (!typingTarget && !isShortcutKey && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault()
+        deleteSelectedRef.current()
       }
     }
 
