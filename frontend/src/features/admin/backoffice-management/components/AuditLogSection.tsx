@@ -214,32 +214,45 @@ function AuditLogRow({ entry, actorLookup }: AuditLogRowProps) {
           {formatTimestamp(entry.timestamp)}
         </td>
         <td className="body-m px-4 py-3 align-top text-fg-primary">
-          <div className="flex flex-col gap-0.5">
-            <span>{eventLabel}</span>
-            <span className="caption-r font-mono text-fg-disabled">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate" title={eventLabel}>
+              {eventLabel}
+            </span>
+            <span
+              className="caption-r truncate font-mono text-fg-disabled"
+              title={entry.eventName || ''}
+            >
               {entry.eventName || '—'}
             </span>
           </div>
         </td>
         <td className="body-r px-4 py-3 align-top text-fg-primary">
-          <div className="flex flex-col gap-0.5">
-            <span className="body-m">{actorInfo?.nickname ?? entry.actorId ?? '—'}</span>
-            <span className="caption-r text-fg-secondary">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span
+              className="body-m truncate"
+              title={actorInfo?.nickname ?? entry.actorId ?? ''}
+            >
+              {actorInfo?.nickname ?? entry.actorId ?? '—'}
+            </span>
+            <span className="caption-r truncate text-fg-secondary">
               {[actorInfo?.loginId, entry.actorRole].filter(Boolean).join(' · ') ||
                 (entry.actorId ? `#${entry.actorId}` : '')}
             </span>
           </div>
         </td>
         <td className="body-r px-4 py-3 align-top text-fg-primary">
-          <div className="flex flex-col gap-0.5">
-            <span>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate">
               {entry.targetType ?? '—'}
               {entry.action ? (
                 <span className="caption-r text-fg-secondary"> · {entry.action}</span>
               ) : null}
             </span>
             {entry.targetId && (
-              <span className="caption-r truncate font-mono text-fg-disabled">
+              <span
+                className="caption-r truncate font-mono text-fg-disabled"
+                title={entry.targetId}
+              >
                 {entry.targetId}
               </span>
             )}

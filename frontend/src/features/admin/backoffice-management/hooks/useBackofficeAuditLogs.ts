@@ -8,7 +8,11 @@ import type {
   AdminLogsSearchHit,
 } from '@/shared/types'
 
-import { AUDIT_RANGE_DAYS, type AuditLogRange } from '../constants'
+import {
+  AUDIT_EVENT_DESCRIPTORS,
+  AUDIT_RANGE_DAYS,
+  type AuditLogRange,
+} from '../constants'
 
 const PAGE_SIZE = 50
 const AUDIT_INDEX = 'audit-logs' as const
@@ -215,9 +219,27 @@ export function useBackofficeAuditLogs() {
 
   const canLoadMore = useMemo(() => nextSearchAfter !== null, [nextSearchAfter])
 
+  // 카테고리(분류)는 서버 쿼리로 보낼 수 없다 — 현 AdminLogsFilter가 단일 값 정확 매칭만 지원해
+  // OR/IN 쿼리로 카테고리에 속한 이벤트 집합을 한 번에 보낼 수 없기 때문이다.
+  // 그래서 서버는 service 필터까지만 좁히고, 카테고리는 응답을 받은 뒤 화이트리스트 기반으로
+  // 클라이언트에서 추가 필터링한다. 페이지네이션은 서버 cursor 기준 그대로 유지된다.
+  const eventsInCategory = useMemo(() => {
+    if (!filter.category) return null
+    return new Set(
+      AUDIT_EVENT_DESCRIPTORS.filter(
+        (descriptor) => descriptor.category === filter.category,
+      ).map((descriptor) => descriptor.value),
+    )
+  }, [filter.category])
+
+  const displayedEntries = useMemo(() => {
+    if (!eventsInCategory) return entries
+    return entries.filter((entry) => eventsInCategory.has(entry.eventName))
+  }, [entries, eventsInCategory])
+
   return {
     filter,
-    entries,
+    entries: displayedEntries,
     total,
     tookMs,
     isLoading,
