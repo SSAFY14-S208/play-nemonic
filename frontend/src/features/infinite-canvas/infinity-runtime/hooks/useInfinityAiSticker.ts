@@ -6,7 +6,7 @@ import { HTTPError, TimeoutError } from 'ky'
 import { toast } from 'sonner'
 import { ApiError, postInfiniteCanvasAiSticker } from '@/shared/apis'
 import type { InfinityImage, InfinityObject } from '../constants'
-import type { ApiResponse } from '@/shared/types'
+import type { ApiResponse, InfiniteCanvasAiStickerCreateResponse } from '@/shared/types'
 
 interface UseInfinityAiStickerParams {
   roomCode: string
@@ -75,6 +75,7 @@ export function useInfinityAiSticker({
 }: UseInfinityAiStickerParams) {
   const [isOpen, setIsOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [previewSticker, setPreviewSticker] = useState<InfiniteCanvasAiStickerCreateResponse | null>(null)
 
   const createStickerObject = useCallback(
     (element: Record<string, unknown>): InfinityImage => {
@@ -122,15 +123,12 @@ export function useInfinityAiSticker({
           height: 512,
           transparentBackground: true,
         })
-        const stickerObject = createStickerObject(sticker.element)
-        if (!stickerObject.src) {
+        if (!getStringValue(sticker.element.src, '')) {
           toast.error('AI 스티커 이미지 주소를 확인하지 못했어요.')
           return false
         }
 
-        addObject(stickerObject)
-        setIsOpen(false)
-        toast.success('AI 스티커를 캔버스에 추가했어요.')
+        setPreviewSticker(sticker)
         return true
       } catch (caughtError) {
         toast.error(await getCreateErrorMessage(caughtError))
@@ -139,14 +137,35 @@ export function useInfinityAiSticker({
         setIsCreating(false)
       }
     },
-    [addObject, createStickerObject, isCreating, roomCode],
+    [isCreating, roomCode],
   )
+
+  const attachPreviewSticker = useCallback(() => {
+    if (!previewSticker) return false
+
+    const stickerObject = createStickerObject(previewSticker.element)
+    if (!stickerObject.src) {
+      toast.error('AI 스티커 이미지 주소를 확인하지 못했어요.')
+      return false
+    }
+
+    addObject(stickerObject)
+    setPreviewSticker(null)
+    setIsOpen(false)
+    toast.success('AI 스티커를 캔버스에 추가했어요.')
+    return true
+  }, [addObject, createStickerObject, previewSticker])
+
+  const clearPreviewSticker = useCallback(() => setPreviewSticker(null), [])
 
   return {
     isOpen,
     isCreating,
+    previewSticker,
     open: () => setIsOpen(true),
     close: () => setIsOpen(false),
     createSticker,
+    attachPreviewSticker,
+    clearPreviewSticker,
   }
 }

@@ -795,8 +795,11 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       <InfinityAiStickerModal
         open={aiSticker.isOpen}
         loading={aiSticker.isCreating}
+        previewSticker={aiSticker.previewSticker}
         onClose={aiSticker.close}
         onSubmit={aiSticker.createSticker}
+        onAttach={aiSticker.attachPreviewSticker}
+        onClearPreview={aiSticker.clearPreviewSticker}
       />
 
       <div ref={containerRef} className="absolute inset-0 min-w-0 overflow-hidden">
