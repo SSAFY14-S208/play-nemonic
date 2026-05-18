@@ -31,12 +31,6 @@ function getMeshMaterials(material: THREE.Material | THREE.Material[]) {
   return Array.isArray(material) ? material : [material]
 }
 
-function cloneMeshMaterials(material: THREE.Material | THREE.Material[]) {
-  return Array.isArray(material)
-    ? material.map((meshMaterial) => meshMaterial.clone())
-    : material.clone()
-}
-
 function isHiddenPreviewObject(objectName: string) {
   const normalizedObjectName = objectName.toLowerCase()
 
@@ -45,63 +39,8 @@ function isHiddenPreviewObject(objectName: string) {
   )
 }
 
-const INTENTIONAL_EMISSIVE_OBJECT_KEYWORDS = [
-  'display',
-  'glow',
-  'led',
-  'light strip',
-  'moni_',
-  'mouse_light',
-  'mouse_wheel',
-  'mousepad',
-  'object_6.010',
-  'screen',
-]
-
-const INTENTIONAL_EMISSIVE_MATERIAL_KEYWORDS = [
-  'display',
-  'emissive',
-  'led',
-  'light',
-]
-
-const ROOM_SURFACE_OBJECT_KEYWORDS = [
-  'acoustic',
-  'carpet',
-  'desk_table',
-  'shelf_body',
-  'web_simple_back_wall',
-  'web_simple_floor',
-  'web_simple_left_wall',
-]
-
 function isTableLightStripObject(objectName: string) {
   return objectName.toLowerCase().includes('table light strip')
-}
-
-function isIntentionalEmissiveMaterial(
-  material: THREE.MeshStandardMaterial,
-  objectName: string,
-) {
-  const normalizedMaterialName = material.name.toLowerCase()
-  const normalizedObjectName = objectName.toLowerCase()
-
-  return (
-    INTENTIONAL_EMISSIVE_MATERIAL_KEYWORDS.some((keyword) =>
-      normalizedMaterialName.includes(keyword),
-    ) ||
-    INTENTIONAL_EMISSIVE_OBJECT_KEYWORDS.some((keyword) =>
-      normalizedObjectName.includes(keyword),
-    )
-  )
-}
-
-function isRoomSurfaceMaterial(objectName: string) {
-  const normalizedObjectName = objectName.toLowerCase()
-
-  return ROOM_SURFACE_OBJECT_KEYWORDS.some((keyword) =>
-    normalizedObjectName.includes(keyword),
-  )
 }
 
 function preserveSourceMaterial(material: THREE.Material, objectName: string) {
@@ -136,24 +75,10 @@ function preserveSourceMaterial(material: THREE.Material, objectName: string) {
 
   if (isEmissiveMaterial(material)) {
     material.toneMapped = false
-
-    if (isIntentionalEmissiveMaterial(material, objectName)) {
-      material.emissiveIntensity = Math.max(
-        material.emissiveIntensity,
-        ROOM_PREVIEW_MATERIALS.emissiveIntensityFloor,
-      )
-    } else if (isRoomSurfaceMaterial(objectName)) {
-      material.toneMapped = true
-      material.color.multiplyScalar(ROOM_PREVIEW_MATERIALS.roomSurfaceColorLift)
-      material.emissiveIntensity =
-        ROOM_PREVIEW_MATERIALS.roomSurfaceEmissiveIntensity
-    } else {
-      material.toneMapped = true
-      material.emissiveIntensity = Math.min(
-        material.emissiveIntensity,
-        ROOM_PREVIEW_MATERIALS.nonGlowEmissiveIntensity,
-      )
-    }
+    material.emissiveIntensity = Math.max(
+      material.emissiveIntensity,
+      ROOM_PREVIEW_MATERIALS.emissiveIntensityFloor,
+    )
   }
 
   MATERIAL_TEXTURE_MAP_KEYS.forEach((textureMapKey) => {
@@ -206,7 +131,6 @@ export default function RoomPreviewModel({
       object.castShadow = true
       object.receiveShadow = true
       object.frustumCulled = false
-      object.material = cloneMeshMaterials(object.material)
       getMeshMaterials(object.material).forEach((material) => {
         preserveSourceMaterial(material, object.name)
       })
