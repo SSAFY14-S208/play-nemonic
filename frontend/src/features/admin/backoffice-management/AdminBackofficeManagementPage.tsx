@@ -1,12 +1,13 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Plus, FileSearch, Trash2 } from 'lucide-react'
 
 import { useAdminAuthStore } from '@/shared/stores'
 import type { AdminResponse } from '@/shared/types'
+import { isSuperAdminRole } from '@/shared/utils'
 
+import { AdminReadOnlyNotice } from '../components'
 import {
   AdminCreateModal,
   AdminDetailModal,
@@ -17,8 +18,8 @@ import {
 import { useAdminAccounts } from './hooks'
 
 export default function AdminBackofficeManagementPage() {
-  const router = useRouter()
   const adminRole = useAdminAuthStore((state) => state.admin?.role ?? null)
+  const canManageAdminAccounts = isSuperAdminRole(adminRole)
 
   const {
     items,
@@ -47,17 +48,12 @@ export default function AdminBackofficeManagementPage() {
     return map
   }, [items])
 
-  // super_admin이 아니면 대시보드로 리다이렉트
-  if (adminRole !== 'super_admin') {
-    router.replace('/admin/dashboard')
-    return null
-  }
-
   const handleCreateSuccess = () => {
     setIsCreateModalOpen(false)
   }
 
   const handleDelete = (adminId: number) => {
+    if (!canManageAdminAccounts) return
     removeAdmin(adminId)
     setDeleteConfirmId(null)
   }
@@ -69,19 +65,28 @@ export default function AdminBackofficeManagementPage() {
           <div className="flex flex-col gap-1">
             <h3 className="h4-b text-fg-primary">관리자 계정</h3>
             <p className="caption-r text-fg-secondary">
-              슈퍼 관리자만 조회·변경할 수 있습니다.
+              모든 관리자 권한에서 조회할 수 있고, 계정 변경은 슈퍼 관리자만 가능합니다.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            disabled={isMutating}
+            disabled={isMutating || !canManageAdminAccounts}
+            title={
+              canManageAdminAccounts
+                ? undefined
+                : '슈퍼 관리자만 관리자 계정을 생성할 수 있습니다.'
+            }
             className="body-b inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-primary-1 px-4 py-2 text-fg-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
             계정 추가
           </button>
         </header>
+
+        {!canManageAdminAccounts && (
+          <AdminReadOnlyNotice message="슈퍼 관리자만 관리자 계정을 생성·삭제하거나 비밀번호를 변경할 수 있습니다." />
+        )}
 
         <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border-default bg-surface-default">
           <table className="w-full">
@@ -173,7 +178,7 @@ export default function AdminBackofficeManagementPage() {
                             <button
                               type="button"
                               onClick={() => handleDelete(admin.id)}
-                              disabled={isMutating}
+                              disabled={isMutating || !canManageAdminAccounts}
                               className="caption-b rounded-[var(--radius-md)] bg-red-500 px-3 py-1.5 text-fg-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
                             >
                               확인
@@ -190,8 +195,16 @@ export default function AdminBackofficeManagementPage() {
                         ) : (
                           <button
                             type="button"
-                            onClick={() => setDeleteConfirmId(admin.id)}
-                            disabled={isMutating}
+                            onClick={() => {
+                              if (!canManageAdminAccounts) return
+                              setDeleteConfirmId(admin.id)
+                            }}
+                            disabled={isMutating || !canManageAdminAccounts}
+                            title={
+                              canManageAdminAccounts
+                                ? undefined
+                                : '슈퍼 관리자만 관리자 계정을 삭제할 수 있습니다.'
+                            }
                             className="caption-b inline-flex items-center gap-1 rounded-[var(--radius-md)] border border-red-300 bg-surface-default px-3 py-1.5 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -227,6 +240,7 @@ export default function AdminBackofficeManagementPage() {
         open={detailAdmin !== null}
         admin={detailAdmin}
         isSubmitting={isMutating}
+        canChangePassword={canManageAdminAccounts}
         onChangePassword={(adminId, payload, onSuccess) =>
           changePassword(adminId, payload, onSuccess)
         }
