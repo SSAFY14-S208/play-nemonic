@@ -32,7 +32,7 @@ import { useRelayDrawingStore } from '../stores'
 
 const RELAY_EXTERNAL_SHARE_TEXT = '네모닉 릴레이 드로잉 결과를 공유해요.'
 const RELAY_SHARE_IMAGE_COPIED_MESSAGE =
-  '릴레이 드로잉 QR 공유 이미지를 복사했어요. 채팅창에 붙여넣어 주세요.'
+  '릴레이 드로잉 QR 공유 이미지를 복사했어요. 채팅창에 붙여 넣어 주세요.'
 const RELAY_SHARE_IMAGE_LINK_COPIED_MESSAGE =
   '릴레이 드로잉 QR 공유 이미지 링크를 복사했어요.'
 const RELAY_SHARE_GIF_LINK_COPIED_MESSAGE =
