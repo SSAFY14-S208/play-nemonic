@@ -46,6 +46,7 @@ public class InfiniteCanvasAiStickerServiceImpl implements InfiniteCanvasAiStick
     private static final String DEFAULT_STYLE = "sticker";
     private static final String PNG_CONTENT_TYPE = "image/png";
     private static final int DEFAULT_ELEMENT_SIZE = 240;
+    private static final int GPT_IMAGE_MIN_SIZE = 1024;
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final RoomCodeGenerator roomCodeGenerator;
@@ -91,6 +92,8 @@ public class InfiniteCanvasAiStickerServiceImpl implements InfiniteCanvasAiStick
         String style = normalizeStyle(request == null ? null : request.style());
         int width = normalizeSize(request == null ? null : request.width());
         int height = normalizeSize(request == null ? null : request.height());
+        int generationWidth = normalizeGenerationSize(width);
+        int generationHeight = normalizeGenerationSize(height);
         boolean transparentBackground = request == null || request.transparentBackground() == null
             || request.transparentBackground();
         UUID stickerId = UUID.randomUUID();
@@ -101,7 +104,7 @@ public class InfiniteCanvasAiStickerServiceImpl implements InfiniteCanvasAiStick
         logRequested(userUuid, normalizedRoomCode, stickerId, style, currentPrompt.version());
         try {
             InfiniteCanvasAiStickerImage image = gmsClient.generate(new InfiniteCanvasAiStickerGmsRequest(
-                currentPrompt.template(), prompt, style, width, height, transparentBackground));
+                currentPrompt.template(), prompt, style, generationWidth, generationHeight, transparentBackground));
             String contentType = StringUtils.hasText(image.contentType()) ? image.contentType() : PNG_CONTENT_TYPE;
             storage.upload(objectKey, image.bytes(), contentType);
             String imageUrl = minioPublicUrlResolver.resolve(objectKey);
@@ -112,8 +115,8 @@ public class InfiniteCanvasAiStickerServiceImpl implements InfiniteCanvasAiStick
                 elapsedMillis(startedAtNanos));
 
             return new InfiniteCanvasAiStickerCreateResponse(stickerId.toString(), imageUrl, objectKey, contentType,
-                width, height,
-                createElement(stickerId, imageUrl, objectKey, prompt, style, width, height, currentPrompt.version()));
+                generationWidth, generationHeight, createElement(stickerId, imageUrl, objectKey, prompt, style,
+                    generationWidth, generationHeight, currentPrompt.version()));
         } catch (InfiniteCanvasAiStickerException | ServiceUnavailableException e) {
             logFailed(userUuid, normalizedRoomCode, stickerId, style, currentPrompt.version(),
                 elapsedMillis(startedAtNanos), e);
@@ -173,6 +176,18 @@ public class InfiniteCanvasAiStickerServiceImpl implements InfiniteCanvasAiStick
         }
 
         return normalized;
+    }
+
+    private int normalizeGenerationSize(int size) {
+        if (isGptImageModel()) {
+            return Math.max(size, GPT_IMAGE_MIN_SIZE);
+        }
+
+        return size;
+    }
+
+    private boolean isGptImageModel() {
+        return properties.resolvedGms().resolvedModel().toLowerCase(Locale.ROOT).startsWith("gpt-image");
     }
 
     private String createObjectKey(String roomCode, UUID stickerId) {

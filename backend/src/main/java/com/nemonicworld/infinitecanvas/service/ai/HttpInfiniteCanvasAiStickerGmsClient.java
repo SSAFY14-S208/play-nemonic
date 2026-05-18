@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.infinitecanvas.config.InfiniteCanvasAiStickerProperties;
 import java.io.IOException;
 import java.net.URI;
@@ -12,11 +13,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 @Component
 public class HttpInfiniteCanvasAiStickerGmsClient implements InfiniteCanvasAiStickerGmsClient {
+
+    private static final Logger log = LoggerFactory.getLogger(HttpInfiniteCanvasAiStickerGmsClient.class);
 
     private static final String CONTENT_TYPE_JSON = "application/json";
     private static final String BEARER_PREFIX = "Bearer ";
@@ -48,7 +54,10 @@ public class HttpInfiniteCanvasAiStickerGmsClient implements InfiniteCanvasAiSti
                 .POST(HttpRequest.BodyPublishers.ofString(createRequestBody(request))).build();
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new InfiniteCanvasAiStickerException(GMS_CALL_ERROR_MESSAGE);
+                log.warn("AI sticker GMS request failed. statusCode={} responseBodyHash={}", response.statusCode(),
+                    StructuredEventLogger.sha256Prefix(response.body()));
+                throw new InfiniteCanvasAiStickerException(
+                    "%s status=%d".formatted(GMS_CALL_ERROR_MESSAGE, response.statusCode()));
             }
 
             return parseResponse(response.body());
@@ -76,12 +85,18 @@ public class HttpInfiniteCanvasAiStickerGmsClient implements InfiniteCanvasAiSti
         root.put("prompt", createPrompt(request));
         root.put("n", 1);
         root.put("size", "%dx%d".formatted(request.width(), request.height()));
-        root.put("response_format", "b64_json");
-        if (request.transparentBackground()) {
+        if (!isGptImageModel()) {
+            root.put("response_format", "b64_json");
+        }
+        if (request.transparentBackground() && isGptImageModel()) {
             root.put("background", "transparent");
         }
 
         return objectMapper.writeValueAsString(root);
+    }
+
+    private boolean isGptImageModel() {
+        return properties.resolvedGms().resolvedModel().toLowerCase(Locale.ROOT).startsWith("gpt-image");
     }
 
     private String createPrompt(InfiniteCanvasAiStickerGmsRequest request) {
