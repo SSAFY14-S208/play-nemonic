@@ -37,7 +37,6 @@ type RoomPreviewLightDebugState = {
   areaSpillMaster: number
   globalFillMultiplier: number
   isDebugEnabled: boolean
-  isFrustumCullingEnabled: boolean
   lightOverrides: Record<string, RoomPreviewLightDebugOverride>
   pointMaster: number
   selectedLightName: null | string
@@ -47,7 +46,6 @@ type RoomPreviewLightDebugState = {
   resetLight: (lightName: string) => void
   selectLight: (lightName: string) => void
   setDebugEnabled: (isDebugEnabled: boolean) => void
-  toggleFrustumCulling: () => void
   setGlobalMultiplier: (
     key: RoomPreviewLightDebugGlobalKey,
     value: number,
@@ -127,26 +125,12 @@ const setVectorAxisValue = (
   return nextVector
 }
 
-const FRUSTUM_CULLING_STORAGE_KEY = 'room-preview-frustum-culling-enabled'
-
-const readPersistedFrustumCulling = (): boolean => {
-  if (typeof window === 'undefined') return true
-  const stored = window.sessionStorage.getItem(FRUSTUM_CULLING_STORAGE_KEY)
-  return stored === null ? true : stored === '1'
-}
-
-const writePersistedFrustumCulling = (next: boolean) => {
-  if (typeof window === 'undefined') return
-  window.sessionStorage.setItem(FRUSTUM_CULLING_STORAGE_KEY, next ? '1' : '0')
-}
-
 export const useRoomPreviewLightDebugStore =
   create<RoomPreviewLightDebugState>((set) => ({
     areaDirectMaster: DEFAULT_AREA_DIRECT_MASTER,
     areaSpillMaster: DEFAULT_AREA_SPILL_MASTER,
     globalFillMultiplier: DEFAULT_GLOBAL_FILL_MULTIPLIER,
     isDebugEnabled: false,
-    isFrustumCullingEnabled: readPersistedFrustumCulling(),
     lightOverrides: {},
     pointMaster: DEFAULT_POINT_MASTER,
     selectedLightName: null,
@@ -283,12 +267,6 @@ export const useRoomPreviewLightDebugStore =
             },
           },
         }
-      }),
-    toggleFrustumCulling: () =>
-      set((state) => {
-        const next = !state.isFrustumCullingEnabled
-        writePersistedFrustumCulling(next)
-        return { isFrustumCullingEnabled: next }
       }),
     toggleShowHelpers: () =>
       set((state) => ({ showHelpers: !state.showHelpers })),

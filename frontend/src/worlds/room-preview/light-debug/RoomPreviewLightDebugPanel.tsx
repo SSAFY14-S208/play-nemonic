@@ -2,7 +2,6 @@
 
 import {
   Copy,
-  Crop,
   Eye,
   EyeOff,
   RotateCcw,
@@ -173,9 +172,6 @@ export const RoomPreviewLightDebugPanel = () => {
   const selectedLightName = useRoomPreviewLightDebugStore(
     (state) => state.selectedLightName,
   )
-  const isFrustumCullingEnabled = useRoomPreviewLightDebugStore(
-    (state) => state.isFrustumCullingEnabled,
-  )
   const showHelpers = useRoomPreviewLightDebugStore(
     (state) => state.showHelpers,
   )
@@ -204,9 +200,6 @@ export const RoomPreviewLightDebugPanel = () => {
     (state) => state.setLightShapeMultiplier,
   )
   const soloLight = useRoomPreviewLightDebugStore((state) => state.soloLight)
-  const toggleFrustumCulling = useRoomPreviewLightDebugStore(
-    (state) => state.toggleFrustumCulling,
-  )
   const toggleLight = useRoomPreviewLightDebugStore(
     (state) => state.toggleLight,
   )
@@ -391,29 +384,6 @@ export const RoomPreviewLightDebugPanel = () => {
           >
             <Copy aria-hidden className="size-3.5" />
             복사
-          </button>
-        </section>
-
-        <section className="grid gap-2 border-b border-border-default/70 px-3 py-3">
-          <div className="flex items-center justify-between gap-3 px-1">
-            <h3 className="text-sm font-semibold text-fg-primary">GPU 토글</h3>
-            <span className="text-[11px] text-fg-muted">
-              세션 저장 · F5 유지
-            </span>
-          </div>
-          <button
-            aria-pressed={isFrustumCullingEnabled}
-            className={joinClassNames(
-              'flex h-10 items-center justify-center gap-2 rounded-lg border text-xs font-semibold transition',
-              isFrustumCullingEnabled
-                ? 'border-primary-300 bg-primary-50 text-primary-700'
-                : 'border-border-default bg-surface-subtle text-fg-secondary',
-            )}
-            onClick={toggleFrustumCulling}
-            type="button"
-          >
-            <Crop aria-hidden className="size-3.5" />
-            화면 밖 컬링 {isFrustumCullingEnabled ? 'On' : 'Off'}
           </button>
         </section>
 
