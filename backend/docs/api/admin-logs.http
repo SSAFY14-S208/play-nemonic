@@ -338,6 +338,26 @@ Authorization: Bearer {{adminAccessToken}}
   ]
 }
 
+### Admin logs terms-with-metric - funnel별 distinct uuid (cardinality)
+POST {{host}}/api/v1/admin/logs/terms-with-metric
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "event_name:funnel_step_completed",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "groupBy": "metadata.funnel_name",
+  "size": 10,
+  "metrics": [
+    { "type": "cardinality", "field": "uuid", "name": "uniqueUsers" }
+  ]
+}
+
 ### Admin logs composite-buckets - 첫 페이지(funnel_name + step_name)
 POST {{host}}/api/v1/admin/logs/composite-buckets
 Content-Type: application/json
@@ -355,6 +375,27 @@ Authorization: Bearer {{adminAccessToken}}
   "size": 200,
   "subAggs": [
     { "type": "min", "field": "metadata.step_index", "name": "minStepIndex" }
+  ]
+}
+
+### Admin logs composite-buckets - funnel 단계별 distinct uuid (cardinality subAgg)
+POST {{host}}/api/v1/admin/logs/composite-buckets
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "index": "biz-events",
+  "query": "event_name:funnel_step_completed",
+  "filters": [],
+  "timeRange": {
+    "from": "2026-05-14T00:00:00Z",
+    "to": "2026-05-15T00:00:00Z"
+  },
+  "sources": ["metadata.funnel_name", "metadata.step_name"],
+  "size": 200,
+  "subAggs": [
+    { "type": "min", "field": "metadata.step_index", "name": "minStepIndex" },
+    { "type": "cardinality", "field": "uuid", "name": "uniqueUsers" }
   ]
 }
 
