@@ -41,7 +41,8 @@ public record InfiniteCanvasAiStickerProperties(Boolean enabled, Integer maxProm
     public record Gms(String apiKey, String model, String baseUrl, Long connectTimeoutMs, Long readTimeoutMs) {
 
         private static final String DEFAULT_MODEL = "gpt-image-1";
-        private static final String DEFAULT_BASE_URL = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/images/generations";
+        private static final String DEFAULT_BASE_URL = "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
+            + "/images/generations";
         private static final long DEFAULT_CONNECT_TIMEOUT_MS = 3000L;
         private static final long DEFAULT_READ_TIMEOUT_MS = 60000L;
 
