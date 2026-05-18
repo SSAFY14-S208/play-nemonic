@@ -106,7 +106,7 @@ export function GmsPromptTestModal({
         <header className="flex items-center justify-between gap-3 border-b border-border-default px-6 py-4">
           <div className="flex min-w-0 flex-col gap-1">
             <h2 id="gms-prompt-test-title" className="h3-b text-fg-primary">
-              GMS 프롬프트 테스트
+              AI 프롬프트 테스트
             </h2>
             <p className="body-r truncate text-fg-secondary">{promptName}</p>
           </div>
@@ -223,7 +223,7 @@ export function GmsPromptTestModal({
                   {previewImageSrc ? (
                     <Image
                       src={previewImageSrc}
-                      alt="GMS 프롬프트 테스트 카드 미리보기"
+                      alt="AI 프롬프트 테스트 카드 미리보기"
                       width={280}
                       height={392}
                       unoptimized
