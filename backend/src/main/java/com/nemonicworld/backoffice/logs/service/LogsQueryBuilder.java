@@ -76,7 +76,8 @@ public class LogsQueryBuilder {
         "metadata.entry_type", "path", "prev_path", "event_name");
     private static final Set<String> COMPOSITE_SUB_AGG_FIELDS;
     private static final Set<String> CARDINALITY_FIELDS = Set.of("uuid", "session_id", "trace_id");
-    private static final Set<String> METRIC_TYPES = Set.of("avg", "sum", "max", "min");
+    private static final Set<String> METRIC_TYPES = Set.of("avg", "sum", "max", "min", "cardinality");
+    private static final String METRIC_TYPE_CARDINALITY = "cardinality";
     private static final Pattern FILTER_FIELD_PATTERN = Pattern.compile("[A-Za-z0-9_@.]+");
     private static final Map<String, String> INDEX_PATTERNS = indexPatterns();
 
@@ -485,7 +486,7 @@ public class LogsQueryBuilder {
     }
 
     private List<LogsMetricSpec> validateMetrics(List<LogsMetricSpec> metrics, int maxCount,
-        Set<String> allowedFields) {
+        Set<String> allowedNumericFields) {
         if (metrics == null || metrics.isEmpty() || metrics.size() > maxCount) {
             throw AdminLogsException.invalidQuery();
         }
@@ -498,9 +499,13 @@ public class LogsQueryBuilder {
             if (!names.add(metric.name())) {
                 throw AdminLogsException.invalidQuery();
             }
-            if (!StringUtils.hasText(metric.type()) || !METRIC_TYPES.contains(metric.type().toLowerCase(Locale.ROOT))) {
+            String type = StringUtils.hasText(metric.type()) ? metric.type().toLowerCase(Locale.ROOT) : "";
+            if (type.isEmpty() || !METRIC_TYPES.contains(type)) {
                 throw AdminLogsException.invalidQuery();
             }
+            Set<String> allowedFields = METRIC_TYPE_CARDINALITY.equals(type)
+                ? CARDINALITY_FIELDS
+                : allowedNumericFields;
             if (!StringUtils.hasText(metric.field()) || !allowedFields.contains(metric.field().trim())) {
                 throw AdminLogsException.invalidField();
             }
@@ -525,11 +530,14 @@ public class LogsQueryBuilder {
             validateNamedQueryString(group.query());
             LogsMetricSpec metric = group.metric();
             if (metric != null) {
-                if (!StringUtils.hasText(metric.type())
-                    || !METRIC_TYPES.contains(metric.type().toLowerCase(Locale.ROOT))) {
+                String type = StringUtils.hasText(metric.type()) ? metric.type().toLowerCase(Locale.ROOT) : "";
+                if (type.isEmpty() || !METRIC_TYPES.contains(type)) {
                     throw AdminLogsException.invalidQuery();
                 }
-                if (!StringUtils.hasText(metric.field()) || !METRIC_NUMERIC_FIELDS.contains(metric.field().trim())) {
+                Set<String> allowedFields = METRIC_TYPE_CARDINALITY.equals(type)
+                    ? CARDINALITY_FIELDS
+                    : METRIC_NUMERIC_FIELDS;
+                if (!StringUtils.hasText(metric.field()) || !allowedFields.contains(metric.field().trim())) {
                     throw AdminLogsException.invalidField();
                 }
             }
@@ -599,9 +607,13 @@ public class LogsQueryBuilder {
     }
 
     private ObjectNode buildMetricAgg(LogsMetricSpec metric) {
+        String type = metric.type().toLowerCase(Locale.ROOT);
         ObjectNode wrapper = objectMapper.createObjectNode();
-        ObjectNode agg = wrapper.putObject(metric.type().toLowerCase(Locale.ROOT));
+        ObjectNode agg = wrapper.putObject(type);
         agg.put("field", metric.field().trim());
+        if (METRIC_TYPE_CARDINALITY.equals(type)) {
+            agg.put("precision_threshold", DEFAULT_CARDINALITY_PRECISION);
+        }
 
         return wrapper;
     }

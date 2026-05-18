@@ -131,7 +131,7 @@ public class AdminLogsController {
     }
 
     @PostMapping("/terms-with-metric")
-    @Operation(summary = "백오피스 로그 그룹별 메트릭 집계", description = "groupBy 필드별 버킷에 숫자 메트릭(avg/sum/max/min)을 계산합니다.")
+    @Operation(summary = "백오피스 로그 그룹별 메트릭 집계", description = "groupBy 필드별 버킷에 숫자 메트릭(avg/sum/max/min) 또는 식별자 필드(uuid/session_id/trace_id)의 distinct 카운트(cardinality)를 계산합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그 그룹 메트릭 집계 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 로그 집계 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INVALID_QUERY_EXAMPLE))),

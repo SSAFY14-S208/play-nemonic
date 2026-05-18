@@ -299,6 +299,31 @@ class LogsQueryBuilderTest {
     }
 
     @Test
+    void termsWithMetricAllowsCardinalityOnIdentifierField() {
+        LogsTermsWithMetricRequest request = new LogsTermsWithMetricRequest("biz-events", "", List.of(), ONE_DAY,
+            "metadata.funnel_name", 30,
+            List.of(new LogsMetricSpec("cardinality", "uuid", "uniqueUsers")));
+
+        LogsQueryBuilder.BuiltLogsQuery built = queryBuilder.buildTermsWithMetricQuery(request);
+
+        assertThat(built.body().at("/aggs/groups/aggs/uniqueUsers/cardinality/field").asText()).isEqualTo("uuid");
+        assertThat(built.body().at("/aggs/groups/aggs/uniqueUsers/cardinality/precision_threshold").asInt())
+            .isEqualTo(3_000);
+        assertThat(built.body().at("/aggs/groups/terms/order/uniqueUsers").asText()).isEqualTo("desc");
+    }
+
+    @Test
+    void termsWithMetricRejectsCardinalityOnNonIdentifierField() {
+        LogsTermsWithMetricRequest request = new LogsTermsWithMetricRequest("biz-events", "", List.of(), ONE_DAY,
+            "path", 30,
+            List.of(new LogsMetricSpec("cardinality", "metadata.time_on_page_ms", "bad")));
+
+        assertThatThrownBy(() -> queryBuilder.buildTermsWithMetricQuery(request)).isInstanceOf(AdminLogsException.class)
+            .satisfies(
+                error -> assertThat(((AdminLogsException) error).code()).isEqualTo(AdminLogsException.INVALID_FIELD));
+    }
+
+    @Test
     void compositeBucketsBuildsCompositeAggWithSources() throws Exception {
         JsonNode after = objectMapper.readTree("""
             {"metadata.funnel_name": "relay_room_creation", "metadata.step_name": "settings"}
@@ -338,6 +363,20 @@ class LogsQueryBuilderTest {
         assertThatThrownBy(() -> queryBuilder.buildCompositeBucketsQuery(request))
             .isInstanceOf(AdminLogsException.class).satisfies(
                 error -> assertThat(((AdminLogsException) error).code()).isEqualTo(AdminLogsException.INVALID_FIELD));
+    }
+
+    @Test
+    void compositeBucketsAllowsCardinalitySubAggOnIdentifierField() {
+        LogsCompositeBucketsRequest request = new LogsCompositeBucketsRequest("biz-events", "", List.of(), ONE_DAY,
+            List.of("metadata.funnel_name", "metadata.step_name"), 200, null,
+            List.of(new LogsMetricSpec("cardinality", "uuid", "uniqueUsers")));
+
+        LogsQueryBuilder.BuiltLogsQuery built = queryBuilder.buildCompositeBucketsQuery(request);
+
+        assertThat(built.body().at("/aggs/composite_buckets/aggs/uniqueUsers/cardinality/field").asText())
+            .isEqualTo("uuid");
+        assertThat(built.body().at("/aggs/composite_buckets/aggs/uniqueUsers/cardinality/precision_threshold").asInt())
+            .isEqualTo(3_000);
     }
 
     @Test
