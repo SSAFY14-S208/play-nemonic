@@ -274,6 +274,7 @@ export function useInfinityDrawing(
   }
 
   const addObject = (object: InfinityObject) => {
+    setToolState('select')
     commitLocalChange([...history.objectsRef.current, object], [object.id], [
       {
         operationType: 'UPSERT_ELEMENT',
