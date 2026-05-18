@@ -44,6 +44,8 @@ export function GameLobbyLayout({
   backgroundImage,
   backgroundOverlay,
   howToPlayPanels,
+  howToPlayTitle,
+  howToPlaySubtitle,
   howToPlayAccentColor,
 }: GameLobbyLayoutProps) {
   const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false);
@@ -287,6 +289,8 @@ export function GameLobbyLayout({
           open={isHowToPlayModalOpen}
           onOpenChange={setIsHowToPlayModalOpen}
           panels={howToPlayPanels}
+          title={howToPlayTitle}
+          subtitle={howToPlaySubtitle}
           accentColor={howToPlayAccentColor}
         />
       )}
