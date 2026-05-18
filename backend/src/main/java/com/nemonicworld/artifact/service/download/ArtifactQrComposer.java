@@ -37,8 +37,8 @@ public class ArtifactQrComposer {
     private static final int DEFAULT_GIF_DELAY_CS = 10;
     private static final int QR_MAX_SIZE = 144;
     private static final int QR_MIN_SIZE = 72;
-    private static final int QR_PADDING = 16;
-    private static final int QR_MARGIN_MODULES = 2;
+    private static final int QR_PADDING = 8;
+    private static final int QR_MARGIN_MODULES = 1;
     private static final int QR_SIZE_DIVISOR = 4;
 
     public byte[] compose(String sourceContentType, byte[] sourceBytes, String qrUrl) {
