@@ -685,7 +685,7 @@ function FlipbookEntranceSketchbook({
           tabIndex={isInteractive ? 0 : -1}
           style={{
             left: '20.2%',
-            top: '27.8%',
+            top: '25.8%',
             width: '57.6%',
             height: '43.8%',
             rotate: '5.9deg',
