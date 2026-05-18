@@ -68,8 +68,8 @@ class OpenApiParameterNamingIntegrationTest {
             List.of("/api/v1/auth/login", "/api/v1/relay/rooms", "/api/v1/backoffice/system-parameters"));
         assertGroupContainsTags(OpenApiGroups.COMMON_GROUP);
 
-        assertGroupContainsPaths(OpenApiGroups.CONTENTS_GROUP,
-            List.of("/api/v1/gallery", "/api/v1/community/memos", "/api/v1/fortune/today"),
+        assertGroupContainsPaths(OpenApiGroups.CONTENTS_GROUP, List.of("/api/v1/gallery", "/api/v1/community/memos",
+            "/api/v1/fortune/today", "/api/v1/infinite-canvas/canvases"),
             List.of("/api/v1/relay/rooms", "/api/v1/admins"));
         assertGroupContainsTags(OpenApiGroups.CONTENTS_GROUP);
 
