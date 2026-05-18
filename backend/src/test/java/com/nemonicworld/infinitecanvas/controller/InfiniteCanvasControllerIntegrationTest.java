@@ -42,6 +42,8 @@ import com.nemonicworld.user.repository.UserRepository;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +57,7 @@ import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.ListOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -98,7 +101,9 @@ class InfiniteCanvasControllerIntegrationTest {
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
     private ZSetOperations<String, String> zSetOperations;
+    private ListOperations<String, String> listOperations;
     private Map<String, String> redisValues;
+    private Map<String, List<String>> redisLists;
 
     @BeforeEach
     void prepare() {
@@ -117,14 +122,18 @@ class InfiniteCanvasControllerIntegrationTest {
         userRepository.deleteAll();
 
         redisValues = new LinkedHashMap<>();
+        redisLists = new LinkedHashMap<>();
         redisOperations = createRedisOperationsMock();
         valueOperations = createValueOperationsMock();
+        listOperations = mock(ListOperations.class);
         zSetOperations = mock(ZSetOperations.class);
 
         given(stringRedisTemplate.opsForValue()).willReturn(valueOperations);
         given(stringRedisTemplate.opsForZSet()).willReturn(zSetOperations);
+        given(stringRedisTemplate.opsForList()).willReturn(listOperations);
         given(redisOperations.opsForValue()).willReturn(valueOperations);
         given(redisOperations.opsForZSet()).willReturn(zSetOperations);
+        given(redisOperations.opsForList()).willReturn(listOperations);
         given(redisOperations.exec()).willReturn(List.of("OK"));
         given(stringRedisTemplate.execute(any(SessionCallback.class))).willAnswer(invocation -> {
             SessionCallback<?> callback = invocation.getArgument(0);
@@ -140,6 +149,41 @@ class InfiniteCanvasControllerIntegrationTest {
             redisValues.put(invocation.getArgument(0, String.class), invocation.getArgument(1, String.class));
             return null;
         }).when(valueOperations).set(anyString(), anyString(), any());
+        given(listOperations.range(anyString(), any(Long.class), any(Long.class))).willAnswer(invocation -> {
+            String key = invocation.getArgument(0, String.class);
+            List<String> values = redisLists.getOrDefault(key, List.of());
+            return List.copyOf(values);
+        });
+        given(listOperations.size(anyString())).willAnswer(invocation -> {
+            String key = invocation.getArgument(0, String.class);
+            return (long) redisLists.getOrDefault(key, List.of()).size();
+        });
+        doAnswer(invocation -> {
+            String key = invocation.getArgument(0, String.class);
+            List<String> values = invocation.getArgument(1, List.class);
+            redisLists.computeIfAbsent(key, unused -> new ArrayList<>()).addAll(values);
+            return (long) redisLists.get(key).size();
+        }).when(listOperations).rightPushAll(anyString(), any(List.class));
+        doAnswer(invocation -> {
+            String key = invocation.getArgument(0, String.class);
+            List<String> values = redisLists.getOrDefault(key, List.of());
+            int fromIndex = Math.max(values.size() - 200, 0);
+            redisLists.put(key, new ArrayList<>(values.subList(fromIndex, values.size())));
+            return null;
+        }).when(listOperations).trim(anyString(), any(Long.class), any(Long.class));
+        given(redisOperations.expire(anyString(), any())).willReturn(true);
+        doAnswer(invocation -> redisValues.remove(invocation.getArgument(0, String.class)) != null)
+            .when(redisOperations).delete(anyString());
+        doAnswer(invocation -> {
+            Collection<String> keys = invocation.getArgument(0);
+            long deletedCount = 0L;
+            for (String key : keys) {
+                if (redisValues.remove(key) != null) {
+                    deletedCount++;
+                }
+            }
+            return deletedCount;
+        }).when(stringRedisTemplate).delete(any(Collection.class));
         doAnswer(invocation -> redisValues.remove(invocation.getArgument(0, String.class)) != null)
             .when(stringRedisTemplate).delete(anyString());
         given(roomCodeGenerator.generateUnique(any())).willReturn(INVITE_CODE);
@@ -572,7 +616,8 @@ class InfiniteCanvasControllerIntegrationTest {
         assertThat(storedCanvas.path("revision").asLong()).isEqualTo(1L);
         assertThat(storedCanvas.path("elements")).hasSize(1);
         assertThat(storedCanvas.path("elements").get(0).path("id").asText()).isEqualTo("shape-1");
-        assertThat(storedCanvas.path("operations")).hasSize(1);
+        assertThat(storedCanvas.path("operations")).isEmpty();
+        assertThat(redisLists.get(operationLogKey(state.roomCode()))).hasSize(1);
     }
 
     @Test
@@ -671,7 +716,8 @@ class InfiniteCanvasControllerIntegrationTest {
         assertThat(storedCanvas.path("revision").asLong()).isEqualTo(3L);
         assertThat(storedCanvas.path("elements")).hasSize(3);
         assertThat(storedCanvas.path("elements").get(2).path("id").asText()).isEqualTo("shape-3");
-        assertThat(storedCanvas.path("operations")).hasSize(3);
+        assertThat(storedCanvas.path("operations")).isEmpty();
+        assertThat(redisLists.get(operationLogKey(state.roomCode()))).hasSize(3);
     }
 
     @Test
@@ -1014,6 +1060,10 @@ class InfiniteCanvasControllerIntegrationTest {
 
     private String roomKey(String roomCode) {
         return "infinite-canvas:room:" + roomCode;
+    }
+
+    private String operationLogKey(String roomCode) {
+        return "infinite-canvas:room-operations:" + roomCode;
     }
 
     private RedisOperations<String, String> createRedisOperationsMock() {
