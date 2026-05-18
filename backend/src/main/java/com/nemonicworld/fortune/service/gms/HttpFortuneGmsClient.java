@@ -38,6 +38,7 @@ public class HttpFortuneGmsClient implements FortuneGmsClient {
           "moneyLuck": 71,
           "luckyColor": "은회색",
           "luckyKeyword": "정리",
+          "luckyDirection": "동쪽",
           "caution": "마음이 먼저 앞서면 흐름이 꼬일 수 있으니, 결정은 한 템포 늦추는 것이 좋습니다.",
           "postitLine": "오늘은 정리할수록 운이 열린다",
           "cardTheme": "moon",
@@ -48,6 +49,7 @@ public class HttpFortuneGmsClient implements FortuneGmsClient {
         점수는 0 이상 100 이하의 정수로 만든다.
         cardTheme, bgColor, accentColor, iconKey는 카드 에셋 메타데이터가 없으면 null로 둘 수 있다.
         bgColor와 accentColor를 넣는다면 반드시 #RRGGBB 형식으로 만든다.
+        luckyDirection은 동쪽, 서쪽, 남쪽, 북쪽 중 하나로 만든다.
         postitLine은 네모닉 출력에 어울리는 짧은 한 문장으로 만든다.
         """;
 
@@ -132,9 +134,9 @@ public class HttpFortuneGmsClient implements FortuneGmsClient {
         return new FortuneGmsResult(requiredText(result, "title"), requiredText(result, "summary"),
             requiredScore(result, "overallLuck"), requiredScore(result, "loveLuck"), requiredScore(result, "workLuck"),
             requiredScore(result, "moneyLuck"), requiredText(result, "luckyColor"),
-            requiredText(result, "luckyKeyword"), optionalText(result, "caution"), requiredText(result, "postitLine"),
-            optionalText(result, "cardTheme"), optionalText(result, "bgColor"), optionalText(result, "accentColor"),
-            optionalText(result, "iconKey"));
+            requiredText(result, "luckyKeyword"), requiredText(result, "luckyDirection"),
+            optionalText(result, "caution"), requiredText(result, "postitLine"), optionalText(result, "cardTheme"),
+            optionalText(result, "bgColor"), optionalText(result, "accentColor"), optionalText(result, "iconKey"));
     }
 
     private String stripJsonFence(String content) {

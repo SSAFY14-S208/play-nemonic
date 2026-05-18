@@ -29,6 +29,7 @@ public class FortuneGenerationService {
     private static final String FORTUNE_GMS_RESULT_INVALID_MESSAGE = "운세 생성 결과 형식이 올바르지 않습니다.";
     private static final String FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE = "운세 결과를 저장 형식으로 변환할 수 없습니다.";
     private static final String FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE = "저장된 운세 결과 형식이 올바르지 않습니다.";
+    private static final String DEFAULT_LUCKY_DIRECTION = "동쪽";
     private static final int GMS_MAX_ATTEMPTS = 3;
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#[0-9A-Fa-f]{6}$");
     private static final String[] REQUIRED_SAJU_FIELDS = {"calendarType", "yearPillar", "monthPillar", "dayPillar",
@@ -69,8 +70,8 @@ public class FortuneGenerationService {
 
     public FortuneResult toFortuneResult(FortuneGmsResult result) {
         return new FortuneResult(result.title(), result.summary(), result.overallLuck(), result.loveLuck(),
-            result.workLuck(), result.moneyLuck(), result.luckyColor(), result.luckyKeyword(), result.caution(),
-            result.postitLine());
+            result.workLuck(), result.moneyLuck(), result.luckyColor(), result.luckyKeyword(), result.luckyDirection(),
+            result.caution(), result.postitLine());
     }
 
     public FortuneResult toFortuneResult(JsonNode description) {
@@ -78,7 +79,8 @@ public class FortuneGenerationService {
             requiredScore(description, "overallLuck"), requiredScore(description, "loveLuck"),
             requiredScore(description, "workLuck"), requiredScore(description, "moneyLuck"),
             requiredText(description, "luckyColor"), requiredText(description, "luckyKeyword"),
-            nullableText(description, "caution"), requiredText(description, "postitLine"));
+            textOrDefault(description, "luckyDirection", DEFAULT_LUCKY_DIRECTION), nullableText(description, "caution"),
+            requiredText(description, "postitLine"));
     }
 
     public SajuInfo toSajuInfo(JsonNode description) {
@@ -119,6 +121,7 @@ public class FortuneGenerationService {
         description.put("moneyLuck", result.moneyLuck());
         description.put("luckyColor", result.luckyColor());
         description.put("luckyKeyword", result.luckyKeyword());
+        description.put("luckyDirection", result.luckyDirection());
         if (result.caution() == null) {
             description.putNull("caution");
         } else {
@@ -198,9 +201,10 @@ public class FortuneGenerationService {
     private void validateGmsResult(FortuneGmsResult result) {
         if (result == null || !StringUtils.hasText(result.title()) || !StringUtils.hasText(result.summary())
             || !StringUtils.hasText(result.luckyColor()) || !StringUtils.hasText(result.luckyKeyword())
-            || !StringUtils.hasText(result.postitLine()) || !isScore(result.overallLuck())
-            || !isScore(result.loveLuck()) || !isScore(result.workLuck()) || !isScore(result.moneyLuck())
-            || hasInvalidHexColor(result.bgColor()) || hasInvalidHexColor(result.accentColor())) {
+            || !StringUtils.hasText(result.luckyDirection()) || !StringUtils.hasText(result.postitLine())
+            || !isScore(result.overallLuck()) || !isScore(result.loveLuck()) || !isScore(result.workLuck())
+            || !isScore(result.moneyLuck()) || hasInvalidHexColor(result.bgColor())
+            || hasInvalidHexColor(result.accentColor())) {
             throw new ServiceUnavailableException(FORTUNE_GMS_RESULT_INVALID_MESSAGE);
         }
     }
@@ -232,6 +236,11 @@ public class FortuneGenerationService {
         }
 
         return value.asText().trim();
+    }
+
+    private String textOrDefault(JsonNode node, String fieldName, String defaultValue) {
+        String value = nullableText(node, fieldName);
+        return StringUtils.hasText(value) ? value : defaultValue;
     }
 
     private int requiredScore(JsonNode node, String fieldName) {

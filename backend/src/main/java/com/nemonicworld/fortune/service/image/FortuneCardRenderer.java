@@ -91,10 +91,11 @@ public class FortuneCardRenderer {
         graphics.setFont(cardFont(Font.PLAIN, 26));
         graphics.drawString("행운의 색  " + result.luckyColor(), CARD_PADDING, 845);
         graphics.drawString("행운의 키워드  " + result.luckyKeyword(), CARD_PADDING, 890);
+        graphics.drawString("행운의 방향  " + result.luckyDirection(), CARD_PADDING, 935);
 
         if (StringUtils.hasText(result.caution())) {
             graphics.setFont(cardFont(Font.PLAIN, 24));
-            drawWrappedText(graphics, "주의  " + result.caution(), CARD_PADDING, 965, CARD_WIDTH - CARD_PADDING * 2, 34);
+            drawWrappedText(graphics, "주의  " + result.caution(), CARD_PADDING, 1010, CARD_WIDTH - CARD_PADDING * 2, 34);
         }
 
         graphics.setFont(cardFont(Font.PLAIN, 22));

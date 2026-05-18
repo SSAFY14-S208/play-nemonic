@@ -37,7 +37,7 @@ class FortuneCardRendererTest {
 
     private FortuneGmsResult sampleResult() {
         return new FortuneGmsResult("오늘은 흐름을 정리하는 날", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 78, 66, 84, 71, "은회색", "정리",
-            "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", "moon", "#2C2C4A", "#C0C0C0", "moon_waning");
+            "동쪽", "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", "moon", "#2C2C4A", "#C0C0C0", "moon_waning");
     }
 
     private JsonNode sampleSaju() throws Exception {

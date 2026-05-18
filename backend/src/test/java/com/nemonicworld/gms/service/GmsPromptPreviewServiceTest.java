@@ -55,6 +55,7 @@ class GmsPromptPreviewServiceTest {
 
         assertThat(response.featureType()).isEqualTo("fortune");
         assertThat(response.fortune().title()).isEqualTo("Preview title");
+        assertThat(response.fortune().luckyDirection()).isEqualTo("East");
         assertThat(response.saju().yearPillar()).isEqualTo("gapja");
         assertThat(response.design().bgColor()).isEqualTo("#F5F1E8");
         assertThat(response.previewImageBase64()).isEqualTo("data:image/png;base64,AQID");
@@ -84,7 +85,7 @@ class GmsPromptPreviewServiceTest {
     }
 
     private FortuneGmsResult sampleGmsResult() {
-        return new FortuneGmsResult("Preview title", "Preview summary", 80, 70, 65, 90, "Blue", "Focus", "Move slowly",
-            "Stay calm today", "default", "#F5F1E8", "#506996", "sun");
+        return new FortuneGmsResult("Preview title", "Preview summary", 80, 70, 65, 90, "Blue", "Focus", "East",
+            "Move slowly", "Stay calm today", "default", "#F5F1E8", "#506996", "sun");
     }
 }
