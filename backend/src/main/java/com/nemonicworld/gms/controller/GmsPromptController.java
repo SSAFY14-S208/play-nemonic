@@ -1,15 +1,17 @@
 package com.nemonicworld.gms.controller;
 
-import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
 import com.nemonicworld.gms.dto.request.GmsPromptCreateRequest;
 import com.nemonicworld.gms.dto.request.GmsPromptPreviewRequest;
+import com.nemonicworld.gms.dto.request.GmsPromptTestRequest;
 import com.nemonicworld.gms.dto.request.GmsPromptUpdateRequest;
+import com.nemonicworld.gms.dto.response.GmsPromptCurrentResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptListResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptPreviewResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptResponse;
@@ -22,8 +24,8 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -44,19 +46,21 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = OpenApiTags.GMS_PROMPT, description = OpenApiTags.GMS_PROMPT_DESCRIPTION)
 public class GmsPromptController {
 
-    private static final String DELETE_SUCCESS_MESSAGE = "GMS 프롬프트 삭제 성공";
     private static final String PROMPT_NOT_FOUND_EXAMPLE = """
         {
           "success": false,
-          "message": "GMS 프롬프트를 찾을 수 없습니다."
+          "message": "GMS prompt was not found."
         }
         """;
-
-    private static final String CREATE_SUCCESS_MESSAGE = "GMS 프롬프트 생성 성공";
-    private static final String DETAIL_SUCCESS_MESSAGE = "GMS 프롬프트 상세 조회 성공";
-    private static final String LIST_SUCCESS_MESSAGE = "GMS 프롬프트 목록 조회 성공";
-    private static final String PREVIEW_SUCCESS_MESSAGE = "GMS 프롬프트 미리보기 성공";
-    private static final String UPDATE_SUCCESS_MESSAGE = "GMS 프롬프트 수정 성공";
+    private static final String CREATE_SUCCESS_MESSAGE = "GMS prompt created";
+    private static final String DETAIL_SUCCESS_MESSAGE = "GMS prompt detail retrieved";
+    private static final String LIST_SUCCESS_MESSAGE = "GMS prompt list retrieved";
+    private static final String CURRENT_SUCCESS_MESSAGE = "Current GMS prompt retrieved";
+    private static final String PREVIEW_SUCCESS_MESSAGE = "GMS prompt preview created";
+    private static final String TEST_SUCCESS_MESSAGE = "GMS prompt test created";
+    private static final String UPDATE_SUCCESS_MESSAGE = "GMS prompt updated";
+    private static final String DELETE_SUCCESS_MESSAGE = "GMS prompt deleted";
+    private static final String ACTIVATE_SUCCESS_MESSAGE = "GMS prompt activated";
 
     private final GmsPromptService gmsPromptService;
     private final AdminClientInfoResolver adminClientInfoResolver;
@@ -67,12 +71,12 @@ public class GmsPromptController {
     }
 
     @PostMapping("/preview")
-    @Operation(summary = "GMS 프롬프트 미리보기", description = "백오피스 관리자가 저장 전 후보 GMS 프롬프트로 운세 결과를 미리 생성합니다.")
+    @Operation(summary = "GMS prompt preview", description = "Tests an unsaved candidate GMS prompt.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 미리보기 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS prompt preview created"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "GMS 미리보기 실패", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "GMS prompt preview failed", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
     public ResponseEntity<ApiResponse<GmsPromptPreviewResponse>> previewPrompt(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @Valid @RequestBody GmsPromptPreviewRequest request) {
         GmsPromptPreviewResponse response = gmsPromptService.previewPrompt(adminPrincipal, request);
@@ -82,12 +86,12 @@ public class GmsPromptController {
     }
 
     @PostMapping
-    @Operation(summary = "GMS 프롬프트 생성", description = "백오피스 관리자가 새 GMS 프롬프트를 생성합니다.")
+    @Operation(summary = "GMS prompt create", description = "Creates a saved GMS prompt.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "GMS 프롬프트 생성 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "GMS prompt created"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "중복 프롬프트 코드", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Duplicated prompt name", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST)))})
     public ResponseEntity<ApiResponse<GmsPromptResponse>> createPrompt(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @Valid @RequestBody GmsPromptCreateRequest request,
         HttpServletRequest servletRequest) {
@@ -99,34 +103,54 @@ public class GmsPromptController {
     }
 
     @GetMapping
-    @Operation(summary = "GMS 프롬프트 목록 조회", description = "백오피스 관리자가 활성 GMS 프롬프트 목록을 검색 조건으로 조회합니다.")
-    @Parameter(name = "keyword", in = ParameterIn.QUERY, description = "프롬프트 이름 또는 본문 검색어")
-    @Parameter(name = "featureType", in = ParameterIn.QUERY, description = "프롬프트 기능 타입")
-    @Parameter(name = "page", in = ParameterIn.QUERY, description = "페이지 번호", example = "0")
-    @Parameter(name = "size", in = ParameterIn.QUERY, description = "페이지 크기", example = "20")
+    @Operation(summary = "GMS prompt list", description = "Lists saved non-deleted GMS prompts.")
+    @Parameter(name = "keyword", in = ParameterIn.QUERY, description = "Prompt name or body keyword")
+    @Parameter(name = "featureType", in = ParameterIn.QUERY, description = "Prompt feature type")
+    @Parameter(name = "status", in = ParameterIn.QUERY, description = "active, not_active, or all")
+    @Parameter(name = "page", in = ParameterIn.QUERY, description = "Page number", example = "0")
+    @Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size", example = "20")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 목록 조회 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 파라미터 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS prompt list retrieved"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid query", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF)})
     public ResponseEntity<ApiResponse<GmsPromptListResponse>> getPrompts(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestParam(name = "keyword", required = false) String keyword,
         @RequestParam(name = "featureType", required = false) String featureType,
+        @RequestParam(name = "status", required = false) String status,
         @RequestParam(name = "page", required = false) String page,
         @RequestParam(name = "size", required = false) String size) {
-        GmsPromptListResponse response = gmsPromptService.getPrompts(adminPrincipal, keyword, featureType, page, size);
+        GmsPromptListResponse response = gmsPromptService.getPrompts(adminPrincipal, keyword, featureType, status, page,
+            size);
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(LIST_SUCCESS_MESSAGE, response));
     }
 
-    @GetMapping("/{promptId}")
-    @Operation(summary = "GMS 프롬프트 상세 조회", description = "백오피스 관리자가 GMS 프롬프트 상세 정보를 조회합니다.")
-    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "조회할 GMS 프롬프트 ID")
+    @GetMapping("/current")
+    @Operation(summary = "Current GMS prompt", description = "Retrieves the prompt currently used by a feature.")
+    @Parameter(name = "featureType", in = ParameterIn.QUERY, required = true, description = "Prompt feature type")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 상세 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Current GMS prompt retrieved"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS 프롬프트 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Current GMS prompt not found", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
+    public ResponseEntity<ApiResponse<GmsPromptCurrentResponse>> getCurrentPrompt(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal,
+        @RequestParam(name = "featureType") String featureType) {
+        GmsPromptCurrentResponse response = gmsPromptService.getCurrentPrompt(adminPrincipal, featureType);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(CURRENT_SUCCESS_MESSAGE, response));
+    }
+
+    @GetMapping("/{promptId}")
+    @Operation(summary = "GMS prompt detail", description = "Retrieves one saved GMS prompt.")
+    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "Prompt ID")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS prompt detail retrieved"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS prompt not found", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
     public ResponseEntity<ApiResponse<GmsPromptResponse>> getPrompt(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("promptId") Long promptId) {
         GmsPromptResponse response = gmsPromptService.getPrompt(adminPrincipal, promptId);
@@ -135,30 +159,15 @@ public class GmsPromptController {
             .body(ApiResponse.success(DETAIL_SUCCESS_MESSAGE, response));
     }
 
-    @DeleteMapping("/{promptId}")
-    @Operation(summary = "GMS 프롬프트 삭제", description = "백오피스 관리자가 GMS 프롬프트를 삭제합니다.")
-    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "삭제할 GMS 프롬프트 ID")
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 삭제 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS 프롬프트 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
-    public ResponseEntity<ApiResponse<Void>> deletePrompt(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
-        @PathVariable("promptId") Long promptId, HttpServletRequest servletRequest) {
-        gmsPromptService.deletePrompt(adminPrincipal, promptId, adminClientInfoResolver.resolve(servletRequest));
-
-        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
-            .body(ApiResponse.success(DELETE_SUCCESS_MESSAGE, null));
-    }
-
     @PatchMapping("/{promptId}")
-    @Operation(summary = "GMS 프롬프트 수정", description = "백오피스 관리자가 GMS 프롬프트를 수정합니다.")
-    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "수정할 GMS 프롬프트 ID")
+    @Operation(summary = "GMS prompt update", description = "Updates one saved GMS prompt.")
+    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "Prompt ID")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 수정 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 본문 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS prompt updated"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS 프롬프트 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "중복 프롬프트 이름", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS prompt not found", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Duplicated prompt name", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST)))})
     public ResponseEntity<ApiResponse<GmsPromptResponse>> updatePrompt(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("promptId") Long promptId,
         @Valid @RequestBody GmsPromptUpdateRequest request, HttpServletRequest servletRequest) {
@@ -167,5 +176,55 @@ public class GmsPromptController {
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(UPDATE_SUCCESS_MESSAGE, response));
+    }
+
+    @DeleteMapping("/{promptId}")
+    @Operation(summary = "GMS prompt delete", description = "Soft-deletes one saved GMS prompt.")
+    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "Prompt ID")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS prompt deleted"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS prompt not found", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
+    public ResponseEntity<ApiResponse<Void>> deletePrompt(@AuthenticationPrincipal AdminPrincipal adminPrincipal,
+        @PathVariable("promptId") Long promptId, HttpServletRequest servletRequest) {
+        gmsPromptService.deletePrompt(adminPrincipal, promptId, adminClientInfoResolver.resolve(servletRequest));
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(DELETE_SUCCESS_MESSAGE, null));
+    }
+
+    @PostMapping("/{promptId}/activate")
+    @Operation(summary = "GMS prompt activate", description = "Activates one saved prompt for its feature type.")
+    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "Prompt ID")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS prompt activated"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS prompt not found", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE)))})
+    public ResponseEntity<ApiResponse<GmsPromptResponse>> activatePrompt(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("promptId") Long promptId,
+        HttpServletRequest servletRequest) {
+        GmsPromptResponse response = gmsPromptService.activatePrompt(adminPrincipal, promptId,
+            adminClientInfoResolver.resolve(servletRequest));
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(ACTIVATE_SUCCESS_MESSAGE, response));
+    }
+
+    @PostMapping("/{promptId}/test")
+    @Operation(summary = "Saved GMS prompt test", description = "Tests a saved prompt with sample input.")
+    @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "Prompt ID")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS prompt test created"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "GMS prompt not found", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = PROMPT_NOT_FOUND_EXAMPLE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "GMS prompt test failed", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+    public ResponseEntity<ApiResponse<GmsPromptPreviewResponse>> testPrompt(
+        @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("promptId") Long promptId,
+        @Valid @RequestBody GmsPromptTestRequest request) {
+        GmsPromptPreviewResponse response = gmsPromptService.testPrompt(adminPrincipal, promptId, request);
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(TEST_SUCCESS_MESSAGE, response));
     }
 }

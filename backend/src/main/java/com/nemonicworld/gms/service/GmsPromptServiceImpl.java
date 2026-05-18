@@ -7,9 +7,13 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.fortune.service.FortunePromptTemplateProvider;
+import com.nemonicworld.fortune.service.FortunePromptTemplateProvider.CurrentFortunePrompt;
 import com.nemonicworld.gms.dto.request.GmsPromptCreateRequest;
 import com.nemonicworld.gms.dto.request.GmsPromptPreviewRequest;
+import com.nemonicworld.gms.dto.request.GmsPromptTestRequest;
 import com.nemonicworld.gms.dto.request.GmsPromptUpdateRequest;
+import com.nemonicworld.gms.dto.response.GmsPromptCurrentResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptListResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptPreviewResponse;
 import com.nemonicworld.gms.dto.response.GmsPromptResponse;
@@ -33,17 +37,17 @@ import org.springframework.util.StringUtils;
 @Service
 public class GmsPromptServiceImpl implements GmsPromptService {
 
-    private static final String PROMPT_NOT_FOUND_MESSAGE = "GMS 프롬프트를 찾을 수 없습니다.";
-
-    private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
-    private static final String DUPLICATE_NAME_MESSAGE = "이미 등록된 GMS 프롬프트 이름입니다.";
-    private static final String REQUIRED_NAME_MESSAGE = "프롬프트 이름을 입력해야 합니다.";
-    private static final String REQUIRED_CONTENT_MESSAGE = "프롬프트 본문을 입력해야 합니다.";
-    private static final String REQUIRED_FEATURE_TYPE_MESSAGE = "프롬프트 기능 타입을 입력해야 합니다.";
-    private static final String REQUIRED_UPDATE_FIELD_MESSAGE = "수정할 프롬프트 정보를 하나 이상 입력해야 합니다.";
-
-    private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
-    private static final String INVALID_FEATURE_TYPE_MESSAGE = "프롬프트 기능 타입이 올바르지 않습니다.";
+    private static final String PROMPT_NOT_FOUND_MESSAGE = "GMS prompt was not found.";
+    private static final String UNAUTHORIZED_MESSAGE = "Admin authentication is required.";
+    private static final String DUPLICATE_NAME_MESSAGE = "GMS prompt name already exists.";
+    private static final String REQUIRED_NAME_MESSAGE = "Prompt name is required.";
+    private static final String REQUIRED_CONTENT_MESSAGE = "Prompt content is required.";
+    private static final String REQUIRED_FEATURE_TYPE_MESSAGE = "Prompt feature type is required.";
+    private static final String REQUIRED_UPDATE_FIELD_MESSAGE = "At least one prompt field is required.";
+    private static final String INVALID_PAGE_REQUEST_MESSAGE = "Page request is invalid.";
+    private static final String INVALID_FEATURE_TYPE_MESSAGE = "Prompt feature type is invalid.";
+    private static final String INVALID_STATUS_MESSAGE = "Prompt status is invalid.";
+    private static final String ACTIVE_FEATURE_TYPE_CHANGE_MESSAGE = "Active prompt feature type cannot be changed.";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 50;
@@ -51,12 +55,14 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     private final GmsPromptRepository gmsPromptRepository;
     private final AdminAuditLogger adminAuditLogger;
     private final GmsPromptPreviewService gmsPromptPreviewService;
+    private final FortunePromptTemplateProvider fortunePromptTemplateProvider;
 
     public GmsPromptServiceImpl(GmsPromptRepository gmsPromptRepository, AdminAuditLogger adminAuditLogger,
-        GmsPromptPreviewService gmsPromptPreviewService) {
+        GmsPromptPreviewService gmsPromptPreviewService, FortunePromptTemplateProvider fortunePromptTemplateProvider) {
         this.gmsPromptRepository = gmsPromptRepository;
         this.adminAuditLogger = adminAuditLogger;
         this.gmsPromptPreviewService = gmsPromptPreviewService;
+        this.fortunePromptTemplateProvider = fortunePromptTemplateProvider;
     }
 
     @Override
@@ -90,18 +96,19 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     @Override
     @Transactional(readOnly = true)
     public GmsPromptListResponse getPrompts(AdminPrincipal adminPrincipal, String keyword, String featureType,
-        String pageValue, String sizeValue) {
+        String status, String pageValue, String sizeValue) {
         requireAdmin(adminPrincipal);
 
         int page = parsePage(pageValue);
         int size = parseSize(sizeValue);
         String normalizedKeyword = normalizeOptionalKeyword(keyword);
         String normalizedFeatureType = normalizeOptionalFeatureType(featureType);
+        String normalizedStatus = normalizeOptionalStatus(status);
 
-        long totalElements = gmsPromptRepository.countActivePrompts(normalizedKeyword, normalizedFeatureType);
-        List<GmsPromptResponse> items = gmsPromptRepository
-            .findActivePrompts(normalizedKeyword, normalizedFeatureType, size, calculateOffset(page, size)).stream()
-            .map(GmsPromptResponse::from).toList();
+        long totalElements = gmsPromptRepository.countActivePrompts(normalizedKeyword, normalizedFeatureType,
+            normalizedStatus);
+        List<GmsPromptResponse> items = gmsPromptRepository.findActivePrompts(normalizedKeyword, normalizedFeatureType,
+            normalizedStatus, size, calculateOffset(page, size)).stream().map(GmsPromptResponse::from).toList();
 
         return new GmsPromptListResponse(items, page, size, totalElements, calculateHasNext(page, size, totalElements));
     }
@@ -116,10 +123,49 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public GmsPromptCurrentResponse getCurrentPrompt(AdminPrincipal adminPrincipal, String featureType) {
+        requireAdmin(adminPrincipal);
+
+        String normalizedFeatureType = normalizeRequiredTrimmed(featureType, REQUIRED_FEATURE_TYPE_MESSAGE)
+            .toLowerCase(Locale.ROOT);
+        if (FortunePromptTemplateProvider.FEATURE_TYPE_FORTUNE.equals(normalizedFeatureType)) {
+            CurrentFortunePrompt currentPrompt = fortunePromptTemplateProvider.resolveCurrent();
+            GmsPromptResponse response = currentPrompt.prompt() == null
+                ? GmsPromptResponse.defaultFortune(fortunePromptTemplateProvider.defaultPromptTemplate())
+                : GmsPromptResponse.from(currentPrompt.prompt());
+
+            return new GmsPromptCurrentResponse(normalizedFeatureType, currentPrompt.source(), response);
+        }
+
+        String validatedFeatureType = normalizeOptionalFeatureType(normalizedFeatureType);
+        GmsPrompt currentPrompt = gmsPromptRepository.findCurrentByFeatureType(validatedFeatureType)
+            .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
+
+        return new GmsPromptCurrentResponse(validatedFeatureType, FortunePromptTemplateProvider.SOURCE_DATABASE,
+            GmsPromptResponse.from(currentPrompt));
+    }
+
+    @Override
     public GmsPromptPreviewResponse previewPrompt(AdminPrincipal adminPrincipal, GmsPromptPreviewRequest request) {
         requireAdmin(adminPrincipal);
 
         return gmsPromptPreviewService.preview(request);
+    }
+
+    @Override
+    public GmsPromptPreviewResponse testPrompt(AdminPrincipal adminPrincipal, Long promptId,
+        GmsPromptTestRequest request) {
+        requireAdmin(adminPrincipal);
+        if (request == null) {
+            throw new BadRequestException("Prompt test request is required.");
+        }
+
+        GmsPrompt prompt = gmsPromptRepository.findActiveById(promptId)
+            .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
+
+        return gmsPromptPreviewService
+            .preview(new GmsPromptPreviewRequest(prompt.getFeatureType(), prompt.getContent(), request.sampleSaju()));
     }
 
     @Override
@@ -129,11 +175,20 @@ public class GmsPromptServiceImpl implements GmsPromptService {
 
         GmsPrompt existingPrompt = gmsPromptRepository.findActiveById(promptId)
             .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
-
         LocalDateTime deletedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        if (existingPrompt.isActive()) {
+            gmsPromptRepository.ensureFeatureStateRow(existingPrompt.getFeatureType(), deletedAt);
+            gmsPromptRepository.lockFeatureState(existingPrompt.getFeatureType());
+        }
+
         int deletedCount = gmsPromptRepository.softDeleteById(promptId, deletedAt);
         if (deletedCount == 0) {
             throw new NotFoundException(PROMPT_NOT_FOUND_MESSAGE);
+        }
+        if (existingPrompt.isActive()) {
+            gmsPromptRepository.updateFeatureState(existingPrompt.getFeatureType(), null, adminPrincipal.id(),
+                deletedAt);
         }
 
         emitAfterCommit(() -> adminAuditLogger.logPromptUpdate(adminPrincipal, promptId.toString(), "delete",
@@ -152,25 +207,9 @@ public class GmsPromptServiceImpl implements GmsPromptService {
         GmsPrompt existingPrompt = gmsPromptRepository.findActiveById(promptId)
             .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
 
-        String name = existingPrompt.getName();
-        if (request.name() != null) {
-            name = normalizeRequiredTrimmed(request.name(), REQUIRED_NAME_MESSAGE);
-            if (!existingPrompt.getName().equals(name) && gmsPromptRepository.existsByName(name)) {
-                throw new ConflictException(DUPLICATE_NAME_MESSAGE);
-            }
-        }
-
-        String content = existingPrompt.getContent();
-        if (request.content() != null) {
-            content = normalizeRequired(request.content(), REQUIRED_CONTENT_MESSAGE);
-        }
-
-        String featureType = existingPrompt.getFeatureType();
-        if (request.featureType() != null) {
-            featureType = normalizeRequiredTrimmed(request.featureType(), REQUIRED_FEATURE_TYPE_MESSAGE)
-                .toLowerCase(Locale.ROOT);
-        }
-
+        String name = resolveUpdateName(request, existingPrompt);
+        String content = resolveUpdateContent(request, existingPrompt);
+        String featureType = resolveUpdateFeatureType(request, existingPrompt);
         LocalDateTime updatedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         GmsPromptUpdateCommand command = new GmsPromptUpdateCommand(promptId, name, content, featureType, updatedAt);
 
@@ -188,6 +227,70 @@ public class GmsPromptServiceImpl implements GmsPromptService {
         } catch (DuplicateKeyException e) {
             throw new ConflictException(DUPLICATE_NAME_MESSAGE);
         }
+    }
+
+    @Override
+    @Transactional
+    public GmsPromptResponse activatePrompt(AdminPrincipal adminPrincipal, Long promptId, AdminClientInfo clientInfo) {
+        requireAdmin(adminPrincipal);
+
+        GmsPrompt targetPrompt = gmsPromptRepository.findActiveById(promptId)
+            .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        gmsPromptRepository.ensureFeatureStateRow(targetPrompt.getFeatureType(), now);
+        gmsPromptRepository.lockFeatureState(targetPrompt.getFeatureType());
+
+        GmsPrompt previousPrompt = gmsPromptRepository.findCurrentByFeatureType(targetPrompt.getFeatureType())
+            .orElse(null);
+        gmsPromptRepository.deactivateCurrentByFeatureType(targetPrompt.getFeatureType(), now);
+        int activatedCount = gmsPromptRepository.activateById(promptId, now, adminPrincipal.id());
+        if (activatedCount == 0) {
+            throw new NotFoundException(PROMPT_NOT_FOUND_MESSAGE);
+        }
+        gmsPromptRepository.updateFeatureState(targetPrompt.getFeatureType(), promptId, adminPrincipal.id(), now);
+
+        GmsPrompt activatedPrompt = gmsPromptRepository.findActiveById(promptId).orElseThrow();
+        emitAfterCommit(() -> adminAuditLogger.logPromptUpdate(adminPrincipal, promptId.toString(), "activate",
+            clientInfo, promptSnapshot(previousPrompt), promptSnapshot(activatedPrompt)));
+
+        return GmsPromptResponse.from(activatedPrompt);
+    }
+
+    private String resolveUpdateName(GmsPromptUpdateRequest request, GmsPrompt existingPrompt) {
+        String name = existingPrompt.getName();
+        if (request.name() == null) {
+            return name;
+        }
+
+        name = normalizeRequiredTrimmed(request.name(), REQUIRED_NAME_MESSAGE);
+        if (!existingPrompt.getName().equals(name) && gmsPromptRepository.existsByName(name)) {
+            throw new ConflictException(DUPLICATE_NAME_MESSAGE);
+        }
+
+        return name;
+    }
+
+    private String resolveUpdateContent(GmsPromptUpdateRequest request, GmsPrompt existingPrompt) {
+        if (request.content() == null) {
+            return existingPrompt.getContent();
+        }
+
+        return normalizeRequired(request.content(), REQUIRED_CONTENT_MESSAGE);
+    }
+
+    private String resolveUpdateFeatureType(GmsPromptUpdateRequest request, GmsPrompt existingPrompt) {
+        if (request.featureType() == null) {
+            return existingPrompt.getFeatureType();
+        }
+
+        String featureType = normalizeRequiredTrimmed(request.featureType(), REQUIRED_FEATURE_TYPE_MESSAGE)
+            .toLowerCase(Locale.ROOT);
+        if (existingPrompt.isActive() && !existingPrompt.getFeatureType().equals(featureType)) {
+            throw new BadRequestException(ACTIVE_FEATURE_TYPE_CHANGE_MESSAGE);
+        }
+
+        return featureType;
     }
 
     private void requireAdmin(AdminPrincipal adminPrincipal) {
@@ -216,9 +319,14 @@ public class GmsPromptServiceImpl implements GmsPromptService {
 
     private Map<String, Object> promptSnapshot(GmsPrompt prompt, boolean contentChanged) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
+        if (prompt == null) {
+            return snapshot;
+        }
+
         snapshot.put("id", prompt.getId().toString());
         snapshot.put("name", prompt.getName());
         snapshot.put("feature_type", prompt.getFeatureType());
+        snapshot.put("active", prompt.isActive());
         if (contentChanged) {
             snapshot.put("content_changed", true);
         }
@@ -268,6 +376,20 @@ public class GmsPromptServiceImpl implements GmsPromptService {
         }
 
         return normalizedFeatureType;
+    }
+
+    private String normalizeOptionalStatus(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+
+        String normalizedStatus = value.trim().toLowerCase(Locale.ROOT);
+        if (!normalizedStatus.equals("active") && !normalizedStatus.equals("not_active")
+            && !normalizedStatus.equals("all")) {
+            throw new BadRequestException(INVALID_STATUS_MESSAGE);
+        }
+
+        return "all".equals(normalizedStatus) ? null : normalizedStatus;
     }
 
     private int parsePage(String pageValue) {
