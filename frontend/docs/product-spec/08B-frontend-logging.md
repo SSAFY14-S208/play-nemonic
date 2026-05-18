@@ -158,6 +158,9 @@
 | `tool_selected` | 그리기/편집 도구 선택 | `tool_id`, `content_type` |
 | `canvas_interaction_started` | 사용자가 캔버스 조작 시작 | `content_type`, `tool_id?` |
 | `canvas_interaction_paused` | 일정 시간 조작 없음 | `content_type`, `elapsed_ms` |
+| `phone_official_store_clicked` | 핸드폰 모달의 외부 이동 shortcut(공식몰 등) 클릭 | `shortcut_key`, `destination` |
+
+`phone_official_store_clicked`는 일반 UI 참여 이벤트와 달리 외부 이탈 추이 분석에 직접 쓰이므로 §10에서 100% 샘플링한다. shortcut이 추가되면 같은 이벤트의 `shortcut_key` metadata로 분리 집계한다.
 
 ## 8. 성능/오류 이벤트
 
@@ -221,6 +224,7 @@ Content-Type: application/json
 | 유입, 세션, 페이지, funnel, 이탈 | 100% | 전환/이탈 분석의 기준 |
 | `client_alive` | 100% | 실시간 활성 사용자 추정 |
 | `js_error`, `unhandled_rejection`, `client_network_failed` | 100% | 장애 분석 |
+| `phone_official_store_clicked` | 100% | 외부 이탈(공식몰 등) 추이 분석 |
 | `web_vitals` | 10%, session hash 기반 | 볼륨 제어 |
 | `visibility_change` | 10%, session hash 기반 | 볼륨 제어 |
 | `resource_load_slow` | 100% | 발생 빈도 낮음 |
