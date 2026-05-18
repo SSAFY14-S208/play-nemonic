@@ -50,6 +50,8 @@ export const FORTUNE_TITLES = [
 
 export const FORTUNE_KEYWORDS = ['정리', '연결', '집중', '균형', '시작'] as const
 
+export const FORTUNE_LUCKY_DIRECTIONS = ['동쪽', '서쪽', '남쪽', '북쪽', '남동쪽'] as const
+
 export const FORTUNE_LUCKY_COLORS = [
   { name: '라벤더 밀크', hex: '#cdb7f6' },
   { name: '민트 포그', hex: '#9ed8c3' },

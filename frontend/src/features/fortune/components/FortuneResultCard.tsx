@@ -116,7 +116,7 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         >
           <span className="mb-[0.18rem] inline-block size-[1.4em] rounded-full border border-[rgba(40,40,40,0.18)] align-middle shadow-[inset_0_0_0_0.14rem_rgba(255,255,255,0.55)]" style={{ background: result.luckyColor.hex }} aria-hidden />
           <span className="ml-[0.42rem] align-middle">{result.luckyColor.name}</span>
-          <strong className="mt-[0.32rem] block text-center text-[clamp(0.95rem,2.7vw,1.25rem)]">{result.luckyKeyword}</strong>
+          <strong className="mt-[0.32rem] block text-center text-[clamp(0.95rem,2.7vw,1.25rem)]">{result.luckyDirection}</strong>
         </div>
 
         <p

@@ -27,6 +27,7 @@ import type {
 import {
   FORTUNE_KEYWORDS,
   FORTUNE_LUCKY_COLORS,
+  FORTUNE_LUCKY_DIRECTIONS,
   FORTUNE_NOON_FALLBACK_BIRTH_TIME,
   FORTUNE_POSTIT_LINES,
   FORTUNE_SCORE_LABELS,
@@ -226,8 +227,9 @@ export function createFortuneResultFromCreateResponse(
     },
     luckyColor,
     luckyKeyword: fortuneSection.luckyKeyword,
+    luckyDirection: fortuneSection.luckyDirection,
     caution: fortuneSection.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
-    cardTheme: pickCardTheme(createdFortune.fortuneId),
+    cardTheme: createdFortune.design.cardTheme ?? pickCardTheme(createdFortune.fortuneId),
     saju,
     sajuSummary: createResponseSajuSummary(createdFortune, birthInfo, saju),
   }
@@ -307,6 +309,7 @@ export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateK
   const postitLine = pickBySeed(FORTUNE_POSTIT_LINES, seed + 3)
   const luckyKeyword = pickBySeed(FORTUNE_KEYWORDS, seed + 7)
   const luckyColor = pickBySeed(FORTUNE_LUCKY_COLORS, seed + 11)
+  const luckyDirection = pickBySeed(FORTUNE_LUCKY_DIRECTIONS, seed + 13)
 
   return {
     id: createFortuneResultId(issuedDateKey, seed),
@@ -322,6 +325,7 @@ export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateK
     },
     luckyColor,
     luckyKeyword,
+    luckyDirection,
     caution: '오늘은 서두르기보다 한 번 더 확인하고 선택하는 게 좋아요.',
     cardTheme: seed % 2 === 0 ? 'moon-paper' : 'soft-star',
     saju,
