@@ -163,7 +163,7 @@ public class InfiniteCanvasController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "무한 캔버스 AI 스티커 생성 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_UUID))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "AI 스티커 생성 서비스 사용 불가"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "AI 스티커 생성 서비스 사용 불가", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INFINITE_CANVAS_AI_STICKER_UNAVAILABLE))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<InfiniteCanvasAiStickerCreateResponse>> createAiSticker(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,

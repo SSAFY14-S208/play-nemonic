@@ -301,8 +301,7 @@ class LogsQueryBuilderTest {
     @Test
     void termsWithMetricAllowsCardinalityOnIdentifierField() {
         LogsTermsWithMetricRequest request = new LogsTermsWithMetricRequest("biz-events", "", List.of(), ONE_DAY,
-            "metadata.funnel_name", 30,
-            List.of(new LogsMetricSpec("cardinality", "uuid", "uniqueUsers")));
+            "metadata.funnel_name", 30, List.of(new LogsMetricSpec("cardinality", "uuid", "uniqueUsers")));
 
         LogsQueryBuilder.BuiltLogsQuery built = queryBuilder.buildTermsWithMetricQuery(request);
 
@@ -315,8 +314,7 @@ class LogsQueryBuilderTest {
     @Test
     void termsWithMetricRejectsCardinalityOnNonIdentifierField() {
         LogsTermsWithMetricRequest request = new LogsTermsWithMetricRequest("biz-events", "", List.of(), ONE_DAY,
-            "path", 30,
-            List.of(new LogsMetricSpec("cardinality", "metadata.time_on_page_ms", "bad")));
+            "path", 30, List.of(new LogsMetricSpec("cardinality", "metadata.time_on_page_ms", "bad")));
 
         assertThatThrownBy(() -> queryBuilder.buildTermsWithMetricQuery(request)).isInstanceOf(AdminLogsException.class)
             .satisfies(
