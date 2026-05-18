@@ -40,6 +40,19 @@ public class InfiniteCanvasWebSocketController {
             session -> infiniteCanvasEventPublisher.publishPong(session.sessionId(), session.connectionKey()));
     }
 
+    @MessageMapping("/infinite-canvas/canvases/{roomCode}/sync")
+    public void syncState(@DestinationVariable("roomCode") String roomCode, SimpMessageHeaderAccessor headerAccessor) {
+        currentCanvasSession(roomCode, headerAccessor).ifPresent(session -> {
+            try {
+                InfiniteCanvasStateResponse response = infiniteCanvasService.getCanvasState(session.userUuid(),
+                    session.connectionKey());
+                infiniteCanvasEventPublisher.publishStateSnapshot(session.sessionId(), response);
+            } catch (RuntimeException e) {
+                infiniteCanvasEventPublisher.publishError(session.sessionId(), session.connectionKey(), e.getMessage());
+            }
+        });
+    }
+
     @MessageMapping("/infinite-canvas/canvases/{roomCode}/snapshot")
     public void replaceSnapshot(@DestinationVariable("roomCode") String roomCode,
         @Payload InfiniteCanvasSnapshotRequest request, SimpMessageHeaderAccessor headerAccessor) {

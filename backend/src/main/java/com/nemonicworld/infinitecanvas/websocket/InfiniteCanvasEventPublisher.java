@@ -55,6 +55,14 @@ public class InfiniteCanvasEventPublisher {
         publishCanvasStateEvent(InfiniteCanvasEventType.SNAPSHOT_UPDATED, response, currentUserUuid(response));
     }
 
+    public void publishStateSnapshot(String sessionId, InfiniteCanvasStateResponse response) {
+        InfiniteCanvasEventResponse event = InfiniteCanvasEventResponse.of(InfiniteCanvasEventType.STATE_SNAPSHOT,
+            response.roomCode(), response);
+
+        messagingTemplate.convertAndSendToUser(sessionId, CANVAS_USER_QUEUE_PREFIX + response.roomCode(), event,
+            createSessionHeaders(sessionId));
+    }
+
     public void publishCursorUpdated(InfiniteCanvasCursorResponse response) {
         publishCanvasEvent(InfiniteCanvasEventType.CURSOR_UPDATED, response.roomCode(), response);
     }
