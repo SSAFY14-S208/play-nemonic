@@ -68,7 +68,13 @@ function getExternalShareSuccessMessage(shareResult: ExternalImageShareResult) {
 
 function toExternalShareErrorMessage(error: unknown) {
   if (error instanceof ApiError) return error.message || '외부 공유 정보를 만들 수 없어요.'
-  if (error instanceof Error) return error.message || '외부 공유 정보를 만들 수 없어요.'
+  if (error instanceof Error) {
+    if (error.message === 'file-share-unavailable') {
+      return '이 브라우저에서는 이미지 파일 공유를 사용할 수 없어요.'
+    }
+
+    return error.message || '외부 공유 정보를 만들 수 없어요.'
+  }
 
   return '외부 공유 정보를 만들 수 없어요.'
 }
