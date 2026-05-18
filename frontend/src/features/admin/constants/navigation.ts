@@ -156,7 +156,7 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         icon: Shield,
         pageTitle: "백오피스 관리",
         pageDescription:
-          "관리자 계정을 생성·조회·삭제합니다. 슈퍼 관리자만 접근할 수 있습니다.",
+          "관리자 계정과 백오피스 감사 로그를 관리합니다. 슈퍼 관리자만 접근할 수 있습니다.",
         requiredRole: "super_admin",
       },
     ],

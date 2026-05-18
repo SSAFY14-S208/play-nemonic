@@ -145,21 +145,23 @@ export async function shareExternalImage({
   text,
   imageUrl,
   fileNameBase,
+  preferNativeFileShare = false,
 }: {
   title: string
   text: string
   imageUrl: string
   fileNameBase: string
+  preferNativeFileShare?: boolean
 }): Promise<ExternalImageShareResult> {
   const shareImageUrl = toAbsoluteShareUrl(imageUrl)
   const isMobileShareEnvironment = isLikelyMobileShareEnvironment()
   const shouldPreferNativeFileShare =
-    isMobileShareEnvironment || isLikelyGifImageUrl(shareImageUrl)
+    preferNativeFileShare || isMobileShareEnvironment || isLikelyGifImageUrl(shareImageUrl)
 
   if (typeof navigator !== 'undefined' && navigator.share && shouldPreferNativeFileShare) {
     try {
       const imageFile = await createShareImageFile(shareImageUrl, fileNameBase)
-      if (isMobileShareEnvironment || isGifShareFile(imageFile)) {
+      if (preferNativeFileShare || isMobileShareEnvironment || isGifShareFile(imageFile)) {
         await shareImageFile(title, text, imageFile)
         return 'native-file'
       }

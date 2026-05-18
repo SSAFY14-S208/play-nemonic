@@ -27,6 +27,9 @@ export default function RelayResultView() {
     closeRoom,
     isDownloading,
     downloadActiveArtifact,
+    isSharingExternal,
+    canShareExternal,
+    shareActiveArtifact,
   } = useRelayResult();
 
   useRelayResultAutoCycle({
@@ -101,10 +104,12 @@ export default function RelayResultView() {
               resultItems={resultItems}
               activeResultIndex={activeResultIndex}
               onSelectResult={setActiveResultIndex}
-              isHost={isHost}
               onReturnToLobby={handleReturnToLobby}
               onCommunityPost={handleCommunityPost}
               canPostCommunity={Boolean(resultImageUrl)}
+              onShareExternal={shareActiveArtifact}
+              isSharingExternal={isSharingExternal}
+              canShareExternal={canShareExternal}
               onDownloadArtifact={downloadActiveArtifact}
               isDownloading={isDownloading}
               canDownload={Boolean(activeResultItem)}

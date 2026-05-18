@@ -1,6 +1,7 @@
-// Backoffice Relay/Flipbook Rooms 도메인
-// (OpenAPI: tags "Backoffice Relay Rooms", "Backoffice Flipbook Rooms")
+// Backoffice Relay/Flipbook/Infinite Canvas Rooms 도메인
+// (OpenAPI: tags "Backoffice Relay Rooms", "Backoffice Flipbook Rooms", "Backoffice Infinite Canvas")
 
+import type { InfiniteCanvasStatus } from './infiniteCanvas'
 import type { RelayRoomStatus } from './relay'
 
 /**
@@ -75,6 +76,51 @@ export interface BackofficeFlipbookRoomListResponse {
  */
 export interface BackofficeFlipbookRoomDeleteResponse {
   roomCode: string
+}
+
+/**
+ * 백오피스 활성 무한 캔버스 응답.
+ *
+ * 무한 캔버스는 내부 드로잉/요소를 백오피스에서 열람하지 않고,
+ * 활성 캔버스 메타데이터만 조회한다.
+ */
+export interface BackofficeInfiniteCanvasResponse {
+  roomCode: string
+  status: InfiniteCanvasStatus
+  hostUserUuid: string
+  participantCount: number
+  maxParticipants: number
+  connectedParticipantCount: number
+  elementCount: number
+  revision: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BackofficeInfiniteCanvasListResponse {
+  items: BackofficeInfiniteCanvasResponse[]
+  totalElements: number
+  page: number
+  size: number
+}
+
+/**
+ * 백오피스 무한 캔버스 삭제(강제 종료) 응답.
+ * Swagger 응답 데이터에는 roomCode만 포함된다.
+ */
+export interface BackofficeInfiniteCanvasCloseResponse {
+  roomCode: string
+}
+
+/**
+ * GET /backoffice/infinite-canvas/canvases 쿼리 파라미터.
+ *
+ * status는 ACTIVE만 허용된다. 생략 시 백엔드 기본값도 ACTIVE.
+ */
+export interface BackofficeInfiniteCanvasListParams {
+  status?: 'ACTIVE'
+  page?: number
+  size?: number
 }
 
 /**

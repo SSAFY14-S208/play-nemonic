@@ -1,15 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
-import { ApiError, getArtifactDownload, postRelayRoomClose } from '@/shared/apis'
+import {
+  ApiError,
+  getArtifactDownload,
+  postArtifactShare,
+  postRelayRoomClose,
+} from '@/shared/apis'
 import { reachFunnelGoal } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import type { RelayPart } from '@/shared/types'
 import {
   downloadBlob,
+  type ExternalImageShareResult,
   inferImageExtensionFromBlob,
   sanitizeDownloadFilename,
+  shareExternalImage,
 } from '@/shared/utils'
 
 import {
@@ -22,8 +30,47 @@ import { useRelayDrawingStore } from '../stores'
 
 // ── 유틸 ──────────────────────────────────────────────────────────────
 
+const RELAY_EXTERNAL_SHARE_TEXT = '네모닉 릴레이 드로잉 결과를 공유해요.'
+const RELAY_SHARE_IMAGE_COPIED_MESSAGE =
+  '릴레이 드로잉 QR 공유 이미지를 복사했어요. 채팅창에 붙여넣어 주세요.'
+const RELAY_SHARE_IMAGE_LINK_COPIED_MESSAGE =
+  '릴레이 드로잉 QR 공유 이미지 링크를 복사했어요.'
+const RELAY_SHARE_GIF_LINK_COPIED_MESSAGE =
+  '릴레이 드로잉 QR GIF 공유 링크를 복사했어요.'
+
 function partToRoundKey(part: RelayPart): RelayRoundKey {
   return part.toLowerCase() as RelayRoundKey
+}
+
+function isRealArtifactId(artifactId: string | null | undefined) {
+  return Boolean(artifactId && !artifactId.startsWith('dummy-'))
+}
+
+function getResultTitle({
+  faceDrawerNickname,
+  canvasIndex,
+}: {
+  faceDrawerNickname: string | null | undefined
+  canvasIndex: number
+}) {
+  return faceDrawerNickname
+    ? `${faceDrawerNickname}의 릴레이 드로잉`
+    : `릴레이 드로잉 ${canvasIndex + 1}`
+}
+
+function getExternalShareSuccessMessage(shareResult: ExternalImageShareResult) {
+  if (shareResult === 'copied-gif-link') return RELAY_SHARE_GIF_LINK_COPIED_MESSAGE
+  if (shareResult === 'copied-image') return RELAY_SHARE_IMAGE_COPIED_MESSAGE
+  if (shareResult === 'copied-image-link') return RELAY_SHARE_IMAGE_LINK_COPIED_MESSAGE
+
+  return null
+}
+
+function toExternalShareErrorMessage(error: unknown) {
+  if (error instanceof ApiError) return error.message || '외부 공유 정보를 만들 수 없어요.'
+  if (error instanceof Error) return error.message || '외부 공유 정보를 만들 수 없어요.'
+
+  return '외부 공유 정보를 만들 수 없어요.'
 }
 
 // ── 훅 ────────────────────────────────────────────────────────────────
@@ -69,22 +116,25 @@ export function useRelayResult() {
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
+  const activeResultItem = resultItems[activeResultIndex] ?? null
+  const faceDrawerNickname =
+    activeResultItem?.parts.find((partItem) => partItem.part === 'FACE')?.drawerNickname ?? null
+  const activeResultTitle = activeResultItem
+    ? getResultTitle({
+        faceDrawerNickname,
+        canvasIndex: activeResultItem.canvasIndex,
+      })
+    : '릴레이 드로잉'
+
   const downloadActiveArtifact = () => {
     if (isDownloading) return
-    const currentActiveResult = resultItems[activeResultIndex] ?? null
-    if (!currentActiveResult) return
+    if (!activeResultItem) return
     setDownloadError(null)
     setIsDownloading(true)
     void (async () => {
       try {
-        const blob = await getArtifactDownload(currentActiveResult.artifactId)
-        const faceDrawerNickname =
-          currentActiveResult.parts.find((partItem) => partItem.part === 'FACE')?.drawerNickname
-        const baseFilename = sanitizeDownloadFilename(
-          faceDrawerNickname
-            ? `${faceDrawerNickname}의 릴레이 드로잉`
-            : `릴레이 드로잉 ${currentActiveResult.canvasIndex + 1}`,
-        )
+        const blob = await getArtifactDownload(activeResultItem.artifactId)
+        const baseFilename = sanitizeDownloadFilename(activeResultTitle)
         const extension = inferImageExtensionFromBlob(blob)
         downloadBlob(blob, `${baseFilename}.${extension}`)
       } catch (caughtError) {
@@ -99,7 +149,44 @@ export function useRelayResult() {
     })()
   }
 
-  const activeResultItem = resultItems[activeResultIndex] ?? null
+  const [isSharingExternal, setIsSharingExternal] = useState(false)
+  const canShareExternal =
+    Boolean(activeResultItem && isRealArtifactId(activeResultItem.artifactId)) &&
+    !isSharingExternal
+
+  const shareActiveArtifact = () => {
+    if (!activeResultItem || !isRealArtifactId(activeResultItem.artifactId) || isSharingExternal) {
+      toast.error('외부 공유는 저장된 결과에서만 사용할 수 있어요.')
+      return
+    }
+
+    setIsSharingExternal(true)
+    void (async () => {
+      try {
+        const shareInfo = await postArtifactShare(activeResultItem.artifactId)
+        if (!shareInfo.imageUrl?.trim()) {
+          throw new Error('외부 공유 이미지를 찾지 못했어요.')
+        }
+
+        const shareResult = await shareExternalImage({
+          title: activeResultTitle,
+          text: RELAY_EXTERNAL_SHARE_TEXT,
+          imageUrl: shareInfo.imageUrl,
+          fileNameBase: 'relay-drawing-result-qr',
+          preferNativeFileShare: true,
+        })
+        const successMessage = getExternalShareSuccessMessage(shareResult)
+        if (successMessage) toast.success(successMessage)
+      } catch (caughtError) {
+        if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return
+
+        toast.error(toExternalShareErrorMessage(caughtError))
+      } finally {
+        setIsSharingExternal(false)
+      }
+    })()
+  }
+
   const hasServerResults = resultItems.length > 0 && activeResultItem !== null
 
   // 결과 화면 도달 — funnel goal. 결과 데이터가 도착한 시점 1회만 발사.
@@ -166,5 +253,10 @@ export function useRelayResult() {
     isDownloading,
     downloadError,
     downloadActiveArtifact,
+
+    // External share action
+    isSharingExternal,
+    canShareExternal,
+    shareActiveArtifact,
   }
 }
