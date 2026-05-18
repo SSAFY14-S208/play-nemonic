@@ -3,6 +3,7 @@ package com.nemonicworld.infinitecanvas.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.InternalServerException;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperation;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import java.time.Duration;
@@ -30,9 +31,11 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
     private static final Logger log = LoggerFactory.getLogger(RedisInfiniteCanvasRepository.class);
 
     private static final String ROOM_KEY_PREFIX = "infinite-canvas:room:";
+    private static final String OPERATION_KEY_PREFIX = "infinite-canvas:room-operations:";
     private static final String ACTIVE_CANVAS_INDEX_KEY = "infinite-canvas:rooms:active:created-at";
     private static final String SERIALIZATION_ERROR_MESSAGE = "무한 캔버스 상태를 저장할 수 없습니다.";
     private static final String DESERIALIZATION_ERROR_MESSAGE = "무한 캔버스 상태를 읽을 수 없습니다.";
+    private static final int RECENT_OPERATION_LIMIT = 200;
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -44,8 +47,9 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
 
     @Override
     public void save(InfiniteCanvasState canvasState) {
-        redisTemplate.opsForValue().set(createRoomKey(canvasState.roomCode()), serialize(canvasState),
-            InfiniteCanvasRepository.CANVAS_STATE_TTL);
+        redisTemplate.opsForValue().set(createRoomKey(canvasState.roomCode()),
+            serialize(withoutOperations(canvasState)), InfiniteCanvasRepository.CANVAS_STATE_TTL);
+        replaceOperations(redisTemplate, canvasState);
         syncActiveCanvasIndex(canvasState);
     }
 
@@ -67,15 +71,56 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
                     return false;
                 }
 
-                InfiniteCanvasState currentCanvasState = deserialize(currentCanvasStateValue);
+                InfiniteCanvasState currentCanvasState = hydrateOperations(stringOperations,
+                    deserialize(currentCanvasStateValue));
                 if (!currentCanvasState.equals(expectedCanvasState)) {
                     stringOperations.unwatch();
                     return false;
                 }
 
                 stringOperations.multi();
-                stringOperations.opsForValue().set(roomKey, serialize(updatedCanvasState),
+                stringOperations.opsForValue().set(roomKey, serialize(withoutOperations(updatedCanvasState)),
                     InfiniteCanvasRepository.CANVAS_STATE_TTL);
+                syncActiveCanvasIndex(stringOperations, updatedCanvasState);
+                List<Object> results = stringOperations.exec();
+
+                return results != null;
+            }
+        });
+
+        return Boolean.TRUE.equals(updated);
+    }
+
+    @Override
+    public boolean saveIfUnchangedAndAppendOperations(InfiniteCanvasState expectedCanvasState,
+        InfiniteCanvasState updatedCanvasState, List<InfiniteCanvasOperation> operations) {
+        String roomKey = createRoomKey(expectedCanvasState.roomCode());
+
+        Boolean updated = redisTemplate.execute(new SessionCallback<>() {
+
+            @Override
+            public <K, V> Boolean execute(RedisOperations<K, V> operations) throws DataAccessException {
+                RedisOperations<String, String> stringOperations = castToStringOperations(operations);
+
+                stringOperations.watch(roomKey);
+                String currentCanvasStateValue = stringOperations.opsForValue().get(roomKey);
+
+                if (!StringUtils.hasText(currentCanvasStateValue)) {
+                    stringOperations.unwatch();
+                    return false;
+                }
+
+                InfiniteCanvasState currentCanvasState = hydrateOperations(stringOperations,
+                    deserialize(currentCanvasStateValue));
+                if (!currentCanvasState.equals(expectedCanvasState)) {
+                    stringOperations.unwatch();
+                    return false;
+                }
+
+                stringOperations.multi();
+                stringOperations.opsForValue().set(roomKey, serialize(withoutOperations(updatedCanvasState)),
+                    InfiniteCanvasRepository.CANVAS_STATE_TTL);
+                replaceOperations(stringOperations, updatedCanvasState);
                 syncActiveCanvasIndex(stringOperations, updatedCanvasState);
                 List<Object> results = stringOperations.exec();
 
@@ -93,7 +138,7 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
             return Optional.empty();
         }
 
-        return Optional.of(deserialize(canvasStateValue));
+        return Optional.of(hydrateOperations(redisTemplate, deserialize(canvasStateValue)));
     }
 
     @Override
@@ -198,7 +243,7 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
 
     @Override
     public void delete(String roomCode) {
-        redisTemplate.delete(createRoomKey(roomCode));
+        redisTemplate.delete(List.of(createRoomKey(roomCode), createOperationKey(roomCode)));
         removeActiveCanvasIndex(roomCode);
     }
 
@@ -209,6 +254,10 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
 
     private String createRoomKey(String roomCode) {
         return ROOM_KEY_PREFIX + roomCode;
+    }
+
+    private String createOperationKey(String roomCode) {
+        return OPERATION_KEY_PREFIX + roomCode;
     }
 
     private void syncActiveCanvasIndex(InfiniteCanvasState canvasState) {
@@ -255,11 +304,64 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
         }
     }
 
+    private String serializeOperation(InfiniteCanvasOperation operation) {
+        try {
+            return objectMapper.writeValueAsString(operation);
+        } catch (JsonProcessingException e) {
+            throw new InternalServerException(SERIALIZATION_ERROR_MESSAGE);
+        }
+    }
+
     private InfiniteCanvasState deserialize(String value) {
         try {
             return objectMapper.readValue(value, InfiniteCanvasState.class);
         } catch (JsonProcessingException e) {
             throw new InternalServerException(DESERIALIZATION_ERROR_MESSAGE);
         }
+    }
+
+    private InfiniteCanvasOperation deserializeOperation(String value) {
+        try {
+            return objectMapper.readValue(value, InfiniteCanvasOperation.class);
+        } catch (JsonProcessingException e) {
+            throw new InternalServerException(DESERIALIZATION_ERROR_MESSAGE);
+        }
+    }
+
+    private InfiniteCanvasState withoutOperations(InfiniteCanvasState state) {
+        return withOperations(state, List.of());
+    }
+
+    private InfiniteCanvasState withOperations(InfiniteCanvasState state, List<InfiniteCanvasOperation> operations) {
+        return new InfiniteCanvasState(state.roomCode(), state.status(), state.hostUserUuid(), state.participants(),
+            state.elements(), operations, state.locks(), state.cursors(), state.viewport(), state.maxParticipants(),
+            state.revision(), state.createdAt(), state.updatedAt(), state.closedAt());
+    }
+
+    private InfiniteCanvasState hydrateOperations(RedisOperations<String, String> operations,
+        InfiniteCanvasState state) {
+        List<String> operationValues = operations.opsForList().range(createOperationKey(state.roomCode()),
+            -RECENT_OPERATION_LIMIT, -1);
+        if (operationValues == null || operationValues.isEmpty()) {
+            return state;
+        }
+
+        return withOperations(state, operationValues.stream().map(this::deserializeOperation).toList());
+    }
+
+    private void replaceOperations(RedisOperations<String, String> operations, InfiniteCanvasState state) {
+        String operationKey = createOperationKey(state.roomCode());
+        operations.delete(operationKey);
+        appendOperations(operations, operationKey, state.operations());
+    }
+
+    private void appendOperations(RedisOperations<String, String> operations, String operationKey,
+        List<InfiniteCanvasOperation> acceptedOperations) {
+        if (!acceptedOperations.isEmpty()) {
+            operations.opsForList().rightPushAll(operationKey,
+                acceptedOperations.stream().map(this::serializeOperation).toList());
+            operations.opsForList().trim(operationKey, -RECENT_OPERATION_LIMIT, -1);
+        }
+        operations.expire(operationKey, InfiniteCanvasRepository.CANVAS_STATE_TTL);
     }
 }

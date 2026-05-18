@@ -366,7 +366,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
                 appendRecentOperations(state.operations(), acceptedOperations), locks, state.cursors(),
                 state.viewport(), revision, now, state.closedAt());
 
-            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
+            if (infiniteCanvasRepository.saveIfUnchangedAndAppendOperations(state, updatedState, acceptedOperations)) {
                 return new InfiniteCanvasOpsAppliedResponse(normalizedRoomCode, revision, updatedElements.size(),
                     acceptedOperations);
             }

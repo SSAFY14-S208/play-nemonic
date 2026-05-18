@@ -11,6 +11,8 @@ import static org.mockito.Mockito.verify;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperation;
+import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperationType;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import java.time.LocalDateTime;
@@ -28,6 +30,7 @@ import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.ListOperations;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 class RedisInfiniteCanvasRepositoryTest {
@@ -41,6 +44,7 @@ class RedisInfiniteCanvasRepositoryTest {
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
     private ZSetOperations<String, String> zSetOperations;
+    private ListOperations<String, String> listOperations;
     private RedisInfiniteCanvasRepository repository;
 
     @BeforeEach
@@ -49,12 +53,15 @@ class RedisInfiniteCanvasRepositoryTest {
         redisOperations = createRedisOperationsMock();
         valueOperations = createValueOperationsMock();
         zSetOperations = createZSetOperationsMock();
+        listOperations = createListOperationsMock();
         repository = new RedisInfiniteCanvasRepository(redisTemplate, objectMapper);
 
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
         given(redisTemplate.opsForZSet()).willReturn(zSetOperations);
+        given(redisTemplate.opsForList()).willReturn(listOperations);
         given(redisOperations.opsForValue()).willReturn(valueOperations);
         given(redisOperations.opsForZSet()).willReturn(zSetOperations);
+        given(redisOperations.opsForList()).willReturn(listOperations);
         given(redisOperations.exec()).willReturn(List.of("OK"));
         given(redisTemplate.execute(any(SessionCallback.class))).willAnswer(invocation -> {
             SessionCallback<?> callback = invocation.getArgument(0);
@@ -72,7 +79,8 @@ class RedisInfiniteCanvasRepositoryTest {
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq(ROOM_KEY), jsonCaptor.capture(), eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
-        assertThat(deserialize(jsonCaptor.getValue())).isEqualTo(canvasState);
+        assertThat(deserialize(jsonCaptor.getValue()).operations()).isEmpty();
+        verify(redisTemplate).delete("infinite-canvas:room-operations:" + ROOM_CODE);
         verify(zSetOperations).add(eq("infinite-canvas:rooms:active:created-at"), eq(ROOM_CODE), any(Double.class));
     }
 
@@ -93,8 +101,33 @@ class RedisInfiniteCanvasRepositoryTest {
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq(ROOM_KEY), jsonCaptor.capture(), eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
-        assertThat(deserialize(jsonCaptor.getValue())).isEqualTo(updatedCanvasState);
+        assertThat(deserialize(jsonCaptor.getValue()).operations()).isEmpty();
         verify(zSetOperations).add(eq("infinite-canvas:rooms:active:created-at"), eq(ROOM_CODE), any(Double.class));
+    }
+
+    @Test
+    void saveIfUnchangedAndAppendOperationsStoresStateWithoutOperationsAndAppendsOperationLog() throws Exception {
+        InfiniteCanvasState expectedCanvasState = canvasState(ROOM_CODE, InfiniteCanvasStatus.ACTIVE, 0L,
+            participant(UUID.randomUUID(), "Mango"));
+        InfiniteCanvasOperation acceptedOperation = operation("op-1", "client-op-1", "element-1", 1L);
+        InfiniteCanvasState updatedCanvasState = new InfiniteCanvasState(expectedCanvasState.roomCode(),
+            expectedCanvasState.status(), expectedCanvasState.hostUserUuid(), expectedCanvasState.participants(),
+            expectedCanvasState.elements(), List.of(acceptedOperation), expectedCanvasState.locks(),
+            expectedCanvasState.cursors(), expectedCanvasState.viewport(), expectedCanvasState.maxParticipants(), 1L,
+            expectedCanvasState.createdAt(), expectedCanvasState.updatedAt(), expectedCanvasState.closedAt());
+        given(valueOperations.get(ROOM_KEY)).willReturn(serialize(expectedCanvasState));
+
+        boolean saved = repository.saveIfUnchangedAndAppendOperations(expectedCanvasState, updatedCanvasState,
+            List.of(acceptedOperation));
+
+        assertThat(saved).isTrue();
+        ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(valueOperations).set(eq(ROOM_KEY), jsonCaptor.capture(), eq(InfiniteCanvasRepository.CANVAS_STATE_TTL));
+        assertThat(deserialize(jsonCaptor.getValue()).operations()).isEmpty();
+        verify(listOperations).rightPushAll(eq("infinite-canvas:room-operations:" + ROOM_CODE), any(List.class));
+        verify(listOperations).trim("infinite-canvas:room-operations:" + ROOM_CODE, -200, -1);
+        verify(redisOperations).expire("infinite-canvas:room-operations:" + ROOM_CODE,
+            InfiniteCanvasRepository.CANVAS_STATE_TTL);
     }
 
     @Test
@@ -223,6 +256,13 @@ class RedisInfiniteCanvasRepositoryTest {
         return objectMapper.createObjectNode().put("id", "element-1").put("type", "brush");
     }
 
+    private InfiniteCanvasOperation operation(String operationId, String clientOperationId, String elementId,
+        long revision) {
+        return new InfiniteCanvasOperation(operationId, clientOperationId, InfiniteCanvasOperationType.UPSERT_ELEMENT,
+            elementId, element(), null, UUID.randomUUID().toString(), revision,
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+    }
+
     private String serialize(InfiniteCanvasState canvasState) throws Exception {
         return objectMapper.writeValueAsString(canvasState);
     }
@@ -241,6 +281,10 @@ class RedisInfiniteCanvasRepositoryTest {
 
     private ZSetOperations<String, String> createZSetOperationsMock() {
         return (ZSetOperations<String, String>) mock(ZSetOperations.class);
+    }
+
+    private ListOperations<String, String> createListOperationsMock() {
+        return (ListOperations<String, String>) mock(ListOperations.class);
     }
 
     private Cursor<String> createCursorMock() {
