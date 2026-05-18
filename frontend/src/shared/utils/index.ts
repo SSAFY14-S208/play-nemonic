@@ -1,4 +1,9 @@
 export { apiUnwrap } from './apiUnwrap'
+export {
+  canMutateBackoffice,
+  isSuperAdminRole,
+  isViewerAdminRole,
+} from './adminRole'
 export { playBrowserAudio, preloadBrowserAudio } from './browserAudio'
 export {
   DEFAULT_COMMUNITY_MEMO_COLOR,

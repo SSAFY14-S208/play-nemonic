@@ -12,6 +12,7 @@ import {
   Sliders,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { AdminRole } from "@/shared/types";
 
 export type AdminNavItem = {
   key: string;
@@ -21,7 +22,7 @@ export type AdminNavItem = {
   pageTitle: string;
   pageDescription: string;
   children?: AdminNavItem[];
-  requiredRole?: string;
+  requiredRole?: AdminRole;
 };
 
 export type AdminNavGroup = {

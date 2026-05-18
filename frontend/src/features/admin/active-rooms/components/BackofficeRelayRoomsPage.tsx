@@ -2,7 +2,9 @@
 
 import { Search } from 'lucide-react'
 
-import { formatKoreanDateTime } from '@/shared/utils'
+import { useAdminAuthStore } from '@/shared/stores'
+import { canMutateBackoffice, formatKoreanDateTime } from '@/shared/utils'
+import { AdminReadOnlyNotice } from '../../components'
 import { useBackofficeRelayRooms } from '../hooks'
 import type { RelayRoomStatusFilter } from '../hooks'
 
@@ -27,6 +29,8 @@ function formatGameStartedAt(value: string | null): string {
 }
 
 export default function BackofficeRelayRoomsPage() {
+  const adminRole = useAdminAuthStore((state) => state.admin?.role ?? null)
+  const canManageRooms = canMutateBackoffice(adminRole)
   const {
     items,
     isFiltered,
@@ -60,6 +64,8 @@ export default function BackofficeRelayRoomsPage() {
           disabled={isMutating}
         />
       </header>
+
+      {!canManageRooms && <AdminReadOnlyNotice />}
 
       <div className="flex items-center gap-2">
         <div className="flex flex-1 items-center gap-2 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2">
@@ -148,7 +154,12 @@ export default function BackofficeRelayRoomsPage() {
                     <button
                       type="button"
                       onClick={() => forceClose(room.roomCode)}
-                      disabled={isMutating}
+                      disabled={isMutating || !canManageRooms}
+                      title={
+                        canManageRooms
+                          ? undefined
+                          : '뷰어 권한은 조회만 가능합니다.'
+                      }
                       className="caption-b rounded-[var(--radius-md)] bg-red-500 px-3 py-1.5 text-fg-inverse transition-opacity hover:bg-red-600 disabled:opacity-50"
                     >
                       강제 종료

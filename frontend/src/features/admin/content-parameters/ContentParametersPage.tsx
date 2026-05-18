@@ -3,6 +3,9 @@
 import type { SystemParameterValue } from '@/shared/types'
 
 import { cn } from '@/shared/libs'
+import { useAdminAuthStore } from '@/shared/stores'
+import { canMutateBackoffice } from '@/shared/utils'
+import { AdminReadOnlyNotice } from '../components'
 import {
   CATEGORY_BADGE,
   CONTENT_PARAMETER_GROUPS,
@@ -16,6 +19,8 @@ const NUMBER_INPUT_CLASS =
   'body-r w-24 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2 text-fg-primary focus:border-primary-2 focus:outline-none disabled:opacity-50'
 
 export default function ContentParametersPage() {
+  const adminRole = useAdminAuthStore((state) => state.admin?.role ?? null)
+  const canEditParameters = canMutateBackoffice(adminRole)
   const {
     isLoading,
     loadError,
@@ -40,7 +45,7 @@ export default function ContentParametersPage() {
           <button
             type="button"
             onClick={resetDraft}
-            disabled={!hasChanges || isSaving}
+            disabled={!canEditParameters || !hasChanges || isSaving}
             className="rounded-[var(--radius-md)] border border-border-default bg-surface-default px-4 py-2 body-b text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
           >
             초기화
@@ -48,13 +53,15 @@ export default function ContentParametersPage() {
           <button
             type="button"
             onClick={save}
-            disabled={!hasChanges || isSaving}
+            disabled={!canEditParameters || !hasChanges || isSaving}
             className="rounded-[var(--radius-md)] bg-primary-1 px-4 py-2 body-b text-fg-inverse transition-opacity disabled:opacity-50"
           >
             {isSaving ? '저장 중…' : '변경 사항 저장'}
           </button>
         </div>
       </header>
+
+      {!canEditParameters && <AdminReadOnlyNotice />}
 
       {isLoading && (
         <p className="body-r text-fg-secondary">파라미터를 불러오는 중…</p>
@@ -93,6 +100,7 @@ export default function ContentParametersPage() {
                       draft={draft}
                       parametersByKey={parametersByKey}
                       isSaving={isSaving}
+                      canEdit={canEditParameters}
                       onChangeField={setDraftField}
                       onChangeEnumBounds={setEnumBounds}
                     />
@@ -112,6 +120,7 @@ interface ContentParameterCardProps {
   draft: Record<string, SystemParameterValue>
   parametersByKey: Map<string, { serverValue: SystemParameterValue }>
   isSaving: boolean
+  canEdit: boolean
   onChangeField: <K extends keyof SystemParameterValue>(
     backendKey: string,
     field: K,
@@ -132,6 +141,7 @@ function ContentParameterCard({
   draft,
   parametersByKey,
   isSaving,
+  canEdit,
   onChangeField,
   onChangeEnumBounds,
 }: ContentParameterCardProps) {
@@ -154,7 +164,7 @@ function ContentParameterCard({
             onChange={(event) =>
               onChangeField(parameter.backendKey, 'value', Number(event.target.value))
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
           />
           <span className="body-r text-fg-secondary">{unitLabel}</span>
@@ -178,7 +188,7 @@ function ContentParameterCard({
             onChange={(event) =>
               onChangeField(parameter.backendKey, 'min', Number(event.target.value))
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
             aria-label="최소"
           />
@@ -190,7 +200,7 @@ function ContentParameterCard({
             onChange={(event) =>
               onChangeField(parameter.backendKey, 'max', Number(event.target.value))
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
             aria-label="최대"
           />
@@ -231,7 +241,7 @@ function ContentParameterCard({
                 min: Number(event.target.value),
               })
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
             aria-label="최소 시간"
           />
@@ -245,7 +255,7 @@ function ContentParameterCard({
                 max: Number(event.target.value),
               })
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
             aria-label="최대 시간"
           />
