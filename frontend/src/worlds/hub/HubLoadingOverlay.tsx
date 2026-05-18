@@ -21,9 +21,10 @@ export default function HubLoadingOverlay({
   const {
     displayProgress,
     enterHub,
-    hasEnteredHub,
+    hasConfirmedHubEntry,
     isReady,
     isVisible,
+    shouldShowPlayButton,
     statusText,
     subtitleText,
   } = useHubLoadingOverlay(isCanvasReady)
@@ -63,7 +64,11 @@ export default function HubLoadingOverlay({
         {isVisible && <HubLoadingHouseLottie />}
         <div className="flex flex-col items-center gap-3">
           <p className="h3-b text-fg-primary">
-            {isReady ? '준비 완료. 이제 놀러 들어가요!' : statusText}
+            {isReady
+              ? hasConfirmedHubEntry
+                ? '허브로 들어가는 중이에요'
+                : '준비 완료. 이제 놀러 들어가요!'
+              : statusText}
           </p>
           <p className="caption-m text-fg-secondary">{subtitleText}</p>
         </div>
@@ -74,22 +79,26 @@ export default function HubLoadingOverlay({
           />
         </div>
         <span className="caption-b text-fg-primary">{displayProgress}%</span>
-        {isReady && (
+      </div>
+      {shouldShowPlayButton && (
+        <motion.div
+          className="absolute bottom-[clamp(2rem,8vh,5rem)] left-1/2 z-10 -translate-x-1/2"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+        >
           <motion.button
             type="button"
             className="body-l-b inline-flex min-h-12 min-w-32 items-center justify-center rounded-[var(--radius-full)] bg-[var(--hub-loading-primary)] px-8 text-fg-inverse shadow-[0_12px_28px_rgb(244_156_200_/_28%)] transition-colors hover:bg-[var(--hub-loading-primary-hover)] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[var(--hub-loading-primary)] disabled:pointer-events-none disabled:opacity-60"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.97 }}
             onClick={enterHub}
-            disabled={hasEnteredHub}
             aria-label="Play!"
           >
             Play!
           </motion.button>
-        )}
-      </div>
+        </motion.div>
+      )}
     </div>
   )
 }

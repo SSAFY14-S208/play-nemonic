@@ -4,7 +4,7 @@ import { COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS } from '@/shared/constants'
 import type { CommunityMemoItemResponse } from '@/shared/types'
 import { getCommunityMemoColor } from '@/shared/utils'
 
-const WHITEBOARD_PREVIEW_MEMO_LIMIT = 8
+const WHITEBOARD_PREVIEW_MEMO_LIMIT = 15
 const WHITEBOARD_PREVIEW_SAFE_PERCENT = 8
 const COMMUNITY_CANVAS_SURFACE_WIDTH =
   COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS.right -
@@ -153,7 +153,6 @@ function getWhiteboardPreviewMemos(memos: CommunityMemoItemResponse[]) {
 
 export function useCommunityCanvasWhiteboardPreviewMemos() {
   const [communityMemos, setCommunityMemos] = useState<CommunityMemoItemResponse[]>([])
-  const [totalElements, setTotalElements] = useState(0)
   const [status, setStatus] =
     useState<CommunityCanvasWhiteboardPreviewStatus>('loading')
 
@@ -166,13 +165,11 @@ export function useCommunityCanvasWhiteboardPreviewMemos() {
         if (isCancelled) return
 
         setCommunityMemos(response.items)
-        setTotalElements(response.totalElements)
         setStatus('success')
       } catch {
         if (isCancelled) return
 
         setCommunityMemos([])
-        setTotalElements(0)
         setStatus('error')
       }
     })()
@@ -190,12 +187,8 @@ export function useCommunityCanvasWhiteboardPreviewMemos() {
   const previewMemos = isUsingFallbackPreview
     ? FALLBACK_WHITEBOARD_PREVIEW_MEMOS
     : communityPreviewMemos
-  const hiddenMemoCount = isUsingFallbackPreview
-    ? 0
-    : Math.max(totalElements - previewMemos.length, 0)
 
   return {
-    hiddenMemoCount,
     isUsingFallbackPreview,
     previewMemos,
     status,

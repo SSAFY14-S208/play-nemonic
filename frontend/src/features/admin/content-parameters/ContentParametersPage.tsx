@@ -2,9 +2,10 @@
 
 import type { SystemParameterValue } from '@/shared/types'
 
+import { cn } from '@/shared/libs'
 import {
   CATEGORY_BADGE,
-  CONTENT_PARAMETERS,
+  CONTENT_PARAMETER_GROUPS,
   type ParameterMeta,
   UNIT_LABEL,
 } from './constants'
@@ -65,18 +66,41 @@ export default function ContentParametersPage() {
       )}
 
       {!isLoading && !loadError && (
-        <div className="flex flex-col gap-3">
-          {CONTENT_PARAMETERS.map((parameter) => (
-            <ContentParameterCard
-              key={parameter.id}
-              parameter={parameter}
-              draft={draft}
-              parametersByKey={parametersByKey}
-              isSaving={isSaving}
-              onChangeField={setDraftField}
-              onChangeEnumBounds={setEnumBounds}
-            />
-          ))}
+        <div className="flex flex-col gap-8">
+          {CONTENT_PARAMETER_GROUPS.map(({ category, parameters }) => {
+            const badge = CATEGORY_BADGE[category]
+
+            return (
+              <section key={category} className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      'caption-b inline-flex w-fit items-center rounded-[var(--radius-sm)] px-2 py-0.5',
+                      badge.chipClass,
+                    )}
+                  >
+                    {badge.label}
+                  </span>
+                  <span className="caption-r text-fg-secondary">
+                    {parameters.length}개 항목
+                  </span>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {parameters.map((parameter) => (
+                    <ContentParameterCard
+                      key={parameter.id}
+                      parameter={parameter}
+                      draft={draft}
+                      parametersByKey={parametersByKey}
+                      isSaving={isSaving}
+                      onChangeField={setDraftField}
+                      onChangeEnumBounds={setEnumBounds}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })}
         </div>
       )}
     </div>
@@ -111,7 +135,6 @@ function ContentParameterCard({
   onChangeField,
   onChangeEnumBounds,
 }: ContentParameterCardProps) {
-  const badge = CATEGORY_BADGE[parameter.category]
   const unitLabel = UNIT_LABEL[parameter.unit]
   const draftValue = draft[parameter.backendKey] ?? {}
   const serverValue = parametersByKey.get(parameter.backendKey)?.serverValue
@@ -119,8 +142,6 @@ function ContentParameterCard({
   if (parameter.type === 'integer') {
     return (
       <ParameterCard
-        categoryLabel={badge.label}
-        categoryChipClass={badge.chipClass}
         title={parameter.title}
         description={parameter.description}
         originalValueLabel={`기존값 ${formatOrDash(serverValue?.value)} ${unitLabel}`}
@@ -145,8 +166,6 @@ function ContentParameterCard({
   if (parameter.type === 'range') {
     return (
       <ParameterCard
-        categoryLabel={badge.label}
-        categoryChipClass={badge.chipClass}
         title={parameter.title}
         description={parameter.description}
         originalValueLabel={`기존값 ${formatOrDash(serverValue?.min)} ~ ${formatOrDash(serverValue?.max)} ${unitLabel}`}
@@ -193,8 +212,6 @@ function ContentParameterCard({
   const serverAllowed = serverValue?.allowed
   return (
     <ParameterCard
-      categoryLabel={badge.label}
-      categoryChipClass={badge.chipClass}
       title={parameter.title}
       description={parameter.description}
       originalValueLabel={

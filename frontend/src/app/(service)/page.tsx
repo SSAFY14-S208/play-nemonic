@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
+import { HubOverlay } from '@/features/hub'
 import { PhoneLauncher } from '@/features/phone'
-import LandingLoader from '@/worlds/landing/LandingLoader'
+import HubLoader from '@/worlds/hub/HubLoader'
 import {
   getShareRedirectPath,
   getShareTokenFromSearchParams,
@@ -20,9 +21,10 @@ export default async function Page({ searchParams }: ServiceHomePageProps) {
   }
 
   return (
-    <>
-      <LandingLoader />
+    <main className="relative min-h-screen overflow-hidden bg-hub-room-background">
+      <HubLoader />
+      <HubOverlay />
       <PhoneLauncher />
-    </>
+    </main>
   )
 }
