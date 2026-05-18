@@ -299,7 +299,7 @@ class ArtifactControllerIntegrationTest {
         UUID userUuid = UUID.randomUUID();
         UUID artifactId = UUID.randomUUID();
         ShareCreateResponse response = new ShareCreateResponse("signed-share-token",
-            "https://minio.example.com/nemonic/artifact-downloads/result-qr.jpg", "https://nemonic.example.com",
+            "https://minio.example.com/nemonic/artifact-downloads/result-qr-v2.jpg", "https://nemonic.example.com",
             "https://nemonic.example.com?utm_source=kakao", "https://nemonic.example.com?utm_source=instagram");
 
         when(artifactShareService.createArtifactShare(userUuid.toString(), artifactId.toString())).thenReturn(response);
@@ -310,8 +310,8 @@ class ArtifactControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("산출물 공유 정보 생성 성공"))
             .andExpect(jsonPath("$.data.shareToken").value("signed-share-token"))
-            .andExpect(
-                jsonPath("$.data.imageUrl").value("https://minio.example.com/nemonic/artifact-downloads/result-qr.jpg"))
+            .andExpect(jsonPath("$.data.imageUrl")
+                .value("https://minio.example.com/nemonic/artifact-downloads/result-qr-v2.jpg"))
             .andExpect(jsonPath("$.data.siteUrl").value("https://nemonic.example.com"))
             .andExpect(jsonPath("$.data.kakaoUrl").value("https://nemonic.example.com?utm_source=kakao"))
             .andExpect(jsonPath("$.data.instagramUrl").value("https://nemonic.example.com?utm_source=instagram"));

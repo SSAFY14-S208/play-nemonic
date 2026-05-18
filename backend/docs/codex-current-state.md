@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Current Focus
 
@@ -9,7 +9,7 @@ Last updated: 2026-05-17
 - Team contribution and backend MR conventions are recorded for shared workflow.
 - 커뮤니티 메모 상세 공유는 `POST /api/v1/community/memos/{memoUuid}/share`를 사용해
   QR 합성 이미지가 포함된 `ShareCreateResponse`를 생성하며, 캐시 객체는
-  `community-memo-shares/{memoUuid}/result-qr.jpg`에 저장한다. 이 흐름은
+  `community-memo-shares/{memoUuid}/result-qr-v2.jpg`에 저장한다. 이 흐름은
   `Anonymous-User-UUID`를 검증하고, 존재하는 사용자는 누구나 공개 visible 메모를
   공유할 수 있으며, hidden/deleted/blocked 메모는 거부한다. 이미지 선택은
   `body_image_url`을 우선 사용하고 없으면 `thumbnail_image_url`로 fallback 하며,
@@ -18,7 +18,7 @@ Last updated: 2026-05-17
 - Community memo sharing now preserves flipbook animation: visible memos with
   `artifact.kind=flipbook` or `playback_image_reference` use the flipbook GIF as
   the QR composition source, cache the result under
-  `community-memo-shares/{memoUuid}/result-qr.gif`, and return the public GIF URL
+  `community-memo-shares/{memoUuid}/result-qr-v2.gif`, and return the public GIF URL
   in the existing `ShareCreateResponse` shape.
 - Backend runtime now sets the JVM default timezone from `nemonic.time-zone`
   (`APP_TIME_ZONE`, default `Asia/Seoul`) during application startup so
@@ -458,9 +458,10 @@ Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/
 - Both APIs verify the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
 - Download/share artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, `infinite_canvas`,
   `phone`, and `community_memo`.
-- QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and `QR_DOWNLOAD` channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
+- QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
+- QR composition uses ZXing low error correction (`L`), one-module margin, and a larger bounded overlay size so download/share QR modules render less densely on static images and GIF frames.
 - The API creates or reuses a QR-composed MinIO cache object, then returns JPG/GIF bytes as an attachment.
-- Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr.gif` with QR overlaid on every frame.
+- Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr-v2.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr-v2.gif` with QR overlaid on every frame.
 - `POST /api/v1/artifacts/{artifactId}/share` reuses the same QR cache and returns the public QR image URL plus Kakao/Instagram UTM URLs in the existing `ShareCreateResponse` shape.
 - Community memo QR assets read `community_memo.body_image_url` first, then `community_memo.thumbnail_image_url`, and only fall back to `artifact.thumbnail_url`.
 - The older galleryId-based `POST /api/v1/share` endpoint was removed; use artifact or community memo
