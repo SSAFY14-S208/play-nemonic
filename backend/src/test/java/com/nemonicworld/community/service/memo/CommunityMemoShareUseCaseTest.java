@@ -36,13 +36,13 @@ class CommunityMemoShareUseCaseTest {
     private static final String ORIGINAL_OBJECT_KEY = "community/memos/a/original.png";
     private static final String THUMBNAIL_OBJECT_KEY = "community/memos/a/thumb.png";
     private static final String GIF_OBJECT_KEY = "flipbook/results/a/result.gif";
-    private static final String CACHE_OBJECT_KEY = "community-memo-shares/%s/result-qr-v2.jpg".formatted(MEMO_ID);
-    private static final String GIF_CACHE_OBJECT_KEY = "community-memo-shares/%s/result-qr-v2.gif".formatted(MEMO_ID);
+    private static final String CACHE_OBJECT_KEY = "community-memo-shares/%s/result-qr-v3.jpg".formatted(MEMO_ID);
+    private static final String GIF_CACHE_OBJECT_KEY = "community-memo-shares/%s/result-qr-v3.gif".formatted(MEMO_ID);
     private static final String SHARE_TOKEN = "signed-community-token";
     private static final String QR_IMAGE_URL = "https://minio.example.com/nemonic/community-memo-shares/"
-        + "660e8400-e29b-41d4-a716-446655440000/result-qr-v2.jpg";
+        + "660e8400-e29b-41d4-a716-446655440000/result-qr-v3.jpg";
     private static final String QR_GIF_URL = "https://minio.example.com/nemonic/community-memo-shares/"
-        + "660e8400-e29b-41d4-a716-446655440000/result-qr-v2.gif";
+        + "660e8400-e29b-41d4-a716-446655440000/result-qr-v3.gif";
     private static final String KAKAO_URL = "https://nemonic.example.com?utm_source=kakao&utm_medium=social"
         + "&utm_campaign=community_memo_result&share_token=signed-community-token";
     private static final String INSTAGRAM_URL = "https://nemonic.example.com?utm_source=instagram&utm_medium=story"
