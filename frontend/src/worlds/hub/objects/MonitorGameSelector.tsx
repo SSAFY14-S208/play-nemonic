@@ -7,6 +7,7 @@ import {
   HUB_MONITOR_SCREEN_POSITION,
   HUB_MONITOR_SCREEN_SIZE,
 } from '@/shared/constants'
+import { useHubRoomStore } from '@/shared/stores'
 import type { HubGameId } from '@/shared/types'
 import type { MonitorEntranceProgressRef, MonitorGameAction } from './hooks'
 import {
@@ -219,6 +220,7 @@ function AnimatedLogo({
 
 function MonitorHotspot({
   action,
+  isArrowAnimated,
   label,
   onClick,
   position,
@@ -226,6 +228,7 @@ function MonitorHotspot({
   symbol,
 }: {
   action: MonitorGameAction
+  isArrowAnimated: boolean
   label: string
   onClick: () => void
   position: [number, number, number]
@@ -238,10 +241,26 @@ function MonitorHotspot({
   const invalidate = useThree((state) => state.invalidate)
   const arrowDirection = action === 'previous' ? -1 : action === 'next' ? 1 : 0
 
+  useEffect(() => {
+    if (isArrowAnimated) {
+      invalidate()
+      return
+    }
+
+    const arrowGroup = arrowGroupRef.current
+    if (!arrowGroup) return
+
+    arrowElapsedTimeRef.current = 0
+    arrowGroup.position.x = 0
+    arrowGroup.scale.setScalar(1)
+    invalidate()
+  }, [invalidate, isArrowAnimated])
+
   useFrame((_, delta) => {
     const arrowGroup = arrowGroupRef.current
 
     if (!symbol || !arrowGroup || arrowDirection === 0) return
+    if (!isArrowAnimated) return
 
     arrowElapsedTimeRef.current += delta
 
@@ -524,6 +543,9 @@ export default function MonitorGameSelector({
     selectPreviousGame,
     startSelectedGame,
   } = useMonitorGameSelector()
+  const shouldAnimateNavArrows = useHubRoomStore(
+    (state) => state.focusKey === 'monitor',
+  )
   const textureList = useTexture(MONITOR_TEXTURE_URLS) as THREE.Texture[]
   const textures = MONITOR_TEXTURE_URLS.reduce<Record<string, THREE.Texture>>(
     (textureMap, textureUrl, textureIndex) => {
@@ -573,6 +595,7 @@ export default function MonitorGameSelector({
 
       <MonitorHotspot
         action="previous"
+        isArrowAnimated={shouldAnimateNavArrows}
         label="이전 게임"
         onClick={selectPreviousGame}
         position={[-1.08, 0, MONITOR_HOTSPOT_LAYER_Z]}
@@ -581,6 +604,7 @@ export default function MonitorGameSelector({
       />
       <MonitorHotspot
         action="next"
+        isArrowAnimated={shouldAnimateNavArrows}
         label="다음 게임"
         onClick={selectNextGame}
         position={[1.08, 0, MONITOR_HOTSPOT_LAYER_Z]}

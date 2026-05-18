@@ -9,6 +9,7 @@ import {
   ROOM_PREVIEW_CAMERA,
   ROOM_PREVIEW_HUB_CAMERA_PRESETS,
   ROOM_PREVIEW_RENDERING,
+  ROOM_PREVIEW_RENDERING_PROFILES,
   type RoomPreviewVariant,
 } from "./constants";
 import { RoomPreviewLightDebugPanel } from "./light-debug";
@@ -29,7 +30,7 @@ function CanvasPauseControl() {
       if (isPaused) {
         set({ frameloop: "never" });
       } else {
-        set({ frameloop: "always" });
+        set({ frameloop: "demand" });
         invalidate();
       }
     })();
@@ -51,6 +52,7 @@ export default function RoomPreviewCanvas({
   onCanvasReady?: () => void;
   variant?: RoomPreviewVariant;
 }) {
+  const renderingProfile = ROOM_PREVIEW_RENDERING_PROFILES[variant];
   const initialCamera =
     variant === "hub"
       ? ROOM_PREVIEW_HUB_CAMERA_PRESETS.overview
@@ -66,13 +68,14 @@ export default function RoomPreviewCanvas({
           far: ROOM_PREVIEW_CAMERA.far,
           position: initialCamera.position,
         }}
-        dpr={ROOM_PREVIEW_RENDERING.devicePixelRatio}
+        dpr={renderingProfile.devicePixelRatio}
+        frameloop="demand"
         gl={{
           alpha: false,
           antialias: true,
           powerPreference: "high-performance",
         }}
-        shadows
+        shadows={renderingProfile.shadows}
         onCreated={({
           camera,
           gl,
@@ -84,13 +87,16 @@ export default function RoomPreviewCanvas({
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.AgXToneMapping;
           gl.toneMappingExposure = ROOM_PREVIEW_RENDERING.toneMappingExposure;
-          gl.shadowMap.enabled = true;
+          gl.shadowMap.enabled = renderingProfile.shadows;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
           onCanvasReady?.();
         }}
       >
         <CanvasPauseControl />
-        <RoomPreviewScene variant={variant} />
+        <RoomPreviewScene
+          enablePostProcessing={renderingProfile.postProcessing}
+          variant={variant}
+        />
       </Canvas>
       <RoomPreviewLightDebugPanel />
     </>

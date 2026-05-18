@@ -92,6 +92,26 @@ export const ROOM_PREVIEW_RENDERING = {
   toneMappingExposure: 1.12,
 }
 
+export const ROOM_PREVIEW_RENDERING_PROFILES: Record<
+  RoomPreviewVariant,
+  {
+    devicePixelRatio: number | [number, number]
+    postProcessing: boolean
+    shadows: boolean
+  }
+> = {
+  preview: {
+    devicePixelRatio: ROOM_PREVIEW_RENDERING.devicePixelRatio,
+    postProcessing: true,
+    shadows: true,
+  },
+  hub: {
+    devicePixelRatio: [1, 1.2],
+    postProcessing: true,
+    shadows: false,
+  },
+}
+
 export const ROOM_PREVIEW_LIGHTING = {
   ambient: {
     color: '#fff7ff',
