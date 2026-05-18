@@ -45,3 +45,4 @@ export {
   startNemonicPrintVibration,
   stopNemonicPrintVibration,
 } from './nemonicPrintVibration'
+export { normalizeOcrCategories } from './normalizeOcrCategories'
