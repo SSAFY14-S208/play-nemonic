@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { HTTPError } from 'ky'
 import { toast } from 'sonner'
 import {
   ApiError,
@@ -26,6 +27,11 @@ import {
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type MemoPlaybackImageUrlMap = Record<string, string>
 type MemoWithDecoration = Pick<CommunityMemoItemResponse, 'decoration'>
+type ApiErrorResponseBody = {
+  message?: unknown
+}
+
+const DUPLICATE_REPORT_ERROR_MESSAGE = '이미 신고한 메모는 중복 신고할 수 없어요.'
 
 export interface CommunityMemoLayoutDraft {
   positionX: number
@@ -38,6 +44,38 @@ function toErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message || fallback
   if (error instanceof Error) return error.message || fallback
   return fallback
+}
+
+function isDuplicateReportMessage(message: string) {
+  return message.includes('중복') || (message.includes('이미') && message.includes('신고'))
+}
+
+async function toHttpErrorResponseMessage(error: HTTPError) {
+  try {
+    const responseBody = (await error.response.clone().json()) as ApiErrorResponseBody
+    return typeof responseBody.message === 'string' ? responseBody.message : null
+  } catch {
+    return null
+  }
+}
+
+async function toReportErrorMessage(error: unknown) {
+  if (error instanceof ApiError && isDuplicateReportMessage(error.message)) {
+    return DUPLICATE_REPORT_ERROR_MESSAGE
+  }
+
+  if (error instanceof HTTPError) {
+    const responseMessage = await toHttpErrorResponseMessage(error)
+    if (responseMessage && isDuplicateReportMessage(responseMessage)) {
+      return DUPLICATE_REPORT_ERROR_MESSAGE
+    }
+
+    if (error.response.status === 404 || error.response.status === 409) {
+      return DUPLICATE_REPORT_ERROR_MESSAGE
+    }
+  }
+
+  return toErrorMessage(error, '신고 접수에 실패했어요.')
 }
 
 function toLayoutDraft(memo: CommunityMemoItemResponse): CommunityMemoLayoutDraft {
@@ -395,7 +433,7 @@ export function useCommunityCanvas() {
         return true
       } catch (error) {
         setReportStatus('error')
-        toast.error(toErrorMessage(error, '신고 접수에 실패했어요.'))
+        toast.error(await toReportErrorMessage(error))
         return false
       }
     },
