@@ -249,7 +249,7 @@ export default function FortunePage() {
 
     if (step === "birthInfo") {
       return (
-        <div className="mx-auto grid w-[min(91vw,46rem)] gap-4 max-[800px]:w-[min(94vw,33.5rem)]">
+        <div className="mx-auto grid w-[min(91vw,27rem)] gap-2 max-[800px]:w-[min(94vw,27rem)] max-[800px]:gap-2">
           <div className="flex w-full items-center justify-between gap-3">
             <FortuneBackToggle onClick={handleReturnToDialogue} inline />
             <FortuneBgmToggle

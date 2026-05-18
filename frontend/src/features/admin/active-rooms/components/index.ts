@@ -1,5 +1,6 @@
 export { default as BackofficeRelayRoomsPage } from './BackofficeRelayRoomsPage'
 export { default as BackofficeFlipbookRoomsPage } from './BackofficeFlipbookRoomsPage'
+export { default as BackofficeInfiniteCanvasesPage } from './BackofficeInfiniteCanvasesPage'
 export { RoomStatusBadge } from './RoomStatusBadge'
 export { RoomFilterBar, type RoomFilterOption } from './RoomFilterBar'
 export { RoomPagination } from './RoomPagination'
