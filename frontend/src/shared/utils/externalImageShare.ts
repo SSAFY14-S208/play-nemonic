@@ -1,4 +1,7 @@
 const GIF_MIME_TYPE = 'image/gif'
+const JPEG_MIME_TYPE = 'image/jpeg'
+const PNG_MIME_TYPE = 'image/png'
+const WEBP_MIME_TYPE = 'image/webp'
 
 export type ExternalImageShareResult =
   | 'native-file'
@@ -16,9 +19,9 @@ function toAbsoluteShareUrl(imageUrl: string) {
 
 function getShareImageExtension(mimeType: string, imageUrl: string) {
   if (mimeType === GIF_MIME_TYPE) return 'gif'
-  if (mimeType === 'image/jpeg') return 'jpg'
-  if (mimeType === 'image/webp') return 'webp'
-  if (mimeType === 'image/png') return 'png'
+  if (mimeType === JPEG_MIME_TYPE) return 'jpg'
+  if (mimeType === WEBP_MIME_TYPE) return 'webp'
+  if (mimeType === PNG_MIME_TYPE) return 'png'
 
   const pathExtension = imageUrl
     .split(/[?#]/)[0]
@@ -26,6 +29,65 @@ function getShareImageExtension(mimeType: string, imageUrl: string) {
     ?.toLowerCase()
 
   return pathExtension || 'png'
+}
+
+function getMimeTypeFromExtension(imageUrl: string) {
+  const pathExtension = imageUrl
+    .split(/[?#]/)[0]
+    ?.match(/\.([a-z0-9]+)$/i)?.[1]
+    ?.toLowerCase()
+
+  if (pathExtension === 'gif') return GIF_MIME_TYPE
+  if (pathExtension === 'jpg' || pathExtension === 'jpeg') return JPEG_MIME_TYPE
+  if (pathExtension === 'webp') return WEBP_MIME_TYPE
+  if (pathExtension === 'png') return PNG_MIME_TYPE
+
+  return null
+}
+
+function isSupportedShareImageMimeType(mimeType: string) {
+  return (
+    mimeType === GIF_MIME_TYPE ||
+    mimeType === JPEG_MIME_TYPE ||
+    mimeType === PNG_MIME_TYPE ||
+    mimeType === WEBP_MIME_TYPE
+  )
+}
+
+async function inferShareImageMimeType(blob: Blob, imageUrl: string) {
+  if (isSupportedShareImageMimeType(blob.type)) return blob.type
+
+  const mimeTypeFromExtension = getMimeTypeFromExtension(imageUrl)
+  if (mimeTypeFromExtension) return mimeTypeFromExtension
+
+  const bytes = new Uint8Array(await blob.slice(0, 12).arrayBuffer())
+  const isPng =
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+  const isGif =
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x38
+  const isWebp =
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+
+  if (isPng) return PNG_MIME_TYPE
+  if (isJpeg) return JPEG_MIME_TYPE
+  if (isGif) return GIF_MIME_TYPE
+  if (isWebp) return WEBP_MIME_TYPE
+
+  return PNG_MIME_TYPE
 }
 
 function isLikelyMobileShareEnvironment() {
@@ -53,7 +115,7 @@ async function createShareImageFile(imageUrl: string, fileNameBase: string) {
   }
 
   const blob = await response.blob()
-  const mimeType = blob.type || 'image/jpeg'
+  const mimeType = await inferShareImageMimeType(blob, imageUrl)
   const extension = getShareImageExtension(mimeType, imageUrl)
 
   return new File([blob], `${fileNameBase}.${extension}`, { type: mimeType })
@@ -108,7 +170,11 @@ async function copyShareImage(imageUrl: string, fileNameBase: string) {
 }
 
 async function shareImageFile(title: string, text: string, imageFile: File) {
-  if (!navigator.share || !navigator.canShare?.({ files: [imageFile] })) {
+  if (!navigator.share) {
+    throw new Error('file-share-unavailable')
+  }
+
+  if (navigator.canShare && !navigator.canShare({ files: [imageFile] })) {
     throw new Error('file-share-unavailable')
   }
 
@@ -171,7 +237,7 @@ export async function shareExternalImage({
       }
     }
 
-    if (isMobileShareEnvironment) {
+    if (preferNativeFileShare || isMobileShareEnvironment) {
       await navigator.share({
         title,
         text,
