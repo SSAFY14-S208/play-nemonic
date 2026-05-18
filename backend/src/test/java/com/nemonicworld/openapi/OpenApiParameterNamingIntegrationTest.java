@@ -64,8 +64,8 @@ class OpenApiParameterNamingIntegrationTest {
         assertGroupContainsTags(OpenApiGroups.ALL_GROUP);
 
         assertGroupContainsPaths(OpenApiGroups.COMMON_GROUP,
-            List.of("/api/v1/users/anonymous", "/api/v1/auth/login", "/api/v1/files/presign"),
-            List.of("/api/v1/relay/rooms", "/api/v1/backoffice/system-parameters"));
+            List.of("/api/v1/users/anonymous", "/api/v1/files/presign"),
+            List.of("/api/v1/auth/login", "/api/v1/relay/rooms", "/api/v1/backoffice/system-parameters"));
         assertGroupContainsTags(OpenApiGroups.COMMON_GROUP);
 
         assertGroupContainsPaths(OpenApiGroups.CONTENTS_GROUP,
@@ -83,8 +83,9 @@ class OpenApiParameterNamingIntegrationTest {
             List.of("/api/v1/admin/inquiries", "/api/v1/relay/rooms"));
         assertGroupContainsTags(OpenApiGroups.SUPPORT_LOGS_GROUP);
 
-        assertGroupContainsPaths(OpenApiGroups.BACKOFFICE_GROUP,
-            List.of("/api/v1/admins", "/api/v1/admin/community/memos", "/api/v1/backoffice/system-parameters"),
+        assertGroupContainsPaths(
+            OpenApiGroups.BACKOFFICE_GROUP, List.of("/api/v1/auth/login", "/api/v1/admins",
+                "/api/v1/admin/community/memos", "/api/v1/backoffice/system-parameters"),
             List.of("/api/v1/inquiries", "/api/v1/relay/rooms"));
         assertGroupContainsTags(OpenApiGroups.BACKOFFICE_GROUP);
     }
