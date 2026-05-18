@@ -23,10 +23,8 @@ function flattenPoints(points: { x: number; y: number }[]): number[] {
 }
 
 const MIN_LINE_POINT_DISTANCE = 0
-const MAX_LINE_POINTS_PER_OBJECT = 20000
-const MAX_DRAFT_LINE_POINTS = 1800
-const LINE_INTERPOLATION_DISTANCE = 5
-const MAX_INTERPOLATED_POINTS_PER_MOVE = 80
+const MAX_LINE_POINTS_PER_OBJECT = 5200
+const MAX_DRAFT_LINE_POINTS = 600
 const BUCKET_FILL_PADDING = 96
 const BUCKET_FILL_MAX_SIZE = 1600
 const BUCKET_FILL_ALPHA_TOLERANCE = 16
@@ -58,33 +56,6 @@ function limitLinePoints(points: { x: number; y: number }[], maxPointCount: numb
     sampledPoints.push(points[Math.round(pointIndex * step)])
   }
   return sampledPoints
-}
-
-function appendInterpolatedLinePoint(
-  points: { x: number; y: number }[],
-  nextPoint: { x: number; y: number },
-) {
-  const previousPoint = points.at(-1)
-  if (!previousPoint) {
-    points.push(nextPoint)
-    return
-  }
-
-  const distanceX = nextPoint.x - previousPoint.x
-  const distanceY = nextPoint.y - previousPoint.y
-  const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY)
-  const segmentCount = Math.min(
-    Math.max(Math.ceil(distance / LINE_INTERPOLATION_DISTANCE), 1),
-    MAX_INTERPOLATED_POINTS_PER_MOVE,
-  )
-
-  for (let segmentIndex = 1; segmentIndex <= segmentCount; segmentIndex++) {
-    const ratio = segmentIndex / segmentCount
-    points.push({
-      x: previousPoint.x + distanceX * ratio,
-      y: previousPoint.y + distanceY * ratio,
-    })
-  }
 }
 
 function createDraftLine(line: InfinityLine): InfinityLine {
@@ -865,7 +836,7 @@ export function useInfinityEvents({
       const prev = currentLineRef.current
       if (!prev) return
       if (!shouldAppendLinePoint(prev.points.at(-1), pos)) return
-      appendInterpolatedLinePoint(prev.points, pos)
+      prev.points.push(pos)
       prev.points = limitLinePoints(prev.points, MAX_LINE_POINTS_PER_OBJECT)
       showCurrentLine(prev)
       onDraftObjectChange?.(createDraftLine(prev))

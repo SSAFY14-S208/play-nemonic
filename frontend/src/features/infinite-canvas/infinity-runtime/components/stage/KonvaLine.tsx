@@ -26,6 +26,7 @@ export function KonvaLine({
       strokeWidth={line.strokeWidth}
       lineCap="round"
       lineJoin="round"
+      perfectDrawEnabled={false}
       globalCompositeOperation={
         line.isEraser ? "destination-out" : "source-over"
       }
