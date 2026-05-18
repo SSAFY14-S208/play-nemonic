@@ -23,8 +23,8 @@ function flattenPoints(points: { x: number; y: number }[]): number[] {
 }
 
 const MIN_LINE_POINT_DISTANCE = 0
-const MAX_LINE_POINTS_PER_OBJECT = 5200
-const MAX_DRAFT_LINE_POINTS = 600
+const MAX_LINE_POINTS_PER_OBJECT = 20000
+const MAX_DRAFT_LINE_POINTS = 1800
 const BUCKET_FILL_PADDING = 96
 const BUCKET_FILL_MAX_SIZE = 1600
 const BUCKET_FILL_ALPHA_TOLERANCE = 16

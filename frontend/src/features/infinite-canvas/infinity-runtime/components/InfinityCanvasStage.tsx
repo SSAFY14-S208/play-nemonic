@@ -97,7 +97,6 @@ function createRemoteDraftNode(draft: InfinityRemoteDraftObjectView) {
       lineCap: "round",
       lineJoin: "round",
       tension: INFINITY_LINE_TENSION,
-      perfectDrawEnabled: false,
       listening: false,
       globalCompositeOperation: "source-over",
     });
@@ -796,7 +795,6 @@ export function InfinityCanvasStage({
           lineCap="round"
           lineJoin="round"
           tension={INFINITY_LINE_TENSION}
-          perfectDrawEnabled={false}
           opacity={1}
           globalCompositeOperation={obj.isEraser ? "destination-out" : "source-over"}
           listening={false}
