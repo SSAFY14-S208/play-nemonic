@@ -56,12 +56,19 @@ export function FunnelAbandonChart({ state, onRetry, onDrillDown }: Props) {
               </div>
               <div className="flex items-stretch gap-0">
                 {funnel.steps.map((step, index) => {
-                  const ratioFromStart =
+                  // distinct uuid 집계여도 단계를 건너뛰는 진입 경로(예: 릴레이 초대 링크
+                  // 게스트가 lobby 건너뛰고 drawing 직진입)가 있으면 후속 단계의
+                  // count가 직전 단계보다 많아질 수 있다. 깔때기 시각화는 "잔존"을
+                  // 가정하므로, 시각적 비율은 100%로 cap하고 over는 별도 라벨로 표시.
+                  const ratioFromStartRaw =
                     baseCount > 0 ? step.count / baseCount : 0
-                  const ratioFromPrev =
+                  const ratioFromStart = Math.min(ratioFromStartRaw, 1)
+                  const ratioFromPrevRaw =
                     index === 0 || funnel.steps[index - 1].count === 0
                       ? 1
                       : step.count / funnel.steps[index - 1].count
+                  const ratioFromPrev = Math.min(ratioFromPrevRaw, 1)
+                  const isReentry = ratioFromPrevRaw > 1
                   const widthBasis = Math.max(ratioFromStart * 100, 16)
                   const opacity = 0.35 + ratioFromStart * 0.65
                   return (
@@ -102,7 +109,9 @@ export function FunnelAbandonChart({ state, onRetry, onDrillDown }: Props) {
                         </span>
                         {index > 0 && (
                           <span className="caption-r text-white/75">
-                            잔존 {Math.round(ratioFromPrev * 100)}%
+                            {isReentry
+                              ? `↑ ${ratioFromPrevRaw.toFixed(1)}× 재유입`
+                              : `잔존 ${Math.round(ratioFromPrev * 100)}%`}
                           </span>
                         )}
                       </button>
