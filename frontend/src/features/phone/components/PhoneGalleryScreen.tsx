@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect } from 'react'
-import { ArrowLeft, ChevronDown, ImageIcon, Search } from 'lucide-react'
+import { ArrowLeft, ImageIcon } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import {
   PHONE_COLORS,
@@ -175,29 +175,14 @@ export function PhoneGalleryScreen() {
             <ArrowLeft className="size-5" />
           </button>
           <h2 className="h3-b">내 갤러리</h2>
-          <button
-            type="button"
-            aria-label="갤러리 검색"
-            className="grid size-11 place-items-center rounded-full text-fg-secondary transition hover:bg-white"
-          >
-            <Search className="size-5" />
-          </button>
+          <span className="size-11" aria-hidden />
         </div>
       </header>
 
       <section className="shrink-0 px-5 pb-3">
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
-            <p className="caption-m text-fg-secondary">저장된 네모닉</p>
-            <p className="h4-b mt-0.5 text-fg-primary">총 {galleryTotal}개</p>
-          </div>
-          <button
-            type="button"
-            className="caption-b flex h-8 items-center gap-1 rounded-[0.45rem] border border-border-default bg-white px-3 text-fg-secondary"
-          >
-            최신순
-            <ChevronDown className="size-3.5" />
-          </button>
+        <div className="mb-3">
+          <p className="caption-m text-fg-secondary">저장된 네모닉</p>
+          <p className="h4-b mt-0.5 text-fg-primary">총 {galleryTotal}개</p>
         </div>
 
         <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">

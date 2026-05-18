@@ -1,3 +1,4 @@
+export * from './canvasPauseStore'
 export * from './hubViewStore'
 export * from './userStore'
 export * from './adminAuthStore'

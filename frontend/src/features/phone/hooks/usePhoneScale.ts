@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 
-const PHONE_DESIGN_WIDTH = 393
-const PHONE_DESIGN_HEIGHT = 815
+export const PHONE_DESIGN_WIDTH = 393
+export const PHONE_DESIGN_HEIGHT = 815
 const VIEWPORT_PADDING_X = 32
 const VIEWPORT_PADDING_Y = 48
 

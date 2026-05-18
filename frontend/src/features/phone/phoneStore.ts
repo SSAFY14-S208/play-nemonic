@@ -10,7 +10,10 @@ import {
   getGalleryList,
   patchAnonymousNickname,
 } from '@/shared/apis'
-import { useHubPrintStore, useHubRoomStore, useUserStore } from '@/shared/stores'
+import {
+  useCanvasPauseStore,
+  useUserStore,
+} from '@/shared/stores'
 import type {
   AnonymousUserProfileResponse,
   GalleryDetailResponse,
@@ -107,6 +110,7 @@ interface PhoneStore {
       | {
           action: 'print'
           imageDataUrl: string
+          saveResponse: PhoneDrawingSaveResponse
         },
   ) => void
 }
@@ -177,7 +181,8 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
       galleryDetailStatus: 'idle',
       galleryDetailError: null,
     }),
-  closePhone: () =>
+  closePhone: () => {
+    useCanvasPauseStore.getState().setPaused(false)
     set({
       activeScreen: 'home',
       isPhoneOpen: false,
@@ -186,16 +191,19 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
       galleryDetail: null,
       galleryDetailStatus: 'idle',
       galleryDetailError: null,
-    }),
+    })
+  },
   dismissToast: () => set({ toastMessage: null }),
   setToast: (toastMessage) => set({ toastMessage }),
   goHome: () => set({ activeScreen: 'home', selectedGalleryItemId: null }),
-  openPhone: () =>
+  openPhone: () => {
+    useCanvasPauseStore.getState().setPaused(true)
     set({
       activeScreen: 'home',
       isPhoneOpen: true,
       selectedGalleryItemId: null,
-    }),
+    })
+  },
   selectGalleryItem: (itemId) => set({ selectedGalleryItemId: itemId }),
   showDrawing: () => set({ activeScreen: 'drawing', selectedGalleryItemId: null }),
   showGallery: () => set({ activeScreen: 'gallery', selectedGalleryItemId: null }),
@@ -397,17 +405,20 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
 
   addDrawingArtifact: (params) => {
     if (params.action === 'print') {
-      useHubPrintStore
-        .getState()
-        .requestPrint(params.imageDataUrl, '내가 그린 메모')
-      useHubRoomStore.getState().setFocus('printer')
+      useCanvasPauseStore.getState().setPaused(false)
 
-      set({
+      set((state) => ({
         activeScreen: 'home',
         isPhoneOpen: false,
+        galleryItems: [
+          createSavedDrawingItem(params.saveResponse, params.imageDataUrl),
+          ...state.galleryItems,
+        ],
+        galleryTotal: state.galleryTotal + 1,
         selectedGalleryItemId: null,
-        toastMessage: '네모닉 출력 요청을 보냈어요.',
-      })
+        toastMessage: null,
+      }))
+      void get().loadGallery({ force: true })
       return
     }
 
