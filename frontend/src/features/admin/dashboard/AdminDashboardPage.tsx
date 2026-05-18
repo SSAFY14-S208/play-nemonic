@@ -7,7 +7,6 @@ import {
   AnalyticsFilterBar,
   AnalyticsSection,
   ContentCompletionChart,
-  ContentTransitionHeatmap,
   DrillDownPanel,
   DwellTimeBar,
   EntryChannelDonut,
@@ -33,7 +32,6 @@ import {
   useI1Kpi,
   useI2ContentCompletion,
   useI3FunnelAbandon,
-  useI4ContentTransition,
   useI5EntryTimeline,
   useI6ShareRate,
   useI7EntryChannel,
@@ -44,14 +42,13 @@ import type { VizId, VizSection } from './types'
 
 // 백오피스 대시보드 페이지 — Grafana iframe 대체본.
 //
-// 13개 viz 모두 BE 로그 집계 API 직접 호출로 채워짐.
+// 12개 viz 모두 BE 로그 집계 API 직접 호출로 채워짐.
 //   - KPI 카드 3종 (I1·I11·I12) — search/distinct-count
 //   - donut 3종 (I6·I7·I8) — field-summary / terms-with-subs
 //   - 가로 막대 2종 (I2·I9) — terms-with-subs / terms-with-metric
 //   - stacked area 2종 (I5·I10) — histogram byField
-//   - faceted bar 1종 (I3) — composite-buckets
-//   - heatmap 1종 (I4) — composite-buckets
-//   - 3-phase 카드 1종 (I13) — filtered-metrics
+//   - 단계 카드 1종 (I3) — composite-buckets
+//   - 3-phase 막대 1종 (I13) — filtered-metrics
 //
 // 모든 차트는 클릭 시 우측 드릴다운 패널을 열어 해당 dimension의 raw 이벤트 50건 +
 // 시계열을 표시한다.
@@ -99,7 +96,6 @@ export default function AdminDashboardPage() {
   const i5State = useI5EntryTimeline(vizArgs)
   // 흐름
   const i3State = useI3FunnelAbandon(vizArgs)
-  const i4State = useI4ContentTransition(vizArgs)
   // 체류
   const i9State = useI9DwellTime(vizArgs)
   const i13State = useI13AbandonElapsed(vizArgs)
@@ -174,14 +170,6 @@ export default function AdminDashboardPage() {
         return (
           <FunnelAbandonChart
             state={i3State}
-            onRetry={filters.refresh}
-            onDrillDown={drillDown.open}
-          />
-        )
-      case 'I4':
-        return (
-          <ContentTransitionHeatmap
-            state={i4State}
             onRetry={filters.refresh}
             onDrillDown={drillDown.open}
           />

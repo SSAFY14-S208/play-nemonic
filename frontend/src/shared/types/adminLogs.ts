@@ -124,7 +124,9 @@ export type AdminLogsTermsWithSubsResponse = {
 }
 
 // 신규: POST /admin/logs/terms-with-metric
-export type AdminLogsMetricType = 'avg' | 'sum' | 'max' | 'min'
+// cardinality 메트릭은 식별자 필드(uuid · session_id · trace_id) 화이트리스트에서만
+// 허용된다 — funnel 단계별 distinct uuid 같은 사용자 단위 집계에 사용한다.
+export type AdminLogsMetricType = 'avg' | 'sum' | 'max' | 'min' | 'cardinality'
 
 export type AdminLogsMetricSpec = {
   name: string

@@ -287,9 +287,19 @@ export function useI10EntryChannelTimeline(args: AnalyticsVizArgs) {
 
 // ============================================================
 // 흐름 viz — I3 단계별 이탈 깔때기 (faceted)
-// composite-buckets(funnel_name, step_name) + subAggs(minStepIndex).
+// composite-buckets(funnel_name, step_name) + subAggs(minStepIndex, cardinality(uuid)).
+//
+// `count`는 distinct uuid(사용자 단위) 기준 잔존 수다. 동일 사용자가 한 단계를 여러 번
+// 거쳐도(라운드 반복, 새로고침, 재접속) 1로 계산되므로 진짜 funnel 의미가 된다.
+// `docCount`는 원본 이벤트 발생 수 — 비교/검증용으로 보존하지만 UI 잔존율 계산에는
+// 쓰지 않는다(과거 doc_count 기반은 잔존율 100% 초과 같은 비현실적 값을 만들었다).
 // ============================================================
-export type I3Step = { name: string; count: number; minStepIndex: number }
+export type I3Step = {
+  name: string
+  count: number
+  docCount: number
+  minStepIndex: number
+}
 export type I3Funnel = { name: string; steps: I3Step[] }
 
 export function useI3FunnelAbandon(args: AnalyticsVizArgs) {
@@ -304,7 +314,10 @@ export function useI3FunnelAbandon(args: AnalyticsVizArgs) {
         timeRange,
         sources: ['metadata.funnel_name', 'metadata.step_name'],
         size: 200,
-        subAggs: [{ name: 'minStepIndex', type: 'min', field: 'metadata.step_index' }],
+        subAggs: [
+          { name: 'minStepIndex', type: 'min', field: 'metadata.step_index' },
+          { name: 'uniqueUsers', type: 'cardinality', field: 'uuid' },
+        ],
       })
       // funnel_name별로 grouping.
       const grouped = new Map<string, I3Step[]>()
@@ -312,8 +325,14 @@ export function useI3FunnelAbandon(args: AnalyticsVizArgs) {
         const funnelName = bucket.keys['metadata.funnel_name'] ?? '(미지정)'
         const stepName = bucket.keys['metadata.step_name'] ?? '(미지정)'
         const minStepIndex = bucket.sub?.minStepIndex ?? 0
+        const uniqueUsers = bucket.sub?.uniqueUsers ?? 0
         const existing = grouped.get(funnelName) ?? []
-        existing.push({ name: stepName, count: bucket.count, minStepIndex })
+        existing.push({
+          name: stepName,
+          count: uniqueUsers,
+          docCount: bucket.count,
+          minStepIndex,
+        })
         grouped.set(funnelName, existing)
       }
       const funnels: I3Funnel[] = []
@@ -322,63 +341,6 @@ export function useI3FunnelAbandon(args: AnalyticsVizArgs) {
         funnels.push({ name, steps })
       }
       return funnels
-    },
-    [timeRange, serviceFilters, serviceQuery, refreshNonce],
-  )
-}
-
-// ============================================================
-// 흐름 viz — I4 컨텐츠 간 이동 흐름 (heatmap)
-// composite-buckets(prev_path, path) on event_name:page_view.
-// 클라이언트가 path → 컨텐츠 카테고리로 collapse.
-// ============================================================
-export type I4Cell = { from: string; to: string; count: number }
-
-const PATH_TO_CONTENT = (path: string | null): string => {
-  if (!path) return '기타'
-  if (path.startsWith('/relay-drawing')) return '릴레이드로잉'
-  if (path.startsWith('/flipbook')) return '플립북'
-  if (path.startsWith('/community')) return '커뮤니티'
-  if (path.startsWith('/fortune')) return '오늘의 운세'
-  if (path === '/' || path === '/main' || path === '/home' || path.startsWith('/hub')) return '홈'
-  return '기타'
-}
-
-export function useI4ContentTransition(args: AnalyticsVizArgs) {
-  const { timeRange, serviceFilters, serviceQuery, refreshNonce } = args
-  return useAnalyticsFetcher<I4Cell[]>(
-    async () => {
-      // 백엔드 filter는 term 매칭이라 `/admin` exact 제외는 nested admin route에 무효.
-      // wildcard substring 제외는 query string의 NOT 구문으로 처리.
-      const response = await postAdminLogsCompositeBuckets({
-        index: 'biz-events',
-        query:
-          composeQuery([
-            serviceQuery,
-            'event_name:page_view',
-            'NOT path:*admin*',
-            'NOT prev_path:*admin*',
-          ]) || undefined,
-        filters: serviceFilters.length > 0 ? serviceFilters : undefined,
-        timeRange,
-        sources: ['prev_path', 'path'],
-        size: 500,
-      })
-      // path → category로 collapse + 같은 category 내 이동 제외 + 합산.
-      const cellMap = new Map<string, number>()
-      for (const bucket of response.buckets) {
-        const from = PATH_TO_CONTENT(bucket.keys['prev_path'] as string | null)
-        const to = PATH_TO_CONTENT(bucket.keys['path'] as string | null)
-        if (from === to) continue
-        const key = `${from}||${to}`
-        cellMap.set(key, (cellMap.get(key) ?? 0) + bucket.count)
-      }
-      const cells: I4Cell[] = []
-      for (const [key, count] of cellMap.entries()) {
-        const [from, to] = key.split('||')
-        cells.push({ from, to, count })
-      }
-      return cells
     },
     [timeRange, serviceFilters, serviceQuery, refreshNonce],
   )
