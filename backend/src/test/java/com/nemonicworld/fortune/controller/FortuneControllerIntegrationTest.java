@@ -80,6 +80,7 @@ class FortuneControllerIntegrationTest {
         jdbcTemplate.execute("DROP TABLE IF EXISTS fortune_artifact");
         jdbcTemplate.execute("DROP TABLE IF EXISTS gallery");
         jdbcTemplate.execute("DROP TABLE IF EXISTS artifact");
+        jdbcTemplate.execute("DROP TABLE IF EXISTS gms_prompt_feature_state");
         jdbcTemplate.execute("DROP TABLE IF EXISTS gms_prompt_template");
         jdbcTemplate.execute("""
             CREATE TABLE artifact (
@@ -122,7 +123,19 @@ class FortuneControllerIntegrationTest {
                 created_by BIGINT NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP NULL
+                deleted_at TIMESTAMP NULL,
+                is_active BOOLEAN NOT NULL DEFAULT FALSE,
+                activated_at TIMESTAMP NULL,
+                activated_by BIGINT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE gms_prompt_feature_state (
+                feature_type VARCHAR(32) PRIMARY KEY,
+                current_prompt_id BIGINT NULL,
+                updated_by BIGINT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
             )
             """);
     }
@@ -520,11 +533,22 @@ class FortuneControllerIntegrationTest {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
             INSERT INTO gms_prompt_template (
-                prompt_name, template_text, feature_type, created_by, created_at, updated_at, deleted_at
+                prompt_name, template_text, feature_type, created_by, created_at, updated_at, deleted_at,
+                is_active, activated_at, activated_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, NULL)
-            """, "Daily fortune", "오늘의 운세를 JSON으로 생성해줘.", "fortune", 1L, Timestamp.valueOf(now),
-            Timestamp.valueOf(now));
+            VALUES (?, ?, ?, ?, ?, ?, NULL, TRUE, ?, ?)
+            """, "Daily fortune", "오늘의 운세를 JSON으로 생성해줘.", "fortune", 1L, Timestamp.valueOf(now), Timestamp.valueOf(now),
+            Timestamp.valueOf(now), 1L);
+        jdbcTemplate.update("""
+            INSERT INTO gms_prompt_feature_state (
+                feature_type,
+                current_prompt_id,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, 1, ?, ?, ?)
+            """, "fortune", 1L, Timestamp.valueOf(now), Timestamp.valueOf(now));
     }
 
     private FortuneGmsResult sampleGmsResult() {

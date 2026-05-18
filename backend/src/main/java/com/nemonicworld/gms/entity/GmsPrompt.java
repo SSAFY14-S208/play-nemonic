@@ -12,9 +12,12 @@ public class GmsPrompt {
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
     private final LocalDateTime deletedAt;
+    private final boolean active;
+    private final LocalDateTime activatedAt;
+    private final Long activatedBy;
 
     public GmsPrompt(Long id, String name, String content, String featureType, Long createdBy, LocalDateTime createdAt,
-        LocalDateTime updatedAt, LocalDateTime deletedAt) {
+        LocalDateTime updatedAt, LocalDateTime deletedAt, boolean active, LocalDateTime activatedAt, Long activatedBy) {
         this.id = id;
         this.name = name;
         this.content = content;
@@ -23,6 +26,9 @@ public class GmsPrompt {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
+        this.active = active;
+        this.activatedAt = activatedAt;
+        this.activatedBy = activatedBy;
     }
 
     public boolean isDeleted() {
@@ -59,5 +65,17 @@ public class GmsPrompt {
 
     public LocalDateTime getDeletedAt() {
         return deletedAt;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public LocalDateTime getActivatedAt() {
+        return activatedAt;
+    }
+
+    public Long getActivatedBy() {
+        return activatedBy;
     }
 }

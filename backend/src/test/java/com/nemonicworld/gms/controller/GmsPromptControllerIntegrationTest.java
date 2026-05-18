@@ -103,7 +103,19 @@ class GmsPromptControllerIntegrationTest {
                 created_by BIGINT NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP NULL
+                deleted_at TIMESTAMP NULL,
+                is_active BOOLEAN NOT NULL DEFAULT FALSE,
+                activated_at TIMESTAMP NULL,
+                activated_by BIGINT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS gms_prompt_feature_state (
+                feature_type VARCHAR(32) PRIMARY KEY,
+                current_prompt_id BIGINT NULL,
+                updated_by BIGINT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
             )
             """);
         jdbcTemplate.execute("""
@@ -137,6 +149,7 @@ class GmsPromptControllerIntegrationTest {
         jdbcTemplate.update("DELETE FROM gallery");
         jdbcTemplate.update("DELETE FROM fortune_artifact");
         jdbcTemplate.update("DELETE FROM artifact");
+        jdbcTemplate.update("DELETE FROM gms_prompt_feature_state");
         jdbcTemplate.update("DELETE FROM gms_prompt_template");
         jdbcTemplate.update("DELETE FROM admin_user");
         insertAdminUser();
@@ -152,7 +165,8 @@ class GmsPromptControllerIntegrationTest {
             .andExpect(jsonPath("$.data.name").value("Daily fortune"))
             .andExpect(jsonPath("$.data.content").value("Prompt body for {{nickname}}."))
             .andExpect(jsonPath("$.data.featureType").value("fortune"))
-            .andExpect(jsonPath("$.data.createdBy").value(ADMIN_ID));
+            .andExpect(jsonPath("$.data.createdBy").value(ADMIN_ID)).andExpect(jsonPath("$.data.isActive").value(false))
+            .andExpect(jsonPath("$.data.status").value("not_active"));
 
         assertThat(countPromptsByName("Daily fortune")).isEqualTo(1);
         assertThat(countPromptsByFeatureType("fortune")).isEqualTo(1);
@@ -267,6 +281,55 @@ class GmsPromptControllerIntegrationTest {
     }
 
     @Test
+    void adminFiltersPromptListByActiveStatus() throws Exception {
+        insertPrompt(10L, "Active fortune", "Prompt body.", "fortune", null, true);
+        insertPrompt(11L, "Draft fortune", "Prompt body.", "fortune", null, false);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("status", "active"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(10L))
+            .andExpect(jsonPath("$.data.items[0].isActive").value(true))
+            .andExpect(jsonPath("$.data.items[0].status").value("active"));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
+                .queryParam("status", "not_active"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(11L))
+            .andExpect(jsonPath("$.data.items[0].isActive").value(false))
+            .andExpect(jsonPath("$.data.items[0].status").value("not_active"));
+    }
+
+    @Test
+    void adminGetsCurrentFortunePromptFromActivePrompt() throws Exception {
+        insertPrompt(10L, "Active fortune", "Current prompt body.", "fortune", null, true);
+        insertPrompt(11L, "Draft fortune", "Draft prompt body.", "fortune", null, false);
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts/current")
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).queryParam("featureType", "fortune"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.featureType").value("fortune"))
+            .andExpect(jsonPath("$.data.source").value("database")).andExpect(jsonPath("$.data.prompt.id").value(10L))
+            .andExpect(jsonPath("$.data.prompt.content").value("Current prompt body."))
+            .andExpect(jsonPath("$.data.prompt.isActive").value(true));
+    }
+
+    @Test
+    void adminGetsCurrentFortunePromptFallbackWhenNoActivePromptExists() throws Exception {
+        mockMvc
+            .perform(get("/api/v1/backoffice/gms/prompts/current")
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).queryParam("featureType", "fortune"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.featureType").value("fortune"))
+            .andExpect(jsonPath("$.data.source").value("default"))
+            .andExpect(jsonPath("$.data.prompt.id").value(org.hamcrest.Matchers.nullValue()))
+            .andExpect(jsonPath("$.data.prompt.isActive").value(true))
+            .andExpect(jsonPath("$.data.prompt.content").isNotEmpty());
+    }
+
+    @Test
     void adminPromptListExcludesDeletedPrompt() throws Exception {
         LocalDateTime deletedAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         insertPrompt(10L, "Daily fortune", "fortune", null);
@@ -337,6 +400,26 @@ class GmsPromptControllerIntegrationTest {
         assertThat(countRows("gallery")).isZero();
         assertThat(output).doesNotContain("Candidate prompt body.", "Preview title", "Preview summary");
         verify(fortuneGmsClient).generate(eq("Candidate prompt body."), any(JsonNode.class));
+    }
+
+    @Test
+    void adminTestsSavedFortunePromptWithoutPersistingResult() throws Exception {
+        insertPrompt(10L, "Daily fortune", "Saved prompt body.", "fortune", null, false);
+        when(fortuneGmsClient.generate(eq("Saved prompt body."), any(JsonNode.class))).thenReturn(sampleGmsResult());
+
+        mockMvc
+            .perform(post("/api/v1/backoffice/gms/prompts/{promptId}/test", 10L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content(promptTestRequestBody(sajuRequestJson())))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.featureType").value("fortune"))
+            .andExpect(jsonPath("$.data.fortune.title").value("Preview title"))
+            .andExpect(jsonPath("$.data.previewImageBase64", startsWith("data:image/png;base64,")));
+
+        assertThat(countRows("artifact")).isZero();
+        assertThat(countRows("fortune_artifact")).isZero();
+        assertThat(countRows("gallery")).isZero();
+        verify(fortuneGmsClient).generate(eq("Saved prompt body."), any(JsonNode.class));
     }
 
     @Test
@@ -489,6 +572,42 @@ class GmsPromptControllerIntegrationTest {
             .andExpect(jsonPath("$.message").isNotEmpty());
 
         assertThat(findPromptDeletedAt(10L)).isEqualTo(deletedAt);
+    }
+
+    @Test
+    void adminActivatesPromptAndDeactivatesPreviousPrompt(CapturedOutput output) throws Exception {
+        insertPrompt(10L, "Active fortune", "Current prompt body.", "fortune", null, true);
+        insertPrompt(11L, "Next fortune", "Next prompt body.", "fortune", null, false);
+
+        mockMvc
+            .perform(post("/api/v1/backoffice/gms/prompts/{promptId}/activate", 11L)
+                .header(HttpHeaders.AUTHORIZATION, bearerAccessToken()).header("X-Trace-Id", "prompt-activate-test")
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.id").value(11L)).andExpect(jsonPath("$.data.isActive").value(true))
+            .andExpect(jsonPath("$.data.status").value("active"))
+            .andExpect(jsonPath("$.data.activatedBy").value(ADMIN_ID));
+
+        assertThat(findPromptIsActive(10L)).isFalse();
+        assertThat(findPromptIsActive(11L)).isTrue();
+        assertThat(findFeatureStateCurrentPromptId("fortune")).isEqualTo(11L);
+
+        JsonNode auditLog = findAuditLog(output, "prompt_update");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("prompt-activate-test");
+        assertThat(metadata.path("action").asText()).isEqualTo("activate");
+        assertThat(metadata.path("before").path("id").asText()).isEqualTo("10");
+        assertThat(metadata.path("after").path("id").asText()).isEqualTo("11");
+    }
+
+    @Test
+    void adminPromptActivationRejectsAlreadyDeletedPrompt() throws Exception {
+        LocalDateTime deletedAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        insertPrompt(10L, "Daily fortune", "fortune", deletedAt);
+
+        mockMvc.perform(post("/api/v1/backoffice/gms/prompts/{promptId}/activate", 10L)
+            .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())).andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
@@ -679,6 +798,11 @@ class GmsPromptControllerIntegrationTest {
     }
 
     private void insertPrompt(long id, String name, String content, String featureType, LocalDateTime deletedAt) {
+        insertPrompt(id, name, content, featureType, deletedAt, false);
+    }
+
+    private void insertPrompt(long id, String name, String content, String featureType, LocalDateTime deletedAt,
+        boolean active) {
         LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
             INSERT INTO gms_prompt_template (
@@ -689,11 +813,28 @@ class GmsPromptControllerIntegrationTest {
                 created_by,
                 created_at,
                 updated_at,
-                deleted_at
+                deleted_at,
+                is_active,
+                activated_at,
+                activated_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, id, name, content, featureType, ADMIN_ID, Timestamp.valueOf(now), Timestamp.valueOf(now),
-            deletedAt == null ? null : Timestamp.valueOf(deletedAt));
+            deletedAt == null ? null : Timestamp.valueOf(deletedAt), active, active ? Timestamp.valueOf(now) : null,
+            active ? ADMIN_ID : null);
+        if (active) {
+            jdbcTemplate.update("""
+                MERGE INTO gms_prompt_feature_state (
+                    feature_type,
+                    current_prompt_id,
+                    updated_by,
+                    created_at,
+                    updated_at
+                )
+                KEY (feature_type)
+                VALUES (?, ?, ?, ?, ?)
+                """, featureType, id, ADMIN_ID, Timestamp.valueOf(now), Timestamp.valueOf(now));
+        }
     }
 
     private String createRequestBody(String name) {
@@ -714,6 +855,14 @@ class GmsPromptControllerIntegrationTest {
               "sampleSaju": %s
             }
             """.formatted(featureType, content, sampleSajuJson);
+    }
+
+    private String promptTestRequestBody(String sampleSajuJson) {
+        return """
+            {
+              "sampleSaju": %s
+            }
+            """.formatted(sampleSajuJson);
     }
 
     private String sajuRequestJson() {
@@ -786,6 +935,18 @@ class GmsPromptControllerIntegrationTest {
     private String findPromptFeatureType(long id) {
         return jdbcTemplate.queryForObject("SELECT feature_type FROM gms_prompt_template WHERE id = ?", String.class,
             id);
+    }
+
+    private boolean findPromptIsActive(long id) {
+        Boolean active = jdbcTemplate.queryForObject("SELECT is_active FROM gms_prompt_template WHERE id = ?",
+            Boolean.class, id);
+
+        return Boolean.TRUE.equals(active);
+    }
+
+    private Long findFeatureStateCurrentPromptId(String featureType) {
+        return jdbcTemplate.queryForObject(
+            "SELECT current_prompt_id FROM gms_prompt_feature_state WHERE feature_type = ?", Long.class, featureType);
     }
 
     private int countPromptsByFeatureType(String featureType) {

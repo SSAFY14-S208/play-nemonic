@@ -190,7 +190,8 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
         removeActiveCanvasIndexes(staleRoomCodes);
         Long totalElements = redisTemplate.opsForZSet().zCard(ACTIVE_CANVAS_INDEX_KEY);
         log.debug(
-            "infinite canvas indexed lookup completed. page={} size={} fetched_room_count={} stale_room_count={} matched_canvas_count={} duration_ms={}",
+            "infinite canvas indexed lookup completed. page={} size={} fetched_room_count={} "
+                + "stale_room_count={} matched_canvas_count={} duration_ms={}",
             page, size, fetchedRoomCount, staleRoomCodes.size(), canvases.size(),
             Duration.ofNanos(System.nanoTime() - startedNanos).toMillis());
         return new InfiniteCanvasActiveCanvasPage(canvases, totalElements == null ? 0L : totalElements);

@@ -16,11 +16,10 @@ import com.nemonicworld.fortune.repository.FortuneCreateCommand;
 import com.nemonicworld.fortune.repository.FortuneDetailRow;
 import com.nemonicworld.fortune.repository.FortuneRepository;
 import com.nemonicworld.fortune.repository.FortuneTodayRow;
+import com.nemonicworld.fortune.service.FortunePromptTemplateProvider.CurrentFortunePrompt;
 import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
 import com.nemonicworld.fortune.service.image.FortuneCardRenderer;
 import com.nemonicworld.fortune.service.image.FortuneCardStorage;
-import com.nemonicworld.gms.entity.GmsPrompt;
-import com.nemonicworld.gms.repository.GmsPromptRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDate;
@@ -41,33 +40,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class FortuneServiceImpl implements FortuneService {
 
     private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
-    private static final String FEATURE_TYPE_FORTUNE = "fortune";
     private static final String PNG_CONTENT_TYPE = "image/png";
     private static final String FORTUNE_ALREADY_CREATED_MESSAGE = "오늘의 운세는 이미 생성했습니다. 내일 다시 이용해주세요.";
     private static final String FORTUNE_NOT_FOUND_MESSAGE = "오늘 생성된 운세를 찾을 수 없습니다.";
     private static final String FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE = "운세 결과를 저장 형식으로 변환할 수 없습니다.";
     private static final String FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE = "저장된 운세 결과 형식이 올바르지 않습니다.";
-    private static final String DEFAULT_PROMPT_TEMPLATE = """
-        프론트엔드 만세력 결과를 바탕으로 오늘의 운세를 생성한다.
-        응답은 title, summary, overallLuck, loveLuck, workLuck, moneyLuck, luckyColor, luckyKeyword,
-        caution, postitLine을 포함해야 한다.
-        cardTheme, bgColor, accentColor, iconKey는 카드 에셋 메타데이터가 없으면 null로 둘 수 있다.
-        """;
-
     private final FortuneRepository fortuneRepository;
     private final AnonymousUserResolver anonymousUserResolver;
-    private final GmsPromptRepository gmsPromptRepository;
+    private final FortunePromptTemplateProvider fortunePromptTemplateProvider;
     private final FortuneGenerationService fortuneGenerationService;
     private final FortuneCardRenderer fortuneCardRenderer;
     private final FortuneCardStorage fortuneCardStorage;
     private final ObjectMapper objectMapper;
 
     public FortuneServiceImpl(FortuneRepository fortuneRepository, AnonymousUserResolver anonymousUserResolver,
-        GmsPromptRepository gmsPromptRepository, FortuneGenerationService fortuneGenerationService,
+        FortunePromptTemplateProvider fortunePromptTemplateProvider, FortuneGenerationService fortuneGenerationService,
         FortuneCardRenderer fortuneCardRenderer, FortuneCardStorage fortuneCardStorage, ObjectMapper objectMapper) {
         this.fortuneRepository = fortuneRepository;
         this.anonymousUserResolver = anonymousUserResolver;
-        this.gmsPromptRepository = gmsPromptRepository;
+        this.fortunePromptTemplateProvider = fortunePromptTemplateProvider;
         this.fortuneGenerationService = fortuneGenerationService;
         this.fortuneCardRenderer = fortuneCardRenderer;
         this.fortuneCardStorage = fortuneCardStorage;
@@ -135,7 +126,7 @@ public class FortuneServiceImpl implements FortuneService {
             throw new ConflictException(FORTUNE_ALREADY_CREATED_MESSAGE);
         }
 
-        FortunePrompt prompt = findFortunePromptTemplate();
+        CurrentFortunePrompt prompt = fortunePromptTemplateProvider.resolveCurrent();
         FortuneGmsResult gmsResult = fortuneGenerationService.generateFortune(prompt.template(), prompt.version(), saju,
             user.getId(), today);
 
@@ -156,15 +147,6 @@ public class FortuneServiceImpl implements FortuneService {
 
         return new FortuneResponse(fortuneId.toString(), today, fortuneGenerationService.toFortuneResult(gmsResult),
             fortuneGenerationService.toSajuInfo(saju), fortuneGenerationService.toFortuneDesign(gmsResult));
-    }
-
-    private FortunePrompt findFortunePromptTemplate() {
-        return gmsPromptRepository.findLatestActiveByFeatureType(FEATURE_TYPE_FORTUNE).map(this::toFortunePrompt)
-            .orElse(new FortunePrompt(DEFAULT_PROMPT_TEMPLATE, "default"));
-    }
-
-    private FortunePrompt toFortunePrompt(GmsPrompt prompt) {
-        return new FortunePrompt(prompt.getContent(), String.valueOf(prompt.getId()));
     }
 
     private void logAvailabilityChecked(UUID userUuid, FortuneAvailabilityResponse response) {
@@ -216,6 +198,4 @@ public class FortuneServiceImpl implements FortuneService {
         }
     }
 
-    private record FortunePrompt(String template, String version) {
-    }
 }

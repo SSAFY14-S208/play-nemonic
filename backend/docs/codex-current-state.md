@@ -151,6 +151,18 @@ Last updated: 2026-05-17
   used by public fortune creation, renders a PNG card as a base64 data URL, and
   does not write `gms_prompt_template`, `artifact`, `fortune_artifact`,
   `gallery`, or MinIO objects.
+- Backoffice GMS prompt management now distinguishes saved non-deleted prompts
+  from the one currently used prompt. Flyway V16 adds
+  `gms_prompt_template.is_active`, activation metadata, a
+  `gms_prompt_feature_state` row-lock table, and a partial unique index so only
+  one non-deleted active prompt can exist per `feature_type`.
+- `POST /api/v1/backoffice/gms/prompts/{promptId}/activate` serializes
+  activation by feature type through `gms_prompt_feature_state` and atomically
+  deactivates the previous prompt before activating the selected prompt.
+  `GET /api/v1/backoffice/gms/prompts/current?featureType=fortune` returns the
+  active DB prompt or the built-in fortune fallback prompt when no DB prompt is
+  active. `POST /api/v1/backoffice/gms/prompts/{promptId}/test` tests a saved
+  prompt with sample saju without persisting artifacts.
 - Backoffice admins can now list system parameters through
   `GET /api/v1/backoffice/system-parameters`; the API requires an admin JWT,
   reads existing `backoffice_setting` rows sorted by `setting_key ASC`,
@@ -451,7 +463,8 @@ Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/
 - Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr.gif` with QR overlaid on every frame.
 - `POST /api/v1/artifacts/{artifactId}/share` reuses the same QR cache and returns the public QR image URL plus Kakao/Instagram UTM URLs in the existing `ShareCreateResponse` shape.
 - Community memo QR assets read `community_memo.body_image_url` first, then `community_memo.thumbnail_image_url`, and only fall back to `artifact.thumbnail_url`.
-- `POST /api/v1/share` remains the older galleryId-based token/link generation endpoint.
+- The older galleryId-based `POST /api/v1/share` endpoint was removed; use artifact or community memo
+  share endpoints instead.
 
 ```bash
 ./gradlew --no-daemon test --tests com.nemonicworld.artifact.service.download.ArtifactDownloadServiceImplTest --tests com.nemonicworld.artifact.service.share.ArtifactShareServiceImplTest --tests com.nemonicworld.artifact.controller.ArtifactControllerIntegrationTest --tests com.nemonicworld.artifact.controller.ArtifactOpenApiIntegrationTest
