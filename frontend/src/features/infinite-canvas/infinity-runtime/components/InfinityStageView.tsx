@@ -8,7 +8,6 @@ import { useInfinityAiSticker, useInfinityDrawing, type useInfinityCanvasRoom } 
 import type { InfinityObject } from '../constants'
 import {
   isInfinityObject,
-  stringifyInfinityObject,
   toInfinityObjects,
 } from '../infinityObjectUtils'
 import { INFINITY_CANVAS_BACKGROUND_LAYER_ID, InfinityCanvasStage } from './InfinityCanvasStage'
@@ -34,6 +33,7 @@ const DRAFT_SEND_INTERVAL_MS = 33
 const CURSOR_MIN_DISTANCE = 1.5
 const REMOTE_DRAFT_RETENTION_MS = 3500
 const REMOTE_DRAFT_CONFIRMED_RETENTION_MS = 650
+const REMOTE_DRAFT_EXPIRY_REFRESH_THRESHOLD_MS = REMOTE_DRAFT_RETENTION_MS / 2
 
 interface InfinityStageViewProps {
   room: InfinityCanvasRoom
@@ -53,6 +53,22 @@ function objectMapValues(objectMap: Map<string, InfinityObject>) {
   return [...objectMap.values()]
 }
 
+const objectSignatureCache = new WeakMap<InfinityObject, string>()
+
+function getInfinityObjectSignature(object: InfinityObject) {
+  const cachedSignature = objectSignatureCache.get(object)
+  if (cachedSignature) return cachedSignature
+
+  const signature = JSON.stringify(object)
+  objectSignatureCache.set(object, signature)
+  return signature
+}
+
+function areInfinityObjectsEqual(firstObject: InfinityObject, secondObject: InfinityObject) {
+  if (firstObject === secondObject) return true
+  return getInfinityObjectSignature(firstObject) === getInfinityObjectSignature(secondObject)
+}
+
 function areInfinityObjectListsEqual(firstObjects: InfinityObject[], secondObjects: InfinityObject[]) {
   if (firstObjects.length !== secondObjects.length) return false
 
@@ -60,7 +76,7 @@ function areInfinityObjectListsEqual(firstObjects: InfinityObject[], secondObjec
   return firstObjects.every((firstObject) => {
     const secondObject = secondObjectMap.get(firstObject.id)
     if (!secondObject) return false
-    return stringifyInfinityObject(firstObject) === stringifyInfinityObject(secondObject)
+    return areInfinityObjectsEqual(firstObject, secondObject)
   })
 }
 
@@ -86,11 +102,11 @@ function mergeServerObjectsWithLocalPending({
     const previousServerObject = previousServerObjects.get(localObject.id)
     const localObjectChangedFromPreviousServer =
       !previousServerObject ||
-      stringifyInfinityObject(previousServerObject) !== stringifyInfinityObject(localObject)
+      !areInfinityObjectsEqual(previousServerObject, localObject)
 
     if (
       localObjectChangedFromPreviousServer &&
-      stringifyInfinityObject(serverObject) !== stringifyInfinityObject(localObject)
+      !areInfinityObjectsEqual(serverObject, localObject)
     ) {
       mergedObjectMap.set(localObject.id, localObject)
     }
@@ -536,6 +552,19 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           const key = `${draft.userUuid}:${draft.object.id}`
           const isVisible = visibleObjectIds.has(draft.object.id)
           const previousDraft = nextDrafts[key]
+          const canReusePreviousDraft =
+            previousDraft &&
+            previousDraft.expiresAt - now > REMOTE_DRAFT_EXPIRY_REFRESH_THRESHOLD_MS &&
+            areInfinityObjectsEqual(previousDraft.draft.object, draft.object)
+
+          if (canReusePreviousDraft) {
+            nextDrafts[key] = {
+              ...previousDraft,
+              visibleSince: isVisible ? previousDraft.visibleSince ?? now : null,
+            }
+            continue
+          }
+
           nextDrafts[key] = {
             draft,
             expiresAt: now + REMOTE_DRAFT_RETENTION_MS,
@@ -555,7 +584,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
               !nextDraft ||
               currentDraft.expiresAt !== nextDraft.expiresAt ||
               currentDraft.visibleSince !== nextDraft.visibleSince ||
-              stringifyInfinityObject(currentDraft.draft.object) !== stringifyInfinityObject(nextDraft.draft.object)
+              !areInfinityObjectsEqual(currentDraft.draft.object, nextDraft.draft.object)
             )
           })
 
@@ -648,8 +677,9 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           })
         : serverObjects
     const nextObjects = nextObjectsBase
+    const nextObjectIds = new Set(nextObjects.map((object) => object.id))
     const selectedIds = drawing.selectedIds.filter((selectedId) =>
-      nextObjects.some((object) => object.id === selectedId),
+      nextObjectIds.has(selectedId),
     )
 
     appliedServerRevisionRef.current = serverRevision

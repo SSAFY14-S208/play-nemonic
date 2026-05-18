@@ -105,6 +105,22 @@ function cloneObjectWithOffset(
   }
 }
 
+const objectSignatureCache = new WeakMap<InfinityObject, string>()
+
+function getInfinityObjectSignature(object: InfinityObject) {
+  const cachedSignature = objectSignatureCache.get(object)
+  if (cachedSignature) return cachedSignature
+
+  const signature = JSON.stringify(object)
+  objectSignatureCache.set(object, signature)
+  return signature
+}
+
+function areInfinityObjectsEqual(firstObject: InfinityObject, secondObject: InfinityObject) {
+  if (firstObject === secondObject) return true
+  return getInfinityObjectSignature(firstObject) === getInfinityObjectSignature(secondObject)
+}
+
 export function useInfinityDrawing(
   stageRef: React.RefObject<Konva.Stage | null>,
   nodeRefs: UseInfinityDrawingNodeRefs,
@@ -159,7 +175,7 @@ export function useInfinityDrawing(
 
     for (const nextObject of nextObjects) {
       const previousObject = previousObjectMap.get(nextObject.id)
-      if (previousObject && JSON.stringify(previousObject) === JSON.stringify(nextObject)) continue
+      if (previousObject && areInfinityObjectsEqual(previousObject, nextObject)) continue
       operations.push({
         operationType: 'UPSERT_ELEMENT',
         elementId: nextObject.id,
