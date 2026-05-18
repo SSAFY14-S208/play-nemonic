@@ -30,6 +30,7 @@ export function KonvaLine({
         line.isEraser ? "destination-out" : "source-over"
       }
       tension={INFINITY_LINE_TENSION}
+      hitStrokeWidth={line.strokeWidth}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool

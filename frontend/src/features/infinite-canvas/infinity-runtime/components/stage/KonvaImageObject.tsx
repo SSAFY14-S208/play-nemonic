@@ -3,6 +3,7 @@ import { Image as KonvaImage } from "react-konva";
 import type Konva from "konva";
 
 import type { InfinityImage } from "../../constants";
+import { drawImageAlphaHitRegion } from "./imageHitRegion";
 
 interface KonvaImageObjectProps {
   imageObject: InfinityImage;
@@ -72,6 +73,15 @@ export function KonvaImageObject({
       image={imageElement}
       listening={isSelectTool}
       perfectDrawEnabled={false}
+      hitFunc={(context, shape) => {
+        drawImageAlphaHitRegion({
+          context,
+          imageElement,
+          shape,
+          width: imageObject.width,
+          height: imageObject.height,
+        });
+      }}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Image as KonvaImage } from "react-konva";
 
 import type { InfinityFill } from "../../constants";
+import { drawImageAlphaHitRegion } from "./imageHitRegion";
 
 interface KonvaFillProps {
   fill: InfinityFill;
@@ -62,6 +63,15 @@ export function KonvaFill({
       image={imageElement}
       listening={isSelectTool}
       perfectDrawEnabled={false}
+      hitFunc={(context, shape) => {
+        drawImageAlphaHitRegion({
+          context,
+          imageElement,
+          shape,
+          width: fill.width,
+          height: fill.height,
+        });
+      }}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool
