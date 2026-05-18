@@ -458,7 +458,7 @@ Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/
 - Both APIs verify the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
 - Download/share artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, `infinite_canvas`,
   `phone`, and `community_memo`.
-- QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with a compact signed payload (`v`, `p`, URL-safe binary UUID `id`, artifact-kind code `k`, and channel code `c`) to reduce QR density. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
+- QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
 - QR composition uses ZXing low error correction (`L`), one-module margin, and a larger bounded overlay size so download/share QR modules render less densely on static images and GIF frames.
 - The API creates or reuses a QR-composed MinIO cache object, then returns JPG/GIF bytes as an attachment.
 - Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr-v2.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr-v2.gif` with QR overlaid on every frame.

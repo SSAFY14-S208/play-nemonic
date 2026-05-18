@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.share.config.ShareProperties;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -21,13 +20,10 @@ import org.springframework.stereotype.Component;
 public class SignedShareTokenIssuer {
 
     private static final String HMAC_ALGORITHM = "HmacSHA256";
-    private static final String TOKEN_VERSION = "1";
-    private static final String PURPOSE_ARTIFACT_SHARE = "a";
-    private static final String PURPOSE_COMMUNITY_MEMO_SHARE = "m";
+    private static final String TOKEN_VERSION = "v1";
+    private static final String PURPOSE_ARTIFACT_SHARE = "artifact_share";
+    private static final String PURPOSE_COMMUNITY_MEMO_SHARE = "community_memo_share";
     private static final String ARTIFACT_KIND_COMMUNITY_MEMO = "community_memo";
-    private static final Map<String, String> ARTIFACT_KIND_CODES = Map.of("fortune", "f", "relay_drawing", "r",
-        "flipbook", "b", "infinite_canvas", "i", "phone", "p", ARTIFACT_KIND_COMMUNITY_MEMO, "m");
-    private static final Map<String, String> CHANNEL_CODES = Map.of("QR_DOWNLOAD", "d", "QR_SHARE", "s");
 
     private final ObjectMapper objectMapper;
     private final ShareProperties shareProperties;
@@ -40,11 +36,11 @@ public class SignedShareTokenIssuer {
 
     public String issueArtifactToken(UUID artifactId, String artifactKind, String channel) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("v", TOKEN_VERSION);
-        payload.put("p", PURPOSE_ARTIFACT_SHARE);
-        payload.put("id", encodeUuid(artifactId));
-        payload.put("k", compactArtifactKind(artifactKind));
-        payload.put("c", compactChannel(channel));
+        payload.put("version", TOKEN_VERSION);
+        payload.put("purpose", PURPOSE_ARTIFACT_SHARE);
+        payload.put("artifactId", artifactId.toString());
+        payload.put("artifactKind", artifactKind);
+        payload.put("channel", channel);
 
         String encodedPayload = encodePayload(payload);
         String signature = sign(encodedPayload);
@@ -54,32 +50,16 @@ public class SignedShareTokenIssuer {
 
     public String issueCommunityMemoToken(UUID memoId, String channel) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("v", TOKEN_VERSION);
-        payload.put("p", PURPOSE_COMMUNITY_MEMO_SHARE);
-        payload.put("id", encodeUuid(memoId));
-        payload.put("k", compactArtifactKind(ARTIFACT_KIND_COMMUNITY_MEMO));
-        payload.put("c", compactChannel(channel));
+        payload.put("version", TOKEN_VERSION);
+        payload.put("purpose", PURPOSE_COMMUNITY_MEMO_SHARE);
+        payload.put("memoId", memoId.toString());
+        payload.put("artifactKind", ARTIFACT_KIND_COMMUNITY_MEMO);
+        payload.put("channel", channel);
 
         String encodedPayload = encodePayload(payload);
         String signature = sign(encodedPayload);
 
         return "%s.%s".formatted(encodedPayload, signature);
-    }
-
-    private String encodeUuid(UUID uuid) {
-        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
-        buffer.putLong(uuid.getMostSignificantBits());
-        buffer.putLong(uuid.getLeastSignificantBits());
-
-        return base64UrlEncoder.encodeToString(buffer.array());
-    }
-
-    private String compactArtifactKind(String artifactKind) {
-        return ARTIFACT_KIND_CODES.getOrDefault(artifactKind, artifactKind);
-    }
-
-    private String compactChannel(String channel) {
-        return CHANNEL_CODES.getOrDefault(channel, channel);
     }
 
     private String encodePayload(Map<String, Object> payload) {
