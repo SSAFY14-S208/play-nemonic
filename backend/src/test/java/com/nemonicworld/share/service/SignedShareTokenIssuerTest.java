@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.share.config.ShareProperties;
+import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -32,11 +33,14 @@ class SignedShareTokenIssuerTest {
         assertThat(parts).hasSize(2);
 
         JsonNode payload = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
-        assertThat(payload.path("purpose").asText()).isEqualTo("artifact_share");
-        assertThat(payload.path("artifactId").asText()).isEqualTo(artifactId.toString());
+        assertThat(payload.path("v").asText()).isEqualTo("1");
+        assertThat(payload.path("p").asText()).isEqualTo("a");
+        assertThat(payload.path("id").asText()).isEqualTo(encodeUuid(artifactId));
         assertThat(payload.has("ownerUserId")).isFalse();
-        assertThat(payload.path("artifactKind").asText()).isEqualTo("flipbook");
-        assertThat(payload.path("channel").asText()).isEqualTo("QR_DOWNLOAD");
+        assertThat(payload.has("artifactId")).isFalse();
+        assertThat(payload.path("k").asText()).isEqualTo("b");
+        assertThat(payload.path("c").asText()).isEqualTo("d");
+        assertThat(token.length()).isLessThan(140);
     }
 
     @Test
@@ -50,10 +54,21 @@ class SignedShareTokenIssuerTest {
         assertThat(parts).hasSize(2);
 
         JsonNode payload = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
-        assertThat(payload.path("purpose").asText()).isEqualTo("community_memo_share");
-        assertThat(payload.path("memoId").asText()).isEqualTo(memoId.toString());
+        assertThat(payload.path("v").asText()).isEqualTo("1");
+        assertThat(payload.path("p").asText()).isEqualTo("m");
+        assertThat(payload.path("id").asText()).isEqualTo(encodeUuid(memoId));
         assertThat(payload.has("ownerUserId")).isFalse();
-        assertThat(payload.path("artifactKind").asText()).isEqualTo("community_memo");
-        assertThat(payload.path("channel").asText()).isEqualTo("QR_SHARE");
+        assertThat(payload.has("memoId")).isFalse();
+        assertThat(payload.path("k").asText()).isEqualTo("m");
+        assertThat(payload.path("c").asText()).isEqualTo("s");
+        assertThat(token.length()).isLessThan(140);
+    }
+
+    private String encodeUuid(UUID uuid) {
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+        buffer.putLong(uuid.getMostSignificantBits());
+        buffer.putLong(uuid.getLeastSignificantBits());
+
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(buffer.array());
     }
 }
