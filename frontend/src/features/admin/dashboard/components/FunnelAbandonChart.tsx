@@ -1,15 +1,6 @@
 'use client'
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
-import type { Formatter } from 'recharts/types/component/DefaultTooltipContent'
+import { ChevronRight } from 'lucide-react'
 
 import { CHART_FUNNEL_COLORS, CHART_STATUS_COLORS } from '../constants'
 import type { AnalyticsDrillDownState, AnalyticsKpiState } from '../types'
@@ -38,9 +29,10 @@ const colorFor = (funnelKey: string): string => {
 
 const labelFor = (funnelKey: string): string => FUNNEL_LABEL[funnelKey] ?? funnelKey
 
-// 각 funnel을 row 1개의 가로 막대 차트로 facet. funnel 수가 적어(5개 이하) row마다
-// 독립 BarChart를 grid로 배치하는 것이 recharts 기준 가장 안정적인 facet 구현.
-
+// funnel별로 단계 카드를 화살표로 잇는 깔때기 시각화.
+// - 카드 너비를 첫 단계 대비 잔존 비율로 조절해 진짜 "깔때기"가 좁아지는 모양을 만든다.
+// - 색 opacity도 점진적으로 옅어져 잔존 감소를 강조한다.
+// - 카드 위에 잔존 수와 직전 단계 대비 잔존율(%)을 함께 노출해 의미를 한눈에 전달한다.
 export function FunnelAbandonChart({ state, onRetry, onDrillDown }: Props) {
   const funnels = state.data ?? []
   const isEmpty =
@@ -53,82 +45,75 @@ export function FunnelAbandonChart({ state, onRetry, onDrillDown }: Props) {
       isEmpty={isEmpty}
       onRetry={onRetry}
     >
-      <div className="flex h-full flex-col gap-2 overflow-y-auto p-3">
+      <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
         {funnels.map((funnel) => {
-          const data = funnel.steps.map((step) => ({
-            stepName: step.name,
-            count: step.count,
-          }))
+          const baseCount = funnel.steps[0]?.count ?? 0
+          const color = colorFor(funnel.name)
           return (
-            <div key={funnel.name} className="flex items-center gap-2">
-              <span
-                className="caption-b w-28 shrink-0 text-fg-primary"
-                style={{ color: colorFor(funnel.name) }}
-              >
+            <div key={funnel.name} className="flex flex-col gap-1.5">
+              <div className="caption-b" style={{ color }}>
                 {labelFor(funnel.name)}
-              </span>
-              <div className="h-16 flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={data}
-                    layout="vertical"
-                    margin={{ top: 4, right: 12, bottom: 4, left: 80 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="var(--color-border-default)"
-                    />
-                    <XAxis
-                      type="number"
-                      stroke="var(--color-fg-secondary)"
-                      tick={{ fontSize: 9 }}
-                      hide
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="stepName"
-                      width={80}
-                      stroke="var(--color-fg-secondary)"
-                      tick={{ fontSize: 10 }}
-                    />
-                    <Tooltip
-                      formatter={
-                        ((value) => {
-                          const count =
-                            typeof value === 'number' ? value : Number(value ?? 0)
-                          return [`${count.toLocaleString('ko-KR')}건`, '잔존']
-                        }) satisfies Formatter
-                      }
-                    />
-                    <Bar
-                      dataKey="count"
-                      fill={colorFor(funnel.name)}
-                      radius={[0, 3, 3, 0]}
-                      cursor="pointer"
-                      onClick={(entry) => {
-                        if (!entry || !entry.payload) return
-                        const stepName = entry.payload.stepName as string
-                        onDrillDown({
-                          vizId: 'I3',
-                          chartLabel: `${labelFor(funnel.name)} · ${stepName}`,
-                          dimensionFilters: [
-                            {
-                              field: 'metadata.funnel_name',
-                              value: funnel.name,
-                              negate: false,
-                            },
-                            {
-                              field: 'metadata.step_name',
-                              value: stepName,
-                              negate: false,
-                            },
-                          ],
-                          extraQuery: 'event_name:funnel_step_completed',
-                        })
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+              </div>
+              <div className="flex items-stretch gap-0">
+                {funnel.steps.map((step, index) => {
+                  const ratioFromStart =
+                    baseCount > 0 ? step.count / baseCount : 0
+                  const ratioFromPrev =
+                    index === 0 || funnel.steps[index - 1].count === 0
+                      ? 1
+                      : step.count / funnel.steps[index - 1].count
+                  const widthBasis = Math.max(ratioFromStart * 100, 16)
+                  const opacity = 0.35 + ratioFromStart * 0.65
+                  return (
+                    <div
+                      key={step.name}
+                      className="flex items-stretch"
+                      style={{ flex: `${widthBasis} 0 0` }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onDrillDown({
+                            vizId: 'I3',
+                            chartLabel: `${labelFor(funnel.name)} · ${step.name}`,
+                            dimensionFilters: [
+                              {
+                                field: 'metadata.funnel_name',
+                                value: funnel.name,
+                                negate: false,
+                              },
+                              {
+                                field: 'metadata.step_name',
+                                value: step.name,
+                                negate: false,
+                              },
+                            ],
+                            extraQuery: 'event_name:funnel_step_completed',
+                          })
+                        }
+                        style={{ backgroundColor: color, opacity }}
+                        className="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-[var(--radius-sm)] px-2 py-2 text-center transition-opacity hover:opacity-100"
+                      >
+                        <span className="caption-b truncate text-white">
+                          {step.count.toLocaleString('ko-KR')}
+                        </span>
+                        <span className="caption-r truncate text-white/85">
+                          {step.name}
+                        </span>
+                        {index > 0 && (
+                          <span className="caption-r text-white/75">
+                            잔존 {Math.round(ratioFromPrev * 100)}%
+                          </span>
+                        )}
+                      </button>
+                      {index < funnel.steps.length - 1 && (
+                        <div className="flex shrink-0 items-center px-1 text-fg-secondary">
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )
