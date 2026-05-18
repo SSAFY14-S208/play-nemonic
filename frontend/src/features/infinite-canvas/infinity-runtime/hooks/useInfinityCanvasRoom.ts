@@ -205,25 +205,46 @@ function getCanvasOperationKey(operation: CanvasElementMutation) {
   return null
 }
 
+function getCanvasElementId(element: InfiniteCanvasJsonObject) {
+  return typeof element.id === 'string' && element.id.trim().length > 0 ? element.id : null
+}
+
 function applyOperationsToElements(
   currentElements: InfiniteCanvasJsonObject[],
   operations: CanvasElementMutation[],
 ) {
-  let nextElements = [...currentElements]
+  if (operations.length === 0) return currentElements
+
+  const elementById = new Map<string, InfiniteCanvasJsonObject>()
+  const elementOrder: string[] = []
+  const anonymousElements: InfiniteCanvasJsonObject[] = []
+
+  for (const element of currentElements) {
+    const elementId = getCanvasElementId(element)
+    if (!elementId) {
+      anonymousElements.push(element)
+      continue
+    }
+
+    if (!elementById.has(elementId)) {
+      elementOrder.push(elementId)
+    }
+    elementById.set(elementId, element)
+  }
+  let shouldClearAnonymousElements = false
 
   for (const operation of operations) {
     if (operation.operationType === 'CLEAR_CANVAS') {
-      nextElements = []
+      elementById.clear()
+      elementOrder.length = 0
+      shouldClearAnonymousElements = true
       continue
     }
 
     if (!operation.elementId) continue
 
     if (operation.operationType === 'DELETE_ELEMENT') {
-      nextElements = nextElements.filter((element) => {
-        if (!isRecord(element)) return true
-        return element.id !== operation.elementId
-      })
+      elementById.delete(operation.elementId)
       continue
     }
 
@@ -234,22 +255,17 @@ function applyOperationsToElements(
     ) {
       if (!operation.element) continue
       const nextElement = operation.element
-      const existingIndex = nextElements.findIndex((element) => {
-        if (!isRecord(element)) return false
-        return element.id === operation.elementId
-      })
-
-      if (existingIndex >= 0) {
-        nextElements = nextElements.map((element, elementIndex) =>
-          elementIndex === existingIndex ? nextElement : element,
-        )
-      } else {
-        nextElements = [...nextElements, nextElement]
+      if (!elementById.has(operation.elementId)) {
+        elementOrder.push(operation.elementId)
       }
+      elementById.set(operation.elementId, nextElement)
     }
   }
 
-  return nextElements
+  const orderedElements = elementOrder
+    .map((elementId) => elementById.get(elementId))
+    .filter((element): element is InfiniteCanvasJsonObject => Boolean(element))
+  return shouldClearAnonymousElements ? orderedElements : [...anonymousElements, ...orderedElements]
 }
 
 function applyOptimisticOperationsToState(
@@ -261,6 +277,17 @@ function applyOptimisticOperationsToState(
     ...state,
     elements: applyOperationsToElements(state.elements, operations),
   }
+}
+
+function canPatchStateFromRecentOperations(
+  currentState: InfiniteCanvasStateResponse,
+  nextState: InfiniteCanvasStateResponse,
+) {
+  if (nextState.revision < currentState.revision) return false
+  if (nextState.revision === currentState.revision) return true
+  if (nextState.operations.length === 0) return false
+
+  return nextState.operations.some((operation) => operation.revision > currentState.revision)
 }
 
 async function uploadInfiniteCanvasOutput({
@@ -470,19 +497,35 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     if (nextState.revision < revisionRef.current) return
 
     const unconfirmedOperations = getUnconfirmedOperations()
-    const stateWithLocalOperations = unconfirmedOperations.length > 0
-      ? applyOptimisticOperationsToState(nextState, unconfirmedOperations)
-      : nextState
     recordConfirmedOperations(nextState.operations)
-    recordAppliedOperations(nextState.operations)
     revisionRef.current = nextState.revision
-    appliedElementsRevisionRef.current = nextState.revision
     setRoomState((currentState) => {
-      if (!currentState) return stateWithLocalOperations
+      const shouldPatchFromOperations =
+        currentState !== null && canPatchStateFromRecentOperations(currentState, nextState)
+      const remoteElements =
+        shouldPatchFromOperations && currentState
+          ? applyOperationsToElements(
+              currentState.elements,
+              getUnappliedOperations(
+                nextState.operations.filter((operation) => operation.revision > currentState.revision),
+              ),
+            )
+          : nextState.elements
+      const stateWithRemoteElements = {
+        ...nextState,
+        elements: remoteElements,
+      }
+      const stateWithLocalOperations =
+        unconfirmedOperations.length > 0
+          ? applyOptimisticOperationsToState(stateWithRemoteElements, unconfirmedOperations)
+          : stateWithRemoteElements
+
       return stateWithLocalOperations
     })
+    recordAppliedOperations(nextState.operations)
+    appliedElementsRevisionRef.current = nextState.revision
     setIsHydrating(false)
-  }, [getUnconfirmedOperations, recordAppliedOperations, recordConfirmedOperations])
+  }, [getUnappliedOperations, getUnconfirmedOperations, recordAppliedOperations, recordConfirmedOperations])
 
   const applyRevisionConflictDelta = useCallback((details: InfiniteCanvasRevisionConflictResponse) => {
     const unappliedOperations = getUnappliedOperations(details.missingOperations)
