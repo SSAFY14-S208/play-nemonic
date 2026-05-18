@@ -328,63 +328,6 @@ export function useI3FunnelAbandon(args: AnalyticsVizArgs) {
 }
 
 // ============================================================
-// 흐름 viz — I4 컨텐츠 간 이동 흐름 (heatmap)
-// composite-buckets(prev_path, path) on event_name:page_view.
-// 클라이언트가 path → 컨텐츠 카테고리로 collapse.
-// ============================================================
-export type I4Cell = { from: string; to: string; count: number }
-
-const PATH_TO_CONTENT = (path: string | null): string => {
-  if (!path) return '기타'
-  if (path.startsWith('/relay-drawing')) return '릴레이드로잉'
-  if (path.startsWith('/flipbook')) return '플립북'
-  if (path.startsWith('/community')) return '커뮤니티'
-  if (path.startsWith('/fortune')) return '오늘의 운세'
-  if (path === '/' || path === '/main' || path === '/home' || path.startsWith('/hub')) return '홈'
-  return '기타'
-}
-
-export function useI4ContentTransition(args: AnalyticsVizArgs) {
-  const { timeRange, serviceFilters, serviceQuery, refreshNonce } = args
-  return useAnalyticsFetcher<I4Cell[]>(
-    async () => {
-      // 백엔드 filter는 term 매칭이라 `/admin` exact 제외는 nested admin route에 무효.
-      // wildcard substring 제외는 query string의 NOT 구문으로 처리.
-      const response = await postAdminLogsCompositeBuckets({
-        index: 'biz-events',
-        query:
-          composeQuery([
-            serviceQuery,
-            'event_name:page_view',
-            'NOT path:*admin*',
-            'NOT prev_path:*admin*',
-          ]) || undefined,
-        filters: serviceFilters.length > 0 ? serviceFilters : undefined,
-        timeRange,
-        sources: ['prev_path', 'path'],
-        size: 500,
-      })
-      // path → category로 collapse + 같은 category 내 이동 제외 + 합산.
-      const cellMap = new Map<string, number>()
-      for (const bucket of response.buckets) {
-        const from = PATH_TO_CONTENT(bucket.keys['prev_path'] as string | null)
-        const to = PATH_TO_CONTENT(bucket.keys['path'] as string | null)
-        if (from === to) continue
-        const key = `${from}||${to}`
-        cellMap.set(key, (cellMap.get(key) ?? 0) + bucket.count)
-      }
-      const cells: I4Cell[] = []
-      for (const [key, count] of cellMap.entries()) {
-        const [from, to] = key.split('||')
-        cells.push({ from, to, count })
-      }
-      return cells
-    },
-    [timeRange, serviceFilters, serviceQuery, refreshNonce],
-  )
-}
-
-// ============================================================
 // 체류 viz — I9 체험 공간 평균 체류 시간 (가로 막대)
 // terms-with-metric(path) + avg(time_on_page_ms).
 // 동적 segment(roomCode 등) 정규화는 클라이언트에서.

@@ -121,13 +121,6 @@ export const VIZ_META: ViizMeta[] = [
     status: 'live',
   },
   {
-    id: 'I4',
-    section: 'flow',
-    title: '컨텐츠 간 이동 흐름',
-    subtitle: '카테고리 간 이동 빈도 (heatmap)',
-    status: 'live',
-  },
-  {
     id: 'I9',
     section: 'retention',
     title: '체험 공간 평균 체류 시간',
