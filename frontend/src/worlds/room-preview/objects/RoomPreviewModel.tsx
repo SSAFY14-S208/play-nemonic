@@ -1,6 +1,6 @@
 import { useGLTF } from '@react-three/drei'
-import type { ThreeEvent } from '@react-three/fiber'
-import { type ReactNode, useMemo } from 'react'
+import { useThree, type ThreeEvent } from '@react-three/fiber'
+import { type ReactNode, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import {
   HIDDEN_PREVIEW_OBJECT_KEYWORDS,
@@ -9,6 +9,7 @@ import {
   ROOM_PREVIEW_MODEL_OFFSET,
   ROOM_PREVIEW_SCALE,
 } from '../constants'
+import { useRoomPreviewLightDebugStore } from '../light-debug'
 
 const MATERIAL_TEXTURE_MAP_KEYS = [
   'alphaMap',
@@ -122,15 +123,16 @@ export default function RoomPreviewModel({
   onPointerOver?: (event: ThreeEvent<PointerEvent>) => void
 }) {
   const { scene } = useGLTF(ROOM_PREVIEW_MODEL_PATH)
+  const invalidate = useThree((state) => state.invalidate)
+  const isFrustumCullingEnabled = useRoomPreviewLightDebugStore(
+    (state) => state.isFrustumCullingEnabled,
+  )
 
   const configuredScene = useMemo(() => {
     scene.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return
 
       object.visible = !isHiddenPreviewObject(object.name)
-      object.castShadow = true
-      object.receiveShadow = true
-      object.frustumCulled = false
       getMeshMaterials(object.material).forEach((material) => {
         preserveSourceMaterial(material, object.name)
       })
@@ -138,6 +140,14 @@ export default function RoomPreviewModel({
 
     return scene
   }, [scene])
+
+  useEffect(() => {
+    scene.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return
+      object.frustumCulled = isFrustumCullingEnabled
+    })
+    invalidate()
+  }, [invalidate, isFrustumCullingEnabled, scene])
 
   return (
     <group
