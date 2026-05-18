@@ -45,6 +45,12 @@ export function isHubPerformanceDiagnosticsEnabled(
   return isDiagnosticsMode(performanceMode)
 }
 
+export function isHubPerfOverlayEnabled(): boolean {
+  if (typeof window === 'undefined') return false
+  if (IS_DEVELOPMENT) return true
+  return new URLSearchParams(window.location.search).get('perfOverlay') === '1'
+}
+
 export function startHubPerformanceDiagnostics(
   performanceMode: HubPerformanceMode,
 ) {

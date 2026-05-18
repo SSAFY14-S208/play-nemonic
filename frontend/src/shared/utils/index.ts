@@ -24,6 +24,7 @@ export {
 } from './drawingRaster'
 export {
   isHubPerformanceDiagnosticsEnabled,
+  isHubPerfOverlayEnabled,
   logHubMaterialStats,
   startHubPerformanceDiagnostics,
   trackHubControlEvent,
@@ -45,3 +46,4 @@ export {
   startNemonicPrintVibration,
   stopNemonicPrintVibration,
 } from './nemonicPrintVibration'
+export { normalizeOcrCategories } from './normalizeOcrCategories'
