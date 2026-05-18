@@ -10,7 +10,7 @@ import {
   useState,
 } from 'react'
 import { phoneIconEdit, phoneProfileAvatar } from '@/shared/assets'
-import { cn } from '@/shared/libs'
+import { cn, logEvent } from '@/shared/libs'
 import {
   PHONE_APP_SHORTCUTS,
   PHONE_COLORS,
@@ -215,6 +215,16 @@ export function PhoneHomeScreen() {
                   href={externalUrl}
                   target="_blank"
                   rel="noreferrer"
+                  // 핸드폰 모달 → 외부 공식몰 이동 분석용 emit. shortcut key를 metadata에 두어
+                  // 향후 다른 외부 링크가 추가되어도 동일 이벤트에서 분리 집계 가능.
+                  onClick={() => {
+                    logEvent('phone_official_store_clicked', {
+                      metadata: {
+                        shortcut_key: key,
+                        destination: externalUrl,
+                      },
+                    })
+                  }}
                   className="group flex min-h-[7.45rem] w-[7.15rem] flex-col items-center justify-start gap-2 transition duration-200 hover:-translate-y-1 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-primary-2"
                 >
                   {shortcutContent}

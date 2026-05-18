@@ -22,7 +22,8 @@ export type AnalyticsFiltersState = {
   refreshNonce: number
 }
 
-// 13개 viz 식별자.
+// viz 식별자. SNS 유입(I8)은 I7에 SNS별 카테고리로 흡수했고,
+// 핸드폰 모달 → 공식몰 이동 시계열(I14)을 추가했다.
 export type VizId =
   | 'I1'
   | 'I2'
@@ -30,12 +31,12 @@ export type VizId =
   | 'I5'
   | 'I6'
   | 'I7'
-  | 'I8'
   | 'I9'
   | 'I10'
   | 'I11'
   | 'I12'
   | 'I13'
+  | 'I14'
 
 export type VizSection =
   | 'overview'

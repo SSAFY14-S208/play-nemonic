@@ -16,8 +16,8 @@ import {
   I12KpiCard,
   I1KpiCard,
   PendingVizCard,
+  PhoneOfficialStoreTimelineChart,
   ShareRateDonut,
-  SnsEntryDonut,
   VizCard,
 } from './components'
 import { SECTION_META, VIZ_META } from './constants'
@@ -29,13 +29,13 @@ import {
   useI11Kpi,
   useI12Kpi,
   useI13AbandonElapsed,
+  useI14PhoneOfficialStoreClicks,
   useI1Kpi,
   useI2ContentCompletion,
   useI3FunnelAbandon,
   useI5EntryTimeline,
   useI6ShareRate,
   useI7EntryChannel,
-  useI8SnsEntry,
   useI9DwellTime,
 } from './hooks'
 import type { VizId, VizSection } from './types'
@@ -44,9 +44,11 @@ import type { VizId, VizSection } from './types'
 //
 // 12개 viz 모두 BE 로그 집계 API 직접 호출로 채워짐.
 //   - KPI 카드 3종 (I1·I11·I12) — search/distinct-count
-//   - donut 3종 (I6·I7·I8) — field-summary / terms-with-subs
+//   - donut 2종 (I6·I7) — field-summary / terms-with-subs
+//     (I7은 SNS별 카테고리까지 흡수해 단일 도넛으로 통합)
 //   - 가로 막대 2종 (I2·I9) — terms-with-subs / terms-with-metric
 //   - stacked area 2종 (I5·I10) — histogram byField
+//   - line 1종 (I14) — histogram(phone_official_store_clicked)
 //   - 단계 카드 1종 (I3) — composite-buckets
 //   - 3-phase 막대 1종 (I13) — filtered-metrics
 //
@@ -89,7 +91,7 @@ export default function AdminDashboardPage() {
   // 채널
   const i7State = useI7EntryChannel(vizArgs)
   const i10State = useI10EntryChannelTimeline(vizArgs)
-  const i8State = useI8SnsEntry(vizArgs)
+  const i14State = useI14PhoneOfficialStoreClicks(vizArgs)
   const i6State = useI6ShareRate(vizArgs)
   // 컨텐츠
   const i2State = useI2ContentCompletion(vizArgs)
@@ -130,10 +132,10 @@ export default function AdminDashboardPage() {
             baseEventQuery="event_name:landing_source_detected"
           />
         )
-      case 'I8':
+      case 'I14':
         return (
-          <SnsEntryDonut
-            state={i8State}
+          <PhoneOfficialStoreTimelineChart
+            state={i14State}
             onRetry={filters.refresh}
             onDrillDown={drillDown.open}
           />

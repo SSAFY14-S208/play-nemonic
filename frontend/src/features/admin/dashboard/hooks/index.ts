@@ -6,9 +6,9 @@ export {
   useI5EntryTimeline,
   useI6ShareRate,
   useI7EntryChannel,
-  useI8SnsEntry,
   useI9DwellTime,
   useI13AbandonElapsed,
+  useI14PhoneOfficialStoreClicks,
 } from './useAnalyticsCharts'
 export type {
   AnalyticsVizArgs,
@@ -17,9 +17,10 @@ export type {
   I3Step,
   I6Bucket,
   I7Bucket,
-  I8Bucket,
   I9Bucket,
   I13Phase,
+  I14Bucket,
+  I14Result,
   TimelineBucket,
   TimelineData,
 } from './useAnalyticsCharts'

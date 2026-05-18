@@ -80,52 +80,83 @@ function useAnalyticsFetcher<T>(
 
 // ============================================================
 // 채널 viz — I7 유입 경로 비율 (도넛)
-// field-summary(metadata.entry_type) on event_name:landing_source_detected.
+// field-summary(metadata.entry_type)와 metadata.referrer 두 호출을 합쳐 social을
+// SNS 호스트별 카테고리로 펼친 단일 도넛을 만든다. campaign은 운영상 의미가 약해
+// 클라이언트에서 제외한다.
 // ============================================================
-export type I7Bucket = { value: string; count: number }
+export type I7Bucket = { value: string; count: number; rawHosts?: string[] }
+
+const SNS_HOST_MATCHERS: ReadonlyArray<{ value: string; match: (host: string) => boolean }> = [
+  { value: 'sns.instagram', match: (host) => host.includes('instagram') },
+  { value: 'sns.kakao', match: (host) => host.includes('kakao') },
+  {
+    value: 'sns.twitter',
+    match: (host) => host.includes('twitter') || host.includes('x.com') || host.includes('t.co'),
+  },
+  { value: 'sns.facebook', match: (host) => host.includes('facebook') },
+  { value: 'sns.linkedin', match: (host) => host.includes('linkedin') },
+]
+
+const SNS_OTHER_VALUE = 'sns.other'
+
+function categorizeSnsBuckets(referrerBuckets: { value: string; count: number }[]): I7Bucket[] {
+  const accum = new Map<string, { count: number; rawHosts: string[] }>()
+  for (const bucket of referrerBuckets) {
+    const host = bucket.value.toLowerCase()
+    const matched = SNS_HOST_MATCHERS.find((entry) => entry.match(host))
+    const key = matched?.value ?? SNS_OTHER_VALUE
+    const existing = accum.get(key) ?? { count: 0, rawHosts: [] }
+    existing.count += bucket.count
+    existing.rawHosts.push(bucket.value)
+    accum.set(key, existing)
+  }
+  return Array.from(accum.entries()).map(([value, payload]) => ({
+    value,
+    count: payload.count,
+    rawHosts: payload.rawHosts,
+  }))
+}
 
 export function useI7EntryChannel(args: AnalyticsVizArgs) {
   const { timeRange, serviceFilters, serviceQuery, refreshNonce } = args
   return useAnalyticsFetcher<I7Bucket[]>(
     async () => {
-      const response = await postAdminLogsFieldSummary({
-        index: 'biz-events',
-        query: composeQuery([serviceQuery, 'event_name:landing_source_detected']) || undefined,
-        filters: serviceFilters.length > 0 ? serviceFilters : undefined,
-        timeRange,
-        fields: ['metadata.entry_type'],
-        size: 10,
-      })
-      return response.fields['metadata.entry_type'] ?? []
-    },
-    [timeRange, serviceFilters, serviceQuery, refreshNonce],
-  )
-}
+      const [entryResp, snsResp] = await Promise.all([
+        postAdminLogsFieldSummary({
+          index: 'biz-events',
+          query:
+            composeQuery([serviceQuery, 'event_name:landing_source_detected']) || undefined,
+          filters: serviceFilters.length > 0 ? serviceFilters : undefined,
+          timeRange,
+          fields: ['metadata.entry_type'],
+          size: 10,
+        }),
+        postAdminLogsFieldSummary({
+          index: 'biz-events',
+          query:
+            composeQuery([
+              serviceQuery,
+              'event_name:landing_source_detected',
+              'metadata.entry_type:social',
+            ]) || undefined,
+          filters: serviceFilters.length > 0 ? serviceFilters : undefined,
+          timeRange,
+          fields: ['metadata.referrer'],
+          size: 30,
+        }),
+      ])
 
-// ============================================================
-// 채널 viz — I8 SNS 유입 비율 (도넛)
-// field-summary(metadata.referrer, size:30) on entry_type:social.
-// host별 raw → 클라이언트에서 SNS 라벨로 categorize.
-// ============================================================
-export type I8Bucket = { value: string; count: number }
+      const entryBuckets = entryResp.fields['metadata.entry_type'] ?? []
+      const referrerBuckets = snsResp.fields['metadata.referrer'] ?? []
 
-export function useI8SnsEntry(args: AnalyticsVizArgs) {
-  const { timeRange, serviceFilters, serviceQuery, refreshNonce } = args
-  return useAnalyticsFetcher<I8Bucket[]>(
-    async () => {
-      const response = await postAdminLogsFieldSummary({
-        index: 'biz-events',
-        query: composeQuery([
-          serviceQuery,
-          'event_name:landing_source_detected',
-          'metadata.entry_type:social',
-        ]) || undefined,
-        filters: serviceFilters.length > 0 ? serviceFilters : undefined,
-        timeRange,
-        fields: ['metadata.referrer'],
-        size: 30,
-      })
-      return response.fields['metadata.referrer'] ?? []
+      // entry_type 결과에서 social·campaign 제외 — social은 referrer 기반 SNS로 펼쳐 합치고,
+      // campaign은 운영상 의미가 약해 도넛에서 제외한다.
+      const channelEntries: I7Bucket[] = entryBuckets
+        .filter((bucket) => bucket.value !== 'social' && bucket.value !== 'campaign')
+        .map((bucket) => ({ value: bucket.value, count: bucket.count }))
+      const snsEntries = categorizeSnsBuckets(referrerBuckets)
+
+      return [...channelEntries, ...snsEntries]
     },
     [timeRange, serviceFilters, serviceQuery, refreshNonce],
   )
@@ -280,6 +311,35 @@ export function useI10EntryChannelTimeline(args: AnalyticsVizArgs) {
         byField: bucket.byField ?? {},
       }))
       return { buckets, interval: response.interval, seriesKeys: aggregateSeriesKeys(buckets) }
+    },
+    [timeRange, serviceFilters, serviceQuery, refreshNonce],
+  )
+}
+
+// ============================================================
+// 채널 viz — I14 핸드폰 모달 → 네모닉 공식몰 이동 추이 (line)
+// histogram(event_name:phone_official_store_clicked) 단일 시리즈.
+// ============================================================
+export type I14Bucket = { ts: string; count: number }
+export type I14Result = { buckets: I14Bucket[]; interval: string; total: number }
+
+export function useI14PhoneOfficialStoreClicks(args: AnalyticsVizArgs) {
+  const { timeRange, serviceFilters, serviceQuery, refreshNonce } = args
+  return useAnalyticsFetcher<I14Result>(
+    async () => {
+      const response = await postAdminLogsHistogram({
+        index: 'biz-events',
+        query:
+          composeQuery([serviceQuery, 'event_name:phone_official_store_clicked']) || undefined,
+        filters: serviceFilters.length > 0 ? serviceFilters : undefined,
+        timeRange,
+      })
+      const buckets: I14Bucket[] = response.buckets.map((bucket) => ({
+        ts: bucket.ts,
+        count: bucket.total,
+      }))
+      const total = buckets.reduce((sum, bucket) => sum + bucket.count, 0)
+      return { buckets, interval: response.interval, total }
     },
     [timeRange, serviceFilters, serviceQuery, refreshNonce],
   )

@@ -88,6 +88,7 @@ type UiEventName =
   | 'tool_selected'
   | 'canvas_interaction_started'
   | 'canvas_interaction_paused'
+  | 'phone_official_store_clicked'
 
 // 성능/오류 (§8)
 type QualityEventName =
