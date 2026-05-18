@@ -35,11 +35,11 @@ public class ArtifactQrComposer {
     private static final String GIF_FORMAT = "gif";
     private static final String JPG_FORMAT = "jpg";
     private static final int DEFAULT_GIF_DELAY_CS = 10;
-    private static final int QR_MAX_SIZE = 144;
-    private static final int QR_MIN_SIZE = 72;
+    private static final int QR_MAX_SIZE = 120;
+    private static final int QR_MIN_SIZE = 56;
     private static final int QR_PADDING = 8;
     private static final int QR_MARGIN_MODULES = 1;
-    private static final int QR_SIZE_DIVISOR = 4;
+    private static final int QR_SIZE_DIVISOR = 5;
 
     public byte[] compose(String sourceContentType, byte[] sourceBytes, String qrUrl) {
         if ("image/gif".equalsIgnoreCase(sourceContentType)) {

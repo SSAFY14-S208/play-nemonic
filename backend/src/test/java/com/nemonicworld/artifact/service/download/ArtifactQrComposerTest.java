@@ -43,10 +43,10 @@ class ArtifactQrComposerTest {
 
         BufferedImage composed = ImageIO.read(new ByteArrayInputStream(composedBytes));
         PixelBounds darkBounds = findDarkPixelBounds(composed);
-        assertThat(darkBounds.width()).isLessThanOrEqualTo(72);
-        assertThat(darkBounds.height()).isLessThanOrEqualTo(72);
-        assertThat(darkBounds.minX()).isGreaterThanOrEqualTo(270);
-        assertThat(darkBounds.minY()).isGreaterThanOrEqualTo(150);
+        assertThat(darkBounds.width()).isLessThanOrEqualTo(56);
+        assertThat(darkBounds.height()).isLessThanOrEqualTo(56);
+        assertThat(darkBounds.minX()).isGreaterThanOrEqualTo(296);
+        assertThat(darkBounds.minY()).isGreaterThanOrEqualTo(176);
     }
 
     @Test
