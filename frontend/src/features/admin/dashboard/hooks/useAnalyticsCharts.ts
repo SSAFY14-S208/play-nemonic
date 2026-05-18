@@ -287,9 +287,19 @@ export function useI10EntryChannelTimeline(args: AnalyticsVizArgs) {
 
 // ============================================================
 // 흐름 viz — I3 단계별 이탈 깔때기 (faceted)
-// composite-buckets(funnel_name, step_name) + subAggs(minStepIndex).
+// composite-buckets(funnel_name, step_name) + subAggs(minStepIndex, cardinality(uuid)).
+//
+// `count`는 distinct uuid(사용자 단위) 기준 잔존 수다. 동일 사용자가 한 단계를 여러 번
+// 거쳐도(라운드 반복, 새로고침, 재접속) 1로 계산되므로 진짜 funnel 의미가 된다.
+// `docCount`는 원본 이벤트 발생 수 — 비교/검증용으로 보존하지만 UI 잔존율 계산에는
+// 쓰지 않는다(과거 doc_count 기반은 잔존율 100% 초과 같은 비현실적 값을 만들었다).
 // ============================================================
-export type I3Step = { name: string; count: number; minStepIndex: number }
+export type I3Step = {
+  name: string
+  count: number
+  docCount: number
+  minStepIndex: number
+}
 export type I3Funnel = { name: string; steps: I3Step[] }
 
 export function useI3FunnelAbandon(args: AnalyticsVizArgs) {
@@ -304,7 +314,10 @@ export function useI3FunnelAbandon(args: AnalyticsVizArgs) {
         timeRange,
         sources: ['metadata.funnel_name', 'metadata.step_name'],
         size: 200,
-        subAggs: [{ name: 'minStepIndex', type: 'min', field: 'metadata.step_index' }],
+        subAggs: [
+          { name: 'minStepIndex', type: 'min', field: 'metadata.step_index' },
+          { name: 'uniqueUsers', type: 'cardinality', field: 'uuid' },
+        ],
       })
       // funnel_name별로 grouping.
       const grouped = new Map<string, I3Step[]>()
@@ -312,8 +325,14 @@ export function useI3FunnelAbandon(args: AnalyticsVizArgs) {
         const funnelName = bucket.keys['metadata.funnel_name'] ?? '(미지정)'
         const stepName = bucket.keys['metadata.step_name'] ?? '(미지정)'
         const minStepIndex = bucket.sub?.minStepIndex ?? 0
+        const uniqueUsers = bucket.sub?.uniqueUsers ?? 0
         const existing = grouped.get(funnelName) ?? []
-        existing.push({ name: stepName, count: bucket.count, minStepIndex })
+        existing.push({
+          name: stepName,
+          count: uniqueUsers,
+          docCount: bucket.count,
+          minStepIndex,
+        })
         grouped.set(funnelName, existing)
       }
       const funnels: I3Funnel[] = []
