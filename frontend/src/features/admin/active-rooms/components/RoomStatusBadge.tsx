@@ -8,6 +8,7 @@ interface RoomStatusBadgeProps {
 }
 
 const STATUS_PRESET: Record<string, { label: string; className: string }> = {
+  ACTIVE: { label: '활성', className: 'bg-emerald-100 text-emerald-700' },
   WAITING: { label: '대기중', className: 'bg-amber-100 text-amber-700' },
   PLAYING: { label: '진행중', className: 'bg-emerald-100 text-emerald-700' },
   FINALIZING: { label: '마무리중', className: 'bg-sky-100 text-sky-700' },
