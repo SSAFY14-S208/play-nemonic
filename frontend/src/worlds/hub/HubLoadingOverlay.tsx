@@ -1,8 +1,12 @@
 import type { CSSProperties } from 'react'
+import Image from 'next/image'
 import { motion } from 'motion/react'
 import { cn } from '@/shared/libs'
-import HubLoadingHouseLottie from './HubLoadingHouseLottie'
-import { useHubLoadingOverlay } from './hooks'
+import {
+  BAR_POP_DURATION_MS,
+  PERCENT_FADE_OUT_DURATION_MS,
+  useHubLoadingOverlay,
+} from './hooks'
 
 const HUB_LOADING_PRIMARY_COLOR = '#f49cc8'
 const HUB_LOADING_PRIMARY_HOVER_COLOR = '#ed86bd'
@@ -17,11 +21,11 @@ const BAR_BASE_SHADOW = 'inset 0 1px 4px rgb(91 72 118 / 12%)'
 const BAR_POP_SHADOW =
   'inset 0 1px 4px rgb(91 72 118 / 12%), 0 0 36px 8px rgba(244, 156, 200, 0.95)'
 
-// Pop sequence: percent text fades out first, then the bar glows.
-// Must stay in sync with PERCENT_FADE_OUT_DURATION_MS / BAR_POP_DURATION_MS
-// in useHubLoadingOverlay.ts (POP_SEQUENCE_DURATION_MS is their sum).
-const PERCENT_FADE_OUT_DURATION_SECONDS = 0.25
-const BAR_POP_DURATION_SECONDS = 0.5
+// Motion durations mirror the hook's POP_SEQUENCE_DURATION_MS budget so the
+// `isReady` transition fires only after both the text fade-out and the bar
+// glow have visibly completed.
+const PERCENT_FADE_OUT_DURATION_SECONDS = PERCENT_FADE_OUT_DURATION_MS / 1000
+const BAR_POP_DURATION_SECONDS = BAR_POP_DURATION_MS / 1000
 
 export default function HubLoadingOverlay({
   isCanvasReady,
@@ -64,7 +68,17 @@ export default function HubLoadingOverlay({
         />
       )}
       <div className="relative flex w-[min(21rem,calc(100vw-3rem))] flex-col items-center gap-5 text-center">
-        {isVisible && <HubLoadingHouseLottie />}
+        {isVisible && (
+          <Image
+            src="/images/play-nemonic-logo.png"
+            alt="Play! Nemonic"
+            width={1672}
+            height={941}
+            priority
+            draggable={false}
+            className="pointer-events-none h-28 w-auto"
+          />
+        )}
         <div className="flex flex-col items-center gap-3">
           <p className="h3-b text-fg-primary">
             {isReady
