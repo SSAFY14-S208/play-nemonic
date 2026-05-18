@@ -30,6 +30,7 @@ import { InfinityToolPanel } from './InfinityToolPanel'
 type InfinityCanvasRoom = ReturnType<typeof useInfinityCanvasRoom>
 const CURSOR_SEND_INTERVAL_MS = 50
 const DRAFT_SEND_INTERVAL_MS = 33
+const CURSOR_MIN_DISTANCE = 1.5
 const REMOTE_DRAFT_RETENTION_MS = 3500
 const REMOTE_DRAFT_CONFIRMED_RETENTION_MS = 650
 
@@ -142,6 +143,53 @@ function hashUserUuid(userUuid: string) {
   return Math.abs(hash)
 }
 
+function getDraftObjectSignature(object: InfinityObject) {
+  if (object.type === 'line') {
+    const lastPoint = object.points.at(-1)
+    return [
+      object.id,
+      object.type,
+      object.color,
+      object.strokeWidth,
+      object.points.length,
+      lastPoint?.x.toFixed(1) ?? '',
+      lastPoint?.y.toFixed(1) ?? '',
+      object.isEraser ? 'eraser' : 'pen',
+    ].join(':')
+  }
+
+  if (object.type === 'text') {
+    return [object.id, object.type, object.x, object.y, object.text, object.fontSize, object.color].join(':')
+  }
+
+  if (object.type === 'fill') {
+    return [object.id, object.type, object.x, object.y, object.width, object.height, object.color].join(':')
+  }
+
+  return [
+    object.id,
+    object.type,
+    object.x,
+    object.y,
+    object.width,
+    object.height,
+    object.color,
+    object.strokeWidth,
+    object.fill ?? '',
+    object.rotation ?? 0,
+  ].join(':')
+}
+
+function getDraftObjectsSignature(draftObjects: InfinityObject[]) {
+  return draftObjects.map(getDraftObjectSignature).join('|')
+}
+
+function getCursorDistance(firstCursor: { x: number; y: number }, secondCursor: { x: number; y: number }) {
+  const distanceX = firstCursor.x - secondCursor.x
+  const distanceY = firstCursor.y - secondCursor.y
+  return Math.sqrt(distanceX * distanceX + distanceY * distanceY)
+}
+
 async function createStageBlob(stage: Konva.Stage, rect: InfinityCaptureRect): Promise<Blob> {
   const cloneContainer = document.createElement('div')
   cloneContainer.style.position = 'fixed'
@@ -194,6 +242,8 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const appliedServerRevisionRef = useRef<number | null>(null)
   const lastCursorSentAtRef = useRef(0)
   const lastDraftCursorSentAtRef = useRef(0)
+  const lastSentCursorRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
+  const lastSentDraftSignatureRef = useRef('')
   const latestCursorRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
   const draftObjectsRef = useRef<InfinityObject[]>([])
   const lastFinishedDraftsRef = useRef<InfinityObject[]>([])
@@ -250,11 +300,23 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       const now = Date.now()
       const draftObjects = draftObjectsRef.current
       const hasDraftObjects = draftObjects.length > 0
+      const draftSignature = hasDraftObjects ? getDraftObjectsSignature(draftObjects) : ''
+      const previousCursor = lastSentCursorRef.current
+      const hasMeaningfulCursorMove =
+        !previousCursor ||
+        previousCursor.zoom !== cursor.zoom ||
+        getCursorDistance(previousCursor, cursor) >= CURSOR_MIN_DISTANCE
+      const hasDraftChanged = draftSignature !== lastSentDraftSignatureRef.current
+
+      if (!options.force && !hasMeaningfulCursorMove && !hasDraftChanged) return
+
       const minInterval = hasDraftObjects ? DRAFT_SEND_INTERVAL_MS : CURSOR_SEND_INTERVAL_MS
       if (!options.force && now - lastCursorSentAtRef.current < minInterval) return
       if (hasDraftObjects && !options.force && now - lastDraftCursorSentAtRef.current < DRAFT_SEND_INTERVAL_MS) return
 
       lastCursorSentAtRef.current = now
+      lastSentCursorRef.current = cursor
+      lastSentDraftSignatureRef.current = draftSignature
       if (hasDraftObjects) {
         lastDraftCursorSentAtRef.current = now
       }
