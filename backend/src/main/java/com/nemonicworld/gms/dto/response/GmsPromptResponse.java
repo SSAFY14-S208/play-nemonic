@@ -11,7 +11,7 @@ public class GmsPromptResponse {
     private static final String STATUS_ACTIVE = "active";
     private static final String STATUS_NOT_ACTIVE = "not_active";
 
-    @Schema(description = "GMS 프롬프트 ID. 기본 fallback 프롬프트는 null입니다.", example = "5", nullable = true)
+    @Schema(description = "GMS 프롬프트 ID. 기본 대체 프롬프트는 null입니다.", example = "5", nullable = true)
     private final Long id;
 
     @Schema(description = "프롬프트 이름", example = "오늘의 운세 기본 프롬프트 v2")
@@ -68,8 +68,8 @@ public class GmsPromptResponse {
     }
 
     public static GmsPromptResponse defaultFortune(String content) {
-        return new GmsPromptResponse(null, "Default fortune prompt", content, "fortune", null, null, null, true,
-            STATUS_ACTIVE, null, null);
+        return new GmsPromptResponse(null, "기본 오늘의 운세 프롬프트", content, "fortune", null, null, null, true, STATUS_ACTIVE,
+            null, null);
     }
 
     public Long getId() {

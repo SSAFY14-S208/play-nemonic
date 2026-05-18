@@ -48,12 +48,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class GmsPromptController {
 
     private static final String FEATURE_TYPE_PARAMETER_DESCRIPTION = "기능 타입: fortune, sticker";
-    private static final String STATUS_PARAMETER_DESCRIPTION = "활성 상태 필터: active, not_active, all. 미전달 시 전체 조회";
-    private static final String LIST_DESCRIPTION = "관리자가 삭제되지 않은 GMS 프롬프트를 검색하고 active/not_active 상태로 필터링합니다.";
-    private static final String CURRENT_DESCRIPTION = "featureType 기준으로 실제 서비스에서 현재 사용 중인 프롬프트를 조회합니다. "
-        + "fortune은 active DB 프롬프트가 없으면 기본 프롬프트를 반환합니다.";
-    private static final String ACTIVATE_DESCRIPTION = "동일 featureType의 기존 active 프롬프트를 비활성화하고 "
-        + "선택한 프롬프트를 현재 사용 중 상태로 전환합니다.";
+    private static final String STATUS_PARAMETER_DESCRIPTION = "활성 상태 필터: 활성(active), 비활성(not_active), 전체(all). "
+        + "미전달 시 전체 조회";
+    private static final String LIST_DESCRIPTION = "관리자가 삭제되지 않은 GMS 프롬프트를 검색하고 활성/비활성 상태로 필터링합니다.";
+    private static final String CURRENT_DESCRIPTION = "기능 타입 기준으로 실제 서비스에서 현재 사용 중인 프롬프트를 조회합니다. "
+        + "fortune은 DB에 활성화된 프롬프트가 없으면 기본 프롬프트를 반환합니다.";
+    private static final String ACTIVATE_DESCRIPTION = "동일 기능 타입의 기존 활성 프롬프트를 비활성화하고 " + "선택한 프롬프트를 현재 사용 중 상태로 전환합니다.";
     private static final String TEST_DESCRIPTION = "저장된 프롬프트 본문과 샘플 사주로 미리보기 결과를 생성합니다. "
         + "결과물, 갤러리, MinIO 객체는 저장하지 않습니다.";
     private static final String CREATE_REQUEST_EXAMPLE = """
@@ -104,7 +104,7 @@ public class GmsPromptController {
     private static final String PROMPT_NOT_FOUND_EXAMPLE = """
         {
           "success": false,
-          "message": "GMS prompt was not found."
+          "message": "GMS 프롬프트를 찾을 수 없습니다."
         }
         """;
     private static final String CREATE_SUCCESS_MESSAGE = "GMS 프롬프트 생성 성공";
@@ -142,7 +142,7 @@ public class GmsPromptController {
     }
 
     @PostMapping
-    @Operation(summary = "GMS 프롬프트 생성", description = "관리자가 새 GMS 프롬프트 버전을 저장합니다. 생성 직후 상태는 not_active입니다.")
+    @Operation(summary = "GMS 프롬프트 생성", description = "관리자가 새 GMS 프롬프트 버전을 저장합니다. 생성 직후 상태는 비활성입니다.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = GmsPromptCreateRequest.class), examples = @ExampleObject(name = "오늘의 운세 프롬프트 생성", value = CREATE_REQUEST_EXAMPLE)))
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "GMS 프롬프트 생성 성공"),
@@ -202,7 +202,7 @@ public class GmsPromptController {
     }
 
     @GetMapping("/{promptId}")
-    @Operation(summary = "GMS 프롬프트 상세 조회", description = "관리자가 GMS 프롬프트 상세 정보와 active/not_active 상태를 조회합니다.")
+    @Operation(summary = "GMS 프롬프트 상세 조회", description = "관리자가 GMS 프롬프트 상세 정보와 활성/비활성 상태를 조회합니다.")
     @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "GMS 프롬프트 ID", example = "5")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 상세 조회 성공"),
@@ -217,7 +217,7 @@ public class GmsPromptController {
     }
 
     @PatchMapping("/{promptId}")
-    @Operation(summary = "GMS 프롬프트 수정", description = "관리자가 GMS 프롬프트 이름, 본문, 기능 타입을 수정합니다. active 프롬프트는 기능 타입을 변경할 수 없습니다.")
+    @Operation(summary = "GMS 프롬프트 수정", description = "관리자가 GMS 프롬프트 이름, 본문, 기능 타입을 수정합니다. 활성 프롬프트는 기능 타입을 변경할 수 없습니다.")
     @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "GMS 프롬프트 ID", example = "5")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = GmsPromptUpdateRequest.class), examples = @ExampleObject(name = "프롬프트 일부 필드 수정", value = UPDATE_REQUEST_EXAMPLE)))
     @ApiResponses({
@@ -237,7 +237,7 @@ public class GmsPromptController {
     }
 
     @DeleteMapping("/{promptId}")
-    @Operation(summary = "GMS 프롬프트 삭제", description = "관리자가 GMS 프롬프트를 soft delete합니다. active 프롬프트를 삭제하면 현재 프롬프트 상태도 비워집니다.")
+    @Operation(summary = "GMS 프롬프트 삭제", description = "관리자가 GMS 프롬프트를 소프트 삭제합니다. 활성 프롬프트를 삭제하면 현재 프롬프트 상태도 비워집니다.")
     @Parameter(name = "promptId", in = ParameterIn.PATH, required = true, description = "GMS 프롬프트 ID", example = "5")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "GMS 프롬프트 삭제 성공"),

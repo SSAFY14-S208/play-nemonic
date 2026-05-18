@@ -450,7 +450,7 @@ class GmsPromptControllerIntegrationTest {
                 .content(previewRequestBody("fortune", " ", sajuRequestJson())))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("유효성 검사 실패"))
-            .andExpect(jsonPath("$.errors.content").value("Prompt content is required."));
+            .andExpect(jsonPath("$.errors.content").value("프롬프트 본문을 입력해야 합니다."));
 
         verifyNoInteractions(fortuneGmsClient);
     }

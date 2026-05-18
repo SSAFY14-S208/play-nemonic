@@ -8,7 +8,7 @@ public class GmsPromptCurrentResponse {
     @Schema(description = "조회한 기능 타입", example = "fortune")
     private final String featureType;
 
-    @Schema(description = "현재 프롬프트 출처. database는 저장된 active 프롬프트, default는 서버 기본 프롬프트입니다.", example = "database", allowableValues = {
+    @Schema(description = "현재 프롬프트 출처입니다. database는 저장된 활성 프롬프트, default는 서버 기본 프롬프트를 의미합니다.", example = "database", allowableValues = {
         "database", "default"})
     private final String source;
 

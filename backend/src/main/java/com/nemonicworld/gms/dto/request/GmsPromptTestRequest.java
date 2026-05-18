@@ -11,7 +11,7 @@ import jakarta.validation.constraints.NotNull;
 public class GmsPromptTestRequest {
 
     @Valid
-    @NotNull(message = "Prompt test sample saju is required.")
+    @NotNull(message = "프롬프트 테스트용 샘플 사주 정보를 입력해야 합니다.")
     @Schema(description = "저장된 프롬프트 테스트에 사용할 샘플 만세력/사주 정보")
     private final FortuneCreateRequest sampleSaju;
 

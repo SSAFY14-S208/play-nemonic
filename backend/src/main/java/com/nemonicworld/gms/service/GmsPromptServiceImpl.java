@@ -37,17 +37,18 @@ import org.springframework.util.StringUtils;
 @Service
 public class GmsPromptServiceImpl implements GmsPromptService {
 
-    private static final String PROMPT_NOT_FOUND_MESSAGE = "GMS prompt was not found.";
-    private static final String UNAUTHORIZED_MESSAGE = "Admin authentication is required.";
-    private static final String DUPLICATE_NAME_MESSAGE = "GMS prompt name already exists.";
-    private static final String REQUIRED_NAME_MESSAGE = "Prompt name is required.";
-    private static final String REQUIRED_CONTENT_MESSAGE = "Prompt content is required.";
-    private static final String REQUIRED_FEATURE_TYPE_MESSAGE = "Prompt feature type is required.";
-    private static final String REQUIRED_UPDATE_FIELD_MESSAGE = "At least one prompt field is required.";
-    private static final String INVALID_PAGE_REQUEST_MESSAGE = "Page request is invalid.";
-    private static final String INVALID_FEATURE_TYPE_MESSAGE = "Prompt feature type is invalid.";
-    private static final String INVALID_STATUS_MESSAGE = "Prompt status is invalid.";
-    private static final String ACTIVE_FEATURE_TYPE_CHANGE_MESSAGE = "Active prompt feature type cannot be changed.";
+    private static final String PROMPT_NOT_FOUND_MESSAGE = "GMS 프롬프트를 찾을 수 없습니다.";
+    private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
+    private static final String DUPLICATE_NAME_MESSAGE = "이미 등록된 GMS 프롬프트 이름입니다.";
+    private static final String REQUIRED_NAME_MESSAGE = "프롬프트 이름을 입력해야 합니다.";
+    private static final String REQUIRED_CONTENT_MESSAGE = "프롬프트 본문을 입력해야 합니다.";
+    private static final String REQUIRED_FEATURE_TYPE_MESSAGE = "프롬프트 기능 타입을 입력해야 합니다.";
+    private static final String REQUIRED_UPDATE_FIELD_MESSAGE = "수정할 프롬프트 정보를 하나 이상 입력해야 합니다.";
+    private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
+    private static final String INVALID_FEATURE_TYPE_MESSAGE = "프롬프트 기능 타입이 올바르지 않습니다.";
+    private static final String INVALID_STATUS_MESSAGE = "프롬프트 활성 상태 값이 올바르지 않습니다.";
+    private static final String ACTIVE_FEATURE_TYPE_CHANGE_MESSAGE = "활성화된 프롬프트는 기능 타입을 변경할 수 없습니다.";
+    private static final String REQUIRED_TEST_REQUEST_MESSAGE = "프롬프트 테스트 요청 본문을 입력해야 합니다.";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 50;
@@ -158,7 +159,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
         GmsPromptTestRequest request) {
         requireAdmin(adminPrincipal);
         if (request == null) {
-            throw new BadRequestException("Prompt test request is required.");
+            throw new BadRequestException(REQUIRED_TEST_REQUEST_MESSAGE);
         }
 
         GmsPrompt prompt = gmsPromptRepository.findActiveById(promptId)
