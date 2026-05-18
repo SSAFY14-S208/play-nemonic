@@ -61,13 +61,17 @@ RECEIVER_KEYWORDS = (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("analyze", "bake"), default="analyze")
+    parser.add_argument("--mode", choices=("analyze", "bake", "hybrid-bake"), default="analyze")
     parser.add_argument("--resolution", type=int, default=1024)
     parser.add_argument("--samples", type=int, default=64)
     parser.add_argument("--margin", type=int, default=12)
     parser.add_argument("--profile", choices=("receivers", "full"), default="receivers")
+    parser.add_argument("--source-collection", default="")
     parser.add_argument("--output-glb", default="")
     parser.add_argument("--output-image", default="")
+    parser.add_argument("--output-base-image", default="")
+    parser.add_argument("--output-ao-image", default="")
+    parser.add_argument("--ao-strength", type=float, default=0.32)
     parser.add_argument("--bake-type", choices=("COMBINED", "AO"), default="COMBINED")
     parser.add_argument("--texture-format", choices=("PNG", "JPEG"), default="PNG")
     if "--" in os.sys.argv:
@@ -107,20 +111,54 @@ def is_receiver_surface(obj: bpy.types.Object) -> bool:
     return any(keyword in text for keyword in RECEIVER_KEYWORDS)
 
 
-def classify_meshes(profile: str) -> tuple[list[bpy.types.Object], list[bpy.types.Object]]:
+def collect_collection_meshes(collection_name: str) -> list[bpy.types.Object]:
+    collection = bpy.data.collections.get(collection_name)
+    if collection is None:
+        raise RuntimeError(f"Missing source collection: {collection_name}")
+
+    meshes: list[bpy.types.Object] = []
+    seen_names: set[str] = set()
+
+    def visit(target_collection: bpy.types.Collection) -> None:
+        for obj in target_collection.objects:
+            if obj.type != "MESH" or obj.name in seen_names:
+                continue
+            seen_names.add(obj.name)
+            meshes.append(obj)
+        for child_collection in target_collection.children:
+            visit(child_collection)
+
+    visit(collection)
+    return meshes
+
+
+def classify_meshes(
+    profile: str,
+    source_collection: str = "",
+) -> tuple[list[bpy.types.Object], list[bpy.types.Object]]:
     bake_objects: list[bpy.types.Object] = []
     excluded_objects: list[bpy.types.Object] = []
 
-    for obj in bpy.context.scene.objects:
+    source_objects = (
+        collect_collection_meshes(source_collection)
+        if source_collection
+        else list(bpy.context.scene.objects)
+    )
+
+    for obj in source_objects:
         if is_helper_object(obj):
             obj.hide_render = True
             obj.hide_viewport = True
             continue
-        if not is_visible_mesh(obj):
+        if source_collection:
+            obj.hide_render = False
+            obj.hide_viewport = False
+            obj.hide_set(False)
+        elif not is_visible_mesh(obj):
             continue
         if is_excluded_from_bake(obj):
             excluded_objects.append(obj)
-        elif profile == "receivers" and not is_receiver_surface(obj):
+        elif not source_collection and profile == "receivers" and not is_receiver_surface(obj):
             excluded_objects.append(obj)
         else:
             bake_objects.append(obj)
@@ -205,7 +243,34 @@ def select_objects(objects: list[bpy.types.Object]) -> None:
     bpy.context.view_layer.objects.active = objects[0]
 
 
+def ensure_objects_renderable(objects: list[bpy.types.Object]) -> None:
+    for collection in bpy.data.collections:
+        collection.hide_render = False
+        collection.hide_viewport = False
+
+    for obj in objects:
+        obj.hide_render = False
+        obj.hide_viewport = False
+        obj.hide_set(False)
+    bpy.context.view_layer.update()
+
+
+def isolate_bake_objects(objects: list[bpy.types.Object]) -> None:
+    bake_object_names = {obj.name for obj in objects}
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH":
+            continue
+
+        should_hide = obj.name not in bake_object_names
+        obj.hide_render = should_hide
+        obj.hide_viewport = should_hide
+        obj.hide_set(should_hide)
+
+    ensure_objects_renderable(objects)
+
+
 def create_lightmap_uvs(bake_objects: list[bpy.types.Object]) -> None:
+    ensure_objects_renderable(bake_objects)
     for obj in bake_objects:
         if BAKE_UV_NAME not in obj.data.uv_layers:
             obj.data.uv_layers.new(name=BAKE_UV_NAME)
@@ -235,9 +300,13 @@ def ensure_material(obj: bpy.types.Object) -> bpy.types.Material:
     return material
 
 
-def create_bake_image(resolution: int) -> bpy.types.Image:
+def create_bake_image(resolution: int, suffix: str = "") -> bpy.types.Image:
+    image_name = f"{BAKE_IMAGE_NAME_PREFIX}_{resolution}"
+    if suffix:
+        image_name = f"{image_name}_{suffix}"
+
     image = bpy.data.images.new(
-        f"{BAKE_IMAGE_NAME_PREFIX}_{resolution}",
+        image_name,
         width=resolution,
         height=resolution,
         alpha=False,
@@ -261,6 +330,9 @@ def assign_bake_target_nodes(
             seen_materials.add(material)
             material.use_nodes = True
             node_tree = material.node_tree
+            for node in list(node_tree.nodes):
+                if node.name == "NEMONIC_BAKE_TARGET":
+                    node_tree.nodes.remove(node)
             texture_node = node_tree.nodes.new("ShaderNodeTexImage")
             texture_node.name = "NEMONIC_BAKE_TARGET"
             texture_node.label = "NEMONIC Bake Target"
@@ -291,6 +363,32 @@ def create_unlit_baked_material(image: bpy.types.Image, resolution: int) -> bpy.
     return material
 
 
+def create_pbr_baked_material(image: bpy.types.Image, resolution: int) -> bpy.types.Material:
+    material = bpy.data.materials.new(f"{BAKED_MATERIAL_NAME_PREFIX}_HYBRID_{resolution}")
+    material.use_nodes = True
+    node_tree = material.node_tree
+    node_tree.nodes.clear()
+
+    uv_node = node_tree.nodes.new("ShaderNodeUVMap")
+    uv_node.uv_map = BAKE_UV_NAME
+    texture_node = node_tree.nodes.new("ShaderNodeTexImage")
+    texture_node.image = image
+    texture_node.extension = "CLIP"
+    texture_node.interpolation = "Smart"
+    principled_node = node_tree.nodes.new("ShaderNodeBsdfPrincipled")
+    output_node = node_tree.nodes.new("ShaderNodeOutputMaterial")
+
+    if "Metallic" in principled_node.inputs:
+        principled_node.inputs["Metallic"].default_value = 0.0
+    if "Roughness" in principled_node.inputs:
+        principled_node.inputs["Roughness"].default_value = 0.72
+
+    node_tree.links.new(uv_node.outputs["UV"], texture_node.inputs["Vector"])
+    node_tree.links.new(texture_node.outputs["Color"], principled_node.inputs["Base Color"])
+    node_tree.links.new(principled_node.outputs["BSDF"], output_node.inputs["Surface"])
+    return material
+
+
 def replace_with_baked_material(
     bake_objects: list[bpy.types.Object],
     baked_material: bpy.types.Material,
@@ -314,12 +412,14 @@ def save_bake_image(image: bpy.types.Image, output_image: Path, texture_format: 
     image.save()
 
 
-def export_glb(output_glb: Path) -> None:
+def export_glb(output_glb: Path, export_objects: list[bpy.types.Object] | None = None) -> None:
     output_glb.parent.mkdir(parents=True, exist_ok=True)
-    bpy.ops.object.select_all(action="DESELECT")
+    if export_objects:
+        select_objects(export_objects)
     bpy.ops.export_scene.gltf(
         filepath=str(output_glb),
         export_format="GLB",
+        use_selection=bool(export_objects),
         export_cameras=False,
         export_lights=False,
         export_materials="EXPORT",
@@ -338,6 +438,7 @@ def bake_room(args: argparse.Namespace, bake_objects: list[bpy.types.Object]) ->
     start_time = time.time()
     enable_cycles(args.samples)
     duplicate_bake_mesh_data(bake_objects)
+    isolate_bake_objects(bake_objects)
     create_lightmap_uvs(bake_objects)
     image = create_bake_image(args.resolution)
     assign_bake_target_nodes(bake_objects, image)
@@ -354,7 +455,7 @@ def bake_room(args: argparse.Namespace, bake_objects: list[bpy.types.Object]) ->
     save_bake_image(image, output_image, args.texture_format)
     baked_material = create_unlit_baked_material(image, args.resolution)
     replace_with_baked_material(bake_objects, baked_material)
-    export_glb(Path(args.output_glb))
+    export_glb(Path(args.output_glb), bake_objects)
 
     print(
         "CODEX_BAKE_EXPORT_DONE "
@@ -369,12 +470,136 @@ def bake_room(args: argparse.Namespace, bake_objects: list[bpy.types.Object]) ->
     )
 
 
+def bake_to_image(
+    bake_objects: list[bpy.types.Object],
+    image: bpy.types.Image,
+    bake_type: str,
+    margin: int,
+    pass_filter: set[str] | None = None,
+) -> None:
+    ensure_objects_renderable(bake_objects)
+    assign_bake_target_nodes(bake_objects, image)
+    select_objects(bake_objects)
+    bake_options = {
+        "type": bake_type,
+        "margin": margin,
+        "use_clear": True,
+    }
+    if pass_filter is not None:
+        bake_options["pass_filter"] = pass_filter
+    bpy.ops.object.bake(**bake_options)
+
+
+def combine_base_and_ao_images(
+    base_image: bpy.types.Image,
+    ao_image: bpy.types.Image,
+    resolution: int,
+    ao_strength: float,
+) -> bpy.types.Image:
+    combined_image = bpy.data.images.new(
+        f"{BAKE_IMAGE_NAME_PREFIX}_{resolution}_Hybrid",
+        width=resolution,
+        height=resolution,
+        alpha=False,
+        float_buffer=False,
+    )
+    combined_image.colorspace_settings.name = "sRGB"
+
+    base_pixels = list(base_image.pixels[:])
+    ao_pixels = list(ao_image.pixels[:])
+    combined_pixels = [0.0] * len(base_pixels)
+    clamped_ao_strength = max(0.0, min(ao_strength, 1.0))
+
+    for pixel_index in range(0, len(base_pixels), 4):
+        ao_value = (
+            ao_pixels[pixel_index]
+            + ao_pixels[pixel_index + 1]
+            + ao_pixels[pixel_index + 2]
+        ) / 3.0
+        shadow_multiplier = 1.0 - clamped_ao_strength + clamped_ao_strength * ao_value
+
+        combined_pixels[pixel_index] = base_pixels[pixel_index] * shadow_multiplier
+        combined_pixels[pixel_index + 1] = base_pixels[pixel_index + 1] * shadow_multiplier
+        combined_pixels[pixel_index + 2] = base_pixels[pixel_index + 2] * shadow_multiplier
+        combined_pixels[pixel_index + 3] = 1.0
+
+    combined_image.pixels.foreach_set(combined_pixels)
+    combined_image.update()
+    return combined_image
+
+
+def bake_hybrid_room(args: argparse.Namespace, bake_objects: list[bpy.types.Object]) -> None:
+    if not bake_objects:
+        raise RuntimeError("No static objects found for hybrid room baking.")
+    if not args.output_glb:
+        raise RuntimeError("--output-glb is required in hybrid-bake mode.")
+    if not args.output_image:
+        raise RuntimeError("--output-image is required in hybrid-bake mode.")
+
+    start_time = time.time()
+    enable_cycles(args.samples)
+    duplicate_bake_mesh_data(bake_objects)
+    isolate_bake_objects(bake_objects)
+    create_lightmap_uvs(bake_objects)
+
+    base_image = create_bake_image(args.resolution, "BaseColor")
+    ao_image = create_bake_image(args.resolution, "AO")
+
+    print(
+        f"CODEX_HYBRID_BASE_BAKE_START objects={len(bake_objects)} "
+        f"resolution={args.resolution} samples={args.samples}"
+    )
+    bake_to_image(bake_objects, base_image, "DIFFUSE", args.margin, {"COLOR"})
+
+    print(
+        f"CODEX_HYBRID_AO_BAKE_START objects={len(bake_objects)} "
+        f"resolution={args.resolution} samples={args.samples}"
+    )
+    bake_to_image(bake_objects, ao_image, "AO", args.margin)
+
+    combined_image = combine_base_and_ao_images(
+        base_image,
+        ao_image,
+        args.resolution,
+        args.ao_strength,
+    )
+    output_image = Path(args.output_image)
+    save_bake_image(combined_image, output_image, args.texture_format)
+
+    if args.output_base_image:
+        save_bake_image(base_image, Path(args.output_base_image), args.texture_format)
+    if args.output_ao_image:
+        save_bake_image(ao_image, Path(args.output_ao_image), args.texture_format)
+
+    baked_material = create_pbr_baked_material(combined_image, args.resolution)
+    replace_with_baked_material(bake_objects, baked_material)
+    export_glb(Path(args.output_glb), bake_objects)
+
+    print(
+        "CODEX_HYBRID_BAKE_EXPORT_DONE "
+        + json.dumps(
+            {
+                "outputGlb": args.output_glb,
+                "outputImage": args.output_image,
+                "aoStrength": args.ao_strength,
+                "seconds": round(time.time() - start_time, 2),
+            },
+            ensure_ascii=False,
+        )
+    )
+
+
 def main() -> None:
     args = parse_args()
-    bake_objects, excluded_objects = classify_meshes(args.profile)
+    bake_objects, excluded_objects = classify_meshes(
+        args.profile,
+        args.source_collection,
+    )
     print_analysis(bake_objects, excluded_objects)
     if args.mode == "bake":
         bake_room(args, bake_objects)
+    if args.mode == "hybrid-bake":
+        bake_hybrid_room(args, bake_objects)
 
 
 if __name__ == "__main__":
