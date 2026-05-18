@@ -29,6 +29,7 @@ public class ArtifactQrAssetServiceImpl implements ArtifactQrAssetService {
     private static final String KIND_PHONE = "phone";
     private static final String KIND_COMMUNITY_MEMO = "community_memo";
     private static final String CHANNEL_QR_DOWNLOAD = "QR_DOWNLOAD";
+    private static final String QR_CACHE_FILE_STEM = "result-qr-v2";
     private static final Set<String> DOWNLOADABLE_KINDS = Set.of(KIND_FORTUNE, KIND_RELAY_DRAWING, KIND_FLIPBOOK,
         KIND_INFINITE_CANVAS, KIND_PHONE, KIND_COMMUNITY_MEMO);
 
@@ -68,7 +69,7 @@ public class ArtifactQrAssetServiceImpl implements ArtifactQrAssetService {
         String extension = extension(row.kind());
         String shareToken = signedShareTokenIssuer.issueArtifactToken(row.artifactId(), row.kind(),
             CHANNEL_QR_DOWNLOAD);
-        String cacheObjectKey = "artifact-downloads/%s/result-qr.%s".formatted(artifactId, extension);
+        String cacheObjectKey = "artifact-downloads/%s/%s.%s".formatted(artifactId, QR_CACHE_FILE_STEM, extension);
         String fileName = "nemonic-%s.%s".formatted(artifactId, extension);
 
         if (!artifactDownloadStorage.exists(cacheObjectKey)) {

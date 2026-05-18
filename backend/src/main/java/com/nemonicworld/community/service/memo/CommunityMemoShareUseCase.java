@@ -33,6 +33,7 @@ class CommunityMemoShareUseCase {
     private static final String STATIC_IMAGE_CONTENT_TYPE = "image/png";
     private static final String STATIC_SHARE_CONTENT_TYPE = "image/jpeg";
     private static final String GIF_CONTENT_TYPE = "image/gif";
+    private static final String QR_CACHE_FILE_STEM = "result-qr-v2";
 
     private final CommunityMemoSupport communityMemoSupport;
     private final ArtifactDownloadStorage artifactDownloadStorage;
@@ -139,7 +140,7 @@ class CommunityMemoShareUseCase {
     }
 
     private String cacheObjectKey(UUID memoId, String extension) {
-        return "community-memo-shares/%s/result-qr.%s".formatted(memoId, extension);
+        return "community-memo-shares/%s/%s.%s".formatted(memoId, QR_CACHE_FILE_STEM, extension);
     }
 
     private String firstText(String primary, String fallback) {

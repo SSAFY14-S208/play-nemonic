@@ -237,7 +237,7 @@ class CommunityMemoControllerIntegrationTest {
         UUID memoId = UUID.randomUUID();
         byte[] sourceBytes = new byte[]{1, 2, 3};
         byte[] composedBytes = new byte[]{4, 5, 6};
-        String cacheObjectKey = "community-memo-shares/%s/result-qr.jpg".formatted(memoId);
+        String cacheObjectKey = "community-memo-shares/%s/result-qr-v2.jpg".formatted(memoId);
 
         insertCommunityMemo(memoId, ownerUuid, null, ORIGINAL_OBJECT_KEY, THUMBNAIL_OBJECT_KEY, 1, now, null, false,
             "{}", 0, "allowed", now, now);
@@ -251,8 +251,8 @@ class CommunityMemoControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("커뮤니티 메모 공유 정보 생성 성공"))
             .andExpect(jsonPath("$.data.shareToken").isNotEmpty())
-            .andExpect(jsonPath("$.data.imageUrl")
-                .value("http://localhost:9000/nemonic-local/community-memo-shares/%s/result-qr.jpg".formatted(memoId)))
+            .andExpect(jsonPath("$.data.imageUrl").value(
+                "http://localhost:9000/nemonic-local/community-memo-shares/%s/result-qr-v2.jpg".formatted(memoId)))
             .andExpect(jsonPath("$.data.siteUrl").value("http://localhost:3000"))
             .andExpect(jsonPath("$.data.kakaoUrl").value(containsString("utm_campaign=community_memo_result")))
             .andExpect(jsonPath("$.data.instagramUrl").value(containsString("utm_medium=story")));
@@ -272,7 +272,7 @@ class CommunityMemoControllerIntegrationTest {
         byte[] sourceBytes = new byte[]{1, 2, 3};
         byte[] composedBytes = new byte[]{4, 5, 6};
         String gifObjectKey = "flipbook/results/%s/result.gif".formatted(artifactId);
-        String cacheObjectKey = "community-memo-shares/%s/result-qr.gif".formatted(memoId);
+        String cacheObjectKey = "community-memo-shares/%s/result-qr-v2.gif".formatted(memoId);
 
         insertArtifact(artifactId, "flipbook", "flipbook-thumbnail.png", now);
         insertFlipbookArtifact(artifactId, gifObjectKey, "flipbook/results/%s/first.png".formatted(artifactId));
@@ -286,8 +286,8 @@ class CommunityMemoControllerIntegrationTest {
             .perform(post("/api/v1/community/memos/{memoUuid}/share", memoId).header(ANONYMOUS_USER_UUID_HEADER,
                 viewerUuid.toString()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.imageUrl")
-                .value("http://localhost:9000/nemonic-local/community-memo-shares/%s/result-qr.gif".formatted(memoId)))
+            .andExpect(jsonPath("$.data.imageUrl").value(
+                "http://localhost:9000/nemonic-local/community-memo-shares/%s/result-qr-v2.gif".formatted(memoId)))
             .andExpect(jsonPath("$.data.kakaoUrl").value(containsString("utm_campaign=community_memo_result")));
 
         verify(artifactDownloadStorage).download(gifObjectKey);
@@ -302,7 +302,7 @@ class CommunityMemoControllerIntegrationTest {
         UUID memoId = UUID.randomUUID();
         byte[] sourceBytes = new byte[]{1, 2, 3};
         byte[] composedBytes = new byte[]{4, 5, 6};
-        String cacheObjectKey = "community-memo-shares/%s/result-qr.jpg".formatted(memoId);
+        String cacheObjectKey = "community-memo-shares/%s/result-qr-v2.jpg".formatted(memoId);
 
         insertCommunityMemo(memoId, userUuid, null, null, THUMBNAIL_OBJECT_KEY, 1, now, null, false, "{}", 0, "allowed",
             now, now);
@@ -313,8 +313,8 @@ class CommunityMemoControllerIntegrationTest {
         mockMvc
             .perform(post("/api/v1/community/memos/{memoUuid}/share", memoId).header(ANONYMOUS_USER_UUID_HEADER,
                 userUuid.toString()))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.data.imageUrl")
-                .value("http://localhost:9000/nemonic-local/community-memo-shares/%s/result-qr.jpg".formatted(memoId)));
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.imageUrl").value(
+                "http://localhost:9000/nemonic-local/community-memo-shares/%s/result-qr-v2.jpg".formatted(memoId)));
 
         verify(artifactDownloadStorage).download(THUMBNAIL_OBJECT_KEY);
     }
