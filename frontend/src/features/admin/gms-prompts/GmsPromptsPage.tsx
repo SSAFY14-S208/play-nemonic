@@ -10,9 +10,11 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/shared/libs'
+import { useAdminAuthStore } from '@/shared/stores'
 import type { GmsFeatureType, GmsPromptResponse } from '@/shared/types'
-import { formatKoreanDateTime } from '@/shared/utils'
+import { canMutateBackoffice, formatKoreanDateTime } from '@/shared/utils'
 
+import { AdminReadOnlyNotice } from '../components'
 import { GmsPromptTestModal } from './components'
 import { type FeatureFilter, useGmsPrompts } from './useGmsPrompts'
 
@@ -39,6 +41,8 @@ function formatDateTime(value: string | null | undefined) {
 }
 
 export default function GmsPromptsPage() {
+  const adminRole = useAdminAuthStore((state) => state.admin?.role ?? null)
+  const canEditPrompts = canMutateBackoffice(adminRole)
   const [isTestModalOpen, setIsTestModalOpen] = useState(false)
   const {
     isLoading,
@@ -65,7 +69,10 @@ export default function GmsPromptsPage() {
 
   const isTestSupported = editor.featureType === 'fortune'
   const canOpenTestModal =
-    isTestSupported && Boolean(editor.content.trim()) && !isMutating
+    canEditPrompts &&
+    isTestSupported &&
+    Boolean(editor.content.trim()) &&
+    !isMutating
   const testPromptName =
     editor.name.trim() || selected?.name || (isCreating ? '새 프롬프트' : '프롬프트')
 
@@ -78,7 +85,10 @@ export default function GmsPromptsPage() {
             <button
               type="button"
               onClick={startCreate}
-              disabled={isMutating}
+              disabled={isMutating || !canEditPrompts}
+              title={
+                canEditPrompts ? undefined : '뷰어 권한은 조회만 가능합니다.'
+              }
               className="flex items-center gap-1 rounded-[var(--radius-md)] bg-primary-1 px-2.5 py-1 caption-b text-fg-inverse transition-opacity disabled:opacity-50"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -143,6 +153,8 @@ export default function GmsPromptsPage() {
         </aside>
 
         <section className="flex min-h-0 flex-1 flex-col gap-4 rounded-[var(--radius-lg)] border border-border-default bg-surface-default p-6">
+          {!canEditPrompts && <AdminReadOnlyNotice />}
+
           {isLoading ? (
             <p className="body-r text-fg-secondary">불러오는 중</p>
           ) : loadError ? (
@@ -172,7 +184,7 @@ export default function GmsPromptsPage() {
                       setEditorField('name', event.target.value)
                     }
                     placeholder="프롬프트 이름"
-                    disabled={isMutating}
+                    disabled={isMutating || !canEditPrompts}
                     className={cn(INPUT_CLASS, 'body-l-b w-full')}
                   />
                 </div>
@@ -183,7 +195,9 @@ export default function GmsPromptsPage() {
                     disabled={!canOpenTestModal || isTesting}
                     title={
                       isTestSupported
-                        ? undefined
+                        ? canEditPrompts
+                          ? undefined
+                          : '뷰어 권한은 조회만 가능합니다.'
                         : '오늘의 운세 프롬프트만 테스트할 수 있습니다.'
                     }
                     className="flex items-center gap-1.5 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-4 py-2 body-b text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
@@ -195,7 +209,17 @@ export default function GmsPromptsPage() {
                     <button
                       type="button"
                       onClick={activate}
-                      disabled={isMutating || isDirty || selected?.isActive}
+                      disabled={
+                        isMutating ||
+                        !canEditPrompts ||
+                        isDirty ||
+                        selected?.isActive
+                      }
+                      title={
+                        canEditPrompts
+                          ? undefined
+                          : '뷰어 권한은 조회만 가능합니다.'
+                      }
                       className="flex items-center gap-1.5 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-4 py-2 body-b text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
                     >
                       <Power className="h-4 w-4" />
@@ -215,7 +239,12 @@ export default function GmsPromptsPage() {
                     <button
                       type="button"
                       onClick={remove}
-                      disabled={isMutating}
+                      disabled={isMutating || !canEditPrompts}
+                      title={
+                        canEditPrompts
+                          ? undefined
+                          : '뷰어 권한은 조회만 가능합니다.'
+                      }
                       className="flex items-center gap-1.5 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-4 py-2 body-b text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -225,7 +254,12 @@ export default function GmsPromptsPage() {
                   <button
                     type="button"
                     onClick={save}
-                    disabled={isMutating || !isDirty}
+                    disabled={isMutating || !canEditPrompts || !isDirty}
+                    title={
+                      canEditPrompts
+                        ? undefined
+                        : '뷰어 권한은 조회만 가능합니다.'
+                    }
                     className="rounded-[var(--radius-md)] bg-primary-1 px-4 py-2 body-b text-fg-inverse transition-opacity disabled:opacity-50"
                   >
                     {isMutating ? '저장 중' : isCreating ? '생성' : '저장'}
@@ -244,7 +278,11 @@ export default function GmsPromptsPage() {
                         event.target.value as GmsFeatureType,
                       )
                     }
-                    disabled={isMutating || Boolean(selected?.isActive)}
+                    disabled={
+                      isMutating ||
+                      !canEditPrompts ||
+                      Boolean(selected?.isActive)
+                    }
                     className={INPUT_CLASS}
                   >
                     {EDIT_FEATURE_OPTIONS.map((feature) => (
@@ -281,7 +319,7 @@ export default function GmsPromptsPage() {
                     setEditorField('content', event.target.value)
                   }
                   placeholder="프롬프트 본문을 입력하세요."
-                  disabled={isMutating}
+                  disabled={isMutating || !canEditPrompts}
                   className={cn(
                     INPUT_CLASS,
                     'min-h-[320px] flex-1 resize-none whitespace-pre font-mono',

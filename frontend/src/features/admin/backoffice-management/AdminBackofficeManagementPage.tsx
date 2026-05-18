@@ -47,7 +47,6 @@ export default function AdminBackofficeManagementPage() {
     return map
   }, [items])
 
-  // super_admin이 아니면 대시보드로 리다이렉트
   if (adminRole !== 'super_admin') {
     router.replace('/admin/dashboard')
     return null
@@ -227,6 +226,7 @@ export default function AdminBackofficeManagementPage() {
         open={detailAdmin !== null}
         admin={detailAdmin}
         isSubmitting={isMutating}
+        canChangePassword
         onChangePassword={(adminId, payload, onSuccess) =>
           changePassword(adminId, payload, onSuccess)
         }

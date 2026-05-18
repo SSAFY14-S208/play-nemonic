@@ -139,8 +139,8 @@ export function useBackofficeAuditLogs() {
 
   useEffect(() => {
     let cancelled = false
-    setIsLoading(true)
     ;(async () => {
+      if (!cancelled) setIsLoading(true)
       try {
         const response = await postAdminLogsSearch({
           index: AUDIT_INDEX,
