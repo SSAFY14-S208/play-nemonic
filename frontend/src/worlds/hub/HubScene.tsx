@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
-import { ContactShadows } from '@react-three/drei'
+import { ContactShadows, Stats } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { Perf } from 'r3f-perf'
 import CameraRig from './CameraRig'
 import HubPostProcessing from './HubPostProcessing'
 import LightingSetup from './LightingSetup'
@@ -43,7 +42,7 @@ export default function HubScene({
     <>
       <color attach="background" args={[sceneBackgroundColor]} />
       <fog attach="fog" args={[sceneFogColor, 17, 36]} />
-      {showPerfOverlay && <Perf position="top-left" />}
+      {showPerfOverlay && <Stats />}
       {performanceProfile.environment && !performanceProfile.environmentBackground && (
         <Suspense fallback={null}>
           <HubSkyDome />
