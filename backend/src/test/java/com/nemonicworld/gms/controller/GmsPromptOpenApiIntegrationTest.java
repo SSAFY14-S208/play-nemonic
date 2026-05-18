@@ -18,34 +18,23 @@ class GmsPromptOpenApiIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
-    void gmsPromptPreviewApiIsExposedInOpenApiDocs() throws Exception {
+    void gmsPromptApisAreExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(
-                jsonPath("$.paths['/api/v1/backoffice/gms/prompts/preview'].post.summary").value("GMS 프롬프트 미리보기"))
+                jsonPath("$.paths['/api/v1/backoffice/gms/prompts/preview'].post.summary").value("GMS prompt preview"))
+            .andExpect(
+                jsonPath("$.paths['/api/v1/backoffice/gms/prompts/current'].get.summary").value("Current GMS prompt"))
+            .andExpect(jsonPath("$.paths['/api/v1/backoffice/gms/prompts/{promptId}/activate'].post.summary")
+                .value("GMS prompt activate"))
+            .andExpect(jsonPath("$.paths['/api/v1/backoffice/gms/prompts/{promptId}/test'].post.summary")
+                .value("Saved GMS prompt test"))
             .andExpect(
                 jsonPath("$.paths['/api/v1/backoffice/gms/prompts/preview'].post.security[0].bearerAuth").exists())
             .andExpect(
-                jsonPath("$.paths['/api/v1/backoffice/gms/prompts/preview'].post.requestBody.required").value(true))
-            .andExpect(jsonPath("$.paths['/api/v1/backoffice/gms/prompts/preview'].post.responses['200'].description")
-                .value("GMS 프롬프트 미리보기 성공"))
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewRequest.properties.featureType").exists())
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewRequest.properties.featureType.description")
-                .value("미리보기 대상 기능 타입"))
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewRequest.properties.content").exists())
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewRequest.properties.content.description")
-                .value("저장 전 테스트할 GMS 프롬프트 템플릿 본문"))
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewRequest.properties.sampleSaju").exists())
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewRequest.properties.sampleSaju.description")
-                .value("운세 미리보기에 사용할 샘플 사주 정보"))
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewResponse.properties.featureType").exists())
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewResponse.properties.fortune").exists())
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewResponse.properties.fortune.description")
-                .value("후보 프롬프트로 생성한 운세 결과"))
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewResponse.properties.saju").exists())
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewResponse.properties.design").exists())
-            .andExpect(jsonPath("$.components.schemas.GmsPromptPreviewResponse.properties.previewImageBase64").exists())
-            .andExpect(
-                jsonPath("$.components.schemas.GmsPromptPreviewResponse.properties.previewImageBase64.description")
-                    .value("렌더링된 미리보기 PNG의 Base64 데이터 URL"));
+                jsonPath("$.paths['/api/v1/backoffice/gms/prompts/current'].get.security[0].bearerAuth").exists())
+            .andExpect(jsonPath("$.components.schemas.GmsPromptResponse.properties.isActive").exists())
+            .andExpect(jsonPath("$.components.schemas.GmsPromptResponse.properties.status").exists())
+            .andExpect(jsonPath("$.components.schemas.GmsPromptCurrentResponse.properties.source").exists())
+            .andExpect(jsonPath("$.components.schemas.GmsPromptTestRequest.properties.sampleSaju").exists());
     }
 }
