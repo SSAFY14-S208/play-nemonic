@@ -26,9 +26,6 @@ public final class OpenApiTags {
     public static final String ARTIFACT = "산출물";
     public static final String ARTIFACT_DESCRIPTION = "체험 결과 산출물 조회 API";
 
-    public static final String SHARE = "공유";
-    public static final String SHARE_DESCRIPTION = "SNS 공유 이벤트 기록 API";
-
     public static final String COMMUNITY = "커뮤니티";
     public static final String COMMUNITY_DESCRIPTION = "커뮤니티 메모 작성 및 조회 API";
 
@@ -79,7 +76,7 @@ public final class OpenApiTags {
 
     public static List<Tag> orderedTags() {
         return List.of(tag(USER, USER_DESCRIPTION), tag(INVITE, INVITE_DESCRIPTION), tag(FILE, FILE_DESCRIPTION),
-            tag(GALLERY, GALLERY_DESCRIPTION), tag(ARTIFACT, ARTIFACT_DESCRIPTION), tag(SHARE, SHARE_DESCRIPTION),
+            tag(GALLERY, GALLERY_DESCRIPTION), tag(ARTIFACT, ARTIFACT_DESCRIPTION),
             tag(COMMUNITY, COMMUNITY_DESCRIPTION), tag(FORTUNE, FORTUNE_DESCRIPTION), tag(RELAY, RELAY_DESCRIPTION),
             tag(FLIPBOOK, FLIPBOOK_DESCRIPTION), tag(CS_INQUIRY, CS_INQUIRY_DESCRIPTION),
             tag(INFINITE_CANVAS, INFINITE_CANVAS_DESCRIPTION), tag(CLIENT_LOG, CLIENT_LOG_DESCRIPTION),

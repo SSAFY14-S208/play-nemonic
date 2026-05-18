@@ -20,11 +20,11 @@ public final class OpenApiGroups {
         List.of("/api/v1/users/**", "/api/v1/invites/**", "/api/v1/files/**"),
         List.of(OpenApiTags.USER, OpenApiTags.INVITE, OpenApiTags.FILE));
     public static final GroupDefinition CONTENTS_GROUP = new GroupDefinition(CONTENTS, "콘텐츠",
-        List.of("/api/v1/gallery", "/api/v1/gallery/**", "/api/v1/artifacts/**", "/api/v1/share", "/api/v1/share/**",
-            "/api/v1/community/memos", "/api/v1/community/memos/**", "/api/v1/fortune", "/api/v1/fortune/**",
-            "/api/v1/infinite-canvas/canvases", "/api/v1/infinite-canvas/canvases/**"),
-        List.of(OpenApiTags.GALLERY, OpenApiTags.ARTIFACT, OpenApiTags.SHARE, OpenApiTags.COMMUNITY,
-            OpenApiTags.FORTUNE, OpenApiTags.INFINITE_CANVAS));
+        List.of("/api/v1/gallery", "/api/v1/gallery/**", "/api/v1/artifacts/**", "/api/v1/community/memos",
+            "/api/v1/community/memos/**", "/api/v1/fortune", "/api/v1/fortune/**", "/api/v1/infinite-canvas/canvases",
+            "/api/v1/infinite-canvas/canvases/**"),
+        List.of(OpenApiTags.GALLERY, OpenApiTags.ARTIFACT, OpenApiTags.COMMUNITY, OpenApiTags.FORTUNE,
+            OpenApiTags.INFINITE_CANVAS));
     public static final GroupDefinition GAMES_GROUP = new GroupDefinition(GAMES, "게임",
         List.of("/api/v1/relay/rooms", "/api/v1/relay/rooms/**", "/api/v1/flipbook/rooms", "/api/v1/flipbook/rooms/**"),
         List.of(OpenApiTags.RELAY, OpenApiTags.FLIPBOOK));
