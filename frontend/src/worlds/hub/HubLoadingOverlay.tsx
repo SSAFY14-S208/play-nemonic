@@ -4,9 +4,11 @@ import { motion } from 'motion/react'
 import { cn } from '@/shared/libs'
 import {
   BAR_POP_DURATION_MS,
+  HUB_ROOM_REVEAL_DURATION_MS,
   PERCENT_FADE_OUT_DURATION_MS,
   useHubLoadingOverlay,
 } from './hooks'
+import styles from './HubLoadingOverlay.module.css'
 
 const HUB_LOADING_PRIMARY_COLOR = '#f49cc8'
 const HUB_LOADING_PRIMARY_HOVER_COLOR = '#ed86bd'
@@ -38,6 +40,7 @@ export default function HubLoadingOverlay({
     hasConfirmedHubEntry,
     hasReachedFull,
     isReady,
+    isRevealingRoom,
     isVisible,
     percentTextRef,
     shouldShowPlayButton,
@@ -48,26 +51,56 @@ export default function HubLoadingOverlay({
   return (
     <div
       data-hub-loading-overlay="true"
+      data-hub-loading-revealing={isRevealingRoom ? 'true' : 'false'}
       className={cn(
-        'fixed inset-0 z-[80] flex items-center justify-center overflow-hidden bg-surface-default',
-        !isVisible && 'pointer-events-none',
+        'fixed inset-0 z-[80] flex items-center justify-center overflow-hidden',
+        !isRevealingRoom && 'bg-surface-default',
+        (!isVisible || isRevealingRoom) && 'pointer-events-none',
       )}
       style={{
         opacity: isVisible ? 1 : 0,
         visibility: isVisible ? 'visible' : 'hidden',
+        '--hub-loading-gradient': HUB_LOADING_GRADIENT,
         '--hub-loading-primary': HUB_LOADING_PRIMARY_COLOR,
         '--hub-loading-primary-hover': HUB_LOADING_PRIMARY_HOVER_COLOR,
+        '--hub-room-reveal-duration': `${HUB_ROOM_REVEAL_DURATION_MS}ms`,
       } as CSSProperties}
       aria-hidden={!isVisible}
     >
-      {isVisible && (
+      {isVisible && !isRevealingRoom && (
         <div
           aria-hidden
           className="pointer-events-none absolute -inset-[20%] blur-2xl"
           style={{ background: HUB_LOADING_GRADIENT }}
         />
       )}
-      <div className="relative flex w-[min(21rem,calc(100vw-3rem))] flex-col items-center gap-5 text-center">
+      {isVisible && isRevealingRoom && (
+        <>
+          <div
+            aria-hidden
+            className={styles.roomRevealCurtain}
+            data-hub-room-reveal-curtain="true"
+          />
+          <div
+            aria-hidden
+            className={styles.roomRevealRing}
+            data-hub-room-reveal-ring="true"
+          />
+        </>
+      )}
+      <motion.div
+        className="relative z-10 flex w-[min(21rem,calc(100vw-3rem))] flex-col items-center gap-5 text-center"
+        initial={false}
+        animate={
+          isRevealingRoom
+            ? { opacity: 0, scale: 0.92, y: -6 }
+            : { opacity: 1, scale: 1, y: 0 }
+        }
+        transition={{
+          duration: isRevealingRoom ? 0.18 : 0.28,
+          ease: [0.16, 1, 0.3, 1],
+        }}
+      >
         {isVisible && (
           <Image
             src="/images/play-nemonic-logo.png"
@@ -127,7 +160,7 @@ export default function HubLoadingOverlay({
         >
           0%
         </motion.span>
-      </div>
+      </motion.div>
       {shouldShowPlayButton && (
         <motion.div
           className="absolute bottom-[clamp(2rem,8vh,5rem)] left-1/2 z-10 -translate-x-1/2"

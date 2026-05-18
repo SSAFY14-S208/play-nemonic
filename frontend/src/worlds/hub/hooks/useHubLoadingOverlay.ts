@@ -13,7 +13,8 @@ export const BAR_POP_DURATION_MS = 500
 const POP_SEQUENCE_DURATION_MS =
   PERCENT_FADE_OUT_DURATION_MS + BAR_POP_DURATION_MS
 
-const HUB_LOADING_READY_HOLD_MS = 420
+export const HUB_ROOM_REVEAL_START_DELAY_MS = 260
+export const HUB_ROOM_REVEAL_DURATION_MS = 1700
 const HUB_LOADING_CACHE_FALLBACK_MS = 1500
 const HUB_ENTRY_CONFIRMED_STORAGE_KEY = 'play-nemonic:hub-entry-confirmed'
 
@@ -33,7 +34,7 @@ function getHubLoadingStatusText(displayProgress: number) {
 
 const HUB_LOADING_SUBTITLE_PENDING = '오늘은 어떤 놀이가 기다릴까요?'
 const HUB_LOADING_SUBTITLE_READY = '재미있는 것들이 가득해요'
-const HUB_LOADING_SUBTITLE_ENTERING = '곧바로 허브로 들어갈게요'
+const HUB_LOADING_SUBTITLE_ENTERING = '방이 천천히 열리고 있어요'
 
 function readHubEntryConfirmedInCurrentTab() {
   if (typeof window === 'undefined') return false
@@ -57,11 +58,10 @@ function saveHubEntryConfirmedInCurrentTab() {
 
 export function useHubLoadingOverlay(isCanvasReady: boolean) {
   const { active, progress } = useProgress()
-  const [hasConfirmedHubEntry, setHasConfirmedHubEntry] = useState(
-    readHubEntryConfirmedInCurrentTab,
-  )
+  const [hasConfirmedHubEntry, setHasConfirmedHubEntry] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [isVisible, setIsVisible] = useState(true)
+  const [isRevealingRoom, setIsRevealingRoom] = useState(false)
   const [hasReachedFull, setHasReachedFull] = useState(false)
   const [statusText, setStatusText] = useState(() => getHubLoadingStatusText(0))
   const hasStartedLoadingRef = useRef(false)
@@ -78,6 +78,21 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
   const targetProgress = isCanvasReady
     ? Math.max(progress, 0)
     : Math.min(progress, PRE_CANVAS_READY_CAP_PERCENT)
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      await Promise.resolve()
+      if (cancelled) return
+
+      setHasConfirmedHubEntry(readHubEntryConfirmedInCurrentTab())
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     targetProgressRef.current = Math.max(
@@ -225,17 +240,28 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     }
   }, [isCanvasReady])
 
-  const shouldShowPlayButton = isReady && !hasConfirmedHubEntry
+  const shouldShowPlayButton =
+    isReady && !hasConfirmedHubEntry && !isRevealingRoom
 
   useEffect(() => {
     if (!isReady || !hasConfirmedHubEntry) return
 
-    const hideTimerId = window.setTimeout(() => {
+    let cancelled = false
+
+    ;(async () => {
+      await wait(HUB_ROOM_REVEAL_START_DELAY_MS)
+      if (cancelled) return
+
+      setIsRevealingRoom(true)
+
+      await wait(HUB_ROOM_REVEAL_DURATION_MS)
+      if (cancelled) return
+
       setIsVisible(false)
-    }, HUB_LOADING_READY_HOLD_MS)
+    })()
 
     return () => {
-      window.clearTimeout(hideTimerId)
+      cancelled = true
     }
   }, [hasConfirmedHubEntry, isReady])
 
@@ -253,6 +279,7 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     hasConfirmedHubEntry,
     hasReachedFull,
     isReady,
+    isRevealingRoom,
     isVisible,
     shouldShowPlayButton,
     statusText,
