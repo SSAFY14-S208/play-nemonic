@@ -24,6 +24,7 @@ export {
 } from './drawingRaster'
 export {
   isHubPerformanceDiagnosticsEnabled,
+  isHubPerfOverlayEnabled,
   logHubMaterialStats,
   startHubPerformanceDiagnostics,
   trackHubControlEvent,

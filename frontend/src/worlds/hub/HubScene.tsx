@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { ContactShadows } from '@react-three/drei'
+import { ContactShadows, Stats } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import CameraRig from './CameraRig'
 import HubPostProcessing from './HubPostProcessing'
@@ -15,6 +15,7 @@ import { useHubPrintStore } from '@/shared/stores'
 import type { HubPerformanceMode } from '@/shared/types'
 import {
   isHubPerformanceDiagnosticsEnabled,
+  isHubPerfOverlayEnabled,
   trackHubFrame,
 } from '@/shared/utils'
 
@@ -35,11 +36,13 @@ export default function HubScene({
   const performanceProfile = HUB_PERFORMANCE_PROFILES[performanceMode]
   const sceneBackgroundColor = performanceProfile.environment ? '#f2edf7' : '#17112c'
   const sceneFogColor = performanceProfile.environment ? '#f2edf7' : '#17112c'
+  const showPerfOverlay = isHubPerfOverlayEnabled()
 
   return (
     <>
       <color attach="background" args={[sceneBackgroundColor]} />
       <fog attach="fog" args={[sceneFogColor, 17, 36]} />
+      {showPerfOverlay && <Stats />}
       {performanceProfile.environment && !performanceProfile.environmentBackground && (
         <Suspense fallback={null}>
           <HubSkyDome />
