@@ -10,7 +10,7 @@ import {
   getRelayRoomResults,
   postInvite,
 } from "@/shared/apis";
-import type { RelaySocketStatus } from "@/shared/libs";
+import { completeFunnelStep, type RelaySocketStatus } from "@/shared/libs";
 import { useUserStore } from "@/shared/stores";
 import type { RelayBlockedReason, RelayRoomStatus } from "@/shared/types";
 
@@ -331,6 +331,16 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         // 비호스트는 여기서 'animating'으로 전환해 로비 패널 슬라이드 아웃 +
         // 게임 시작 이미지를 보여준다. RelayRoomPage의 effect가 일정 시간 후
         // 'idle'로 되돌리면 RelayDrawingView로 자연스럽게 전환된다.
+        //
+        // funnel: lobby step 완료는 방장의 startGame()에서도 emit되지만 게스트는
+        // 그 함수를 호출하지 않아 lobby 잔존 카운트에서 빠진다. WS GAME_STARTED는
+        // 방장·게스트 모두에게 broadcast되므로 여기서 한 번 더 emit해 게스트의
+        // funnel_step_completed 누락을 메운다. distinct uuid 집계라 방장의 이중
+        // emit은 카운트에 영향 없음.
+        completeFunnelStep('lobby', 3, {
+          content_type: 'relay',
+          room_id: roomCode,
+        });
         useRelayDrawingStore.getState().setGameStartPhase('animating');
         // roomStatus 'PLAYING'으로 전환.
         setRoomStatus(event.data.status);
