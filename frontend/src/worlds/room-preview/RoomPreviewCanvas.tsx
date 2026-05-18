@@ -1,8 +1,10 @@
 'use client'
 
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
+import { useEffect } from 'react'
 import * as THREE from 'three'
 import { cn } from '@/shared/libs'
+import { useCanvasPauseStore } from '@/shared/stores'
 import {
   ROOM_PREVIEW_CAMERA,
   ROOM_PREVIEW_HUB_CAMERA_PRESETS,
@@ -10,6 +12,34 @@ import {
   type RoomPreviewVariant,
 } from './constants'
 import RoomPreviewScene from './RoomPreviewScene'
+
+function CanvasPauseControl() {
+  const isPaused = useCanvasPauseStore((state) => state.isPaused)
+  const set = useThree((state) => state.set)
+  const invalidate = useThree((state) => state.invalidate)
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      await Promise.resolve()
+      if (cancelled) return
+
+      if (isPaused) {
+        set({ frameloop: 'never' })
+      } else {
+        set({ frameloop: 'always' })
+        invalidate()
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isPaused, set, invalidate])
+
+  return null
+}
 
 export default function RoomPreviewCanvas({
   className,
@@ -49,6 +79,7 @@ export default function RoomPreviewCanvas({
         onCanvasReady?.()
       }}
     >
+      <CanvasPauseControl />
       <RoomPreviewScene variant={variant} />
     </Canvas>
   )
