@@ -151,6 +151,18 @@ Last updated: 2026-05-17
   used by public fortune creation, renders a PNG card as a base64 data URL, and
   does not write `gms_prompt_template`, `artifact`, `fortune_artifact`,
   `gallery`, or MinIO objects.
+- Backoffice GMS prompt management now distinguishes saved non-deleted prompts
+  from the one currently used prompt. Flyway V16 adds
+  `gms_prompt_template.is_active`, activation metadata, a
+  `gms_prompt_feature_state` row-lock table, and a partial unique index so only
+  one non-deleted active prompt can exist per `feature_type`.
+- `POST /api/v1/backoffice/gms/prompts/{promptId}/activate` serializes
+  activation by feature type through `gms_prompt_feature_state` and atomically
+  deactivates the previous prompt before activating the selected prompt.
+  `GET /api/v1/backoffice/gms/prompts/current?featureType=fortune` returns the
+  active DB prompt or the built-in fortune fallback prompt when no DB prompt is
+  active. `POST /api/v1/backoffice/gms/prompts/{promptId}/test` tests a saved
+  prompt with sample saju without persisting artifacts.
 - Backoffice admins can now list system parameters through
   `GET /api/v1/backoffice/system-parameters`; the API requires an admin JWT,
   reads existing `backoffice_setting` rows sorted by `setting_key ASC`,
