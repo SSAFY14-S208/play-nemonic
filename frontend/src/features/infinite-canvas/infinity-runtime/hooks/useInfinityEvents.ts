@@ -29,7 +29,7 @@ const BUCKET_FILL_PADDING = 96
 const BUCKET_FILL_MAX_SIZE = 1600
 const BUCKET_FILL_ALPHA_TOLERANCE = 16
 const BUCKET_FILL_COLOR_TOLERANCE = 12
-const BUCKET_FILL_BARRIER_DILATION_PASSES = 3
+const BUCKET_FILL_BARRIER_DILATION_PASSES = 0
 const BUCKET_FILL_DILATION_PASSES = 6
 const BUCKET_FILL_DILATION_COLOR_TOLERANCE = 96
 const BUCKET_FILL_HIT_PADDING = 20
@@ -352,7 +352,7 @@ function createBucketFillObject({
   }
 
   const isTransparentTarget = targetColor.alpha <= BUCKET_FILL_ALPHA_TOLERANCE
-  const barrierPixels = isTransparentTarget
+  const barrierPixels = isTransparentTarget && BUCKET_FILL_BARRIER_DILATION_PASSES > 0
     ? createDilatedBarrierPixels(sourcePixels, rawWidth, rawHeight)
     : null
   const fillCanvas = document.createElement('canvas')
