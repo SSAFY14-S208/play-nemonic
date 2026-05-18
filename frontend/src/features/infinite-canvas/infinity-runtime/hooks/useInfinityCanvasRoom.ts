@@ -279,6 +279,54 @@ function applyOptimisticOperationsToState(
   }
 }
 
+function isElementUpsertOperation(operation: InfiniteCanvasOperationRequest) {
+  return (
+    operation.operationType === 'CREATE_ELEMENT' ||
+    operation.operationType === 'UPDATE_ELEMENT' ||
+    operation.operationType === 'UPSERT_ELEMENT'
+  )
+}
+
+function compactPendingOperations(operations: InfiniteCanvasOperationRequest[]) {
+  if (operations.length <= 1) return operations
+
+  const compactedOperations: InfiniteCanvasOperationRequest[] = []
+  const latestOperationIndexByElementId = new Map<string, number>()
+
+  for (const operation of operations) {
+    if (operation.operationType === 'CLEAR_CANVAS') {
+      compactedOperations.length = 0
+      latestOperationIndexByElementId.clear()
+      compactedOperations.push(operation)
+      continue
+    }
+
+    const elementId = operation.elementId?.trim()
+    if (!elementId) {
+      compactedOperations.push(operation)
+      continue
+    }
+
+    const previousIndex = latestOperationIndexByElementId.get(elementId)
+    if (previousIndex === undefined) {
+      latestOperationIndexByElementId.set(elementId, compactedOperations.length)
+      compactedOperations.push(operation)
+      continue
+    }
+
+    if (
+      operation.operationType === 'DELETE_ELEMENT' ||
+      isElementUpsertOperation(operation)
+    ) {
+      compactedOperations[previousIndex] = operation
+    } else {
+      compactedOperations.push(operation)
+    }
+  }
+
+  return compactedOperations
+}
+
 function canPatchStateFromRecentOperations(
   currentState: InfiniteCanvasStateResponse,
   nextState: InfiniteCanvasStateResponse,
@@ -919,8 +967,9 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     if (inFlightOperationsRef.current) return
     if (pendingOperationsRef.current.length === 0) return
 
-    const pendingOperations = pendingOperationsRef.current.slice(0, MAX_OPERATIONS_PER_BATCH)
-    pendingOperationsRef.current = pendingOperationsRef.current.slice(MAX_OPERATIONS_PER_BATCH)
+    const compactedPendingOperations = compactPendingOperations(pendingOperationsRef.current)
+    const pendingOperations = compactedPendingOperations.slice(0, MAX_OPERATIONS_PER_BATCH)
+    pendingOperationsRef.current = compactedPendingOperations.slice(MAX_OPERATIONS_PER_BATCH)
     const sent = sendRealtimeOperations({
       baseRevision: revisionRef.current,
       operations: pendingOperations,
