@@ -1,9 +1,10 @@
-import { CheckCircle2, Home, Pin, Sparkles, Star } from 'lucide-react'
+import { CheckCircle2, Home, Pin, Share2, Sparkles, Star } from 'lucide-react'
 
 import { cn } from '@/shared/libs'
 
 import { FORTUNE_SCORE_LABELS } from '../constants'
 import { useFortuneSessionStore } from '../fortuneSessionStore'
+import { useFortuneExternalShare } from '../hooks'
 
 const POSTIT_SHEET_CLASS = cn(
   'relative isolate w-full',
@@ -253,6 +254,7 @@ interface FortuneResultCardProps {
 
 export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResultCardProps) {
   const result = useFortuneSessionStore((state) => state.result)
+  const { canShareExternal, isSharingExternal, shareExternal } = useFortuneExternalShare()
 
   if (!result) {
     return null
@@ -357,7 +359,7 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         </div>
       </article>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div
           className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-4 text-fortune-accent-strong shadow-[inset_0_0.08rem_0_rgba(255,255,255,0.72),0_0.65rem_1.35rem_rgba(83,50,102,0.08)]"
           role="status"
@@ -372,6 +374,15 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         >
           <Pin className="size-4" aria-hidden />
           커뮤니티 게시
+        </button>
+        <button
+          type="button"
+          disabled={!canShareExternal}
+          className="body-b flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-fortune-border bg-fortune-paper px-4 text-fortune-accent-strong shadow-[inset_0_0.08rem_0_rgba(255,255,255,0.72),0_0.65rem_1.35rem_rgba(83,50,102,0.08)] disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={shareExternal}
+        >
+          <Share2 className="size-4" aria-hidden />
+          {isSharingExternal ? '공유 준비 중...' : '외부 공유'}
         </button>
         <button
           type="button"
