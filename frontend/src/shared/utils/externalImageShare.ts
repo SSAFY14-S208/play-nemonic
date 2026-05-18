@@ -224,10 +224,6 @@ export async function shareExternalImage({
   const shouldPreferNativeFileShare =
     preferNativeFileShare || isMobileShareEnvironment || isLikelyGifImageUrl(shareImageUrl)
 
-  if (preferNativeFileShare && (typeof navigator === 'undefined' || !navigator.share)) {
-    throw new Error('file-share-unavailable')
-  }
-
   if (typeof navigator !== 'undefined' && navigator.share && shouldPreferNativeFileShare) {
     try {
       const imageFile = await createShareImageFile(shareImageUrl, fileNameBase)
@@ -239,13 +235,9 @@ export async function shareExternalImage({
       if (error instanceof DOMException && error.name === 'AbortError') {
         return 'cancelled'
       }
-
-      if (preferNativeFileShare) {
-        throw error
-      }
     }
 
-    if (isMobileShareEnvironment) {
+    if (!preferNativeFileShare && isMobileShareEnvironment) {
       await navigator.share({
         title,
         text,
