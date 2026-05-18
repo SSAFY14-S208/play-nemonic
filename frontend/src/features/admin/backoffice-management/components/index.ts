@@ -3,4 +3,8 @@ export { AdminDetailModal } from './AdminDetailModal'
 export { AdminRoleBadge } from './AdminRoleBadge'
 export { AuditLogFilterBar } from './AuditLogFilterBar'
 export { AuditLogResultBadge } from './AuditLogResultBadge'
-export { AuditLogSection } from './AuditLogSection'
+export {
+  AuditLogSection,
+  type AuditActorInfo,
+  type AuditActorLookup,
+} from './AuditLogSection'

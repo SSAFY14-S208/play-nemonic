@@ -36,7 +36,23 @@ function formatJson(value: Record<string, unknown> | null): string {
   }
 }
 
-export function AuditLogSection() {
+/**
+ * actor_id(숫자 PK) → 관리자 식별 정보 매핑.
+ * AdminAuditLogger가 metadata에 닉네임을 emit하지 않으므로, 페이지가 보유한 관리자 목록을
+ * lookup 테이블로 만들어 전달한다. 매핑이 없으면 actor_id를 그대로 노출한다.
+ */
+export interface AuditActorInfo {
+  nickname: string
+  loginId: string
+}
+
+export type AuditActorLookup = Readonly<Record<string, AuditActorInfo>>
+
+interface AuditLogSectionProps {
+  actorLookup?: AuditActorLookup
+}
+
+export function AuditLogSection({ actorLookup }: AuditLogSectionProps = {}) {
   const {
     filter,
     entries,
@@ -126,7 +142,11 @@ export function AuditLogSection() {
               </tr>
             ) : (
               entries.map((entry) => (
-                <AuditLogRow key={entry.hitId} entry={entry} />
+                <AuditLogRow
+                  key={entry.hitId}
+                  entry={entry}
+                  actorLookup={actorLookup}
+                />
               ))
             )}
           </tbody>
@@ -156,11 +176,14 @@ export function AuditLogSection() {
 
 interface AuditLogRowProps {
   entry: AuditLogEntry
+  actorLookup?: AuditActorLookup
 }
 
-function AuditLogRow({ entry }: AuditLogRowProps) {
+function AuditLogRow({ entry, actorLookup }: AuditLogRowProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const eventLabel = AUDIT_EVENT_LABEL_MAP[entry.eventName] ?? entry.eventName
+  const actorInfo =
+    entry.actorId && actorLookup ? actorLookup[entry.actorId] : undefined
   const hasDetail =
     entry.reason !== null ||
     entry.before !== null ||
@@ -200,9 +223,10 @@ function AuditLogRow({ entry }: AuditLogRowProps) {
         </td>
         <td className="body-r px-4 py-3 align-top text-fg-primary">
           <div className="flex flex-col gap-0.5">
-            <span>{entry.actorId ?? '—'}</span>
+            <span className="body-m">{actorInfo?.nickname ?? entry.actorId ?? '—'}</span>
             <span className="caption-r text-fg-secondary">
-              {entry.actorRole ?? ''}
+              {[actorInfo?.loginId, entry.actorRole].filter(Boolean).join(' · ') ||
+                (entry.actorId ? `#${entry.actorId}` : '')}
             </span>
           </div>
         </td>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, FileSearch, Trash2 } from 'lucide-react'
 
@@ -12,6 +12,7 @@ import {
   AdminDetailModal,
   AdminRoleBadge,
   AuditLogSection,
+  type AuditActorLookup,
 } from './components'
 import { useAdminAccounts } from './hooks'
 
@@ -32,6 +33,19 @@ export default function AdminBackofficeManagementPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [detailAdmin, setDetailAdmin] = useState<AdminResponse | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+
+  // 감사 로그 metadata.actor_id(숫자 PK 문자열)를 닉네임으로 치환하기 위한 lookup.
+  // 백엔드 AdminAuditLogger가 닉네임을 emit하지 않으므로 admin 목록 조회 결과를 재활용한다.
+  const actorLookup = useMemo<AuditActorLookup>(() => {
+    const map: Record<string, { nickname: string; loginId: string }> = {}
+    for (const admin of items) {
+      map[String(admin.id)] = {
+        nickname: admin.nickname,
+        loginId: admin.loginId,
+      }
+    }
+    return map
+  }, [items])
 
   // super_admin이 아니면 대시보드로 리다이렉트
   if (adminRole !== 'super_admin') {
@@ -200,7 +214,7 @@ export default function AdminBackofficeManagementPage() {
         </div>
       </section>
 
-      <AuditLogSection />
+      <AuditLogSection actorLookup={actorLookup} />
 
       <AdminCreateModal
         open={isCreateModalOpen}
