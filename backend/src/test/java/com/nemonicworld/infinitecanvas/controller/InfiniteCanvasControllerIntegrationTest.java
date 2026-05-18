@@ -646,6 +646,35 @@ class InfiniteCanvasControllerIntegrationTest {
     }
 
     @Test
+    void applyInfiniteCanvasOperationsAcceptsStaleRevisionForIndependentElements() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        InfiniteCanvasOperation firstOperation = operation("op-1", "client-op-1", "shape-1", ownerUuid, 1L, now);
+        InfiniteCanvasOperation secondOperation = operation("op-2", "client-op-2", "shape-2", ownerUuid, 2L, now);
+        InfiniteCanvasState baseState = activeCanvasStateWithOperations(ownerUuid, 6,
+            List.of(firstOperation, secondOperation), 2L);
+        InfiniteCanvasState state = new InfiniteCanvasState(baseState.roomCode(), baseState.status(),
+            baseState.hostUserUuid(), baseState.participants(),
+            List.of(firstOperation.element(), secondOperation.element()), baseState.operations(), baseState.locks(),
+            baseState.cursors(), baseState.viewport(), baseState.maxParticipants(), baseState.revision(),
+            baseState.createdAt(), baseState.updatedAt(), baseState.closedAt());
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
+        JsonNode element = objectMapper.createObjectNode().put("id", "shape-3").put("type", "brush");
+
+        InfiniteCanvasOpsAppliedResponse response = infiniteCanvasService.applyOperations(ownerUuid.toString(),
+            state.roomCode(), new InfiniteCanvasOpsRequest(1L, List.of(new InfiniteCanvasOperationRequest("local-op-3",
+                "client-op-3", InfiniteCanvasOperationType.UPSERT_ELEMENT, "shape-3", element, null))));
+
+        JsonNode storedCanvas = readStoredJson(roomKey(state.roomCode()));
+        assertThat(response.revision()).isEqualTo(3L);
+        assertThat(response.operations()).hasSize(1);
+        assertThat(storedCanvas.path("revision").asLong()).isEqualTo(3L);
+        assertThat(storedCanvas.path("elements")).hasSize(3);
+        assertThat(storedCanvas.path("elements").get(2).path("id").asText()).isEqualTo("shape-3");
+        assertThat(storedCanvas.path("operations")).hasSize(3);
+    }
+
+    @Test
     void applyInfiniteCanvasOperationsRequiresFullStateWhenMissingOperationsCannotBridgeRevision() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -690,7 +719,7 @@ class InfiniteCanvasControllerIntegrationTest {
     }
 
     @Test
-    void updateInfiniteCanvasCursorStoresCursorWithoutRevisionChange() throws Exception {
+    void updateInfiniteCanvasCursorPublishesCursorWithoutPersistingVolatileState() throws Exception {
         UUID ownerUuid = createExistingUserWithNickname("Owner");
         InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
         redisValues.put(roomKey(state.roomCode()), serialize(state));
@@ -703,9 +732,7 @@ class InfiniteCanvasControllerIntegrationTest {
         assertThat(response.roomCode()).isEqualTo(state.roomCode());
         assertThat(response.cursor().userUuid()).isEqualTo(ownerUuid.toString());
         assertThat(storedCanvas.path("revision").asLong()).isZero();
-        assertThat(storedCanvas.path("cursors").path(ownerUuid.toString()).path("x").asDouble()).isEqualTo(15.0);
-        assertThat(storedCanvas.path("cursors").path(ownerUuid.toString()).path("payload").path("tool").asText())
-            .isEqualTo("brush");
+        assertThat(storedCanvas.path("cursors").isEmpty()).isTrue();
     }
 
     @Test

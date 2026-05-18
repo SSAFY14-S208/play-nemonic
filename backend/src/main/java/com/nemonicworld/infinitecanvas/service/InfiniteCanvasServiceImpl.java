@@ -50,9 +50,11 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -258,24 +260,12 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             throw new BadRequestException(INVALID_CURSOR_MESSAGE);
         }
 
-        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = findActiveState(normalizedRoomCode);
-            requireParticipant(state, userUuid);
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            InfiniteCanvasCursor cursor = new InfiniteCanvasCursor(userUuid, request.x(), request.y(), request.zoom(),
-                request.payload(), now);
-            Map<String, InfiniteCanvasCursor> cursors = new LinkedHashMap<>(state.cursors());
-            cursors.put(userUuid, cursor);
-            InfiniteCanvasState updatedState = copyState(state, state.participants(), state.elements(),
-                state.operations(), removeExpiredLocks(state.locks(), now), cursors, state.viewport(), state.revision(),
-                now, state.closedAt());
+        InfiniteCanvasState state = findActiveState(normalizedRoomCode);
+        requireParticipant(state, userUuid);
+        InfiniteCanvasCursor cursor = new InfiniteCanvasCursor(userUuid, request.x(), request.y(), request.zoom(),
+            request.payload(), LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
 
-            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
-                return new InfiniteCanvasCursorResponse(normalizedRoomCode, cursor);
-            }
-        }
-
-        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+        return new InfiniteCanvasCursorResponse(normalizedRoomCode, cursor);
     }
 
     @Override
@@ -355,7 +345,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
                 return new InfiniteCanvasOpsAppliedResponse(normalizedRoomCode, state.revision(),
                     state.elements().size(), List.of());
             }
-            requireFreshRevision(request == null ? null : request.baseRevision(), state);
+            requireMergeableRevision(request == null ? null : request.baseRevision(), state, pendingOperationRequests);
 
             LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             CanvasElementBatch elements = new CanvasElementBatch(state.elements());
@@ -611,6 +601,25 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         }
     }
 
+    private void requireMergeableRevision(Long baseRevision, InfiniteCanvasState state,
+        List<InfiniteCanvasOperationRequest> pendingOperationRequests) {
+        if (baseRevision == null) {
+            throw new BadRequestException(BASE_REVISION_REQUIRED_MESSAGE);
+        }
+
+        long requestedRevision = baseRevision.longValue();
+        if (requestedRevision == state.revision()) {
+            return;
+        }
+
+        List<InfiniteCanvasOperation> missingOperations = missingOperations(requestedRevision, state);
+        boolean canRecoverWithDelta = canRecoverWithDelta(requestedRevision, state.revision(), missingOperations);
+        if (!canRecoverWithDelta || hasOperationConflict(pendingOperationRequests, missingOperations)) {
+            throw new InfiniteCanvasRevisionConflictException(STALE_REVISION_MESSAGE,
+                revisionConflictResponse(requestedRevision, state));
+        }
+    }
+
     private InfiniteCanvasRevisionConflictResponse revisionConflictResponse(long baseRevision,
         InfiniteCanvasState state) {
         List<InfiniteCanvasOperation> missingOperations = missingOperations(baseRevision, state);
@@ -648,6 +657,34 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         }
 
         return true;
+    }
+
+    private boolean hasOperationConflict(List<InfiniteCanvasOperationRequest> pendingOperationRequests,
+        List<InfiniteCanvasOperation> missingOperations) {
+        if (pendingOperationRequests.stream().anyMatch(
+            operationRequest -> operationRequest.operationType() == InfiniteCanvasOperationType.CLEAR_CANVAS)) {
+            return true;
+        }
+
+        Set<String> requestedElementIds = new HashSet<>();
+        for (InfiniteCanvasOperationRequest operationRequest : pendingOperationRequests) {
+            String elementId = resolveOperationElementId(operationRequest);
+            if (StringUtils.hasText(elementId)) {
+                requestedElementIds.add(elementId);
+            }
+        }
+
+        for (InfiniteCanvasOperation missingOperation : missingOperations) {
+            if (missingOperation.operationType() == InfiniteCanvasOperationType.CLEAR_CANVAS) {
+                return true;
+            }
+            if (StringUtils.hasText(missingOperation.elementId())
+                && requestedElementIds.contains(missingOperation.elementId())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private InfiniteCanvasOperation createOperation(InfiniteCanvasOperationRequest request, String userUuid,
@@ -693,10 +730,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
             return;
         }
 
-        JsonNode element = resolveOperationElement(operationRequest);
-        String elementId = StringUtils.hasText(operationRequest.elementId())
-            ? operationRequest.elementId().trim()
-            : extractElementId(element);
+        String elementId = resolveOperationElementId(operationRequest);
         if (operationType == InfiniteCanvasOperationType.DELETE_ELEMENT && !StringUtils.hasText(elementId)) {
             throw new BadRequestException(INVALID_OPERATIONS_MESSAGE);
         }
@@ -721,6 +755,14 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         if (hasForeignLock) {
             throw new ConflictException(LOCK_CONFLICT_MESSAGE);
         }
+    }
+
+    private String resolveOperationElementId(InfiniteCanvasOperationRequest operationRequest) {
+        if (StringUtils.hasText(operationRequest.elementId())) {
+            return operationRequest.elementId().trim();
+        }
+
+        return extractElementId(resolveOperationElement(operationRequest));
     }
 
     private void applyOperation(CanvasElementBatch elements, Map<String, InfiniteCanvasLock> locks,
