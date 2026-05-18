@@ -8,19 +8,16 @@
 }
 
 .brandMark {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.48rem;
-  border: 1px solid rgb(255 255 255 / 62%);
-  border-radius: 999px;
-  background: rgb(255 255 255 / 72%);
-  box-shadow: 0 1rem 2.5rem rgb(87 74 122 / 14%);
-  padding: 0.62rem 0.9rem;
-  color: #64509a;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  backdrop-filter: blur(16px);
+  display: block;
+  width: 8.75rem;
+  filter: drop-shadow(0 0.55rem 1.15rem rgb(0 0 0 / 18%));
+}
+
+.brandLogo {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
 }
 
 .musicButton {
@@ -166,7 +163,7 @@
 
 @media (max-width: 520px) {
   .brandMark {
-    padding: 0.56rem 0.78rem;
+    width: 7.5rem;
   }
 
   .focusButton {

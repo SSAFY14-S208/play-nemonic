@@ -95,6 +95,14 @@ const MONITOR_TEXTURE_URLS = Object.values(MONITOR_SCREEN_ASSETS).flatMap(
       : [asset.background, asset.logo, asset.startButton],
 )
 
+type MonitorGameSelectorScale = number | [number, number, number]
+
+interface MonitorGameSelectorProps {
+  position?: [number, number, number]
+  quaternion?: [number, number, number, number]
+  scale?: MonitorGameSelectorScale
+}
+
 function configureMonitorTexture(texture: THREE.Texture) {
   texture.colorSpace = THREE.SRGBColorSpace
   texture.anisotropy = 4
@@ -503,7 +511,11 @@ function AnimatedMonitorGameContent({
   )
 }
 
-export default function MonitorGameSelector() {
+export default function MonitorGameSelector({
+  position = HUB_MONITOR_SCREEN_POSITION,
+  quaternion,
+  scale = 1,
+}: MonitorGameSelectorProps) {
   const {
     focusMonitor,
     selectedGame,
@@ -532,7 +544,11 @@ export default function MonitorGameSelector() {
   }
 
   return (
-    <group position={HUB_MONITOR_SCREEN_POSITION}>
+    <group
+      position={position}
+      quaternion={quaternion}
+      scale={scale}
+    >
       <mesh
         onClick={handleScreenClick}
       >

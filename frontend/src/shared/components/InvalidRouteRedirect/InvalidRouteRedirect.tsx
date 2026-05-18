@@ -18,7 +18,7 @@ interface InvalidRouteRedirectProps {
 }
 
 export function InvalidRouteRedirect({
-  redirectPath = '/hub',
+  redirectPath = '/',
 }: InvalidRouteRedirectProps) {
   const router = useRouter()
 

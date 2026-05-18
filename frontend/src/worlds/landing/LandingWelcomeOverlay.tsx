@@ -130,7 +130,7 @@ export default function LandingWelcomeOverlay() {
           )}
         >
           <Link
-            href="/hub"
+            href="/"
             className={cn(
               "pointer-events-auto",
               "h3-b text-fg-inverse bg-primary-1",

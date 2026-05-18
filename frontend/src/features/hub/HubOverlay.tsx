@@ -1,11 +1,12 @@
 'use client'
 
+import Image from 'next/image'
 import {
   Gamepad2,
   Home,
   LayoutDashboard,
   Music2,
-  Sparkles,
+  Printer,
   Volume2,
   VolumeX,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ const FOCUS_BUTTONS: Array<{
   { focusKey: 'overview', icon: Home, label: '홈', iconOnly: true },
   { focusKey: 'monitor', icon: Gamepad2, label: '게임 선택' },
   { focusKey: 'communityBoard', icon: LayoutDashboard, label: '커뮤니티 보드' },
+  { focusKey: 'printer', icon: Printer, label: '네모닉' },
 ]
 
 export default function HubOverlay() {
@@ -37,8 +39,15 @@ export default function HubOverlay() {
     <>
       <header className={styles.brandPanel}>
         <div className={styles.brandMark}>
-          <Sparkles className="h-4 w-4" strokeWidth={2.3} />
-          NEMONIC
+          <Image
+            src="/images/play-nemonic-logo.png"
+            alt="Play! Nemonic"
+            width={1672}
+            height={941}
+            priority
+            draggable={false}
+            className={styles.brandLogo}
+          />
         </div>
       </header>
 

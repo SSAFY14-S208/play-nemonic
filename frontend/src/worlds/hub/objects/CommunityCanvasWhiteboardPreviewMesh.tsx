@@ -26,6 +26,14 @@ const WHITEBOARD_PREVIEW_HEIGHT_PX = 226
 const WHITEBOARD_PREVIEW_MEMO_SIZE_PX = 48
 const WHITEBOARD_PREVIEW_MAX_STACK_Z_INDEX = 999
 
+interface CommunityCanvasWhiteboardPreviewMeshProps {
+  flipContentX?: boolean
+  isExpanded: boolean
+  position?: [number, number, number]
+  quaternion?: [number, number, number, number]
+  scale?: number
+}
+
 function getPreviewMemoStackOrder(memo: CommunityCanvasWhiteboardPreviewMemo) {
   return Math.min(Math.max(memo.zIndex, 0), WHITEBOARD_PREVIEW_MAX_STACK_Z_INDEX)
 }
@@ -98,12 +106,13 @@ function WhiteboardPreviewMemoCard({
 }
 
 export default function CommunityCanvasWhiteboardPreviewMesh({
+  flipContentX = false,
   isExpanded,
-}: {
-  isExpanded: boolean
-}) {
+  position = WHITEBOARD_PREVIEW_POSITION,
+  quaternion = WHITEBOARD_PREVIEW_QUATERNION,
+  scale = WHITEBOARD_PREVIEW_WORLD_SCALE,
+}: CommunityCanvasWhiteboardPreviewMeshProps) {
   const {
-    hiddenMemoCount,
     isUsingFallbackPreview,
     previewMemos,
     status,
@@ -115,15 +124,15 @@ export default function CommunityCanvasWhiteboardPreviewMesh({
       center
       transform
       pointerEvents="none"
-      position={WHITEBOARD_PREVIEW_POSITION}
-      quaternion={WHITEBOARD_PREVIEW_QUATERNION}
-      scale={WHITEBOARD_PREVIEW_WORLD_SCALE}
+      position={position}
+      quaternion={quaternion}
+      scale={scale}
       zIndexRange={[60, 0]}
     >
       <div
         aria-hidden="true"
         className={cn(
-          'relative overflow-hidden rounded-[23px] border border-white/45 bg-white/16 shadow-[0_13px_32px_rgb(106_96_142_/_18%)] backdrop-blur-[1px] transition duration-300 ease-out',
+          'relative overflow-visible transition duration-300 ease-out',
           isExpanded
             ? 'opacity-100 saturate-110'
             : 'opacity-72 saturate-75',
@@ -132,10 +141,10 @@ export default function CommunityCanvasWhiteboardPreviewMesh({
         style={{
           height: WHITEBOARD_PREVIEW_HEIGHT_PX,
           pointerEvents: 'none',
+          transform: flipContentX ? 'scaleX(-1)' : undefined,
           width: WHITEBOARD_PREVIEW_WIDTH_PX,
         }}
       >
-        <div className="absolute inset-[10px] rounded-[18px] bg-[#f8fcff]/16 shadow-[inset_0_0_18px_rgb(255_255_255_/_28%)]" />
         <div className="absolute inset-[13px]">
           {previewMemos.map((memo) => (
             <WhiteboardPreviewMemoCard
@@ -145,17 +154,6 @@ export default function CommunityCanvasWhiteboardPreviewMesh({
             />
           ))}
         </div>
-        {hiddenMemoCount > 0 && (
-          <div
-            className={cn(
-              'caption-b absolute right-[16px] top-[14px] z-[1100] rounded-full bg-white/72 px-[9px] py-[4px] text-[#66547f] shadow-[0_5px_11px_rgb(70_51_88_/_14%)] transition duration-300',
-              isExpanded ? 'opacity-100' : 'opacity-0',
-            )}
-            style={{ fontSize: 22, lineHeight: '26px' }}
-          >
-            +{hiddenMemoCount}
-          </div>
-        )}
         <div
           className={cn(
             'absolute inset-x-[40px] bottom-[13px] z-[1100] flex items-center justify-center gap-[10px] rounded-full bg-white/82 px-[18px] py-[8px] text-center text-[#66547f] shadow-[0_8px_16px_rgb(76_54_92_/_16%)] transition duration-300',
@@ -171,7 +169,7 @@ export default function CommunityCanvasWhiteboardPreviewMesh({
             lineHeight: '32px',
           }}
         >
-          <span>커뮤니티 캔버스로</span>
+          <span>커뮤니티 보드 가기</span>
           <ArrowRight aria-hidden size={24} strokeWidth={2.4} />
         </div>
       </div>

@@ -122,7 +122,7 @@ export default function FortunePage() {
   };
 
   const goBackToHub = () => {
-    router.push("/hub");
+    router.push("/");
   };
 
   const shouldPrepareEntrySpotlight = step === "intro" && dialogueIndex === 0;

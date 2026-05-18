@@ -4,6 +4,7 @@ import { useProgress } from '@react-three/drei'
 const HUB_LOADING_MIN_VISIBLE_MS = 700
 const HUB_LOADING_READY_HOLD_MS = 420
 const HUB_LOADING_CACHE_FALLBACK_MS = 1500
+const HUB_ENTRY_CONFIRMED_STORAGE_KEY = 'play-nemonic:hub-entry-confirmed'
 
 function wait(durationMs: number) {
   return new Promise((resolve) => {
@@ -28,11 +29,34 @@ function getHubLoadingStatusText(displayProgress: number) {
 
 const HUB_LOADING_SUBTITLE_PENDING = '오늘은 어떤 놀이가 기다릴까요?'
 const HUB_LOADING_SUBTITLE_READY = '재미있는 것들이 가득해요'
+const HUB_LOADING_SUBTITLE_ENTERING = '곧바로 허브로 들어갈게요'
+
+function readHubEntryConfirmedInCurrentTab() {
+  if (typeof window === 'undefined') return false
+
+  try {
+    return (
+      window.sessionStorage.getItem(HUB_ENTRY_CONFIRMED_STORAGE_KEY) === 'true'
+    )
+  } catch {
+    return false
+  }
+}
+
+function saveHubEntryConfirmedInCurrentTab() {
+  try {
+    window.sessionStorage.setItem(HUB_ENTRY_CONFIRMED_STORAGE_KEY, 'true')
+  } catch {
+    // Session storage can be unavailable in restricted browser modes.
+  }
+}
 
 export function useHubLoadingOverlay(isCanvasReady: boolean) {
   const { active, progress } = useProgress()
   const [displayProgress, setDisplayProgress] = useState(0)
-  const [hasEnteredHub, setHasEnteredHub] = useState(false)
+  const [hasConfirmedHubEntry, setHasConfirmedHubEntry] = useState(
+    readHubEntryConfirmedInCurrentTab,
+  )
   const [isReady, setIsReady] = useState(false)
   const [isVisible, setIsVisible] = useState(true)
   const hasStartedLoadingRef = useRef(false)
@@ -145,8 +169,10 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     }
   }, [isCanvasReady, isReady])
 
+  const shouldShowPlayButton = isReady && !hasConfirmedHubEntry
+
   useEffect(() => {
-    if (!isReady || !hasEnteredHub) return
+    if (!isReady || !hasConfirmedHubEntry) return
 
     const hideTimerId = window.setTimeout(() => {
       setIsVisible(false)
@@ -155,23 +181,27 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     return () => {
       window.clearTimeout(hideTimerId)
     }
-  }, [hasEnteredHub, isReady])
+  }, [hasConfirmedHubEntry, isReady])
 
   const enterHub = useCallback(() => {
     if (!isReady) return
 
-    setHasEnteredHub(true)
+    saveHubEntryConfirmedInCurrentTab()
+    setHasConfirmedHubEntry(true)
   }, [isReady])
 
   return {
     displayProgress: Math.round(displayProgress),
     enterHub,
-    hasEnteredHub,
+    hasConfirmedHubEntry,
     isReady,
     isVisible,
+    shouldShowPlayButton,
     statusText: getHubLoadingStatusText(displayProgress),
     subtitleText: isReady
-      ? HUB_LOADING_SUBTITLE_READY
+      ? hasConfirmedHubEntry
+        ? HUB_LOADING_SUBTITLE_ENTERING
+        : HUB_LOADING_SUBTITLE_READY
       : HUB_LOADING_SUBTITLE_PENDING,
   }
 }

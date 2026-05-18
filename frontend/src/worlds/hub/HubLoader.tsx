@@ -2,32 +2,19 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import {
-  DEFAULT_HUB_PERFORMANCE_MODE,
-  getHubFocusKeyFromSearch,
-  getHubPerformanceModeFromSearch,
-} from '@/shared/constants'
+import { getHubFocusKeyFromSearch } from '@/shared/constants'
 import { useHubRoomStore } from '@/shared/stores'
-import type { HubPerformanceMode } from '@/shared/types'
 import HubLoadingOverlay from './HubLoadingOverlay'
 
-const HubCanvas = dynamic(() => import('./HubCanvas'), { ssr: false })
-
-function readHubPerformanceMode(): HubPerformanceMode {
-  if (typeof window === 'undefined') {
-    return DEFAULT_HUB_PERFORMANCE_MODE
-  }
-
-  return getHubPerformanceModeFromSearch(window.location.search)
-}
+const RoomPreviewCanvas = dynamic(
+  () => import('../room-preview/RoomPreviewCanvas'),
+  { ssr: false },
+)
 
 export default function HubLoader() {
   const setFocus = useHubRoomStore((state) => state.setFocus)
   const [isCanvasReady, setIsCanvasReady] = useState(false)
   const [shouldMountCanvas, setShouldMountCanvas] = useState(false)
-  const [performanceMode, setPerformanceMode] = useState<HubPerformanceMode>(
-    readHubPerformanceMode,
-  )
   const handleCanvasReady = useCallback(() => {
     setIsCanvasReady(true)
   }, [])
@@ -54,13 +41,8 @@ export default function HubLoader() {
 
   useEffect(() => {
     const syncHubRuntimeSearch = () => {
-      setPerformanceMode(readHubPerformanceMode())
-
       const nextFocusKey = getHubFocusKeyFromSearch(window.location.search)
-
-      if (nextFocusKey) {
-        setFocus(nextFocusKey)
-      }
+      setFocus(nextFocusKey ?? 'overview')
     }
 
     let cancelled = false
@@ -84,10 +66,10 @@ export default function HubLoader() {
   return (
     <>
       {shouldMountCanvas && (
-        <HubCanvas
-          key={performanceMode}
+        <RoomPreviewCanvas
+          className="z-[1]"
           onCanvasReady={handleCanvasReady}
-          performanceMode={performanceMode}
+          variant="hub"
         />
       )}
       <HubLoadingOverlay isCanvasReady={isCanvasReady} />
