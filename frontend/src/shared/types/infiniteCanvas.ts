@@ -188,6 +188,24 @@ export interface InfiniteCanvasOutputSaveResponse {
   createdAt: string
 }
 
+export interface InfiniteCanvasAiStickerCreateRequest {
+  prompt: string
+  style?: string | null
+  width?: number | null
+  height?: number | null
+  transparentBackground?: boolean | null
+}
+
+export interface InfiniteCanvasAiStickerCreateResponse {
+  stickerId: string
+  imageUrl: string
+  objectKey: string
+  contentType: string
+  width: number
+  height: number
+  element: InfiniteCanvasJsonObject
+}
+
 export type InfiniteCanvasWsEventType =
   | 'STATE_SNAPSHOT'
   | 'SNAPSHOT_UPDATED'

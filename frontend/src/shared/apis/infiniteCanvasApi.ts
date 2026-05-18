@@ -1,6 +1,8 @@
 import { api } from '@/shared/libs'
 import type {
   ApiResponse,
+  InfiniteCanvasAiStickerCreateRequest,
+  InfiniteCanvasAiStickerCreateResponse,
   InfiniteCanvasCreateResponse,
   InfiniteCanvasCreateRequest,
   InfiniteCanvasLeaveResponse,
@@ -53,6 +55,18 @@ export const postInfiniteCanvasOutput = (
   apiUnwrap(
     api.post<ApiResponse<InfiniteCanvasOutputSaveResponse>>(
       `infinite-canvas/canvases/${roomCode}/outputs`,
+      payload,
+    ),
+  )
+
+// POST /infinite-canvas/canvases/{roomCode}/ai-stickers — 무한 캔버스 AI 스티커 생성
+export const postInfiniteCanvasAiSticker = (
+  roomCode: string,
+  payload: InfiniteCanvasAiStickerCreateRequest,
+) =>
+  apiUnwrap(
+    api.post<ApiResponse<InfiniteCanvasAiStickerCreateResponse>>(
+      `infinite-canvas/canvases/${roomCode}/ai-stickers`,
       payload,
     ),
   )
