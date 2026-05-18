@@ -75,7 +75,7 @@ export const VIZ_META: ViizMeta[] = [
     id: 'I7',
     section: 'channel',
     title: '유입 경로 비율',
-    subtitle: 'direct · search · social · share · qr · campaign',
+    subtitle: 'direct · search · qr · share · SNS별(인스타·카톡 등)',
     status: 'live',
   },
   {
@@ -86,10 +86,10 @@ export const VIZ_META: ViizMeta[] = [
     status: 'live',
   },
   {
-    id: 'I8',
+    id: 'I14',
     section: 'channel',
-    title: 'SNS 유입 비율',
-    subtitle: 'referrer host — 인스타·트위터·카카오 등',
+    title: '핸드폰 → 공식몰 이동 추이',
+    subtitle: 'phone_official_store_clicked 시간대별 클릭',
     status: 'live',
   },
   {

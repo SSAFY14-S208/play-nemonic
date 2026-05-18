@@ -68,6 +68,8 @@ const SAMPLING_CONFIG: Record<SamplingTier, Set<LogEventName>> = {
     'room_lobby_abandoned',
     'creation_abandoned',
     'result_share_abandoned',
+    // 외부 이동 (100%) — 핸드폰 모달에서 공식몰 등 외부 사이트로 떠나는 클릭
+    'phone_official_store_clicked',
     // 성능/오류 (100%)
     'js_error',
     'unhandled_rejection',
