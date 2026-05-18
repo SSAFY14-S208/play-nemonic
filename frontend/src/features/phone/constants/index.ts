@@ -70,7 +70,7 @@ export const PHONE_STATUS_BAR_LAYOUT = {
 } as const;
 
 export const PHONE_CLOSE_BUTTON_LAYOUT = {
-  left: "114%",
+  left: "98%",
   top: "17.8%",
   width: "20.6%",
   aspectRatio: "233 / 400",
