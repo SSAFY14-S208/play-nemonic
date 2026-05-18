@@ -34,6 +34,11 @@ import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
+import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerGmsClient;
+import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerImage;
+import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerStorage;
+import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasStickerPromptTemplateProvider;
+import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasStickerPromptTemplateProvider.CurrentStickerPrompt;
 import com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisher;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.support.IntegrationTest;
@@ -97,6 +102,15 @@ class InfiniteCanvasControllerIntegrationTest {
 
     @MockitoBean
     private InfiniteCanvasEventPublisher infiniteCanvasEventPublisher;
+
+    @MockitoBean
+    private InfiniteCanvasAiStickerGmsClient infiniteCanvasAiStickerGmsClient;
+
+    @MockitoBean
+    private InfiniteCanvasAiStickerStorage infiniteCanvasAiStickerStorage;
+
+    @MockitoBean
+    private InfiniteCanvasStickerPromptTemplateProvider infiniteCanvasStickerPromptTemplateProvider;
 
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
@@ -516,6 +530,38 @@ class InfiniteCanvasControllerIntegrationTest {
                     """.formatted(imageFileId)))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("무한 캔버스 출력 파일만 저장할 수 있습니다."));
+    }
+
+    @Test
+    void createAiStickerReturnsCanvasImageElementDraft() throws Exception {
+        UUID ownerUuid = createExistingUserWithNickname("Owner");
+        InfiniteCanvasState state = activeCanvasState(ownerUuid, 6);
+        redisValues.put(roomKey(state.roomCode()), serialize(state));
+        given(infiniteCanvasStickerPromptTemplateProvider.resolveCurrent())
+            .willReturn(new CurrentStickerPrompt("Make sticker", "default", "default", null));
+        given(infiniteCanvasAiStickerGmsClient.generate(any()))
+            .willReturn(new InfiniteCanvasAiStickerImage(new byte[]{1, 2, 3}, "image/png"));
+
+        mockMvc
+            .perform(post("/api/v1/infinite-canvas/canvases/{roomCode}/ai-stickers", state.roomCode())
+                .header(ANONYMOUS_USER_UUID_HEADER, ownerUuid.toString()).contentType("application/json").content("""
+                    {
+                      "prompt": "바이올린을 켜는 토끼",
+                      "style": "sticker",
+                      "width": 512,
+                      "height": 512,
+                      "transparentBackground": true
+                    }
+                    """))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("무한 캔버스 AI 스티커 생성 성공"))
+            .andExpect(jsonPath("$.data.objectKey")
+                .value(org.hamcrest.Matchers.startsWith("infinite-canvas/ai-stickers/%s/".formatted(state.roomCode()))))
+            .andExpect(jsonPath("$.data.imageUrl").value(org.hamcrest.Matchers.startsWith(
+                "http://localhost:9000/nemonic-local/infinite-canvas/ai-stickers/%s/".formatted(state.roomCode()))))
+            .andExpect(jsonPath("$.data.element.type").value("image"))
+            .andExpect(jsonPath("$.data.element.metadata.source").value("ai_sticker"))
+            .andExpect(jsonPath("$.data.element.metadata.prompt").value("바이올린을 켜는 토끼"));
     }
 
     @Test

@@ -33,3 +33,18 @@ POST {{host}}/api/v1/infinite-canvas/canvases
 ### Leave infinite canvas
 DELETE {{host}}/api/v1/infinite-canvas/canvases/{{roomCode}}/participants/me
 Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create AI sticker
+# GMS의 sticker 활성 프롬프트와 사용자 prompt를 조합해 PNG 스티커를 생성합니다.
+# 응답의 data.element는 WebSocket /ops CREATE_ELEMENT payload로 사용할 수 있습니다.
+POST {{host}}/api/v1/infinite-canvas/canvases/{{roomCode}}/ai-stickers
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "prompt": "바이올린을 켜는 토끼",
+  "style": "sticker",
+  "width": 512,
+  "height": 512,
+  "transparentBackground": true
+}

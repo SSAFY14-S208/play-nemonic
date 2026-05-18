@@ -214,3 +214,17 @@ nemonic:
       base-url: ${GMS_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions}
       connect-timeout-ms: ${GMS_CONNECT_TIMEOUT_MS:3000}
       read-timeout-ms: ${GMS_READ_TIMEOUT_MS:30000}
+
+  infinite-canvas:
+    ai-sticker:
+      enabled: ${INFINITE_CANVAS_AI_STICKER_ENABLED:true}
+      max-prompt-length: ${INFINITE_CANVAS_AI_STICKER_MAX_PROMPT_LENGTH:200}
+      default-image-size: ${INFINITE_CANVAS_AI_STICKER_DEFAULT_IMAGE_SIZE:512}
+      max-image-size: ${INFINITE_CANVAS_AI_STICKER_MAX_IMAGE_SIZE:1024}
+      allowed-styles: ${INFINITE_CANVAS_AI_STICKER_ALLOWED_STYLES:sticker,cartoon,pixel,clay_3d,watercolor,flat_icon,hand_drawn}
+      gms:
+        api-key: ${GMS_API_KEY:}
+        model: ${GMS_IMAGE_MODEL:gpt-image-1}
+        base-url: ${GMS_IMAGE_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com/v1/images/generations}
+        connect-timeout-ms: ${GMS_IMAGE_CONNECT_TIMEOUT_MS:3000}
+        read-timeout-ms: ${GMS_IMAGE_READ_TIMEOUT_MS:60000}

@@ -5,14 +5,17 @@ import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasAiStickerCreateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasColorUpdateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasOutputSaveRequest;
+import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasAiStickerCreateResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasCreateResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasLeaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasOutputSaveResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasParticipantResponse;
 import com.nemonicworld.infinitecanvas.dto.response.InfiniteCanvasStateResponse;
+import com.nemonicworld.infinitecanvas.service.InfiniteCanvasAiStickerService;
 import com.nemonicworld.infinitecanvas.service.InfiniteCanvasService;
 import com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,13 +49,17 @@ public class InfiniteCanvasController {
     private static final String LEAVE_SUCCESS_MESSAGE = "무한 캔버스 퇴장 성공";
     private static final String COLOR_UPDATE_SUCCESS_MESSAGE = "무한 캔버스 참여자 색상 수정 성공";
     private static final String OUTPUT_SAVE_SUCCESS_MESSAGE = "무한 캔버스 출력 이미지 저장 성공";
+    private static final String AI_STICKER_CREATE_SUCCESS_MESSAGE = "무한 캔버스 AI 스티커 생성 성공";
 
     private final InfiniteCanvasService infiniteCanvasService;
+    private final InfiniteCanvasAiStickerService infiniteCanvasAiStickerService;
     private final InfiniteCanvasEventPublisher infiniteCanvasEventPublisher;
 
     public InfiniteCanvasController(InfiniteCanvasService infiniteCanvasService,
+        InfiniteCanvasAiStickerService infiniteCanvasAiStickerService,
         InfiniteCanvasEventPublisher infiniteCanvasEventPublisher) {
         this.infiniteCanvasService = infiniteCanvasService;
+        this.infiniteCanvasAiStickerService = infiniteCanvasAiStickerService;
         this.infiniteCanvasEventPublisher = infiniteCanvasEventPublisher;
     }
 
@@ -147,5 +154,25 @@ public class InfiniteCanvasController {
 
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(OUTPUT_SAVE_SUCCESS_MESSAGE, response));
+    }
+
+    @PostMapping("/{roomCode}/ai-stickers")
+    @Operation(summary = "무한 캔버스 AI 스티커 생성", description = "현재 무한 캔버스 참여자가 입력한 프롬프트로 AI 스티커 PNG를 생성하고, 캔버스 image element 초안을 반환합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true, description = "공유 방코드")
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "무한 캔버스 AI 스티커 생성 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INVALID_UUID))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "AI 스티커 생성 서비스 사용 불가", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.INFINITE_CANVAS_AI_STICKER_UNAVAILABLE))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
+    public ResponseEntity<ApiResponse<InfiniteCanvasAiStickerCreateResponse>> createAiSticker(
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
+        @PathVariable("roomCode") String roomCode,
+        @RequestBody(required = false) InfiniteCanvasAiStickerCreateRequest request) {
+        InfiniteCanvasAiStickerCreateResponse response = infiniteCanvasAiStickerService.createSticker(userUuid,
+            roomCode, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
+            .body(ApiResponse.success(AI_STICKER_CREATE_SUCCESS_MESSAGE, response));
     }
 }
