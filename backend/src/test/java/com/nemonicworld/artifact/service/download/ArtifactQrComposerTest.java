@@ -45,8 +45,10 @@ class ArtifactQrComposerTest {
         PixelBounds darkBounds = findDarkPixelBounds(composed);
         assertThat(darkBounds.width()).isLessThanOrEqualTo(56);
         assertThat(darkBounds.height()).isLessThanOrEqualTo(56);
-        assertThat(darkBounds.minX()).isGreaterThanOrEqualTo(296);
-        assertThat(darkBounds.minY()).isGreaterThanOrEqualTo(176);
+        assertThat(darkBounds.minX()).isGreaterThanOrEqualTo(304);
+        assertThat(darkBounds.minY()).isGreaterThanOrEqualTo(184);
+        assertThat(darkBounds.maxX()).isGreaterThanOrEqualTo(composed.getWidth() - 4);
+        assertThat(darkBounds.maxY()).isGreaterThanOrEqualTo(composed.getHeight() - 4);
     }
 
     @Test
