@@ -68,5 +68,6 @@ export const postInfiniteCanvasAiSticker = (
     api.post<ApiResponse<InfiniteCanvasAiStickerCreateResponse>>(
       `infinite-canvas/canvases/${roomCode}/ai-stickers`,
       payload,
+      { timeout: 90_000 },
     ),
   )

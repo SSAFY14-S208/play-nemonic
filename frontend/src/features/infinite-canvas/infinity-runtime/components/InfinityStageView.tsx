@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { ArrowDownToLine, ArrowUpToLine, Copy, Link2, LogOut, Printer } from 'lucide-react'
 import { toast } from 'sonner'
-import { useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
+import { useInfinityAiSticker, useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
 import type { InfinityObject } from '../constants'
 import {
   isInfinityObject,
@@ -24,6 +24,7 @@ import {
 } from './InfinityCaptureOverlay'
 import { InfinityParticipantsPanel } from './InfinityParticipantsPanel'
 import { InfinityPrintRevealOverlay } from './InfinityPrintRevealOverlay'
+import { InfinityAiStickerModal } from './InfinityAiStickerModal'
 import { InfinityTextEditor } from './InfinityTextEditor'
 import { InfinityToolPanel } from './InfinityToolPanel'
 
@@ -403,6 +404,14 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     onLocalOperations: handleLocalOperations,
   })
 
+  const aiSticker = useInfinityAiSticker({
+    roomCode: room.roomCode ?? '',
+    stageRef,
+    scaleRef: drawing.viewport.scaleRef,
+    stagePosRef: drawing.viewport.stagePosRef,
+    addObject: drawing.addObject,
+  })
+
   const containerRef = useRef<HTMLDivElement>(null)
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
 
@@ -778,7 +787,17 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
   return (
     <div className="fixed inset-0 h-dvh w-dvw overflow-hidden bg-canvas-background">
-      <InfinityToolPanel drawing={drawing} />
+      <InfinityToolPanel
+        drawing={drawing}
+        isAiStickerOpen={aiSticker.isOpen}
+        onAiStickerClick={aiSticker.open}
+      />
+      <InfinityAiStickerModal
+        open={aiSticker.isOpen}
+        loading={aiSticker.isCreating}
+        onClose={aiSticker.close}
+        onSubmit={aiSticker.createSticker}
+      />
 
       <div ref={containerRef} className="absolute inset-0 min-w-0 overflow-hidden">
         <InfinityCanvasStage

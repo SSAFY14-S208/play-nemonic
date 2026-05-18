@@ -273,6 +273,16 @@ export function useInfinityDrawing(
     events.resetDrawingState()
   }
 
+  const addObject = (object: InfinityObject) => {
+    commitLocalChange([...history.objectsRef.current, object], [object.id], [
+      {
+        operationType: 'UPSERT_ELEMENT',
+        elementId: object.id,
+        element: { ...object },
+      },
+    ])
+  }
+
   // Stable refs so the keyboard handler never goes stale.
   const undoRef = useRef(history.undo)
   const redoRef = useRef(history.redo)
@@ -408,6 +418,7 @@ export function useInfinityDrawing(
     undo,
     redo,
     clearAll,
+    addObject,
     clearSelection: history.silentClearSelection,
     replaceObjectsFromServer: history.replaceObjectsFromServer,
     syncObjectsFromServer: history.syncObjectsFromServer,
