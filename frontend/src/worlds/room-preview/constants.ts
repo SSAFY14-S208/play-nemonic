@@ -50,8 +50,8 @@ export const ROOM_PREVIEW_HUB_CAMERA_PRESETS: Record<
     target: [-2.72, 1.62, -1.86],
   },
   printer: {
-    position: [3.45, 1.72, 3.92],
-    target: [-0.74, 1.18, -1.35],
+    position: [-2.39, 1.79, -1.6],
+    target: [-2.83, 1.46, -2.48],
   },
   pegboard: {
     position: [0.88, 4.3, 1.82],
@@ -73,7 +73,7 @@ export const ROOM_PREVIEW_HUB_CAMERA_LIMITS = {
   maxDistance: 6.75,
   maxPolarAngle: Math.PI * 0.5,
   minAzimuthAngle: -Math.PI * 0.04,
-  minDistance: 1.65,
+  minDistance: 0.95,
   minPolarAngle: Math.PI * 0.17,
 }
 

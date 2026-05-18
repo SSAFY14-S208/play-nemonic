@@ -259,8 +259,8 @@ export const HUB_CAMERA_PRESETS: Record<
   }
 > = {
   overview: {
-    position: [0.10, 3.81, 1.19],
-    target: [-2.55, 2.42, -2.82],
+    position: [-1.7, 5.9, -0.12],
+    target: [-3.85, 2.55, -2.7],
   },
   mainDesk: {
     position: [2.35, 4.25, 1.65],
