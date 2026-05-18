@@ -3,6 +3,7 @@ package com.nemonicworld.backoffice.setting.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.admin.service.AdminAuthorization;
 import com.nemonicworld.auth.service.AdminAuditLogger;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.backoffice.setting.dto.request.SystemParameterTypedUpdateRequest;
@@ -13,7 +14,6 @@ import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository;
 import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository.UpdateValueCommand;
 import com.nemonicworld.backoffice.setting.service.SystemParameterTypedUpdateMapper.TypedUpdateValue;
 import com.nemonicworld.common.exception.BadRequestException;
-import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.flipbook.service.support.FlipbookMinFramesPerFlipbookSettings;
 import com.nemonicworld.flipbook.service.support.FlipbookReconnectGraceSettings;
@@ -52,7 +52,6 @@ public class SystemParameterServiceImpl implements SystemParameterService {
 
     private static final Logger log = LoggerFactory.getLogger(SystemParameterServiceImpl.class);
 
-    private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String EMPTY_UPDATE_MESSAGE = "수정할 시스템 파라미터를 지정해주세요.";
     private static final String NOT_FOUND_MESSAGE_FORMAT = "존재하지 않는 시스템 파라미터입니다. key=%s";
     private static final String INVALID_VALUE_MESSAGE = "시스템 파라미터 값을 직렬화하지 못했습니다.";
@@ -87,7 +86,7 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     @Override
     @Transactional(readOnly = true)
     public SystemParameterListResponse getSystemParameters(AdminPrincipal adminPrincipal, String keyword) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         String normalizedKeyword = normalizeKeyword(keyword);
         long totalElements = systemParameterRepository.countAll(normalizedKeyword);
@@ -101,7 +100,7 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     @Transactional
     public SystemParameterListResponse bulkUpdate(AdminPrincipal adminPrincipal,
         SystemParameterTypedUpdateRequest request, AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
 
         List<TypedUpdateValue> updates = SystemParameterTypedUpdateMapper.extractUpdates(request, objectMapper);
         if (updates.isEmpty()) {
@@ -154,12 +153,6 @@ public class SystemParameterServiceImpl implements SystemParameterService {
             .map(parameter -> SystemParameterResponse.from(parameter, parseValue(parameter.value()))).toList();
 
         return new SystemParameterListResponse(updatedItems, updatedItems.size());
-    }
-
-    private void requireAdmin(AdminPrincipal adminPrincipal) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
-        }
     }
 
     private String normalizeKeyword(String value) {

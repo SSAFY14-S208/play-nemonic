@@ -3,6 +3,7 @@ package com.nemonicworld.community.service.admin;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.admin.service.AdminAuthorization;
 import com.nemonicworld.auth.service.AdminAuditLogger;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
@@ -44,7 +45,6 @@ import org.springframework.util.StringUtils;
 public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminCommunityMemoServiceImpl.class);
-    private static final String UNAUTHORIZED_MESSAGE = "인증이 필요합니다.";
     private static final String INVALID_UUID_MESSAGE = "유효하지 않은 UUID 형식입니다.";
     private static final String COMMUNITY_MEMO_NOT_FOUND_MESSAGE = "존재하지 않는 커뮤니티 메모입니다.";
     private static final String INVALID_QUERY_MESSAGE = "관리자 커뮤니티 메모 조회 조건이 올바르지 않습니다.";
@@ -91,7 +91,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     private AdminCommunityMemoListResponse getCommunityMemosInternal(AdminPrincipal adminPrincipal, Boolean hidden,
         String moderationStatus, String sourceType, Boolean reported, String keyword, String pageValue,
         String sizeValue, AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         int page = parsePage(pageValue);
         int size = parseSize(sizeValue);
@@ -132,7 +132,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
 
     private AdminCommunityMemoDetailResponse getCommunityMemoInternal(AdminPrincipal adminPrincipal, String memoIdValue,
         AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
 
         AdminCommunityMemoRow row = adminCommunityMemoRepository.findMemoById(memoId)
@@ -163,7 +163,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
 
     private AdminCommunityMemoReportListResponse getCommunityMemoReportsInternal(AdminPrincipal adminPrincipal,
         String memoIdValue, String reasonValue, String pageValue, String sizeValue, AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
         int page = parsePage(pageValue);
         int size = parseSize(sizeValue);
@@ -193,7 +193,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     @Transactional
     public AdminCommunityMemoDetailResponse hideCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
         AdminCommunityMemoReviewRequest request, AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
         String reason = validateReviewReason(request, INVALID_HIDE_REASON_MESSAGE);
         adminAuditLogger.logCommunityMemoHideRequested(adminPrincipal, memoId.toString(), reason, clientInfo);
@@ -234,7 +234,7 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
     @Transactional
     public AdminCommunityMemoDetailResponse restoreCommunityMemo(AdminPrincipal adminPrincipal, String memoIdValue,
         AdminCommunityMemoReviewRequest request, AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
         UUID memoId = parseMemoId(memoIdValue);
         String reason = validateReviewReason(request, INVALID_RESTORE_REASON_MESSAGE);
         adminAuditLogger.logCommunityMemoRestoreRequested(adminPrincipal, memoId.toString(), reason, clientInfo);
@@ -284,12 +284,6 @@ public class AdminCommunityMemoServiceImpl implements AdminCommunityMemoService 
         metadata.put("before_report_count", before.reportCount());
         metadata.put("after_report_count", after.reportCount());
         return metadata;
-    }
-
-    private void requireAdmin(AdminPrincipal adminPrincipal) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
-        }
     }
 
     private void emitAfterCommit(Runnable auditLog) {
