@@ -2,10 +2,8 @@ package com.nemonicworld.share.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.share.config.ShareProperties;
-import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -30,15 +28,9 @@ class SignedShareTokenIssuerTest {
         assertThat(token).isEqualTo(issuer.issueArtifactToken(artifactId, "flipbook", "QR_DOWNLOAD"));
         String[] parts = token.split("\\.");
         assertThat(parts).hasSize(2);
-
-        JsonNode payload = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
-        assertThat(payload.path("p").asText()).isEqualTo("a");
-        assertThat(payload.path("a").asText()).isEqualTo("660e8400e29b41d4a716446655440000");
-        assertThat(payload.has("ownerUserId")).isFalse();
-        assertThat(payload.path("k").asText()).isEqualTo("fb");
-        assertThat(payload.path("c").asText()).isEqualTo("d");
-        assertThat(parts[1]).hasSize(22);
-        assertThat(token).hasSizeLessThan(130);
+        assertThat(parts[0]).startsWith("1BD");
+        assertThat(parts[1]).hasSize(8);
+        assertThat(token).hasSizeLessThan(40);
     }
 
     @Test
@@ -50,14 +42,8 @@ class SignedShareTokenIssuerTest {
         assertThat(token).isEqualTo(issuer.issueCommunityMemoToken(memoId, "QR_SHARE"));
         String[] parts = token.split("\\.");
         assertThat(parts).hasSize(2);
-
-        JsonNode payload = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
-        assertThat(payload.path("p").asText()).isEqualTo("m");
-        assertThat(payload.path("m").asText()).isEqualTo("770e8400e29b41d4a716446655440000");
-        assertThat(payload.has("ownerUserId")).isFalse();
-        assertThat(payload.path("k").asText()).isEqualTo("cm");
-        assertThat(payload.path("c").asText()).isEqualTo("s");
-        assertThat(parts[1]).hasSize(22);
-        assertThat(token).hasSizeLessThan(130);
+        assertThat(parts[0]).startsWith("1MS");
+        assertThat(parts[1]).hasSize(8);
+        assertThat(token).hasSizeLessThan(40);
     }
 }

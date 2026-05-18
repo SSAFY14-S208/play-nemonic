@@ -1,13 +1,11 @@
 package com.nemonicworld.share.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.share.config.ShareProperties;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -21,54 +19,29 @@ public class SignedShareTokenIssuer {
 
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final String TOKEN_VERSION = "1";
-    private static final String PURPOSE_ARTIFACT_SHARE = "a";
-    private static final String PURPOSE_COMMUNITY_MEMO_SHARE = "m";
-    private static final String ARTIFACT_KIND_COMMUNITY_MEMO = "cm";
-    private static final int SIGNATURE_BYTES = 16;
+    private static final String COMMUNITY_MEMO_SHARE_CODE = "M";
+    private static final int SIGNATURE_BYTES = 6;
 
-    private final ObjectMapper objectMapper;
     private final ShareProperties shareProperties;
     private final Base64.Encoder base64UrlEncoder = Base64.getUrlEncoder().withoutPadding();
 
     public SignedShareTokenIssuer(ObjectMapper objectMapper, ShareProperties shareProperties) {
-        this.objectMapper = objectMapper;
         this.shareProperties = shareProperties;
     }
 
     public String issueArtifactToken(UUID artifactId, String artifactKind, String channel) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("v", TOKEN_VERSION);
-        payload.put("p", PURPOSE_ARTIFACT_SHARE);
-        payload.put("a", compactUuid(artifactId));
-        payload.put("k", compactArtifactKind(artifactKind));
-        payload.put("c", compactChannel(channel));
-
-        String encodedPayload = encodePayload(payload);
+        String encodedPayload = "%s%s%s".formatted(TOKEN_VERSION, artifactShareCode(artifactKind, channel),
+            encodeUuid(artifactId));
         String signature = sign(encodedPayload);
 
         return "%s.%s".formatted(encodedPayload, signature);
     }
 
     public String issueCommunityMemoToken(UUID memoId, String channel) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("v", TOKEN_VERSION);
-        payload.put("p", PURPOSE_COMMUNITY_MEMO_SHARE);
-        payload.put("m", compactUuid(memoId));
-        payload.put("k", ARTIFACT_KIND_COMMUNITY_MEMO);
-        payload.put("c", compactChannel(channel));
-
-        String encodedPayload = encodePayload(payload);
+        String encodedPayload = "%s%s%s".formatted(TOKEN_VERSION, communityMemoShareCode(channel), encodeUuid(memoId));
         String signature = sign(encodedPayload);
 
         return "%s.%s".formatted(encodedPayload, signature);
-    }
-
-    private String encodePayload(Map<String, Object> payload) {
-        try {
-            return base64UrlEncoder.encodeToString(objectMapper.writeValueAsBytes(payload));
-        } catch (JsonProcessingException e) {
-            throw new InternalServerException("공유 토큰 페이로드 직렬화에 실패했습니다.", e);
-        }
     }
 
     private String sign(String value) {
@@ -86,34 +59,42 @@ public class SignedShareTokenIssuer {
         }
     }
 
-    private String compactUuid(UUID uuid) {
-        return uuid.toString().replace("-", "");
+    private String encodeUuid(UUID uuid) {
+        ByteBuffer buffer = ByteBuffer.allocate(16);
+        buffer.putLong(uuid.getMostSignificantBits());
+        buffer.putLong(uuid.getLeastSignificantBits());
+
+        return base64UrlEncoder.encodeToString(buffer.array());
     }
 
-    private String compactArtifactKind(String artifactKind) {
+    private String artifactShareCode(String artifactKind, String channel) {
         if (artifactKind == null) {
             return null;
         }
 
-        return switch (artifactKind) {
-            case "fortune" -> "fo";
-            case "relay_drawing" -> "rd";
-            case "flipbook" -> "fb";
-            case "infinite_canvas" -> "ic";
-            case "phone" -> "ph";
-            case "community_memo" -> "cm";
+        String channelSuffix = channelSuffix(channel);
+        String kindCode = switch (artifactKind) {
+            case "fortune" -> "F";
+            case "relay_drawing" -> "R";
+            case "flipbook" -> "B";
+            case "infinite_canvas" -> "I";
+            case "phone" -> "P";
+            case "community_memo" -> "M";
             default -> artifactKind;
         };
+
+        return "%s%s".formatted(kindCode, channelSuffix);
     }
 
-    private String compactChannel(String channel) {
-        if (channel == null) {
-            return null;
-        }
+    private String communityMemoShareCode(String channel) {
+        return "%s%s".formatted(COMMUNITY_MEMO_SHARE_CODE, channelSuffix(channel));
+    }
 
+    private String channelSuffix(String channel) {
         return switch (channel) {
-            case "QR_DOWNLOAD" -> "d";
-            case "QR_SHARE" -> "s";
+            case null -> "";
+            case "QR_DOWNLOAD" -> "D";
+            case "QR_SHARE" -> "S";
             default -> channel;
         };
     }
