@@ -99,9 +99,13 @@ class InfiniteCanvasAiStickerServiceImplTest {
             new InfiniteCanvasAiStickerCreateRequest("바이올린을 켜는 토끼", "sticker", 512, 512, true));
 
         assertThat(response.imageUrl()).isEqualTo("http://localhost:9000/nemonic-local/sticker.png");
+        assertThat(response.width()).isEqualTo(1024);
+        assertThat(response.height()).isEqualTo(1024);
         assertThat(response.objectKey()).startsWith("infinite-canvas/ai-stickers/AC3K9Q/");
         assertThat(response.element().path("type").asText()).isEqualTo("image");
         assertThat(response.element().path("src").asText()).isEqualTo(response.imageUrl());
+        assertThat(response.element().path("naturalWidth").asInt()).isEqualTo(1024);
+        assertThat(response.element().path("naturalHeight").asInt()).isEqualTo(1024);
         assertThat(response.element().path("metadata").path("source").asText()).isEqualTo("ai_sticker");
         assertThat(response.element().path("metadata").path("promptVersion").asText()).isEqualTo("42");
 
@@ -110,6 +114,8 @@ class InfiniteCanvasAiStickerServiceImplTest {
         verify(gmsClient).generate(requestCaptor.capture());
         assertThat(requestCaptor.getValue().systemPrompt()).isEqualTo("Make sticker");
         assertThat(requestCaptor.getValue().userPrompt()).isEqualTo("바이올린을 켜는 토끼");
+        assertThat(requestCaptor.getValue().width()).isEqualTo(1024);
+        assertThat(requestCaptor.getValue().height()).isEqualTo(1024);
         verify(storage).upload(eq(response.objectKey()), aryEq(new byte[]{1, 2, 3}), eq("image/png"));
     }
 
