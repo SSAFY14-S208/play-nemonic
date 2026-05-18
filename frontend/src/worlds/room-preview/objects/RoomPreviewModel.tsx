@@ -128,8 +128,6 @@ export default function RoomPreviewModel({
       if (!(object instanceof THREE.Mesh)) return
 
       object.visible = !isHiddenPreviewObject(object.name)
-      object.castShadow = true
-      object.receiveShadow = true
       object.frustumCulled = false
       getMeshMaterials(object.material).forEach((material) => {
         preserveSourceMaterial(material, object.name)
