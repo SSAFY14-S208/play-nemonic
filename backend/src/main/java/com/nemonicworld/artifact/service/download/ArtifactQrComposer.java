@@ -158,7 +158,7 @@ public class ArtifactQrComposer {
 
         for (int y = 0; y < size; y++) {
             for (int x = 0; x < size; x++) {
-                image.setRGB(x, y, matrix.get(x, y) ? Color.BLACK.getRGB() : Color.WHITE.getRGB());
+                image.setRGB(x, y, matrix.get(x, y) ? Color.BLACK.getRGB() : 0x00000000);
             }
         }
 

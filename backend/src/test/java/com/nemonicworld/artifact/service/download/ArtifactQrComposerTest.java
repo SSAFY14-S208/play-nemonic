@@ -52,6 +52,17 @@ class ArtifactQrComposerTest {
     }
 
     @Test
+    void composeStillImageKeepsQrWhiteModulesTransparent() throws Exception {
+        byte[] sourceBytes = coloredImageBytes("png", new Color(33, 160, 120));
+
+        byte[] composedBytes = artifactQrComposer.compose("image/png", sourceBytes, "https://nemonic.example.com/s/t");
+
+        BufferedImage composed = ImageIO.read(new ByteArrayInputStream(composedBytes));
+        int preservedPixels = countPixelsMatching(composed, 304, 184, 56, 56, new Color(33, 160, 120));
+        assertThat(preservedPixels).isGreaterThan(100);
+    }
+
+    @Test
     void composeStillImageFlattensTransparentSourceOnWhiteBackground() throws Exception {
         byte[] sourceBytes = transparentImageBytes("png");
 
@@ -139,6 +150,39 @@ class ArtifactQrComposerTest {
         ImageIO.write(image, format, output);
 
         return output.toByteArray();
+    }
+
+    private byte[] coloredImageBytes(String format, Color color) throws Exception {
+        BufferedImage image = new BufferedImage(360, 240, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            graphics.setColor(color);
+            graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
+        } finally {
+            graphics.dispose();
+        }
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ImageIO.write(image, format, output);
+
+        return output.toByteArray();
+    }
+
+    private int countPixelsMatching(BufferedImage image, int startX, int startY, int width, int height,
+        Color expected) {
+        int count = 0;
+        for (int y = startY; y < startY + height; y++) {
+            for (int x = startX; x < startX + width; x++) {
+                Color actual = new Color(image.getRGB(x, y));
+                if (Math.abs(actual.getRed() - expected.getRed()) < 20
+                    && Math.abs(actual.getGreen() - expected.getGreen()) < 20
+                    && Math.abs(actual.getBlue() - expected.getBlue()) < 20) {
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 
     private PixelBounds findDarkPixelBounds(BufferedImage image) {
