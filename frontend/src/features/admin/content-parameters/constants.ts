@@ -158,6 +158,26 @@ export const CONTENT_PARAMETERS: ParameterMeta[] = [
   },
 ]
 
+export interface ParameterCategoryGroup {
+  category: ParameterCategory
+  parameters: ParameterMeta[]
+}
+
+export const CONTENT_PARAMETER_GROUPS = CONTENT_PARAMETERS.reduce<
+  ParameterCategoryGroup[]
+>((groups, parameter) => {
+  const existingGroup = groups.find(
+    (group) => group.category === parameter.category,
+  )
+
+  if (existingGroup) {
+    existingGroup.parameters.push(parameter)
+    return groups
+  }
+
+  return [...groups, { category: parameter.category, parameters: [parameter] }]
+}, [])
+
 export const UNIT_LABEL: Record<ParameterUnit, string> = {
   count: '개',
   people: '명',
