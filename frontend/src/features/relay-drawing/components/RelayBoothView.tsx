@@ -1,14 +1,10 @@
 "use client";
 
-import { HelpCircle } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import { useState } from "react";
 
-import { HowToPlayModal } from "@/shared/components";
-
 import relayDrawingTitle from "../assets/relay-drawing-title.png";
-import { RELAY_HOW_TO_PLAY_PANELS } from "../constants";
 import { useRelayBooth } from "../hooks";
 import RelayBoothBackground from "./RelayBoothBackground";
 import RelayBoothEntrance from "./RelayBoothEntrance";
@@ -32,7 +28,6 @@ export default function RelayBoothView() {
   } = useRelayBooth();
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
-  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false);
   // 닉네임 모달이 닫혀 store가 새 닉네임으로 갱신되면, 사용자가 원래 누르려 했던
   // 액션(방 만들기 / 방 입장 모달 열기)을 한 번만 자동으로 이어서 수행한다.
   const [pendingAction, setPendingAction] = useState<PendingBoothAction>(null);
@@ -113,13 +108,13 @@ export default function RelayBoothView() {
                 />
               </h1>
               {/* 좁은 화면에선 버튼이 column으로 stack, sm+ 부터 row로 나란히. */}
-              <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center lg:flex-col lg:justify-start xl:flex-row">
+              <div className="grid w-full max-w-[34rem] grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:mt-2">
                 <RelayButton
                   onClick={handleCreateClick}
                   disabled={isActionDisabled}
-                  size="lg"
+                  size="xl"
                   shape="roundedLg"
-                  className="px-8 shadow-[0_6px_16px_rgba(184,121,22,0.3)]"
+                  className="w-full px-10 shadow-[0_8px_20px_rgba(184,121,22,0.32)]"
                 >
                   {isPending ? "방 만드는 중…" : "방 만들기 →"}
                 </RelayButton>
@@ -127,21 +122,11 @@ export default function RelayBoothView() {
                   onClick={handleJoinClick}
                   disabled={isActionDisabled}
                   variant="secondary"
-                  size="lg"
+                  size="xl"
                   shape="roundedLg"
-                  className="border-2"
+                  className="w-full border-2 px-10 shadow-[0_6px_16px_rgba(112,74,24,0.12)]"
                 >
                   방 입장
-                </RelayButton>
-                <RelayButton
-                  onClick={() => setIsHowToPlayModalOpen(true)}
-                  variant="secondary"
-                  size="lg"
-                  shape="roundedLg"
-                  className="gap-1.5"
-                >
-                  <HelpCircle className="size-5" aria-hidden />
-                  게임 설명
                 </RelayButton>
               </div>
               {error && !isJoinModalOpen && (
@@ -170,12 +155,6 @@ export default function RelayBoothView() {
         open={isNicknameModalOpen}
         onOpenChange={handleNicknameModalChange}
         onSuccess={handleNicknameSuccess}
-      />
-      <HowToPlayModal
-        open={isHowToPlayModalOpen}
-        onOpenChange={setIsHowToPlayModalOpen}
-        panels={RELAY_HOW_TO_PLAY_PANELS}
-        accentColor="var(--color-relay-accent)"
       />
     </>
   );

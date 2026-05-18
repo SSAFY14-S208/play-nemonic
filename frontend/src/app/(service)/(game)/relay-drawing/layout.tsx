@@ -1,6 +1,6 @@
 'use client'
 
-import { RelayBgmToggle, useRelayBgm } from '@/features/relay-drawing'
+import { RelayBgmToggle, RelayHowToPlayButton, useRelayBgm } from '@/features/relay-drawing'
 
 // relay-drawing 라우트 그룹 공통 layout — 부스(/relay-drawing)와 룸 페이지
 // (/relay-drawing/[roomCode]) 사이를 이동할 때 layout은 unmount되지 않으므로,
@@ -18,7 +18,10 @@ export default function RelayDrawingRouteLayout({
   return (
     <>
       {children}
-      <RelayBgmToggle className="fixed right-4 top-4 z-[var(--z-sticky)]" />
+      <div className="fixed right-4 top-4 z-[var(--z-sticky)] flex items-center gap-3">
+        <RelayHowToPlayButton />
+        <RelayBgmToggle />
+      </div>
     </>
   )
 }

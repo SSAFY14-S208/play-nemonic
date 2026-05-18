@@ -6,6 +6,7 @@ export { default as RelayBgmToggle } from "./RelayBgmToggle";
 export { default as RelayBoothView } from "./RelayBoothView";
 export { default as RelayButton, relayButtonVariants } from "./RelayButton";
 export type { RelayButtonProps } from "./RelayButton";
+export { default as RelayHowToPlayButton } from "./RelayHowToPlayButton";
 export { default as RelayDismissalModal } from "./RelayDismissalModal";
 export { default as RelayDrawingView } from "./RelayDrawingView";
 export { default as RelayFinalizingView } from "./RelayFinalizingView";
