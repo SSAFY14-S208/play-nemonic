@@ -108,16 +108,21 @@ Last updated: 2026-05-18
 - Admin logout revokes the submitted refresh token and blacklists the current
   access token; deleting a standard admin account revokes all of that account's
   refresh tokens and blocks previously issued access tokens.
-- Backoffice super admins can now create standard admins with
-  `POST /api/v1/admins`; the API stores BCrypt password hashes, fixes
-  new accounts to the `admin` role, and rejects duplicate `login_id` values.
-- Backoffice super admins can now list and inspect active admins with
+- Backoffice roles now include `super_admin`, `admin`, and read-only `viewer`.
+  Viewer accounts can authenticate and inspect protected backoffice screens, but
+  service-layer authorization rejects create/update/delete/force-close/test
+  workflows with 403.
+- Backoffice super admins can now create `admin` or `viewer` accounts with
+  `POST /api/v1/admins`; the API stores BCrypt password hashes, defaults an
+  omitted `role` to `admin`, rejects `super_admin` creation through the API, and
+  rejects duplicate `login_id` values.
+- Authenticated backoffice admins can now list and inspect active admins with
   `GET /api/v1/admins` and `GET /api/v1/admins/{adminId}`.
-- Backoffice super admins can now change standard admin passwords with
+- Backoffice super admins can now change admin/viewer passwords with
   `PATCH /api/v1/admins/{adminId}`; the API updates the BCrypt password hash,
   revokes the target account's refresh tokens, and blocks previously issued
   access tokens.
-- Backoffice super admins can now soft-delete standard admins with
+- Backoffice super admins can now soft-delete admin/viewer accounts with
   `DELETE /api/v1/admins/{adminId}`; self-delete, super-admin target
   deletion, and missing or already deleted targets are rejected.
 - Backoffice admins can now create GMS prompt templates through
@@ -163,18 +168,24 @@ Last updated: 2026-05-18
   active DB prompt or the built-in fortune fallback prompt when no DB prompt is
   active. `POST /api/v1/backoffice/gms/prompts/{promptId}/test` tests a saved
   prompt with sample saju without persisting artifacts.
+- Backoffice `viewer` accounts can read GMS prompt list/detail/current endpoints
+  but cannot create, preview/test, update, delete, or activate prompts.
 - Backoffice admins can now list system parameters through
   `GET /api/v1/backoffice/system-parameters`; the API requires an admin JWT,
   reads existing `backoffice_setting` rows sorted by `setting_key ASC`,
   supports optional `keyword` search on `setting_key`, parses
   `setting_value` JSON text into the response `value`, and Flyway V8 seeds
   initial backoffice setting rows without changing the schema.
+- Backoffice `viewer` accounts can read system parameters but cannot update
+  parameter values.
 - Backoffice admins can now manage active relay drawing rooms through
   `GET /api/v1/backoffice/relay-rooms` and
   `DELETE /api/v1/backoffice/relay-rooms/{roomCode}`; delete requires an admin
   JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`, rejects
   already CLOSED rooms with 409, emits `ROOM_CLOSED`, and leaves MinIO,
   artifact, and gallery cleanup out of scope.
+- Backoffice `viewer` accounts can list active rooms/canvases across relay,
+  flipbook, and infinite canvas, but cannot force-close or delete them.
 - Backoffice admins can now list active flipbook rooms through
   `GET /api/v1/backoffice/flipbook-rooms`; the API requires an admin JWT,
   scans Redis `flipbook:room:{roomCode}` state, returns CLOSED-excluded
@@ -207,6 +218,7 @@ Last updated: 2026-05-18
   bulk memo review and `report_review_decided` remain pending because no
   current admin API exists for those operations.
 - `admin_user.login_id` is made unique through Flyway V5.
+- `admin_role_type` includes `viewer` through Flyway V17.
 - Room code generation is available through `RoomCodeGenerator`, producing 6-character uppercase human-readable codes and supporting repository-backed collision checks with `generateUnique(...)`.
 - Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `relay:room:{roomCode}` with a 24-hour TTL, creates the host participant with `connected=false` until WebSocket CONNECT succeeds, and creates no PostgreSQL artifact/gallery rows.
 - Relay room state lookup now uses `GET /api/v1/relay/rooms/{roomCode}`, reads the Redis room snapshot without mutation, sorts participants by `joinOrder`, and computes viewer join/reconnect eligibility from the requested `Anonymous-User-UUID`.
