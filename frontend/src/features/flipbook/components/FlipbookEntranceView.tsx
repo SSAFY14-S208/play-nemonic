@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import Image from 'next/image'
+import Lottie from 'lottie-react'
 import { KeyRound, Sparkles, X } from 'lucide-react'
 import { motion } from 'motion/react'
+import { downArrowAnimation } from '@/shared/assets'
 import { HowToPlayModal } from '@/shared/components'
 import {
   useFlipbookEntranceBgm,
@@ -26,6 +28,8 @@ interface FlipbookEntranceViewProps {
 }
 
 const FLIPBOOK_ENTRANCE_FRAME_COUNT = 12
+const FLIPBOOK_SCROLL_HINT_FRAME_INDEX = 0
+const FLIPBOOK_SCROLL_HINT_LABEL = '아래로 스크롤 하세요'
 const FLIPBOOK_ENTRANCE_FRAMES = Array.from(
   { length: FLIPBOOK_ENTRANCE_FRAME_COUNT },
   (unusedValue, frameIndex) => {
@@ -694,6 +698,9 @@ function FlipbookEntranceSketchbook({
             sizes="35vw"
             className="object-contain"
           />
+          {activeFrameIndex === FLIPBOOK_SCROLL_HINT_FRAME_INDEX && (
+            <FlipbookEntranceScrollHint />
+          )}
           <div
             aria-label="스케치북 프레임 스크롤"
             className="absolute inset-0 z-10 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -706,6 +713,24 @@ function FlipbookEntranceSketchbook({
         </div>
       </div>
     </motion.div>
+  )
+}
+
+function FlipbookEntranceScrollHint() {
+  return (
+    <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[12%] -translate-x-1/2 -translate-y-1/2 text-[#111111]">
+      <p className="absolute bottom-[calc(100%+0.18rem)] left-1/2 w-max -translate-x-1/2 text-center [font-family:var(--font-paperlogy)] text-[clamp(0.56rem,1.06vw,0.86rem)] font-semibold leading-none text-[#111111]">
+        {FLIPBOOK_SCROLL_HINT_LABEL}
+      </p>
+      <Lottie
+        animationData={downArrowAnimation}
+        loop
+        autoplay
+        aria-hidden
+        rendererSettings={{ preserveAspectRatio: 'xMidYMid meet' }}
+        className="h-auto w-full min-w-8 max-w-14"
+      />
+    </div>
   )
 }
 
