@@ -315,6 +315,37 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void superAdminCreatesViewerAdmin() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                    NEW_ADMIN_EMAIL, "viewer")))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.loginId").value(NEW_ADMIN_LOGIN_ID))
+            .andExpect(jsonPath("$.data.role").value("viewer"));
+
+        assertThat(readAdminRole(NEW_ADMIN_LOGIN_ID)).isEqualTo("viewer");
+    }
+
+    @Test
+    void adminCreationRejectsSuperAdminRole() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                    NEW_ADMIN_EMAIL, "super_admin")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("생성할 수 없는 관리자 권한입니다."));
+    }
+
+    @Test
     void superAdminFindsAdmins() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
@@ -325,6 +356,25 @@ class AuthControllerIntegrationTest {
             .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data.length()").value(2))
             .andExpect(jsonPath("$.data[0].id").value(ADMIN_ID))
             .andExpect(jsonPath("$.data[1].id").value(TARGET_ADMIN_ID));
+    }
+
+    @Test
+    void viewerFindsAdminsButCannotCreateAdmin() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "viewer", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc.perform(get("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.length()").value(2));
+
+        mockMvc
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                    NEW_ADMIN_EMAIL)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("슈퍼 관리자 권한이 필요합니다."));
     }
 
     @Test
@@ -574,6 +624,18 @@ class AuthControllerIntegrationTest {
             """.formatted(loginId, password, nickname, email);
     }
 
+    private String adminCreateRequestBody(String loginId, String password, String nickname, String email, String role) {
+        return """
+            {
+              "loginId": "%s",
+              "password": "%s",
+              "nickname": "%s",
+              "email": "%s",
+              "role": "%s"
+            }
+            """.formatted(loginId, password, nickname, email, role);
+    }
+
     private String passwordChangeRequestBody(String password) {
         return """
             {
@@ -616,6 +678,10 @@ class AuthControllerIntegrationTest {
     private String readPasswordHash(String loginId) {
         return jdbcTemplate.queryForObject("SELECT password_hash FROM admin_user WHERE login_id = ?", String.class,
             loginId);
+    }
+
+    private String readAdminRole(String loginId) {
+        return jdbcTemplate.queryForObject("SELECT role FROM admin_user WHERE login_id = ?", String.class, loginId);
     }
 
     private JsonNode readData(MvcResult result) throws Exception {

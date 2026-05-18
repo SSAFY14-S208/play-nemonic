@@ -432,7 +432,7 @@ allow-list는 본 문서의 “백엔드 비즈니스 이벤트 로그” 섹션
 | top | `level` | string | 필수 | 정상은 `INFO`, 실패는 `WARN` 또는 `ERROR` |
 | top | `event_name` | string | 필수 | 위 목록의 snake_case |
 | metadata | `actor_id` | string | 필수 | 관리자 계정 ID |
-| metadata | `actor_role` | string | 필수 | `super_admin` 또는 `admin` |
+| metadata | `actor_role` | string | 필수 | `super_admin`, `admin`, `viewer` 중 하나 |
 | metadata | `actor_ip` | string | 필수 | 운영자 접속 IP |
 | metadata | `target_type` | string | 필수 | `memo`, `room`, `canvas`, `param`, `prompt`, `inquiry`, `admin_account`, `notification` 등 |
 | metadata | `target_id` | string | 필수 | 대상 식별자, 일괄 작업은 대표 ID 또는 `bulk:<count>` |

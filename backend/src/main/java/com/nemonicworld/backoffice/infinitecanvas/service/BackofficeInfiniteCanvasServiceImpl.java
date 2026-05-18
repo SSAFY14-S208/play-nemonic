@@ -1,12 +1,12 @@
 package com.nemonicworld.backoffice.infinitecanvas.service;
 
+import com.nemonicworld.admin.service.AdminAuthorization;
 import com.nemonicworld.auth.service.AdminAuditLogger;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.backoffice.infinitecanvas.dto.response.BackofficeInfiniteCanvasCloseResponse;
 import com.nemonicworld.backoffice.infinitecanvas.dto.response.BackofficeInfiniteCanvasListResponse;
 import com.nemonicworld.backoffice.infinitecanvas.dto.response.BackofficeInfiniteCanvasResponse;
 import com.nemonicworld.common.exception.BadRequestException;
-import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
@@ -31,7 +31,6 @@ import org.springframework.util.StringUtils;
 @Service
 public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCanvasService {
 
-    private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String INVALID_STATUS_MESSAGE = "조회할 수 없는 무한 캔버스 상태입니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
@@ -66,7 +65,7 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
     @Override
     public BackofficeInfiniteCanvasListResponse getActiveCanvases(AdminPrincipal adminPrincipal, String status,
         String page, String size) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         Set<InfiniteCanvasStatus> statusFilter = parseStatusFilter(status);
         int pageNumber = parsePage(page);
@@ -86,7 +85,7 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
     @Override
     public BackofficeInfiniteCanvasCloseResponse closeActiveCanvas(AdminPrincipal adminPrincipal, String roomCode,
         AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
         String normalizedRoomCode = normalizeRoomCode(roomCode);
         LocalDateTime closedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
@@ -112,12 +111,6 @@ public class BackofficeInfiniteCanvasServiceImpl implements BackofficeInfiniteCa
         }
 
         throw new ConflictException(CANVAS_UPDATE_CONFLICT_MESSAGE);
-    }
-
-    private void requireAdmin(AdminPrincipal adminPrincipal) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
-        }
     }
 
     private Set<InfiniteCanvasStatus> parseStatusFilter(String value) {

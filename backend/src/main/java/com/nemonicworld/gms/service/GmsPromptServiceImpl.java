@@ -1,11 +1,11 @@
 package com.nemonicworld.gms.service;
 
+import com.nemonicworld.admin.service.AdminAuthorization;
 import com.nemonicworld.auth.service.AdminAuditLogger;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
-import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.fortune.service.FortunePromptTemplateProvider;
 import com.nemonicworld.fortune.service.FortunePromptTemplateProvider.CurrentFortunePrompt;
@@ -38,7 +38,6 @@ import org.springframework.util.StringUtils;
 public class GmsPromptServiceImpl implements GmsPromptService {
 
     private static final String PROMPT_NOT_FOUND_MESSAGE = "GMS 프롬프트를 찾을 수 없습니다.";
-    private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String DUPLICATE_NAME_MESSAGE = "이미 등록된 GMS 프롬프트 이름입니다.";
     private static final String REQUIRED_NAME_MESSAGE = "프롬프트 이름을 입력해야 합니다.";
     private static final String REQUIRED_CONTENT_MESSAGE = "프롬프트 본문을 입력해야 합니다.";
@@ -70,7 +69,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     @Transactional
     public GmsPromptResponse createPrompt(AdminPrincipal adminPrincipal, GmsPromptCreateRequest request,
         AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
 
         String name = normalizeRequiredTrimmed(request.name(), REQUIRED_NAME_MESSAGE);
         if (gmsPromptRepository.existsByName(name)) {
@@ -98,7 +97,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     @Transactional(readOnly = true)
     public GmsPromptListResponse getPrompts(AdminPrincipal adminPrincipal, String keyword, String featureType,
         String status, String pageValue, String sizeValue) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         int page = parsePage(pageValue);
         int size = parseSize(sizeValue);
@@ -117,7 +116,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     @Override
     @Transactional(readOnly = true)
     public GmsPromptResponse getPrompt(AdminPrincipal adminPrincipal, Long promptId) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         return GmsPromptResponse.from(gmsPromptRepository.findActiveById(promptId)
             .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE)));
@@ -126,7 +125,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     @Override
     @Transactional(readOnly = true)
     public GmsPromptCurrentResponse getCurrentPrompt(AdminPrincipal adminPrincipal, String featureType) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         String normalizedFeatureType = normalizeRequiredTrimmed(featureType, REQUIRED_FEATURE_TYPE_MESSAGE)
             .toLowerCase(Locale.ROOT);
@@ -149,7 +148,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
 
     @Override
     public GmsPromptPreviewResponse previewPrompt(AdminPrincipal adminPrincipal, GmsPromptPreviewRequest request) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
 
         return gmsPromptPreviewService.preview(request);
     }
@@ -157,7 +156,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     @Override
     public GmsPromptPreviewResponse testPrompt(AdminPrincipal adminPrincipal, Long promptId,
         GmsPromptTestRequest request) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
         if (request == null) {
             throw new BadRequestException(REQUIRED_TEST_REQUEST_MESSAGE);
         }
@@ -172,7 +171,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     @Override
     @Transactional
     public void deletePrompt(AdminPrincipal adminPrincipal, Long promptId, AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
 
         GmsPrompt existingPrompt = gmsPromptRepository.findActiveById(promptId)
             .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
@@ -200,7 +199,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     @Transactional
     public GmsPromptResponse updatePrompt(AdminPrincipal adminPrincipal, Long promptId, GmsPromptUpdateRequest request,
         AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
         if (request == null || request.name() == null && request.content() == null && request.featureType() == null) {
             throw new BadRequestException(REQUIRED_UPDATE_FIELD_MESSAGE);
         }
@@ -233,7 +232,7 @@ public class GmsPromptServiceImpl implements GmsPromptService {
     @Override
     @Transactional
     public GmsPromptResponse activatePrompt(AdminPrincipal adminPrincipal, Long promptId, AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
 
         GmsPrompt targetPrompt = gmsPromptRepository.findActiveById(promptId)
             .orElseThrow(() -> new NotFoundException(PROMPT_NOT_FOUND_MESSAGE));
@@ -292,12 +291,6 @@ public class GmsPromptServiceImpl implements GmsPromptService {
         }
 
         return featureType;
-    }
-
-    private void requireAdmin(AdminPrincipal adminPrincipal) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
-        }
     }
 
     private void emitAfterCommit(Runnable auditLog) {
