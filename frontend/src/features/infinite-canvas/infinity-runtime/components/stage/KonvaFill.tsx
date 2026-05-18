@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { Image as KonvaImage } from "react-konva";
 
 import type { InfinityFill } from "../../constants";
+import { drawImageAlphaHitRegion } from "./imageHitRegion";
 
 interface KonvaFillProps {
   fill: InfinityFill;
   isSelectTool?: boolean;
   isLocked?: boolean;
   onFillClick?: (id: string, isShift: boolean) => void;
+  onFillDragEnd?: (id: string, x: number, y: number) => void;
 }
 
 const fillImageCache = new Map<string, HTMLImageElement>();
@@ -17,6 +19,7 @@ export function KonvaFill({
   isSelectTool = false,
   isLocked = false,
   onFillClick,
+  onFillDragEnd,
 }: KonvaFillProps) {
   const [loadedImage, setLoadedImage] = useState<{
     imageDataUrl: string;
@@ -60,6 +63,15 @@ export function KonvaFill({
       image={imageElement}
       listening={isSelectTool}
       perfectDrawEnabled={false}
+      hitFunc={(context, shape) => {
+        drawImageAlphaHitRegion({
+          context,
+          imageElement,
+          shape,
+          width: fill.width,
+          height: fill.height,
+        });
+      }}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool
@@ -67,6 +79,9 @@ export function KonvaFill({
           : undefined
       }
       onTap={isSelectTool ? () => onFillClick?.(fill.id, false) : undefined}
+      onDragEnd={(event) => {
+        onFillDragEnd?.(fill.id, event.target.x(), event.target.y());
+      }}
     />
   );
 }

@@ -74,6 +74,12 @@ interface InfinityCanvasStageProps {
   onDraftObjectsChange: (draftObjects: InfinityObject[] | null) => void
 }
 
+interface PartitionedInfinityObjects {
+  fills: InfinityObject[]
+  lines: InfinityLine[]
+  shapeAndTextObjects: InfinityObject[]
+}
+
 const REMOTE_CURSOR_SMOOTHING = 0.28
 const REMOTE_CURSOR_SETTLE_DISTANCE = 0.35
 const REMOTE_CURSOR_PATH = 'M0 0 L0 22 L6 16 L10 26 L14 24 L10 15 L19 15 Z'
@@ -576,6 +582,23 @@ export function InfinityCanvasStage({
     () => new Map(objects.map((object) => [object.id, object])),
     [objects],
   );
+  const partitionedObjects = useMemo<PartitionedInfinityObjects>(() => {
+    const fills: InfinityObject[] = [];
+    const lines: InfinityLine[] = [];
+    const shapeAndTextObjects: InfinityObject[] = [];
+
+    for (const object of objects) {
+      if (object.type === "fill") {
+        fills.push(object);
+      } else if (object.type === "line") {
+        lines.push(object);
+      } else {
+        shapeAndTextObjects.push(object);
+      }
+    }
+
+    return { fills, lines, shapeAndTextObjects };
+  }, [objects]);
 
   const readObjectFromNode = useCallback(
     (object: InfinityObject, node: Konva.Node): InfinityObject | null => {
@@ -777,6 +800,7 @@ export function InfinityCanvasStage({
         isSelectTool={isSelectTool}
         isLocked={isLocked}
         onLineClick={handleObjectClick}
+        onLineDragEnd={onObjectDragEnd}
       />
     );
   }, [handleObjectClick, isSelectTool, lockedElementIds]);
@@ -815,7 +839,7 @@ export function InfinityCanvasStage({
           rotation={obj.rotation ?? 0}
           stroke={isFilled ? undefined : obj.color}
           strokeWidth={isFilled ? 0 : obj.strokeWidth}
-          fill={obj.fill ?? "transparent"}
+          fill={obj.fill}
           opacity={1}
           listening={false}
         />
@@ -836,7 +860,7 @@ export function InfinityCanvasStage({
           rotation={obj.rotation ?? 0}
           stroke={isFilled ? undefined : obj.color}
           strokeWidth={isFilled ? 0 : obj.strokeWidth}
-          fill={obj.fill ?? "transparent"}
+          fill={obj.fill}
           opacity={1}
           listening={false}
         />
@@ -847,10 +871,10 @@ export function InfinityCanvasStage({
   };
 
   const shapeAndTextNodes = useMemo(
-    () => objects.map(renderShapeOrText),
+    () => partitionedObjects.shapeAndTextObjects.map(renderShapeOrText),
     // renderShapeOrText reads the current tool/lock/edit callbacks and should only refresh when those change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [objects, lockedElementIds, isSelectTool, editingId, handleObjectClick],
+    [partitionedObjects.shapeAndTextObjects, lockedElementIds, isSelectTool, editingId, handleObjectClick],
   );
 
   const renderFill = useCallback((obj: InfinityObject) => {
@@ -863,13 +887,20 @@ export function InfinityCanvasStage({
         isSelectTool={isSelectTool}
         isLocked={isLocked}
         onFillClick={handleObjectClick}
+        onFillDragEnd={onObjectDragEnd}
       />
     );
-  }, [handleObjectClick, isSelectTool, lockedElementIds]);
+  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd]);
 
-  const fillNodes = useMemo(() => objects.map(renderFill), [objects, renderFill]);
+  const fillNodes = useMemo(
+    () => partitionedObjects.fills.map(renderFill),
+    [partitionedObjects.fills, renderFill],
+  );
 
-  const lineNodes = useMemo(() => objects.map(renderLine), [objects, renderLine]);
+  const lineNodes = useMemo(
+    () => partitionedObjects.lines.map(renderLine),
+    [partitionedObjects.lines, renderLine],
+  );
 
   const remoteEraserDraftNodes = useMemo(
     () =>
@@ -883,7 +914,7 @@ export function InfinityCanvasStage({
   const onlyTextSelected =
     selectedIds.length > 0 &&
     selectedIds.every((id) => {
-      const obj = objects.find((o) => o.id === id);
+      const obj = objectById.get(id);
       return obj?.type === "text";
     });
 
@@ -896,7 +927,7 @@ export function InfinityCanvasStage({
     }>()
 
     for (const lock of lockedElements) {
-      const object = objects.find((candidate) => candidate.id === lock.elementId)
+      const object = objectById.get(lock.elementId)
       if (!object) continue
       const bounds = getObjectBounds(object)
       if (!bounds) continue
@@ -931,7 +962,7 @@ export function InfinityCanvasStage({
     }
 
     return [...lockMap.values()]
-  }, [lockedElements, objects])
+  }, [lockedElements, objectById])
 
   const renderGroupedLockOverlay = (lock: (typeof groupedLockedElements)[number]) => {
     const bounds = lock.bounds;
@@ -1045,7 +1076,7 @@ export function InfinityCanvasStage({
         <Transformer
           ref={transformerRef}
           rotateEnabled={true}
-          shouldOverdrawWholeArea={true}
+          shouldOverdrawWholeArea={false}
           onDragMove={previewSelectedNodeTransforms}
           onDragEnd={commitSelectedNodeTransforms}
           onTransform={previewSelectedNodeTransforms}

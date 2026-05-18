@@ -8,6 +8,7 @@ interface KonvaLineProps {
   isSelectTool?: boolean;
   isLocked?: boolean;
   onLineClick?: (id: string, isShift: boolean) => void;
+  onLineDragEnd?: (id: string, deltaX: number, deltaY: number) => void;
 }
 
 export function KonvaLine({
@@ -15,6 +16,7 @@ export function KonvaLine({
   isSelectTool = false,
   isLocked = false,
   onLineClick,
+  onLineDragEnd,
 }: KonvaLineProps) {
   return (
     <Line
@@ -29,6 +31,7 @@ export function KonvaLine({
         line.isEraser ? "destination-out" : "source-over"
       }
       tension={INFINITY_LINE_TENSION}
+      hitStrokeWidth={line.strokeWidth}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool
@@ -36,6 +39,13 @@ export function KonvaLine({
           : undefined
       }
       onTap={isSelectTool ? () => onLineClick?.(line.id, false) : undefined}
+      onDragEnd={(event) => {
+        const deltaX = event.target.x();
+        const deltaY = event.target.y();
+        event.target.x(0);
+        event.target.y(0);
+        onLineDragEnd?.(line.id, deltaX, deltaY);
+      }}
     />
   );
 }
