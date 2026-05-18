@@ -11,7 +11,10 @@ import {
   useFlipbookEntrancePreload,
   useFlipbookEntranceWheelFrames,
 } from '../hooks'
-import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../constants'
+import {
+  FLIPBOOK_HOW_TO_PLAY_PANELS,
+  FLIPBOOK_SOUND_PATHS,
+} from '../constants'
 
 interface FlipbookEntranceViewProps {
   roomCodeDraft: string
@@ -243,6 +246,8 @@ export default function FlipbookEntranceView({
         open={isHowToPlayModalOpen}
         onOpenChange={setIsHowToPlayModalOpen}
         panels={FLIPBOOK_HOW_TO_PLAY_PANELS}
+        title="플립북 게임 설명"
+        subtitle="실제 예시 프레임을 넘기며 플립북 흐름을 확인해요."
         accentColor="#ff7182"
       />
     </section>
