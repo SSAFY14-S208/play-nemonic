@@ -2,6 +2,7 @@ export { KonvaRect } from "./KonvaRect";
 export { KonvaEllipse } from "./KonvaEllipse";
 export { KonvaLine } from "./KonvaLine";
 export { KonvaFill } from "./KonvaFill";
+export { KonvaImageObject } from "./KonvaImageObject";
 export { KonvaText } from "./KonvaText";
 export { DotGridShape } from "./DotGridShape";
 export { CursorPreview } from "./CursorPreview";

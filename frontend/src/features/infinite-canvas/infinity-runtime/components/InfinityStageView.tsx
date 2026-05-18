@@ -166,6 +166,19 @@ function getDraftObjectSignature(object: InfinityObject) {
     return [object.id, object.type, object.x, object.y, object.width, object.height, object.color].join(':')
   }
 
+  if (object.type === 'image') {
+    return [
+      object.id,
+      object.type,
+      object.x,
+      object.y,
+      object.width,
+      object.height,
+      object.src,
+      object.rotation ?? 0,
+    ].join(':')
+  }
+
   return [
     object.id,
     object.type,
