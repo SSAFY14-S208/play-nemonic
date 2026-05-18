@@ -777,6 +777,7 @@ export function InfinityCanvasStage({
         isSelectTool={isSelectTool}
         isLocked={isLocked}
         onLineClick={handleObjectClick}
+        onLineDragEnd={onObjectDragEnd}
       />
     );
   }, [handleObjectClick, isSelectTool, lockedElementIds]);
@@ -815,7 +816,7 @@ export function InfinityCanvasStage({
           rotation={obj.rotation ?? 0}
           stroke={isFilled ? undefined : obj.color}
           strokeWidth={isFilled ? 0 : obj.strokeWidth}
-          fill={obj.fill ?? "transparent"}
+          fill={obj.fill}
           opacity={1}
           listening={false}
         />
@@ -836,7 +837,7 @@ export function InfinityCanvasStage({
           rotation={obj.rotation ?? 0}
           stroke={isFilled ? undefined : obj.color}
           strokeWidth={isFilled ? 0 : obj.strokeWidth}
-          fill={obj.fill ?? "transparent"}
+          fill={obj.fill}
           opacity={1}
           listening={false}
         />
@@ -863,9 +864,10 @@ export function InfinityCanvasStage({
         isSelectTool={isSelectTool}
         isLocked={isLocked}
         onFillClick={handleObjectClick}
+        onFillDragEnd={onObjectDragEnd}
       />
     );
-  }, [handleObjectClick, isSelectTool, lockedElementIds]);
+  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd]);
 
   const fillNodes = useMemo(() => objects.map(renderFill), [objects, renderFill]);
 
@@ -1045,7 +1047,7 @@ export function InfinityCanvasStage({
         <Transformer
           ref={transformerRef}
           rotateEnabled={true}
-          shouldOverdrawWholeArea={true}
+          shouldOverdrawWholeArea={false}
           onDragMove={previewSelectedNodeTransforms}
           onDragEnd={commitSelectedNodeTransforms}
           onTransform={previewSelectedNodeTransforms}

@@ -24,7 +24,7 @@ export function KonvaRect({
       rotation={shape.rotation ?? 0}
       stroke={isFilled ? undefined : shape.color}
       strokeWidth={isFilled ? 0 : shape.strokeWidth}
-      fill={shape.fill ?? "transparent"}
+      fill={shape.fill}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool

@@ -1078,7 +1078,15 @@ export function useInfinityEvents({
     }
     const newObjects = objectsRef.current.map((obj) => {
       if (obj.id !== id) return obj
-      if (obj.type === 'line') return obj
+      if (obj.type === 'line') {
+        return {
+          ...obj,
+          points: obj.points.map((point) => ({
+            x: point.x + x,
+            y: point.y + y,
+          })),
+        }
+      }
       return { ...obj, x, y }
     })
     const updatedObject = newObjects.find((object) => object.id === id)

@@ -8,6 +8,7 @@ interface KonvaFillProps {
   isSelectTool?: boolean;
   isLocked?: boolean;
   onFillClick?: (id: string, isShift: boolean) => void;
+  onFillDragEnd?: (id: string, x: number, y: number) => void;
 }
 
 const fillImageCache = new Map<string, HTMLImageElement>();
@@ -17,6 +18,7 @@ export function KonvaFill({
   isSelectTool = false,
   isLocked = false,
   onFillClick,
+  onFillDragEnd,
 }: KonvaFillProps) {
   const [loadedImage, setLoadedImage] = useState<{
     imageDataUrl: string;
@@ -67,6 +69,9 @@ export function KonvaFill({
           : undefined
       }
       onTap={isSelectTool ? () => onFillClick?.(fill.id, false) : undefined}
+      onDragEnd={(event) => {
+        onFillDragEnd?.(fill.id, event.target.x(), event.target.y());
+      }}
     />
   );
 }
