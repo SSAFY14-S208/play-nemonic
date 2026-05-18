@@ -154,6 +154,10 @@ class InfiniteCanvasControllerIntegrationTest {
             List<String> values = redisLists.getOrDefault(key, List.of());
             return List.copyOf(values);
         });
+        given(listOperations.size(anyString())).willAnswer(invocation -> {
+            String key = invocation.getArgument(0, String.class);
+            return (long) redisLists.getOrDefault(key, List.of()).size();
+        });
         doAnswer(invocation -> {
             String key = invocation.getArgument(0, String.class);
             List<String> values = invocation.getArgument(1, List.class);

@@ -128,6 +128,7 @@ class RedisInfiniteCanvasRepositoryTest {
         verify(listOperations).trim("infinite-canvas:room-operations:" + ROOM_CODE, -200, -1);
         verify(redisOperations).expire("infinite-canvas:room-operations:" + ROOM_CODE,
             InfiniteCanvasRepository.CANVAS_STATE_TTL);
+        verify(redisOperations, never()).delete("infinite-canvas:room-operations:" + ROOM_CODE);
     }
 
     @Test

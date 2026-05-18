@@ -93,7 +93,7 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
 
     @Override
     public boolean saveIfUnchangedAndAppendOperations(InfiniteCanvasState expectedCanvasState,
-        InfiniteCanvasState updatedCanvasState, List<InfiniteCanvasOperation> operations) {
+        InfiniteCanvasState updatedCanvasState, List<InfiniteCanvasOperation> acceptedOperations) {
         String roomKey = createRoomKey(expectedCanvasState.roomCode());
 
         Boolean updated = redisTemplate.execute(new SessionCallback<>() {
@@ -120,7 +120,8 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
                 stringOperations.multi();
                 stringOperations.opsForValue().set(roomKey, serialize(withoutOperations(updatedCanvasState)),
                     InfiniteCanvasRepository.CANVAS_STATE_TTL);
-                replaceOperations(stringOperations, updatedCanvasState);
+                appendOperationsWithLegacyBackfill(stringOperations, expectedCanvasState, updatedCanvasState,
+                    acceptedOperations);
                 syncActiveCanvasIndex(stringOperations, updatedCanvasState);
                 List<Object> results = stringOperations.exec();
 
@@ -353,6 +354,19 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
         String operationKey = createOperationKey(state.roomCode());
         operations.delete(operationKey);
         appendOperations(operations, operationKey, state.operations());
+    }
+
+    private void appendOperationsWithLegacyBackfill(RedisOperations<String, String> operations,
+        InfiniteCanvasState expectedCanvasState, InfiniteCanvasState updatedCanvasState,
+        List<InfiniteCanvasOperation> acceptedOperations) {
+        String operationKey = createOperationKey(updatedCanvasState.roomCode());
+        Long operationLogSize = operations.opsForList().size(operationKey);
+        if ((operationLogSize == null || operationLogSize == 0) && !expectedCanvasState.operations().isEmpty()) {
+            appendOperations(operations, operationKey, updatedCanvasState.operations());
+            return;
+        }
+
+        appendOperations(operations, operationKey, acceptedOperations);
     }
 
     private void appendOperations(RedisOperations<String, String> operations, String operationKey,
