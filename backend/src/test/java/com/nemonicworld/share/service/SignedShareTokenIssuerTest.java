@@ -32,11 +32,13 @@ class SignedShareTokenIssuerTest {
         assertThat(parts).hasSize(2);
 
         JsonNode payload = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
-        assertThat(payload.path("purpose").asText()).isEqualTo("artifact_share");
-        assertThat(payload.path("artifactId").asText()).isEqualTo(artifactId.toString());
+        assertThat(payload.path("p").asText()).isEqualTo("a");
+        assertThat(payload.path("a").asText()).isEqualTo("660e8400e29b41d4a716446655440000");
         assertThat(payload.has("ownerUserId")).isFalse();
-        assertThat(payload.path("artifactKind").asText()).isEqualTo("flipbook");
-        assertThat(payload.path("channel").asText()).isEqualTo("QR_DOWNLOAD");
+        assertThat(payload.path("k").asText()).isEqualTo("fb");
+        assertThat(payload.path("c").asText()).isEqualTo("d");
+        assertThat(parts[1]).hasSize(22);
+        assertThat(token).hasSizeLessThan(130);
     }
 
     @Test
@@ -50,10 +52,12 @@ class SignedShareTokenIssuerTest {
         assertThat(parts).hasSize(2);
 
         JsonNode payload = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
-        assertThat(payload.path("purpose").asText()).isEqualTo("community_memo_share");
-        assertThat(payload.path("memoId").asText()).isEqualTo(memoId.toString());
+        assertThat(payload.path("p").asText()).isEqualTo("m");
+        assertThat(payload.path("m").asText()).isEqualTo("770e8400e29b41d4a716446655440000");
         assertThat(payload.has("ownerUserId")).isFalse();
-        assertThat(payload.path("artifactKind").asText()).isEqualTo("community_memo");
-        assertThat(payload.path("channel").asText()).isEqualTo("QR_SHARE");
+        assertThat(payload.path("k").asText()).isEqualTo("cm");
+        assertThat(payload.path("c").asText()).isEqualTo("s");
+        assertThat(parts[1]).hasSize(22);
+        assertThat(token).hasSizeLessThan(130);
     }
 }

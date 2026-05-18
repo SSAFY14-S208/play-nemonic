@@ -35,9 +35,11 @@ public class ArtifactQrComposer {
     private static final String GIF_FORMAT = "gif";
     private static final String JPG_FORMAT = "jpg";
     private static final int DEFAULT_GIF_DELAY_CS = 10;
-    private static final int QR_MAX_SIZE = 192;
-    private static final int QR_MIN_SIZE = 96;
+    private static final int QR_MAX_SIZE = 144;
+    private static final int QR_MIN_SIZE = 72;
     private static final int QR_PADDING = 16;
+    private static final int QR_MARGIN_MODULES = 2;
+    private static final int QR_SIZE_DIVISOR = 4;
 
     public byte[] compose(String sourceContentType, byte[] sourceBytes, String qrUrl) {
         if ("image/gif".equalsIgnoreCase(sourceContentType)) {
@@ -150,7 +152,7 @@ public class ArtifactQrComposer {
 
     private BufferedImage createQrImage(String value, int size) throws WriterException {
         Map<EncodeHintType, Object> hints = Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.L,
-            EncodeHintType.MARGIN, 1);
+            EncodeHintType.MARGIN, QR_MARGIN_MODULES);
         BitMatrix matrix = new QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, size, size, hints);
         BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
 
@@ -166,7 +168,7 @@ public class ArtifactQrComposer {
     private int calculateQrSize(int width, int height) {
         int shortestSide = Math.max(1, Math.min(width, height));
         int availableSize = Math.max(1, shortestSide - QR_PADDING * 2);
-        int targetSize = Math.max(QR_MIN_SIZE, Math.min(QR_MAX_SIZE, shortestSide / 3));
+        int targetSize = Math.max(QR_MIN_SIZE, Math.min(QR_MAX_SIZE, shortestSide / QR_SIZE_DIVISOR));
 
         return Math.min(targetSize, availableSize);
     }

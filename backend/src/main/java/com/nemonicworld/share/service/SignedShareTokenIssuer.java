@@ -20,10 +20,11 @@ import org.springframework.stereotype.Component;
 public class SignedShareTokenIssuer {
 
     private static final String HMAC_ALGORITHM = "HmacSHA256";
-    private static final String TOKEN_VERSION = "v1";
-    private static final String PURPOSE_ARTIFACT_SHARE = "artifact_share";
-    private static final String PURPOSE_COMMUNITY_MEMO_SHARE = "community_memo_share";
-    private static final String ARTIFACT_KIND_COMMUNITY_MEMO = "community_memo";
+    private static final String TOKEN_VERSION = "1";
+    private static final String PURPOSE_ARTIFACT_SHARE = "a";
+    private static final String PURPOSE_COMMUNITY_MEMO_SHARE = "m";
+    private static final String ARTIFACT_KIND_COMMUNITY_MEMO = "cm";
+    private static final int SIGNATURE_BYTES = 16;
 
     private final ObjectMapper objectMapper;
     private final ShareProperties shareProperties;
@@ -36,11 +37,11 @@ public class SignedShareTokenIssuer {
 
     public String issueArtifactToken(UUID artifactId, String artifactKind, String channel) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("version", TOKEN_VERSION);
-        payload.put("purpose", PURPOSE_ARTIFACT_SHARE);
-        payload.put("artifactId", artifactId.toString());
-        payload.put("artifactKind", artifactKind);
-        payload.put("channel", channel);
+        payload.put("v", TOKEN_VERSION);
+        payload.put("p", PURPOSE_ARTIFACT_SHARE);
+        payload.put("a", compactUuid(artifactId));
+        payload.put("k", compactArtifactKind(artifactKind));
+        payload.put("c", compactChannel(channel));
 
         String encodedPayload = encodePayload(payload);
         String signature = sign(encodedPayload);
@@ -50,11 +51,11 @@ public class SignedShareTokenIssuer {
 
     public String issueCommunityMemoToken(UUID memoId, String channel) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("version", TOKEN_VERSION);
-        payload.put("purpose", PURPOSE_COMMUNITY_MEMO_SHARE);
-        payload.put("memoId", memoId.toString());
-        payload.put("artifactKind", ARTIFACT_KIND_COMMUNITY_MEMO);
-        payload.put("channel", channel);
+        payload.put("v", TOKEN_VERSION);
+        payload.put("p", PURPOSE_COMMUNITY_MEMO_SHARE);
+        payload.put("m", compactUuid(memoId));
+        payload.put("k", ARTIFACT_KIND_COMMUNITY_MEMO);
+        payload.put("c", compactChannel(channel));
 
         String encodedPayload = encodePayload(payload);
         String signature = sign(encodedPayload);
@@ -75,9 +76,45 @@ public class SignedShareTokenIssuer {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
             mac.init(new SecretKeySpec(shareProperties.tokenSecret().getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
 
-            return base64UrlEncoder.encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
+            byte[] signature = mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
+            byte[] truncatedSignature = new byte[SIGNATURE_BYTES];
+            System.arraycopy(signature, 0, truncatedSignature, 0, truncatedSignature.length);
+
+            return base64UrlEncoder.encodeToString(truncatedSignature);
         } catch (Exception e) {
             throw new InternalServerException("공유 토큰 서명에 실패했습니다.", e);
         }
+    }
+
+    private String compactUuid(UUID uuid) {
+        return uuid.toString().replace("-", "");
+    }
+
+    private String compactArtifactKind(String artifactKind) {
+        if (artifactKind == null) {
+            return null;
+        }
+
+        return switch (artifactKind) {
+            case "fortune" -> "fo";
+            case "relay_drawing" -> "rd";
+            case "flipbook" -> "fb";
+            case "infinite_canvas" -> "ic";
+            case "phone" -> "ph";
+            case "community_memo" -> "cm";
+            default -> artifactKind;
+        };
+    }
+
+    private String compactChannel(String channel) {
+        if (channel == null) {
+            return null;
+        }
+
+        return switch (channel) {
+            case "QR_DOWNLOAD" -> "d";
+            case "QR_SHARE" -> "s";
+            default -> channel;
+        };
     }
 }

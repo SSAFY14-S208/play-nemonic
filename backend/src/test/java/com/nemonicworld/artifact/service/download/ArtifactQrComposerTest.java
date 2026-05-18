@@ -36,6 +36,20 @@ class ArtifactQrComposerTest {
     }
 
     @Test
+    void composeStillImageUsesSmallerQrOverlay() throws Exception {
+        byte[] sourceBytes = imageBytes("png");
+
+        byte[] composedBytes = artifactQrComposer.compose("image/png", sourceBytes, "https://nemonic.example.com/s/t");
+
+        BufferedImage composed = ImageIO.read(new ByteArrayInputStream(composedBytes));
+        PixelBounds darkBounds = findDarkPixelBounds(composed);
+        assertThat(darkBounds.width()).isLessThanOrEqualTo(72);
+        assertThat(darkBounds.height()).isLessThanOrEqualTo(72);
+        assertThat(darkBounds.minX()).isGreaterThanOrEqualTo(270);
+        assertThat(darkBounds.minY()).isGreaterThanOrEqualTo(150);
+    }
+
+    @Test
     void composeStillImageFlattensTransparentSourceOnWhiteBackground() throws Exception {
         byte[] sourceBytes = transparentImageBytes("png");
 
@@ -123,5 +137,36 @@ class ArtifactQrComposerTest {
         ImageIO.write(image, format, output);
 
         return output.toByteArray();
+    }
+
+    private PixelBounds findDarkPixelBounds(BufferedImage image) {
+        int minX = image.getWidth();
+        int minY = image.getHeight();
+        int maxX = -1;
+        int maxY = -1;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                Color color = new Color(image.getRGB(x, y));
+                if (color.getRed() < 80 && color.getGreen() < 80 && color.getBlue() < 80) {
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                }
+            }
+        }
+
+        return new PixelBounds(minX, minY, maxX, maxY);
+    }
+
+    private record PixelBounds(int minX, int minY, int maxX, int maxY) {
+
+        int width() {
+            return maxX - minX + 1;
+        }
+
+        int height() {
+            return maxY - minY + 1;
+        }
     }
 }

@@ -64,7 +64,7 @@ class ArtifactDownloadServiceImplTest {
     void prepareDownloadFileCreatesQrComposedCacheWhenMissing() {
         byte[] sourceBytes = new byte[]{1, 2, 3};
         byte[] composedBytes = new byte[]{4, 5, 6};
-        String cacheKey = "artifact-downloads/%s/result-qr-v2.jpg".formatted(ARTIFACT_ID);
+        String cacheKey = "artifact-downloads/%s/result-qr-v3.jpg".formatted(ARTIFACT_ID);
 
         givenValidUser();
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
@@ -90,7 +90,7 @@ class ArtifactDownloadServiceImplTest {
      */
     @Test
     void prepareDownloadFileReusesQrComposedCacheWhenExists() {
-        String cacheKey = "artifact-downloads/%s/result-qr-v2.gif".formatted(ARTIFACT_ID);
+        String cacheKey = "artifact-downloads/%s/result-qr-v3.gif".formatted(ARTIFACT_ID);
 
         givenValidUser();
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
@@ -157,7 +157,7 @@ class ArtifactDownloadServiceImplTest {
     void prepareDownloadFileUsesCommunityMemoOriginalImageBeforeThumbnail() {
         byte[] sourceBytes = new byte[]{1, 2, 3};
         byte[] composedBytes = new byte[]{4, 5, 6};
-        String cacheKey = "artifact-downloads/%s/result-qr-v2.jpg".formatted(ARTIFACT_ID);
+        String cacheKey = "artifact-downloads/%s/result-qr-v3.jpg".formatted(ARTIFACT_ID);
 
         givenValidUser();
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
@@ -183,7 +183,7 @@ class ArtifactDownloadServiceImplTest {
     void prepareDownloadFileUsesInfiniteCanvasImage() {
         byte[] sourceBytes = new byte[]{1, 2, 3};
         byte[] composedBytes = new byte[]{4, 5, 6};
-        String cacheKey = "artifact-downloads/%s/result-qr-v2.jpg".formatted(ARTIFACT_ID);
+        String cacheKey = "artifact-downloads/%s/result-qr-v3.jpg".formatted(ARTIFACT_ID);
 
         givenValidUser();
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
@@ -206,7 +206,7 @@ class ArtifactDownloadServiceImplTest {
     void prepareDownloadFileUsesPhoneImageUrl() {
         byte[] sourceBytes = new byte[]{1, 2, 3};
         byte[] composedBytes = new byte[]{4, 5, 6};
-        String cacheKey = "artifact-downloads/%s/result-qr-v2.jpg".formatted(ARTIFACT_ID);
+        String cacheKey = "artifact-downloads/%s/result-qr-v3.jpg".formatted(ARTIFACT_ID);
 
         givenValidUser();
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))
@@ -232,7 +232,7 @@ class ArtifactDownloadServiceImplTest {
     void prepareDownloadFileFallsBackToPhoneThumbnailWhenImageMissing() {
         byte[] sourceBytes = new byte[]{1, 2, 3};
         byte[] composedBytes = new byte[]{4, 5, 6};
-        String cacheKey = "artifact-downloads/%s/result-qr-v2.jpg".formatted(ARTIFACT_ID);
+        String cacheKey = "artifact-downloads/%s/result-qr-v3.jpg".formatted(ARTIFACT_ID);
 
         givenValidUser();
         given(artifactImageUrlRepository.findActiveArtifactImageUrl(ARTIFACT_ID, USER_UUID))

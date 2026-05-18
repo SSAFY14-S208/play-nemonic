@@ -33,7 +33,7 @@ class CommunityMemoShareUseCase {
     private static final String STATIC_IMAGE_CONTENT_TYPE = "image/png";
     private static final String STATIC_SHARE_CONTENT_TYPE = "image/jpeg";
     private static final String GIF_CONTENT_TYPE = "image/gif";
-    private static final String QR_CACHE_FILE_STEM = "result-qr-v2";
+    private static final String QR_CACHE_FILE_STEM = "result-qr-v3";
 
     private final CommunityMemoSupport communityMemoSupport;
     private final ArtifactDownloadStorage artifactDownloadStorage;
