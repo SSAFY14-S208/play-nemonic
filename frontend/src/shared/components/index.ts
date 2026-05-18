@@ -26,7 +26,7 @@ export type {
   LobbyParticipant,
 } from './GameLobbyLayout'
 export { HowToPlayModal } from './HowToPlayModal'
-export type { HowToPlayPanel } from './HowToPlayModal'
+export type { HowToPlayPanel, HowToPlayVisualImage } from './HowToPlayModal'
 export { InvalidRouteRedirect } from './InvalidRouteRedirect'
 export { PostItNote } from './PostItNote'
 export { UserBootstrap, UserBootstrapLoader } from './UserBootstrap'

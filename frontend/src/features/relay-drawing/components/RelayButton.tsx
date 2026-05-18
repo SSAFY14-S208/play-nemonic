@@ -15,7 +15,7 @@ import { cn } from '@/shared/libs'
 // next/link 등 button이 아닌 요소에 동일 스타일을 입혀야 할 때는
 // `relayButtonVariants(...)` 결과 클래스를 className으로 직접 적용한다.
 export const relayButtonVariants = cva(
-  'body-b inline-flex cursor-pointer items-center justify-center transition-all hover:-translate-y-0.5 disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:brightness-100',
+  'body-b inline-flex cursor-pointer items-center justify-center whitespace-nowrap transition-all hover:-translate-y-0.5 disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:brightness-100',
   {
     variants: {
       variant: {

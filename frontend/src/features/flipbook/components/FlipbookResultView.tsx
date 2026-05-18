@@ -258,7 +258,9 @@ function BlankArtworkFallback({
       <div>
         <span
           className="mx-auto grid size-14 place-items-center rounded-full text-[18px] font-bold text-white shadow-[0_8px_16px_rgb(40_40_40_/_12%)]"
-          style={{ backgroundColor: frame.accentColor ?? participant.accentColor ?? '#f58c97' }}
+          style={{
+            backgroundColor: frame.accentColor ?? participant.accentColor ?? '#f58c97',
+          }}
         >
           {frame.frameNumber}
         </span>

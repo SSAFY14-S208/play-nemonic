@@ -43,3 +43,9 @@
   --animate-fortune-draw-actions-rise: fortune-draw-actions-rise 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
   --animate-fortune-birth-element-rise: fortune-birth-element-rise 720ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
+
+[data-flipbook-primary-scope="true"] {
+  --color-primary-1: var(--color-flipbook-primary);
+  --color-primary-2: var(--color-flipbook-deep);
+  --color-primary-5: var(--color-flipbook-result-soft);
+}

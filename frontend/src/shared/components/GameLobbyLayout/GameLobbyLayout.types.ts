@@ -92,5 +92,7 @@ export interface GameLobbyLayoutProps {
 
   // ── 게임 설명 모달 (선택) ──
   howToPlayPanels?: HowToPlayPanel[]
+  howToPlayTitle?: string
+  howToPlaySubtitle?: string
   howToPlayAccentColor?: string
 }
