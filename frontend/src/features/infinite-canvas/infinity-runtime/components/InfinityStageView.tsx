@@ -97,36 +97,6 @@ function mergeServerObjectsWithLocalPending({
   return objectMapValues(mergedObjectMap)
 }
 
-function mergeServerObjectsPreservingVisible({
-  serverObjects,
-  visibleObjects,
-  operations,
-}: {
-  serverObjects: InfinityObject[]
-  visibleObjects: InfinityObject[]
-  operations: InfinityCanvasRoom['operations']
-}) {
-  if (operations.some((operation) => operation.operationType === 'CLEAR_CANVAS')) {
-    return serverObjects
-  }
-
-  const deletedIds = new Set(
-    operations
-      .filter((operation) => operation.operationType === 'DELETE_ELEMENT')
-      .map((operation) => operation.elementId)
-      .filter((elementId): elementId is string => typeof elementId === 'string' && elementId.length > 0),
-  )
-  const mergedObjectMap = createObjectMap(serverObjects)
-
-  for (const visibleObject of visibleObjects) {
-    if (mergedObjectMap.has(visibleObject.id)) continue
-    if (deletedIds.has(visibleObject.id)) continue
-    mergedObjectMap.set(visibleObject.id, visibleObject)
-  }
-
-  return objectMapValues(mergedObjectMap)
-}
-
 function getPayloadNickname(payload: Record<string, unknown> | null) {
   const nickname = payload?.nickname
   if (typeof nickname !== 'string') return null
@@ -593,13 +563,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
             localObjects: drawing.objects,
           })
         : serverObjects
-    const nextObjects = isInitialServerApply
-      ? nextObjectsBase
-      : mergeServerObjectsPreservingVisible({
-          serverObjects: nextObjectsBase,
-          visibleObjects: drawing.objects,
-          operations: room.operations,
-        })
+    const nextObjects = nextObjectsBase
     const selectedIds = drawing.selectedIds.filter((selectedId) =>
       nextObjects.some((object) => object.id === selectedId),
     )

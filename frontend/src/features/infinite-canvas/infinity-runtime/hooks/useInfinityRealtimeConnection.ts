@@ -159,6 +159,11 @@ export function useInfinityRealtimeConnection({
     [roomCode, publish],
   )
 
+  const requestStateSync = useCallback(() => {
+    if (!roomCode) return false
+    return publish(`/app/infinite-canvas/canvases/${roomCode}/sync`, {})
+  }, [roomCode, publish])
+
   const acquireLock = useCallback(
     (elementId: string) => {
       if (!roomCode) return false
@@ -179,6 +184,7 @@ export function useInfinityRealtimeConnection({
     connectionStatus,
     sendOperations,
     sendCursor,
+    requestStateSync,
     acquireLock,
     releaseLock,
   } as const
