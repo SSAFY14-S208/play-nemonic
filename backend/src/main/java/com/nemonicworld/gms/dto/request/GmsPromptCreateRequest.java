@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 public record GmsPromptCreateRequest(
     @NotBlank @Size(max = 64) @Schema(description = "프롬프트 이름", example = "오늘의 운세 프롬프트") String name,
 
-    @NotBlank @Schema(description = "프롬프트 본문") String content,
+    @Schema(description = "GMS 호출에 사용할 프롬프트 본문", example = "만세력 결과를 바탕으로 운세를 생성한다.") @NotBlank String content,
 
-    @NotBlank @Pattern(regexp = "fortune|sticker") String featureType) {
+    @Schema(description = "기능 타입", example = "fortune") @NotBlank @Pattern(regexp = "fortune|sticker") String featureType) {
 }
