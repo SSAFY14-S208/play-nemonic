@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { getHubFocusKeyFromSearch } from '@/shared/constants'
-import { useHubRoomStore } from '@/shared/stores'
+import { useCanvasPauseStore, useHubRoomStore } from '@/shared/stores'
 import HubLoadingOverlay from './HubLoadingOverlay'
 
 const RoomPreviewCanvas = dynamic(
@@ -17,6 +17,18 @@ export default function HubLoader() {
   const [shouldMountCanvas, setShouldMountCanvas] = useState(false)
   const handleCanvasReady = useCallback(() => {
     setIsCanvasReady(true)
+  }, [])
+
+  // Pause the R3F frameloop while the loading overlay is up so the 60fps
+  // render loop (shadow pass + scene draw) doesn't compete with the bar's
+  // rAF for main thread time. useGLTF still downloads/parses the GLB in the
+  // background — only the per-frame WebGL render is gated. The overlay hook
+  // unpauses once the bar has filled and the pop has played.
+  useEffect(() => {
+    useCanvasPauseStore.getState().setPaused(true)
+    return () => {
+      useCanvasPauseStore.getState().setPaused(false)
+    }
   }, [])
 
   useEffect(() => {

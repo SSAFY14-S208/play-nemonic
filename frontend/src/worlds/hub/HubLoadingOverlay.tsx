@@ -13,17 +13,29 @@ const HUB_LOADING_GRADIENT = [
   'radial-gradient(circle at 50% 82%, rgba(220, 210, 255, 0.75) 0%, transparent 55%)',
 ].join(', ')
 
+const BAR_BASE_SHADOW = 'inset 0 1px 4px rgb(91 72 118 / 12%)'
+const BAR_POP_SHADOW =
+  'inset 0 1px 4px rgb(91 72 118 / 12%), 0 0 36px 8px rgba(244, 156, 200, 0.95)'
+
+// Pop sequence: percent text fades out first, then the bar glows.
+// Must stay in sync with PERCENT_FADE_OUT_DURATION_MS / BAR_POP_DURATION_MS
+// in useHubLoadingOverlay.ts (POP_SEQUENCE_DURATION_MS is their sum).
+const PERCENT_FADE_OUT_DURATION_SECONDS = 0.25
+const BAR_POP_DURATION_SECONDS = 0.5
+
 export default function HubLoadingOverlay({
   isCanvasReady,
 }: {
   isCanvasReady: boolean
 }) {
   const {
-    displayProgress,
+    barFillRef,
     enterHub,
     hasConfirmedHubEntry,
+    hasReachedFull,
     isReady,
     isVisible,
+    percentTextRef,
     shouldShowPlayButton,
     statusText,
     subtitleText,
@@ -45,19 +57,10 @@ export default function HubLoadingOverlay({
       aria-hidden={!isVisible}
     >
       {isVisible && (
-        <motion.div
+        <div
           aria-hidden
-          className="pointer-events-none absolute -inset-[20%] blur-3xl"
+          className="pointer-events-none absolute -inset-[20%] blur-2xl"
           style={{ background: HUB_LOADING_GRADIENT }}
-          animate={{
-            x: ['0%', '4%', '-3%', '0%'],
-            y: ['0%', '-3%', '4%', '0%'],
-          }}
-          transition={{
-            duration: 16,
-            ease: 'easeInOut',
-            repeat: Infinity,
-          }}
         />
       )}
       <div className="relative flex w-[min(21rem,calc(100vw-3rem))] flex-col items-center gap-5 text-center">
@@ -72,13 +75,44 @@ export default function HubLoadingOverlay({
           </p>
           <p className="caption-m text-fg-secondary">{subtitleText}</p>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-subtle shadow-[inset_0_1px_4px_rgb(91_72_118_/_12%)]">
+        <motion.div
+          className="h-2 w-full overflow-hidden rounded-full bg-surface-subtle"
+          style={{ boxShadow: BAR_BASE_SHADOW }}
+          animate={
+            hasReachedFull
+              ? {
+                  boxShadow: [
+                    BAR_BASE_SHADOW,
+                    BAR_POP_SHADOW,
+                    BAR_POP_SHADOW,
+                    BAR_BASE_SHADOW,
+                  ],
+                }
+              : undefined
+          }
+          transition={{
+            duration: BAR_POP_DURATION_SECONDS,
+            delay: PERCENT_FADE_OUT_DURATION_SECONDS,
+            ease: 'easeOut',
+          }}
+        >
           <div
-            className="h-full w-full origin-left rounded-full bg-[var(--hub-loading-primary)] transition-transform duration-300 ease-out"
-            style={{ transform: `scaleX(${displayProgress / 100})` }}
+            ref={barFillRef}
+            className="h-full w-full origin-left rounded-full bg-[var(--hub-loading-primary)]"
+            style={{ transform: 'scaleX(0)', willChange: 'transform' }}
           />
-        </div>
-        <span className="caption-b text-fg-primary">{displayProgress}%</span>
+        </motion.div>
+        <motion.span
+          ref={percentTextRef}
+          className="caption-b text-fg-primary inline-block"
+          animate={hasReachedFull ? { opacity: 0 } : { opacity: 1 }}
+          transition={{
+            duration: PERCENT_FADE_OUT_DURATION_SECONDS,
+            ease: 'easeOut',
+          }}
+        >
+          0%
+        </motion.span>
       </div>
       {shouldShowPlayButton && (
         <motion.div

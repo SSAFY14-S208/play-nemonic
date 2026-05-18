@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useProgress } from '@react-three/drei'
+import { useCanvasPauseStore } from '@/shared/stores'
 
-const HUB_LOADING_MIN_VISIBLE_MS = 700
+const BASE_FILL_DURATION_SECONDS = 8
+const BASE_FILL_DURATION_MS = BASE_FILL_DURATION_SECONDS * 1000
+const PRE_CANVAS_READY_CAP_PERCENT = 92
+
+// Pop sequence after the bar hits 100%. Must stay in sync with the motion
+// transitions in HubLoadingOverlay.tsx (PERCENT_FADE_OUT + BAR_POP).
+export const PERCENT_FADE_OUT_DURATION_MS = 250
+export const BAR_POP_DURATION_MS = 500
+const POP_SEQUENCE_DURATION_MS =
+  PERCENT_FADE_OUT_DURATION_MS + BAR_POP_DURATION_MS
+
 const HUB_LOADING_READY_HOLD_MS = 420
 const HUB_LOADING_CACHE_FALLBACK_MS = 1500
 const HUB_ENTRY_CONFIRMED_STORAGE_KEY = 'play-nemonic:hub-entry-confirmed'
@@ -10,13 +21,6 @@ function wait(durationMs: number) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, durationMs)
   })
-}
-
-function getRemainingMinimumVisibleMs(startedAt: number) {
-  return Math.max(
-    HUB_LOADING_MIN_VISIBLE_MS - (performance.now() - startedAt),
-    0,
-  )
 }
 
 function getHubLoadingStatusText(displayProgress: number) {
@@ -53,25 +57,27 @@ function saveHubEntryConfirmedInCurrentTab() {
 
 export function useHubLoadingOverlay(isCanvasReady: boolean) {
   const { active, progress } = useProgress()
-  const [displayProgress, setDisplayProgress] = useState(0)
   const [hasConfirmedHubEntry, setHasConfirmedHubEntry] = useState(
     readHubEntryConfirmedInCurrentTab,
   )
   const [isReady, setIsReady] = useState(false)
   const [isVisible, setIsVisible] = useState(true)
+  const [hasReachedFull, setHasReachedFull] = useState(false)
+  const [statusText, setStatusText] = useState(() => getHubLoadingStatusText(0))
   const hasStartedLoadingRef = useRef(false)
-  const visibleStartedAtRef = useRef(0)
+  const hasReachedFullRef = useRef(false)
   const targetProgressRef = useRef(0)
 
-  const targetProgress = isReady
-    ? 100
-    : isCanvasReady
-      ? progress
-      : Math.min(progress, 92)
+  // Imperative refs — the bar fill is driven by a Web Animations API animation
+  // running on the compositor thread (immune to main-thread blockage), and
+  // the percent text is updated via textContent. React state only carries
+  // milestone-level status text and the one-shot pop flag.
+  const barFillRef = useRef<HTMLDivElement | null>(null)
+  const percentTextRef = useRef<HTMLSpanElement | null>(null)
 
-  useEffect(() => {
-    visibleStartedAtRef.current = performance.now()
-  }, [])
+  const targetProgress = isCanvasReady
+    ? Math.max(progress, 0)
+    : Math.min(progress, PRE_CANVAS_READY_CAP_PERCENT)
 
   useEffect(() => {
     targetProgressRef.current = Math.max(
@@ -86,56 +92,101 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     hasStartedLoadingRef.current = true
   }, [active])
 
+  // Compositor-thread bar fill. The animation lives on the compositor, so the
+  // bar stays buttery smooth even when the main thread is busy parsing GLB.
+  // A lightweight rAF control loop toggles play/pause based on whether the
+  // bar is behind the actual loading target — main-thread hiccups can only
+  // delay the *control* check, never the visible motion.
   useEffect(() => {
+    const barElement = barFillRef.current
+    if (!barElement) return
+
+    const fillAnimation = barElement.animate(
+      [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+      {
+        duration: BASE_FILL_DURATION_MS,
+        easing: 'linear',
+        fill: 'forwards',
+      },
+    )
+    fillAnimation.pause()
+
     let cancelled = false
-    let animationFrameHandle = 0
-    let lastTimestamp: number | null = null
-    let internalProgress = 0
+    let rafId = 0
+    let lastStatusText = getHubLoadingStatusText(0)
+    let lastWrittenPercent = -1
 
-    const animate = (timestamp: number) => {
-      if (cancelled) return
+    const tick = () => {
+      if (cancelled || hasReachedFullRef.current) return
 
-      if (lastTimestamp !== null) {
-        const deltaSeconds = (timestamp - lastTimestamp) / 1000
-        const target = targetProgressRef.current
+      const currentTimeMs =
+        typeof fillAnimation.currentTime === 'number'
+          ? fillAnimation.currentTime
+          : 0
+      const barProgress = Math.min(
+        100,
+        (currentTimeMs / BASE_FILL_DURATION_MS) * 100,
+      )
+      const target = targetProgressRef.current
 
-        if (internalProgress < target) {
-          const remaining = target - internalProgress
-          const speed = Math.max(remaining * 2, 12)
-          const step = Math.min(speed * deltaSeconds, remaining)
-          internalProgress += step
-
-          setDisplayProgress((current) =>
-            Math.round(current) === Math.round(internalProgress)
-              ? current
-              : internalProgress,
-          )
+      // Play when bar is behind the loading target, pause when caught up.
+      // No deadband — for target=100 we want the animation to run all the way
+      // to currentTime=duration so it visually fills to 100%.
+      if (barProgress < target) {
+        const state = fillAnimation.playState
+        if (state === 'paused' || state === 'idle') {
+          fillAnimation.play()
         }
+      } else if (
+        fillAnimation.playState === 'running' &&
+        target < 100
+      ) {
+        fillAnimation.pause()
       }
 
-      lastTimestamp = timestamp
-      animationFrameHandle = requestAnimationFrame(animate)
+      const roundedPercent = Math.round(barProgress)
+      if (
+        percentTextRef.current &&
+        roundedPercent !== lastWrittenPercent
+      ) {
+        percentTextRef.current.textContent = `${roundedPercent}%`
+        lastWrittenPercent = roundedPercent
+      }
+
+      const nextStatusText = getHubLoadingStatusText(barProgress)
+      if (nextStatusText !== lastStatusText) {
+        lastStatusText = nextStatusText
+        setStatusText(nextStatusText)
+      }
+
+      if (barProgress >= 99.95 && !hasReachedFullRef.current) {
+        hasReachedFullRef.current = true
+        setHasReachedFull(true)
+        return
+      }
+
+      rafId = requestAnimationFrame(tick)
     }
 
-    animationFrameHandle = requestAnimationFrame(animate)
+    rafId = requestAnimationFrame(tick)
 
     return () => {
       cancelled = true
-      cancelAnimationFrame(animationFrameHandle)
+      cancelAnimationFrame(rafId)
+      fillAnimation.cancel()
     }
   }, [])
 
+  // Ready phase fires after the pop sequence (text fade-out → bar glow pulse)
+  // completes. Sequencing here keeps the bar/button transition aligned with
+  // the motion transitions defined in HubLoadingOverlay.
   useEffect(() => {
+    if (!hasReachedFull || isReady) return
+
     let cancelled = false
 
     ;(async () => {
-      if (!isCanvasReady || progress < 100 || isReady) return
-
-      await wait(
-        getRemainingMinimumVisibleMs(
-          visibleStartedAtRef.current || performance.now(),
-        ),
-      )
+      await wait(POP_SEQUENCE_DURATION_MS)
       if (cancelled) return
 
       setIsReady(true)
@@ -144,8 +195,19 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     return () => {
       cancelled = true
     }
-  }, [isCanvasReady, isReady, progress])
+  }, [hasReachedFull, isReady])
 
+  // Resume the R3F frameloop once the bar has filled and the pop has played.
+  // HubLoader paused it on mount so the 60fps render couldn't compete with
+  // the bar fill; from this point on the canvas runs normally.
+  useEffect(() => {
+    if (!isReady) return
+    useCanvasPauseStore.getState().setPaused(false)
+  }, [isReady])
+
+  // Cache fallback: if no loading event ever fires (everything served from
+  // the in-memory cache before useProgress could observe a load), nudge the
+  // target to 100 so the paced fill can complete.
   useEffect(() => {
     let cancelled = false
 
@@ -153,21 +215,15 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
       if (!isCanvasReady) return
 
       await wait(HUB_LOADING_CACHE_FALLBACK_MS)
-      if (
-        cancelled ||
-        isReady ||
-        hasStartedLoadingRef.current
-      ) {
-        return
-      }
+      if (cancelled || hasStartedLoadingRef.current) return
 
-      setIsReady(true)
+      targetProgressRef.current = Math.max(targetProgressRef.current, 100)
     })()
 
     return () => {
       cancelled = true
     }
-  }, [isCanvasReady, isReady])
+  }, [isCanvasReady])
 
   const shouldShowPlayButton = isReady && !hasConfirmedHubEntry
 
@@ -191,13 +247,15 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
   }, [isReady])
 
   return {
-    displayProgress: Math.round(displayProgress),
+    barFillRef,
+    percentTextRef,
     enterHub,
     hasConfirmedHubEntry,
+    hasReachedFull,
     isReady,
     isVisible,
     shouldShowPlayButton,
-    statusText: getHubLoadingStatusText(displayProgress),
+    statusText,
     subtitleText: isReady
       ? hasConfirmedHubEntry
         ? HUB_LOADING_SUBTITLE_ENTERING

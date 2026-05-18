@@ -1,15 +1,20 @@
 import { memo } from 'react'
-import Lottie from 'lottie-react'
-import pinkHouseAnimation from '@/shared/assets/lotties/pinkHouse.json'
+import Image from 'next/image'
 
+// Static Play! Nemonic brand logo — replaces the Lottie animation that
+// previously played here. Lottie redraws SVG every frame on the main thread,
+// which competed with the bar fill rAF/GLB parsing and made the loading
+// screen feel laggy.
 function HubLoadingHouseLottie() {
   return (
-    <Lottie
-      animationData={pinkHouseAnimation}
-      aria-hidden
-      autoplay
-      className="pointer-events-none h-28 w-28 [transform:translateZ(0)] [will-change:transform]"
-      loop
+    <Image
+      src="/images/play-nemonic-logo.png"
+      alt="Play! Nemonic"
+      width={1672}
+      height={941}
+      priority
+      draggable={false}
+      className="pointer-events-none h-28 w-auto"
     />
   )
 }
