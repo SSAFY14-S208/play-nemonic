@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import LeaveConfirmModal from "./LeaveConfirmModal";
 
-const WORLD_PATH = "/hub";
+const WORLD_PATH = "/";
 
 /** 클릭 시 진행 내용을 잃을 수 있어 떠나기 전 확인 모달을 띄우는 라우트 */
 const CONFIRM_BEFORE_LEAVE_ROUTES = [
@@ -17,7 +17,7 @@ const CONFIRM_BEFORE_LEAVE_ROUTES = [
 ];
 
 /** 월드 홈 링크 자체를 표시하지 않는 라우트 (이동할 곳이 자기 자신이거나 인트로 화면) */
-const HIDDEN_ROUTES = new Set([WORLD_PATH, "/"]);
+const HIDDEN_ROUTES = new Set([WORLD_PATH, "/hub"]);
 
 interface WorldHomeLinkProps {
   /** confirm 모달의 취소/확인 버튼 색상을 페이지 테마에 맞게 덮어쓰고 싶을 때 전달합니다. */

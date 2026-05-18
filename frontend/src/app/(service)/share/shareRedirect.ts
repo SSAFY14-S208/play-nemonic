@@ -51,11 +51,11 @@ export function getShareTokenFromSearchParams(searchParams: ShareSearchParams) {
 }
 
 export function getShareRedirectPath(shareToken: string | null | undefined) {
-  if (!shareToken) return '/hub'
+  if (!shareToken) return '/'
 
   if (isCommunityMemoShareToken(shareToken)) {
     return '/community-canvas'
   }
 
-  return '/hub'
+  return '/'
 }

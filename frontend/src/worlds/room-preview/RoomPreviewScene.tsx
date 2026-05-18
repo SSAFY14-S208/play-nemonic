@@ -4,7 +4,8 @@ import {
   Environment,
   OrbitControls,
 } from '@react-three/drei'
-import { useThree } from '@react-three/fiber'
+import { useThree, type ThreeEvent } from '@react-three/fiber'
+import { useRouter } from 'next/navigation'
 import {
   Suspense,
   useCallback,
@@ -28,6 +29,13 @@ import RoomPreviewBlenderLights from './objects/RoomPreviewBlenderLights'
 import RoomPreviewHubDomSurfaces from './objects/RoomPreviewHubDomSurfaces'
 import RoomPreviewModel from './objects/RoomPreviewModel'
 import RoomPreviewPostProcessing from './RoomPreviewPostProcessing'
+
+const NEMONIC_SINGLE_ROOM_PATH = '/hub'
+const NEMONIC_DEVICE_OBJECT_NAME_PREFIX = 'NEMONIC_'
+
+function isNemonicDeviceObject(object: THREE.Object3D) {
+  return object.name.startsWith(NEMONIC_DEVICE_OBJECT_NAME_PREFIX)
+}
 
 function RoomPreviewHubCameraRig() {
   const controlsRef = useRef<ElementRef<typeof CameraControls>>(null)
@@ -123,6 +131,34 @@ export default function RoomPreviewScene({
 }: {
   variant?: RoomPreviewVariant
 }) {
+  const router = useRouter()
+  const handleHubModelClick = useCallback(
+    (event: ThreeEvent<MouseEvent>) => {
+      if (!isNemonicDeviceObject(event.object)) return
+
+      event.stopPropagation()
+      document.body.style.cursor = ''
+      router.push(NEMONIC_SINGLE_ROOM_PATH)
+    },
+    [router],
+  )
+  const handleHubModelPointerOver = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      if (!isNemonicDeviceObject(event.object)) return
+
+      event.stopPropagation()
+      document.body.style.cursor = 'pointer'
+    },
+    [],
+  )
+  const handleHubModelPointerOut = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      if (!isNemonicDeviceObject(event.object)) return
+
+      document.body.style.cursor = ''
+    },
+    [],
+  )
   const isHubVariant = variant === 'hub'
 
   return (
@@ -154,7 +190,11 @@ export default function RoomPreviewScene({
           ROOM_PREVIEW_LIGHTING.hemisphere.intensity,
         ]}
       />
-      <RoomPreviewModel>
+      <RoomPreviewModel
+        onClick={isHubVariant ? handleHubModelClick : undefined}
+        onPointerOut={isHubVariant ? handleHubModelPointerOut : undefined}
+        onPointerOver={isHubVariant ? handleHubModelPointerOver : undefined}
+      >
         {(modelScene) => (
           <>
             <RoomPreviewBlenderLights />
