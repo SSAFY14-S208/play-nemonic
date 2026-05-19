@@ -308,13 +308,14 @@ class FortuneControllerIntegrationTest {
     }
 
     /**
-     * GMS가 긴 주의 문장을 반환해도 응답과 저장 데이터에는 프론트 표시 길이에 맞춰 제한합니다.
+     * GMS가 표시 길이를 넘는 주의 문장을 반환하면 잘라 저장하지 않고 재시도합니다.
      */
     @Test
-    void createFortuneLimitsCautionLength() throws Exception {
+    void createFortuneRetriesWhenCautionIsTooLong() throws Exception {
         UUID userUuid = createExistingUser();
         insertPrompt();
-        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResultWithLongCaution());
+        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResultWithLongCaution(),
+            sampleGmsResult());
 
         MvcResult result = mockMvc
             .perform(post("/api/v1/fortune").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
@@ -326,8 +327,9 @@ class FortuneControllerIntegrationTest {
         String savedDescription = jdbcTemplate
             .queryForObject("SELECT description FROM fortune_artifact WHERE user_id = ?", String.class, userUuid);
 
-        org.assertj.core.api.Assertions.assertThat(caution).hasSizeLessThanOrEqualTo(42).endsWith("...");
+        org.assertj.core.api.Assertions.assertThat(caution).hasSizeLessThanOrEqualTo(32).doesNotContain("...");
         org.assertj.core.api.Assertions.assertThat(savedDescription).contains("\"caution\":\"%s\"".formatted(caution));
+        verify(fortuneGmsClient, times(2)).generate(anyString(), any(JsonNode.class));
     }
 
     /**

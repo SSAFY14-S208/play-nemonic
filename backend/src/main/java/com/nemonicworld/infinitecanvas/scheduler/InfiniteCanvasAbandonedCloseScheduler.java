@@ -6,8 +6,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 빈 무한 캔버스를 주기적으로 정리하는 스케줄러. 릴레이/플립북의
- * {@code RoomAbandonedCloseScheduler}와 동일한 fixedDelay 패턴.
+ * 빈 무한 캔버스를 주기적으로 정리하는 스케줄러. 릴레이/플립북의 {@code RoomAbandonedCloseScheduler}와 동일한
+ * fixedDelay 패턴.
  */
 @Component
 public class InfiniteCanvasAbandonedCloseScheduler {

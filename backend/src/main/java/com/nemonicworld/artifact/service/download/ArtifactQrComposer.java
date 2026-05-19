@@ -112,6 +112,8 @@ public class ArtifactQrComposer {
         try {
             graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             graphics.setComposite(AlphaComposite.SrcOver);
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(x, y, qrSize, qrSize);
             graphics.drawImage(qrImage, x, y, null);
         } finally {
             graphics.dispose();
