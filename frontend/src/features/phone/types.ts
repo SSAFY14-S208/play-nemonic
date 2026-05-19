@@ -15,6 +15,7 @@ export type PhoneGalleryFilterKey = 'all' | PhoneGalleryItemKind
 
 export interface PhoneGalleryItem {
   id: string
+  artifactId: string
   kind: PhoneGalleryItemKind
   title: string
   createdAtLabel: string

@@ -71,7 +71,7 @@ export function useFortuneExternalShare() {
 
     try {
       const shareInfo = await postArtifactShare(result.id)
-      const shareUrl = shareInfo.shareUrl?.trim()
+      const shareUrl = (shareInfo.kakaoUrl || shareInfo.siteUrl)?.trim()
       const imageUrl = shareInfo.imageUrl?.trim()
 
       if (!shareUrl && !imageUrl) {

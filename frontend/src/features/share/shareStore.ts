@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { ApiError, postShare } from '@/shared/apis'
+import { ApiError, postArtifactShare } from '@/shared/apis'
 import type { ShareCreateResponse } from '@/shared/types'
 
 type ShareStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -11,7 +11,7 @@ interface ShareStore {
   shareStatus: ShareStatus
   shareError: string | null
 
-  createShare: (galleryId: string) => Promise<void>
+  createShare: (artifactId: string) => Promise<void>
   clearShare: () => void
 }
 
@@ -26,10 +26,10 @@ export const useShareStore = create<ShareStore>((set) => ({
   shareStatus: 'idle',
   shareError: null,
 
-  createShare: async (galleryId) => {
+  createShare: async (artifactId) => {
     set({ shareStatus: 'loading', shareError: null })
     try {
-      const response = await postShare({ galleryId, campaign: '' })
+      const response = await postArtifactShare(artifactId)
       set({ shareInfo: response, shareStatus: 'success' })
     } catch (error) {
       set({
