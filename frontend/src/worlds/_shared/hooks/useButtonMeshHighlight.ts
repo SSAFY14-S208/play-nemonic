@@ -8,13 +8,37 @@ const IDLE_MAX_INTENSITY = 0.2;
 const HOVER_INTENSITY = 0.5;
 const PULSE_SPEED = 2.5;
 
+type ButtonMeshHighlightOptions = {
+  glowColor?: THREE.Color;
+  hoverIntensity?: number;
+  idleMaxIntensity?: number;
+  idleMinIntensity?: number;
+  pulseSpeed?: number;
+  tintMaxStrength?: number;
+  tintMinStrength?: number;
+};
+
 export function useButtonMeshHighlight(
   scene: THREE.Group,
   buttonNames: Set<string>,
+  options: ButtonMeshHighlightOptions = {},
 ) {
+  const glowColor = options.glowColor ?? GLOW_COLOR;
+  const hoverIntensity = options.hoverIntensity ?? HOVER_INTENSITY;
+  const idleMaxIntensity = options.idleMaxIntensity ?? IDLE_MAX_INTENSITY;
+  const idleMinIntensity = options.idleMinIntensity ?? IDLE_MIN_INTENSITY;
+  const pulseSpeed = options.pulseSpeed ?? PULSE_SPEED;
+  const tintMaxStrength = options.tintMaxStrength ?? 0;
+  const tintMinStrength = options.tintMinStrength ?? 0;
   const hoveredMeshRef = useRef<THREE.Mesh | null>(null);
   const materialsRef = useRef(
-    new Map<THREE.Mesh, THREE.MeshStandardMaterial>(),
+    new Map<
+      THREE.Mesh,
+      {
+        idleColor: THREE.Color;
+        material: THREE.MeshStandardMaterial;
+      }
+    >(),
   );
   const activeSceneRef = useRef<THREE.Group | null>(null);
 
@@ -33,25 +57,39 @@ export function useButtonMeshHighlight(
         // other meshes that share the same GLB material instance.
         const current = child.material as THREE.MeshStandardMaterial;
         const cloned = current.clone();
+        if (tintMaxStrength > 0) {
+          cloned.toneMapped = false;
+          cloned.needsUpdate = true;
+        }
         child.material = cloned;
-        materialsRef.current.set(child, cloned);
+        materialsRef.current.set(child, {
+          idleColor: cloned.color.clone(),
+          material: cloned,
+        });
       });
 
       activeSceneRef.current = scene;
     }
 
     const elapsed = clock.elapsedTime;
+    const pulseRatio = 0.5 + 0.5 * Math.sin(elapsed * pulseSpeed);
     const idlePulse =
-      IDLE_MIN_INTENSITY +
-      (IDLE_MAX_INTENSITY - IDLE_MIN_INTENSITY) *
-        (0.5 + 0.5 * Math.sin(elapsed * PULSE_SPEED));
+      idleMinIntensity + (idleMaxIntensity - idleMinIntensity) * pulseRatio;
 
-    for (const [mesh, material] of materialsRef.current) {
+    for (const [mesh, { idleColor, material }] of materialsRef.current) {
+      const isHovered = mesh === hoveredMeshRef.current;
+      const activeTintStrength = isHovered
+        ? Math.min(tintMaxStrength + 0.24, 1)
+        : tintMinStrength +
+          (tintMaxStrength - tintMinStrength) * pulseRatio;
+
+      material.color.copy(idleColor).lerp(glowColor, activeTintStrength);
+
       if (mesh === hoveredMeshRef.current) {
-        material.emissive.copy(GLOW_COLOR);
-        material.emissiveIntensity = HOVER_INTENSITY;
+        material.emissive.copy(glowColor);
+        material.emissiveIntensity = hoverIntensity;
       } else {
-        material.emissive.copy(GLOW_COLOR);
+        material.emissive.copy(glowColor);
         material.emissiveIntensity = idlePulse;
       }
     }

@@ -1,15 +1,15 @@
-// 책상 상판 표면 Y좌표 (GLB 원본 스케일 기준)
-export const DESK_SURFACE_Y = 0.747;
+// Nemonic 단독 전시 기준 높이
+export const NEMONIC_DISPLAY_Y = 0;
 
-// 네모닉 프린터 위치 — GLB 모델 원점이 바닥보다 약간 위에 있어 보정
+// 네모닉 프린터 위치
 export const NEMONIC_PRINTER_POSITION: [number, number, number] = [
   0,
-  DESK_SURFACE_Y,
+  NEMONIC_DISPLAY_Y,
   0,
 ];
 
 // ── 카메라 궤도 ──
-export const ORBIT_TARGET_Y = DESK_SURFACE_Y + 0.083; // 프린터 시각 중심
+export const ORBIT_TARGET_Y = NEMONIC_DISPLAY_Y + 0.083; // 프린터 시각 중심
 export const ORBIT_DISTANCE = 1.8;
 export const ORBIT_POLAR_ANGLE = (55 * Math.PI) / 180; // 수평면에서 ~35도 위
 export const ORBIT_MIN_POLAR = 0.4;

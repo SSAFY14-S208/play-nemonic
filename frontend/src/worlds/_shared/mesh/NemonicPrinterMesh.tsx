@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { MutableRefObject } from 'react'
 import { useAnimations, useGLTF } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
@@ -13,9 +13,21 @@ const BUTTON_MESH_NAMES = new Set([
   'NEMONIC_PRINT_BUTTON',
   'NEMONIC_OPEN_BUTTON',
 ])
+const STRONG_BUTTON_HIGHLIGHT = {
+  glowColor: new THREE.Color(0xa9e2e8),
+  hoverIntensity: 0.9,
+  idleMaxIntensity: 0.42,
+  idleMinIntensity: 0.08,
+  pulseSpeed: 2.8,
+  tintMaxStrength: 0.08,
+  tintMinStrength: 0,
+} as const
 
 type NemonicPrinterMeshProps = ThreeElements['group'] & {
   actionsRef?: MutableRefObject<Record<string, AnimationAction | null>>
+  baseColorOverride?: string
+  baseColorOverrideMaterialNames?: readonly string[]
+  highlightStrength?: 'default' | 'strong'
   modelScale?: number
   onPrintButtonClick?: () => void
   onOpenButtonClick?: () => void
@@ -24,6 +36,9 @@ type NemonicPrinterMeshProps = ThreeElements['group'] & {
 
 export default function NemonicPrinterMesh({
   actionsRef,
+  baseColorOverride,
+  baseColorOverrideMaterialNames,
+  highlightStrength = 'default',
   modelScale = 1,
   onPrintButtonClick,
   onOpenButtonClick,
@@ -31,13 +46,34 @@ export default function NemonicPrinterMesh({
   ...groupProps
 }: NemonicPrinterMeshProps) {
   const groupRef = useRef<THREE.Group>(null)
+  const materialOriginalsRef = useRef<
+    Map<
+      THREE.MeshStandardMaterial,
+      {
+        color: THREE.Color
+        map: THREE.Texture | null
+      }
+    >
+  >(new Map())
   const { gl } = useThree()
   const { scene, animations } = useGLTF(MODEL_PATH)
   const { actions } = useAnimations(animations, groupRef)
-  const { hoveredMeshRef } = useButtonMeshHighlight(scene, BUTTON_MESH_NAMES)
+  const { hoveredMeshRef } = useButtonMeshHighlight(
+    scene,
+    BUTTON_MESH_NAMES,
+    highlightStrength === 'strong' ? STRONG_BUTTON_HIGHLIGHT : undefined,
+  )
+  const baseColorOverrideMaterialNameSet = useMemo(
+    () =>
+      baseColorOverrideMaterialNames
+        ? new Set(baseColorOverrideMaterialNames)
+        : null,
+    [baseColorOverrideMaterialNames],
+  )
 
   useEffect(() => {
     const maxAnisotropy = gl.capabilities.getMaxAnisotropy()
+    const materialOriginals = materialOriginalsRef.current
 
     scene.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) {
@@ -69,9 +105,37 @@ export default function NemonicPrinterMesh({
           texture.anisotropy = maxAnisotropy
           texture.needsUpdate = true
         })
+
+        const shouldOverrideBaseColor =
+          Boolean(baseColorOverride) &&
+          (!baseColorOverrideMaterialNameSet ||
+            baseColorOverrideMaterialNameSet.has(material.name))
+
+        if (shouldOverrideBaseColor) {
+          if (!materialOriginals.has(material)) {
+            materialOriginals.set(material, {
+              color: material.color.clone(),
+              map: material.map,
+            })
+          }
+
+          if (baseColorOverride) {
+            material.color.set(baseColorOverride)
+          }
+
+          material.needsUpdate = true
+        }
       })
     })
-  }, [scene, gl])
+    return () => {
+      materialOriginals.forEach((original, material) => {
+        material.color.copy(original.color)
+        material.map = original.map
+        material.needsUpdate = true
+      })
+      materialOriginals.clear()
+    }
+  }, [baseColorOverride, baseColorOverrideMaterialNameSet, scene, gl])
 
   useEffect(() => {
     if (actionsRef) {
