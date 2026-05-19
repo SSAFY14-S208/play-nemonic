@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { HubOverlay } from '@/features/hub'
-import { PhoneLauncher } from '@/features/phone'
 import HubLoader from '@/worlds/hub/HubLoader'
 import {
   getShareRedirectPath,
@@ -28,7 +27,6 @@ export default async function Page({ searchParams }: ServiceHomePageProps) {
     <main className="relative min-h-screen overflow-hidden bg-hub-room-background">
       <HubLoader />
       <HubOverlay disableBgm={isLightDebugEnabled} />
-      {!isLightDebugEnabled && <PhoneLauncher />}
     </main>
   )
 }

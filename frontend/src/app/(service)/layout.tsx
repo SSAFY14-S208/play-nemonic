@@ -1,7 +1,14 @@
+import { PhoneLauncher } from '@/features/phone'
+
 export default function ServiceLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <PhoneLauncher />
+    </>
+  )
 }

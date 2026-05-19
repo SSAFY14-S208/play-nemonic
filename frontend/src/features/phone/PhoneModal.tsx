@@ -65,10 +65,10 @@ export default function PhoneModal() {
               transition={FADE_TRANSITION}
             />
           }
-          className="fixed inset-0 z-[var(--z-overlay)] bg-black/20 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[14000] bg-black/20 backdrop-blur-[2px]"
         />
         <Dialog.Popup
-          className="fixed inset-x-0 top-0 z-[var(--z-modal)] grid place-items-center overflow-hidden overscroll-contain px-4 [height:100dvh]"
+          className="fixed inset-x-0 top-0 z-[14010] grid place-items-center overflow-hidden overscroll-contain px-4 [height:100dvh]"
           style={{
             paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
             paddingTop: 'max(1rem, env(safe-area-inset-top))',

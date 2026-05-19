@@ -84,6 +84,7 @@ export interface FortuneResult {
   scores: FortuneScoreSet
   luckyColor: FortuneLuckyColor
   luckyKeyword: string
+  luckyDirection: string
   caution: string
   cardTheme: string
   saju: FortuneSaju
