@@ -27,6 +27,7 @@ import type {
 import {
   FORTUNE_KEYWORDS,
   FORTUNE_LUCKY_COLORS,
+  FORTUNE_LUCKY_DIRECTIONS,
   FORTUNE_NOON_FALLBACK_BIRTH_TIME,
   FORTUNE_POSTIT_LINES,
   FORTUNE_SCORE_LABELS,
@@ -47,6 +48,11 @@ import type {
 const FORTUNE_TIMEZONE = 'Asia/Seoul'
 const NOON_FALLBACK_TIME = '12:00'
 const MANSERYEOK_VERSION = '1.0.1'
+const FORTUNE_CARD_TEMPLATE_PATH = '/images/fortune/templates/daily-fortune-card.png'
+const FORTUNE_DIRECTION_ARROW_PATH = '/images/fortune/templates/arrow.png'
+const FORTUNE_TEMPLATE_WIDTH = 771
+const FORTUNE_TEMPLATE_HEIGHT = 895
+const FORTUNE_TEMPLATE_FONT_FAMILY = 'GangwonEduModu'
 
 export function getKoreanDateKey(date = new Date()) {
   const dateParts = new Intl.DateTimeFormat('en-CA', {
@@ -226,8 +232,9 @@ export function createFortuneResultFromCreateResponse(
     },
     luckyColor,
     luckyKeyword: fortuneSection.luckyKeyword,
+    luckyDirection: fortuneSection.luckyDirection,
     caution: fortuneSection.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
-    cardTheme: pickCardTheme(createdFortune.fortuneId),
+    cardTheme: createdFortune.design.cardTheme ?? pickCardTheme(createdFortune.fortuneId),
     saju,
     sajuSummary: createResponseSajuSummary(createdFortune, birthInfo, saju),
   }
@@ -307,6 +314,7 @@ export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateK
   const postitLine = pickBySeed(FORTUNE_POSTIT_LINES, seed + 3)
   const luckyKeyword = pickBySeed(FORTUNE_KEYWORDS, seed + 7)
   const luckyColor = pickBySeed(FORTUNE_LUCKY_COLORS, seed + 11)
+  const luckyDirection = pickBySeed(FORTUNE_LUCKY_DIRECTIONS, seed + 13)
 
   return {
     id: createFortuneResultId(issuedDateKey, seed),
@@ -322,6 +330,7 @@ export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateK
     },
     luckyColor,
     luckyKeyword,
+    luckyDirection,
     caution: '오늘은 서두르기보다 한 번 더 확인하고 선택하는 게 좋아요.',
     cardTheme: seed % 2 === 0 ? 'moon-paper' : 'soft-star',
     saju,
@@ -329,80 +338,197 @@ export function createMockFortuneResult(birthInfo: FortuneBirthInfo, issuedDateK
   } satisfies FortuneResult
 }
 
-export function createFortuneCommunityImageDataUrl(result: FortuneResult) {
+export async function createFortuneCommunityImageDataUrl(result: FortuneResult) {
   if (typeof document === 'undefined') {
     return null
   }
 
   const canvas = document.createElement('canvas')
-  canvas.width = 840
-  canvas.height = 630
+  canvas.width = FORTUNE_TEMPLATE_WIDTH
+  canvas.height = FORTUNE_TEMPLATE_HEIGHT
 
   const context = canvas.getContext('2d')
   if (!context) {
     return null
   }
 
-  context.fillStyle = '#fff4b8'
-  context.fillRect(0, 0, canvas.width, canvas.height)
+  let templateImage: HTMLImageElement
+  let arrowImage: HTMLImageElement
+  try {
+    await loadFortuneTemplateFont()
+    ;[templateImage, arrowImage] = await Promise.all([
+      loadCanvasImage(FORTUNE_CARD_TEMPLATE_PATH),
+      loadCanvasImage(FORTUNE_DIRECTION_ARROW_PATH),
+    ])
+  } catch {
+    return null
+  }
 
-  context.save()
-  context.translate(34, 22)
-  context.rotate(-0.025)
-  context.fillStyle = '#fff8cf'
-  context.shadowColor = 'rgba(66, 45, 25, 0.18)'
-  context.shadowBlur = 22
-  context.shadowOffsetY = 12
-  drawRoundedRect(context, 0, 0, 772, 586, 24)
-  context.fill()
-  context.restore()
+  context.clearRect(0, 0, FORTUNE_TEMPLATE_WIDTH, FORTUNE_TEMPLATE_HEIGHT)
+  context.drawImage(templateImage, 0, 0, FORTUNE_TEMPLATE_WIDTH, FORTUNE_TEMPLATE_HEIGHT)
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillStyle = '#15110a'
 
-  context.shadowColor = 'transparent'
-  context.fillStyle = '#3b2a1f'
-  context.font = '700 36px Pretendard, sans-serif'
-  drawWrappedCanvasText(context, result.title, 76, 92, 680, 42, 2)
+  context.font = fortuneTemplateCanvasFont(34)
+  context.fillText(formatFortuneDate(result.issuedDateKey), FORTUNE_TEMPLATE_WIDTH / 2, 82)
 
-  context.fillStyle = '#2f7d49'
-  context.font = '700 18px Pretendard, sans-serif'
-  context.fillText('오늘의 운세', 76, 54)
+  context.font = fortuneTemplateCanvasFont(39)
+  drawCenteredWrappedCanvasText(context, result.title, FORTUNE_TEMPLATE_WIDTH / 2, 245, 520, 50, 2)
 
-  context.fillStyle = '#fdf9ea'
-  drawRoundedRect(context, 76, 150, 688, 104, 18)
-  context.fill()
-  context.fillStyle = '#74543b'
-  context.font = '700 18px Pretendard, sans-serif'
-  context.fillText('포포의 한 줄', 100, 188)
-  context.fillStyle = '#3b2a1f'
-  context.font = '700 25px Pretendard, sans-serif'
-  drawWrappedCanvasText(context, result.postitLine, 100, 222, 632, 32, 2)
+  context.fillStyle = '#4b3823'
+  context.font = fortuneTemplateCanvasFont(21)
+  drawCenteredWrappedCanvasText(context, result.postitLine, FORTUNE_TEMPLATE_WIDTH / 2, 376, 540, 30, 2)
 
-  context.fillStyle = '#4f3c2e'
-  context.font = '500 22px Pretendard, sans-serif'
-  drawWrappedCanvasText(context, result.summary, 76, 310, 688, 34, 4)
+  const scorePositions = [
+    { key: 'love', x: 141, color: '#ff5f95' },
+    { key: 'work', x: 313, color: '#16a9ee' },
+    { key: 'money', x: 473, color: '#ff9600' },
+    { key: 'overall', x: 642, color: '#3c8424' },
+  ] as const
 
-  const scoreStartY = 454
-  FORTUNE_SCORE_LABELS.forEach((scoreLabel, scoreIndex) => {
-    const scoreX = 76 + scoreIndex * 172
-    context.fillStyle = '#fdf9ea'
-    drawRoundedRect(context, scoreX, scoreStartY, 152, 78, 16)
-    context.fill()
-    context.fillStyle = '#74543b'
-    context.font = '700 16px Pretendard, sans-serif'
-    context.fillText(scoreLabel.label, scoreX + 18, scoreStartY + 30)
-    context.fillStyle = '#3b2a1f'
-    context.font = '700 28px Pretendard, sans-serif'
-    context.fillText(String(result.scores[scoreLabel.key]), scoreX + 18, scoreStartY + 62)
+  context.font = fortuneTemplateCanvasFont(36)
+  scorePositions.forEach((scorePosition) => {
+    context.fillStyle = scorePosition.color
+    context.fillText(String(result.scores[scorePosition.key]), scorePosition.x, 604)
   })
 
-  context.fillStyle = result.luckyColor.hex
-  context.beginPath()
-  context.arc(94, 570, 14, 0, Math.PI * 2)
-  context.fill()
-  context.fillStyle = '#3b2a1f'
-  context.font = '700 18px Pretendard, sans-serif'
-  context.fillText(`${result.luckyColor.name} · ${result.luckyKeyword}`, 120, 576)
+  context.fillStyle = '#15110a'
+  context.font = fortuneTemplateCanvasFont(21)
+  drawLuckyColorSwatch(context, 135, 769, 33, result.luckyColor.hex)
+  drawRotatedCanvasImage(context, arrowImage, 310, 769, 69, 59, getDirectionArrowRotation(result.luckyDirection))
+  context.fillText(result.luckyColor.name, 135, 840)
+  context.fillText(result.luckyDirection, 310, 840)
+
+  context.font = fortuneTemplateCanvasFont(18)
+  drawCenteredWrappedCanvasText(context, result.caution, 585, 783, 265, 28, 3)
 
   return canvas.toDataURL('image/png')
+}
+
+function formatFortuneDate(dateKey: string) {
+  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey)
+
+  if (!dateParts) {
+    return dateKey
+  }
+
+  const date = new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]))
+  const weekday = new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(date).replace('.', '')
+
+  return `${Number(dateParts[2])}/${Number(dateParts[3])} (${weekday})`
+}
+
+function getDirectionArrowRotation(direction: string) {
+  if (direction.includes('북동')) return -45
+  if (direction.includes('남동')) return 45
+  if (direction.includes('남서')) return 135
+  if (direction.includes('북서')) return -135
+  if (direction.includes('북')) return -90
+  if (direction.includes('남')) return 90
+  if (direction.includes('서')) return 180
+
+  return 0
+}
+
+async function loadFortuneTemplateFont() {
+  if (!document.fonts) {
+    return
+  }
+
+  await document.fonts.load(`700 44px "${FORTUNE_TEMPLATE_FONT_FAMILY}"`).catch(() => undefined)
+}
+
+function loadCanvasImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error(`Failed to load image: ${src}`))
+    image.src = typeof window === 'undefined' ? src : new URL(src, window.location.origin).toString()
+  })
+}
+
+function fortuneTemplateCanvasFont(size: number) {
+  return `700 ${size}px ${FORTUNE_TEMPLATE_FONT_FAMILY}, Pretendard, sans-serif`
+}
+
+function drawCenteredWrappedCanvasText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  centerX: number,
+  centerY: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines: number,
+) {
+  const words = String(text).split(/\s+/)
+  const lines: string[] = []
+  let currentLine = ''
+
+  words.forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word
+    if (context.measureText(nextLine).width <= maxWidth) {
+      currentLine = nextLine
+      return
+    }
+
+    if (currentLine) {
+      lines.push(currentLine)
+    }
+    currentLine = word
+  })
+
+  if (currentLine) {
+    lines.push(currentLine)
+  }
+
+  const visibleLines = lines.slice(0, maxLines)
+  const startY = centerY - ((visibleLines.length - 1) * lineHeight) / 2
+  visibleLines.forEach((line, lineIndex) => {
+    const isLastVisibleLine = lineIndex === maxLines - 1 && lines.length > maxLines
+    context.fillText(
+      isLastVisibleLine ? `${line.replace(/[.。…]*$/, '')}...` : line,
+      centerX,
+      startY + lineIndex * lineHeight,
+    )
+  })
+}
+
+function drawLuckyColorSwatch(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  color: string,
+) {
+  context.save()
+  context.fillStyle = color
+  context.beginPath()
+  context.arc(centerX, centerY, radius, 0, Math.PI * 2)
+  context.fill()
+  context.strokeStyle = 'rgba(255,255,255,0.75)'
+  context.lineWidth = 8
+  context.stroke()
+  context.strokeStyle = 'rgba(40,40,40,0.18)'
+  context.lineWidth = 2
+  context.stroke()
+  context.restore()
+}
+
+function drawRotatedCanvasImage(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  centerX: number,
+  centerY: number,
+  width: number,
+  height: number,
+  rotation: number,
+) {
+  context.save()
+  context.translate(centerX, centerY)
+  context.rotate((rotation * Math.PI) / 180)
+  context.drawImage(image, -width / 2, -height / 2, width, height)
+  context.restore()
 }
 
 function drawRoundedRect(
@@ -631,6 +757,14 @@ function pickBySeed<T>(items: readonly T[], seed: number) {
 
 const KOREAN_LUCKY_COLOR_HEX: Record<string, string> = {
   은회색: '#c0c0c0',
+  베이지: '#d7c09a',
+  베이지색: '#d7c09a',
+  짙은베이지: '#9b7a52',
+  '짙은 베이지': '#9b7a52',
+  진한베이지: '#9b7a52',
+  '진한 베이지': '#9b7a52',
+  갈색: '#8b5a32',
+  브라운: '#8b5a32',
   노랑: '#f4d35e',
   노란색: '#f4d35e',
   보라: '#a281d0',

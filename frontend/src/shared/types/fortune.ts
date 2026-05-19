@@ -27,6 +27,7 @@ export interface FortuneCreateFortuneSection {
   moneyLuck: number
   luckyColor: string
   luckyKeyword: string
+  luckyDirection: string
   caution: string | null
   postitLine: string
 }
