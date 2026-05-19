@@ -11,6 +11,8 @@ interface LobbyHeaderProps {
   onOpenHowToPlay: () => void;
   /** 모바일/데스크탑 간 약간의 사이즈 차이를 위한 variant */
   variant: "mobile" | "desktop";
+  /** 헤더 우측 슬롯. 제공되면 기본 HelpCircle 버튼 대신 렌더 */
+  rightSlot?: React.ReactNode;
 }
 
 export function LobbyHeader({
@@ -19,6 +21,7 @@ export function LobbyHeader({
   hasHowToPlay,
   onOpenHowToPlay,
   variant,
+  rightSlot,
 }: LobbyHeaderProps) {
   const isMobile = variant === "mobile";
 
@@ -41,7 +44,9 @@ export function LobbyHeader({
         나가기
       </button>
 
-      {hasHowToPlay && (
+      {rightSlot ? (
+        <div className="flex items-center gap-2">{rightSlot}</div>
+      ) : hasHowToPlay ? (
         <button
           type="button"
           onClick={onOpenHowToPlay}
@@ -61,7 +66,7 @@ export function LobbyHeader({
             aria-hidden
           />
         </button>
-      )}
+      ) : null}
     </header>
   );
 }

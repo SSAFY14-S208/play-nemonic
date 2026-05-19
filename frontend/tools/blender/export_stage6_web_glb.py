@@ -87,6 +87,7 @@ def export_glb(export_objects: list[bpy.types.Object], output_glb: Path) -> None
         filepath=str(output_glb),
         export_format="GLB",
         use_selection=True,
+        export_animations=False,
         export_cameras=False,
         export_lights=False,
         export_materials="EXPORT",

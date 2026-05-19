@@ -1,13 +1,14 @@
 "use client";
 
 import { Canvas, useThree } from "@react-three/fiber";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import * as THREE from "three";
 import { cn } from "@/shared/libs";
 import { useCanvasPauseStore } from "@/shared/stores";
 import {
   ROOM_PREVIEW_CAMERA,
   ROOM_PREVIEW_HUB_CAMERA_PRESETS,
+  ROOM_PREVIEW_HUB_CAMERA_ZOOM,
   ROOM_PREVIEW_RENDERING,
   ROOM_PREVIEW_RENDERING_PROFILES,
   type RoomPreviewVariant,
@@ -43,6 +44,38 @@ function CanvasPauseControl() {
   return null;
 }
 
+function clamp01(value: number) {
+  return Math.min(Math.max(value, 0), 1);
+}
+
+function getViewportAspect() {
+  if (typeof window === "undefined") return 1;
+
+  const viewport = window.visualViewport;
+  const width = viewport?.width ?? window.innerWidth;
+  const height = viewport?.height ?? window.innerHeight;
+
+  return height > 0 ? width / height : 1;
+}
+
+function getResponsiveHubCameraZoom(aspect: number) {
+  const { compactAspect, compactZoom, defaultZoom, relaxedAspect } =
+    ROOM_PREVIEW_HUB_CAMERA_ZOOM;
+  const aspectRange = relaxedAspect - compactAspect;
+
+  if (aspectRange <= 0) return defaultZoom;
+
+  const zoomAmount = clamp01((relaxedAspect - aspect) / aspectRange);
+
+  return defaultZoom + (compactZoom - defaultZoom) * zoomAmount;
+}
+
+function getInitialCameraZoom(variant: RoomPreviewVariant) {
+  if (variant !== "hub") return ROOM_PREVIEW_HUB_CAMERA_ZOOM.defaultZoom;
+
+  return getResponsiveHubCameraZoom(getViewportAspect());
+}
+
 export default function RoomPreviewCanvas({
   className,
   onCanvasReady,
@@ -53,10 +86,39 @@ export default function RoomPreviewCanvas({
   variant?: RoomPreviewVariant;
 }) {
   const renderingProfile = ROOM_PREVIEW_RENDERING_PROFILES[variant];
+  const [cameraZoom, setCameraZoom] = useState(() =>
+    getInitialCameraZoom(variant),
+  );
   const initialCamera =
     variant === "hub"
       ? ROOM_PREVIEW_HUB_CAMERA_PRESETS.overview
       : ROOM_PREVIEW_CAMERA;
+
+  useEffect(() => {
+    if (variant !== "hub") return;
+
+    let cancelled = false;
+
+    const syncCameraZoom = () => {
+      const nextCameraZoom = getResponsiveHubCameraZoom(getViewportAspect());
+
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setCameraZoom(nextCameraZoom);
+        }
+      });
+    };
+
+    syncCameraZoom();
+    window.addEventListener("resize", syncCameraZoom);
+    window.visualViewport?.addEventListener("resize", syncCameraZoom);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("resize", syncCameraZoom);
+      window.visualViewport?.removeEventListener("resize", syncCameraZoom);
+    };
+  }, [variant]);
 
   return (
     <>
@@ -67,12 +129,13 @@ export default function RoomPreviewCanvas({
           near: ROOM_PREVIEW_CAMERA.near,
           far: ROOM_PREVIEW_CAMERA.far,
           position: initialCamera.position,
+          zoom: cameraZoom,
         }}
         dpr={renderingProfile.devicePixelRatio}
         frameloop="demand"
         gl={{
           alpha: false,
-          antialias: true,
+          antialias: renderingProfile.antialias,
           powerPreference: "high-performance",
         }}
         shadows={renderingProfile.shadows}

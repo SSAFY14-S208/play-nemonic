@@ -28,6 +28,8 @@ import { useRelayDrawingGame } from "../hooks/useRelayDrawingGame";
 import { useRelayTimer } from "../hooks/useRelayTimer";
 import { useRelayDrawingStore } from "../stores";
 import PartTimeUpOverlay from "./PartTimeUpOverlay";
+import RelayBgmToggle from "./RelayBgmToggle";
+import RelayHowToPlayButton from "./RelayHowToPlayButton";
 
 const RelayDrawingStage = dynamic(() => import("../RelayDrawingStage"), {
   ssr: false,
@@ -148,6 +150,11 @@ export default function RelayDrawingView() {
       aria-label="릴레이 드로잉"
     >
       <div className="relative z-10 grid w-full gap-4 px-3 py-4 lg:hidden">
+        <div className="flex items-center justify-end gap-3">
+          <RelayHowToPlayButton />
+          <RelayBgmToggle />
+        </div>
+
         <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
           <div className="flex items-center justify-between gap-3">
             <p className="h2-b text-[#f45d8d]">

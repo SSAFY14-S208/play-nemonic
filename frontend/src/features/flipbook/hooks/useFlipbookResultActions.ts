@@ -138,6 +138,7 @@ export function useFlipbookResultActions({
   )
   const resultImageUrl = useMemo(() => getResultImageUrl(activeResult), [activeResult])
   const communityImageUrl = useMemo(() => getCommunityImageUrl(activeResult), [activeResult])
+  const activeResultArtifactId = activeResult?.artifactId
   const canSaveToLocal = Boolean(resultImageUrl) && !isSavingToLocal
   const canPostCommunity = Boolean(communityImageUrl)
   const canShareExternal =
@@ -176,7 +177,7 @@ export function useFlipbookResultActions({
           funnel_name: 'flipbook_room_creation',
           content_type: 'flipbook',
           share_method: 'download',
-          artifact_id: activeResult?.artifactId,
+          artifact_id: activeResultArtifactId,
         },
       })
     } catch {
@@ -184,7 +185,7 @@ export function useFlipbookResultActions({
     } finally {
       setIsSavingToLocal(false)
     }
-  }, [activeResult, isSavingToLocal, ownerName, resultImageUrl])
+  }, [activeResultArtifactId, isSavingToLocal, ownerName, resultImageUrl])
 
   const postToCommunity = useCallback(() => {
     if (!activeResult || !communityImageUrl) {

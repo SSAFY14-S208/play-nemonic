@@ -136,6 +136,7 @@ function createSavedDrawingItem(
 ): PhoneGalleryItem {
   return {
     id: saveResponse.galleryId,
+    artifactId: saveResponse.artifactId,
     kind: 'phone',
     title: '내가 그린 메모',
     createdAtLabel: '방금 전',

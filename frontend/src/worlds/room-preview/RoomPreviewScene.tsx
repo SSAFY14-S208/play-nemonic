@@ -3,7 +3,7 @@ import {
   Environment,
   OrbitControls,
 } from '@react-three/drei'
-import { useThree, type ThreeEvent } from '@react-three/fiber'
+import { type ThreeEvent, useThree } from '@react-three/fiber'
 import { useRouter } from 'next/navigation'
 import {
   Suspense,
@@ -31,11 +31,25 @@ import RoomPreviewModel from './objects/RoomPreviewModel'
 import RoomPreviewPostProcessing from './RoomPreviewPostProcessing'
 
 const NEMONIC_SINGLE_ROOM_PATH = '/nemonic'
+const NEMONIC_DEVICE_ROOT_OBJECT_NAME = 'NEMONIC'
 const NEMONIC_DEVICE_OBJECT_NAME_PREFIX = 'NEMONIC_'
 const NEMONIC_FOCUS_KEY = 'printer'
 
 function isNemonicDeviceObject(object: THREE.Object3D) {
-  return object.name.startsWith(NEMONIC_DEVICE_OBJECT_NAME_PREFIX)
+  let currentObject: THREE.Object3D | null = object
+
+  while (currentObject) {
+    if (
+      currentObject.name === NEMONIC_DEVICE_ROOT_OBJECT_NAME ||
+      currentObject.name.startsWith(NEMONIC_DEVICE_OBJECT_NAME_PREFIX)
+    ) {
+      return true
+    }
+
+    currentObject = currentObject.parent
+  }
+
+  return false
 }
 
 function RoomPreviewHubCameraRig() {

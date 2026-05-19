@@ -2,20 +2,23 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 import { useCanvasPauseStore } from '@/shared/stores'
 
-const BASE_FILL_DURATION_SECONDS = 8
+const BASE_FILL_DURATION_SECONDS = 5
 const BASE_FILL_DURATION_MS = BASE_FILL_DURATION_SECONDS * 1000
+const MINIMUM_VISIBLE_DURATION_MS = 800
+const READY_FINISH_DURATION_MS = 600
+const READY_FINISH_START_DELAY_MS = Math.max(
+  0,
+  MINIMUM_VISIBLE_DURATION_MS - READY_FINISH_DURATION_MS,
+)
 const PRE_CANVAS_READY_CAP_PERCENT = 92
 
-// Pop sequence after the bar hits 100%. Must stay in sync with the motion
-// transitions in HubLoadingOverlay.tsx (PERCENT_FADE_OUT + BAR_POP).
+// Percent text fades out after the bar hits 100%. Keep this in sync with the
+// motion transition in HubLoadingOverlay.tsx.
 export const PERCENT_FADE_OUT_DURATION_MS = 250
-export const BAR_POP_DURATION_MS = 500
-const POP_SEQUENCE_DURATION_MS =
-  PERCENT_FADE_OUT_DURATION_MS + BAR_POP_DURATION_MS
 
 export const HUB_ROOM_REVEAL_START_DELAY_MS = 260
 export const HUB_ROOM_REVEAL_DURATION_MS = 1700
-const HUB_LOADING_CACHE_FALLBACK_MS = 1500
+const HUB_LOADING_CACHE_FALLBACK_MS = MINIMUM_VISIBLE_DURATION_MS
 const HUB_ENTRY_CONFIRMED_STORAGE_KEY = 'play-nemonic:hub-entry-confirmed'
 
 function wait(durationMs: number) {
@@ -128,6 +131,8 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
 
     let cancelled = false
     let rafId = 0
+    const animationStartedAtMs = performance.now()
+    let hasStartedReadyFinish = false
     let lastStatusText = getHubLoadingStatusText(0)
     let lastWrittenPercent = -1
 
@@ -143,6 +148,28 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
         (currentTimeMs / BASE_FILL_DURATION_MS) * 100,
       )
       const target = targetProgressRef.current
+      const elapsedMs = performance.now() - animationStartedAtMs
+
+      if (
+        target >= 100 &&
+        !hasStartedReadyFinish &&
+        elapsedMs >= READY_FINISH_START_DELAY_MS
+      ) {
+        hasStartedReadyFinish = true
+
+        const remainingAnimationMs = Math.max(
+          BASE_FILL_DURATION_MS - currentTimeMs,
+          0,
+        )
+        const readyFinishPlaybackRate =
+          remainingAnimationMs > 0
+            ? remainingAnimationMs / READY_FINISH_DURATION_MS
+            : 1
+
+        fillAnimation.updatePlaybackRate(
+          Math.max(1, readyFinishPlaybackRate),
+        )
+      }
 
       // Play when bar is behind the loading target, pause when caught up.
       // No deadband — for target=100 we want the animation to run all the way
@@ -192,16 +219,15 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     }
   }, [])
 
-  // Ready phase fires after the pop sequence (text fade-out → bar glow pulse)
-  // completes. Sequencing here keeps the bar/button transition aligned with
-  // the motion transitions defined in HubLoadingOverlay.
+  // Ready phase fires after the percent text fade-out completes so the
+  // bar/button transition remains aligned with HubLoadingOverlay.
   useEffect(() => {
     if (!hasReachedFull || isReady) return
 
     let cancelled = false
 
     ;(async () => {
-      await wait(POP_SEQUENCE_DURATION_MS)
+      await wait(PERCENT_FADE_OUT_DURATION_MS)
       if (cancelled) return
 
       setIsReady(true)

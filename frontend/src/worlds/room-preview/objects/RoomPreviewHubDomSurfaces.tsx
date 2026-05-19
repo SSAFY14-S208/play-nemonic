@@ -20,7 +20,7 @@ const STAGE6_MONITOR_DOM_SCALE = 0.1429
 
 const STAGE6_WHITEBOARD_DOM_POSITION: [number, number, number] = [
   -0.648,
-  0.55529,
+  0.56229,
   -0.10868,
 ]
 
