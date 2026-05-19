@@ -1,6 +1,11 @@
+import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 import { FORTUNE_SOUND_PATHS } from '../constants'
 
 export function useFortuneAudio() {
+  const preloadPrintStart = () => {
+    preloadBrowserAudio(FORTUNE_SOUND_PATHS.print, 0.36)
+  }
+
   const playPrintStart = () => {
     playSound(FORTUNE_SOUND_PATHS.print, 0.36)
   }
@@ -14,6 +19,7 @@ export function useFortuneAudio() {
   }
 
   return {
+    preloadPrintStart,
     playPrintStart,
     playPrintComplete,
     playTap,
@@ -25,7 +31,5 @@ function playSound(path: string, volume: number) {
     return
   }
 
-  const audio = new Audio(path)
-  audio.volume = volume
-  void audio.play().catch(() => undefined)
+  playBrowserAudio(path, volume)
 }

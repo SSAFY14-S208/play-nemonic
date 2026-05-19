@@ -14,6 +14,7 @@ export const FORTUNE_EMPTY_BIRTH_INFO: FortuneBirthInfo = {
 }
 
 export const FORTUNE_PRINT_DURATION_SECONDS = 4.2
+export const FORTUNE_PRINT_SOUND_VIDEO_TIME_SECONDS = 5.25
 export const FORTUNE_REDUCED_MOTION_DURATION_SECONDS = 0.9
 export const FORTUNE_PRINT_FALLBACK_TIMEOUT_SECONDS = 14
 export const FORTUNE_PRINT_VIDEO_PATH = '/videos/fortune/printing-aura.mp4'

@@ -64,7 +64,8 @@ export default function FortunePage() {
       hasHydrated: state.hasHydrated,
     })),
   );
-  const { playPrintComplete, playPrintStart, playTap } = useFortuneAudio();
+  const { playPrintComplete, playPrintStart, playTap, preloadPrintStart } =
+    useFortuneAudio();
   const { isBgmMuted, toggleFortuneBgmMuted } = useFortuneBgm();
   const prefersReducedMotion = useFortuneReducedMotion();
 
@@ -85,7 +86,7 @@ export default function FortunePage() {
   };
 
   const handleStartPrinting = () => {
-    playPrintStart();
+    preloadPrintStart();
     void startPrinting();
   };
 
@@ -177,6 +178,7 @@ export default function FortunePage() {
       <FortuneVisual
         playEntrySpotlight={shouldPrepareEntrySpotlight}
         onEntrySceneReady={handleEntrySceneReady}
+        onPrintStart={playPrintStart}
         onPrintComplete={handlePrintComplete}
       />
       <section
