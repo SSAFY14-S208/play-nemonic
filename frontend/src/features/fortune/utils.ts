@@ -374,11 +374,11 @@ export async function createFortuneCommunityImageDataUrl(result: FortuneResult) 
   context.fillText(formatFortuneDate(result.issuedDateKey), FORTUNE_TEMPLATE_WIDTH / 2, 82)
 
   context.font = fortuneTemplateCanvasFont(39)
-  drawCenteredWrappedCanvasText(context, result.title, FORTUNE_TEMPLATE_WIDTH / 2, 218, 520, 50, 2)
+  drawCenteredWrappedCanvasText(context, result.title, FORTUNE_TEMPLATE_WIDTH / 2, 245, 520, 50, 2)
 
   context.fillStyle = '#4b3823'
   context.font = fortuneTemplateCanvasFont(21)
-  drawCenteredWrappedCanvasText(context, result.postitLine, FORTUNE_TEMPLATE_WIDTH / 2, 368, 540, 30, 2)
+  drawCenteredWrappedCanvasText(context, result.postitLine, FORTUNE_TEMPLATE_WIDTH / 2, 376, 540, 30, 2)
 
   const scorePositions = [
     { key: 'love', x: 141, color: '#ff5f95' },
@@ -390,7 +390,7 @@ export async function createFortuneCommunityImageDataUrl(result: FortuneResult) 
   context.font = fortuneTemplateCanvasFont(36)
   scorePositions.forEach((scorePosition) => {
     context.fillStyle = scorePosition.color
-    context.fillText(String(result.scores[scorePosition.key]), scorePosition.x, 584)
+    context.fillText(String(result.scores[scorePosition.key]), scorePosition.x, 604)
   })
 
   context.fillStyle = '#15110a'
