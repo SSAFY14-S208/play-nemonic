@@ -235,6 +235,7 @@ function setDocumentCursor(cursor: string) {
 }
 
 function MonitorTextureWarmupContent() {
+  const gl = useThree((state) => state.gl)
   const invalidate = useThree((state) => state.invalidate)
   const textureList = useTexture(
     MONITOR_TEXTURE_URLS,
@@ -242,9 +243,12 @@ function MonitorTextureWarmupContent() {
   ) as THREE.Texture[]
 
   useEffect(() => {
-    textureList.forEach(configureMonitorTexture)
+    textureList.forEach((texture) => {
+      configureMonitorTexture(texture)
+      gl.initTexture(texture)
+    })
     invalidate()
-  }, [invalidate, textureList])
+  }, [gl, invalidate, textureList])
 
   return null
 }

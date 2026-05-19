@@ -18,8 +18,14 @@ function normalizeGameIndex(gameIndex: number) {
 export const useHubGameStore = create<HubGameStore>((set) => ({
   selectedGameIndex: 0,
   selectGame: (gameIndex) => {
-    trackHubStoreUpdate('hubGameStore', 'selectGame')
-    set({ selectedGameIndex: normalizeGameIndex(gameIndex) })
+    const nextGameIndex = normalizeGameIndex(gameIndex)
+
+    set((state) => {
+      if (state.selectedGameIndex === nextGameIndex) return state
+
+      trackHubStoreUpdate('hubGameStore', 'selectGame')
+      return { selectedGameIndex: nextGameIndex }
+    })
   },
   selectNextGame: () => {
     trackHubStoreUpdate('hubGameStore', 'selectNextGame')

@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import Image from 'next/image'
 import { motion } from 'motion/react'
 import { cn } from '@/shared/libs'
@@ -22,10 +22,12 @@ const BAR_BASE_SHADOW = 'inset 0 1px 4px rgb(91 72 118 / 12%)'
 
 const PERCENT_FADE_OUT_DURATION_SECONDS = PERCENT_FADE_OUT_DURATION_MS / 1000
 
-export default function HubLoadingOverlay({
+function HubLoadingOverlayContent({
   isCanvasReady,
+  onHidden,
 }: {
   isCanvasReady: boolean
+  onHidden: () => void
 }) {
   const {
     barFillRef,
@@ -40,6 +42,25 @@ export default function HubLoadingOverlay({
     statusText,
     subtitleText,
   } = useHubLoadingOverlay(isCanvasReady)
+
+  useEffect(() => {
+    if (isVisible) return
+
+    let cancelled = false
+
+    ;(async () => {
+      await Promise.resolve()
+      if (!cancelled) {
+        onHidden()
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isVisible, onHidden])
+
+  if (!isVisible) return null
 
   return (
     <div
@@ -157,5 +178,25 @@ export default function HubLoadingOverlay({
         </motion.div>
       )}
     </div>
+  )
+}
+
+export default function HubLoadingOverlay({
+  isCanvasReady,
+}: {
+  isCanvasReady: boolean
+}) {
+  const [shouldRenderOverlay, setShouldRenderOverlay] = useState(true)
+  const handleHidden = useCallback(() => {
+    setShouldRenderOverlay(false)
+  }, [])
+
+  if (!shouldRenderOverlay) return null
+
+  return (
+    <HubLoadingOverlayContent
+      isCanvasReady={isCanvasReady}
+      onHidden={handleHidden}
+    />
   )
 }

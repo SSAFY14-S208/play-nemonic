@@ -1,5 +1,4 @@
 import { useGLTF } from '@react-three/drei'
-import type { ThreeEvent } from '@react-three/fiber'
 import { type ReactNode, useMemo } from 'react'
 import * as THREE from 'three'
 import {
@@ -113,14 +112,8 @@ type RoomPreviewModelChildren =
 
 export default function RoomPreviewModel({
   children,
-  onClick,
-  onPointerOut,
-  onPointerOver,
 }: {
   children?: RoomPreviewModelChildren
-  onClick?: (event: ThreeEvent<MouseEvent>) => void
-  onPointerOut?: (event: ThreeEvent<PointerEvent>) => void
-  onPointerOver?: (event: ThreeEvent<PointerEvent>) => void
 }) {
   const { scene } = useGLTF(ROOM_PREVIEW_MODEL_PATH)
 
@@ -140,13 +133,7 @@ export default function RoomPreviewModel({
   }, [scene])
 
   return (
-    <group
-      position={ROOM_PREVIEW_MODEL_OFFSET}
-      scale={ROOM_PREVIEW_SCALE}
-      onClick={onClick}
-      onPointerOut={onPointerOut}
-      onPointerOver={onPointerOver}
-    >
+    <group position={ROOM_PREVIEW_MODEL_OFFSET} scale={ROOM_PREVIEW_SCALE}>
       <primitive object={configuredScene} />
       {typeof children === 'function' ? children(configuredScene) : children}
     </group>
