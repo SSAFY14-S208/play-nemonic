@@ -1,12 +1,14 @@
 'use client'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { X } from 'lucide-react'
+import { ChevronDown, ChevronRight, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { postAdminLogsHistogram, postAdminLogsSearch } from '@/shared/apis'
+import { cn } from '@/shared/libs'
 import type {
   AdminLogsHistogramResponse,
+  AdminLogsSearchHit,
   AdminLogsSearchResponse,
   AdminLogsTimeRange,
 } from '@/shared/types'
@@ -174,21 +176,9 @@ export function DrillDownPanel({ state, timeRange, serviceQuery, onClose }: Prop
                     </h3>
                     {search && search.hits.length > 0 ? (
                       <ul className="flex flex-col gap-2">
-                        {search.hits.map((hit) => {
-                          const eventName = String(hit.source.event_name ?? '—')
-                          const timestamp = String(hit.source['@timestamp'] ?? '')
-                          return (
-                            <li
-                              key={hit.id}
-                              className="rounded-[var(--radius-md)] border border-border-default bg-surface-subtle p-2"
-                            >
-                              <p className="caption-b text-fg-primary">{eventName}</p>
-                              <p className="caption-r text-fg-disabled">
-                                {timestamp ? formatBucketTime(timestamp) : '—'}
-                              </p>
-                            </li>
-                          )
-                        })}
+                        {search.hits.map((hit) => (
+                          <DrillDownEventCard key={hit.id} hit={hit} />
+                        ))}
                       </ul>
                     ) : (
                       <p className="caption-r text-fg-disabled">데이터 없음</p>
@@ -202,4 +192,76 @@ export function DrillDownPanel({ state, timeRange, serviceQuery, onClose }: Prop
       )}
     </AnimatePresence>
   )
+}
+
+// 드릴다운 패널 안의 단일 이벤트 카드.
+// 기본 한 줄: event_name + 시각 + 보조 라인(path, referrer, entry_type 등 주요 필드를 자동 추출).
+// 카드 클릭 시 전체 hit.source JSON pre가 펼쳐져 운영자가 raw 페이로드를 즉시 확인 가능.
+function DrillDownEventCard({ hit }: { hit: AdminLogsSearchHit }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const source = hit.source
+  const eventName = String(source.event_name ?? '—')
+  const timestamp = String(source['@timestamp'] ?? '')
+  const path = typeof source.path === 'string' ? source.path : null
+  const referrer = typeof source.referrer === 'string' ? source.referrer : null
+  const metadata =
+    source.metadata && typeof source.metadata === 'object'
+      ? (source.metadata as Record<string, unknown>)
+      : null
+  const entryType =
+    metadata && typeof metadata.entry_type === 'string'
+      ? (metadata.entry_type as string)
+      : null
+
+  const summaryLines: Array<{ label: string; value: string }> = []
+  if (entryType) summaryLines.push({ label: 'entry_type', value: entryType })
+  if (path) summaryLines.push({ label: 'path', value: path })
+  if (referrer) summaryLines.push({ label: 'referrer', value: referrer })
+
+  return (
+    <li className="rounded-[var(--radius-md)] border border-border-default bg-surface-subtle">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="flex w-full items-start gap-2 p-2 text-left transition-colors hover:bg-surface-default"
+      >
+        {isExpanded ? (
+          <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 text-fg-secondary" />
+        ) : (
+          <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-fg-secondary" />
+        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="caption-b text-fg-primary">{eventName}</p>
+          <p className="caption-r text-fg-disabled">
+            {timestamp ? formatBucketTime(timestamp) : '—'}
+          </p>
+          {summaryLines.map((line) => (
+            <p
+              key={line.label}
+              className={cn(
+                'caption-r truncate font-mono text-fg-secondary',
+                line.label === 'referrer' && 'text-fg-primary',
+              )}
+              title={line.value}
+            >
+              <span className="text-fg-disabled">{line.label}:</span> {line.value}
+            </p>
+          ))}
+        </div>
+      </button>
+      {isExpanded && (
+        <pre className="caption-r overflow-x-auto border-t border-border-default bg-surface-default px-3 py-2 font-mono text-fg-primary">
+          {safeStringify(source)}
+        </pre>
+      )}
+    </li>
+  )
+}
+
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
 }
