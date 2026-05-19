@@ -257,7 +257,7 @@ export default function RoomPreviewScene({
       >
         {(modelScene) => (
           <>
-            <RoomPreviewBlenderLights />
+            <RoomPreviewBlenderLights enableGameLighting={isHubVariant} />
             {isHubVariant && !isLightDebugEnabled && (
               <Suspense fallback={null}>
                 <RoomPreviewHubDomSurfaces scene={modelScene} />

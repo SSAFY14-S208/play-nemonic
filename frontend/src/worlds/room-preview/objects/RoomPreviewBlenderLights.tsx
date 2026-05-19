@@ -1,6 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
+import { HUB_GAMES } from '@/shared/constants'
+import { useHubGameStore } from '@/shared/stores'
 import { ROOM_PREVIEW_SCALE } from '../constants'
 import {
   type RoomPreviewLightDebugVector3,
@@ -45,6 +48,27 @@ const INDIRECT_LIGHT_WHITE_MIX = 0.68
 const POINT_LIGHT_DISTANCE = 4.2
 const POINT_LIGHT_INTENSITY_SCALE = 0.2
 const ZERO_VECTOR3: RoomPreviewLightDebugVector3 = [0, 0, 0]
+const GAME_LIGHT_COLOR_TRANSITION_SPEED = 4.8
+const GAME_LIGHT_COLOR_SETTLE_DISTANCE = 0.0025
+const DEFAULT_HUB_GAME_LIGHTING_COLOR = '#a281d0'
+
+const GAME_LIGHT_DIRECT_TINT_STRENGTH: Record<string, number> = {
+  'Monitor Backlight': 1,
+  'Table Backlight': 0.78,
+  'Cube Shelf Backlight': 0.68,
+  'Cube TopShelf Bottom light': 0.58,
+  'Top Room Light': 0.24,
+}
+
+const GAME_LIGHT_SPILL_TINT_STRENGTH: Record<string, number> = {
+  'Monitor Backlight': 0.92,
+  'Table Backlight': 0.6,
+  'Cube Shelf Backlight': 0.48,
+  'Cube TopShelf Bottom light': 0.4,
+  'Top Room Light': 0.18,
+}
+
+const GAME_POINT_LIGHT_TINT_STRENGTH = 0.42
 
 export const ROOM_PREVIEW_BLENDER_AREA_LIGHTS: RoomPreviewBlenderAreaLight[] = [
   {
@@ -197,6 +221,57 @@ function clampHelperPlaneSize(value: number) {
   return Math.min(Math.max(value, 0.08), 0.9)
 }
 
+function getHubGameLightingColor(selectedGameIndex: number) {
+  const selectedGame = HUB_GAMES[selectedGameIndex] ?? HUB_GAMES[0]
+
+  return selectedGame?.lightingColor ?? DEFAULT_HUB_GAME_LIGHTING_COLOR
+}
+
+function getGameTintedLightColor(
+  baseColor: THREE.Color,
+  gameLightingColor: string | null,
+  tintStrength: number,
+) {
+  if (!gameLightingColor || tintStrength <= 0) return baseColor.clone()
+
+  return baseColor.clone().lerp(new THREE.Color(gameLightingColor), tintStrength)
+}
+
+function getColorDistance(firstColor: THREE.Color, secondColor: THREE.Color) {
+  const redDistance = firstColor.r - secondColor.r
+  const greenDistance = firstColor.g - secondColor.g
+  const blueDistance = firstColor.b - secondColor.b
+
+  return Math.sqrt(
+    redDistance * redDistance +
+      greenDistance * greenDistance +
+      blueDistance * blueDistance,
+  )
+}
+
+function advanceAnimatedLightColor(
+  currentColor: THREE.Color,
+  targetColor: THREE.Color,
+  delta: number,
+) {
+  if (
+    getColorDistance(currentColor, targetColor) <=
+    GAME_LIGHT_COLOR_SETTLE_DISTANCE
+  ) {
+    currentColor.copy(targetColor)
+    return false
+  }
+
+  const transitionProgress =
+    1 - Math.exp(-GAME_LIGHT_COLOR_TRANSITION_SPEED * delta)
+  currentColor.lerp(targetColor, transitionProgress)
+
+  return (
+    getColorDistance(currentColor, targetColor) >
+    GAME_LIGHT_COLOR_SETTLE_DISTANCE
+  )
+}
+
 function useLightDebugRuntime(
   lightName: string,
   defaultEnabled: boolean,
@@ -333,10 +408,15 @@ function BlenderLightDebugHelper({
 }
 
 function BlenderAreaLightMesh({
+  gameLightingColor,
   light,
 }: {
+  gameLightingColor: string | null
   light: RoomPreviewBlenderAreaLight
 }) {
+  const directLightRef = useRef<THREE.RectAreaLight>(null)
+  const spillLightRef = useRef<THREE.PointLight>(null)
+  const invalidate = useThree((state) => state.invalidate)
   const debugRuntime = useLightDebugRuntime(
     light.name,
     !light.hideRender,
@@ -348,15 +428,27 @@ function BlenderAreaLightMesh({
     light.defaultWidthMultiplier,
     light.defaultHeightMultiplier,
   )
-  const color = useMemo(() => new THREE.Color(...light.color), [light.color])
-  const indirectColor = useMemo(
+  const baseColor = useMemo(() => new THREE.Color(...light.color), [light.color])
+  const directTargetColor = useMemo(
     () =>
-      new THREE.Color(...light.color).lerp(
-        new THREE.Color(1, 1, 1),
-        INDIRECT_LIGHT_WHITE_MIX,
+      getGameTintedLightColor(
+        baseColor,
+        gameLightingColor,
+        GAME_LIGHT_DIRECT_TINT_STRENGTH[light.name] ?? 0,
       ),
-    [light.color],
+    [baseColor, gameLightingColor, light.name],
   )
+  const spillTargetColor = useMemo(
+    () =>
+      getGameTintedLightColor(
+        baseColor,
+        gameLightingColor,
+        GAME_LIGHT_SPILL_TINT_STRENGTH[light.name] ?? 0,
+      ).lerp(new THREE.Color(1, 1, 1), INDIRECT_LIGHT_WHITE_MIX),
+    [baseColor, gameLightingColor, light.name],
+  )
+  const directAnimatedColorRef = useRef(directTargetColor.clone())
+  const spillAnimatedColorRef = useRef(spillTargetColor.clone())
   const adjustedBlenderPosition = useMemo(
     () => addVector3(light.position, debugRuntime.positionOffset),
     [debugRuntime.positionOffset, light.position],
@@ -406,6 +498,30 @@ function BlenderAreaLightMesh({
     AREA_LIGHT_DIRECT_INTENSITY_SCALE *
     debugRuntime.areaDirectMultiplier
 
+  useEffect(() => {
+    invalidate()
+  }, [directTargetColor, invalidate, spillTargetColor])
+
+  useFrame((_, delta) => {
+    const shouldContinueDirectTransition = advanceAnimatedLightColor(
+      directAnimatedColorRef.current,
+      directTargetColor,
+      delta,
+    )
+    const shouldContinueSpillTransition = advanceAnimatedLightColor(
+      spillAnimatedColorRef.current,
+      spillTargetColor,
+      delta,
+    )
+
+    directLightRef.current?.color.copy(directAnimatedColorRef.current)
+    spillLightRef.current?.color.copy(spillAnimatedColorRef.current)
+
+    if (shouldContinueDirectTransition || shouldContinueSpillTransition) {
+      invalidate()
+    }
+  })
+
   return (
     <>
       {debugRuntime.showHelpers && (
@@ -421,7 +537,8 @@ function BlenderAreaLightMesh({
       {debugRuntime.isLightVisible && (
         <>
           <rectAreaLight
-            color={color}
+            ref={directLightRef}
+            color={directTargetColor}
             height={height}
             intensity={directIntensity}
             name={light.name}
@@ -432,7 +549,8 @@ function BlenderAreaLightMesh({
           />
           {spillIntensity > 0 && (
             <pointLight
-              color={indirectColor}
+              ref={spillLightRef}
+              color={spillTargetColor}
               decay={2}
               distance={spillDistance}
               intensity={spillIntensity}
@@ -447,10 +565,14 @@ function BlenderAreaLightMesh({
 }
 
 function BlenderPointLightMesh({
+  gameLightingColor,
   light,
 }: {
+  gameLightingColor: string | null
   light: RoomPreviewBlenderPointLight
 }) {
+  const pointLightRef = useRef<THREE.PointLight>(null)
+  const invalidate = useThree((state) => state.invalidate)
   const debugRuntime = useLightDebugRuntime(
     light.name,
     !light.hideRender,
@@ -463,7 +585,17 @@ function BlenderPointLightMesh({
     1,
     light.defaultPointRangeMultiplier,
   )
-  const color = useMemo(() => new THREE.Color(...light.color), [light.color])
+  const baseColor = useMemo(() => new THREE.Color(...light.color), [light.color])
+  const targetColor = useMemo(
+    () =>
+      getGameTintedLightColor(
+        baseColor,
+        gameLightingColor,
+        GAME_POINT_LIGHT_TINT_STRENGTH,
+      ),
+    [baseColor, gameLightingColor],
+  )
+  const animatedColorRef = useRef(targetColor.clone())
   const adjustedBlenderPosition = useMemo(
     () => addVector3(light.position, debugRuntime.positionOffset),
     [debugRuntime.positionOffset, light.position],
@@ -472,6 +604,24 @@ function BlenderPointLightMesh({
     () => toGltfPosition(adjustedBlenderPosition),
     [adjustedBlenderPosition],
   )
+
+  useEffect(() => {
+    invalidate()
+  }, [invalidate, targetColor])
+
+  useFrame((_, delta) => {
+    const shouldContinueTransition = advanceAnimatedLightColor(
+      animatedColorRef.current,
+      targetColor,
+      delta,
+    )
+
+    pointLightRef.current?.color.copy(animatedColorRef.current)
+
+    if (shouldContinueTransition) {
+      invalidate()
+    }
+  })
 
   return (
     <>
@@ -485,7 +635,8 @@ function BlenderPointLightMesh({
       )}
       {debugRuntime.isLightVisible && (
         <pointLight
-          color={color}
+          ref={pointLightRef}
+          color={targetColor}
           decay={2}
           distance={POINT_LIGHT_DISTANCE * debugRuntime.pointRangeMultiplier}
           intensity={
@@ -501,7 +652,16 @@ function BlenderPointLightMesh({
   )
 }
 
-export default function RoomPreviewBlenderLights() {
+export default function RoomPreviewBlenderLights({
+  enableGameLighting = false,
+}: {
+  enableGameLighting?: boolean
+}) {
+  const selectedGameIndex = useHubGameStore((state) => state.selectedGameIndex)
+  const selectedGameLightingColor = enableGameLighting
+    ? getHubGameLightingColor(selectedGameIndex)
+    : null
+
   useEffect(() => {
     RectAreaLightUniformsLib.init()
   }, [])
@@ -511,12 +671,14 @@ export default function RoomPreviewBlenderLights() {
       {ROOM_PREVIEW_BLENDER_AREA_LIGHTS.map((light) => (
         <BlenderAreaLightMesh
           key={light.name}
+          gameLightingColor={selectedGameLightingColor}
           light={light}
         />
       ))}
       {ROOM_PREVIEW_BLENDER_POINT_LIGHTS.map((light) => (
         <BlenderPointLightMesh
           key={light.name}
+          gameLightingColor={selectedGameLightingColor}
           light={light}
         />
       ))}

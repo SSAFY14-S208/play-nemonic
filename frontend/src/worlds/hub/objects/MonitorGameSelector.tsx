@@ -355,14 +355,14 @@ function MonitorHotspot({
 }
 
 function AnimatedStartButton({
-  accentColor,
   entranceProgressRef,
+  glowColor,
   label,
   onClick,
   texture,
 }: {
-  accentColor: string
   entranceProgressRef?: MonitorEntranceProgressRef
+  glowColor: string
   label: string
   onClick: () => void
   texture: THREE.Texture
@@ -394,7 +394,7 @@ function AnimatedStartButton({
           ref={glowMaterialRef}
           alphaTest={0.02}
           blending={THREE.AdditiveBlending}
-          color={accentColor}
+          color={glowColor}
           depthWrite={false}
           map={texture}
           opacity={0}
@@ -483,15 +483,15 @@ function MonitorGameScreen({
 }
 
 function AnimatedMonitorGameContent({
-  accentColor,
   gameTitle,
+  glowColor,
   onStartGame,
   selectedAsset,
   selectedGameIndex,
   textures,
 }: {
-  accentColor: string
   gameTitle: string
+  glowColor: string
   onStartGame: () => void
   selectedAsset: MonitorScreenAsset
   selectedGameIndex: number
@@ -519,8 +519,8 @@ function AnimatedMonitorGameContent({
           textures={textures}
         />
         <AnimatedStartButton
-          accentColor={accentColor}
           entranceProgressRef={buttonEntranceProgressRef}
+          glowColor={glowColor}
           label={`${gameTitle} 시작`}
           onClick={onStartGame}
           texture={textures[selectedAsset.startButton]}
@@ -577,7 +577,7 @@ export default function MonitorGameSelector({
         <planeGeometry args={HUB_MONITOR_SCREEN_SIZE} />
         <meshStandardMaterial
           color="#17142b"
-          emissive={selectedGame.accentColor}
+          emissive={selectedGame.lightingColor}
           emissiveIntensity={0.42}
           roughness={0.32}
           toneMapped={false}
@@ -585,8 +585,8 @@ export default function MonitorGameSelector({
       </mesh>
 
       <AnimatedMonitorGameContent
-        accentColor={selectedGame.accentColor}
         gameTitle={selectedGame.title}
+        glowColor={selectedGame.lightingColor}
         onStartGame={startSelectedGame}
         selectedAsset={selectedAsset}
         selectedGameIndex={selectedGameIndex}
