@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
 } from 'react'
 import Image from 'next/image'
 import { RotateCw, X } from 'lucide-react'
@@ -100,9 +101,7 @@ type ExitingMemo = {
 type WallPanState = {
   pointerId: number
   startX: number
-  startY: number
   scrollLeft: number
-  scrollTop: number
 }
 
 type MemoTapState = {
@@ -120,6 +119,21 @@ type EditableDetailTapState = {
 function normalizeRotation(rotationDeg: number) {
   const normalized = ((((rotationDeg + 180) % 360) + 360) % 360) - 180
   return Math.round(normalized * 10) / 10
+}
+
+function getCenteredScrollOffset(scrollSize: number, clientSize: number) {
+  return Math.max(0, (scrollSize - clientSize) / 2)
+}
+
+function lockWallVerticalScroll(visibleArea: HTMLElement) {
+  const lockedScrollTop = getCenteredScrollOffset(
+    visibleArea.scrollHeight,
+    visibleArea.clientHeight,
+  )
+
+  if (Math.abs(visibleArea.scrollTop - lockedScrollTop) > BOUNDARY_EPSILON) {
+    visibleArea.scrollTop = lockedScrollTop
+  }
 }
 
 function getRotationFromPoint(point: WallPoint, layout: CommunityMemoLayoutDraft) {
@@ -331,13 +345,18 @@ export function CommunityWall({
 
   useEffect(() => {
     const visibleArea = visibleAreaRef.current
-    if (!visibleArea || hasCenteredWallScrollRef.current) return
+    if (!visibleArea) return
     if (viewportSize.width <= 0 || viewportSize.height <= 0) return
 
     const frameId = window.requestAnimationFrame(() => {
-      visibleArea.scrollLeft = Math.max(0, (visibleArea.scrollWidth - visibleArea.clientWidth) / 2)
-      visibleArea.scrollTop = Math.max(0, (visibleArea.scrollHeight - visibleArea.clientHeight) / 2)
-      hasCenteredWallScrollRef.current = true
+      if (!hasCenteredWallScrollRef.current) {
+        visibleArea.scrollLeft = getCenteredScrollOffset(
+          visibleArea.scrollWidth,
+          visibleArea.clientWidth,
+        )
+        hasCenteredWallScrollRef.current = true
+      }
+      lockWallVerticalScroll(visibleArea)
     })
 
     return () => window.cancelAnimationFrame(frameId)
@@ -894,9 +913,7 @@ export function CommunityWall({
     panStateRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
-      startY: event.clientY,
       scrollLeft: visibleArea.scrollLeft,
-      scrollTop: visibleArea.scrollTop,
     }
     visibleArea.setPointerCapture(event.pointerId)
   }
@@ -907,13 +924,35 @@ export function CommunityWall({
     if (!panState || !visibleArea || panState.pointerId !== event.pointerId) return
 
     visibleArea.scrollLeft = panState.scrollLeft - (event.clientX - panState.startX)
-    visibleArea.scrollTop = panState.scrollTop - (event.clientY - panState.startY)
+    lockWallVerticalScroll(visibleArea)
   }
 
   const handleWallViewportPointerEnd = (event: ReactPointerEvent<HTMLElement>) => {
     if (panStateRef.current?.pointerId === event.pointerId) {
       panStateRef.current = null
     }
+  }
+
+  const handleWallViewportWheel = (event: ReactWheelEvent<HTMLElement>) => {
+    if (event.ctrlKey) return
+
+    const visibleArea = visibleAreaRef.current
+    if (!visibleArea) return
+
+    const horizontalDelta =
+      Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
+    if (horizontalDelta === 0) return
+
+    event.preventDefault()
+    visibleArea.scrollLeft += horizontalDelta
+    lockWallVerticalScroll(visibleArea)
+  }
+
+  const handleWallViewportScroll = () => {
+    const visibleArea = visibleAreaRef.current
+    if (!visibleArea) return
+
+    lockWallVerticalScroll(visibleArea)
   }
 
   const scaledWallWidth = WALL_WIDTH * wallScale
@@ -932,9 +971,11 @@ export function CommunityWall({
       onPointerMove={handleWallViewportPointerMove}
       onPointerUp={handleWallViewportPointerEnd}
       onPointerCancel={handleWallViewportPointerEnd}
+      onWheel={handleWallViewportWheel}
+      onScroll={handleWallViewportScroll}
       className={cn(
-        'absolute inset-0 z-0 overflow-auto overscroll-contain bg-surface-default [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-        !isWallManipulating && 'cursor-grab active:cursor-grabbing',
+        'absolute inset-0 z-0 overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none bg-surface-default [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        !isWallManipulating && 'cursor-grab active:cursor-grabbing [touch-action:pan-x]',
         isWallManipulating && 'touch-none',
       )}
     >
@@ -976,7 +1017,9 @@ export function CommunityWall({
           unoptimized
           sizes={`${WALL_WIDTH}px`}
           aria-hidden="true"
-          className="pointer-events-none z-0 select-none object-cover"
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
+          className="pointer-events-none z-0 select-none object-cover [-webkit-user-drag:none]"
         />
 
         <div
