@@ -2,7 +2,7 @@
 
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement, RefObject } from 'react'
-import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path } from 'react-konva'
+import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path, Group } from 'react-konva'
 import Konva from 'konva'
 
 import { INFINITY_LINE_TENSION } from '../constants'
@@ -83,6 +83,8 @@ interface PartitionedInfinityObjects {
 const REMOTE_CURSOR_SMOOTHING = 0.28
 const REMOTE_CURSOR_SETTLE_DISTANCE = 0.35
 const REMOTE_CURSOR_PATH = 'M0 0 L0 22 L6 16 L10 26 L14 24 L10 15 L19 15 Z'
+const REMOTE_CURSOR_LABEL_OFFSET = { x: 18, y: 24 } as const
+const LOCK_LABEL_OFFSET = { x: -8, y: -34 } as const
 export const INFINITY_CANVAS_BACKGROUND_LAYER_ID = 'infinity-canvas-background-layer'
 const ImperativeEllipse = Ellipse as unknown as (props: {
   ref: RefObject<Konva.Ellipse | null>
@@ -422,19 +424,31 @@ function resetNodeScale(node: Konva.Node) {
   node.scale({ x: 1, y: 1 });
 }
 
+function getOverlayScale(scale: number) {
+  return scale > 0 ? 1 / scale : 1;
+}
+
 const RemoteCursorLayer = memo(function RemoteCursorLayer({
   remoteCursors,
+  scale,
 }: {
   remoteCursors: InfinityRemoteCursorView[]
+  scale: number
 }) {
   const smoothRemoteCursors = useSmoothRemoteCursors(remoteCursors);
+  const overlayScale = getOverlayScale(scale);
 
   const renderRemoteCursor = (cursor: SmoothRemoteCursorView) => {
     return (
-      <Fragment key={cursor.userUuid}>
+      <Group
+        key={cursor.userUuid}
+        x={cursor.x}
+        y={cursor.y}
+        scaleX={overlayScale}
+        scaleY={overlayScale}
+        listening={false}
+      >
         <Path
-          x={cursor.x}
-          y={cursor.y}
           data={REMOTE_CURSOR_PATH}
           fill={cursor.color}
           shadowColor="rgba(45,58,85,0.2)"
@@ -443,13 +457,15 @@ const RemoteCursorLayer = memo(function RemoteCursorLayer({
           listening={false}
         />
         <Circle
-          x={cursor.x}
-          y={cursor.y}
           radius={4}
           fill="#ffffff"
           listening={false}
         />
-        <Label x={cursor.x + 18} y={cursor.y + 24} listening={false}>
+        <Label
+          x={REMOTE_CURSOR_LABEL_OFFSET.x}
+          y={REMOTE_CURSOR_LABEL_OFFSET.y}
+          listening={false}
+        >
           <Tag
             fill={cursor.color}
             cornerRadius={10}
@@ -465,7 +481,7 @@ const RemoteCursorLayer = memo(function RemoteCursorLayer({
             padding={8}
           />
         </Label>
-      </Fragment>
+      </Group>
     );
   };
 
@@ -498,7 +514,7 @@ export function InfinityCanvasStage({
     selectedIds,
     tool,
     textEditor,
-    viewport: { scaleRef, stagePosRef, setPointerPanning },
+    viewport: { scale, scaleRef, stagePosRef, setPointerPanning },
     handlers: {
       onStageMouseDown,
       onStageMouseMove,
@@ -1096,9 +1112,16 @@ export function InfinityCanvasStage({
 
   const renderGroupedLockOverlay = (lock: (typeof groupedLockedElements)[number]) => {
     const bounds = lock.bounds;
+    const overlayScale = getOverlayScale(scale);
     return (
       <Fragment key={lock.userUuid}>
-        <Label x={bounds.x - 8} y={bounds.y - 34} listening={false}>
+        <Label
+          x={bounds.x + LOCK_LABEL_OFFSET.x * overlayScale}
+          y={bounds.y + LOCK_LABEL_OFFSET.y * overlayScale}
+          scaleX={overlayScale}
+          scaleY={overlayScale}
+          listening={false}
+        >
           <Tag fill={lock.color} cornerRadius={10} />
           <Text
             text={`${lock.nickname} 편집 중`}
@@ -1289,9 +1312,9 @@ export function InfinityCanvasStage({
           dash={[6, 4]}
         />
         <SelectionBox boxRef={selectionBoxRef} />
-        <CursorPreview cursorRef={cursorPreviewRef} />
+        <CursorPreview cursorRef={cursorPreviewRef} scale={scale} />
         {groupedLockedElements.map(renderGroupedLockOverlay)}
-        <RemoteCursorLayer remoteCursors={remoteCursors} />
+        <RemoteCursorLayer remoteCursors={remoteCursors} scale={scale} />
       </Layer>
     </Stage>
   );

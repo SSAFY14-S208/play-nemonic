@@ -580,6 +580,7 @@ export function useInfinityDrawing(
     commitTextEditor,
 
     viewport: {
+      scale: viewport.scale,
       scaleRef: viewport.scaleRef,
       stagePosRef: viewport.stagePosRef,
       centerInitialViewport: viewport.centerInitialViewport,
