@@ -184,7 +184,7 @@ export function useFlipbookResultActions({
     } finally {
       setIsSavingToLocal(false)
     }
-  }, [activeResult?.artifactId, isSavingToLocal, ownerName, resultImageUrl])
+  }, [activeResult, isSavingToLocal, ownerName, resultImageUrl])
 
   const postToCommunity = useCallback(() => {
     if (!activeResult || !communityImageUrl) {
