@@ -53,6 +53,9 @@ const FORTUNE_DIRECTION_ARROW_PATH = '/images/fortune/templates/arrow.png'
 const FORTUNE_TEMPLATE_WIDTH = 771
 const FORTUNE_TEMPLATE_HEIGHT = 895
 const FORTUNE_TEMPLATE_FONT_FAMILY = 'GangwonEduModu'
+const FORTUNE_TEMPLATE_FONT_PATH = '/fonts/fortune/GangwonEduModu-Bold-Web.ttf'
+
+let fortuneTemplateFontLoadPromise: Promise<void> | null = null
 
 export function getKoreanDateKey(date = new Date()) {
   const dateParts = new Intl.DateTimeFormat('en-CA', {
@@ -436,7 +439,24 @@ async function loadFortuneTemplateFont() {
     return
   }
 
-  await document.fonts.load(`700 44px "${FORTUNE_TEMPLATE_FONT_FAMILY}"`).catch(() => undefined)
+  if (!fortuneTemplateFontLoadPromise) {
+    fortuneTemplateFontLoadPromise = (async () => {
+      if (typeof FontFace === 'function') {
+        const templateFont = new FontFace(
+          FORTUNE_TEMPLATE_FONT_FAMILY,
+          `url("${FORTUNE_TEMPLATE_FONT_PATH}") format("truetype")`,
+          { style: 'normal', weight: '700' },
+        )
+        document.fonts.add(templateFont)
+        await templateFont.load()
+      }
+
+      await document.fonts.load(`700 44px "${FORTUNE_TEMPLATE_FONT_FAMILY}"`)
+      await document.fonts.ready
+    })().catch(() => undefined)
+  }
+
+  await fortuneTemplateFontLoadPromise
 }
 
 function loadCanvasImage(src: string) {
@@ -449,7 +469,7 @@ function loadCanvasImage(src: string) {
 }
 
 function fortuneTemplateCanvasFont(size: number) {
-  return `700 ${size}px ${FORTUNE_TEMPLATE_FONT_FAMILY}, Pretendard, sans-serif`
+  return `700 ${size}px "${FORTUNE_TEMPLATE_FONT_FAMILY}", Pretendard, sans-serif`
 }
 
 function drawCenteredWrappedCanvasText(

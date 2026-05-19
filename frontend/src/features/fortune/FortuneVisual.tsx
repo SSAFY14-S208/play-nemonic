@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import type { CSSProperties } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { useNemonicPrintVibration } from '@/shared/hooks'
@@ -11,6 +11,7 @@ import { cn } from '@/shared/libs'
 
 import {
   FORTUNE_PRINT_FALLBACK_TIMEOUT_SECONDS,
+  FORTUNE_PRINT_SOUND_VIDEO_TIME_SECONDS,
   FORTUNE_PRINT_VIDEO_PATH,
   FORTUNE_REDUCED_MOTION_DURATION_SECONDS,
 } from './constants'
@@ -20,6 +21,7 @@ import { useFortuneReducedMotion } from './hooks'
 interface FortuneVisualProps {
   playEntrySpotlight?: boolean
   onEntrySceneReady?: () => void
+  onPrintStart?: () => void
   onPrintComplete: () => void
 }
 
@@ -409,6 +411,7 @@ const CUBE_HOVER_HEIGHT_RATIO = 0.22
 export default function FortuneVisual({
   playEntrySpotlight = false,
   onEntrySceneReady,
+  onPrintStart,
   onPrintComplete,
 }: FortuneVisualProps) {
   const { isPrinting, result } = useFortuneSessionStore(
@@ -423,6 +426,7 @@ export default function FortuneVisual({
   useNemonicPrintVibration(isPrinting)
   const curtainFrameRef = useRef<HTMLDivElement>(null)
   const printVideoRef = useRef<HTMLVideoElement>(null)
+  const printStartFiredRef = useRef(false)
   const printCompleteFiredRef = useRef(false)
   const [activeCurtainClassName, setActiveCurtainClassName] = useState<string | null>(null)
   const [isCubeHovered, setIsCubeHovered] = useState(false)
@@ -435,6 +439,15 @@ export default function FortuneVisual({
     printCompleteFiredRef.current = true
     onPrintComplete()
   }
+
+  const firePrintStartOnce = useCallback(() => {
+    if (printStartFiredRef.current) {
+      return
+    }
+
+    printStartFiredRef.current = true
+    onPrintStart?.()
+  }, [onPrintStart])
 
   useEffect(() => {
     if (!playEntrySpotlight) {
@@ -452,10 +465,16 @@ export default function FortuneVisual({
 
   useEffect(() => {
     if (!isPrinting) {
+      printStartFiredRef.current = false
       return
     }
 
+    printStartFiredRef.current = false
     printCompleteFiredRef.current = false
+
+    if (prefersReducedMotion) {
+      firePrintStartOnce()
+    }
 
     const fallbackDuration = prefersReducedMotion
       ? FORTUNE_REDUCED_MOTION_DURATION_SECONDS
@@ -470,7 +489,7 @@ export default function FortuneVisual({
     return () => {
       window.clearTimeout(timerId)
     }
-  }, [isPrinting, onPrintComplete, prefersReducedMotion])
+  }, [firePrintStartOnce, isPrinting, onPrintComplete, prefersReducedMotion])
 
   useEffect(() => {
     if (!shouldShowPrintVideo) {
@@ -685,33 +704,36 @@ export default function FortuneVisual({
             src="/images/fortune/stage/wizard-popo.png"
             alt=""
           />
-          <img
+          <div
             className={cn(
               // .fortune-2d-eyes (base)
-              'absolute top-[40.02%] left-[52.55%] z-[2] w-[10.36%] max-w-none',
+              'absolute top-[40.02%] left-[52.55%] z-[2] w-[10.36%] [aspect-ratio:382/154]',
               '[transform:translate3d(-50%,-50%,0)_rotate(-15.67deg)]',
               '[filter:drop-shadow(0_0_0.22rem_rgba(182,100,255,0.54))_drop-shadow(0_0_0.58rem_rgba(91,49,255,0.28))]',
-              // .fortune-2d-eyes-open
-              'animate-fortune-2d-eye-open motion-reduce:animate-none',
-              '[-webkit-user-drag:none] select-none',
+              'pointer-events-none select-none',
             )}
-            src="/images/fortune/stage/eyes-open.png"
-            alt=""
-          />
-          <img
-            className={cn(
-              // .fortune-2d-eyes (base)
-              'absolute z-[2] max-w-none',
-              '[transform:translate3d(-50%,-50%,0)_rotate(-15.67deg)]',
-              '[filter:drop-shadow(0_0_0.22rem_rgba(182,100,255,0.54))_drop-shadow(0_0_0.58rem_rgba(91,49,255,0.28))]',
-              // .fortune-2d-eyes-closed overrides
-              'top-[40.18%] left-[52.43%] w-[10.78%] opacity-0',
-              'animate-fortune-2d-eye-closed motion-reduce:animate-none',
-              '[-webkit-user-drag:none] select-none',
-            )}
-            src="/images/fortune/stage/eyes-closed.png"
-            alt=""
-          />
+          >
+            <img
+              className={cn(
+                'absolute inset-0 h-full w-full max-w-none object-contain',
+                // .fortune-2d-eyes-open
+                'animate-fortune-2d-eye-open motion-reduce:animate-none',
+                '[-webkit-user-drag:none] select-none',
+              )}
+              src="/images/fortune/stage/eyes-open.png"
+              alt=""
+            />
+            <img
+              className={cn(
+                'absolute inset-0 h-full w-full max-w-none object-contain opacity-0',
+                // .fortune-2d-eyes-closed
+                'animate-fortune-2d-eye-closed motion-reduce:animate-none',
+                '[-webkit-user-drag:none] select-none',
+              )}
+              src="/images/fortune/stage/eyes-closed.png"
+              alt=""
+            />
+          </div>
         </div>
         <img
           className={cn(
@@ -879,6 +901,11 @@ export default function FortuneVisual({
           onEnded={firePrintCompleteOnce}
           onError={firePrintCompleteOnce}
           aria-hidden
+          onTimeUpdate={(event) => {
+            if (event.currentTarget.currentTime >= FORTUNE_PRINT_SOUND_VIDEO_TIME_SECONDS) {
+              firePrintStartOnce()
+            }
+          }}
         />
       )}
       <div
