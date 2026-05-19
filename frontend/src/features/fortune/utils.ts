@@ -54,6 +54,9 @@ const FORTUNE_TEMPLATE_WIDTH = 771
 const FORTUNE_TEMPLATE_HEIGHT = 895
 const FORTUNE_TEMPLATE_FONT_FAMILY = 'GangwonEduModu'
 const FORTUNE_TEMPLATE_FONT_PATH = '/fonts/fortune/GangwonEduModu-Bold-Web.ttf'
+const FORTUNE_CAUTION_MAX_LENGTH = 42
+const DEFAULT_FORTUNE_CAUTION = '오늘은 작은 선택도 한 번 더 확인하면 좋아요.'
+const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/
 
 let fortuneTemplateFontLoadPromise: Promise<void> | null = null
 
@@ -219,7 +222,11 @@ export function createFortuneResultFromCreateResponse(
 ): FortuneResult {
   const saju = createSajuFromFortuneResponse(createdFortune, birthInfo)
   const fortuneSection = createdFortune.fortune
-  const luckyColor = normalizeLuckyColor(fortuneSection.luckyColor, createdFortune.fortuneId)
+  const luckyColor = normalizeLuckyColor(
+    fortuneSection.luckyColor,
+    fortuneSection.luckyColorHex,
+    createdFortune.fortuneId,
+  )
 
   return {
     id: createdFortune.fortuneId,
@@ -236,7 +243,7 @@ export function createFortuneResultFromCreateResponse(
     luckyColor,
     luckyKeyword: fortuneSection.luckyKeyword,
     luckyDirection: fortuneSection.luckyDirection,
-    caution: fortuneSection.caution ?? '오늘은 작은 선택도 한 번 더 확인하면 좋아요.',
+    caution: normalizeFortuneCaution(fortuneSection.caution) ?? DEFAULT_FORTUNE_CAUTION,
     cardTheme: createdFortune.design.cardTheme ?? pickCardTheme(createdFortune.fortuneId),
     saju,
     sajuSummary: createResponseSajuSummary(createdFortune, birthInfo, saju),
@@ -404,7 +411,15 @@ export async function createFortuneCommunityImageDataUrl(result: FortuneResult) 
   context.fillText(result.luckyDirection, 310, 840)
 
   context.font = fortuneTemplateCanvasFont(18)
-  drawCenteredWrappedCanvasText(context, result.caution, 585, 783, 265, 28, 3)
+  drawCenteredWrappedCanvasText(
+    context,
+    normalizeFortuneCaution(result.caution) ?? DEFAULT_FORTUNE_CAUTION,
+    585,
+    783,
+    265,
+    28,
+    3,
+  )
 
   return canvas.toDataURL('image/png')
 }
@@ -625,23 +640,54 @@ function createSummary(luckyKeyword: string) {
   return `${luckyKeyword}의 기운이 또렷한 하루예요. 해야 할 일을 작게 나누면 포포가 적어 준 메모처럼 길이 선명해집니다.`
 }
 
-function normalizeLuckyColor(luckyColorName: string | undefined, seedSource: string) {
+function normalizeLuckyColor(
+  luckyColorName: string | undefined,
+  luckyColorHex: string | null | undefined,
+  seedSource: string,
+) {
+  const normalizedHex = normalizeHexColor(luckyColorHex)
   if (!luckyColorName) {
-    return pickBySeed(FORTUNE_LUCKY_COLORS, createHash(seedSource))
+    const fallbackColor = pickBySeed(FORTUNE_LUCKY_COLORS, createHash(seedSource))
+    return normalizedHex ? { ...fallbackColor, hex: normalizedHex } : fallbackColor
   }
 
   const matchingColor = FORTUNE_LUCKY_COLORS.find((color) => color.name === luckyColorName)
 
   if (matchingColor) {
-    return matchingColor
+    return normalizedHex ? { ...matchingColor, hex: normalizedHex } : matchingColor
   }
 
   const knownColorHex = KOREAN_LUCKY_COLOR_HEX[luckyColorName]
 
   return {
     name: luckyColorName,
-    hex: knownColorHex ?? pickBySeed(FORTUNE_LUCKY_COLORS, createHash(`${seedSource}-${luckyColorName}`)).hex,
+    hex:
+      normalizedHex ??
+      knownColorHex ??
+      pickBySeed(FORTUNE_LUCKY_COLORS, createHash(`${seedSource}-${luckyColorName}`)).hex,
   }
+}
+
+function normalizeHexColor(color: string | null | undefined) {
+  const normalized = color?.trim()
+  if (!normalized || !HEX_COLOR_PATTERN.test(normalized)) {
+    return null
+  }
+
+  return normalized.toUpperCase()
+}
+
+function normalizeFortuneCaution(caution: string | null | undefined) {
+  const normalized = caution?.trim().replace(/\s+/g, ' ')
+  if (!normalized) {
+    return null
+  }
+
+  if (normalized.length <= FORTUNE_CAUTION_MAX_LENGTH) {
+    return normalized
+  }
+
+  return `${normalized.slice(0, FORTUNE_CAUTION_MAX_LENGTH - 3).trimEnd()}...`
 }
 
 function pickCardTheme(seedSource: string) {
