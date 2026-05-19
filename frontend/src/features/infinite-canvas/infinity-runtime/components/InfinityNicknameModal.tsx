@@ -52,7 +52,7 @@ export function InfinityNicknameModal({
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-[#061248]/62 backdrop-blur-[8px]" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-[var(--z-modal)] max-h-[calc(100dvh-2rem)] w-[430px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[28px] border border-[#b7e7ff]/80 bg-[linear-gradient(145deg,rgb(21_93_170_/_0.94),rgb(48_142_218_/_0.88)_48%,rgb(102_193_244_/_0.82))] text-white shadow-[0_28px_70px_rgb(2_22_68_/_44%),inset_0_1px_0_rgb(255_255_255_/_45%)] backdrop-blur-xl">
+        <Dialog.Popup className="fixed left-1/2 top-1/2 z-[var(--z-modal)] max-h-[calc(100dvh-2rem)] w-[430px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[28px] border border-[#b7e7ff]/80 bg-[#6699d8] text-white shadow-[0_28px_70px_rgb(2_22_68_/_44%),inset_0_1px_0_rgb(255_255_255_/_45%)] backdrop-blur-xl">
           <header className="flex items-center justify-between border-b border-white/28 px-6 py-5">
             <Dialog.Title className="h4-b text-white drop-shadow-[0_2px_8px_rgb(3_37_90_/_35%)]">
               닉네임 설정
@@ -113,7 +113,7 @@ export function InfinityNicknameModal({
               <button
                 type="submit"
                 disabled={isPending || nickname.trim().length === 0}
-                className="body-b min-h-11 rounded-[14px] bg-[linear-gradient(135deg,#67e8ff_0%,#4f8cff_52%,#6c63ff_100%)] px-6 text-white shadow-[0_12px_26px_rgb(25_88_205_/_34%)] transition-[filter,opacity] hover:brightness-105 disabled:bg-none disabled:bg-[#8dadcf] disabled:text-white/72 disabled:opacity-65"
+                className="body-b min-h-11 rounded-[14px] bg-[#4f8cff] px-6 text-white shadow-[0_12px_26px_rgb(25_88_205_/_34%)] transition-[filter,opacity] hover:brightness-105 disabled:bg-[#8dadcf] disabled:text-white/72 disabled:opacity-65"
               >
                 {isPending ? '저장 중...' : '저장'}
               </button>
