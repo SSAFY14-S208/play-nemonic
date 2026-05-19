@@ -5,6 +5,7 @@ import {
   INFINITY_TEXT_DEFAULT_FONT_FAMILY,
   type InfinityText,
 } from "../../constants";
+import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 
 interface KonvaTextProps {
   textObject: InfinityText;
@@ -43,6 +44,14 @@ export function KonvaText({
       fill={textObject.color}
       rotation={textObject.rotation ?? 0}
       visible={!isEditing}
+      hitFunc={(context, shape) => {
+        const node = shape as Konva.Text;
+        context.beginPath();
+        context.rect(-8, -8, node.width() + 16, node.height() + 16);
+        context.closePath();
+        context.fillStrokeShape(shape);
+      }}
+      dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool

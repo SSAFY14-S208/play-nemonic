@@ -3,6 +3,7 @@ import { Image as KonvaImage } from "react-konva";
 
 import type { InfinityFill } from "../../constants";
 import { drawImageAlphaHitRegion } from "./imageHitRegion";
+import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 
 interface KonvaFillProps {
   fill: InfinityFill;
@@ -74,6 +75,7 @@ export function KonvaFill({
           height: fill.height,
         });
       }}
+      dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool

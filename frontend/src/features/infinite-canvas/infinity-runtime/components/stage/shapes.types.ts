@@ -1,5 +1,8 @@
 import type { InfinityShape } from "../../constants";
 
+export const MIN_OBJECT_HIT_SIZE = 22;
+export const OBJECT_DRAG_DISTANCE = 1;
+
 export interface KonvaShapeProps {
   shape: InfinityShape;
   isSelectTool: boolean;
@@ -20,4 +23,8 @@ export interface KonvaShapeProps {
 
 export function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((point) => [point.x, point.y]);
+}
+
+export function getExpandedHitStrokeWidth(strokeWidth: number): number {
+  return Math.max(strokeWidth, MIN_OBJECT_HIT_SIZE);
 }

@@ -4,6 +4,7 @@ import type Konva from "konva";
 
 import type { InfinityImage } from "../../constants";
 import { drawImageAlphaHitRegion } from "./imageHitRegion";
+import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 
 interface KonvaImageObjectProps {
   imageObject: InfinityImage;
@@ -209,6 +210,7 @@ export function KonvaImageObject({
           height: imageObject.height,
         });
       }}
+      dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool

@@ -40,6 +40,7 @@ const BUCKET_FILL_DILATION_PASSES = 6
 const BUCKET_FILL_DILATION_COLOR_TOLERANCE = 96
 const BUCKET_FILL_HIT_PADDING = 20
 const SHAPE_PREVIEW_MIN_DELTA = 0.5
+const SELECTION_BOX_HIT_PADDING = 8
 
 interface Bounds {
   x: number
@@ -927,14 +928,24 @@ export function useInfinityEvents({
     })
   }
 
-  const containsRect = (
-    outerRect: { x: number; y: number; width: number; height: number },
-    innerRect: { x: number; y: number; width: number; height: number },
+  const expandRect = (
+    rect: { x: number; y: number; width: number; height: number },
+    padding: number,
+  ) => ({
+    x: rect.x - padding,
+    y: rect.y - padding,
+    width: rect.width + padding * 2,
+    height: rect.height + padding * 2,
+  })
+
+  const intersectsRect = (
+    firstRect: { x: number; y: number; width: number; height: number },
+    secondRect: { x: number; y: number; width: number; height: number },
   ): boolean =>
-    innerRect.x >= outerRect.x &&
-    innerRect.y >= outerRect.y &&
-    innerRect.x + innerRect.width <= outerRect.x + outerRect.width &&
-    innerRect.y + innerRect.height <= outerRect.y + outerRect.height
+    firstRect.x <= secondRect.x + secondRect.width &&
+    firstRect.x + firstRect.width >= secondRect.x &&
+    firstRect.y <= secondRect.y + secondRect.height &&
+    firstRect.y + firstRect.height >= secondRect.y
 
   const getContainedSelectableIds = (
     stage: Konva.Stage,
@@ -947,8 +958,11 @@ export function useInfinityEvents({
       if (!canEdit(object.id)) continue
       const objectNode = stage.findOne(`#${object.id}`)
       if (!objectNode) continue
-      const rect = objectNode.getClientRect({ relativeTo: stage })
-      if (containsRect(box, rect) && !baseSet.has(object.id)) {
+      const rect = expandRect(
+        objectNode.getClientRect({ relativeTo: stage }),
+        SELECTION_BOX_HIT_PADDING,
+      )
+      if (intersectsRect(box, rect) && !baseSet.has(object.id)) {
         hitIds.push(object.id)
       }
     }
@@ -1281,13 +1295,14 @@ export function useInfinityEvents({
       return
     }
 
+    const current = selectedIdsRef.current
     const targetObject = objectsRef.current.find((object) => object.id === id)
-    if (!isShift && targetObject?.type === 'text') {
-      recordSelection([id])
+    const isOnlySelectedObject = current.length === 1 && current[0] === id
+    if (!isShift && targetObject?.type === 'text' && isOnlySelectedObject) {
       openExistingTextEditor(targetObject)
       return
     }
-    const current = selectedIdsRef.current
+
     let next: string[]
     if (isShift) {
       next = current.includes(id)

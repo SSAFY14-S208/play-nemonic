@@ -18,6 +18,7 @@ import {
   KonvaLine,
   KonvaRect,
   KonvaText,
+  OBJECT_DRAG_DISTANCE,
   SelectionBox,
 } from './stage'
 
@@ -1329,6 +1330,8 @@ export function InfinityCanvasStage({
 
         <Transformer
           ref={transformerRef}
+          dragDistance={OBJECT_DRAG_DISTANCE}
+          draggable={selectedIds.length > 1}
           rotateEnabled={true}
           shouldOverdrawWholeArea={selectedIds.length > 1}
           onDragMove={previewSelectedNodeMoves}

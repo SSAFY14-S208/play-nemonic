@@ -1,7 +1,11 @@
 import { Line } from "react-konva";
 
 import { INFINITY_LINE_TENSION, type InfinityLine } from "../../constants";
-import { flattenPoints } from "./shapes.types";
+import {
+  OBJECT_DRAG_DISTANCE,
+  flattenPoints,
+  getExpandedHitStrokeWidth,
+} from "./shapes.types";
 
 interface KonvaLineProps {
   line: InfinityLine;
@@ -33,7 +37,8 @@ export function KonvaLine({
         line.isEraser ? "destination-out" : "source-over"
       }
       tension={INFINITY_LINE_TENSION}
-      hitStrokeWidth={line.strokeWidth}
+      hitStrokeWidth={getExpandedHitStrokeWidth(line.strokeWidth)}
+      dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool

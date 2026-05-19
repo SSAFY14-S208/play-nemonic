@@ -1,7 +1,11 @@
 import { Ellipse } from "react-konva";
 import type Konva from "konva";
 
-import type { KonvaShapeProps } from "./shapes.types";
+import {
+  OBJECT_DRAG_DISTANCE,
+  getExpandedHitStrokeWidth,
+  type KonvaShapeProps,
+} from "./shapes.types";
 
 export function KonvaEllipse({
   shape,
@@ -30,8 +34,9 @@ export function KonvaEllipse({
       rotation={shape.rotation ?? 0}
       stroke={isFilled ? undefined : shape.color}
       strokeWidth={isFilled ? 0 : shape.strokeWidth}
-      fill={shape.fill}
-      hitStrokeWidth={isFilled ? undefined : shape.strokeWidth}
+      fill={shape.fill ?? "transparent"}
+      hitStrokeWidth={isFilled ? undefined : getExpandedHitStrokeWidth(shape.strokeWidth)}
+      dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool
