@@ -1,9 +1,10 @@
 import { Text, useTexture } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import {
+  HUB_GAMES,
   HUB_MONITOR_SCREEN_POSITION,
   HUB_MONITOR_SCREEN_SIZE,
 } from '@/shared/constants'
@@ -89,13 +90,6 @@ const MONITOR_SCREEN_ASSETS: Record<HubGameId, MonitorScreenAsset> = {
   },
 }
 
-const MONITOR_TEXTURE_URLS = Object.values(MONITOR_SCREEN_ASSETS).flatMap(
-  (asset) =>
-    asset.ribbon
-      ? [asset.background, asset.logo, asset.startButton, asset.ribbon]
-      : [asset.background, asset.logo, asset.startButton],
-)
-
 type MonitorGameSelectorScale = number | [number, number, number]
 
 interface MonitorGameSelectorProps {
@@ -111,6 +105,37 @@ function configureMonitorTexture(texture: THREE.Texture) {
   texture.magFilter = THREE.LinearFilter
   texture.generateMipmaps = false
   texture.needsUpdate = true
+}
+
+function getMonitorAssetTextureUrls(asset: MonitorScreenAsset) {
+  return asset.ribbon
+    ? [asset.background, asset.logo, asset.startButton, asset.ribbon]
+    : [asset.background, asset.logo, asset.startButton]
+}
+
+function getWrappedGameIndex(gameIndex: number) {
+  return (gameIndex + HUB_GAMES.length) % HUB_GAMES.length
+}
+
+function getAdjacentMonitorTextureUrls(selectedGameIndex: number) {
+  const textureUrls = new Set<string>()
+
+  ;[-1, 1].forEach((offset) => {
+    const game = HUB_GAMES[getWrappedGameIndex(selectedGameIndex + offset)]
+    const asset = MONITOR_SCREEN_ASSETS[game.id]
+
+    getMonitorAssetTextureUrls(asset).forEach((textureUrl) => {
+      textureUrls.add(textureUrl)
+    })
+  })
+
+  return [...textureUrls]
+}
+
+function preloadMonitorTextures(textureUrls: string[]) {
+  textureUrls.forEach((textureUrl) => {
+    useTexture.preload(textureUrl)
+  })
 }
 
 function setDocumentCursor(cursor: string) {
@@ -546,19 +571,29 @@ export default function MonitorGameSelector({
   const shouldAnimateNavArrows = useHubRoomStore(
     (state) => state.focusKey === 'monitor',
   )
-  const textureList = useTexture(MONITOR_TEXTURE_URLS) as THREE.Texture[]
-  const textures = MONITOR_TEXTURE_URLS.reduce<Record<string, THREE.Texture>>(
+  const selectedAsset = MONITOR_SCREEN_ASSETS[selectedGame.id]
+  const selectedTextureUrls = useMemo(() => {
+    return getMonitorAssetTextureUrls(selectedAsset)
+  }, [selectedAsset])
+  const adjacentTextureUrls = useMemo(() => {
+    return getAdjacentMonitorTextureUrls(selectedGameIndex)
+  }, [selectedGameIndex])
+  const textureList = useTexture(selectedTextureUrls) as THREE.Texture[]
+  const textures = selectedTextureUrls.reduce<Record<string, THREE.Texture>>(
     (textureMap, textureUrl, textureIndex) => {
       textureMap[textureUrl] = textureList[textureIndex]
       return textureMap
     },
     {},
   )
-  const selectedAsset = MONITOR_SCREEN_ASSETS[selectedGame.id]
 
   useEffect(() => {
     textureList.forEach(configureMonitorTexture)
   }, [textureList])
+
+  useEffect(() => {
+    preloadMonitorTextures(adjacentTextureUrls)
+  }, [adjacentTextureUrls])
 
   const handleScreenClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
