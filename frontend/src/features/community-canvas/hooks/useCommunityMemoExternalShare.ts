@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, postCommunityMemoShare } from '@/shared/apis'
+import { logEvent } from '@/shared/libs'
 import type { CommunityMemoDetailResponse } from '@/shared/types'
 import { shareExternalImage, type ExternalImageShareResult } from '@/shared/utils'
 
@@ -50,6 +51,14 @@ export function useCommunityMemoExternalShare() {
       })
       const successMessage = getShareSuccessMessage(shareResult)
       if (successMessage) toast.success(successMessage)
+      logEvent('result_shared', {
+        metadata: {
+          funnel_name: 'community_memo_posting',
+          content_type: 'community',
+          share_method: 'external_share',
+          memo_uuid: detail.memoUuid,
+        },
+      })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
 

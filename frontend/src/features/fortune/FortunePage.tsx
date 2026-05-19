@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useResizeFreeze } from "@/shared/hooks";
-import { cn } from "@/shared/libs";
+import { cn, logEvent } from "@/shared/libs";
 import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
 
 import {
@@ -113,6 +113,14 @@ export default function FortunePage() {
         imageUrl,
         thumbnailUrl: imageUrl,
         sourceContentKind: "fortune",
+      });
+      logEvent("result_shared", {
+        metadata: {
+          funnel_name: "fortune_creation",
+          content_type: "fortune",
+          share_method: "community_post",
+          fortune_id: result.id,
+        },
       });
       router.push("/community-canvas");
       return;

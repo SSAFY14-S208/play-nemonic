@@ -36,6 +36,7 @@ const FUNNEL_CHURN_EVENTS: Set<LogEventName> = new Set([
   "room_lobby_abandoned",
   "creation_abandoned",
   "result_share_abandoned",
+  "result_shared",
   "session_start",
   "session_end",
   "page_view",

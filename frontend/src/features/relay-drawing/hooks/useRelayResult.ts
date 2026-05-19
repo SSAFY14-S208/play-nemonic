@@ -9,7 +9,7 @@ import {
   postArtifactShare,
   postRelayRoomClose,
 } from '@/shared/apis'
-import { reachFunnelGoal } from '@/shared/libs'
+import { logEvent, reachFunnelGoal } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import type { RelayPart } from '@/shared/types'
 import {
@@ -143,6 +143,14 @@ export function useRelayResult() {
         const baseFilename = sanitizeDownloadFilename(activeResultTitle)
         const extension = inferImageExtensionFromBlob(blob)
         downloadBlob(blob, `${baseFilename}.${extension}`)
+        logEvent('result_shared', {
+          metadata: {
+            funnel_name: 'relay_room_creation',
+            content_type: 'relay',
+            share_method: 'download',
+            artifact_id: activeResultItem.artifactId,
+          },
+        })
       } catch (caughtError) {
         const message =
           caughtError instanceof ApiError
@@ -183,6 +191,14 @@ export function useRelayResult() {
         })
         const successMessage = getExternalShareSuccessMessage(shareResult)
         if (successMessage) toast.success(successMessage)
+        logEvent('result_shared', {
+          metadata: {
+            funnel_name: 'relay_room_creation',
+            content_type: 'relay',
+            share_method: 'external_share',
+            artifact_id: activeResultItem.artifactId,
+          },
+        })
       } catch (caughtError) {
         if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return
 

@@ -72,6 +72,7 @@ type FunnelEventName =
   | 'funnel_goal_reached'
   | 'funnel_abandoned'
   | 'cta_clicked'
+  | 'result_shared'
 
 // 이탈 (§6)
 type ChurnEventName =

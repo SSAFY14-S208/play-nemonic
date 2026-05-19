@@ -210,18 +210,20 @@ export function useI2ContentCompletion(args: AnalyticsVizArgs) {
 }
 
 // ============================================================
-// 채널 viz — I6 결과 도달 후 이탈 비율 (가로 막대)
-// terms-with-subs(funnel_name) + sub-filter(goal/abandoned).
+// 채널 viz — I6 결과 도달 후 공유 비율 (가로 막대)
+// terms-with-subs(funnel_name) + sub-filter(goal/shared/abandoned).
 //
-// 메트릭은 abandoned / goal — 결과 페이지에 도달한 세션 중 공유/저장 액션 없이
-// 이탈한 비율이다. 이전 구현은 shared = max(goal - abandoned, 0) 근사치를 썼는데,
-// `result_shared` 명시적 이벤트 트래킹이 없어 abandoned가 0일 때 무조건 100%로
-// 표시되는 구조적 문제가 있었다. 측정 가능한 abandon rate로 재정의했고, 진짜
-// 공유율 viz는 result_shared 이벤트 트래킹이 추가되면 별도 viz로 신설한다.
+// shared는 각 share/save/community_post 액션 성공 시점에 emit되는 명시적
+// result_shared 이벤트로 측정한다. 이전 구현은 shared를 (goal - abandoned)로
+// 근사했는데 abandoned가 0이면 무조건 100%로 표시되는 구조적 문제가 있어
+// 도메인별 share/save 액션에 logEvent('result_shared')를 직접 심어 정확한
+// share rate를 측정하도록 바꾸었다. abandoned도 함께 표기해 운영자가
+// 도달 ⇄ 공유 ⇄ 이탈을 한눈에 비교할 수 있다.
 // ============================================================
 export type I6Bucket = {
   value: string
   goal: number
+  shared: number
   abandoned: number
 }
 
@@ -238,14 +240,16 @@ export function useI6ShareRate(args: AnalyticsVizArgs) {
         size: 10,
         subFilters: [
           { name: 'goal', query: 'event_name:funnel_goal_reached' },
+          { name: 'shared', query: 'event_name:result_shared' },
           { name: 'abandoned', query: 'event_name:result_share_abandoned' },
         ],
       })
       return response.buckets
         .map((bucket) => {
           const goal = bucket.sub.goal ?? 0
+          const shared = bucket.sub.shared ?? 0
           const abandoned = bucket.sub.abandoned ?? 0
-          return { value: bucket.value, goal, abandoned }
+          return { value: bucket.value, goal, shared, abandoned }
         })
         .filter((bucket) => bucket.goal > 0)
     },
