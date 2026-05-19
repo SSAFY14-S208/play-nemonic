@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import {
   Gamepad2,
+  HelpCircle,
   Home,
   LayoutDashboard,
   Music2,
@@ -11,9 +12,11 @@ import {
   VolumeX,
 } from 'lucide-react'
 import { cn } from '@/shared/libs'
-import { useHubRoomStore } from '@/shared/stores'
+import { useHubOnboardingStore, useHubRoomStore } from '@/shared/stores'
 import type { HubFocusKey } from '@/shared/types'
+import HubOnboardingTour from './HubOnboardingTour'
 import styles from './HubOverlay.module.css'
+import MonitorGameInfoCard from './MonitorGameInfoCard'
 import { useHubBgm } from './useHubBgm'
 
 const FOCUS_BUTTONS: Array<{
@@ -35,6 +38,9 @@ export default function HubOverlay({
 }) {
   const focusKey = useHubRoomStore((state) => state.focusKey)
   const setFocus = useHubRoomStore((state) => state.setFocus)
+  const reopenOnboarding = useHubOnboardingStore(
+    (state) => state.reopenOnboarding,
+  )
   const { isBgmEnabled, isBgmPlaying, toggleHubBgm } = useHubBgm({
     disabled: disableBgm,
   })
@@ -57,21 +63,32 @@ export default function HubOverlay({
         </div>
       </header>
 
-      {!disableBgm && (
+      <div className={styles.utilityCluster}>
         <button
           type="button"
-          aria-label={bgmToggleLabel}
-          aria-pressed={isBgmEnabled}
-          className={styles.musicButton}
-          data-muted={!isBgmEnabled}
-          data-playing={isBgmPlaying}
-          title={`Pastel Puzzle Room · ${bgmToggleLabel}`}
-          onClick={toggleHubBgm}
+          aria-label="허브 사용법 다시 보기"
+          className={styles.utilityButton}
+          title="허브 사용법 다시 보기"
+          onClick={reopenOnboarding}
         >
-          <Music2 className={styles.musicSignal} strokeWidth={2.35} />
-          <BgmIcon className="h-4 w-4" strokeWidth={2.35} />
+          <HelpCircle className="h-4 w-4" strokeWidth={2.35} />
         </button>
-      )}
+        {!disableBgm && (
+          <button
+            type="button"
+            aria-label={bgmToggleLabel}
+            aria-pressed={isBgmEnabled}
+            className={styles.musicButton}
+            data-muted={!isBgmEnabled}
+            data-playing={isBgmPlaying}
+            title={`Pastel Puzzle Room · ${bgmToggleLabel}`}
+            onClick={toggleHubBgm}
+          >
+            <Music2 className={styles.musicSignal} strokeWidth={2.35} />
+            <BgmIcon className="h-4 w-4" strokeWidth={2.35} />
+          </button>
+        )}
+      </div>
 
       <nav className={styles.focusControls} aria-label="허브 카메라 포커스">
         {FOCUS_BUTTONS.map(
@@ -94,6 +111,9 @@ export default function HubOverlay({
           },
         )}
       </nav>
+
+      <MonitorGameInfoCard />
+      <HubOnboardingTour />
     </>
   )
 }
