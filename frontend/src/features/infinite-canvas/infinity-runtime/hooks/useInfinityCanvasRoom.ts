@@ -1003,7 +1003,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         toast.success('선택한 영역을 갤러리에 저장했어요.')
         return output
       } catch {
-        const message = '출력 이미지를 저장하지 못했어요.'
+        const message = '스크린캡쳐 이미지를 저장하지 못했어요.'
         setErrorMessage(message)
         toast.error(message)
         return null

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { ArrowDownToLine, ArrowUpToLine, Copy, Link2, LogOut, Printer } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpToLine, Camera, Copy, Link2, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { useInfinityAiSticker, useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
 import type { InfinityObject } from '../constants'
@@ -1000,11 +1000,11 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           type="button"
           onClick={() => setIsCaptureMode(true)}
           disabled={room.isSavingOutput}
-          className="body-b inline-flex h-12 min-w-[96px] items-center justify-center gap-2 rounded-full border border-white/72 bg-[#3aa7f4] px-5 text-white shadow-[0_10px_22px_rgba(46,95,210,0.22),inset_0_1px_0_rgba(255,255,255,0.42)] transition-transform hover:-translate-y-0.5 hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-55"
-          aria-label="출력"
+          className="body-b inline-flex h-12 min-w-[132px] items-center justify-center gap-2 rounded-full border border-white/72 bg-[#3aa7f4] px-5 text-white shadow-[0_10px_22px_rgba(46,95,210,0.22),inset_0_1px_0_rgba(255,255,255,0.42)] transition-transform hover:-translate-y-0.5 hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-55"
+          aria-label="스크린캡쳐"
         >
-          <Printer className="size-4" aria-hidden />
-          출력
+          <Camera className="size-4" aria-hidden />
+          스크린캡쳐
         </button>
         <button
           type="button"

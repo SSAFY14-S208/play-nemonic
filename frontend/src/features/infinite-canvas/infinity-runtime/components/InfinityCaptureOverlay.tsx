@@ -442,12 +442,12 @@ export function InfinityCaptureOverlay({
             }}
             className="h3-b min-h-16 px-9 bg-[#6d5df6] text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] hover:bg-[#5847e8]"
           >
-            {isSaving ? '출력 중' : '출력'}
+            {isSaving ? '캡쳐 중' : '스크린캡쳐'}
           </Button>
           <button
             type="button"
-            aria-label="출력 영역 다시 선택"
-            title="출력 영역 다시 선택"
+            aria-label="스크린캡쳐 영역 다시 선택"
+            title="스크린캡쳐 영역 다시 선택"
             onClick={resetSelection}
             className="grid size-14 place-items-center rounded-full bg-[#6d5df6] text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] transition-colors hover:bg-[#5847e8]"
           >
@@ -458,7 +458,7 @@ export function InfinityCaptureOverlay({
 
       <button
         type="button"
-        aria-label="출력 선택 취소"
+        aria-label="스크린캡쳐 선택 취소"
         onClick={onCancel}
         className="pointer-events-auto absolute bottom-14 left-1/2 grid size-16 -translate-x-1/2 place-items-center rounded-full border border-white/72 bg-[#3aa7f4] text-white shadow-[0_12px_24px_rgba(46,95,210,0.26),inset_0_1px_0_rgba(255,255,255,0.44)] transition-transform hover:scale-105 focus-visible:outline-none"
       >
