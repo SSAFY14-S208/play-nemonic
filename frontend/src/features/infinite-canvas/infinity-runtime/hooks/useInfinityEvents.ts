@@ -1195,6 +1195,12 @@ export function useInfinityEvents({
     }
 
     const targetObject = objectsRef.current.find((object) => object.id === id)
+    if (!isShift && targetObject?.type === 'text') {
+      recordSelection([id])
+      openExistingTextEditor(targetObject)
+      return
+    }
+
     const current = selectedIdsRef.current
     let next: string[]
     if (isShift) {
