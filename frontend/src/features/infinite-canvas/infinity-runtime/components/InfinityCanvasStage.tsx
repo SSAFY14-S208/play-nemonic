@@ -573,6 +573,11 @@ export function InfinityCanvasStage({
     },
   } = drawing;
 
+  const objectById = useMemo(
+    () => new Map(objects.map((object) => [object.id, object])),
+    [objects],
+  );
+
   const toolRef = useRef<InfinityToolKey>(tool);
   useEffect(() => {
     toolRef.current = tool;
@@ -648,11 +653,6 @@ export function InfinityCanvasStage({
       onLayerMenuRequest({ elementId, x, y });
     },
     [onLayerMenuRequest, onObjectClick, selectedIds],
-  );
-
-  const objectById = useMemo(
-    () => new Map(objects.map((object) => [object.id, object])),
-    [objects],
   );
 
   const previewGroupedObjectMove = useCallback((id: string, x: number, y: number) => {
