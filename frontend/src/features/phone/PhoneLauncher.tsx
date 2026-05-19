@@ -17,7 +17,7 @@ export default function PhoneLauncher() {
         aria-label="핸드폰 열기"
         onClick={openPhone}
         className={cn(
-          'fixed bottom-6 right-6 z-[var(--z-sticky)] flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-white transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-white',
+          'fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-[calc(1.5rem+env(safe-area-inset-right))] z-[14000] flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-white transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-white',
           isPhoneOpen && 'pointer-events-none translate-y-3 opacity-0',
         )}
         style={{ boxShadow: PHONE_COLORS.launcherShadow }}
