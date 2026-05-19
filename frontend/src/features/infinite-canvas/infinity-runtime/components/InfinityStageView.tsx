@@ -28,9 +28,9 @@ import { InfinityTextEditor } from './InfinityTextEditor'
 import { InfinityToolPanel } from './InfinityToolPanel'
 
 type InfinityCanvasRoom = ReturnType<typeof useInfinityCanvasRoom>
-const CURSOR_SEND_INTERVAL_MS = 50
-const DRAFT_SEND_INTERVAL_MS = 33
-const CURSOR_MIN_DISTANCE = 1.5
+const CURSOR_SEND_INTERVAL_MS = 80
+const DRAFT_SEND_INTERVAL_MS = 50
+const CURSOR_MIN_DISTANCE = 3
 const REMOTE_DRAFT_RETENTION_MS = 3500
 const REMOTE_DRAFT_CONFIRMED_RETENTION_MS = 650
 const REMOTE_DRAFT_EXPIRY_REFRESH_THRESHOLD_MS = REMOTE_DRAFT_RETENTION_MS / 2

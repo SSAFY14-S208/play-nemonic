@@ -43,8 +43,9 @@ const INFINITE_CANVAS_FILE_CONTENT_TYPE = 'image/png'
 const INFINITE_CANVAS_FILE_PURPOSE = 'INFINITE_CANVAS'
 const STALE_REVISION_MESSAGE = '캔버스 revision이 최신이 아닙니다.'
 const UPDATE_CONFLICT_MESSAGE = '무한 캔버스 상태 갱신 충돌이 발생했습니다.'
-const MAX_OPERATIONS_PER_BATCH = 20
-const IN_FLIGHT_OPERATION_TIMEOUT_MS = 3500
+const MAX_OPERATIONS_PER_BATCH = 40
+const IN_FLIGHT_OPERATION_TIMEOUT_MS = 7000
+const LOCAL_ELEMENT_RETENTION_MS = 30000
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -192,6 +193,11 @@ interface CanvasElementMutation {
   element?: InfiniteCanvasJsonObject | null
 }
 
+interface RetainedLocalElement {
+  element: InfiniteCanvasJsonObject
+  expiresAt: number
+}
+
 function getCanvasOperationKey(operation: CanvasElementMutation) {
   if (operation.clientOperationId && operation.clientOperationId.trim().length > 0) {
     return `client:${operation.clientOperationId}`
@@ -207,6 +213,12 @@ function getCanvasOperationKey(operation: CanvasElementMutation) {
 
 function getCanvasElementId(element: InfiniteCanvasJsonObject) {
   return typeof element.id === 'string' && element.id.trim().length > 0 ? element.id : null
+}
+
+function getOperationElementId(operation: CanvasElementMutation) {
+  const elementId = operation.elementId?.trim()
+  if (elementId) return elementId
+  return operation.element ? getCanvasElementId(operation.element) : null
 }
 
 function applyOperationsToElements(
@@ -279,7 +291,7 @@ function applyOptimisticOperationsToState(
   }
 }
 
-function isElementUpsertOperation(operation: InfiniteCanvasOperationRequest) {
+function isElementUpsertOperation(operation: { operationType: InfiniteCanvasOperationType }) {
   return (
     operation.operationType === 'CREATE_ELEMENT' ||
     operation.operationType === 'UPDATE_ELEMENT' ||
@@ -386,6 +398,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
   const inFlightTimeoutRef = useRef<number | null>(null)
   const confirmedClientOperationIdsRef = useRef<Set<string>>(new Set())
   const appliedOperationKeysRef = useRef<Set<string>>(new Set())
+  const retainedLocalElementsRef = useRef<Map<string, RetainedLocalElement>>(new Map())
   const isResolvingRevisionConflictRef = useRef(false)
   const pendingRemoteCursorUpdatesRef = useRef<Record<string, InfiniteCanvasCursor>>({})
   const remoteCursorFrameRef = useRef<number | null>(null)
@@ -407,6 +420,105 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     window.clearTimeout(inFlightTimeoutRef.current)
     inFlightTimeoutRef.current = null
   }, [])
+
+  const pruneRetainedLocalElements = useCallback(() => {
+    const now = Date.now()
+    for (const [elementId, retainedElement] of retainedLocalElementsRef.current) {
+      if (retainedElement.expiresAt <= now) {
+        retainedLocalElementsRef.current.delete(elementId)
+      }
+    }
+  }, [])
+
+  const rememberLocalOperationElements = useCallback(
+    (operations: CanvasElementMutation[]) => {
+      if (operations.length === 0) return
+
+      const expiresAt = Date.now() + LOCAL_ELEMENT_RETENTION_MS
+      for (const operation of operations) {
+        if (operation.operationType === 'CLEAR_CANVAS') {
+          retainedLocalElementsRef.current.clear()
+          continue
+        }
+
+        const elementId = getOperationElementId(operation)
+        if (!elementId) continue
+
+        if (operation.operationType === 'DELETE_ELEMENT') {
+          retainedLocalElementsRef.current.delete(elementId)
+          continue
+        }
+
+        if (isElementUpsertOperation(operation) && operation.element) {
+          retainedLocalElementsRef.current.set(elementId, {
+            element: operation.element,
+            expiresAt,
+          })
+        }
+      }
+      pruneRetainedLocalElements()
+    },
+    [pruneRetainedLocalElements],
+  )
+
+  const syncRetainedElementsFromRemoteOperations = useCallback(
+    (operations: CanvasElementMutation[]) => {
+      if (operations.length === 0) return
+
+      const expiresAt = Date.now() + LOCAL_ELEMENT_RETENTION_MS
+      for (const operation of operations) {
+        if (operation.operationType === 'CLEAR_CANVAS') {
+          retainedLocalElementsRef.current.clear()
+          continue
+        }
+
+        const elementId = getOperationElementId(operation)
+        if (!elementId) continue
+
+        if (operation.operationType === 'DELETE_ELEMENT') {
+          retainedLocalElementsRef.current.delete(elementId)
+          continue
+        }
+
+        if (
+          isElementUpsertOperation(operation) &&
+          operation.element &&
+          retainedLocalElementsRef.current.has(elementId)
+        ) {
+          retainedLocalElementsRef.current.set(elementId, {
+            element: operation.element,
+            expiresAt,
+          })
+        }
+      }
+      pruneRetainedLocalElements()
+    },
+    [pruneRetainedLocalElements],
+  )
+
+  const mergeRetainedLocalElements = useCallback(
+    (remoteElements: InfiniteCanvasJsonObject[]) => {
+      pruneRetainedLocalElements()
+      if (retainedLocalElementsRef.current.size === 0) return remoteElements
+
+      const remoteElementIds = new Set(
+        remoteElements
+          .map((element) => getCanvasElementId(element))
+          .filter((elementId): elementId is string => Boolean(elementId)),
+      )
+      const restoredElements: InfiniteCanvasJsonObject[] = []
+      for (const [elementId, retainedElement] of retainedLocalElementsRef.current) {
+        if (!remoteElementIds.has(elementId)) {
+          restoredElements.push(retainedElement.element)
+        }
+      }
+
+      return restoredElements.length === 0
+        ? remoteElements
+        : [...remoteElements, ...restoredElements]
+    },
+    [pruneRetainedLocalElements],
+  )
 
   const requeueInFlightOperations = useCallback(() => {
     clearInFlightTimeout()
@@ -505,9 +617,18 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         nextState = await getInfiniteCanvasState(roomCode)
       }
       const optimisticOperations = getUnconfirmedOperations()
-      const hydratedState = applyOptimisticOperationsToState(nextState, optimisticOperations)
+      const unappliedRemoteOperations = getUnappliedOperations(nextState.operations)
       recordConfirmedOperations(nextState.operations)
+      syncRetainedElementsFromRemoteOperations(unappliedRemoteOperations)
       recordAppliedOperations(nextState.operations)
+      const stateWithRetainedElements = {
+        ...nextState,
+        elements: mergeRetainedLocalElements(nextState.elements),
+      }
+      const hydratedState = applyOptimisticOperationsToState(
+        stateWithRetainedElements,
+        optimisticOperations,
+      )
       revisionRef.current = nextState.revision
       appliedElementsRevisionRef.current = nextState.revision
       setRoomState(hydratedState)
@@ -539,13 +660,15 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       setErrorMessage(message)
       return null
     }
-  }, [getUnconfirmedOperations, nickname, recordAppliedOperations, recordConfirmedOperations, roomCode, userUuid])
+  }, [getUnappliedOperations, getUnconfirmedOperations, mergeRetainedLocalElements, nickname, recordAppliedOperations, recordConfirmedOperations, roomCode, syncRetainedElementsFromRemoteOperations, userUuid])
 
   const applyFullState = useCallback((nextState: InfiniteCanvasStateResponse) => {
     if (nextState.revision < revisionRef.current) return
 
     const unconfirmedOperations = getUnconfirmedOperations()
+    const unappliedStateOperations = getUnappliedOperations(nextState.operations)
     recordConfirmedOperations(nextState.operations)
+    syncRetainedElementsFromRemoteOperations(unappliedStateOperations)
     revisionRef.current = nextState.revision
     setRoomState((currentState) => {
       const shouldPatchFromOperations =
@@ -561,7 +684,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
           : nextState.elements
       const stateWithRemoteElements = {
         ...nextState,
-        elements: remoteElements,
+        elements: mergeRetainedLocalElements(remoteElements),
       }
       const stateWithLocalOperations =
         unconfirmedOperations.length > 0
@@ -573,13 +696,14 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     recordAppliedOperations(nextState.operations)
     appliedElementsRevisionRef.current = nextState.revision
     setIsHydrating(false)
-  }, [getUnappliedOperations, getUnconfirmedOperations, recordAppliedOperations, recordConfirmedOperations])
+  }, [getUnappliedOperations, getUnconfirmedOperations, mergeRetainedLocalElements, recordAppliedOperations, recordConfirmedOperations, syncRetainedElementsFromRemoteOperations])
 
   const applyRevisionConflictDelta = useCallback((details: InfiniteCanvasRevisionConflictResponse) => {
     const unappliedOperations = getUnappliedOperations(details.missingOperations)
     revisionRef.current = details.latestRevision
     appliedElementsRevisionRef.current = details.latestRevision
     recordConfirmedOperations(details.missingOperations)
+    syncRetainedElementsFromRemoteOperations(unappliedOperations)
     recordAppliedOperations(unappliedOperations)
     setRoomState((currentState) => {
       if (!currentState) return currentState
@@ -591,7 +715,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         updatedAt: new Date().toISOString(),
       }
     })
-  }, [getUnappliedOperations, recordAppliedOperations, recordConfirmedOperations])
+  }, [getUnappliedOperations, recordAppliedOperations, recordConfirmedOperations, syncRetainedElementsFromRemoteOperations])
 
   const resolveRevisionConflict = useCallback(
     (details: InfiniteCanvasRevisionConflictResponse | null, inFlightOperations: InfiniteCanvasOperationRequest[] | null) => {
@@ -770,6 +894,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         if (!isOpsAppliedResponse(event.data)) return
         const appliedOperations = event.data
         const unappliedOperations = getUnappliedOperations(appliedOperations.operations)
+        syncRetainedElementsFromRemoteOperations(unappliedOperations)
         const nextRevision = Math.max(revisionRef.current, appliedOperations.revision)
         revisionRef.current = nextRevision
         recordConfirmedOperations(appliedOperations.operations)
@@ -877,7 +1002,6 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
           return
         }
 
-        pendingOperationsRef.current = []
         isResolvingRevisionConflictRef.current = false
         syncPendingOperationState()
         setErrorMessage(message)
@@ -885,7 +1009,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         void hydrateRoom({ showLoading: false }).finally(bumpOperationQueue)
       }
     },
-    [applyFullState, areOperationsConfirmed, bumpOperationQueue, clearInFlightTimeout, getUnappliedOperations, roomCode, hydrateRoom, recordAppliedOperations, recordConfirmedOperations, resolveRetryableStateConflict, resolveRevisionConflict, router, scheduleRemoteCursorUpdate, syncPendingOperationState, userUuid],
+    [applyFullState, areOperationsConfirmed, bumpOperationQueue, clearInFlightTimeout, getUnappliedOperations, roomCode, hydrateRoom, recordAppliedOperations, recordConfirmedOperations, resolveRetryableStateConflict, resolveRevisionConflict, router, scheduleRemoteCursorUpdate, syncPendingOperationState, syncRetainedElementsFromRemoteOperations, userUuid],
   )
 
   const realtime = useInfinityRealtimeConnection({
@@ -914,6 +1038,12 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       }, 0)
     }
   }, [connectionStatus, hydrateRoom, requestStateSync, roomCode, userUuid])
+
+  useEffect(() => {
+    if (connectionStatus === 'connected') return
+    if (!inFlightOperationsRef.current) return
+    requeueInFlightOperations()
+  }, [connectionStatus, requeueInFlightOperations])
 
   useEffect(() => {
     let cancelled = false
@@ -953,12 +1083,13 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
     (operations: InfiniteCanvasOperationRequest[]) => {
       if (operations.length === 0) return false
 
+      rememberLocalOperationElements(operations)
       pendingOperationsRef.current = [...pendingOperationsRef.current, ...operations]
       syncPendingOperationState()
       bumpOperationQueue()
       return true
     },
-    [bumpOperationQueue, syncPendingOperationState],
+    [bumpOperationQueue, rememberLocalOperationElements, syncPendingOperationState],
   )
 
   useEffect(() => {
