@@ -17,7 +17,7 @@ const CONFIRM_BEFORE_LEAVE_ROUTES = [
 ];
 
 /** 월드 홈 링크 자체를 표시하지 않는 라우트 (이동할 곳이 자기 자신이거나 인트로 화면) */
-const HIDDEN_ROUTES = new Set([WORLD_PATH, "/hub"]);
+const HIDDEN_ROUTES = new Set([WORLD_PATH]);
 
 interface WorldHomeLinkProps {
   /** confirm 모달의 취소/확인 버튼 색상을 페이지 테마에 맞게 덮어쓰고 싶을 때 전달합니다. */

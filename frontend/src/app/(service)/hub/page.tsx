@@ -1,11 +1,5 @@
-import { PhoneLauncher } from '@/features/phone'
-import LandingLoader from '@/worlds/landing/LandingLoader'
+import { redirect } from 'next/navigation'
 
-export default function Page() {
-  return (
-    <>
-      <LandingLoader />
-      <PhoneLauncher />
-    </>
-  )
+export default function HubRouteRedirectPage() {
+  redirect('/nemonic')
 }
