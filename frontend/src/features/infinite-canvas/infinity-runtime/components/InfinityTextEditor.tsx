@@ -5,10 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/shared/libs";
 
 import {
+  INFINITY_COLORS,
+  INFINITY_TEXT_DEFAULT_COLOR,
+  INFINITY_TEXT_FONT_FAMILIES,
   INFINITY_TEXT_FONT_SIZES,
   type InfinityToolKey,
 } from "../constants";
-import type { InfinityTextEditorState } from "../hooks/useInfinityDrawing";
+import type {
+  InfinityTextEditorCommitValue,
+  InfinityTextEditorState,
+} from "../hooks/useInfinityDrawing";
 
 interface InfinityTextEditorProps {
   state: InfinityTextEditorState;
@@ -16,12 +22,15 @@ interface InfinityTextEditorProps {
   stagePosRef: React.RefObject<{ x: number; y: number }>;
   // textEditor가 떠 있는 동안 stage 이벤트 차단을 위해 부모에서 toolSnapshot 사용 가능.
   // 여기서는 editor 자체의 commit/cancel만 책임.
-  onCommit: (text: string, fontSize: number) => void;
+  onCommit: (value: InfinityTextEditorCommitValue) => void;
   onCancel: () => void;
   // 사용자가 도구를 바꾸면 자동 commit (현재 도구 변경 추적은 부모가 closeTextEditor 호출).
   // editingTool: 현재 도구 — text가 아니면 자동 commit.
   editingTool: InfinityToolKey;
 }
+
+const TEXT_COLOR_OPTIONS = [INFINITY_TEXT_DEFAULT_COLOR, ...INFINITY_COLORS] as const;
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 // canvas world 좌표(state.x, state.y)를 화면 픽셀 좌표로 변환.
 function worldToScreen(
@@ -45,10 +54,15 @@ export function InfinityTextEditor({
 }: InfinityTextEditorProps) {
   const [text, setText] = useState<string>(state.initialText);
   const [fontSize, setFontSize] = useState<number>(state.fontSize);
+  const [textColor, setTextColor] = useState<string>(
+    state.color || INFINITY_TEXT_DEFAULT_COLOR,
+  );
+  const [fontFamily, setFontFamily] = useState<string>(state.fontFamily);
   const [viewportSnapshot, setViewportSnapshot] = useState({
     scale: 1,
     stagePosition: { x: 0, y: 0 },
   });
+  const editorRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const screen = worldToScreen(
@@ -65,53 +79,66 @@ export function InfinityTextEditor({
   }, [scaleRef, stagePosRef, state.x, state.y]);
 
   useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.focus();
-    ta.setSelectionRange(ta.value.length, ta.value.length);
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
   }, []);
+
+  const commitText = () => {
+    onCommit({ text, fontSize, color: textColor, fontFamily });
+  };
 
   // 도구가 text가 아닌 다른 도구로 바뀌면 자동 commit.
   useEffect(() => {
     if (editingTool !== "text" && editingTool !== "select") {
-      onCommit(text, fontSize);
+      commitText();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingTool]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
       onCancel();
     }
     // Shift+Enter는 줄바꿈, Enter 단독은 commit.
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      onCommit(text, fontSize);
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      commitText();
     }
   };
 
-  const handleBlur = () => {
-    // popover 클릭으로 인한 blur는 무시 — popover는 onMouseDown preventDefault로 blur 방지.
-    onCommit(text, fontSize);
+  const handleEditorBlur = (event: React.FocusEvent<HTMLDivElement>) => {
+    const nextFocusedNode = event.relatedTarget;
+    if (
+      nextFocusedNode instanceof Node &&
+      editorRef.current?.contains(nextFocusedNode)
+    ) {
+      return;
+    }
+    commitText();
   };
 
   const adjustedFontSize = fontSize * viewportSnapshot.scale;
+  const colorInputValue = HEX_COLOR_PATTERN.test(textColor)
+    ? textColor
+    : INFINITY_TEXT_DEFAULT_COLOR;
 
   return (
     <div
+      ref={editorRef}
       className="absolute z-[var(--z-modal)] pointer-events-auto"
       style={{ left: screen.x, top: screen.y }}
+      onBlur={handleEditorBlur}
     >
-      {/* 폰트 크기 popover — textarea 위쪽 */}
-      <div
-        className="absolute bottom-full left-0 mb-2 flex items-center gap-1 rounded-lg border border-canvas-border bg-canvas-panel shadow-md px-2 py-1"
-        onMouseDown={(e) => e.preventDefault()}
-      >
+      {/* 텍스트 서식 popover — textarea 위쪽 */}
+      <div className="absolute bottom-full left-0 mb-2 flex max-w-[min(92vw,720px)] flex-wrap items-center gap-1 rounded-lg border border-canvas-border bg-canvas-panel px-2 py-1 shadow-md">
         <button
           type="button"
-          onClick={() => setFontSize((s) => Math.max(8, s - 2))}
+          onClick={() => setFontSize((size) => Math.max(8, size - 2))}
           className="w-6 h-6 flex items-center justify-center rounded hover:bg-canvas-active text-canvas-ink"
+          aria-label="글자 크기 줄이기"
         >
           −
         </button>
@@ -120,16 +147,20 @@ export function InfinityTextEditor({
           value={fontSize}
           min={8}
           max={256}
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            if (!Number.isNaN(n)) setFontSize(Math.max(8, Math.min(256, n)));
+          onChange={(event) => {
+            const nextFontSize = Number(event.target.value);
+            if (!Number.isNaN(nextFontSize)) {
+              setFontSize(Math.max(8, Math.min(256, nextFontSize)));
+            }
           }}
           className="w-12 text-center body-r text-fg-primary bg-transparent outline-none"
+          aria-label="글자 크기"
         />
         <button
           type="button"
-          onClick={() => setFontSize((s) => Math.min(256, s + 2))}
+          onClick={() => setFontSize((size) => Math.min(256, size + 2))}
           className="w-6 h-6 flex items-center justify-center rounded hover:bg-canvas-active text-canvas-ink"
+          aria-label="글자 크기 키우기"
         >
           +
         </button>
@@ -147,23 +178,56 @@ export function InfinityTextEditor({
             {preset}
           </button>
         ))}
+        <div className="w-px h-4 bg-canvas-border mx-1" />
+        <select
+          value={fontFamily}
+          onChange={(event) => setFontFamily(event.target.value)}
+          className="h-7 min-w-20 rounded border border-canvas-border bg-white px-2 caption-r text-canvas-ink outline-none"
+          aria-label="글꼴"
+        >
+          {INFINITY_TEXT_FONT_FAMILIES.map((fontOption) => (
+            <option key={fontOption.value} value={fontOption.value}>
+              {fontOption.label}
+            </option>
+          ))}
+        </select>
+        <div className="w-px h-4 bg-canvas-border mx-1" />
+        {TEXT_COLOR_OPTIONS.map((colorOption) => (
+          <button
+            key={colorOption}
+            type="button"
+            onClick={() => setTextColor(colorOption)}
+            className={cn(
+              "h-6 w-6 rounded-full border border-canvas-border",
+              textColor === colorOption && "ring-2 ring-canvas-accent ring-offset-1",
+            )}
+            style={{ backgroundColor: colorOption }}
+            aria-label={`글자 색 ${colorOption}`}
+          />
+        ))}
+        <input
+          type="color"
+          value={colorInputValue}
+          onChange={(event) => setTextColor(event.target.value)}
+          className="h-7 w-8 cursor-pointer rounded border border-canvas-border bg-white p-0.5"
+          aria-label="사용자 지정 글자 색"
+        />
       </div>
 
       {/* 입력 영역 */}
       <textarea
         ref={textareaRef}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(event) => setText(event.target.value)}
         onKeyDown={handleKeyDown}
-        onBlur={handleBlur}
         rows={1}
         spellCheck={false}
         className="resize-none border border-canvas-accent rounded bg-white/80 outline-none px-1 py-0.5 leading-tight"
         style={{
           fontSize: `${adjustedFontSize}px`,
-          color: state.color,
+          color: textColor,
           minWidth: "2ch",
-          fontFamily: "inherit",
+          fontFamily,
         }}
       />
     </div>

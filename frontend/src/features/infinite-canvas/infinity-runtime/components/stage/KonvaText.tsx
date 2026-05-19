@@ -1,7 +1,10 @@
 import { Text } from "react-konva";
 import type Konva from "konva";
 
-import type { InfinityText } from "../../constants";
+import {
+  INFINITY_TEXT_DEFAULT_FONT_FAMILY,
+  type InfinityText,
+} from "../../constants";
 
 interface KonvaTextProps {
   textObject: InfinityText;
@@ -32,6 +35,7 @@ export function KonvaText({
       y={textObject.y}
       text={textObject.text}
       fontSize={textObject.fontSize}
+      fontFamily={textObject.fontFamily ?? INFINITY_TEXT_DEFAULT_FONT_FAMILY}
       fill={textObject.color}
       rotation={textObject.rotation ?? 0}
       visible={!isEditing}

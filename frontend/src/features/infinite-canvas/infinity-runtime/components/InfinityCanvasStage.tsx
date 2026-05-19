@@ -593,10 +593,12 @@ export function InfinityCanvasStage({
 
   const requestLayerMenu = useCallback(
     (elementId: string, x: number, y: number) => {
-      onObjectClick(elementId, false, "select");
+      if (!selectedIds.includes(elementId)) {
+        onObjectClick(elementId, false, "select");
+      }
       onLayerMenuRequest({ elementId, x, y });
     },
-    [onLayerMenuRequest, onObjectClick],
+    [onLayerMenuRequest, onObjectClick, selectedIds],
   );
 
   const objectById = useMemo(
@@ -949,7 +951,7 @@ export function InfinityCanvasStage({
         onLineDragEnd={onObjectDragEnd}
       />
     );
-  }, [handleObjectClick, isSelectTool, lockedElementIds]);
+  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd]);
 
   const renderRemoteDraftObject = (draft: InfinityRemoteDraftObjectView) => {
     const obj = draft.object

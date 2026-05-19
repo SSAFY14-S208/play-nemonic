@@ -176,7 +176,16 @@ function getDraftObjectSignature(object: InfinityObject) {
   }
 
   if (object.type === 'text') {
-    return [object.id, object.type, object.x, object.y, object.text, object.fontSize, object.color].join(':')
+    return [
+      object.id,
+      object.type,
+      object.x,
+      object.y,
+      object.text,
+      object.fontSize,
+      object.color,
+      object.fontFamily ?? '',
+    ].join(':')
   }
 
   if (object.type === 'fill') {
@@ -857,11 +866,12 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
         {drawing.textEditor && (
           <InfinityTextEditor
+            key={drawing.textEditor.editingId ?? `${drawing.textEditor.x}:${drawing.textEditor.y}`}
             state={drawing.textEditor}
             scaleRef={drawing.viewport.scaleRef}
             stagePosRef={drawing.viewport.stagePosRef}
             editingTool={drawing.tool}
-            onCommit={(text, fontSize) => drawing.commitTextEditor(text, fontSize)}
+            onCommit={(value) => drawing.commitTextEditor(value)}
             onCancel={drawing.closeTextEditor}
           />
         )}

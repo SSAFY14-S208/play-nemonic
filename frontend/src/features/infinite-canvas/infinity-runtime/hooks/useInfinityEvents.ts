@@ -11,6 +11,8 @@ import {
   type InfinityShape,
   type InfinityText,
   type InfinityToolKey,
+  INFINITY_TEXT_DEFAULT_COLOR,
+  INFINITY_TEXT_DEFAULT_FONT_FAMILY,
   INFINITY_TEXT_DEFAULT_FONT_SIZE,
 } from '../constants'
 
@@ -472,6 +474,7 @@ interface TextEditorRequest {
   y: number
   fontSize: number
   color: string
+  fontFamily: string
   // 기존 텍스트 객체 편집인 경우 id; 신규 생성이면 null.
   editingId: string | null
 }
@@ -748,6 +751,17 @@ export function useInfinityEvents({
   const isSameSelection = (firstIds: string[], secondIds: string[]) =>
     firstIds.length === secondIds.length && firstIds.every((id, index) => id === secondIds[index])
 
+  const openExistingTextEditor = (text: InfinityText) => {
+    openTextEditor({
+      x: text.x,
+      y: text.y,
+      fontSize: text.fontSize,
+      color: text.color,
+      fontFamily: text.fontFamily ?? INFINITY_TEXT_DEFAULT_FONT_FAMILY,
+      editingId: text.id,
+    })
+  }
+
   // ── Stage 이벤트 핸들러 ──────────────────────────────────────────────────────
 
   const onStageMouseDown = (
@@ -1022,7 +1036,8 @@ export function useInfinityEvents({
         x: pos.x,
         y: pos.y,
         fontSize: INFINITY_TEXT_DEFAULT_FONT_SIZE,
-        color,
+        color: INFINITY_TEXT_DEFAULT_COLOR,
+        fontFamily: INFINITY_TEXT_DEFAULT_FONT_FAMILY,
         editingId: null,
       })
       return
@@ -1058,6 +1073,7 @@ export function useInfinityEvents({
       return
     }
 
+    const targetObject = objectsRef.current.find((object) => object.id === id)
     const current = selectedIdsRef.current
     let next: string[]
     if (isShift) {
@@ -1065,7 +1081,12 @@ export function useInfinityEvents({
         ? current.filter((selectedId) => selectedId !== id)
         : [...current, id]
     } else {
-      if (current.length === 1 && current[0] === id) return
+      if (current.length === 1 && current[0] === id) {
+        if (targetObject?.type === 'text') {
+          openExistingTextEditor(targetObject)
+        }
+        return
+      }
       next = [id]
     }
     recordSelection(next)
@@ -1189,14 +1210,7 @@ export function useInfinityEvents({
     }
     const target = objectsRef.current.find((obj) => obj.id === id)
     if (!target || target.type !== 'text') return
-    const text = target as InfinityText
-    openTextEditor({
-      x: text.x,
-      y: text.y,
-      fontSize: text.fontSize,
-      color: text.color,
-      editingId: text.id,
-    })
+    openExistingTextEditor(target)
   }
 
   // ── z-index 단축키 처리 — drawing 레이어가 호출 ────────────────────────────

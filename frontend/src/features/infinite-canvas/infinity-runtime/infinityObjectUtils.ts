@@ -64,7 +64,8 @@ function isText(value: unknown): value is InfinityText {
     typeof value.y === 'number' &&
     typeof value.text === 'string' &&
     typeof value.fontSize === 'number' &&
-    typeof value.color === 'string'
+    typeof value.color === 'string' &&
+    (value.fontFamily === undefined || typeof value.fontFamily === 'string')
   )
 }
 

@@ -6,6 +6,8 @@ import { DEFAULT_DRAWING_STROKE_WIDTH } from '@/shared/constants'
 import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 
 import {
+  INFINITY_TEXT_DEFAULT_COLOR,
+  INFINITY_TEXT_DEFAULT_FONT_FAMILY,
   type InfinityObject,
   type InfinityText,
   type InfinityToolKey,
@@ -47,9 +49,17 @@ export interface InfinityTextEditorState {
   y: number
   fontSize: number
   color: string
+  fontFamily: string
   initialText: string
   /** 기존 텍스트 객체 편집인 경우 id; 신규 생성이면 null. */
   editingId: string | null
+}
+
+export interface InfinityTextEditorCommitValue {
+  text: string
+  fontSize: number
+  color: string
+  fontFamily: string
 }
 
 const CLIPBOARD_PASTE_OFFSET = 28
@@ -220,19 +230,20 @@ export function useInfinityDrawing(
     y: number
     fontSize: number
     color: string
+    fontFamily: string
     editingId: string | null
   }) => {
     const editingObject = request.editingId
       ? history.objectsRef.current.find((obj) => obj.id === request.editingId)
       : null
-    const initialText =
-      editingObject && editingObject.type === 'text' ? editingObject.text : ''
+    const editingText = editingObject && editingObject.type === 'text' ? editingObject : null
     setTextEditor({
       x: request.x,
       y: request.y,
-      fontSize: request.fontSize,
-      color: request.color,
-      initialText,
+      fontSize: editingText?.fontSize ?? request.fontSize,
+      color: editingText?.color ?? request.color,
+      fontFamily: editingText?.fontFamily ?? request.fontFamily,
+      initialText: editingText?.text ?? '',
       editingId: request.editingId,
     })
   }
@@ -241,9 +252,15 @@ export function useInfinityDrawing(
     setTextEditor(null)
   }
 
-  const commitTextEditor = (text: string, fontSize: number) => {
+  const commitTextEditor = (value: InfinityTextEditorCommitValue) => {
     const editor = textEditor
     if (!editor) return
+    const {
+      text,
+      fontSize,
+      color: textColor = INFINITY_TEXT_DEFAULT_COLOR,
+      fontFamily = INFINITY_TEXT_DEFAULT_FONT_FAMILY,
+    } = value
     const trimmed = text
     if (editor.editingId) {
       // 기존 텍스트 편집 — 빈 문자열이면 삭제.
@@ -264,7 +281,7 @@ export function useInfinityDrawing(
         const newObjects = history.objectsRef.current.map((obj) => {
           if (obj.id !== editor.editingId) return obj
           if (obj.type === 'text') {
-            return { ...obj, text: trimmed, fontSize }
+            return { ...obj, text: trimmed, fontSize, color: textColor, fontFamily }
           }
           return obj
         })
@@ -288,7 +305,8 @@ export function useInfinityDrawing(
         y: editor.y,
         text: trimmed,
         fontSize,
-        color: editor.color,
+        color: textColor,
+        fontFamily,
       }
       const newObjects: InfinityObject[] = [
         ...history.objectsRef.current,

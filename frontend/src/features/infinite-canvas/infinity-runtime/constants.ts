@@ -93,6 +93,7 @@ export interface InfinityText {
   text: string
   fontSize: number
   color: string
+  fontFamily?: string
   rotation?: number
 }
 
@@ -113,5 +114,30 @@ export interface InfinityImage {
 
 export const INFINITY_TEXT_FONT_SIZES = [12, 16, 20, 24, 32, 48, 64] as const
 export const INFINITY_TEXT_DEFAULT_FONT_SIZE = 24
+export const INFINITY_TEXT_DEFAULT_COLOR = '#111111'
+export const INFINITY_TEXT_DEFAULT_FONT_FAMILY = "'Pretendard Variable', Pretendard, sans-serif"
+
+export const INFINITY_TEXT_FONT_FAMILIES = [
+  {
+    label: '기본',
+    value: INFINITY_TEXT_DEFAULT_FONT_FAMILY,
+  },
+  {
+    label: '고딕',
+    value: "'Noto Sans KR', 'Malgun Gothic', sans-serif",
+  },
+  {
+    label: '명조',
+    value: "'Nanum Myeongjo', 'Batang', serif",
+  },
+  {
+    label: '영문',
+    value: 'Georgia, serif',
+  },
+  {
+    label: '코드',
+    value: "'Courier New', monospace",
+  },
+] as const
 
 export type InfinityObject = InfinityLine | InfinityFill | InfinityShape | InfinityText | InfinityImage
