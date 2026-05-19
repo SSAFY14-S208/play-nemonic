@@ -125,8 +125,7 @@ export default function FlipbookEntranceView({
     shouldStart: isEntranceMounted && isIntroComplete,
   })
   const shouldInstantCompleteIntro = isIntroComplete && wasIntroSkipped
-  const { activeFrameIndex, handleScroll, handleWheel } = useFlipbookEntranceWheelFrames(
-    scrollZoneRef,
+  const { activeFrameIndex, handleScroll, scrollSpacerHeight } = useFlipbookEntranceWheelFrames(
     FLIPBOOK_ENTRANCE_FRAMES.length,
     isIntroComplete,
   )
@@ -177,7 +176,6 @@ export default function FlipbookEntranceView({
   return (
     <section
       className="relative min-h-[100svh] overflow-hidden bg-flipbook-room-base text-flipbook-ink"
-      onWheelCapture={handleWheel}
     >
       {FLIPBOOK_ENTRANCE_PRELOAD_LINK_SOURCES.map((imageSource) => (
         <link key={imageSource} rel="preload" as="image" href={imageSource} type="image/webp" />
@@ -217,6 +215,7 @@ export default function FlipbookEntranceView({
           <FlipbookEntranceSketchbook
             scrollZoneRef={scrollZoneRef}
             activeFrameIndex={activeFrameIndex}
+            scrollSpacerHeight={scrollSpacerHeight}
             onScroll={handleScroll}
             isInteractive={isIntroComplete}
             shouldInstantCompleteIntro={shouldInstantCompleteIntro}
@@ -616,12 +615,14 @@ function FlipbookEntranceDropScene({
 function FlipbookEntranceSketchbook({
   scrollZoneRef,
   activeFrameIndex,
+  scrollSpacerHeight,
   onScroll,
   isInteractive,
   shouldInstantCompleteIntro,
 }: {
   scrollZoneRef: RefObject<HTMLDivElement | null>
   activeFrameIndex: number
+  scrollSpacerHeight: string
   onScroll: ReturnType<typeof useFlipbookEntranceWheelFrames>['handleScroll']
   isInteractive: boolean
   shouldInstantCompleteIntro: boolean
@@ -707,12 +708,12 @@ function FlipbookEntranceSketchbook({
           )}
           <div
             aria-label="스케치북 프레임 스크롤"
-            className="absolute inset-0 z-10 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="absolute inset-0 z-10 overflow-y-scroll overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="region"
             tabIndex={isInteractive ? 0 : -1}
             onScroll={onScroll}
           >
-            <div style={{ height: `${FLIPBOOK_ENTRANCE_FRAME_COUNT * 420}px` }} />
+            <div style={{ height: scrollSpacerHeight }} />
           </div>
         </div>
       </div>
@@ -755,7 +756,7 @@ function FlipbookEntranceActions({
 }) {
   return (
     <motion.div
-      className={`absolute inset-0 z-20 ${interactive ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      className="pointer-events-none absolute inset-0 z-20"
       initial={false}
       animate={
         visible
@@ -825,7 +826,7 @@ function FlipbookEntranceImageButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className={`absolute overflow-visible transform-gpu transition-transform duration-150 ease-out will-change-transform hover:-translate-y-1 active:translate-y-px active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:active:translate-y-0 disabled:active:scale-100 ${buttonClassName}`}
+      className={`pointer-events-auto absolute overflow-visible transform-gpu transition-transform duration-150 ease-out will-change-transform hover:-translate-y-1 active:translate-y-px active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:active:translate-y-0 disabled:active:scale-100 ${buttonClassName}`}
     >
       <span className="absolute inset-0 overflow-hidden" aria-hidden>
         <Image
