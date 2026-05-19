@@ -8,6 +8,7 @@ import {
   INFINITY_COLORS,
   INFINITY_TEXT_DEFAULT_COLOR,
   INFINITY_TEXT_FONT_FAMILIES,
+  INFINITY_TEXT_FONT_SIZES,
   type InfinityToolKey,
 } from "../constants";
 import type {
@@ -30,6 +31,7 @@ interface InfinityTextEditorProps {
 
 const TEXT_COLOR_OPTIONS = [INFINITY_TEXT_DEFAULT_COLOR, ...INFINITY_COLORS] as const;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const TEXT_EDITOR_TOOLBAR_WIDTH = 840;
 
 // canvas world 좌표(state.x, state.y)를 화면 픽셀 좌표로 변환.
 function worldToScreen(
@@ -132,7 +134,10 @@ export function InfinityTextEditor({
       onBlur={handleEditorBlur}
     >
       {/* 텍스트 서식 popover — textarea 위쪽 */}
-      <div className="absolute bottom-full left-0 mb-2 flex max-w-[min(92vw,720px)] flex-wrap items-center gap-1 rounded-lg border border-canvas-border bg-canvas-panel px-2 py-1 shadow-md">
+      <div
+        className="absolute bottom-full left-0 mb-2 flex flex-nowrap items-center gap-1 rounded-lg border border-canvas-border bg-canvas-panel px-3 py-2 shadow-md"
+        style={{ width: TEXT_EDITOR_TOOLBAR_WIDTH }}
+      >
         <button
           type="button"
           onClick={() => setFontSize((size) => Math.max(8, size - 2))}
@@ -164,10 +169,27 @@ export function InfinityTextEditor({
           +
         </button>
         <div className="w-px h-4 bg-canvas-border mx-1" />
+        <div className="flex flex-nowrap items-center gap-1">
+          {INFINITY_TEXT_FONT_SIZES.map((fontSizeOption) => (
+            <button
+              key={fontSizeOption}
+              type="button"
+              onClick={() => setFontSize(fontSizeOption)}
+              className={cn(
+                "h-7 min-w-8 rounded px-2 body-r text-canvas-ink hover:bg-canvas-active",
+                fontSize === fontSizeOption &&
+                  "border border-canvas-accent bg-white text-canvas-accent",
+              )}
+            >
+              {fontSizeOption}
+            </button>
+          ))}
+        </div>
+        <div className="w-px h-4 bg-canvas-border mx-1" />
         <select
           value={fontFamily}
           onChange={(event) => setFontFamily(event.target.value)}
-          className="h-7 min-w-20 rounded border border-canvas-border bg-white px-2 caption-r text-canvas-ink outline-none"
+          className="h-8 w-24 shrink-0 rounded border border-canvas-border bg-white px-2 caption-r text-canvas-ink outline-none"
           aria-label="글꼴"
         >
           {INFINITY_TEXT_FONT_FAMILIES.map((fontOption) => (
@@ -183,7 +205,7 @@ export function InfinityTextEditor({
             type="button"
             onClick={() => setTextColor(colorOption)}
             className={cn(
-              "h-6 w-6 rounded-full border border-canvas-border",
+              "h-7 w-7 shrink-0 rounded-full border border-canvas-border",
               textColor === colorOption && "ring-2 ring-canvas-accent ring-offset-1",
             )}
             style={{ backgroundColor: colorOption }}
@@ -194,7 +216,7 @@ export function InfinityTextEditor({
           type="color"
           value={colorInputValue}
           onChange={(event) => setTextColor(event.target.value)}
-          className="h-7 w-8 cursor-pointer rounded border border-canvas-border bg-white p-0.5"
+          className="h-8 w-10 shrink-0 cursor-pointer rounded border border-canvas-border bg-white p-0.5"
           aria-label="사용자 지정 글자 색"
         />
       </div>
@@ -211,6 +233,7 @@ export function InfinityTextEditor({
         style={{
           fontSize: `${adjustedFontSize}px`,
           color: textColor,
+          width: TEXT_EDITOR_TOOLBAR_WIDTH,
           minWidth: "2ch",
           fontFamily,
         }}
