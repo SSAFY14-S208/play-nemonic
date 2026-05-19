@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useProgress } from '@react-three/drei'
-import { useCanvasPauseStore } from '@/shared/stores'
+import { useCanvasPauseStore, useHubOnboardingStore } from '@/shared/stores'
 
 const BASE_FILL_DURATION_SECONDS = 5
 const BASE_FILL_DURATION_MS = BASE_FILL_DURATION_SECONDS * 1000
@@ -30,12 +30,12 @@ function wait(durationMs: number) {
 function getHubLoadingStatusText(displayProgress: number) {
   if (displayProgress < 30) return '네모닉 룸의 불을 켜고 있어요'
   if (displayProgress < 60) return '메모지들이 하나둘 깨어나는 중이에요'
-  if (displayProgress < 90) return '오늘의 놀이를 방 안에 배치하고 있어요'
+  if (displayProgress < 90) return '오늘의 미니게임을 방 안에 배치하고 있어요'
 
   return '거의 다 왔어요, 마지막 스티커를 붙이는 중이에요'
 }
 
-const HUB_LOADING_SUBTITLE_PENDING = '오늘은 어떤 놀이가 기다릴까요?'
+const HUB_LOADING_SUBTITLE_PENDING = '오늘은 어떤 미니게임이 기다릴까요?'
 const HUB_LOADING_SUBTITLE_READY = '재미있는 것들이 가득해요'
 const HUB_LOADING_SUBTITLE_ENTERING = '방이 천천히 열리고 있어요'
 
@@ -284,6 +284,7 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
       if (cancelled) return
 
       setIsVisible(false)
+      useHubOnboardingStore.getState().setHasEnteredHub(true)
     })()
 
     return () => {
