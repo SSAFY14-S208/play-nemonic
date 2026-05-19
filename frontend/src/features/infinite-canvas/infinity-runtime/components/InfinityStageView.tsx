@@ -995,7 +995,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         participants={room.participants}
       />
 
-      <div className="fixed bottom-8 right-8 z-20 flex items-center gap-4">
+      <div className="fixed bottom-8 right-[calc(7rem+env(safe-area-inset-right))] z-20 flex items-center gap-4">
         <button
           type="button"
           onClick={() => setIsCaptureMode(true)}
