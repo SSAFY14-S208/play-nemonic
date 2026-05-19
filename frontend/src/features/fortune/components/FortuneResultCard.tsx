@@ -1,30 +1,19 @@
 import { CheckCircle2, Home, Pin, Share2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 import { cn } from '@/shared/libs'
 
 import { useFortuneSessionStore } from '../fortuneSessionStore'
 import { useFortuneExternalShare } from '../hooks'
-import type { FortuneScoreSet } from '../types'
+import { createFortuneCommunityImageDataUrl } from '../utils'
 
 const FORTUNE_CARD_TEMPLATE_PATH = '/images/fortune/templates/daily-fortune-card.png'
-const FORTUNE_DIRECTION_ARROW_PATH = '/images/fortune/templates/arrow.png'
 
 const TEMPLATE_CARD_CLASS = cn(
   'relative isolate mx-auto w-full max-w-[min(92vw,620px)] overflow-hidden',
   'aspect-[771/895] rotate-[-0.2deg]',
   'drop-shadow-[0_1.75rem_2.6rem_rgba(74,53,27,0.22)]',
   'animate-fortune-postit-land motion-reduce:animate-none',
-)
-
-const CARD_TEXT_BASE_CLASS = cn(
-  'absolute z-[2] text-center tracking-normal [word-break:keep-all]',
-  'font-fortune-hand text-[#15110a]',
-)
-
-const SCORE_VALUE_CLASS = cn(
-  CARD_TEXT_BASE_CLASS,
-  'top-[62.6%] -translate-x-1/2',
-  'text-[clamp(1.48rem,4.8vw,2.18rem)] leading-none font-bold',
 )
 
 const ACTION_BUTTON_CLASS = cn(
@@ -43,13 +32,6 @@ const PRIMARY_ACTION_BUTTON_CLASS = cn(
   'motion-reduce:after:transition-none',
 )
 
-const SCORE_POSITIONS = [
-  { key: 'love', left: '18.25%', color: '#ff5f95' },
-  { key: 'work', left: '39.55%', color: '#16a9ee' },
-  { key: 'money', left: '60.15%', color: '#ff9600' },
-  { key: 'overall', left: '80.85%', color: '#3c8424' },
-] as const satisfies readonly { key: keyof FortuneScoreSet; left: string; color: string }[]
-
 interface FortuneResultCardProps {
   onAttach: () => void
   onBackToHub: () => void
@@ -58,6 +40,28 @@ interface FortuneResultCardProps {
 export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResultCardProps) {
   const result = useFortuneSessionStore((state) => state.result)
   const { canShareExternal, isSharingExternal, shareExternal } = useFortuneExternalShare()
+  const [renderedCardImageUrl, setRenderedCardImageUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    if (!result) {
+      setRenderedCardImageUrl(null)
+      return
+    }
+
+    void createFortuneCommunityImageDataUrl(result).then((imageUrl) => {
+      if (!isMounted) {
+        return
+      }
+
+      setRenderedCardImageUrl(imageUrl ?? result.fortuneImageUrl ?? null)
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [result])
 
   if (!result) {
     return null
@@ -67,78 +71,11 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
     <section className="mx-auto grid w-[min(94vw,760px)] gap-5">
       <article className={TEMPLATE_CARD_CLASS} aria-label="오늘의 운세 카드">
         <img
-          src={FORTUNE_CARD_TEMPLATE_PATH}
-          alt=""
-          aria-hidden
+          src={renderedCardImageUrl ?? FORTUNE_CARD_TEMPLATE_PATH}
+          alt="오늘의 운세 결과 카드"
           className="absolute inset-0 z-0 size-full select-none object-contain"
           draggable={false}
         />
-
-        <time className={cn(CARD_TEXT_BASE_CLASS, 'left-1/2 top-[9.3%] flex h-[5.4%] w-[22%] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-[clamp(1.05rem,3.3vw,1.9rem)] font-bold leading-none')}>
-          {formatFortuneDate(result.issuedDateKey)}
-        </time>
-
-        <h1
-          className={cn(
-            CARD_TEXT_BASE_CLASS,
-            'left-1/2 top-[18.95%] w-[64%] -translate-x-1/2',
-            'text-[clamp(1.58rem,5vw,2.58rem)] font-bold leading-[1.2]',
-          )}
-        >
-          {result.title}
-        </h1>
-
-        <p
-          className={cn(
-            CARD_TEXT_BASE_CLASS,
-            'left-1/2 top-[42.8%] flex h-[8%] w-[70%] -translate-x-1/2 -translate-y-1/2 items-center justify-center',
-            'text-[clamp(0.9rem,2.45vw,1.24rem)] font-semibold leading-[1.35] text-[#4b3823]',
-          )}
-        >
-          {result.postitLine}
-        </p>
-
-        {SCORE_POSITIONS.map((scorePosition) => (
-          <strong
-            key={scorePosition.key}
-            className={SCORE_VALUE_CLASS}
-            style={{ left: scorePosition.left, color: scorePosition.color }}
-          >
-            {result.scores[scorePosition.key]}
-          </strong>
-        ))}
-
-        <div
-          className={cn(
-            CARD_TEXT_BASE_CLASS,
-            'left-[24%] top-[83.6%] w-[36%] -translate-x-1/2 text-center',
-            'text-[clamp(0.68rem,1.9vw,0.92rem)] font-semibold leading-[1.35]',
-          )}
-        >
-          <div className="grid grid-cols-2 items-center gap-x-[12%] gap-y-[0.42rem]">
-            <span className="mx-auto block size-[2.35em] rounded-full border border-[rgba(40,40,40,0.18)] shadow-[inset_0_0_0_0.22rem_rgba(255,255,255,0.55)]" style={{ background: result.luckyColor.hex }} aria-hidden />
-            <img
-              src={FORTUNE_DIRECTION_ARROW_PATH}
-              alt=""
-              aria-hidden
-              className="mx-auto w-[clamp(2.1rem,7vw,3.35rem)] select-none object-contain drop-shadow-[0_0.12rem_0_rgba(255,255,255,0.76)]"
-              draggable={false}
-              style={{ transform: `rotate(${getDirectionArrowRotation(result.luckyDirection)}deg)` }}
-            />
-            <span className="block">{result.luckyColor.name}</span>
-            <strong className="block text-[clamp(0.78rem,2.15vw,1.02rem)]">{result.luckyDirection}</strong>
-          </div>
-        </div>
-
-        <p
-          className={cn(
-            CARD_TEXT_BASE_CLASS,
-            'left-[75.8%] top-[84.6%] w-[30%] -translate-x-1/2 text-center',
-            'text-[clamp(0.62rem,1.7vw,0.82rem)] font-semibold leading-[1.5]',
-          )}
-        >
-          {result.caution}
-        </p>
       </article>
 
       <div className="rounded-[var(--radius-lg)] border border-fortune-border bg-fortune-paper/90 p-4 text-center shadow-[0_0.8rem_1.7rem_rgba(83,50,102,0.08)]">
@@ -174,29 +111,4 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
       </div>
     </section>
   )
-}
-
-function formatFortuneDate(dateKey: string) {
-  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey)
-
-  if (!dateParts) {
-    return dateKey
-  }
-
-  const date = new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]))
-  const weekday = new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(date).replace('.', '')
-
-  return `${Number(dateParts[2])}/${Number(dateParts[3])} (${weekday})`
-}
-
-function getDirectionArrowRotation(direction: string) {
-  if (direction.includes('북동')) return -45
-  if (direction.includes('남동')) return 45
-  if (direction.includes('남서')) return 135
-  if (direction.includes('북서')) return -135
-  if (direction.includes('북')) return -90
-  if (direction.includes('남')) return 90
-  if (direction.includes('서')) return 180
-
-  return 0
 }

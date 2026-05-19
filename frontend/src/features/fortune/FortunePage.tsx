@@ -98,10 +98,10 @@ export default function FortunePage() {
     setIsEntrySceneReady(true);
   }, []);
 
-  const handleAttach = () => {
+  const handleAttach = async () => {
     if (result) {
       const imageUrl =
-        result.fortuneImageUrl ?? createFortuneCommunityImageDataUrl(result);
+        await createFortuneCommunityImageDataUrl(result) ?? result.fortuneImageUrl;
       if (!imageUrl) {
         setNoticeMessage("커뮤니티에 붙일 운세 이미지를 만들지 못했어요.");
         return;
