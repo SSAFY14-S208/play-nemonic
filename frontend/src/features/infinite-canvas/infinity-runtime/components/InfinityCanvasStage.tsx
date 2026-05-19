@@ -424,6 +424,47 @@ function resetNodeScale(node: Konva.Node) {
   node.scale({ x: 1, y: 1 });
 }
 
+function resetNodeTransform(node: Konva.Node) {
+  node.position({ x: 0, y: 0 });
+  node.rotation(0);
+  resetNodeScale(node);
+}
+
+function getNodeScaleMagnitude(node: Konva.Node) {
+  return Math.max(Math.abs(node.scaleX()), Math.abs(node.scaleY()));
+}
+
+function getDragDeltaFromObject(object: InfinityObject, x: number, y: number) {
+  if (object.type === "line") {
+    return { x, y };
+  }
+
+  return {
+    x: x - object.x,
+    y: y - object.y,
+  };
+}
+
+function moveNodeByObjectDelta(object: InfinityObject, node: Konva.Node, deltaX: number, deltaY: number) {
+  if (object.type === "line") {
+    node.position({ x: deltaX, y: deltaY });
+    return;
+  }
+
+  if (object.type === "ellipse") {
+    node.position({
+      x: object.x + object.width / 2 + deltaX,
+      y: object.y + object.height / 2 + deltaY,
+    });
+    return;
+  }
+
+  node.position({
+    x: object.x + deltaX,
+    y: object.y + deltaY,
+  });
+}
+
 function getOverlayScale(scale: number) {
   return scale > 0 ? 1 / scale : 1;
 }
@@ -605,6 +646,27 @@ export function InfinityCanvasStage({
     () => new Map(objects.map((object) => [object.id, object])),
     [objects],
   );
+
+  const previewGroupedObjectMove = useCallback((id: string, x: number, y: number) => {
+    if (selectedIds.length <= 1 || !selectedIds.includes(id)) return;
+
+    const draggedObject = objectById.get(id);
+    const stage = stageRef.current;
+    if (!draggedObject || !stage) return;
+
+    const delta = getDragDeltaFromObject(draggedObject, x, y);
+    for (const selectedId of selectedIds) {
+      if (selectedId === id) continue;
+
+      const object = objectById.get(selectedId);
+      const node = stage.findOne(`#${selectedId}`);
+      if (!object || !node) continue;
+      moveNodeByObjectDelta(object, node, delta.x, delta.y);
+    }
+
+    stage.batchDraw();
+  }, [objectById, selectedIds, stageRef]);
+
   const partitionedObjects = useMemo<PartitionedInfinityObjects>(() => {
     const fills: InfinityObject[] = [];
     const lines: InfinityLine[] = [];
@@ -624,19 +686,27 @@ export function InfinityCanvasStage({
   }, [objects]);
 
   const readObjectFromNode = useCallback(
-    (object: InfinityObject, node: Konva.Node): InfinityObject | null => {
+    (
+      object: InfinityObject,
+      node: Konva.Node,
+      { normalizeNode = false }: { normalizeNode?: boolean } = {},
+    ): InfinityObject | null => {
       if (object.type === "line" && node instanceof Konva.Line) {
         const transform = node.getTransform().copy();
         const points = object.points.map((point) => transform.point(point));
+        const strokeScale = getNodeScaleMagnitude(node);
+        if (normalizeNode) resetNodeTransform(node);
         return {
           ...object,
           points,
+          strokeWidth: Math.max(1, object.strokeWidth * strokeScale),
         };
       }
 
       if (object.type === "fill" && node instanceof Konva.Image) {
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();
+        if (normalizeNode) resetNodeScale(node);
         return {
           ...object,
           x: node.x(),
@@ -649,6 +719,7 @@ export function InfinityCanvasStage({
       if (object.type === "image" && node instanceof Konva.Image) {
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();
+        if (normalizeNode) resetNodeScale(node);
         return {
           ...object,
           x: node.x(),
@@ -660,12 +731,17 @@ export function InfinityCanvasStage({
       }
 
       if (object.type === "rect" && node instanceof Konva.Rect) {
+        const scaleX = node.scaleX();
+        const scaleY = node.scaleY();
+        const scaleMagnitude = getNodeScaleMagnitude(node);
+        if (normalizeNode) resetNodeScale(node);
         return {
           ...object,
           x: node.x(),
           y: node.y(),
-          width: object.width * node.scaleX(),
-          height: object.height * node.scaleY(),
+          width: object.width * scaleX,
+          height: object.height * scaleY,
+          strokeWidth: Math.max(1, object.strokeWidth * scaleMagnitude),
           rotation: node.rotation(),
         };
       }
@@ -673,21 +749,27 @@ export function InfinityCanvasStage({
       if (object.type === "ellipse" && node instanceof Konva.Ellipse) {
         const radiusX = node.radiusX() * node.scaleX();
         const radiusY = node.radiusY() * node.scaleY();
+        const scaleMagnitude = getNodeScaleMagnitude(node);
+        if (normalizeNode) resetNodeScale(node);
         return {
           ...object,
           x: node.x() - radiusX,
           y: node.y() - radiusY,
           width: radiusX * 2,
           height: radiusY * 2,
+          strokeWidth: Math.max(1, object.strokeWidth * scaleMagnitude),
           rotation: node.rotation(),
         };
       }
 
       if (object.type === "text" && node instanceof Konva.Text) {
+        const fontScale = getNodeScaleMagnitude(node);
+        if (normalizeNode) resetNodeScale(node);
         return {
           ...object,
           x: node.x(),
           y: node.y(),
+          fontSize: Math.max(8, object.fontSize * fontScale),
           rotation: node.rotation(),
         };
       }
@@ -781,7 +863,7 @@ export function InfinityCanvasStage({
         const object = objectById.get(selectedId);
         const node = stage.findOne(`#${selectedId}`);
         if (!object || !node) return null;
-        return readObjectFromNode(object, node);
+        return readObjectFromNode(object, node, { normalizeNode: true });
       })
       .filter((object): object is InfinityObject => Boolean(object));
 
@@ -885,7 +967,9 @@ export function InfinityCanvasStage({
           shape={rectObject}
           isSelectTool={isSelectTool}
           isLocked={isLocked}
+          isGroupedSelection={selectedIds.length > 1 && selectedIds.includes(rectObject.id)}
           onShapeClick={handleObjectClick}
+          onShapeDragMove={previewGroupedObjectMove}
           onShapeDragEnd={onObjectDragEnd}
           onShapeTransformEnd={onShapeTransformEnd}
         />
@@ -899,7 +983,9 @@ export function InfinityCanvasStage({
           shape={ellipseObject}
           isSelectTool={isSelectTool}
           isLocked={isLocked}
+          isGroupedSelection={selectedIds.length > 1 && selectedIds.includes(ellipseObject.id)}
           onShapeClick={handleObjectClick}
+          onShapeDragMove={previewGroupedObjectMove}
           onShapeDragEnd={onObjectDragEnd}
           onShapeTransformEnd={onShapeTransformEnd}
         />
@@ -914,8 +1000,10 @@ export function InfinityCanvasStage({
           isSelectTool={isSelectTool}
           isEditing={editingId === textObject.id}
           isLocked={isLocked}
+          isGroupedSelection={selectedIds.length > 1 && selectedIds.includes(textObject.id)}
           onTextClick={handleObjectClick}
           onTextDblClick={onTextDblClick}
+          onTextDragMove={previewGroupedObjectMove}
           onTextDragEnd={onObjectDragEnd}
           onTextTransformEnd={onTextTransformEnd}
         />
@@ -929,7 +1017,9 @@ export function InfinityCanvasStage({
           imageObject={imageObject}
           isSelectTool={isSelectTool}
           isLocked={isLocked}
+          isGroupedSelection={selectedIds.length > 1 && selectedIds.includes(imageObject.id)}
           onImageClick={handleObjectClick}
+          onImageDragMove={previewGroupedObjectMove}
           onImageDragEnd={onObjectDragEnd}
           onImageTransformEnd={onShapeTransformEnd}
         />
@@ -948,10 +1038,11 @@ export function InfinityCanvasStage({
         isSelectTool={isSelectTool}
         isLocked={isLocked}
         onLineClick={handleObjectClick}
+        onLineDragMove={previewGroupedObjectMove}
         onLineDragEnd={onObjectDragEnd}
       />
     );
-  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd]);
+  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd, previewGroupedObjectMove]);
 
   const renderRemoteDraftObject = (draft: InfinityRemoteDraftObjectView) => {
     const obj = draft.object
@@ -1022,7 +1113,7 @@ export function InfinityCanvasStage({
     () => partitionedObjects.shapeAndTextObjects.map(renderShapeOrText),
     // renderShapeOrText reads the current tool/lock/edit callbacks and should only refresh when those change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [partitionedObjects.shapeAndTextObjects, lockedElementIds, isSelectTool, editingId, handleObjectClick],
+    [partitionedObjects.shapeAndTextObjects, lockedElementIds, isSelectTool, editingId, handleObjectClick, previewGroupedObjectMove, selectedIds],
   );
 
   const renderFill = useCallback((obj: InfinityObject) => {
@@ -1035,10 +1126,11 @@ export function InfinityCanvasStage({
         isSelectTool={isSelectTool}
         isLocked={isLocked}
         onFillClick={handleObjectClick}
+        onFillDragMove={previewGroupedObjectMove}
         onFillDragEnd={onObjectDragEnd}
       />
     );
-  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd]);
+  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd, previewGroupedObjectMove]);
 
   const fillNodes = useMemo(
     () => partitionedObjects.fills.map(renderFill),
@@ -1231,7 +1323,7 @@ export function InfinityCanvasStage({
         <Transformer
           ref={transformerRef}
           rotateEnabled={true}
-          shouldOverdrawWholeArea={false}
+          shouldOverdrawWholeArea={selectedIds.length > 1}
           onDragMove={previewSelectedNodeMoves}
           onDragEnd={commitSelectedNodeMoves}
           onTransform={previewSelectedNodeTransforms}

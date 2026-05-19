@@ -7,7 +7,9 @@ export function KonvaEllipse({
   shape,
   isSelectTool,
   isLocked = false,
+  isGroupedSelection = false,
   onShapeClick,
+  onShapeDragMove,
   onShapeDragEnd,
   onShapeTransformEnd,
 }: KonvaShapeProps) {
@@ -37,12 +39,18 @@ export function KonvaEllipse({
           : undefined
       }
       onTap={isSelectTool ? () => onShapeClick(shape.id, false) : undefined}
+      onDragMove={(e) => {
+        const newCenterX = e.target.x();
+        const newCenterY = e.target.y();
+        onShapeDragMove?.(shape.id, newCenterX - radiusX, newCenterY - radiusY);
+      }}
       onDragEnd={(e) => {
         const newCenterX = e.target.x();
         const newCenterY = e.target.y();
         onShapeDragEnd(shape.id, newCenterX - radiusX, newCenterY - radiusY);
       }}
       onTransformEnd={(e) => {
+        if (isGroupedSelection) return;
         const node = e.target as Konva.Ellipse;
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();

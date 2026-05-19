@@ -120,6 +120,35 @@ function recolorObject(object: InfinityObject, color: string): InfinityObject {
   return { ...object, color }
 }
 
+function getDragDeltaFromObject(object: InfinityObject, x: number, y: number) {
+  if (object.type === 'line') {
+    return { x, y }
+  }
+
+  return {
+    x: x - object.x,
+    y: y - object.y,
+  }
+}
+
+function moveObjectByDelta(object: InfinityObject, deltaX: number, deltaY: number): InfinityObject {
+  if (object.type === 'line') {
+    return {
+      ...object,
+      points: object.points.map((point) => ({
+        x: point.x + deltaX,
+        y: point.y + deltaY,
+      })),
+    }
+  }
+
+  return {
+    ...object,
+    x: object.x + deltaX,
+    y: object.y + deltaY,
+  }
+}
+
 function getObjectBounds(object: InfinityObject): Bounds | null {
   if (object.type === 'fill' || object.type === 'rect' || object.type === 'ellipse' || object.type === 'image') {
     return {
@@ -614,6 +643,23 @@ export function useInfinityEvents({
 
   const blockEdit = (id: string) => {
     onBlockedObjectEdit?.(id)
+  }
+
+  const resetLineNodeOffsets = (ids: string[]) => {
+    const stage = stageRef.current
+    if (!stage) return
+
+    let shouldDraw = false
+    for (const elementId of ids) {
+      const object = objectsRef.current.find((item) => item.id === elementId)
+      if (object?.type !== 'line') continue
+      const node = stage.findOne(`#${elementId}`)
+      if (!node) continue
+      node.position({ x: 0, y: 0 })
+      shouldDraw = true
+    }
+
+    if (shouldDraw) stage.batchDraw()
   }
 
   // ── Konva imperative 헬퍼 ────────────────────────────────────────────────────
@@ -1224,28 +1270,43 @@ export function useInfinityEvents({
       blockEdit(id)
       return
     }
+    const draggedObject = objectsRef.current.find((object) => object.id === id)
+    if (!draggedObject) return
+
+    const selectedIds = selectedIdsRef.current
+    const moveIds = selectedIds.length > 1 && selectedIds.includes(id)
+      ? selectedIds
+      : [id]
+    const blockedId = moveIds.find((elementId) => !canEdit(elementId))
+    if (blockedId) {
+      blockEdit(blockedId)
+      resetLineNodeOffsets(moveIds)
+      return
+    }
+
+    const delta = getDragDeltaFromObject(draggedObject, x, y)
+    resetLineNodeOffsets(moveIds)
+    if (delta.x === 0 && delta.y === 0) return
+
+    const moveIdSet = new Set(moveIds)
+    const updatedObjects: InfinityObject[] = []
     const newObjects = objectsRef.current.map((obj) => {
-      if (obj.id !== id) return obj
-      if (obj.type === 'line') {
-        return {
-          ...obj,
-          points: obj.points.map((point) => ({
-            x: point.x + x,
-            y: point.y + y,
-          })),
-        }
-      }
-      return { ...obj, x, y }
+      if (!moveIdSet.has(obj.id)) return obj
+      const updatedObject = moveObjectByDelta(obj, delta.x, delta.y)
+      updatedObjects.push(updatedObject)
+      return updatedObject
     })
-    const updatedObject = newObjects.find((object) => object.id === id)
-    if (!updatedObject) return
-    commitLocalChange(newObjects, selectedIdsRef.current, [
-      {
+    if (updatedObjects.length === 0) return
+
+    commitLocalChange(
+      newObjects,
+      selectedIds.includes(id) ? selectedIds : [id],
+      updatedObjects.map((updatedObject) => ({
         operationType: 'UPSERT_ELEMENT',
         elementId: updatedObject.id,
         element: { ...updatedObject },
-      },
-    ])
+      })),
+    )
   }
 
   const onShapeTransformEnd = (

@@ -9,6 +9,7 @@ interface KonvaFillProps {
   isSelectTool?: boolean;
   isLocked?: boolean;
   onFillClick?: (id: string, isShift: boolean) => void;
+  onFillDragMove?: (id: string, x: number, y: number) => void;
   onFillDragEnd?: (id: string, x: number, y: number) => void;
 }
 
@@ -19,6 +20,7 @@ export function KonvaFill({
   isSelectTool = false,
   isLocked = false,
   onFillClick,
+  onFillDragMove,
   onFillDragEnd,
 }: KonvaFillProps) {
   const [loadedImage, setLoadedImage] = useState<{
@@ -79,6 +81,9 @@ export function KonvaFill({
           : undefined
       }
       onTap={isSelectTool ? () => onFillClick?.(fill.id, false) : undefined}
+      onDragMove={(event) => {
+        onFillDragMove?.(fill.id, event.target.x(), event.target.y());
+      }}
       onDragEnd={(event) => {
         onFillDragEnd?.(fill.id, event.target.x(), event.target.y());
       }}

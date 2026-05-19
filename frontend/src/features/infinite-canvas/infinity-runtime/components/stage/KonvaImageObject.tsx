@@ -9,7 +9,9 @@ interface KonvaImageObjectProps {
   imageObject: InfinityImage;
   isSelectTool?: boolean;
   isLocked?: boolean;
+  isGroupedSelection?: boolean;
   onImageClick?: (id: string, isShift: boolean) => void;
+  onImageDragMove?: (id: string, x: number, y: number) => void;
   onImageDragEnd?: (id: string, x: number, y: number) => void;
   onImageTransformEnd?: (
     id: string,
@@ -32,7 +34,9 @@ export function KonvaImageObject({
   imageObject,
   isSelectTool = false,
   isLocked = false,
+  isGroupedSelection = false,
   onImageClick,
+  onImageDragMove,
   onImageDragEnd,
   onImageTransformEnd,
 }: KonvaImageObjectProps) {
@@ -94,12 +98,17 @@ export function KonvaImageObject({
           : undefined
       }
       onTap={isSelectTool ? () => onImageClick?.(imageObject.id, false) : undefined}
+      onDragMove={(event) => {
+        const node = event.target as Konva.Image;
+        onImageDragMove?.(imageObject.id, node.x(), node.y());
+      }}
       onDragEnd={(event) => {
         const node = event.target as Konva.Image;
         resetNodeScale(node);
         onImageDragEnd?.(imageObject.id, node.x(), node.y());
       }}
       onTransformEnd={(event) => {
+        if (isGroupedSelection) return;
         const node = event.target as Konva.Image;
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();

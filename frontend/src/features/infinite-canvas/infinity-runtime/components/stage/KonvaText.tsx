@@ -11,8 +11,10 @@ interface KonvaTextProps {
   isSelectTool: boolean;
   isEditing: boolean;
   isLocked?: boolean;
+  isGroupedSelection?: boolean;
   onTextClick: (id: string, isShift: boolean) => void;
   onTextDblClick: (id: string) => void;
+  onTextDragMove: (id: string, x: number, y: number) => void;
   onTextDragEnd: (id: string, x: number, y: number) => void;
   onTextTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
 }
@@ -22,8 +24,10 @@ export function KonvaText({
   isSelectTool,
   isEditing,
   isLocked = false,
+  isGroupedSelection = false,
   onTextClick,
   onTextDblClick,
+  onTextDragMove,
   onTextDragEnd,
   onTextTransformEnd,
 }: KonvaTextProps) {
@@ -54,10 +58,14 @@ export function KonvaText({
       onDblTap={
         isSelectTool ? () => onTextDblClick(textObject.id) : undefined
       }
+      onDragMove={(e) => {
+        onTextDragMove(textObject.id, e.target.x(), e.target.y());
+      }}
       onDragEnd={(e) => {
         onTextDragEnd(textObject.id, e.target.x(), e.target.y());
       }}
       onTransformEnd={(e) => {
+        if (isGroupedSelection) return;
         const node = e.target as Konva.Text;
         // 텍스트는 사이즈 조절 안 함 — scale 1로 reset, fontSize 유지.
         node.scaleX(1);

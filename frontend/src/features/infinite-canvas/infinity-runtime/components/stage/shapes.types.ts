@@ -4,7 +4,9 @@ export interface KonvaShapeProps {
   shape: InfinityShape;
   isSelectTool: boolean;
   isLocked?: boolean;
+  isGroupedSelection?: boolean;
   onShapeClick: (id: string, isShift: boolean) => void;
+  onShapeDragMove?: (id: string, x: number, y: number) => void;
   onShapeDragEnd: (id: string, x: number, y: number) => void;
   onShapeTransformEnd: (
     id: string,

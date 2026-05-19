@@ -7,7 +7,9 @@ export function KonvaRect({
   shape,
   isSelectTool,
   isLocked = false,
+  isGroupedSelection = false,
   onShapeClick,
+  onShapeDragMove,
   onShapeDragEnd,
   onShapeTransformEnd,
 }: KonvaShapeProps) {
@@ -33,10 +35,14 @@ export function KonvaRect({
           : undefined
       }
       onTap={isSelectTool ? () => onShapeClick(shape.id, false) : undefined}
+      onDragMove={(e) => {
+        onShapeDragMove?.(shape.id, e.target.x(), e.target.y());
+      }}
       onDragEnd={(e) => {
         onShapeDragEnd(shape.id, e.target.x(), e.target.y());
       }}
       onTransformEnd={(e) => {
+        if (isGroupedSelection) return;
         const node = e.target as Konva.Rect;
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();
