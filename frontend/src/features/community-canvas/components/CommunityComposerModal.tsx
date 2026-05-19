@@ -7,6 +7,7 @@ import {
   Brush,
   Eraser,
   ImagePlus,
+  PaintBucket,
   Redo2,
   Send,
   Trash2,
@@ -52,12 +53,13 @@ const TOOL_ACTIONS: Array<{
 }> = [
   { key: 'pencil', label: '브러시', icon: Brush },
   { key: 'eraser', label: '지우개', icon: Eraser },
+  { key: 'bucket', label: '채우기', icon: PaintBucket },
   { key: 'undo', label: '되돌리기', icon: Undo2 },
   { key: 'redo', label: '다시 실행', icon: Redo2 },
   { key: 'clear', label: '전체 지우기', icon: Trash2 },
 ]
 
-const GALLERY_HIDDEN_TOOL_ACTIONS: ToolActionKey[] = []
+const GALLERY_HIDDEN_TOOL_ACTIONS: ToolActionKey[] = ['bucket']
 const COMPOSER_BOARD_SURFACE_CLASS = 'h-[540px] w-[720px] max-h-full max-w-full'
 const COMPOSER_MODAL_WIDTH = 1600
 const COMPOSER_MODAL_HEIGHT = 860
@@ -686,7 +688,6 @@ function DrawingToolStrip({
               className={cn(
                 'grid w-full place-items-center rounded-[0.45rem] border border-[#d5cee3] bg-[#fbfaff] text-fg-secondary shadow-sm transition hover:border-primary-1 hover:text-fg-primary',
                 compact ? 'h-11' : 'h-14',
-                toolAction.key === 'undo' && 'col-start-1',
                 isSelected && 'border-primary-1 bg-primary-5 text-primary-2 ring-2 ring-primary-5',
                 isDisabled && 'cursor-not-allowed opacity-40 shadow-none',
               )}

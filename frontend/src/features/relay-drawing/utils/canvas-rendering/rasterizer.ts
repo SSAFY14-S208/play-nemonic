@@ -60,6 +60,7 @@ function drawFallbackFillOnContext(
   const firstPoint = line.points[0]
 
   context.save()
+  context.globalCompositeOperation = line.compositeOperation ?? 'source-over'
   context.fillStyle = line.color
   context.globalAlpha = line.opacity ?? 1
   context.beginPath()
@@ -81,7 +82,10 @@ async function drawLineOnContext(
   if (line.kind === 'fill') {
     if (line.imageDataUrl) {
       const imageElement = await loadImageElement(line.imageDataUrl)
+      context.save()
+      context.globalCompositeOperation = line.compositeOperation ?? 'source-over'
       context.drawImage(imageElement, 0, 0)
+      context.restore()
       return
     }
 

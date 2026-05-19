@@ -5,12 +5,14 @@ import { Image as KonvaImage } from 'react-konva'
 
 interface RasterFillImageProps {
   imageDataUrl: string
+  compositeOperation?: GlobalCompositeOperation
   opacity?: number
   yOffset?: number
 }
 
 export default function RasterFillImage({
   imageDataUrl,
+  compositeOperation = 'source-over',
   opacity = 1,
   yOffset = 0,
 }: RasterFillImageProps) {
@@ -41,6 +43,7 @@ export default function RasterFillImage({
       y={yOffset}
       opacity={opacity}
       listening={false}
+      globalCompositeOperation={compositeOperation}
     />
   )
 }

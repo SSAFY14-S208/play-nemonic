@@ -179,6 +179,7 @@ function DrawingLineGroup({
                 imageDataUrl={line.imageDataUrl}
                 width={boardSize.width}
                 height={boardSize.height}
+                compositeOperation={line.compositeOperation}
               />
             )
           }
@@ -191,6 +192,7 @@ function DrawingLineGroup({
               opacity={line.opacity ?? 1}
               closed
               listening={false}
+              globalCompositeOperation={line.compositeOperation ?? 'source-over'}
             />
           )
         }
