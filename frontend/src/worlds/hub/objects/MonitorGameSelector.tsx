@@ -1,7 +1,7 @@
 import { Text, useTexture } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import {
   HUB_GAMES,
@@ -44,7 +44,9 @@ const MONITOR_NAV_ARROW_OUTLINE_WIDTH = 0.01
 const MONITOR_NAV_ARROW_BOB_DISTANCE = 0.052
 const MONITOR_NAV_ARROW_BOB_SPEED = 3.4
 const MONITOR_NAV_ARROW_PULSE_SCALE = 0.045
+const MONITOR_TEXTURE_IDLE_TIMEOUT_MS = 1200
 const DISABLED_RAYCAST: THREE.Mesh['raycast'] = () => undefined
+const configuredMonitorTextures = new WeakSet<THREE.Texture>()
 
 interface MonitorScreenAsset {
   background: string
@@ -101,12 +103,26 @@ interface MonitorGameSelectorProps {
 }
 
 function configureMonitorTexture(texture: THREE.Texture) {
+  if (configuredMonitorTextures.has(texture)) return
+
   texture.colorSpace = THREE.SRGBColorSpace
   texture.anisotropy = 4
   texture.minFilter = THREE.LinearFilter
   texture.magFilter = THREE.LinearFilter
   texture.generateMipmaps = false
   texture.needsUpdate = true
+
+  configuredMonitorTextures.add(texture)
+}
+
+function configureMonitorTextureList(
+  textureInput: THREE.Texture | THREE.Texture[],
+) {
+  const textureList = Array.isArray(textureInput)
+    ? textureInput
+    : [textureInput]
+
+  textureList.forEach(configureMonitorTexture)
 }
 
 function getMonitorAssetTextureUrls(asset: MonitorScreenAsset) {
@@ -114,6 +130,12 @@ function getMonitorAssetTextureUrls(asset: MonitorScreenAsset) {
     ? [asset.background, asset.logo, asset.startButton, asset.ribbon]
     : [asset.background, asset.logo, asset.startButton]
 }
+
+const MONITOR_TEXTURE_URLS = Array.from(
+  new Set(
+    Object.values(MONITOR_SCREEN_ASSETS).flatMap(getMonitorAssetTextureUrls),
+  ),
+)
 
 function getWrappedGameIndex(gameIndex: number) {
   return (gameIndex + HUB_GAMES.length) % HUB_GAMES.length
@@ -135,15 +157,100 @@ function getAdjacentMonitorTextureUrls(selectedGameIndex: number) {
 }
 
 function preloadMonitorTextures(textureUrls: string[]) {
-  textureUrls.forEach((textureUrl) => {
-    useTexture.preload(textureUrl)
-  })
+  if (textureUrls.length === 0) return
+
+  useTexture.preload(textureUrls)
+}
+
+function scheduleMonitorTextureIdleTask(callback: () => void) {
+  if (typeof window === 'undefined') return () => undefined
+
+  if (window.requestIdleCallback && window.cancelIdleCallback) {
+    const idleTaskHandle = window.requestIdleCallback(callback, {
+      timeout: MONITOR_TEXTURE_IDLE_TIMEOUT_MS,
+    })
+
+    return () => {
+      window.cancelIdleCallback(idleTaskHandle)
+    }
+  }
+
+  const timeoutHandle = window.setTimeout(callback, 300)
+
+  return () => {
+    window.clearTimeout(timeoutHandle)
+  }
+}
+
+function useMonitorTextureWarmupTrigger(isMonitorFocused: boolean) {
+  const [
+    shouldWarmAllMonitorTextures,
+    setShouldWarmAllMonitorTextures,
+  ] = useState(false)
+  const hasRequestedWarmupRef = useRef(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (hasRequestedWarmupRef.current) return
+
+    const startWarmup = () => {
+      if (hasRequestedWarmupRef.current) return
+
+      hasRequestedWarmupRef.current = true
+      preloadMonitorTextures(MONITOR_TEXTURE_URLS)
+
+      void (async () => {
+        await Promise.resolve()
+
+        if (cancelled) return
+
+        setShouldWarmAllMonitorTextures(true)
+      })()
+    }
+
+    if (isMonitorFocused) {
+      startWarmup()
+
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const cancelIdleTask = scheduleMonitorTextureIdleTask(startWarmup)
+
+    return () => {
+      cancelled = true
+      cancelIdleTask()
+    }
+  }, [isMonitorFocused])
+
+  return shouldWarmAllMonitorTextures
 }
 
 function setDocumentCursor(cursor: string) {
   if (typeof document === 'undefined') return
 
   document.body.style.cursor = cursor
+}
+
+function MonitorTextureWarmupContent() {
+  const invalidate = useThree((state) => state.invalidate)
+  const textureList = useTexture(
+    MONITOR_TEXTURE_URLS,
+    configureMonitorTextureList,
+  ) as THREE.Texture[]
+
+  useEffect(() => {
+    textureList.forEach(configureMonitorTexture)
+    invalidate()
+  }, [invalidate, textureList])
+
+  return null
+}
+
+function MonitorTextureWarmup({ isEnabled }: { isEnabled: boolean }) {
+  return isEnabled ? <MonitorTextureWarmupContent /> : null
 }
 
 function MonitorTexturePlane({
@@ -600,9 +707,12 @@ export default function MonitorGameSelector({
     selectPreviousGame,
     startSelectedGame,
   } = useMonitorGameSelector()
-  const shouldAnimateNavArrows = useHubRoomStore(
+  const isMonitorFocused = useHubRoomStore(
     (state) => state.focusKey === 'monitor',
   )
+  const shouldAnimateNavArrows = isMonitorFocused
+  const shouldWarmAllMonitorTextures =
+    useMonitorTextureWarmupTrigger(isMonitorFocused)
   const selectedAsset = MONITOR_SCREEN_ASSETS[selectedGame.id]
   const selectedTextureUrls = useMemo(() => {
     return getMonitorAssetTextureUrls(selectedAsset)
@@ -610,7 +720,10 @@ export default function MonitorGameSelector({
   const adjacentTextureUrls = useMemo(() => {
     return getAdjacentMonitorTextureUrls(selectedGameIndex)
   }, [selectedGameIndex])
-  const textureList = useTexture(selectedTextureUrls) as THREE.Texture[]
+  const textureList = useTexture(
+    selectedTextureUrls,
+    configureMonitorTextureList,
+  ) as THREE.Texture[]
   const textures = selectedTextureUrls.reduce<Record<string, THREE.Texture>>(
     (textureMap, textureUrl, textureIndex) => {
       textureMap[textureUrl] = textureList[textureIndex]
@@ -638,6 +751,10 @@ export default function MonitorGameSelector({
       quaternion={quaternion}
       scale={scale}
     >
+      <Suspense fallback={null}>
+        <MonitorTextureWarmup isEnabled={shouldWarmAllMonitorTextures} />
+      </Suspense>
+
       <mesh
         raycast={enableInternalHitboxes ? undefined : DISABLED_RAYCAST}
         onClick={enableInternalHitboxes ? handleScreenClick : undefined}
