@@ -12,12 +12,9 @@ const READY_FINISH_START_DELAY_MS = Math.max(
 )
 const PRE_CANVAS_READY_CAP_PERCENT = 92
 
-// Pop sequence after the bar hits 100%. Must stay in sync with the motion
-// transitions in HubLoadingOverlay.tsx (PERCENT_FADE_OUT + BAR_POP).
+// Percent text fades out after the bar hits 100%. Keep this in sync with the
+// motion transition in HubLoadingOverlay.tsx.
 export const PERCENT_FADE_OUT_DURATION_MS = 250
-export const BAR_POP_DURATION_MS = 500
-const POP_SEQUENCE_DURATION_MS =
-  PERCENT_FADE_OUT_DURATION_MS + BAR_POP_DURATION_MS
 
 export const HUB_ROOM_REVEAL_START_DELAY_MS = 260
 export const HUB_ROOM_REVEAL_DURATION_MS = 1700
@@ -222,16 +219,15 @@ export function useHubLoadingOverlay(isCanvasReady: boolean) {
     }
   }, [])
 
-  // Ready phase fires after the pop sequence (text fade-out → bar glow pulse)
-  // completes. Sequencing here keeps the bar/button transition aligned with
-  // the motion transitions defined in HubLoadingOverlay.
+  // Ready phase fires after the percent text fade-out completes so the
+  // bar/button transition remains aligned with HubLoadingOverlay.
   useEffect(() => {
     if (!hasReachedFull || isReady) return
 
     let cancelled = false
 
     ;(async () => {
-      await wait(POP_SEQUENCE_DURATION_MS)
+      await wait(PERCENT_FADE_OUT_DURATION_MS)
       if (cancelled) return
 
       setIsReady(true)
