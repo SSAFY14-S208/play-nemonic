@@ -16,6 +16,7 @@ import {
   RelayDismissalModal,
   RelayDrawingView,
   RelayFinalizingView,
+  RelayFloatingControls,
   RelayLobbyView,
   RelayNicknameModal,
   RelayResultView,
@@ -265,6 +266,17 @@ function RelayRoomPageInner() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 로비 외 화면(드로잉/대기/결과)에서만 floating 컨트롤을 띄운다.
+          데스크탑은 viewport에 fixed로 두지만, 모바일은 floating이 스크롤 시
+          컨텐츠를 가리는 문제가 있어 각 뷰가 mobile 컨테이너 내부에 인라인으로
+          버튼을 렌더한다(RelayDrawingView/RelayResultView 참고).
+          로비는 GameLobbyLayout 헤더 안의 headerRightSlot에 동일 버튼이 배치된다. */}
+      {(roomStatus === 'FINISHED' ||
+        roomStatus === 'FINALIZING' ||
+        (roomStatus === 'PLAYING' && gameStartPhase === 'idle')) && (
+        <RelayFloatingControls className="hidden lg:flex" />
+      )}
 
       {dismissalReason && (
         <RelayDismissalModal

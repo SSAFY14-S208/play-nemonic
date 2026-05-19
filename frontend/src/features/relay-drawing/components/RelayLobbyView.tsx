@@ -1,13 +1,17 @@
 'use client'
 
+import { useEffect } from 'react'
+
 import { GameLobbyLayout } from '@/shared/components'
 import type { GameLobbyTheme } from '@/shared/components'
 import { useUserStore } from '@/shared/stores'
 
 import relayDrawingTitle from '../assets/relay-drawing-title.png'
-import { RELAY_HOW_TO_PLAY_PANELS, RELAY_ROOM_CODE } from '../constants'
+import { RELAY_ROOM_CODE } from '../constants'
 import { useRelayLobby } from '../hooks'
-import { useRelayDrawingStore } from '../stores'
+import { useRelayDrawingStore, useRelayHowToPlayStore } from '../stores'
+import RelayBgmToggle from './RelayBgmToggle'
+import RelayHowToPlayButton from './RelayHowToPlayButton'
 
 const RELAY_LOBBY_THEME: GameLobbyTheme = {
   accent: 'var(--color-relay-accent)',
@@ -58,6 +62,13 @@ export default function RelayLobbyView() {
     leaveRoom,
   } = useRelayLobby()
 
+  // 로비 진입 시 게임 설명 모달을 자동으로 1회 연다. 모달은 layout에 마운트된
+  // 단일 호스트가 렌더하므로 여기서는 store만 갱신.
+  const openHowToPlay = useRelayHowToPlayStore((state) => state.open)
+  useEffect(() => {
+    openHowToPlay()
+  }, [openHowToPlay])
+
   const startButtonLabel = isStarting
     ? '시작 중…'
     : `게임 시작 (${participants.length}명)`
@@ -88,10 +99,12 @@ export default function RelayLobbyView() {
       onStartGame={startGame}
       onLeave={leaveRoom}
       isExiting={isExiting}
-      howToPlayPanels={RELAY_HOW_TO_PLAY_PANELS}
-      howToPlayTitle="릴레이 드로잉 게임 설명"
-      howToPlayAccentColor="var(--color-relay-accent)"
-      autoOpenHowToPlay
+      headerRightSlot={
+        <>
+          <RelayHowToPlayButton />
+          <RelayBgmToggle />
+        </>
+      }
     />
   )
 }

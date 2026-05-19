@@ -53,8 +53,10 @@
     height: 100%;
   }
 
+  /* body는 height: 100% 대신 min-height만 둔다. height를 viewport로 고정하면
+     자식 콘텐츠가 viewport 이상으로 자라도 body가 늘어나지 않아 window 스크롤이
+     생기지 않는다(app/layout.tsx의 min-h-full 클래스가 min-height: 100%를 부여). */
   body {
-    height: 100%;
     font-family: var(--font-pretendard);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
