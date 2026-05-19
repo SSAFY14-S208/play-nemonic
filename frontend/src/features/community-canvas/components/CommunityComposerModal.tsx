@@ -59,7 +59,7 @@ const TOOL_ACTIONS: Array<{
   { key: 'clear', label: '전체 지우기', icon: Trash2 },
 ]
 
-const GALLERY_HIDDEN_TOOL_ACTIONS: ToolActionKey[] = []
+const GALLERY_HIDDEN_TOOL_ACTIONS: ToolActionKey[] = ['bucket']
 const COMPOSER_BOARD_SURFACE_CLASS = 'h-[540px] w-[720px] max-h-full max-w-full'
 const COMPOSER_MODAL_WIDTH = 1600
 const COMPOSER_MODAL_HEIGHT = 860
@@ -185,7 +185,7 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
           />
         </div>
 
-        <div className="absolute bottom-[6.8%] left-[5.5%] right-[5.5%] top-[28%] grid min-h-0 gap-6 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px_330px]">
+        <div className="absolute bottom-[6.8%] left-[5.5%] right-[5.5%] top-[28%] grid min-h-0 grid-cols-[minmax(0,1fr)_320px_330px] gap-6 overflow-hidden">
             {sourceType === 'DIRECT' ? (
               <>
                 <div className="flex h-full min-w-0 items-start justify-start overflow-visible">

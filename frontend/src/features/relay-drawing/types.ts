@@ -11,7 +11,7 @@ export interface RelayDrawLine {
   strokeWidth: number
   points: RelayDrawPoint[]
   opacity?: number
-  compositeOperation?: 'source-over' | 'destination-out'
+  compositeOperation?: 'source-over' | 'destination-out' | 'destination-over'
   kind?: 'stroke' | 'fill'
   imageDataUrl?: string
 }

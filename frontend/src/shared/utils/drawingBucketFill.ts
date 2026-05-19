@@ -5,6 +5,7 @@ const TRANSPARENT_ALPHA_TOLERANCE = 16
 const COLOR_MATCH_TOLERANCE = 12
 const DILATION_PASSES = 6
 const DILATION_COLOR_TOLERANCE = 96
+const STROKE_EDGE_FILL_PASSES = 6
 
 function isPixelMatchingTarget(
   imageData: Uint8ClampedArray,
@@ -181,6 +182,59 @@ export async function createBucketFillLine({
     }
   }
 
+  if (isTransparentTarget) {
+    for (let edgeFillPass = 0; edgeFillPass < STROKE_EDGE_FILL_PASSES; edgeFillPass++) {
+      const newlyFilledIndexes: number[] = []
+
+      for (let pixelIndex = 0; pixelIndex < canvasWidth * canvasHeight; pixelIndex++) {
+        const pixelOffset = pixelIndex * 4
+        if (fillPixels[pixelOffset + 3] === selectedFillAlpha) continue
+        if (sourcePixels[pixelOffset + 3] <= TRANSPARENT_ALPHA_TOLERANCE) continue
+
+        const currentX = pixelIndex % canvasWidth
+        const currentY = Math.floor(pixelIndex / canvasWidth)
+        let filledNeighborCount = 0
+
+        if (currentX > 0 && fillPixels[(pixelIndex - 1) * 4 + 3] === selectedFillAlpha) {
+          filledNeighborCount += 1
+        }
+        if (
+          currentX < canvasWidth - 1 &&
+          fillPixels[(pixelIndex + 1) * 4 + 3] === selectedFillAlpha
+        ) {
+          filledNeighborCount += 1
+        }
+        if (
+          currentY > 0 &&
+          fillPixels[(pixelIndex - canvasWidth) * 4 + 3] === selectedFillAlpha
+        ) {
+          filledNeighborCount += 1
+        }
+        if (
+          currentY < canvasHeight - 1 &&
+          fillPixels[(pixelIndex + canvasWidth) * 4 + 3] === selectedFillAlpha
+        ) {
+          filledNeighborCount += 1
+        }
+
+        if (filledNeighborCount > 0) {
+          newlyFilledIndexes.push(pixelIndex)
+        }
+      }
+
+      if (newlyFilledIndexes.length === 0) break
+
+      for (const edgePixelIndex of newlyFilledIndexes) {
+        const edgePixelOffset = edgePixelIndex * 4
+        fillPixels[edgePixelOffset] = selectedFillColor.red
+        fillPixels[edgePixelOffset + 1] = selectedFillColor.green
+        fillPixels[edgePixelOffset + 2] = selectedFillColor.blue
+        fillPixels[edgePixelOffset + 3] = selectedFillAlpha
+        filledPixelCount += 1
+      }
+    }
+  }
+
   fillContext.putImageData(fillImageData, 0, 0)
 
   return {
@@ -189,6 +243,9 @@ export async function createBucketFillLine({
     color: fillColor,
     strokeWidth: 0,
     opacity: 1,
+    compositeOperation: isTransparentTarget
+      ? ('destination-over' as const)
+      : ('source-over' as const),
     points: [],
     imageDataUrl: fillCanvas.toDataURL('image/png'),
   }

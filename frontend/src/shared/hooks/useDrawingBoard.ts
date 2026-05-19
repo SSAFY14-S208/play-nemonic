@@ -83,7 +83,7 @@ export function useDrawingBoard({
   const beginDrawing = useCallback(
     (event: DrawingPointerEvent) => {
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getRelativePointerPosition() ?? stage?.getPointerPosition()
+      const pointerPosition = stage?.getRelativePointerPosition()
       if (!pointerPosition) return
       if (!isPointInsideDrawingArea(pointerPosition, boardSize, drawArea)) return
 
@@ -144,7 +144,7 @@ export function useDrawingBoard({
       if (!isDrawingRef.current) return
 
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getRelativePointerPosition() ?? stage?.getPointerPosition()
+      const pointerPosition = stage?.getRelativePointerPosition()
       if (!pointerPosition) return
 
       if (!isPointInsideDrawingArea(pointerPosition, boardSize, drawArea)) {

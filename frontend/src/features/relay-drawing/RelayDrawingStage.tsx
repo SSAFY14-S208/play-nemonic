@@ -153,7 +153,13 @@ export default function RelayDrawingStage() {
               {lines.map((line) => {
                 if (line.kind === 'fill') {
                   if (line.imageDataUrl) {
-                    return <RasterFillImage key={line.id} imageDataUrl={line.imageDataUrl} />
+                    return (
+                      <RasterFillImage
+                        key={line.id}
+                        imageDataUrl={line.imageDataUrl}
+                        compositeOperation={line.compositeOperation}
+                      />
+                    )
                   }
 
                   return (
@@ -164,6 +170,7 @@ export default function RelayDrawingStage() {
                       opacity={line.opacity ?? 1}
                       closed
                       listening={false}
+                      globalCompositeOperation={line.compositeOperation ?? 'source-over'}
                     />
                   )
                 }

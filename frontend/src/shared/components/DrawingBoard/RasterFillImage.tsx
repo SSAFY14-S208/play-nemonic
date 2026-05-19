@@ -7,12 +7,14 @@ interface RasterFillImageProps {
   imageDataUrl: string
   width: number
   height: number
+  compositeOperation?: GlobalCompositeOperation
 }
 
 export default function RasterFillImage({
   imageDataUrl,
   width,
   height,
+  compositeOperation = 'source-over',
 }: RasterFillImageProps) {
   const [imageElement, setImageElement] = useState<HTMLImageElement | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -63,5 +65,13 @@ export default function RasterFillImage({
 
   if (!imageElement) return null
 
-  return <KonvaImage image={imageElement} width={width} height={height} listening={false} />
+  return (
+    <KonvaImage
+      image={imageElement}
+      width={width}
+      height={height}
+      listening={false}
+      globalCompositeOperation={compositeOperation}
+    />
+  )
 }

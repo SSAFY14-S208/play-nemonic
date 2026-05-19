@@ -95,4 +95,5 @@ export interface GameLobbyLayoutProps {
   howToPlayTitle?: string
   howToPlaySubtitle?: string
   howToPlayAccentColor?: string
+  autoOpenHowToPlay?: boolean
 }

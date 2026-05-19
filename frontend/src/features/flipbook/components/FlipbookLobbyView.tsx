@@ -76,7 +76,7 @@ export default function FlipbookLobbyView({
   onLeaveRoom,
   onKickParticipant,
 }: FlipbookLobbyViewProps) {
-  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false)
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(true)
   const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
     shouldStart: true,
   })
