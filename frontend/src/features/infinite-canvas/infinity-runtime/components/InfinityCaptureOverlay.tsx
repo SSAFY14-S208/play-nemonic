@@ -417,14 +417,14 @@ export function InfinityCaptureOverlay({
       </div>
 
       {hasCaptureRect && (
-        <div className="pointer-events-auto absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/70 bg-[linear-gradient(135deg,#7c61ff_0%,#2e73f2_48%,#5dc7f2_100%)] px-4 py-3 text-white shadow-[0_16px_34px_rgba(64,95,220,0.34),inset_0_1px_0_rgba(255,255,255,0.5)]">
+        <div className="pointer-events-auto absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-4 rounded-full border border-white/70 bg-[linear-gradient(135deg,#7c61ff_0%,#2e73f2_48%,#5dc7f2_100%)] px-5 py-4 text-white shadow-[0_16px_34px_rgba(64,95,220,0.34),inset_0_1px_0_rgba(255,255,255,0.5)]">
           {CAPTURE_RATIOS.map((captureRatio) => (
             <button
               key={captureRatio.key}
               type="button"
               onClick={() => selectRatio(captureRatio.key)}
               className={cn(
-                'body-l-b min-h-14 rounded-full px-5 text-white/88 transition-colors hover:bg-white/18 hover:text-white',
+                'h2-b min-h-16 rounded-full px-6 text-white/88 transition-colors hover:bg-white/18 hover:text-white',
                 ratio === captureRatio.key &&
                   'bg-white text-[#285ed8] shadow-[0_8px_18px_rgba(22,58,160,0.2)]',
               )}
@@ -440,7 +440,7 @@ export function InfinityCaptureOverlay({
               if (!captureRect) return
               onCapture(captureRect, ratio)
             }}
-            className="h3-b min-h-16 px-9 bg-[#6d5df6] text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] hover:bg-[#5847e8]"
+            className="h2-b min-h-20 px-10 bg-[#6d5df6] text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] hover:bg-[#5847e8]"
           >
             {isSaving ? '캡쳐 중' : '스크린캡쳐'}
           </Button>
@@ -449,9 +449,9 @@ export function InfinityCaptureOverlay({
             aria-label="스크린캡쳐 영역 다시 선택"
             title="스크린캡쳐 영역 다시 선택"
             onClick={resetSelection}
-            className="grid size-14 place-items-center rounded-full bg-[#6d5df6] text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] transition-colors hover:bg-[#5847e8]"
+            className="grid size-16 place-items-center rounded-full bg-[#6d5df6] text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] transition-colors hover:bg-[#5847e8]"
           >
-            <RefreshCw className="size-6" aria-hidden />
+            <RefreshCw className="size-7" aria-hidden />
           </button>
         </div>
       )}
