@@ -415,6 +415,16 @@ function getObjectBounds(object: InfinityObject) {
   };
 }
 
+interface TransformerDragState {
+  transformerX: number
+  transformerY: number
+  nodes: Array<{
+    node: Konva.Node
+    x: number
+    y: number
+  }>
+}
+
 function resetNodeScale(node: Konva.Node) {
   if (node.scaleX() === 1 && node.scaleY() === 1) return;
   node.scale({ x: 1, y: 1 });
@@ -582,6 +592,7 @@ export function InfinityCanvasStage({
   const transformerRef = useRef<Konva.Transformer>(null);
   const layerMenuLongPressTimerRef = useRef<number | null>(null);
   const isWheelButtonPanningRef = useRef(false);
+  const transformerDragStateRef = useRef<TransformerDragState | null>(null);
 
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -943,8 +954,60 @@ export function InfinityCanvasStage({
     stageRef,
   ]);
 
+  const startTransformerNodeMove = useCallback(() => {
+    const transformer = transformerRef.current;
+    const stage = stageRef.current;
+    if (!transformer || !stage || selectedIds.length === 0) {
+      transformerDragStateRef.current = null;
+      return;
+    }
+
+    transformerDragStateRef.current = {
+      transformerX: transformer.x(),
+      transformerY: transformer.y(),
+      nodes: selectedIds
+        .map((selectedId) => stage.findOne(`#${selectedId}`))
+        .filter((node): node is Konva.Node => Boolean(node))
+        .map((node) => ({
+          node,
+          x: node.x(),
+          y: node.y(),
+        })),
+    };
+  }, [selectedIds, stageRef]);
+
+  const previewTransformerNodeMove = useCallback(() => {
+    const transformer = transformerRef.current;
+    const dragState = transformerDragStateRef.current;
+    if (!transformer || !dragState) return;
+
+    const deltaX = transformer.x() - dragState.transformerX;
+    const deltaY = transformer.y() - dragState.transformerY;
+    for (const { node, x, y } of dragState.nodes) {
+      node.position({ x: x + deltaX, y: y + deltaY });
+    }
+    transformer.forceUpdate();
+    transformer.getLayer()?.batchDraw();
+    previewSelectedNodeMoves();
+  }, [previewSelectedNodeMoves]);
+
+  const commitTransformerNodeMove = useCallback(() => {
+    const transformer = transformerRef.current;
+    const dragState = transformerDragStateRef.current;
+    if (transformer && dragState) {
+      transformer.position({
+        x: dragState.transformerX,
+        y: dragState.transformerY,
+      });
+      transformer.forceUpdate();
+    }
+    transformerDragStateRef.current = null;
+    commitSelectedNodeMoves();
+  }, [commitSelectedNodeMoves]);
+
   const renderShapeOrText = useCallback((obj: InfinityObject) => {
     const isLocked = lockedElementIds.has(obj.id);
+    const isSelected = selectedIds.includes(obj.id);
     if (obj.type === "rect") {
       const rectObject = obj as InfinityShape;
       return (
@@ -952,6 +1015,7 @@ export function InfinityCanvasStage({
           key={rectObject.id}
           shape={rectObject}
           isSelectTool={isSelectTool}
+          isSelected={isSelected}
           isLocked={isLocked}
           isGroupedSelection={selectedIds.length > 1 && selectedIds.includes(rectObject.id)}
           onShapeClick={handleObjectClick}
@@ -968,6 +1032,7 @@ export function InfinityCanvasStage({
           key={ellipseObject.id}
           shape={ellipseObject}
           isSelectTool={isSelectTool}
+          isSelected={isSelected}
           isLocked={isLocked}
           isGroupedSelection={selectedIds.length > 1 && selectedIds.includes(ellipseObject.id)}
           onShapeClick={handleObjectClick}
@@ -985,6 +1050,7 @@ export function InfinityCanvasStage({
           textObject={textObject}
           isSelectTool={isSelectTool}
           isEditing={editingId === textObject.id}
+          isSelected={isSelected}
           isLocked={isLocked}
           isGroupedSelection={selectedIds.length > 1 && selectedIds.includes(textObject.id)}
           onTextClick={handleObjectClick}
@@ -1002,6 +1068,7 @@ export function InfinityCanvasStage({
           key={imageObject.id}
           imageObject={imageObject}
           isSelectTool={isSelectTool}
+          isSelected={isSelected}
           isLocked={isLocked}
           isGroupedSelection={selectedIds.length > 1 && selectedIds.includes(imageObject.id)}
           onImageClick={handleObjectClick}
@@ -1028,34 +1095,38 @@ export function InfinityCanvasStage({
   const renderLine = useCallback((obj: InfinityObject) => {
     if (obj.type !== "line") return null;
     const isLocked = lockedElementIds.has(obj.id);
+    const isSelected = selectedIds.includes(obj.id);
     return (
       <KonvaLine
         key={obj.id}
         line={obj}
         isSelectTool={isSelectTool}
+        isSelected={isSelected}
         isLocked={isLocked}
         onLineClick={handleObjectClick}
         onLineDragMove={previewGroupedObjectMove}
         onLineDragEnd={onObjectDragEnd}
       />
     );
-  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd, previewGroupedObjectMove]);
+  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd, previewGroupedObjectMove, selectedIds]);
 
   const renderFill = useCallback((obj: InfinityObject) => {
     if (obj.type !== "fill") return null;
     const isLocked = lockedElementIds.has(obj.id);
+    const isSelected = selectedIds.includes(obj.id);
     return (
       <KonvaFill
         key={obj.id}
         fill={obj}
         isSelectTool={isSelectTool}
+        isSelected={isSelected}
         isLocked={isLocked}
         onFillClick={handleObjectClick}
         onFillDragMove={previewGroupedObjectMove}
         onFillDragEnd={onObjectDragEnd}
       />
     );
-  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd, previewGroupedObjectMove]);
+  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd, previewGroupedObjectMove, selectedIds]);
 
   const orderedObjects = useMemo(
     () => sortInfinityObjectsByLayer(objects),
@@ -1334,8 +1405,9 @@ export function InfinityCanvasStage({
           draggable={selectedIds.length > 1}
           rotateEnabled={true}
           shouldOverdrawWholeArea={selectedIds.length > 1}
-          onDragMove={previewSelectedNodeMoves}
-          onDragEnd={commitSelectedNodeMoves}
+          onDragStart={startTransformerNodeMove}
+          onDragMove={previewTransformerNodeMove}
+          onDragEnd={commitTransformerNodeMove}
           onTransform={previewSelectedNodeTransforms}
           onTransformEnd={commitSelectedNodeTransforms}
           enabledAnchors={

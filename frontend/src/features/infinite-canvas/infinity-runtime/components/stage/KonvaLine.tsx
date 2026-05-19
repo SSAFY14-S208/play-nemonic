@@ -10,6 +10,7 @@ import {
 interface KonvaLineProps {
   line: InfinityLine;
   isSelectTool?: boolean;
+  isSelected?: boolean;
   isLocked?: boolean;
   onLineClick?: (id: string, isShift: boolean) => void;
   onLineDragMove?: (id: string, deltaX: number, deltaY: number) => void;
@@ -19,6 +20,7 @@ interface KonvaLineProps {
 export function KonvaLine({
   line,
   isSelectTool = false,
+  isSelected = false,
   isLocked = false,
   onLineClick,
   onLineDragMove,
@@ -37,7 +39,7 @@ export function KonvaLine({
         line.isEraser ? "destination-out" : "source-over"
       }
       tension={INFINITY_LINE_TENSION}
-      hitStrokeWidth={getExpandedHitStrokeWidth(line.strokeWidth)}
+      hitStrokeWidth={isSelected ? Math.max(getExpandedHitStrokeWidth(line.strokeWidth), 18) : getExpandedHitStrokeWidth(line.strokeWidth)}
       dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={

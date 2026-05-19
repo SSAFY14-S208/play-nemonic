@@ -10,6 +10,7 @@ import {
 export function KonvaEllipse({
   shape,
   isSelectTool,
+  isSelected = false,
   isLocked = false,
   isGroupedSelection = false,
   onShapeClick,
@@ -22,6 +23,7 @@ export function KonvaEllipse({
   const radiusX = Math.abs(shape.width / 2);
   const radiusY = Math.abs(shape.height / 2);
   const isFilled = Boolean(shape.fill);
+  const fill = shape.fill ?? (isSelected ? "rgba(0,0,0,0)" : undefined);
 
   return (
     <Ellipse
@@ -34,8 +36,8 @@ export function KonvaEllipse({
       rotation={shape.rotation ?? 0}
       stroke={isFilled ? undefined : shape.color}
       strokeWidth={isFilled ? 0 : shape.strokeWidth}
-      fill={shape.fill}
-      hitStrokeWidth={isFilled ? undefined : getExpandedHitStrokeWidth(shape.strokeWidth)}
+      fill={fill}
+      hitStrokeWidth={isFilled || isSelected ? undefined : getExpandedHitStrokeWidth(shape.strokeWidth)}
       dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={

@@ -9,6 +9,7 @@ import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 interface KonvaImageObjectProps {
   imageObject: InfinityImage;
   isSelectTool?: boolean;
+  isSelected?: boolean;
   isLocked?: boolean;
   isGroupedSelection?: boolean;
   onImageClick?: (id: string, isShift: boolean) => void;
@@ -131,6 +132,7 @@ async function createSanitizedStickerImage(imageElement: HTMLImageElement) {
 export function KonvaImageObject({
   imageObject,
   isSelectTool = false,
+  isSelected = false,
   isLocked = false,
   isGroupedSelection = false,
   onImageClick,
@@ -202,6 +204,13 @@ export function KonvaImageObject({
       listening={isSelectTool}
       perfectDrawEnabled={false}
       hitFunc={(context, shape) => {
+        if (isSelected) {
+          context.beginPath();
+          context.rect(0, 0, imageObject.width, imageObject.height);
+          context.closePath();
+          context.fillStrokeShape(shape);
+          return;
+        }
         drawImageAlphaHitRegion({
           context,
           imageElement,

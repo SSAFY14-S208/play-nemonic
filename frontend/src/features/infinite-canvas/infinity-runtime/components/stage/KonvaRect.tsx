@@ -10,6 +10,7 @@ import {
 export function KonvaRect({
   shape,
   isSelectTool,
+  isSelected = false,
   isLocked = false,
   isGroupedSelection = false,
   onShapeClick,
@@ -18,6 +19,7 @@ export function KonvaRect({
   onShapeTransformEnd,
 }: KonvaShapeProps) {
   const isFilled = Boolean(shape.fill);
+  const fill = shape.fill ?? (isSelected ? "rgba(0,0,0,0)" : undefined);
 
   return (
     <Rect
@@ -30,8 +32,8 @@ export function KonvaRect({
       rotation={shape.rotation ?? 0}
       stroke={isFilled ? undefined : shape.color}
       strokeWidth={isFilled ? 0 : shape.strokeWidth}
-      fill={shape.fill}
-      hitStrokeWidth={isFilled ? undefined : getExpandedHitStrokeWidth(shape.strokeWidth)}
+      fill={fill}
+      hitStrokeWidth={isFilled || isSelected ? undefined : getExpandedHitStrokeWidth(shape.strokeWidth)}
       dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={

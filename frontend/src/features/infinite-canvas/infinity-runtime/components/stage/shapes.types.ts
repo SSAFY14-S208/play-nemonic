@@ -6,6 +6,7 @@ export const OBJECT_DRAG_DISTANCE = 1;
 export interface KonvaShapeProps {
   shape: InfinityShape;
   isSelectTool: boolean;
+  isSelected?: boolean;
   isLocked?: boolean;
   isGroupedSelection?: boolean;
   onShapeClick: (id: string, isShift: boolean) => void;

@@ -11,6 +11,7 @@ interface KonvaTextProps {
   textObject: InfinityText;
   isSelectTool: boolean;
   isEditing: boolean;
+  isSelected?: boolean;
   isLocked?: boolean;
   isGroupedSelection?: boolean;
   onTextClick: (id: string, isShift: boolean) => void;
@@ -24,6 +25,7 @@ export function KonvaText({
   textObject,
   isSelectTool,
   isEditing,
+  isSelected = false,
   isLocked = false,
   isGroupedSelection = false,
   onTextClick,
@@ -46,8 +48,9 @@ export function KonvaText({
       visible={!isEditing}
       hitFunc={(context, shape) => {
         const node = shape as Konva.Text;
+        const padding = isSelected ? 8 : 3;
         context.beginPath();
-        context.rect(-3, -3, node.width() + 6, node.height() + 6);
+        context.rect(-padding, -padding, node.width() + padding * 2, node.height() + padding * 2);
         context.closePath();
         context.fillStrokeShape(shape);
       }}

@@ -8,6 +8,7 @@ import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 interface KonvaFillProps {
   fill: InfinityFill;
   isSelectTool?: boolean;
+  isSelected?: boolean;
   isLocked?: boolean;
   onFillClick?: (id: string, isShift: boolean) => void;
   onFillDragMove?: (id: string, x: number, y: number) => void;
@@ -19,6 +20,7 @@ const fillImageCache = new Map<string, HTMLImageElement>();
 export function KonvaFill({
   fill,
   isSelectTool = false,
+  isSelected = false,
   isLocked = false,
   onFillClick,
   onFillDragMove,
@@ -67,6 +69,13 @@ export function KonvaFill({
       listening={isSelectTool}
       perfectDrawEnabled={false}
       hitFunc={(context, shape) => {
+        if (isSelected) {
+          context.beginPath();
+          context.rect(0, 0, fill.width, fill.height);
+          context.closePath();
+          context.fillStrokeShape(shape);
+          return;
+        }
         drawImageAlphaHitRegion({
           context,
           imageElement,
