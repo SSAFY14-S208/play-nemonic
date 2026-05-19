@@ -185,7 +185,7 @@ export function CommunityComposerModal({ composer }: CommunityComposerModalProps
           />
         </div>
 
-        <div className="absolute bottom-[6.8%] left-[5.5%] right-[5.5%] top-[28%] grid min-h-0 gap-6 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px_330px]">
+        <div className="absolute bottom-[6.8%] left-[5.5%] right-[5.5%] top-[28%] grid min-h-0 grid-cols-[minmax(0,1fr)_320px_330px] gap-6 overflow-hidden">
             {sourceType === 'DIRECT' ? (
               <>
                 <div className="flex h-full min-w-0 items-start justify-start overflow-visible">
