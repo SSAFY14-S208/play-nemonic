@@ -194,27 +194,35 @@ export function useI2ContentCompletion(args: AnalyticsVizArgs) {
           { name: 'completed', query: 'event_name:funnel_goal_reached' },
         ],
       })
-      return response.buckets.map((bucket) => ({
-        value: bucket.value,
-        total: bucket.total,
-        started: bucket.sub.started ?? 0,
-        completed: bucket.sub.completed ?? 0,
-      }))
+      // 무한 캔버스는 결과 페이지가 없어 funnel_goal_reached가 emit되지 않는다.
+      // started/completed 비교 자체가 의미 없어 컨텐츠별 완주율에서 제외한다.
+      return response.buckets
+        .filter((bucket) => bucket.value !== 'infinite_canvas_creation')
+        .map((bucket) => ({
+          value: bucket.value,
+          total: bucket.total,
+          started: bucket.sub.started ?? 0,
+          completed: bucket.sub.completed ?? 0,
+        }))
     },
     [timeRange, serviceFilters, serviceQuery, refreshNonce],
   )
 }
 
 // ============================================================
-// 채널 viz — I6 결과 도달 후 공유 비율 (도넛)
+// 채널 viz — I6 결과 도달 후 이탈 비율 (가로 막대)
 // terms-with-subs(funnel_name) + sub-filter(goal/abandoned).
-// shared = max(goal - abandoned, 0) 근사치.
+//
+// 메트릭은 abandoned / goal — 결과 페이지에 도달한 세션 중 공유/저장 액션 없이
+// 이탈한 비율이다. 이전 구현은 shared = max(goal - abandoned, 0) 근사치를 썼는데,
+// `result_shared` 명시적 이벤트 트래킹이 없어 abandoned가 0일 때 무조건 100%로
+// 표시되는 구조적 문제가 있었다. 측정 가능한 abandon rate로 재정의했고, 진짜
+// 공유율 viz는 result_shared 이벤트 트래킹이 추가되면 별도 viz로 신설한다.
 // ============================================================
 export type I6Bucket = {
   value: string
   goal: number
   abandoned: number
-  shared: number
 }
 
 export function useI6ShareRate(args: AnalyticsVizArgs) {
@@ -237,8 +245,7 @@ export function useI6ShareRate(args: AnalyticsVizArgs) {
         .map((bucket) => {
           const goal = bucket.sub.goal ?? 0
           const abandoned = bucket.sub.abandoned ?? 0
-          const shared = Math.max(goal - abandoned, 0)
-          return { value: bucket.value, goal, abandoned, shared }
+          return { value: bucket.value, goal, abandoned }
         })
         .filter((bucket) => bucket.goal > 0)
     },

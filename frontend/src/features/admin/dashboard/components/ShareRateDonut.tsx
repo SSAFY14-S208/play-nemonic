@@ -29,18 +29,21 @@ const colorFor = (funnelKey: string): string => {
 const labelFor = (funnelKey: string): string => FUNNEL_LABEL[funnelKey] ?? funnelKey
 
 // 컴포넌트 이름은 호출부 호환을 위해 유지(ShareRateDonut)하지만 표현은 funnel별 가로 막대.
-// 각 funnel의 share_rate = shared / goal 는 독립 비율이라 도넛 segments로 합산하면 의미가 깨진다.
-// funnel 간 절대 비교를 직관적으로 하기 위해 0~100% 가로 막대로 나열한다.
+//
+// viz의 의미는 "결과 도달 후 이탈 비율" = abandoned / goal 이다. 진짜 공유율을 측정하려면
+// share/save 액션 시점에 명시적 `result_shared` 이벤트 emit이 필요한데, 현재 그 트래킹이
+// 없어서 이전 구현(shared = goal - abandoned 근사치)이 abandoned가 0일 때 무조건 100%로
+// 표시되는 문제가 있었다. 의미상 정확한 메트릭으로 재정의하고, 진짜 공유율 viz는 추후
+// result_shared 이벤트 트래킹이 추가되면 별도 viz로 신설한다.
 export function ShareRateDonut({ state, onRetry, onDrillDown }: Props) {
   const data = (state.data ?? []).map((bucket) => {
-    const shareRate = bucket.goal > 0 ? bucket.shared / bucket.goal : 0
+    const abandonRate = bucket.goal > 0 ? bucket.abandoned / bucket.goal : 0
     return {
       raw: bucket.value,
       name: labelFor(bucket.value),
       goal: bucket.goal,
-      shared: bucket.shared,
       abandoned: bucket.abandoned,
-      shareRate,
+      abandonRate,
     }
   })
   const isEmpty = data.length === 0 || data.every((entry) => entry.goal === 0)
@@ -55,7 +58,7 @@ export function ShareRateDonut({ state, onRetry, onDrillDown }: Props) {
       <div className="flex h-full flex-col gap-2 overflow-y-auto p-4">
         {data.map((entry) => {
           const color = colorFor(entry.raw)
-          const percent = Math.round(entry.shareRate * 100)
+          const percent = Math.round(entry.abandonRate * 100)
           return (
             <button
               key={entry.raw}
@@ -63,7 +66,7 @@ export function ShareRateDonut({ state, onRetry, onDrillDown }: Props) {
               onClick={() =>
                 onDrillDown({
                   vizId: 'I6',
-                  chartLabel: `공유 도달: ${entry.name}`,
+                  chartLabel: `결과 도달 후 이탈: ${entry.name}`,
                   dimensionFilters: [
                     {
                       field: 'metadata.funnel_name',
@@ -71,8 +74,9 @@ export function ShareRateDonut({ state, onRetry, onDrillDown }: Props) {
                       negate: false,
                     },
                   ],
-                  extraQuery: 'event_name:funnel_goal_reached',
-                  description: '결과 도달 이후 공유까지 도달한 세션의 raw 이벤트',
+                  extraQuery: 'event_name:result_share_abandoned',
+                  description:
+                    '결과 페이지에 도달한 뒤 공유/저장 액션 없이 이탈한 세션의 raw 이벤트',
                 })
               }
               className="flex flex-col gap-1 rounded-[var(--radius-md)] p-2 text-left transition-colors hover:bg-surface-subtle"
@@ -89,18 +93,15 @@ export function ShareRateDonut({ state, onRetry, onDrillDown }: Props) {
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
-                    width: `${entry.shareRate * 100}%`,
+                    width: `${Math.min(entry.abandonRate, 1) * 100}%`,
                     backgroundColor: color,
                   }}
                 />
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="caption-r text-fg-secondary tabular-nums">
-                  공유 {entry.shared.toLocaleString('ko-KR')} / 도달{' '}
+                  이탈 {entry.abandoned.toLocaleString('ko-KR')} / 도달{' '}
                   {entry.goal.toLocaleString('ko-KR')}
-                </span>
-                <span className="caption-r text-fg-disabled tabular-nums">
-                  이탈 {entry.abandoned.toLocaleString('ko-KR')}
                 </span>
               </div>
             </button>

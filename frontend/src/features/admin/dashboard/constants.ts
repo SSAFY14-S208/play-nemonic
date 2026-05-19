@@ -96,8 +96,8 @@ export const VIZ_META: ViizMeta[] = [
   {
     id: 'I6',
     section: 'channel',
-    title: '결과 도달 후 공유 비율',
-    subtitle: '컨텐츠별 결과 도달 대비 공유 (근사치)',
+    title: '결과 도달 후 이탈 비율',
+    subtitle: '결과 페이지 도달 대비 공유·저장 액션 없이 이탈',
     status: 'live',
   },
   {
