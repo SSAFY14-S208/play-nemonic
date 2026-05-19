@@ -77,6 +77,13 @@ export const ROOM_PREVIEW_HUB_CAMERA_LIMITS = {
   minPolarAngle: Math.PI * 0.17,
 }
 
+export const ROOM_PREVIEW_HUB_CAMERA_ZOOM = {
+  compactAspect: 0.48,
+  compactZoom: 0.42,
+  defaultZoom: 1,
+  relaxedAspect: 0.92,
+}
+
 export const ROOM_PREVIEW_RENDERING = {
   backgroundColor: '#f4edf6',
   devicePixelRatio: [1, 1.75] as [number, number],
