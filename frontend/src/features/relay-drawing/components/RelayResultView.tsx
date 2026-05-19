@@ -8,6 +8,8 @@ import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
 
 import { useRelayResult, useRelayResultAutoCycle } from "../hooks";
 import { useRelayDrawingStore } from "../stores";
+import RelayBgmToggle from "./RelayBgmToggle";
+import RelayHowToPlayButton from "./RelayHowToPlayButton";
 import { ResultRevealAnimation, ResultRightPanel } from "./result-view";
 
 const PANEL_CARD_CLASS =
@@ -66,6 +68,11 @@ export default function RelayResultView() {
   return (
     <section className="relative isolate min-h-full">
       <div className="mx-auto flex min-h-screen w-full max-w-360 flex-col gap-4 px-4 py-6 sm:gap-6 sm:px-6 lg:gap-6 lg:px-[5%] lg:py-8">
+        <div className="flex items-center justify-end gap-3 lg:hidden">
+          <RelayHowToPlayButton />
+          <RelayBgmToggle />
+        </div>
+
         <main className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[7fr_5fr] lg:items-stretch lg:gap-6">
           <div
             className={cn(

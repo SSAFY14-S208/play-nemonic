@@ -96,4 +96,8 @@ export interface GameLobbyLayoutProps {
   howToPlaySubtitle?: string
   howToPlayAccentColor?: string
   autoOpenHowToPlay?: boolean
+
+  // ── 헤더 우측 슬롯 (선택) ──
+  /** 제공되면 헤더 우측의 기본 HelpCircle 버튼을 대체. flex 컨테이너로 감싸짐 */
+  headerRightSlot?: React.ReactNode
 }

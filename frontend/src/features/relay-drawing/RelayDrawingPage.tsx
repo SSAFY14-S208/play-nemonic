@@ -1,6 +1,6 @@
 "use client";
 
-import { RelayBoothView } from "./components";
+import { RelayBoothView, RelayFloatingControls } from "./components";
 import "./relay-drawing.css";
 
 // 라우트: /relay-drawing
@@ -13,6 +13,7 @@ export default function RelayDrawingPage() {
   return (
     <div className="font-paperlogy min-h-screen bg-relay-background text-relay-ink">
       <RelayBoothView />
+      <RelayFloatingControls />
     </div>
   );
 }

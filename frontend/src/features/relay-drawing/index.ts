@@ -1,6 +1,10 @@
 export { default as RelayDrawingPage } from './RelayDrawingPage'
 export { default as RelayRoomPage } from './RelayRoomPage'
-export { RelayBgmToggle, RelayHowToPlayButton } from './components'
+export {
+  RelayBgmToggle,
+  RelayHowToPlayButton,
+  RelayHowToPlayModalHost,
+} from './components'
 export {
   RELAY_LEAVE_CANCEL_BUTTON_CLASS,
   RELAY_LEAVE_CONFIRM_BUTTON_CLASS,

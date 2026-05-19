@@ -53,8 +53,14 @@
     height: 100%;
   }
 
+  /* body height: 100% — 자식 컴포넌트의 height: 100% chain(3D Canvas 등)이
+     viewport 단위로 계산되도록 유지. overflow-y: auto는 콘텐츠가 viewport보다
+     길어질 때 body 자체가 스크롤 컨테이너로 동작하게 해, 일반 페이지의 스크롤을
+     보장한다. 3D 페이지는 main을 100vh overflow-hidden로 두므로 body에 스크롤바가
+     생기지 않는다. */
   body {
     height: 100%;
+    overflow-y: auto;
     font-family: var(--font-pretendard);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
