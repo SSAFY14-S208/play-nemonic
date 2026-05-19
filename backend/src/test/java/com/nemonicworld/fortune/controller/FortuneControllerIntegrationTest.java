@@ -450,7 +450,15 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.data.design.accentColor").value("#C0C0C0"))
             .andExpect(jsonPath("$.data.design.iconKey").value("moon_waning"));
 
-        verifyNoInteractions(fortuneGmsClient, fortuneCardStorage);
+        verifyNoInteractions(fortuneGmsClient);
+        verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.endsWith("/card-template-v1.png"),
+            any(byte[].class), eq("image/png"));
+        String updatedFortuneImageUrl = jdbcTemplate.queryForObject(
+            "SELECT fortune_image_url FROM fortune_artifact WHERE artifact_id = ?", String.class, fortuneId);
+        String updatedThumbnailUrl = jdbcTemplate.queryForObject("SELECT thumbnail_url FROM artifact WHERE id = ?",
+            String.class, fortuneId);
+        org.assertj.core.api.Assertions.assertThat(updatedFortuneImageUrl).endsWith("/card-template-v1.png");
+        org.assertj.core.api.Assertions.assertThat(updatedThumbnailUrl).isEqualTo(updatedFortuneImageUrl);
         org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_reissued\"")
             .contains(fortuneId.toString());
     }
