@@ -198,7 +198,7 @@ export function InfinityTextEditor({
     >
       {/* 텍스트 서식 popover — textarea 위쪽 */}
       <div
-        className="absolute bottom-full left-0 mb-2 flex flex-col gap-2 overflow-x-auto rounded-lg border border-canvas-border bg-canvas-panel px-3 py-2 shadow-md"
+        className="absolute bottom-full left-0 mb-2 flex flex-col gap-2 overflow-x-auto rounded-lg border border-canvas-border bg-white px-3 py-2 shadow-[0_12px_28px_rgba(35,64,140,0.18)]"
         style={{ left: toolbarLeftOffset, width: toolbarWidth }}
       >
         <div className="flex flex-nowrap items-center gap-1">
@@ -296,7 +296,7 @@ export function InfinityTextEditor({
         onKeyDown={handleKeyDown}
         rows={1}
         spellCheck={false}
-        className="resize-none border border-canvas-accent rounded bg-white/80 outline-none px-1 py-0.5 leading-tight"
+        className="resize-none rounded border border-canvas-accent bg-white px-1 py-0.5 leading-tight shadow-[0_8px_20px_rgba(35,64,140,0.12)] outline-none"
         style={{
           fontSize: `${adjustedFontSize}px`,
           color: textColor,
