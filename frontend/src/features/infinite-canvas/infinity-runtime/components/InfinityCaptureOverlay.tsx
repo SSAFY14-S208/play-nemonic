@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { RefreshCw, X } from 'lucide-react'
-import { Button } from '@/shared/components'
 import { cn } from '@/shared/libs'
 
 export type InfinityCaptureRatio = 'free' | '1:1' | '4:3' | '3:4' | '16:9' | '9:16'
@@ -432,18 +431,17 @@ export function InfinityCaptureOverlay({
               {captureRatio.label}
             </button>
           ))}
-          <Button
+          <button
             type="button"
-            size="sm"
             disabled={!canCapture || isSaving}
             onClick={() => {
               if (!captureRect) return
               onCapture(captureRect, ratio)
             }}
-            className="h3-b min-h-16 px-10 bg-[#6d5df6] text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] hover:bg-[#5847e8]"
+            className="h3-b inline-flex min-h-16 cursor-pointer items-center justify-center rounded-full bg-[#6d5df6] px-10 text-white shadow-[0_10px_18px_rgba(72,75,210,0.24)] transition-colors hover:bg-[#5847e8] disabled:pointer-events-none disabled:opacity-50"
           >
             {isSaving ? '캡쳐 중' : '출력'}
-          </Button>
+          </button>
           <button
             type="button"
             aria-label="스크린캡쳐 영역 다시 선택"
