@@ -52,6 +52,7 @@ export const INFINITY_LINE_TENSION = 0
 export interface InfinityLine {
   id: string
   type: 'line'
+  zIndex?: number
   color: string
   strokeWidth: number
   points: { x: number; y: number }[]
@@ -61,6 +62,7 @@ export interface InfinityLine {
 export interface InfinityFill {
   id: string
   type: 'fill'
+  zIndex?: number
   x: number
   y: number
   width: number
@@ -72,6 +74,7 @@ export interface InfinityFill {
 export interface InfinityShape {
   id: string
   type: 'rect' | 'ellipse'
+  zIndex?: number
   /** top-left x */
   x: number
   /** top-left y */
@@ -88,6 +91,7 @@ export interface InfinityShape {
 export interface InfinityText {
   id: string
   type: 'text'
+  zIndex?: number
   x: number
   y: number
   text: string
@@ -100,6 +104,7 @@ export interface InfinityText {
 export interface InfinityImage {
   id: string
   type: 'image'
+  zIndex?: number
   x: number
   y: number
   width: number

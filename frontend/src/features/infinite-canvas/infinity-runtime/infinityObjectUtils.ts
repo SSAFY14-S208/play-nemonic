@@ -90,6 +90,32 @@ export function toInfinityObjects(elements: unknown[]): InfinityObject[] {
   return elements.filter(isInfinityObject)
 }
 
+export function getInfinityObjectLayerIndex(object: InfinityObject, fallbackIndex: number) {
+  return typeof object.zIndex === 'number' && Number.isFinite(object.zIndex)
+    ? object.zIndex
+    : fallbackIndex
+}
+
+export function sortInfinityObjectsByLayer(objects: InfinityObject[]) {
+  return objects
+    .map((object, fallbackIndex) => ({ object, fallbackIndex }))
+    .sort((first, second) => {
+      const layerDiff =
+        getInfinityObjectLayerIndex(first.object, first.fallbackIndex) -
+        getInfinityObjectLayerIndex(second.object, second.fallbackIndex)
+
+      return layerDiff === 0 ? first.fallbackIndex - second.fallbackIndex : layerDiff
+    })
+    .map(({ object }) => object)
+}
+
+export function normalizeInfinityObjectLayerIndexes(objects: InfinityObject[]) {
+  return sortInfinityObjectsByLayer(objects).map((object, layerIndex) => {
+    if (object.zIndex === layerIndex) return object
+    return { ...object, zIndex: layerIndex }
+  })
+}
+
 export function createClientOperationId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()

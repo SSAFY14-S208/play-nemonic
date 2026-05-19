@@ -15,6 +15,10 @@ import {
   INFINITY_TEXT_DEFAULT_FONT_FAMILY,
   INFINITY_TEXT_DEFAULT_FONT_SIZE,
 } from '../constants'
+import {
+  getInfinityObjectLayerIndex,
+  normalizeInfinityObjectLayerIndexes,
+} from '../infinityObjectUtils'
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 9)
@@ -147,6 +151,43 @@ function moveObjectByDelta(object: InfinityObject, deltaX: number, deltaY: numbe
     x: object.x + deltaX,
     y: object.y + deltaY,
   }
+}
+
+function moveSelectedObjectsByLayer(objects: InfinityObject[], selectedIds: string[], direction: 1 | -1) {
+  const selectedIdSet = new Set(selectedIds)
+  const currentObjects = normalizeInfinityObjectLayerIndexes(objects)
+  const currentLayerIndexById = new Map(currentObjects.map((object) => [object.id, object.zIndex]))
+  const orderedIndices = selectedIds
+    .map((id) => currentObjects.findIndex((object) => object.id === id))
+    .filter((layerIndex) => layerIndex >= 0)
+    .sort((firstIndex, secondIndex) => (direction > 0 ? secondIndex - firstIndex : firstIndex - secondIndex))
+
+  let changed = false
+  for (const layerIndex of orderedIndices) {
+    const swapWithIndex = layerIndex + direction
+    if (swapWithIndex < 0 || swapWithIndex >= currentObjects.length) continue
+    if (selectedIdSet.has(currentObjects[swapWithIndex].id)) continue
+    ;[currentObjects[layerIndex], currentObjects[swapWithIndex]] = [
+      currentObjects[swapWithIndex],
+      currentObjects[layerIndex],
+    ]
+    changed = true
+  }
+
+  if (!changed) return null
+
+  const hasUnstableLayerIndex = objects.some(
+    (object, fallbackIndex) => object.zIndex !== getInfinityObjectLayerIndex(object, fallbackIndex),
+  )
+  const newObjects = currentObjects.map((object, layerIndex) => ({
+    ...object,
+    zIndex: layerIndex,
+  }))
+  const updatedObjects = hasUnstableLayerIndex
+    ? newObjects
+    : newObjects.filter((object) => currentLayerIndexById.get(object.id) !== object.zIndex)
+
+  return { newObjects, updatedObjects }
 }
 
 function getObjectBounds(object: InfinityObject): Bounds | null {
@@ -1246,7 +1287,6 @@ export function useInfinityEvents({
       openExistingTextEditor(targetObject)
       return
     }
-
     const current = selectedIdsRef.current
     let next: string[]
     if (isShift) {
@@ -1411,35 +1451,18 @@ export function useInfinityEvents({
       blockEdit(blockedId)
       return
     }
-    const objects = [...objectsRef.current]
-    // forward는 뒤에서부터, backward는 앞에서부터 처리해 인덱스 충돌 방지.
-    const orderedIndices = ids
-      .map((id) => objects.findIndex((obj) => obj.id === id))
-      .filter((i) => i >= 0)
-      .sort((a, b) => (direction > 0 ? b - a : a - b))
+    const layerMove = moveSelectedObjectsByLayer(objectsRef.current, ids, direction)
+    if (!layerMove) return
 
-    let changed = false
-    for (const i of orderedIndices) {
-      const swapWith = i + direction
-      if (swapWith < 0 || swapWith >= objects.length) continue
-      if (ids.includes(objects[swapWith].id)) continue
-      ;[objects[i], objects[swapWith]] = [objects[swapWith], objects[i]]
-      changed = true
-    }
-    if (changed) {
-      commitLocalChange(
-        objects,
-        ids,
-        ids
-          .map((id) => objects.find((object) => object.id === id))
-          .filter((object): object is InfinityObject => Boolean(object))
-          .map((object) => ({
-            operationType: 'UPSERT_ELEMENT',
-            elementId: object.id,
-            element: { ...object },
-          })),
-      )
-    }
+    commitLocalChange(
+      layerMove.newObjects,
+      ids,
+      layerMove.updatedObjects.map((object) => ({
+        operationType: 'UPSERT_ELEMENT',
+        elementId: object.id,
+        element: { ...object },
+      })),
+    )
   }
 
   return {

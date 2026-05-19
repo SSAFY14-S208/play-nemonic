@@ -8,6 +8,7 @@ import Konva from 'konva'
 import { INFINITY_LINE_TENSION } from '../constants'
 import type { InfinityImage, InfinityLine, InfinityObject, InfinityShape, InfinityText as InfinityTextObject, InfinityToolKey } from '../constants'
 import type { useInfinityDrawing } from '../hooks'
+import { sortInfinityObjectsByLayer } from '../infinityObjectUtils'
 import {
   CursorPreview,
   DotGridShape,
@@ -72,12 +73,6 @@ interface InfinityCanvasStageProps {
   onLayerMenuRequest: (request: { elementId: string; x: number; y: number }) => void
   onSelectionInteractionEnd: (elementIds: string[]) => void
   onDraftObjectsChange: (draftObjects: InfinityObject[] | null) => void
-}
-
-interface PartitionedInfinityObjects {
-  fills: InfinityObject[]
-  lines: InfinityLine[]
-  shapeAndTextObjects: InfinityObject[]
 }
 
 const REMOTE_CURSOR_SMOOTHING = 0.28
@@ -675,24 +670,6 @@ export function InfinityCanvasStage({
     stage.batchDraw();
   }, [objectById, selectedIds, stageRef]);
 
-  const partitionedObjects = useMemo<PartitionedInfinityObjects>(() => {
-    const fills: InfinityObject[] = [];
-    const lines: InfinityLine[] = [];
-    const shapeAndTextObjects: InfinityObject[] = [];
-
-    for (const object of objects) {
-      if (object.type === "fill") {
-        fills.push(object);
-      } else if (object.type === "line") {
-        lines.push(object);
-      } else {
-        shapeAndTextObjects.push(object);
-      }
-    }
-
-    return { fills, lines, shapeAndTextObjects };
-  }, [objects]);
-
   const readObjectFromNode = useCallback(
     (
       object: InfinityObject,
@@ -965,7 +942,7 @@ export function InfinityCanvasStage({
     stageRef,
   ]);
 
-  const renderShapeOrText = (obj: InfinityObject) => {
+  const renderShapeOrText = useCallback((obj: InfinityObject) => {
     const isLocked = lockedElementIds.has(obj.id);
     if (obj.type === "rect") {
       const rectObject = obj as InfinityShape;
@@ -1034,7 +1011,18 @@ export function InfinityCanvasStage({
       );
     }
     return null;
-  };
+  }, [
+    editingId,
+    handleObjectClick,
+    isSelectTool,
+    lockedElementIds,
+    onObjectDragEnd,
+    onShapeTransformEnd,
+    onTextDblClick,
+    onTextTransformEnd,
+    previewGroupedObjectMove,
+    selectedIds,
+  ]);
 
   const renderLine = useCallback((obj: InfinityObject) => {
     if (obj.type !== "line") return null;
@@ -1051,6 +1039,38 @@ export function InfinityCanvasStage({
       />
     );
   }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd, previewGroupedObjectMove]);
+
+  const renderFill = useCallback((obj: InfinityObject) => {
+    if (obj.type !== "fill") return null;
+    const isLocked = lockedElementIds.has(obj.id);
+    return (
+      <KonvaFill
+        key={obj.id}
+        fill={obj}
+        isSelectTool={isSelectTool}
+        isLocked={isLocked}
+        onFillClick={handleObjectClick}
+        onFillDragMove={previewGroupedObjectMove}
+        onFillDragEnd={onObjectDragEnd}
+      />
+    );
+  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd, previewGroupedObjectMove]);
+
+  const orderedObjects = useMemo(
+    () => sortInfinityObjectsByLayer(objects),
+    [objects],
+  );
+
+  const renderObjectNode = useCallback((object: InfinityObject) => {
+    if (object.type === "line") return renderLine(object);
+    if (object.type === "fill") return renderFill(object);
+    return renderShapeOrText(object);
+  }, [renderFill, renderLine, renderShapeOrText]);
+
+  const objectNodes = useMemo(
+    () => orderedObjects.map(renderObjectNode),
+    [orderedObjects, renderObjectNode],
+  );
 
   const renderRemoteDraftObject = (draft: InfinityRemoteDraftObjectView) => {
     const obj = draft.object
@@ -1116,39 +1136,6 @@ export function InfinityCanvasStage({
 
     return null;
   };
-
-  const shapeAndTextNodes = useMemo(
-    () => partitionedObjects.shapeAndTextObjects.map(renderShapeOrText),
-    // renderShapeOrText reads the current tool/lock/edit callbacks and should only refresh when those change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [partitionedObjects.shapeAndTextObjects, lockedElementIds, isSelectTool, editingId, handleObjectClick, previewGroupedObjectMove, selectedIds],
-  );
-
-  const renderFill = useCallback((obj: InfinityObject) => {
-    if (obj.type !== "fill") return null;
-    const isLocked = lockedElementIds.has(obj.id);
-    return (
-      <KonvaFill
-        key={obj.id}
-        fill={obj}
-        isSelectTool={isSelectTool}
-        isLocked={isLocked}
-        onFillClick={handleObjectClick}
-        onFillDragMove={previewGroupedObjectMove}
-        onFillDragEnd={onObjectDragEnd}
-      />
-    );
-  }, [handleObjectClick, isSelectTool, lockedElementIds, onObjectDragEnd, previewGroupedObjectMove]);
-
-  const fillNodes = useMemo(
-    () => partitionedObjects.fills.map(renderFill),
-    [partitionedObjects.fills, renderFill],
-  );
-
-  const lineNodes = useMemo(
-    () => partitionedObjects.lines.map(renderLine),
-    [partitionedObjects.lines, renderLine],
-  );
 
   const remoteEraserDraftNodes = useMemo(
     () =>
@@ -1324,9 +1311,21 @@ export function InfinityCanvasStage({
         />
       </Layer>
 
-      {/* Layer 1 — 도형 + 텍스트 + Transformer (라인보다 아래에 배치) */}
+      {/* Layer 1 — persisted objects + eraser draft + Transformer */}
       <Layer>
-        {shapeAndTextNodes}
+        {objectNodes}
+        {remoteEraserDraftNodes}
+
+        <Line
+          ref={currentEraserLineRef}
+          stroke="rgba(0,0,0,1)"
+          strokeWidth={5}
+          lineCap="round"
+          lineJoin="round"
+          globalCompositeOperation="destination-out"
+          tension={INFINITY_LINE_TENSION}
+          listening={false}
+        />
 
         <Transformer
           ref={transformerRef}
@@ -1364,25 +1363,6 @@ export function InfinityCanvasStage({
             }
             return newBox;
           }}
-        />
-      </Layer>
-
-      {/* Layer 2 — 라인(완성) + 진행 중 eraser line.
-          픽셀 지우개 destination-out scope가 이 Layer로 한정 — 도형/텍스트는 영향 X. */}
-      <Layer>
-        {fillNodes}
-        {lineNodes}
-        {remoteEraserDraftNodes}
-
-        <Line
-          ref={currentEraserLineRef}
-          stroke="rgba(0,0,0,1)"
-          strokeWidth={5}
-          lineCap="round"
-          lineJoin="round"
-          globalCompositeOperation="destination-out"
-          tension={INFINITY_LINE_TENSION}
-          listening={false}
         />
       </Layer>
 
