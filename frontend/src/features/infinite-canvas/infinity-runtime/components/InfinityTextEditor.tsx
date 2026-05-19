@@ -8,7 +8,6 @@ import {
   INFINITY_COLORS,
   INFINITY_TEXT_DEFAULT_COLOR,
   INFINITY_TEXT_FONT_FAMILIES,
-  INFINITY_TEXT_FONT_SIZES,
   type InfinityToolKey,
 } from "../constants";
 import type {
@@ -164,20 +163,6 @@ export function InfinityTextEditor({
         >
           +
         </button>
-        <div className="w-px h-4 bg-canvas-border mx-1" />
-        {INFINITY_TEXT_FONT_SIZES.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            onClick={() => setFontSize(preset)}
-            className={cn(
-              "px-1.5 h-6 rounded caption-r hover:bg-canvas-active text-canvas-ink",
-              fontSize === preset && "bg-[#eaf5ff] text-[#12305f] ring-1 ring-[#76b8f2]",
-            )}
-          >
-            {preset}
-          </button>
-        ))}
         <div className="w-px h-4 bg-canvas-border mx-1" />
         <select
           value={fontFamily}
