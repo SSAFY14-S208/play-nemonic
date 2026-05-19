@@ -30,6 +30,7 @@ public class FortuneGenerationService {
     private static final String FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE = "운세 결과를 저장 형식으로 변환할 수 없습니다.";
     private static final String FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE = "저장된 운세 결과 형식이 올바르지 않습니다.";
     private static final String DEFAULT_LUCKY_DIRECTION = "동쪽";
+    private static final int CAUTION_MAX_LENGTH = 42;
     private static final int GMS_MAX_ATTEMPTS = 3;
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#[0-9A-Fa-f]{6}$");
     private static final String[] REQUIRED_SAJU_FIELDS = {"calendarType", "yearPillar", "monthPillar", "dayPillar",
@@ -70,17 +71,21 @@ public class FortuneGenerationService {
 
     public FortuneResult toFortuneResult(FortuneGmsResult result) {
         return new FortuneResult(result.title(), result.summary(), result.overallLuck(), result.loveLuck(),
-            result.workLuck(), result.moneyLuck(), result.luckyColor(), result.luckyKeyword(), result.luckyDirection(),
-            result.caution(), result.postitLine());
+            result.workLuck(), result.moneyLuck(), result.luckyColor(),
+            FortuneLuckyColorResolver.resolveHex(result.luckyColor(), result.title()), result.luckyKeyword(),
+            result.luckyDirection(), normalizeCaution(result.caution()), result.postitLine());
     }
 
     public FortuneResult toFortuneResult(JsonNode description) {
-        return new FortuneResult(requiredText(description, "title"), requiredText(description, "summary"),
-            requiredScore(description, "overallLuck"), requiredScore(description, "loveLuck"),
-            requiredScore(description, "workLuck"), requiredScore(description, "moneyLuck"),
-            requiredText(description, "luckyColor"), requiredText(description, "luckyKeyword"),
-            textOrDefault(description, "luckyDirection", DEFAULT_LUCKY_DIRECTION), nullableText(description, "caution"),
-            requiredText(description, "postitLine"));
+        String title = requiredText(description, "title");
+        String luckyColor = requiredText(description, "luckyColor");
+        return new FortuneResult(title, requiredText(description, "summary"), requiredScore(description, "overallLuck"),
+            requiredScore(description, "loveLuck"), requiredScore(description, "workLuck"),
+            requiredScore(description, "moneyLuck"), luckyColor,
+            textOrDefault(description, "luckyColorHex", FortuneLuckyColorResolver.resolveHex(luckyColor, title)),
+            requiredText(description, "luckyKeyword"),
+            textOrDefault(description, "luckyDirection", DEFAULT_LUCKY_DIRECTION),
+            normalizeCaution(nullableText(description, "caution")), requiredText(description, "postitLine"));
     }
 
     public SajuInfo toSajuInfo(JsonNode description) {
@@ -120,12 +125,14 @@ public class FortuneGenerationService {
         description.put("workLuck", result.workLuck());
         description.put("moneyLuck", result.moneyLuck());
         description.put("luckyColor", result.luckyColor());
+        description.put("luckyColorHex", FortuneLuckyColorResolver.resolveHex(result.luckyColor(), result.title()));
         description.put("luckyKeyword", result.luckyKeyword());
         description.put("luckyDirection", result.luckyDirection());
-        if (result.caution() == null) {
+        String caution = normalizeCaution(result.caution());
+        if (caution == null) {
             description.putNull("caution");
         } else {
-            description.put("caution", result.caution());
+            description.put("caution", caution);
         }
         description.put("postitLine", result.postitLine());
         description.put("cardTheme", result.cardTheme());
@@ -146,7 +153,7 @@ public class FortuneGenerationService {
         for (int attempt = 1; attempt <= GMS_MAX_ATTEMPTS; attempt++) {
             long startedAtNanos = System.nanoTime();
             try {
-                FortuneGmsResult result = fortuneGmsClient.generate(promptTemplate, saju);
+                FortuneGmsResult result = normalizeGmsResult(fortuneGmsClient.generate(promptTemplate, saju));
                 validateGmsResult(result);
                 logSuccess(logContext, promptVersion, attempt, startedAtNanos);
                 return result;
@@ -207,6 +214,30 @@ public class FortuneGenerationService {
             || hasInvalidHexColor(result.accentColor())) {
             throw new ServiceUnavailableException(FORTUNE_GMS_RESULT_INVALID_MESSAGE);
         }
+    }
+
+    private FortuneGmsResult normalizeGmsResult(FortuneGmsResult result) {
+        if (result == null) {
+            return null;
+        }
+
+        return new FortuneGmsResult(result.title(), result.summary(), result.overallLuck(), result.loveLuck(),
+            result.workLuck(), result.moneyLuck(), result.luckyColor(), result.luckyKeyword(), result.luckyDirection(),
+            normalizeCaution(result.caution()), result.postitLine(), result.cardTheme(), result.bgColor(),
+            result.accentColor(), result.iconKey());
+    }
+
+    private String normalizeCaution(String caution) {
+        if (!StringUtils.hasText(caution)) {
+            return null;
+        }
+
+        String normalized = caution.trim().replaceAll("\\s+", " ");
+        if (normalized.length() <= CAUTION_MAX_LENGTH) {
+            return normalized;
+        }
+
+        return normalized.substring(0, CAUTION_MAX_LENGTH - 3).stripTrailing() + "...";
     }
 
     private boolean hasInvalidHexColor(String color) {

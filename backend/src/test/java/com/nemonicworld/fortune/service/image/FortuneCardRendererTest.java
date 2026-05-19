@@ -31,8 +31,8 @@ class FortuneCardRendererTest {
 
         assertThat(pngBytes).startsWith((byte) 0x89, (byte) 0x50, (byte) 0x4E, (byte) 0x47);
         assertThat(image).isNotNull();
-        assertThat(image.getWidth()).isEqualTo(900);
-        assertThat(image.getHeight()).isEqualTo(1200);
+        assertThat(image.getWidth()).isEqualTo(771);
+        assertThat(image.getHeight()).isEqualTo(895);
     }
 
     private FortuneGmsResult sampleResult() {
@@ -46,7 +46,8 @@ class FortuneCardRendererTest {
               "yearPillar": "임신",
               "monthPillar": "경술",
               "dayPillar": "계유",
-              "hourPillar": "을묘"
+              "hourPillar": "을묘",
+              "fortuneDate": "2026-05-19"
             }
             """);
     }

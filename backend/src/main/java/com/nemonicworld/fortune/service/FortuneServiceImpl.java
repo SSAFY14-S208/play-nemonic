@@ -45,6 +45,7 @@ public class FortuneServiceImpl implements FortuneService {
     private static final String FORTUNE_NOT_FOUND_MESSAGE = "오늘 생성된 운세를 찾을 수 없습니다.";
     private static final String FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE = "운세 결과를 저장 형식으로 변환할 수 없습니다.";
     private static final String FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE = "저장된 운세 결과 형식이 올바르지 않습니다.";
+    private static final String FORTUNE_CARD_FILE_NAME = "card-template-v1.png";
     private final FortuneRepository fortuneRepository;
     private final AnonymousUserResolver anonymousUserResolver;
     private final FortunePromptTemplateProvider fortunePromptTemplateProvider;
@@ -93,14 +94,16 @@ public class FortuneServiceImpl implements FortuneService {
     /**
      * KST 오늘 날짜에 이미 생성된 운세 결과를 저장된 JSON에서 복원해 반환합니다.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     @Override
     public FortuneResponse getTodayFortune(String userUuidValue) {
         AppUser user = anonymousUserResolver.resolve(userUuidValue);
         LocalDate today = LocalDate.now(KST_ZONE);
         FortuneDetailRow row = fortuneRepository.findTodayFortuneDetail(user.getId(), today)
             .orElseThrow(() -> new NotFoundException(FORTUNE_NOT_FOUND_MESSAGE));
-        FortuneResponse response = toFortuneResponse(row);
+        JsonNode description = parseDescription(row.description());
+        ensureCurrentFortuneImage(row, description);
+        FortuneResponse response = toFortuneResponse(row, description);
 
         FortuneEventLogger.apiBusiness("fortune_reissued", user.getId(), FortuneEventLogger.metadata("fortune_id",
             row.fortuneId(), "fortune_date", row.fortuneDate(), "result", "success"));
@@ -136,7 +139,7 @@ public class FortuneServiceImpl implements FortuneService {
         String imageObjectKey = createFortuneImageObjectKey(today, fortuneId);
         String description = fortuneGenerationService.createDescription(saju, gmsResult);
         String artifactMeta = createArtifactMeta(today);
-        byte[] cardImageBytes = fortuneCardRenderer.render(gmsResult, saju);
+        byte[] cardImageBytes = fortuneCardRenderer.render(gmsResult, renderSaju(saju, today));
 
         fortuneCardStorage.upload(imageObjectKey, cardImageBytes, PNG_CONTENT_TYPE);
         saveFortune(user, today, fortuneId, galleryId, imageObjectKey, description, artifactMeta, now);
@@ -160,20 +163,74 @@ public class FortuneServiceImpl implements FortuneService {
             .metadata("fortune_date", row.fortuneDate(), "today_fortune_id", row.fortuneId(), "result", "blocked"));
     }
 
-    private FortuneResponse toFortuneResponse(FortuneDetailRow row) {
+    private FortuneResponse toFortuneResponse(FortuneDetailRow row, JsonNode description) {
+        return new FortuneResponse(row.fortuneId().toString(), row.fortuneDate(),
+            fortuneGenerationService.toFortuneResult(description), fortuneGenerationService.toSajuInfo(description),
+            fortuneGenerationService.toFortuneDesign(description));
+    }
+
+    private JsonNode parseDescription(String description) {
         try {
-            JsonNode description = objectMapper.readTree(row.description());
-            return new FortuneResponse(row.fortuneId().toString(), row.fortuneDate(),
-                fortuneGenerationService.toFortuneResult(description), fortuneGenerationService.toSajuInfo(description),
-                fortuneGenerationService.toFortuneDesign(description));
+            return objectMapper.readTree(description);
         } catch (JsonProcessingException e) {
             throw new BadRequestException(FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE);
         }
     }
 
     private String createFortuneImageObjectKey(LocalDate fortuneDate, UUID fortuneId) {
-        return "fortune/cards/%04d/%02d/%02d/%s/card.png".formatted(fortuneDate.getYear(), fortuneDate.getMonthValue(),
-            fortuneDate.getDayOfMonth(), fortuneId);
+        return "fortune/cards/%04d/%02d/%02d/%s/%s".formatted(fortuneDate.getYear(), fortuneDate.getMonthValue(),
+            fortuneDate.getDayOfMonth(), fortuneId, FORTUNE_CARD_FILE_NAME);
+    }
+
+    private void ensureCurrentFortuneImage(FortuneDetailRow row, JsonNode description) {
+        String currentObjectKey = row.fortuneImageObjectKey();
+        String expectedObjectKey = createFortuneImageObjectKey(row.fortuneDate(), row.fortuneId());
+        if (expectedObjectKey.equals(currentObjectKey)) {
+            return;
+        }
+
+        byte[] cardImageBytes = fortuneCardRenderer.render(toGmsResult(description),
+            renderSaju(description, row.fortuneDate()));
+        fortuneCardStorage.upload(expectedObjectKey, cardImageBytes, PNG_CONTENT_TYPE);
+        fortuneRepository.updateFortuneImageObjectKey(row.fortuneId(), expectedObjectKey,
+            LocalDateTime.now(KST_ZONE).truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    private FortuneGmsResult toGmsResult(JsonNode description) {
+        FortuneResponse.FortuneResult fortune = fortuneGenerationService.toFortuneResult(description);
+        FortuneResponse.FortuneDesign design = fortuneGenerationService.toFortuneDesign(description);
+
+        return new FortuneGmsResult(fortune.title(), fortune.summary(), fortune.overallLuck(), fortune.loveLuck(),
+            fortune.workLuck(), fortune.moneyLuck(), fortune.luckyColor(), fortune.luckyKeyword(),
+            fortune.luckyDirection(), fortune.caution(), fortune.postitLine(), design.cardTheme(), design.bgColor(),
+            design.accentColor(), design.iconKey());
+    }
+
+    private JsonNode renderSaju(JsonNode sajuSource, LocalDate fortuneDate) {
+        ObjectNode renderSaju = objectMapper.createObjectNode();
+        JsonNode nestedSaju = sajuSource.path("saju");
+        JsonNode source = nestedSaju.isObject() ? nestedSaju : sajuSource;
+        renderSaju.put("calendarType", nullableText(source, "calendarType"));
+        renderSaju.put("yearPillar", nullableText(source, "yearPillar"));
+        renderSaju.put("monthPillar", nullableText(source, "monthPillar"));
+        renderSaju.put("dayPillar", nullableText(source, "dayPillar"));
+        renderSaju.put("hourPillar", nullableText(source, "hourPillar"));
+        renderSaju.put("dayMasterElement", nullableText(source, "dayMasterElement"));
+        renderSaju.put("dayBranchElement", nullableText(source, "dayBranchElement"));
+        renderSaju.put("dayMasterYinYang", nullableText(source, "dayMasterYinYang"));
+        renderSaju.put("dayBranchYinYang", nullableText(source, "dayBranchYinYang"));
+        renderSaju.put("fortuneDate", fortuneDate.toString());
+
+        return renderSaju;
+    }
+
+    private String nullableText(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        if (value == null || value.isMissingNode() || value.isNull()) {
+            return null;
+        }
+
+        return value.asText(null);
     }
 
     private String createArtifactMeta(LocalDate fortuneDate) {

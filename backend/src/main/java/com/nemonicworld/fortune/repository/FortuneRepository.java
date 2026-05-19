@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,6 +35,7 @@ public class FortuneRepository {
             fa.artifact_id AS artifact_id,
             fa.fortune_date AS fortune_date,
             fa.description AS description,
+            fa.fortune_image_url AS fortune_image_url,
             a.created_at AS created_at
         FROM fortune_artifact fa
         JOIN artifact a ON a.id = fa.artifact_id
@@ -65,6 +67,17 @@ public class FortuneRepository {
     private static final String INSERT_GALLERY_SQL = """
         INSERT INTO gallery (id, user_id, artifact_id, deleted_at)
         VALUES (:id, :userId, :artifactId, NULL)
+        """;
+    private static final String UPDATE_FORTUNE_IMAGE_OBJECT_KEY_SQL = """
+        UPDATE fortune_artifact
+        SET fortune_image_url = :fortuneImageUrl
+        WHERE artifact_id = :artifactId
+        """;
+    private static final String UPDATE_ARTIFACT_THUMBNAIL_SQL = """
+        UPDATE artifact
+        SET thumbnail_url = :thumbnailUrl,
+            updated_at = :updatedAt
+        WHERE id = :artifactId
         """;
     private static final String FORTUNE_KIND = "fortune";
 
@@ -107,6 +120,18 @@ public class FortuneRepository {
         insertGallery(command);
     }
 
+    /**
+     * 운세 산출물의 원본 이미지와 갤러리 썸네일이 같은 최신 카드 이미지를 바라보도록 갱신합니다.
+     */
+    public void updateFortuneImageObjectKey(UUID artifactId, String fortuneImageObjectKey, LocalDateTime updatedAt) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("artifactId", artifactId)
+            .addValue("fortuneImageUrl", fortuneImageObjectKey).addValue("thumbnailUrl", fortuneImageObjectKey)
+            .addValue("updatedAt", updatedAt);
+
+        jdbcTemplate.update(UPDATE_FORTUNE_IMAGE_OBJECT_KEY_SQL, params);
+        jdbcTemplate.update(UPDATE_ARTIFACT_THUMBNAIL_SQL, params);
+    }
+
     private void insertArtifact(FortuneCreateCommand command) {
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", command.artifactId())
             .addValue("kind", FORTUNE_KIND, Types.OTHER).addValue("thumbnailUrl", command.fortuneImageObjectKey())
@@ -140,6 +165,6 @@ public class FortuneRepository {
     private FortuneDetailRow mapDetailRow(ResultSet resultSet, int rowNumber) throws SQLException {
         return new FortuneDetailRow(resultSet.getObject("artifact_id", UUID.class),
             resultSet.getDate("fortune_date").toLocalDate(), resultSet.getString("description"),
-            resultSet.getTimestamp("created_at").toLocalDateTime());
+            resultSet.getString("fortune_image_url"), resultSet.getTimestamp("created_at").toLocalDateTime());
     }
 }

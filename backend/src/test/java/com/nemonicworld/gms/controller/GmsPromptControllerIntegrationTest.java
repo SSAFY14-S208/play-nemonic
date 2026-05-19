@@ -455,6 +455,7 @@ class GmsPromptControllerIntegrationTest {
             .andExpect(jsonPath("$.data.fortune.workLuck").value(65))
             .andExpect(jsonPath("$.data.fortune.moneyLuck").value(90))
             .andExpect(jsonPath("$.data.fortune.luckyColor").value("Blue"))
+            .andExpect(jsonPath("$.data.fortune.luckyColorHex").exists())
             .andExpect(jsonPath("$.data.fortune.luckyKeyword").value("Focus"))
             .andExpect(jsonPath("$.data.fortune.luckyDirection").value("East"))
             .andExpect(jsonPath("$.data.fortune.caution").value("Move slowly"))

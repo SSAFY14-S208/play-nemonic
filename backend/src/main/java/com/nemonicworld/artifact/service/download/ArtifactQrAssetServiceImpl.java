@@ -29,7 +29,7 @@ public class ArtifactQrAssetServiceImpl implements ArtifactQrAssetService {
     private static final String KIND_PHONE = "phone";
     private static final String KIND_COMMUNITY_MEMO = "community_memo";
     private static final String CHANNEL_QR_DOWNLOAD = "QR_DOWNLOAD";
-    private static final String QR_CACHE_FILE_STEM = "result-qr-v3";
+    private static final String QR_CACHE_FILE_STEM = "result-qr-v4";
     private static final Set<String> DOWNLOADABLE_KINDS = Set.of(KIND_FORTUNE, KIND_RELAY_DRAWING, KIND_FLIPBOOK,
         KIND_INFINITE_CANVAS, KIND_PHONE, KIND_COMMUNITY_MEMO);
 
