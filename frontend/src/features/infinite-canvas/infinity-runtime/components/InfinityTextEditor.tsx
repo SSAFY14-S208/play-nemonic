@@ -172,7 +172,7 @@ export function InfinityTextEditor({
             onClick={() => setFontSize(preset)}
             className={cn(
               "px-1.5 h-6 rounded caption-r hover:bg-canvas-active text-canvas-ink",
-              fontSize === preset && "bg-canvas-accent text-white",
+              fontSize === preset && "bg-[#eaf5ff] text-[#12305f] ring-1 ring-[#76b8f2]",
             )}
           >
             {preset}
