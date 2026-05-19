@@ -34,28 +34,28 @@ export const ROOM_PREVIEW_HUB_CAMERA_PRESETS: Record<
   }
 > = {
   overview: {
-    position: [0.88, 4.3, 1.82],
-    target: [-2.72, 1.62, -1.86],
+    position: [1.08, 3.5, 2.06],
+    target: [-2.48, 1.9, -2.1],
   },
   mainDesk: {
-    position: [0.88, 4.3, 1.82],
-    target: [-2.72, 1.62, -1.86],
+    position: [1.08, 3.5, 2.06],
+    target: [-2.48, 1.9, -2.1],
   },
   monitor: {
-    position: [-1.99, 2.03, -1.18],
+    position: [-1.99, 2.03, -0.58],
     target: [-1.99, 2.03, -3.06],
   },
   workspace: {
-    position: [0.88, 4.3, 1.82],
-    target: [-2.72, 1.62, -1.86],
+    position: [1.08, 3.5, 2.06],
+    target: [-2.48, 1.9, -2.1],
   },
   printer: {
     position: [-2.39, 1.79, -1.6],
     target: [-2.83, 1.46, -2.48],
   },
   pegboard: {
-    position: [0.88, 4.3, 1.82],
-    target: [-2.72, 1.62, -1.86],
+    position: [1.08, 3.5, 2.06],
+    target: [-2.48, 1.9, -2.1],
   },
   communityBoard: {
     position: [-1.72, 2.35, -0.82],
