@@ -68,6 +68,11 @@ tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'spring.profiles.active', 'test'
 	systemProperty 'user.timezone', 'Asia/Seoul'
+	systemProperty 'spring.test.context.cache.maxSize', '8'
+	maxHeapSize = '1g'
+	maxParallelForks = 1
+	forkEvery = 25
+	jvmArgs '-XX:+HeapDumpOnOutOfMemoryError'
 }
 
 tasks.named('bootRun') {
