@@ -31,7 +31,7 @@ interface InfinityTextEditorProps {
 
 const TEXT_COLOR_OPTIONS = [INFINITY_TEXT_DEFAULT_COLOR, ...INFINITY_COLORS] as const;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
-const TEXT_EDITOR_TOOLBAR_WIDTH = 840;
+const TEXT_EDITOR_TOOLBAR_WIDTH = 460;
 const TEXT_EDITOR_INPUT_WIDTH = 420;
 const TEXT_EDITOR_MARGIN = 16;
 const TEXT_EDITOR_TOOLBAR_OFFSET = 58;
@@ -187,9 +187,10 @@ export function InfinityTextEditor({
     >
       {/* 텍스트 서식 popover — textarea 위쪽 */}
       <div
-        className="absolute bottom-full left-0 mb-2 flex flex-nowrap items-center gap-1 overflow-x-auto rounded-lg border border-canvas-border bg-canvas-panel px-3 py-2 shadow-md"
+        className="absolute bottom-full left-0 mb-2 flex flex-col gap-2 overflow-x-auto rounded-lg border border-canvas-border bg-canvas-panel px-3 py-2 shadow-md"
         style={{ left: toolbarLeftOffset, width: toolbarWidth }}
       >
+        <div className="flex flex-nowrap items-center gap-1">
         <button
           type="button"
           onClick={() => setFontSize((size) => Math.max(8, size - 2))}
@@ -237,7 +238,8 @@ export function InfinityTextEditor({
             </button>
           ))}
         </div>
-        <div className="w-px h-4 bg-canvas-border mx-1" />
+        </div>
+        <div className="flex flex-nowrap items-center gap-2">
         <select
           value={fontFamily}
           onChange={(event) => setFontFamily(event.target.value)}
@@ -250,7 +252,7 @@ export function InfinityTextEditor({
             </option>
           ))}
         </select>
-        <div className="w-px h-4 bg-canvas-border mx-1" />
+        <div className="flex flex-nowrap items-center gap-1">
         {TEXT_COLOR_OPTIONS.map((colorOption) => (
           <button
             key={colorOption}
@@ -271,6 +273,8 @@ export function InfinityTextEditor({
           className="h-8 w-10 shrink-0 cursor-pointer rounded border border-canvas-border bg-white p-0.5"
           aria-label="사용자 지정 글자 색"
         />
+          </div>
+        </div>
       </div>
 
       {/* 입력 영역 */}
