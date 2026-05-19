@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Group, Image as KonvaImage, Text } from 'react-konva'
+import { Group, Image as KonvaImage } from 'react-konva'
 import { RELAY_STAGE_SIZE } from '../../constants'
 import DashedGuide from './DashedGuide'
 import HintPill from './HintPill'
@@ -58,18 +58,6 @@ export default function PreviousRoundHint({
         x={46}
         y={overlayHeight - 48}
         label="이전 사람의 그림 (참고용)"
-      />
-      <Text
-        x={0}
-        y={overlayHeight + 6}
-        width={RELAY_STAGE_SIZE.width}
-        text="↓ 여기부터 이어 그리세요"
-        align="center"
-        fontFamily="Paperlogy"
-        fontSize={16}
-        fontStyle="bold"
-        fill="#efc759"
-        opacity={0.72}
       />
     </Group>
   )

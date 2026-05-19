@@ -14,11 +14,15 @@ import {
 } from './components/drawing-stage'
 import { useRelayDrawingStore } from './stores'
 import { useRelayCanvas } from './hooks'
+import { isPointInsideArea } from './utils'
 
 export default function RelayDrawingStage() {
   const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)
   const roundLines = useRelayDrawingStore((state) => state.roundLines)
   const hintImageUrl = useRelayDrawingStore((state) => state.hintImageUrl)
+  const isSubmitting = useRelayDrawingStore((state) => state.isSubmitting)
+  const isSubmitted = useRelayDrawingStore((state) => state.isSubmitted)
+  const isPartTimeUp = useRelayDrawingStore((state) => state.isPartTimeUp)
 
   const { beginDrawing, continueDrawing, endDrawing } = useRelayCanvas()
 
@@ -70,6 +74,28 @@ export default function RelayDrawingStage() {
   }, [])
 
   const lines = roundLines[activeRoundKey]
+
+  // outgoing 힌트 영역 안내 — 사용자가 힌트 영역 안에 한 번이라도 점을 찍었는지
+  // 검사한다. 캔버스의 다른 위치(얼굴 영역 등)에 그리는 건 안내 표시에 영향이 없다.
+  // 라운드가 바뀌면 setAssignment가 roundLines/isSubmitting/isSubmitted/isPartTimeUp
+  // 을 모두 리셋하므로 자동으로 다시 true가 된다.
+  // 양동이 raster fill은 캔버스 전체를 덮을 수 있어 hint 영역에 색이 들어간 것으로
+  // 간주한다. polygon fill은 points 검사로 정확히 판정된다.
+  const outgoingHintArea = activeRoundRule.outgoingHintArea
+  const hasDrawnInOutgoingHintArea = outgoingHintArea
+    ? lines.some((line) => {
+        if (line.kind === 'fill' && line.imageDataUrl) return true
+        return line.points.some((point) =>
+          isPointInsideArea(point, outgoingHintArea),
+        )
+      })
+    : false
+  const isOutgoingHintAttentionVisible =
+    outgoingHintArea !== undefined &&
+    !hasDrawnInOutgoingHintArea &&
+    !isSubmitting &&
+    !isSubmitted &&
+    !isPartTimeUp
 
   // BODY/LEGS에서는 이전 파트의 힌트 이미지를 drawArea 상단에 오버레이로 표시.
   const shouldShowHintOverlay = activeRoundKey !== 'face'
@@ -128,7 +154,10 @@ export default function RelayDrawingStage() {
             )}
 
             {activeRoundRule.outgoingHintArea && (
-              <OutgoingHint outgoingHintArea={activeRoundRule.outgoingHintArea} />
+              <OutgoingHint
+                outgoingHintArea={activeRoundRule.outgoingHintArea}
+                isAttentionVisible={isOutgoingHintAttentionVisible}
+              />
             )}
 
             <Text
