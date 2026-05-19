@@ -385,13 +385,13 @@
   95.2%,
   100% {
     opacity: 1;
-    transform: translate3d(-50%, -50%, 0) rotate(-15.67deg) scaleY(1);
+    transform: scaleY(1);
   }
 
   92.2%,
   94.2% {
     opacity: 0;
-    transform: translate3d(-50%, -50%, 0) rotate(-15.67deg) scaleY(0.08);
+    transform: scaleY(0.08);
   }
 }
 
@@ -401,13 +401,13 @@
   94.8%,
   100% {
     opacity: 0;
-    transform: translate3d(-50%, -50%, 0) rotate(-15.67deg) scaleY(0.68);
+    transform: scaleY(0.68);
   }
 
   92.4%,
   94% {
     opacity: 1;
-    transform: translate3d(-50%, -50%, 0) rotate(-15.67deg) scaleY(1);
+    transform: scaleY(1);
   }
 }
 
