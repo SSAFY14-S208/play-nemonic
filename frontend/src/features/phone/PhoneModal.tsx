@@ -13,7 +13,7 @@ import {
   PhoneMobileCloseButton,
   PhoneToast,
 } from './components'
-import { PHONE_DESIGN_HEIGHT, PHONE_DESIGN_WIDTH, usePhoneScale } from './hooks'
+import { PHONE_DESIGN_HEIGHT, PHONE_DESIGN_WIDTH } from './constants'
 import { usePhoneStore } from './phoneStore'
 
 const SLIDE_TRANSITION = {
@@ -42,7 +42,6 @@ export default function PhoneModal() {
   }, [closePhone])
 
   const statusBarVariant = activeScreen === 'home' ? 'light' : 'dark'
-  const scale = usePhoneScale()
 
   return (
     <Dialog.Root
@@ -89,16 +88,11 @@ export default function PhoneModal() {
               if (isClosing) handleExitComplete()
             }}
             style={{
-              width: `${PHONE_DESIGN_WIDTH * scale}px`,
-              height: `${PHONE_DESIGN_HEIGHT * scale}px`,
+              width: `${PHONE_DESIGN_WIDTH}px`,
+              height: `${PHONE_DESIGN_HEIGHT}px`,
             }}
           >
-            <div
-              className="relative origin-top-left"
-              style={{
-                transform: `scale(${scale})`,
-              }}
-            >
+            <div className="relative">
               <PhoneFrame statusBarVariant={statusBarVariant}>
                 {activeScreen === 'home' && <PhoneHomeScreen />}
                 {activeScreen === 'drawing' && <PhoneDrawingScreen />}

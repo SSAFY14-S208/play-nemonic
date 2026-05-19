@@ -11,12 +11,14 @@ import type { PhoneGalleryFilterKey, PhoneGalleryItemKind } from "../types";
 
 export { PHONE_COLORS } from "./colors";
 
+export const PHONE_DESIGN_WIDTH = 300;
+export const PHONE_DESIGN_HEIGHT = 600;
+
 export const PHONE_OFFICIAL_STORE_URL = "https://kr.nemonic.me/";
 
 export const PHONE_FRAME_LAYOUT = {
   aspectRatio: "1131.3865966796875 / 2348",
-  // 디자인 기준 사이즈로 고정. viewport 적응은 PhoneModal wrapper의 transform: scale이 담당한다.
-  deviceMaxWidth: "393px",
+  deviceMaxWidth: `${PHONE_DESIGN_WIDTH}px`,
   deviceFrame: {
     left: "0%",
     top: "0%",
