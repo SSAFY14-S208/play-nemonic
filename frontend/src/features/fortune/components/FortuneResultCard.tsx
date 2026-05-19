@@ -7,6 +7,7 @@ import { useFortuneExternalShare } from '../hooks'
 import type { FortuneScoreSet } from '../types'
 
 const FORTUNE_CARD_TEMPLATE_PATH = '/images/fortune/templates/daily-fortune-card.png'
+const FORTUNE_DIRECTION_ARROW_PATH = '/images/fortune/templates/arrow.png'
 
 const TEMPLATE_CARD_CLASS = cn(
   'relative isolate mx-auto w-full max-w-[min(92vw,620px)] overflow-hidden',
@@ -17,7 +18,7 @@ const TEMPLATE_CARD_CLASS = cn(
 
 const CARD_TEXT_BASE_CLASS = cn(
   'absolute z-[2] text-center tracking-normal [word-break:keep-all]',
-  '[font-family:var(--font-fortune-hand)] text-[#15110a]',
+  'font-fortune-hand text-[#15110a]',
 )
 
 const SCORE_VALUE_CLASS = cn(
@@ -73,15 +74,15 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
           draggable={false}
         />
 
-        <time className={cn(CARD_TEXT_BASE_CLASS, 'left-1/2 top-[8.2%] -translate-x-1/2 text-[clamp(1.05rem,3.3vw,1.9rem)] font-bold leading-none')}>
+        <time className={cn(CARD_TEXT_BASE_CLASS, 'left-1/2 top-[9.3%] flex h-[5.4%] w-[22%] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-[clamp(1.05rem,3.3vw,1.9rem)] font-bold leading-none')}>
           {formatFortuneDate(result.issuedDateKey)}
         </time>
 
         <h1
           className={cn(
             CARD_TEXT_BASE_CLASS,
-            'left-1/2 top-[18.8%] w-[64%] -translate-x-1/2',
-            'text-[clamp(1.65rem,5.3vw,2.75rem)] font-bold leading-[1.18]',
+            'left-1/2 top-[18.95%] w-[64%] -translate-x-1/2',
+            'text-[clamp(1.58rem,5vw,2.58rem)] font-bold leading-[1.2]',
           )}
         >
           {result.title}
@@ -90,8 +91,8 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         <p
           className={cn(
             CARD_TEXT_BASE_CLASS,
-            'left-1/2 top-[37.4%] w-[74%] -translate-x-1/2',
-            'text-[clamp(0.9rem,2.55vw,1.28rem)] font-bold leading-[1.28] text-[#4b3823]',
+            'left-1/2 top-[43.2%] flex h-[8%] w-[70%] -translate-x-1/2 -translate-y-1/2 items-center justify-center',
+            'text-[clamp(0.82rem,2.25vw,1.12rem)] font-semibold leading-[1.35] text-[#4b3823]',
           )}
         >
           {result.postitLine}
@@ -110,20 +111,30 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         <div
           className={cn(
             CARD_TEXT_BASE_CLASS,
-            'left-[24%] top-[84.8%] w-[30%] -translate-x-1/2 text-center',
-            'text-[clamp(0.68rem,1.95vw,0.95rem)] font-bold leading-[1.35]',
+            'left-[24%] top-[83.4%] w-[34%] -translate-x-1/2 text-center',
+            'text-[clamp(0.68rem,1.9vw,0.92rem)] font-semibold leading-[1.35]',
           )}
         >
-          <span className="mx-auto mb-[0.22rem] block size-[1.42em] rounded-full border border-[rgba(40,40,40,0.18)] shadow-[inset_0_0_0_0.14rem_rgba(255,255,255,0.55)]" style={{ background: result.luckyColor.hex }} aria-hidden />
-          <span className="block">{result.luckyColor.name}</span>
-          <strong className="mt-[0.3rem] block text-[clamp(0.9rem,2.5vw,1.16rem)]">{result.luckyDirection}</strong>
+          <div className="grid grid-cols-2 items-end gap-x-[8%] gap-y-[0.32rem]">
+            <span className="mx-auto block size-[1.44em] rounded-full border border-[rgba(40,40,40,0.18)] shadow-[inset_0_0_0_0.14rem_rgba(255,255,255,0.55)]" style={{ background: result.luckyColor.hex }} aria-hidden />
+            <img
+              src={FORTUNE_DIRECTION_ARROW_PATH}
+              alt=""
+              aria-hidden
+              className="mx-auto w-[clamp(1.7rem,5.6vw,2.65rem)] select-none object-contain drop-shadow-[0_0.12rem_0_rgba(255,255,255,0.76)]"
+              draggable={false}
+              style={{ transform: `rotate(${getDirectionArrowRotation(result.luckyDirection)}deg)` }}
+            />
+            <span className="block">{result.luckyColor.name}</span>
+            <strong className="block text-[clamp(0.78rem,2.15vw,1.02rem)]">{result.luckyDirection}</strong>
+          </div>
         </div>
 
         <p
           className={cn(
             CARD_TEXT_BASE_CLASS,
-            'left-[76%] top-[84.9%] w-[29%] -translate-x-1/2 text-center',
-            'text-[clamp(0.64rem,1.8vw,0.86rem)] font-bold leading-[1.45]',
+            'left-[75.8%] top-[84.6%] w-[30%] -translate-x-1/2 text-center',
+            'text-[clamp(0.62rem,1.7vw,0.82rem)] font-semibold leading-[1.5]',
           )}
         >
           {result.caution}
@@ -176,4 +187,16 @@ function formatFortuneDate(dateKey: string) {
   const weekday = new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(date).replace('.', '')
 
   return `${Number(dateParts[2])}/${Number(dateParts[3])} (${weekday})`
+}
+
+function getDirectionArrowRotation(direction: string) {
+  if (direction.includes('북동')) return -45
+  if (direction.includes('남동')) return 45
+  if (direction.includes('남서')) return 135
+  if (direction.includes('북서')) return -135
+  if (direction.includes('북')) return -90
+  if (direction.includes('남')) return 90
+  if (direction.includes('서')) return 180
+
+  return 0
 }

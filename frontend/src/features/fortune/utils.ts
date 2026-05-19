@@ -635,6 +635,14 @@ function pickBySeed<T>(items: readonly T[], seed: number) {
 
 const KOREAN_LUCKY_COLOR_HEX: Record<string, string> = {
   은회색: '#c0c0c0',
+  베이지: '#d7c09a',
+  베이지색: '#d7c09a',
+  짙은베이지: '#9b7a52',
+  '짙은 베이지': '#9b7a52',
+  진한베이지: '#9b7a52',
+  '진한 베이지': '#9b7a52',
+  갈색: '#8b5a32',
+  브라운: '#8b5a32',
   노랑: '#f4d35e',
   노란색: '#f4d35e',
   보라: '#a281d0',
