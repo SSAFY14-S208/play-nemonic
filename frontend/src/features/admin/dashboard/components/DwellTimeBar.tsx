@@ -38,7 +38,8 @@ export function DwellTimeBar({ state, onRetry, onDrillDown }: Props) {
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 8, right: 24, bottom: 24, left: 160 }}
+          margin={{ top: 8, right: 24, bottom: 24, left: 8 }}
+          barCategoryGap="22%"
         >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-default)" />
           <XAxis
@@ -50,9 +51,12 @@ export function DwellTimeBar({ state, onRetry, onDrillDown }: Props) {
           <YAxis
             type="category"
             dataKey="path"
-            width={160}
+            width={180}
             stroke="var(--color-fg-secondary)"
             tick={{ fontSize: 11 }}
+            // 데이터가 많아도 모든 path 라벨을 강제 노출 — 자동 thinning으로 막대만 보이고
+            // 라벨이 잘려 같은 path가 중복된 것처럼 오해되는 문제를 막는다.
+            interval={0}
           />
           <Tooltip
             formatter={
@@ -74,6 +78,7 @@ export function DwellTimeBar({ state, onRetry, onDrillDown }: Props) {
             dataKey="avgSec"
             fill={CHART_STATUS_COLORS.accent}
             radius={[0, 4, 4, 0]}
+            maxBarSize={18}
             cursor="pointer"
             onClick={(entry) => {
               if (!entry || !entry.payload) return

@@ -419,6 +419,9 @@ const PATH_NORMALIZE = (path: string): string =>
     .replace(/\/flipbook\/lobby\/[A-Z0-9]+/g, '/flipbook/lobby/:room')
     .replace(/\/flipbook\/drawing\/[A-Z0-9]+/g, '/flipbook/drawing/:room')
     .replace(/\/flipbook\/result\/[A-Z0-9]+/g, '/flipbook/result/:room')
+    // 무한 캔버스 roomCode는 'canvas-123' 같은 소문자+하이픈 형식이라 다른 방들의
+    // 대문자+숫자 패턴과 다르다. 한 segment 전체를 잡도록 슬래시 직전까지 매칭.
+    .replace(/\/infinite-canvas\/[^/]+/g, '/infinite-canvas/:room')
     .replace(/\/share\/[A-Za-z0-9_-]+/g, '/share/:token')
 
 export function useI9DwellTime(args: AnalyticsVizArgs) {

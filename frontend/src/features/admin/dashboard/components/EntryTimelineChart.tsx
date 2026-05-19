@@ -43,6 +43,7 @@ const FUNNEL_LABEL: Record<string, string> = {
   community_memo_posting: '커뮤니티 메모',
   fortune_creation: '오늘의 운세',
   gallery_save_share: '갤러리·공유',
+  infinite_canvas_creation: '무한 캔버스',
 }
 
 const ENTRY_LABEL: Record<string, string> = {

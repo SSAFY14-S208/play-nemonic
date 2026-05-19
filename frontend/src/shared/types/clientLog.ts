@@ -157,6 +157,7 @@ export type FunnelName =
   | 'community_memo_posting'
   | 'fortune_creation'
   | 'gallery_save_share'
+  | 'infinite_canvas_creation'
   | (string & {}) // 추후 추가 funnel 허용
 
 // ── sendBeacon 우선순위 ──
