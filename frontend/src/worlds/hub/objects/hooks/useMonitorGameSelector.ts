@@ -7,6 +7,10 @@ import { trackHubInvalidate } from '@/shared/utils'
 
 export type MonitorGameAction = 'previous' | 'next' | 'start'
 
+interface UseMonitorGameSelectorOptions {
+  enableKeyboardShortcuts?: boolean
+}
+
 function isKeyboardInputTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false
 
@@ -19,7 +23,9 @@ function isKeyboardInputTarget(target: EventTarget | null) {
   )
 }
 
-export function useMonitorGameSelector() {
+export function useMonitorGameSelector({
+  enableKeyboardShortcuts = true,
+}: UseMonitorGameSelectorOptions = {}) {
   const router = useRouter()
   const invalidate = useThree((state) => state.invalidate)
   const selectedGameIndex = useHubGameStore((state) => state.selectedGameIndex)
@@ -46,6 +52,8 @@ export function useMonitorGameSelector() {
   }, [invalidate, router, selectedGame.route])
 
   useEffect(() => {
+    if (!enableKeyboardShortcuts) return
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isKeyboardInputTarget(event.target)) return
 
@@ -77,7 +85,13 @@ export function useMonitorGameSelector() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [invalidate, selectNextGame, selectPreviousGame, startSelectedGame])
+  }, [
+    enableKeyboardShortcuts,
+    invalidate,
+    selectNextGame,
+    selectPreviousGame,
+    startSelectedGame,
+  ])
 
   return {
     focusMonitor,

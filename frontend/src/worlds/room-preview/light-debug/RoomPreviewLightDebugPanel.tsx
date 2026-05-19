@@ -8,12 +8,15 @@ import {
   SlidersHorizontal,
   Target,
 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import {
   ROOM_PREVIEW_BLENDER_AREA_LIGHTS,
   ROOM_PREVIEW_BLENDER_POINT_LIGHTS,
 } from '../objects/RoomPreviewBlenderLights'
+import RoomPreviewHitboxDebugControls, {
+  type RoomPreviewHubHitboxCalibration,
+} from './RoomPreviewHitboxDebugControls'
 import {
   type RoomPreviewLightDebugAxis,
   type RoomPreviewLightDebugGlobalKey,
@@ -93,6 +96,7 @@ const LIGHT_SOURCE_ITEMS: LightSourceItem[] = [
 const FIRST_LIGHT_NAME = LIGHT_SOURCE_ITEMS[0]?.name ?? null
 const LIGHT_DEBUG_AXES: RoomPreviewLightDebugAxis[] = ['x', 'y', 'z']
 const ZERO_VECTOR3: RoomPreviewLightDebugVector3 = [0, 0, 0]
+type RoomPreviewDebugTab = 'hitboxes' | 'lights'
 const VECTOR_AXIS_INDEX: Record<RoomPreviewLightDebugAxis, number> = {
   x: 0,
   y: 1,
@@ -154,7 +158,13 @@ const SliderField = ({
   </label>
 )
 
-export const RoomPreviewLightDebugPanel = () => {
+export const RoomPreviewLightDebugPanel = ({
+  hitboxCalibration,
+}: {
+  hitboxCalibration?: RoomPreviewHubHitboxCalibration
+}) => {
+  const [activeDebugTab, setActiveDebugTab] =
+    useState<RoomPreviewDebugTab>('lights')
   const isQueryEnabled = useRoomPreviewLightDebugEnabled()
   const areaDirectMaster = useRoomPreviewLightDebugStore(
     (state) => state.areaDirectMaster,
@@ -272,6 +282,9 @@ export const RoomPreviewLightDebugPanel = () => {
 
     return lightEnabled && soloAllowed
   }).length
+  const visibleDebugTab: RoomPreviewDebugTab = hitboxCalibration
+    ? activeDebugTab
+    : 'lights'
 
   const setSelectedMultiplier = (
     key: RoomPreviewLightDebugMultiplierKey,
@@ -353,7 +366,40 @@ export const RoomPreviewLightDebugPanel = () => {
         </span>
       </header>
 
+      {hitboxCalibration && (
+        <div className="grid grid-cols-2 gap-2 border-b border-border-default/70 p-3">
+          <button
+            aria-pressed={visibleDebugTab === 'lights'}
+            className={joinClassNames(
+              'h-9 rounded-lg border text-xs font-semibold transition',
+              visibleDebugTab === 'lights'
+                ? 'border-primary-300 bg-primary-50 text-primary-700'
+                : 'border-border-default bg-surface-subtle text-fg-secondary hover:bg-surface-muted',
+            )}
+            onClick={() => setActiveDebugTab('lights')}
+            type="button"
+          >
+            Lights
+          </button>
+          <button
+            aria-pressed={visibleDebugTab === 'hitboxes'}
+            className={joinClassNames(
+              'h-9 rounded-lg border text-xs font-semibold transition',
+              visibleDebugTab === 'hitboxes'
+                ? 'border-primary-300 bg-primary-50 text-primary-700'
+                : 'border-border-default bg-surface-subtle text-fg-secondary hover:bg-surface-muted',
+            )}
+            onClick={() => setActiveDebugTab('hitboxes')}
+            type="button"
+          >
+            Hitboxes
+          </button>
+        </div>
+      )}
+
       <div className="min-h-0 overflow-y-auto">
+        {visibleDebugTab === 'lights' ? (
+          <>
         <section className="grid grid-cols-3 gap-2 border-b border-border-default/70 p-3">
           <button
             aria-pressed={showHelpers}
@@ -724,6 +770,12 @@ export const RoomPreviewLightDebugPanel = () => {
             </p>
           </div>
         </section>
+          </>
+        ) : (
+          hitboxCalibration && (
+            <RoomPreviewHitboxDebugControls {...hitboxCalibration} />
+          )
+        )}
       </div>
     </aside>
   )

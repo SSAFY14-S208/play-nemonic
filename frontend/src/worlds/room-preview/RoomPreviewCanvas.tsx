@@ -13,8 +13,12 @@ import {
   ROOM_PREVIEW_RENDERING_PROFILES,
   type RoomPreviewVariant,
 } from "./constants";
-import { RoomPreviewLightDebugPanel } from "./light-debug";
+import {
+  RoomPreviewLightDebugPanel,
+  useRoomPreviewLightDebugEnabled,
+} from "./light-debug";
 import RoomPreviewScene from "./RoomPreviewScene";
+import { useRoomPreviewHubHitboxCalibration } from "./useRoomPreviewHubHitboxCalibration";
 
 function CanvasPauseControl() {
   const isPaused = useCanvasPauseStore((state) => state.isPaused);
@@ -93,6 +97,12 @@ export default function RoomPreviewCanvas({
     variant === "hub"
       ? ROOM_PREVIEW_HUB_CAMERA_PRESETS.overview
       : ROOM_PREVIEW_CAMERA;
+  const hitboxCalibration = useRoomPreviewHubHitboxCalibration();
+  const isLightDebugEnabled = useRoomPreviewLightDebugEnabled();
+  const showHitboxCalibration =
+    variant === "hub" &&
+    isLightDebugEnabled &&
+    process.env.NODE_ENV !== "production";
 
   useEffect(() => {
     if (variant !== "hub") return;
@@ -158,10 +168,14 @@ export default function RoomPreviewCanvas({
         <CanvasPauseControl />
         <RoomPreviewScene
           enablePostProcessing={renderingProfile.postProcessing}
+          hitboxCalibration={hitboxCalibration}
+          showHitboxes={showHitboxCalibration}
           variant={variant}
         />
       </Canvas>
-      <RoomPreviewLightDebugPanel />
+      <RoomPreviewLightDebugPanel
+        hitboxCalibration={showHitboxCalibration ? hitboxCalibration : undefined}
+      />
     </>
   );
 }

@@ -17,6 +17,7 @@ const WHITEBOARD_PREVIEW_QUATERNION: [number, number, number, number] = [
 ]
 const WHITEBOARD_PREVIEW_PLANE_SIZE: [number, number] = [0.43, 0.265]
 const WHITEBOARD_PREVIEW_SURFACE_OFFSET = -0.004
+const DISABLED_RAYCAST: THREE.Mesh['raycast'] = () => undefined
 
 interface CommunityCanvasWhiteboardPreviewMeshProps {
   flipContentX?: boolean
@@ -49,6 +50,7 @@ export default function CommunityCanvasWhiteboardPreviewMesh({
     >
       <mesh
         position={[0, 0, WHITEBOARD_PREVIEW_SURFACE_OFFSET]}
+        raycast={DISABLED_RAYCAST}
         renderOrder={80}
         scale={[flipContentX ? -1 : 1, 1, 1]}
       >

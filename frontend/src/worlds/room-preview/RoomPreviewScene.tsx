@@ -3,8 +3,7 @@ import {
   Environment,
   OrbitControls,
 } from '@react-three/drei'
-import { type ThreeEvent, useThree } from '@react-three/fiber'
-import { useRouter } from 'next/navigation'
+import { useThree } from '@react-three/fiber'
 import {
   Suspense,
   useCallback,
@@ -29,28 +28,11 @@ import RoomPreviewBlenderLights from './objects/RoomPreviewBlenderLights'
 import RoomPreviewHubDomSurfaces from './objects/RoomPreviewHubDomSurfaces'
 import RoomPreviewModel from './objects/RoomPreviewModel'
 import RoomPreviewPostProcessing from './RoomPreviewPostProcessing'
+import type { useRoomPreviewHubHitboxCalibration } from './useRoomPreviewHubHitboxCalibration'
 
-const NEMONIC_SINGLE_ROOM_PATH = '/nemonic'
-const NEMONIC_DEVICE_ROOT_OBJECT_NAME = 'NEMONIC'
-const NEMONIC_DEVICE_OBJECT_NAME_PREFIX = 'NEMONIC_'
-const NEMONIC_FOCUS_KEY = 'printer'
-
-function isNemonicDeviceObject(object: THREE.Object3D) {
-  let currentObject: THREE.Object3D | null = object
-
-  while (currentObject) {
-    if (
-      currentObject.name === NEMONIC_DEVICE_ROOT_OBJECT_NAME ||
-      currentObject.name.startsWith(NEMONIC_DEVICE_OBJECT_NAME_PREFIX)
-    ) {
-      return true
-    }
-
-    currentObject = currentObject.parent
-  }
-
-  return false
-}
+type RoomPreviewHubHitboxCalibration = ReturnType<
+  typeof useRoomPreviewHubHitboxCalibration
+>
 
 function RoomPreviewHubCameraRig() {
   const controlsRef = useRef<ElementRef<typeof CameraControls>>(null)
@@ -183,47 +165,15 @@ function RoomPreviewCameraControls({
 
 export default function RoomPreviewScene({
   enablePostProcessing = true,
+  hitboxCalibration,
+  showHitboxes = false,
   variant = 'preview',
 }: {
   enablePostProcessing?: boolean
+  hitboxCalibration?: RoomPreviewHubHitboxCalibration
+  showHitboxes?: boolean
   variant?: RoomPreviewVariant
 }) {
-  const router = useRouter()
-  const focusKey = useHubRoomStore((state) => state.focusKey)
-  const setFocus = useHubRoomStore((state) => state.setFocus)
-  const handleHubModelClick = useCallback(
-    (event: ThreeEvent<MouseEvent>) => {
-      if (!isNemonicDeviceObject(event.object)) return
-
-      event.stopPropagation()
-      document.body.style.cursor = ''
-
-      if (focusKey !== NEMONIC_FOCUS_KEY) {
-        setFocus(NEMONIC_FOCUS_KEY)
-        return
-      }
-
-      router.push(NEMONIC_SINGLE_ROOM_PATH)
-    },
-    [focusKey, router, setFocus],
-  )
-  const handleHubModelPointerOver = useCallback(
-    (event: ThreeEvent<PointerEvent>) => {
-      if (!isNemonicDeviceObject(event.object)) return
-
-      event.stopPropagation()
-      document.body.style.cursor = 'pointer'
-    },
-    [],
-  )
-  const handleHubModelPointerOut = useCallback(
-    (event: ThreeEvent<PointerEvent>) => {
-      if (!isNemonicDeviceObject(event.object)) return
-
-      document.body.style.cursor = ''
-    },
-    [],
-  )
   const isHubVariant = variant === 'hub'
   const isLightDebugEnabled = useRoomPreviewLightDebugStore(
     (state) => state.isDebugEnabled,
@@ -264,17 +214,18 @@ export default function RoomPreviewScene({
           ROOM_PREVIEW_LIGHTING.hemisphere.intensity * fillMultiplier,
         ]}
       />
-      <RoomPreviewModel
-        onClick={isHubVariant ? handleHubModelClick : undefined}
-        onPointerOut={isHubVariant ? handleHubModelPointerOut : undefined}
-        onPointerOver={isHubVariant ? handleHubModelPointerOver : undefined}
-      >
-        {(modelScene) => (
+      <RoomPreviewModel>
+        {() => (
           <>
             <RoomPreviewBlenderLights enableGameLighting={isHubVariant} />
-            {isHubVariant && !isLightDebugEnabled && (
+            {isHubVariant && (!isLightDebugEnabled || showHitboxes) && (
               <Suspense fallback={null}>
-                <RoomPreviewHubDomSurfaces scene={modelScene} />
+                {hitboxCalibration && (
+                  <RoomPreviewHubDomSurfaces
+                    hitboxConfigs={hitboxCalibration.configs}
+                    showHitboxes={showHitboxes}
+                  />
+                )}
               </Suspense>
             )}
           </>
