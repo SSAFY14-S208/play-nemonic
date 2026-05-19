@@ -52,14 +52,16 @@ class ArtifactQrComposerTest {
     }
 
     @Test
-    void composeStillImageKeepsQrWhiteModulesTransparent() throws Exception {
+    void composeStillImageDrawsWhiteBackgroundBehindQr() throws Exception {
         byte[] sourceBytes = coloredImageBytes("png", new Color(33, 160, 120));
 
         byte[] composedBytes = artifactQrComposer.compose("image/png", sourceBytes, "https://nemonic.example.com/s/t");
 
         BufferedImage composed = ImageIO.read(new ByteArrayInputStream(composedBytes));
         int preservedPixels = countPixelsMatching(composed, 304, 184, 56, 56, new Color(33, 160, 120));
-        assertThat(preservedPixels).isGreaterThan(100);
+        int whitePixels = countPixelsMatching(composed, 304, 184, 56, 56, Color.WHITE);
+        assertThat(preservedPixels).isLessThan(20);
+        assertThat(whitePixels).isGreaterThan(100);
     }
 
     @Test
