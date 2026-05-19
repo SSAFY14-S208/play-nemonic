@@ -218,14 +218,12 @@ export default function RoomPreviewScene({
         {() => (
           <>
             <RoomPreviewBlenderLights enableGameLighting={isHubVariant} />
-            {isHubVariant && (!isLightDebugEnabled || showHitboxes) && (
+            {isHubVariant && hitboxCalibration && (
               <Suspense fallback={null}>
-                {hitboxCalibration && (
-                  <RoomPreviewHubDomSurfaces
-                    hitboxConfigs={hitboxCalibration.configs}
-                    showHitboxes={showHitboxes}
-                  />
-                )}
+                <RoomPreviewHubDomSurfaces
+                  hitboxConfigs={hitboxCalibration.configs}
+                  showHitboxes={showHitboxes}
+                />
               </Suspense>
             )}
           </>
