@@ -51,13 +51,13 @@ export function InfinityNicknameModal({
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-black/30" />
-        <Dialog.Popup className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+1rem)] z-[var(--z-modal)] max-h-[calc(100dvh-2rem)] w-[min(420px,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto rounded-[16px] border border-canvas-border bg-canvas-panel text-canvas-ink shadow-[0_16px_32px_rgb(67_102_148_/_24%)] sm:top-1/2 sm:-translate-y-1/2">
-          <header className="flex items-center justify-between border-b border-canvas-border px-5 py-4">
+        <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-[#101239]/45 backdrop-blur-[6px]" />
+        <Dialog.Popup className="fixed left-1/2 top-1/2 z-[var(--z-modal)] max-h-[calc(100dvh-2rem)] w-[420px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[20px] border border-white/70 bg-white/92 text-canvas-ink shadow-[0_22px_56px_rgb(24_34_78_/_32%)] backdrop-blur-xl">
+          <header className="flex items-center justify-between border-b border-canvas-border/45 px-5 py-4">
             <Dialog.Title className="h4-b text-canvas-ink">닉네임 설정</Dialog.Title>
             <Dialog.Close
               aria-label="닫기"
-              className="grid size-8 place-items-center rounded-[8px] text-canvas-muted hover:bg-canvas-active hover:text-canvas-ink"
+              className="grid size-8 place-items-center rounded-[8px] text-canvas-muted hover:bg-canvas-active/70 hover:text-canvas-ink"
             >
               <X className="size-4" aria-hidden />
             </Dialog.Close>
@@ -84,7 +84,7 @@ export function InfinityNicknameModal({
                 disabled={isPending}
                 maxLength={NICKNAME_MAX_LENGTH}
                 className={cn(
-                  'body-l-r rounded-[8px] border border-canvas-border bg-white px-4 py-3 text-canvas-ink outline-none placeholder:text-canvas-muted focus:border-canvas-accent',
+                  'body-l-r rounded-[12px] border border-canvas-border/70 bg-white px-4 py-3 text-canvas-ink shadow-[inset_0_1px_2px_rgb(24_34_78_/_8%)] outline-none placeholder:text-canvas-muted focus:border-canvas-accent focus:ring-2 focus:ring-canvas-accent/20',
                   fieldError && 'border-error',
                 )}
               />
@@ -104,14 +104,14 @@ export function InfinityNicknameModal({
             <div className="flex justify-end gap-2 pt-1">
               <Dialog.Close
                 disabled={isPending}
-                className="body-b min-h-11 rounded-[8px] border border-canvas-border bg-canvas-panel px-4 text-canvas-accent disabled:opacity-45"
+                className="body-b min-h-11 rounded-[12px] border border-canvas-border/70 bg-white/90 px-4 text-canvas-accent shadow-sm hover:bg-canvas-active/70 disabled:opacity-45"
               >
                 취소
               </Dialog.Close>
               <button
                 type="submit"
                 disabled={isPending || nickname.trim().length === 0}
-                className="body-b min-h-11 rounded-[8px] bg-canvas-accent px-5 text-white disabled:opacity-45"
+                className="body-b min-h-11 rounded-[12px] bg-canvas-accent px-5 text-white shadow-[0_10px_22px_rgb(61_113_210_/_22%)] disabled:opacity-45"
               >
                 {isPending ? '저장 중...' : '저장'}
               </button>
