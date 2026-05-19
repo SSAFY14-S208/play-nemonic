@@ -232,7 +232,7 @@ export function PhoneGalleryItemSheet({
           </button>
           <button
             type="button"
-            onClick={() => void createShare(item.id)}
+            onClick={() => void createShare(item.artifactId)}
             disabled={isSharing}
             className={cn(
               'phone-body-b flex h-8 items-center justify-center gap-1.5 rounded-[0.35rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle',
