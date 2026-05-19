@@ -1,10 +1,9 @@
 import type Konva from "konva";
 
 const HIT_ALPHA_THRESHOLD = 24;
-const HIT_GRID_TARGET_CELLS = 90;
-const HIT_GRID_MIN_SIZE = 3;
-const HIT_GRID_MAX_SIZE = 8;
-const HIT_REGION_PADDING = 8;
+const HIT_GRID_TARGET_CELLS = 140;
+const HIT_GRID_MIN_SIZE = 2;
+const HIT_GRID_MAX_SIZE = 5;
 const hitAlphaDataCache = new WeakMap<
   HTMLImageElement,
   { width: number; height: number; pixels: Uint8ClampedArray } | null
@@ -83,13 +82,11 @@ export function drawImageAlphaHitRegion({
       const alpha = alphaData.pixels[(sourceY * alphaData.width + sourceX) * 4 + 3] ?? 0;
       if (alpha <= HIT_ALPHA_THRESHOLD) continue;
 
-      const hitX = Math.max(0, x - HIT_REGION_PADDING);
-      const hitY = Math.max(0, y - HIT_REGION_PADDING);
       context.rect(
-        hitX,
-        hitY,
-        Math.min(width - hitX, gridSize + HIT_REGION_PADDING * 2),
-        Math.min(height - hitY, gridSize + HIT_REGION_PADDING * 2),
+        x,
+        y,
+        Math.min(gridSize, width - x),
+        Math.min(gridSize, height - y),
       );
     }
   }

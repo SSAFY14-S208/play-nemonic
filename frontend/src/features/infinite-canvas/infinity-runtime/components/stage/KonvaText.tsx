@@ -47,7 +47,7 @@ export function KonvaText({
       hitFunc={(context, shape) => {
         const node = shape as Konva.Text;
         context.beginPath();
-        context.rect(-8, -8, node.width() + 16, node.height() + 16);
+        context.rect(-3, -3, node.width() + 6, node.height() + 6);
         context.closePath();
         context.fillStrokeShape(shape);
       }}

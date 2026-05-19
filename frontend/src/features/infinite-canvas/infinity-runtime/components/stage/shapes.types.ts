@@ -1,6 +1,6 @@
 import type { InfinityShape } from "../../constants";
 
-export const MIN_OBJECT_HIT_SIZE = 22;
+export const MIN_OBJECT_HIT_SIZE = 12;
 export const OBJECT_DRAG_DISTANCE = 1;
 
 export interface KonvaShapeProps {
