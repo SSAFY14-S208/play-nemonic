@@ -32,8 +32,9 @@ public class TemplateFortuneGmsClient implements FortuneGmsClient {
         String caution = "%s의 균형이 흔들리면 작은 말도 크게 느껴질 수 있으니, 중요한 결정은 한 템포 늦춰보세요.".formatted(dayYinYang);
 
         return new FortuneGmsResult(title, summary, score(seed, 0), score(seed, 8), score(seed, 16), score(seed, 24),
-            resolveLuckyColor(dayElemental), keyword, caution, "오늘은 %s할수록 운이 열린다".formatted(keyword), theme.cardTheme(),
-            theme.bgColor(), theme.accentColor(), theme.iconKey());
+            resolveLuckyColor(dayElemental), keyword, resolveLuckyDirection(seed), caution,
+            "오늘은 %s할수록 운이 열린다".formatted(keyword), theme.cardTheme(), theme.bgColor(), theme.accentColor(),
+            theme.iconKey());
     }
 
     private int score(int seed, int shift) {
@@ -59,6 +60,15 @@ public class TemplateFortuneGmsClient implements FortuneGmsClient {
             case "금" -> "은회색";
             case "수" -> "파랑";
             default -> "흰색";
+        };
+    }
+
+    private String resolveLuckyDirection(int seed) {
+        return switch (Math.floorMod(seed, 4)) {
+            case 0 -> "동쪽";
+            case 1 -> "서쪽";
+            case 2 -> "남쪽";
+            default -> "북쪽";
         };
     }
 

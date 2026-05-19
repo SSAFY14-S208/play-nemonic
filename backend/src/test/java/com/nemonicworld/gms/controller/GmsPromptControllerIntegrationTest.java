@@ -456,6 +456,7 @@ class GmsPromptControllerIntegrationTest {
             .andExpect(jsonPath("$.data.fortune.moneyLuck").value(90))
             .andExpect(jsonPath("$.data.fortune.luckyColor").value("Blue"))
             .andExpect(jsonPath("$.data.fortune.luckyKeyword").value("Focus"))
+            .andExpect(jsonPath("$.data.fortune.luckyDirection").value("East"))
             .andExpect(jsonPath("$.data.fortune.caution").value("Move slowly"))
             .andExpect(jsonPath("$.data.fortune.postitLine").value("Stay calm today"))
             .andExpect(jsonPath("$.data.saju.calendarType").value("solar"))
@@ -959,8 +960,8 @@ class GmsPromptControllerIntegrationTest {
     }
 
     private FortuneGmsResult sampleGmsResult() {
-        return new FortuneGmsResult("Preview title", "Preview summary", 80, 70, 65, 90, "Blue", "Focus", "Move slowly",
-            "Stay calm today", "default", "#F5F1E8", "#506996", "sun");
+        return new FortuneGmsResult("Preview title", "Preview summary", 80, 70, 65, 90, "Blue", "Focus", "East",
+            "Move slowly", "Stay calm today", "default", "#F5F1E8", "#506996", "sun");
     }
 
     private String bearerAccessToken() {

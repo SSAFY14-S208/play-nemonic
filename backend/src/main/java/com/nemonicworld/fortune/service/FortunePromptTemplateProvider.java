@@ -14,7 +14,8 @@ public class FortunePromptTemplateProvider {
     private static final String DEFAULT_PROMPT_TEMPLATE = """
         프론트엔드 만세력 결과를 바탕으로 오늘의 운세를 생성한다.
         응답은 title, summary, overallLuck, loveLuck, workLuck, moneyLuck, luckyColor, luckyKeyword,
-        caution, postitLine을 포함해야 한다.
+        luckyDirection, caution, postitLine을 포함해야 한다.
+        luckyDirection은 동쪽, 서쪽, 남쪽, 북쪽 중 하나로 작성한다.
         cardTheme, bgColor, accentColor, iconKey는 카드 에셋 메타데이터가 없으면 null로 둘 수 있다.
         """;
 
