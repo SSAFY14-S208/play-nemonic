@@ -51,25 +51,27 @@ export function InfinityNicknameModal({
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-[#101239]/45 backdrop-blur-[6px]" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-[var(--z-modal)] max-h-[calc(100dvh-2rem)] w-[420px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[20px] border border-white/70 bg-white/92 text-canvas-ink shadow-[0_22px_56px_rgb(24_34_78_/_32%)] backdrop-blur-xl">
-          <header className="flex items-center justify-between border-b border-canvas-border/45 px-5 py-4">
-            <Dialog.Title className="h4-b text-canvas-ink">닉네임 설정</Dialog.Title>
+        <Dialog.Backdrop className="fixed inset-0 z-[var(--z-overlay)] bg-[#061248]/62 backdrop-blur-[8px]" />
+        <Dialog.Popup className="fixed left-1/2 top-1/2 z-[var(--z-modal)] max-h-[calc(100dvh-2rem)] w-[430px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[28px] border border-[#b7e7ff]/80 bg-[linear-gradient(145deg,rgb(21_93_170_/_0.94),rgb(48_142_218_/_0.88)_48%,rgb(102_193_244_/_0.82))] text-white shadow-[0_28px_70px_rgb(2_22_68_/_44%),inset_0_1px_0_rgb(255_255_255_/_45%)] backdrop-blur-xl">
+          <header className="flex items-center justify-between border-b border-white/28 px-6 py-5">
+            <Dialog.Title className="h4-b text-white drop-shadow-[0_2px_8px_rgb(3_37_90_/_35%)]">
+              닉네임 설정
+            </Dialog.Title>
             <Dialog.Close
               aria-label="닫기"
-              className="grid size-8 place-items-center rounded-[8px] text-canvas-muted hover:bg-canvas-active/70 hover:text-canvas-ink"
+              className="grid size-8 place-items-center rounded-[10px] text-white/85 transition-colors hover:bg-white/18 hover:text-white"
             >
               <X className="size-4" aria-hidden />
             </Dialog.Close>
           </header>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-5 py-5">
-            <p className="caption-r text-canvas-muted">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 py-6">
+            <p className="caption-r text-[#e5f7ff]">
               무한 캔버스 방을 만들거나 입장하려면 닉네임이 필요해요.
             </p>
 
             <label className="flex flex-col gap-2">
-              <span className="caption-b text-canvas-accent">
+              <span className="caption-b text-[#b9ecff]">
                 새 닉네임 (최대 {NICKNAME_MAX_LENGTH}자)
               </span>
               <input
@@ -84,19 +86,19 @@ export function InfinityNicknameModal({
                 disabled={isPending}
                 maxLength={NICKNAME_MAX_LENGTH}
                 className={cn(
-                  'body-l-r rounded-[12px] border border-canvas-border/70 bg-white px-4 py-3 text-canvas-ink shadow-[inset_0_1px_2px_rgb(24_34_78_/_8%)] outline-none placeholder:text-canvas-muted focus:border-canvas-accent focus:ring-2 focus:ring-canvas-accent/20',
-                  fieldError && 'border-error',
+                  'body-l-r rounded-[18px] border border-[#aee8ff]/85 bg-white/95 px-5 py-4 text-[#12305f] shadow-[inset_0_2px_4px_rgb(34_93_151_/_10%),0_10px_24px_rgb(3_42_101_/_18%)] outline-none placeholder:text-[#7f98b3] focus:border-[#f7faff] focus:ring-4 focus:ring-[#7ee7ff]/35 disabled:bg-white/70',
+                  fieldError && 'border-error focus:border-error focus:ring-error/20',
                 )}
               />
               {fieldError && (
-                <span role="alert" className="caption-r text-error">
+                <span role="alert" className="caption-r text-[#ffe2e2]">
                   {fieldError}
                 </span>
               )}
             </label>
 
             {generalError && (
-              <p role="alert" className="caption-r text-error">
+              <p role="alert" className="caption-r text-[#ffe2e2]">
                 {generalError}
               </p>
             )}
@@ -104,14 +106,14 @@ export function InfinityNicknameModal({
             <div className="flex justify-end gap-2 pt-1">
               <Dialog.Close
                 disabled={isPending}
-                className="body-b min-h-11 rounded-[12px] border border-canvas-border/70 bg-white/90 px-4 text-canvas-accent shadow-sm hover:bg-canvas-active/70 disabled:opacity-45"
+                className="body-b min-h-11 rounded-[14px] border border-white/50 bg-white/16 px-5 text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_28%)] transition-colors hover:bg-white/24 disabled:opacity-45"
               >
                 취소
               </Dialog.Close>
               <button
                 type="submit"
                 disabled={isPending || nickname.trim().length === 0}
-                className="body-b min-h-11 rounded-[12px] bg-canvas-accent px-5 text-white shadow-[0_10px_22px_rgb(61_113_210_/_22%)] disabled:opacity-45"
+                className="body-b min-h-11 rounded-[14px] bg-[linear-gradient(135deg,#67e8ff_0%,#4f8cff_52%,#6c63ff_100%)] px-6 text-white shadow-[0_12px_26px_rgb(25_88_205_/_34%)] transition-[filter,opacity] hover:brightness-105 disabled:bg-none disabled:bg-[#8dadcf] disabled:text-white/72 disabled:opacity-65"
               >
                 {isPending ? '저장 중...' : '저장'}
               </button>
