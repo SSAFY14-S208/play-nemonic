@@ -3,18 +3,30 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Plus, RefreshCw } from 'lucide-react'
 import { WorldHomeLink } from '@/shared/components/WorldHomeLink'
+import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { cn } from '@/shared/libs'
-import { consumeCommunityCanvasHandoffDraft } from '@/shared/utils'
+import { useUserStore } from '@/shared/stores'
+import {
+  consumeCommunityCanvasHandoffDraft,
+  type CommunityCanvasHandoffDraft,
+} from '@/shared/utils'
 import {
   CommunityComposerModal,
   CommunityMemoDetailModal,
+  CommunityNicknameModal,
   CommunityMemoPrintRevealOverlay,
   CommunityReportModal,
   CommunityWall,
 } from './components'
 import { useCommunityCanvas, useCommunityComposer } from './hooks'
+import type { CommunityMemoLayoutDraft } from './hooks'
 
 type CommunityCanvasThemeStyle = CSSProperties & Record<`--${string}`, string>
+type PendingCommunityNicknameAction =
+  | { kind: 'openComposer' }
+  | { kind: 'openComposerWithHandoffDraft'; draft: CommunityCanvasHandoffDraft }
+  | { kind: 'attachPendingMemo'; layout: CommunityMemoLayoutDraft }
+  | null
 
 const communityCanvasThemeStyle: CommunityCanvasThemeStyle = {
   '--color-primary-1': '#B8AED3',
@@ -29,12 +41,18 @@ const communityCanvasThemeStyle: CommunityCanvasThemeStyle = {
 }
 
 export function CommunityCanvasPage() {
+  const nickname = useUserStore((state) => state.nickname)
   const [isReportOpen, setReportOpen] = useState(false)
+  const [isNicknameModalOpen, setNicknameModalOpen] = useState(false)
+  const [pendingNicknameAction, setPendingNicknameAction] =
+    useState<PendingCommunityNicknameAction>(null)
   const communityCanvas = useCommunityCanvas()
   const composer = useCommunityComposer({
     onCreated: communityCanvas.loadCommunityMemosWithCreatedMemo,
   })
   const { openComposerWithHandoffDraft } = composer
+  const needsNicknameSetup =
+    !nickname || nickname.trim() === '' || nickname === DEFAULT_USER_NICKNAME
 
   useEffect(() => {
     let isCancelled = false
@@ -44,6 +62,15 @@ export function CommunityCanvasPage() {
       const handoffDraft = consumeCommunityCanvasHandoffDraft()
 
       if (!isCancelled && handoffDraft) {
+        if (needsNicknameSetup) {
+          setPendingNicknameAction({
+            kind: 'openComposerWithHandoffDraft',
+            draft: handoffDraft,
+          })
+          setNicknameModalOpen(true)
+          return
+        }
+
         openComposerWithHandoffDraft(handoffDraft)
       }
     })()
@@ -51,7 +78,7 @@ export function CommunityCanvasPage() {
     return () => {
       isCancelled = true
     }
-  }, [openComposerWithHandoffDraft])
+  }, [needsNicknameSetup, openComposerWithHandoffDraft])
 
   const isAttachingMemo =
     composer.pendingPlacement !== null && composer.postStatus === 'loading'
@@ -61,7 +88,59 @@ export function CommunityCanvasPage() {
     composer.isComposerOpen ||
     composer.printRevealPlacement !== null ||
     communityCanvas.selectedMemoUuid !== null ||
+    isNicknameModalOpen ||
     isReportOpen
+
+  const openNicknameModalWithAction = (
+    nextAction: NonNullable<PendingCommunityNicknameAction>,
+  ) => {
+    setPendingNicknameAction(nextAction)
+    setNicknameModalOpen(true)
+  }
+
+  const handleOpenComposer = () => {
+    if (needsNicknameSetup) {
+      openNicknameModalWithAction({ kind: 'openComposer' })
+      return
+    }
+
+    composer.openComposer()
+  }
+
+  const handleAttachPendingMemo = (layout: CommunityMemoLayoutDraft) => {
+    if (needsNicknameSetup) {
+      openNicknameModalWithAction({ kind: 'attachPendingMemo', layout })
+      return
+    }
+
+    void composer.attachPendingMemo(layout)
+  }
+
+  const handleNicknameModalChange = (open: boolean) => {
+    setNicknameModalOpen(open)
+    if (!open) {
+      setPendingNicknameAction(null)
+    }
+  }
+
+  const handleNicknameSetupSuccess = () => {
+    const nextAction = pendingNicknameAction
+    setPendingNicknameAction(null)
+
+    if (!nextAction) return
+
+    if (nextAction.kind === 'openComposer') {
+      composer.openComposer()
+      return
+    }
+
+    if (nextAction.kind === 'openComposerWithHandoffDraft') {
+      composer.openComposerWithHandoffDraft(nextAction.draft)
+      return
+    }
+
+    void composer.attachPendingMemo(nextAction.layout)
+  }
 
   const handleDeleteSelectedMemo = () => {
     if (typeof window !== 'undefined') {
@@ -98,7 +177,7 @@ export function CommunityCanvasPage() {
             type="button"
             aria-label="새 메모 붙이기"
             disabled={isHeaderActionsDisabled}
-            onClick={composer.openComposer}
+            onClick={handleOpenComposer}
             className={cn(
               'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
               isHeaderActionsDisabled
@@ -126,7 +205,7 @@ export function CommunityCanvasPage() {
         onSelectMemo={communityCanvas.selectWallMemo}
         onClearSelection={communityCanvas.clearWallMemoSelection}
         onOpenMemoDetail={(memoUuid) => void communityCanvas.openMemoDetail(memoUuid)}
-        onAttachPendingMemo={(placement) => void composer.attachPendingMemo(placement)}
+        onAttachPendingMemo={handleAttachPendingMemo}
         onCancelPendingMemo={composer.cancelPendingPlacement}
         onEditingLayoutChange={communityCanvas.updateEditingLayoutDraft}
         onSaveEditingLayout={(layout) => void communityCanvas.saveEditingMemoLayout(layout)}
@@ -134,6 +213,12 @@ export function CommunityCanvasPage() {
       />
 
       <CommunityComposerModal composer={composer} />
+
+      <CommunityNicknameModal
+        open={isNicknameModalOpen}
+        onOpenChange={handleNicknameModalChange}
+        onSuccess={handleNicknameSetupSuccess}
+      />
 
       <CommunityMemoPrintRevealOverlay
         placement={composer.printRevealPlacement}
