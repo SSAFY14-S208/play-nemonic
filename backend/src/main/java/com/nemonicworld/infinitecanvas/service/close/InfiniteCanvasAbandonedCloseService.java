@@ -17,15 +17,15 @@ import org.springframework.stereotype.Service;
 /**
  * connected 참여자가 없고 일정 시간 갱신이 없는 ACTIVE 무한 캔버스를 정리한다.
  *
- * <p>릴레이/플립북의 {@code findEmptyWaitingRooms} + {@code RoomAbandonedCloseService}
- * 패턴을 따른다. 사용자가 leaveCanvas API 호출 없이 브라우저를 닫거나 네트워크
- * 끊김으로 나간 경우 disconnectCanvas는 participant.connected=false만 표시하고
- * 방을 닫지 않으므로, 모든 참여자가 disconnected 상태로 남으면 캔버스가 영구
- * ACTIVE로 남는 문제를 보정한다.
+ * <p>
+ * 릴레이/플립북의 {@code findEmptyWaitingRooms} + {@code RoomAbandonedCloseService}
+ * 패턴을 따른다. 사용자가 leaveCanvas API 호출 없이 브라우저를 닫거나 네트워크 끊김으로 나간 경우
+ * disconnectCanvas는 participant.connected=false만 표시하고 방을 닫지 않으므로, 모든 참여자가
+ * disconnected 상태로 남으면 캔버스가 영구 ACTIVE로 남는 문제를 보정한다.
  *
- * <p>grace period(기본 1분)를 두는 이유: 페이지 새로고침·앱 전환 같은 단기 끊김
- * 후 reconnect 시나리오를 보호한다. updatedAt이 cutoff 이전이고 connected가
- * 한 명도 없을 때만 닫기 후보로 잡는다.
+ * <p>
+ * grace period(기본 1분)를 두는 이유: 페이지 새로고침·앱 전환 같은 단기 끊김 후 reconnect 시나리오를 보호한다.
+ * updatedAt이 cutoff 이전이고 connected가 한 명도 없을 때만 닫기 후보로 잡는다.
  */
 @Service
 public class InfiniteCanvasAbandonedCloseService {
@@ -78,9 +78,9 @@ public class InfiniteCanvasAbandonedCloseService {
     }
 
     private InfiniteCanvasState closedCopy(InfiniteCanvasState canvasState, LocalDateTime closedAt) {
-        return new InfiniteCanvasState(canvasState.roomCode(), InfiniteCanvasStatus.CLOSED,
-            canvasState.hostUserUuid(), canvasState.participants(), canvasState.elements(), canvasState.operations(),
-            canvasState.locks(), canvasState.cursors(), canvasState.viewport(), canvasState.maxParticipants(),
-            canvasState.revision(), canvasState.createdAt(), closedAt, closedAt);
+        return new InfiniteCanvasState(canvasState.roomCode(), InfiniteCanvasStatus.CLOSED, canvasState.hostUserUuid(),
+            canvasState.participants(), canvasState.elements(), canvasState.operations(), canvasState.locks(),
+            canvasState.cursors(), canvasState.viewport(), canvasState.maxParticipants(), canvasState.revision(),
+            canvasState.createdAt(), closedAt, closedAt);
     }
 }
