@@ -244,6 +244,47 @@ public class RedisInfiniteCanvasRepository implements InfiniteCanvasRepository {
     }
 
     @Override
+    public List<InfiniteCanvasState> findAbandonedActiveCanvases(java.time.LocalDateTime idleCutoff, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        long startedNanos = System.nanoTime();
+        int scannedKeyCount = 0;
+        List<InfiniteCanvasState> abandoned = new ArrayList<>();
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(200).build();
+
+        try (Cursor<String> canvasKeys = redisTemplate.scan(scanOptions)) {
+            while (canvasKeys.hasNext() && abandoned.size() < limit) {
+                scannedKeyCount++;
+                String canvasStateValue = redisTemplate.opsForValue().get(canvasKeys.next());
+                if (!StringUtils.hasText(canvasStateValue)) {
+                    continue;
+                }
+
+                InfiniteCanvasState canvasState = deserialize(canvasStateValue);
+                // CLOSED 캔버스는 별도 정리 흐름이 처리. ACTIVE만 후보로.
+                if (canvasState.status() != InfiniteCanvasStatus.ACTIVE) {
+                    continue;
+                }
+                // connected 참여자가 한 명이라도 있으면 비어있지 않다.
+                if (canvasState.connectedParticipantCount() > 0) {
+                    continue;
+                }
+                // 마지막 갱신 시점이 idleCutoff 이후면 reconnect 가능성이 있어 grace 유지.
+                if (canvasState.updatedAt() != null && canvasState.updatedAt().isAfter(idleCutoff)) {
+                    continue;
+                }
+                abandoned.add(canvasState);
+            }
+        }
+
+        log.debug(
+            "infinite canvas abandoned scan completed. scanned_key_count={} matched_canvas_count={} duration_ms={}",
+            scannedKeyCount, abandoned.size(), Duration.ofNanos(System.nanoTime() - startedNanos).toMillis());
+        return abandoned;
+    }
+
+    @Override
     public void delete(String roomCode) {
         redisTemplate.delete(List.of(createRoomKey(roomCode), createOperationKey(roomCode)));
         removeActiveCanvasIndex(roomCode);
