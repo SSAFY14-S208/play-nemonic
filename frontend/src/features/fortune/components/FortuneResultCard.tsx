@@ -45,18 +45,20 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
   useEffect(() => {
     let isMounted = true
 
-    if (!result) {
-      setRenderedCardImageUrl(null)
-      return
-    }
-
-    void createFortuneCommunityImageDataUrl(result).then((imageUrl) => {
-      if (!isMounted) {
+    void (async () => {
+      if (!result) {
+        if (isMounted) {
+          setRenderedCardImageUrl(null)
+        }
         return
       }
 
+      const imageUrl = await createFortuneCommunityImageDataUrl(result)
+      if (!isMounted) {
+        return
+      }
       setRenderedCardImageUrl(imageUrl ?? result.fortuneImageUrl ?? null)
-    })
+    })()
 
     return () => {
       isMounted = false
