@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement, RefObject } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path, Group } from 'react-konva'
 import Konva from 'konva'
@@ -581,6 +581,14 @@ export function InfinityCanvasStage({
   const transformerRef = useRef<Konva.Transformer>(null);
   const layerMenuLongPressTimerRef = useRef<number | null>(null);
   const isWheelButtonPanningRef = useRef(false);
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.scale({ x: scaleRef.current, y: scaleRef.current });
+    stage.position(stagePosRef.current);
+    stage.batchDraw();
+  }, [height, scaleRef, stagePosRef, stageRef, width]);
 
   const clearLayerMenuLongPress = useCallback(() => {
     if (layerMenuLongPressTimerRef.current === null) return;
