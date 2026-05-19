@@ -32,6 +32,9 @@ interface InfinityTextEditorProps {
 const TEXT_COLOR_OPTIONS = [INFINITY_TEXT_DEFAULT_COLOR, ...INFINITY_COLORS] as const;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const TEXT_EDITOR_TOOLBAR_WIDTH = 840;
+const TEXT_EDITOR_MARGIN = 16;
+const TEXT_EDITOR_TOOLBAR_OFFSET = 58;
+const TEXT_EDITOR_INPUT_MIN_HEIGHT = 44;
 
 // canvas world 좌표(state.x, state.y)를 화면 픽셀 좌표로 변환.
 function worldToScreen(
@@ -63,6 +66,10 @@ export function InfinityTextEditor({
     scale: 1,
     stagePosition: { x: 0, y: 0 },
   });
+  const [viewportSize, setViewportSize] = useState({
+    width: 1024,
+    height: 768,
+  });
   const editorRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -78,6 +85,19 @@ export function InfinityTextEditor({
       stagePosition: stagePosRef.current,
     });
   }, [scaleRef, stagePosRef, state.x, state.y]);
+
+  useEffect(() => {
+    const updateViewportSize = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    updateViewportSize();
+    window.addEventListener("resize", updateViewportSize);
+    return () => window.removeEventListener("resize", updateViewportSize);
+  }, []);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -125,18 +145,37 @@ export function InfinityTextEditor({
   const colorInputValue = HEX_COLOR_PATTERN.test(textColor)
     ? textColor
     : INFINITY_TEXT_DEFAULT_COLOR;
+  const availableEditorWidth = Math.max(
+    1,
+    viewportSize.width - TEXT_EDITOR_MARGIN * 2,
+  );
+  const editorWidth = Math.min(TEXT_EDITOR_TOOLBAR_WIDTH, availableEditorWidth);
+  const maxEditorLeft = Math.max(
+    TEXT_EDITOR_MARGIN,
+    viewportSize.width - editorWidth - TEXT_EDITOR_MARGIN,
+  );
+  const clampedLeft = Math.min(
+    Math.max(screen.x, TEXT_EDITOR_MARGIN),
+    maxEditorLeft,
+  );
+  const minEditorTop = TEXT_EDITOR_MARGIN + TEXT_EDITOR_TOOLBAR_OFFSET;
+  const maxEditorTop = Math.max(
+    minEditorTop,
+    viewportSize.height - TEXT_EDITOR_INPUT_MIN_HEIGHT - TEXT_EDITOR_MARGIN,
+  );
+  const clampedTop = Math.min(Math.max(screen.y, minEditorTop), maxEditorTop);
 
   return (
     <div
       ref={editorRef}
       className="absolute z-[var(--z-modal)] pointer-events-auto"
-      style={{ left: screen.x, top: screen.y }}
+      style={{ left: clampedLeft, top: clampedTop }}
       onBlur={handleEditorBlur}
     >
       {/* 텍스트 서식 popover — textarea 위쪽 */}
       <div
-        className="absolute bottom-full left-0 mb-2 flex flex-nowrap items-center gap-1 rounded-lg border border-canvas-border bg-canvas-panel px-3 py-2 shadow-md"
-        style={{ width: TEXT_EDITOR_TOOLBAR_WIDTH }}
+        className="absolute bottom-full left-0 mb-2 flex flex-nowrap items-center gap-1 overflow-x-auto rounded-lg border border-canvas-border bg-canvas-panel px-3 py-2 shadow-md"
+        style={{ width: editorWidth }}
       >
         <button
           type="button"
@@ -233,7 +272,7 @@ export function InfinityTextEditor({
         style={{
           fontSize: `${adjustedFontSize}px`,
           color: textColor,
-          width: TEXT_EDITOR_TOOLBAR_WIDTH,
+          width: editorWidth,
           minWidth: "2ch",
           fontFamily,
         }}
