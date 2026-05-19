@@ -143,14 +143,38 @@ if ! run_release; then
 fi
 
 # ============================================================
-# 2. Registry 정리 (선택사항, 누적 방지)
+# 2. 호스트 이미지 정리 — 배포 성공 후 latest 외 모든 태그 삭제
+#
+# Jenkins가 매 배포마다 release-be-<BUILD>-<SHA> 형태로 새 태그를 push해
+# 호스트 docker daemon에 같은 repository의 옛 태그가 누적된다. 배포가
+# 성공했으니 롤백용으로 잠시 잡아두던 이전 release 태그는 더 이상 필요 없다.
+#
+# rmi는 컨테이너가 사용 중인 이미지에는 실패 — 현재 active 컨테이너는
+# :latest 태그로 실행 중이라 그것만 보존되고 다른 태그는 untag 된다.
+# 같은 layer를 latest가 참조하므로 disk 자체는 거의 안 줄지만, dangling
+# 이미지가 늘면서 다음 prune이 효과적으로 동작한다.
 # ============================================================
 echo ""
-echo "[2/2] 호스트 이미지 정리"
+echo "[2/2] 호스트 이미지 정리 (latest 외 모든 태그 삭제)"
+
+NON_LATEST_TAGS=$(docker images "$IMAGE_NAME" --format '{{.Repository}}:{{.Tag}}' \
+                    | grep -v ':latest$' || true)
+
+if [[ -n "$NON_LATEST_TAGS" ]]; then
+  while IFS= read -r tag; do
+    [[ -z "$tag" ]] && continue
+    echo "  - 삭제: $tag"
+    docker rmi "$tag" >/dev/null 2>&1 || echo "    (실패 — 사용 중이거나 이미 없음)"
+  done <<< "$NON_LATEST_TAGS"
+else
+  echo "  (정리할 태그 없음)"
+fi
+
+# Untag로 dangling이 된 이미지 layer 회수.
 docker image prune -f >/dev/null || true
 
 # Registry 자체에서 옛날 이미지 삭제는 별도 cleanup job에서 처리
-# (tag 별 보존 정책 필요 - 추후 구현)
+# (registry-gc.timer가 일요일 04:30 KST에 mark-and-sweep GC 실행)
 
 echo ""
 echo "배포 성공: $RELEASE_NAME ($DEPLOY_TARGET)"
