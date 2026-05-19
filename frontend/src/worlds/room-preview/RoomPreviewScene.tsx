@@ -30,7 +30,7 @@ import RoomPreviewHubDomSurfaces from './objects/RoomPreviewHubDomSurfaces'
 import RoomPreviewModel from './objects/RoomPreviewModel'
 import RoomPreviewPostProcessing from './RoomPreviewPostProcessing'
 
-const NEMONIC_SINGLE_ROOM_PATH = '/hub'
+const NEMONIC_SINGLE_ROOM_PATH = '/nemonic'
 const NEMONIC_DEVICE_OBJECT_NAME_PREFIX = 'NEMONIC_'
 const NEMONIC_FOCUS_KEY = 'printer'
 
