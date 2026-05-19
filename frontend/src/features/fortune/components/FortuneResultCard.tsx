@@ -22,8 +22,8 @@ const CARD_TEXT_BASE_CLASS = cn(
 
 const SCORE_VALUE_CLASS = cn(
   CARD_TEXT_BASE_CLASS,
-  'top-[56.6%] -translate-x-1/2',
-  'text-[clamp(1.5rem,5vw,2.25rem)] leading-none font-bold',
+  'top-[63.2%] -translate-x-1/2',
+  'text-[clamp(1.28rem,4.2vw,1.88rem)] leading-none font-bold',
 )
 
 const ACTION_BUTTON_CLASS = cn(
@@ -73,14 +73,14 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
           draggable={false}
         />
 
-        <time className={cn(CARD_TEXT_BASE_CLASS, 'left-1/2 top-[8.8%] -translate-x-1/2 text-[clamp(1.05rem,3.3vw,1.9rem)] font-bold leading-none')}>
+        <time className={cn(CARD_TEXT_BASE_CLASS, 'left-1/2 top-[8.2%] -translate-x-1/2 text-[clamp(1.05rem,3.3vw,1.9rem)] font-bold leading-none')}>
           {formatFortuneDate(result.issuedDateKey)}
         </time>
 
         <h1
           className={cn(
             CARD_TEXT_BASE_CLASS,
-            'left-1/2 top-[17.4%] w-[64%] -translate-x-1/2',
+            'left-1/2 top-[18.8%] w-[64%] -translate-x-1/2',
             'text-[clamp(1.65rem,5.3vw,2.75rem)] font-bold leading-[1.18]',
           )}
         >
@@ -110,20 +110,20 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         <div
           className={cn(
             CARD_TEXT_BASE_CLASS,
-            'left-[22.2%] top-[78.5%] w-[26%] -translate-x-1/2 text-left',
-            'text-[clamp(0.78rem,2.3vw,1.1rem)] font-bold leading-[1.45]',
+            'left-[24%] top-[84.8%] w-[30%] -translate-x-1/2 text-center',
+            'text-[clamp(0.68rem,1.95vw,0.95rem)] font-bold leading-[1.35]',
           )}
         >
-          <span className="mb-[0.18rem] inline-block size-[1.4em] rounded-full border border-[rgba(40,40,40,0.18)] align-middle shadow-[inset_0_0_0_0.14rem_rgba(255,255,255,0.55)]" style={{ background: result.luckyColor.hex }} aria-hidden />
-          <span className="ml-[0.42rem] align-middle">{result.luckyColor.name}</span>
-          <strong className="mt-[0.32rem] block text-center text-[clamp(0.95rem,2.7vw,1.25rem)]">{result.luckyDirection}</strong>
+          <span className="mx-auto mb-[0.22rem] block size-[1.42em] rounded-full border border-[rgba(40,40,40,0.18)] shadow-[inset_0_0_0_0.14rem_rgba(255,255,255,0.55)]" style={{ background: result.luckyColor.hex }} aria-hidden />
+          <span className="block">{result.luckyColor.name}</span>
+          <strong className="mt-[0.3rem] block text-[clamp(0.9rem,2.5vw,1.16rem)]">{result.luckyDirection}</strong>
         </div>
 
         <p
           className={cn(
             CARD_TEXT_BASE_CLASS,
-            'left-[72.2%] top-[79.2%] w-[32%] -translate-x-1/2 text-left',
-            'text-[clamp(0.76rem,2.25vw,1.05rem)] font-bold leading-[1.5]',
+            'left-[76%] top-[84.9%] w-[29%] -translate-x-1/2 text-center',
+            'text-[clamp(0.64rem,1.8vw,0.86rem)] font-bold leading-[1.45]',
           )}
         >
           {result.caution}
