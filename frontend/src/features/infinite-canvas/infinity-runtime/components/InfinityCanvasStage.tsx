@@ -417,6 +417,11 @@ function getObjectBounds(object: InfinityObject) {
   };
 }
 
+function resetNodeScale(node: Konva.Node) {
+  if (node.scaleX() === 1 && node.scaleY() === 1) return;
+  node.scale({ x: 1, y: 1 });
+}
+
 const RemoteCursorLayer = memo(function RemoteCursorLayer({
   remoteCursors,
 }: {
@@ -674,6 +679,81 @@ export function InfinityCanvasStage({
     [],
   );
 
+  const readMovedObjectFromNode = useCallback(
+    (
+      object: InfinityObject,
+      node: Konva.Node,
+      { normalizeNode = false }: { normalizeNode?: boolean } = {},
+    ): InfinityObject | null => {
+      if (object.type === "line" && node instanceof Konva.Line) {
+        const movedPoints = object.points.map((point) => ({
+          x: point.x + node.x(),
+          y: point.y + node.y(),
+        }));
+        if (normalizeNode) {
+          node.position({ x: 0, y: 0 });
+          resetNodeScale(node);
+        }
+        return {
+          ...object,
+          points: movedPoints,
+        };
+      }
+
+      if (object.type === "fill" && node instanceof Konva.Image) {
+        if (normalizeNode) resetNodeScale(node);
+        return {
+          ...object,
+          x: node.x(),
+          y: node.y(),
+        };
+      }
+
+      if (object.type === "image" && node instanceof Konva.Image) {
+        if (normalizeNode) resetNodeScale(node);
+        return {
+          ...object,
+          x: node.x(),
+          y: node.y(),
+          rotation: node.rotation(),
+        };
+      }
+
+      if (object.type === "rect" && node instanceof Konva.Rect) {
+        if (normalizeNode) resetNodeScale(node);
+        return {
+          ...object,
+          x: node.x(),
+          y: node.y(),
+          rotation: node.rotation(),
+        };
+      }
+
+      if (object.type === "ellipse" && node instanceof Konva.Ellipse) {
+        if (normalizeNode) resetNodeScale(node);
+        return {
+          ...object,
+          x: node.x() - Math.abs(object.width) / 2,
+          y: node.y() - Math.abs(object.height) / 2,
+          rotation: node.rotation(),
+        };
+      }
+
+      if (object.type === "text" && node instanceof Konva.Text) {
+        if (normalizeNode) resetNodeScale(node);
+        return {
+          ...object,
+          x: node.x(),
+          y: node.y(),
+          rotation: node.rotation(),
+        };
+      }
+
+      return null;
+    },
+    [],
+  );
+
   const commitSelectedNodeTransforms = useCallback(() => {
     const stage = stageRef.current;
     if (!stage || selectedIds.length === 0) return;
@@ -705,6 +785,34 @@ export function InfinityCanvasStage({
     stageRef,
   ]);
 
+  const commitSelectedNodeMoves = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage || selectedIds.length === 0) return;
+
+    const updatedObjects = selectedIds
+      .map((selectedId) => {
+        const object = objectById.get(selectedId);
+        const node = stage.findOne(`#${selectedId}`);
+        if (!object || !node) return null;
+        return readMovedObjectFromNode(object, node, { normalizeNode: true });
+      })
+      .filter((object): object is InfinityObject => Boolean(object));
+
+    if (updatedObjects.length > 0) {
+      onObjectsTransformEnd(updatedObjects);
+    }
+    onSelectionInteractionEnd(selectedIds);
+    onDraftObjectsChange(null);
+  }, [
+    objectById,
+    onDraftObjectsChange,
+    onObjectsTransformEnd,
+    onSelectionInteractionEnd,
+    readMovedObjectFromNode,
+    selectedIds,
+    stageRef,
+  ]);
+
   const previewSelectedNodeTransforms = useCallback(() => {
     const stage = stageRef.current;
     if (!stage || selectedIds.length === 0) return;
@@ -723,6 +831,28 @@ export function InfinityCanvasStage({
     objectById,
     onDraftObjectsChange,
     readObjectFromNode,
+    selectedIds,
+    stageRef,
+  ]);
+
+  const previewSelectedNodeMoves = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage || selectedIds.length === 0) return;
+
+    const updatedObjects = selectedIds
+      .map((selectedId) => {
+        const object = objectById.get(selectedId);
+        const node = stage.findOne(`#${selectedId}`);
+        if (!object || !node) return null;
+        return readMovedObjectFromNode(object, node);
+      })
+      .filter((object): object is InfinityObject => Boolean(object));
+
+    onDraftObjectsChange(updatedObjects.length > 0 ? updatedObjects : null);
+  }, [
+    objectById,
+    onDraftObjectsChange,
+    readMovedObjectFromNode,
     selectedIds,
     stageRef,
   ]);
@@ -1077,8 +1207,8 @@ export function InfinityCanvasStage({
           ref={transformerRef}
           rotateEnabled={true}
           shouldOverdrawWholeArea={false}
-          onDragMove={previewSelectedNodeTransforms}
-          onDragEnd={commitSelectedNodeTransforms}
+          onDragMove={previewSelectedNodeMoves}
+          onDragEnd={commitSelectedNodeMoves}
           onTransform={previewSelectedNodeTransforms}
           onTransformEnd={commitSelectedNodeTransforms}
           enabledAnchors={

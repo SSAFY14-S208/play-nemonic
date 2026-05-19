@@ -23,6 +23,11 @@ interface KonvaImageObjectProps {
 
 const imageElementCache = new Map<string, HTMLImageElement>();
 
+function resetNodeScale(node: Konva.Image) {
+  if (node.scaleX() === 1 && node.scaleY() === 1) return;
+  node.scale({ x: 1, y: 1 });
+}
+
 export function KonvaImageObject({
   imageObject,
   isSelectTool = false,
@@ -90,14 +95,15 @@ export function KonvaImageObject({
       }
       onTap={isSelectTool ? () => onImageClick?.(imageObject.id, false) : undefined}
       onDragEnd={(event) => {
-        onImageDragEnd?.(imageObject.id, event.target.x(), event.target.y());
+        const node = event.target as Konva.Image;
+        resetNodeScale(node);
+        onImageDragEnd?.(imageObject.id, node.x(), node.y());
       }}
       onTransformEnd={(event) => {
         const node = event.target as Konva.Image;
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();
-        node.scaleX(1);
-        node.scaleY(1);
+        resetNodeScale(node);
         onImageTransformEnd?.(
           imageObject.id,
           node.x(),
