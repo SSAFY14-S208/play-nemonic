@@ -72,7 +72,7 @@ export default function RoomPreviewCanvas({
         frameloop="demand"
         gl={{
           alpha: false,
-          antialias: true,
+          antialias: renderingProfile.antialias,
           powerPreference: "high-performance",
         }}
         shadows={renderingProfile.shadows}

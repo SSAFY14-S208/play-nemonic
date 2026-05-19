@@ -3,7 +3,7 @@ import type { HubFocusKey } from '@/shared/types'
 export type RoomPreviewVariant = 'preview' | 'hub'
 
 export const ROOM_PREVIEW_MODEL_PATH =
-  '/models/isometric-girl-room-stage6-web.glb?v=20260518-stage6-clean-wall-light-rig'
+  '/models/isometric-girl-room-stage6-web.glb?v=20260520-ground-flat-black'
 
 export const ROOM_PREVIEW_SCALE = 4.2
 
@@ -58,7 +58,7 @@ export const ROOM_PREVIEW_HUB_CAMERA_PRESETS: Record<
     target: [-2.48, 1.9, -2.1],
   },
   communityBoard: {
-    position: [-1.72, 2.35, -0.82],
+    position: [-0.92, 2.42, -0.82],
     target: [-3.79, 2.35, -0.82],
   },
 }
@@ -66,13 +66,13 @@ export const ROOM_PREVIEW_HUB_CAMERA_PRESETS: Record<
 export const ROOM_PREVIEW_HUB_CAMERA_LIMITS = {
   boundary: {
     max: [3.72, 5.05, 4.02] as [number, number, number],
-    min: [-3.5, 0.62, -3.42] as [number, number, number],
+    min: [-4.08, 0.62, -3.42] as [number, number, number],
   },
   boundaryFriction: 0.08,
-  maxAzimuthAngle: Math.PI * 0.52,
+  maxAzimuthAngle: Math.PI * 0.5,
   maxDistance: 6.75,
   maxPolarAngle: Math.PI * 0.5,
-  minAzimuthAngle: -Math.PI * 0.04,
+  minAzimuthAngle: 0,
   minDistance: 0.95,
   minPolarAngle: Math.PI * 0.17,
 }
@@ -95,19 +95,22 @@ export const ROOM_PREVIEW_RENDERING = {
 export const ROOM_PREVIEW_RENDERING_PROFILES: Record<
   RoomPreviewVariant,
   {
+    antialias: boolean
     devicePixelRatio: number | [number, number]
     postProcessing: boolean
     shadows: boolean
   }
 > = {
   preview: {
+    antialias: true,
     devicePixelRatio: ROOM_PREVIEW_RENDERING.devicePixelRatio,
     postProcessing: true,
     shadows: true,
   },
   hub: {
-    devicePixelRatio: [1, 1.2],
-    postProcessing: true,
+    antialias: false,
+    devicePixelRatio: 1,
+    postProcessing: false,
     shadows: false,
   },
 }
@@ -142,7 +145,7 @@ export const ROOM_PREVIEW_MATERIALS = {
   minEnvironmentIntensity: 0.32,
   tableLightStripColor: '#fff5ff',
   tableLightStripEmissiveIntensity: 2.8,
-  textureAnisotropy: 8,
+  textureAnisotropy: 2,
 }
 
 export const HIDDEN_PREVIEW_OBJECT_KEYWORDS = [
