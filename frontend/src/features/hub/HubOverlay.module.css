@@ -20,22 +20,56 @@
   user-select: none;
 }
 
-.musicButton {
+.utilityCluster {
   position: fixed;
   top: 1.4rem;
   right: 1.4rem;
   z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.utilityButton {
+  display: inline-flex;
+  height: 2.72rem;
+  width: 2.72rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(255 247 235 / 74%);
+  border-radius: 0.8rem;
+  background: rgb(255 250 242 / 72%);
+  box-shadow: 0 0.8rem 2rem rgb(54 45 80 / 12%);
+  color: #5b4a82;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.utilityButton:hover {
+  background: rgb(255 252 247 / 88%);
+  transform: translateY(-1px);
+}
+
+.utilityButton:active {
+  transform: scale(0.96);
+}
+
+.musicButton {
   display: inline-flex;
   height: 2.72rem;
   width: 4.35rem;
   align-items: center;
   justify-content: center;
   gap: 0.34rem;
-  border: 1px solid rgb(255 255 255 / 58%);
-  border-radius: 999px;
-  background: rgb(255 255 255 / 68%);
-  box-shadow: 0 1rem 2.4rem rgb(87 74 122 / 13%);
-  color: #64509a;
+  border: 1px solid rgb(255 247 235 / 74%);
+  border-radius: 0.8rem;
+  background: rgb(255 250 242 / 72%);
+  box-shadow: 0 0.8rem 2rem rgb(54 45 80 / 12%);
+  color: #5b4a82;
   cursor: pointer;
   backdrop-filter: blur(16px);
   transition:
@@ -46,13 +80,13 @@
 }
 
 .musicButton[data-muted='true'] {
-  background: rgb(255 255 255 / 58%);
-  color: #766e88;
+  background: rgb(255 250 242 / 56%);
+  color: #746a85;
   opacity: 0.82;
 }
 
 .musicButton:hover {
-  background: rgb(255 255 255 / 78%);
+  background: rgb(255 252 247 / 86%);
   transform: translateY(-1px);
 }
 
@@ -83,10 +117,10 @@
   gap: 0.5rem;
   max-width: calc(100vw - 8rem);
   overflow-x: auto;
-  border: 1px solid rgb(255 255 255 / 58%);
-  border-radius: 999px;
-  background: rgb(255 255 255 / 70%);
-  box-shadow: 0 1.1rem 2.8rem rgb(87 74 122 / 15%);
+  border: 1px solid rgb(255 247 235 / 74%);
+  border-radius: 0.95rem;
+  background: rgb(255 250 242 / 76%);
+  box-shadow: 0 0.9rem 2.2rem rgb(54 45 80 / 14%);
   padding: 0.48rem;
   transform: translateX(-50%);
   backdrop-filter: blur(18px);
@@ -99,7 +133,7 @@
   justify-content: center;
   gap: 0.38rem;
   border: 0;
-  border-radius: 999px;
+  border-radius: 0.68rem;
   background: transparent;
   padding: 0 0.78rem;
   color: #5f5578;
@@ -115,13 +149,15 @@
 
 .focusButton:hover {
   transform: translateY(-1px);
-  background: rgb(255 255 255 / 72%);
+  background: rgb(255 255 255 / 66%);
 }
 
 .focusButtonActive {
-  background: linear-gradient(135deg, #bca4ff, #a5dbff);
+  background: linear-gradient(135deg, #a98bed, #8ed2ef);
   color: #ffffff;
-  box-shadow: 0 0.55rem 1.5rem rgb(146 118 219 / 24%);
+  box-shadow:
+    0 0.4rem 1rem rgb(91 77 155 / 20%),
+    inset 0 1px 0 rgb(255 255 255 / 34%);
 }
 
 @keyframes hubMusicPulse {
@@ -143,9 +179,18 @@
     left: 1rem;
   }
 
-  .musicButton {
+  .utilityCluster {
     top: 1rem;
     right: 1rem;
+    gap: 0.4rem;
+  }
+
+  .utilityButton {
+    height: 2.55rem;
+    width: 2.55rem;
+  }
+
+  .musicButton {
     height: 2.55rem;
     width: 3.9rem;
   }
@@ -153,7 +198,7 @@
   .focusControls {
     bottom: 1rem;
     max-width: calc(100vw - 6.5rem);
-    border-radius: 1rem;
+    border-radius: 0.8rem;
   }
 
   .focusButton span {

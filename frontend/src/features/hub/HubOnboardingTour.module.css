@@ -1,0 +1,569 @@
+/* 룸을 가리지 않는 사이드 패널. 좌측 하단 네비게이션 위에 살짝 떠 있는
+   포지션. welcome 단계에서는 가운데에 떠서 임팩트를 주고, 이후 단계부터
+   왼쪽 코너로 자연스럽게 이동한다. */
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+
+/* welcome 단계에서만 보이는 약한 백드롭. 룸이 비쳐서 카드가 떠 있는
+   느낌. corner 상태에선 자동으로 사라진다. */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(37 31 62 / 8%) 0%, rgb(37 31 62 / 14%) 100%);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 360ms ease, backdrop-filter 360ms ease;
+}
+
+.root[data-anchor='centered'] .backdrop {
+  opacity: 1;
+  /* 백드롭이 떴을 때 finishTour로 dismiss할 수 있도록 */
+  pointer-events: auto;
+}
+
+/* fluid scaling: 작은 노트북 ~ 4K까지 카드 폭이 viewport에 따라 부드럽게
+   조정된다. 양 끝은 clamp로 안전 한계.
+
+   기본은 corner anchor (좌하단 사이드 패널). data-anchor="centered"일 때만
+   가운데로 자리를 옮긴다. position 트랜지션은 CSS로 자연스럽게. */
+.panel {
+  --glass-border: color-mix(
+    in srgb,
+    var(--onboarding-accent, #b89cff) 22%,
+    white 78%
+  );
+  --glass-shadow: rgb(54 45 80 / 18%);
+
+  position: absolute;
+  /* corner anchor 기본값 */
+  left: clamp(0.75rem, 1.5vw, 1.75rem);
+  bottom: calc(clamp(4.5rem, 6vh, 6rem) + env(safe-area-inset-bottom, 0px));
+  top: auto;
+  width: clamp(20rem, 24vw, 24rem);
+  padding: clamp(1.05rem, 0.6vw + 0.85rem, 1.4rem)
+    clamp(1.1rem, 0.5vw + 0.95rem, 1.5rem)
+    clamp(1rem, 0.5vw + 0.85rem, 1.3rem);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.85rem, 0.5vw + 0.7rem, 1.1rem);
+  border: 1px solid var(--glass-border);
+  border-radius: clamp(1rem, 0.5vw + 0.85rem, 1.25rem);
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 78%) 0%,
+      rgb(255 255 255 / 62%) 58%,
+      color-mix(
+          in srgb,
+          var(--onboarding-accent-soft, #efe6ff) 18%,
+          rgb(255 255 255 / 58%)
+        )
+        100%
+    );
+  box-shadow:
+    0 1.1rem 2.6rem var(--glass-shadow),
+    0 0.35rem 0.9rem rgb(54 45 80 / 8%),
+    inset 0 1px 0 rgb(255 255 255 / 58%),
+    inset 0 0 0 1px rgb(255 255 255 / 22%);
+  backdrop-filter: blur(22px) saturate(1.14);
+  color: #2c2447;
+  pointer-events: auto;
+  /* Keep geometry out of transitions. Animating left/bottom/transform made the
+     dialog fly across the room when the tour moved between anchors or when a
+     responsive breakpoint changed. */
+  transition:
+    background 480ms ease,
+    box-shadow 320ms ease;
+}
+
+/* welcome 단계 — 정중앙에 살짝 더 큰 카드. 첫인상이 임팩트 있게 들어옴.
+   bottom/transform 기반으로 corner와 같은 축을 사용해 transition이 부드러움
+   (top: auto ↔ top: 50%는 트랜지션이 안 되므로 bottom + translateY로 통일). */
+.panel[data-anchor='centered'] {
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 50%;
+  transform: translate(-50%, 50%);
+  width: clamp(22rem, 30vw, 28rem);
+  padding: clamp(1.5rem, 0.8vw + 1.2rem, 2rem)
+    clamp(1.5rem, 0.7vw + 1.25rem, 2rem)
+    clamp(1.3rem, 0.6vw + 1.05rem, 1.65rem);
+  border-radius: clamp(1.1rem, 0.5vw + 0.95rem, 1.35rem);
+  gap: clamp(1.1rem, 0.6vw + 0.9rem, 1.4rem);
+  box-shadow:
+    0 1.6rem 3.5rem rgb(54 45 80 / 22%),
+    0 0.55rem 1.2rem rgb(54 45 80 / 10%),
+    inset 0 0 0 1px rgb(255 255 255 / 55%);
+}
+
+/* welcome일 땐 카드가 가운데에 떠 있어 강조감을 더 주기 위해 title을
+   살짝 키운다. corner 단계의 정보 위계와 자연스럽게 구분된다. */
+.panel[data-anchor='centered'] .title {
+  font-size: clamp(1.15rem, 0.5vw + 1rem, 1.4rem);
+}
+
+.panel[data-anchor='centered'] .description {
+  font-size: clamp(0.86rem, 0.22vw + 0.8rem, 0.96rem);
+}
+
+.accentBar {
+  position: absolute;
+  top: -1px;
+  left: clamp(1rem, 1vw + 0.45rem, 1.5rem);
+  right: clamp(1rem, 1vw + 0.45rem, 1.5rem);
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--onboarding-accent, #b89cff) 86%, white) 18%,
+    color-mix(in srgb, var(--onboarding-accent, #b89cff) 72%, white) 82%,
+    transparent
+  );
+  box-shadow:
+    0 0.35rem 1rem color-mix(in srgb, var(--onboarding-accent) 24%, transparent);
+  opacity: 0.88;
+  transition: background 480ms ease, box-shadow 480ms ease;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.skipButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  height: 1.9rem;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 34%);
+  color: #7a6f9c;
+  font-size: clamp(0.68rem, 0.16vw + 0.64rem, 0.76rem);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.skipButton:hover {
+  background: color-mix(
+    in srgb,
+    var(--onboarding-accent-soft, #efe6ff) 36%,
+    rgb(255 255 255 / 76%)
+  );
+  color: #4f4477;
+}
+
+.stepRail {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.25rem;
+  padding: 0.2rem 0 0.7rem;
+  margin: -0.1rem 0 0;
+  border-bottom: 1px solid rgb(83 69 114 / 12%);
+}
+
+.stepRailItem {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  padding: 0.18rem 0.1rem 0.4rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #9087a8;
+  font-size: clamp(0.66rem, 0.12vw + 0.62rem, 0.72rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  /* 터치 타깃 확보 (WCAG 2.5.5 권장 44x44). 시각적 높이는 작아도 hit area를 키운다. */
+  min-height: 2.5rem;
+  transition: color 200ms ease, transform 200ms ease;
+}
+
+.stepRailItem:hover {
+  color: #5f5589;
+  background: rgb(255 255 255 / 32%);
+}
+
+.stepRailDot {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 999px;
+  background: #e2dcef;
+  box-shadow: inset 0 0 0 1px rgb(146 118 219 / 25%);
+  transition: background 240ms ease, transform 240ms ease, box-shadow 240ms ease;
+}
+
+.stepRailLabel {
+  line-height: 1;
+}
+
+.stepRailItemCurrent {
+  color: color-mix(in srgb, var(--rail-step-accent) 70%, #2c2447 30%);
+}
+
+.stepRailItemCurrent .stepRailDot {
+  background: var(--rail-step-accent);
+  transform: scale(1.24);
+  box-shadow:
+    0 0 0 4px
+      color-mix(in srgb, var(--rail-step-accent) 22%, transparent),
+    0 4px 10px color-mix(in srgb, var(--rail-step-accent) 38%, transparent);
+}
+
+.stepRailItemCompleted .stepRailDot {
+  background: color-mix(in srgb, var(--rail-step-accent) 55%, white);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--rail-step-accent) 32%, transparent);
+}
+
+.stepRailItemCompleted {
+  color: color-mix(in srgb, var(--rail-step-accent) 50%, #6a608d 50%);
+}
+
+.stepRailTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--onboarding-accent) 0%, transparent),
+    color-mix(in srgb, var(--onboarding-accent) 85%, transparent)
+  );
+  transform-origin: left center;
+  transition:
+    transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 360ms ease;
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-height: clamp(14rem, 38vh, 17.25rem);
+  padding-top: 0.1rem;
+}
+
+.title {
+  font-size: clamp(1.02rem, 0.35vw + 0.92rem, 1.2rem);
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  color: #251f3e;
+}
+
+.description {
+  font-size: clamp(0.82rem, 0.2vw + 0.76rem, 0.92rem);
+  line-height: 1.6;
+  color: #564d75;
+}
+
+.highlightList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.highlightItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.52rem 0.1rem;
+  border-bottom: 1px solid rgb(102 85 126 / 10%);
+  background: transparent;
+  color: #3f375e;
+  font-size: clamp(0.78rem, 0.18vw + 0.74rem, 0.86rem);
+  font-weight: 600;
+  line-height: 1.5;
+  transition: background 480ms ease;
+}
+
+.highlightItem:last-child {
+  border-bottom: 0;
+}
+
+.highlightBullet {
+  flex-shrink: 0;
+  width: 0.46rem;
+  height: 0.46rem;
+  margin-top: 0.45rem;
+  border-radius: 999px;
+  background: #fffaf2;
+  border: 2px solid var(--onboarding-accent, #b89cff);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--onboarding-accent) 12%, transparent);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.85rem;
+  margin-top: 0.1rem;
+  border-top: 1px solid rgb(102 85 126 / 12%);
+}
+
+.keyboardHint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+.keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid
+    color-mix(in srgb, var(--onboarding-accent, #b89cff) 20%, #d8d0ec 80%);
+  border-bottom-width: 2px;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 74%), rgb(255 255 255 / 42%));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 68%),
+    0 0.24rem 0.6rem rgb(54 45 80 / 10%);
+  color: color-mix(in srgb, var(--onboarding-accent, #b89cff) 52%, #51466f 48%);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.navButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  min-width: 2.45rem;
+  /* WCAG 권장 최소 44px touch target. */
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 0.68rem;
+  font-size: clamp(0.8rem, 0.22vw + 0.74rem, 0.88rem);
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background 240ms ease,
+    color 240ms ease,
+    box-shadow 240ms ease,
+    opacity 160ms ease;
+}
+
+.navButtonGhost {
+  background: rgb(255 255 255 / 42%);
+  color: #5f5589;
+  padding: 0;
+  width: 2.75rem;
+  box-shadow: inset 0 0 0 1px rgb(102 85 126 / 12%);
+}
+
+.navButtonGhost:hover:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--onboarding-accent-soft, #efe6ff) 55%,
+    white
+  );
+  transform: translateY(-1px);
+}
+
+.navButtonGhost:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.navButtonPrimary {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--onboarding-accent, #b89cff) 82%, white),
+    color-mix(in srgb, var(--onboarding-accent, #b89cff) 58%, white)
+  );
+  color: #fffdf9;
+  box-shadow:
+    0 0.48rem 1rem
+      color-mix(in srgb, var(--onboarding-accent) 26%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 38%);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 8%);
+}
+
+.navButtonPrimary:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0.65rem 1.2rem
+      color-mix(in srgb, var(--onboarding-accent) 32%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 42%);
+}
+
+.navButtonPrimary:active {
+  transform: scale(0.97);
+}
+
+/* ─── Breakpoint 전략 ───
+   세 종류 레이아웃:
+   1) 사이드 패널 (기본): 데스크탑 + 태블릿 + 가로 모드 폰
+   2) 풀폭 하단 시트: 세로 모드 폰 / 좁은 화면
+   3) 컴팩트 가로 모드: 키캡 그대로, 본문 줄수 제한
+   판단 기준은 viewport 가로 폭 OR (좁은 폭 AND 세로 모드)이 아니라
+   "가로 폭이 너무 좁아 사이드 패널이 더 이상 의미 없는 경우". */
+
+/* 세로 모드 폰: anchor 무관하게 하단 시트로 통일.
+   가운데 모달은 작은 화면에선 어차피 화면을 다 가리므로 시트가 더 자연스럽다. */
+@media (orientation: portrait) and (max-width: 640px) {
+  .panel,
+  .panel[data-anchor='centered'],
+  .panel[data-anchor='corner'] {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    transform: none;
+    width: auto;
+    padding: 1.4rem 1.15rem
+      calc(0.95rem + env(safe-area-inset-bottom, 0px));
+    border-radius: 1.4rem 1.4rem 0 0;
+    border-bottom: 0;
+    max-height: 72vh;
+    overflow-y: auto;
+    box-shadow:
+      0 -1.4rem 3.4rem rgb(56 36 110 / 22%),
+      0 -0.5rem 1.2rem rgb(56 36 110 / 10%),
+      inset 0 0 0 1px rgb(255 255 255 / 50%);
+  }
+
+  /* 모바일에선 백드롭이 너무 답답해 보일 수 있으므로 약하게. */
+  .root[data-anchor='centered'] .backdrop {
+    background: linear-gradient(
+      to top,
+      rgb(43 28 82 / 18%) 0%,
+      rgb(43 28 82 / 6%) 60%,
+      transparent 100%
+    );
+  }
+
+  /* 시트 손잡이 — 시트라는 시각 어포던스. */
+  .panel::after {
+    content: '';
+    position: absolute;
+    top: 0.55rem;
+    left: 50%;
+    width: 2.4rem;
+    height: 0.25rem;
+    border-radius: 999px;
+    background: rgb(146 118 219 / 28%);
+    transform: translateX(-50%);
+  }
+
+  .accentBar {
+    top: 0.95rem;
+    left: 1.3rem;
+    right: 1.3rem;
+  }
+
+  .stepBody {
+    min-height: 0;
+  }
+
+  .panelHeader {
+    margin-top: 0.35rem;
+  }
+
+  /* primary 버튼이 시트에선 더 넓어야 탭 타깃이 잘 잡힌다. */
+  .navButtonPrimary {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* 실제 터치 환경에서만 키캡을 숨긴다. 데스크톱 브라우저는 폭이 좁아도
+   키보드 입력이 가능하므로 footer 중앙 키캡을 유지한다. */
+@media (hover: none) and (pointer: coarse) {
+  .keyboardHint {
+    display: none;
+  }
+}
+
+/* 태블릿~소형 노트북(641px ~ 960px): 사이드 패널 유지하되 약간 좁게.
+   카드 폭 23rem → 19rem 정도. clamp이 이미 처리하므로 별도 강제 없음. */
+
+/* 짧은 세로(landscape phone/short laptop): 본문 줄수 제한 + 패딩 컴팩트.
+   사이드 패널은 유지되어 룸을 그대로 보여주고, 카드만 가벼워진다. */
+@media (max-height: 560px) {
+  .panel {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    gap: 0.7rem;
+  }
+
+  .stepBody {
+    min-height: 0;
+  }
+
+  .description {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .highlightList {
+    gap: 0.28rem;
+  }
+
+  .highlightItem {
+    padding: 0.42rem 0.7rem 0.42rem 0.6rem;
+  }
+}
+
+/* 매우 좁은 폰 (≤360px): 추가 컴팩트. */
+@media (max-width: 380px) {
+  .stepRailLabel {
+    font-size: 0.62rem;
+  }
+
+  .stepRailItem {
+    padding: 0.2rem 0 0.42rem;
+  }
+}
+
+/* 사용자가 모션 감소를 선호하면 그라데이션/자리 이동 등 모두 끄기. */
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .backdrop,
+  .accentBar,
+  .stepRailDot,
+  .stepRailTrack,
+  .highlightItem,
+  .navButton {
+    transition-duration: 0.01ms !important;
+  }
+}

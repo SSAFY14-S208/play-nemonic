@@ -2,6 +2,7 @@
 
 import { Phone } from 'lucide-react'
 import { cn } from '@/shared/libs'
+import { useHubOnboardingStore } from '@/shared/stores'
 import { PHONE_COLORS } from './constants'
 import PhoneModal from './PhoneModal'
 import { usePhoneStore } from './phoneStore'
@@ -9,6 +10,12 @@ import { usePhoneStore } from './phoneStore'
 export default function PhoneLauncher() {
   const isPhoneOpen = usePhoneStore((state) => state.isPhoneOpen)
   const openPhone = usePhoneStore((state) => state.openPhone)
+  const isHubOnboardingActive = useHubOnboardingStore(
+    (state) =>
+      state.hasHydratedFromStorage &&
+      state.hasEnteredHub &&
+      !state.hasSeenOnboarding,
+  )
 
   return (
     <>
@@ -18,7 +25,8 @@ export default function PhoneLauncher() {
         onClick={openPhone}
         className={cn(
           'fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-[calc(1.5rem+env(safe-area-inset-right))] z-[14000] flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-white transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-white',
-          isPhoneOpen && 'pointer-events-none translate-y-3 opacity-0',
+          (isPhoneOpen || isHubOnboardingActive) &&
+            'pointer-events-none translate-y-3 opacity-0',
         )}
         style={{ boxShadow: PHONE_COLORS.launcherShadow }}
       >

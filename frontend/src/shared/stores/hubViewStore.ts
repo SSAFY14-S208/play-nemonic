@@ -48,7 +48,7 @@ export const HUB_CONTENT_VIEWS: Record<HubContentKey, HubContentView> = {
     platform: 'yellow',
     angle: -1.645,
     zoom: 11.6,
-    eyebrow: '노랑 티켓 · 이어 그리는 놀이',
+    eyebrow: '노랑 티켓 · 이어 그리는 미니게임',
     title: '우당탕 릴레이 드로잉',
     description: '머리는 몰랐답니다. 이런 몸통과 다리를 만나게 될 줄은.',
   },
