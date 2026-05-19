@@ -469,8 +469,12 @@ async function main() {
     json,
     textureIndex: materialPatch.roughnessTextureIndex,
   })
+  const {
+    binaryChunk: roughnessRemovalBinaryChunk,
+    ...roughnessRemovalSummary
+  } = roughnessRemoval
   const baseColorCompression = await compressBaseColorImage({
-    binaryChunk: roughnessRemoval.binaryChunk,
+    binaryChunk: roughnessRemovalBinaryChunk,
     json,
     sharp,
   })
@@ -489,7 +493,7 @@ async function main() {
         materialPatch,
         outputPath,
         roughnessFactor: TARGET_ROUGHNESS_FACTOR,
-        roughnessRemoval,
+        roughnessRemoval: roughnessRemovalSummary,
       },
       null,
       2,
