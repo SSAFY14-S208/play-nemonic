@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { ArrowDownToLine, ArrowUpToLine, Copy, Link2, LogOut, Printer } from 'lucide-react'
 import { toast } from 'sonner'
@@ -37,6 +37,11 @@ const REMOTE_DRAFT_EXPIRY_REFRESH_THRESHOLD_MS = REMOTE_DRAFT_RETENTION_MS / 2
 
 interface InfinityStageViewProps {
   room: InfinityCanvasRoom
+}
+
+interface StageSize {
+  width: number
+  height: number
 }
 
 interface RetainedRemoteDraft {
@@ -438,7 +443,12 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   })
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
+  const [stageSize, setStageSize] = useState<StageSize | null>(null)
+  const centerInitialViewportRef = useRef(drawing.viewport.centerInitialViewport)
+
+  useLayoutEffect(() => {
+    centerInitialViewportRef.current = drawing.viewport.centerInitialViewport
+  }, [drawing.viewport.centerInitialViewport])
 
   const serverObjects = useMemo(() => toInfinityObjects(room.elements), [room.elements])
 
@@ -636,20 +646,36 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [retainedRemoteDrafts],
   )
 
-  useEffect(() => {
+  const applyMeasuredStageSize = useCallback((width: number, height: number) => {
+    if (!Number.isFinite(width) || !Number.isFinite(height)) return
+
+    const nextWidth = Math.max(1, Math.round(width))
+    const nextHeight = Math.max(1, Math.round(height))
+
+    setStageSize((currentSize) =>
+      currentSize?.width === nextWidth && currentSize.height === nextHeight
+        ? currentSize
+        : { width: nextWidth, height: nextHeight },
+    )
+    centerInitialViewportRef.current(nextWidth, nextHeight)
+  }, [])
+
+  useLayoutEffect(() => {
     const container = containerRef.current
     if (!container) return
+
+    const bounds = container.getBoundingClientRect()
+    applyMeasuredStageSize(bounds.width, bounds.height)
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (!entry) return
       const { width, height } = entry.contentRect
-      setStageSize({ width, height })
-      drawing.viewport.centerInitialViewport(width, height)
+      applyMeasuredStageSize(width, height)
     })
     observer.observe(container)
     return () => observer.disconnect()
-  }, [drawing.viewport])
+  }, [applyMeasuredStageSize])
 
   useEffect(() => {
     const serverRevision = room.revision
@@ -842,27 +868,31 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       />
 
       <div ref={containerRef} className="absolute inset-0 min-w-0 overflow-hidden">
-        <InfinityCanvasStage
-          width={stageSize.width}
-          height={stageSize.height}
-          stageRef={stageRef}
-          drawing={drawing}
-          currentPenLineRef={currentPenLineRef}
-          currentEraserLineRef={currentEraserLineRef}
-          previewRectRef={previewRectRef}
-          previewEllipseRef={previewEllipseRef}
-          cursorPreviewRef={cursorPreviewRef}
-          selectionBoxRef={selectionBoxRef}
-          isShiftDown={drawing.isShiftDown}
-          lockedElements={lockedElements}
-          lockedElementIds={lockedElementIds}
-          remoteDraftObjects={remoteDraftObjects}
-          remoteCursors={remoteCursors}
-          onCursorMove={handleCursorMove}
-          onLayerMenuRequest={handleLayerMenuRequest}
-          onSelectionInteractionEnd={releaseSelectedLocks}
-          onDraftObjectsChange={handleDraftObjectChange}
-        />
+        {stageSize ? (
+          <InfinityCanvasStage
+            width={stageSize.width}
+            height={stageSize.height}
+            stageRef={stageRef}
+            drawing={drawing}
+            currentPenLineRef={currentPenLineRef}
+            currentEraserLineRef={currentEraserLineRef}
+            previewRectRef={previewRectRef}
+            previewEllipseRef={previewEllipseRef}
+            cursorPreviewRef={cursorPreviewRef}
+            selectionBoxRef={selectionBoxRef}
+            isShiftDown={drawing.isShiftDown}
+            lockedElements={lockedElements}
+            lockedElementIds={lockedElementIds}
+            remoteDraftObjects={remoteDraftObjects}
+            remoteCursors={remoteCursors}
+            onCursorMove={handleCursorMove}
+            onLayerMenuRequest={handleLayerMenuRequest}
+            onSelectionInteractionEnd={releaseSelectedLocks}
+            onDraftObjectsChange={handleDraftObjectChange}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-canvas-background" aria-hidden />
+        )}
 
         {drawing.textEditor && (
           <InfinityTextEditor
