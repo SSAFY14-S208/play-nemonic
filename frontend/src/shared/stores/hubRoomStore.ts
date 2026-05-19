@@ -10,7 +10,11 @@ interface HubRoomStore {
 export const useHubRoomStore = create<HubRoomStore>((set) => ({
   focusKey: 'overview',
   setFocus: (focusKey) => {
-    trackHubStoreUpdate('hubRoomStore', 'setFocus')
-    set({ focusKey })
+    set((state) => {
+      if (state.focusKey === focusKey) return state
+
+      trackHubStoreUpdate('hubRoomStore', 'setFocus')
+      return { focusKey }
+    })
   },
 }))

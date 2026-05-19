@@ -41,6 +41,8 @@ export default function HubLoadingOverlay({
     subtitleText,
   } = useHubLoadingOverlay(isCanvasReady)
 
+  if (!isVisible) return null
+
   return (
     <div
       data-hub-loading-overlay="true"
