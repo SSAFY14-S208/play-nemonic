@@ -23,8 +23,8 @@ const CARD_TEXT_BASE_CLASS = cn(
 
 const SCORE_VALUE_CLASS = cn(
   CARD_TEXT_BASE_CLASS,
-  'top-[63.2%] -translate-x-1/2',
-  'text-[clamp(1.28rem,4.2vw,1.88rem)] leading-none font-bold',
+  'top-[62.6%] -translate-x-1/2',
+  'text-[clamp(1.48rem,4.8vw,2.18rem)] leading-none font-bold',
 )
 
 const ACTION_BUTTON_CLASS = cn(
@@ -44,10 +44,10 @@ const PRIMARY_ACTION_BUTTON_CLASS = cn(
 )
 
 const SCORE_POSITIONS = [
-  { key: 'love', left: '18.4%', color: '#ff5f95' },
-  { key: 'work', left: '39.8%', color: '#16a9ee' },
-  { key: 'money', left: '59.8%', color: '#ff9600' },
-  { key: 'overall', left: '80.2%', color: '#3c8424' },
+  { key: 'love', left: '18.25%', color: '#ff5f95' },
+  { key: 'work', left: '39.55%', color: '#16a9ee' },
+  { key: 'money', left: '60.15%', color: '#ff9600' },
+  { key: 'overall', left: '80.85%', color: '#3c8424' },
 ] as const satisfies readonly { key: keyof FortuneScoreSet; left: string; color: string }[]
 
 interface FortuneResultCardProps {
@@ -91,8 +91,8 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         <p
           className={cn(
             CARD_TEXT_BASE_CLASS,
-            'left-1/2 top-[43.2%] flex h-[8%] w-[70%] -translate-x-1/2 -translate-y-1/2 items-center justify-center',
-            'text-[clamp(0.82rem,2.25vw,1.12rem)] font-semibold leading-[1.35] text-[#4b3823]',
+            'left-1/2 top-[42.8%] flex h-[8%] w-[70%] -translate-x-1/2 -translate-y-1/2 items-center justify-center',
+            'text-[clamp(0.9rem,2.45vw,1.24rem)] font-semibold leading-[1.35] text-[#4b3823]',
           )}
         >
           {result.postitLine}
@@ -111,17 +111,17 @@ export default function FortuneResultCard({ onAttach, onBackToHub }: FortuneResu
         <div
           className={cn(
             CARD_TEXT_BASE_CLASS,
-            'left-[24%] top-[83.4%] w-[34%] -translate-x-1/2 text-center',
+            'left-[24%] top-[83.6%] w-[36%] -translate-x-1/2 text-center',
             'text-[clamp(0.68rem,1.9vw,0.92rem)] font-semibold leading-[1.35]',
           )}
         >
-          <div className="grid grid-cols-2 items-end gap-x-[8%] gap-y-[0.32rem]">
-            <span className="mx-auto block size-[1.44em] rounded-full border border-[rgba(40,40,40,0.18)] shadow-[inset_0_0_0_0.14rem_rgba(255,255,255,0.55)]" style={{ background: result.luckyColor.hex }} aria-hidden />
+          <div className="grid grid-cols-2 items-center gap-x-[12%] gap-y-[0.42rem]">
+            <span className="mx-auto block size-[2.35em] rounded-full border border-[rgba(40,40,40,0.18)] shadow-[inset_0_0_0_0.22rem_rgba(255,255,255,0.55)]" style={{ background: result.luckyColor.hex }} aria-hidden />
             <img
               src={FORTUNE_DIRECTION_ARROW_PATH}
               alt=""
               aria-hidden
-              className="mx-auto w-[clamp(1.7rem,5.6vw,2.65rem)] select-none object-contain drop-shadow-[0_0.12rem_0_rgba(255,255,255,0.76)]"
+              className="mx-auto w-[clamp(2.1rem,7vw,3.35rem)] select-none object-contain drop-shadow-[0_0.12rem_0_rgba(255,255,255,0.76)]"
               draggable={false}
               style={{ transform: `rotate(${getDirectionArrowRotation(result.luckyDirection)}deg)` }}
             />
