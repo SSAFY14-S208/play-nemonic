@@ -3,7 +3,7 @@ import type { HubFocusKey } from '@/shared/types'
 export type RoomPreviewVariant = 'preview' | 'hub'
 
 export const ROOM_PREVIEW_MODEL_PATH =
-  '/models/isometric-girl-room-stage6-web.glb?v=20260520-ground-flat-black'
+  '/models/isometric-girl-room-stage6-web.glb?v=20260520-succulent-lite'
 
 export const ROOM_PREVIEW_SCALE = 4.2
 
