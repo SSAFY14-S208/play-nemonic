@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import { ApiError, postArtifactShare } from '@/shared/apis'
+import { logEvent } from '@/shared/libs'
 import type { FlipbookResultItemResponse } from '@/shared/types'
 import {
   getDisplayImageUrl,
@@ -170,12 +171,20 @@ export function useFlipbookResultActions({
         window.URL.revokeObjectURL(objectUrl)
       }, 1000)
       setActionMessage('로컬 보관함에 저장했어요.')
+      logEvent('result_shared', {
+        metadata: {
+          funnel_name: 'flipbook_room_creation',
+          content_type: 'flipbook',
+          share_method: 'download',
+          artifact_id: activeResult?.artifactId,
+        },
+      })
     } catch {
       setActionMessage('로컬 저장에 실패했어요. 잠시 후 다시 시도해주세요.')
     } finally {
       setIsSavingToLocal(false)
     }
-  }, [isSavingToLocal, ownerName, resultImageUrl])
+  }, [activeResult?.artifactId, isSavingToLocal, ownerName, resultImageUrl])
 
   const postToCommunity = useCallback(() => {
     if (!activeResult || !communityImageUrl) {
@@ -190,6 +199,14 @@ export function useFlipbookResultActions({
       thumbnailUrl: activeResult.thumbnailUrl ?? communityImageUrl,
       sourceGalleryId: isRealResourceId(activeResult.galleryId) ? activeResult.galleryId : null,
       sourceContentKind: 'flipbook',
+    })
+    logEvent('result_shared', {
+      metadata: {
+        funnel_name: 'flipbook_room_creation',
+        content_type: 'flipbook',
+        share_method: 'community_post',
+        artifact_id: activeResult.artifactId,
+      },
     })
     router.push('/community-canvas')
   }, [activeResult, communityImageUrl, ownerName, router])
@@ -217,6 +234,14 @@ export function useFlipbookResultActions({
       })
       const successMessage = getExternalShareSuccessMessage(shareResult)
       if (successMessage) toast.success(successMessage)
+      logEvent('result_shared', {
+        metadata: {
+          funnel_name: 'flipbook_room_creation',
+          content_type: 'flipbook',
+          share_method: 'external_share',
+          artifact_id: activeResult.artifactId,
+        },
+      })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
 

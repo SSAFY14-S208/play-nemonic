@@ -63,6 +63,7 @@ const SAMPLING_CONFIG: Record<SamplingTier, Set<LogEventName>> = {
     'funnel_goal_reached',
     'funnel_abandoned',
     'cta_clicked',
+    'result_shared',
     // 이탈 (100%)
     'page_exit_intent_detected',
     'room_lobby_abandoned',

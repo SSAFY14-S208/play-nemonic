@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ApiError, postArtifactShare } from '@/shared/apis'
+import { logEvent } from '@/shared/libs'
 
 import { useFortuneSessionStore } from '../fortuneSessionStore'
 
@@ -77,6 +78,17 @@ export function useFortuneExternalShare() {
         throw new Error('외부 공유 링크를 만들지 못했어요.')
       }
 
+      const emitShared = () => {
+        logEvent('result_shared', {
+          metadata: {
+            funnel_name: 'fortune_creation',
+            content_type: 'fortune',
+            share_method: 'external_share',
+            fortune_id: result.id,
+          },
+        })
+      }
+
       // 모바일: native share 시도 (이미지 파일 또는 URL)
       if (isLikelyMobileEnvironment() && navigator.share) {
         try {
@@ -96,6 +108,7 @@ export function useFortuneExternalShare() {
                   text: FORTUNE_SHARE_TEXT,
                   files: [imageFile],
                 })
+                emitShared()
                 return
               }
             }
@@ -108,6 +121,7 @@ export function useFortuneExternalShare() {
               text: FORTUNE_SHARE_TEXT,
               url: shareUrl,
             })
+            emitShared()
             return
           }
         } catch (error) {
@@ -120,6 +134,7 @@ export function useFortuneExternalShare() {
       const urlToCopy = shareUrl || imageUrl!
       await copyTextToClipboard(urlToCopy)
       toast.success('공유 링크가 복사되었어요.')
+      emitShared()
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
 

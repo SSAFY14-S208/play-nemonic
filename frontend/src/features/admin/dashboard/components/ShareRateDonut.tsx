@@ -29,8 +29,10 @@ const colorFor = (funnelKey: string): string => {
 const labelFor = (funnelKey: string): string => FUNNEL_LABEL[funnelKey] ?? funnelKey
 
 // 컴포넌트 이름은 호출부 호환을 위해 유지(ShareRateDonut)하지만 표현은 funnel별 가로 막대.
-// 각 funnel의 share_rate = shared / goal 는 독립 비율이라 도넛 segments로 합산하면 의미가 깨진다.
-// funnel 간 절대 비교를 직관적으로 하기 위해 0~100% 가로 막대로 나열한다.
+//
+// shareRate = shared / goal 으로, shared는 각 도메인의 share/save/community_post
+// 액션 성공 시점에 emit되는 명시적 result_shared 이벤트로 측정한다.
+// 보조 라인에 공유·이탈 절대값을 함께 표기해 운영자가 도달→공유→이탈 흐름을 즉시 볼 수 있다.
 export function ShareRateDonut({ state, onRetry, onDrillDown }: Props) {
   const data = (state.data ?? []).map((bucket) => {
     const shareRate = bucket.goal > 0 ? bucket.shared / bucket.goal : 0
@@ -63,7 +65,7 @@ export function ShareRateDonut({ state, onRetry, onDrillDown }: Props) {
               onClick={() =>
                 onDrillDown({
                   vizId: 'I6',
-                  chartLabel: `공유 도달: ${entry.name}`,
+                  chartLabel: `결과 도달 후 공유: ${entry.name}`,
                   dimensionFilters: [
                     {
                       field: 'metadata.funnel_name',
@@ -71,8 +73,9 @@ export function ShareRateDonut({ state, onRetry, onDrillDown }: Props) {
                       negate: false,
                     },
                   ],
-                  extraQuery: 'event_name:funnel_goal_reached',
-                  description: '결과 도달 이후 공유까지 도달한 세션의 raw 이벤트',
+                  extraQuery: 'event_name:result_shared',
+                  description:
+                    '결과 페이지 도달 후 share/save/community_post 액션을 실제로 한 세션의 raw 이벤트',
                 })
               }
               className="flex flex-col gap-1 rounded-[var(--radius-md)] p-2 text-left transition-colors hover:bg-surface-subtle"
@@ -89,7 +92,7 @@ export function ShareRateDonut({ state, onRetry, onDrillDown }: Props) {
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
-                    width: `${entry.shareRate * 100}%`,
+                    width: `${Math.min(entry.shareRate, 1) * 100}%`,
                     backgroundColor: color,
                   }}
                 />
