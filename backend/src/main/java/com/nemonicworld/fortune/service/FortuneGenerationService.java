@@ -30,7 +30,7 @@ public class FortuneGenerationService {
     private static final String FORTUNE_DESCRIPTION_SERIALIZATION_ERROR_MESSAGE = "운세 결과를 저장 형식으로 변환할 수 없습니다.";
     private static final String FORTUNE_DESCRIPTION_PARSE_ERROR_MESSAGE = "저장된 운세 결과 형식이 올바르지 않습니다.";
     private static final String DEFAULT_LUCKY_DIRECTION = "동쪽";
-    private static final int CAUTION_MAX_LENGTH = 42;
+    private static final int CAUTION_MAX_LENGTH = 32;
     private static final int GMS_MAX_ATTEMPTS = 3;
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#[0-9A-Fa-f]{6}$");
     private static final String[] REQUIRED_SAJU_FIELDS = {"calendarType", "yearPillar", "monthPillar", "dayPillar",
@@ -211,7 +211,7 @@ public class FortuneGenerationService {
             || !StringUtils.hasText(result.luckyDirection()) || !StringUtils.hasText(result.postitLine())
             || !isScore(result.overallLuck()) || !isScore(result.loveLuck()) || !isScore(result.workLuck())
             || !isScore(result.moneyLuck()) || hasInvalidHexColor(result.bgColor())
-            || hasInvalidHexColor(result.accentColor())) {
+            || hasInvalidHexColor(result.accentColor()) || hasTooLongCaution(result.caution())) {
             throw new ServiceUnavailableException(FORTUNE_GMS_RESULT_INVALID_MESSAGE);
         }
     }
@@ -233,11 +233,12 @@ public class FortuneGenerationService {
         }
 
         String normalized = caution.trim().replaceAll("\\s+", " ");
-        if (normalized.length() <= CAUTION_MAX_LENGTH) {
-            return normalized;
-        }
+        return normalized;
+    }
 
-        return normalized.substring(0, CAUTION_MAX_LENGTH - 3).stripTrailing() + "...";
+    private boolean hasTooLongCaution(String caution) {
+        String normalized = normalizeCaution(caution);
+        return normalized != null && normalized.length() > CAUTION_MAX_LENGTH;
     }
 
     private boolean hasInvalidHexColor(String color) {
