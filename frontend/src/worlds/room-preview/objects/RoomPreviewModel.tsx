@@ -9,6 +9,7 @@ import {
   ROOM_PREVIEW_MODEL_OFFSET,
   ROOM_PREVIEW_SCALE,
 } from '../constants'
+import { DISABLED_RAYCAST } from '../raycast'
 
 const MATERIAL_TEXTURE_MAP_KEYS = [
   'alphaMap',
@@ -129,6 +130,7 @@ export default function RoomPreviewModel({
 
       object.visible = !isHiddenPreviewObject(object.name)
       object.frustumCulled = true
+      object.raycast = DISABLED_RAYCAST
       getMeshMaterials(object.material).forEach((material) => {
         preserveSourceMaterial(material, object.name)
       })

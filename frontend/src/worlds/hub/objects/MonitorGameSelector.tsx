@@ -1,7 +1,7 @@
 import { Text, useTexture } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import {
   HUB_GAMES,
@@ -44,6 +44,9 @@ const MONITOR_NAV_ARROW_OUTLINE_WIDTH = 0.01
 const MONITOR_NAV_ARROW_BOB_DISTANCE = 0.052
 const MONITOR_NAV_ARROW_BOB_SPEED = 3.4
 const MONITOR_NAV_ARROW_PULSE_SCALE = 0.045
+const MONITOR_TEXTURE_IDLE_TIMEOUT_MS = 1200
+const DISABLED_RAYCAST: THREE.Mesh['raycast'] = () => undefined
+const configuredMonitorTextures = new WeakSet<THREE.Texture>()
 
 interface MonitorScreenAsset {
   background: string
@@ -93,18 +96,33 @@ const MONITOR_SCREEN_ASSETS: Record<HubGameId, MonitorScreenAsset> = {
 type MonitorGameSelectorScale = number | [number, number, number]
 
 interface MonitorGameSelectorProps {
+  enableInternalHitboxes?: boolean
   position?: [number, number, number]
   quaternion?: [number, number, number, number]
   scale?: MonitorGameSelectorScale
 }
 
 function configureMonitorTexture(texture: THREE.Texture) {
+  if (configuredMonitorTextures.has(texture)) return
+
   texture.colorSpace = THREE.SRGBColorSpace
   texture.anisotropy = 4
   texture.minFilter = THREE.LinearFilter
   texture.magFilter = THREE.LinearFilter
   texture.generateMipmaps = false
   texture.needsUpdate = true
+
+  configuredMonitorTextures.add(texture)
+}
+
+function configureMonitorTextureList(
+  textureInput: THREE.Texture | THREE.Texture[],
+) {
+  const textureList = Array.isArray(textureInput)
+    ? textureInput
+    : [textureInput]
+
+  textureList.forEach(configureMonitorTexture)
 }
 
 function getMonitorAssetTextureUrls(asset: MonitorScreenAsset) {
@@ -112,6 +130,12 @@ function getMonitorAssetTextureUrls(asset: MonitorScreenAsset) {
     ? [asset.background, asset.logo, asset.startButton, asset.ribbon]
     : [asset.background, asset.logo, asset.startButton]
 }
+
+const MONITOR_TEXTURE_URLS = Array.from(
+  new Set(
+    Object.values(MONITOR_SCREEN_ASSETS).flatMap(getMonitorAssetTextureUrls),
+  ),
+)
 
 function getWrappedGameIndex(gameIndex: number) {
   return (gameIndex + HUB_GAMES.length) % HUB_GAMES.length
@@ -133,15 +157,100 @@ function getAdjacentMonitorTextureUrls(selectedGameIndex: number) {
 }
 
 function preloadMonitorTextures(textureUrls: string[]) {
-  textureUrls.forEach((textureUrl) => {
-    useTexture.preload(textureUrl)
-  })
+  if (textureUrls.length === 0) return
+
+  useTexture.preload(textureUrls)
+}
+
+function scheduleMonitorTextureIdleTask(callback: () => void) {
+  if (typeof window === 'undefined') return () => undefined
+
+  if (window.requestIdleCallback && window.cancelIdleCallback) {
+    const idleTaskHandle = window.requestIdleCallback(callback, {
+      timeout: MONITOR_TEXTURE_IDLE_TIMEOUT_MS,
+    })
+
+    return () => {
+      window.cancelIdleCallback(idleTaskHandle)
+    }
+  }
+
+  const timeoutHandle = window.setTimeout(callback, 300)
+
+  return () => {
+    window.clearTimeout(timeoutHandle)
+  }
+}
+
+function useMonitorTextureWarmupTrigger(isMonitorFocused: boolean) {
+  const [
+    shouldWarmAllMonitorTextures,
+    setShouldWarmAllMonitorTextures,
+  ] = useState(false)
+  const hasRequestedWarmupRef = useRef(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (hasRequestedWarmupRef.current) return
+
+    const startWarmup = () => {
+      if (hasRequestedWarmupRef.current) return
+
+      hasRequestedWarmupRef.current = true
+      preloadMonitorTextures(MONITOR_TEXTURE_URLS)
+
+      void (async () => {
+        await Promise.resolve()
+
+        if (cancelled) return
+
+        setShouldWarmAllMonitorTextures(true)
+      })()
+    }
+
+    if (isMonitorFocused) {
+      startWarmup()
+
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const cancelIdleTask = scheduleMonitorTextureIdleTask(startWarmup)
+
+    return () => {
+      cancelled = true
+      cancelIdleTask()
+    }
+  }, [isMonitorFocused])
+
+  return shouldWarmAllMonitorTextures
 }
 
 function setDocumentCursor(cursor: string) {
   if (typeof document === 'undefined') return
 
   document.body.style.cursor = cursor
+}
+
+function MonitorTextureWarmupContent() {
+  const invalidate = useThree((state) => state.invalidate)
+  const textureList = useTexture(
+    MONITOR_TEXTURE_URLS,
+    configureMonitorTextureList,
+  ) as THREE.Texture[]
+
+  useEffect(() => {
+    textureList.forEach(configureMonitorTexture)
+    invalidate()
+  }, [invalidate, textureList])
+
+  return null
+}
+
+function MonitorTextureWarmup({ isEnabled }: { isEnabled: boolean }) {
+  return isEnabled ? <MonitorTextureWarmupContent /> : null
 }
 
 function MonitorTexturePlane({
@@ -154,7 +263,11 @@ function MonitorTexturePlane({
   texture: THREE.Texture
 }) {
   return (
-    <mesh position={position} renderOrder={position[2] * 1000}>
+    <mesh
+      position={position}
+      raycast={DISABLED_RAYCAST}
+      renderOrder={position[2] * 1000}
+    >
       <planeGeometry args={size} />
       <meshBasicMaterial
         alphaTest={0.02}
@@ -189,7 +302,7 @@ function AnimatedTexturePlane({
       position={position}
       renderOrder={position[2] * 1000}
     >
-      <mesh>
+      <mesh raycast={DISABLED_RAYCAST}>
         <planeGeometry args={size} />
         <meshBasicMaterial
           ref={materialRef}
@@ -227,7 +340,7 @@ function AnimatedLogo({
       position={position}
       renderOrder={position[2] * 1000}
     >
-      <mesh>
+      <mesh raycast={DISABLED_RAYCAST}>
         <planeGeometry args={size} />
         <meshBasicMaterial
           ref={logoMaterialRef}
@@ -245,6 +358,7 @@ function AnimatedLogo({
 
 function MonitorHotspot({
   action,
+  enablePointerEvents,
   isArrowAnimated,
   label,
   onClick,
@@ -253,6 +367,7 @@ function MonitorHotspot({
   symbol,
 }: {
   action: MonitorGameAction
+  enablePointerEvents: boolean
   isArrowAnimated: boolean
   label: string
   onClick: () => void
@@ -330,10 +445,15 @@ function MonitorHotspot({
   return (
     <group position={position}>
       <mesh
+        raycast={enablePointerEvents ? undefined : DISABLED_RAYCAST}
         userData={{ monitorAction: action }}
-        onClick={handleClick}
-        onPointerEnter={handleButtonPointerEnter}
-        onPointerLeave={handleButtonPointerLeave}
+        onClick={enablePointerEvents ? handleClick : undefined}
+        onPointerEnter={
+          enablePointerEvents ? handleButtonPointerEnter : undefined
+        }
+        onPointerLeave={
+          enablePointerEvents ? handleButtonPointerLeave : undefined
+        }
       >
         <planeGeometry args={size} />
         <meshBasicMaterial
@@ -380,12 +500,14 @@ function MonitorHotspot({
 }
 
 function AnimatedStartButton({
+  enablePointerEvents,
   entranceProgressRef,
   glowColor,
   label,
   onClick,
   texture,
 }: {
+  enablePointerEvents: boolean
   entranceProgressRef?: MonitorEntranceProgressRef
   glowColor: string
   label: string
@@ -413,7 +535,10 @@ function AnimatedStartButton({
       position={MONITOR_START_BUTTON_POSITION}
       renderOrder={MONITOR_START_BUTTON_LAYER_Z * 1000}
     >
-      <mesh renderOrder={MONITOR_START_BUTTON_LAYER_Z * 1000 - 1}>
+      <mesh
+        raycast={DISABLED_RAYCAST}
+        renderOrder={MONITOR_START_BUTTON_LAYER_Z * 1000 - 1}
+      >
         <planeGeometry args={MONITOR_START_BUTTON_GLOW_SIZE} />
         <meshBasicMaterial
           ref={glowMaterialRef}
@@ -428,7 +553,10 @@ function AnimatedStartButton({
           transparent
         />
       </mesh>
-      <mesh renderOrder={MONITOR_START_BUTTON_LAYER_Z * 1000}>
+      <mesh
+        raycast={DISABLED_RAYCAST}
+        renderOrder={MONITOR_START_BUTTON_LAYER_Z * 1000}
+      >
         <planeGeometry args={MONITOR_START_BUTTON_SIZE} />
         <meshBasicMaterial
           ref={buttonMaterialRef}
@@ -441,6 +569,7 @@ function AnimatedStartButton({
         />
       </mesh>
       <mesh
+        raycast={enablePointerEvents ? undefined : DISABLED_RAYCAST}
         userData={{ monitorAction: 'start', monitorLabel: label }}
         position={[
           0,
@@ -448,11 +577,17 @@ function AnimatedStartButton({
           MONITOR_START_BUTTON_HOTSPOT_POSITION[2] -
             MONITOR_START_BUTTON_POSITION[2],
         ]}
-        onClick={handleClick}
-        onPointerDown={handleButtonPointerDown}
-        onPointerEnter={handleButtonPointerEnter}
-        onPointerLeave={handleButtonPointerLeave}
-        onPointerUp={handleButtonPointerUp}
+        onClick={enablePointerEvents ? handleClick : undefined}
+        onPointerDown={
+          enablePointerEvents ? handleButtonPointerDown : undefined
+        }
+        onPointerEnter={
+          enablePointerEvents ? handleButtonPointerEnter : undefined
+        }
+        onPointerLeave={
+          enablePointerEvents ? handleButtonPointerLeave : undefined
+        }
+        onPointerUp={enablePointerEvents ? handleButtonPointerUp : undefined}
       >
         <planeGeometry args={MONITOR_START_BUTTON_SIZE} />
         <meshBasicMaterial
@@ -508,6 +643,7 @@ function MonitorGameScreen({
 }
 
 function AnimatedMonitorGameContent({
+  enableInternalHitboxes,
   gameTitle,
   glowColor,
   onStartGame,
@@ -515,6 +651,7 @@ function AnimatedMonitorGameContent({
   selectedGameIndex,
   textures,
 }: {
+  enableInternalHitboxes: boolean
   gameTitle: string
   glowColor: string
   onStartGame: () => void
@@ -544,6 +681,7 @@ function AnimatedMonitorGameContent({
           textures={textures}
         />
         <AnimatedStartButton
+          enablePointerEvents={enableInternalHitboxes}
           entranceProgressRef={buttonEntranceProgressRef}
           glowColor={glowColor}
           label={`${gameTitle} 시작`}
@@ -556,6 +694,7 @@ function AnimatedMonitorGameContent({
 }
 
 export default function MonitorGameSelector({
+  enableInternalHitboxes = true,
   position = HUB_MONITOR_SCREEN_POSITION,
   quaternion,
   scale = 1,
@@ -568,9 +707,12 @@ export default function MonitorGameSelector({
     selectPreviousGame,
     startSelectedGame,
   } = useMonitorGameSelector()
-  const shouldAnimateNavArrows = useHubRoomStore(
+  const isMonitorFocused = useHubRoomStore(
     (state) => state.focusKey === 'monitor',
   )
+  const shouldAnimateNavArrows = isMonitorFocused
+  const shouldWarmAllMonitorTextures =
+    useMonitorTextureWarmupTrigger(isMonitorFocused)
   const selectedAsset = MONITOR_SCREEN_ASSETS[selectedGame.id]
   const selectedTextureUrls = useMemo(() => {
     return getMonitorAssetTextureUrls(selectedAsset)
@@ -578,7 +720,10 @@ export default function MonitorGameSelector({
   const adjacentTextureUrls = useMemo(() => {
     return getAdjacentMonitorTextureUrls(selectedGameIndex)
   }, [selectedGameIndex])
-  const textureList = useTexture(selectedTextureUrls) as THREE.Texture[]
+  const textureList = useTexture(
+    selectedTextureUrls,
+    configureMonitorTextureList,
+  ) as THREE.Texture[]
   const textures = selectedTextureUrls.reduce<Record<string, THREE.Texture>>(
     (textureMap, textureUrl, textureIndex) => {
       textureMap[textureUrl] = textureList[textureIndex]
@@ -606,8 +751,13 @@ export default function MonitorGameSelector({
       quaternion={quaternion}
       scale={scale}
     >
+      <Suspense fallback={null}>
+        <MonitorTextureWarmup isEnabled={shouldWarmAllMonitorTextures} />
+      </Suspense>
+
       <mesh
-        onClick={handleScreenClick}
+        raycast={enableInternalHitboxes ? undefined : DISABLED_RAYCAST}
+        onClick={enableInternalHitboxes ? handleScreenClick : undefined}
       >
         <planeGeometry args={HUB_MONITOR_SCREEN_SIZE} />
         <meshStandardMaterial
@@ -620,6 +770,7 @@ export default function MonitorGameSelector({
       </mesh>
 
       <AnimatedMonitorGameContent
+        enableInternalHitboxes={enableInternalHitboxes}
         gameTitle={selectedGame.title}
         glowColor={selectedGame.lightingColor}
         onStartGame={startSelectedGame}
@@ -630,6 +781,7 @@ export default function MonitorGameSelector({
 
       <MonitorHotspot
         action="previous"
+        enablePointerEvents={enableInternalHitboxes}
         isArrowAnimated={shouldAnimateNavArrows}
         label="이전 게임"
         onClick={selectPreviousGame}
@@ -639,6 +791,7 @@ export default function MonitorGameSelector({
       />
       <MonitorHotspot
         action="next"
+        enablePointerEvents={enableInternalHitboxes}
         isArrowAnimated={shouldAnimateNavArrows}
         label="다음 게임"
         onClick={selectNextGame}
