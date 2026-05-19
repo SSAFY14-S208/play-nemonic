@@ -157,6 +157,68 @@
   -webkit-line-clamp: 2;
 }
 
+.shortcutHints {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.75rem;
+  margin-top: 0.18rem;
+  padding-top: 0.52rem;
+  border-top: 1px solid rgb(102 85 126 / 10%);
+}
+
+.shortcutGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.keycapGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+}
+
+.keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  padding: 0 0.32rem;
+  border: 1px solid
+    color-mix(in srgb, var(--monitor-info-accent) 18%, #d8d0ec 82%);
+  border-bottom-width: 2px;
+  border-radius: 0.38rem;
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 76%),
+    rgb(255 255 255 / 42%)
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 68%),
+    0 0.18rem 0.46rem rgb(54 45 80 / 9%);
+  color: color-mix(in srgb, var(--monitor-info-accent) 52%, #51466f 48%);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.keycapWide {
+  min-width: 3.65rem;
+  letter-spacing: 0.02em;
+}
+
+.shortcutLabel {
+  color: #554b73;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
 /* ─── 반응형 ─── */
 
 /* 좁은 viewport: 모니터 위쪽에 compact하게 얹어 하단 버튼과 분리한다. */
@@ -222,6 +284,16 @@
   .detail {
     font-size: 0.76rem;
     -webkit-line-clamp: 2;
+  }
+
+  .shortcutHints {
+    display: none;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .shortcutHints {
+    display: none;
   }
 }
 

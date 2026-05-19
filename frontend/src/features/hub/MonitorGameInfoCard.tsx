@@ -88,6 +88,25 @@ export default function MonitorGameInfoCard() {
               </motion.div>
             </AnimatePresence>
           </div>
+
+          <div
+            className={styles.shortcutHints}
+            aria-label="모니터 키보드 조작 안내"
+          >
+            <span className={styles.shortcutGroup}>
+              <span className={styles.keycapGroup} aria-hidden>
+                <kbd className={styles.keycap}>←</kbd>
+                <kbd className={styles.keycap}>→</kbd>
+              </span>
+              <span className={styles.shortcutLabel}>미니게임 넘기기</span>
+            </span>
+            <span className={styles.shortcutGroup}>
+              <kbd className={cn(styles.keycap, styles.keycapWide)}>
+                Space
+              </kbd>
+              <span className={styles.shortcutLabel}>선택한 미니게임 시작</span>
+            </span>
+          </div>
         </motion.aside>
       )}
     </AnimatePresence>
