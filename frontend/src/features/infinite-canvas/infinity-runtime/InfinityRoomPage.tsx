@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/shared/components'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
+import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import { useInfinityCanvasRoom } from './hooks'
 import { InfinityStageView } from './components/InfinityStageView'
@@ -54,6 +55,7 @@ function InfinityRoomPageInner() {
   const { roomCode } = useParams<{ roomCode: string }>()
   const room = useInfinityCanvasRoom(roomCode ?? null)
   const [isLoadingSettled, setIsLoadingSettled] = useState(false)
+  const drawingStepEmittedRef = useRef(false)
 
   useEffect(() => {
     if (room.isHydrating) {
@@ -70,6 +72,19 @@ function InfinityRoomPageInner() {
 
     return () => window.clearTimeout(timer)
   }, [room.isHydrating])
+
+  // hydrate 완료 + 로딩 settle = 실제 stage view 진입 시점. infinite_canvas funnel의
+  // drawing(step 3) completion을 1회만 emit한다. funnelName 미설정(부스 우회 진입) 시
+  // logger가 early return하므로 안전.
+  useEffect(() => {
+    if (room.isHydrating || !isLoadingSettled) return
+    if (drawingStepEmittedRef.current) return
+    drawingStepEmittedRef.current = true
+    completeFunnelStep('drawing', 3, {
+      content_type: 'infinite_canvas',
+      room_id: roomCode ?? undefined,
+    })
+  }, [isLoadingSettled, room.isHydrating, roomCode])
 
   if (room.isHydrating || !isLoadingSettled) {
     return <RoomLoadingView />

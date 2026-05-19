@@ -10,6 +10,8 @@ import {
   postInvite,
 } from '@/shared/apis'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
+import { useFunnelEntry } from '@/shared/hooks'
+import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
 import { INFINITE_CANVAS_COLOR_OPTIONS } from '../constants'
@@ -47,6 +49,10 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
   const router = useRouter()
   const userUuid = useUserStore((state) => state.userUuid)
   const nickname = useUserStore((state) => state.nickname)
+
+  // 부스 마운트 = infinite_canvas funnel landing(step_index=0). 다른 부스 hook과
+  // 동일 패턴 — startFunnel이 step 1 진입을 의미하므로 별도 logFunnelStep 호출은 하지 않는다.
+  useFunnelEntry('infinite_canvas_creation')
 
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_SELECTED_COLOR)
   const [inviteCodeDraft, setInviteCodeDraftValue] = useState('')
@@ -94,6 +100,12 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
           color: selectedColor,
         })
         saveInfiniteCanvasCreatedRoomSnapshot(canvas)
+        // 닉네임 게이트는 위에서 통과했고, 방 생성 성공 = settings 단계까지 완료.
+        completeFunnelStep('nickname', 1, { content_type: 'infinite_canvas' })
+        completeFunnelStep('settings', 2, {
+          content_type: 'infinite_canvas',
+          room_id: canvas.roomCode,
+        })
         router.push(buildInfiniteCanvasRoomPath(canvas.roomCode))
       } catch (caughtError) {
         const message =
@@ -131,6 +143,12 @@ export function useInfiniteCanvasEntry(): UseInfiniteCanvasEntryReturn {
 
         await patchInfiniteCanvasParticipantColor(invite.roomId, {
           color: selectedColor,
+        })
+        // 닉네임 게이트 통과 + 방 입장 성공 = settings 단계까지 완료.
+        completeFunnelStep('nickname', 1, { content_type: 'infinite_canvas' })
+        completeFunnelStep('settings', 2, {
+          content_type: 'infinite_canvas',
+          room_id: invite.roomId,
         })
         router.push(roomPath)
       } catch (caughtError) {

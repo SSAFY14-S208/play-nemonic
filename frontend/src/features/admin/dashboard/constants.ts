@@ -32,6 +32,7 @@ export const CHART_FUNNEL_COLORS = {
   community_memo_posting: 'hsl(199 95% 60%)', // #38BDF8
   fortune_creation: 'hsl(43 96% 56%)', // #FBBF24
   gallery_save_share: 'hsl(160 64% 52%)', // #34D399
+  infinite_canvas_creation: 'hsl(187 78% 56%)', // #2DD4D8 (cyan)
 } as const
 
 export const CHART_ENTRY_COLORS = {
