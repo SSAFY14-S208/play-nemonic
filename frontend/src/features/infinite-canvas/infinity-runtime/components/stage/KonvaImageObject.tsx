@@ -24,10 +24,107 @@ interface KonvaImageObjectProps {
 }
 
 const imageElementCache = new Map<string, HTMLImageElement>();
+const stickerImageElementCache = new Map<string, HTMLImageElement>();
+const STICKER_BACKGROUND_ALPHA_THRESHOLD = 40;
+const STICKER_BACKGROUND_WHITE_THRESHOLD = 244;
+const STICKER_BACKGROUND_WHITE_VARIANCE = 18;
 
 function resetNodeScale(node: Konva.Image) {
   if (node.scaleX() === 1 && node.scaleY() === 1) return;
   node.scale({ x: 1, y: 1 });
+}
+
+function isAiStickerObject(imageObject: InfinityImage) {
+  return (
+    imageObject.metadata?.source === "ai_sticker" ||
+    imageObject.id.startsWith("ai-sticker-") ||
+    imageObject.objectKey?.includes("/ai-stickers/") === true
+  );
+}
+
+function isStickerBackgroundPixel(pixels: Uint8ClampedArray, pixelIndex: number) {
+  const offset = pixelIndex * 4;
+  const red = pixels[offset] ?? 0;
+  const green = pixels[offset + 1] ?? 0;
+  const blue = pixels[offset + 2] ?? 0;
+  const alpha = pixels[offset + 3] ?? 0;
+  if (alpha <= STICKER_BACKGROUND_ALPHA_THRESHOLD) return true;
+
+  const maxChannel = Math.max(red, green, blue);
+  const minChannel = Math.min(red, green, blue);
+  return (
+    red >= STICKER_BACKGROUND_WHITE_THRESHOLD &&
+    green >= STICKER_BACKGROUND_WHITE_THRESHOLD &&
+    blue >= STICKER_BACKGROUND_WHITE_THRESHOLD &&
+    maxChannel - minChannel <= STICKER_BACKGROUND_WHITE_VARIANCE
+  );
+}
+
+async function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Failed to load sanitized sticker image."));
+    image.src = src;
+  });
+}
+
+async function createSanitizedStickerImage(imageElement: HTMLImageElement) {
+  const sourceWidth = imageElement.naturalWidth || imageElement.width;
+  const sourceHeight = imageElement.naturalHeight || imageElement.height;
+  if (sourceWidth <= 0 || sourceHeight <= 0) return imageElement;
+
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = sourceWidth;
+    canvas.height = sourceHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return imageElement;
+
+    context.drawImage(imageElement, 0, 0, sourceWidth, sourceHeight);
+    const imageData = context.getImageData(0, 0, sourceWidth, sourceHeight);
+    const { data } = imageData;
+    const pixelCount = sourceWidth * sourceHeight;
+    const visited = new Uint8Array(pixelCount);
+    const queue = new Int32Array(pixelCount);
+    let queueStart = 0;
+    let queueEnd = 0;
+
+    const enqueue = (pixelIndex: number) => {
+      if (visited[pixelIndex]) return;
+      if (!isStickerBackgroundPixel(data, pixelIndex)) return;
+      visited[pixelIndex] = 1;
+      queue[queueEnd] = pixelIndex;
+      queueEnd += 1;
+    };
+
+    for (let x = 0; x < sourceWidth; x += 1) {
+      enqueue(x);
+      enqueue((sourceHeight - 1) * sourceWidth + x);
+    }
+    for (let y = 1; y < sourceHeight - 1; y += 1) {
+      enqueue(y * sourceWidth);
+      enqueue(y * sourceWidth + sourceWidth - 1);
+    }
+
+    while (queueStart < queueEnd) {
+      const pixelIndex = queue[queueStart];
+      queueStart += 1;
+      const offset = pixelIndex * 4;
+      data[offset + 3] = 0;
+
+      const x = pixelIndex % sourceWidth;
+      if (x > 0) enqueue(pixelIndex - 1);
+      if (x < sourceWidth - 1) enqueue(pixelIndex + 1);
+      if (pixelIndex >= sourceWidth) enqueue(pixelIndex - sourceWidth);
+      if (pixelIndex < pixelCount - sourceWidth) enqueue(pixelIndex + sourceWidth);
+    }
+
+    context.putImageData(imageData, 0, 0);
+    return await loadImageFromSrc(canvas.toDataURL("image/png"));
+  } catch {
+    return imageElement;
+  }
 }
 
 export function KonvaImageObject({
@@ -47,7 +144,10 @@ export function KonvaImageObject({
   const cachedImageElement = imageElementCache.get(imageObject.src) ?? null;
   const loadedImageElement =
     loadedImage?.src === imageObject.src ? loadedImage.element : null;
-  const imageElement = cachedImageElement ?? loadedImageElement;
+  const shouldSanitizeSticker = isAiStickerObject(imageObject);
+  const cachedStickerImageElement =
+    shouldSanitizeSticker ? stickerImageElementCache.get(imageObject.src) ?? null : null;
+  const imageElement = cachedStickerImageElement ?? cachedImageElement ?? loadedImageElement;
 
   useEffect(() => {
     const cachedImage = imageElementCache.get(imageObject.src);
@@ -68,6 +168,24 @@ export function KonvaImageObject({
       cancelled = true;
     };
   }, [imageObject.src]);
+
+  useEffect(() => {
+    if (!shouldSanitizeSticker || !imageElement || stickerImageElementCache.has(imageObject.src)) {
+      return;
+    }
+
+    let cancelled = false;
+    void createSanitizedStickerImage(imageElement).then((sanitizedImage) => {
+      stickerImageElementCache.set(imageObject.src, sanitizedImage);
+      if (!cancelled) {
+        setLoadedImage({ src: imageObject.src, element: sanitizedImage });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageElement, imageObject.src, shouldSanitizeSticker]);
 
   if (!imageElement) return null;
 
