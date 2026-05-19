@@ -3,7 +3,6 @@ import Image from 'next/image'
 import { motion } from 'motion/react'
 import { cn } from '@/shared/libs'
 import {
-  BAR_POP_DURATION_MS,
   HUB_ROOM_REVEAL_DURATION_MS,
   PERCENT_FADE_OUT_DURATION_MS,
   useHubLoadingOverlay,
@@ -20,14 +19,8 @@ const HUB_LOADING_GRADIENT = [
 ].join(', ')
 
 const BAR_BASE_SHADOW = 'inset 0 1px 4px rgb(91 72 118 / 12%)'
-const BAR_POP_SHADOW =
-  'inset 0 1px 4px rgb(91 72 118 / 12%), 0 0 36px 8px rgba(244, 156, 200, 0.95)'
 
-// Motion durations mirror the hook's POP_SEQUENCE_DURATION_MS budget so the
-// `isReady` transition fires only after both the text fade-out and the bar
-// glow have visibly completed.
 const PERCENT_FADE_OUT_DURATION_SECONDS = PERCENT_FADE_OUT_DURATION_MS / 1000
-const BAR_POP_DURATION_SECONDS = BAR_POP_DURATION_MS / 1000
 
 export default function HubLoadingOverlay({
   isCanvasReady,
@@ -122,33 +115,16 @@ export default function HubLoadingOverlay({
           </p>
           <p className="caption-m text-fg-secondary">{subtitleText}</p>
         </div>
-        <motion.div
+        <div
           className="h-2 w-full overflow-hidden rounded-full bg-surface-subtle"
           style={{ boxShadow: BAR_BASE_SHADOW }}
-          animate={
-            hasReachedFull
-              ? {
-                  boxShadow: [
-                    BAR_BASE_SHADOW,
-                    BAR_POP_SHADOW,
-                    BAR_POP_SHADOW,
-                    BAR_BASE_SHADOW,
-                  ],
-                }
-              : undefined
-          }
-          transition={{
-            duration: BAR_POP_DURATION_SECONDS,
-            delay: PERCENT_FADE_OUT_DURATION_SECONDS,
-            ease: 'easeOut',
-          }}
         >
           <div
             ref={barFillRef}
             className="h-full w-full origin-left rounded-full bg-[var(--hub-loading-primary)]"
             style={{ transform: 'scaleX(0)', willChange: 'transform' }}
           />
-        </motion.div>
+        </div>
         <motion.span
           ref={percentTextRef}
           className="caption-b text-fg-primary inline-block"

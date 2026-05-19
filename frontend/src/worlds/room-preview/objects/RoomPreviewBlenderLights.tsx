@@ -55,7 +55,6 @@ const DEFAULT_HUB_GAME_LIGHTING_COLOR = '#a281d0'
 const GAME_LIGHT_DIRECT_TINT_STRENGTH: Record<string, number> = {
   'Monitor Backlight': 1,
   'Table Backlight': 0.78,
-  'Cube Shelf Backlight': 0.68,
   'Cube TopShelf Bottom light': 0.58,
   'Top Room Light': 0.24,
 }
@@ -63,7 +62,6 @@ const GAME_LIGHT_DIRECT_TINT_STRENGTH: Record<string, number> = {
 const GAME_LIGHT_SPILL_TINT_STRENGTH: Record<string, number> = {
   'Monitor Backlight': 0.92,
   'Table Backlight': 0.6,
-  'Cube Shelf Backlight': 0.48,
   'Cube TopShelf Bottom light': 0.4,
   'Top Room Light': 0.18,
 }
@@ -71,26 +69,6 @@ const GAME_LIGHT_SPILL_TINT_STRENGTH: Record<string, number> = {
 const GAME_POINT_LIGHT_TINT_STRENGTH = 0.42
 
 export const ROOM_PREVIEW_BLENDER_AREA_LIGHTS: RoomPreviewBlenderAreaLight[] = [
-  {
-    color: [0.009721, 0.144131, 0.930095],
-    defaultWidthMultiplier: 1.67,
-    directScale: 0.6,
-    energy: 4,
-    hideRender: false,
-    name: 'Cube Shelf Backlight',
-    nearbyAssets: [
-      'Shelf_Body_Merged_Static',
-      'Desk_Table_Legs_Merged_Static',
-      'Table Light strip',
-    ],
-    position: [-0.604867, 0.322381, 0.28495],
-    positionOffset: [-0.1, 0, 0],
-    quaternion: [0.683671, -0.18054, -0.683671, -0.18054],
-    rotationOffset: [25, 0, 0],
-    size: 1,
-    sizeY: 1,
-    spillScale: 0.016,
-  },
   {
     color: [0.412539, 0.114436, 0.737924],
     defaultDirectMultiplier: 6,

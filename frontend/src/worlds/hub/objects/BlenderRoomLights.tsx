@@ -85,18 +85,6 @@ const BLENDER_AREA_LIGHTS: BlenderAreaLight[] = [
   },
   {
     balanced: true,
-    name: 'Cube Shelf Backlight',
-    position: [-0.6049, 0.3224, 0.285],
-    rotation: [8.3703, 0, 1.5708],
-    color: '#a9c5ff',
-    energy: 4,
-    intensityScale: 0.38,
-    spillScale: 0.026,
-    size: 1,
-    sizeY: 1,
-  },
-  {
-    balanced: true,
     name: 'Top Room Light',
     position: [-0.01, 0.7598, 1.0465],
     rotation: [0, 0, 0],

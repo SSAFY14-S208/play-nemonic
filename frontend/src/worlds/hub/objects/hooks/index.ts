@@ -4,6 +4,7 @@ export {
   type CommunityCanvasWhiteboardPreviewMemo,
   type CommunityCanvasWhiteboardPreviewStatus,
 } from './useCommunityCanvasWhiteboardPreviewMemos'
+export { useCommunityCanvasWhiteboardPreviewTexture } from './useCommunityCanvasWhiteboardPreviewTexture'
 export { useNemonicPrinterStation } from './useNemonicPrinterStation'
 export { usePegboardArea } from './usePegboardArea'
 export { usePrintedNoteDrag } from './usePrintedNoteDrag'

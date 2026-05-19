@@ -128,7 +128,7 @@ export default function RoomPreviewModel({
       if (!(object instanceof THREE.Mesh)) return
 
       object.visible = !isHiddenPreviewObject(object.name)
-      object.frustumCulled = false
+      object.frustumCulled = true
       getMeshMaterials(object.material).forEach((material) => {
         preserveSourceMaterial(material, object.name)
       })
