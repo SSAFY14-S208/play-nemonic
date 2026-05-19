@@ -47,10 +47,12 @@ export function GameLobbyLayout({
   howToPlayTitle,
   howToPlaySubtitle,
   howToPlayAccentColor,
+  autoOpenHowToPlay = false,
 }: GameLobbyLayoutProps) {
-  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false);
-
   const hasHowToPlay = !!howToPlayPanels && howToPlayPanels.length > 0;
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(
+    autoOpenHowToPlay && hasHowToPlay,
+  );
   const hasTimeLimit =
     timeLimitSeconds !== undefined &&
     timeLimitAllowedSeconds !== undefined &&

@@ -5,7 +5,7 @@ import type { GameLobbyTheme } from '@/shared/components'
 import { useUserStore } from '@/shared/stores'
 
 import relayDrawingTitle from '../assets/relay-drawing-title.png'
-import { RELAY_ROOM_CODE } from '../constants'
+import { RELAY_HOW_TO_PLAY_PANELS, RELAY_ROOM_CODE } from '../constants'
 import { useRelayLobby } from '../hooks'
 import { useRelayDrawingStore } from '../stores'
 
@@ -88,6 +88,10 @@ export default function RelayLobbyView() {
       onStartGame={startGame}
       onLeave={leaveRoom}
       isExiting={isExiting}
+      howToPlayPanels={RELAY_HOW_TO_PLAY_PANELS}
+      howToPlayTitle="릴레이 드로잉 게임 설명"
+      howToPlayAccentColor="var(--color-relay-accent)"
+      autoOpenHowToPlay
     />
   )
 }
