@@ -53,6 +53,34 @@ function worldToScreen(
   };
 }
 
+function createViewportSnapshot(
+  scaleRef: React.RefObject<number>,
+  stagePosRef: React.RefObject<{ x: number; y: number }>,
+) {
+  const stagePosition = stagePosRef.current;
+  return {
+    scale: scaleRef.current,
+    stagePosition: {
+      x: stagePosition.x,
+      y: stagePosition.y,
+    },
+  };
+}
+
+function createViewportSize() {
+  if (typeof window === "undefined") {
+    return {
+      width: 1024,
+      height: 768,
+    };
+  }
+
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+}
+
 export function InfinityTextEditor({
   state,
   scaleRef,
@@ -67,16 +95,10 @@ export function InfinityTextEditor({
     state.color || INFINITY_TEXT_DEFAULT_COLOR,
   );
   const [fontFamily, setFontFamily] = useState<string>(state.fontFamily);
-  const [viewportSnapshot, setViewportSnapshot] = useState({
-    scale: 1,
-    stagePosition: { x: 0, y: 0 },
-  });
-  const [viewportSize, setViewportSize] = useState({
-    width: 1024,
-    height: 768,
-  });
+  const [viewportSize, setViewportSize] = useState(createViewportSize);
   const editorRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const viewportSnapshot = createViewportSnapshot(scaleRef, stagePosRef);
 
   const screen = worldToScreen(
     { x: state.x, y: state.y },
@@ -85,21 +107,10 @@ export function InfinityTextEditor({
   );
 
   useEffect(() => {
-    setViewportSnapshot({
-      scale: scaleRef.current,
-      stagePosition: stagePosRef.current,
-    });
-  }, [scaleRef, stagePosRef, state.x, state.y]);
-
-  useEffect(() => {
     const updateViewportSize = () => {
-      setViewportSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
+      setViewportSize(createViewportSize());
     };
 
-    updateViewportSize();
     window.addEventListener("resize", updateViewportSize);
     return () => window.removeEventListener("resize", updateViewportSize);
   }, []);
