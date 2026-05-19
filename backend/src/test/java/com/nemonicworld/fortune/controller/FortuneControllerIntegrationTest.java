@@ -162,6 +162,7 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.data.fortune.workLuck").value(84))
             .andExpect(jsonPath("$.data.fortune.moneyLuck").value(71))
             .andExpect(jsonPath("$.data.fortune.luckyColor").value("은회색"))
+            .andExpect(jsonPath("$.data.fortune.luckyColorHex").value("#C0C0C0"))
             .andExpect(jsonPath("$.data.fortune.luckyKeyword").value("정리"))
             .andExpect(jsonPath("$.data.fortune.luckyDirection").value("동쪽"))
             .andExpect(jsonPath("$.data.fortune.caution").value("결정은 한 템포 늦추는 것이 좋습니다."))
@@ -184,7 +185,7 @@ class FortuneControllerIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(artifactCount).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(galleryCount).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(savedDescription).contains("\"title\":\"오늘은 흐름을 정리하는 날\"")
-            .contains("\"yearPillar\":\"임신\"");
+            .contains("\"yearPillar\":\"임신\"").contains("\"luckyColorHex\":\"#C0C0C0\"");
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
             eq("image/png"));
         org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_create_requested\"")
@@ -304,6 +305,29 @@ class FortuneControllerIntegrationTest {
 
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
             eq("image/png"));
+    }
+
+    /**
+     * GMS가 긴 주의 문장을 반환해도 응답과 저장 데이터에는 프론트 표시 길이에 맞춰 제한합니다.
+     */
+    @Test
+    void createFortuneLimitsCautionLength() throws Exception {
+        UUID userUuid = createExistingUser();
+        insertPrompt();
+        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResultWithLongCaution());
+
+        MvcResult result = mockMvc
+            .perform(post("/api/v1/fortune").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(sajuRequestBody()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.fortune.luckyColorHex").value("#C0C0C0"))
+            .andReturn();
+
+        String caution = responseData(result).path("fortune").path("caution").asText();
+        String savedDescription = jdbcTemplate
+            .queryForObject("SELECT description FROM fortune_artifact WHERE user_id = ?", String.class, userUuid);
+
+        org.assertj.core.api.Assertions.assertThat(caution).hasSizeLessThanOrEqualTo(42).endsWith("...");
+        org.assertj.core.api.Assertions.assertThat(savedDescription).contains("\"caution\":\"%s\"".formatted(caution));
     }
 
     /**
@@ -438,6 +462,7 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.data.fortune.workLuck").value(84))
             .andExpect(jsonPath("$.data.fortune.moneyLuck").value(71))
             .andExpect(jsonPath("$.data.fortune.luckyColor").value("은회색"))
+            .andExpect(jsonPath("$.data.fortune.luckyColorHex").value("#C0C0C0"))
             .andExpect(jsonPath("$.data.fortune.luckyKeyword").value("정리"))
             .andExpect(jsonPath("$.data.fortune.luckyDirection").value("동쪽"))
             .andExpect(jsonPath("$.data.fortune.caution").value("결정은 한 템포 늦추는 것이 좋습니다."))
@@ -569,6 +594,12 @@ class FortuneControllerIntegrationTest {
     private FortuneGmsResult sampleGmsResultWithoutDesign() {
         return new FortuneGmsResult("오늘은 흐름을 정리하는 날", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 78, 66, 84, 71, "은회색", "정리",
             "동쪽", "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", null, null, null, null);
+    }
+
+    private FortuneGmsResult sampleGmsResultWithLongCaution() {
+        return new FortuneGmsResult("오늘은 흐름을 정리하는 날", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 78, 66, 84, 71, "은회색", "정리",
+            "동쪽", "마음이 먼저 앞서면 흐름이 꼬일 수 있으니, 중요한 결정은 한 템포 늦추고 한 번 더 확인하는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", "moon",
+            "#2C2C4A", "#C0C0C0", "moon_waning");
     }
 
     private FortuneGmsResult invalidGmsResult() {

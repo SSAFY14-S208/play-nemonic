@@ -16,6 +16,7 @@ public record FortuneResponse(@Schema(description = "운세 산출물 ID") Strin
         @Schema(description = "일/학업운", example = "84") int workLuck,
         @Schema(description = "금전운", example = "71") int moneyLuck,
         @Schema(description = "행운의 색", example = "은회색") String luckyColor,
+        @Schema(description = "행운의 색 HEX 코드", example = "#C0C0C0") String luckyColorHex,
         @Schema(description = "행운의 키워드", example = "정리") String luckyKeyword,
         @Schema(description = "행운의 방향", example = "동쪽") String luckyDirection,
         @Schema(description = "주의할 점", nullable = true) String caution,

@@ -50,6 +50,7 @@ public class HttpFortuneGmsClient implements FortuneGmsClient {
         cardTheme, bgColor, accentColor, iconKey는 카드 에셋 메타데이터가 없으면 null로 둘 수 있다.
         bgColor와 accentColor를 넣는다면 반드시 #RRGGBB 형식으로 만든다.
         luckyDirection은 동쪽, 서쪽, 남쪽, 북쪽 중 하나로 만든다.
+        caution은 공백 포함 42자 이내의 짧은 문장으로 만든다.
         postitLine은 네모닉 출력에 어울리는 짧은 한 문장으로 만든다.
         """;
 

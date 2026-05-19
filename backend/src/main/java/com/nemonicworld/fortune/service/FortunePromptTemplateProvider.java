@@ -16,6 +16,7 @@ public class FortunePromptTemplateProvider {
         응답은 title, summary, overallLuck, loveLuck, workLuck, moneyLuck, luckyColor, luckyKeyword,
         luckyDirection, caution, postitLine을 포함해야 한다.
         luckyDirection은 동쪽, 서쪽, 남쪽, 북쪽 중 하나로 작성한다.
+        caution은 공백 포함 42자 이내의 짧은 문장으로 작성한다.
         cardTheme, bgColor, accentColor, iconKey는 카드 에셋 메타데이터가 없으면 null로 둘 수 있다.
         """;
 

@@ -2,6 +2,7 @@ package com.nemonicworld.fortune.service.image;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.nemonicworld.common.exception.FileStorageException;
+import com.nemonicworld.fortune.service.FortuneLuckyColorResolver;
 import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -19,7 +20,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import javax.imageio.ImageIO;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -38,15 +38,6 @@ public class FortuneCardRenderer {
     private static final String IMAGE_LOAD_ERROR_MESSAGE = "운세 카드 템플릿 이미지를 불러올 수 없습니다.";
     private static final int CARD_WIDTH = 771;
     private static final int CARD_HEIGHT = 895;
-    private static final Map<String, String> LUCKY_COLOR_HEX = Map.ofEntries(Map.entry("은회색", "#c0c0c0"),
-        Map.entry("베이지", "#d7c09a"), Map.entry("베이지색", "#d7c09a"), Map.entry("짙은베이지", "#9b7a52"),
-        Map.entry("짙은 베이지", "#9b7a52"), Map.entry("진한베이지", "#9b7a52"), Map.entry("진한 베이지", "#9b7a52"),
-        Map.entry("갈색", "#8b5a32"), Map.entry("브라운", "#8b5a32"), Map.entry("노랑", "#f4d35e"),
-        Map.entry("노란색", "#f4d35e"), Map.entry("보라", "#a281d0"), Map.entry("보라색", "#a281d0"),
-        Map.entry("초록", "#8ccf92"), Map.entry("초록색", "#8ccf92"), Map.entry("파랑", "#82b9e6"),
-        Map.entry("파란색", "#82b9e6"), Map.entry("분홍", "#ef9aa7"), Map.entry("분홍색", "#ef9aa7"),
-        Map.entry("흰색", "#f8f6ef"), Map.entry("검정", "#2f2a33"), Map.entry("검은색", "#2f2a33"));
-
     private final Font baseFont;
     private final BufferedImage templateImage;
     private final BufferedImage arrowImage;
@@ -178,13 +169,7 @@ public class FortuneCardRenderer {
     }
 
     private Color resolveLuckyColor(String luckyColor, String seedSource) {
-        if (StringUtils.hasText(luckyColor) && LUCKY_COLOR_HEX.containsKey(luckyColor.trim())) {
-            return Color.decode(LUCKY_COLOR_HEX.get(luckyColor.trim()));
-        }
-
-        String[] fallbackColors = {"#cdb7f6", "#9ed8c3", "#efd27b", "#ef9aa7", "#91bde8"};
-        int index = Math.abs(String.valueOf(seedSource).hashCode()) % fallbackColors.length;
-        return Color.decode(fallbackColors[index]);
+        return Color.decode(FortuneLuckyColorResolver.resolveHex(luckyColor, seedSource));
     }
 
     private String formatFortuneDate(JsonNode saju) {
