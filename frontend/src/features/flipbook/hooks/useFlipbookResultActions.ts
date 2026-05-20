@@ -142,7 +142,7 @@ export function useFlipbookResultActions({
   const canSaveToLocal = Boolean(resultImageUrl) && !isSavingToLocal
   const canPostCommunity = Boolean(communityImageUrl)
   const canShareExternal =
-    Boolean(activeResult && isRealResourceId(activeResult.artifactId)) && !isSharingExternal
+    Boolean(activeResultArtifactId && isRealResourceId(activeResultArtifactId)) && !isSharingExternal
 
   const saveToLocalGallery = useCallback(async () => {
     if (!resultImageUrl || isSavingToLocal) return

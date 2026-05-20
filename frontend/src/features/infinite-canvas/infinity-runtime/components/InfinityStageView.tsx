@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { ArrowDownToLine, ArrowUpToLine, Copy, Link2, LogOut, Printer } from 'lucide-react'
+import { Camera, Copy, Link2, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { useInfinityAiSticker, useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
 import type { InfinityObject } from '../constants'
@@ -28,15 +28,20 @@ import { InfinityTextEditor } from './InfinityTextEditor'
 import { InfinityToolPanel } from './InfinityToolPanel'
 
 type InfinityCanvasRoom = ReturnType<typeof useInfinityCanvasRoom>
-const CURSOR_SEND_INTERVAL_MS = 50
-const DRAFT_SEND_INTERVAL_MS = 33
-const CURSOR_MIN_DISTANCE = 1.5
+const CURSOR_SEND_INTERVAL_MS = 80
+const DRAFT_SEND_INTERVAL_MS = 50
+const CURSOR_MIN_DISTANCE = 3
 const REMOTE_DRAFT_RETENTION_MS = 3500
 const REMOTE_DRAFT_CONFIRMED_RETENTION_MS = 650
 const REMOTE_DRAFT_EXPIRY_REFRESH_THRESHOLD_MS = REMOTE_DRAFT_RETENTION_MS / 2
 
 interface InfinityStageViewProps {
   room: InfinityCanvasRoom
+}
+
+interface StageSize {
+  width: number
+  height: number
 }
 
 interface RetainedRemoteDraft {
@@ -176,7 +181,16 @@ function getDraftObjectSignature(object: InfinityObject) {
   }
 
   if (object.type === 'text') {
-    return [object.id, object.type, object.x, object.y, object.text, object.fontSize, object.color].join(':')
+    return [
+      object.id,
+      object.type,
+      object.x,
+      object.y,
+      object.text,
+      object.fontSize,
+      object.color,
+      object.fontFamily ?? '',
+    ].join(':')
   }
 
   if (object.type === 'fill') {
@@ -281,7 +295,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const previousSelectedIdsRef = useRef<string[]>([])
   const [isCaptureMode, setIsCaptureMode] = useState(false)
   const [copiedInviteTarget, setCopiedInviteTarget] = useState<'link' | 'code' | null>(null)
-  const [layerMenu, setLayerMenu] = useState<{ x: number; y: number } | null>(null)
   const [retainedRemoteDrafts, setRetainedRemoteDrafts] = useState<Record<string, RetainedRemoteDraft>>({})
   const [printRevealPreviewUrl, setPrintRevealPreviewUrl] = useState<string | null>(null)
 
@@ -429,7 +442,12 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   })
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
+  const [stageSize, setStageSize] = useState<StageSize | null>(null)
+  const centerInitialViewportRef = useRef(drawing.viewport.centerInitialViewport)
+
+  useLayoutEffect(() => {
+    centerInitialViewportRef.current = drawing.viewport.centerInitialViewport
+  }, [drawing.viewport.centerInitialViewport])
 
   const serverObjects = useMemo(() => toInfinityObjects(room.elements), [room.elements])
 
@@ -627,20 +645,36 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [retainedRemoteDrafts],
   )
 
-  useEffect(() => {
+  const applyMeasuredStageSize = useCallback((width: number, height: number) => {
+    if (!Number.isFinite(width) || !Number.isFinite(height)) return
+
+    const nextWidth = Math.max(1, Math.round(width))
+    const nextHeight = Math.max(1, Math.round(height))
+
+    setStageSize((currentSize) =>
+      currentSize?.width === nextWidth && currentSize.height === nextHeight
+        ? currentSize
+        : { width: nextWidth, height: nextHeight },
+    )
+    centerInitialViewportRef.current(nextWidth, nextHeight)
+  }, [])
+
+  useLayoutEffect(() => {
     const container = containerRef.current
     if (!container) return
+
+    const bounds = container.getBoundingClientRect()
+    applyMeasuredStageSize(bounds.width, bounds.height)
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (!entry) return
       const { width, height } = entry.contentRect
-      setStageSize({ width, height })
-      drawing.viewport.centerInitialViewport(width, height)
+      applyMeasuredStageSize(width, height)
     })
     observer.observe(container)
     return () => observer.disconnect()
-  }, [drawing.viewport])
+  }, [applyMeasuredStageSize])
 
   useEffect(() => {
     const serverRevision = room.revision
@@ -773,28 +807,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [room.revision, room.roomCode, saveOutput],
   )
 
-  const handleLayerMenuRequest = useCallback(
-    (request: { elementId: string; x: number; y: number }) => {
-      if (getForeignLock(request.elementId)) {
-        handleBlockedObjectEdit(request.elementId)
-        return
-      }
-      setLayerMenu({
-        x: Math.min(Math.max(request.x, 12), window.innerWidth - 172),
-        y: Math.min(Math.max(request.y, 12), window.innerHeight - 112),
-      })
-    },
-    [getForeignLock, handleBlockedObjectEdit],
-  )
-
-  const shiftSelectedLayer = useCallback(
-    (direction: 1 | -1) => {
-      drawing.shiftSelectedZIndex(direction)
-      setLayerMenu(null)
-    },
-    [drawing],
-  )
-
   const releaseSelectedLocks = useCallback(
     (elementIds: string[]) => {
       elementIds.forEach((elementId) => {
@@ -803,17 +815,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     },
     [releaseLock],
   )
-
-  useEffect(() => {
-    if (!layerMenu) return
-    const closeLayerMenu = () => setLayerMenu(null)
-    window.addEventListener('pointerdown', closeLayerMenu)
-    window.addEventListener('keydown', closeLayerMenu)
-    return () => {
-      window.removeEventListener('pointerdown', closeLayerMenu)
-      window.removeEventListener('keydown', closeLayerMenu)
-    }
-  }, [layerMenu])
 
   return (
     <div className="fixed inset-0 h-dvh w-dvw overflow-hidden bg-canvas-background">
@@ -833,35 +834,39 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       />
 
       <div ref={containerRef} className="absolute inset-0 min-w-0 overflow-hidden">
-        <InfinityCanvasStage
-          width={stageSize.width}
-          height={stageSize.height}
-          stageRef={stageRef}
-          drawing={drawing}
-          currentPenLineRef={currentPenLineRef}
-          currentEraserLineRef={currentEraserLineRef}
-          previewRectRef={previewRectRef}
-          previewEllipseRef={previewEllipseRef}
-          cursorPreviewRef={cursorPreviewRef}
-          selectionBoxRef={selectionBoxRef}
-          isShiftDown={drawing.isShiftDown}
-          lockedElements={lockedElements}
-          lockedElementIds={lockedElementIds}
-          remoteDraftObjects={remoteDraftObjects}
-          remoteCursors={remoteCursors}
-          onCursorMove={handleCursorMove}
-          onLayerMenuRequest={handleLayerMenuRequest}
-          onSelectionInteractionEnd={releaseSelectedLocks}
-          onDraftObjectsChange={handleDraftObjectChange}
-        />
+        {stageSize ? (
+          <InfinityCanvasStage
+            width={stageSize.width}
+            height={stageSize.height}
+            stageRef={stageRef}
+            drawing={drawing}
+            currentPenLineRef={currentPenLineRef}
+            currentEraserLineRef={currentEraserLineRef}
+            previewRectRef={previewRectRef}
+            previewEllipseRef={previewEllipseRef}
+            cursorPreviewRef={cursorPreviewRef}
+            selectionBoxRef={selectionBoxRef}
+            isShiftDown={drawing.isShiftDown}
+            lockedElements={lockedElements}
+            lockedElementIds={lockedElementIds}
+            remoteDraftObjects={remoteDraftObjects}
+            remoteCursors={remoteCursors}
+            onCursorMove={handleCursorMove}
+            onSelectionInteractionEnd={releaseSelectedLocks}
+            onDraftObjectsChange={handleDraftObjectChange}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-canvas-background" aria-hidden />
+        )}
 
         {drawing.textEditor && (
           <InfinityTextEditor
+            key={drawing.textEditor.editingId ?? `${drawing.textEditor.x}:${drawing.textEditor.y}`}
             state={drawing.textEditor}
             scaleRef={drawing.viewport.scaleRef}
             stagePosRef={drawing.viewport.stagePosRef}
             editingTool={drawing.tool}
-            onCommit={(text, fontSize) => drawing.commitTextEditor(text, fontSize)}
+            onCommit={(value) => drawing.commitTextEditor(value)}
             onCancel={drawing.closeTextEditor}
           />
         )}
@@ -885,30 +890,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           }}
         />
 
-        {layerMenu && drawing.selectedIds.length > 0 && (
-          <div
-            className="fixed z-30 grid min-w-40 gap-1 rounded-[18px] border border-white/75 bg-white/95 p-2 shadow-[0_16px_32px_rgba(35,64,140,0.22)] backdrop-blur"
-            style={{ left: layerMenu.x, top: layerMenu.y }}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => shiftSelectedLayer(1)}
-              className="body-b inline-flex h-10 items-center gap-2 rounded-full px-3 text-[#25376c] transition-colors hover:bg-[#eaf6ff]"
-            >
-              <ArrowUpToLine className="size-4" aria-hidden />
-              앞으로 가져오기
-            </button>
-            <button
-              type="button"
-              onClick={() => shiftSelectedLayer(-1)}
-              className="body-b inline-flex h-10 items-center gap-2 rounded-full px-3 text-[#25376c] transition-colors hover:bg-[#eaf6ff]"
-            >
-              <ArrowDownToLine className="size-4" aria-hidden />
-              뒤로 보내기
-            </button>
-          </div>
-        )}
       </div>
 
       <section
@@ -955,16 +936,16 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
         participants={room.participants}
       />
 
-      <div className="fixed bottom-8 right-8 z-20 flex items-center gap-4">
+      <div className="fixed bottom-8 right-[calc(7rem+env(safe-area-inset-right))] z-20 flex items-center gap-4">
         <button
           type="button"
           onClick={() => setIsCaptureMode(true)}
           disabled={room.isSavingOutput}
-          className="body-b inline-flex h-12 min-w-[96px] items-center justify-center gap-2 rounded-full border border-white/72 bg-[#3aa7f4] px-5 text-white shadow-[0_10px_22px_rgba(46,95,210,0.22),inset_0_1px_0_rgba(255,255,255,0.42)] transition-transform hover:-translate-y-0.5 hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-55"
-          aria-label="출력"
+          className="body-b inline-flex h-12 min-w-[132px] items-center justify-center gap-2 rounded-full border border-white/72 bg-[#3aa7f4] px-5 text-white shadow-[0_10px_22px_rgba(46,95,210,0.22),inset_0_1px_0_rgba(255,255,255,0.42)] transition-transform hover:-translate-y-0.5 hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-55"
+          aria-label="스크린캡쳐"
         >
-          <Printer className="size-4" aria-hidden />
-          출력
+          <Camera className="size-4" aria-hidden />
+          스크린캡쳐
         </button>
         <button
           type="button"

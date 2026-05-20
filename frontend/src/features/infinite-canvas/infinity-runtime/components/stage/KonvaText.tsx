@@ -1,15 +1,22 @@
 import { Text } from "react-konva";
 import type Konva from "konva";
 
-import type { InfinityText } from "../../constants";
+import {
+  INFINITY_TEXT_DEFAULT_FONT_FAMILY,
+  type InfinityText,
+} from "../../constants";
+import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 
 interface KonvaTextProps {
   textObject: InfinityText;
   isSelectTool: boolean;
   isEditing: boolean;
+  isSelected?: boolean;
   isLocked?: boolean;
+  isGroupedSelection?: boolean;
   onTextClick: (id: string, isShift: boolean) => void;
   onTextDblClick: (id: string) => void;
+  onTextDragMove: (id: string, x: number, y: number) => void;
   onTextDragEnd: (id: string, x: number, y: number) => void;
   onTextTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
 }
@@ -18,9 +25,12 @@ export function KonvaText({
   textObject,
   isSelectTool,
   isEditing,
+  isSelected = false,
   isLocked = false,
+  isGroupedSelection = false,
   onTextClick,
   onTextDblClick,
+  onTextDragMove,
   onTextDragEnd,
   onTextTransformEnd,
 }: KonvaTextProps) {
@@ -32,9 +42,19 @@ export function KonvaText({
       y={textObject.y}
       text={textObject.text}
       fontSize={textObject.fontSize}
+      fontFamily={textObject.fontFamily ?? INFINITY_TEXT_DEFAULT_FONT_FAMILY}
       fill={textObject.color}
       rotation={textObject.rotation ?? 0}
       visible={!isEditing}
+      hitFunc={(context, shape) => {
+        const node = shape as Konva.Text;
+        const padding = isSelected ? 8 : 3;
+        context.beginPath();
+        context.rect(-padding, -padding, node.width() + padding * 2, node.height() + padding * 2);
+        context.closePath();
+        context.fillStrokeShape(shape);
+      }}
+      dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool
@@ -50,10 +70,14 @@ export function KonvaText({
       onDblTap={
         isSelectTool ? () => onTextDblClick(textObject.id) : undefined
       }
+      onDragMove={(e) => {
+        onTextDragMove(textObject.id, e.target.x(), e.target.y());
+      }}
       onDragEnd={(e) => {
         onTextDragEnd(textObject.id, e.target.x(), e.target.y());
       }}
       onTransformEnd={(e) => {
+        if (isGroupedSelection) return;
         const node = e.target as Konva.Text;
         // 텍스트는 사이즈 조절 안 함 — scale 1로 reset, fontSize 유지.
         node.scaleX(1);

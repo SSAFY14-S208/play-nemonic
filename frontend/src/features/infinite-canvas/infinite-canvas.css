@@ -53,11 +53,15 @@
 
 .infinite-canvas-card {
   position: absolute;
-  top: 40.2%;
+  top: 43.2%;
   left: 50%;
   z-index: 2;
   width: clamp(26rem, 58cqw, 64rem);
   transform: translateX(-50%);
+}
+
+.infinite-canvas-color-section {
+  transform: translateY(clamp(0.65rem, 1.2cqw, 1.35rem));
 }
 
 .infinite-canvas-card__label {
@@ -126,7 +130,7 @@
 
 .infinite-canvas-actions {
   position: relative;
-  margin: clamp(3.2rem, 4.65cqw, 4.9rem) auto 0;
+  margin: clamp(1.8rem, 2.5cqw, 2.75rem) auto 0;
   display: grid;
   width: min(88%, 52rem);
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -302,7 +306,7 @@
   }
 
   .infinite-canvas-card {
-    top: 39.8%;
+    top: 42.2%;
     width: 76cqw;
     min-width: 17.5rem;
   }
@@ -317,7 +321,7 @@
 
   .infinite-canvas-actions {
     width: min(96%, 24rem);
-    margin-top: clamp(2rem, 5cqw, 2.85rem);
+    margin-top: clamp(1.1rem, 3.2cqw, 1.65rem);
     gap: clamp(0.45rem, 1.6cqw, 0.8rem);
   }
 }
