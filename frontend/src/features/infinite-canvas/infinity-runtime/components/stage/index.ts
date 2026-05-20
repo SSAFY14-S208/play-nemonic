@@ -7,4 +7,5 @@ export { KonvaText } from "./KonvaText";
 export { DotGridShape } from "./DotGridShape";
 export { CursorPreview } from "./CursorPreview";
 export { SelectionBox } from "./SelectionBox";
+export { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 export type { KonvaShapeProps } from "./shapes.types";

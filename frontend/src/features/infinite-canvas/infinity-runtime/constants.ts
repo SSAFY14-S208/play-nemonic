@@ -52,6 +52,7 @@ export const INFINITY_LINE_TENSION = 0
 export interface InfinityLine {
   id: string
   type: 'line'
+  zIndex?: number
   color: string
   strokeWidth: number
   points: { x: number; y: number }[]
@@ -61,6 +62,7 @@ export interface InfinityLine {
 export interface InfinityFill {
   id: string
   type: 'fill'
+  zIndex?: number
   x: number
   y: number
   width: number
@@ -72,6 +74,7 @@ export interface InfinityFill {
 export interface InfinityShape {
   id: string
   type: 'rect' | 'ellipse'
+  zIndex?: number
   /** top-left x */
   x: number
   /** top-left y */
@@ -88,17 +91,20 @@ export interface InfinityShape {
 export interface InfinityText {
   id: string
   type: 'text'
+  zIndex?: number
   x: number
   y: number
   text: string
   fontSize: number
   color: string
+  fontFamily?: string
   rotation?: number
 }
 
 export interface InfinityImage {
   id: string
   type: 'image'
+  zIndex?: number
   x: number
   y: number
   width: number
@@ -113,5 +119,30 @@ export interface InfinityImage {
 
 export const INFINITY_TEXT_FONT_SIZES = [12, 16, 20, 24, 32, 48, 64] as const
 export const INFINITY_TEXT_DEFAULT_FONT_SIZE = 24
+export const INFINITY_TEXT_DEFAULT_COLOR = '#111111'
+export const INFINITY_TEXT_DEFAULT_FONT_FAMILY = "'Pretendard Variable', Pretendard, sans-serif"
+
+export const INFINITY_TEXT_FONT_FAMILIES = [
+  {
+    label: '기본',
+    value: INFINITY_TEXT_DEFAULT_FONT_FAMILY,
+  },
+  {
+    label: '고딕',
+    value: "'Noto Sans KR', 'Malgun Gothic', sans-serif",
+  },
+  {
+    label: '명조',
+    value: "'Nanum Myeongjo', 'Batang', serif",
+  },
+  {
+    label: '영문',
+    value: 'Georgia, serif',
+  },
+  {
+    label: '코드',
+    value: "'Courier New', monospace",
+  },
+] as const
 
 export type InfinityObject = InfinityLine | InfinityFill | InfinityShape | InfinityText | InfinityImage

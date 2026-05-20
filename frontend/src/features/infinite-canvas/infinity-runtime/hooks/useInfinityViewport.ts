@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import type Konva from 'konva'
 
 const ZOOM_FACTOR = 1.1
@@ -14,6 +14,7 @@ function clamp(value: number, min: number, max: number): number {
 export function useInfinityViewport(
   stageRef: React.RefObject<Konva.Stage | null>,
 ) {
+  const [scale, setScale] = useState(1)
   const scaleRef = useRef<number>(1)
   const stagePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const isSpacePanningRef = useRef<boolean>(false)
@@ -34,6 +35,7 @@ export function useInfinityViewport(
     stage.scale({ x: scaleRef.current, y: scaleRef.current })
     stage.position(stagePosRef.current)
     stage.batchDraw()
+    setScale((currentScale) => (currentScale === scaleRef.current ? currentScale : scaleRef.current))
   }
 
   const scheduleApplyViewport = () => {
@@ -124,6 +126,7 @@ export function useInfinityViewport(
   }
 
   return {
+    scale,
     scaleRef,
     stagePosRef,
     isSpaceDownRef,

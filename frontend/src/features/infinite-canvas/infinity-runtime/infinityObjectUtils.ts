@@ -64,7 +64,8 @@ function isText(value: unknown): value is InfinityText {
     typeof value.y === 'number' &&
     typeof value.text === 'string' &&
     typeof value.fontSize === 'number' &&
-    typeof value.color === 'string'
+    typeof value.color === 'string' &&
+    (value.fontFamily === undefined || typeof value.fontFamily === 'string')
   )
 }
 
@@ -87,6 +88,32 @@ export function isInfinityObject(value: unknown): value is InfinityObject {
 
 export function toInfinityObjects(elements: unknown[]): InfinityObject[] {
   return elements.filter(isInfinityObject)
+}
+
+export function getInfinityObjectLayerIndex(object: InfinityObject, fallbackIndex: number) {
+  return typeof object.zIndex === 'number' && Number.isFinite(object.zIndex)
+    ? object.zIndex
+    : fallbackIndex
+}
+
+export function sortInfinityObjectsByLayer(objects: InfinityObject[]) {
+  return objects
+    .map((object, fallbackIndex) => ({ object, fallbackIndex }))
+    .sort((first, second) => {
+      const layerDiff =
+        getInfinityObjectLayerIndex(first.object, first.fallbackIndex) -
+        getInfinityObjectLayerIndex(second.object, second.fallbackIndex)
+
+      return layerDiff === 0 ? first.fallbackIndex - second.fallbackIndex : layerDiff
+    })
+    .map(({ object }) => object)
+}
+
+export function normalizeInfinityObjectLayerIndexes(objects: InfinityObject[]) {
+  return sortInfinityObjectsByLayer(objects).map((object, layerIndex) => {
+    if (object.zIndex === layerIndex) return object
+    return { ...object, zIndex: layerIndex }
+  })
 }
 
 export function createClientOperationId() {

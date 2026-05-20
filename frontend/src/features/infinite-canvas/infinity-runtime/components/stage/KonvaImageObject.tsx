@@ -4,12 +4,16 @@ import type Konva from "konva";
 
 import type { InfinityImage } from "../../constants";
 import { drawImageAlphaHitRegion } from "./imageHitRegion";
+import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 
 interface KonvaImageObjectProps {
   imageObject: InfinityImage;
   isSelectTool?: boolean;
+  isSelected?: boolean;
   isLocked?: boolean;
+  isGroupedSelection?: boolean;
   onImageClick?: (id: string, isShift: boolean) => void;
+  onImageDragMove?: (id: string, x: number, y: number) => void;
   onImageDragEnd?: (id: string, x: number, y: number) => void;
   onImageTransformEnd?: (
     id: string,
@@ -22,12 +26,188 @@ interface KonvaImageObjectProps {
 }
 
 const imageElementCache = new Map<string, HTMLImageElement>();
+const stickerImageElementCache = new Map<string, HTMLImageElement>();
+const STICKER_BACKGROUND_ALPHA_THRESHOLD = 190;
+const STICKER_BACKGROUND_FRINGE_ALPHA_THRESHOLD = 235;
+const STICKER_BACKGROUND_FRINGE_PASSES = 2;
+const STICKER_BACKGROUND_WHITE_THRESHOLD = 232;
+const STICKER_BACKGROUND_WHITE_VARIANCE = 18;
+
+function resetNodeScale(node: Konva.Image) {
+  if (node.scaleX() === 1 && node.scaleY() === 1) return;
+  node.scale({ x: 1, y: 1 });
+}
+
+function isAiStickerObject(imageObject: InfinityImage) {
+  return (
+    imageObject.metadata?.source === "ai_sticker" ||
+    imageObject.id.startsWith("ai-sticker-") ||
+    imageObject.objectKey?.includes("/ai-stickers/") === true
+  );
+}
+
+function isStickerBackgroundPixel(pixels: Uint8ClampedArray, pixelIndex: number) {
+  const offset = pixelIndex * 4;
+  const red = pixels[offset] ?? 0;
+  const green = pixels[offset + 1] ?? 0;
+  const blue = pixels[offset + 2] ?? 0;
+  const alpha = pixels[offset + 3] ?? 0;
+  if (alpha <= STICKER_BACKGROUND_ALPHA_THRESHOLD) return true;
+
+  const maxChannel = Math.max(red, green, blue);
+  const minChannel = Math.min(red, green, blue);
+  return (
+    red >= STICKER_BACKGROUND_WHITE_THRESHOLD &&
+    green >= STICKER_BACKGROUND_WHITE_THRESHOLD &&
+    blue >= STICKER_BACKGROUND_WHITE_THRESHOLD &&
+    maxChannel - minChannel <= STICKER_BACKGROUND_WHITE_VARIANCE
+  );
+}
+
+function clearStickerPixel(pixels: Uint8ClampedArray, pixelIndex: number) {
+  const offset = pixelIndex * 4;
+  pixels[offset] = 0;
+  pixels[offset + 1] = 0;
+  pixels[offset + 2] = 0;
+  pixels[offset + 3] = 0;
+}
+
+function hasVisitedNeighbor(
+  visited: Uint8Array,
+  pixelIndex: number,
+  sourceWidth: number,
+  pixelCount: number,
+) {
+  const x = pixelIndex % sourceWidth;
+  return (
+    (x > 0 && visited[pixelIndex - 1] === 1) ||
+    (x < sourceWidth - 1 && visited[pixelIndex + 1] === 1) ||
+    (pixelIndex >= sourceWidth && visited[pixelIndex - sourceWidth] === 1) ||
+    (pixelIndex < pixelCount - sourceWidth && visited[pixelIndex + sourceWidth] === 1)
+  );
+}
+
+function removeStickerBackgroundFringe(
+  pixels: Uint8ClampedArray,
+  visited: Uint8Array,
+  sourceWidth: number,
+  pixelCount: number,
+) {
+  for (let pass = 0; pass < STICKER_BACKGROUND_FRINGE_PASSES; pass += 1) {
+    const fringePixelIndexes: number[] = [];
+
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+      if (visited[pixelIndex] === 1) continue;
+
+      const alpha = pixels[pixelIndex * 4 + 3] ?? 0;
+      if (alpha > STICKER_BACKGROUND_FRINGE_ALPHA_THRESHOLD) continue;
+      if (!hasVisitedNeighbor(visited, pixelIndex, sourceWidth, pixelCount)) continue;
+      fringePixelIndexes.push(pixelIndex);
+    }
+
+    if (fringePixelIndexes.length === 0) return;
+
+    for (const pixelIndex of fringePixelIndexes) {
+      visited[pixelIndex] = 1;
+      clearStickerPixel(pixels, pixelIndex);
+    }
+  }
+}
+
+async function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Failed to load sanitized sticker image."));
+    image.src = src;
+  });
+}
+
+async function loadCanvasImageFromSrc(src: string): Promise<HTMLImageElement> {
+  const loadImage = (crossOrigin: "anonymous" | null) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new window.Image();
+      if (crossOrigin) {
+        image.crossOrigin = crossOrigin;
+      }
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Failed to load canvas image."));
+      image.src = src;
+    });
+
+  try {
+    return await loadImage("anonymous");
+  } catch {
+    return loadImage(null);
+  }
+}
+
+async function createSanitizedStickerImage(imageElement: HTMLImageElement) {
+  const sourceWidth = imageElement.naturalWidth || imageElement.width;
+  const sourceHeight = imageElement.naturalHeight || imageElement.height;
+  if (sourceWidth <= 0 || sourceHeight <= 0) return imageElement;
+
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = sourceWidth;
+    canvas.height = sourceHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return imageElement;
+
+    context.drawImage(imageElement, 0, 0, sourceWidth, sourceHeight);
+    const imageData = context.getImageData(0, 0, sourceWidth, sourceHeight);
+    const { data } = imageData;
+    const pixelCount = sourceWidth * sourceHeight;
+    const visited = new Uint8Array(pixelCount);
+    const queue = new Int32Array(pixelCount);
+    let queueStart = 0;
+    let queueEnd = 0;
+
+    const enqueue = (pixelIndex: number) => {
+      if (visited[pixelIndex]) return;
+      if (!isStickerBackgroundPixel(data, pixelIndex)) return;
+      visited[pixelIndex] = 1;
+      queue[queueEnd] = pixelIndex;
+      queueEnd += 1;
+    };
+
+    for (let x = 0; x < sourceWidth; x += 1) {
+      enqueue(x);
+      enqueue((sourceHeight - 1) * sourceWidth + x);
+    }
+    for (let y = 1; y < sourceHeight - 1; y += 1) {
+      enqueue(y * sourceWidth);
+      enqueue(y * sourceWidth + sourceWidth - 1);
+    }
+
+    while (queueStart < queueEnd) {
+      const pixelIndex = queue[queueStart];
+      queueStart += 1;
+      clearStickerPixel(data, pixelIndex);
+
+      const x = pixelIndex % sourceWidth;
+      if (x > 0) enqueue(pixelIndex - 1);
+      if (x < sourceWidth - 1) enqueue(pixelIndex + 1);
+      if (pixelIndex >= sourceWidth) enqueue(pixelIndex - sourceWidth);
+      if (pixelIndex < pixelCount - sourceWidth) enqueue(pixelIndex + sourceWidth);
+    }
+
+    removeStickerBackgroundFringe(data, visited, sourceWidth, pixelCount);
+    context.putImageData(imageData, 0, 0);
+    return await loadImageFromSrc(canvas.toDataURL("image/png"));
+  } catch {
+    return imageElement;
+  }
+}
 
 export function KonvaImageObject({
   imageObject,
   isSelectTool = false,
+  isSelected = false,
   isLocked = false,
+  isGroupedSelection = false,
   onImageClick,
+  onImageDragMove,
   onImageDragEnd,
   onImageTransformEnd,
 }: KonvaImageObjectProps) {
@@ -38,27 +218,50 @@ export function KonvaImageObject({
   const cachedImageElement = imageElementCache.get(imageObject.src) ?? null;
   const loadedImageElement =
     loadedImage?.src === imageObject.src ? loadedImage.element : null;
-  const imageElement = cachedImageElement ?? loadedImageElement;
+  const shouldSanitizeSticker = isAiStickerObject(imageObject);
+  const cachedStickerImageElement =
+    shouldSanitizeSticker ? stickerImageElementCache.get(imageObject.src) ?? null : null;
+  const sourceImageElement = cachedImageElement ?? loadedImageElement;
+  const imageElement = shouldSanitizeSticker
+    ? cachedStickerImageElement ?? sourceImageElement
+    : sourceImageElement;
 
   useEffect(() => {
     const cachedImage = imageElementCache.get(imageObject.src);
     if (cachedImage) return;
 
     let cancelled = false;
-    const image = new window.Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
+    void loadCanvasImageFromSrc(imageObject.src).then((image) => {
       imageElementCache.set(imageObject.src, image);
       if (!cancelled) {
         setLoadedImage({ src: imageObject.src, element: image });
       }
-    };
-    image.src = imageObject.src;
+    }).catch(() => {
+      // Broken image URLs are ignored here; the API layer already reports creation failures.
+    });
 
     return () => {
       cancelled = true;
     };
   }, [imageObject.src]);
+
+  useEffect(() => {
+    if (!shouldSanitizeSticker || !sourceImageElement || stickerImageElementCache.has(imageObject.src)) {
+      return;
+    }
+
+    let cancelled = false;
+    void createSanitizedStickerImage(sourceImageElement).then((sanitizedImage) => {
+      stickerImageElementCache.set(imageObject.src, sanitizedImage);
+      if (!cancelled) {
+        setLoadedImage({ src: imageObject.src, element: sanitizedImage });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageObject.src, shouldSanitizeSticker, sourceImageElement]);
 
   if (!imageElement) return null;
 
@@ -74,6 +277,13 @@ export function KonvaImageObject({
       listening={isSelectTool}
       perfectDrawEnabled={false}
       hitFunc={(context, shape) => {
+        if (isSelected) {
+          context.beginPath();
+          context.rect(0, 0, imageObject.width, imageObject.height);
+          context.closePath();
+          context.fillStrokeShape(shape);
+          return;
+        }
         drawImageAlphaHitRegion({
           context,
           imageElement,
@@ -82,6 +292,7 @@ export function KonvaImageObject({
           height: imageObject.height,
         });
       }}
+      dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool
@@ -89,15 +300,21 @@ export function KonvaImageObject({
           : undefined
       }
       onTap={isSelectTool ? () => onImageClick?.(imageObject.id, false) : undefined}
+      onDragMove={(event) => {
+        const node = event.target as Konva.Image;
+        onImageDragMove?.(imageObject.id, node.x(), node.y());
+      }}
       onDragEnd={(event) => {
-        onImageDragEnd?.(imageObject.id, event.target.x(), event.target.y());
+        const node = event.target as Konva.Image;
+        resetNodeScale(node);
+        onImageDragEnd?.(imageObject.id, node.x(), node.y());
       }}
       onTransformEnd={(event) => {
+        if (isGroupedSelection) return;
         const node = event.target as Konva.Image;
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();
-        node.scaleX(1);
-        node.scaleY(1);
+        resetNodeScale(node);
         onImageTransformEnd?.(
           imageObject.id,
           node.x(),

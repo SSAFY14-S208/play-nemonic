@@ -1,23 +1,39 @@
 import { Line } from "react-konva";
 
 import { INFINITY_LINE_TENSION, type InfinityLine } from "../../constants";
-import { flattenPoints } from "./shapes.types";
+import {
+  OBJECT_DRAG_DISTANCE,
+  flattenPoints,
+  getExpandedHitStrokeWidth,
+} from "./shapes.types";
+
+const LINE_HIT_STROKE_MIN_WIDTH = 18;
+const SELECTED_LINE_HIT_STROKE_MIN_WIDTH = 24;
 
 interface KonvaLineProps {
   line: InfinityLine;
   isSelectTool?: boolean;
+  isSelected?: boolean;
   isLocked?: boolean;
   onLineClick?: (id: string, isShift: boolean) => void;
+  onLineDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onLineDragEnd?: (id: string, deltaX: number, deltaY: number) => void;
 }
 
 export function KonvaLine({
   line,
   isSelectTool = false,
+  isSelected = false,
   isLocked = false,
   onLineClick,
+  onLineDragMove,
   onLineDragEnd,
 }: KonvaLineProps) {
+  const hitStrokeWidth = Math.max(
+    getExpandedHitStrokeWidth(line.strokeWidth),
+    isSelected ? SELECTED_LINE_HIT_STROKE_MIN_WIDTH : LINE_HIT_STROKE_MIN_WIDTH,
+  );
+
   return (
     <Line
       id={line.id}
@@ -31,7 +47,8 @@ export function KonvaLine({
         line.isEraser ? "destination-out" : "source-over"
       }
       tension={INFINITY_LINE_TENSION}
-      hitStrokeWidth={line.strokeWidth}
+      hitStrokeWidth={hitStrokeWidth}
+      dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool
@@ -39,6 +56,9 @@ export function KonvaLine({
           : undefined
       }
       onTap={isSelectTool ? () => onLineClick?.(line.id, false) : undefined}
+      onDragMove={(event) => {
+        onLineDragMove?.(line.id, event.target.x(), event.target.y());
+      }}
       onDragEnd={(event) => {
         const deltaX = event.target.x();
         const deltaY = event.target.y();

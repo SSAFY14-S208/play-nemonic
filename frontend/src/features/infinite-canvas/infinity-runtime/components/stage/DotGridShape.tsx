@@ -30,6 +30,18 @@ export function DotGridShape({
   const drawDotGrid = (context: Konva.Context, shape: Konva.Shape) => {
     const scale = scaleRef.current;
     const stagePos = stagePosRef.current;
+    if (
+      width <= 0 ||
+      height <= 0 ||
+      scale <= 0 ||
+      !Number.isFinite(width) ||
+      !Number.isFinite(height) ||
+      !Number.isFinite(scale) ||
+      !Number.isFinite(stagePos.x) ||
+      !Number.isFinite(stagePos.y)
+    ) {
+      return;
+    }
 
     let effectiveSpacing = DOT_SPACING;
     let doublings = 0;

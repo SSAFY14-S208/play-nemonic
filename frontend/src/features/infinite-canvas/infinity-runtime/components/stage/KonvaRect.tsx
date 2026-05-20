@@ -1,17 +1,25 @@
 import { Rect } from "react-konva";
 import type Konva from "konva";
 
-import type { KonvaShapeProps } from "./shapes.types";
+import {
+  OBJECT_DRAG_DISTANCE,
+  getExpandedHitStrokeWidth,
+  type KonvaShapeProps,
+} from "./shapes.types";
 
 export function KonvaRect({
   shape,
   isSelectTool,
+  isSelected = false,
   isLocked = false,
+  isGroupedSelection = false,
   onShapeClick,
+  onShapeDragMove,
   onShapeDragEnd,
   onShapeTransformEnd,
 }: KonvaShapeProps) {
   const isFilled = Boolean(shape.fill);
+  const fill = shape.fill ?? (isSelected ? "rgba(0,0,0,0)" : undefined);
 
   return (
     <Rect
@@ -24,8 +32,9 @@ export function KonvaRect({
       rotation={shape.rotation ?? 0}
       stroke={isFilled ? undefined : shape.color}
       strokeWidth={isFilled ? 0 : shape.strokeWidth}
-      fill={shape.fill}
-      hitStrokeWidth={isFilled ? undefined : shape.strokeWidth}
+      fill={fill}
+      hitStrokeWidth={isFilled || isSelected ? undefined : getExpandedHitStrokeWidth(shape.strokeWidth)}
+      dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
         isSelectTool
@@ -33,10 +42,14 @@ export function KonvaRect({
           : undefined
       }
       onTap={isSelectTool ? () => onShapeClick(shape.id, false) : undefined}
+      onDragMove={(e) => {
+        onShapeDragMove?.(shape.id, e.target.x(), e.target.y());
+      }}
       onDragEnd={(e) => {
         onShapeDragEnd(shape.id, e.target.x(), e.target.y());
       }}
       onTransformEnd={(e) => {
+        if (isGroupedSelection) return;
         const node = e.target as Konva.Rect;
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();

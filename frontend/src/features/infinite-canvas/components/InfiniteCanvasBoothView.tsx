@@ -127,13 +127,15 @@ export default function InfiniteCanvasBoothView() {
           </div>
 
           <div className="infinite-canvas-card">
-            <p className="infinite-canvas-card__label">색 고르기</p>
+            <div className="infinite-canvas-color-section">
+              <p className="infinite-canvas-card__label">색 고르기</p>
 
-            <InfiniteCanvasColorPicker
-              options={INFINITE_CANVAS_COLOR_OPTIONS}
-              selectedColor={selectedColor}
-              onSelectColor={setSelectedColor}
-            />
+              <InfiniteCanvasColorPicker
+                options={INFINITE_CANVAS_COLOR_OPTIONS}
+                selectedColor={selectedColor}
+                onSelectColor={setSelectedColor}
+              />
+            </div>
 
             <div className="infinite-canvas-actions">
               <InfiniteCanvasActionButton

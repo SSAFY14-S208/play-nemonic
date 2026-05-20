@@ -11,9 +11,10 @@ import {
   type InfinityShape,
   type InfinityText,
   type InfinityToolKey,
+  INFINITY_TEXT_DEFAULT_COLOR,
+  INFINITY_TEXT_DEFAULT_FONT_FAMILY,
   INFINITY_TEXT_DEFAULT_FONT_SIZE,
 } from '../constants'
-
 function generateId(): string {
   return Math.random().toString(36).slice(2, 9)
 }
@@ -33,6 +34,18 @@ const BUCKET_FILL_BARRIER_DILATION_PASSES = 0
 const BUCKET_FILL_DILATION_PASSES = 6
 const BUCKET_FILL_DILATION_COLOR_TOLERANCE = 96
 const BUCKET_FILL_HIT_PADDING = 20
+const SHAPE_PREVIEW_MIN_DELTA = 0.5
+interface Bounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+interface FillableObjectEntry {
+  object: InfinityObject
+  bounds: Bounds
+}
 
 function shouldAppendLinePoint(
   previousPoint: { x: number; y: number } | undefined,
@@ -105,7 +118,36 @@ function recolorObject(object: InfinityObject, color: string): InfinityObject {
   return { ...object, color }
 }
 
-function getObjectBounds(object: InfinityObject) {
+function getDragDeltaFromObject(object: InfinityObject, x: number, y: number) {
+  if (object.type === 'line') {
+    return { x, y }
+  }
+
+  return {
+    x: x - object.x,
+    y: y - object.y,
+  }
+}
+
+function moveObjectByDelta(object: InfinityObject, deltaX: number, deltaY: number): InfinityObject {
+  if (object.type === 'line') {
+    return {
+      ...object,
+      points: object.points.map((point) => ({
+        x: point.x + deltaX,
+        y: point.y + deltaY,
+      })),
+    }
+  }
+
+  return {
+    ...object,
+    x: object.x + deltaX,
+    y: object.y + deltaY,
+  }
+}
+
+function getObjectBounds(object: InfinityObject): Bounds | null {
   if (object.type === 'fill' || object.type === 'rect' || object.type === 'ellipse' || object.type === 'image') {
     return {
       x: object.x,
@@ -125,12 +167,17 @@ function getObjectBounds(object: InfinityObject) {
   }
 
   if (object.type !== 'line' || object.points.length === 0) return null
-  const xValues = object.points.map((point) => point.x)
-  const yValues = object.points.map((point) => point.y)
-  const minX = Math.min(...xValues)
-  const maxX = Math.max(...xValues)
-  const minY = Math.min(...yValues)
-  const maxY = Math.max(...yValues)
+  let minX = object.points[0].x
+  let maxX = object.points[0].x
+  let minY = object.points[0].y
+  let maxY = object.points[0].y
+  for (let pointIndex = 1; pointIndex < object.points.length; pointIndex++) {
+    const point = object.points[pointIndex]
+    if (point.x < minX) minX = point.x
+    if (point.x > maxX) maxX = point.x
+    if (point.y < minY) minY = point.y
+    if (point.y > maxY) maxY = point.y
+  }
   const padding = Math.max(object.strokeWidth, 8)
 
   return {
@@ -141,27 +188,25 @@ function getObjectBounds(object: InfinityObject) {
   }
 }
 
-function expandBounds(
-  bounds: { x: number; y: number; width: number; height: number },
-  padding: number,
-) {
-  return {
-    x: bounds.x - padding,
-    y: bounds.y - padding,
-    width: bounds.width + padding * 2,
-    height: bounds.height + padding * 2,
-  }
-}
-
 function containsPoint(
-  bounds: { x: number; y: number; width: number; height: number },
+  bounds: Bounds,
   point: { x: number; y: number },
+  padding = 0,
 ) {
   return (
-    point.x >= bounds.x &&
-    point.x <= bounds.x + bounds.width &&
-    point.y >= bounds.y &&
-    point.y <= bounds.y + bounds.height
+    point.x >= bounds.x - padding &&
+    point.x <= bounds.x + bounds.width + padding &&
+    point.y >= bounds.y - padding &&
+    point.y <= bounds.y + bounds.height + padding
+  )
+}
+
+function intersectsBounds(firstBounds: Bounds, secondBounds: Bounds, padding = 0) {
+  return (
+    firstBounds.x - padding <= secondBounds.x + secondBounds.width &&
+    firstBounds.x + firstBounds.width + padding >= secondBounds.x &&
+    firstBounds.y - padding <= secondBounds.y + secondBounds.height &&
+    firstBounds.y + firstBounds.height + padding >= secondBounds.y
   )
 }
 
@@ -245,7 +290,10 @@ function drawObjectForBucketFill(
       context.strokeStyle = object.color
       context.beginPath()
       context.moveTo(firstPoint.x, firstPoint.y)
-      object.points.slice(1).forEach((point) => context.lineTo(point.x, point.y))
+      for (let pointIndex = 1; pointIndex < object.points.length; pointIndex++) {
+        const point = object.points[pointIndex]
+        context.lineTo(point.x, point.y)
+      }
       context.stroke()
     }
     context.restore()
@@ -298,34 +346,51 @@ function createBucketFillObject({
   pointerPosition: { x: number; y: number }
   color: string
 }): InfinityFill | null {
-  const fillableObjects = objects.filter((object) => object.type !== 'fill' && object.type !== 'text')
-  const candidateEntries = fillableObjects.flatMap((object) => {
-      const bounds = getObjectBounds(object)
-      if (!bounds) return []
-      return { object, bounds }
-    })
-    .filter((entry) => containsPoint(expandBounds(entry.bounds, BUCKET_FILL_HIT_PADDING), pointerPosition))
+  const fillableEntries: FillableObjectEntry[] = []
+  const candidateEntries: FillableObjectEntry[] = []
+  let candidateMinX = pointerPosition.x
+  let candidateMinY = pointerPosition.y
+  let candidateMaxX = pointerPosition.x
+  let candidateMaxY = pointerPosition.y
+
+  for (const object of objects) {
+    if (object.type === 'fill' || object.type === 'text') continue
+    const bounds = getObjectBounds(object)
+    if (!bounds) continue
+    const entry = { object, bounds }
+    fillableEntries.push(entry)
+
+    if (!containsPoint(bounds, pointerPosition, BUCKET_FILL_HIT_PADDING)) continue
+    candidateEntries.push(entry)
+    candidateMinX = Math.min(candidateMinX, bounds.x)
+    candidateMinY = Math.min(candidateMinY, bounds.y)
+    candidateMaxX = Math.max(candidateMaxX, bounds.x + bounds.width)
+    candidateMaxY = Math.max(candidateMaxY, bounds.y + bounds.height)
+  }
 
   if (candidateEntries.length === 0) return null
 
-  const bounds = candidateEntries.map((entry) => entry.bounds)
-  const minX = Math.floor(Math.min(pointerPosition.x, ...bounds.map((bound) => bound.x)) - BUCKET_FILL_PADDING)
-  const minY = Math.floor(Math.min(pointerPosition.y, ...bounds.map((bound) => bound.y)) - BUCKET_FILL_PADDING)
-  const maxX = Math.ceil(Math.max(pointerPosition.x, ...bounds.map((bound) => bound.x + bound.width)) + BUCKET_FILL_PADDING)
-  const maxY = Math.ceil(Math.max(pointerPosition.y, ...bounds.map((bound) => bound.y + bound.height)) + BUCKET_FILL_PADDING)
+  const minX = Math.floor(candidateMinX - BUCKET_FILL_PADDING)
+  const minY = Math.floor(candidateMinY - BUCKET_FILL_PADDING)
+  const maxX = Math.ceil(candidateMaxX + BUCKET_FILL_PADDING)
+  const maxY = Math.ceil(candidateMaxY + BUCKET_FILL_PADDING)
   const rawWidth = maxX - minX
   const rawHeight = maxY - minY
   if (rawWidth <= 0 || rawHeight <= 0 || rawWidth > BUCKET_FILL_MAX_SIZE || rawHeight > BUCKET_FILL_MAX_SIZE) {
     return null
   }
 
+  const bucketBounds = { x: minX, y: minY, width: rawWidth, height: rawHeight }
+  const affectedEntries = fillableEntries.filter((entry) =>
+    intersectsBounds(entry.bounds, bucketBounds, BUCKET_FILL_HIT_PADDING),
+  )
   const canvas = document.createElement('canvas')
   canvas.width = rawWidth
   canvas.height = rawHeight
-  const context = canvas.getContext('2d')
+  const context = canvas.getContext('2d', { willReadFrequently: true })
   if (!context) return null
 
-  fillableObjects.forEach((object) => drawObjectForBucketFill(context, object, { x: minX, y: minY }))
+  affectedEntries.forEach((entry) => drawObjectForBucketFill(context, entry.object, { x: minX, y: minY }))
 
   const seedX = Math.floor(pointerPosition.x - minX)
   const seedY = Math.floor(pointerPosition.y - minY)
@@ -363,16 +428,29 @@ function createBucketFillObject({
 
   const fillImageData = fillContext.createImageData(rawWidth, rawHeight)
   const fillPixels = fillImageData.data
-  const visited = new Uint8Array(rawWidth * rawHeight)
-  const pending = [seedPixelIndex]
+  const pixelCount = rawWidth * rawHeight
+  const visited = new Uint8Array(pixelCount)
+  const pending = new Int32Array(pixelCount)
+  let pendingCount = 0
   let filledPixelCount = 0
   let touchesBoundary = false
+  let filledMinX = rawWidth
+  let filledMinY = rawHeight
+  let filledMaxX = 0
+  let filledMaxY = 0
 
-  while (pending.length > 0) {
-    const currentPixelIndex = pending.pop()
-    if (currentPixelIndex === undefined || visited[currentPixelIndex] === 1) continue
-    visited[currentPixelIndex] = 1
+  const enqueuePixel = (pixelIndex: number) => {
+    if (visited[pixelIndex] === 1) return
+    visited[pixelIndex] = 1
+    pending[pendingCount] = pixelIndex
+    pendingCount += 1
+  }
 
+  enqueuePixel(seedPixelIndex)
+
+  while (pendingCount > 0) {
+    pendingCount -= 1
+    const currentPixelIndex = pending[pendingCount]
     const pixelOffset = currentPixelIndex * 4
     if (barrierPixels?.[currentPixelIndex] === 1) continue
     if (!isPixelMatchingTarget(sourcePixels, pixelOffset, targetColor)) continue
@@ -388,50 +466,60 @@ function createBucketFillObject({
     fillPixels[pixelOffset + 2] = selectedFillColor.blue
     fillPixels[pixelOffset + 3] = 255
     filledPixelCount += 1
+    if (x < filledMinX) filledMinX = x
+    if (y < filledMinY) filledMinY = y
+    if (x > filledMaxX) filledMaxX = x
+    if (y > filledMaxY) filledMaxY = y
 
-    if (x > 0) pending.push(currentPixelIndex - 1)
-    if (x < rawWidth - 1) pending.push(currentPixelIndex + 1)
-    if (y > 0) pending.push(currentPixelIndex - rawWidth)
-    if (y < rawHeight - 1) pending.push(currentPixelIndex + rawWidth)
+    if (x > 0) enqueuePixel(currentPixelIndex - 1)
+    if (x < rawWidth - 1) enqueuePixel(currentPixelIndex + 1)
+    if (y > 0) enqueuePixel(currentPixelIndex - rawWidth)
+    if (y < rawHeight - 1) enqueuePixel(currentPixelIndex + rawWidth)
   }
 
   if (filledPixelCount === 0 || touchesBoundary) return null
 
   for (let dilationPass = 0; dilationPass < BUCKET_FILL_DILATION_PASSES; dilationPass++) {
     const newlyFilledIndexes: number[] = []
+    const scanMinX = Math.max(0, filledMinX - 1)
+    const scanMinY = Math.max(0, filledMinY - 1)
+    const scanMaxX = Math.min(rawWidth - 1, filledMaxX + 1)
+    const scanMaxY = Math.min(rawHeight - 1, filledMaxY + 1)
 
-    for (let pixelIndex = 0; pixelIndex < rawWidth * rawHeight; pixelIndex++) {
-      const pixelOffset = pixelIndex * 4
-      if (fillPixels[pixelOffset + 3] === 255) continue
+    for (let y = scanMinY; y <= scanMaxY; y++) {
+      const rowOffset = y * rawWidth
+      for (let x = scanMinX; x <= scanMaxX; x++) {
+        const pixelIndex = rowOffset + x
+        const pixelOffset = pixelIndex * 4
+        if (fillPixels[pixelOffset + 3] === 255) continue
 
-      const x = pixelIndex % rawWidth
-      const y = Math.floor(pixelIndex / rawWidth)
-      let filledNeighborCount = 0
+        let filledNeighborCount = 0
 
-      if (x > 0 && fillPixels[(pixelIndex - 1) * 4 + 3] === 255) {
-        filledNeighborCount += 1
-      }
-      if (x < rawWidth - 1 && fillPixels[(pixelIndex + 1) * 4 + 3] === 255) {
-        filledNeighborCount += 1
-      }
-      if (y > 0 && fillPixels[(pixelIndex - rawWidth) * 4 + 3] === 255) {
-        filledNeighborCount += 1
-      }
-      if (y < rawHeight - 1 && fillPixels[(pixelIndex + rawWidth) * 4 + 3] === 255) {
-        filledNeighborCount += 1
-      }
+        if (x > 0 && fillPixels[(pixelIndex - 1) * 4 + 3] === 255) {
+          filledNeighborCount += 1
+        }
+        if (x < rawWidth - 1 && fillPixels[(pixelIndex + 1) * 4 + 3] === 255) {
+          filledNeighborCount += 1
+        }
+        if (y > 0 && fillPixels[(pixelIndex - rawWidth) * 4 + 3] === 255) {
+          filledNeighborCount += 1
+        }
+        if (y < rawHeight - 1 && fillPixels[(pixelIndex + rawWidth) * 4 + 3] === 255) {
+          filledNeighborCount += 1
+        }
 
-      if (filledNeighborCount === 0) continue
+        if (filledNeighborCount === 0) continue
 
-      const sourceAlpha = sourcePixels[pixelOffset + 3]
-      const isHaloCandidate = isTransparentTarget
-        ? sourceAlpha < 255 || filledNeighborCount >= 3
-        : Math.abs(sourcePixels[pixelOffset] - targetColor.red) <= BUCKET_FILL_DILATION_COLOR_TOLERANCE &&
-          Math.abs(sourcePixels[pixelOffset + 1] - targetColor.green) <= BUCKET_FILL_DILATION_COLOR_TOLERANCE &&
-          Math.abs(sourcePixels[pixelOffset + 2] - targetColor.blue) <= BUCKET_FILL_DILATION_COLOR_TOLERANCE
+        const sourceAlpha = sourcePixels[pixelOffset + 3]
+        const isHaloCandidate = isTransparentTarget
+          ? sourceAlpha < 255 || filledNeighborCount >= 3
+          : Math.abs(sourcePixels[pixelOffset] - targetColor.red) <= BUCKET_FILL_DILATION_COLOR_TOLERANCE &&
+            Math.abs(sourcePixels[pixelOffset + 1] - targetColor.green) <= BUCKET_FILL_DILATION_COLOR_TOLERANCE &&
+            Math.abs(sourcePixels[pixelOffset + 2] - targetColor.blue) <= BUCKET_FILL_DILATION_COLOR_TOLERANCE
 
-      if (isHaloCandidate && barrierPixels?.[pixelIndex] !== 1) {
-        newlyFilledIndexes.push(pixelIndex)
+        if (isHaloCandidate && barrierPixels?.[pixelIndex] !== 1) {
+          newlyFilledIndexes.push(pixelIndex)
+        }
       }
     }
 
@@ -444,6 +532,12 @@ function createBucketFillObject({
       fillPixels[dilatedPixelOffset + 2] = selectedFillColor.blue
       fillPixels[dilatedPixelOffset + 3] = 255
       filledPixelCount += 1
+      const x = dilatedPixelIndex % rawWidth
+      const y = Math.floor(dilatedPixelIndex / rawWidth)
+      if (x < filledMinX) filledMinX = x
+      if (y < filledMinY) filledMinY = y
+      if (x > filledMaxX) filledMaxX = x
+      if (y > filledMaxY) filledMaxY = y
     }
   }
 
@@ -472,6 +566,7 @@ interface TextEditorRequest {
   y: number
   fontSize: number
   color: string
+  fontFamily: string
   // 기존 텍스트 객체 편집인 경우 id; 신규 생성이면 null.
   editingId: string | null
 }
@@ -533,6 +628,9 @@ export function useInfinityEvents({
 }: UseInfinityEventsParams) {
   const currentLineRef = useRef<InfinityLine | null>(null)
   const previewShapeRef = useRef<InfinityShape | null>(null)
+  const pendingPreviewShapeRef = useRef<InfinityShape | null>(null)
+  const shapePreviewFrameRef = useRef<number | null>(null)
+  const lastShapePreviewBoundsRef = useRef<Bounds | null>(null)
   const hoveredObjectIdsRef = useRef<Set<string>>(new Set())
   const isDrawingRef = useRef<boolean>(false)
   const startPosRef = useRef<{ x: number; y: number } | null>(null)
@@ -543,6 +641,23 @@ export function useInfinityEvents({
 
   const blockEdit = (id: string) => {
     onBlockedObjectEdit?.(id)
+  }
+
+  const resetLineNodeOffsets = (ids: string[]) => {
+    const stage = stageRef.current
+    if (!stage) return
+
+    let shouldDraw = false
+    for (const elementId of ids) {
+      const object = objectsRef.current.find((item) => item.id === elementId)
+      if (object?.type !== 'line') continue
+      const node = stage.findOne(`#${elementId}`)
+      if (!node) continue
+      node.position({ x: 0, y: 0 })
+      shouldDraw = true
+    }
+
+    if (shouldDraw) stage.batchDraw()
   }
 
   // ── Konva imperative 헬퍼 ────────────────────────────────────────────────────
@@ -600,7 +715,59 @@ export function useInfinityEvents({
     }
   }
 
+  const rememberShapePreviewBounds = (shape: InfinityShape) => {
+    lastShapePreviewBoundsRef.current = {
+      x: shape.x,
+      y: shape.y,
+      width: shape.width,
+      height: shape.height,
+    }
+  }
+
+  const shouldRefreshShapePreview = (shape: InfinityShape) => {
+    const previousBounds = lastShapePreviewBoundsRef.current
+    if (!previousBounds) return true
+
+    return (
+      Math.abs(previousBounds.x - shape.x) >= SHAPE_PREVIEW_MIN_DELTA ||
+      Math.abs(previousBounds.y - shape.y) >= SHAPE_PREVIEW_MIN_DELTA ||
+      Math.abs(previousBounds.width - shape.width) >= SHAPE_PREVIEW_MIN_DELTA ||
+      Math.abs(previousBounds.height - shape.height) >= SHAPE_PREVIEW_MIN_DELTA
+    )
+  }
+
+  const flushPendingPreviewShape = () => {
+    if (shapePreviewFrameRef.current !== null) {
+      window.cancelAnimationFrame(shapePreviewFrameRef.current)
+      shapePreviewFrameRef.current = null
+    }
+    const pendingShape = pendingPreviewShapeRef.current
+    pendingPreviewShapeRef.current = null
+    if (!pendingShape) return
+
+    showPreviewShape(pendingShape)
+    rememberShapePreviewBounds(pendingShape)
+    onDraftObjectChange?.({ ...pendingShape })
+  }
+
+  const schedulePreviewShape = (shape: InfinityShape) => {
+    if (!shouldRefreshShapePreview(shape) && shapePreviewFrameRef.current === null) return
+    pendingPreviewShapeRef.current = shape
+    if (shapePreviewFrameRef.current !== null) return
+    shapePreviewFrameRef.current = window.requestAnimationFrame(flushPendingPreviewShape)
+  }
+
+  const cancelPendingPreviewShape = () => {
+    if (shapePreviewFrameRef.current !== null) {
+      window.cancelAnimationFrame(shapePreviewFrameRef.current)
+      shapePreviewFrameRef.current = null
+    }
+    pendingPreviewShapeRef.current = null
+    lastShapePreviewBoundsRef.current = null
+  }
+
   const hidePreviewShapes = () => {
+    cancelPendingPreviewShape()
     const rect = previewRectRef.current
     const ellipse = previewEllipseRef.current
     if (rect) rect.visible(false)
@@ -748,6 +915,17 @@ export function useInfinityEvents({
   const isSameSelection = (firstIds: string[], secondIds: string[]) =>
     firstIds.length === secondIds.length && firstIds.every((id, index) => id === secondIds[index])
 
+  const openExistingTextEditor = (text: InfinityText) => {
+    openTextEditor({
+      x: text.x,
+      y: text.y,
+      fontSize: text.fontSize,
+      color: text.color,
+      fontFamily: text.fontFamily ?? INFINITY_TEXT_DEFAULT_FONT_FAMILY,
+      editingId: text.id,
+    })
+  }
+
   // ── Stage 이벤트 핸들러 ──────────────────────────────────────────────────────
 
   const onStageMouseDown = (
@@ -797,6 +975,7 @@ export function useInfinityEvents({
         ...(fillTool ? { fill: color } : {}),
       }
       previewShapeRef.current = newShape
+      lastShapePreviewBoundsRef.current = null
       onDraftObjectChange?.(newShape)
     } else if (toolSnapshot === 'select') {
       // 빈 배경(target === stage)에서 드래그 시작 시에만 selection box 활성화.
@@ -867,8 +1046,7 @@ export function useInfinityEvents({
       prev.y = dy >= 0 ? startPos.y : startPos.y - height
       prev.width = width
       prev.height = height
-      showPreviewShape(prev)
-      onDraftObjectChange?.({ ...prev })
+      schedulePreviewShape(prev)
     } else if (toolSnapshot === 'select') {
       const dragStart = dragSelectStartRef.current
       if (!dragStart) return
@@ -934,6 +1112,7 @@ export function useInfinityEvents({
       applyHoverOpacity(new Set())
     } else if (isShapeTool(toolSnapshot)) {
       const shape = previewShapeRef.current
+      flushPendingPreviewShape()
       if (shape && (Math.abs(shape.width) > 5 || Math.abs(shape.height) > 5)) {
         commitLocalChange([...objectsRef.current, shape], selectedIdsRef.current, [
           {
@@ -1022,7 +1201,8 @@ export function useInfinityEvents({
         x: pos.x,
         y: pos.y,
         fontSize: INFINITY_TEXT_DEFAULT_FONT_SIZE,
-        color,
+        color: INFINITY_TEXT_DEFAULT_COLOR,
+        fontFamily: INFINITY_TEXT_DEFAULT_FONT_FAMILY,
         editingId: null,
       })
       return
@@ -1059,13 +1239,25 @@ export function useInfinityEvents({
     }
 
     const current = selectedIdsRef.current
+    const targetObject = objectsRef.current.find((object) => object.id === id)
+    const isOnlySelectedObject = current.length === 1 && current[0] === id
+    if (!isShift && targetObject?.type === 'text' && isOnlySelectedObject) {
+      openExistingTextEditor(targetObject)
+      return
+    }
+
     let next: string[]
     if (isShift) {
       next = current.includes(id)
         ? current.filter((selectedId) => selectedId !== id)
         : [...current, id]
     } else {
-      if (current.length === 1 && current[0] === id) return
+      if (current.length === 1 && current[0] === id) {
+        if (targetObject?.type === 'text') {
+          openExistingTextEditor(targetObject)
+        }
+        return
+      }
       next = [id]
     }
     recordSelection(next)
@@ -1076,28 +1268,43 @@ export function useInfinityEvents({
       blockEdit(id)
       return
     }
+    const draggedObject = objectsRef.current.find((object) => object.id === id)
+    if (!draggedObject) return
+
+    const selectedIds = selectedIdsRef.current
+    const moveIds = selectedIds.length > 1 && selectedIds.includes(id)
+      ? selectedIds
+      : [id]
+    const blockedId = moveIds.find((elementId) => !canEdit(elementId))
+    if (blockedId) {
+      blockEdit(blockedId)
+      resetLineNodeOffsets(moveIds)
+      return
+    }
+
+    const delta = getDragDeltaFromObject(draggedObject, x, y)
+    resetLineNodeOffsets(moveIds)
+    if (delta.x === 0 && delta.y === 0) return
+
+    const moveIdSet = new Set(moveIds)
+    const updatedObjects: InfinityObject[] = []
     const newObjects = objectsRef.current.map((obj) => {
-      if (obj.id !== id) return obj
-      if (obj.type === 'line') {
-        return {
-          ...obj,
-          points: obj.points.map((point) => ({
-            x: point.x + x,
-            y: point.y + y,
-          })),
-        }
-      }
-      return { ...obj, x, y }
+      if (!moveIdSet.has(obj.id)) return obj
+      const updatedObject = moveObjectByDelta(obj, delta.x, delta.y)
+      updatedObjects.push(updatedObject)
+      return updatedObject
     })
-    const updatedObject = newObjects.find((object) => object.id === id)
-    if (!updatedObject) return
-    commitLocalChange(newObjects, selectedIdsRef.current, [
-      {
+    if (updatedObjects.length === 0) return
+
+    commitLocalChange(
+      newObjects,
+      selectedIds.includes(id) ? selectedIds : [id],
+      updatedObjects.map((updatedObject) => ({
         operationType: 'UPSERT_ELEMENT',
         elementId: updatedObject.id,
         element: { ...updatedObject },
-      },
-    ])
+      })),
+    )
   }
 
   const onShapeTransformEnd = (
@@ -1189,55 +1396,7 @@ export function useInfinityEvents({
     }
     const target = objectsRef.current.find((obj) => obj.id === id)
     if (!target || target.type !== 'text') return
-    const text = target as InfinityText
-    openTextEditor({
-      x: text.x,
-      y: text.y,
-      fontSize: text.fontSize,
-      color: text.color,
-      editingId: text.id,
-    })
-  }
-
-  // ── z-index 단축키 처리 — drawing 레이어가 호출 ────────────────────────────
-  // direction: +1 = forward, -1 = backward
-  const shiftSelectedZIndex = (direction: 1 | -1) => {
-    const ids = selectedIdsRef.current
-    if (ids.length === 0) return
-    const blockedId = ids.find((id) => !canEdit(id))
-    if (blockedId) {
-      blockEdit(blockedId)
-      return
-    }
-    const objects = [...objectsRef.current]
-    // forward는 뒤에서부터, backward는 앞에서부터 처리해 인덱스 충돌 방지.
-    const orderedIndices = ids
-      .map((id) => objects.findIndex((obj) => obj.id === id))
-      .filter((i) => i >= 0)
-      .sort((a, b) => (direction > 0 ? b - a : a - b))
-
-    let changed = false
-    for (const i of orderedIndices) {
-      const swapWith = i + direction
-      if (swapWith < 0 || swapWith >= objects.length) continue
-      if (ids.includes(objects[swapWith].id)) continue
-      ;[objects[i], objects[swapWith]] = [objects[swapWith], objects[i]]
-      changed = true
-    }
-    if (changed) {
-      commitLocalChange(
-        objects,
-        ids,
-        ids
-          .map((id) => objects.find((object) => object.id === id))
-          .filter((object): object is InfinityObject => Boolean(object))
-          .map((object) => ({
-            operationType: 'UPSERT_ELEMENT',
-            elementId: object.id,
-            element: { ...object },
-          })),
-      )
-    }
+    openExistingTextEditor(target)
   }
 
   return {
@@ -1254,6 +1413,5 @@ export function useInfinityEvents({
     onTextTransformEnd,
     onObjectsTransformEnd,
     onTextDblClick,
-    shiftSelectedZIndex,
   } as const
 }
