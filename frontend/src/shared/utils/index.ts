@@ -10,6 +10,7 @@ export {
   getCommunityMemoColor,
 } from './communityMemo'
 export {
+  COMMUNITY_CANVAS_HANDOFF_EVENT,
   consumeCommunityCanvasHandoffDraft,
   writeCommunityCanvasHandoffDraft,
   type CommunityCanvasHandoffDraft,
@@ -51,4 +52,11 @@ export {
   startNemonicPrintVibration,
   stopNemonicPrintVibration,
 } from './nemonicPrintVibration'
+export {
+  NEMONIC_ROOM_PRINT_EVENT,
+  consumeNemonicRoomPrintDraft,
+  writeNemonicRoomPrintDraft,
+  type NemonicRoomPrintDraft,
+  type NemonicRoomPrintSourceKind,
+} from './nemonicRoomPrint'
 export { normalizeOcrCategories } from './normalizeOcrCategories'
