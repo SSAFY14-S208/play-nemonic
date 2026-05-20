@@ -18,7 +18,7 @@ public class MinioStorageConfig {
     @Primary
     public MinioClient minioClient(MinioStorageProperties properties) {
         return MinioClient.builder().endpoint(properties.endpoint())
-            .credentials(properties.accessKey(), properties.secretKey()).build();
+            .credentials(properties.accessKey(), properties.secretKey()).region(properties.region()).build();
     }
 
     /**
@@ -31,7 +31,7 @@ public class MinioStorageConfig {
     @Bean
     public MinioClient publicMinioClient(MinioStorageProperties properties) {
         return MinioClient.builder().endpoint(publicOrigin(properties.publicUrl()))
-            .credentials(properties.accessKey(), properties.secretKey()).build();
+            .credentials(properties.accessKey(), properties.secretKey()).region(properties.region()).build();
     }
 
     private String publicOrigin(String publicUrl) {
