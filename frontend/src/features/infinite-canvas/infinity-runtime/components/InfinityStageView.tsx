@@ -293,6 +293,8 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const lastFinishedDraftsRef = useRef<InfinityObject[]>([])
   const draftClearTimeoutRef = useRef<number | null>(null)
   const previousSelectedIdsRef = useRef<string[]>([])
+  const selectedIdsForEditRef = useRef<Set<string>>(new Set())
+  const requestedLockIdsRef = useRef<Set<string>>(new Set())
   const [isCaptureMode, setIsCaptureMode] = useState(false)
   const [copiedInviteTarget, setCopiedInviteTarget] = useState<'link' | 'code' | null>(null)
   const [retainedRemoteDrafts, setRetainedRemoteDrafts] = useState<Record<string, RetainedRemoteDraft>>({})
@@ -441,7 +443,9 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
 
   const drawing = useInfinityDrawing(stageRef, nodeRefs, {
     canSelectObject: (elementId) => getForeignLock(elementId) === null,
-    canEditObject: (elementId) => getForeignLock(elementId) === null && getMyLock(elementId) !== null,
+    canEditObject: (elementId) =>
+      getForeignLock(elementId) === null &&
+      (getMyLock(elementId) !== null || selectedIdsForEditRef.current.has(elementId)),
     onBlockedObjectEdit: handleBlockedObjectEdit,
     onDraftObjectChange: handleDraftObjectChange,
     onLocalOperations: handleLocalOperations,
@@ -458,6 +462,10 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [stageSize, setStageSize] = useState<StageSize | null>(null)
   const centerInitialViewportRef = useRef(drawing.viewport.centerInitialViewport)
+
+  useLayoutEffect(() => {
+    selectedIdsForEditRef.current = new Set(drawing.selectedIds)
+  }, [drawing.selectedIds])
 
   useLayoutEffect(() => {
     centerInitialViewportRef.current = drawing.viewport.centerInitialViewport
@@ -489,15 +497,18 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     return new Set(lockedIds)
   }, [room.locks, room.myUserUuid])
 
+  const selectedElementIds = useMemo(() => new Set(drawing.selectedIds), [drawing.selectedIds])
+
   const editingBlockedElementIds = useMemo(() => {
     const blockedIds = new Set(lockedElementIds)
     for (const object of drawing.objects) {
       const lock = room.locks[object.id]
       if (lock?.userUuid === room.myUserUuid) continue
+      if (!lock && selectedElementIds.has(object.id)) continue
       blockedIds.add(object.id)
     }
     return blockedIds
-  }, [drawing.objects, lockedElementIds, room.locks, room.myUserUuid])
+  }, [drawing.objects, lockedElementIds, room.locks, room.myUserUuid, selectedElementIds])
 
   const lockedElements: InfinityLockedElementView[] = useMemo(
     () =>
@@ -753,17 +764,23 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   useEffect(() => {
     const previousSelectedIds = previousSelectedIdsRef.current
     const nextSelectedIds = drawing.selectedIds
-    const addedIds = nextSelectedIds.filter((selectedId) => !previousSelectedIds.includes(selectedId))
     const removedIds = previousSelectedIds.filter((selectedId) => !nextSelectedIds.includes(selectedId))
 
-    for (const elementId of addedIds) {
+    for (const elementId of nextSelectedIds) {
       const lock = room.locks[elementId]
-      if (!lock || lock.userUuid === room.myUserUuid) {
-        acquireLock(elementId)
+      if (!lock) {
+        if (!requestedLockIdsRef.current.has(elementId)) {
+          requestedLockIdsRef.current.add(elementId)
+          acquireLock(elementId)
+        }
+        continue
       }
+
+      requestedLockIdsRef.current.delete(elementId)
     }
 
     for (const elementId of removedIds) {
+      requestedLockIdsRef.current.delete(elementId)
       const lock = room.locks[elementId]
       if (lock?.userUuid === room.myUserUuid) {
         releaseLock(elementId)
@@ -771,7 +788,13 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     }
 
     previousSelectedIdsRef.current = nextSelectedIds
-  }, [acquireLock, drawing.selectedIds, releaseLock, room.locks, room.myUserUuid])
+  }, [
+    acquireLock,
+    drawing.selectedIds,
+    releaseLock,
+    room.locks,
+    room.myUserUuid,
+  ])
 
   const handleCursorMove = useCallback(
     (cursor: { x: number; y: number; zoom: number }) => {
