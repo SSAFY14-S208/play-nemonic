@@ -88,6 +88,7 @@ export function PhoneGalleryItemSheet({
   const downloadGalleryItem = usePhoneStore((state) => state.downloadGalleryItem)
   const galleryDownloadingId = usePhoneStore((state) => state.galleryDownloadingId)
   const setToast = usePhoneStore((state) => state.setToast)
+  const closePhone = usePhoneStore((state) => state.closePhone)
   const shareInfo = useShareStore((state) => state.shareInfo)
   const shareStatus = useShareStore((state) => state.shareStatus)
   const shareError = useShareStore((state) => state.shareError)
@@ -113,7 +114,11 @@ export function PhoneGalleryItemSheet({
   } = useNemonicImagePrint({
     imageUrl: printImageUrl,
     isImageLoading: isLoading,
+    onPrintedToNemonicRoom: closePhone,
     onPrintBlocked: setToast,
+    sourceContentKind: item.kind,
+    sourceGalleryId: item.id,
+    title: item.title,
   })
 
   useEffect(() => {
@@ -142,7 +147,7 @@ export function PhoneGalleryItemSheet({
       return
     }
 
-    writeCommunityCanvasHandoffDraft({
+    const isHandoffWritten = writeCommunityCanvasHandoffDraft({
       sourceKind: 'GALLERY',
       title: item.title,
       imageUrl: printImageUrl,
@@ -150,6 +155,13 @@ export function PhoneGalleryItemSheet({
       sourceGalleryId: item.id,
       sourceContentKind: item.kind,
     })
+
+    if (!isHandoffWritten) {
+      setToast('커뮤니티 캔버스로 보낼 메모를 준비하지 못했어요.')
+      return
+    }
+
+    closePhone()
     router.push('/community-canvas')
   }
 
