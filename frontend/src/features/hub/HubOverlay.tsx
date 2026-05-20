@@ -1,12 +1,14 @@
 'use client'
 
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import {
   Gamepad2,
   HelpCircle,
   Home,
   LayoutDashboard,
   Music2,
+  MousePointerClick,
   Printer,
   Volume2,
   VolumeX,
@@ -18,6 +20,8 @@ import HubOnboardingTour from './HubOnboardingTour'
 import styles from './HubOverlay.module.css'
 import MonitorGameInfoCard from './MonitorGameInfoCard'
 import { useHubBgm } from './useHubBgm'
+
+const NEMONIC_ROOM_PATH = '/nemonic'
 
 const FOCUS_BUTTONS: Array<{
   focusKey: HubFocusKey
@@ -36,6 +40,7 @@ export default function HubOverlay({
 }: {
   disableBgm?: boolean
 }) {
+  const router = useRouter()
   const focusKey = useHubRoomStore((state) => state.focusKey)
   const setFocus = useHubRoomStore((state) => state.setFocus)
   const reopenOnboarding = useHubOnboardingStore(
@@ -46,6 +51,14 @@ export default function HubOverlay({
   })
   const BgmIcon = isBgmEnabled ? Volume2 : VolumeX
   const bgmToggleLabel = isBgmEnabled ? '허브 음악 끄기' : '허브 음악 켜기'
+
+  const handleFocusButtonClick = (nextFocusKey: HubFocusKey) => {
+    setFocus(nextFocusKey)
+  }
+
+  const handleOpenNemonic = () => {
+    router.push(NEMONIC_ROOM_PATH)
+  }
 
   return (
     <>
@@ -102,7 +115,7 @@ export default function HubOverlay({
                 aria-pressed={isActive}
                 aria-label={label}
                 className={cn(styles.focusButton, isActive && styles.focusButtonActive)}
-                onClick={() => setFocus(buttonFocusKey)}
+                onClick={() => handleFocusButtonClick(buttonFocusKey)}
               >
                 <Icon className="h-4 w-4" strokeWidth={2.35} />
                 {!iconOnly && <span>{label}</span>}
@@ -111,6 +124,20 @@ export default function HubOverlay({
           },
         )}
       </nav>
+
+      {focusKey === 'printer' && (
+        <div className={styles.printerPrompt} aria-live="polite">
+          <button
+            type="button"
+            className={styles.printerPromptButton}
+            onClick={handleOpenNemonic}
+          >
+            <MousePointerClick className={styles.printerPromptIcon} strokeWidth={2.35} />
+            <span>네모닉 체험하기</span>
+          </button>
+          <span className={styles.printerPromptBeam} aria-hidden />
+        </div>
+      )}
 
       <MonitorGameInfoCard />
       <HubOnboardingTour />

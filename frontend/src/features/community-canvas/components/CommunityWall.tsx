@@ -22,7 +22,11 @@ import {
 import { cn } from '@/shared/libs'
 import type { CommunityMemoItemResponse } from '@/shared/types'
 import type { CommunityMemoLayoutDraft, CommunityPendingMemoPlacement } from '../hooks'
-import { getCommunityMemoColor } from '../utils'
+import {
+  getCommunityMemoColor,
+  getStaticCommunityImageUrl,
+  getStaticCommunityMemoImageUrl,
+} from '../utils'
 import { CommunityMemoCard } from './CommunityMemoCard'
 
 interface CommunityWallProps {
@@ -37,6 +41,7 @@ interface CommunityWallProps {
   nextZIndex: number
   isAttachingMemo: boolean
   isSavingLayout: boolean
+  isPlaybackPaused: boolean
   onSelectMemo: (memo: CommunityMemoItemResponse) => void
   onClearSelection: () => void
   onOpenMemoDetail: (memoUuid: string) => void
@@ -273,6 +278,7 @@ export function CommunityWall({
   nextZIndex,
   isAttachingMemo,
   isSavingLayout,
+  isPlaybackPaused,
   onSelectMemo,
   onClearSelection,
   onOpenMemoDetail,
@@ -1037,6 +1043,7 @@ export function CommunityWall({
                     memo={displayMemo}
                     isActive={selectedMemoUuid === memo.memoUuid}
                     playbackImageUrl={memoPlaybackImageUrls[memo.memoUuid]}
+                    isPlaybackPaused={isPlaybackPaused}
                     placementMotion={enteringMemoUuids.has(memo.memoUuid) ? 'attach' : undefined}
                     isInteractionDisabled={isWallManipulating}
                     onSelect={handleMemoSelect}
@@ -1051,6 +1058,7 @@ export function CommunityWall({
                 memo={getDisplayMemo(memo)}
                 isActive={false}
                 playbackImageUrl={memoPlaybackImageUrls[memo.memoUuid]}
+                isPlaybackPaused={isPlaybackPaused}
                 placementMotion="detach"
                 isInteractionDisabled
                 onSelect={handleMemoSelect}
@@ -1062,6 +1070,7 @@ export function CommunityWall({
               <EditableMemoPreview
                 memo={editingMemo}
                 playbackImageUrl={memoPlaybackImageUrls[editingMemo.memoUuid]}
+                isPlaybackPaused={isPlaybackPaused}
                 layout={clampMemoLayoutToAttachableSurface(editingLayoutDraft)}
                 disabled={isSavingLayout}
                 isFluttering={
@@ -1077,6 +1086,7 @@ export function CommunityWall({
               <PendingMemoPreview
                 pendingMemo={pendingMemo}
                 placement={cursorPlacement}
+                isPlaybackPaused={isPlaybackPaused}
                 isAttachingMemo={isAttachingMemo}
                 isPlacementInsideVisibleArea={isPendingPlacementInsideVisibleArea}
                 isFluttering={interaction?.type === 'rotate-pending' || !isAttachingMemo}
@@ -1129,6 +1139,7 @@ export function CommunityWall({
 function EditableMemoPreview({
   memo,
   playbackImageUrl,
+  isPlaybackPaused,
   layout,
   disabled,
   isFluttering,
@@ -1138,6 +1149,7 @@ function EditableMemoPreview({
 }: {
   memo: CommunityMemoItemResponse
   playbackImageUrl?: string | null
+  isPlaybackPaused: boolean
   layout: CommunityMemoLayoutDraft
   disabled: boolean
   isFluttering: boolean
@@ -1147,7 +1159,11 @@ function EditableMemoPreview({
 }) {
   return (
     <MemoSurface
-      imageUrl={playbackImageUrl || memo.memoThumbnailImageUrl || memo.memoImageUrl}
+      imageUrl={
+        isPlaybackPaused
+          ? getStaticCommunityMemoImageUrl(memo)
+          : playbackImageUrl || memo.memoThumbnailImageUrl || memo.memoImageUrl
+      }
       tone={getMemoTone(memo)}
       layout={layout}
       disabled={disabled}
@@ -1162,6 +1178,7 @@ function EditableMemoPreview({
 function PendingMemoPreview({
   pendingMemo,
   placement,
+  isPlaybackPaused,
   isAttachingMemo,
   isPlacementInsideVisibleArea,
   isFluttering,
@@ -1170,6 +1187,7 @@ function PendingMemoPreview({
 }: {
   pendingMemo: CommunityPendingMemoPlacement
   placement: CommunityMemoLayoutDraft
+  isPlaybackPaused: boolean
   isAttachingMemo: boolean
   isPlacementInsideVisibleArea: boolean
   isFluttering: boolean
@@ -1178,7 +1196,11 @@ function PendingMemoPreview({
 }) {
   return (
     <MemoSurface
-      imageUrl={pendingMemo.previewUrl}
+      imageUrl={
+        isPlaybackPaused
+          ? getStaticCommunityImageUrl(pendingMemo.previewUrl)
+          : pendingMemo.previewUrl
+      }
       tone={getMemoTone(pendingMemo)}
       layout={placement}
       disabled={isAttachingMemo}
@@ -1201,7 +1223,7 @@ function MemoSurface({
   onBeginMove,
   onBeginRotate,
 }: {
-  imageUrl: string
+  imageUrl: string | null
   tone: string
   layout: CommunityMemoLayoutDraft
   disabled: boolean
@@ -1246,15 +1268,17 @@ function MemoSurface({
           data-post-it-art-motion={disabled ? undefined : isFluttering ? 'active' : 'hover'}
           className="post-it-note-art absolute inset-x-4 bottom-5 top-7 overflow-hidden rounded-[0.35rem]"
         >
-          <Image
-            src={imageUrl}
-            alt=""
-            fill
-            sizes="160px"
-            unoptimized
-            draggable={false}
-            className="object-contain"
-          />
+          {imageUrl && (
+            <Image
+              src={imageUrl}
+              alt=""
+              fill
+              sizes="160px"
+              unoptimized
+              draggable={false}
+              className="object-contain"
+            />
+          )}
         </span>
       </span>
       <button

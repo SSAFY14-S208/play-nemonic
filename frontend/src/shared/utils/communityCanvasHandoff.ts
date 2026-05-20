@@ -12,6 +12,9 @@ export interface CommunityCanvasHandoffDraft {
 
 const COMMUNITY_CANVAS_HANDOFF_KEY = 'nemonic-community-canvas-handoff'
 
+export const COMMUNITY_CANVAS_HANDOFF_EVENT =
+  'nemonic-community-canvas-handoff-ready'
+
 function normalizeCommunityCanvasHandoffDraft(
   value: unknown,
 ): CommunityCanvasHandoffDraft | null {
@@ -67,6 +70,7 @@ export function writeCommunityCanvasHandoffDraft(
     COMMUNITY_CANVAS_HANDOFF_KEY,
     JSON.stringify(nextDraft),
   )
+  window.dispatchEvent(new CustomEvent(COMMUNITY_CANVAS_HANDOFF_EVENT))
   return true
 }
 

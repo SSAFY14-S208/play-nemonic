@@ -160,6 +160,77 @@
     inset 0 1px 0 rgb(255 255 255 / 34%);
 }
 
+.printerPrompt {
+  position: fixed;
+  left: 50%;
+  bottom: 5.05rem;
+  z-index: 32;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.46rem;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: hubPrinterPromptIn 220ms ease-out both;
+}
+
+.printerPromptButton {
+  display: inline-flex;
+  min-height: 2.6rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.44rem;
+  border: 1px solid rgb(255 247 235 / 82%);
+  border-radius: 0.8rem;
+  background: rgb(255 250 242 / 86%);
+  box-shadow:
+    0 0.75rem 1.8rem rgb(54 45 80 / 16%),
+    inset 0 1px 0 rgb(255 255 255 / 58%);
+  color: #4e426c;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  padding: 0 0.85rem;
+  pointer-events: auto;
+  backdrop-filter: blur(18px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.printerPromptButton:hover {
+  background: rgb(255 252 247 / 94%);
+  color: #312747;
+  transform: translateY(-1px);
+}
+
+.printerPromptButton:active {
+  transform: scale(0.97);
+}
+
+.printerPromptIcon {
+  height: 1rem;
+  width: 1rem;
+  color: #8e6ce0;
+  animation: hubPrinterPromptTap 1.28s ease-in-out infinite;
+}
+
+.printerPromptBeam {
+  height: 2.25rem;
+  width: 1px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to top,
+    rgb(142 108 224 / 0),
+    rgb(142 108 224 / 56%),
+    rgb(142 108 224 / 0)
+  );
+  opacity: 0.82;
+  animation: hubPrinterPromptBeam 1.28s ease-in-out infinite;
+}
+
 @keyframes hubMusicPulse {
   0%,
   100% {
@@ -170,6 +241,42 @@
   50% {
     opacity: 1;
     transform: scale(1.08);
+  }
+}
+
+@keyframes hubPrinterPromptIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.45rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes hubPrinterPromptTap {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  48% {
+    transform: translateY(0.08rem) scale(0.94);
+  }
+}
+
+@keyframes hubPrinterPromptBeam {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scaleY(0.72);
+  }
+
+  50% {
+    opacity: 0.86;
+    transform: scaleY(1);
   }
 }
 
@@ -204,6 +311,10 @@
   .focusButton span {
     display: none;
   }
+
+  .printerPrompt {
+    bottom: 4.65rem;
+  }
 }
 
 @media (max-width: 520px) {
@@ -213,5 +324,10 @@
 
   .focusButton {
     padding: 0 0.68rem;
+  }
+
+  .printerPromptButton {
+    min-height: 2.45rem;
+    padding: 0 0.76rem;
   }
 }

@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { ApiError } from '@/shared/apis'
-import { writeCommunityCanvasHandoffDraft } from '@/shared/utils'
+import {
+  writeCommunityCanvasHandoffDraft,
+  writeNemonicRoomPrintDraft,
+} from '@/shared/utils'
 import {
   PHONE_BRUSH_SIZES,
   PHONE_DRAWING_COLORS,
@@ -28,6 +31,15 @@ function createPhoneLineId() {
 
 function getStagePointerPosition(event: KonvaEventObject<MouseEvent | TouchEvent>) {
   return event.target.getStage()?.getPointerPosition() ?? null
+}
+
+function isNemonicRoomPath() {
+  if (typeof window === 'undefined') return false
+
+  return (
+    window.location.pathname === '/nemonic' ||
+    window.location.pathname.startsWith('/nemonic/')
+  )
 }
 
 export function usePhoneDrawing() {
@@ -166,11 +178,25 @@ export function usePhoneDrawing() {
         clearDrawing()
 
         if (action === 'print') {
+          if (isNemonicRoomPath()) {
+            writeNemonicRoomPrintDraft({
+              sourceKind: 'PHONE_DRAWING',
+              title: '내가 그린 메모',
+              imageUrl: imageDataUrl,
+              thumbnailUrl: imageDataUrl,
+              sourceGalleryId: saveResponse.galleryId,
+              sourceContentKind: 'phone',
+            })
+            return
+          }
+
+          const printImageUrl = saveResponse.thumbnailUrl || imageDataUrl
+
           writeCommunityCanvasHandoffDraft({
             sourceKind: 'GALLERY',
             title: '내가 그린 메모',
-            imageUrl: saveResponse.thumbnailUrl || imageDataUrl,
-            thumbnailUrl: saveResponse.thumbnailUrl || imageDataUrl,
+            imageUrl: printImageUrl,
+            thumbnailUrl: printImageUrl,
             sourceGalleryId: saveResponse.galleryId,
             sourceContentKind: 'phone',
           })

@@ -10,6 +10,11 @@ export {
   getCommunityMemoColor,
 } from './memoColor'
 export {
+  getStaticCommunityImageUrl,
+  getStaticCommunityMemoImageUrl,
+  isCommunityAnimatedImageUrl,
+} from './memoImage'
+export {
   preloadCommunityMemoSounds,
   playCommunityMemoAttachSound,
   playCommunityMemoDetachSound,
