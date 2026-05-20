@@ -30,7 +30,7 @@ public class ClientLogServiceImpl implements ClientLogService {
         "session_start", "session_end", "page_view", "page_leave", "visibility_change", "client_alive",
         // Spec §5: funnel
         "funnel_started", "funnel_step_viewed", "funnel_step_completed", "funnel_goal_reached", "funnel_abandoned",
-        "cta_clicked",
+        "cta_clicked", "result_shared",
         // Spec §6: abandonment
         "page_exit_intent_detected", "room_lobby_abandoned", "creation_abandoned", "result_share_abandoned",
         // Spec §7: UI engagement

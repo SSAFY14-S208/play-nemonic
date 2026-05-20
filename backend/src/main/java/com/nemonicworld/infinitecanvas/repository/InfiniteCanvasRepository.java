@@ -23,5 +23,12 @@ public interface InfiniteCanvasRepository {
 
     List<InfiniteCanvasState> findAllActiveCanvases();
 
+    /**
+     * connected 참여자가 한 명도 없고 마지막 갱신이 {@code idleCutoff} 이전인 ACTIVE 캔버스 후보를 SCAN으로
+     * 모은다. 빈 방을 주기적으로 정리하기 위한 스케줄러용 조회 — 릴레이/플립북의 {@code findEmptyWaitingRooms} 패턴과
+     * 동일.
+     */
+    List<InfiniteCanvasState> findAbandonedActiveCanvases(java.time.LocalDateTime idleCutoff, int limit);
+
     void delete(String roomCode);
 }

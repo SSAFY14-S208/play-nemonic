@@ -92,6 +92,12 @@ pipeline {
         // Dockerfile은 jar만 복사하는 런타임 이미지로 단순화되었으므로
         // 컴파일을 두 번 수행하던 중복이 제거된다.
         stage('Build & Test') {
+            // stage 수준 timeout. pipeline 전체 timeout(30분) 이 hang된 worker
+            // JVM을 적시에 못 잡았던 2026-05-19 사건의 fail-safe — 이 stage가
+            // 20분을 넘기면 즉시 abort해서 호스트 CPU 폭주를 막는다.
+            options {
+                timeout(time: 20, unit: 'MINUTES')
+            }
             steps {
                 dir('backend') {
                     sh '''

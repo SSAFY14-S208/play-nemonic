@@ -8,15 +8,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.nemonicworld.clientlog.config.ClientLogPayloadLimitFilter;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.jwt.AdminJwtAuthenticationFilter;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomParticipantResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomViewerResponse;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.global.config.ApiPathPrefixConfig;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -25,16 +28,22 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@IntegrationTest
-@AutoConfigureMockMvc
+@WebMvcTest(controllers = FlipbookRoomController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
+    AdminJwtAuthenticationFilter.class, ClientLogPayloadLimitFilter.class}))
+@AutoConfigureMockMvc(addFilters = false)
+@Import(ApiPathPrefixConfig.class)
 /**
  * 플립북 방 설정 변경 API의 HTTP 요청/응답 연결을 검증합니다.
  */
-class FlipbookRoomSettingsControllerIntegrationTest {
+class FlipbookRoomSettingsControllerWebMvcTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String ROOM_CODE = "FB3K9Q";
@@ -47,6 +56,9 @@ class FlipbookRoomSettingsControllerIntegrationTest {
 
     @MockitoBean
     private FlipbookRoomEventPublisher flipbookRoomEventPublisher;
+
+    @MockitoBean
+    private FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService;
 
     /**
      * PATCH 요청 본문을 설정 변경 요청 DTO로 변환하고 최신 방 상태 응답을 반환합니다.

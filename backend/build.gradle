@@ -68,6 +68,24 @@ tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'spring.profiles.active', 'test'
 	systemProperty 'user.timezone', 'Asia/Seoul'
+	systemProperty 'spring.test.context.cache.maxSize', '8'
+	// 한 테스트가 90초 넘으면 자동 fail. hang된 외부 호출/무한 루프 차단.
+	systemProperty 'junit.jupiter.execution.timeout.default', '90s'
+	systemProperty 'junit.jupiter.execution.timeout.testable.method.default', '90s'
+	maxHeapSize = '1g'
+	maxParallelForks = 1
+	forkEvery = 25
+	jvmArgs(
+		'-XX:+HeapDumpOnOutOfMemoryError',
+		'-XX:HeapDumpPath=build/test-heap-dumps',
+		// GC death spiral 차단: heap이 가득 차서 GC가 98% CPU를 쓰는데도 회수가
+		// 2% 미만이면 OOM 발생 → ExitOnOutOfMemoryError가 JVM을 즉시 종료시켜
+		// Gradle worker가 실패로 인식. 2026-05-19에 GC 누수로 호스트 CPU가
+		// 6시간 동안 200%대로 폭주했던 사건의 재발 방지장치.
+		'-XX:GCTimeLimit=90',
+		'-XX:GCHeapFreeLimit=10',
+		'-XX:+ExitOnOutOfMemoryError'
+	)
 }
 
 tasks.named('bootRun') {

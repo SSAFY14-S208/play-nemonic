@@ -217,6 +217,11 @@ nemonic:
       read-timeout-ms: ${GMS_READ_TIMEOUT_MS:30000}
 
   infinite-canvas:
+    abandoned-close:
+      enabled: ${INFINITE_CANVAS_ABANDONED_CLOSE_ENABLED:true}
+      scan-delay-ms: ${INFINITE_CANVAS_ABANDONED_CLOSE_SCAN_DELAY_MS:30000}
+      idle-seconds: ${INFINITE_CANVAS_ABANDONED_CLOSE_IDLE_SECONDS:60}
+      scan-limit: ${INFINITE_CANVAS_ABANDONED_CLOSE_SCAN_LIMIT:100}
     ai-sticker:
       enabled: ${INFINITE_CANVAS_AI_STICKER_ENABLED:true}
       max-prompt-length: ${INFINITE_CANVAS_AI_STICKER_MAX_PROMPT_LENGTH:200}
