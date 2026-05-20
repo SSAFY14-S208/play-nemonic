@@ -3,7 +3,6 @@ package com.nemonicworld.global.websocket.config;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -16,14 +15,8 @@ import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 
 /**
  * 여러 실시간 콘텐츠에서 함께 사용할 STOMP WebSocket 전송 설정입니다.
- *
- * <p>
- * nemonic.websocket.enabled=false 로 비활성화 가능. 테스트 프로파일에서는 SimpleBroker 기동을 막아
- * Spring TestContext 캐시 적중률을 높이기 위해 비활성화한다.
- * </p>
  */
 @Configuration
-@ConditionalOnProperty(name = "nemonic.websocket.enabled", havingValue = "true", matchIfMissing = true)
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
