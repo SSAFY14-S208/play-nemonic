@@ -5,55 +5,34 @@ import { toast } from 'sonner'
 
 import { ApiError, postArtifactShare } from '@/shared/apis'
 import { logEvent } from '@/shared/libs'
+import { shareExternalImage, type ExternalImageShareResult } from '@/shared/utils'
 
 import { useFortuneSessionStore } from '../fortuneSessionStore'
 
 const FORTUNE_SHARE_TEXT = '네모닉 운세 결과를 공유해요.'
+const DEFAULT_SHARE_ERROR_MESSAGE = '운세 공유 정보를 만들 수 없어요.'
+const GIF_LINK_COPIED_MESSAGE = '운세 QR GIF 공유 링크를 복사했어요.'
+const IMAGE_COPIED_MESSAGE =
+  '운세 QR 공유 이미지를 복사했어요. 채팅창에 붙여넣어 주세요.'
+const IMAGE_LINK_COPIED_MESSAGE = '운세 QR 공유 이미지 링크를 복사했어요.'
 
 function isServerFortuneId(fortuneId: string | null | undefined) {
   return Boolean(fortuneId && !fortuneId.startsWith('fortune-'))
 }
 
 function toExternalShareErrorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message || '외부 공유 정보를 만들 수 없어요.'
-  if (error instanceof Error) return error.message || '외부 공유 정보를 만들 수 없어요.'
+  if (error instanceof ApiError) return error.message || DEFAULT_SHARE_ERROR_MESSAGE
+  if (error instanceof Error) return error.message || DEFAULT_SHARE_ERROR_MESSAGE
 
-  return '외부 공유 정보를 만들 수 없어요.'
+  return DEFAULT_SHARE_ERROR_MESSAGE
 }
 
-async function copyTextToClipboard(text: string) {
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text)
-      return
-    } catch {
-      // Clipboard API 실패 시 fallback으로 진행
-    }
-  }
+function getExternalShareSuccessMessage(shareResult: ExternalImageShareResult) {
+  if (shareResult === 'copied-gif-link') return GIF_LINK_COPIED_MESSAGE
+  if (shareResult === 'copied-image') return IMAGE_COPIED_MESSAGE
+  if (shareResult === 'copied-image-link') return IMAGE_LINK_COPIED_MESSAGE
 
-  const textarea = document.createElement('textarea')
-  textarea.value = text
-  textarea.setAttribute('readonly', '')
-  textarea.style.position = 'fixed'
-  textarea.style.left = '-9999px'
-  document.body.appendChild(textarea)
-  textarea.select()
-
-  try {
-    document.execCommand('copy')
-  } finally {
-    document.body.removeChild(textarea)
-  }
-}
-
-function isLikelyMobileEnvironment() {
-  if (typeof navigator === 'undefined') return false
-
-  const userAgent = navigator.userAgent.toLowerCase()
-  return (
-    /android|iphone|ipad|ipod/.test(userAgent) ||
-    (navigator.maxTouchPoints > 1 && /macintosh/.test(userAgent))
-  )
+  return null
 }
 
 export function useFortuneExternalShare() {
@@ -63,7 +42,7 @@ export function useFortuneExternalShare() {
 
   const shareExternal = useCallback(async () => {
     if (!result || !isServerFortuneId(result.id) || isSharingExternal) {
-      toast.error('외부 공유는 서버에서 생성된 운세에서만 사용할 수 있어요.')
+      toast.error('운세 공유는 서버에 저장된 운세에서만 사용할 수 있어요.')
       return
     }
 
@@ -71,70 +50,27 @@ export function useFortuneExternalShare() {
 
     try {
       const shareInfo = await postArtifactShare(result.id)
-      const shareUrl = (shareInfo.kakaoUrl || shareInfo.siteUrl)?.trim()
-      const imageUrl = shareInfo.imageUrl?.trim()
-
-      if (!shareUrl && !imageUrl) {
-        throw new Error('외부 공유 링크를 만들지 못했어요.')
+      if (!shareInfo.imageUrl?.trim()) {
+        throw new Error('운세 공유 이미지를 만들지 못했어요.')
       }
 
-      const emitShared = () => {
-        logEvent('result_shared', {
-          metadata: {
-            funnel_name: 'fortune_creation',
-            content_type: 'fortune',
-            share_method: 'external_share',
-            fortune_id: result.id,
-          },
-        })
-      }
-
-      // 모바일: native share 시도 (이미지 파일 또는 URL)
-      if (isLikelyMobileEnvironment() && navigator.share) {
-        try {
-          if (imageUrl) {
-            const imageResponse = await fetch(imageUrl)
-            if (imageResponse.ok) {
-              const blob = await imageResponse.blob()
-              const imageFile = new File(
-                [blob],
-                'fortune-result-qr.png',
-                { type: blob.type || 'image/png' },
-              )
-
-              if (navigator.canShare?.({ files: [imageFile] })) {
-                await navigator.share({
-                  title: result.title,
-                  text: FORTUNE_SHARE_TEXT,
-                  files: [imageFile],
-                })
-                emitShared()
-                return
-              }
-            }
-          }
-
-          // 이미지 공유 불가 시 URL로 native share
-          if (shareUrl) {
-            await navigator.share({
-              title: result.title,
-              text: FORTUNE_SHARE_TEXT,
-              url: shareUrl,
-            })
-            emitShared()
-            return
-          }
-        } catch (error) {
-          if (error instanceof DOMException && error.name === 'AbortError') return
-          // native share 실패 시 클립보드 복사로 진행
-        }
-      }
-
-      // 데스크탑 또는 native share 실패: 공유 링크를 클립보드에 텍스트로 복사
-      const urlToCopy = shareUrl || imageUrl!
-      await copyTextToClipboard(urlToCopy)
-      toast.success('공유 링크가 복사되었어요.')
-      emitShared()
+      const shareResult = await shareExternalImage({
+        title: result.title,
+        text: FORTUNE_SHARE_TEXT,
+        imageUrl: shareInfo.imageUrl,
+        fileNameBase: 'fortune-result-qr',
+        preferNativeFileShare: true,
+      })
+      const successMessage = getExternalShareSuccessMessage(shareResult)
+      if (successMessage) toast.success(successMessage)
+      logEvent('result_shared', {
+        metadata: {
+          funnel_name: 'fortune_creation',
+          content_type: 'fortune',
+          share_method: 'external_share',
+          fortune_id: result.id,
+        },
+      })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
 
