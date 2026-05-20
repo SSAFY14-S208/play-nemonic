@@ -28,7 +28,7 @@ import com.nemonicworld.community.service.moderation.CommunityMemoModerationClie
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationException;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationRequest;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationResult;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.sql.Types;
@@ -40,25 +40,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 @ExtendWith(OutputCaptureExtension.class)
 /**
  * 커뮤니티 메모 조회/생성 API가 최종 게시 이미지 스냅샷 계약을 지키는지 검증합니다.
  */
-class CommunityMemoControllerIntegrationTest {
+class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String ORIGINAL_OBJECT_KEY = "uploads/community/2026/05/07/direct-user/original image.png";
