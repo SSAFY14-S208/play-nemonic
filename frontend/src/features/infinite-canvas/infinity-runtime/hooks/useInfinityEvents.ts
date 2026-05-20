@@ -40,6 +40,7 @@ const BUCKET_FILL_DILATION_PASSES = 6
 const BUCKET_FILL_DILATION_COLOR_TOLERANCE = 96
 const BUCKET_FILL_HIT_PADDING = 20
 const BUCKET_FILL_IMAGE_PADDING = 2
+const BUCKET_FILL_WEBP_QUALITY = 0.82
 const SHAPE_PREVIEW_MIN_DELTA = 0.5
 interface Bounds {
   x: number
@@ -52,6 +53,8 @@ interface FillableObjectEntry {
   object: InfinityObject
   bounds: Bounds
 }
+
+const objectBoundsCache = new WeakMap<InfinityObject, Bounds | null>()
 
 function shouldAppendLinePoint(
   previousPoint: { x: number; y: number } | undefined,
@@ -265,6 +268,30 @@ function getObjectBounds(object: InfinityObject): Bounds | null {
   }
 }
 
+function getCachedObjectBounds(object: InfinityObject): Bounds | null {
+  if (objectBoundsCache.has(object)) {
+    return objectBoundsCache.get(object) ?? null
+  }
+
+  const bounds = getObjectBounds(object)
+  objectBoundsCache.set(object, bounds)
+  return bounds
+}
+
+function createFillImageDataUrl(fillCanvas: HTMLCanvasElement) {
+  const pngDataUrl = fillCanvas.toDataURL('image/png')
+  const webpDataUrl = fillCanvas.toDataURL('image/webp', BUCKET_FILL_WEBP_QUALITY)
+
+  if (
+    webpDataUrl.startsWith('data:image/webp') &&
+    webpDataUrl.length < pngDataUrl.length
+  ) {
+    return webpDataUrl
+  }
+
+  return pngDataUrl
+}
+
 function containsPoint(
   bounds: Bounds,
   point: { x: number; y: number },
@@ -432,7 +459,7 @@ function createBucketFillObject({
 
   for (const object of objects) {
     if (object.type === 'fill' || object.type === 'text') continue
-    const bounds = getObjectBounds(object)
+    const bounds = getCachedObjectBounds(object)
     if (!bounds) continue
     const entry = { object, bounds }
     fillableEntries.push(entry)
@@ -638,7 +665,7 @@ function createBucketFillObject({
     width: croppedWidth,
     height: croppedHeight,
     color,
-    imageDataUrl: fillCanvas.toDataURL('image/png'),
+    imageDataUrl: createFillImageDataUrl(fillCanvas),
   }
 }
 
@@ -984,7 +1011,6 @@ export function useInfinityEvents({
     innerRect.y + innerRect.height <= outerRect.y + outerRect.height
 
   const getContainedSelectableIds = (
-    stage: Konva.Stage,
     box: { x: number; y: number; width: number; height: number },
     baseSelection: string[],
   ) => {
@@ -992,10 +1018,9 @@ export function useInfinityEvents({
     const hitIds: string[] = [...baseSelection]
     for (const object of objectsRef.current) {
       if (!canSelect(object.id)) continue
-      const objectNode = stage.findOne(`#${object.id}`)
-      if (!objectNode) continue
-      const rect = objectNode.getClientRect({ relativeTo: stage })
-      if (containsRect(box, rect) && !baseSet.has(object.id)) {
+      const bounds = getCachedObjectBounds(object)
+      if (!bounds) continue
+      if (containsRect(box, bounds) && !baseSet.has(object.id)) {
         hitIds.push(object.id)
       }
     }
@@ -1147,7 +1172,7 @@ export function useInfinityEvents({
       const box = { x, y, width, height }
       showSelectionBox(box)
       if (width < 3 || height < 3) return
-      const nextSelectedIds = getContainedSelectableIds(stage, box, dragStart.baseSelection)
+      const nextSelectedIds = getContainedSelectableIds(box, dragStart.baseSelection)
       if (!isSameSelection(dragPreviewSelectedIdsRef.current, nextSelectedIds)) {
         dragPreviewSelectedIdsRef.current = nextSelectedIds
         silentSetSelection(nextSelectedIds)
@@ -1230,7 +1255,7 @@ export function useInfinityEvents({
           }
           // 박스가 너무 작으면 클릭으로 간주 — 선택 변경 없이 hide만.
           if (box.width >= 3 && box.height >= 3) {
-            const hitIds = getContainedSelectableIds(stage, box, dragStart.baseSelection)
+            const hitIds = getContainedSelectableIds(box, dragStart.baseSelection)
             recordSelection(hitIds)
           }
         }
