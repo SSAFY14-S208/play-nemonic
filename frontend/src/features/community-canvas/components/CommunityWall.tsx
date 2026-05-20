@@ -10,7 +10,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react'
 import Image from 'next/image'
-import { RotateCw, X } from 'lucide-react'
+import { RotateCw } from 'lucide-react'
 import { PostItNote } from '@/shared/components/PostItNote'
 import {
   COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS,
@@ -41,7 +41,6 @@ interface CommunityWallProps {
   onClearSelection: () => void
   onOpenMemoDetail: (memoUuid: string) => void
   onAttachPendingMemo: (placement: CommunityMemoLayoutDraft) => void
-  onCancelPendingMemo: () => void
   onEditingLayoutChange: (partialLayout: Partial<CommunityMemoLayoutDraft>) => void
   onSaveEditingLayout: (layout?: CommunityMemoLayoutDraft) => void
   onRetry: () => void
@@ -278,7 +277,6 @@ export function CommunityWall({
   onClearSelection,
   onOpenMemoDetail,
   onAttachPendingMemo,
-  onCancelPendingMemo,
   onEditingLayoutChange,
   onSaveEditingLayout,
   onRetry,
@@ -1089,13 +1087,6 @@ export function CommunityWall({
           </div>
         </div>
 
-        {pendingMemo && (
-          <PendingCancelButton
-            isAttachingMemo={isAttachingMemo}
-            onCancelPendingMemo={onCancelPendingMemo}
-          />
-        )}
-
         {memoStatus === 'loading' && !isWallManipulating && (
           <div className="absolute inset-0 z-[11000] grid place-items-center bg-white/45 backdrop-blur-[1px]">
             <p className="body-b rounded-[0.45rem] bg-white px-4 py-3 text-fg-primary shadow-sm">
@@ -1132,29 +1123,6 @@ export function CommunityWall({
       </div>
       </div>
     </section>
-  )
-}
-
-function PendingCancelButton({
-  isAttachingMemo,
-  onCancelPendingMemo,
-}: {
-  isAttachingMemo: boolean
-  onCancelPendingMemo: () => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-label="메모 부착 취소"
-      onClick={(event) => {
-        event.stopPropagation()
-        onCancelPendingMemo()
-      }}
-      disabled={isAttachingMemo}
-      className="absolute right-5 top-5 z-[10001] grid size-10 place-items-center rounded-full bg-white text-fg-secondary shadow-[0_10px_22px_rgb(71_68_112_/_16%)] disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      <X className="size-5" />
-    </button>
   )
 }
 
