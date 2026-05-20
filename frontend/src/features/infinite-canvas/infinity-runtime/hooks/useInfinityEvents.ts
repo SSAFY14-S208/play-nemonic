@@ -16,16 +16,21 @@ import {
   INFINITY_TEXT_DEFAULT_FONT_SIZE,
 } from '../constants'
 function generateId(): string {
-  return Math.random().toString(36).slice(2, 9)
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((p) => [p.x, p.y])
 }
 
-const MIN_LINE_POINT_DISTANCE = 0
-const MAX_LINE_POINTS_PER_OBJECT = 5200
-const MAX_DRAFT_LINE_POINTS = 600
+const MIN_LINE_POINT_DISTANCE = 1.5
+const MAX_LINE_POINTS_PER_OBJECT = 1800
+const MAX_DRAFT_LINE_POINTS = 240
+const LINE_SIMPLIFY_TOLERANCE = 0.9
 const BUCKET_FILL_PADDING = 96
 const BUCKET_FILL_MAX_SIZE = 1600
 const BUCKET_FILL_ALPHA_TOLERANCE = 16
@@ -34,6 +39,7 @@ const BUCKET_FILL_BARRIER_DILATION_PASSES = 0
 const BUCKET_FILL_DILATION_PASSES = 6
 const BUCKET_FILL_DILATION_COLOR_TOLERANCE = 96
 const BUCKET_FILL_HIT_PADDING = 20
+const BUCKET_FILL_IMAGE_PADDING = 2
 const SHAPE_PREVIEW_MIN_DELTA = 0.5
 interface Bounds {
   x: number
@@ -71,6 +77,76 @@ function limitLinePoints(points: { x: number; y: number }[], maxPointCount: numb
   return sampledPoints
 }
 
+function getSegmentDistanceSquared(
+  point: { x: number; y: number },
+  segmentStart: { x: number; y: number },
+  segmentEnd: { x: number; y: number },
+) {
+  const segmentDeltaX = segmentEnd.x - segmentStart.x
+  const segmentDeltaY = segmentEnd.y - segmentStart.y
+  if (segmentDeltaX === 0 && segmentDeltaY === 0) {
+    const pointDeltaX = point.x - segmentStart.x
+    const pointDeltaY = point.y - segmentStart.y
+    return pointDeltaX * pointDeltaX + pointDeltaY * pointDeltaY
+  }
+
+  const projectionRatio = Math.max(
+    0,
+    Math.min(
+      1,
+      ((point.x - segmentStart.x) * segmentDeltaX + (point.y - segmentStart.y) * segmentDeltaY) /
+        (segmentDeltaX * segmentDeltaX + segmentDeltaY * segmentDeltaY),
+    ),
+  )
+  const projectedX = segmentStart.x + segmentDeltaX * projectionRatio
+  const projectedY = segmentStart.y + segmentDeltaY * projectionRatio
+  const distanceX = point.x - projectedX
+  const distanceY = point.y - projectedY
+  return distanceX * distanceX + distanceY * distanceY
+}
+
+function simplifyLinePoints(points: { x: number; y: number }[], tolerance: number) {
+  if (points.length <= 2) return points
+
+  const toleranceSquared = tolerance * tolerance
+  const keepPointIndexes = new Uint8Array(points.length)
+  const pendingSegments: Array<{ startIndex: number; endIndex: number }> = [
+    { startIndex: 0, endIndex: points.length - 1 },
+  ]
+  keepPointIndexes[0] = 1
+  keepPointIndexes[points.length - 1] = 1
+
+  while (pendingSegments.length > 0) {
+    const segment = pendingSegments.pop()
+    if (!segment || segment.endIndex - segment.startIndex <= 1) continue
+
+    let farthestPointIndex = -1
+    let farthestDistanceSquared = 0
+    const segmentStart = points[segment.startIndex]
+    const segmentEnd = points[segment.endIndex]
+    for (
+      let pointIndex = segment.startIndex + 1;
+      pointIndex < segment.endIndex;
+      pointIndex += 1
+    ) {
+      const distanceSquared = getSegmentDistanceSquared(points[pointIndex], segmentStart, segmentEnd)
+      if (distanceSquared > farthestDistanceSquared) {
+        farthestDistanceSquared = distanceSquared
+        farthestPointIndex = pointIndex
+      }
+    }
+
+    if (farthestPointIndex === -1 || farthestDistanceSquared <= toleranceSquared) continue
+    keepPointIndexes[farthestPointIndex] = 1
+    pendingSegments.push(
+      { startIndex: segment.startIndex, endIndex: farthestPointIndex },
+      { startIndex: farthestPointIndex, endIndex: segment.endIndex },
+    )
+  }
+
+  return points.filter((_, pointIndex) => keepPointIndexes[pointIndex] === 1)
+}
+
 function createDraftLine(line: InfinityLine): InfinityLine {
   return {
     ...line,
@@ -79,9 +155,10 @@ function createDraftLine(line: InfinityLine): InfinityLine {
 }
 
 function createPersistedLine(line: InfinityLine): InfinityLine {
+  const limitedPoints = limitLinePoints(line.points, MAX_LINE_POINTS_PER_OBJECT)
   return {
     ...line,
-    points: limitLinePoints(line.points, MAX_LINE_POINTS_PER_OBJECT),
+    points: simplifyLinePoints(limitedPoints, LINE_SIMPLIFY_TOLERANCE),
   }
 }
 
@@ -541,15 +618,25 @@ function createBucketFillObject({
     }
   }
 
-  fillContext.putImageData(fillImageData, 0, 0)
+  const cropMinX = Math.max(0, filledMinX - BUCKET_FILL_IMAGE_PADDING)
+  const cropMinY = Math.max(0, filledMinY - BUCKET_FILL_IMAGE_PADDING)
+  const cropMaxX = Math.min(rawWidth - 1, filledMaxX + BUCKET_FILL_IMAGE_PADDING)
+  const cropMaxY = Math.min(rawHeight - 1, filledMaxY + BUCKET_FILL_IMAGE_PADDING)
+  const croppedWidth = cropMaxX - cropMinX + 1
+  const croppedHeight = cropMaxY - cropMinY + 1
+  if (croppedWidth <= 0 || croppedHeight <= 0) return null
+
+  fillCanvas.width = croppedWidth
+  fillCanvas.height = croppedHeight
+  fillContext.putImageData(fillImageData, -cropMinX, -cropMinY)
 
   return {
     id: generateId(),
     type: 'fill',
-    x: minX,
-    y: minY,
-    width: rawWidth,
-    height: rawHeight,
+    x: minX + cropMinX,
+    y: minY + cropMinY,
+    width: croppedWidth,
+    height: croppedHeight,
     color,
     imageDataUrl: fillCanvas.toDataURL('image/png'),
   }

@@ -63,6 +63,7 @@ export interface InfinityTextEditorCommitValue {
 }
 
 const CLIPBOARD_PASTE_OFFSET = 28
+const MAX_LOCAL_EDIT_ACTIONS = 50
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -200,8 +201,12 @@ export function useInfinityDrawing(
     const { actions, index } = localEditHistoryRef.current
     const nextActions = actions.slice(0, index + 1)
     nextActions.push(action)
-    localEditHistoryRef.current = { actions: nextActions, index: nextActions.length - 1 }
-    setLocalHistoryCursor({ index: nextActions.length - 1, length: nextActions.length })
+    const cappedActions =
+      nextActions.length > MAX_LOCAL_EDIT_ACTIONS
+        ? nextActions.slice(nextActions.length - MAX_LOCAL_EDIT_ACTIONS)
+        : nextActions
+    localEditHistoryRef.current = { actions: cappedActions, index: cappedActions.length - 1 }
+    setLocalHistoryCursor({ index: cappedActions.length - 1, length: cappedActions.length })
   }
 
   const commitLocalChange = (
