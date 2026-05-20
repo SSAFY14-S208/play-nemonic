@@ -152,10 +152,10 @@ export default function RelayDrawingView() {
       aria-label="릴레이 드로잉"
     >
       <div className="relative z-10 grid w-full gap-4 px-3 py-4 lg:hidden">
-        <div className="flex items-center justify-end gap-3">
-          <RelayHowToPlayButton />
-          <RelayBgmToggle />
-          <PhoneLauncherButton />
+        <div className="flex items-center justify-end gap-2">
+          <RelayHowToPlayButton className="size-11" />
+          <RelayBgmToggle className="size-11" />
+          <PhoneLauncherButton className="size-11" />
         </div>
 
         <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">

@@ -70,10 +70,10 @@ export default function RelayResultView() {
   return (
     <section className="relative isolate min-h-full">
       <div className="mx-auto flex min-h-screen w-full max-w-360 flex-col gap-4 px-4 py-6 sm:gap-6 sm:px-6 lg:gap-6 lg:px-[5%] lg:py-8">
-        <div className="flex items-center justify-end gap-3 lg:hidden">
-          <RelayHowToPlayButton />
-          <RelayBgmToggle />
-          <PhoneLauncherButton />
+        <div className="flex items-center justify-end gap-2 lg:hidden">
+          <RelayHowToPlayButton className="size-11" />
+          <RelayBgmToggle className="size-11" />
+          <PhoneLauncherButton className="size-11" />
         </div>
 
         <main className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[7fr_5fr] lg:items-stretch lg:gap-6">

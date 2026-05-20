@@ -1,9 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
-
 import { cn } from '@/shared/libs'
-import { usePhoneLauncherStore } from '@/shared/stores'
 
 import { PhoneLauncherButton } from '@/shared/components'
 
@@ -12,32 +9,27 @@ import RelayHowToPlayButton from './RelayHowToPlayButton'
 
 interface RelayFloatingControlsProps {
   className?: string
+  /** 개별 버튼에 전달할 크기 클래스. 기본값 "size-11". */
+  buttonClassName?: string
 }
 
 // 우상단 floating 컨트롤 (게임 설명 + BGM mute 토글 + phone 열기).
 // 로비를 제외한 부스/드로잉/대기/결과 화면에서 공통으로 사용.
-// 마운트 중에는 floating PhoneLauncher 버튼을 숨기고 인라인 버튼으로 대체한다.
+// floating PhoneLauncher 숨기기는 페이지 레벨(RelayRoomPageInner)에서 담당한다.
 export default function RelayFloatingControls({
   className,
+  buttonClassName = 'size-11',
 }: RelayFloatingControlsProps) {
-  const setLauncherHidden = usePhoneLauncherStore(
-    (state) => state.setLauncherHidden,
-  )
-  useEffect(() => {
-    setLauncherHidden(true)
-    return () => setLauncherHidden(false)
-  }, [setLauncherHidden])
-
   return (
     <div
       className={cn(
-        'fixed right-4 top-4 z-[var(--z-sticky)] flex items-center gap-3',
+        'fixed right-4 top-4 z-[var(--z-sticky)] flex items-center gap-2',
         className,
       )}
     >
-      <RelayHowToPlayButton />
-      <RelayBgmToggle />
-      <PhoneLauncherButton />
+      <RelayHowToPlayButton className={buttonClassName} />
+      <RelayBgmToggle className={buttonClassName} />
+      <PhoneLauncherButton className={buttonClassName} />
     </div>
   )
 }
