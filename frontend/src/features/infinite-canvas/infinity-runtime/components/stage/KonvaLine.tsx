@@ -7,6 +7,9 @@ import {
   getExpandedHitStrokeWidth,
 } from "./shapes.types";
 
+const LINE_HIT_STROKE_MIN_WIDTH = 18;
+const SELECTED_LINE_HIT_STROKE_MIN_WIDTH = 24;
+
 interface KonvaLineProps {
   line: InfinityLine;
   isSelectTool?: boolean;
@@ -26,6 +29,11 @@ export function KonvaLine({
   onLineDragMove,
   onLineDragEnd,
 }: KonvaLineProps) {
+  const hitStrokeWidth = Math.max(
+    getExpandedHitStrokeWidth(line.strokeWidth),
+    isSelected ? SELECTED_LINE_HIT_STROKE_MIN_WIDTH : LINE_HIT_STROKE_MIN_WIDTH,
+  );
+
   return (
     <Line
       id={line.id}
@@ -39,7 +47,7 @@ export function KonvaLine({
         line.isEraser ? "destination-out" : "source-over"
       }
       tension={INFINITY_LINE_TENSION}
-      hitStrokeWidth={isSelected ? Math.max(getExpandedHitStrokeWidth(line.strokeWidth), 18) : getExpandedHitStrokeWidth(line.strokeWidth)}
+      hitStrokeWidth={hitStrokeWidth}
       dragDistance={OBJECT_DRAG_DISTANCE}
       draggable={isSelectTool && !isLocked}
       onClick={
