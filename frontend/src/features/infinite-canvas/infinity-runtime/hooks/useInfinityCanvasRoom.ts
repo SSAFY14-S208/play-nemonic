@@ -46,6 +46,7 @@ const UPDATE_CONFLICT_MESSAGE = '무한 캔버스 상태 갱신 충돌이 발생
 const MAX_OPERATIONS_PER_BATCH = 40
 const IN_FLIGHT_OPERATION_TIMEOUT_MS = 7000
 const LOCAL_ELEMENT_RETENTION_MS = 30000
+const MAX_TRACKED_OPERATION_KEYS = 1200
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -339,6 +340,18 @@ function compactPendingOperations(operations: InfiniteCanvasOperationRequest[]) 
   return compactedOperations
 }
 
+function trimSetToRecentValues<T>(set: Set<T>, maxSize: number) {
+  if (set.size <= maxSize) return
+
+  const deleteCount = set.size - maxSize
+  let deletedCount = 0
+  for (const value of set) {
+    set.delete(value)
+    deletedCount += 1
+    if (deletedCount >= deleteCount) return
+  }
+}
+
 function canPatchStateFromRecentOperations(
   currentState: InfiniteCanvasStateResponse,
   nextState: InfiniteCanvasStateResponse,
@@ -583,6 +596,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         confirmedClientOperationIdsRef.current.add(clientOperationId)
       }
     }
+    trimSetToRecentValues(confirmedClientOperationIdsRef.current, MAX_TRACKED_OPERATION_KEYS)
   }, [])
 
   const areOperationsConfirmed = useCallback((operations: InfiniteCanvasOperationRequest[]) => {
@@ -605,6 +619,7 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
         appliedOperationKeysRef.current.add(operationKey)
       }
     }
+    trimSetToRecentValues(appliedOperationKeysRef.current, MAX_TRACKED_OPERATION_KEYS)
   }, [])
 
   const hydrateRoom = useCallback(async (options: { showLoading?: boolean } = {}) => {

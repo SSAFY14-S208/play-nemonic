@@ -16,16 +16,21 @@ import {
   INFINITY_TEXT_DEFAULT_FONT_SIZE,
 } from '../constants'
 function generateId(): string {
-  return Math.random().toString(36).slice(2, 9)
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function flattenPoints(points: { x: number; y: number }[]): number[] {
   return points.flatMap((p) => [p.x, p.y])
 }
 
-const MIN_LINE_POINT_DISTANCE = 0
-const MAX_LINE_POINTS_PER_OBJECT = 5200
-const MAX_DRAFT_LINE_POINTS = 600
+const MIN_LINE_POINT_DISTANCE = 1.5
+const MAX_LINE_POINTS_PER_OBJECT = 1800
+const MAX_DRAFT_LINE_POINTS = 240
+const LINE_SIMPLIFY_TOLERANCE = 0.9
 const BUCKET_FILL_PADDING = 96
 const BUCKET_FILL_MAX_SIZE = 1600
 const BUCKET_FILL_ALPHA_TOLERANCE = 16
@@ -34,6 +39,8 @@ const BUCKET_FILL_BARRIER_DILATION_PASSES = 0
 const BUCKET_FILL_DILATION_PASSES = 6
 const BUCKET_FILL_DILATION_COLOR_TOLERANCE = 96
 const BUCKET_FILL_HIT_PADDING = 20
+const BUCKET_FILL_IMAGE_PADDING = 2
+const BUCKET_FILL_WEBP_QUALITY = 0.82
 const SHAPE_PREVIEW_MIN_DELTA = 0.5
 interface Bounds {
   x: number
@@ -46,6 +53,8 @@ interface FillableObjectEntry {
   object: InfinityObject
   bounds: Bounds
 }
+
+const objectBoundsCache = new WeakMap<InfinityObject, Bounds | null>()
 
 function shouldAppendLinePoint(
   previousPoint: { x: number; y: number } | undefined,
@@ -71,6 +80,76 @@ function limitLinePoints(points: { x: number; y: number }[], maxPointCount: numb
   return sampledPoints
 }
 
+function getSegmentDistanceSquared(
+  point: { x: number; y: number },
+  segmentStart: { x: number; y: number },
+  segmentEnd: { x: number; y: number },
+) {
+  const segmentDeltaX = segmentEnd.x - segmentStart.x
+  const segmentDeltaY = segmentEnd.y - segmentStart.y
+  if (segmentDeltaX === 0 && segmentDeltaY === 0) {
+    const pointDeltaX = point.x - segmentStart.x
+    const pointDeltaY = point.y - segmentStart.y
+    return pointDeltaX * pointDeltaX + pointDeltaY * pointDeltaY
+  }
+
+  const projectionRatio = Math.max(
+    0,
+    Math.min(
+      1,
+      ((point.x - segmentStart.x) * segmentDeltaX + (point.y - segmentStart.y) * segmentDeltaY) /
+        (segmentDeltaX * segmentDeltaX + segmentDeltaY * segmentDeltaY),
+    ),
+  )
+  const projectedX = segmentStart.x + segmentDeltaX * projectionRatio
+  const projectedY = segmentStart.y + segmentDeltaY * projectionRatio
+  const distanceX = point.x - projectedX
+  const distanceY = point.y - projectedY
+  return distanceX * distanceX + distanceY * distanceY
+}
+
+function simplifyLinePoints(points: { x: number; y: number }[], tolerance: number) {
+  if (points.length <= 2) return points
+
+  const toleranceSquared = tolerance * tolerance
+  const keepPointIndexes = new Uint8Array(points.length)
+  const pendingSegments: Array<{ startIndex: number; endIndex: number }> = [
+    { startIndex: 0, endIndex: points.length - 1 },
+  ]
+  keepPointIndexes[0] = 1
+  keepPointIndexes[points.length - 1] = 1
+
+  while (pendingSegments.length > 0) {
+    const segment = pendingSegments.pop()
+    if (!segment || segment.endIndex - segment.startIndex <= 1) continue
+
+    let farthestPointIndex = -1
+    let farthestDistanceSquared = 0
+    const segmentStart = points[segment.startIndex]
+    const segmentEnd = points[segment.endIndex]
+    for (
+      let pointIndex = segment.startIndex + 1;
+      pointIndex < segment.endIndex;
+      pointIndex += 1
+    ) {
+      const distanceSquared = getSegmentDistanceSquared(points[pointIndex], segmentStart, segmentEnd)
+      if (distanceSquared > farthestDistanceSquared) {
+        farthestDistanceSquared = distanceSquared
+        farthestPointIndex = pointIndex
+      }
+    }
+
+    if (farthestPointIndex === -1 || farthestDistanceSquared <= toleranceSquared) continue
+    keepPointIndexes[farthestPointIndex] = 1
+    pendingSegments.push(
+      { startIndex: segment.startIndex, endIndex: farthestPointIndex },
+      { startIndex: farthestPointIndex, endIndex: segment.endIndex },
+    )
+  }
+
+  return points.filter((_, pointIndex) => keepPointIndexes[pointIndex] === 1)
+}
+
 function createDraftLine(line: InfinityLine): InfinityLine {
   return {
     ...line,
@@ -79,9 +158,10 @@ function createDraftLine(line: InfinityLine): InfinityLine {
 }
 
 function createPersistedLine(line: InfinityLine): InfinityLine {
+  const limitedPoints = limitLinePoints(line.points, MAX_LINE_POINTS_PER_OBJECT)
   return {
     ...line,
-    points: limitLinePoints(line.points, MAX_LINE_POINTS_PER_OBJECT),
+    points: simplifyLinePoints(limitedPoints, LINE_SIMPLIFY_TOLERANCE),
   }
 }
 
@@ -186,6 +266,30 @@ function getObjectBounds(object: InfinityObject): Bounds | null {
     width: Math.max(maxX - minX + padding * 2, padding * 2),
     height: Math.max(maxY - minY + padding * 2, padding * 2),
   }
+}
+
+function getCachedObjectBounds(object: InfinityObject): Bounds | null {
+  if (objectBoundsCache.has(object)) {
+    return objectBoundsCache.get(object) ?? null
+  }
+
+  const bounds = getObjectBounds(object)
+  objectBoundsCache.set(object, bounds)
+  return bounds
+}
+
+function createFillImageDataUrl(fillCanvas: HTMLCanvasElement) {
+  const pngDataUrl = fillCanvas.toDataURL('image/png')
+  const webpDataUrl = fillCanvas.toDataURL('image/webp', BUCKET_FILL_WEBP_QUALITY)
+
+  if (
+    webpDataUrl.startsWith('data:image/webp') &&
+    webpDataUrl.length < pngDataUrl.length
+  ) {
+    return webpDataUrl
+  }
+
+  return pngDataUrl
 }
 
 function containsPoint(
@@ -355,7 +459,7 @@ function createBucketFillObject({
 
   for (const object of objects) {
     if (object.type === 'fill' || object.type === 'text') continue
-    const bounds = getObjectBounds(object)
+    const bounds = getCachedObjectBounds(object)
     if (!bounds) continue
     const entry = { object, bounds }
     fillableEntries.push(entry)
@@ -541,17 +645,27 @@ function createBucketFillObject({
     }
   }
 
-  fillContext.putImageData(fillImageData, 0, 0)
+  const cropMinX = Math.max(0, filledMinX - BUCKET_FILL_IMAGE_PADDING)
+  const cropMinY = Math.max(0, filledMinY - BUCKET_FILL_IMAGE_PADDING)
+  const cropMaxX = Math.min(rawWidth - 1, filledMaxX + BUCKET_FILL_IMAGE_PADDING)
+  const cropMaxY = Math.min(rawHeight - 1, filledMaxY + BUCKET_FILL_IMAGE_PADDING)
+  const croppedWidth = cropMaxX - cropMinX + 1
+  const croppedHeight = cropMaxY - cropMinY + 1
+  if (croppedWidth <= 0 || croppedHeight <= 0) return null
+
+  fillCanvas.width = croppedWidth
+  fillCanvas.height = croppedHeight
+  fillContext.putImageData(fillImageData, -cropMinX, -cropMinY)
 
   return {
     id: generateId(),
     type: 'fill',
-    x: minX,
-    y: minY,
-    width: rawWidth,
-    height: rawHeight,
+    x: minX + cropMinX,
+    y: minY + cropMinY,
+    width: croppedWidth,
+    height: croppedHeight,
     color,
-    imageDataUrl: fillCanvas.toDataURL('image/png'),
+    imageDataUrl: createFillImageDataUrl(fillCanvas),
   }
 }
 
@@ -591,6 +705,7 @@ interface UseInfinityEventsParams {
   isShiftDownRef: { readonly current: boolean }
   // 텍스트 편집기 열기 요청 — InfinityStageView에서 textarea overlay 마운트.
   openTextEditor: (request: TextEditorRequest) => void
+  canSelectObject?: (id: string) => boolean
   canEditObject?: (id: string) => boolean
   onBlockedObjectEdit?: (id: string) => void
   // Layer 노드 ref들 — mousemove마다 React 리렌더 없이 직접 갱신.
@@ -616,6 +731,7 @@ export function useInfinityEvents({
   isSpaceDownRef,
   isShiftDownRef,
   openTextEditor,
+  canSelectObject,
   canEditObject,
   onBlockedObjectEdit,
   currentPenLineRef,
@@ -638,6 +754,7 @@ export function useInfinityEvents({
   const dragPreviewSelectedIdsRef = useRef<string[]>([])
 
   const canEdit = (id: string) => canEditObject?.(id) ?? true
+  const canSelect = (id: string) => canSelectObject?.(id) ?? canEdit(id)
 
   const blockEdit = (id: string) => {
     onBlockedObjectEdit?.(id)
@@ -894,18 +1011,16 @@ export function useInfinityEvents({
     innerRect.y + innerRect.height <= outerRect.y + outerRect.height
 
   const getContainedSelectableIds = (
-    stage: Konva.Stage,
     box: { x: number; y: number; width: number; height: number },
     baseSelection: string[],
   ) => {
     const baseSet = new Set(baseSelection)
     const hitIds: string[] = [...baseSelection]
     for (const object of objectsRef.current) {
-      if (!canEdit(object.id)) continue
-      const objectNode = stage.findOne(`#${object.id}`)
-      if (!objectNode) continue
-      const rect = objectNode.getClientRect({ relativeTo: stage })
-      if (containsRect(box, rect) && !baseSet.has(object.id)) {
+      if (!canSelect(object.id)) continue
+      const bounds = getCachedObjectBounds(object)
+      if (!bounds) continue
+      if (containsRect(box, bounds) && !baseSet.has(object.id)) {
         hitIds.push(object.id)
       }
     }
@@ -1057,7 +1172,7 @@ export function useInfinityEvents({
       const box = { x, y, width, height }
       showSelectionBox(box)
       if (width < 3 || height < 3) return
-      const nextSelectedIds = getContainedSelectableIds(stage, box, dragStart.baseSelection)
+      const nextSelectedIds = getContainedSelectableIds(box, dragStart.baseSelection)
       if (!isSameSelection(dragPreviewSelectedIdsRef.current, nextSelectedIds)) {
         dragPreviewSelectedIdsRef.current = nextSelectedIds
         silentSetSelection(nextSelectedIds)
@@ -1140,7 +1255,7 @@ export function useInfinityEvents({
           }
           // 박스가 너무 작으면 클릭으로 간주 — 선택 변경 없이 hide만.
           if (box.width >= 3 && box.height >= 3) {
-            const hitIds = getContainedSelectableIds(stage, box, dragStart.baseSelection)
+            const hitIds = getContainedSelectableIds(box, dragStart.baseSelection)
             recordSelection(hitIds)
           }
         }
@@ -1216,12 +1331,16 @@ export function useInfinityEvents({
 
   // 도형/텍스트 클릭 → 단일/다중 선택 토글, history 기록.
   const onObjectClick = (id: string, isShift: boolean, toolSnapshot: InfinityToolKey = 'select') => {
-    if (!canEdit(id)) {
+    if (!canSelect(id)) {
       blockEdit(id)
       return
     }
 
     if (toolSnapshot === 'bucket') {
+      if (!canEdit(id)) {
+        blockEdit(id)
+        return
+      }
       const nextObjects = objectsRef.current.map((object) =>
         object.id === id ? recolorObject(object, color) : object,
       )
@@ -1242,6 +1361,10 @@ export function useInfinityEvents({
     const targetObject = objectsRef.current.find((object) => object.id === id)
     const isOnlySelectedObject = current.length === 1 && current[0] === id
     if (!isShift && targetObject?.type === 'text' && isOnlySelectedObject) {
+      if (!canEdit(id)) {
+        blockEdit(id)
+        return
+      }
       openExistingTextEditor(targetObject)
       return
     }
@@ -1254,6 +1377,10 @@ export function useInfinityEvents({
     } else {
       if (current.length === 1 && current[0] === id) {
         if (targetObject?.type === 'text') {
+          if (!canEdit(id)) {
+            blockEdit(id)
+            return
+          }
           openExistingTextEditor(targetObject)
         }
         return

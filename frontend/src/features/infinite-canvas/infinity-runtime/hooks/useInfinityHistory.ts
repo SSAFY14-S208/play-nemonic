@@ -10,6 +10,7 @@ interface InfinitySnapshot {
 }
 
 const INITIAL_SNAPSHOT: InfinitySnapshot = { objects: [], selectedIds: [] }
+const MAX_HISTORY_SNAPSHOTS = 50
 
 function createObjectMap(objects: InfinityObject[]) {
   return new Map(objects.map((object) => [object.id, object]))
@@ -57,9 +58,13 @@ export function useInfinityHistory() {
       objects: [...nextObjects],
       selectedIds: [...newSelectedIds],
     })
-    historyRef.current = { snapshots: trimmed, index: trimmed.length - 1 }
+    const cappedSnapshots =
+      trimmed.length > MAX_HISTORY_SNAPSHOTS
+        ? trimmed.slice(trimmed.length - MAX_HISTORY_SNAPSHOTS)
+        : trimmed
+    historyRef.current = { snapshots: cappedSnapshots, index: cappedSnapshots.length - 1 }
     commitObjects(nextObjects, newSelectedIds)
-    setHistoryCursor({ index: trimmed.length - 1, length: trimmed.length })
+    setHistoryCursor({ index: cappedSnapshots.length - 1, length: cappedSnapshots.length })
   }
 
   const replaceObjectsFromServer = (
