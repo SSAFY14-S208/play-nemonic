@@ -118,6 +118,20 @@
       color-mix(in srgb, var(--progress-dot-color, #b8a4d1) 28%, transparent);
 }
 
+.progressDotPending:not(.progressDotActive) {
+  background: color-mix(
+    in srgb,
+    var(--progress-dot-color, #b8a4d1) 72%,
+    rgb(255 255 255 / 0%)
+  );
+  box-shadow:
+    0 0 0 2px
+      color-mix(in srgb, var(--progress-dot-color, #b8a4d1) 14%, transparent),
+    0 0 0.7rem
+      color-mix(in srgb, var(--progress-dot-color, #b8a4d1) 34%, transparent);
+  transform: scale(1.08);
+}
+
 .layout {
   display: block;
 }

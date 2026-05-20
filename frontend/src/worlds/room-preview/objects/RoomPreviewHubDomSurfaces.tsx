@@ -1,10 +1,12 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useThree } from '@react-three/fiber'
 import { useRouter } from 'next/navigation'
 import CommunityCanvasWhiteboardPreviewMesh from '@/worlds/hub/objects/CommunityCanvasWhiteboardPreviewMesh'
 import { useMonitorGameSelector } from '@/worlds/hub/objects/hooks'
-import MonitorGameSelector from '@/worlds/hub/objects/MonitorGameSelector'
+import MonitorGameSelector, {
+  type MonitorGameTransitionControls,
+} from '@/worlds/hub/objects/MonitorGameSelector'
 import { HUB_COMMUNITY_CANVAS_PATH } from '@/worlds/hub/constants'
 import { useHubRoomStore } from '@/shared/stores'
 import type { RoomPreviewHubHitboxConfigs } from '../useRoomPreviewHubHitboxCalibration'
@@ -70,10 +72,10 @@ export default function RoomPreviewHubDomSurfaces({
   const setFocus = useHubRoomStore((state) => state.setFocus)
   const {
     focusMonitor,
-    selectNextGame,
-    selectPreviousGame,
     startSelectedGame,
   } = useMonitorGameSelector({ enableKeyboardShortcuts: false })
+  const monitorTransitionControlsRef =
+    useRef<MonitorGameTransitionControls | null>(null)
   const [isWhiteboardHovered, setIsWhiteboardHovered] = useState(false)
 
   const setHitboxHovered = useCallback((isHovered: boolean) => {
@@ -160,19 +162,19 @@ export default function RoomPreviewHubDomSurfaces({
   const handleMonitorPreviousClick = useCallback(
     (event: ThreeEvent<MouseEvent>) => {
       event.stopPropagation()
-      selectPreviousGame()
+      monitorTransitionControlsRef.current?.requestPreviousGame()
       invalidate()
     },
-    [invalidate, selectPreviousGame],
+    [invalidate],
   )
 
   const handleMonitorNextClick = useCallback(
     (event: ThreeEvent<MouseEvent>) => {
       event.stopPropagation()
-      selectNextGame()
+      monitorTransitionControlsRef.current?.requestNextGame()
       invalidate()
     },
-    [invalidate, selectNextGame],
+    [invalidate],
   )
 
   const handleMonitorStartClick = useCallback(
@@ -190,6 +192,7 @@ export default function RoomPreviewHubDomSurfaces({
         position={STAGE6_MONITOR_DOM_POSITION}
         quaternion={STAGE6_MONITOR_DOM_QUATERNION}
         scale={STAGE6_MONITOR_DOM_SCALE}
+        transitionControlsRef={monitorTransitionControlsRef}
       />
       <CommunityCanvasWhiteboardPreviewMesh
         flipContentX

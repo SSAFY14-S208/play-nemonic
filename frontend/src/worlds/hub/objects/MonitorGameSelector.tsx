@@ -1,15 +1,28 @@
 import { Text, useTexture } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Suspense,
+  type MutableRefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import * as THREE from 'three'
 import {
   HUB_GAMES,
   HUB_MONITOR_SCREEN_POSITION,
   HUB_MONITOR_SCREEN_SIZE,
 } from '@/shared/constants'
-import { useHubRoomStore } from '@/shared/stores'
+import {
+  useHubMonitorTransitionStore,
+  useHubOnboardingStore,
+  useHubRoomStore,
+} from '@/shared/stores'
 import type { HubGameId } from '@/shared/types'
+import { trackHubInvalidate } from '@/shared/utils'
 import type { MonitorEntranceProgressRef, MonitorGameAction } from './hooks'
 import {
   useMonitorEntranceSequence,
@@ -45,6 +58,7 @@ const MONITOR_NAV_ARROW_BOB_DISTANCE = 0.052
 const MONITOR_NAV_ARROW_BOB_SPEED = 3.4
 const MONITOR_NAV_ARROW_PULSE_SCALE = 0.045
 const MONITOR_TEXTURE_IDLE_TIMEOUT_MS = 1200
+const MONITOR_TRANSITION_FEEDBACK_LAYER_Z = MONITOR_HOTSPOT_LAYER_Z - 0.008
 const DISABLED_RAYCAST: THREE.Mesh['raycast'] = () => undefined
 const configuredMonitorTextures = new WeakSet<THREE.Texture>()
 
@@ -95,11 +109,22 @@ const MONITOR_SCREEN_ASSETS: Record<HubGameId, MonitorScreenAsset> = {
 
 type MonitorGameSelectorScale = number | [number, number, number]
 
+export interface MonitorGameTransitionControls {
+  requestNextGame: () => void
+  requestPreviousGame: () => void
+}
+
 interface MonitorGameSelectorProps {
   enableInternalHitboxes?: boolean
   position?: [number, number, number]
   quaternion?: [number, number, number, number]
   scale?: MonitorGameSelectorScale
+  transitionControlsRef?: MutableRefObject<MonitorGameTransitionControls | null>
+}
+
+interface PendingMonitorGameRequest {
+  gameIndex: number
+  requestId: number
 }
 
 function configureMonitorTexture(texture: THREE.Texture) {
@@ -138,22 +163,13 @@ const MONITOR_TEXTURE_URLS = Array.from(
 )
 
 function getWrappedGameIndex(gameIndex: number) {
-  return (gameIndex + HUB_GAMES.length) % HUB_GAMES.length
+  return ((gameIndex % HUB_GAMES.length) + HUB_GAMES.length) % HUB_GAMES.length
 }
 
-function getAdjacentMonitorTextureUrls(selectedGameIndex: number) {
-  const textureUrls = new Set<string>()
+function getMonitorAssetByGameIndex(gameIndex: number) {
+  const game = HUB_GAMES[getWrappedGameIndex(gameIndex)] ?? HUB_GAMES[0]
 
-  ;[-1, 1].forEach((offset) => {
-    const game = HUB_GAMES[getWrappedGameIndex(selectedGameIndex + offset)]
-    const asset = MONITOR_SCREEN_ASSETS[game.id]
-
-    getMonitorAssetTextureUrls(asset).forEach((textureUrl) => {
-      textureUrls.add(textureUrl)
-    })
-  })
-
-  return [...textureUrls]
+  return MONITOR_SCREEN_ASSETS[game.id]
 }
 
 function preloadMonitorTextures(textureUrls: string[]) {
@@ -182,7 +198,13 @@ function scheduleMonitorTextureIdleTask(callback: () => void) {
   }
 }
 
-function useMonitorTextureWarmupTrigger(isMonitorFocused: boolean) {
+function useMonitorTextureWarmupTrigger({
+  hasEnteredHub,
+  isMonitorFocused,
+}: {
+  hasEnteredHub: boolean
+  isMonitorFocused: boolean
+}) {
   const [
     shouldWarmAllMonitorTextures,
     setShouldWarmAllMonitorTextures,
@@ -193,6 +215,7 @@ function useMonitorTextureWarmupTrigger(isMonitorFocused: boolean) {
     let cancelled = false
 
     if (hasRequestedWarmupRef.current) return
+    if (!hasEnteredHub && !isMonitorFocused) return
 
     const startWarmup = () => {
       if (hasRequestedWarmupRef.current) return
@@ -223,7 +246,7 @@ function useMonitorTextureWarmupTrigger(isMonitorFocused: boolean) {
       cancelled = true
       cancelIdleTask()
     }
-  }, [isMonitorFocused])
+  }, [hasEnteredHub, isMonitorFocused])
 
   return shouldWarmAllMonitorTextures
 }
@@ -232,6 +255,19 @@ function setDocumentCursor(cursor: string) {
   if (typeof document === 'undefined') return
 
   document.body.style.cursor = cursor
+}
+
+function isMonitorKeyboardInputTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+
+  const tagName = target.tagName.toLowerCase()
+
+  return (
+    target.isContentEditable ||
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select'
+  )
 }
 
 function MonitorTextureWarmupContent() {
@@ -255,6 +291,123 @@ function MonitorTextureWarmupContent() {
 
 function MonitorTextureWarmup({ isEnabled }: { isEnabled: boolean }) {
   return isEnabled ? <MonitorTextureWarmupContent /> : null
+}
+
+function PendingMonitorTextureCommit({
+  gameIndex,
+  onReady,
+  requestId,
+}: {
+  gameIndex: number
+  onReady: (gameIndex: number, requestId: number) => void
+  requestId: number
+}) {
+  const gl = useThree((state) => state.gl)
+  const invalidate = useThree((state) => state.invalidate)
+  const asset = getMonitorAssetByGameIndex(gameIndex)
+  const pendingTextureUrls = useMemo(() => {
+    return getMonitorAssetTextureUrls(asset)
+  }, [asset])
+  const textureList = useTexture(
+    pendingTextureUrls,
+    configureMonitorTextureList,
+  ) as THREE.Texture[]
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      await Promise.resolve()
+
+      if (cancelled) return
+
+      textureList.forEach((texture) => {
+        configureMonitorTexture(texture)
+        gl.initTexture(texture)
+      })
+      invalidate()
+
+      if (cancelled) return
+
+      onReady(gameIndex, requestId)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [gameIndex, gl, invalidate, onReady, requestId, textureList])
+
+  return null
+}
+
+function MonitorTransitionFeedback({
+  glowColor,
+  isActive,
+}: {
+  glowColor: string
+  isActive: boolean
+}) {
+  const elapsedSecondsRef = useRef(0)
+  const materialRef = useRef<THREE.MeshBasicMaterial>(null)
+  const invalidate = useThree((state) => state.invalidate)
+
+  useEffect(() => {
+    elapsedSecondsRef.current = 0
+
+    const material = materialRef.current
+    if (material) {
+      material.color.set(glowColor)
+      material.opacity = isActive ? 0.1 : 0
+      material.needsUpdate = true
+    }
+
+    if (isActive) {
+      invalidate()
+    }
+  }, [glowColor, invalidate, isActive])
+
+  useFrame((_, delta) => {
+    const material = materialRef.current
+    if (!material) return
+
+    if (!isActive && material.opacity <= 0.001) return
+
+    elapsedSecondsRef.current += delta
+
+    const targetOpacity = isActive
+      ? 0.08 + ((Math.sin(elapsedSecondsRef.current * 12) + 1) / 2) * 0.08
+      : 0
+
+    material.opacity = THREE.MathUtils.damp(
+      material.opacity,
+      targetOpacity,
+      18,
+      delta,
+    )
+    material.needsUpdate = true
+
+    invalidate()
+  })
+
+  return (
+    <mesh
+      position={[0, 0, MONITOR_TRANSITION_FEEDBACK_LAYER_Z]}
+      raycast={DISABLED_RAYCAST}
+      renderOrder={MONITOR_TRANSITION_FEEDBACK_LAYER_Z * 1000}
+    >
+      <planeGeometry args={HUB_MONITOR_SCREEN_SIZE} />
+      <meshBasicMaterial
+        ref={materialRef}
+        blending={THREE.AdditiveBlending}
+        color={glowColor}
+        depthWrite={false}
+        opacity={0}
+        side={THREE.FrontSide}
+        toneMapped={false}
+        transparent
+      />
+    </mesh>
+  )
 }
 
 function MonitorTexturePlane({
@@ -702,28 +855,49 @@ export default function MonitorGameSelector({
   position = HUB_MONITOR_SCREEN_POSITION,
   quaternion,
   scale = 1,
+  transitionControlsRef,
 }: MonitorGameSelectorProps) {
   const {
     focusMonitor,
     selectedGame,
     selectedGameIndex,
-    selectNextGame,
-    selectPreviousGame,
+    selectGame,
     startSelectedGame,
-  } = useMonitorGameSelector()
+  } = useMonitorGameSelector({ enableKeyboardShortcuts: false })
+  const invalidate = useThree((state) => state.invalidate)
   const isMonitorFocused = useHubRoomStore(
     (state) => state.focusKey === 'monitor',
   )
+  const hasEnteredHub = useHubOnboardingStore((state) => state.hasEnteredHub)
   const shouldAnimateNavArrows = isMonitorFocused
-  const shouldWarmAllMonitorTextures =
-    useMonitorTextureWarmupTrigger(isMonitorFocused)
+  const shouldWarmAllMonitorTextures = useMonitorTextureWarmupTrigger({
+    hasEnteredHub,
+    isMonitorFocused,
+  })
+  const monitorTransitionRequest = useHubMonitorTransitionStore(
+    (state) => state.currentRequest,
+  )
+  const clearMonitorTransitionRequest = useHubMonitorTransitionStore(
+    (state) => state.clearRequest,
+  )
+  const requestMonitorGameTransition = useHubMonitorTransitionStore(
+    (state) => state.requestGameTransition,
+  )
+  const [pendingGameRequest, setPendingGameRequest] =
+    useState<PendingMonitorGameRequest | null>(null)
+  const latestPendingRequestIdRef = useRef(0)
+  const pendingTransitionRequestIdRef = useRef<number | null>(null)
+  const requestedGameIndexRef = useRef(selectedGameIndex)
   const selectedAsset = MONITOR_SCREEN_ASSETS[selectedGame.id]
+  const pendingGame =
+    pendingGameRequest !== null
+      ? HUB_GAMES[getWrappedGameIndex(pendingGameRequest.gameIndex)]
+      : null
+  const pendingGlowColor =
+    pendingGame?.lightingColor ?? selectedGame.lightingColor
   const selectedTextureUrls = useMemo(() => {
     return getMonitorAssetTextureUrls(selectedAsset)
   }, [selectedAsset])
-  const adjacentTextureUrls = useMemo(() => {
-    return getAdjacentMonitorTextureUrls(selectedGameIndex)
-  }, [selectedGameIndex])
   const textureList = useTexture(
     selectedTextureUrls,
     configureMonitorTextureList,
@@ -741,8 +915,150 @@ export default function MonitorGameSelector({
   }, [textureList])
 
   useEffect(() => {
-    preloadMonitorTextures(adjacentTextureUrls)
-  }, [adjacentTextureUrls])
+    if (pendingGameRequest) return
+
+    requestedGameIndexRef.current = selectedGameIndex
+  }, [pendingGameRequest, selectedGameIndex])
+
+  const requestGameIndexTransition = useCallback(
+    (gameIndex: number, transitionRequestId?: number) => {
+      const nextGameIndex = getWrappedGameIndex(gameIndex)
+      latestPendingRequestIdRef.current += 1
+      pendingTransitionRequestIdRef.current = transitionRequestId ?? null
+      requestedGameIndexRef.current = nextGameIndex
+
+      if (nextGameIndex === selectedGameIndex) {
+        if (transitionRequestId !== undefined) {
+          clearMonitorTransitionRequest(transitionRequestId)
+        }
+        pendingTransitionRequestIdRef.current = null
+        setPendingGameRequest(null)
+        invalidate()
+        return
+      }
+
+      preloadMonitorTextures(
+        getMonitorAssetTextureUrls(getMonitorAssetByGameIndex(nextGameIndex)),
+      )
+      setPendingGameRequest({
+        gameIndex: nextGameIndex,
+        requestId: latestPendingRequestIdRef.current,
+      })
+      invalidate()
+    },
+    [clearMonitorTransitionRequest, invalidate, selectedGameIndex],
+  )
+
+  const requestGameTransition = useCallback(
+    (direction: -1 | 1) => {
+      const nextGameIndex = getWrappedGameIndex(
+        requestedGameIndexRef.current + direction,
+      )
+
+      requestedGameIndexRef.current = nextGameIndex
+      requestMonitorGameTransition(nextGameIndex)
+      invalidate()
+    },
+    [invalidate, requestMonitorGameTransition],
+  )
+
+  const handlePendingTextureReady = useCallback(
+    (gameIndex: number, requestId: number) => {
+      if (latestPendingRequestIdRef.current !== requestId) return
+
+      const transitionRequestId = pendingTransitionRequestIdRef.current
+      pendingTransitionRequestIdRef.current = null
+
+      if (transitionRequestId !== null) {
+        clearMonitorTransitionRequest(transitionRequestId)
+      }
+
+      requestedGameIndexRef.current = gameIndex
+      selectGame(gameIndex)
+      setPendingGameRequest((currentRequest) =>
+        currentRequest?.requestId === requestId ? null : currentRequest,
+      )
+      invalidate()
+    },
+    [clearMonitorTransitionRequest, invalidate, selectGame],
+  )
+
+  const requestPreviousGame = useCallback(() => {
+    requestGameTransition(-1)
+  }, [requestGameTransition])
+
+  const requestNextGame = useCallback(() => {
+    requestGameTransition(1)
+  }, [requestGameTransition])
+
+  useEffect(() => {
+    if (!monitorTransitionRequest) return
+
+    let cancelled = false
+
+    ;(async () => {
+      await Promise.resolve()
+
+      if (cancelled) return
+
+      requestGameIndexTransition(
+        monitorTransitionRequest.gameIndex,
+        monitorTransitionRequest.requestId,
+      )
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    monitorTransitionRequest,
+    requestGameIndexTransition,
+  ])
+
+  useEffect(() => {
+    if (!transitionControlsRef) return
+
+    transitionControlsRef.current = {
+      requestNextGame,
+      requestPreviousGame,
+    }
+
+    return () => {
+      transitionControlsRef.current = null
+    }
+  }, [requestNextGame, requestPreviousGame, transitionControlsRef])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isMonitorKeyboardInputTarget(event.target)) return
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        trackHubInvalidate('monitor.keyboard.previous')
+        requestPreviousGame()
+        return
+      }
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        trackHubInvalidate('monitor.keyboard.next')
+        requestNextGame()
+        return
+      }
+
+      if (event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar') {
+        event.preventDefault()
+        trackHubInvalidate('monitor.keyboard.start')
+        startSelectedGame()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [requestNextGame, requestPreviousGame, startSelectedGame])
 
   const handleScreenClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
@@ -757,6 +1073,16 @@ export default function MonitorGameSelector({
     >
       <Suspense fallback={null}>
         <MonitorTextureWarmup isEnabled={shouldWarmAllMonitorTextures} />
+      </Suspense>
+      <Suspense fallback={null}>
+        {pendingGameRequest && (
+          <PendingMonitorTextureCommit
+            key={pendingGameRequest.requestId}
+            gameIndex={pendingGameRequest.gameIndex}
+            onReady={handlePendingTextureReady}
+            requestId={pendingGameRequest.requestId}
+          />
+        )}
       </Suspense>
 
       <mesh
@@ -782,13 +1108,17 @@ export default function MonitorGameSelector({
         selectedGameIndex={selectedGameIndex}
         textures={textures}
       />
+      <MonitorTransitionFeedback
+        glowColor={pendingGlowColor}
+        isActive={pendingGameRequest !== null}
+      />
 
       <MonitorHotspot
         action="previous"
         enablePointerEvents={enableInternalHitboxes}
         isArrowAnimated={shouldAnimateNavArrows}
         label="이전 게임"
-        onClick={selectPreviousGame}
+        onClick={requestPreviousGame}
         position={[-1.08, 0, MONITOR_HOTSPOT_LAYER_Z]}
         size={MONITOR_SIDE_HOTSPOT_SIZE}
         symbol="‹"
@@ -798,7 +1128,7 @@ export default function MonitorGameSelector({
         enablePointerEvents={enableInternalHitboxes}
         isArrowAnimated={shouldAnimateNavArrows}
         label="다음 게임"
-        onClick={selectNextGame}
+        onClick={requestNextGame}
         position={[1.08, 0, MONITOR_HOTSPOT_LAYER_Z]}
         size={MONITOR_SIDE_HOTSPOT_SIZE}
         symbol="›"

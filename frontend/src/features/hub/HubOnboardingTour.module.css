@@ -503,6 +503,12 @@
   }
 }
 
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .stepRail {
+    display: none;
+  }
+}
+
 /* 실제 터치 환경에서만 키캡을 숨긴다. 데스크톱 브라우저는 폭이 좁아도
    키보드 입력이 가능하므로 footer 중앙 키캡을 유지한다. */
 @media (hover: none) and (pointer: coarse) {
