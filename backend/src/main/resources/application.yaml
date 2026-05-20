@@ -86,6 +86,7 @@ nemonic:
       access-key: ${MINIO_ACCESS_KEY:minioadmin}
       secret-key: ${MINIO_SECRET_KEY:minioadmin}
       bucket: ${MINIO_BUCKET:nemonic-local}
+      region: ${MINIO_REGION:us-east-1}
       presign-expiration-minutes: ${MINIO_PRESIGN_EXPIRATION_MINUTES:10}
       view-url-expiration-minutes: ${MINIO_VIEW_URL_EXPIRATION_MINUTES:1440}
       max-upload-byte-size: ${FILE_UPLOAD_MAX_BYTE_SIZE:52428800}
