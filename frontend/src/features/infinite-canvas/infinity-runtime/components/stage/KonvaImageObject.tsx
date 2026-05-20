@@ -27,8 +27,10 @@ interface KonvaImageObjectProps {
 
 const imageElementCache = new Map<string, HTMLImageElement>();
 const stickerImageElementCache = new Map<string, HTMLImageElement>();
-const STICKER_BACKGROUND_ALPHA_THRESHOLD = 40;
-const STICKER_BACKGROUND_WHITE_THRESHOLD = 244;
+const STICKER_BACKGROUND_ALPHA_THRESHOLD = 190;
+const STICKER_BACKGROUND_FRINGE_ALPHA_THRESHOLD = 235;
+const STICKER_BACKGROUND_FRINGE_PASSES = 2;
+const STICKER_BACKGROUND_WHITE_THRESHOLD = 232;
 const STICKER_BACKGROUND_WHITE_VARIANCE = 18;
 
 function resetNodeScale(node: Konva.Image) {
@@ -60,6 +62,56 @@ function isStickerBackgroundPixel(pixels: Uint8ClampedArray, pixelIndex: number)
     blue >= STICKER_BACKGROUND_WHITE_THRESHOLD &&
     maxChannel - minChannel <= STICKER_BACKGROUND_WHITE_VARIANCE
   );
+}
+
+function clearStickerPixel(pixels: Uint8ClampedArray, pixelIndex: number) {
+  const offset = pixelIndex * 4;
+  pixels[offset] = 0;
+  pixels[offset + 1] = 0;
+  pixels[offset + 2] = 0;
+  pixels[offset + 3] = 0;
+}
+
+function hasVisitedNeighbor(
+  visited: Uint8Array,
+  pixelIndex: number,
+  sourceWidth: number,
+  pixelCount: number,
+) {
+  const x = pixelIndex % sourceWidth;
+  return (
+    (x > 0 && visited[pixelIndex - 1] === 1) ||
+    (x < sourceWidth - 1 && visited[pixelIndex + 1] === 1) ||
+    (pixelIndex >= sourceWidth && visited[pixelIndex - sourceWidth] === 1) ||
+    (pixelIndex < pixelCount - sourceWidth && visited[pixelIndex + sourceWidth] === 1)
+  );
+}
+
+function removeStickerBackgroundFringe(
+  pixels: Uint8ClampedArray,
+  visited: Uint8Array,
+  sourceWidth: number,
+  pixelCount: number,
+) {
+  for (let pass = 0; pass < STICKER_BACKGROUND_FRINGE_PASSES; pass += 1) {
+    const fringePixelIndexes: number[] = [];
+
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+      if (visited[pixelIndex] === 1) continue;
+
+      const alpha = pixels[pixelIndex * 4 + 3] ?? 0;
+      if (alpha > STICKER_BACKGROUND_FRINGE_ALPHA_THRESHOLD) continue;
+      if (!hasVisitedNeighbor(visited, pixelIndex, sourceWidth, pixelCount)) continue;
+      fringePixelIndexes.push(pixelIndex);
+    }
+
+    if (fringePixelIndexes.length === 0) return;
+
+    for (const pixelIndex of fringePixelIndexes) {
+      visited[pixelIndex] = 1;
+      clearStickerPixel(pixels, pixelIndex);
+    }
+  }
 }
 
 async function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
@@ -112,8 +164,7 @@ async function createSanitizedStickerImage(imageElement: HTMLImageElement) {
     while (queueStart < queueEnd) {
       const pixelIndex = queue[queueStart];
       queueStart += 1;
-      const offset = pixelIndex * 4;
-      data[offset + 3] = 0;
+      clearStickerPixel(data, pixelIndex);
 
       const x = pixelIndex % sourceWidth;
       if (x > 0) enqueue(pixelIndex - 1);
@@ -122,6 +173,7 @@ async function createSanitizedStickerImage(imageElement: HTMLImageElement) {
       if (pixelIndex < pixelCount - sourceWidth) enqueue(pixelIndex + sourceWidth);
     }
 
+    removeStickerBackgroundFringe(data, visited, sourceWidth, pixelCount);
     context.putImageData(imageData, 0, 0);
     return await loadImageFromSrc(canvas.toDataURL("image/png"));
   } catch {
@@ -150,7 +202,10 @@ export function KonvaImageObject({
   const shouldSanitizeSticker = isAiStickerObject(imageObject);
   const cachedStickerImageElement =
     shouldSanitizeSticker ? stickerImageElementCache.get(imageObject.src) ?? null : null;
-  const imageElement = cachedStickerImageElement ?? cachedImageElement ?? loadedImageElement;
+  const sourceImageElement = cachedImageElement ?? loadedImageElement;
+  const imageElement = shouldSanitizeSticker
+    ? cachedStickerImageElement
+    : sourceImageElement;
 
   useEffect(() => {
     const cachedImage = imageElementCache.get(imageObject.src);
@@ -173,12 +228,12 @@ export function KonvaImageObject({
   }, [imageObject.src]);
 
   useEffect(() => {
-    if (!shouldSanitizeSticker || !imageElement || stickerImageElementCache.has(imageObject.src)) {
+    if (!shouldSanitizeSticker || !sourceImageElement || stickerImageElementCache.has(imageObject.src)) {
       return;
     }
 
     let cancelled = false;
-    void createSanitizedStickerImage(imageElement).then((sanitizedImage) => {
+    void createSanitizedStickerImage(sourceImageElement).then((sanitizedImage) => {
       stickerImageElementCache.set(imageObject.src, sanitizedImage);
       if (!cancelled) {
         setLoadedImage({ src: imageObject.src, element: sanitizedImage });
@@ -188,7 +243,7 @@ export function KonvaImageObject({
     return () => {
       cancelled = true;
     };
-  }, [imageElement, imageObject.src, shouldSanitizeSticker]);
+  }, [imageObject.src, shouldSanitizeSticker, sourceImageElement]);
 
   if (!imageElement) return null;
 

@@ -501,8 +501,14 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       pruneRetainedLocalElements()
       if (retainedLocalElementsRef.current.size === 0) return remoteElements
 
+      const mergedElements = remoteElements.map((element) => {
+        const elementId = getCanvasElementId(element)
+        if (!elementId) return element
+
+        return retainedLocalElementsRef.current.get(elementId)?.element ?? element
+      })
       const remoteElementIds = new Set(
-        remoteElements
+        mergedElements
           .map((element) => getCanvasElementId(element))
           .filter((elementId): elementId is string => Boolean(elementId)),
       )
@@ -514,8 +520,8 @@ export function useInfinityCanvasRoom(roomCode: string | null) {
       }
 
       return restoredElements.length === 0
-        ? remoteElements
-        : [...remoteElements, ...restoredElements]
+        ? mergedElements
+        : [...mergedElements, ...restoredElements]
     },
     [pruneRetainedLocalElements],
   )
