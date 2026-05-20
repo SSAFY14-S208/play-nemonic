@@ -27,6 +27,7 @@ interface UseInfinityDrawingNodeRefs {
 }
 
 interface UseInfinityDrawingOptions {
+  canSelectObject?: (id: string) => boolean
   canEditObject?: (id: string) => boolean
   onBlockedObjectEdit?: (id: string) => void
   onDraftObjectChange?: (draftObject: InfinityObject | InfinityObject[] | null) => void
@@ -341,6 +342,7 @@ export function useInfinityDrawing(
     isSpaceDownRef: viewport.isSpaceDownRef,
     isShiftDownRef,
     openTextEditor,
+    canSelectObject: options.canSelectObject,
     canEditObject: options.canEditObject,
     onBlockedObjectEdit: options.onBlockedObjectEdit,
     stageRef,

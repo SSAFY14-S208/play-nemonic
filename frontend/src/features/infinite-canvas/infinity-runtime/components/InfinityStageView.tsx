@@ -319,9 +319,22 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [room.locks, room.myUserUuid],
   )
 
+  const getMyLock = useCallback(
+    (elementId: string) => {
+      const lock = room.locks[elementId]
+      if (!lock || lock.userUuid !== room.myUserUuid) return null
+      return lock
+    },
+    [room.locks, room.myUserUuid],
+  )
+
   const handleBlockedObjectEdit = useCallback(
     (elementId: string) => {
       const lock = getForeignLock(elementId)
+      if (!lock) {
+        toast.info('요소 편집 권한을 확인 중이에요. 잠시 후 다시 시도해 주세요.')
+        return
+      }
       const participant = lock ? room.participantsByUserUuid[lock.userUuid] : null
       toast.info(`${participant?.nickname ?? '다른 참여자'}가 편집 중인 요소예요.`)
     },
@@ -427,7 +440,8 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   )
 
   const drawing = useInfinityDrawing(stageRef, nodeRefs, {
-    canEditObject: (elementId) => getForeignLock(elementId) === null,
+    canSelectObject: (elementId) => getForeignLock(elementId) === null,
+    canEditObject: (elementId) => getForeignLock(elementId) === null && getMyLock(elementId) !== null,
     onBlockedObjectEdit: handleBlockedObjectEdit,
     onDraftObjectChange: handleDraftObjectChange,
     onLocalOperations: handleLocalOperations,
@@ -474,6 +488,16 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
       .map((lock) => lock.elementId)
     return new Set(lockedIds)
   }, [room.locks, room.myUserUuid])
+
+  const editingBlockedElementIds = useMemo(() => {
+    const blockedIds = new Set(lockedElementIds)
+    for (const object of drawing.objects) {
+      const lock = room.locks[object.id]
+      if (lock?.userUuid === room.myUserUuid) continue
+      blockedIds.add(object.id)
+    }
+    return blockedIds
+  }, [drawing.objects, lockedElementIds, room.locks, room.myUserUuid])
 
   const lockedElements: InfinityLockedElementView[] = useMemo(
     () =>
@@ -848,7 +872,7 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
             selectionBoxRef={selectionBoxRef}
             isShiftDown={drawing.isShiftDown}
             lockedElements={lockedElements}
-            lockedElementIds={lockedElementIds}
+            lockedElementIds={editingBlockedElementIds}
             remoteDraftObjects={remoteDraftObjects}
             remoteCursors={remoteCursors}
             onCursorMove={handleCursorMove}

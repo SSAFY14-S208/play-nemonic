@@ -678,6 +678,7 @@ interface UseInfinityEventsParams {
   isShiftDownRef: { readonly current: boolean }
   // 텍스트 편집기 열기 요청 — InfinityStageView에서 textarea overlay 마운트.
   openTextEditor: (request: TextEditorRequest) => void
+  canSelectObject?: (id: string) => boolean
   canEditObject?: (id: string) => boolean
   onBlockedObjectEdit?: (id: string) => void
   // Layer 노드 ref들 — mousemove마다 React 리렌더 없이 직접 갱신.
@@ -703,6 +704,7 @@ export function useInfinityEvents({
   isSpaceDownRef,
   isShiftDownRef,
   openTextEditor,
+  canSelectObject,
   canEditObject,
   onBlockedObjectEdit,
   currentPenLineRef,
@@ -725,6 +727,7 @@ export function useInfinityEvents({
   const dragPreviewSelectedIdsRef = useRef<string[]>([])
 
   const canEdit = (id: string) => canEditObject?.(id) ?? true
+  const canSelect = (id: string) => canSelectObject?.(id) ?? canEdit(id)
 
   const blockEdit = (id: string) => {
     onBlockedObjectEdit?.(id)
@@ -988,7 +991,7 @@ export function useInfinityEvents({
     const baseSet = new Set(baseSelection)
     const hitIds: string[] = [...baseSelection]
     for (const object of objectsRef.current) {
-      if (!canEdit(object.id)) continue
+      if (!canSelect(object.id)) continue
       const objectNode = stage.findOne(`#${object.id}`)
       if (!objectNode) continue
       const rect = objectNode.getClientRect({ relativeTo: stage })
@@ -1303,12 +1306,16 @@ export function useInfinityEvents({
 
   // 도형/텍스트 클릭 → 단일/다중 선택 토글, history 기록.
   const onObjectClick = (id: string, isShift: boolean, toolSnapshot: InfinityToolKey = 'select') => {
-    if (!canEdit(id)) {
+    if (!canSelect(id)) {
       blockEdit(id)
       return
     }
 
     if (toolSnapshot === 'bucket') {
+      if (!canEdit(id)) {
+        blockEdit(id)
+        return
+      }
       const nextObjects = objectsRef.current.map((object) =>
         object.id === id ? recolorObject(object, color) : object,
       )
@@ -1329,6 +1336,10 @@ export function useInfinityEvents({
     const targetObject = objectsRef.current.find((object) => object.id === id)
     const isOnlySelectedObject = current.length === 1 && current[0] === id
     if (!isShift && targetObject?.type === 'text' && isOnlySelectedObject) {
+      if (!canEdit(id)) {
+        blockEdit(id)
+        return
+      }
       openExistingTextEditor(targetObject)
       return
     }
@@ -1341,6 +1352,10 @@ export function useInfinityEvents({
     } else {
       if (current.length === 1 && current[0] === id) {
         if (targetObject?.type === 'text') {
+          if (!canEdit(id)) {
+            blockEdit(id)
+            return
+          }
           openExistingTextEditor(targetObject)
         }
         return
