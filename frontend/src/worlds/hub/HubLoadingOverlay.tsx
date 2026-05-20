@@ -117,10 +117,10 @@ function HubLoadingOverlayContent({
       >
         {isVisible && (
           <Image
-            src="/images/play-nemonic-logo.png"
+            src="/images/play-nemonic-logo-v2.png"
             alt="Play! Nemonic"
-            width={1672}
-            height={941}
+            width={2716}
+            height={1222}
             priority
             draggable={false}
             className="pointer-events-none h-28 w-auto"
