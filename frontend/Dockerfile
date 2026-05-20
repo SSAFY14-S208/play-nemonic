@@ -71,6 +71,9 @@ RUN --mount=type=cache,id=next-cache,target=/app/.next/cache \
 # ===== Stage 2: Runner =====
 FROM node:20-alpine AS runner
 
+# sharp 네이티브 바인딩에 필요
+RUN apk add --no-cache libc6-compat
+
 WORKDIR /app
 
 ENV NODE_ENV=production
