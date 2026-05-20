@@ -374,7 +374,6 @@ export function useInfinityDrawing(
   const deleteSelectedRef = useRef(() => {})
   const setSpacePanningRef = useRef(viewport.setSpacePanning)
   const setToolPanningRef = useRef(viewport.setToolPanning)
-  const shiftSelectedZIndexRef = useRef(events.shiftSelectedZIndex)
 
   useEffect(() => {
     const getEditableSelectedObjects = () => {
@@ -461,7 +460,6 @@ export function useInfinityDrawing(
     }
     setSpacePanningRef.current = viewport.setSpacePanning
     setToolPanningRef.current = viewport.setToolPanning
-    shiftSelectedZIndexRef.current = events.shiftSelectedZIndex
   })
 
   const undo = () => undoRef.current()
@@ -472,7 +470,7 @@ export function useInfinityDrawing(
     return () => setToolPanningRef.current(false)
   }, [tool])
 
-  // ── Keyboard / Space / Shift / 도구 / z-index 단축키 ────────────────────────
+  // ── Keyboard / Space / Shift / 도구 ────────────────────────────────────────
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const typingTarget = isTypingTarget(e.target)
@@ -508,12 +506,6 @@ export function useInfinityDrawing(
       } else if (e.key === 'h') {
         e.preventDefault()
         setToolState('hand')
-      } else if (e.key === '[') {
-        e.preventDefault()
-        shiftSelectedZIndexRef.current(-1)
-      } else if (e.key === ']') {
-        e.preventDefault()
-        shiftSelectedZIndexRef.current(1)
       }
 
       const isShortcutKey = e.ctrlKey || e.metaKey
@@ -589,7 +581,6 @@ export function useInfinityDrawing(
     clearSelection: history.silentClearSelection,
     replaceObjectsFromServer: history.replaceObjectsFromServer,
     syncObjectsFromServer: history.syncObjectsFromServer,
-    shiftSelectedZIndex: events.shiftSelectedZIndex,
 
     isShiftDown,
 

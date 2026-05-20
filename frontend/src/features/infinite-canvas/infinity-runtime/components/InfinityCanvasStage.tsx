@@ -71,7 +71,6 @@ interface InfinityCanvasStageProps {
   remoteDraftObjects: InfinityRemoteDraftObjectView[]
   remoteCursors: InfinityRemoteCursorView[]
   onCursorMove: (cursor: { x: number; y: number; zoom: number }) => void
-  onLayerMenuRequest: (request: { elementId: string; x: number; y: number }) => void
   onSelectionInteractionEnd: (elementIds: string[]) => void
   onDraftObjectsChange: (draftObjects: InfinityObject[] | null) => void
 }
@@ -615,7 +614,6 @@ export function InfinityCanvasStage({
   remoteDraftObjects,
   remoteCursors,
   onCursorMove,
-  onLayerMenuRequest,
   onSelectionInteractionEnd,
   onDraftObjectsChange,
 }: InfinityCanvasStageProps) {
@@ -653,7 +651,6 @@ export function InfinityCanvasStage({
   }, [tool]);
 
   const transformerRef = useRef<Konva.Transformer>(null);
-  const layerMenuLongPressTimerRef = useRef<number | null>(null);
   const isWheelButtonPanningRef = useRef(false);
   const transformerDragStateRef = useRef<TransformerDragState | null>(null);
   const selectionSurfaceDragStateRef = useRef<SelectionSurfaceDragState | null>(null);
@@ -665,14 +662,6 @@ export function InfinityCanvasStage({
     stage.position(stagePosRef.current);
     stage.batchDraw();
   }, [height, scaleRef, stagePosRef, stageRef, width]);
-
-  const clearLayerMenuLongPress = useCallback(() => {
-    if (layerMenuLongPressTimerRef.current === null) return;
-    window.clearTimeout(layerMenuLongPressTimerRef.current);
-    layerMenuLongPressTimerRef.current = null;
-  }, []);
-
-  useEffect(() => clearLayerMenuLongPress, [clearLayerMenuLongPress]);
 
   const stopWheelButtonPanning = useCallback(() => {
     if (!isWheelButtonPanningRef.current) return;
@@ -715,16 +704,6 @@ export function InfinityCanvasStage({
   const handleObjectClick = useCallback((id: string, isShift: boolean) => {
     onObjectClick(id, isShift, toolRef.current);
   }, [onObjectClick]);
-
-  const requestLayerMenu = useCallback(
-    (elementId: string, x: number, y: number) => {
-      if (!selectedIds.includes(elementId)) {
-        onObjectClick(elementId, false, "select");
-      }
-      onLayerMenuRequest({ elementId, x, y });
-    },
-    [onLayerMenuRequest, onObjectClick, selectedIds],
-  );
 
   const selectionDragBounds = useMemo(() => {
     if (tool !== "select" || selectedIds.length === 0) return null;
@@ -1371,26 +1350,7 @@ export function InfinityCanvasStage({
         onStageMouseLeave(toolRef.current);
       }}
       onAuxClick={(e: Konva.KonvaEventObject<MouseEvent>) => e.evt.preventDefault()}
-      onContextMenu={(e) => {
-        e.evt.preventDefault();
-        const targetId = e.target.id();
-        if (!targetId || toolRef.current !== "select") return;
-        requestLayerMenu(targetId, e.evt.clientX, e.evt.clientY);
-      }}
-      onTouchStart={(e) => {
-        clearLayerMenuLongPress();
-        const targetId = e.target.id();
-        if (!targetId || toolRef.current !== "select") return;
-        const touch = e.evt.touches[0];
-        if (!touch) return;
-        layerMenuLongPressTimerRef.current = window.setTimeout(() => {
-          layerMenuLongPressTimerRef.current = null;
-          requestLayerMenu(targetId, touch.clientX, touch.clientY);
-        }, 520);
-      }}
-      onTouchMove={clearLayerMenuLongPress}
-      onTouchEnd={clearLayerMenuLongPress}
-      onTouchCancel={clearLayerMenuLongPress}
+      onContextMenu={(e) => e.evt.preventDefault()}
       onWheel={onStageWheel}
       onClick={(e) => onStageClick(e, toolRef.current)}
     >

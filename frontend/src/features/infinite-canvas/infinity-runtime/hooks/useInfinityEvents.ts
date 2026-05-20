@@ -15,11 +15,6 @@ import {
   INFINITY_TEXT_DEFAULT_FONT_FAMILY,
   INFINITY_TEXT_DEFAULT_FONT_SIZE,
 } from '../constants'
-import {
-  getInfinityObjectLayerIndex,
-  normalizeInfinityObjectLayerIndexes,
-} from '../infinityObjectUtils'
-
 function generateId(): string {
   return Math.random().toString(36).slice(2, 9)
 }
@@ -150,43 +145,6 @@ function moveObjectByDelta(object: InfinityObject, deltaX: number, deltaY: numbe
     x: object.x + deltaX,
     y: object.y + deltaY,
   }
-}
-
-function moveSelectedObjectsByLayer(objects: InfinityObject[], selectedIds: string[], direction: 1 | -1) {
-  const selectedIdSet = new Set(selectedIds)
-  const currentObjects = normalizeInfinityObjectLayerIndexes(objects)
-  const currentLayerIndexById = new Map(currentObjects.map((object) => [object.id, object.zIndex]))
-  const orderedIndices = selectedIds
-    .map((id) => currentObjects.findIndex((object) => object.id === id))
-    .filter((layerIndex) => layerIndex >= 0)
-    .sort((firstIndex, secondIndex) => (direction > 0 ? secondIndex - firstIndex : firstIndex - secondIndex))
-
-  let changed = false
-  for (const layerIndex of orderedIndices) {
-    const swapWithIndex = layerIndex + direction
-    if (swapWithIndex < 0 || swapWithIndex >= currentObjects.length) continue
-    if (selectedIdSet.has(currentObjects[swapWithIndex].id)) continue
-    ;[currentObjects[layerIndex], currentObjects[swapWithIndex]] = [
-      currentObjects[swapWithIndex],
-      currentObjects[layerIndex],
-    ]
-    changed = true
-  }
-
-  if (!changed) return null
-
-  const hasUnstableLayerIndex = objects.some(
-    (object, fallbackIndex) => object.zIndex !== getInfinityObjectLayerIndex(object, fallbackIndex),
-  )
-  const newObjects = currentObjects.map((object, layerIndex) => ({
-    ...object,
-    zIndex: layerIndex,
-  }))
-  const updatedObjects = hasUnstableLayerIndex
-    ? newObjects
-    : newObjects.filter((object) => currentLayerIndexById.get(object.id) !== object.zIndex)
-
-  return { newObjects, updatedObjects }
 }
 
 function getObjectBounds(object: InfinityObject): Bounds | null {
@@ -1441,30 +1399,6 @@ export function useInfinityEvents({
     openExistingTextEditor(target)
   }
 
-  // ── z-index 단축키 처리 — drawing 레이어가 호출 ────────────────────────────
-  // direction: +1 = forward, -1 = backward
-  const shiftSelectedZIndex = (direction: 1 | -1) => {
-    const ids = selectedIdsRef.current
-    if (ids.length === 0) return
-    const blockedId = ids.find((id) => !canEdit(id))
-    if (blockedId) {
-      blockEdit(blockedId)
-      return
-    }
-    const layerMove = moveSelectedObjectsByLayer(objectsRef.current, ids, direction)
-    if (!layerMove) return
-
-    commitLocalChange(
-      layerMove.newObjects,
-      ids,
-      layerMove.updatedObjects.map((object) => ({
-        operationType: 'UPSERT_ELEMENT',
-        elementId: object.id,
-        element: { ...object },
-      })),
-    )
-  }
-
   return {
     isDrawingRef,
     resetDrawingState,
@@ -1479,6 +1413,5 @@ export function useInfinityEvents({
     onTextTransformEnd,
     onObjectsTransformEnd,
     onTextDblClick,
-    shiftSelectedZIndex,
   } as const
 }

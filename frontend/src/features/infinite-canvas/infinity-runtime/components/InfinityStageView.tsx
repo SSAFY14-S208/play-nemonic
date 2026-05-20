@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { ArrowDownToLine, ArrowUpToLine, Camera, Copy, Link2, LogOut } from 'lucide-react'
+import { Camera, Copy, Link2, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { useInfinityAiSticker, useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
 import type { InfinityObject } from '../constants'
@@ -295,7 +295,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
   const previousSelectedIdsRef = useRef<string[]>([])
   const [isCaptureMode, setIsCaptureMode] = useState(false)
   const [copiedInviteTarget, setCopiedInviteTarget] = useState<'link' | 'code' | null>(null)
-  const [layerMenu, setLayerMenu] = useState<{ x: number; y: number } | null>(null)
   const [retainedRemoteDrafts, setRetainedRemoteDrafts] = useState<Record<string, RetainedRemoteDraft>>({})
   const [printRevealPreviewUrl, setPrintRevealPreviewUrl] = useState<string | null>(null)
 
@@ -808,28 +807,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     [room.revision, room.roomCode, saveOutput],
   )
 
-  const handleLayerMenuRequest = useCallback(
-    (request: { elementId: string; x: number; y: number }) => {
-      if (getForeignLock(request.elementId)) {
-        handleBlockedObjectEdit(request.elementId)
-        return
-      }
-      setLayerMenu({
-        x: Math.min(Math.max(request.x, 12), window.innerWidth - 172),
-        y: Math.min(Math.max(request.y, 12), window.innerHeight - 112),
-      })
-    },
-    [getForeignLock, handleBlockedObjectEdit],
-  )
-
-  const shiftSelectedLayer = useCallback(
-    (direction: 1 | -1) => {
-      drawing.shiftSelectedZIndex(direction)
-      setLayerMenu(null)
-    },
-    [drawing],
-  )
-
   const releaseSelectedLocks = useCallback(
     (elementIds: string[]) => {
       elementIds.forEach((elementId) => {
@@ -838,17 +815,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
     },
     [releaseLock],
   )
-
-  useEffect(() => {
-    if (!layerMenu) return
-    const closeLayerMenu = () => setLayerMenu(null)
-    window.addEventListener('pointerdown', closeLayerMenu)
-    window.addEventListener('keydown', closeLayerMenu)
-    return () => {
-      window.removeEventListener('pointerdown', closeLayerMenu)
-      window.removeEventListener('keydown', closeLayerMenu)
-    }
-  }, [layerMenu])
 
   return (
     <div className="fixed inset-0 h-dvh w-dvw overflow-hidden bg-canvas-background">
@@ -886,7 +852,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
             remoteDraftObjects={remoteDraftObjects}
             remoteCursors={remoteCursors}
             onCursorMove={handleCursorMove}
-            onLayerMenuRequest={handleLayerMenuRequest}
             onSelectionInteractionEnd={releaseSelectedLocks}
             onDraftObjectsChange={handleDraftObjectChange}
           />
@@ -925,30 +890,6 @@ export function InfinityStageView({ room }: InfinityStageViewProps) {
           }}
         />
 
-        {layerMenu && drawing.selectedIds.length > 0 && (
-          <div
-            className="fixed z-30 grid min-w-40 gap-1 rounded-[18px] border border-white/75 bg-white/95 p-2 shadow-[0_16px_32px_rgba(35,64,140,0.22)] backdrop-blur"
-            style={{ left: layerMenu.x, top: layerMenu.y }}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => shiftSelectedLayer(1)}
-              className="body-b inline-flex h-10 items-center gap-2 rounded-full px-3 text-[#25376c] transition-colors hover:bg-[#eaf6ff]"
-            >
-              <ArrowUpToLine className="size-4" aria-hidden />
-              앞으로 가져오기
-            </button>
-            <button
-              type="button"
-              onClick={() => shiftSelectedLayer(-1)}
-              className="body-b inline-flex h-10 items-center gap-2 rounded-full px-3 text-[#25376c] transition-colors hover:bg-[#eaf6ff]"
-            >
-              <ArrowDownToLine className="size-4" aria-hidden />
-              뒤로 보내기
-            </button>
-          </div>
-        )}
       </div>
 
       <section
