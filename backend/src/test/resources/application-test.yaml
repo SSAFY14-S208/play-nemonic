@@ -18,8 +18,6 @@ management:
       enabled: false
 
 nemonic:
-  websocket:
-    enabled: false
   auth:
     admin-bootstrap:
       enabled: false
