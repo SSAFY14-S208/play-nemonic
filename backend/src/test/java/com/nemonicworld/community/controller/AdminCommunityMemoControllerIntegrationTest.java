@@ -747,11 +747,6 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     @TestConfiguration
     static class AdminCommunityTokenStoreTestConfig {
 
-        @Bean
-        @Primary
-        AdminTokenStore adminTokenStore() {
-            return new NoOpAdminTokenStore();
-        }
     }
 
     static class NoOpAdminTokenStore implements AdminTokenStore {

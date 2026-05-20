@@ -11,31 +11,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminUser;
-import com.nemonicworld.auth.service.AdminTokenStore;
-import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
-import com.nemonicworld.auth.service.StoredAdminRefreshToken;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
+import com.nemonicworld.support.InMemoryAdminTokenStore;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -217,7 +206,7 @@ class AuthControllerIntegrationTest extends AbstractReadOnlyIntegrationTest {
     void adminDetailReturnsUnauthorizedWhenTokenIsMissingInvalidOrBlacklisted() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         AdminTokens tokens = loginAndReadTokens();
-        adminTokenStore.accessTokenBlacklist.add(readTokenClaims(tokens.accessToken()).tokenId());
+        adminTokenStore.blacklistAccessToken(readTokenClaims(tokens.accessToken()));
 
         mockMvc.perform(get("/api/v1/admins/{adminId}", ADMIN_ID)).andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").isNotEmpty());
@@ -694,80 +683,6 @@ class AuthControllerIntegrationTest extends AbstractReadOnlyIntegrationTest {
     }
 
     private record AdminTokens(String accessToken, String refreshToken) {
-    }
-
-    @TestConfiguration
-    static class AdminTokenStoreTestConfig {
-
-        @Bean
-        @Primary
-        InMemoryAdminTokenStore adminTokenStore() {
-            return new InMemoryAdminTokenStore();
-        }
-    }
-
-    static class InMemoryAdminTokenStore implements AdminTokenStore {
-
-        private final Map<String, StoredAdminRefreshToken> refreshTokens = new ConcurrentHashMap<>();
-        private final Set<String> accessTokenBlacklist = ConcurrentHashMap.newKeySet();
-        private final Map<Long, Instant> accessRevokedAfter = new ConcurrentHashMap<>();
-
-        @Override
-        public IssuedAdminRefreshToken issueRefreshToken(AdminUser adminUser) {
-            String refreshToken = UUID.randomUUID().toString();
-            Instant expiresAt = Instant.now().plusSeconds(14 * 24 * 60 * 60);
-            refreshTokens.put(refreshToken, new StoredAdminRefreshToken(adminUser.getId(), expiresAt));
-
-            return new IssuedAdminRefreshToken(refreshToken, OffsetDateTime.ofInstant(expiresAt, ZoneOffset.UTC));
-        }
-
-        @Override
-        public Optional<StoredAdminRefreshToken> findRefreshToken(String refreshToken) {
-            StoredAdminRefreshToken storedToken = refreshTokens.get(refreshToken);
-            if (storedToken == null || storedToken.isExpired(Instant.now())) {
-                return Optional.empty();
-            }
-
-            return Optional.of(storedToken);
-        }
-
-        @Override
-        public void revokeRefreshToken(String refreshToken) {
-            refreshTokens.remove(refreshToken);
-        }
-
-        @Override
-        public void revokeAllRefreshTokens(Long adminId) {
-            refreshTokens.entrySet().removeIf(entry -> entry.getValue().adminId().equals(adminId));
-        }
-
-        @Override
-        public void blacklistAccessToken(AdminTokenClaims claims) {
-            if (claims.tokenId() != null) {
-                accessTokenBlacklist.add(claims.tokenId());
-            }
-        }
-
-        @Override
-        public void revokeAccessTokensIssuedBefore(Long adminId, Instant revokedAt) {
-            accessRevokedAfter.put(adminId, revokedAt);
-        }
-
-        @Override
-        public boolean isAccessTokenRevoked(AdminTokenClaims claims) {
-            if (claims.tokenId() != null && accessTokenBlacklist.contains(claims.tokenId())) {
-                return true;
-            }
-
-            Instant revokedAfter = accessRevokedAfter.get(claims.adminId());
-            return revokedAfter != null && !claims.issuedAt().isAfter(revokedAfter);
-        }
-
-        void clear() {
-            refreshTokens.clear();
-            accessTokenBlacklist.clear();
-            accessRevokedAfter.clear();
-        }
     }
 
     private static final class Base64Url {
