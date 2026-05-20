@@ -10,7 +10,7 @@ export const NEMONIC_PRINTER_POSITION: [number, number, number] = [
 
 // ── 카메라 궤도 ──
 export const ORBIT_TARGET_Y = NEMONIC_DISPLAY_Y + 0.083; // 프린터 시각 중심
-export const ORBIT_DISTANCE = 1.8;
+export const ORBIT_DISTANCE = 0.9;
 export const ORBIT_POLAR_ANGLE = (55 * Math.PI) / 180; // 수평면에서 ~35도 위
 export const ORBIT_MIN_POLAR = 0.4;
 export const ORBIT_MAX_POLAR = 1.3;
