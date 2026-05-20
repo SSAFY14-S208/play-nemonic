@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type CSSProperties } from 'react'
-import { Plus, RefreshCw } from 'lucide-react'
+import { Plus, RefreshCw, X } from 'lucide-react'
 import { WorldHomeLink } from '@/shared/components/WorldHomeLink'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { cn } from '@/shared/libs'
@@ -82,6 +82,7 @@ export function CommunityCanvasPage() {
 
   const isAttachingMemo =
     composer.pendingPlacement !== null && composer.postStatus === 'loading'
+  const hasPendingPlacement = composer.pendingPlacement !== null
   const isSavingLayout =
     communityCanvas.editingMemo !== null && communityCanvas.mutationStatus === 'loading'
   const isHeaderActionsDisabled =
@@ -162,31 +163,48 @@ export function CommunityCanvasPage() {
           <button
             type="button"
             aria-label="새로고침"
-            disabled={isHeaderActionsDisabled}
+            disabled={isHeaderActionsDisabled || hasPendingPlacement}
             onClick={() => void communityCanvas.loadCommunityMemos()}
             className={cn(
               'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
-              isHeaderActionsDisabled
+              isHeaderActionsDisabled || hasPendingPlacement
                 ? 'invisible cursor-not-allowed'
                 : 'hover:-translate-y-0.5 hover:bg-white hover:text-fg-primary active:translate-y-0 active:bg-white/90',
             )}
           >
             <RefreshCw className="size-7 sm:size-8" strokeWidth={2.5} />
           </button>
-          <button
-            type="button"
-            aria-label="새 메모 붙이기"
-            disabled={isHeaderActionsDisabled}
-            onClick={handleOpenComposer}
-            className={cn(
-              'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
-              isHeaderActionsDisabled
-                ? 'invisible cursor-not-allowed'
-                : 'hover:-translate-y-0.5 hover:bg-white hover:text-fg-primary active:translate-y-0 active:bg-white/90',
-            )}
-          >
-            <Plus className="size-8 sm:size-9" strokeWidth={2.5} />
-          </button>
+          {hasPendingPlacement ? (
+            <button
+              type="button"
+              aria-label="메모 부착 취소"
+              disabled={isAttachingMemo}
+              onClick={composer.cancelPendingPlacement}
+              className={cn(
+                'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
+                isAttachingMemo
+                  ? 'cursor-not-allowed opacity-60'
+                  : 'hover:-translate-y-0.5 hover:bg-white hover:text-fg-primary active:translate-y-0 active:bg-white/90',
+              )}
+            >
+              <X className="size-8 sm:size-9" strokeWidth={2.5} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="새 메모 붙이기"
+              disabled={isHeaderActionsDisabled}
+              onClick={handleOpenComposer}
+              className={cn(
+                'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
+                isHeaderActionsDisabled
+                  ? 'invisible cursor-not-allowed'
+                  : 'hover:-translate-y-0.5 hover:bg-white hover:text-fg-primary active:translate-y-0 active:bg-white/90',
+              )}
+            >
+              <Plus className="size-8 sm:size-9" strokeWidth={2.5} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -206,7 +224,6 @@ export function CommunityCanvasPage() {
         onClearSelection={communityCanvas.clearWallMemoSelection}
         onOpenMemoDetail={(memoUuid) => void communityCanvas.openMemoDetail(memoUuid)}
         onAttachPendingMemo={handleAttachPendingMemo}
-        onCancelPendingMemo={composer.cancelPendingPlacement}
         onEditingLayoutChange={communityCanvas.updateEditingLayoutDraft}
         onSaveEditingLayout={(layout) => void communityCanvas.saveEditingMemoLayout(layout)}
         onRetry={() => void communityCanvas.loadCommunityMemos()}

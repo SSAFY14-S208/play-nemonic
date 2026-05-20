@@ -2,11 +2,9 @@ import { useRef } from "react";
 import * as THREE from "three";
 import type { AnimationAction } from "three";
 
-// GLB AnimationClip 이름 (스크린샷으로 확인된 실제 이름)
 const PRINT_BUTTON_ANIMATIONS = ["print_button_click", "label_up"] as const;
 const LID_ANIMATIONS = ["print_head_up", "toggle_side_button"] as const;
 
-// Vibration API 패턴 (ms)
 const HAPTIC = {
   BUTTON_CLICK: 80,
   LID_OPEN: [80, 40, 200],
@@ -17,62 +15,186 @@ const HAPTIC = {
   ],
 } as const;
 
+type LidState = "closed" | "opening" | "open" | "closing";
+type AnimationDirection = "forward" | "reverse";
+type AnimationFinishedEvent = {
+  action?: AnimationAction;
+};
+
 function vibrate(pattern: number | readonly number[]) {
   if (typeof navigator !== "undefined" && navigator.vibrate) {
     navigator.vibrate(pattern as number | number[]);
   }
 }
 
+function playAudio(soundPath: string) {
+  if (typeof Audio === "undefined") return;
+
+  void new Audio(soundPath).play().catch(() => undefined);
+}
+
+function isAnimationFinishedEvent(
+  event: unknown,
+): event is AnimationFinishedEvent {
+  return typeof event === "object" && event !== null && "action" in event;
+}
+
+function playAnimation(action: AnimationAction, direction: AnimationDirection) {
+  action.setLoop(THREE.LoopOnce, 1);
+  action.clampWhenFinished = true;
+  action.enabled = true;
+  action.paused = false;
+  action.timeScale = direction === "forward" ? 1 : -1;
+
+  if (direction === "forward") {
+    action.reset().play();
+    return;
+  }
+
+  action.time = action.getClip().duration;
+  action.play();
+}
+
+function playAnimations(
+  actions: Record<string, AnimationAction | null>,
+  animationNames: readonly string[],
+  direction: AnimationDirection,
+  onComplete: () => void,
+) {
+  const playableActions = animationNames
+    .map((animationName) => actions[animationName])
+    .filter((action): action is AnimationAction => Boolean(action));
+
+  if (playableActions.length === 0) {
+    onComplete();
+    return;
+  }
+
+  const pendingActions = new Set(playableActions);
+  const cleanupCallbacks: Array<() => void> = [];
+  let hasCompleted = false;
+
+  const completeAction = (action: AnimationAction) => {
+    pendingActions.delete(action);
+
+    if (pendingActions.size > 0 || hasCompleted) return;
+
+    hasCompleted = true;
+    cleanupCallbacks.forEach((cleanup) => cleanup());
+    onComplete();
+  };
+
+  playableActions.forEach((action) => {
+    const mixer = action.getMixer();
+    const handleFinished = (event: unknown) => {
+      if (!isAnimationFinishedEvent(event) || event.action !== action) return;
+
+      completeAction(action);
+    };
+
+    mixer.addEventListener("finished", handleFinished);
+    cleanupCallbacks.push(() => {
+      mixer.removeEventListener("finished", handleFinished);
+    });
+  });
+
+  playableActions.forEach((action) => {
+    playAnimation(action, direction);
+  });
+}
+
 export function useNemonicPrinterInteraction() {
   const actionsRef = useRef<Record<string, AnimationAction | null>>({});
-  const isLidOpenRef = useRef(false);
+  const lidStateRef = useRef<LidState>("closed");
+  const isPrintInProgressRef = useRef(false);
+  const pendingPrintAfterLidCloseRef = useRef(false);
+
+  const playPrintSequence = () => {
+    if (lidStateRef.current !== "closed" || isPrintInProgressRef.current) {
+      return;
+    }
+
+    pendingPrintAfterLidCloseRef.current = false;
+    isPrintInProgressRef.current = true;
+    vibrate([HAPTIC.BUTTON_CLICK, 50, ...HAPTIC.PRINT_START]);
+    playAudio("/sounds/print_label.mp3");
+
+    playAnimations(
+      actionsRef.current,
+      PRINT_BUTTON_ANIMATIONS,
+      "forward",
+      () => {
+        isPrintInProgressRef.current = false;
+      },
+    );
+  };
+
+  const closeLid = () => {
+    if (lidStateRef.current === "closed") {
+      if (pendingPrintAfterLidCloseRef.current) {
+        playPrintSequence();
+      }
+      return;
+    }
+
+    if (lidStateRef.current === "closing" || lidStateRef.current === "opening") {
+      return;
+    }
+
+    lidStateRef.current = "closing";
+    vibrate(HAPTIC.LID_CLOSE);
+    playAudio("/sounds/close_printer_lid.mp3");
+
+    playAnimations(actionsRef.current, LID_ANIMATIONS, "reverse", () => {
+      lidStateRef.current = "closed";
+
+      if (pendingPrintAfterLidCloseRef.current) {
+        playPrintSequence();
+      }
+    });
+  };
+
+  const openLid = () => {
+    if (
+      lidStateRef.current !== "closed" ||
+      isPrintInProgressRef.current ||
+      pendingPrintAfterLidCloseRef.current
+    ) {
+      return;
+    }
+
+    lidStateRef.current = "opening";
+    vibrate(HAPTIC.LID_OPEN);
+    playAudio("/sounds/open_printer_lid.mp3");
+
+    playAnimations(actionsRef.current, LID_ANIMATIONS, "forward", () => {
+      lidStateRef.current = "open";
+
+      if (pendingPrintAfterLidCloseRef.current) {
+        closeLid();
+      }
+    });
+  };
 
   const handlePrintButtonClick = () => {
-    // 버튼 클릭 햅틱 + 프린트 모터 진동을 하나의 패턴으로 연결
-    vibrate([HAPTIC.BUTTON_CLICK, 50, ...HAPTIC.PRINT_START]);
-    void new Audio("/sounds/print_label.mp3").play();
+    if (isPrintInProgressRef.current) return;
 
-    for (const name of PRINT_BUTTON_ANIMATIONS) {
-      const action = actionsRef.current[name];
-      if (!action) continue;
-      action.setLoop(THREE.LoopOnce, 1);
-      action.clampWhenFinished = true;
-      action.timeScale = 1;
-      action.reset().play();
+    if (lidStateRef.current === "closed") {
+      playPrintSequence();
+      return;
     }
+
+    pendingPrintAfterLidCloseRef.current = true;
+    closeLid();
   };
 
   const handleOpenButtonClick = () => {
-    if (isLidOpenRef.current) {
-      // 닫기: 역재생 + close 사운드 + 햅틱
-      vibrate(HAPTIC.LID_CLOSE);
-      void new Audio("/sounds/close_printer_lid.mp3").play();
-      for (const name of LID_ANIMATIONS) {
-        const action = actionsRef.current[name];
-        if (!action) continue;
-        action.timeScale = -1;
-        // clampWhenFinished로 duration에 멈춰 있을 때 역재생
-        // 한 번도 열지 않았을 경우 time이 0이므로 duration으로 강제 설정
-        if (action.time === 0) action.time = action.getClip().duration;
-        action.paused = false;
-        action.enabled = true;
-        action.play();
-      }
-      isLidOpenRef.current = false;
-    } else {
-      // 열기: 정재생 + open 사운드 + 햅틱
-      vibrate(HAPTIC.LID_OPEN);
-      void new Audio("/sounds/open_printer_lid.mp3").play();
-      for (const name of LID_ANIMATIONS) {
-        const action = actionsRef.current[name];
-        if (!action) continue;
-        action.setLoop(THREE.LoopOnce, 1);
-        action.clampWhenFinished = true;
-        action.timeScale = 1;
-        action.reset().play();
-      }
-      isLidOpenRef.current = true;
+    if (lidStateRef.current === "open") {
+      closeLid();
+      return;
     }
+
+    openLid();
   };
 
   return { actionsRef, handlePrintButtonClick, handleOpenButtonClick };
