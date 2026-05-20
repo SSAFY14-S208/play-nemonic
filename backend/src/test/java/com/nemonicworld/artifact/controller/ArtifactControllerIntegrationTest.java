@@ -15,7 +15,7 @@ import com.nemonicworld.artifact.service.download.ArtifactDownloadService;
 import com.nemonicworld.artifact.service.share.ArtifactShareService;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.share.dto.response.ShareCreateResponse;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDateTime;
@@ -24,20 +24,15 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 /**
  * artifact ID 기반 산출물 이미지 URL 조회 API를 통합 검증합니다.
  */
-class ArtifactControllerIntegrationTest {
+class ArtifactControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String MINIO_PUBLIC_URL = "http://localhost:9000/nemonic-local/";
@@ -299,7 +294,7 @@ class ArtifactControllerIntegrationTest {
         UUID userUuid = UUID.randomUUID();
         UUID artifactId = UUID.randomUUID();
         ShareCreateResponse response = new ShareCreateResponse("signed-share-token",
-            "https://minio.example.com/nemonic/artifact-downloads/result-qr.jpg", "https://nemonic.example.com",
+            "https://minio.example.com/nemonic/artifact-downloads/result-qr-v4.jpg", "https://nemonic.example.com",
             "https://nemonic.example.com?utm_source=kakao", "https://nemonic.example.com?utm_source=instagram");
 
         when(artifactShareService.createArtifactShare(userUuid.toString(), artifactId.toString())).thenReturn(response);
@@ -310,8 +305,8 @@ class ArtifactControllerIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("산출물 공유 정보 생성 성공"))
             .andExpect(jsonPath("$.data.shareToken").value("signed-share-token"))
-            .andExpect(
-                jsonPath("$.data.imageUrl").value("https://minio.example.com/nemonic/artifact-downloads/result-qr.jpg"))
+            .andExpect(jsonPath("$.data.imageUrl")
+                .value("https://minio.example.com/nemonic/artifact-downloads/result-qr-v4.jpg"))
             .andExpect(jsonPath("$.data.siteUrl").value("https://nemonic.example.com"))
             .andExpect(jsonPath("$.data.kakaoUrl").value("https://nemonic.example.com?utm_source=kakao"))
             .andExpect(jsonPath("$.data.instagramUrl").value("https://nemonic.example.com?utm_source=instagram"));

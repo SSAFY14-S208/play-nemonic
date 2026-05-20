@@ -6,6 +6,7 @@ import com.nemonicworld.community.dto.request.CommunityMemoReportRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoReportResponse;
+import com.nemonicworld.share.dto.response.ShareCreateResponse;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,14 +19,16 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     private final CommunityMemoCreateUseCase communityMemoCreateUseCase;
     private final CommunityMemoLayoutUseCase communityMemoLayoutUseCase;
     private final CommunityMemoReportUseCase communityMemoReportUseCase;
+    private final CommunityMemoShareUseCase communityMemoShareUseCase;
 
     public CommunityMemoServiceImpl(CommunityMemoQueryUseCase communityMemoQueryUseCase,
         CommunityMemoCreateUseCase communityMemoCreateUseCase, CommunityMemoLayoutUseCase communityMemoLayoutUseCase,
-        CommunityMemoReportUseCase communityMemoReportUseCase) {
+        CommunityMemoReportUseCase communityMemoReportUseCase, CommunityMemoShareUseCase communityMemoShareUseCase) {
         this.communityMemoQueryUseCase = communityMemoQueryUseCase;
         this.communityMemoCreateUseCase = communityMemoCreateUseCase;
         this.communityMemoLayoutUseCase = communityMemoLayoutUseCase;
         this.communityMemoReportUseCase = communityMemoReportUseCase;
+        this.communityMemoShareUseCase = communityMemoShareUseCase;
     }
 
     @Override
@@ -36,6 +39,11 @@ public class CommunityMemoServiceImpl implements CommunityMemoService {
     @Override
     public CommunityMemoDetailResponse getCommunityMemo(String memoIdValue, String viewerUserUuidValue) {
         return communityMemoQueryUseCase.getCommunityMemo(memoIdValue, viewerUserUuidValue);
+    }
+
+    @Override
+    public ShareCreateResponse createCommunityMemoShare(String memoIdValue, String userUuidValue) {
+        return communityMemoShareUseCase.createCommunityMemoShare(memoIdValue, userUuidValue);
     }
 
     @Override

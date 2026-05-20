@@ -14,6 +14,7 @@ public record CommunityMemoDetailResponse(
     @Schema(description = "대표 메모 이미지 URL", example = "http://localhost/memo-thumb.png") String memoImageUrl,
     @Schema(description = "최종 원본 이미지 URL", example = "http://localhost/memo-original.png") String memoOriginalImageUrl,
     @Schema(description = "최종 썸네일 이미지 URL", example = "http://localhost/memo-thumb.png") String memoThumbnailImageUrl,
+    @Schema(description = "갤러리 기반 flipbook 메모 GIF 재생 URL", example = "http://localhost/memo-playback.gif") String memoPlaybackImageUrl,
     @Schema(description = "벽 X 좌표", example = "120.5") double positionX,
     @Schema(description = "벽 Y 좌표", example = "80.0") double positionY,
     @Schema(description = "레이어 순서", example = "3") int zIndex,

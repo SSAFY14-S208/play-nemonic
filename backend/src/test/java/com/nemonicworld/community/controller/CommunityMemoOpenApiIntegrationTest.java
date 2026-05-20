@@ -45,6 +45,8 @@ class CommunityMemoOpenApiIntegrationTest {
                 jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoOriginalImageUrl").exists())
             .andExpect(
                 jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoThumbnailImageUrl").exists())
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.memoPlaybackImageUrl").exists())
             .andExpect(jsonPath("$.components.schemas.CommunityMemoItemResponse.properties.decoration").exists());
     }
 
@@ -71,7 +73,28 @@ class CommunityMemoOpenApiIntegrationTest {
             .andExpect(
                 jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoOriginalImageUrl").exists())
             .andExpect(
-                jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoThumbnailImageUrl").exists());
+                jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoThumbnailImageUrl").exists())
+            .andExpect(
+                jsonPath("$.components.schemas.CommunityMemoDetailResponse.properties.memoPlaybackImageUrl").exists());
+    }
+
+    @Test
+    void communityMemoShareApiIsExposedInOpenApiDocs() throws Exception {
+        String parametersPath = "$.paths['/api/v1/community/memos/{memoUuid}/share'].post.parameters";
+
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post.parameters[*].name")
+                .value(hasItems("memoUuid", "Anonymous-User-UUID")))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'memoUuid')].required").value(hasItems(true)))
+            .andExpect(jsonPath(parametersPath + "[?(@.name == 'Anonymous-User-UUID')].required").value(hasItems(true)))
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post.responses['200']").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/community/memos/{memoUuid}/share'].post.responses['404']").exists())
+            .andExpect(jsonPath("$.components.schemas.ShareCreateResponse.properties.shareToken").exists())
+            .andExpect(jsonPath("$.components.schemas.ShareCreateResponse.properties.imageUrl").exists())
+            .andExpect(jsonPath("$.components.schemas.ShareCreateResponse.properties.kakaoUrl").exists())
+            .andExpect(jsonPath("$.components.schemas.ShareCreateResponse.properties.instagramUrl").exists());
     }
 
     @Test

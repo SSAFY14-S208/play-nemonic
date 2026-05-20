@@ -20,7 +20,7 @@ import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.fortune.service.gms.FortuneGmsClient;
 import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
 import com.nemonicworld.fortune.service.image.FortuneCardStorage;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.sql.Timestamp;
@@ -36,22 +36,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.http.MediaType;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 @ExtendWith(OutputCaptureExtension.class)
 /**
  * 오늘의 운세 생성 가능 여부 조회 API를 통합 검증합니다.
  */
-class FortuneControllerIntegrationTest {
+class FortuneControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
@@ -80,6 +75,7 @@ class FortuneControllerIntegrationTest {
         jdbcTemplate.execute("DROP TABLE IF EXISTS fortune_artifact");
         jdbcTemplate.execute("DROP TABLE IF EXISTS gallery");
         jdbcTemplate.execute("DROP TABLE IF EXISTS artifact");
+        jdbcTemplate.execute("DROP TABLE IF EXISTS gms_prompt_feature_state");
         jdbcTemplate.execute("DROP TABLE IF EXISTS gms_prompt_template");
         jdbcTemplate.execute("""
             CREATE TABLE artifact (
@@ -122,7 +118,19 @@ class FortuneControllerIntegrationTest {
                 created_by BIGINT NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP NULL
+                deleted_at TIMESTAMP NULL,
+                is_active BOOLEAN NOT NULL DEFAULT FALSE,
+                activated_at TIMESTAMP NULL,
+                activated_by BIGINT NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE gms_prompt_feature_state (
+                feature_type VARCHAR(32) PRIMARY KEY,
+                current_prompt_id BIGINT NULL,
+                updated_by BIGINT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
             )
             """);
     }
@@ -149,7 +157,9 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.data.fortune.workLuck").value(84))
             .andExpect(jsonPath("$.data.fortune.moneyLuck").value(71))
             .andExpect(jsonPath("$.data.fortune.luckyColor").value("은회색"))
+            .andExpect(jsonPath("$.data.fortune.luckyColorHex").value("#C0C0C0"))
             .andExpect(jsonPath("$.data.fortune.luckyKeyword").value("정리"))
+            .andExpect(jsonPath("$.data.fortune.luckyDirection").value("동쪽"))
             .andExpect(jsonPath("$.data.fortune.caution").value("결정은 한 템포 늦추는 것이 좋습니다."))
             .andExpect(jsonPath("$.data.fortune.postitLine").value("오늘은 정리할수록 운이 열린다"))
             .andExpect(jsonPath("$.data.saju.calendarType").value("solar"))
@@ -170,7 +180,7 @@ class FortuneControllerIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(artifactCount).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(galleryCount).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(savedDescription).contains("\"title\":\"오늘은 흐름을 정리하는 날\"")
-            .contains("\"yearPillar\":\"임신\"");
+            .contains("\"yearPillar\":\"임신\"").contains("\"luckyColorHex\":\"#C0C0C0\"");
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
             eq("image/png"));
         org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_create_requested\"")
@@ -290,6 +300,31 @@ class FortuneControllerIntegrationTest {
 
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
             eq("image/png"));
+    }
+
+    /**
+     * GMS가 표시 길이를 넘는 주의 문장을 반환하면 잘라 저장하지 않고 재시도합니다.
+     */
+    @Test
+    void createFortuneRetriesWhenCautionIsTooLong() throws Exception {
+        UUID userUuid = createExistingUser();
+        insertPrompt();
+        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResultWithLongCaution(),
+            sampleGmsResult());
+
+        MvcResult result = mockMvc
+            .perform(post("/api/v1/fortune").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(sajuRequestBody()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.fortune.luckyColorHex").value("#C0C0C0"))
+            .andReturn();
+
+        String caution = responseData(result).path("fortune").path("caution").asText();
+        String savedDescription = jdbcTemplate
+            .queryForObject("SELECT description FROM fortune_artifact WHERE user_id = ?", String.class, userUuid);
+
+        org.assertj.core.api.Assertions.assertThat(caution).hasSizeLessThanOrEqualTo(32).doesNotContain("...");
+        org.assertj.core.api.Assertions.assertThat(savedDescription).contains("\"caution\":\"%s\"".formatted(caution));
+        verify(fortuneGmsClient, times(2)).generate(anyString(), any(JsonNode.class));
     }
 
     /**
@@ -424,7 +459,9 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.data.fortune.workLuck").value(84))
             .andExpect(jsonPath("$.data.fortune.moneyLuck").value(71))
             .andExpect(jsonPath("$.data.fortune.luckyColor").value("은회색"))
+            .andExpect(jsonPath("$.data.fortune.luckyColorHex").value("#C0C0C0"))
             .andExpect(jsonPath("$.data.fortune.luckyKeyword").value("정리"))
+            .andExpect(jsonPath("$.data.fortune.luckyDirection").value("동쪽"))
             .andExpect(jsonPath("$.data.fortune.caution").value("결정은 한 템포 늦추는 것이 좋습니다."))
             .andExpect(jsonPath("$.data.fortune.postitLine").value("오늘은 정리할수록 운이 열린다"))
             .andExpect(jsonPath("$.data.saju.calendarType").value("solar"))
@@ -435,7 +472,15 @@ class FortuneControllerIntegrationTest {
             .andExpect(jsonPath("$.data.design.accentColor").value("#C0C0C0"))
             .andExpect(jsonPath("$.data.design.iconKey").value("moon_waning"));
 
-        verifyNoInteractions(fortuneGmsClient, fortuneCardStorage);
+        verifyNoInteractions(fortuneGmsClient);
+        verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.endsWith("/card-template-v1.png"),
+            any(byte[].class), eq("image/png"));
+        String updatedFortuneImageUrl = jdbcTemplate.queryForObject(
+            "SELECT fortune_image_url FROM fortune_artifact WHERE artifact_id = ?", String.class, fortuneId);
+        String updatedThumbnailUrl = jdbcTemplate.queryForObject("SELECT thumbnail_url FROM artifact WHERE id = ?",
+            String.class, fortuneId);
+        org.assertj.core.api.Assertions.assertThat(updatedFortuneImageUrl).endsWith("/card-template-v1.png");
+        org.assertj.core.api.Assertions.assertThat(updatedThumbnailUrl).isEqualTo(updatedFortuneImageUrl);
         org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_reissued\"")
             .contains(fortuneId.toString());
     }
@@ -520,25 +565,42 @@ class FortuneControllerIntegrationTest {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         jdbcTemplate.update("""
             INSERT INTO gms_prompt_template (
-                prompt_name, template_text, feature_type, created_by, created_at, updated_at, deleted_at
+                prompt_name, template_text, feature_type, created_by, created_at, updated_at, deleted_at,
+                is_active, activated_at, activated_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, NULL)
-            """, "Daily fortune", "오늘의 운세를 JSON으로 생성해줘.", "fortune", 1L, Timestamp.valueOf(now),
-            Timestamp.valueOf(now));
+            VALUES (?, ?, ?, ?, ?, ?, NULL, TRUE, ?, ?)
+            """, "Daily fortune", "오늘의 운세를 JSON으로 생성해줘.", "fortune", 1L, Timestamp.valueOf(now), Timestamp.valueOf(now),
+            Timestamp.valueOf(now), 1L);
+        jdbcTemplate.update("""
+            INSERT INTO gms_prompt_feature_state (
+                feature_type,
+                current_prompt_id,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, 1, ?, ?, ?)
+            """, "fortune", 1L, Timestamp.valueOf(now), Timestamp.valueOf(now));
     }
 
     private FortuneGmsResult sampleGmsResult() {
         return new FortuneGmsResult("오늘은 흐름을 정리하는 날", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 78, 66, 84, 71, "은회색", "정리",
-            "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", "moon", "#2C2C4A", "#C0C0C0", "moon_waning");
+            "동쪽", "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", "moon", "#2C2C4A", "#C0C0C0", "moon_waning");
     }
 
     private FortuneGmsResult sampleGmsResultWithoutDesign() {
         return new FortuneGmsResult("오늘은 흐름을 정리하는 날", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 78, 66, 84, 71, "은회색", "정리",
-            "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", null, null, null, null);
+            "동쪽", "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", null, null, null, null);
+    }
+
+    private FortuneGmsResult sampleGmsResultWithLongCaution() {
+        return new FortuneGmsResult("오늘은 흐름을 정리하는 날", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 78, 66, 84, 71, "은회색", "정리",
+            "동쪽", "마음이 먼저 앞서면 흐름이 꼬일 수 있으니, 중요한 결정은 한 템포 늦추고 한 번 더 확인하는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", "moon",
+            "#2C2C4A", "#C0C0C0", "moon_waning");
     }
 
     private FortuneGmsResult invalidGmsResult() {
-        return new FortuneGmsResult("", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 101, 66, 84, 71, "은회색", "정리",
+        return new FortuneGmsResult("", "차분하게 우선순위를 세우면 좋은 결과가 나는 하루입니다.", 101, 66, 84, 71, "은회색", "정리", "동쪽",
             "결정은 한 템포 늦추는 것이 좋습니다.", "오늘은 정리할수록 운이 열린다", null, null, null, null);
     }
 
@@ -604,6 +666,7 @@ class FortuneControllerIntegrationTest {
               "moneyLuck": 71,
               "luckyColor": "은회색",
               "luckyKeyword": "정리",
+              "luckyDirection": "동쪽",
               "caution": "결정은 한 템포 늦추는 것이 좋습니다.",
               "postitLine": "오늘은 정리할수록 운이 열린다",
               "cardTheme": "moon",

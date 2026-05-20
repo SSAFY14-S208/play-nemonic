@@ -1,5 +1,6 @@
 package com.nemonicworld.backoffice.relay.service;
 
+import com.nemonicworld.admin.service.AdminAuthorization;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomDeleteResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomListResponse;
 import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomResponse;
@@ -7,7 +8,6 @@ import com.nemonicworld.auth.service.AdminAuditLogger;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
-import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.logging.RelayRoomEventLogger;
@@ -31,7 +31,6 @@ import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 @Service
 public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomService {
 
-    private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String INVALID_STATUS_MESSAGE = "조회할 수 없는 방 상태입니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final String ROOM_ALREADY_CLOSED_MESSAGE = "이미 종료된 방입니다.";
@@ -63,7 +62,7 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
     @Override
     public BackofficeRelayRoomListResponse getActiveRelayRooms(AdminPrincipal adminPrincipal, String status,
         String page, String size) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         Set<RelayRoomStatus> statusFilter = parseStatusFilter(status);
         int pageNumber = parsePage(page);
@@ -87,7 +86,7 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
     @Override
     public BackofficeRelayRoomDeleteResponse deleteActiveRelayRoom(AdminPrincipal adminPrincipal, String roomCode,
         AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
         relayRoomPolicy.validateRoomCode(roomCode);
         LocalDateTime closedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
@@ -111,12 +110,6 @@ public class BackofficeRelayRoomServiceImpl implements BackofficeRelayRoomServic
         }
 
         throw new ConflictException(RelayRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
-    }
-
-    private void requireAdmin(AdminPrincipal adminPrincipal) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
-        }
     }
 
     private Set<RelayRoomStatus> parseStatusFilter(String value) {

@@ -9,6 +9,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+      continue-on-error: false
 
 management:
   health:

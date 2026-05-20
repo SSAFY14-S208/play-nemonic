@@ -11,45 +11,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminUser;
-import com.nemonicworld.auth.service.AdminTokenStore;
-import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
-import com.nemonicworld.auth.service.StoredAdminRefreshToken;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
+import com.nemonicworld.support.InMemoryAdminTokenStore;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@IntegrationTest
-@AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
-class AuthControllerIntegrationTest {
+class AuthControllerIntegrationTest extends AbstractReadOnlyIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
     private static final String ADMIN_LOGIN_ID = "admin";
@@ -222,7 +206,7 @@ class AuthControllerIntegrationTest {
     void adminDetailReturnsUnauthorizedWhenTokenIsMissingInvalidOrBlacklisted() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         AdminTokens tokens = loginAndReadTokens();
-        adminTokenStore.accessTokenBlacklist.add(readTokenClaims(tokens.accessToken()).tokenId());
+        adminTokenStore.blacklistAccessToken(readTokenClaims(tokens.accessToken()));
 
         mockMvc.perform(get("/api/v1/admins/{adminId}", ADMIN_ID)).andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").isNotEmpty());
@@ -315,6 +299,37 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void superAdminCreatesViewerAdmin() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                    NEW_ADMIN_EMAIL, "viewer")))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.loginId").value(NEW_ADMIN_LOGIN_ID))
+            .andExpect(jsonPath("$.data.role").value("viewer"));
+
+        assertThat(readAdminRole(NEW_ADMIN_LOGIN_ID)).isEqualTo("viewer");
+    }
+
+    @Test
+    void adminCreationRejectsSuperAdminRole() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                    NEW_ADMIN_EMAIL, "super_admin")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("생성할 수 없는 관리자 권한입니다."));
+    }
+
+    @Test
     void superAdminFindsAdmins() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
@@ -325,6 +340,25 @@ class AuthControllerIntegrationTest {
             .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data.length()").value(2))
             .andExpect(jsonPath("$.data[0].id").value(ADMIN_ID))
             .andExpect(jsonPath("$.data[1].id").value(TARGET_ADMIN_ID));
+    }
+
+    @Test
+    void viewerFindsAdminsButCannotCreateAdmin() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "viewer", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc.perform(get("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.length()").value(2));
+
+        mockMvc
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                    NEW_ADMIN_EMAIL)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("슈퍼 관리자 권한이 필요합니다."));
     }
 
     @Test
@@ -574,6 +608,18 @@ class AuthControllerIntegrationTest {
             """.formatted(loginId, password, nickname, email);
     }
 
+    private String adminCreateRequestBody(String loginId, String password, String nickname, String email, String role) {
+        return """
+            {
+              "loginId": "%s",
+              "password": "%s",
+              "nickname": "%s",
+              "email": "%s",
+              "role": "%s"
+            }
+            """.formatted(loginId, password, nickname, email, role);
+    }
+
     private String passwordChangeRequestBody(String password) {
         return """
             {
@@ -618,6 +664,10 @@ class AuthControllerIntegrationTest {
             loginId);
     }
 
+    private String readAdminRole(String loginId) {
+        return jdbcTemplate.queryForObject("SELECT role FROM admin_user WHERE login_id = ?", String.class, loginId);
+    }
+
     private JsonNode readData(MvcResult result) throws Exception {
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
     }
@@ -633,80 +683,6 @@ class AuthControllerIntegrationTest {
     }
 
     private record AdminTokens(String accessToken, String refreshToken) {
-    }
-
-    @TestConfiguration
-    static class AdminTokenStoreTestConfig {
-
-        @Bean
-        @Primary
-        InMemoryAdminTokenStore adminTokenStore() {
-            return new InMemoryAdminTokenStore();
-        }
-    }
-
-    static class InMemoryAdminTokenStore implements AdminTokenStore {
-
-        private final Map<String, StoredAdminRefreshToken> refreshTokens = new ConcurrentHashMap<>();
-        private final Set<String> accessTokenBlacklist = ConcurrentHashMap.newKeySet();
-        private final Map<Long, Instant> accessRevokedAfter = new ConcurrentHashMap<>();
-
-        @Override
-        public IssuedAdminRefreshToken issueRefreshToken(AdminUser adminUser) {
-            String refreshToken = UUID.randomUUID().toString();
-            Instant expiresAt = Instant.now().plusSeconds(14 * 24 * 60 * 60);
-            refreshTokens.put(refreshToken, new StoredAdminRefreshToken(adminUser.getId(), expiresAt));
-
-            return new IssuedAdminRefreshToken(refreshToken, OffsetDateTime.ofInstant(expiresAt, ZoneOffset.UTC));
-        }
-
-        @Override
-        public Optional<StoredAdminRefreshToken> findRefreshToken(String refreshToken) {
-            StoredAdminRefreshToken storedToken = refreshTokens.get(refreshToken);
-            if (storedToken == null || storedToken.isExpired(Instant.now())) {
-                return Optional.empty();
-            }
-
-            return Optional.of(storedToken);
-        }
-
-        @Override
-        public void revokeRefreshToken(String refreshToken) {
-            refreshTokens.remove(refreshToken);
-        }
-
-        @Override
-        public void revokeAllRefreshTokens(Long adminId) {
-            refreshTokens.entrySet().removeIf(entry -> entry.getValue().adminId().equals(adminId));
-        }
-
-        @Override
-        public void blacklistAccessToken(AdminTokenClaims claims) {
-            if (claims.tokenId() != null) {
-                accessTokenBlacklist.add(claims.tokenId());
-            }
-        }
-
-        @Override
-        public void revokeAccessTokensIssuedBefore(Long adminId, Instant revokedAt) {
-            accessRevokedAfter.put(adminId, revokedAt);
-        }
-
-        @Override
-        public boolean isAccessTokenRevoked(AdminTokenClaims claims) {
-            if (claims.tokenId() != null && accessTokenBlacklist.contains(claims.tokenId())) {
-                return true;
-            }
-
-            Instant revokedAfter = accessRevokedAfter.get(claims.adminId());
-            return revokedAfter != null && !claims.issuedAt().isAfter(revokedAfter);
-        }
-
-        void clear() {
-            refreshTokens.clear();
-            accessTokenBlacklist.clear();
-            accessRevokedAfter.clear();
-        }
     }
 
     private static final class Base64Url {

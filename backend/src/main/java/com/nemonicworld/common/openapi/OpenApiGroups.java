@@ -17,13 +17,14 @@ public final class OpenApiGroups {
     public static final GroupDefinition ALL_GROUP = new GroupDefinition(ALL, "전체 API", List.of("/api/v1/**"),
         OpenApiTags.orderedTagNames());
     public static final GroupDefinition COMMON_GROUP = new GroupDefinition(COMMON, "공통",
-        List.of("/api/v1/users/**", "/api/v1/auth/**", "/api/v1/invites/**", "/api/v1/files/**"),
-        List.of(OpenApiTags.AUTH, OpenApiTags.USER, OpenApiTags.INVITE, OpenApiTags.FILE));
+        List.of("/api/v1/users/**", "/api/v1/invites/**", "/api/v1/files/**"),
+        List.of(OpenApiTags.USER, OpenApiTags.INVITE, OpenApiTags.FILE));
     public static final GroupDefinition CONTENTS_GROUP = new GroupDefinition(CONTENTS, "콘텐츠",
-        List.of("/api/v1/gallery", "/api/v1/gallery/**", "/api/v1/artifacts/**", "/api/v1/share", "/api/v1/share/**",
-            "/api/v1/community/memos", "/api/v1/community/memos/**", "/api/v1/fortune", "/api/v1/fortune/**"),
-        List.of(OpenApiTags.GALLERY, OpenApiTags.ARTIFACT, OpenApiTags.SHARE, OpenApiTags.COMMUNITY,
-            OpenApiTags.FORTUNE));
+        List.of("/api/v1/gallery", "/api/v1/gallery/**", "/api/v1/artifacts/**", "/api/v1/community/memos",
+            "/api/v1/community/memos/**", "/api/v1/fortune", "/api/v1/fortune/**", "/api/v1/infinite-canvas/canvases",
+            "/api/v1/infinite-canvas/canvases/**"),
+        List.of(OpenApiTags.GALLERY, OpenApiTags.ARTIFACT, OpenApiTags.COMMUNITY, OpenApiTags.FORTUNE,
+            OpenApiTags.INFINITE_CANVAS));
     public static final GroupDefinition GAMES_GROUP = new GroupDefinition(GAMES, "게임",
         List.of("/api/v1/relay/rooms", "/api/v1/relay/rooms/**", "/api/v1/flipbook/rooms", "/api/v1/flipbook/rooms/**"),
         List.of(OpenApiTags.RELAY, OpenApiTags.FLIPBOOK));
@@ -31,9 +32,10 @@ public final class OpenApiGroups {
         List.of("/api/v1/inquiries", "/api/v1/inquiries/**", "/api/v1/logs/**"),
         List.of(OpenApiTags.CS_INQUIRY, OpenApiTags.CLIENT_LOG));
     public static final GroupDefinition BACKOFFICE_GROUP = new GroupDefinition(BACKOFFICE, "백오피스",
-        List.of("/api/v1/admins", "/api/v1/admins/**", "/api/v1/admin/**", "/api/v1/backoffice/**"),
-        List.of(OpenApiTags.ADMIN, OpenApiTags.ADMIN_COMMUNITY, OpenApiTags.ADMIN_INQUIRY, OpenApiTags.SYSTEM_PARAMETER,
-            OpenApiTags.BACKOFFICE_RELAY, OpenApiTags.BACKOFFICE_FLIPBOOK, OpenApiTags.GMS_PROMPT));
+        List.of("/api/v1/auth/**", "/api/v1/admins", "/api/v1/admins/**", "/api/v1/admin/**", "/api/v1/backoffice/**"),
+        List.of(OpenApiTags.AUTH, OpenApiTags.ADMIN, OpenApiTags.ADMIN_COMMUNITY, OpenApiTags.ADMIN_INQUIRY,
+            OpenApiTags.SYSTEM_PARAMETER, OpenApiTags.BACKOFFICE_RELAY, OpenApiTags.BACKOFFICE_FLIPBOOK,
+            OpenApiTags.GMS_PROMPT));
 
     public static final List<GroupDefinition> ORDERED_GROUPS = List.of(ALL_GROUP, COMMON_GROUP, CONTENTS_GROUP,
         GAMES_GROUP, SUPPORT_LOGS_GROUP, BACKOFFICE_GROUP);

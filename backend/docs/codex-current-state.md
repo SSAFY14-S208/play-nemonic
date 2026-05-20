@@ -1,13 +1,25 @@
 # Codex Current State
 
-Last updated: 2026-05-14
+Last updated: 2026-05-18
 
 ## Current Focus
 
 - Backend agent harness has been prepared for the `backend/` Spring Boot module.
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
+- 커뮤니티 메모 상세 공유는 `POST /api/v1/community/memos/{memoUuid}/share`를 사용해
+  QR 합성 이미지가 포함된 `ShareCreateResponse`를 생성하며, 캐시 객체는
+  `community-memo-shares/{memoUuid}/result-qr-v2.jpg`에 저장한다. 이 흐름은
+  `Anonymous-User-UUID`를 검증하고, 존재하는 사용자는 누구나 공개 visible 메모를
+  공유할 수 있으며, hidden/deleted/blocked 메모는 거부한다. 이미지 선택은
+  `body_image_url`을 우선 사용하고 없으면 `thumbnail_image_url`로 fallback 하며,
+  QR 합성 대상은 MinIO 오브젝트 키 기반 이미지로 제한한다.
 - The first real backend feature API now includes anonymous user UUID issuance through `POST /api/v1/users/anonymous`.
+- Community memo sharing now preserves flipbook animation: visible memos with
+  `artifact.kind=flipbook` or `playback_image_reference` use the flipbook GIF as
+  the QR composition source, cache the result under
+  `community-memo-shares/{memoUuid}/result-qr-v2.gif`, and return the public GIF URL
+  in the existing `ShareCreateResponse` shape.
 - Backend runtime now sets the JVM default timezone from `nemonic.time-zone`
   (`APP_TIME_ZONE`, default `Asia/Seoul`) during application startup so
   `LocalDateTime.now()` based DB writes and API responses follow the Korean
@@ -37,6 +49,10 @@ Last updated: 2026-05-14
   keeping DB storage object-key based. PHONE presigned uploads use
   `phone/results/{fileId}/{fileName}` object keys to align with gallery result
   storage paths.
+- Artifact QR download/share now supports `artifact.kind=phone` gallery items by
+  using `phone_artifact.phone_image_url` first, falling back to
+  `artifact.thumbnail_url`, and producing the same JPG QR asset used by other
+  static image artifacts.
 - Gallery list/detail and relay result APIs now convert stored MinIO object keys into browser-renderable public URLs through `global.storage.minio.MinioPublicUrlResolver`, while preserving already absolute URLs as-is and keeping the database storage model object-key based.
 - Files API calls (`POST /api/v1/files/presign`, `POST /api/v1/files/{fileId}/confirm`, `DELETE /api/v1/files/{fileId}`) also use `Anonymous-User-UUID`.
 - Files presign/confirm keeps the direct-upload contract: the frontend PUTs
@@ -92,16 +108,21 @@ Last updated: 2026-05-14
 - Admin logout revokes the submitted refresh token and blacklists the current
   access token; deleting a standard admin account revokes all of that account's
   refresh tokens and blocks previously issued access tokens.
-- Backoffice super admins can now create standard admins with
-  `POST /api/v1/admins`; the API stores BCrypt password hashes, fixes
-  new accounts to the `admin` role, and rejects duplicate `login_id` values.
-- Backoffice super admins can now list and inspect active admins with
+- Backoffice roles now include `super_admin`, `admin`, and read-only `viewer`.
+  Viewer accounts can authenticate and inspect protected backoffice screens, but
+  service-layer authorization rejects create/update/delete/force-close/test
+  workflows with 403.
+- Backoffice super admins can now create `admin` or `viewer` accounts with
+  `POST /api/v1/admins`; the API stores BCrypt password hashes, defaults an
+  omitted `role` to `admin`, rejects `super_admin` creation through the API, and
+  rejects duplicate `login_id` values.
+- Authenticated backoffice admins can now list and inspect active admins with
   `GET /api/v1/admins` and `GET /api/v1/admins/{adminId}`.
-- Backoffice super admins can now change standard admin passwords with
+- Backoffice super admins can now change admin/viewer passwords with
   `PATCH /api/v1/admins/{adminId}`; the API updates the BCrypt password hash,
   revokes the target account's refresh tokens, and blocks previously issued
   access tokens.
-- Backoffice super admins can now soft-delete standard admins with
+- Backoffice super admins can now soft-delete admin/viewer accounts with
   `DELETE /api/v1/admins/{adminId}`; self-delete, super-admin target
   deletion, and missing or already deleted targets are rejected.
 - Backoffice admins can now create GMS prompt templates through
@@ -129,18 +150,42 @@ Last updated: 2026-05-14
   `featureType`, `page`, and `size`, returns the local pagination DTO shape
   (`items`, `page`, `size`, `totalElements`, `hasNext`), and reads only
   `deleted_at IS NULL` rows from the existing `gms_prompt_template` table.
+- Backoffice admins can preview candidate fortune GMS prompt templates through
+  `POST /api/v1/backoffice/gms/prompts/preview`; the API calls GMS with the
+  unsaved prompt body and sample saju, validates the same fortune result shape
+  used by public fortune creation, renders a PNG card as a base64 data URL, and
+  does not write `gms_prompt_template`, `artifact`, `fortune_artifact`,
+  `gallery`, or MinIO objects.
+- Backoffice GMS prompt management now distinguishes saved non-deleted prompts
+  from the one currently used prompt. Flyway V16 adds
+  `gms_prompt_template.is_active`, activation metadata, a
+  `gms_prompt_feature_state` row-lock table, and a partial unique index so only
+  one non-deleted active prompt can exist per `feature_type`.
+- `POST /api/v1/backoffice/gms/prompts/{promptId}/activate` serializes
+  activation by feature type through `gms_prompt_feature_state` and atomically
+  deactivates the previous prompt before activating the selected prompt.
+  `GET /api/v1/backoffice/gms/prompts/current?featureType=fortune` returns the
+  active DB prompt or the built-in fortune fallback prompt when no DB prompt is
+  active. `POST /api/v1/backoffice/gms/prompts/{promptId}/test` tests a saved
+  prompt with sample saju without persisting artifacts.
+- Backoffice `viewer` accounts can read GMS prompt list/detail/current endpoints
+  but cannot create, preview/test, update, delete, or activate prompts.
 - Backoffice admins can now list system parameters through
   `GET /api/v1/backoffice/system-parameters`; the API requires an admin JWT,
   reads existing `backoffice_setting` rows sorted by `setting_key ASC`,
   supports optional `keyword` search on `setting_key`, parses
   `setting_value` JSON text into the response `value`, and Flyway V8 seeds
   initial backoffice setting rows without changing the schema.
+- Backoffice `viewer` accounts can read system parameters but cannot update
+  parameter values.
 - Backoffice admins can now manage active relay drawing rooms through
   `GET /api/v1/backoffice/relay-rooms` and
   `DELETE /api/v1/backoffice/relay-rooms/{roomCode}`; delete requires an admin
   JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`, rejects
   already CLOSED rooms with 409, emits `ROOM_CLOSED`, and leaves MinIO,
   artifact, and gallery cleanup out of scope.
+- Backoffice `viewer` accounts can list active rooms/canvases across relay,
+  flipbook, and infinite canvas, but cannot force-close or delete them.
 - Backoffice admins can now list active flipbook rooms through
   `GET /api/v1/backoffice/flipbook-rooms`; the API requires an admin JWT,
   scans Redis `flipbook:room:{roomCode}` state, returns CLOSED-excluded
@@ -152,6 +197,12 @@ Last updated: 2026-05-14
   admin JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`,
   rejects already CLOSED rooms with 409, syncs invite metadata, emits
   `ROOM_CLOSED`, and leaves MinIO, artifact, gallery, and DB rows untouched.
+- Backoffice admins can now query OpenSearch logs through
+  `POST /api/v1/admin/logs/search`, `/histogram`, and `/field-summary`.
+  The backend maps whitelisted logical indexes to OpenSearch index patterns,
+  rejects unsafe query/body/field/time-range inputs, calls OpenSearch through
+  WebClient, returns log-search DTOs directly, and emits `admin_logs_query`
+  stdout audit events with `service=backoffice-api` and `metadata.actor_id`.
 - Swagger/OpenAPI declares JWT bearer authentication for protected admin APIs,
   so Swagger UI can send `Authorization: Bearer <token>` through the global
   Authorize flow.
@@ -167,6 +218,7 @@ Last updated: 2026-05-14
   bulk memo review and `report_review_decided` remain pending because no
   current admin API exists for those operations.
 - `admin_user.login_id` is made unique through Flyway V5.
+- `admin_role_type` includes `viewer` through Flyway V17.
 - Room code generation is available through `RoomCodeGenerator`, producing 6-character uppercase human-readable codes and supporting repository-backed collision checks with `generateUnique(...)`.
 - Relay room creation now uses `POST /api/v1/relay/rooms`, reuses `Anonymous-User-UUID`, requires a non-default nickname before room creation, stores the WAITING room state only in Redis under `relay:room:{roomCode}` with a 24-hour TTL, creates the host participant with `connected=false` until WebSocket CONNECT succeeds, and creates no PostgreSQL artifact/gallery rows.
 - Relay room state lookup now uses `GET /api/v1/relay/rooms/{roomCode}`, reads the Redis room snapshot without mutation, sorts participants by `joinOrder`, and computes viewer join/reconnect eligibility from the requested `Anonymous-User-UUID`.
@@ -416,13 +468,16 @@ Recent artifact QR download/share work adds `GET /api/v1/artifacts/{artifactId}/
 `POST /api/v1/artifacts/{artifactId}/share`.
 
 - Both APIs verify the caller's active `gallery` ownership through `ArtifactImageUrlRepository`.
-- Download/share artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, and `community_memo`; `phone` and `infinite_canvas` return unsupported-kind errors for this flow.
-- QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and `QR_DOWNLOAD` channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
+- Download/share artifact kinds are currently `relay_drawing`, `flipbook`, `fortune`, `infinite_canvas`,
+  `phone`, and `community_memo`.
+- QR URLs use a DB-free signed share token route, `/share/{shareToken}`, with artifact id, artifact kind, and channel in the signed payload. The token intentionally excludes owner user id so the same artifact QR asset can be reused by all owners.
+- QR composition uses ZXing low error correction (`L`), one-module margin, and a larger bounded overlay size so download/share QR modules render less densely on static images and GIF frames.
 - The API creates or reuses a QR-composed MinIO cache object, then returns JPG/GIF bytes as an attachment.
-- Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr.gif` with QR overlaid on every frame.
+- Still images are cached as JPG under `artifact-downloads/{artifactId}/result-qr-v2.jpg`; flipbook GIFs are cached as `artifact-downloads/{artifactId}/result-qr-v2.gif` with QR overlaid on every frame.
 - `POST /api/v1/artifacts/{artifactId}/share` reuses the same QR cache and returns the public QR image URL plus Kakao/Instagram UTM URLs in the existing `ShareCreateResponse` shape.
 - Community memo QR assets read `community_memo.body_image_url` first, then `community_memo.thumbnail_image_url`, and only fall back to `artifact.thumbnail_url`.
-- `POST /api/v1/share` remains the older galleryId-based token/link generation endpoint.
+- The older galleryId-based `POST /api/v1/share` endpoint was removed; use artifact or community memo
+  share endpoints instead.
 
 ```bash
 ./gradlew --no-daemon test --tests com.nemonicworld.artifact.service.download.ArtifactDownloadServiceImplTest --tests com.nemonicworld.artifact.service.share.ArtifactShareServiceImplTest --tests com.nemonicworld.artifact.controller.ArtifactControllerIntegrationTest --tests com.nemonicworld.artifact.controller.ArtifactOpenApiIntegrationTest
@@ -436,6 +491,9 @@ Recent flipbook result work aligns room completion with the relay finalization m
   white. GIF frames are normalized through ARGB images before writing while
   keeping the existing `image/gif` contract, and thumbnail PNG resize uses ARGB
   so transparent frame backgrounds remain transparent.
+- Flipbook GIF frame metadata now uses `restoreToBackgroundColor` disposal
+  instead of `none`, so transparent submitted frames are displayed
+  independently instead of accumulating over previous frames in GIF players.
 - After finalization completes, the backend emits a `RESULT_CREATED` WebSocket event with artifact IDs and per-`flipbookIndex` object keys.
 - `GET /api/v1/flipbook/rooms/{roomCode}/result` is now a read-side API: existing artifact/gallery rows return `ready=true`; while result generation is pending or inconsistent, the API returns `ready=false` instead of lazily creating GIFs.
 - Flipbook game start uses `totalRounds=flipbook.min_frames_per_flipbook` from the runtime settings snapshot, so assignment count is `participantCount * totalRounds`.
@@ -557,6 +615,7 @@ Recent community logging work reused the shared structured event logger for comm
 - COMMUNITY-purpose file uploads now emit presign, confirm, and pending-delete events without affecting other file purposes.
 - Admin community list/detail/report-history views emit audit events, while existing hide/restore audit logs keep the operator-provided review reason in metadata.
 - `backend/docs/product-spec/08-observability.md` includes the community event names in the backend event allow-list.
+- Community memo list/detail responses now include `memoPlaybackImageUrl`. Visible GALLERY memos backed by `artifact.kind=flipbook` expose the resolved public `flipbook_artifact.gif_url` to any viewer, while DIRECT and non-flipbook memos return `null`; `GET /api/v1/artifacts/{artifactId}/image-urls` remains owner-scoped.
 
 ## Next Suggested Steps
 

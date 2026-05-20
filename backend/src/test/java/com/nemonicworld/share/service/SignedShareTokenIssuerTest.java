@@ -2,10 +2,8 @@ package com.nemonicworld.share.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.share.config.ShareProperties;
-import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -30,12 +28,22 @@ class SignedShareTokenIssuerTest {
         assertThat(token).isEqualTo(issuer.issueArtifactToken(artifactId, "flipbook", "QR_DOWNLOAD"));
         String[] parts = token.split("\\.");
         assertThat(parts).hasSize(2);
+        assertThat(parts[0]).startsWith("1BD");
+        assertThat(parts[1]).hasSize(8);
+        assertThat(token).hasSizeLessThan(40);
+    }
 
-        JsonNode payload = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
-        assertThat(payload.path("purpose").asText()).isEqualTo("artifact_share");
-        assertThat(payload.path("artifactId").asText()).isEqualTo(artifactId.toString());
-        assertThat(payload.has("ownerUserId")).isFalse();
-        assertThat(payload.path("artifactKind").asText()).isEqualTo("flipbook");
-        assertThat(payload.path("channel").asText()).isEqualTo("QR_DOWNLOAD");
+    @Test
+    void issueCommunityMemoTokenReturnsDeterministicPayloadToken() throws Exception {
+        UUID memoId = UUID.fromString("770e8400-e29b-41d4-a716-446655440000");
+
+        String token = issuer.issueCommunityMemoToken(memoId, "QR_SHARE");
+
+        assertThat(token).isEqualTo(issuer.issueCommunityMemoToken(memoId, "QR_SHARE"));
+        String[] parts = token.split("\\.");
+        assertThat(parts).hasSize(2);
+        assertThat(parts[0]).startsWith("1MS");
+        assertThat(parts[1]).hasSize(8);
+        assertThat(token).hasSizeLessThan(40);
     }
 }

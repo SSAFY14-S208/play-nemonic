@@ -1,5 +1,6 @@
 package com.nemonicworld.backoffice.flipbook.service;
 
+import com.nemonicworld.admin.service.AdminAuthorization;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomDeleteResponse;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomListResponse;
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomResponse;
@@ -7,7 +8,6 @@ import com.nemonicworld.auth.service.AdminAuditLogger;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
-import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
@@ -30,7 +30,6 @@ import static com.nemonicworld.flipbook.logging.FlipbookRoomEventLogger.metadata
 @Service
 public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoomService {
 
-    private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String INVALID_STATUS_MESSAGE = "조회할 수 없는 플립북 방 상태입니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final String ROOM_ALREADY_CLOSED_MESSAGE = "이미 종료된 방입니다.";
@@ -62,7 +61,7 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
     @Override
     public BackofficeFlipbookRoomListResponse getActiveFlipbookRooms(AdminPrincipal adminPrincipal, String status,
         String page, String size) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         Set<FlipbookRoomStatus> statusFilter = parseStatusFilter(status);
         int pageNumber = parsePage(page);
@@ -88,7 +87,7 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
     @Override
     public BackofficeFlipbookRoomDeleteResponse deleteActiveFlipbookRoom(AdminPrincipal adminPrincipal, String roomCode,
         AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
         flipbookRoomPolicy.validateRoomCode(roomCode);
         LocalDateTime closedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
@@ -113,12 +112,6 @@ public class BackofficeFlipbookRoomServiceImpl implements BackofficeFlipbookRoom
         }
 
         throw new ConflictException(FlipbookRoomPolicy.ROOM_UPDATE_CONFLICT_MESSAGE);
-    }
-
-    private void requireAdmin(AdminPrincipal adminPrincipal) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
-        }
     }
 
     private Set<FlipbookRoomStatus> parseStatusFilter(String value) {

@@ -19,6 +19,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private static final String ROLE_VIEWER = "VIEWER";
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_SUPER_ADMIN = "SUPER_ADMIN";
+
     private final AdminJwtAuthenticationFilter adminJwtAuthenticationFilter;
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
     private final JsonAccessDeniedHandler jsonAccessDeniedHandler;
@@ -38,19 +42,26 @@ public class SecurityConfig {
                 .accessDeniedHandler(jsonAccessDeniedHandler))
             .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/login", "/api/v1/auth/reissue")
                 .permitAll().requestMatchers("/api/v1/auth/logout", "/api/v1/admins", "/api/v1/admins/**")
-                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN)
                 .requestMatchers("/api/v1/admin/inquiries", "/api/v1/admin/inquiries/**")
-                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN)
                 .requestMatchers("/api/v1/admin/community/memos", "/api/v1/admin/community/memos/**")
-                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN)
+                .requestMatchers("/api/v1/admin/logs", "/api/v1/admin/logs/**")
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN)
+                .requestMatchers("/api/v1/admin/metrics", "/api/v1/admin/metrics/**")
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN)
                 .requestMatchers("/api/v1/backoffice/gms/prompts", "/api/v1/backoffice/gms/prompts/**")
-                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN)
                 .requestMatchers("/api/v1/backoffice/system-parameters", "/api/v1/backoffice/system-parameters/**")
-                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN)
                 .requestMatchers("/api/v1/backoffice/relay-rooms", "/api/v1/backoffice/relay-rooms/**")
-                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN)
                 .requestMatchers("/api/v1/backoffice/flipbook-rooms", "/api/v1/backoffice/flipbook-rooms/**")
-                .hasAnyRole("ADMIN", "SUPER_ADMIN").anyRequest().permitAll())
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN)
+                .requestMatchers("/api/v1/backoffice/infinite-canvas/canvases",
+                    "/api/v1/backoffice/infinite-canvas/canvases/**")
+                .hasAnyRole(ROLE_VIEWER, ROLE_ADMIN, ROLE_SUPER_ADMIN).anyRequest().permitAll())
             .addFilterBefore(adminJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

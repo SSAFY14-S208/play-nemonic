@@ -11,9 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 @Schema(description = "무한 캔버스 상태 응답")
-public record InfiniteCanvasStateResponse(@Schema(description = "캔버스 ID") String canvasId,
-    @Schema(description = "공유 초대 코드") String inviteCode, @Schema(description = "캔버스 상태") InfiniteCanvasStatus status,
-    @Schema(description = "소유자 UUID") String ownerUserUuid,
+public record InfiniteCanvasStateResponse(@Schema(description = "공유 방코드") String roomCode,
+    @Schema(description = "캔버스 상태") InfiniteCanvasStatus status, @Schema(description = "방장 UUID") String hostUserUuid,
     @Schema(description = "내 참여자 정보", nullable = true) InfiniteCanvasParticipantResponse me,
     @Schema(description = "참여자 목록") List<InfiniteCanvasParticipantResponse> participants,
     @Schema(description = "캔버스 요소 목록") List<JsonNode> elements,
@@ -27,8 +26,7 @@ public record InfiniteCanvasStateResponse(@Schema(description = "캔버스 ID") 
         InfiniteCanvasParticipantResponse me = state.findParticipant(currentUserUuid)
             .map(InfiniteCanvasParticipantResponse::from).orElse(null);
 
-        return new InfiniteCanvasStateResponse(state.canvasId(), state.inviteCode(), state.status(),
-            state.ownerUserUuid(), me,
+        return new InfiniteCanvasStateResponse(state.roomCode(), state.status(), state.hostUserUuid(), me,
             state.participants().stream().map(InfiniteCanvasParticipantResponse::from).toList(), state.elements(),
             state.operations(), state.locks(), state.viewport(), state.maxParticipants(), state.revision(),
             state.createdAt(), state.updatedAt());

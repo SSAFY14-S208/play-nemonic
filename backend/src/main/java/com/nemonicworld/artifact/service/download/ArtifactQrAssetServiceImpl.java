@@ -25,10 +25,13 @@ public class ArtifactQrAssetServiceImpl implements ArtifactQrAssetService {
     private static final String KIND_FORTUNE = "fortune";
     private static final String KIND_RELAY_DRAWING = "relay_drawing";
     private static final String KIND_FLIPBOOK = "flipbook";
+    private static final String KIND_INFINITE_CANVAS = "infinite_canvas";
+    private static final String KIND_PHONE = "phone";
     private static final String KIND_COMMUNITY_MEMO = "community_memo";
     private static final String CHANNEL_QR_DOWNLOAD = "QR_DOWNLOAD";
+    private static final String QR_CACHE_FILE_STEM = "result-qr-v4";
     private static final Set<String> DOWNLOADABLE_KINDS = Set.of(KIND_FORTUNE, KIND_RELAY_DRAWING, KIND_FLIPBOOK,
-        KIND_COMMUNITY_MEMO);
+        KIND_INFINITE_CANVAS, KIND_PHONE, KIND_COMMUNITY_MEMO);
 
     private final ArtifactImageUrlRepository artifactImageUrlRepository;
     private final AnonymousUserResolver anonymousUserResolver;
@@ -66,7 +69,7 @@ public class ArtifactQrAssetServiceImpl implements ArtifactQrAssetService {
         String extension = extension(row.kind());
         String shareToken = signedShareTokenIssuer.issueArtifactToken(row.artifactId(), row.kind(),
             CHANNEL_QR_DOWNLOAD);
-        String cacheObjectKey = "artifact-downloads/%s/result-qr.%s".formatted(artifactId, extension);
+        String cacheObjectKey = "artifact-downloads/%s/%s.%s".formatted(artifactId, QR_CACHE_FILE_STEM, extension);
         String fileName = "nemonic-%s.%s".formatted(artifactId, extension);
 
         if (!artifactDownloadStorage.exists(cacheObjectKey)) {
@@ -88,6 +91,12 @@ public class ArtifactQrAssetServiceImpl implements ArtifactQrAssetService {
         }
         if (KIND_FLIPBOOK.equals(row.kind())) {
             return row.flipbookGifUrl();
+        }
+        if (KIND_INFINITE_CANVAS.equals(row.kind())) {
+            return firstText(row.infiniteCanvasImageUrl(), row.thumbnailUrl());
+        }
+        if (KIND_PHONE.equals(row.kind())) {
+            return firstText(row.phoneImageUrl(), row.thumbnailUrl());
         }
         if (KIND_COMMUNITY_MEMO.equals(row.kind())) {
             return firstText(row.communityMemoOriginalImageUrl(),

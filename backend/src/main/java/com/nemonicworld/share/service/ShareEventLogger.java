@@ -38,6 +38,17 @@ public class ShareEventLogger {
         emit(userUuid, artifactKind, SHARE_LINK_CREATED_EVENT, metadata);
     }
 
+    public void logCommunityMemoShareCreated(String userUuid, String shareToken, UUID memoId, String campaign) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("share_token_hash", StructuredEventLogger.sha256Prefix(shareToken));
+        metadata.put("memo_id", memoId);
+        metadata.put("artifact_kind", "community_memo");
+        metadata.put("utm_campaign", campaign);
+        metadata.put("result", "success");
+
+        emit(userUuid, "community_memo", SHARE_LINK_CREATED_EVENT, metadata);
+    }
+
     public void logShareCreateFailed(String userUuid, String galleryId, Throwable error) {
         Map<String, Object> metadata = StructuredEventLogger.metadata("gallery_id", galleryId, "result", "failed",
             "reason_code", error.getClass().getSimpleName());
@@ -52,6 +63,14 @@ public class ShareEventLogger {
 
         StructuredEventLogger.apiBusinessWarn(SHARE_LINK_CREATE_FAILED_EVENT, "share", safeUuid(userUuid),
             "artifact share link create failed", metadata, error);
+    }
+
+    public void logCommunityMemoShareCreateFailed(String userUuid, String memoId, Throwable error) {
+        Map<String, Object> metadata = StructuredEventLogger.metadata("memo_id", memoId, "result", "failed",
+            "reason_code", error.getClass().getSimpleName());
+
+        StructuredEventLogger.apiBusinessWarn(SHARE_LINK_CREATE_FAILED_EVENT, "share", safeUuid(userUuid),
+            "community memo share link create failed", metadata, error);
     }
 
     private void emit(String userUuid, String contentType, String eventName, Map<String, Object> metadata) {

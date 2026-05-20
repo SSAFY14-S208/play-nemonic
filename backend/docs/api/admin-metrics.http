@@ -1,0 +1,260 @@
+@host = http://localhost:8080
+@adminAccessToken = replace-with-admin-access-token
+
+### Admin metrics query - service_up_status (Prometheus 자체 up)
+POST {{host}}/api/v1/admin/metrics/query
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "service_up_status",
+  "params": {
+    "job": "prometheus"
+  }
+}
+
+### Admin metrics query - service_up_status (Spring 앱 up)
+POST {{host}}/api/v1/admin/metrics/query
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "service_up_status",
+  "params": {
+    "job": "spring-app"
+  }
+}
+
+### Admin metrics query - nginx_active_connections (단일 시점)
+POST {{host}}/api/v1/admin/metrics/query
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "nginx_active_connections",
+  "params": {}
+}
+
+### Admin metrics query - ws_active_sessions (단일 시점)
+POST {{host}}/api/v1/admin/metrics/query
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "ws_active_sessions",
+  "params": {}
+}
+
+### Admin metrics query - content_active_rooms_by_type (단일 시점, 콘텐츠 타입별)
+POST {{host}}/api/v1/admin/metrics/query
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "content_active_rooms_by_type",
+  "params": {}
+}
+
+### Admin metrics query - host_memory_usage_percent (단일 시점)
+POST {{host}}/api/v1/admin/metrics/query
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "host_memory_usage_percent",
+  "params": {}
+}
+
+### Admin metrics query - host_disk_usage_percent (단일 시점)
+POST {{host}}/api/v1/admin/metrics/query
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "host_disk_usage_percent",
+  "params": {}
+}
+
+### Admin metrics query-range - nginx_request_rate (1시간, 30s step)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "nginx_request_rate",
+  "params": {
+    "window": "1m"
+  },
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - spring_http_rps_by_service (1시간, 30s step)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "spring_http_rps_by_service",
+  "params": {
+    "window": "5m"
+  },
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - spring_http_latency_quantile (p95, 1시간)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "spring_http_latency_quantile",
+  "params": {
+    "quantile": "0.95",
+    "window": "5m"
+  },
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - spring_http_error_ratio (1시간)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "spring_http_error_ratio",
+  "params": {
+    "window": "5m"
+  },
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - ws_connect_rate (1시간)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "ws_connect_rate",
+  "params": {
+    "window": "5m"
+  },
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - ws_disconnect_rate (1시간)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "ws_disconnect_rate",
+  "params": {
+    "window": "5m"
+  },
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - host_cpu_usage_percent (1시간)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "host_cpu_usage_percent",
+  "params": {
+    "window": "1m"
+  },
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - host_network_receive_bytes (1시간)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "host_network_receive_bytes",
+  "params": {
+    "window": "1m"
+  },
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - host_network_transmit_bytes (1시간)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "host_network_transmit_bytes",
+  "params": {
+    "window": "1m"
+  },
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - host_memory_usage_percent 시계열 (1시간)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "host_memory_usage_percent",
+  "params": {},
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}
+
+### Admin metrics query-range - host_disk_usage_percent 시계열 (1시간)
+POST {{host}}/api/v1/admin/metrics/query-range
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "template": "host_disk_usage_percent",
+  "params": {},
+  "timeRange": {
+    "from": "2026-05-15T00:00:00Z",
+    "to": "2026-05-15T01:00:00Z"
+  },
+  "step": "30s"
+}

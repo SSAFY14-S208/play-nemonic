@@ -30,12 +30,12 @@ public class ClientLogServiceImpl implements ClientLogService {
         "session_start", "session_end", "page_view", "page_leave", "visibility_change", "client_alive",
         // Spec §5: funnel
         "funnel_started", "funnel_step_viewed", "funnel_step_completed", "funnel_goal_reached", "funnel_abandoned",
-        "cta_clicked",
+        "cta_clicked", "result_shared",
         // Spec §6: abandonment
         "page_exit_intent_detected", "room_lobby_abandoned", "creation_abandoned", "result_share_abandoned",
         // Spec §7: UI engagement
         "scroll_depth_reached", "modal_opened", "modal_closed", "tool_selected", "canvas_interaction_started",
-        "canvas_interaction_paused",
+        "canvas_interaction_paused", "phone_official_store_clicked",
         // Spec §8: performance/error
         "web_vitals", "resource_load_slow", "js_error", "unhandled_rejection", "client_network_failed"));
     private static final Set<String> ERROR_EVENT_NAMES = Set.of("js_error", "unhandled_rejection",

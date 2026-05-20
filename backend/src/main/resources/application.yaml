@@ -86,6 +86,7 @@ nemonic:
       access-key: ${MINIO_ACCESS_KEY:minioadmin}
       secret-key: ${MINIO_SECRET_KEY:minioadmin}
       bucket: ${MINIO_BUCKET:nemonic-local}
+      region: ${MINIO_REGION:us-east-1}
       presign-expiration-minutes: ${MINIO_PRESIGN_EXPIRATION_MINUTES:10}
       view-url-expiration-minutes: ${MINIO_VIEW_URL_EXPIRATION_MINUTES:1440}
       max-upload-byte-size: ${FILE_UPLOAD_MAX_BYTE_SIZE:52428800}
@@ -104,6 +105,17 @@ nemonic:
     max-payload-bytes: ${CLIENT_LOG_MAX_PAYLOAD_BYTES:1048576}
     rate-limit-events-per-second: ${CLIENT_LOG_RATE_LIMIT_EVENTS_PER_SECOND:100}
     rate-limit-events-per-minute: ${CLIENT_LOG_RATE_LIMIT_EVENTS_PER_MINUTE:1000}
+
+  admin-logs:
+    opensearch-url: ${OPENSEARCH_URL:http://opensearch:9200}
+    max-size: ${ADMIN_LOGS_MAX_SIZE:200}
+    query-timeout-ms: ${ADMIN_LOGS_QUERY_TIMEOUT_MS:15000}
+
+  admin:
+    metrics:
+      prometheus-base-url: ${ADMIN_METRICS_PROMETHEUS_BASE_URL:http://prometheus:9090}
+      timeout-ms: ${ADMIN_METRICS_TIMEOUT_MS:10000}
+      cache-ttl-seconds: ${ADMIN_METRICS_CACHE_TTL_SECONDS:15}
 
   community:
     moderation:
@@ -203,3 +215,22 @@ nemonic:
       base-url: ${GMS_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions}
       connect-timeout-ms: ${GMS_CONNECT_TIMEOUT_MS:3000}
       read-timeout-ms: ${GMS_READ_TIMEOUT_MS:30000}
+
+  infinite-canvas:
+    abandoned-close:
+      enabled: ${INFINITE_CANVAS_ABANDONED_CLOSE_ENABLED:true}
+      scan-delay-ms: ${INFINITE_CANVAS_ABANDONED_CLOSE_SCAN_DELAY_MS:30000}
+      idle-seconds: ${INFINITE_CANVAS_ABANDONED_CLOSE_IDLE_SECONDS:60}
+      scan-limit: ${INFINITE_CANVAS_ABANDONED_CLOSE_SCAN_LIMIT:100}
+    ai-sticker:
+      enabled: ${INFINITE_CANVAS_AI_STICKER_ENABLED:true}
+      max-prompt-length: ${INFINITE_CANVAS_AI_STICKER_MAX_PROMPT_LENGTH:200}
+      default-image-size: ${INFINITE_CANVAS_AI_STICKER_DEFAULT_IMAGE_SIZE:512}
+      max-image-size: ${INFINITE_CANVAS_AI_STICKER_MAX_IMAGE_SIZE:1024}
+      allowed-styles: ${INFINITE_CANVAS_AI_STICKER_ALLOWED_STYLES:sticker,cartoon,pixel,clay_3d,watercolor,flat_icon,hand_drawn}
+      gms:
+        api-key: ${GMS_API_KEY:}
+        model: ${GMS_IMAGE_MODEL:gpt-image-1}
+        base-url: ${GMS_IMAGE_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com/v1/images/generations}
+        connect-timeout-ms: ${GMS_IMAGE_CONNECT_TIMEOUT_MS:3000}
+        read-timeout-ms: ${GMS_IMAGE_READ_TIMEOUT_MS:60000}

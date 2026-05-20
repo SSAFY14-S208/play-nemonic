@@ -6,6 +6,7 @@ import com.nemonicworld.community.dto.request.CommunityMemoReportRequest;
 import com.nemonicworld.community.dto.response.CommunityMemoDetailResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoListResponse;
 import com.nemonicworld.community.dto.response.CommunityMemoReportResponse;
+import com.nemonicworld.share.dto.response.ShareCreateResponse;
 
 /**
  * 커뮤니티 메모 조회 유스케이스를 정의합니다.
@@ -21,6 +22,8 @@ public interface CommunityMemoService {
      * 공용 벽에 노출 가능한 커뮤니티 메모 한 건의 상세를 조회합니다.
      */
     CommunityMemoDetailResponse getCommunityMemo(String memoIdValue, String viewerUserUuidValue);
+
+    ShareCreateResponse createCommunityMemoShare(String memoIdValue, String userUuidValue);
 
     /**
      * 최종 렌더링된 원본/썸네일 스냅샷을 검수한 뒤 커뮤니티 벽에 새 메모로 붙입니다.

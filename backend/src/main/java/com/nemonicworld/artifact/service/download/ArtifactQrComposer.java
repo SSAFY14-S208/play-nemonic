@@ -35,9 +35,11 @@ public class ArtifactQrComposer {
     private static final String GIF_FORMAT = "gif";
     private static final String JPG_FORMAT = "jpg";
     private static final int DEFAULT_GIF_DELAY_CS = 10;
-    private static final int QR_BASE_SIZE = 160;
-    private static final int QR_MIN_SIZE = 72;
-    private static final int QR_PADDING = 16;
+    private static final int QR_MAX_SIZE = 120;
+    private static final int QR_MIN_SIZE = 56;
+    private static final int QR_PADDING = 0;
+    private static final int QR_MARGIN_MODULES = 0;
+    private static final int QR_SIZE_DIVISOR = 5;
 
     public byte[] compose(String sourceContentType, byte[] sourceBytes, String qrUrl) {
         if ("image/gif".equalsIgnoreCase(sourceContentType)) {
@@ -100,7 +102,7 @@ public class ArtifactQrComposer {
     }
 
     private BufferedImage overlayQr(BufferedImage source, String qrUrl) throws WriterException {
-        BufferedImage base = toArgb(source);
+        BufferedImage base = toWhiteBackgroundArgb(source);
         int qrSize = calculateQrSize(base.getWidth(), base.getHeight());
         BufferedImage qrImage = createQrImage(qrUrl, qrSize);
         int x = Math.max(QR_PADDING, base.getWidth() - qrSize - QR_PADDING);
@@ -110,6 +112,8 @@ public class ArtifactQrComposer {
         try {
             graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             graphics.setComposite(AlphaComposite.SrcOver);
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(x, y, qrSize, qrSize);
             graphics.drawImage(qrImage, x, y, null);
         } finally {
             graphics.dispose();
@@ -118,10 +122,14 @@ public class ArtifactQrComposer {
         return base;
     }
 
-    private BufferedImage toArgb(BufferedImage source) {
+    private BufferedImage toWhiteBackgroundArgb(BufferedImage source) {
         BufferedImage converted = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = converted.createGraphics();
         try {
+            graphics.setComposite(AlphaComposite.Src);
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, converted.getWidth(), converted.getHeight());
+            graphics.setComposite(AlphaComposite.SrcOver);
             graphics.drawImage(source, 0, 0, null);
         } finally {
             graphics.dispose();
@@ -145,14 +153,14 @@ public class ArtifactQrComposer {
     }
 
     private BufferedImage createQrImage(String value, int size) throws WriterException {
-        Map<EncodeHintType, Object> hints = Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M,
-            EncodeHintType.MARGIN, 1);
+        Map<EncodeHintType, Object> hints = Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.L,
+            EncodeHintType.MARGIN, QR_MARGIN_MODULES);
         BitMatrix matrix = new QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, size, size, hints);
         BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
 
         for (int y = 0; y < size; y++) {
             for (int x = 0; x < size; x++) {
-                image.setRGB(x, y, matrix.get(x, y) ? Color.BLACK.getRGB() : Color.WHITE.getRGB());
+                image.setRGB(x, y, matrix.get(x, y) ? Color.BLACK.getRGB() : 0x00000000);
             }
         }
 
@@ -161,8 +169,10 @@ public class ArtifactQrComposer {
 
     private int calculateQrSize(int width, int height) {
         int shortestSide = Math.max(1, Math.min(width, height));
+        int availableSize = Math.max(1, shortestSide - QR_PADDING * 2);
+        int targetSize = Math.max(QR_MIN_SIZE, Math.min(QR_MAX_SIZE, shortestSide / QR_SIZE_DIVISOR));
 
-        return Math.max(QR_MIN_SIZE, Math.min(QR_BASE_SIZE, shortestSide / 4));
+        return Math.min(targetSize, availableSize);
     }
 
     private int readGifDelayCentiseconds(IIOMetadata metadata) {

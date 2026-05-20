@@ -21,7 +21,7 @@ import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.JwtTokenProvider;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -33,7 +33,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -42,15 +41,11 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
 @ExtendWith(OutputCaptureExtension.class)
-class AdminCommunityMemoControllerIntegrationTest {
+class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
     private static final String ADMIN_LOGIN_ID = "community-admin";
@@ -545,6 +540,16 @@ class AdminCommunityMemoControllerIntegrationTest {
             )
             """);
         jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS flipbook_artifact (
+                artifact_id UUID PRIMARY KEY,
+                room_code VARCHAR(32) NULL,
+                frame_count INT NULL,
+                gif_url VARCHAR(1000) NULL,
+                first_image VARCHAR(1000) NULL
+            )
+            """);
+        jdbcTemplate.execute("ALTER TABLE flipbook_artifact ADD COLUMN IF NOT EXISTS first_image VARCHAR(1000)");
+        jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS community_memo (
                 id UUID PRIMARY KEY,
                 user_id UUID NOT NULL,
@@ -573,8 +578,35 @@ class AdminCommunityMemoControllerIntegrationTest {
                 deleted_reason VARCHAR(32) NULL
             )
             """);
+        jdbcTemplate
+            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_x DOUBLE PRECISION DEFAULT 0");
+        jdbcTemplate
+            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_y DOUBLE PRECISION DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS z_index INT DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS rotation_deg REAL DEFAULT 0");
+        jdbcTemplate
+            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS decoration VARCHAR(1000) DEFAULT '{}'");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS body_image_url VARCHAR(1000)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS thumbnail_image_url VARCHAR(1000)");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS attached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_reason VARCHAR(32)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMP");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_status VARCHAR(32) DEFAULT 'pending'");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_text VARCHAR(1000)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_categories VARCHAR(1000)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_checked_at TIMESTAMP");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_by BIGINT");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_reason VARCHAR(32)");
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS community_memo_report (
                 id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -715,11 +747,6 @@ class AdminCommunityMemoControllerIntegrationTest {
     @TestConfiguration
     static class AdminCommunityTokenStoreTestConfig {
 
-        @Bean
-        @Primary
-        AdminTokenStore adminTokenStore() {
-            return new NoOpAdminTokenStore();
-        }
     }
 
     static class NoOpAdminTokenStore implements AdminTokenStore {

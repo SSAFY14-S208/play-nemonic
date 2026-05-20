@@ -41,6 +41,12 @@ public final class OpenApiErrorExamples {
           "message": "닉네임을 먼저 설정해주세요."
         }
         """;
+    public static final String INFINITE_CANVAS_NICKNAME_REQUIRED = """
+        {
+          "success": false,
+          "message": "닉네임을 먼저 설정해주세요."
+        }
+        """;
     public static final String INVALID_ROOM_CODE = """
         {
           "success": false,
@@ -477,6 +483,12 @@ public final class OpenApiErrorExamples {
         {
           "success": false,
           "message": "운세를 가져오지 못했어요. 잠시 후 다시 시도해 주세요."
+        }
+        """;
+    public static final String INFINITE_CANVAS_AI_STICKER_UNAVAILABLE = """
+        {
+          "success": false,
+          "message": "AI 스티커를 생성하지 못했습니다. 잠시 후 다시 시도해주세요."
         }
         """;
     public static final String INVALID_GALLERY_ID = """

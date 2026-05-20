@@ -35,6 +35,49 @@ class ArtifactQrComposerTest {
         assertThat(composed.getHeight()).isEqualTo(240);
     }
 
+    @Test
+    void composeStillImageUsesSmallerQrOverlay() throws Exception {
+        byte[] sourceBytes = imageBytes("png");
+
+        byte[] composedBytes = artifactQrComposer.compose("image/png", sourceBytes, "https://nemonic.example.com/s/t");
+
+        BufferedImage composed = ImageIO.read(new ByteArrayInputStream(composedBytes));
+        PixelBounds darkBounds = findDarkPixelBounds(composed);
+        assertThat(darkBounds.width()).isLessThanOrEqualTo(56);
+        assertThat(darkBounds.height()).isLessThanOrEqualTo(56);
+        assertThat(darkBounds.minX()).isGreaterThanOrEqualTo(304);
+        assertThat(darkBounds.minY()).isGreaterThanOrEqualTo(184);
+        assertThat(darkBounds.maxX()).isGreaterThanOrEqualTo(composed.getWidth() - 4);
+        assertThat(darkBounds.maxY()).isGreaterThanOrEqualTo(composed.getHeight() - 4);
+    }
+
+    @Test
+    void composeStillImageDrawsWhiteBackgroundBehindQr() throws Exception {
+        byte[] sourceBytes = coloredImageBytes("png", new Color(33, 160, 120));
+
+        byte[] composedBytes = artifactQrComposer.compose("image/png", sourceBytes, "https://nemonic.example.com/s/t");
+
+        BufferedImage composed = ImageIO.read(new ByteArrayInputStream(composedBytes));
+        int preservedPixels = countPixelsMatching(composed, 304, 184, 56, 56, new Color(33, 160, 120));
+        int whitePixels = countPixelsMatching(composed, 304, 184, 56, 56, Color.WHITE);
+        assertThat(preservedPixels).isLessThan(20);
+        assertThat(whitePixels).isGreaterThan(100);
+    }
+
+    @Test
+    void composeStillImageFlattensTransparentSourceOnWhiteBackground() throws Exception {
+        byte[] sourceBytes = transparentImageBytes("png");
+
+        byte[] composedBytes = artifactQrComposer.compose("image/png", sourceBytes,
+            "https://nemonic.example.com/artifacts/1");
+
+        BufferedImage composed = ImageIO.read(new ByteArrayInputStream(composedBytes));
+        Color background = new Color(composed.getRGB(10, 10));
+        assertThat(background.getRed()).isGreaterThan(240);
+        assertThat(background.getGreen()).isGreaterThan(240);
+        assertThat(background.getBlue()).isGreaterThan(240);
+    }
+
     /**
      * GIF 원본은 QR 합성 후 다시 GIF로 반환됩니다.
      */
@@ -56,6 +99,27 @@ class ArtifactQrComposerTest {
         }
     }
 
+    @Test
+    void composeGifFlattensTransparentFramesOnWhiteBackground() throws Exception {
+        byte[] sourceBytes = transparentImageBytes("gif");
+
+        byte[] composedBytes = artifactQrComposer.compose("image/gif", sourceBytes,
+            "https://nemonic.example.com/artifacts/1");
+
+        ImageReader reader = ImageIO.getImageReadersByFormatName("gif").next();
+        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(composedBytes))) {
+            reader.setInput(input);
+
+            BufferedImage frame = reader.read(0);
+            Color background = new Color(frame.getRGB(10, 10));
+            assertThat(background.getRed()).isEqualTo(255);
+            assertThat(background.getGreen()).isEqualTo(255);
+            assertThat(background.getBlue()).isEqualTo(255);
+        } finally {
+            reader.dispose();
+        }
+    }
+
     private byte[] imageBytes(String format) throws Exception {
         BufferedImage image = new BufferedImage(360, 240, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
@@ -72,5 +136,85 @@ class ArtifactQrComposerTest {
         ImageIO.write(image, format, output);
 
         return output.toByteArray();
+    }
+
+    private byte[] transparentImageBytes(String format) throws Exception {
+        BufferedImage image = new BufferedImage(360, 240, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            graphics.setColor(Color.BLUE);
+            graphics.fillRect(40, 40, 120, 80);
+        } finally {
+            graphics.dispose();
+        }
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ImageIO.write(image, format, output);
+
+        return output.toByteArray();
+    }
+
+    private byte[] coloredImageBytes(String format, Color color) throws Exception {
+        BufferedImage image = new BufferedImage(360, 240, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            graphics.setColor(color);
+            graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
+        } finally {
+            graphics.dispose();
+        }
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ImageIO.write(image, format, output);
+
+        return output.toByteArray();
+    }
+
+    private int countPixelsMatching(BufferedImage image, int startX, int startY, int width, int height,
+        Color expected) {
+        int count = 0;
+        for (int y = startY; y < startY + height; y++) {
+            for (int x = startX; x < startX + width; x++) {
+                Color actual = new Color(image.getRGB(x, y));
+                if (Math.abs(actual.getRed() - expected.getRed()) < 20
+                    && Math.abs(actual.getGreen() - expected.getGreen()) < 20
+                    && Math.abs(actual.getBlue() - expected.getBlue()) < 20) {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private PixelBounds findDarkPixelBounds(BufferedImage image) {
+        int minX = image.getWidth();
+        int minY = image.getHeight();
+        int maxX = -1;
+        int maxY = -1;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                Color color = new Color(image.getRGB(x, y));
+                if (color.getRed() < 80 && color.getGreen() < 80 && color.getBlue() < 80) {
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                }
+            }
+        }
+
+        return new PixelBounds(minX, minY, maxX, maxY);
+    }
+
+    private record PixelBounds(int minX, int minY, int maxX, int maxY) {
+
+        int width() {
+            return maxX - minX + 1;
+        }
+
+        int height() {
+            return maxY - minY + 1;
+        }
     }
 }

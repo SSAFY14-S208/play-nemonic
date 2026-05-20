@@ -3,13 +3,13 @@ package com.nemonicworld.inquiry.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.admin.service.AdminAuthorization;
 import com.nemonicworld.auth.service.AdminAuditLogger;
 import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.EmailDeliveryException;
 import com.nemonicworld.common.exception.NotFoundException;
-import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.inquiry.dto.request.CsInquiryCreateRequest;
@@ -48,7 +48,6 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     private static final String INVALID_JSON_MESSAGE = "문의 데이터 형식이 올바르지 않습니다.";
     private static final String REQUIRED_ATTACHMENT_URL_MESSAGE = "첨부 파일 URL을 입력해 주세요.";
     private static final String INVALID_ATTACHMENT_URL_MESSAGE = "첨부 파일 URL 형식이 올바르지 않습니다.";
-    private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String INVALID_USER_UUID_MESSAGE = "사용자 UUID 형식이 올바르지 않습니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final String INVALID_INQUIRY_ID_MESSAGE = "문의 ID가 올바르지 않습니다.";
@@ -104,7 +103,7 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     @Transactional(readOnly = true)
     public CsInquiryListResponse getInquiries(AdminPrincipal adminPrincipal, String status, String type, String keyword,
         String userUuid, String pageValue, String sizeValue) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         int page = parsePage(pageValue);
         int size = parseSize(sizeValue);
@@ -125,7 +124,7 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     @Override
     @Transactional(readOnly = true)
     public CsInquiryDetailResponse getInquiry(AdminPrincipal adminPrincipal, String inquiryIdValue) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         Long inquiryId = parseInquiryId(inquiryIdValue);
 
@@ -139,7 +138,7 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     @Transactional
     public CsInquiryReplyResponse replyInquiry(AdminPrincipal adminPrincipal, String inquiryIdValue,
         CsInquiryReplyRequest request, AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
 
         Long inquiryId = parseInquiryId(inquiryIdValue);
         CsInquiry inquiry = csInquiryRepository.findById(inquiryId)
@@ -181,7 +180,7 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     @Transactional
     public CsInquiryStatusUpdateResponse updateInquiryStatus(AdminPrincipal adminPrincipal, String inquiryIdValue,
         CsInquiryStatusUpdateRequest request, AdminClientInfo clientInfo) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireOperator(adminPrincipal);
 
         Long inquiryId = parseInquiryId(inquiryIdValue);
         String status = CsInquiryStatus.fromValue(request.status().trim().toLowerCase(Locale.ROOT)).getValue();
@@ -197,12 +196,6 @@ public class CsInquiryServiceImpl implements CsInquiryService {
             inquiry.getStatus(), status, clientInfo));
 
         return CsInquiryStatusUpdateResponse.from(csInquiryRepository.findById(inquiryId).orElseThrow());
-    }
-
-    private void requireAdmin(AdminPrincipal adminPrincipal) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
-        }
     }
 
     private void emitAfterCommit(Runnable auditLog) {

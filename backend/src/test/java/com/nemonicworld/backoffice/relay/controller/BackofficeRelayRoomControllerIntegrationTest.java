@@ -28,7 +28,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -44,7 +44,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -52,15 +51,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
 @ExtendWith(OutputCaptureExtension.class)
-class BackofficeRelayRoomControllerIntegrationTest {
+class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
     private static final String ADMIN_LOGIN_ID = "relay-room-admin";
@@ -70,6 +65,10 @@ class BackofficeRelayRoomControllerIntegrationTest {
     private static final String SUPER_ADMIN_LOGIN_ID = "relay-room-super-admin";
     private static final String SUPER_ADMIN_NICKNAME = "Super Relay Admin";
     private static final String SUPER_ADMIN_EMAIL = "relay-super-admin@example.com";
+    private static final long VIEWER_ID = 3L;
+    private static final String VIEWER_LOGIN_ID = "relay-room-viewer";
+    private static final String VIEWER_NICKNAME = "Relay Viewer";
+    private static final String VIEWER_EMAIL = "relay-viewer@example.com";
 
     @Autowired
     private MockMvc mockMvc;
@@ -295,6 +294,19 @@ class BackofficeRelayRoomControllerIntegrationTest {
     }
 
     @Test
+    void viewerGetsActiveRelayRoomList() throws Exception {
+        insertAdminUser(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER);
+        given(relayRoomRepository.findAllActiveRooms())
+            .willReturn(List.of(roomState("ROOM_V", RelayRoomStatus.WAITING, 1, null, LocalDateTime.now())));
+
+        mockMvc
+            .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+            .andExpect(jsonPath("$.data.items[0].roomCode").value("ROOM_V"));
+    }
+
+    @Test
     void returnsEmptyListWhenNoActiveRooms() throws Exception {
         given(relayRoomRepository.findAllActiveRooms()).willReturn(List.of());
 
@@ -359,6 +371,20 @@ class BackofficeRelayRoomControllerIntegrationTest {
                 bearerAccessToken(SUPER_ADMIN_ID, SUPER_ADMIN_LOGIN_ID, SUPER_ADMIN_NICKNAME, SUPER_ADMIN_EMAIL,
                     AdminRole.SUPER_ADMIN)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.roomCode").value(roomCode));
+    }
+
+    @Test
+    void viewerCannotDeleteActiveRelayRoom() throws Exception {
+        insertAdminUser(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER);
+
+        mockMvc
+            .perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", "AB3K9Q").header(HttpHeaders.AUTHORIZATION,
+                bearerAccessToken(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("관리자 작업 권한이 필요합니다."));
+
+        then(relayRoomRepository).should(never()).findByRoomCode(any());
+        then(relayRoomRepository).should(never()).saveIfUnchanged(any(), any());
     }
 
     @Test
@@ -514,11 +540,6 @@ class BackofficeRelayRoomControllerIntegrationTest {
     @TestConfiguration
     static class AdminTokenStoreTestConfig {
 
-        @Bean
-        @Primary
-        AdminTokenStore adminTokenStore() {
-            return new NoOpAdminTokenStore();
-        }
     }
 
     static class NoOpAdminTokenStore implements AdminTokenStore {
