@@ -1,7 +1,9 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+
+import { usePhoneLauncherStore } from '@/shared/stores'
 import {
   FlipbookDrawingView,
   FlipbookEntranceView,
@@ -19,6 +21,16 @@ import type { FlipbookStep } from './types'
 export default function FlipbookPage() {
   const pathname = usePathname()
   const router = useRouter()
+
+  // 플립북 페이지가 마운트되어 있는 동안 floating PhoneLauncher 버튼을 숨기고
+  // 각 뷰에서 인라인으로 대체한다.
+  const setLauncherHidden = usePhoneLauncherStore(
+    (state) => state.setLauncherHidden,
+  )
+  useEffect(() => {
+    setLauncherHidden(true)
+    return () => setLauncherHidden(false)
+  }, [setLauncherHidden])
   const routeStep = getFlipbookStepFromPathname(pathname)
   const navigateToStep = useCallback(
     (

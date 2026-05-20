@@ -28,6 +28,8 @@ import { useRelayDrawingGame } from "../hooks/useRelayDrawingGame";
 import { useRelayTimer } from "../hooks/useRelayTimer";
 import { useRelayDrawingStore } from "../stores";
 import PartTimeUpOverlay from "./PartTimeUpOverlay";
+import { PhoneLauncherButton } from "@/shared/components";
+
 import RelayBgmToggle from "./RelayBgmToggle";
 import RelayHowToPlayButton from "./RelayHowToPlayButton";
 
@@ -153,6 +155,7 @@ export default function RelayDrawingView() {
         <div className="flex items-center justify-end gap-3">
           <RelayHowToPlayButton />
           <RelayBgmToggle />
+          <PhoneLauncherButton />
         </div>
 
         <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">

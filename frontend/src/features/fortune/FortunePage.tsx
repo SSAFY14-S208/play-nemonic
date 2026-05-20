@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
+import { PhoneLauncherButton } from "@/shared/components";
 import { useResizeFreeze } from "@/shared/hooks";
 import { cn, logEvent } from "@/shared/libs";
+import { usePhoneLauncherStore } from "@/shared/stores";
 import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
 
 import {
@@ -47,6 +49,14 @@ export default function FortunePage() {
 
   useFortuneSessionHydration();
   useResizeFreeze();
+
+  const setLauncherHidden = usePhoneLauncherStore(
+    (state) => state.setLauncherHidden,
+  );
+  useEffect(() => {
+    setLauncherHidden(true);
+    return () => setLauncherHidden(false);
+  }, [setLauncherHidden]);
   const {
     completePrinting,
     editBirthInfo,
@@ -234,10 +244,14 @@ export default function FortunePage() {
         <FortuneEntrySpotlightCover isLit={shouldPlayEntrySpotlight} />
       )}
       {step !== "birthInfo" && (
-        <FortuneBgmToggle
-          isMuted={isBgmMuted}
-          onToggle={toggleFortuneBgmMuted}
-        />
+        <div className="fixed top-[calc(env(safe-area-inset-top)+clamp(0.65rem,1.6vw,1.15rem))] right-[calc(env(safe-area-inset-right)+clamp(0.55rem,1.7vw,1.15rem))] z-20 flex items-center gap-2">
+          <FortuneBgmToggle
+            isMuted={isBgmMuted}
+            onToggle={toggleFortuneBgmMuted}
+            inline
+          />
+          <PhoneLauncherButton className="size-[clamp(2.6rem,4.2vw,3.1rem)]" />
+        </div>
       )}
     </main>
   );
@@ -262,11 +276,14 @@ export default function FortunePage() {
         <div className="mx-auto grid w-[min(91vw,27rem)] gap-2 max-[800px]:w-[min(94vw,27rem)] max-[800px]:gap-2">
           <div className="flex w-full items-center justify-between gap-3">
             <FortuneBackToggle onClick={handleReturnToDialogue} inline />
-            <FortuneBgmToggle
-              isMuted={isBgmMuted}
-              onToggle={toggleFortuneBgmMuted}
-              inline
-            />
+            <div className="flex items-center gap-2">
+              <FortuneBgmToggle
+                isMuted={isBgmMuted}
+                onToggle={toggleFortuneBgmMuted}
+                inline
+              />
+              <PhoneLauncherButton className="size-[clamp(2.6rem,4.2vw,3.1rem)]" />
+            </div>
           </div>
           <FortuneBirthForm onSubmit={submitBirthInfo} />
         </div>

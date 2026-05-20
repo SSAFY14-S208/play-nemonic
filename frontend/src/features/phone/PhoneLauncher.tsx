@@ -1,8 +1,9 @@
 'use client'
 
+import { useEffect } from 'react'
 import { Phone } from 'lucide-react'
 import { cn } from '@/shared/libs'
-import { useHubOnboardingStore } from '@/shared/stores'
+import { useHubOnboardingStore, usePhoneLauncherStore } from '@/shared/stores'
 import { PHONE_COLORS } from './constants'
 import PhoneModal from './PhoneModal'
 import { usePhoneStore } from './phoneStore'
@@ -16,6 +17,17 @@ export default function PhoneLauncher() {
       state.hasEnteredHub &&
       !state.hasSeenOnboarding,
   )
+  const isLauncherHidden = usePhoneLauncherStore(
+    (state) => state.isLauncherHidden,
+  )
+
+  // 다른 feature가 shared store를 통해 phone을 열 수 있도록 콜백 등록
+  const registerOpenPhone = usePhoneLauncherStore(
+    (state) => state.registerOpenPhone,
+  )
+  useEffect(() => {
+    registerOpenPhone(openPhone)
+  }, [registerOpenPhone, openPhone])
 
   return (
     <>
@@ -25,7 +37,7 @@ export default function PhoneLauncher() {
         onClick={openPhone}
         className={cn(
           'fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-[calc(1.5rem+env(safe-area-inset-right))] z-[14000] flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-white transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-white',
-          (isPhoneOpen || isHubOnboardingActive) &&
+          (isPhoneOpen || isHubOnboardingActive || isLauncherHidden) &&
             'pointer-events-none translate-y-3 opacity-0',
         )}
         style={{ boxShadow: PHONE_COLORS.launcherShadow }}
