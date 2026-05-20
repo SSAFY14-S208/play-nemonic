@@ -73,8 +73,10 @@ tasks.named('test') {
 	systemProperty 'junit.jupiter.execution.timeout.default', '90s'
 	systemProperty 'junit.jupiter.execution.timeout.testable.method.default', '90s'
 	maxHeapSize = '1g'
-	maxParallelForks = 1
-	forkEvery = 25
+	// JVM 재사용을 명시적으로 보장: forkEvery=0이면 worker JVM이 테스트 클래스 사이에서
+	// 재시작되지 않아 Spring TestContext 캐시가 전체 테스트 런에 걸쳐 재사용된다.
+	maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))
+	forkEvery = 0
 	jvmArgs(
 		'-XX:+HeapDumpOnOutOfMemoryError',
 		'-XX:HeapDumpPath=build/test-heap-dumps',
