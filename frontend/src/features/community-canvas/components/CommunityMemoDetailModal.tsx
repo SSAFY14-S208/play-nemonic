@@ -5,6 +5,7 @@ import { Flag, Share2, Trash2, X } from 'lucide-react'
 import type { CommunityMemoDetailResponse } from '@/shared/types'
 import { formatKoreanDateTime } from '@/shared/utils'
 import { useCommunityMemoExternalShare } from '../hooks'
+import { getStaticCommunityImageUrl } from '../utils'
 import {
   useCommunityCompactViewport,
   useCommunityModalFitScale,
@@ -21,6 +22,7 @@ interface CommunityMemoDetailModalProps {
   detailStatus: 'idle' | 'loading' | 'success' | 'error'
   detailError: string | null
   mutationStatus: 'idle' | 'loading' | 'success' | 'error'
+  isPlaybackPaused: boolean
   onClose: () => void
   onDelete: () => void
   onReportOpen: () => void
@@ -42,6 +44,7 @@ export function CommunityMemoDetailModal({
   detailStatus,
   detailError,
   mutationStatus,
+  isPlaybackPaused,
   onClose,
   onDelete,
   onReportOpen,
@@ -58,7 +61,18 @@ export function CommunityMemoDetailModal({
   if (!isOpen) return null
 
   const displayImageUrl = detail
-    ? playbackImageUrl || detail.memoOriginalImageUrl || detail.memoImageUrl
+    ? isPlaybackPaused
+      ? getStaticCommunityImageUrl(
+          detail.memoOriginalImageUrl,
+          detail.memoImageUrl,
+          detail.memoThumbnailImageUrl,
+        )
+      : playbackImageUrl ||
+        getStaticCommunityImageUrl(
+          detail.memoOriginalImageUrl,
+          detail.memoImageUrl,
+          detail.memoThumbnailImageUrl,
+        )
     : null
   const shareButtonLabel = '공유하기'
   const isShareDisabled = !detail || isSharing

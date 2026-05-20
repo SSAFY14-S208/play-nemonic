@@ -19,6 +19,7 @@ import type {
   CommunityMemoReportReason,
 } from '@/shared/types'
 import {
+  isCommunityAnimatedImageUrl,
   preloadCommunityMemoSounds,
   playCommunityMemoAttachSound,
   playCommunityMemoDetachSound,
@@ -101,11 +102,6 @@ function applyMemoDetailLayout(
   }
 }
 
-function isGifImageUrl(imageUrl: string | null | undefined) {
-  if (!imageUrl) return false
-  return /\.gif(?:[?#].*)?$/i.test(imageUrl)
-}
-
 function getDecorationString(decoration: unknown, key: string) {
   if (!decoration || typeof decoration !== 'object') return null
   const value = (decoration as Record<string, unknown>)[key]
@@ -121,7 +117,10 @@ function getDecorationPlaybackImageUrl(memo: MemoWithDecoration) {
 
   if (!playbackImageUrl) return null
 
-  if (isGifImageUrl(playbackImageUrl) || sourceContentKind?.toLowerCase() === 'flipbook') {
+  if (
+    isCommunityAnimatedImageUrl(playbackImageUrl) ||
+    sourceContentKind?.toLowerCase() === 'flipbook'
+  ) {
     return playbackImageUrl
   }
 
@@ -133,7 +132,7 @@ function getMemoGifImageUrl(memo: CommunityMemoItemResponse) {
     memo.memoOriginalImageUrl,
     memo.memoImageUrl,
     memo.memoThumbnailImageUrl,
-  ].find(isGifImageUrl)
+  ].find(isCommunityAnimatedImageUrl)
 
   return gifImageUrl ?? null
 }

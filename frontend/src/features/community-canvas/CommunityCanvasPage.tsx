@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Plus, RefreshCw, X } from 'lucide-react'
 import { WorldHomeLink } from '@/shared/components/WorldHomeLink'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { cn } from '@/shared/libs'
-import { useUserStore } from '@/shared/stores'
+import { useCanvasPauseStore, useUserStore } from '@/shared/stores'
 import {
+  COMMUNITY_CANVAS_HANDOFF_EVENT,
   consumeCommunityCanvasHandoffDraft,
   type CommunityCanvasHandoffDraft,
 } from '@/shared/utils'
@@ -42,6 +43,7 @@ const communityCanvasThemeStyle: CommunityCanvasThemeStyle = {
 
 export function CommunityCanvasPage() {
   const nickname = useUserStore((state) => state.nickname)
+  const isCanvasPaused = useCanvasPauseStore((state) => state.isPaused)
   const [isReportOpen, setReportOpen] = useState(false)
   const [isNicknameModalOpen, setNicknameModalOpen] = useState(false)
   const [pendingNicknameAction, setPendingNicknameAction] =
@@ -54,6 +56,22 @@ export function CommunityCanvasPage() {
   const needsNicknameSetup =
     !nickname || nickname.trim() === '' || nickname === DEFAULT_USER_NICKNAME
 
+  const openComposerFromHandoffDraft = useCallback(
+    (handoffDraft: CommunityCanvasHandoffDraft) => {
+      if (needsNicknameSetup) {
+        setPendingNicknameAction({
+          kind: 'openComposerWithHandoffDraft',
+          draft: handoffDraft,
+        })
+        setNicknameModalOpen(true)
+        return
+      }
+
+      openComposerWithHandoffDraft(handoffDraft)
+    },
+    [needsNicknameSetup, openComposerWithHandoffDraft],
+  )
+
   useEffect(() => {
     let isCancelled = false
 
@@ -62,23 +80,28 @@ export function CommunityCanvasPage() {
       const handoffDraft = consumeCommunityCanvasHandoffDraft()
 
       if (!isCancelled && handoffDraft) {
-        if (needsNicknameSetup) {
-          setPendingNicknameAction({
-            kind: 'openComposerWithHandoffDraft',
-            draft: handoffDraft,
-          })
-          setNicknameModalOpen(true)
-          return
-        }
-
-        openComposerWithHandoffDraft(handoffDraft)
+        openComposerFromHandoffDraft(handoffDraft)
       }
     })()
 
     return () => {
       isCancelled = true
     }
-  }, [needsNicknameSetup, openComposerWithHandoffDraft])
+  }, [openComposerFromHandoffDraft])
+
+  useEffect(() => {
+    const handleCommunityHandoff = () => {
+      const handoffDraft = consumeCommunityCanvasHandoffDraft()
+      if (handoffDraft) {
+        openComposerFromHandoffDraft(handoffDraft)
+      }
+    }
+
+    window.addEventListener(COMMUNITY_CANVAS_HANDOFF_EVENT, handleCommunityHandoff)
+    return () => {
+      window.removeEventListener(COMMUNITY_CANVAS_HANDOFF_EVENT, handleCommunityHandoff)
+    }
+  }, [openComposerFromHandoffDraft])
 
   const isAttachingMemo =
     composer.pendingPlacement !== null && composer.postStatus === 'loading'
@@ -91,6 +114,14 @@ export function CommunityCanvasPage() {
     communityCanvas.selectedMemoUuid !== null ||
     isNicknameModalOpen ||
     isReportOpen
+  const isCommunityPopupOpen =
+    composer.isComposerOpen ||
+    composer.printRevealPlacement !== null ||
+    communityCanvas.selectedMemoUuid !== null ||
+    isNicknameModalOpen ||
+    isReportOpen
+  const isWallPlaybackPaused = isCommunityPopupOpen || isCanvasPaused
+  const isDetailPlaybackPaused = isReportOpen || isCanvasPaused
 
   const openNicknameModalWithAction = (
     nextAction: NonNullable<PendingCommunityNicknameAction>,
@@ -220,6 +251,7 @@ export function CommunityCanvasPage() {
         nextZIndex={communityCanvas.nextZIndex}
         isAttachingMemo={isAttachingMemo}
         isSavingLayout={isSavingLayout}
+        isPlaybackPaused={isWallPlaybackPaused}
         onSelectMemo={communityCanvas.selectWallMemo}
         onClearSelection={communityCanvas.clearWallMemoSelection}
         onOpenMemoDetail={(memoUuid) => void communityCanvas.openMemoDetail(memoUuid)}
@@ -250,6 +282,7 @@ export function CommunityCanvasPage() {
         detailStatus={communityCanvas.detailStatus}
         detailError={communityCanvas.detailError}
         mutationStatus={communityCanvas.mutationStatus}
+        isPlaybackPaused={isDetailPlaybackPaused}
         onClose={communityCanvas.closeMemoDetail}
         onDelete={handleDeleteSelectedMemo}
         onReportOpen={() => setReportOpen(true)}

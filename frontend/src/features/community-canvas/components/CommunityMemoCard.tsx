@@ -4,7 +4,10 @@ import Image from 'next/image'
 import { PostItNote } from '@/shared/components/PostItNote'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoItemResponse } from '@/shared/types'
-import { getCommunityMemoColor } from '../utils'
+import {
+  getCommunityMemoColor,
+  getStaticCommunityMemoImageUrl,
+} from '../utils'
 
 const MEMO_LAYER_BASE_Z_INDEX = 9_100
 const ACTIVE_MEMO_LAYER_BASE_Z_INDEX = 9_500
@@ -14,6 +17,7 @@ interface CommunityMemoCardProps {
   memo: CommunityMemoItemResponse
   isActive: boolean
   playbackImageUrl?: string | null
+  isPlaybackPaused: boolean
   placementMotion?: 'attach' | 'detach' | 'lift' | 'release'
   isInteractionDisabled?: boolean
   onSelect: (memo: CommunityMemoItemResponse) => void
@@ -24,13 +28,17 @@ export function CommunityMemoCard({
   memo,
   isActive,
   playbackImageUrl,
+  isPlaybackPaused,
   placementMotion,
   isInteractionDisabled = false,
   onSelect,
   onOpenDetail,
 }: CommunityMemoCardProps) {
   const normalizedMemoStackOrder = Math.min(Math.max(memo.zIndex, 0), MAX_MEMO_STACK_ORDER)
-  const displayImageUrl = playbackImageUrl || memo.memoThumbnailImageUrl || memo.memoImageUrl
+  const staticImageUrl = getStaticCommunityMemoImageUrl(memo)
+  const displayImageUrl = isPlaybackPaused
+    ? staticImageUrl
+    : playbackImageUrl || memo.memoThumbnailImageUrl || memo.memoImageUrl
 
   return (
     <button
