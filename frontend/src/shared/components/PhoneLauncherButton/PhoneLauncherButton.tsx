@@ -1,50 +1,39 @@
-'use client'
+"use client";
 
-import { Phone } from 'lucide-react'
+import { Smartphone } from "lucide-react";
 
-import { cn } from '@/shared/libs'
-import { usePhoneLauncherStore } from '@/shared/stores'
-
-// PhoneLauncher(features/phone)의 디자인을 그대로 재현한 색상 상수.
-// cross-feature import 없이 값을 직접 선언한다.
-const LAUNCHER_SCREEN_GRADIENT =
-  'linear-gradient(135deg,#dff4ff 0%,#ffe6f2 100%)'
-const LAUNCHER_SHADOW = '0 0.8rem 1.6rem rgba(0, 0, 0, 0.22)'
-const LAUNCHER_BADGE_COLOR = '#ff6f7b'
+import { cn } from "@/shared/libs";
+import { usePhoneLauncherStore } from "@/shared/stores";
 
 /** 인라인으로 배치되는 phone 열기 버튼.
- *  원본 PhoneLauncher 버튼과 동일한 디자인.
- *  shared/stores/phoneLauncherStore를 통해 PhoneLauncher의 openPhone을 호출한다. */
+ *  shared/stores/phoneLauncherStore를 통해 PhoneLauncher의 openPhone을 호출한다.
+ *
+ *  @param className    - 버튼 외곽 크기 제어 (e.g. `size-11`)
+ *  @param iconClassName - Lucide 아이콘 크기 제어 (e.g. `size-6`) */
 export default function PhoneLauncherButton({
   className,
+  iconClassName,
 }: {
-  className?: string
+  className?: string;
+  iconClassName?: string;
 }) {
-  const requestOpen = usePhoneLauncherStore((state) => state.requestOpen)
+  const requestOpen = usePhoneLauncherStore((state) => state.requestOpen);
 
   return (
     <button
       type="button"
       onClick={requestOpen}
       aria-label="핸드폰 열기"
+      title="핸드폰"
       className={cn(
-        'relative inline-flex size-16 cursor-pointer items-center justify-center rounded-[1.25rem] bg-white transition duration-300 hover:-translate-y-1 active:scale-95',
+        "inline-flex size-16 cursor-pointer items-center justify-center rounded-[0.8rem] border border-[rgb(255_247_235/0.74)] bg-[rgb(255_250_242/0.72)] shadow-[0_0.8rem_2rem_rgb(54_45_80/0.12)] backdrop-blur-[16px] transition duration-[160ms] ease-out hover:-translate-y-px hover:bg-[rgb(255_252_247/0.88)] active:scale-[0.96]",
         className,
       )}
-      style={{ boxShadow: LAUNCHER_SHADOW }}
     >
-      <span
-        className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white"
-        style={{ background: LAUNCHER_BADGE_COLOR }}
-      >
-        !
-      </span>
-      <span
-        className="flex size-12 items-center justify-center rounded-[1rem]"
-        style={{ background: LAUNCHER_SCREEN_GRADIENT }}
-      >
-        <Phone className="size-7 text-fg-primary" strokeWidth={2.4} />
-      </span>
+      <Smartphone
+        className={cn("size-5 text-[#5b4a82]", iconClassName)}
+        strokeWidth={2.35}
+      />
     </button>
-  )
+  );
 }

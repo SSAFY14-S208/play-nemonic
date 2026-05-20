@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { ApiError, postRelayRoomStart } from '@/shared/apis'
 import { WorldHomeLink } from '@/shared/components'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
-import { useUserStore } from '@/shared/stores'
+import { usePhoneLauncherStore, useUserStore } from '@/shared/stores'
 
 import relayDrawingGameStart from './assets/relay-drawing-game-start.png'
 import nemonicDrawingLobbyBg from './assets/nemonic-drawing-lobby-bg.png'
@@ -98,6 +98,15 @@ function RelayRoomPageInner() {
   )
   const hostUserUuid = useRelayDrawingStore((state) => state.hostUserUuid)
   const userUuid = useUserStore((state) => state.userUuid)
+
+  // 룸 페이지 전체에서 floating PhoneLauncher를 숨기고, 각 뷰의 인라인 버튼으로 대체.
+  const setLauncherHidden = usePhoneLauncherStore(
+    (state) => state.setLauncherHidden,
+  )
+  useEffect(() => {
+    setLauncherHidden(true)
+    return () => setLauncherHidden(false)
+  }, [setLauncherHidden])
 
   const isHost = userUuid !== null && userUuid === hostUserUuid
 
