@@ -80,6 +80,7 @@ const REMOTE_CURSOR_SETTLE_DISTANCE = 0.35
 const REMOTE_CURSOR_PATH = 'M0 0 L0 22 L6 16 L10 26 L14 24 L10 15 L19 15 Z'
 const REMOTE_CURSOR_LABEL_OFFSET = { x: 18, y: 24 } as const
 const LOCK_LABEL_OFFSET = { x: -8, y: -34 } as const
+const SELECTED_MOVE_SURFACE_PADDING = 12
 export const INFINITY_CANVAS_BACKGROUND_LAYER_ID = 'infinity-canvas-background-layer'
 const ImperativeEllipse = Ellipse as unknown as (props: {
   ref: RefObject<Konva.Ellipse | null>
@@ -725,13 +726,14 @@ export function InfinityCanvasStage({
     const maxX = Math.max(...selectedBounds.map((bounds) => bounds.x + bounds.width));
     const maxY = Math.max(...selectedBounds.map((bounds) => bounds.y + bounds.height));
 
+    const movePadding = SELECTED_MOVE_SURFACE_PADDING * getOverlayScale(scale);
     return {
-      x: minX,
-      y: minY,
-      width: Math.max(maxX - minX, 1),
-      height: Math.max(maxY - minY, 1),
+      x: minX - movePadding,
+      y: minY - movePadding,
+      width: Math.max(maxX - minX + movePadding * 2, 1),
+      height: Math.max(maxY - minY + movePadding * 2, 1),
     };
-  }, [lockedElementIds, objectById, selectedIds, tool]);
+  }, [lockedElementIds, objectById, scale, selectedIds, tool]);
 
   const previewGroupedObjectMove = useCallback((id: string, x: number, y: number) => {
     if (selectedIds.length <= 1 || !selectedIds.includes(id)) return;
