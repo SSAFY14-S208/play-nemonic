@@ -527,11 +527,6 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
     @TestConfiguration
     static class AdminTokenStoreTestConfig {
 
-        @Bean
-        @Primary
-        AdminTokenStore adminTokenStore() {
-            return new NoOpAdminTokenStore();
-        }
     }
 
     static class NoOpAdminTokenStore implements AdminTokenStore {
