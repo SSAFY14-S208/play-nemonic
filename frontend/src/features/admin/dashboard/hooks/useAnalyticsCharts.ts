@@ -244,7 +244,10 @@ export function useI6ShareRate(args: AnalyticsVizArgs) {
           { name: 'abandoned', query: 'event_name:result_share_abandoned' },
         ],
       })
+      // 무한 캔버스는 결과 페이지가 없어 funnel_goal_reached / result_shared가 emit되지
+      // 않는다. 공유 비율 의미 자체가 성립하지 않아 컨텐츠별 공유율에서 제외한다.
       return response.buckets
+        .filter((bucket) => bucket.value !== 'infinite_canvas_creation')
         .map((bucket) => {
           const goal = bucket.sub.goal ?? 0
           const shared = bucket.sub.shared ?? 0

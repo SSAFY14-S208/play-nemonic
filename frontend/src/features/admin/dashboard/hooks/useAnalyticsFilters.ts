@@ -17,12 +17,41 @@ import type { AnalyticsFiltersState, LogsTimeRangePresetKey } from '../types'
 // 일 때 30초마다 호출됨 (useAnalyticsAutoRefresh).
 
 const DEFAULT_PRESET: LogsTimeRangePresetKey = 'last-24h'
+const DEFAULT_CUSTOM_DURATION_MS = 24 * 60 * 60 * 1000
 
 const isoString = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z')
 
+// <input type="datetime-local">는 'YYYY-MM-DDTHH:mm'(로컬 시간, 타임존·초 없음)로 값을 돌려준다.
+// 백엔드 LogsQueryBuilder는 ISO-8601 UTC(`...Z`)만 받으므로 로컬→UTC 변환이 필요하다.
+// new Date(input)이 로컬 시간으로 해석 → toISOString()이 UTC로 직렬화.
+const localInputToIso = (localInput: string): string | null => {
+  if (!localInput) return null
+  const date = new Date(localInput)
+  if (Number.isNaN(date.getTime())) return null
+  return isoString(date)
+}
+
+// ISO Z 문자열 → datetime-local 입력값(YYYY-MM-DDTHH:mm, 로컬). 커스텀 진입 시 초기값 채울 용도.
+const isoToLocalInput = (iso: string): string => {
+  const date = new Date(iso)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+const computeFallbackRange = (): AdminLogsTimeRange => {
+  const now = new Date()
+  const from = new Date(now.getTime() - DEFAULT_CUSTOM_DURATION_MS)
+  return { from: isoString(from), to: isoString(now) }
+}
+
 const computeTimeRange = (state: AnalyticsFiltersState): AdminLogsTimeRange => {
   if (state.preset === 'custom') {
-    return { from: state.customFrom, to: state.customTo }
+    // 사용자가 둘 다 채우기 전(또는 잘못된 값)에는 백엔드에 빈 문자열을 보내지 않고
+    // 최근 24h fallback을 사용해 400을 막는다.
+    const from = localInputToIso(state.customFrom)
+    const to = localInputToIso(state.customTo)
+    if (from && to) return { from, to }
+    return computeFallbackRange()
   }
   const preset = TIME_RANGE_PRESETS.find((option) => option.key === state.preset)
   const durationMs = preset?.durationMs ?? null
@@ -60,7 +89,23 @@ export function useAnalyticsFilters() {
   }))
 
   const setPreset = useCallback((preset: LogsTimeRangePresetKey) => {
-    setState((previous) => ({ ...previous, preset }))
+    setState((previous) => {
+      // 커스텀 진입 시 input이 비어있으면 현재 활성 프리셋(or 24h)의 범위로 채워
+      // 사용자가 빈 input으로 400을 보지 않도록 시작점을 제공한다.
+      if (preset === 'custom' && (!previous.customFrom || !previous.customTo)) {
+        const previousPreset = TIME_RANGE_PRESETS.find((option) => option.key === previous.preset)
+        const durationMs = previousPreset?.durationMs ?? DEFAULT_CUSTOM_DURATION_MS
+        const now = new Date()
+        const from = new Date(now.getTime() - durationMs)
+        return {
+          ...previous,
+          preset,
+          customFrom: isoToLocalInput(from.toISOString()),
+          customTo: isoToLocalInput(now.toISOString()),
+        }
+      }
+      return { ...previous, preset }
+    })
   }, [])
 
   const setCustomRange = useCallback((customFrom: string, customTo: string) => {
