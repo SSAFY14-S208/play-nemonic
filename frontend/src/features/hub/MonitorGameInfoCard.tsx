@@ -6,6 +6,7 @@ import { cn } from '@/shared/libs'
 import { HUB_GAMES } from '@/shared/constants'
 import {
   useHubGameStore,
+  useHubMonitorTransitionStore,
   useHubOnboardingStore,
   useHubRoomStore,
 } from '@/shared/stores'
@@ -14,7 +15,12 @@ import styles from './MonitorGameInfoCard.module.css'
 export default function MonitorGameInfoCard() {
   const focusKey = useHubRoomStore((state) => state.focusKey)
   const selectedGameIndex = useHubGameStore((state) => state.selectedGameIndex)
-  const selectGame = useHubGameStore((state) => state.selectGame)
+  const pendingGameIndex = useHubMonitorTransitionStore(
+    (state) => state.currentRequest?.gameIndex,
+  )
+  const requestGameTransition = useHubMonitorTransitionStore(
+    (state) => state.requestGameTransition,
+  )
   // 온보딩이 떠 있을 때는 안내가 중복되지 않도록 모니터 정보 카드를 숨긴다.
   const isOnboardingActive = useHubOnboardingStore(
     (state) => state.hasEnteredHub && !state.hasSeenOnboarding,
@@ -56,13 +62,14 @@ export default function MonitorGameInfoCard() {
                   className={cn(
                     styles.progressDot,
                     gameIndex === selectedGameIndex && styles.progressDotActive,
+                    gameIndex === pendingGameIndex && styles.progressDotPending,
                   )}
                   style={
                     {
                       '--progress-dot-color': game.lightingColor,
                     } as CSSProperties
                   }
-                  onClick={() => selectGame(gameIndex)}
+                  onClick={() => requestGameTransition(gameIndex)}
                   aria-label={`${game.title}로 이동`}
                   aria-current={
                     gameIndex === selectedGameIndex ? 'true' : undefined

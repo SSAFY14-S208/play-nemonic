@@ -29,6 +29,7 @@ export function useMonitorGameSelector({
   const router = useRouter()
   const invalidate = useThree((state) => state.invalidate)
   const selectedGameIndex = useHubGameStore((state) => state.selectedGameIndex)
+  const selectGame = useHubGameStore((state) => state.selectGame)
   const selectNextGame = useHubGameStore((state) => state.selectNextGame)
   const selectPreviousGame = useHubGameStore((state) => state.selectPreviousGame)
   const setFocus = useHubRoomStore((state) => state.setFocus)
@@ -98,6 +99,7 @@ export function useMonitorGameSelector({
     gameCount: HUB_GAMES.length,
     selectedGame,
     selectedGameIndex,
+    selectGame,
     selectNextGame,
     selectPreviousGame,
     startSelectedGame,
