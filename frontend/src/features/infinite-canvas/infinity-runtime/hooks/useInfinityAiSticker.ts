@@ -78,7 +78,7 @@ export function useInfinityAiSticker({
   const [previewSticker, setPreviewSticker] = useState<InfiniteCanvasAiStickerCreateResponse | null>(null)
 
   const createStickerObject = useCallback(
-    (element: Record<string, unknown>): InfinityImage => {
+    (element: Record<string, unknown>, fallbackImageUrl = ''): InfinityImage => {
       const stage = stageRef.current
       const scale = scaleRef.current || 1
       const stagePosition = stagePosRef.current
@@ -98,7 +98,7 @@ export function useInfinityAiSticker({
         y: centerY - height / 2,
         width,
         height,
-        src: getStringValue(element.src, ''),
+        src: getStringValue(element.src, fallbackImageUrl),
         objectKey: typeof element.objectKey === 'string' ? element.objectKey : undefined,
         naturalWidth: getNumberValue(element.naturalWidth, width),
         naturalHeight: getNumberValue(element.naturalHeight, height),
@@ -123,7 +123,7 @@ export function useInfinityAiSticker({
           height: 512,
           transparentBackground: true,
         })
-        if (!getStringValue(sticker.element.src, '')) {
+        if (!getStringValue(sticker.element.src, sticker.imageUrl)) {
           toast.error('AI 스티커 이미지 주소를 확인하지 못했어요.')
           return false
         }
@@ -143,7 +143,7 @@ export function useInfinityAiSticker({
   const attachPreviewSticker = useCallback(() => {
     if (!previewSticker) return false
 
-    const stickerObject = createStickerObject(previewSticker.element)
+    const stickerObject = createStickerObject(previewSticker.element, previewSticker.imageUrl)
     if (!stickerObject.src) {
       toast.error('AI 스티커 이미지 주소를 확인하지 못했어요.')
       return false

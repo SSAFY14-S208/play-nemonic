@@ -123,6 +123,25 @@ async function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
   });
 }
 
+async function loadCanvasImageFromSrc(src: string): Promise<HTMLImageElement> {
+  const loadImage = (crossOrigin: "anonymous" | null) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new window.Image();
+      if (crossOrigin) {
+        image.crossOrigin = crossOrigin;
+      }
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Failed to load canvas image."));
+      image.src = src;
+    });
+
+  try {
+    return await loadImage("anonymous");
+  } catch {
+    return loadImage(null);
+  }
+}
+
 async function createSanitizedStickerImage(imageElement: HTMLImageElement) {
   const sourceWidth = imageElement.naturalWidth || imageElement.width;
   const sourceHeight = imageElement.naturalHeight || imageElement.height;
@@ -204,7 +223,7 @@ export function KonvaImageObject({
     shouldSanitizeSticker ? stickerImageElementCache.get(imageObject.src) ?? null : null;
   const sourceImageElement = cachedImageElement ?? loadedImageElement;
   const imageElement = shouldSanitizeSticker
-    ? cachedStickerImageElement
+    ? cachedStickerImageElement ?? sourceImageElement
     : sourceImageElement;
 
   useEffect(() => {
@@ -212,15 +231,14 @@ export function KonvaImageObject({
     if (cachedImage) return;
 
     let cancelled = false;
-    const image = new window.Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
+    void loadCanvasImageFromSrc(imageObject.src).then((image) => {
       imageElementCache.set(imageObject.src, image);
       if (!cancelled) {
         setLoadedImage({ src: imageObject.src, element: image });
       }
-    };
-    image.src = imageObject.src;
+    }).catch(() => {
+      // Broken image URLs are ignored here; the API layer already reports creation failures.
+    });
 
     return () => {
       cancelled = true;
