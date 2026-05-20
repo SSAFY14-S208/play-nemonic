@@ -415,24 +415,77 @@ function getObjectBounds(object: InfinityObject) {
   };
 }
 
+interface SelectionMoveTarget {
+  object: InfinityObject
+  node: Konva.Node
+}
+
 interface TransformerDragState {
-  transformerX: number
-  transformerY: number
-  nodes: Array<{
-    node: Konva.Node
-    x: number
-    y: number
-  }>
+  originX: number
+  originY: number
+  nodes: SelectionMoveTarget[]
 }
 
 interface SelectionSurfaceDragState {
-  surfaceX: number
-  surfaceY: number
+  originX: number
+  originY: number
+  nodes: SelectionMoveTarget[]
+}
+
+function moveObjectByDelta(object: InfinityObject, deltaX: number, deltaY: number): InfinityObject {
+  if (object.type === "line") {
+    return {
+      ...object,
+      points: object.points.map((point) => ({
+        x: point.x + deltaX,
+        y: point.y + deltaY,
+      })),
+    };
+  }
+
+  return {
+    ...object,
+    x: object.x + deltaX,
+    y: object.y + deltaY,
+  };
+}
+
+function resetMovedLineNodeOffsets(nodes: SelectionMoveTarget[]) {
+  for (const { object, node } of nodes) {
+    if (object.type === "line") {
+      node.position({ x: 0, y: 0 });
+    }
+  }
+}
+
+function buildSelectionMoveTargets(
+  stage: Konva.Stage,
+  selectedIds: string[],
+  lockedElementIds: Set<string>,
+  objectById: Map<string, InfinityObject>,
+) {
+  return selectedIds
+    .filter((selectedId) => !lockedElementIds.has(selectedId))
+    .map((selectedId) => {
+      const object = objectById.get(selectedId);
+      const node = stage.findOne(`#${selectedId}`);
+      if (!object || !node) return null;
+      return { object, node };
+    })
+    .filter((target): target is SelectionMoveTarget => Boolean(target));
+}
+
+function previewSelectionMoveTargets(
   nodes: Array<{
+    object: InfinityObject
     node: Konva.Node
-    x: number
-    y: number
-  }>
+  }>,
+  deltaX: number,
+  deltaY: number,
+) {
+  for (const { object, node } of nodes) {
+    moveNodeByObjectDelta(object, node, deltaX, deltaY);
+  }
 }
 
 function resetNodeScale(node: Konva.Node) {
@@ -815,81 +868,6 @@ export function InfinityCanvasStage({
     [],
   );
 
-  const readMovedObjectFromNode = useCallback(
-    (
-      object: InfinityObject,
-      node: Konva.Node,
-      { normalizeNode = false }: { normalizeNode?: boolean } = {},
-    ): InfinityObject | null => {
-      if (object.type === "line" && node instanceof Konva.Line) {
-        const movedPoints = object.points.map((point) => ({
-          x: point.x + node.x(),
-          y: point.y + node.y(),
-        }));
-        if (normalizeNode) {
-          node.position({ x: 0, y: 0 });
-          resetNodeScale(node);
-        }
-        return {
-          ...object,
-          points: movedPoints,
-        };
-      }
-
-      if (object.type === "fill" && node instanceof Konva.Image) {
-        if (normalizeNode) resetNodeScale(node);
-        return {
-          ...object,
-          x: node.x(),
-          y: node.y(),
-        };
-      }
-
-      if (object.type === "image" && node instanceof Konva.Image) {
-        if (normalizeNode) resetNodeScale(node);
-        return {
-          ...object,
-          x: node.x(),
-          y: node.y(),
-          rotation: node.rotation(),
-        };
-      }
-
-      if (object.type === "rect" && node instanceof Konva.Rect) {
-        if (normalizeNode) resetNodeScale(node);
-        return {
-          ...object,
-          x: node.x(),
-          y: node.y(),
-          rotation: node.rotation(),
-        };
-      }
-
-      if (object.type === "ellipse" && node instanceof Konva.Ellipse) {
-        if (normalizeNode) resetNodeScale(node);
-        return {
-          ...object,
-          x: node.x() - Math.abs(object.width) / 2,
-          y: node.y() - Math.abs(object.height) / 2,
-          rotation: node.rotation(),
-        };
-      }
-
-      if (object.type === "text" && node instanceof Konva.Text) {
-        if (normalizeNode) resetNodeScale(node);
-        return {
-          ...object,
-          x: node.x(),
-          y: node.y(),
-          rotation: node.rotation(),
-        };
-      }
-
-      return null;
-    },
-    [],
-  );
-
   const commitSelectedNodeTransforms = useCallback(() => {
     const stage = stageRef.current;
     if (!stage || selectedIds.length === 0) return;
@@ -921,34 +899,6 @@ export function InfinityCanvasStage({
     stageRef,
   ]);
 
-  const commitSelectedNodeMoves = useCallback(() => {
-    const stage = stageRef.current;
-    if (!stage || selectedIds.length === 0) return;
-
-    const updatedObjects = selectedIds
-      .map((selectedId) => {
-        const object = objectById.get(selectedId);
-        const node = stage.findOne(`#${selectedId}`);
-        if (!object || !node) return null;
-        return readMovedObjectFromNode(object, node, { normalizeNode: true });
-      })
-      .filter((object): object is InfinityObject => Boolean(object));
-
-    if (updatedObjects.length > 0) {
-      onObjectsTransformEnd(updatedObjects);
-    }
-    onSelectionInteractionEnd(selectedIds);
-    onDraftObjectsChange(null);
-  }, [
-    objectById,
-    onDraftObjectsChange,
-    onObjectsTransformEnd,
-    onSelectionInteractionEnd,
-    readMovedObjectFromNode,
-    selectedIds,
-    stageRef,
-  ]);
-
   const previewSelectedNodeTransforms = useCallback(() => {
     const stage = stageRef.current;
     if (!stage || selectedIds.length === 0) return;
@@ -971,26 +921,36 @@ export function InfinityCanvasStage({
     stageRef,
   ]);
 
-  const previewSelectedNodeMoves = useCallback(() => {
-    const stage = stageRef.current;
-    if (!stage || selectedIds.length === 0) return;
+  const previewSelectionDragState = useCallback((
+    targets: SelectionMoveTarget[],
+    deltaX: number,
+    deltaY: number,
+    layer: Konva.Layer | null,
+  ) => {
+    if (targets.length === 0) return;
+    previewSelectionMoveTargets(targets, deltaX, deltaY);
+    transformerRef.current?.forceUpdate();
+    layer?.batchDraw();
+    onDraftObjectsChange(targets.map(({ object }) => moveObjectByDelta(object, deltaX, deltaY)));
+  }, [onDraftObjectsChange]);
 
-    const updatedObjects = selectedIds
-      .map((selectedId) => {
-        const object = objectById.get(selectedId);
-        const node = stage.findOne(`#${selectedId}`);
-        if (!object || !node) return null;
-        return readMovedObjectFromNode(object, node);
-      })
-      .filter((object): object is InfinityObject => Boolean(object));
+  const commitSelectionDragState = useCallback((
+    targets: SelectionMoveTarget[],
+    deltaX: number,
+    deltaY: number,
+  ) => {
+    resetMovedLineNodeOffsets(targets);
 
-    onDraftObjectsChange(updatedObjects.length > 0 ? updatedObjects : null);
+    if (targets.length > 0 && (deltaX !== 0 || deltaY !== 0)) {
+      onObjectsTransformEnd(targets.map(({ object }) => moveObjectByDelta(object, deltaX, deltaY)));
+    }
+    onSelectionInteractionEnd(selectedIds);
+    onDraftObjectsChange(null);
   }, [
-    objectById,
     onDraftObjectsChange,
-    readMovedObjectFromNode,
+    onObjectsTransformEnd,
+    onSelectionInteractionEnd,
     selectedIds,
-    stageRef,
   ]);
 
   const startTransformerNodeMove = useCallback(() => {
@@ -1002,48 +962,37 @@ export function InfinityCanvasStage({
     }
 
     transformerDragStateRef.current = {
-      transformerX: transformer.x(),
-      transformerY: transformer.y(),
-      nodes: selectedIds
-        .filter((selectedId) => !lockedElementIds.has(selectedId))
-        .map((selectedId) => stage.findOne(`#${selectedId}`))
-        .filter((node): node is Konva.Node => Boolean(node))
-        .map((node) => ({
-          node,
-          x: node.x(),
-          y: node.y(),
-        })),
+      originX: transformer.x(),
+      originY: transformer.y(),
+      nodes: buildSelectionMoveTargets(stage, selectedIds, lockedElementIds, objectById),
     };
-  }, [lockedElementIds, selectedIds, stageRef]);
+  }, [lockedElementIds, objectById, selectedIds, stageRef]);
 
   const previewTransformerNodeMove = useCallback(() => {
     const transformer = transformerRef.current;
     const dragState = transformerDragStateRef.current;
     if (!transformer || !dragState) return;
 
-    const deltaX = transformer.x() - dragState.transformerX;
-    const deltaY = transformer.y() - dragState.transformerY;
-    for (const { node, x, y } of dragState.nodes) {
-      node.position({ x: x + deltaX, y: y + deltaY });
-    }
-    transformer.forceUpdate();
-    transformer.getLayer()?.batchDraw();
-    previewSelectedNodeMoves();
-  }, [previewSelectedNodeMoves]);
+    const deltaX = transformer.x() - dragState.originX;
+    const deltaY = transformer.y() - dragState.originY;
+    previewSelectionDragState(dragState.nodes, deltaX, deltaY, transformer.getLayer());
+  }, [previewSelectionDragState]);
 
   const commitTransformerNodeMove = useCallback(() => {
     const transformer = transformerRef.current;
     const dragState = transformerDragStateRef.current;
     if (transformer && dragState) {
+      const deltaX = transformer.x() - dragState.originX;
+      const deltaY = transformer.y() - dragState.originY;
       transformer.position({
-        x: dragState.transformerX,
-        y: dragState.transformerY,
+        x: dragState.originX,
+        y: dragState.originY,
       });
       transformer.forceUpdate();
+      commitSelectionDragState(dragState.nodes, deltaX, deltaY);
     }
     transformerDragStateRef.current = null;
-    commitSelectedNodeMoves();
-  }, [commitSelectedNodeMoves]);
+  }, [commitSelectionDragState]);
 
   const startSelectionSurfaceMove = useCallback((event: Konva.KonvaEventObject<DragEvent>) => {
     const stage = stageRef.current;
@@ -1054,49 +1003,36 @@ export function InfinityCanvasStage({
     }
 
     selectionSurfaceDragStateRef.current = {
-      surfaceX: surface.x(),
-      surfaceY: surface.y(),
-      nodes: selectedIds
-        .filter((selectedId) => !lockedElementIds.has(selectedId))
-        .map((selectedId) => stage.findOne(`#${selectedId}`))
-        .filter((node): node is Konva.Node => Boolean(node))
-        .map((node) => ({
-          node,
-          x: node.x(),
-          y: node.y(),
-        })),
+      originX: surface.x(),
+      originY: surface.y(),
+      nodes: buildSelectionMoveTargets(stage, selectedIds, lockedElementIds, objectById),
     };
-  }, [lockedElementIds, selectedIds, stageRef]);
+  }, [lockedElementIds, objectById, selectedIds, stageRef]);
 
   const previewSelectionSurfaceMove = useCallback((event: Konva.KonvaEventObject<DragEvent>) => {
     const dragState = selectionSurfaceDragStateRef.current;
     if (!dragState) return;
 
     const surface = event.target;
-    const deltaX = surface.x() - dragState.surfaceX;
-    const deltaY = surface.y() - dragState.surfaceY;
-
-    for (const { node, x, y } of dragState.nodes) {
-      node.position({ x: x + deltaX, y: y + deltaY });
-    }
-
-    transformerRef.current?.forceUpdate();
-    surface.getLayer()?.batchDraw();
-    previewSelectedNodeMoves();
-  }, [previewSelectedNodeMoves]);
+    const deltaX = surface.x() - dragState.originX;
+    const deltaY = surface.y() - dragState.originY;
+    previewSelectionDragState(dragState.nodes, deltaX, deltaY, surface.getLayer());
+  }, [previewSelectionDragState]);
 
   const commitSelectionSurfaceMove = useCallback((event: Konva.KonvaEventObject<DragEvent>) => {
     const dragState = selectionSurfaceDragStateRef.current;
     if (dragState) {
+      const deltaX = event.target.x() - dragState.originX;
+      const deltaY = event.target.y() - dragState.originY;
       event.target.position({
-        x: dragState.surfaceX,
-        y: dragState.surfaceY,
+        x: dragState.originX,
+        y: dragState.originY,
       });
       transformerRef.current?.forceUpdate();
+      commitSelectionDragState(dragState.nodes, deltaX, deltaY);
     }
     selectionSurfaceDragStateRef.current = null;
-    commitSelectedNodeMoves();
-  }, [commitSelectedNodeMoves]);
+  }, [commitSelectionDragState]);
 
   const renderShapeOrText = useCallback((obj: InfinityObject) => {
     const isLocked = lockedElementIds.has(obj.id);
