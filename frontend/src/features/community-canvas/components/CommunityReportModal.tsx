@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Flag, X } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoReportReason } from '@/shared/types'
@@ -24,6 +24,8 @@ const REPORT_REASONS: CommunityMemoReportReason[] = [
   '기타',
 ]
 
+const DEFAULT_REPORT_REASON = REPORT_REASONS[0] as CommunityMemoReportReason
+
 interface CommunityReportModalProps {
   isOpen: boolean
   status: 'idle' | 'loading' | 'success' | 'error'
@@ -46,6 +48,23 @@ export function CommunityReportModal({
     maxWidth: REPORT_MODAL_MAX_WIDTH,
     viewportPadding: 16,
   })
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      if (!isOpen) return
+
+      await Promise.resolve()
+      if (cancelled) return
+
+      setReason(DEFAULT_REPORT_REASON)
+      setReasonDetail('')
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
