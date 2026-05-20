@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 
 import { GameLobbyLayout } from '@/shared/components'
 import type { GameLobbyTheme } from '@/shared/components'
-import { useUserStore } from '@/shared/stores'
+import { usePhoneLauncherStore, useUserStore } from '@/shared/stores'
 
 import relayDrawingTitle from '../assets/relay-drawing-title.png'
 import { RELAY_ROOM_CODE } from '../constants'
@@ -12,6 +12,7 @@ import { useRelayLobby } from '../hooks'
 import { useRelayDrawingStore, useRelayHowToPlayStore } from '../stores'
 import RelayBgmToggle from './RelayBgmToggle'
 import RelayHowToPlayButton from './RelayHowToPlayButton'
+import { PhoneLauncherButton } from '@/shared/components'
 
 const RELAY_LOBBY_THEME: GameLobbyTheme = {
   accent: 'var(--color-relay-accent)',
@@ -76,6 +77,15 @@ export default function RelayLobbyView() {
     openHowToPlay()
   }, [roomStatus, openHowToPlay])
 
+  // 로비에서는 floating PhoneLauncher 버튼을 숨기고, 헤더 인라인 버튼으로 대체.
+  const setLauncherHidden = usePhoneLauncherStore(
+    (state) => state.setLauncherHidden,
+  )
+  useEffect(() => {
+    setLauncherHidden(true)
+    return () => setLauncherHidden(false)
+  }, [setLauncherHidden])
+
   const startButtonLabel = isStarting
     ? '시작 중…'
     : `게임 시작 (${participants.length}명)`
@@ -110,6 +120,7 @@ export default function RelayLobbyView() {
         <>
           <RelayHowToPlayButton />
           <RelayBgmToggle />
+          <PhoneLauncherButton />
         </>
       }
     />

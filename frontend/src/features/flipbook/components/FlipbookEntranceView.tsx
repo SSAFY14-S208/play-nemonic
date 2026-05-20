@@ -6,7 +6,7 @@ import Lottie from 'lottie-react'
 import { KeyRound, Sparkles, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { downArrowAnimation } from '@/shared/assets'
-import { HowToPlayModal } from '@/shared/components'
+import { HowToPlayModal, PhoneLauncherButton } from '@/shared/components'
 import {
   useFlipbookEntranceBgm,
   useFlipbookEntranceIntro,
@@ -291,6 +291,7 @@ function FlipbookEntranceTopControls({
         pressed={isBgmMuted}
         onClick={onToggleBgmMuted}
       />
+      <PhoneLauncherButton className="size-[clamp(48px,4.6vw,70px)]" />
     </div>
   )
 }
@@ -366,13 +367,13 @@ function FlipbookEntranceMobileScene({
         animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: '1.96%' }}
         transition={{ duration: 0.42, ease: [0.22, 0.8, 0.22, 1] }}
       >
-        <div className="absolute right-[7.52%] top-[5.34%] flex w-[28.16%] justify-end gap-[14.16%]">
+        <div className="absolute right-[7.52%] top-[5.34%] flex items-center justify-end gap-2">
           <FlipbookEntranceMobileIconButton
             imageSrc={FLIPBOOK_SCENE_IMAGES.howToPlayButton}
             imageWidth={63}
             imageHeight={70}
             label="게임 설명"
-            className="aspect-[49/54] w-[42.24%]"
+            className="aspect-[49/54] w-12"
             onClick={onOpenHowToPlay}
           />
           <FlipbookEntranceMobileIconButton
@@ -385,9 +386,10 @@ function FlipbookEntranceMobileScene({
             imageHeight={70}
             label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
             pressed={isBgmMuted}
-            className="aspect-[51/54] w-[43.97%]"
+            className="aspect-[51/54] w-12"
             onClick={onToggleBgmMuted}
           />
+          <PhoneLauncherButton className="size-12" />
         </div>
 
         <div className="absolute left-1/2 top-[24.54%] w-[86.17%] -translate-x-1/2">

@@ -8,9 +8,11 @@ import {
   ColorPanel,
   DrawingCompleteButton,
   HintToggleButton,
+  HowToPlayModal,
   MobileBrushOpacityBar,
   MobileColorBar,
   MobileToolBar,
+  PhoneLauncherButton,
   ProgressRail,
   ToolPanel,
   TopStatusBar,
@@ -24,9 +26,13 @@ import type {
   DrawingToolKey,
   FlipbookConnectionStatus,
 } from '@/shared/types'
-import { FLIPBOOK_BOARD_SIZE } from '../constants'
+import {
+  FLIPBOOK_BOARD_SIZE,
+  FLIPBOOK_HOW_TO_PLAY_PANELS,
+  FLIPBOOK_SOUND_PATHS,
+} from '../constants'
 import type { FlipbookDrawingSubmissionState, FlipbookParticipant } from '../types'
-import { useResponsiveElementScale } from '../hooks'
+import { useFlipbookEntranceBgm, useResponsiveElementScale } from '../hooks'
 
 const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
   ssr: false,
@@ -34,6 +40,9 @@ const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
 
 const FLIPBOOK_DRAWING_IMAGES = {
   background: '/images/flipbook-lobby/background.png',
+  howToPlay: '/images/flipbook-entrance-scene/how-to-play-button.png',
+  soundOn: '/images/flipbook-entrance-scene/sound-on-button.png',
+  soundMuted: '/images/flipbook-entrance-scene/sound-muted-button.png',
 }
 
 // 데스크탑(lg+) 그리기 화면은 1536×1024 디자인을 기준으로 절대 좌표로 배치되어
@@ -109,6 +118,10 @@ export default function FlipbookDrawingView({
   onDrawEnd,
   onCompleteRound,
 }: FlipbookDrawingViewProps) {
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false)
+  const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
+    shouldStart: true,
+  })
   const [submittedRoundIndex, setSubmittedRoundIndex] = useState<number | null>(null)
   const [isOnionSkinVisible, setIsOnionSkinVisible] = useState(true)
   const isConnectionUnstable =
@@ -231,7 +244,23 @@ export default function FlipbookDrawingView({
         aria-hidden
       />
 
+      <audio ref={audioRef} src={FLIPBOOK_SOUND_PATHS.entranceBgm} preload="auto" loop aria-hidden />
+
       <div className="relative z-10 grid w-full gap-4 px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 lg:hidden">
+        <div className="flex items-center justify-end gap-2">
+          <FlipbookDrawingIconButton
+            imageSrc={FLIPBOOK_DRAWING_IMAGES.howToPlay}
+            label="게임 설명"
+            onClick={() => setIsHowToPlayModalOpen(true)}
+          />
+          <FlipbookDrawingIconButton
+            imageSrc={isBgmMuted ? FLIPBOOK_DRAWING_IMAGES.soundMuted : FLIPBOOK_DRAWING_IMAGES.soundOn}
+            label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+            pressed={isBgmMuted}
+            onClick={toggleFlipbookEntranceBgmMuted}
+          />
+          <PhoneLauncherButton className="size-14" />
+        </div>
         <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
           <div className="flex items-center justify-between gap-3">
             <p className="h2-b text-[#f45d8d]">
@@ -445,7 +474,63 @@ export default function FlipbookDrawingView({
           )}
         </div>
       </div>
+      <div className="fixed right-4 top-4 z-[var(--z-sticky)] hidden items-center gap-2 lg:flex">
+        <FlipbookDrawingIconButton
+          imageSrc={FLIPBOOK_DRAWING_IMAGES.howToPlay}
+          label="게임 설명"
+          onClick={() => setIsHowToPlayModalOpen(true)}
+        />
+        <FlipbookDrawingIconButton
+          imageSrc={isBgmMuted ? FLIPBOOK_DRAWING_IMAGES.soundMuted : FLIPBOOK_DRAWING_IMAGES.soundOn}
+          label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+          pressed={isBgmMuted}
+          onClick={toggleFlipbookEntranceBgmMuted}
+        />
+        <PhoneLauncherButton />
+      </div>
+
+      <HowToPlayModal
+        open={isHowToPlayModalOpen}
+        onOpenChange={setIsHowToPlayModalOpen}
+        panels={FLIPBOOK_HOW_TO_PLAY_PANELS}
+        title="플립북 게임 설명"
+        subtitle="이전 프레임을 힌트로 보며 조금씩 바꿔 그려 움직이는 플립북을 만들어요."
+        accentColor="#ff7182"
+      />
     </section>
+  )
+}
+
+function FlipbookDrawingIconButton({
+  imageSrc,
+  label,
+  pressed,
+  onClick,
+}: {
+  imageSrc: string
+  label: string
+  pressed?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      className="relative grid size-14 place-items-center transition duration-150 hover:-translate-y-0.5 active:translate-y-px active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary lg:size-[clamp(54px,4.6vw,70px)]"
+      onClick={onClick}
+    >
+      <Image
+        src={imageSrc}
+        alt=""
+        width={67}
+        height={70}
+        sizes="70px"
+        className="h-full w-auto object-contain"
+      />
+      <span className="sr-only">{label}</span>
+    </button>
   )
 }
 

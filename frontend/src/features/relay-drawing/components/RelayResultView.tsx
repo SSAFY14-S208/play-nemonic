@@ -8,6 +8,8 @@ import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
 
 import { useRelayResult, useRelayResultAutoCycle } from "../hooks";
 import { useRelayDrawingStore } from "../stores";
+import { PhoneLauncherButton } from "@/shared/components";
+
 import RelayBgmToggle from "./RelayBgmToggle";
 import RelayHowToPlayButton from "./RelayHowToPlayButton";
 import { ResultRevealAnimation, ResultRightPanel } from "./result-view";
@@ -71,6 +73,7 @@ export default function RelayResultView() {
         <div className="flex items-center justify-end gap-3 lg:hidden">
           <RelayHowToPlayButton />
           <RelayBgmToggle />
+          <PhoneLauncherButton />
         </div>
 
         <main className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[7fr_5fr] lg:items-stretch lg:gap-6">
