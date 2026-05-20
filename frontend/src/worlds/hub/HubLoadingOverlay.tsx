@@ -67,7 +67,7 @@ function HubLoadingOverlayContent({
       data-hub-loading-overlay="true"
       data-hub-loading-revealing={isRevealingRoom ? 'true' : 'false'}
       className={cn(
-        'fixed inset-0 z-[80] flex items-center justify-center overflow-hidden',
+        'fixed inset-0 z-15000 flex items-center justify-center overflow-hidden',
         !isRevealingRoom && 'bg-surface-default',
         (!isVisible || isRevealingRoom) && 'pointer-events-none',
       )}
