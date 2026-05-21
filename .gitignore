@@ -21,6 +21,9 @@ deploy/nginx/certs/
 *.key
 *.crt
 
+# Sensitive files (do not commit)
+deploy/nginx/.htpasswd*
+
 # Jenkins 빌드 산출물
 release*.tar.gz
 

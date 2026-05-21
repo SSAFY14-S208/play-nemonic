@@ -1,0 +1,38 @@
+{
+  "index_patterns": ["nemonic-app-logs-*"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.refresh_interval": "5s",
+      "plugins.index_state_management.policy_id": "nemonic-app-logs-policy"
+    },
+    "mappings": {
+      "dynamic": "true",
+      "properties": {
+        "@timestamp":   { "type": "date" },
+        "log_level":    { "type": "keyword" },
+        "pid":          { "type": "long" },
+        "application":  { "type": "keyword" },
+        "thread":       { "type": "keyword" },
+        "logger":       { "type": "keyword" },
+        "log_message":  {
+          "type": "text",
+          "fields": {
+            "keyword": { "type": "keyword", "ignore_above": 1024 }
+          }
+        },
+        "message":      { "type": "text" },
+        "container_id": { "type": "keyword" },
+        "log_tag":      { "type": "keyword" },
+        "hostname":     { "type": "keyword" },
+        "stream":       { "type": "keyword" },
+        "tags":         { "type": "keyword" }
+      }
+    }
+  },
+  "_meta": {
+    "description": "Spring Boot 애플리케이션 로그 인덱스 매핑. 새로 생성되는 nemonic-app-logs-* 인덱스에 자동 적용."
+  }
+}

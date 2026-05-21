@@ -1,0 +1,176 @@
+name: nemonic-logging
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.5.4
+    container_name: nemonic-logging-kafka
+    restart: unless-stopped
+    mem_limit: 1g
+    environment:
+      # KRaft 모드 (Zookeeper 없음)
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: "controller,broker"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+
+      # Listeners
+      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+
+      # POC 옵션
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: "1"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "1"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_LOG_RETENTION_HOURS: "168"
+
+      # Apache 공식 이미지: 데이터 경로 명시 필요
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+
+      # 클러스터 ID (KRaft 단일 노드 - 고정값으로 재기동 시 일관성 보장)
+      CLUSTER_ID: "nemonic-logs-kraft-001"
+
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    volumes:
+      - /opt/nemonic/data/kafka:/var/lib/kafka/data
+    networks:
+      - cicd-net
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server 127.0.0.1:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  opensearch:
+    build:
+      context: .
+      dockerfile: logging/opensearch/Dockerfile
+    image: nemonic/opensearch:2.15.0-s3
+    container_name: nemonic-logging-opensearch
+    restart: unless-stopped
+    mem_limit: 3g
+    environment:
+      cluster.name: "nemonic-logs"
+      node.name: "os-1"
+      discovery.type: "single-node"
+      bootstrap.memory_lock: "true"
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms2g -Xmx2g"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile:  { soft: 65536, hard: 65536 }
+    volumes:
+      - /opt/nemonic/data/opensearch:/usr/share/opensearch/data
+      # config 디렉토리 영속화 (keystore에 S3 access/secret key 저장).
+      # 파일 단위 bind mount는 opensearch-keystore의 atomic rename(mv tmp → keystore)을
+      # "Device or resource busy"로 막는다. 그래서 디렉토리 단위로 마운트.
+      # 사전 준비: docker cp로 컨테이너의 default config 전체를 호스트에 한 번 복사 필요.
+      - /opt/nemonic/data/opensearch-config:/usr/share/opensearch/config
+    networks:
+      - cicd-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"' >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.15.0
+    container_name: nemonic-logging-dashboards
+    restart: unless-stopped
+    mem_limit: 1g
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+      SERVER_BASEPATH: "/_dashboards"
+      SERVER_REWRITEBASEPATH: "true"
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "5601"
+    networks:
+      - cicd-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5601/_dashboards/api/status >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  # ============================================================
+  # OpenSearch Dashboards saved-objects 자동 import (oneshot)
+  #
+  # opensearch-dashboards 가 healthy 된 후 단 한 번 실행되어
+  # logging/opensearch-dashboards/saved-objects/*.ndjson 을 import.
+  # overwrite=true 멱등 — 매 배포마다 다시 돌아도 같은 상태로 수렴.
+  #
+  # 신규 대시보드 추가 절차:
+  #   1) UI에서 만들고 export → NDJSON 받기
+  #      docker exec nemonic-logging-dashboards \
+  #        curl -X POST -H "osd-xsrf: true" \
+  #             -d '{"objects":[...]}' \
+  #             "http://127.0.0.1:5601/_dashboards/api/saved_objects/_export"
+  #   2) logging/opensearch-dashboards/saved-objects/<NN>-<name>.ndjson 으로 commit
+  #      (파일명 prefix 00/10/20/... 로 import 순서 제어 — index-pattern 먼저)
+  #   3) docker compose -f docker-compose.logging.yml up -d --no-deps dashboards-init
+  # ============================================================
+  dashboards-init:
+    image: curlimages/curl:8.10.1
+    container_name: nemonic-logging-dashboards-init
+    restart: "no"
+    depends_on:
+      opensearch-dashboards:
+        condition: service_healthy
+    volumes:
+      - ./logging/opensearch-dashboards/saved-objects:/saved-objects:ro
+      - ./logging/opensearch-dashboards/import.sh:/import.sh:ro
+    entrypoint: ["sh", "/import.sh"]
+    networks:
+      - cicd-net
+
+  logstash:
+    image: opensearchproject/logstash-oss-with-opensearch-output-plugin:8.9.0
+    container_name: nemonic-logging-logstash
+    restart: unless-stopped
+    mem_limit: 1g
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    environment:
+      LS_JAVA_OPTS: "-Xms256m -Xmx512m"
+    volumes:
+      - ./logging/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logging/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+    networks:
+      - cicd-net
+
+  fluent-bit:
+    image: fluent/fluent-bit:3.1
+    container_name: nemonic-logging-fluent-bit
+    restart: unless-stopped
+    mem_limit: 256m
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./logging/fluent-bit:/fluent-bit/etc:ro
+      - /opt/nemonic/data/fluent-bit:/flb-state:rw
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+    networks:
+      - cicd-net
+
+networks:
+  cicd-net:
+    name: nemonic-prod_cicd-net
+    external: true

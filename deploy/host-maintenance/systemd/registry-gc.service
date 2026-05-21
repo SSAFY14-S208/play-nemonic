@@ -1,0 +1,15 @@
+[Unit]
+Description=Docker registry mark-and-sweep garbage collection
+Documentation=https://distribution.github.io/distribution/about/garbage-collection/
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+# Jenkins가 push한 후 같은 tag를 새 manifest로 덮어쓰면 옛 layer blob이 디스크에 남는다.
+# -m (mark-and-sweep) flag로 참조 없는 blob 실제 파일 제거.
+# 컨테이너 이름은 docker-compose project name(nemonic-prod) 기반.
+ExecStart=/usr/bin/docker exec nemonic-prod-registry-1 \
+    bin/registry garbage-collect /etc/docker/registry/config.yml -m
+# registry 컨테이너가 일시적으로 중단/이름 변경된 경우에도 timer는 다음에 재시도.
+SuccessExitStatus=0 1

@@ -1,0 +1,747 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "nemonic 운영 상황실: ① 서비스 up · ② 요청·응답 · ③ 실시간 활동(heartbeat/WS) · ④ 콘텐츠 활성 · ⑤ 서버 리소스. 통계성 추세는 OpenSearch Dashboards에서.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "type": "row",
+      "title": "① 서비스 상태 (up)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Prometheus",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "targets": [ { "refId": "A", "expr": "up{job=\"prometheus\"}", "instant": true, "legendFormat": "Prometheus" } ]
+    },
+    {
+      "type": "stat",
+      "title": "Node Exporter",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "background", "graphMode": "none", "textMode": "value_and_name",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        }
+      },
+      "targets": [ { "refId": "A", "expr": "up{job=\"node\"}", "instant": true, "legendFormat": "Node" } ]
+    },
+    {
+      "type": "stat",
+      "title": "cAdvisor",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "background", "graphMode": "none", "textMode": "value_and_name",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        }
+      },
+      "targets": [ { "refId": "A", "expr": "up{job=\"cadvisor\"}", "instant": true, "legendFormat": "cAdvisor" } ]
+    },
+    {
+      "type": "stat",
+      "title": "Spring App",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "background", "graphMode": "none", "textMode": "value_and_name",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        }
+      },
+      "targets": [ { "refId": "A", "expr": "up{job=\"spring-app\"}", "instant": true, "legendFormat": "Spring" } ]
+    },
+    {
+      "type": "stat",
+      "title": "Moderation",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "id": 5,
+      "options": {
+        "colorMode": "background", "graphMode": "none", "textMode": "value_and_name",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        }
+      },
+      "targets": [ { "refId": "A", "expr": "up{job=\"moderation-server\"}", "instant": true, "legendFormat": "Moderation" } ]
+    },
+    {
+      "type": "stat",
+      "title": "Nginx",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "id": 6,
+      "options": {
+        "colorMode": "background", "graphMode": "none", "textMode": "value_and_name",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        }
+      },
+      "targets": [ { "refId": "A", "expr": "up{job=\"nginx\"}", "instant": true, "legendFormat": "Nginx" } ]
+    },
+
+    {
+      "type": "row",
+      "title": "② 요청·응답",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 200,
+      "panels": []
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Nginx 요청 처리율 (req/s)",
+      "description": "stub_status 기반 — status별 분리는 vts/lua module 필요. 여기는 전체 처리율과 active connection만.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
+      "id": 10,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "rate(nginx_http_requests_total[1m])", "legendFormat": "requests" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Nginx 활성 커넥션",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 6 },
+      "id": 11,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "short"
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "nginx_connections_active", "legendFormat": "active" },
+        { "refId": "B", "expr": "nginx_connections_reading",  "legendFormat": "reading" },
+        { "refId": "C", "expr": "nginx_connections_writing",  "legendFormat": "writing" },
+        { "refId": "D", "expr": "nginx_connections_waiting",  "legendFormat": "waiting" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Spring HTTP RPS (상태별)",
+      "description": "http_server_requests_seconds_count — 2xx / 4xx / 5xx 분리. status 라벨 그룹.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 12,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "reqps"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "mean"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(http_server_requests_seconds_count{job=\"spring-app\"}[1m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Spring 응답 latency (p50 / p95 / p99)",
+      "description": "histogram_quantile — Micrometer ClientHttpObservation 기본 히스토그램. management.metrics.distribution.percentiles-histogram.http.server.requests=true 가 필요.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "id": 13,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 0, "showPoints": "never" },
+          "unit": "s"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"spring-app\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"spring-app\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"spring-app\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Spring 에러율 (5xx / total %)",
+      "description": "SLO 알람용. 0.5%·1% 임계선 참고. 트래픽 변동에 안 흔들리도록 비율로 표시.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "id": 14,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 20, "showPoints": "never" },
+          "unit": "percentunit",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.005 },
+              { "color": "red", "value": 0.01 }
+            ]
+          }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"spring-app\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"spring-app\"}[5m])), 1e-9)",
+          "legendFormat": "5xx ratio"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"spring-app\",status=~\"4..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"spring-app\"}[5m])), 1e-9)",
+          "legendFormat": "4xx ratio"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "③ 실시간 활동 (frontend heartbeat / WebSocket)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "id": 300,
+      "panels": []
+    },
+
+    {
+      "type": "stat",
+      "title": "동시 사용자 (uuid, 5m)",
+      "description": "최근 5분 이내 client_alive heartbeat을 보낸 unique uuid 수. observability-frontend.md §6.1 의 active_users 정의와 동일.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 23 },
+      "id": 30,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:client_alive",
+          "metrics": [ { "type": "cardinality", "field": "uuid", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "동시 세션 (session_id, 5m)",
+      "description": "탭 단위 동시 접속. 한 사용자가 여러 탭을 열면 여러 세션으로 카운트.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 23 },
+      "id": 31,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "purple", "value": null } ] }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:client_alive",
+          "metrics": [ { "type": "cardinality", "field": "session_id", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "콘텐츠 타입별 활성 사용자",
+      "description": "client_alive 의 content_type 별 unique uuid cardinality. 어느 콘텐츠에 사람이 몰리는지 즉시 확인.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 23 },
+      "id": 32,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 30, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:client_alive AND _exists_:content_type",
+          "metrics": [ { "type": "cardinality", "field": "uuid", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "3", "field": "content_type", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "WebSocket 동시 연결 (STOMP)",
+      "description": "백엔드 Micrometer Gauge nemonic_ws_active_sessions. SessionConnectEvent/SessionDisconnectEvent 기반 — 백엔드 인스트루멘테이션 필요 (아래 명세 참조).",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 28 },
+      "id": 33,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] }
+        }
+      },
+      "targets": [
+        { "refId": "A", "expr": "sum(nemonic_ws_active_sessions)", "legendFormat": "active" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "WebSocket connect / disconnect rate",
+      "description": "초당 신규 연결 / 해제. 연결 폭주나 비정상 해제 감지.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 28 },
+      "id": 34,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "ops"
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "rate(nemonic_ws_connect_total[1m])",    "legendFormat": "connect" },
+        { "refId": "B", "expr": "rate(nemonic_ws_disconnect_total[1m])", "legendFormat": "disconnect" }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "신규 세션 (entry_type별, 분당)",
+      "description": "08B-frontend-logging.md §11 유입 — session_start 의 entry_type 분포로 실시간 유입 소스 확인. utm/share/qr/direct/search/social/campaign.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 33 },
+      "id": 35,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 20, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:session_start",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "3", "field": "entry_type", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Funnel 활동 (started / goal / abandoned)",
+      "description": "08B §11 전환·이탈 — 세 시리즈를 한 화면에 표시해 funnel 통과 vs 이탈 비교. 정확한 funnel 인구 추적은 OpenSearch Dashboards에서 flow_id로 세션 단위 분석.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 33 },
+      "id": 36,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "started" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } } ] },
+          { "matcher": { "id": "byName", "options": "goal_reached" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
+          { "matcher": { "id": "byName", "options": "abandoned" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_started",
+          "alias": "started",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_goal_reached",
+          "alias": "goal_reached",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:funnel_abandoned",
+          "alias": "abandoned",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "클라이언트 오류율 (분당, event별)",
+      "description": "08B §11 품질 — js_error / unhandled_rejection / client_network_failed (모두 100% sampling). 분당 발생 건수로 실시간 장애 감지.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 40 },
+      "id": 37,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 30, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "event_name:(js_error OR unhandled_rejection OR client_network_failed)",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "3", "field": "event_name", "settings": { "size": "5", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "④ 콘텐츠 활성 + 사용자 액션",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 },
+      "id": 400,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "진행 중 콘텐츠 (room / canvas)",
+      "description": "백엔드 Micrometer Gauge nemonic_content_active_rooms{content_type=\"...\"}. 진행 중 상태(릴레이/플립북/캔버스 등)의 카운트. DB가 진실의 원천이라 서버에서 노출.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+      "id": 40,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "stepBefore", "fillOpacity": 20, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (content_type) (nemonic_content_active_rooms)",
+          "legendFormat": "{{content_type}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "주요 사용자 액션 rate (top 10, 분당)",
+      "description": "frontend 의도 이벤트 + backend 도메인 결과 이벤트(같은 biz-events-* 인덱스) — heartbeat/페이지뷰/visibility 같은 노이즈를 빼고 의미있는 액션만 terms aggregation. 08B-frontend-logging.md §1 책임 경계를 따라 backend 별도 Counter 박지 않고 OpenSearch 단일 출처로 본다.",
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "id": 41,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "short"
+        }
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch" },
+          "query": "NOT event_name:(client_alive OR page_view OR page_leave OR visibility_change OR session_start OR session_end OR web_vitals OR scroll_depth_reached OR resource_load_slow OR js_error OR unhandled_rejection OR client_network_failed OR landing_source_detected OR campaign_attributed)",
+          "metrics": [ { "type": "count", "id": "1" } ],
+          "bucketAggs": [
+            { "type": "terms", "id": "3", "field": "event_name", "settings": { "size": "10", "order": "desc", "orderBy": "_count", "min_doc_count": "1" } },
+            { "type": "date_histogram", "id": "2", "field": "@timestamp", "settings": { "interval": "1m", "min_doc_count": "0" } }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "⑤ 서버 리소스 (host + container)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 },
+      "id": 500,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Host CPU 사용률",
+      "description": "node_exporter — idle 외 모든 모드 합산을 1에서 뺌.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 57 },
+      "id": 50,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 20, "showPoints": "never" },
+          "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[1m]))",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Host 메모리 사용률",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 4, "x": 8, "y": 57 },
+      "id": 51,
+      "options": {
+        "orientation": "auto", "showThresholdLabels": false, "showThresholdMarkers": true,
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.75 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+          "legendFormat": "used"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "디스크 사용률 (/)",
+      "description": "디스크 풀은 가장 흔한 장애 원인. 80% 넘어가면 경고.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 4, "x": 12, "y": 57 },
+      "id": 52,
+      "options": {
+        "orientation": "auto", "showThresholdMarkers": true,
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.8 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})",
+          "legendFormat": "used"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "네트워크 I/O (bytes/s)",
+      "description": "주요 인터페이스의 RX/TX. 트래픽 스파이크 / 라이브 이벤트와의 상관관계.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 57 },
+      "id": 53,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" },
+          "unit": "Bps"
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[1m]))",
+          "legendFormat": "rx"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[1m]))",
+          "legendFormat": "tx"
+        }
+      ]
+    }
+  ],
+  "preload": false,
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "tags": ["nemonic", "overview"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Nemonic — Overview",
+  "uid": "nemonic-overview",
+  "version": 1,
+  "weekStart": ""
+}

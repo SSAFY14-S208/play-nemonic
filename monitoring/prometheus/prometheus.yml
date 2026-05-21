@@ -1,0 +1,56 @@
+# Prometheus scrape config for nemonic monitoring
+#
+# Targets:
+#   - prometheus 자체 (self-monitoring)
+#   - node_exporter (호스트 OS 메트릭)
+#   - cadvisor (컨테이너별 메트릭)
+#   - spring-app (Spring Boot Actuator /actuator/prometheus — Micrometer)
+#   - moderation-server (FastAPI /metrics — prometheus-fastapi-instrumentator)
+#   - nginx-exporter (Nginx stub_status — nginx-prometheus-exporter)
+#
+# 향후 추가 후보:
+#   - kafka_exporter (consumer lag, broker)
+#   - opensearch_exporter (cluster health, query latency)
+#   - postgres_exporter, redis_exporter
+#   - blackbox_exporter (HTTP probe — metrics endpoint 없는 frontend/jenkins 등)
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: nemonic-prod
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9090']
+
+  - job_name: node
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Spring Boot - Micrometer Prometheus registry
+  # 앱 레포에서 다음이 필요:
+  #   build.gradle: implementation 'io.micrometer:micrometer-registry-prometheus'
+  #   application.yml: management.endpoints.web.exposure.include 에 prometheus 포함
+  - job_name: spring-app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['app:8080']
+
+  # FastAPI moderation server - prometheus-fastapi-instrumentator
+  # 앱 레포에서 requirements 에 prometheus-fastapi-instrumentator 추가 후
+  # Instrumentator().instrument(app).expose(app) 호출 필요.
+  - job_name: moderation-server
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['moderation-server:8000']
+
+  # Nginx stub_status — 같은 compose 안 nginx-exporter 사이드카가 수집
+  - job_name: nginx
+    static_configs:
+      - targets: ['nginx-exporter:9113']
